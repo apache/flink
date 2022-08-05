@@ -69,20 +69,11 @@ object HashCodeGenerator {
         }
 
         @Override
-        public int hashCode($ROW_DATA $inputTerm) {
+        public int hashCode(Object _in) {
+          $ROW_DATA $inputTerm = ($ROW_DATA) _in;
           ${ctx.reuseLocalVariableCode()}
           $hashBody
           return $resultTerm;
-        }
-
-        @Override
-        public int hashCode($ARRAY_DATA $inputTerm) {
-          ${genThrowException("RowData hash function doesn't support to generate hash code for ArrayData.")}
-        }
-
-        @Override
-        public int hashCode($MAP_DATA $inputTerm) {
-          ${genThrowException("RowData hash function doesn't support to generate hash code for MapData.")}
         }
 
         ${ctx.reuseInnerClassDefinitionCode()}
@@ -103,6 +94,7 @@ object HashCodeGenerator {
     val typeTerm = primitiveTypeTermForType(elementType)
     val isNull = newName("isNull")
     val fieldTerm = newName("fieldTerm")
+    val elementHashTerm = newName("elementHashCode")
     val hashIntTerm = newName("hashCode")
     val i = newName("i")
 
@@ -119,28 +111,21 @@ object HashCodeGenerator {
         }
 
         @Override
-        public int hashCode($ARRAY_DATA $inputTerm) {
-          int $hashIntTerm = 0;
+        public int hashCode(Object _in) {
+          $ARRAY_DATA $inputTerm = ($ARRAY_DATA) _in;
+          int $hashIntTerm = 1;
           // This is inspired by hive & presto
           for (int $i = 0; $i < $inputTerm.size(); $i++) {
             boolean $isNull = $inputTerm.isNullAt($i);
+            int $elementHashTerm = 0;
             if (!$isNull) {
               $typeTerm $fieldTerm = ${rowFieldReadAccess(i, inputTerm, elementType)};
-              $hashIntTerm = 31 * $hashIntTerm + $elementHashBody;
+              $elementHashTerm = $elementHashBody;
             }
+             $hashIntTerm = 31 * $hashIntTerm + $elementHashTerm;
           }
 
           return $hashIntTerm;
-        }
-
-        @Override
-        public int hashCode($ROW_DATA $inputTerm) {
-          ${genThrowException("ArrayData hash function doesn't support to generate hash code for RowData.")}
-        }
-
-        @Override
-        public int hashCode($MAP_DATA $inputTerm) {
-          ${genThrowException("ArrayData hash function doesn't support to generate hash code for MapData.")}
         }
 
         ${ctx.reuseInnerClassDefinitionCode()}
@@ -186,7 +171,8 @@ object HashCodeGenerator {
         }
 
         @Override
-        public int hashCode($MAP_DATA $inputTerm) {
+        public int hashCode(Object _in) {
+          $MAP_DATA $inputTerm = ($MAP_DATA) _in;
           $ARRAY_DATA $keys = $inputTerm.keyArray();
           $ARRAY_DATA $values = $inputTerm.valueArray();
 
@@ -197,15 +183,15 @@ object HashCodeGenerator {
           // This is inspired by hive & presto
           for (int $i = 0; $i < $inputTerm.size(); $i++) {
             boolean $keyIsNull = $keys.isNullAt($i);
+            $keyHashTerm = 0;
             if (!$keyIsNull) {
-              $keyHashTerm = 0;
               $keyTypeTerm $keyFieldTerm = ${rowFieldReadAccess(i, keys, keyType)};
               $keyHashTerm = $keyElementHashBody;
             }
 
             boolean $valueIsNull = $values.isNullAt($i);
+            $valueHashTerm = 0;
             if(!$valueIsNull) {
-              $valueHashTerm = 0;
               $valueTypeTerm $valueFieldTerm = ${rowFieldReadAccess(i, values, valueType)};
               $valueHashTerm = $valueElementHashBody;
             }
@@ -214,16 +200,6 @@ object HashCodeGenerator {
           }
 
           return $hashIntTerm;
-        }
-
-        @Override
-        public int hashCode($ROW_DATA $inputTerm) {
-          ${genThrowException("MapData hash function doesn't support to generate hash code for RowData.")}
-        }
-
-        @Override
-        public int hashCode($ARRAY_DATA $inputTerm) {
-          ${genThrowException("MapData hash function doesn't support to generate hash code for ArrayData.")}
         }
 
         ${ctx.reuseInnerClassDefinitionCode()}
@@ -257,11 +233,5 @@ object HashCodeGenerator {
          |int $hashIntTerm = 0;
          |$hashBodyCode""".stripMargin,
       hashIntTerm)
-  }
-
-  private def genThrowException(msg: String): String = {
-    s"""
-       |throw new java.lang.RuntimeException("$msg");
-     """.stripMargin
   }
 }

@@ -325,10 +325,11 @@ object CodeGenUtils {
         genHashFunction(ctx, subCtx, genHash, term)
       case MULTISET | MAP =>
         val subCtx = new CodeGeneratorContext(ctx.tableConfig, ctx.classLoader)
-        val (keyType, valueType) = if (t.isInstanceOf[MultisetType]) {
-          (t.asInstanceOf[MultisetType].getElementType, new IntType())
-        } else {
-          (t.asInstanceOf[MapType].getKeyType, t.asInstanceOf[MapType].getValueType)
+        val (keyType, valueType) = t match {
+          case multiset: MultisetType =>
+            (multiset.getElementType, new IntType())
+          case map: MapType =>
+            (map.getKeyType, map.getValueType)
         }
         val genHash =
           HashCodeGenerator.generateMapHash(subCtx, keyType, valueType, "SubHashMap")

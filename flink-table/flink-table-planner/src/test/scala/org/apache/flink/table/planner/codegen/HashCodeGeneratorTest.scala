@@ -18,10 +18,10 @@
 package org.apache.flink.table.planner.codegen
 
 import org.apache.flink.configuration.Configuration
-import org.apache.flink.core.testutils.CommonTestUtils
 import org.apache.flink.table.data.{GenericArrayData, GenericMapData, GenericRowData, StringData}
 import org.apache.flink.table.types.logical.{ArrayType, BigIntType, IntType, MapType, MultisetType, RowType, VarBinaryType, VarCharType}
 
+import org.junit.Assert.assertNotEquals
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
 
@@ -77,20 +77,7 @@ class HashCodeGeneratorTest {
       new GenericMapData(
         Map(1 -> StringData.fromString("ron"), 5 -> StringData.fromString("danny"), 10 -> null))
     )
-    assertEquals(1065781729, hashFunc3.hashCode(row3))
-
-    // test hash code for ArrayData
-    CommonTestUtils.assertThrows(
-      "RowData hash function doesn't support to generate hash code for ArrayData.",
-      classOf[RuntimeException],
-      () => hashFunc3.hashCode(new GenericArrayData(Array(1)))
-    )
-
-    // test hash code for MapData
-    CommonTestUtils.assertThrows(
-      "RowData hash function doesn't support to generate hash code for MapData.",
-      classOf[RuntimeException],
-      () => hashFunc3.hashCode(new GenericMapData(null)))
+    assertEquals(1356875190, hashFunc3.hashCode(row3))
   }
 
   @Test
@@ -104,7 +91,10 @@ class HashCodeGeneratorTest {
       .newInstance(classLoader)
 
     val array1 = new GenericArrayData(Array(1, 5, 7))
-    assertEquals(1123, hashFunc1.hashCode(array1))
+    val array2 = new GenericArrayData(Array(1, 5, 7))
+    val array3 = new GenericArrayData(Array[AnyRef](null, ji(1), ji(5), null, ji(7)))
+    assertEquals(hashFunc1.hashCode(array1), hashFunc1.hashCode(array2))
+    assertNotEquals(hashFunc1.hashCode(array1), hashFunc1.hashCode(array3))
 
     // test complex map type of element
     val hashFunc2 = HashCodeGenerator
@@ -114,10 +104,15 @@ class HashCodeGeneratorTest {
         "name")
       .newInstance(classLoader)
 
-    val mapData = new GenericMapData(
+    val map1 = new GenericMapData(
       Map(1 -> StringData.fromString("ron"), 5 -> StringData.fromString("danny"), 10 -> null))
-    val array2 = new GenericArrayData(Array[AnyRef](mapData))
-    assertEquals(93178751, hashFunc2.hashCode(array2))
+    val map2 = new GenericMapData(
+      Map(2 -> StringData.fromString("jark"), 7 -> StringData.fromString("leonard")))
+    val array4 = new GenericArrayData(Array[AnyRef](map1, map2))
+    val array5 = new GenericArrayData(Array[AnyRef](map1, map2))
+    val array6 = new GenericArrayData(Array[AnyRef](map2, map1))
+    assertEquals(hashFunc2.hashCode(array4), hashFunc2.hashCode(array5))
+    assertNotEquals(hashFunc2.hashCode(array4), hashFunc2.hashCode(array6))
 
     // test complex row type of element
     val hashFunc3 = HashCodeGenerator
@@ -127,23 +122,13 @@ class HashCodeGeneratorTest {
         "name")
       .newInstance(classLoader)
 
-    val array3 = new GenericArrayData(
-      Array[AnyRef](GenericRowData.of(ji(5), jl(8)), GenericRowData.of(ji(25), jl(52))))
-    assertEquals(14520, hashFunc3.hashCode(array3))
-
-    // test hash code for RowData
-    CommonTestUtils.assertThrows(
-      "ArrayData hash function doesn't support to generate hash code for RowData.",
-      classOf[RuntimeException],
-      () => hashFunc3.hashCode(GenericRowData.of(null))
-    )
-
-    // test hash code for MapData
-    CommonTestUtils.assertThrows(
-      "ArrayData hash function doesn't support to generate hash code for MapData.",
-      classOf[RuntimeException],
-      () => hashFunc3.hashCode(new GenericMapData(null))
-    )
+    val row1 = GenericRowData.of(ji(5), jl(8))
+    val row2 = GenericRowData.of(ji(25), jl(52))
+    val array7 = new GenericArrayData(Array[AnyRef](row1, row2))
+    val array8 = new GenericArrayData(Array[AnyRef](row1, row2))
+    val array9 = new GenericArrayData(Array[AnyRef](null, row2, row1))
+    assertEquals(hashFunc3.hashCode(array7), hashFunc3.hashCode(array8))
+    assertNotEquals(hashFunc3.hashCode(array7), hashFunc3.hashCode(array9))
   }
 
   @Test
@@ -159,7 +144,12 @@ class HashCodeGeneratorTest {
 
     val map1 = new GenericMapData(
       Map(1 -> StringData.fromString("ron"), 5 -> StringData.fromString("danny"), 10 -> null))
-    assertEquals(93178751, hashFunc1.hashCode(map1))
+    val map2 = new GenericMapData(
+      Map(10 -> null, 1 -> StringData.fromString("ron"), 5 -> StringData.fromString("danny")))
+    val map3 = new GenericMapData(
+      Map(7 -> null, 2 -> StringData.fromString("ron"), 3 -> StringData.fromString("danny")))
+    assertEquals(hashFunc1.hashCode(map1), hashFunc1.hashCode(map2))
+    assertNotEquals(hashFunc1.hashCode(map1), hashFunc1.hashCode(map3))
 
     // test complex row type of value
     val hashFunc2 = HashCodeGenerator
@@ -170,9 +160,11 @@ class HashCodeGeneratorTest {
         "name")
       .newInstance(classLoader)
 
-    val map2 = new GenericMapData(
+    val map4 = new GenericMapData(
       Map(1 -> GenericRowData.of(ji(5), jl(8)), 5 -> GenericRowData.of(ji(54), jl(78)), 10 -> null))
-    assertEquals(9089, hashFunc2.hashCode(map2))
+    val map5 = new GenericMapData(
+      Map(7 -> GenericRowData.of(ji(5), jl(8)), 5 -> GenericRowData.of(ji(54), jl(78)), 10 -> null))
+    assertNotEquals(hashFunc2.hashCode(map4), hashFunc2.hashCode(map5))
 
     // test complex array type of value
     val hashFunc3 = HashCodeGenerator
@@ -183,26 +175,17 @@ class HashCodeGeneratorTest {
         "name")
       .newInstance(classLoader)
 
-    val map3 = new GenericMapData(
+    val map6 = new GenericMapData(
       Map(
         1 -> new GenericArrayData(Array(1, 5, 7)),
         5 -> new GenericArrayData(Array(2, 4, 8)),
         10 -> null))
-    assertEquals(5233, hashFunc3.hashCode(map3))
-
-    // test hash code for RowData
-    CommonTestUtils.assertThrows(
-      "MapData hash function doesn't support to generate hash code for RowData.",
-      classOf[RuntimeException],
-      () => hashFunc3.hashCode(GenericRowData.of(null))
-    )
-
-    // test hash code for ArrayData
-    CommonTestUtils.assertThrows(
-      "MapData hash function doesn't support to generate hash code for ArrayData.",
-      classOf[RuntimeException],
-      () => hashFunc3.hashCode(new GenericArrayData(Array(1)))
-    )
+    val map7 = new GenericMapData(
+      Map(
+        1 -> new GenericArrayData(Array(1, 5, 7)),
+        10 -> null,
+        5 -> new GenericArrayData(Array(2, 4, 8))))
+    assertEquals(hashFunc3.hashCode(map6), hashFunc3.hashCode(map7))
   }
 
   def ji(i: Int): Integer = {

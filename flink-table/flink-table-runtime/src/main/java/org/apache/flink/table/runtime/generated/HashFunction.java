@@ -25,16 +25,8 @@ import org.apache.flink.table.data.RowData;
 /**
  * Interface for code generated hash code of {@link RowData} which will select some fields to hash
  * or {@link ArrayData} or {@link MapData}.
- *
- * <p>Due to Janino's support for generic type is not very friendly, so here can't introduce generic
- * type for {@link HashFunction}, please see https://github.com/janino-compiler/janino/issues/109
- * for details.
  */
 public interface HashFunction {
 
-    int hashCode(RowData row);
-
-    int hashCode(ArrayData array);
-
-    int hashCode(MapData map);
+    int hashCode(Object data);
 }
