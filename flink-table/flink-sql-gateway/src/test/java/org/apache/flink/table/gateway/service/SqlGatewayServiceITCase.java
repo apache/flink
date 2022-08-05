@@ -22,9 +22,11 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.testutils.CommonTestUtils;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.internal.TableEnvironmentInternal;
+import org.apache.flink.table.catalog.CatalogBaseTable.TableKind;
 import org.apache.flink.table.catalog.CatalogDatabaseImpl;
 import org.apache.flink.table.catalog.Column;
 import org.apache.flink.table.catalog.GenericInMemoryCatalog;
+import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
@@ -34,6 +36,7 @@ import org.apache.flink.table.gateway.api.operation.OperationStatus;
 import org.apache.flink.table.gateway.api.operation.OperationType;
 import org.apache.flink.table.gateway.api.results.OperationInfo;
 import org.apache.flink.table.gateway.api.results.ResultSet;
+import org.apache.flink.table.gateway.api.results.TableInfo;
 import org.apache.flink.table.gateway.api.session.SessionEnvironment;
 import org.apache.flink.table.gateway.api.session.SessionHandle;
 import org.apache.flink.table.gateway.api.utils.MockedEndpointVersion;
@@ -59,6 +62,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Callable;
@@ -309,6 +313,19 @@ public class SqlGatewayServiceITCase extends AbstractTestBase {
     // --------------------------------------------------------------------------------------------
 
     @Test
+    public void testGetCurrentCatalog() {
+        SessionEnvironment environment =
+                SessionEnvironment.newBuilder()
+                        .setSessionEndpointVersion(MockedEndpointVersion.V1)
+                        .registerCatalog("cat1", new GenericInMemoryCatalog("cat1"))
+                        .registerCatalog("cat2", new GenericInMemoryCatalog("cat2"))
+                        .setDefaultCatalog("cat2")
+                        .build();
+        SessionHandle sessionHandle = service.openSession(environment);
+        assertThat(service.getCurrentCatalog(sessionHandle)).isEqualTo("cat2");
+    }
+
+    @Test
     public void testListCatalogs() {
         SessionEnvironment environment =
                 SessionEnvironment.newBuilder()
@@ -347,17 +364,47 @@ public class SqlGatewayServiceITCase extends AbstractTestBase {
     }
 
     @Test
-    public void testGetCurrentCatalog() {
-        SessionEnvironment environment =
-                SessionEnvironment.newBuilder()
-                        .setSessionEndpointVersion(MockedEndpointVersion.V1)
-                        .registerCatalog("cat1", new GenericInMemoryCatalog("cat1"))
-                        .registerCatalog("cat2", new GenericInMemoryCatalog("cat2"))
-                        .setDefaultCatalog("cat2")
-                        .build();
-        SessionHandle sessionHandle = service.openSession(environment);
-
-        assertThat(service.getCurrentCatalog(sessionHandle)).isEqualTo("cat2");
+    public void testListTables() {
+        SessionHandle sessionHandle = createInitializedSession();
+        assertThat(
+                        service.listTables(
+                                sessionHandle,
+                                "cat1",
+                                "db1",
+                                new HashSet<>(Arrays.asList(TableKind.TABLE, TableKind.VIEW))))
+                .isEqualTo(
+                        new HashSet<>(
+                                Arrays.asList(
+                                        new TableInfo(
+                                                ObjectIdentifier.of("cat1", "db1", "tbl1"),
+                                                TableKind.TABLE),
+                                        new TableInfo(
+                                                ObjectIdentifier.of("cat1", "db1", "tbl2"),
+                                                TableKind.TABLE),
+                                        new TableInfo(
+                                                ObjectIdentifier.of("cat1", "db1", "tbl3"),
+                                                TableKind.VIEW),
+                                        new TableInfo(
+                                                ObjectIdentifier.of("cat1", "db1", "tbl4"),
+                                                TableKind.VIEW))));
+        assertThat(
+                        service.listTables(
+                                sessionHandle,
+                                "cat1",
+                                "db2",
+                                Collections.singleton(TableKind.TABLE)))
+                .isEqualTo(
+                        Collections.singleton(
+                                new TableInfo(
+                                        ObjectIdentifier.of("cat1", "db2", "tbl1"),
+                                        TableKind.TABLE)));
+        assertThat(
+                        service.listTables(
+                                sessionHandle,
+                                "cat2",
+                                "db0",
+                                Collections.singleton(TableKind.VIEW)))
+                .isEqualTo(Collections.emptySet());
     }
 
     // --------------------------------------------------------------------------------------------
@@ -749,5 +796,38 @@ public class SqlGatewayServiceITCase extends AbstractTestBase {
                                         .anySatisfy(t1 -> condition.matches(t1.getMessage())));
 
         assertThat(getDefaultResultSet().getData()).containsAll(actual);
+    }
+
+    private SessionHandle createInitializedSession() {
+        SessionEnvironment environment =
+                SessionEnvironment.newBuilder()
+                        .setSessionEndpointVersion(MockedEndpointVersion.V1)
+                        .registerCatalog("cat1", new GenericInMemoryCatalog("cat1"))
+                        .registerCatalog("cat2", new GenericInMemoryCatalog("cat2"))
+                        .build();
+        SessionHandle sessionHandle = service.openSession(environment);
+
+        // catalogs: cat1 | cat2
+        //     cat1: db1 | db2
+        //         db1: temporary table tbl1, table tbl2, temporary view tbl3, view tbl4
+        //         db2: table tbl1, view tbl2
+        //     cat2 db0
+        //         db0: table tbl0
+        TableEnvironmentInternal tableEnv =
+                service.getSession(sessionHandle).createExecutor().getTableEnvironment();
+        tableEnv.executeSql("CREATE DATABASE cat1.db1");
+        tableEnv.executeSql("CREATE TEMPORARY TABLE cat1.db1.tbl1 WITH ('connector' = 'values')");
+        tableEnv.executeSql("CREATE TABLE cat1.db1.tbl2 WITH('connector' = 'values')");
+        tableEnv.executeSql("CREATE TEMPORARY VIEW cat1.db1.tbl3 AS SELECT 1");
+        tableEnv.executeSql("CREATE VIEW cat1.db1.tbl4 AS SELECT 1");
+
+        tableEnv.executeSql("CREATE DATABASE cat1.db2");
+        tableEnv.executeSql("CREATE TABLE cat1.db2.tbl1 WITH ('connector' = 'values')");
+        tableEnv.executeSql("CREATE VIEW cat1.db2.tbl2 AS SELECT 1");
+
+        tableEnv.executeSql("CREATE DATABASE cat2.db0");
+        tableEnv.executeSql("CREATE TABLE cat2.db0.tbl0 WITH('connector' = 'values')");
+
+        return sessionHandle;
     }
 }

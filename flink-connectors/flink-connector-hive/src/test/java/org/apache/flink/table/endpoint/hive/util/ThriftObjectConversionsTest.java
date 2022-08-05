@@ -38,9 +38,11 @@ import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.utils.DataTypeUtils;
 import org.apache.flink.types.RowKind;
 
+import org.apache.hadoop.hive.metastore.TableType;
 import org.apache.hive.service.cli.RowSet;
 import org.apache.hive.service.cli.RowSetFactory;
 import org.apache.hive.service.cli.TableSchema;
+import org.apache.hive.service.cli.operation.ClassicTableTypeMapping.ClassicTableTypes;
 import org.apache.hive.service.rpc.thrift.TOperationHandle;
 import org.apache.hive.service.rpc.thrift.TOperationState;
 import org.apache.hive.service.rpc.thrift.TRowSet;
@@ -75,7 +77,9 @@ import static org.apache.flink.table.api.DataTypes.SMALLINT;
 import static org.apache.flink.table.api.DataTypes.STRING;
 import static org.apache.flink.table.api.DataTypes.TIMESTAMP;
 import static org.apache.flink.table.api.DataTypes.TINYINT;
+import static org.apache.flink.table.catalog.CatalogBaseTable.TableKind;
 import static org.apache.flink.table.endpoint.hive.util.ThriftObjectConversions.toColumnBasedSet;
+import static org.apache.flink.table.endpoint.hive.util.ThriftObjectConversions.toFlinkTableKinds;
 import static org.apache.flink.table.endpoint.hive.util.ThriftObjectConversions.toOperationHandle;
 import static org.apache.flink.table.endpoint.hive.util.ThriftObjectConversions.toRowBasedSet;
 import static org.apache.flink.table.endpoint.hive.util.ThriftObjectConversions.toSessionHandle;
@@ -95,9 +99,8 @@ import static org.apache.flink.table.gateway.api.operation.OperationStatus.TIMEO
 import static org.apache.hive.service.rpc.thrift.TProtocolVersion.HIVE_CLI_SERVICE_PROTOCOL_V10;
 import static org.apache.hive.service.rpc.thrift.TProtocolVersion.HIVE_CLI_SERVICE_PROTOCOL_V3;
 import static org.apache.hive.service.rpc.thrift.TProtocolVersion.HIVE_CLI_SERVICE_PROTOCOL_V5;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.junit.jupiter.api.Assertions.assertArrayEquals;
-import static org.junit.jupiter.api.Assertions.assertEquals;
 
 /** Test for {@link ThriftObjectConversions}. */
 class ThriftObjectConversionsTest {
@@ -105,7 +108,8 @@ class ThriftObjectConversionsTest {
     @Test
     public void testConvertSessionHandle() {
         SessionHandle originSessionHandle = SessionHandle.create();
-        assertEquals(toSessionHandle(toTSessionHandle(originSessionHandle)), originSessionHandle);
+        assertThat(toSessionHandle(toTSessionHandle(originSessionHandle)))
+                .isEqualTo(originSessionHandle);
     }
 
     @Test
@@ -116,8 +120,8 @@ class ThriftObjectConversionsTest {
                 toTOperationHandle(
                         originSessionHandle, originOperationHandle, OperationType.UNKNOWN);
 
-        assertEquals(toSessionHandle(tOperationHandle), originSessionHandle);
-        assertEquals(toOperationHandle(tOperationHandle), originOperationHandle);
+        assertThat(toSessionHandle(tOperationHandle)).isEqualTo(originSessionHandle);
+        assertThat(toOperationHandle(tOperationHandle)).isEqualTo(originOperationHandle);
     }
 
     @Test
@@ -133,7 +137,7 @@ class ThriftObjectConversionsTest {
         expectedMappings.put(TIMEOUT, TOperationState.TIMEDOUT_STATE);
 
         for (OperationStatus status : expectedMappings.keySet()) {
-            assertEquals(expectedMappings.get(status), toTOperationState(status));
+            assertThat(expectedMappings.get(status)).isEqualTo(toTOperationState(status));
         }
     }
 
@@ -148,7 +152,7 @@ class ThriftObjectConversionsTest {
                         .map(desc -> desc.getType().toJavaSQLType())
                         .collect(Collectors.toList());
 
-        assertEquals(Collections.singletonList(spec.sqlType), javaSqlTypes);
+        assertThat(Collections.singletonList(spec.sqlType)).isEqualTo(javaSqlTypes);
     }
 
     @ParameterizedTest
@@ -165,13 +169,9 @@ class ThriftObjectConversionsTest {
                         Arrays.asList(spec.flinkValue, new GenericRowData(1)));
         RowSet rowSet = RowSetFactory.create(tRowSet, HIVE_CLI_SERVICE_PROTOCOL_V10);
         Iterator<Object[]> iterator = rowSet.iterator();
-        if (spec.flinkType.getChildren().equals(Collections.singletonList(BYTES()))) {
-            assertArrayEquals((byte[]) spec.convertedColumnBasedValue, (byte[]) iterator.next()[0]);
-        } else {
-            assertEquals(spec.convertedColumnBasedValue, iterator.next()[0]);
-        }
 
-        assertEquals(spec.convertedNullValue, iterator.next()[0]);
+        assertThat(spec.convertedColumnBasedValue).isEqualTo(iterator.next()[0]);
+        assertThat(spec.convertedNullValue).isEqualTo(iterator.next()[0]);
     }
 
     @ParameterizedTest
@@ -187,9 +187,23 @@ class ThriftObjectConversionsTest {
                                 .collect(Collectors.toList()),
                         Arrays.asList(spec.flinkValue, new GenericRowData(1)));
         RowSet rowSet = RowSetFactory.create(tRowSet, HIVE_CLI_SERVICE_PROTOCOL_V3);
-        Iterator<Object[]> iter = rowSet.iterator();
-        assertEquals(spec.convertedRowBasedValue, iter.next()[0]);
-        assertEquals(spec.convertedNullValue, iter.next()[0]);
+        Iterator<Object[]> iterator = rowSet.iterator();
+        assertThat(spec.convertedRowBasedValue).isEqualTo(iterator.next()[0]);
+        assertThat(spec.convertedNullValue).isEqualTo(iterator.next()[0]);
+    }
+
+    @Test
+    public void testClassicTableTypeToFlinkTableKind() {
+        assertHiveTableTypeToFlinkTableKind(ClassicTableTypes.TABLE.name(), TableKind.TABLE);
+        assertHiveTableTypeToFlinkTableKind(ClassicTableTypes.VIEW.name(), TableKind.VIEW);
+    }
+
+    @Test
+    public void testHiveTableTypeToFlinkTableKind() {
+        assertHiveTableTypeToFlinkTableKind(TableType.MANAGED_TABLE.name(), TableKind.TABLE);
+        assertHiveTableTypeToFlinkTableKind(TableType.EXTERNAL_TABLE.name(), TableKind.TABLE);
+        assertHiveTableTypeToFlinkTableKind(TableType.INDEX_TABLE.name(), TableKind.TABLE);
+        assertHiveTableTypeToFlinkTableKind(TableType.VIRTUAL_VIEW.name(), TableKind.VIEW);
     }
 
     // --------------------------------------------------------------------------------------------
@@ -213,6 +227,20 @@ class ThriftObjectConversionsTest {
                                     UnsupportedOperationException.class,
                                     "HiveServer2 Endpoint only supports to serialize the INSERT-ONLY RowData."));
         }
+    }
+
+    @Test
+    public void testUnsupportedHiveTableTypeToFlinkTableKind() {
+        assertThatThrownBy(
+                        () ->
+                                toFlinkTableKinds(
+                                        Collections.singletonList(
+                                                ClassicTableTypes.MATERIALIZED_VIEW.name())))
+                .satisfies(
+                        anyCauseMatches(
+                                UnsupportedOperationException.class,
+                                "Can not find the mapping from the TableType 'MATERIALIZED_VIEW' to the Flink TableKind."
+                                        + " Please remove it from the specified tableTypes."));
     }
 
     // --------------------------------------------------------------------------------------------
@@ -295,6 +323,11 @@ class ThriftObjectConversionsTest {
                         .expectValue(
                                 "[{\"Hello\":\"World\",\"World\":\"Hello\"},{\"Hello\":\"World\",\"World\":\"Hello\"}]")
                         .expectNullValue("null"));
+    }
+
+    private void assertHiveTableTypeToFlinkTableKind(String tableType, TableKind kind) {
+        assertThat(toFlinkTableKinds(Collections.singletonList(tableType)))
+                .isEqualTo(Collections.singleton(kind));
     }
 
     private static class DataTypeSpec {

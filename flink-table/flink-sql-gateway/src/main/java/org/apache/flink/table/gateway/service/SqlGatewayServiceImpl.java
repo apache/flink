@@ -20,6 +20,7 @@ package org.apache.flink.table.gateway.service;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.table.catalog.CatalogBaseTable.TableKind;
 import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.gateway.api.SqlGatewayService;
 import org.apache.flink.table.gateway.api.endpoint.EndpointVersion;
@@ -28,6 +29,7 @@ import org.apache.flink.table.gateway.api.operation.OperationType;
 import org.apache.flink.table.gateway.api.results.FetchOrientation;
 import org.apache.flink.table.gateway.api.results.OperationInfo;
 import org.apache.flink.table.gateway.api.results.ResultSet;
+import org.apache.flink.table.gateway.api.results.TableInfo;
 import org.apache.flink.table.gateway.api.session.SessionEnvironment;
 import org.apache.flink.table.gateway.api.session.SessionHandle;
 import org.apache.flink.table.gateway.api.utils.SqlGatewayException;
@@ -212,6 +214,11 @@ public class SqlGatewayServiceImpl implements SqlGatewayService {
     }
 
     @Override
+    public String getCurrentCatalog(SessionHandle sessionHandle) {
+        return getSession(sessionHandle).createExecutor().getCurrentCatalog();
+    }
+
+    @Override
     public Set<String> listCatalogs(SessionHandle sessionHandle) throws SqlGatewayException {
         try {
             return getSession(sessionHandle).createExecutor().listCatalogs();
@@ -232,8 +239,19 @@ public class SqlGatewayServiceImpl implements SqlGatewayService {
     }
 
     @Override
-    public String getCurrentCatalog(SessionHandle sessionHandle) {
-        return getSession(sessionHandle).createExecutor().getCurrentCatalog();
+    public Set<TableInfo> listTables(
+            SessionHandle sessionHandle,
+            String catalogName,
+            String databaseName,
+            Set<TableKind> tableKinds) {
+        try {
+            return getSession(sessionHandle)
+                    .createExecutor()
+                    .listTables(catalogName, databaseName, tableKinds);
+        } catch (Throwable t) {
+            LOG.error("Failed to listTables.", t);
+            throw new SqlGatewayException("Failed to listTables.", t);
+        }
     }
 
     @VisibleForTesting

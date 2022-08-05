@@ -24,12 +24,16 @@ import org.apache.flink.table.api.CatalogNotExistException;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.internal.TableEnvironmentInternal;
 import org.apache.flink.table.api.internal.TableResultInternal;
+import org.apache.flink.table.catalog.CatalogBaseTable.TableKind;
+import org.apache.flink.table.catalog.CatalogManager;
 import org.apache.flink.table.catalog.Column;
+import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.StringData;
 import org.apache.flink.table.gateway.api.operation.OperationHandle;
+import org.apache.flink.table.gateway.api.results.TableInfo;
 import org.apache.flink.table.gateway.service.context.SessionContext;
 import org.apache.flink.table.gateway.service.result.ResultFetcher;
 import org.apache.flink.table.gateway.service.utils.SqlExecutionException;
@@ -43,16 +47,20 @@ import org.apache.flink.table.operations.command.ResetOperation;
 import org.apache.flink.table.operations.command.SetOperation;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 import static org.apache.flink.table.gateway.service.utils.Constants.JOB_ID;
 import static org.apache.flink.table.gateway.service.utils.Constants.SET_KEY;
 import static org.apache.flink.table.gateway.service.utils.Constants.SET_VALUE;
+import static org.apache.flink.util.Preconditions.checkArgument;
 
 /** An executor to execute the {@link Operation}. */
 public class OperationExecutor {
@@ -122,6 +130,20 @@ public class OperationExecutor {
                                                         "Catalog '%s' does not exist.",
                                                         catalogName)))
                         .listDatabases());
+    }
+
+    public Set<TableInfo> listTables(
+            String catalogName, String databaseName, Set<TableKind> tableKinds) {
+        checkArgument(
+                Arrays.asList(TableKind.TABLE, TableKind.VIEW).containsAll(tableKinds),
+                "Currently only support to list TABLE, VIEW or TABLE AND VIEW.");
+        if (tableKinds.contains(TableKind.TABLE) && tableKinds.contains(TableKind.VIEW)) {
+            return listTables(catalogName, databaseName, true);
+        } else if (tableKinds.contains(TableKind.TABLE)) {
+            return listTables(catalogName, databaseName, false);
+        } else {
+            return listViews(catalogName, databaseName);
+        }
     }
 
     // --------------------------------------------------------------------------------------------
@@ -200,6 +222,51 @@ public class OperationExecutor {
                                                                                 handle)))
                                                 .getJobID()
                                                 .toString()))));
+    }
+
+    private Set<TableInfo> listTables(
+            String catalogName, String databaseName, boolean includeViews) {
+        CatalogManager catalogManager = getTableEnvironment().getCatalogManager();
+        Map<String, TableInfo> views = new HashMap<>();
+        catalogManager
+                .listViews(catalogName, databaseName)
+                .forEach(
+                        name ->
+                                views.put(
+                                        name,
+                                        new TableInfo(
+                                                ObjectIdentifier.of(
+                                                        catalogName, databaseName, name),
+                                                TableKind.VIEW)));
+
+        Map<String, TableInfo> ans = new HashMap<>();
+        if (includeViews) {
+            ans.putAll(views);
+        }
+        catalogManager.listTables(catalogName, databaseName).stream()
+                .filter(name -> !views.containsKey(name))
+                .forEach(
+                        name ->
+                                ans.put(
+                                        name,
+                                        new TableInfo(
+                                                ObjectIdentifier.of(
+                                                        catalogName, databaseName, name),
+                                                TableKind.TABLE)));
+        return Collections.unmodifiableSet(new HashSet<>(ans.values()));
+    }
+
+    private Set<TableInfo> listViews(String catalogName, String databaseName) {
+        CatalogManager catalogManager = getTableEnvironment().getCatalogManager();
+        return Collections.unmodifiableSet(
+                catalogManager.listViews(catalogName, databaseName).stream()
+                        .map(
+                                name ->
+                                        new TableInfo(
+                                                ObjectIdentifier.of(
+                                                        catalogName, databaseName, name),
+                                                TableKind.VIEW))
+                        .collect(Collectors.toSet()));
     }
 
     private List<RowData> collect(Iterator<RowData> tableResult) {

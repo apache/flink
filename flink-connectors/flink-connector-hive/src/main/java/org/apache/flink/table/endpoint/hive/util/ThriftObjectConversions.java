@@ -22,6 +22,7 @@ import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.formats.common.TimestampFormat;
 import org.apache.flink.formats.json.JsonFormatOptions;
 import org.apache.flink.formats.json.RowDataToJsonConverters;
+import org.apache.flink.table.catalog.CatalogBaseTable.TableKind;
 import org.apache.flink.table.catalog.Column;
 import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.catalog.hive.util.HiveTypeUtil;
@@ -42,6 +43,7 @@ import org.apache.flink.types.RowKind;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.JsonNode;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
 
+import org.apache.hadoop.hive.metastore.TableType;
 import org.apache.hadoop.hive.serde2.SerDeUtils;
 import org.apache.hadoop.hive.serde2.objectinspector.ObjectInspector;
 import org.apache.hadoop.hive.serde2.thrift.Type;
@@ -82,13 +84,19 @@ import org.apache.hive.service.rpc.thrift.TTypeEntry;
 import org.apache.hive.service.rpc.thrift.TTypeQualifierValue;
 import org.apache.hive.service.rpc.thrift.TTypeQualifiers;
 
+import javax.annotation.Nullable;
+
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.BitSet;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -103,6 +111,7 @@ public class ThriftObjectConversions {
     private static final RowDataToJsonConverters TO_JSON_CONVERTERS =
             new RowDataToJsonConverters(
                     TimestampFormat.SQL, JsonFormatOptions.MapNullKeyMode.LITERAL, "null");
+    private static final Map<String, TableKind> TABLE_TYPE_MAPPINGS = buildTableTypeMapping();
 
     // --------------------------------------------------------------------------------------------
     // Flink SessionHandle from/to Hive SessionHandle
@@ -164,6 +173,8 @@ public class ThriftObjectConversions {
                 return TOperationType.GET_CATALOGS;
             case LIST_SCHEMAS:
                 return TOperationType.GET_SCHEMAS;
+            case LIST_TABLES:
+                return TOperationType.GET_TABLES;
             case UNKNOWN:
                 return TOperationType.UNKNOWN;
             default:
@@ -271,6 +282,30 @@ public class ThriftObjectConversions {
         } else {
             return toColumnBasedSet(fieldTypes, fieldGetters, data);
         }
+    }
+
+    // --------------------------------------------------------------------------------------------
+    // Catalog API related conversions
+    // --------------------------------------------------------------------------------------------
+
+    /** Counterpart of the {@code org.apache.hive.service.cli.operation.TableTypeMapping}. */
+    public static Set<TableKind> toFlinkTableKinds(@Nullable List<String> tableTypes) {
+        Set<TableKind> tableKinds = new HashSet<>();
+        if (tableTypes == null || tableTypes.isEmpty()) {
+            tableKinds.addAll(Arrays.asList(TableKind.values()));
+            return tableKinds;
+        }
+
+        for (String tableType : tableTypes) {
+            if (!TABLE_TYPE_MAPPINGS.containsKey(tableType)) {
+                throw new UnsupportedOperationException(
+                        String.format(
+                                "Can not find the mapping from the TableType '%s' to the Flink TableKind. Please remove it from the specified tableTypes.",
+                                tableType));
+            }
+            tableKinds.add(TABLE_TYPE_MAPPINGS.get(tableType));
+        }
+        return tableKinds;
     }
 
     public static TStatus toTStatus(Throwable t) {
@@ -567,6 +602,19 @@ public class ThriftObjectConversions {
                 return node.toString();
             }
         };
+    }
+
+    private static Map<String, TableKind> buildTableTypeMapping() {
+        Map<String, TableKind> mappings = new ConcurrentHashMap<>();
+        // Add {@code org.apache.hive.service.cli.operation.ClassicTableTypeMapping }
+        mappings.put("TABLE", TableKind.TABLE);
+        mappings.put("VIEW", TableKind.VIEW);
+        // Add {@code org.apache.hive.service.cli.operation.HiveTableTypeMapping }
+        mappings.put(TableType.MANAGED_TABLE.name(), TableKind.TABLE);
+        mappings.put(TableType.EXTERNAL_TABLE.name(), TableKind.TABLE);
+        mappings.put(TableType.INDEX_TABLE.name(), TableKind.TABLE);
+        mappings.put(TableType.VIRTUAL_VIEW.name(), TableKind.VIEW);
+        return mappings;
     }
 
     /**

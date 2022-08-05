@@ -18,21 +18,26 @@
 
 package org.apache.flink.table.endpoint.hive.util;
 
+import org.apache.flink.table.catalog.CatalogBaseTable.TableKind;
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.StringData;
 import org.apache.flink.table.gateway.api.SqlGatewayService;
 import org.apache.flink.table.gateway.api.results.ResultSet;
+import org.apache.flink.table.gateway.api.results.TableInfo;
 import org.apache.flink.table.gateway.api.session.SessionHandle;
 
 import javax.annotation.Nullable;
 
+import java.util.HashSet;
 import java.util.Set;
 import java.util.concurrent.Callable;
+import java.util.function.Function;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.table.endpoint.hive.HiveServer2Schemas.GET_CATALOGS_SCHEMA;
 import static org.apache.flink.table.endpoint.hive.HiveServer2Schemas.GET_SCHEMAS_SCHEMA;
+import static org.apache.flink.table.endpoint.hive.HiveServer2Schemas.GET_TABLES_SCHEMA;
 import static org.apache.flink.table.gateway.api.results.ResultSet.ResultType.EOS;
 
 /** Factory to create the operation executor. */
@@ -49,6 +54,18 @@ public class OperationExecutorFactory {
             @Nullable String catalogName,
             @Nullable String schemaName) {
         return () -> executeGetSchemas(service, sessionHandle, catalogName, schemaName);
+    }
+
+    public static Callable<ResultSet> createGetTablesExecutor(
+            SqlGatewayService service,
+            SessionHandle sessionHandle,
+            @Nullable String catalogName,
+            @Nullable String schemaName,
+            @Nullable String tableName,
+            Set<TableKind> tableKinds) {
+        return () ->
+                executeGetTables(
+                        service, sessionHandle, catalogName, schemaName, tableName, tableKinds);
     }
 
     // --------------------------------------------------------------------------------------------
@@ -73,9 +90,7 @@ public class OperationExecutorFactory {
             @Nullable String catalogName,
             @Nullable String schemaName) {
         String specifiedCatalogName =
-                catalogName == null || catalogName.equals("")
-                        ? service.getCurrentCatalog(sessionHandle)
-                        : catalogName;
+                isNullOrEmpty(catalogName) ? service.getCurrentCatalog(sessionHandle) : catalogName;
         Set<String> databaseNames =
                 filter(service.listDatabases(sessionHandle, specifiedCatalogName), schemaName);
         return new ResultSet(
@@ -87,14 +102,67 @@ public class OperationExecutorFactory {
                         .collect(Collectors.toList()));
     }
 
+    private static ResultSet executeGetTables(
+            SqlGatewayService service,
+            SessionHandle sessionHandle,
+            @Nullable String catalogName,
+            @Nullable String schemaName,
+            @Nullable String tableName,
+            Set<TableKind> tableKinds) {
+        Set<TableInfo> tableInfos = new HashSet<>();
+        String specifiedCatalogName =
+                isNullOrEmpty(catalogName) ? service.getCurrentCatalog(sessionHandle) : catalogName;
+        for (String schema :
+                filter(service.listDatabases(sessionHandle, specifiedCatalogName), schemaName)) {
+            tableInfos.addAll(
+                    filter(
+                            service.listTables(
+                                    sessionHandle, specifiedCatalogName, schema, tableKinds),
+                            candidate -> candidate.getIdentifier().getObjectName(),
+                            tableName));
+        }
+        return new ResultSet(
+                EOS,
+                null,
+                GET_TABLES_SCHEMA,
+                tableInfos.stream()
+                        .map(
+                                info ->
+                                        wrap(
+                                                info.getIdentifier().getCatalogName(),
+                                                info.getIdentifier().getDatabaseName(),
+                                                info.getIdentifier().getObjectName(),
+                                                info.getTableKind().name(),
+                                                // It requires to load the CatalogFunction from the
+                                                // remote server, which is time wasted.
+                                                "",
+                                                null,
+                                                null,
+                                                null,
+                                                null,
+                                                null))
+                        .collect(Collectors.toList()));
+    }
+
     // --------------------------------------------------------------------------------------------
     // Utilities
     // --------------------------------------------------------------------------------------------
 
-    private static Set<String> filter(Set<String> candidates, String pattern) {
+    private static boolean isNullOrEmpty(@Nullable String input) {
+        return input == null || input.isEmpty();
+    }
+
+    private static Set<String> filter(Set<String> candidates, @Nullable String pattern) {
+        return filter(candidates, Function.identity(), pattern);
+    }
+
+    private static <T> Set<T> filter(
+            Set<T> candidates, Function<T, String> featureGetter, @Nullable String pattern) {
         Pattern compiledPattern = convertNamePattern(pattern);
         return candidates.stream()
-                .filter(name -> compiledPattern.matcher(name).matches())
+                .filter(
+                        candidate ->
+                                compiledPattern.matcher(featureGetter.apply(candidate)).matches())
                 .collect(Collectors.toSet());
     }
 

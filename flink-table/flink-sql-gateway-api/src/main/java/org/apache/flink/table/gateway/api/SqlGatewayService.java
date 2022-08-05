@@ -20,6 +20,7 @@ package org.apache.flink.table.gateway.api;
 
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.table.catalog.CatalogBaseTable.TableKind;
 import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.gateway.api.endpoint.EndpointVersion;
 import org.apache.flink.table.gateway.api.operation.OperationHandle;
@@ -28,6 +29,7 @@ import org.apache.flink.table.gateway.api.operation.OperationType;
 import org.apache.flink.table.gateway.api.results.FetchOrientation;
 import org.apache.flink.table.gateway.api.results.OperationInfo;
 import org.apache.flink.table.gateway.api.results.ResultSet;
+import org.apache.flink.table.gateway.api.results.TableInfo;
 import org.apache.flink.table.gateway.api.session.SessionEnvironment;
 import org.apache.flink.table.gateway.api.session.SessionHandle;
 import org.apache.flink.table.gateway.api.utils.SqlGatewayException;
@@ -216,5 +218,21 @@ public interface SqlGatewayService {
      * @return names of the registered schemas.
      */
     Set<String> listDatabases(SessionHandle sessionHandle, String catalogName)
+            throws SqlGatewayException;
+
+    /**
+     * Return all available tables/views in the given catalog and database.
+     *
+     * @param sessionHandle handle to identify the session.
+     * @param catalogName name of the given catalog.
+     * @param databaseName name of the given database.
+     * @param tableKinds used to specify the type of return values.
+     * @return table info of the registered tables/views.
+     */
+    Set<TableInfo> listTables(
+            SessionHandle sessionHandle,
+            String catalogName,
+            String databaseName,
+            Set<TableKind> tableKinds)
             throws SqlGatewayException;
 }

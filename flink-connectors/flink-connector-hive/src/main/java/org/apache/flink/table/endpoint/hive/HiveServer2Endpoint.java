@@ -23,6 +23,7 @@ import org.apache.flink.api.common.RuntimeExecutionMode;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.table.api.SqlDialect;
 import org.apache.flink.table.catalog.Catalog;
+import org.apache.flink.table.catalog.CatalogBaseTable.TableKind;
 import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.catalog.hive.HiveCatalog;
 import org.apache.flink.table.catalog.hive.client.HiveShimLoader;
@@ -112,6 +113,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
@@ -123,7 +125,9 @@ import static org.apache.flink.table.endpoint.hive.util.HiveJdbcParameterUtils.g
 import static org.apache.flink.table.endpoint.hive.util.HiveJdbcParameterUtils.validateAndNormalize;
 import static org.apache.flink.table.endpoint.hive.util.OperationExecutorFactory.createGetCatalogsExecutor;
 import static org.apache.flink.table.endpoint.hive.util.OperationExecutorFactory.createGetSchemasExecutor;
+import static org.apache.flink.table.endpoint.hive.util.OperationExecutorFactory.createGetTablesExecutor;
 import static org.apache.flink.table.endpoint.hive.util.ThriftObjectConversions.toFetchOrientation;
+import static org.apache.flink.table.endpoint.hive.util.ThriftObjectConversions.toFlinkTableKinds;
 import static org.apache.flink.table.endpoint.hive.util.ThriftObjectConversions.toOperationHandle;
 import static org.apache.flink.table.endpoint.hive.util.ThriftObjectConversions.toSessionHandle;
 import static org.apache.flink.table.endpoint.hive.util.ThriftObjectConversions.toTOperationHandle;
@@ -416,7 +420,6 @@ public class HiveServer2Endpoint implements TCLIService.Iface, SqlGatewayEndpoin
         TGetSchemasResp resp = new TGetSchemasResp();
         try {
             SessionHandle sessionHandle = toSessionHandle(tGetSchemasReq.getSessionHandle());
-            String catalogName = tGetSchemasReq.getCatalogName();
             OperationHandle operationHandle =
                     service.submitOperation(
                             sessionHandle,
@@ -424,7 +427,7 @@ public class HiveServer2Endpoint implements TCLIService.Iface, SqlGatewayEndpoin
                             createGetSchemasExecutor(
                                     service,
                                     sessionHandle,
-                                    catalogName,
+                                    tGetSchemasReq.getCatalogName(),
                                     tGetSchemasReq.getSchemaName()));
 
             resp.setStatus(OK_STATUS);
@@ -439,7 +442,31 @@ public class HiveServer2Endpoint implements TCLIService.Iface, SqlGatewayEndpoin
 
     @Override
     public TGetTablesResp GetTables(TGetTablesReq tGetTablesReq) throws TException {
-        throw new UnsupportedOperationException(ERROR_MESSAGE);
+        TGetTablesResp resp = new TGetTablesResp();
+        try {
+            SessionHandle sessionHandle = toSessionHandle(tGetTablesReq.getSessionHandle());
+            Set<TableKind> tableKinds = toFlinkTableKinds(tGetTablesReq.getTableTypes());
+
+            OperationHandle operationHandle =
+                    service.submitOperation(
+                            sessionHandle,
+                            OperationType.LIST_TABLES,
+                            createGetTablesExecutor(
+                                    service,
+                                    sessionHandle,
+                                    tGetTablesReq.getCatalogName(),
+                                    tGetTablesReq.getSchemaName(),
+                                    tGetTablesReq.getTableName(),
+                                    tableKinds));
+
+            resp.setStatus(OK_STATUS);
+            resp.setOperationHandle(
+                    toTOperationHandle(sessionHandle, operationHandle, OperationType.LIST_TABLES));
+        } catch (Throwable t) {
+            LOG.error("Failed to GetTables.", t);
+            resp.setStatus(toTStatus(t));
+        }
+        return resp;
     }
 
     @Override

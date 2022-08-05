@@ -213,9 +213,7 @@ public class HiveServer2EndpointITCase extends TestLogger {
     public void testGetSchemas() throws Exception {
         runGetObjectTest(
                 connection -> connection.getMetaData().getSchemas("default_catalog", null),
-                ResolvedSchema.of(
-                        Column.physical("TABLE_SCHEMA", DataTypes.STRING()),
-                        Column.physical("TABLE_CAT", DataTypes.STRING())),
+                getExpectedGetSchemasOperationSchema(),
                 Arrays.asList(
                         Arrays.asList("default_database", "default_catalog"),
                         Arrays.asList("db_test1", "default_catalog"),
@@ -227,12 +225,183 @@ public class HiveServer2EndpointITCase extends TestLogger {
     public void testGetSchemasWithPattern() throws Exception {
         runGetObjectTest(
                 connection -> connection.getMetaData().getSchemas(null, "db\\_test%"),
-                ResolvedSchema.of(
-                        Column.physical("TABLE_SCHEMA", DataTypes.STRING()),
-                        Column.physical("TABLE_CAT", DataTypes.STRING())),
+                getExpectedGetSchemasOperationSchema(),
                 Arrays.asList(
                         Arrays.asList("db_test1", "default_catalog"),
                         Arrays.asList("db_test2", "default_catalog")));
+    }
+
+    @Test
+    public void testGetTables() throws Exception {
+        runGetObjectTest(
+                connection ->
+                        connection
+                                .getMetaData()
+                                .getTables(
+                                        null,
+                                        null,
+                                        null,
+                                        new String[] {"MANAGED_TABLE", "VIRTUAL_VIEW"}),
+                getExpectedGetTablesOperationSchema(),
+                Arrays.asList(
+                        Arrays.asList(
+                                "default_catalog",
+                                "db_test1",
+                                "tbl_1",
+                                "TABLE",
+                                "",
+                                null,
+                                null,
+                                null,
+                                null,
+                                null),
+                        Arrays.asList(
+                                "default_catalog",
+                                "db_test1",
+                                "tbl_2",
+                                "TABLE",
+                                "",
+                                null,
+                                null,
+                                null,
+                                null,
+                                null),
+                        Arrays.asList(
+                                "default_catalog",
+                                "db_test1",
+                                "tbl_3",
+                                "VIEW",
+                                "",
+                                null,
+                                null,
+                                null,
+                                null,
+                                null),
+                        Arrays.asList(
+                                "default_catalog",
+                                "db_test1",
+                                "tbl_4",
+                                "VIEW",
+                                "",
+                                null,
+                                null,
+                                null,
+                                null,
+                                null),
+                        Arrays.asList(
+                                "default_catalog",
+                                "db_test2",
+                                "tbl_1",
+                                "TABLE",
+                                "",
+                                null,
+                                null,
+                                null,
+                                null,
+                                null),
+                        Arrays.asList(
+                                "default_catalog",
+                                "db_test2",
+                                "diff_1",
+                                "TABLE",
+                                "",
+                                null,
+                                null,
+                                null,
+                                null,
+                                null),
+                        Arrays.asList(
+                                "default_catalog",
+                                "db_test2",
+                                "tbl_2",
+                                "VIEW",
+                                "",
+                                null,
+                                null,
+                                null,
+                                null,
+                                null),
+                        Arrays.asList(
+                                "default_catalog",
+                                "db_test2",
+                                "diff_2",
+                                "VIEW",
+                                "",
+                                null,
+                                null,
+                                null,
+                                null,
+                                null),
+                        Arrays.asList(
+                                "default_catalog",
+                                "db_diff",
+                                "tbl_1",
+                                "TABLE",
+                                "",
+                                null,
+                                null,
+                                null,
+                                null,
+                                null),
+                        Arrays.asList(
+                                "default_catalog",
+                                "db_diff",
+                                "tbl_2",
+                                "VIEW",
+                                "",
+                                null,
+                                null,
+                                null,
+                                null,
+                                null)));
+    }
+
+    @Test
+    public void testGetTablesWithPattern() throws Exception {
+        runGetObjectTest(
+                connection ->
+                        connection
+                                .getMetaData()
+                                .getTables(
+                                        "default_catalog",
+                                        "db\\_test_",
+                                        "tbl%",
+                                        new String[] {"VIRTUAL_VIEW"}),
+                getExpectedGetTablesOperationSchema(),
+                Arrays.asList(
+                        Arrays.asList(
+                                "default_catalog",
+                                "db_test1",
+                                "tbl_3",
+                                "VIEW",
+                                "",
+                                null,
+                                null,
+                                null,
+                                null,
+                                null),
+                        Arrays.asList(
+                                "default_catalog",
+                                "db_test1",
+                                "tbl_4",
+                                "VIEW",
+                                "",
+                                null,
+                                null,
+                                null,
+                                null,
+                                null),
+                        Arrays.asList(
+                                "default_catalog",
+                                "db_test2",
+                                "tbl_2",
+                                "VIEW",
+                                "",
+                                null,
+                                null,
+                                null,
+                                null,
+                                null)));
     }
 
     // --------------------------------------------------------------------------------------------
@@ -244,27 +413,27 @@ public class HiveServer2EndpointITCase extends TestLogger {
         statement.execute("USE CATALOG `default_catalog`");
 
         // default_catalog: db_test1 | db_test2 | db_diff | default
-        //     db_test1: temporary table tb_1, table tb_2, temporary view tb_3, view tb_4
-        //     db_test2: table tb_1, table diff_1, view tb_2, view diff_2
-        //     db_diff:  table tb_1, view tb_2
+        //     db_test1: temporary table tbl_1, table tbl_2, temporary view tbl_3, view tbl_4
+        //     db_test2: table tbl_1, table diff_1, view tbl_2, view diff_2
+        //     db_diff:  table tbl_1, view tbl_2
 
         statement.execute("CREATE DATABASE db_test1");
         statement.execute("CREATE DATABASE db_test2");
         statement.execute("CREATE DATABASE db_diff");
 
-        statement.execute("CREATE TEMPORARY TABLE db_test1.tb_1 COMMENT 'temporary table tb_1'");
-        statement.execute("CREATE TABLE db_test1.tb_2 COMMENT 'table tb_2'");
+        statement.execute("CREATE TEMPORARY TABLE db_test1.tbl_1 COMMENT 'temporary table tbl_1'");
+        statement.execute("CREATE TABLE db_test1.tbl_2 COMMENT 'table tbl_2'");
         statement.execute(
-                "CREATE TEMPORARY VIEW db_test1.tb_3 COMMENT 'temporary view tb_3' AS SELECT 1");
-        statement.execute("CREATE VIEW db_test1.tb_4 COMMENT 'view tb_4' AS SELECT 1");
+                "CREATE TEMPORARY VIEW db_test1.tbl_3 COMMENT 'temporary view tbl_3' AS SELECT 1");
+        statement.execute("CREATE VIEW db_test1.tbl_4 COMMENT 'view tbl_4' AS SELECT 1");
 
-        statement.execute("CREATE TABLE db_test2.tb_1 COMMENT 'table tb_1'");
+        statement.execute("CREATE TABLE db_test2.tbl_1 COMMENT 'table tbl_1'");
         statement.execute("CREATE TABLE db_test2.diff_1 COMMENT 'table diff_1'");
-        statement.execute("CREATE VIEW db_test2.tb_2 COMMENT 'view tb_2' AS SELECT 1");
+        statement.execute("CREATE VIEW db_test2.tbl_2 COMMENT 'view tbl_2' AS SELECT 1");
         statement.execute("CREATE VIEW db_test2.diff_2 COMMENT 'view diff_2' AS SELECT 1");
 
-        statement.execute("CREATE TABLE db_diff.tb_1 COMMENT 'table tb_1'");
-        statement.execute("CREATE VIEW db_diff.tb_2 COMMENT 'view tb_2' AS SELECT 1");
+        statement.execute("CREATE TABLE db_diff.tbl_1 COMMENT 'table tbl_1'");
+        statement.execute("CREATE VIEW db_diff.tbl_2 COMMENT 'view tbl_2' AS SELECT 1");
 
         statement.close();
         return connection;
@@ -321,6 +490,26 @@ public class HiveServer2EndpointITCase extends TestLogger {
                         0);
         transport.open();
         return new TCLIService.Client(new TBinaryProtocol(transport));
+    }
+
+    private ResolvedSchema getExpectedGetSchemasOperationSchema() {
+        return ResolvedSchema.of(
+                Column.physical("TABLE_SCHEMA", DataTypes.STRING()),
+                Column.physical("TABLE_CAT", DataTypes.STRING()));
+    }
+
+    private ResolvedSchema getExpectedGetTablesOperationSchema() {
+        return ResolvedSchema.of(
+                Column.physical("TABLE_CAT", DataTypes.STRING()),
+                Column.physical("TABLE_SCHEMA", DataTypes.STRING()),
+                Column.physical("TABLE_NAME", DataTypes.STRING()),
+                Column.physical("TABLE_TYPE", DataTypes.STRING()),
+                Column.physical("REMARKS", DataTypes.STRING()),
+                Column.physical("TYPE_CAT", DataTypes.STRING()),
+                Column.physical("TYPE_SCHEM", DataTypes.STRING()),
+                Column.physical("TYPE_NAME", DataTypes.STRING()),
+                Column.physical("SELF_REFERENCING_COL_NAME", DataTypes.STRING()),
+                Column.physical("REF_GENERATION", DataTypes.STRING()));
     }
 
     private void assertSchemaEquals(ResolvedSchema expected, ResultSetMetaData metaData)
