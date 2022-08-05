@@ -25,28 +25,12 @@ import org.apache.flink.table.runtime.util.UniformBinaryRowGenerator;
 import org.apache.flink.util.MutableObjectIterator;
 
 import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
 
 import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
 import java.util.List;
 
 /** Random test for adaptive {@link HashJoinOperator}. */
-@RunWith(Parameterized.class)
 public class Int2AdaptiveHashJoinOperatorTest extends Int2HashJoinOperatorTestBase {
-
-    public Int2AdaptiveHashJoinOperatorTest(boolean fallbackToSMJInBuildPhase) {
-        if (fallbackToSMJInBuildPhase) {
-            buildSpillThreshold = 20 * 1024 * 1024L;
-        }
-    }
-
-    @Parameterized.Parameters
-    public static Collection<Boolean> parameters() {
-        return Arrays.asList(true, false);
-    }
 
     // ---------------------- build first inner join -----------------------------------------
     // ------------------- fallback to sort merge join in build or probe phase ---------------
@@ -56,7 +40,7 @@ public class Int2AdaptiveHashJoinOperatorTest extends Int2HashJoinOperatorTestBa
         // level. we use them to make sure one partition grows over-proportionally large
         final int repeatedValue1 = 405590;
         final int repeatedValue2 = 928820;
-        final int repeatedValueCountBuild = 500000;
+        final int repeatedValueCountBuild = 1500000;
 
         final int numKeys1 = 100000;
         final int numKeys2 = 160000;
@@ -95,7 +79,7 @@ public class Int2AdaptiveHashJoinOperatorTest extends Int2HashJoinOperatorTestBa
         // level. we use them to make sure one partition grows over-proportionally large
         final int repeatedValue1 = 40559;
         final int repeatedValue2 = 92882;
-        final int repeatedValueCountBuild = 500000;
+        final int repeatedValueCountBuild = 1500000;
 
         final int numKeys1 = 100000;
         final int numKeys2 = 50000;
@@ -138,7 +122,7 @@ public class Int2AdaptiveHashJoinOperatorTest extends Int2HashJoinOperatorTestBa
         // level. we use them to make sure one partition grows over-proportionally large
         final int repeatedValue1 = 40559;
         final int repeatedValue2 = 92882;
-        final int repeatedValueCountBuild = 500000;
+        final int repeatedValueCountBuild = 1500000;
 
         final int numKeys1 = 100000;
         final int numKeys2 = 50000;
@@ -177,7 +161,7 @@ public class Int2AdaptiveHashJoinOperatorTest extends Int2HashJoinOperatorTestBa
         // level. we use them to make sure one partition grows over-proportionally large
         final int repeatedValue1 = 40559;
         final int repeatedValue2 = 92882;
-        final int repeatedValueCountBuild = 500000;
+        final int repeatedValueCountBuild = 1500000;
 
         final int numKeys1 = 100000;
         final int numKeys2 = 150000;
@@ -220,7 +204,7 @@ public class Int2AdaptiveHashJoinOperatorTest extends Int2HashJoinOperatorTestBa
         // level. we use them to make sure one partition grows over-proportionally large
         final int repeatedValue1 = 40559;
         final int repeatedValue2 = 92882;
-        final int repeatedValueCountBuild = 500000;
+        final int repeatedValueCountBuild = 1500000;
 
         final int numKeys1 = 100000;
         final int numKeys2 = 50000;
@@ -259,7 +243,7 @@ public class Int2AdaptiveHashJoinOperatorTest extends Int2HashJoinOperatorTestBa
         // level. we use them to make sure one partition grows over-proportionally large
         final int repeatedValue1 = 40559;
         final int repeatedValue2 = 92882;
-        final int repeatedValueCountBuild = 500000;
+        final int repeatedValueCountBuild = 1500000;
 
         final int numKeys1 = 100000;
         final int numKeys2 = 50000;
@@ -297,10 +281,10 @@ public class Int2AdaptiveHashJoinOperatorTest extends Int2HashJoinOperatorTestBa
         // level. we use them to make sure one partition grows over-proportionally large
         final int repeatedValue1 = 40559;
         final int repeatedValue2 = 92882;
-        final int repeatedValueCountBuild = 500000;
+        final int repeatedValueCountBuild = 1000000;
 
-        final int numKeys1 = 100000;
-        final int numKeys2 = 10000;
+        final int numKeys1 = 1000000;
+        final int numKeys2 = 100000;
         final int buildValsPerKey = 3;
         final int probeValsPerKey = 1;
 
@@ -337,7 +321,7 @@ public class Int2AdaptiveHashJoinOperatorTest extends Int2HashJoinOperatorTestBa
         // level. we use them to make sure one partition grows over-proportionally large
         final int repeatedValue1 = 40559;
         final int repeatedValue2 = 92882;
-        final int repeatedValueCountBuild = 500000;
+        final int repeatedValueCountBuild = 1500000;
 
         final int numKeys1 = 100000;
         final int numKeys2 = 160000;
@@ -378,7 +362,7 @@ public class Int2AdaptiveHashJoinOperatorTest extends Int2HashJoinOperatorTestBa
         // level. we use them to make sure one partition grows over-proportionally large
         final int repeatedValue1 = 405;
         final int repeatedValue2 = 928;
-        final int repeatedValueCountBuild = 500000;
+        final int repeatedValueCountBuild = 1500000;
 
         final int numKeys1 = 100000;
         final int numKeys2 = 1000;
@@ -412,8 +396,9 @@ public class Int2AdaptiveHashJoinOperatorTest extends Int2HashJoinOperatorTestBa
                         true,
                         false);
 
-        // output build side that is in left
-        joinAndAssert(operator, buildInput, probeInput, 1001000, numKeys1, -1, true);
+        // output build side in left that is matched with probe side
+        int expectOutSize = numKeys2 + repeatedValueCountBuild * 2;
+        joinAndAssert(operator, buildInput, probeInput, expectOutSize, numKeys1, -1, true);
     }
 
     // ---------------------- fallback to sort merge join in build or probe phase ------------------
@@ -457,7 +442,7 @@ public class Int2AdaptiveHashJoinOperatorTest extends Int2HashJoinOperatorTestBa
                         true,
                         false);
 
-        // output build side that is in left
+        // output build side in left that not matched with probe side
         int expectOutSize = numKeys1 - numKeys2 + repeatedValueCountBuild * 2;
         joinAndAssert(
                 operator, buildInput, probeInput, expectOutSize, numKeys1 - numKeys2, -1, true);

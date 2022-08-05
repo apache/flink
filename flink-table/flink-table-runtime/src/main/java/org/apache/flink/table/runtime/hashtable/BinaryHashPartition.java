@@ -215,13 +215,6 @@ public class BinaryHashPartition extends AbstractPagedInputView implements Seeka
                 : this.partitionBuffers.length;
     }
 
-    int getBuildSideSpilledBlockCount() {
-        if (isInMemory()) {
-            return 0;
-        }
-        return this.buildSideWriteBuffer.getBlockCount();
-    }
-
     RandomAccessInputView getBuildStateInputView() {
         return this.buildSideWriteBuffer.getBuildStageInputView();
     }
@@ -640,7 +633,7 @@ public class BinaryHashPartition extends AbstractPagedInputView implements Seeka
             }
         }
 
-        final long getPointer() {
+        long getPointer() {
             return this.currentPointer;
         }
 

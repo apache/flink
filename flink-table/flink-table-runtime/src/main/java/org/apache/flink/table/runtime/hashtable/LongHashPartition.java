@@ -407,13 +407,6 @@ public class LongHashPartition extends AbstractPagedInputView implements Seekabl
                 : this.partitionBuffers.length;
     }
 
-    int getBuildSideSpilledBlockCount() {
-        if (isInMemory()) {
-            return 0;
-        }
-        return this.buildSideWriteBuffer.getBlockCount();
-    }
-
     int getProbeSideBlockCount() {
         return this.probeSideBuffer == null ? -1 : this.probeSideBuffer.getBlockCount();
     }

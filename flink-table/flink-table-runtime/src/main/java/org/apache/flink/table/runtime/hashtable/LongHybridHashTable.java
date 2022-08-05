@@ -561,32 +561,6 @@ public abstract class LongHybridHashTable extends BaseHybridHashTable {
         return largestPartNum;
     }
 
-    @Override
-    public void spillAllInMemoryPartition() throws IOException {
-        for (LongHashPartition p : this.partitionsBeingBuilt) {
-            if (p.isInMemory()) {
-                // spill the partition
-                int numBuffersFreed = spillPartition(p);
-                LOG.info(
-                        String.format(
-                                "Spill partition [%d] to disk, %d memory segments being freed",
-                                p.getPartitionNumber(), numBuffersFreed));
-            }
-
-            // finalize the build partition buffer, if the spilled partition also has some records
-            // in memory, here should trigger spill them to disk
-            p.finalizePartitionBuffer();
-            // returns the current write buffer, because it was used all the time in build phase, so
-            // it can only be returned at this time.
-            this.buildSpillRetBufferNumbers++;
-
-            // add partition to SMJ pending list
-            this.partitionsPendingForSMJ.add(p);
-        }
-
-        this.partitionsBeingBuilt.clear();
-    }
-
     private int spillPartition(LongHashPartition p) throws IOException {
         // spill the partition
         int numBuffersFreed =
@@ -607,15 +581,6 @@ public abstract class LongHybridHashTable extends BaseHybridHashTable {
         numSpillFiles++;
         spillInBytes += numBuffersFreed * segmentSize;
         return numBuffersFreed;
-    }
-
-    @Override
-    public long getBuildSideSpilledDataInBytes() {
-        int spilledBlockCounts =
-                this.partitionsBeingBuilt.stream()
-                        .mapToInt(LongHashPartition::getBuildSideSpilledBlockCount)
-                        .sum();
-        return spilledBlockCounts * segmentSize;
     }
 
     public List<LongHashPartition> getPartitionsPendingForSMJ() {

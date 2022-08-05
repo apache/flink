@@ -35,30 +35,30 @@ public class LongHashJoinGeneratorTest extends Int2HashJoinOperatorTest {
             boolean buildLeft,
             boolean reverseJoinFunction) {
         return LongAdaptiveHashJoinGeneratorTest.getLongHashJoinOperator(
-                flinkJoinType, hashJoinType, buildLeft, reverseJoinFunction, buildSpillThreshold);
+                flinkJoinType, hashJoinType, buildLeft, reverseJoinFunction);
     }
 
     @Test
     @Override
-    public void testBuildLeftSemiJoin() throws Exception {}
+    public void testBuildLeftSemiJoin() {}
 
     @Test
     @Override
-    public void testBuildSecondHashFullOutJoin() throws Exception {}
+    public void testBuildSecondHashFullOutJoin() {}
 
     @Test
     @Override
-    public void testBuildSecondHashRightOutJoin() throws Exception {}
+    public void testBuildSecondHashRightOutJoin() {}
 
     @Test
     @Override
-    public void testBuildLeftAntiJoin() throws Exception {}
+    public void testBuildLeftAntiJoin() {}
 
     @Test
     @Override
-    public void testBuildFirstHashLeftOutJoin() throws Exception {}
+    public void testBuildFirstHashLeftOutJoin() {}
 
     @Test
     @Override
-    public void testBuildFirstHashFullOutJoin() throws Exception {}
+    public void testBuildFirstHashFullOutJoin() {}
 }

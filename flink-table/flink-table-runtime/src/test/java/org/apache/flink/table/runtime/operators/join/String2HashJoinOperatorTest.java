@@ -25,7 +25,6 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.TwoInputStreamTask;
 import org.apache.flink.streaming.runtime.tasks.TwoInputStreamTaskTestHarness;
 import org.apache.flink.streaming.util.TestHarnessUtil;
-import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.StringData;
 import org.apache.flink.table.data.binary.BinaryRowData;
@@ -427,7 +426,6 @@ public class String2HashJoinOperatorTest implements Serializable {
                 10000,
                 10000,
                 RowType.of(VarCharType.STRING_TYPE),
-                ExecutionConfigOptions.TABLE_EXEC_HASH_JOIN_SPILL_THRESHOLD.defaultValue(),
                 sortMergeJoinFunction);
     }
 }

@@ -31,7 +31,7 @@ import org.apache.flink.table.types.logical.RowType;
 import java.util.stream.IntStream;
 
 /** Utility for {@link SortMergeJoinOperator}. */
-public class JoinOperatorUtil {
+public class SorMergeJoinOperatorUtil {
 
     public static SortMergeJoinFunction getSortMergeJoinFunction(
             ClassLoader classLoader,
@@ -79,5 +79,5 @@ public class JoinOperatorUtil {
                 filterNulls);
     }
 
-    private JoinOperatorUtil() {}
+    private SorMergeJoinOperatorUtil() {}
 }

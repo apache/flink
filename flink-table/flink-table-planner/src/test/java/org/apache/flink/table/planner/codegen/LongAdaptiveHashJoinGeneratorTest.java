@@ -21,7 +21,7 @@ package org.apache.flink.table.planner.codegen;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeConfig;
-import org.apache.flink.table.planner.plan.utils.JoinOperatorUtil;
+import org.apache.flink.table.planner.plan.utils.SorMergeJoinOperatorUtil;
 import org.apache.flink.table.runtime.generated.GeneratedJoinCondition;
 import org.apache.flink.table.runtime.generated.JoinCondition;
 import org.apache.flink.table.runtime.operators.join.FlinkJoinType;
@@ -36,10 +36,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 /** Test for adaptive {@link LongHashJoinGenerator}. */
 public class LongAdaptiveHashJoinGeneratorTest extends Int2AdaptiveHashJoinOperatorTest {
 
-    public LongAdaptiveHashJoinGeneratorTest(boolean fallbackToSMJInBuildPhase) {
-        super(fallbackToSMJInBuildPhase);
-    }
-
     @Override
     public Object newOperator(
             long memorySize,
@@ -47,8 +43,7 @@ public class LongAdaptiveHashJoinGeneratorTest extends Int2AdaptiveHashJoinOpera
             HashJoinType hashJoinType,
             boolean buildLeft,
             boolean reverseJoinFunction) {
-        return getLongHashJoinOperator(
-                flinkJoinType, hashJoinType, buildLeft, reverseJoinFunction, buildSpillThreshold);
+        return getLongHashJoinOperator(flinkJoinType, hashJoinType, buildLeft, reverseJoinFunction);
     }
 
     @Override
@@ -70,8 +65,7 @@ public class LongAdaptiveHashJoinGeneratorTest extends Int2AdaptiveHashJoinOpera
             FlinkJoinType flinkJoinType,
             HashJoinType hashJoinType,
             boolean buildLeft,
-            boolean reverseJoinFunction,
-            long buildSpillThreshold) {
+            boolean reverseJoinFunction) {
         RowType keyType = RowType.of(new IntType());
         boolean[] filterNulls = new boolean[] {true};
         assertThat(LongHashJoinGenerator.support(hashJoinType, keyType, filterNulls)).isTrue();
@@ -92,7 +86,7 @@ public class LongAdaptiveHashJoinGeneratorTest extends Int2AdaptiveHashJoinOpera
         SortMergeJoinFunction sortMergeJoinFunction;
         if (buildLeft) {
             sortMergeJoinFunction =
-                    JoinOperatorUtil.getSortMergeJoinFunction(
+                    SorMergeJoinOperatorUtil.getSortMergeJoinFunction(
                             Thread.currentThread().getContextClassLoader(),
                             new ExecNodeConfig(TableConfig.getDefault(), new Configuration()),
                             flinkJoinType,
@@ -107,7 +101,7 @@ public class LongAdaptiveHashJoinGeneratorTest extends Int2AdaptiveHashJoinOpera
                             0);
         } else {
             sortMergeJoinFunction =
-                    JoinOperatorUtil.getSortMergeJoinFunction(
+                    SorMergeJoinOperatorUtil.getSortMergeJoinFunction(
                             Thread.currentThread().getContextClassLoader(),
                             new ExecNodeConfig(TableConfig.getDefault(), new Configuration()),
                             flinkJoinType,
@@ -135,7 +129,6 @@ public class LongAdaptiveHashJoinGeneratorTest extends Int2AdaptiveHashJoinOpera
                 reverseJoinFunction,
                 condFunc,
                 buildLeft,
-                buildSpillThreshold,
                 sortMergeJoinFunction);
     }
 }

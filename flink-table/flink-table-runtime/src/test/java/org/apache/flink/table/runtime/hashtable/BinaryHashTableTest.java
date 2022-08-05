@@ -61,8 +61,6 @@ import static org.assertj.core.api.Assertions.fail;
 public class BinaryHashTableTest {
 
     private static final int PAGE_SIZE = 32 * 1024;
-    private static final long BUILD_SPILL_THRESHOLD = 100 * 1024 * 1024L;
-
     private IOManager ioManager;
     private BinaryRowDataSerializer buildSideSerializer;
     private BinaryRowDataSerializer probeSideSerializer;
@@ -670,79 +668,6 @@ public class BinaryHashTableTest {
         Integer probeKeyCnt = repeatedValueCount + probeValsPerKey;
         assertThat(spilledPartitionProbeSideKeys).containsEntry(repeatedValue1, probeKeyCnt);
         assertThat(spilledPartitionProbeSideKeys).containsEntry(repeatedValue2, probeKeyCnt);
-
-        table.close();
-
-        // ----------------------------------------------------------------------------------------
-
-        table.free();
-    }
-
-    @Test
-    public void testBuildSpillDataMoreThanThreshold() throws IOException {
-        // the following two values are known to have a hash-code collision on the first recursion
-        // level.
-        // we use them to make sure one partition grows over-proportionally large
-        final int repeatedValue1 = 40559;
-        final int repeatedValue2 = 92882;
-        final int repeatedValueCount = 3000000;
-
-        final int numKeys = 1000000;
-        final int buildValsPerKey = 3;
-
-        // create a build input that gives 3 million pairs with 3 values sharing the same key, plus
-        // 400k pairs with two colliding keys
-        MutableObjectIterator<BinaryRowData> build1 =
-                new UniformBinaryRowGenerator(numKeys, buildValsPerKey, false);
-        MutableObjectIterator<BinaryRowData> build2 =
-                new ConstantsKeyValuePairsIterator(repeatedValue1, 17, repeatedValueCount);
-        MutableObjectIterator<BinaryRowData> build3 =
-                new ConstantsKeyValuePairsIterator(repeatedValue2, 23, repeatedValueCount);
-        List<MutableObjectIterator<BinaryRowData>> builds = new ArrayList<>();
-        builds.add(build1);
-        builds.add(build2);
-        builds.add(build3);
-        MutableObjectIterator<BinaryRowData> buildInput = new UnionIterator<>(builds);
-
-        // ----------------------------------------------------------------------------------------
-        MemoryManager memManager =
-                MemoryManagerBuilder.newBuilder().setMemorySize(896 * PAGE_SIZE).build();
-        final BinaryHashTable table =
-                newBinaryHashTable(
-                        this.buildSideSerializer,
-                        this.probeSideSerializer,
-                        new MyProjection(),
-                        new MyProjection(),
-                        memManager,
-                        896 * PAGE_SIZE,
-                        ioManager);
-
-        int buildRecordNums = 0;
-        BinaryRowData buildRow = buildSideSerializer.createInstance();
-        while ((buildRow = buildInput.next(buildRow)) != null) {
-            table.putBuildRow(buildRow);
-            buildRecordNums++;
-            if (table.getBuildSideSpilledDataInBytes() > BUILD_SPILL_THRESHOLD) {
-                break;
-            }
-        }
-
-        // spill all in memory partition to disk
-        table.spillAllInMemoryPartition();
-
-        // read all spilled partitions
-        int spilledBuildRecordNums = 0;
-        for (BinaryHashPartition p : table.getPartitionsPendingForSMJ()) {
-            RowIterator<BinaryRowData> buildIter = table.getSpilledPartitionBuildSideIter(p);
-            while (buildIter.advanceNext()) {
-                spilledBuildRecordNums++;
-            }
-        }
-
-        // assert spilled record nums
-        assertThat(spilledBuildRecordNums)
-                .as("Wrong number of spilled build record.")
-                .isEqualTo(buildRecordNums);
 
         table.close();
 

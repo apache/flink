@@ -694,42 +694,6 @@ public class BinaryHashTable extends BaseHybridHashTable {
         return largestPartNum;
     }
 
-    /** Spilling all in-memory partitions, then clear the occupied memory. */
-    @Override
-    public void spillAllInMemoryPartition() throws IOException {
-        for (BinaryHashPartition p : this.partitionsBeingBuilt) {
-            if (p.isInMemory()) {
-                // spill the partition
-                int numBuffersFreed = spillPartition(p);
-                LOG.info(
-                        String.format(
-                                "Spill partition [%d] to disk, %d memory segments being freed",
-                                p.getPartitionNumber(), numBuffersFreed));
-
-                // free the memory used by bucket area(hash table)
-                p.bucketArea.freeMemory();
-                p.bucketArea = null;
-            } else {
-                // free bloom filter of spilled partition
-                if (p.bloomFilter != null) {
-                    p.freeBloomFilter();
-                }
-            }
-
-            // finalize the build partition buffer, if the spilled partition also has some records
-            // in memory, here should trigger spill them to disk
-            p.finalizePartitionBuffer();
-            // returns the current write buffer, because it was used all the time in build phase, so
-            // it can only be returned at this time.
-            this.buildSpillRetBufferNumbers++;
-
-            // add partition to smj pending list
-            this.partitionsPendingForSMJ.add(p);
-        }
-
-        this.partitionsBeingBuilt.clear();
-    }
-
     private int spillPartition(BinaryHashPartition p) throws IOException {
         int numBuffersFreed =
                 p.spillPartition(
@@ -748,19 +712,6 @@ public class BinaryHashTable extends BaseHybridHashTable {
         numSpillFiles++;
         spillInBytes += numBuffersFreed * segmentSize;
         return numBuffersFreed;
-    }
-
-    /**
-     * Get all spilled partitions data size of build side in this table, This size represents the
-     * amount of memory occupied by the data, not the actual amount of disk space occupied.
-     */
-    @Override
-    public long getBuildSideSpilledDataInBytes() {
-        int spilledBlockCounts =
-                this.partitionsBeingBuilt.stream()
-                        .mapToInt(BinaryHashPartition::getBuildSideSpilledBlockCount)
-                        .sum();
-        return spilledBlockCounts * segmentSize;
     }
 
     public List<BinaryHashPartition> getPartitionsPendingForSMJ() {

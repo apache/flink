@@ -350,10 +350,6 @@ public abstract class BaseHybridHashTable implements MemorySegmentPool {
 
     protected abstract int spillPartition() throws IOException;
 
-    public abstract void spillAllInMemoryPartition() throws IOException;
-
-    public abstract long getBuildSideSpilledDataInBytes();
-
     /**
      * This method makes sure that at least a certain number of memory segments is in the list of
      * free segments. Free memory can be in the list of free segments, or in the return-queue where

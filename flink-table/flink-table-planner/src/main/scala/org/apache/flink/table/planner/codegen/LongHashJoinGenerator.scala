@@ -111,7 +111,6 @@ object LongHashJoinGenerator {
       reverseJoinFunction: Boolean,
       condFunc: GeneratedJoinCondition,
       leftIsBuild: Boolean,
-      spilledDataThresholdInBytes: Long,
       sortMergeJoinFunction: SortMergeJoinFunction): CodeGenOperatorFactory[RowData] = {
 
     val buildSer = new BinaryRowDataSerializer(buildType.getFieldCount)
@@ -150,20 +149,13 @@ object LongHashJoinGenerator {
     val leftIsBuildTerm = newName("leftIsBuild")
     ctx.addReusableMember(s"private final boolean $leftIsBuildTerm = $leftIsBuild;")
 
-    val spilledDataThresholdInBytesTerm = newName("spilledDataThresholdInBytes")
-    ctx.addReusableMember(s"private final long $spilledDataThresholdInBytesTerm;")
-    val thresholdRefs = ctx.addReusableObject(Array(spilledDataThresholdInBytes), "thresholdRefs")
-    ctx.addReusableInitStatement(s"$spilledDataThresholdInBytesTerm = $thresholdRefs[0];")
-
     val smjFunctionTerm = className[SortMergeJoinFunction]
     ctx.addReusableMember(s"private final $smjFunctionTerm sortMergeJoinFunction;")
     val smjFunctionRefs = ctx.addReusableObject(Array(sortMergeJoinFunction), "smjFunctionRefs")
     ctx.addReusableInitStatement(s"sortMergeJoinFunction = $smjFunctionRefs[0];")
 
-    val fallbackSMJInBuild = newName("fallbackSMJInBuild")
-    ctx.addReusableMember(s"private transient boolean $fallbackSMJInBuild = false;")
-    val fallbackSMJInProbe = newName("fallbackSMJInProbe")
-    ctx.addReusableMember(s"private transient boolean $fallbackSMJInProbe = false;")
+    val fallbackSMJ = newName("fallbackSMJ")
+    ctx.addReusableMember(s"private transient boolean $fallbackSMJ = false;")
 
     val gauge = classOf[Gauge[_]].getCanonicalName
     ctx.addReusableOpenStatement(
@@ -322,43 +314,19 @@ object LongHashJoinGenerator {
          |}
        """.stripMargin)
 
-    // fallback to sort merge join in build phase
-    val rowIter = classOf[RowIterator[_]].getCanonicalName
-    ctx.addReusableMember(
-      s"""
-         |private void fallbackSMJProcessPartitionBuildSide($ROW_DATA rowData) throws Exception {
-         |  this.table.spillAllInMemoryPartition();
-         |  LOG.info(
-         |  "Spill all in memory partitions to disk successfully, fallback to sort merge join.");
-         |  initialSortMergeJoinFunction();
-         |  $fallbackSMJInBuild = true;
-         |
-         |  for(${classOf[LongHashPartition].getCanonicalName} p : 
-         |  table.getPartitionsPendingForSMJ()) {
-         |    $rowIter<$BINARY_ROW> buildSideIter = table.getSpilledPartitionBuildSideIter(p);
-         |    while (buildSideIter.advanceNext()) {
-         |      processSortMergeJoinElement1(buildSideIter.getRow());
-         |    }
-         |  }
-         |
-         |  closeHashTable();
-         |
-         |  processSortMergeJoinElement1(rowData);
-         |}
-       """.stripMargin)
-
     // fallback to sort merge join in probe phase
+    val rowIter = classOf[RowIterator[_]].getCanonicalName
     ctx.addReusableMember(s"""
                              |private void fallbackSMJProcessPartition() throws Exception {
                              |  if(!table.getPartitionsPendingForSMJ().isEmpty()) {
                              |    LOG.info("Fallback to sort merge join.");
                              |    initialSortMergeJoinFunction();
-                             |    $fallbackSMJInProbe = true;
+                             |    $fallbackSMJ = true;
                              |
-                             |    for(${classOf[LongHashPartition].getCanonicalName} p : table
-                             |      .getPartitionsPendingForSMJ()) {
-                             |      $rowIter<$BINARY_ROW> buildSideIter = table
-                             |      .getSpilledPartitionBuildSideIter(p);
+                             |    for(${classOf[LongHashPartition].getCanonicalName} p : 
+                             |      table.getPartitionsPendingForSMJ()) {
+                             |      $rowIter<$BINARY_ROW> buildSideIter = 
+                             |      table.getSpilledPartitionBuildSideIter(p);
                              |      while (buildSideIter.advanceNext()) {
                              |        processSortMergeJoinElement1(buildSideIter.getRow());
                              |      }
@@ -428,7 +396,7 @@ object LongHashJoinGenerator {
     ctx.addReusableCloseStatement(s"""
                                      |closeHashTable();
                                      |
-                                     |if ($fallbackSMJInBuild || $fallbackSMJInProbe) {
+                                     |if ($fallbackSMJ) {
                                      |  sortMergeJoinFunction.close();
                                      |}
        """.stripMargin)
@@ -436,77 +404,23 @@ object LongHashJoinGenerator {
     val buildEnd = newName("buildEnd")
     ctx.addReusableMember(s"private transient boolean $buildEnd = false;")
 
-    val endInputCode = s"""
-                          |@Override
-                          |public void endInput(int inputId) throws Exception {
-                          |  if (!$fallbackSMJInBuild) {
-                          |    switch (inputId) {
-                          |      case 1:
-                          |        LOG.info("Finish build phase.");
-                          |        table.endBuild();
-                          |        $buildEnd = true;
-                          |        break;
-                          |      case 2:
-                          |        LOG.info("Finish probe phase.");
-                          |        while (this.table.nextMatching()) {
-                          |          joinWithNextKey();
-                          |        }
-                          |        LOG.info("Finish rebuild phase.");
-                          |
-                          |        fallbackSMJProcessPartition();
-                          |        break;
-                          |    }
-                          |  } else {
-                          |    if ($leftIsBuild) {
-                          |      sortMergeJoinFunction.endInput(inputId);
-                          |      $buildEnd = true;
-                          |    } else {
-                          |      switch(inputId) {
-                          |        case 1:
-                          |          sortMergeJoinFunction.endInput(2);
-                          |          $buildEnd = true;
-                          |          break;
-                          |        case 2:
-                          |          sortMergeJoinFunction.endInput(1);
-                          |          break;
-                          |      }
-                          |    }
-                          |  }
-                          |}
-         """.stripMargin
-
-    val genOp = OperatorCodeGenerator.generateTwoInputStreamOperatorBase[RowData, RowData, RowData](
+    val genOp = OperatorCodeGenerator.generateTwoInputStreamOperator[RowData, RowData, RowData](
       ctx,
       "LongHashJoinOperator",
       s"""
          |$ROW_DATA row = ($ROW_DATA) element.getValue();
          |$nullCheckBuildCode
          |if (!$nullCheckBuildTerm) {
-         |  $BINARY_ROW binaryRow = 
-         |  row instanceof $BINARY_ROW ? ($BINARY_ROW) row : buildToBinaryRow.apply(row);
-         |  if (!$fallbackSMJInBuild) {
-         |    if (table.getBuildSideSpilledDataInBytes() < $spilledDataThresholdInBytesTerm) {
-         |      table.putBuildRow(binaryRow);
-         |    } else {
-         |      fallbackSMJProcessPartitionBuildSide(binaryRow);
-         |    }
-         |  } else {
-         |    processSortMergeJoinElement1(binaryRow);
-         |  }
+         |  table.putBuildRow(row instanceof $BINARY_ROW ?
+         |    ($BINARY_ROW) row : buildToBinaryRow.apply(row));
          |}
        """.stripMargin,
       s"""
          |$ROW_DATA row = ($ROW_DATA) element.getValue();
          |$nullCheckProbeCode
          |if (!$nullCheckProbeTerm) {
-         |  if (!$fallbackSMJInBuild) {
-         |    if (table.tryProbe(row)) {
-         |      joinWithNextKey();
-         |    }
-         |  } else {
-         |    $BINARY_ROW binaryRow = 
-         |    row instanceof $BINARY_ROW ? ($BINARY_ROW) row : probeToBinaryRow.apply(row);
-         |    processSortMergeJoinElement2(binaryRow);
+         |  if (table.tryProbe(row)) {
+         |    joinWithNextKey();
          |  }
          |}
          |$nullOuterJoin
@@ -520,7 +434,20 @@ object LongHashJoinGenerator {
                                   |  return $INPUT_SELECTION.FIRST;
                                   |}
          """.stripMargin),
-      endInputCode = Some(endInputCode)
+      endInputCode1 = Some(s"""
+                              |LOG.info("Finish build phase.");
+                              |table.endBuild();
+                              |$buildEnd = true;
+       """.stripMargin),
+      endInputCode2 = Some(s"""
+                              |LOG.info("Finish probe phase.");
+                              |while (this.table.nextMatching()) {
+                              |  joinWithNextKey();
+                              |}
+                              |LOG.info("Finish rebuild phase.");
+                              |
+                              |fallbackSMJProcessPartition();
+         """.stripMargin)
     )
 
     new CodeGenOperatorFactory[RowData](genOp)

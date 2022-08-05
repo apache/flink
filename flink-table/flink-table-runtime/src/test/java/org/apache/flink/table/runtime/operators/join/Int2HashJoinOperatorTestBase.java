@@ -27,7 +27,6 @@ import org.apache.flink.streaming.api.operators.StreamOperatorFactory;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.TwoInputStreamTask;
 import org.apache.flink.streaming.runtime.tasks.TwoInputStreamTaskTestHarness;
-import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.binary.BinaryRowData;
 import org.apache.flink.table.data.utils.JoinedRowData;
@@ -59,9 +58,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 /** Base test class for {@link HashJoinOperator}. */
 public abstract class Int2HashJoinOperatorTestBase implements Serializable {
-
-    protected long buildSpillThreshold =
-            ExecutionConfigOptions.TABLE_EXEC_HASH_JOIN_SPILL_THRESHOLD.defaultValue();
 
     public void buildJoin(
             MutableObjectIterator<BinaryRowData> buildInput,
@@ -198,7 +194,6 @@ public abstract class Int2HashJoinOperatorTestBase implements Serializable {
                 10000,
                 10000,
                 RowType.of(new IntType()),
-                buildSpillThreshold,
                 sortMergeJoinFunction);
     }
 

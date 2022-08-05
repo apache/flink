@@ -58,10 +58,11 @@ import static org.apache.flink.util.Preconditions.checkState;
  * the first input of the match. It support all join type in {@link HashJoinType}.
  *
  * <p>Note: In order to solve the problem of data skew, or too much data in the hash table, the
- * fallback to sort merge join mechanism is introduced here. If the data spill to disk exceeds the
- * threshold {@code TABLE_EXEC_HASH_JOIN_SPILL_THRESHOLD} in the process of build hash table, or if
- * some partitions are spilled to disk more than three times in the process of hash join, it will
- * fallback to sort merge join by default to improve stability.
+ * fallback to sort merge join mechanism is introduced here. If some partitions are spilled to disk
+ * more than three times in the process of hash join, it will fallback to sort merge join by default
+ * to improve stability. In the future, we will support more flexible adaptive hash join strategy,
+ * for example, in the process of building a hash table, if the size of data written to disk reaches
+ * a certain threshold, fallback to sort merge join in advance.
  */
 public abstract class HashJoinOperator extends TableStreamOperator<RowData>
         implements TwoInputStreamOperator<RowData, RowData, RowData>,
@@ -74,7 +75,6 @@ public abstract class HashJoinOperator extends TableStreamOperator<RowData>
     private final boolean reverseJoinFunction;
     private final HashJoinType type;
     private final boolean leftIsBuild;
-    private final long spilledDataThresholdInBytes;
     private final SortMergeJoinFunction sortMergeJoinFunction;
 
     private transient BinaryHashTable table;
@@ -86,17 +86,14 @@ public abstract class HashJoinOperator extends TableStreamOperator<RowData>
     private transient boolean buildEnd;
     private transient JoinCondition condition;
 
-    // Flag indicates whether fallback to sort merge join in build phase
-    private transient boolean fallbackSMJInBuild;
     // Flag indicates whether fallback to sort merge join in probe phase
-    private transient boolean fallbackSMJInProbe;
+    private transient boolean fallbackSMJ;
 
     HashJoinOperator(HashJoinParameter parameter) {
         this.parameter = parameter;
         this.type = parameter.type;
         this.leftIsBuild = parameter.leftIsBuild;
         this.reverseJoinFunction = parameter.reverseJoinFunction;
-        this.spilledDataThresholdInBytes = parameter.spilledDataThresholdInBytes;
         this.sortMergeJoinFunction = parameter.sortMergeJoinFunction;
     }
 
@@ -151,8 +148,7 @@ public abstract class HashJoinOperator extends TableStreamOperator<RowData>
         this.probeSideNullRow = new GenericRowData(probeSerializer.getArity());
         this.joinedRow = new JoinedRowData();
         this.buildEnd = false;
-        this.fallbackSMJInBuild = false;
-        this.fallbackSMJInProbe = false;
+        this.fallbackSMJ = false;
 
         getMetricGroup().gauge("memoryUsedSizeInBytes", table::getUsedMemoryInBytes);
         getMetricGroup().gauge("numSpillFiles", table::getNumSpillFiles);
@@ -165,34 +161,15 @@ public abstract class HashJoinOperator extends TableStreamOperator<RowData>
 
     @Override
     public void processElement1(StreamRecord<RowData> element) throws Exception {
-        // If the data size spilled to disk more than spilledDataThresholdInBytes during build hash
-        // table, fallback to sort merge join early
-        if (!fallbackSMJInBuild) {
-            if (this.table.getBuildSideSpilledDataInBytes() < spilledDataThresholdInBytes) {
-                checkState(!buildEnd, "Should not build ended.");
-                this.table.putBuildRow(element.getValue());
-            } else {
-                // The spilled data size more than the threshold, fallback to sort merge join
-                fallbackSMJProcessPartitionBuildSide(element.getValue());
-            }
-        } else {
-            checkState(!buildEnd, "Should not build ended.");
-            processSortMergeJoinElement1(element.getValue());
-        }
+        checkState(!buildEnd, "Should not build ended.");
+        this.table.putBuildRow(element.getValue());
     }
 
     @Override
     public void processElement2(StreamRecord<RowData> element) throws Exception {
-        // If fallback to sort merge join during build phase, switch to sort merge process probe
-        // side
-        if (!fallbackSMJInBuild) {
-            checkState(buildEnd, "Should build ended.");
-            if (this.table.tryProbe(element.getValue())) {
-                joinWithNextKey();
-            }
-        } else {
-            checkState(buildEnd, "Should build ended.");
-            processSortMergeJoinElement2(element.getValue());
+        checkState(buildEnd, "Should build ended.");
+        if (this.table.tryProbe(element.getValue())) {
+            joinWithNextKey();
         }
     }
 
@@ -203,43 +180,25 @@ public abstract class HashJoinOperator extends TableStreamOperator<RowData>
 
     @Override
     public void endInput(int inputId) throws Exception {
-        if (!fallbackSMJInBuild) {
-            switch (inputId) {
-                case 1:
-                    checkState(!buildEnd, "Should not build ended.");
-                    LOG.info("Finish build phase.");
-                    buildEnd = true;
-                    this.table.endBuild();
-                    break;
-                case 2:
-                    checkState(buildEnd, "Should build ended.");
-                    LOG.info("Finish probe phase.");
-                    while (this.table.nextMatching()) {
-                        joinWithNextKey();
-                    }
-                    LOG.info("Finish rebuild phase.");
-
-                    // switch to sort merge join process the remaining partition which recursive
-                    // level > 3
-                    fallbackSMJProcessPartition();
-                    break;
-            }
-        } else {
-            if (leftIsBuild) {
-                sortMergeJoinFunction.endInput(inputId);
+        switch (inputId) {
+            case 1:
+                checkState(!buildEnd, "Should not build ended.");
+                LOG.info("Finish build phase.");
                 buildEnd = true;
-            } else {
-                // The order is reverse
-                switch (inputId) {
-                    case 1:
-                        sortMergeJoinFunction.endInput(2);
-                        buildEnd = true;
-                        break;
-                    case 2:
-                        sortMergeJoinFunction.endInput(1);
-                        break;
+                this.table.endBuild();
+                break;
+            case 2:
+                checkState(buildEnd, "Should build ended.");
+                LOG.info("Finish probe phase.");
+                while (this.table.nextMatching()) {
+                    joinWithNextKey();
                 }
-            }
+                LOG.info("Finish rebuild phase.");
+
+                // switch to sort merge join process the remaining partition which recursive
+                // level > 3
+                fallbackSMJProcessPartition();
+                break;
         }
     }
 
@@ -280,7 +239,7 @@ public abstract class HashJoinOperator extends TableStreamOperator<RowData>
         condition.close();
 
         // If fallback to sort merge join during hash join, also need to close the operator
-        if (fallbackSMJInBuild || fallbackSMJInProbe) {
+        if (fallbackSMJ) {
             sortMergeJoinFunction.close();
         }
     }
@@ -294,37 +253,6 @@ public abstract class HashJoinOperator extends TableStreamOperator<RowData>
     }
 
     /**
-     * In the process of building a hash table, if the data written to disk exceeds the threshold,
-     * it means that the build side is larger or there may be a more serious data skew, so fallback
-     * to sort merge join algorithm to deal with it in advance.
-     */
-    private void fallbackSMJProcessPartitionBuildSide(RowData rowData) throws Exception {
-        // spill all the in-memory partitions to disk firstly for return the memory which used to
-        // sort
-        this.table.spillAllInMemoryPartition();
-        LOG.info(
-                "Spill all in memory partitions to disk successfully, fallback to sort merge join.");
-        // initialize sort merge join function
-        initialSortMergeJoinFunction();
-        fallbackSMJInBuild = true;
-
-        // read build side data of all spilled partitions
-        for (BinaryHashPartition p : table.getPartitionsPendingForSMJ()) {
-            // process build side only
-            RowIterator<BinaryRowData> buildSideIter = table.getSpilledPartitionBuildSideIter(p);
-            while (buildSideIter.advanceNext()) {
-                processSortMergeJoinElement1(buildSideIter.getRow());
-            }
-        }
-
-        // close the HashTable
-        closeHashTable();
-
-        // process current record lastly
-        processSortMergeJoinElement1(rowData);
-    }
-
-    /**
      * If here also exists partitions which spilled to disk more than three time when hash join end,
      * means that the key in these partitions is very skewed, so fallback to sort merge join
      * algorithm to process it.
@@ -334,7 +262,7 @@ public abstract class HashJoinOperator extends TableStreamOperator<RowData>
             // initialize sort merge join operator
             LOG.info("Fallback to sort merge join.");
             initialSortMergeJoinFunction();
-            fallbackSMJInProbe = true;
+            fallbackSMJ = true;
 
             for (BinaryHashPartition p : table.getPartitionsPendingForSMJ()) {
                 // process build side
@@ -401,7 +329,6 @@ public abstract class HashJoinOperator extends TableStreamOperator<RowData>
             long buildRowCount,
             long probeRowCount,
             RowType keyType,
-            long spilledDataInBytesThreshold,
             SortMergeJoinFunction sortMergeJoinFunction) {
         HashJoinParameter parameter =
                 new HashJoinParameter(
@@ -417,7 +344,6 @@ public abstract class HashJoinOperator extends TableStreamOperator<RowData>
                         buildRowCount,
                         probeRowCount,
                         keyType,
-                        spilledDataInBytesThreshold,
                         sortMergeJoinFunction);
         switch (type) {
             case INNER:
@@ -453,7 +379,6 @@ public abstract class HashJoinOperator extends TableStreamOperator<RowData>
         long buildRowCount;
         long probeRowCount;
         RowType keyType;
-        long spilledDataThresholdInBytes;
         SortMergeJoinFunction sortMergeJoinFunction;
 
         HashJoinParameter(
@@ -469,7 +394,6 @@ public abstract class HashJoinOperator extends TableStreamOperator<RowData>
                 long buildRowCount,
                 long probeRowCount,
                 RowType keyType,
-                long spilledDataThresholdInBytes,
                 SortMergeJoinFunction sortMergeJoinFunction) {
             this.type = type;
             this.leftIsBuild = leftIsBuild;
@@ -483,7 +407,6 @@ public abstract class HashJoinOperator extends TableStreamOperator<RowData>
             this.buildRowCount = buildRowCount;
             this.probeRowCount = probeRowCount;
             this.keyType = keyType;
-            this.spilledDataThresholdInBytes = spilledDataThresholdInBytes;
             this.sortMergeJoinFunction = sortMergeJoinFunction;
         }
     }

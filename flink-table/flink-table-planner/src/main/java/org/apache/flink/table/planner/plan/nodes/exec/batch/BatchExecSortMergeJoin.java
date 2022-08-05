@@ -31,8 +31,8 @@ import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeContext;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
 import org.apache.flink.table.planner.plan.nodes.exec.SingleTransformationTranslator;
 import org.apache.flink.table.planner.plan.nodes.exec.utils.ExecNodeUtil;
-import org.apache.flink.table.planner.plan.utils.JoinOperatorUtil;
 import org.apache.flink.table.planner.plan.utils.JoinUtil;
+import org.apache.flink.table.planner.plan.utils.SorMergeJoinOperatorUtil;
 import org.apache.flink.table.runtime.generated.GeneratedJoinCondition;
 import org.apache.flink.table.runtime.operators.join.FlinkJoinType;
 import org.apache.flink.table.runtime.operators.join.SortMergeJoinFunction;
@@ -128,7 +128,7 @@ public class BatchExecSortMergeJoin extends ExecNodeBase<RowData>
         long managedMemory = externalBufferMemory * externalBufferNum + sortMemory * 2;
 
         SortMergeJoinFunction sortMergeJoinFunction =
-                JoinOperatorUtil.getSortMergeJoinFunction(
+                SorMergeJoinOperatorUtil.getSortMergeJoinFunction(
                         planner.getFlinkContext().getClassLoader(),
                         config,
                         joinType,

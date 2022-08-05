@@ -36,8 +36,8 @@ import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
 import org.apache.flink.table.planner.plan.nodes.exec.SingleTransformationTranslator;
 import org.apache.flink.table.planner.plan.nodes.exec.spec.JoinSpec;
 import org.apache.flink.table.planner.plan.nodes.exec.utils.ExecNodeUtil;
-import org.apache.flink.table.planner.plan.utils.JoinOperatorUtil;
 import org.apache.flink.table.planner.plan.utils.JoinUtil;
+import org.apache.flink.table.planner.plan.utils.SorMergeJoinOperatorUtil;
 import org.apache.flink.table.runtime.generated.GeneratedJoinCondition;
 import org.apache.flink.table.runtime.generated.GeneratedProjection;
 import org.apache.flink.table.runtime.operators.join.FlinkJoinType;
@@ -215,7 +215,7 @@ public class BatchExecHashJoin extends ExecNodeBase<RowData>
 
         // sort merge join function
         SortMergeJoinFunction sortMergeJoinFunction =
-                JoinOperatorUtil.getSortMergeJoinFunction(
+                SorMergeJoinOperatorUtil.getSortMergeJoinFunction(
                         planner.getFlinkContext().getClassLoader(),
                         config,
                         joinType,
@@ -245,7 +245,6 @@ public class BatchExecHashJoin extends ExecNodeBase<RowData>
                             reverseJoin,
                             condFunc,
                             leftIsBuild,
-                            config.get(ExecutionConfigOptions.TABLE_EXEC_HASH_JOIN_SPILL_THRESHOLD),
                             sortMergeJoinFunction);
         } else {
             operator =
@@ -263,9 +262,6 @@ public class BatchExecHashJoin extends ExecNodeBase<RowData>
                                     buildRowCount,
                                     probeRowCount,
                                     keyType,
-                                    config.get(
-                                            ExecutionConfigOptions
-                                                    .TABLE_EXEC_HASH_JOIN_SPILL_THRESHOLD),
                                     sortMergeJoinFunction));
         }
 
