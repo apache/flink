@@ -185,11 +185,20 @@ public interface SqlGatewayService {
             SessionHandle sessionHandle,
             OperationHandle operationHandle,
             FetchOrientation orientation,
-            int maxRows);
+            int maxRows)
+            throws SqlGatewayException;
 
     // -------------------------------------------------------------------------------------------
     // Catalog API
     // -------------------------------------------------------------------------------------------
+
+    /**
+     * Return current catalog name.
+     *
+     * @param sessionHandle handle to identify the session.
+     * @return name of the current catalog.
+     */
+    String getCurrentCatalog(SessionHandle sessionHandle) throws SqlGatewayException;
 
     /**
      * Return all available catalogs in the current session.
@@ -208,12 +217,4 @@ public interface SqlGatewayService {
      */
     Set<String> listDatabases(SessionHandle sessionHandle, String catalogName)
             throws SqlGatewayException;
-
-    /**
-     * Return current catalog name.
-     *
-     * @param sessionHandle handle to identify the session.
-     * @return name of the current catalog.
-     */
-    String getCurrentCatalog(SessionHandle sessionHandle) throws SqlGatewayException;
 }

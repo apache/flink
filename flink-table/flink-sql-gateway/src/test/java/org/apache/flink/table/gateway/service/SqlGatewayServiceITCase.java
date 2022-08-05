@@ -68,7 +68,6 @@ import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.atomic.AtomicReference;
 
-import static java.lang.Thread.sleep;
 import static org.apache.flink.core.testutils.FlinkAssertions.anyCauseMatches;
 import static org.apache.flink.core.testutils.FlinkAssertions.assertThatChainOfCauses;
 import static org.apache.flink.table.gateway.api.results.ResultSet.ResultType.PAYLOAD;
@@ -305,6 +304,10 @@ public class SqlGatewayServiceITCase extends AbstractTestBase {
                 task -> assertThat(task.get()).isEqualTo(getDefaultResultSet().getResultSchema()));
     }
 
+    // --------------------------------------------------------------------------------------------
+    // Catalog API tests
+    // --------------------------------------------------------------------------------------------
+
     @Test
     public void testListCatalogs() {
         SessionEnvironment environment =
@@ -344,7 +347,7 @@ public class SqlGatewayServiceITCase extends AbstractTestBase {
     }
 
     @Test
-    public void testGetCurrentCatalog() throws Exception {
+    public void testGetCurrentCatalog() {
         SessionEnvironment environment =
                 SessionEnvironment.newBuilder()
                         .setSessionEndpointVersion(MockedEndpointVersion.V1)
@@ -389,7 +392,7 @@ public class SqlGatewayServiceITCase extends AbstractTestBase {
                         sessionHandle,
                         () -> {
                             // allow close before execution finish.
-                            sleep(1);
+                            Thread.sleep(1);
                         });
         runCancelOrCloseOperationWhenFetchResults(
                 sessionHandle,
@@ -422,7 +425,7 @@ public class SqlGatewayServiceITCase extends AbstractTestBase {
                             sessionHandle,
                             () -> {
                                 // allow cancel/close before execution finish.
-                                sleep(100);
+                                Thread.sleep(100);
                                 if (throwError) {
                                     throw new SqlGatewayException("Artificial Exception.");
                                 }

@@ -39,6 +39,7 @@ import org.apache.flink.table.gateway.service.utils.SqlGatewayServiceExtension;
 import org.apache.flink.test.junit5.MiniClusterExtension;
 import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.function.BiConsumerWithException;
+import org.apache.flink.util.function.FunctionWithException;
 import org.apache.flink.util.function.ThrowingConsumer;
 
 import org.apache.hadoop.hive.common.auth.HiveAuthUtils;
@@ -67,6 +68,7 @@ import java.sql.Statement;
 import java.util.AbstractMap;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -199,75 +201,53 @@ public class HiveServer2EndpointITCase extends TestLogger {
 
     @Test
     public void testGetCatalogs() throws Exception {
-        try (Connection connection = ENDPOINT_EXTENSION.getConnection()) {
-            java.sql.ResultSet result = connection.getMetaData().getCatalogs();
-            assertSchemaEquals(
-                    ResolvedSchema.of(Column.physical("TABLE_CAT", DataTypes.STRING())),
-                    result.getMetaData());
-
-            List<String> actual = new ArrayList<>();
-            while (result.next()) {
-                actual.add(result.getString(1));
-            }
-
-            assertThat(actual).contains("hive", "default_catalog");
-        }
+        runGetObjectTest(
+                connection -> connection.getMetaData().getCatalogs(),
+                ResolvedSchema.of(Column.physical("TABLE_CAT", DataTypes.STRING())),
+                Arrays.asList(
+                        Collections.singletonList("hive"),
+                        Collections.singletonList("default_catalog")));
     }
 
     @Test
     public void testGetSchemas() throws Exception {
-        try (Connection connection = ENDPOINT_EXTENSION.getConnection()) {
-            initDefaultTestConnection(connection);
-            // test all
-            testGetSchemasAll(connection);
-            // test schema pattern parameter
-            testGetSchemasWithPattern(connection);
-        }
-    }
-
-    private void testGetSchemasAll(Connection connection) throws Exception {
-        java.sql.ResultSet resultAll = connection.getMetaData().getSchemas("hive", null);
-        assertSchemaEquals(
+        runGetObjectTest(
+                connection -> connection.getMetaData().getSchemas("default_catalog", null),
                 ResolvedSchema.of(
                         Column.physical("TABLE_SCHEMA", DataTypes.STRING()),
                         Column.physical("TABLE_CAT", DataTypes.STRING())),
-                resultAll.getMetaData());
-
-        List<List<String>> actual = new ArrayList<>();
-        while (resultAll.next()) {
-            actual.add(Arrays.asList(resultAll.getString(1), resultAll.getString(2)));
-        }
-        assertThat(new HashSet<>(actual))
-                .isEqualTo(
-                        new HashSet<>(
-                                Arrays.asList(
-                                        Arrays.asList("default", "hive"),
-                                        Arrays.asList("db_test1", "hive"),
-                                        Arrays.asList("db_test2", "hive"),
-                                        Arrays.asList("db_diff", "hive"))));
+                Arrays.asList(
+                        Arrays.asList("default_database", "default_catalog"),
+                        Arrays.asList("db_test1", "default_catalog"),
+                        Arrays.asList("db_test2", "default_catalog"),
+                        Arrays.asList("db_diff", "default_catalog")));
     }
 
-    private void testGetSchemasWithPattern(Connection connection) throws Exception {
-        java.sql.ResultSet result = connection.getMetaData().getSchemas("hive", "db\\_test%");
-        List<List<String>> actual = new ArrayList<>();
-        while (result.next()) {
-            actual.add(Arrays.asList(result.getString(1), result.getString(2)));
-        }
-        assertThat(new HashSet<>(actual))
-                .isEqualTo(
-                        new HashSet<>(
-                                Arrays.asList(
-                                        Arrays.asList("db_test1", "hive"),
-                                        Arrays.asList("db_test2", "hive"))));
+    @Test
+    public void testGetSchemasWithPattern() throws Exception {
+        runGetObjectTest(
+                connection -> connection.getMetaData().getSchemas(null, "db\\_test%"),
+                ResolvedSchema.of(
+                        Column.physical("TABLE_SCHEMA", DataTypes.STRING()),
+                        Column.physical("TABLE_CAT", DataTypes.STRING())),
+                Arrays.asList(
+                        Arrays.asList("db_test1", "default_catalog"),
+                        Arrays.asList("db_test2", "default_catalog")));
     }
 
-    private void initDefaultTestConnection(Connection connection) throws Exception {
-        // hive: db_test1 | db_test2 | db_diff
+    // --------------------------------------------------------------------------------------------
+
+    private Connection getInitializedConnection() throws Exception {
+        Connection connection = ENDPOINT_EXTENSION.getConnection();
+        Statement statement = connection.createStatement();
+        statement.execute("SET table.sql-dialect=default");
+        statement.execute("USE CATALOG `default_catalog`");
+
+        // default_catalog: db_test1 | db_test2 | db_diff | default
         //     db_test1: temporary table tb_1, table tb_2, temporary view tb_3, view tb_4
         //     db_test2: table tb_1, table diff_1, view tb_2, view diff_2
         //     db_diff:  table tb_1, view tb_2
-        Statement statement = connection.createStatement();
-        statement.execute("SET table.sql-dialect=default");
+
         statement.execute("CREATE DATABASE db_test1");
         statement.execute("CREATE DATABASE db_test2");
         statement.execute("CREATE DATABASE db_diff");
@@ -285,6 +265,22 @@ public class HiveServer2EndpointITCase extends TestLogger {
 
         statement.execute("CREATE TABLE db_diff.tb_1 COMMENT 'table tb_1'");
         statement.execute("CREATE VIEW db_diff.tb_2 COMMENT 'view tb_2' AS SELECT 1");
+
+        statement.close();
+        return connection;
+    }
+
+    private void runGetObjectTest(
+            FunctionWithException<Connection, java.sql.ResultSet, Exception> resultSetSupplier,
+            ResolvedSchema expectedSchema,
+            List<List<Object>> expectedResults)
+            throws Exception {
+        try (Connection connection = getInitializedConnection();
+                java.sql.ResultSet result = resultSetSupplier.apply(connection)) {
+            assertSchemaEquals(expectedSchema, result.getMetaData());
+            assertThat(new HashSet<>(collect(result, expectedSchema.getColumnCount())))
+                    .isEqualTo(new HashSet<>(expectedResults));
+        }
     }
 
     private void runOperationRequest(
@@ -340,5 +336,18 @@ public class HiveServer2EndpointITCase extends TestLogger {
                             HiveTypeUtil.toHiveTypeInfo(column.getDataType(), false).getTypeName());
             assertThat(metaData.getColumnType(i)).isEqualTo(jdbcType);
         }
+    }
+
+    private List<List<Object>> collect(java.sql.ResultSet result, int columnCount)
+            throws Exception {
+        List<List<Object>> actual = new ArrayList<>();
+        while (result.next()) {
+            List<Object> row = new ArrayList<>();
+            for (int i = 1; i <= columnCount; i++) {
+                row.add(result.getObject(i));
+            }
+            actual.add(row);
+        }
+        return actual;
     }
 }

@@ -417,9 +417,6 @@ public class HiveServer2Endpoint implements TCLIService.Iface, SqlGatewayEndpoin
         try {
             SessionHandle sessionHandle = toSessionHandle(tGetSchemasReq.getSessionHandle());
             String catalogName = tGetSchemasReq.getCatalogName();
-            if (catalogName == null || catalogName.equals("")) {
-                catalogName = service.getCurrentCatalog(sessionHandle);
-            }
             OperationHandle operationHandle =
                     service.submitOperation(
                             sessionHandle,

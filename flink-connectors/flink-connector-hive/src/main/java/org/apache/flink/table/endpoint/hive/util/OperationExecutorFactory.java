@@ -24,10 +24,11 @@ import org.apache.flink.table.gateway.api.SqlGatewayService;
 import org.apache.flink.table.gateway.api.results.ResultSet;
 import org.apache.flink.table.gateway.api.session.SessionHandle;
 
-import java.util.Arrays;
-import java.util.List;
+import javax.annotation.Nullable;
+
 import java.util.Set;
 import java.util.concurrent.Callable;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.table.endpoint.hive.HiveServer2Schemas.GET_CATALOGS_SCHEMA;
@@ -45,10 +46,14 @@ public class OperationExecutorFactory {
     public static Callable<ResultSet> createGetSchemasExecutor(
             SqlGatewayService service,
             SessionHandle sessionHandle,
-            String catalogName,
-            String schemaName) {
+            @Nullable String catalogName,
+            @Nullable String schemaName) {
         return () -> executeGetSchemas(service, sessionHandle, catalogName, schemaName);
     }
+
+    // --------------------------------------------------------------------------------------------
+    // Executors
+    // --------------------------------------------------------------------------------------------
 
     private static ResultSet executeGetCatalogs(
             SqlGatewayService service, SessionHandle sessionHandle) {
@@ -58,30 +63,40 @@ public class OperationExecutorFactory {
                 null,
                 GET_CATALOGS_SCHEMA,
                 catalogNames.stream()
-                        .map(OperationExecutorFactory::packData)
+                        .map(OperationExecutorFactory::wrap)
                         .collect(Collectors.toList()));
     }
 
     private static ResultSet executeGetSchemas(
             SqlGatewayService service,
             SessionHandle sessionHandle,
-            String catalogName,
-            String schemaName) {
-        Set<String> schemaNames =
-                filterStringSetBy(service.listDatabases(sessionHandle, catalogName), schemaName);
-
+            @Nullable String catalogName,
+            @Nullable String schemaName) {
+        String specifiedCatalogName =
+                catalogName == null || catalogName.equals("")
+                        ? service.getCurrentCatalog(sessionHandle)
+                        : catalogName;
+        Set<String> databaseNames =
+                filter(service.listDatabases(sessionHandle, specifiedCatalogName), schemaName);
         return new ResultSet(
                 EOS,
                 null,
                 GET_SCHEMAS_SCHEMA,
-                schemaNames.stream()
-                        .map(name -> packData(name, catalogName))
+                databaseNames.stream()
+                        .map(name -> wrap(name, specifiedCatalogName))
                         .collect(Collectors.toList()));
     }
 
-    // -------------------------------------
-    // useful methods
-    // -------------------------------------
+    // --------------------------------------------------------------------------------------------
+    // Utilities
+    // --------------------------------------------------------------------------------------------
+
+    private static Set<String> filter(Set<String> candidates, String pattern) {
+        Pattern compiledPattern = convertNamePattern(pattern);
+        return candidates.stream()
+                .filter(name -> compiledPattern.matcher(name).matches())
+                .collect(Collectors.toSet());
+    }
 
     /**
      * Covert SQL 'like' pattern to a Java regular expression. Underscores (_) are converted to '.'
@@ -90,47 +105,39 @@ public class OperationExecutorFactory {
      * @param pattern the SQL pattern to convert.
      * @return the equivalent Java regular expression of the pattern.
      */
-    private static String convertNamePattern(String pattern) {
+    private static Pattern convertNamePattern(@Nullable String pattern) {
         if ((pattern == null) || pattern.isEmpty()) {
             pattern = "%";
         }
         String wStr = ".*";
-        return pattern.replaceAll("([^\\\\])%", "$1" + wStr)
-                .replaceAll("\\\\%", "%")
-                .replaceAll("^%", wStr)
-                .replaceAll("([^\\\\])_", "$1.")
-                .replaceAll("\\\\_", "_")
-                .replaceAll("^_", ".");
+        return Pattern.compile(
+                pattern.replaceAll("([^\\\\])%", "$1" + wStr)
+                        .replaceAll("\\\\%", "%")
+                        .replaceAll("^%", wStr)
+                        .replaceAll("([^\\\\])_", "$1.")
+                        .replaceAll("\\\\_", "_")
+                        .replaceAll("^_", "."));
     }
 
-    public static Set<String> filterStringSetBy(Set<String> set, String pattern) {
-        return set.stream()
-                .filter(name -> name.matches(convertNamePattern(pattern)))
-                .collect(Collectors.toSet());
-    }
-
-    private static GenericRowData packData(List<Object> data) {
-        Object[] pack = new Object[data.size()];
-        for (int i = 0; i < data.size(); i++) {
-            if (data.get(i) != null) {
-                if (data.get(i) instanceof String) {
-                    pack[i] = StringData.fromString((String) data.get(i));
-                } else if (data.get(i) instanceof Integer) {
-                    pack[i] = data.get(i);
-                } else if (data.get(i) instanceof Short) {
-                    pack[i] = data.get(i);
+    private static GenericRowData wrap(Object... elements) {
+        Object[] pack = new Object[elements.length];
+        for (int i = 0; i < elements.length; i++) {
+            Object element = elements[i];
+            if (element != null) {
+                if (element instanceof String) {
+                    pack[i] = StringData.fromString((String) element);
+                } else if (element instanceof Integer) {
+                    pack[i] = element;
+                } else if (element instanceof Short) {
+                    pack[i] = element;
                 } else {
                     throw new UnsupportedOperationException(
                             String.format(
-                                    "Data type '%s' of '%s' not supported.",
-                                    data.get(i).getClass(), data.get(i)));
+                                    "Can not wrap the element %s at index %s into RowData.",
+                                    element, i));
                 }
             }
         }
         return GenericRowData.of(pack);
-    }
-
-    private static GenericRowData packData(Object... data) {
-        return packData(Arrays.stream(data).collect(Collectors.toList()));
     }
 }
