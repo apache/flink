@@ -40,24 +40,18 @@ import org.apache.flink.table.planner.plan.nodes.physical.batch.BatchPhysicalJoi
 import org.apache.flink.table.planner.plan.nodes.physical.batch.BatchPhysicalRel;
 import org.apache.flink.table.planner.plan.nodes.physical.batch.BatchPhysicalTableSourceScan;
 import org.apache.flink.table.planner.plan.schema.TableSourceTable;
+import org.apache.flink.table.planner.utils.DynamicPartitionPruningUtils;
 import org.apache.flink.table.planner.utils.ShortcutUtils;
 import org.apache.flink.table.runtime.connector.source.ScanRuntimeProviderContext;
 
 import org.apache.calcite.plan.RelOptRuleCall;
-import org.apache.calcite.plan.RelOptUtil;
 import org.apache.calcite.plan.RelRule;
-import org.apache.calcite.plan.hep.HepRelVertex;
 import org.apache.calcite.rel.RelNode;
-import org.apache.calcite.rel.core.Calc;
 import org.apache.calcite.rel.core.Exchange;
-import org.apache.calcite.rel.core.Filter;
 import org.apache.calcite.rel.core.Join;
 import org.apache.calcite.rel.core.JoinInfo;
 import org.apache.calcite.rel.core.JoinRelType;
-import org.apache.calcite.rel.core.Project;
-import org.apache.calcite.rel.core.TableScan;
 import org.apache.calcite.rel.type.RelDataType;
-import org.apache.calcite.rex.RexCall;
 import org.apache.calcite.rex.RexInputRef;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.rex.RexProgram;
@@ -163,8 +157,9 @@ public abstract class DynamicPartitionPruningRule extends RelRule<RelRule.Config
             return false;
         }
 
-        // Judge whether dimSide meets the conditions of dimSide.
-        if (!isDimSide(dimSide)) {
+        // Judge whether input dim side RelNode meets the pattern of dimSide, joinKeys is null means
+        // need not care about join keys change in dim side.
+        if (!DynamicPartitionPruningUtils.isDimSide(dimSide, null)) {
             return false;
         }
 
@@ -269,109 +264,6 @@ public abstract class DynamicPartitionPruningRule extends RelRule<RelRule.Config
         return acceptedFields.stream()
                 .map(f -> factScan.getRowType().getFieldNames().indexOf(f))
                 .collect(Collectors.toList());
-    }
-
-    private static boolean isDimSide(RelNode rel) {
-        DppDimSideFactors dimSideFactors = new DppDimSideFactors();
-        visitDimSide(rel, dimSideFactors);
-        return dimSideFactors.isDimSide();
-    }
-
-    /**
-     * Visit dim side to judge whether dim side has filter condition and whether dim side's source
-     * table scan is non partitioned scan.
-     */
-    private static void visitDimSide(RelNode rel, DppDimSideFactors dimSideFactors) {
-        // TODO Let visitDimSide more efficient and more accurate. Like a filter on dim table or a
-        // filter for the partition field on fact table.
-        if (rel instanceof TableScan) {
-            TableScan scan = (TableScan) rel;
-            TableSourceTable table = scan.getTable().unwrap(TableSourceTable.class);
-            if (table == null) {
-                return;
-            }
-            if (!dimSideFactors.hasFilter
-                    && table.abilitySpecs() != null
-                    && table.abilitySpecs().length != 0) {
-                for (SourceAbilitySpec spec : table.abilitySpecs()) {
-                    if (spec instanceof FilterPushDownSpec) {
-                        List<RexNode> predicates = ((FilterPushDownSpec) spec).getPredicates();
-                        for (RexNode predicate : predicates) {
-                            if (isSuitableFilter(predicate)) {
-                                dimSideFactors.hasFilter = true;
-                            }
-                        }
-                    }
-                }
-            }
-
-            CatalogTable catalogTable = table.contextResolvedTable().getTable();
-            dimSideFactors.hasNonPartitionedScan = !catalogTable.isPartitioned();
-        } else if (rel instanceof HepRelVertex) {
-            visitDimSide(((HepRelVertex) rel).getCurrentRel(), dimSideFactors);
-        } else if (rel instanceof Exchange || rel instanceof Project) {
-            visitDimSide(rel.getInput(0), dimSideFactors);
-        } else if (rel instanceof Calc) {
-            RexProgram origProgram = ((Calc) rel).getProgram();
-            if (origProgram.getCondition() != null
-                    && isSuitableFilter(origProgram.expandLocalRef(origProgram.getCondition()))) {
-                dimSideFactors.hasFilter = true;
-            }
-            visitDimSide(rel.getInput(0), dimSideFactors);
-        } else if (rel instanceof Filter) {
-            if (isSuitableFilter(((Filter) rel).getCondition())) {
-                dimSideFactors.hasFilter = true;
-            }
-            visitDimSide(rel.getInput(0), dimSideFactors);
-        }
-    }
-
-    /**
-     * Not all filter condition suitable for using to filter partitions by dynamic partition pruning
-     * rules. For example, NOT NULL can only filter one default partition which have a small impact
-     * on filtering data.
-     */
-    private static boolean isSuitableFilter(RexNode filterCondition) {
-        switch (filterCondition.getKind()) {
-            case AND:
-                List<RexNode> conjunctions = RelOptUtil.conjunctions(filterCondition);
-                return isSuitableFilter(conjunctions.get(0))
-                        || isSuitableFilter(conjunctions.get(1));
-            case OR:
-                List<RexNode> disjunctions = RelOptUtil.disjunctions(filterCondition);
-                return isSuitableFilter(disjunctions.get(0))
-                        && isSuitableFilter(disjunctions.get(1));
-            case NOT:
-                return isSuitableFilter(((RexCall) filterCondition).operands.get(0));
-            case EQUALS:
-            case GREATER_THAN:
-            case GREATER_THAN_OR_EQUAL:
-            case LESS_THAN:
-            case LESS_THAN_OR_EQUAL:
-            case NOT_EQUALS:
-            case IN:
-            case LIKE:
-            case CONTAINS:
-            case SEARCH:
-            case IS_FALSE:
-            case IS_NOT_FALSE:
-            case IS_NOT_TRUE:
-            case IS_TRUE:
-                // TODO adding more suitable filters which can filter enough partitions after using
-                // this filter in dynamic partition pruning.
-                return true;
-            default:
-                return false;
-        }
-    }
-
-    private static class DppDimSideFactors {
-        private boolean hasFilter;
-        private boolean hasNonPartitionedScan;
-
-        public boolean isDimSide() {
-            return hasFilter && hasNonPartitionedScan;
-        }
     }
 
     protected BatchPhysicalDynamicFilteringTableSourceScan createDynamicFilteringTableSourceScan(

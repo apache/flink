@@ -406,4 +406,83 @@ public class DynamicPartitionPruningRuleTest extends TableTestBase {
                         + " on fact_part.fact_date_sk = dimSide.dim_date_sk";
         util.verifyRelPlan(query);
     }
+
+    // --------------------------dpp factor test ---------------------------------------------
+
+    @Test
+    public void testDPPFactorToReorderTable() {
+        // While there are several joins, and fact table not adjacent to dim table directly. dynamic
+        // partition pruning factor will try best to reorder join relations to make fact table
+        // adjacent to dim table.
+        String ddl1 =
+                "CREATE TABLE test_database.sales (\n"
+                        + "  id BIGINT,\n"
+                        + "  amount BIGINT,\n"
+                        + "  price BIGINT\n"
+                        + ") WITH (\n"
+                        + " 'connector' = 'values',\n"
+                        + " 'bounded' = 'true'\n"
+                        + ")";
+        util.tableEnv().executeSql(ddl1);
+
+        String ddl2 =
+                "CREATE TABLE test_database.item (\n"
+                        + "  id BIGINT,\n"
+                        + "  amount BIGINT,\n"
+                        + "  price BIGINT\n"
+                        + ") WITH (\n"
+                        + " 'connector' = 'values',\n"
+                        + " 'bounded' = 'true'\n"
+                        + ")";
+        util.tableEnv().executeSql(ddl2);
+        TableConfig tableConfig = util.tableEnv().getConfig();
+        // Join reorder need open.
+        tableConfig.set(OptimizerConfigOptions.TABLE_OPTIMIZER_JOIN_REORDER_ENABLED, true);
+
+        String query =
+                "Select * from fact_part, item, sales, dim"
+                        + " where fact_part.fact_date_sk = dim.dim_date_sk"
+                        + " and fact_part.id = item.id"
+                        + " and fact_part.id = sales.id"
+                        + " and dim.id = item.id "
+                        + " and dim.price < 500 and dim.price > 300";
+        util.verifyRelPlan(query);
+    }
+
+    @Test
+    public void testDPPFactorWithDimSideJoinKeyChanged() {
+        // If partition keys changed in dim side. DPP factor will not works.
+        String ddl1 =
+                "CREATE TABLE test_database.sales (\n"
+                        + "  id BIGINT,\n"
+                        + "  amount BIGINT,\n"
+                        + "  price BIGINT\n"
+                        + ") WITH (\n"
+                        + " 'connector' = 'values',\n"
+                        + " 'bounded' = 'true'\n"
+                        + ")";
+        util.tableEnv().executeSql(ddl1);
+
+        String ddl2 =
+                "CREATE TABLE test_database.item (\n"
+                        + "  id BIGINT,\n"
+                        + "  amount BIGINT,\n"
+                        + "  price BIGINT\n"
+                        + ") WITH (\n"
+                        + " 'connector' = 'values',\n"
+                        + " 'bounded' = 'true'\n"
+                        + ")";
+        util.tableEnv().executeSql(ddl2);
+        TableConfig tableConfig = util.tableEnv().getConfig();
+        // Join reorder need open.
+        tableConfig.set(OptimizerConfigOptions.TABLE_OPTIMIZER_JOIN_REORDER_ENABLED, true);
+
+        String query =
+                "Select * from fact_part join item on fact_part.id = item.id"
+                        + " join sales on fact_part.id = sales.id"
+                        + " join (select dim_date_sk + 1 as dim_date_sk, price from dim) dim1"
+                        + " on fact_part.fact_date_sk = dim1.dim_date_sk"
+                        + " where dim1.price < 500 and dim1.price > 300";
+        util.verifyRelPlan(query);
+    }
 }
