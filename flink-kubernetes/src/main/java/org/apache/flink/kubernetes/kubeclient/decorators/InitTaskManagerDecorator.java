@@ -95,6 +95,7 @@ public class InitTaskManagerDecorator extends AbstractKubernetesStepDecorator {
                         kubernetesTaskManagerParameters.isHostNetworkEnabled()
                                 ? DNS_PLOICY_HOSTNETWORK
                                 : DNS_PLOICY_DEFAULT)
+                .withSchedulerName(kubernetesTaskManagerParameters.getPodSchedulerName())
                 .endSpec();
 
         // Merge fields

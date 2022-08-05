@@ -49,6 +49,7 @@ public class KubernetesConfigOptions {
 
     private static final String KUBERNETES_SERVICE_ACCOUNT_KEY = "kubernetes.service-account";
     private static final String KUBERNETES_POD_TEMPLATE_FILE_KEY = "kubernetes.pod-template-file";
+    private static final String KUBERNETES_POD_SCHEDULER_NAME_KEY = "kubernetes.scheduler-name";
 
     public static final ConfigOption<String> CONTEXT =
             key("kubernetes.context")
@@ -443,6 +444,41 @@ public class KubernetesConfigOptions {
     public static final ConfigOption<String> JOB_MANAGER_POD_TEMPLATE;
 
     public static final ConfigOption<String> TASK_MANAGER_POD_TEMPLATE;
+
+    public static final ConfigOption<String> JOB_MANAGER_POD_SCHEDULER_NAME =
+            key("kubernetes.jobmanager.scheduler-name")
+                    .stringType()
+                    .defaultValue("default-scheduler")
+                    .withFallbackKeys(KUBERNETES_POD_SCHEDULER_NAME_KEY)
+                    .withDescription(
+                            "The name of the Kubernetes pod scheduler for JobManager pods. "
+                                    + "If not explicitly configured then config option '"
+                                    + KUBERNETES_POD_SCHEDULER_NAME_KEY
+                                    + "' will be used.");
+
+    public static final ConfigOption<String> TASK_MANAGER_POD_SCHEDULER_NAME =
+            key("kubernetes.taskmanager.scheduler-name")
+                    .stringType()
+                    .defaultValue("default-scheduler")
+                    .withFallbackKeys(KUBERNETES_POD_SCHEDULER_NAME_KEY)
+                    .withDescription(
+                            "The name of the Kubernetes pod scheduler for TaskManager pods. "
+                                    + "If not explicitly configured then config option '"
+                                    + KUBERNETES_POD_SCHEDULER_NAME_KEY
+                                    + "' will be used.");
+
+    public static final ConfigOption<String> POD_SCHEDULER_NAME =
+            key(KUBERNETES_POD_SCHEDULER_NAME_KEY)
+                    .stringType()
+                    .defaultValue("default-scheduler")
+                    .withDescription(
+                            "The name of the Kubernetes pod scheduler for Flink pods of deployment. "
+                                    + "The default value is using the kubernetes default pod scheduler. "
+                                    + "Notice that this can be overwritten by config options '"
+                                    + JOB_MANAGER_POD_SCHEDULER_NAME.key()
+                                    + "' and '"
+                                    + TASK_MANAGER_POD_SCHEDULER_NAME.key()
+                                    + "' for JobManager and TaskManager respectively.");
 
     /**
      * This option is here only for documentation generation, it is the fallback key of

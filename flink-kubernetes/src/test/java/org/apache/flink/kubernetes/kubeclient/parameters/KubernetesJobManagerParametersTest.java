@@ -254,4 +254,27 @@ class KubernetesJobManagerParametersTest extends KubernetesTestBase {
         flinkConfig.set(KubernetesConfigOptions.KUBERNETES_JOBMANAGER_REPLICAS, 2);
         assertThat(kubernetesJobManagerParameters.getReplicas()).isEqualTo(2);
     }
+
+    @Test
+    void testGetPodSchedulerName() {
+        final String testJobManagerSchedulerName = "test-k8s-job-manager-pod-scheduler";
+        flinkConfig.set(
+                KubernetesConfigOptions.JOB_MANAGER_POD_SCHEDULER_NAME,
+                testJobManagerSchedulerName);
+        assertThat(kubernetesJobManagerParameters.getPodSchedulerName())
+                .isEqualTo(testJobManagerSchedulerName);
+    }
+
+    @Test
+    void testGetPodSchedulerNameWithDefaultValue() {
+        assertThat(kubernetesJobManagerParameters.getPodSchedulerName())
+                .isEqualTo("default-scheduler");
+    }
+
+    @Test
+    void testGetPodSchedulerNameFallback() {
+        final String testScheduler = "test-k8s-pod-scheduler";
+        flinkConfig.set(KubernetesConfigOptions.POD_SCHEDULER_NAME, testScheduler);
+        assertThat(kubernetesJobManagerParameters.getPodSchedulerName()).isEqualTo(testScheduler);
+    }
 }
