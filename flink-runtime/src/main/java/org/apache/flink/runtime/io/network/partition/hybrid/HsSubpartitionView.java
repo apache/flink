@@ -43,7 +43,7 @@ public class HsSubpartitionView
     private int lastConsumedBufferIndex = -1;
 
     @GuardedBy("lock")
-    private boolean needNotify = false;
+    private boolean needNotify = true;
 
     @Nullable
     @GuardedBy("lock")
