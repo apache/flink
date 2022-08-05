@@ -19,6 +19,9 @@
 package org.apache.flink.table.gateway.api.utils;
 
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.table.catalog.CatalogBaseTable.TableKind;
+import org.apache.flink.table.catalog.ObjectIdentifier;
+import org.apache.flink.table.catalog.ResolvedCatalogBaseTable;
 import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.gateway.api.SqlGatewayService;
 import org.apache.flink.table.gateway.api.endpoint.EndpointVersion;
@@ -27,6 +30,7 @@ import org.apache.flink.table.gateway.api.operation.OperationType;
 import org.apache.flink.table.gateway.api.results.FetchOrientation;
 import org.apache.flink.table.gateway.api.results.OperationInfo;
 import org.apache.flink.table.gateway.api.results.ResultSet;
+import org.apache.flink.table.gateway.api.results.TableInfo;
 import org.apache.flink.table.gateway.api.session.SessionEnvironment;
 import org.apache.flink.table.gateway.api.session.SessionHandle;
 
@@ -129,6 +133,23 @@ public class MockedSqlGatewayService implements SqlGatewayService {
 
     @Override
     public String getCurrentCatalog(SessionHandle sessionHandle) throws SqlGatewayException {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public ResolvedCatalogBaseTable<?> getTable(
+            SessionHandle sessionHandle, ObjectIdentifier tableIdentifier)
+            throws SqlGatewayException {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public Set<TableInfo> listTables(
+            SessionHandle sessionHandle,
+            String catalogName,
+            String databaseName,
+            Set<TableKind> tableKinds)
+            throws SqlGatewayException {
         throw new UnsupportedOperationException();
     }
 }

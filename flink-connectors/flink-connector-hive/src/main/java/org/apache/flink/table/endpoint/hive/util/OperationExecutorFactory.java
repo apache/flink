@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.endpoint.hive.util;
 
+import org.apache.flink.table.catalog.CatalogBaseTable.TableKind;
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.StringData;
 import org.apache.flink.table.gateway.api.SqlGatewayService;
@@ -29,10 +30,19 @@ import javax.annotation.Nullable;
 import java.util.Set;
 import java.util.concurrent.Callable;
 import java.util.regex.Pattern;
+import org.apache.flink.table.gateway.api.results.TableInfo;
+import org.apache.flink.table.gateway.api.session.SessionHandle;
+
+import java.util.Arrays;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
+import java.util.concurrent.Callable;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.table.endpoint.hive.HiveServer2Schemas.GET_CATALOGS_SCHEMA;
 import static org.apache.flink.table.endpoint.hive.HiveServer2Schemas.GET_SCHEMAS_SCHEMA;
+import static org.apache.flink.table.endpoint.hive.HiveServer2Schemas.GET_TABLES_SCHEMA;
 import static org.apache.flink.table.gateway.api.results.ResultSet.ResultType.EOS;
 
 /** Factory to create the operation executor. */
@@ -49,6 +59,18 @@ public class OperationExecutorFactory {
             @Nullable String catalogName,
             @Nullable String schemaName) {
         return () -> executeGetSchemas(service, sessionHandle, catalogName, schemaName);
+    }
+
+    public static Callable<ResultSet> createGetTablesExecutor(
+            SqlGatewayService service,
+            SessionHandle sessionHandle,
+            String catalogName,
+            String schemaName,
+            String tableName,
+            Set<TableKind> tableKinds) {
+        return () ->
+                executeGetTables(
+                        service, sessionHandle, catalogName, schemaName, tableName, tableKinds);
     }
 
     // --------------------------------------------------------------------------------------------
@@ -84,6 +106,44 @@ public class OperationExecutorFactory {
                 GET_SCHEMAS_SCHEMA,
                 databaseNames.stream()
                         .map(name -> wrap(name, specifiedCatalogName))
+                        .collect(Collectors.toList()));
+    }
+
+    private static ResultSet executeGetTables(
+            SqlGatewayService service,
+            SessionHandle sessionHandle,
+            String catalogName,
+            String schemaName,
+            String tableName,
+            Set<TableKind> tableKinds) {
+        Set<TableInfo> tableInfos = new HashSet<>();
+        Set<String> catalogs = filterStringSetBy(service.listCatalogs(sessionHandle), catalogName);
+        for (String catalog : catalogs) {
+            Set<String> schemas =
+                    filterStringSetBy(service.listDatabases(sessionHandle, catalog), schemaName);
+            for (String schema : schemas) {
+                tableInfos.addAll(
+                        filterTableInfoBy(
+                                service.listTables(sessionHandle, catalog, schema, tableKinds),
+                                tableName));
+            }
+        }
+
+        return new ResultSet(
+                EOS,
+                null,
+                GET_TABLES_SCHEMA,
+                tableInfos.stream()
+                        .map(
+                                info ->
+                                        packData(
+                                                info.getIdentifier().getCatalogName(),
+                                                info.getIdentifier().getDatabaseName(),
+                                                info.getIdentifier().getObjectName(),
+                                                info.getTableKind().name(),
+                                                // currently return empty string of description
+                                                // considering performance
+                                                ""))
                         .collect(Collectors.toList()));
     }
 

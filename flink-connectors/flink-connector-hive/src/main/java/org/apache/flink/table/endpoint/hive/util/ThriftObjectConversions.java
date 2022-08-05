@@ -22,6 +22,7 @@ import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.formats.common.TimestampFormat;
 import org.apache.flink.formats.json.JsonFormatOptions;
 import org.apache.flink.formats.json.RowDataToJsonConverters;
+import org.apache.flink.table.catalog.CatalogBaseTable.TableKind;
 import org.apache.flink.table.catalog.Column;
 import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.catalog.hive.util.HiveTypeUtil;
@@ -42,6 +43,7 @@ import org.apache.flink.types.RowKind;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.JsonNode;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
 
+import org.apache.hadoop.hive.metastore.TableType;
 import org.apache.hadoop.hive.serde2.SerDeUtils;
 import org.apache.hadoop.hive.serde2.objectinspector.ObjectInspector;
 import org.apache.hadoop.hive.serde2.thrift.Type;
@@ -86,8 +88,10 @@ import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.BitSet;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -164,6 +168,8 @@ public class ThriftObjectConversions {
                 return TOperationType.GET_CATALOGS;
             case LIST_SCHEMAS:
                 return TOperationType.GET_SCHEMAS;
+            case LIST_TABLES:
+                return TOperationType.GET_TABLES;
             case UNKNOWN:
                 return TOperationType.UNKNOWN;
             default:
@@ -616,5 +622,30 @@ public class ThriftObjectConversions {
             details.add(builder.toString());
         }
         return details;
+    }
+
+    public static Set<TableKind> mapToFlinkTableType(List<String> tableTypes)
+            throws UnsupportedOperationException {
+        Set<TableKind> tableKinds = new HashSet<>();
+
+        if (tableTypes == null || tableTypes.isEmpty()) {
+            tableKinds.add(TableKind.TABLE);
+            tableKinds.add(TableKind.VIEW);
+            return tableKinds;
+        }
+
+        if (tableTypes.contains(TableType.MATERIALIZED_VIEW.name())) {
+            throw new UnsupportedOperationException(
+                    "Table type 'MATERIALIZED_VIEW' not supported currently.");
+        }
+
+        if (tableTypes.contains(TableType.MANAGED_TABLE.name())
+                || tableTypes.contains(TableType.EXTERNAL_TABLE.name())) {
+            tableKinds.add(TableKind.TABLE);
+        }
+        if (tableTypes.contains(TableType.VIRTUAL_VIEW.name())) {
+            tableKinds.add(TableKind.VIEW);
+        }
+        return tableKinds;
     }
 }

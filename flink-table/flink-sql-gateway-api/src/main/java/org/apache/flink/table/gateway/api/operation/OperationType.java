@@ -32,6 +32,9 @@ public enum OperationType {
     /** The type indicates the operation list schemas. */
     LIST_SCHEMAS,
 
+    /** The type indicates the operation list tables. */
+    LIST_TABLES,
+
     /** The type indicates the operation is unknown. */
     UNKNOWN;
 }

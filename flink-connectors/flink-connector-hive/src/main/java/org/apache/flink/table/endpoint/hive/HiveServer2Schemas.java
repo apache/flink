@@ -47,4 +47,40 @@ public class HiveServer2Schemas {
                                     .withComment("Catalog name. NULL if not applicable")),
                     Collections.emptyList(),
                     null);
+
+    /** Schema for {@link HiveServer2Endpoint#GetTables}. */
+    public static final ResolvedSchema GET_TABLES_SCHEMA =
+            new ResolvedSchema(
+                    Collections.unmodifiableList(
+                            Arrays.asList(
+                                    Column.physical("TABLE_CAT", DataTypes.STRING())
+                                            .withComment("Catalog name. NULL if not applicable."),
+                                    Column.physical("TABLE_SCHEMA", DataTypes.STRING())
+                                            .withComment("Schema name. NULL if not applicable."),
+                                    Column.physical("TABLE_NAME", DataTypes.STRING())
+                                            .withComment("Table name. NULL if not applicable."),
+                                    Column.physical("TABLE_TYPE", DataTypes.STRING())
+                                            .withComment("Table type, e.g. TABLE, VIEW."),
+                                    Column.physical("REMARKS", DataTypes.STRING())
+                                            .withComment("Table description."))),
+                    Collections.emptyList(),
+                    null);
+
+    /** Schema for {@link HiveServer2Endpoint#GetTables}. */
+    public static final ResolvedSchema GET_TABLES_SCHEMA =
+            new ResolvedSchema(
+                    Collections.unmodifiableList(
+                            Arrays.asList(
+                                    Column.physical("TABLE_CAT", DataTypes.STRING())
+                                            .withComment("Catalog name. NULL if not applicable."),
+                                    Column.physical("TABLE_SCHEMA", DataTypes.STRING())
+                                            .withComment("Schema name. NULL if not applicable."),
+                                    Column.physical("TABLE_NAME", DataTypes.STRING())
+                                            .withComment("Table name. NULL if not applicable."),
+                                    Column.physical("TABLE_TYPE", DataTypes.STRING())
+                                            .withComment("Table type, e.g. TABLE, VIEW."),
+                                    Column.physical("REMARKS", DataTypes.STRING())
+                                            .withComment("Table description."))),
+                    Collections.emptyList(),
+                    null);
 }
