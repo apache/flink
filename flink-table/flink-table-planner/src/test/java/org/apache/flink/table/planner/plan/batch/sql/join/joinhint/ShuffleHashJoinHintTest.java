@@ -27,4 +27,9 @@ public class ShuffleHashJoinHintTest extends JoinHintTestBase {
     protected String getTestSingleJoinHint() {
         return JoinStrategy.SHUFFLE_HASH.getJoinHintName();
     }
+
+    @Override
+    protected String getDisabledOperatorName() {
+        return "HashJoin";
+    }
 }

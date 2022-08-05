@@ -17,10 +17,12 @@
  */
 package org.apache.flink.table.planner.plan.utils
 
+import org.apache.flink.table.planner.hint.FlinkHints
 import org.apache.flink.table.planner.plan.metadata.FlinkRelMetadataQuery
 import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalRel
 
 import org.apache.calcite.rel.RelNode
+import org.apache.calcite.rel.core.Join
 import org.apache.calcite.rel.externalize.RelWriterImpl
 import org.apache.calcite.sql.SqlExplainLevel
 import org.apache.calcite.util.Pair
@@ -38,7 +40,8 @@ class RelTreeWriterImpl(
     withChangelogTraits: Boolean = false,
     withRowType: Boolean = false,
     withTreeStyle: Boolean = true,
-    withUpsertKey: Boolean = false)
+    withUpsertKey: Boolean = false,
+    withJoinHint: Boolean = true)
   extends RelWriterImpl(pw, explainLevel, withIdPrefix) {
 
   var lastChildren: Seq[Boolean] = Nil
@@ -117,6 +120,17 @@ class RelTreeWriterImpl(
 
     if (withRowType) {
       s.append(", rowType=[").append(rel.getRowType.toString).append("]")
+    }
+
+    if (withJoinHint) {
+      rel match {
+        case join: Join =>
+          val joinHints = FlinkHints.getHintsWithoutAlias(join.getHints)
+          if (joinHints.nonEmpty) {
+            printValues.add(Pair.of("joinHints", RelExplainUtil.hintsToString(joinHints)))
+          }
+        case _ => // ignore
+      }
     }
 
     if (explainLevel == SqlExplainLevel.ALL_ATTRIBUTES) {

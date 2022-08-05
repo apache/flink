@@ -18,7 +18,10 @@
 
 package org.apache.flink.table.planner.hint;
 
+import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.planner.plan.rules.logical.WrapJsonAggFunctionArgumentsRule;
+import org.apache.flink.table.planner.plan.schema.LegacyTableSourceTable;
+import org.apache.flink.table.planner.plan.schema.TableSourceTable;
 
 import org.apache.calcite.plan.RelOptTable;
 import org.apache.calcite.rel.RelNode;
@@ -116,8 +119,24 @@ public abstract class FlinkHints {
         if (table == null) {
             return Optional.empty();
         }
-        List<String> qualifiedNames = table.getQualifiedName();
-        return Optional.of(String.join(".", qualifiedNames));
+
+        String tableName;
+        if (table instanceof TableSourceTable) {
+            tableName =
+                    ((TableSourceTable) table)
+                            .contextResolvedTable()
+                            .getIdentifier()
+                            .asSummaryString();
+        } else if (table instanceof LegacyTableSourceTable) {
+            tableName = ((LegacyTableSourceTable<?>) table).tableIdentifier().asSummaryString();
+        } else {
+            throw new TableException(
+                    String.format(
+                            "Could not get the table name with the unknown table class `%s`",
+                            table.getClass().getCanonicalName()));
+        }
+
+        return Optional.of(tableName);
     }
 
     public static String stringifyHints(List<RelHint> hints) {
@@ -149,13 +168,6 @@ public abstract class FlinkHints {
     public static List<RelHint> getHintsWithoutAlias(List<RelHint> allHints) {
         return allHints.stream()
                 .filter(hint -> !(hint.hintName.equals(FlinkHints.HINT_ALIAS)))
-                .collect(Collectors.toList());
-    }
-
-    /** Get all hints without join hints. */
-    public static List<RelHint> getHintsWithoutJoinHints(List<RelHint> allHints) {
-        return allHints.stream()
-                .filter(hint -> !JoinStrategy.isJoinStrategy(hint.hintName))
                 .collect(Collectors.toList());
     }
 }

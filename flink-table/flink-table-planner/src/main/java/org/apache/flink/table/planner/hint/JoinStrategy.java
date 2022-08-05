@@ -18,8 +18,6 @@
 
 package org.apache.flink.table.planner.hint;
 
-import org.apache.flink.table.api.ValidationException;
-
 import java.util.List;
 
 /** Currently available join strategies and corresponding join hint names. */
@@ -58,21 +56,11 @@ public enum JoinStrategy {
     public static final String LEFT_INPUT = "LEFT";
     public static final String RIGHT_INPUT = "RIGHT";
 
-    public static JoinStrategy getJoinStrategy(String joinHintName) {
-        for (JoinStrategy joinStrategy : JoinStrategy.values()) {
-            if (joinStrategy.getJoinHintName().equalsIgnoreCase(joinHintName)) {
-                return joinStrategy;
-            }
-        }
-
-        throw new ValidationException(String.format("Unknown join hint : %s", joinHintName));
-    }
-
     public static boolean isJoinStrategy(String hintName) {
         try {
-            getJoinStrategy(hintName);
+            JoinStrategy.valueOf(hintName);
             return true;
-        } catch (ValidationException e) {
+        } catch (Exception e) {
             return false;
         }
     }
@@ -86,7 +74,7 @@ public enum JoinStrategy {
             return false;
         }
 
-        JoinStrategy strategy = JoinStrategy.getJoinStrategy(hintName);
+        JoinStrategy strategy = JoinStrategy.valueOf(hintName);
         switch (strategy) {
             case SHUFFLE_HASH:
             case SHUFFLE_MERGE:

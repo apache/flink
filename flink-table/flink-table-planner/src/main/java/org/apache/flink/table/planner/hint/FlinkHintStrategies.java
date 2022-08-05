@@ -21,7 +21,6 @@ package org.apache.flink.table.planner.hint;
 import org.apache.flink.table.planner.plan.rules.logical.WrapJsonAggFunctionArgumentsRule;
 
 import org.apache.calcite.rel.hint.HintOptionChecker;
-import org.apache.calcite.rel.hint.HintPredicate;
 import org.apache.calcite.rel.hint.HintPredicates;
 import org.apache.calcite.rel.hint.HintStrategy;
 import org.apache.calcite.rel.hint.HintStrategyTable;
@@ -58,7 +57,8 @@ public abstract class FlinkHintStrategies {
                 // internal join hint used for alias
                 .hintStrategy(
                         FlinkHints.HINT_ALIAS,
-                        HintStrategy.builder(TAG_PREDICATE)
+                        // currently, only join hints care about query block alias
+                        HintStrategy.builder(HintPredicates.JOIN)
                                 .optionChecker(fixedSizeListOptionChecker(1))
                                 .build())
                 // TODO semi/anti join with CORRELATE is not supported
@@ -107,9 +107,4 @@ public abstract class FlinkHintStrategies {
                                     + "one table or view specified in hint {}.",
                             FlinkHints.stringifyHints(Collections.singletonList(hint)),
                             hint.hintName);
-
-    // ~ hint predicate ------------------------------------------------------------
-
-    // For hint used as tag, and tag predicate never propagate.
-    private static final HintPredicate TAG_PREDICATE = (hint, node) -> false;
 }

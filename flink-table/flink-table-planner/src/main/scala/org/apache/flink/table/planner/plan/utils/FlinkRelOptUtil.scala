@@ -19,29 +19,23 @@ package org.apache.flink.table.planner.plan.utils
 
 import org.apache.flink.table.planner.JBoolean
 import org.apache.flink.table.planner.calcite.{FlinkPlannerImpl, FlinkTypeFactory}
-import org.apache.flink.table.planner.hint.FlinkHints
 import org.apache.flink.table.planner.plan.`trait`.{MiniBatchInterval, MiniBatchMode}
-import org.apache.flink.table.planner.plan.nodes.calcite.SubQueryAlias
 import org.apache.flink.table.planner.utils.ShortcutUtils.unwrapTableConfig
 
 import org.apache.calcite.config.NullCollation
 import org.apache.calcite.plan.RelOptUtil
-import org.apache.calcite.rel.{RelFieldCollation, RelHomogeneousShuttle, RelNode, RelShuttle}
+import org.apache.calcite.rel.{RelFieldCollation, RelNode}
 import org.apache.calcite.rel.RelFieldCollation.{Direction, NullDirection}
-import org.apache.calcite.rel.core.TableScan
-import org.apache.calcite.rel.hint.{Hintable, HintStrategyTable, RelHint}
 import org.apache.calcite.rex.{RexBuilder, RexCall, RexInputRef, RexLiteral, RexNode, RexUtil, RexVisitorImpl}
 import org.apache.calcite.sql.`type`.SqlTypeName._
 import org.apache.calcite.sql.SqlExplainLevel
 import org.apache.calcite.sql.SqlKind._
-import org.apache.calcite.util.Pair
 import org.apache.commons.math3.util.ArithmeticUtils
 
 import java.io.{PrintWriter, StringWriter}
 import java.math.BigDecimal
 import java.sql.{Date, Time, Timestamp}
-import java.util
-import java.util.{Calendar, Comparator}
+import java.util.Calendar
 
 import scala.collection.JavaConversions._
 import scala.collection.JavaConverters._
@@ -88,7 +82,8 @@ object FlinkRelOptUtil {
       withChangelogTraits,
       withRowType,
       withTreeStyle = true,
-      withUpsertKey)
+      withUpsertKey,
+      withJoinHint = true)
     rel.explain(planWriter)
     sw.toString
   }
@@ -149,7 +144,8 @@ object FlinkRelOptUtil {
         // expressions have different types
         withRowType = true,
         // ignore tree style, only contains RelNode's attributes
-        withTreeStyle = false))
+        withTreeStyle = false,
+        withJoinHint = true))
     sw.toString
   }
 
@@ -472,285 +468,6 @@ object FlinkRelOptUtil {
               new MiniBatchInterval(interval1.getInterval, MiniBatchMode.RowTime)
             }
         }
-    }
-  }
-
-  // ------------------ copy from RelOptUtil ------------------
-  // We mainly modify the code in `RelHintPropagateShuttle#visitHintable`. Due to Calcite will
-  // expand the whole SQL Rel Node tree that contains query block, but sometimes the query block
-  // should be perceived, and the some hints (like join hints) will not be propagated into the
-  // query block
-
-  /**
-   * Propagates the relational expression hints from root node to leaf node.
-   *
-   * @param rel
-   *   The relational expression
-   * @param reset
-   *   Flag saying if to reset the existing hints before the propagation
-   * @return
-   *   New relational expression with hints propagated
-   */
-  def propagateRelHints(rel: RelNode, reset: Boolean): RelNode = {
-    val newRel = if (reset) {
-      rel.accept(new ResetHintsShuttle)
-    } else {
-      rel
-    }
-    val shuttle: RelShuttle =
-      new RelHintPropagateShuttle(newRel.getCluster.getHintStrategies)
-    newRel.accept(shuttle)
-  }
-
-  /**
-   * Copy the [[RelHint]]s from `originalRel` to `newRel` if both of them are [[Hintable]].
-   *
-   * <p>The hints would be attached directly(e.g. without any filtering).
-   *
-   * @param originalRel
-   *   Original relational expression
-   * @param newRel
-   *   New relational expression
-   * @return
-   *   A copy of `newRel` with attached hints from `originalRel`, or `newRel` directly if one of
-   *   them are not [[Hintable]]
-   */
-  def copyRelHints(originalRel: RelNode, newRel: RelNode): RelNode =
-    copyRelHints(originalRel, newRel, false)
-
-  /**
-   * Copy the [[RelHint]]s from `originalRel`` to `newRel`` if both of them are [[Hintable]]. <p>The
-   * hints would be filtered by the specified hint strategies if `filterHints` is true.
-   *
-   * @param originalRel
-   *   Original relational expression
-   * @param newRel
-   *   New relational expression
-   * @param filterHints
-   *   Flag saying if to filter out unqualified hints for `newRel`
-   * @return
-   *   A copy of `newRel` with attached hints from `originalRel`, or `newRel` directly if one of
-   *   them are not [[Hintable]]
-   */
-  def copyRelHints(originalRel: RelNode, newRel: RelNode, filterHints: Boolean): RelNode = {
-    originalRel match {
-      case hintable: Hintable if hintable.getHints.size > 0 && newRel.isInstanceOf[Hintable] =>
-        val hints: util.List[RelHint] = hintable.getHints
-        if (filterHints) {
-          val hintStrategies: HintStrategyTable = originalRel.getCluster.getHintStrategies
-          return newRel.asInstanceOf[Hintable].attachHints(hintStrategies.apply(hints, newRel))
-        } else { // Keep all the hints if filterHints is false for 2 reasons:
-          // 1. Keep sync with the hints propagation logic,
-          // see RelHintPropagateShuttle for details.
-          // 2. We may re-propagate these hints when decorrelating a query.
-          return newRel.asInstanceOf[Hintable].attachHints(hints)
-        }
-      case _ =>
-    }
-    newRel
-  }
-
-  /**
-   * A [[RelShuttle]] which resets all the hints of a relational expression to what they are
-   * originally like.
-   *
-   * <p>This would trigger a reverse transformation of what [[RelHintPropagateShuttle]] does.
-   *
-   * <p>Transformation rules:
-   *
-   * <ul> <li>Project: remove the hints that have non-empty inherit path (which means the hint was
-   * not originally declared from it); <li>Aggregate: remove the hints that have non-empty inherit
-   * path; <li>Join: remove all the hints; <li>TableScan: remove the hints that have non-empty
-   * inherit path. </ul>
-   */
-  private object ResetHintsShuttle {
-    private def resetHints(hintable: Hintable) =
-      if (hintable.getHints.size > 0) {
-        val resetHints = hintable.getHints
-          .filter((hint: RelHint) => hint.inheritPath.size == 0)
-        hintable.withHints(resetHints)
-      } else {
-        hintable.asInstanceOf[RelNode]
-      }
-  }
-
-  private class ResetHintsShuttle extends RelHomogeneousShuttle {
-    override def visit(node: RelNode): RelNode = {
-      var newNode = visitChildren(node)
-      newNode match {
-        case hintable: Hintable =>
-          newNode = ResetHintsShuttle.resetHints(hintable)
-        case _ =>
-      }
-      newNode
-    }
-  }
-
-  /**
-   * A [[RelShuttle]] which propagates all the hints of relational expression to their children
-   * nodes.
-   *
-   * <p>Given a plan:
-   *
-   * <blockquote>
-   *
-   * <p>
-   * {{{
-   *            Filter (Hint1)
-   *                |
-   *               Join
-   *              /    \
-   *            Scan  Project (Hint2)
-   *                     |
-   *                    Scan2
-   * }}}
-   *
-   * </blockquote>
-   *
-   * <p>Every hint has a `inheritPath` (integers list) which records its propagate path, number `0`
-   * represents the hint is propagated from the first(left) child, number `1` represents the hint is
-   * propagated from the second(right) child, so the plan would have hints path as follows (assumes
-   * each hint can be propagated to all child nodes):
-   *
-   * <ul> <li>Filter would have hints {Hint1[]} <li>Join would have hints {Hint1[0]} <li>Scan would
-   * have hints {Hint1[0, 0]} <li>Project would have hints {Hint1[0,1], Hint2[]} <li>Scan2 would
-   * have hints {[Hint1[0, 1, 0], Hint2[0]} </ul>
-   */
-  private class RelHintPropagateShuttle private[plan] (
-      /** The hint strategies to decide if a hint should be attached to a relational expression. */
-      val hintStrategies: HintStrategyTable)
-    extends RelHomogeneousShuttle {
-
-    /** Stack recording the hints and its current inheritPath. */
-    private var inheritPaths = new util.ArrayDeque[Pair[util.List[RelHint], util.Deque[Integer]]]
-
-    /** Visits a particular child of a parent. */
-    override protected def visitChild(parent: RelNode, i: Int, child: RelNode): RelNode = {
-      inheritPaths.forEach(inheritPath => inheritPath.right.push(i))
-      try {
-        val child2 = child.accept(this)
-        if (child2 ne child) {
-          val newInputs = new util.ArrayList[RelNode](parent.getInputs)
-          newInputs.set(i, child2)
-          return parent.copy(parent.getTraitSet, newInputs)
-        }
-        parent
-      } finally {
-        inheritPaths.forEach(inheritPath => inheritPath.right.pop)
-      }
-    }
-
-    override def visit(other: RelNode): RelNode =
-      if (other.isInstanceOf[Hintable]) {
-        visitHintable(other)
-      } else {
-        visitChildren(other)
-      }
-
-    // ----- FLINK MODIFICATION BEGIN -----
-
-    /**
-     * Handle the [[Hintable]]s.
-     *
-     * <p>There are two cases to handle hints:
-     *
-     * <ul> <li>For TableScan: table scan is always a leaf node, attach the hints of the propagation
-     * path directly; <li>For other [[Hintable]]s: if the node has hints itself, that means, these
-     * hints are query hints that need to propagate to its children, so we do these things: <ol>
-     * <li>push the hints with empty inheritPath to the stack <li>visit the children nodes and
-     * propagate the hints <li>pop the hints pushed in step1 <li>attach the hints of the propagation
-     * path </ol> if the node does not have hints, attach the hints of the propagation path
-     * directly. </ul>
-     *
-     * @param node
-     *   [[Hintable]] to handle
-     * @return
-     *   New copy of the [[Hintable]] with propagated hints attached
-     */
-    private def visitHintable(node: RelNode): RelNode = {
-      val topHints = node.asInstanceOf[Hintable].getHints
-      val hasHints = topHints != null && topHints.size > 0
-      val hasQueryHints = hasHints && !node.isInstanceOf[TableScan]
-      if (hasQueryHints) {
-        inheritPaths.push(Pair.of(topHints, new util.ArrayDeque[Integer]))
-      }
-
-      // ensure the join hints outside will not be propagated into the sub query
-      val originInheritPaths = inheritPaths
-      if (node.isInstanceOf[SubQueryAlias]) {
-        inheritPaths = clearJoinHintsInCurrentQueryLevel(inheritPaths)
-      }
-
-      val node1 = visitChildren(node)
-
-      if (node.isInstanceOf[SubQueryAlias]) {
-        inheritPaths = originInheritPaths
-      }
-      if (hasQueryHints) {
-        inheritPaths.pop
-      }
-      attachHints(node1)
-    }
-
-    private def clearJoinHintsInCurrentQueryLevel(
-        inheritPaths: util.Deque[Pair[util.List[RelHint], util.Deque[Integer]]]) = {
-      val result = new util.ArrayDeque[Pair[util.List[RelHint], util.Deque[Integer]]]
-      inheritPaths.forEach(
-        pair => {
-          val hintsWithoutJoinHints = FlinkHints.getHintsWithoutJoinHints(pair.left)
-          if (hintsWithoutJoinHints.size != 0) {
-            result.addLast(Pair.of(hintsWithoutJoinHints, pair.right))
-          }
-        })
-      result
-    }
-
-    // ----- FLINK MODIFICATION END -----
-
-    private def attachHints(original: RelNode): RelNode = {
-      assert(original.isInstanceOf[Hintable])
-      if (inheritPaths.size > 0) {
-        val comparator: util.Comparator[Pair[util.List[RelHint], util.Deque[Integer]]] =
-          Comparator.comparingInt(
-            (o: Pair[util.List[RelHint], util.Deque[Integer]]) => o.right.size)
-
-        val sortedPaths = inheritPaths
-          .stream()
-          .sorted(comparator)
-          .toArray()
-        val hints = sortedPaths
-          .map(
-            p => {
-              val path = p.asInstanceOf[Pair[util.List[RelHint], util.Deque[Integer]]]
-              RelHintPropagateShuttle
-                .copyWithInheritPath(path.left, path.right)
-            })
-          .fold[util.List[RelHint]](new util.ArrayList())(
-            (acc, hints1) => {
-              acc.addAll(hints1)
-              acc
-            })
-        val filteredHints = hintStrategies.apply(hints, original)
-        if (filteredHints.size > 0) {
-          return original.asInstanceOf[Hintable].attachHints(filteredHints)
-        }
-
-      }
-      original
-    }
-  }
-
-  private object RelHintPropagateShuttle {
-    private def copyWithInheritPath(
-        hints: util.List[RelHint],
-        inheritPath: util.Deque[Integer]): util.List[RelHint] = {
-      // Copy the Dequeue in reverse order.
-      val path = new util.ArrayList[Integer]
-      val iterator = inheritPath.descendingIterator
-      while (iterator.hasNext) {
-        path.add(iterator.next)
-      }
-      hints.map((hint: RelHint) => hint.copy(path)).toList
     }
   }
 }

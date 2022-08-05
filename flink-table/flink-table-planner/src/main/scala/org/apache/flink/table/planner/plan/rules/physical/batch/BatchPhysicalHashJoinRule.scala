@@ -46,9 +46,11 @@ class BatchPhysicalHashJoinRule
   with BatchPhysicalJoinRuleBase {
 
   override def matches(call: RelOptRuleCall): Boolean = {
-    // TODO use shuffle hash join if isBroadcast is true and isBroadcastHashJoinEnabled is false ?
-    checkMatchJoinStrategy(call, JoinStrategy.BROADCAST) ||
-    checkMatchJoinStrategy(call, JoinStrategy.SHUFFLE_HASH)
+    val join: Join = call.rel(0)
+    val tableConfig = unwrapTableConfig(call)
+
+    canUseJoinStrategy(join, tableConfig, JoinStrategy.BROADCAST) ||
+    canUseJoinStrategy(join, tableConfig, JoinStrategy.SHUFFLE_HASH)
   }
 
   override def onMatch(call: RelOptRuleCall): Unit = {
@@ -71,50 +73,42 @@ class BatchPhysicalHashJoinRule
       case _ => (join.getRight, false)
     }
 
-    var isBroadcast = false
+    val firstValidJoinHintOp = getFirstValidJoinHint(join, tableConfig)
 
-    var isLeftToBroadcast = false
-    var isLeftToBuild = false
+    val (isBroadcast: Boolean, isLeftToBroadcastOrBuild: Boolean) =
+      if (firstValidJoinHintOp.isDefined) {
+        val firstValidJoinHint = firstValidJoinHintOp.get
+        firstValidJoinHint match {
+          case JoinStrategy.BROADCAST =>
+            val (_, isLeftToBroadcast: Boolean) =
+              checkBroadcast(join, tableConfig, withBroadcastHint = true)
+            (true, isLeftToBroadcast)
+          case JoinStrategy.SHUFFLE_HASH =>
+            val (_, isLeftToBuild: Boolean) =
+              checkShuffleHash(join, tableConfig, withShuffleHashHint = true)
+            (false, isLeftToBuild)
+          case _ =>
+            // this should not happen
+            throw new TableException(
+              String.format(
+                "The planner is trying to convert the " +
+                  "`FlinkLogicalJoin` using BROADCAST or SHUFFLE_HASH," +
+                  " but the first valid join hint is not BROADCAST or SHUFFLE_HASH: %s",
+                firstValidJoinHint
+              ))
+        }
+      } else {
+        // treat as non-join-hints
+        val (canBroadcast, isLeftToBroadcast) =
+          checkBroadcast(join, tableConfig, withBroadcastHint = false)
 
-    val validJoinHints = collectValidJoinHints(join, tableConfig)
-    if (
-      !validJoinHints.isEmpty &&
-      (validJoinHints.head.equals(JoinStrategy.BROADCAST)
-        || validJoinHints.head.equals(JoinStrategy.SHUFFLE_HASH))
-    ) {
-      validJoinHints.head match {
-        case JoinStrategy.BROADCAST =>
-          isBroadcast = true
-          isLeftToBroadcast = checkBroadcast(join, tableConfig, withHint = true)._2
-        case JoinStrategy.SHUFFLE_HASH =>
-          isLeftToBuild = checkShuffleHash(join, tableConfig, withHint = true)._2
+        if (canBroadcast) {
+          (true, isLeftToBroadcast)
+        } else {
+          val (_, isLeftToBuild) = checkShuffleHash(join, tableConfig, withShuffleHashHint = false)
+          (false, isLeftToBuild)
+        }
       }
-    } else if (!validJoinHints.isEmpty) {
-      // this should not happen
-      throw new TableException(
-        String.format(
-          "The planner is trying to convert the " +
-            "`FlinkLogicalJoin` using BROADCAST or SHUFFLE_HASH," +
-            " but they are missing in valid join hints: %s",
-          java.util.Arrays.toString(validJoinHints.toArray)
-        ))
-    } else {
-      // treat as non-join-hints
-      val (canBroadcast, leftToBroadcast) = checkBroadcast(join, tableConfig, withHint = false)
-      isBroadcast = canBroadcast
-      isLeftToBroadcast = leftToBroadcast
-
-      if (!canBroadcast) {
-        val (_, leftToBuild) = checkShuffleHash(join, tableConfig, withHint = false)
-        isLeftToBuild = leftToBuild
-      }
-    }
-
-    val leftIsBuild = if (isBroadcast) {
-      isLeftToBroadcast
-    } else {
-      isLeftToBuild
-    }
 
     def transformToEquiv(leftRequiredTrait: RelTraitSet, rightRequiredTrait: RelTraitSet): Unit = {
       val newLeft = RelOptRule.convert(left, leftRequiredTrait)
@@ -128,7 +122,7 @@ class BatchPhysicalHashJoinRule
         newRight,
         join.getCondition,
         join.getJoinType,
-        leftIsBuild,
+        isLeftToBroadcastOrBuild,
         isBroadcast,
         tryDistinctBuildRow)
 
@@ -140,7 +134,7 @@ class BatchPhysicalHashJoinRule
       val buildTrait = join.getTraitSet
         .replace(FlinkConventions.BATCH_PHYSICAL)
         .replace(FlinkRelDistribution.BROADCAST_DISTRIBUTED)
-      if (isLeftToBroadcast) {
+      if (isLeftToBroadcastOrBuild) {
         transformToEquiv(buildTrait, probeTrait)
       } else {
         transformToEquiv(probeTrait, buildTrait)

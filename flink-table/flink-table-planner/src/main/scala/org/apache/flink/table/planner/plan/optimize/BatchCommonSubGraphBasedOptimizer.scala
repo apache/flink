@@ -25,6 +25,7 @@ import org.apache.flink.table.planner.delegation.BatchPlanner
 import org.apache.flink.table.planner.plan.nodes.calcite.{LegacySink, Sink}
 import org.apache.flink.table.planner.plan.optimize.program.{BatchOptimizeContext, FlinkBatchProgram}
 import org.apache.flink.table.planner.plan.schema.IntermediateRelTable
+import org.apache.flink.table.planner.utils.JavaScalaConversionUtil.{toJava, toScala}
 import org.apache.flink.table.planner.utils.ShortcutUtils.unwrapContext
 import org.apache.flink.table.planner.utils.TableConfigUtils
 import org.apache.flink.util.Preconditions
@@ -41,10 +42,17 @@ class BatchCommonSubGraphBasedOptimizer(planner: BatchPlanner)
     // TODO currently join hint only works in BATCH
     // resolve hints before optimizing
     val joinHintResolver = new JoinHintResolver()
-    val resolvedRoots = joinHintResolver.resolve(roots)
+    val resolvedHintRoots = joinHintResolver.resolve(toJava(roots))
+
+    // clear query block alias bef optimizing
+    val clearQueryBlockAliasResolver = new ClearQueryBlockAliasResolver
+    val resolvedAliasRoots = clearQueryBlockAliasResolver.resolve(resolvedHintRoots)
+
     // build RelNodeBlock plan
     val rootBlocks =
-      RelNodeBlockPlanBuilder.buildRelNodeBlockPlan(resolvedRoots, planner.getTableConfig)
+      RelNodeBlockPlanBuilder.buildRelNodeBlockPlan(
+        toScala(resolvedAliasRoots),
+        planner.getTableConfig)
     // optimize recursively RelNodeBlock
     rootBlocks.foreach(optimizeBlock)
     rootBlocks

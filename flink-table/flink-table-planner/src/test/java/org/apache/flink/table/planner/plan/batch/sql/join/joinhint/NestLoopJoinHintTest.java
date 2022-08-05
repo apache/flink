@@ -27,4 +27,9 @@ public class NestLoopJoinHintTest extends JoinHintTestBase {
     protected String getTestSingleJoinHint() {
         return JoinStrategy.NEST_LOOP.getJoinHintName();
     }
+
+    @Override
+    protected String getDisabledOperatorName() {
+        return "NestedLoopJoin";
+    }
 }

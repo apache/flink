@@ -27,4 +27,9 @@ public class ShuffleMergeJoinHintTest extends JoinHintTestBase {
     protected String getTestSingleJoinHint() {
         return JoinStrategy.SHUFFLE_MERGE.getJoinHintName();
     }
+
+    @Override
+    protected String getDisabledOperatorName() {
+        return "SortMergeJoin";
+    }
 }

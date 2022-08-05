@@ -42,7 +42,9 @@ class BatchPhysicalNestedLoopJoinRule
   with BatchPhysicalNestedLoopJoinRuleBase {
 
   override def matches(call: RelOptRuleCall): Boolean = {
-    checkMatchJoinStrategy(call, JoinStrategy.NEST_LOOP)
+    val join: Join = call.rel(0)
+    val tableConfig = unwrapTableConfig(call)
+    canUseJoinStrategy(join, tableConfig, JoinStrategy.NEST_LOOP)
   }
 
   override def onMatch(call: RelOptRuleCall): Unit = {
@@ -62,24 +64,26 @@ class BatchPhysicalNestedLoopJoinRule
       case _ => join.getRight
     }
 
-    val validJoinHints = collectValidJoinHints(join, tableConfig)
-    var isLeftToBuild = false
+    val firstValidJoinHint = getFirstValidJoinHint(join, tableConfig)
 
     val temJoin = join.copy(join.getTraitSet, List(left, right))
 
-    if (!validJoinHints.isEmpty && validJoinHints.head.equals(JoinStrategy.NEST_LOOP)) {
-      isLeftToBuild = checkNestLoopJoin(temJoin, tableConfig, withHint = true)._2
-    } else if (!validJoinHints.isEmpty) {
-      // this should not happen
-      throw new TableException(
-        String.format(
-          "The planner is trying to convert the " +
-            "`FlinkLogicalJoin` using NEST_LOOP, but NEST_LOOP is missing in valid join hints: %s",
-          java.util.Arrays.toString(validJoinHints.toArray)
-        ))
-    } else {
-      isLeftToBuild = checkNestLoopJoin(temJoin, tableConfig, withHint = false)._2
-    }
+    val isLeftToBuild =
+      if (firstValidJoinHint.isDefined && firstValidJoinHint.get.equals(JoinStrategy.NEST_LOOP)) {
+        val (_, isLeft) = checkNestLoopJoin(temJoin, tableConfig, withNestLoopHint = true)
+        isLeft
+      } else if (firstValidJoinHint.isDefined) {
+        // this should not happen
+        throw new TableException(
+          String.format(
+            "The planner is trying to convert the " +
+              "`FlinkLogicalJoin` using NEST_LOOP, but the valid join hint is not NEST_LOOP: %s",
+            firstValidJoinHint.get
+          ))
+      } else {
+        val (_, isLeft) = checkNestLoopJoin(temJoin, tableConfig, withNestLoopHint = false)
+        isLeft
+      }
 
     val newJoin = createNestedLoopJoin(join, left, right, isLeftToBuild, singleRowJoin = false)
     call.transformTo(newJoin)

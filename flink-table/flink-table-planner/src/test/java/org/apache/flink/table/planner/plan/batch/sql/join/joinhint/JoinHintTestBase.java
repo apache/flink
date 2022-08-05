@@ -19,9 +19,12 @@
 package org.apache.flink.table.planner.plan.batch.sql.join.joinhint;
 
 import org.apache.flink.table.api.SqlParserException;
+import org.apache.flink.table.api.StatementSet;
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.ValidationException;
+import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.planner.hint.JoinStrategy;
+import org.apache.flink.table.planner.plan.optimize.RelNodeBlockPlanBuilder;
 import org.apache.flink.table.planner.utils.BatchTableTestUtil;
 import org.apache.flink.table.planner.utils.TableTestBase;
 
@@ -34,7 +37,11 @@ import org.junit.Test;
 import java.util.List;
 import java.util.stream.Collectors;
 
-/** A test base for join hint. */
+/**
+ * A test base for join hint.
+ *
+ * <p>TODO add test to cover legacy table source.
+ */
 public abstract class JoinHintTestBase extends TableTestBase {
 
     private BatchTableTestUtil util;
@@ -80,6 +87,8 @@ public abstract class JoinHintTestBase extends TableTestBase {
     }
 
     protected abstract String getTestSingleJoinHint();
+
+    protected abstract String getDisabledOperatorName();
 
     protected List<String> getOtherJoinHints() {
         return allJoinHintNames.stream()
@@ -395,5 +404,269 @@ public abstract class JoinHintTestBase extends TableTestBase {
         String sql = "select /*+ %s(T1) */ /*+ %s(T2) */ * from T1 join T2 on T1.a1 = T2.a2";
 
         util.verifyRelPlan(String.format(sql, getTestSingleJoinHint(), getTestSingleJoinHint()));
+    }
+
+    @Test
+    public void testJoinHintWithDisabledOperator() {
+        util.tableEnv()
+                .getConfig()
+                .set(
+                        ExecutionConfigOptions.TABLE_EXEC_DISABLED_OPERATORS,
+                        getDisabledOperatorName());
+
+        String sql = "select /*+ %s(T1) */* from T1 join T2 on T1.a1 = T2.a2";
+
+        util.verifyRelPlan(String.format(sql, getTestSingleJoinHint()));
+    }
+
+    @Test
+    public void testJoinHintsWithUnion() {
+        // there are two query blocks and join hints are independent
+        String sql =
+                "select /*+ %s(T1) */* from T1 join T2 on T1.a1 = T2.a2 union select /*+ %s(T3) */* from T3 join T1 on T3.a3 = T1.a1";
+
+        util.verifyRelPlan(String.format(sql, getTestSingleJoinHint(), getTestSingleJoinHint()));
+    }
+
+    @Test
+    public void testJoinHintsWithFilter() {
+        // there are two query blocks and join hints are independent
+        String sql = "select /*+ %s(T1) */* from T1 join T2 on T1.a1 = T2.a2 where T1.a1 > 5";
+
+        util.verifyRelPlan(String.format(sql, getTestSingleJoinHint()));
+    }
+
+    @Test
+    public void testJoinHintsWithCalc() {
+        // there are two query blocks and join hints are independent
+        String sql = "select /*+ %s(T1) */a1 + 1, a1 * 10 from T1 join T2 on T1.a1 = T2.a2";
+
+        util.verifyRelPlan(String.format(sql, getTestSingleJoinHint()));
+    }
+
+    @Test
+    public void testJoinHintInView() {
+        // the build side in view is left
+        util.tableEnv()
+                .executeSql(
+                        String.format(
+                                "create view V2 as select /*+ %s(T1)*/ T1.* from T1 join T2 on T1.a1 = T2.a2",
+                                getTestSingleJoinHint()));
+
+        // the build side outside is right
+        String sql = "select /*+ %s(V2)*/T3.* from T3 join V2 on T3.a3 = V2.a1";
+
+        util.verifyRelPlan(String.format(sql, getTestSingleJoinHint()));
+    }
+
+    @Test
+    public void testJoinHintInMultiLevelView() {
+        // the inside view keeps multi alias
+        // the build side in this view is left
+        util.tableEnv()
+                .executeSql(
+                        String.format(
+                                "create view V2 as select /*+ %s(T1)*/ T1.* from T1 join T2 on T1.a1 = T2.a2",
+                                getTestSingleJoinHint()));
+
+        // the build side in this view is right
+        util.tableEnv()
+                .executeSql(
+                        String.format(
+                                "create view V3 as select /*+ %s(V2)*/ T1.* from T1 join V2 on T1.a1 = V2.a1",
+                                getTestSingleJoinHint()));
+
+        // the build side outside is left
+        String sql = "select /*+ %s(V3)*/V3.* from V3 join T1 on V3.a1 = T1.a1";
+
+        util.verifyRelPlan(String.format(sql, getTestSingleJoinHint()));
+    }
+
+    @Test
+    public void testJoinHintsOnSameViewWithoutReusingView() {
+        // the build side in this view is left
+        util.tableEnv()
+                .executeSql(
+                        String.format(
+                                "create view V2 as select /*+ %s(T1)*/ T1.* from T1 join T2 on T1.a1 = T2.a2",
+                                getTestSingleJoinHint()));
+
+        util.tableEnv()
+                .executeSql(
+                        "CREATE TABLE S1 (\n"
+                                + "  a1 BIGINT,\n"
+                                + "  b1 VARCHAR\n"
+                                + ") WITH (\n"
+                                + " 'connector' = 'values',\n"
+                                + " 'bounded' = 'true'\n"
+                                + ")");
+
+        util.tableEnv()
+                .executeSql(
+                        "CREATE TABLE S2 (\n"
+                                + "  a1 BIGINT,\n"
+                                + "  b1 VARCHAR\n"
+                                + ") WITH (\n"
+                                + " 'connector' = 'values',\n"
+                                + " 'bounded' = 'true'\n"
+                                + ")");
+
+        StatementSet set = util.tableEnv().createStatementSet();
+
+        // the calc will be pushed down
+        set.addInsertSql(
+                String.format(
+                        "insert into S1 select /*+ %s(V2)*/ T1.* from T1 join V2 on T1.a1 = V2.a1 where V2.a1 > 2",
+                        getTestSingleJoinHint()));
+        set.addInsertSql(
+                String.format(
+                        "insert into S2 select /*+ %s(T1)*/ T1.* from T1 join V2 on T1.a1 = V2.a1 where V2.a1 > 5",
+                        getTestSingleJoinHint()));
+
+        util.verifyRelPlan(set);
+    }
+
+    @Test
+    public void testJoinHintsOnSameViewWithReusingView() {
+        util.tableEnv()
+                .getConfig()
+                .set(
+                        RelNodeBlockPlanBuilder
+                                .TABLE_OPTIMIZER_REUSE_OPTIMIZE_BLOCK_WITH_DIGEST_ENABLED(),
+                        true);
+
+        // the build side in this view is left
+        util.tableEnv()
+                .executeSql(
+                        String.format(
+                                "create view V2 as select /*+ %s(T1)*/ T1.* from T1 join T2 on T1.a1 = T2.a2",
+                                getTestSingleJoinHint()));
+
+        util.tableEnv()
+                .executeSql(
+                        "CREATE TABLE S1 (\n"
+                                + "  a1 BIGINT,\n"
+                                + "  b1 VARCHAR\n"
+                                + ") WITH (\n"
+                                + " 'connector' = 'values',\n"
+                                + " 'bounded' = 'true'\n"
+                                + ")");
+
+        util.tableEnv()
+                .executeSql(
+                        "CREATE TABLE S2 (\n"
+                                + "  a1 BIGINT,\n"
+                                + "  b1 VARCHAR\n"
+                                + ") WITH (\n"
+                                + " 'connector' = 'values',\n"
+                                + " 'bounded' = 'true'\n"
+                                + ")");
+
+        StatementSet set = util.tableEnv().createStatementSet();
+
+        // the calc will not be pushed down because the view has same digest
+        set.addInsertSql(
+                String.format(
+                        "insert into S1 select /*+ %s(V2)*/ T1.* from T1 join V2 on T1.a1 = V2.a1 where V2.a1 > 2",
+                        getTestSingleJoinHint()));
+        set.addInsertSql(
+                String.format(
+                        "insert into S2 select /*+ %s(T1)*/ T1.* from T1 join V2 on T1.a1 = V2.a1 where V2.a1 > 5",
+                        getTestSingleJoinHint()));
+
+        util.verifyRelPlan(set);
+    }
+
+    @Test
+    public void testJoinHintsOnSameViewWithoutReusingViewBecauseDifferentJoinHints() {
+        util.tableEnv()
+                .getConfig()
+                .set(
+                        RelNodeBlockPlanBuilder
+                                .TABLE_OPTIMIZER_REUSE_OPTIMIZE_BLOCK_WITH_DIGEST_ENABLED(),
+                        true);
+
+        // the build side in this view is left
+        util.tableEnv()
+                .executeSql(
+                        String.format(
+                                "create view V2 as select /*+ %s(T1)*/ T1.* from T1 join T2 on T1.a1 = T2.a2",
+                                getTestSingleJoinHint()));
+
+        util.tableEnv()
+                .executeSql(
+                        "CREATE TABLE S1 (\n"
+                                + "  a1 BIGINT,\n"
+                                + "  b1 VARCHAR\n"
+                                + ") WITH (\n"
+                                + " 'connector' = 'values',\n"
+                                + " 'bounded' = 'true'\n"
+                                + ")");
+
+        util.tableEnv()
+                .executeSql(
+                        "CREATE TABLE S2 (\n"
+                                + "  a1 BIGINT,\n"
+                                + "  b1 VARCHAR\n"
+                                + ") WITH (\n"
+                                + " 'connector' = 'values',\n"
+                                + " 'bounded' = 'true'\n"
+                                + ")");
+
+        StatementSet set = util.tableEnv().createStatementSet();
+
+        // the calc will be pushed down because the view has different digest
+        set.addInsertSql(
+                String.format(
+                        "insert into S1 select /*+ %s(V2)*/ T1.* from T1 join V2 on T1.a1 = V2.a1 where V2.a1 > 2",
+                        getTestSingleJoinHint()));
+        set.addInsertSql(
+                String.format(
+                        "insert into S2 select /*+ %s(T1)*/ T1.* from T1 join V2 on T1.a1 = V2.a1 where V2.a1 > 5",
+                        getOtherJoinHints().get(0)));
+
+        util.verifyRelPlan(set);
+    }
+
+    @Test
+    public void testJoinHintWithSubStringViewName1() {
+        util.tableEnv()
+                .executeSql(
+                        String.format(
+                                "create view V2 as select /*+ %s(T1)*/ T1.* from T1 join T2 on T1.a1 = T2.a2",
+                                getTestSingleJoinHint()));
+
+        // the build side in this view is right
+        util.tableEnv()
+                .executeSql(
+                        String.format(
+                                "create view V22 as select /*+ %s(V2)*/ T1.* from T1 join V2 on T1.a1 = V2.a1",
+                                getTestSingleJoinHint()));
+
+        // the build side outside is left
+        String sql = "select /*+ %s(V22)*/V22.* from V22 join T1 on V22.a1 = T1.a1";
+
+        util.verifyRelPlan(String.format(sql, getTestSingleJoinHint()));
+    }
+
+    @Test
+    public void testJoinHintWithSubStringViewName2() {
+        util.tableEnv()
+                .executeSql(
+                        String.format(
+                                "create view V22 as select /*+ %s(T1)*/ T1.* from T1 join T2 on T1.a1 = T2.a2",
+                                getTestSingleJoinHint()));
+
+        // the build side in this view is right
+        util.tableEnv()
+                .executeSql(
+                        String.format(
+                                "create view V2 as select /*+ %s(V22)*/ T1.* from T1 join V22 on T1.a1 = V22.a1",
+                                getTestSingleJoinHint()));
+
+        // the build side outside is left
+        String sql = "select /*+ %s(V2)*/V2.* from V2 join T1 on V2.a1 = T1.a1";
+
+        util.verifyRelPlan(String.format(sql, getTestSingleJoinHint()));
     }
 }

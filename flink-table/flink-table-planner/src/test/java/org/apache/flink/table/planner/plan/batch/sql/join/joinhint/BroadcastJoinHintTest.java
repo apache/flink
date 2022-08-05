@@ -27,4 +27,9 @@ public class BroadcastJoinHintTest extends JoinHintTestBase {
     protected String getTestSingleJoinHint() {
         return JoinStrategy.BROADCAST.getJoinHintName();
     }
+
+    @Override
+    protected String getDisabledOperatorName() {
+        return "HashJoin";
+    }
 }

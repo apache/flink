@@ -44,10 +44,10 @@ class BatchPhysicalSingleRowJoinRule
   override def matches(call: RelOptRuleCall): Boolean = {
     val join: Join = call.rel(0)
     val tableConfig = unwrapTableConfig(call)
-    val validJoinHints = collectValidJoinHints(join, tableConfig)
+    val firstValidJoinHint = getFirstValidJoinHint(join, tableConfig)
 
     // the valid join hint keeps higher priority
-    if (!validJoinHints.isEmpty) {
+    if (firstValidJoinHint.isDefined) {
       false
     } else {
       join.getJoinType match {

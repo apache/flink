@@ -49,7 +49,9 @@ class BatchPhysicalSortMergeJoinRule
   with BatchPhysicalJoinRuleBase {
 
   override def matches(call: RelOptRuleCall): Boolean = {
-    checkMatchJoinStrategy(call, JoinStrategy.SHUFFLE_MERGE)
+    val join: Join = call.rel(0)
+    val tableConfig = unwrapTableConfig(call)
+    canUseJoinStrategy(join, tableConfig, JoinStrategy.SHUFFLE_MERGE)
   }
 
   override def onMatch(call: RelOptRuleCall): Unit = {
