@@ -971,27 +971,29 @@ public class HiveDialectITCase {
                                 .collect());
         assertThat(partitions).hasSize(1);
         assertThat(partitions.toString()).contains("dt=2020-04-30 01:02:03/country=china");
+
+        // set a deterministic default partition name
+        tableEnv.executeSql("set hiveconf:hive.exec.default.partition.name=_DEFAULT_");
         // show partitions for the table containing default partition
         tableEnv.executeSql("create table tb1 (a string) partitioned by (c int)");
         tableEnv.executeSql(
                         "INSERT OVERWRITE TABLE tb1 PARTITION (c) values ('Col1', null), ('Col1', 5)")
                 .await();
-        String defaultPartitionName =
-                hiveCatalog.getHiveConf().getVar(HiveConf.ConfVars.DEFAULTPARTITIONNAME);
-
+        // show partitions should include the null partition
         partitions =
                 CollectionUtil.iteratorToList(tableEnv.executeSql("show partitions tb1").collect());
-        assertThat(partitions.toString())
-                .isEqualTo(String.format("[+I[c=5], +I[c=%s]]", defaultPartitionName));
+        assertThat(partitions.toString()).isEqualTo("[+I[c=5], +I[c=_DEFAULT_]]");
+        // show specific null partition
         partitions =
                 CollectionUtil.iteratorToList(
-                        tableEnv.executeSql(
-                                        String.format(
-                                                "show partitions tb1 partition (c='%s')",
-                                                defaultPartitionName))
+                        tableEnv.executeSql("show partitions tb1 partition (c='_DEFAULT_')")
                                 .collect());
-        assertThat(partitions.toString())
-                .isEqualTo(String.format("[+I[c=%s]]", defaultPartitionName));
+        assertThat(partitions.toString()).isEqualTo("[+I[c=_DEFAULT_]]");
+        // drop null partition should also work
+        tableEnv.executeSql("ALTER TABLE tb1 DROP PARTITION (c='_DEFAULT_')");
+        partitions =
+                CollectionUtil.iteratorToList(tableEnv.executeSql("show partitions tb1").collect());
+        assertThat(partitions.toString()).isEqualTo("[+I[c=5]]");
     }
 
     @Test
