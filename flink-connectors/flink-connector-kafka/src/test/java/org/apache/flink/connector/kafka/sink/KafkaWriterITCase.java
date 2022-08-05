@@ -39,6 +39,7 @@ import org.apache.flink.util.UserCodeClassLoader;
 import org.apache.flink.shaded.guava30.com.google.common.collect.ImmutableList;
 
 import org.apache.kafka.clients.consumer.ConsumerRecord;
+import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.clients.producer.RecordMetadata;
 import org.apache.kafka.common.serialization.ByteArraySerializer;
@@ -371,6 +372,21 @@ public class KafkaWriterITCase {
             }
 
             assertThat(drainAllRecordsFromTopic(topic, properties, true)).hasSize(1);
+        }
+    }
+
+    @Test
+    void testClientIdProperty() throws Exception {
+        String clientIdPrefix = "test-client-id";
+
+        Properties props = getKafkaClientConfiguration();
+        props.setProperty(KafkaSinkOptions.CLIENT_ID_PREFIX.key(), clientIdPrefix);
+
+        try (final KafkaWriter<Integer> writer =
+                createWriterWithConfiguration(props, DeliveryGuarantee.AT_LEAST_ONCE)) {
+            String clientId =
+                    writer.getKafkaProducerConfig().getProperty(ProducerConfig.CLIENT_ID_CONFIG);
+            assertThat(clientId).isNotNull().startsWith(clientIdPrefix);
         }
     }
 

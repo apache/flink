@@ -31,6 +31,7 @@ import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.Arrays;
 import java.util.Properties;
+import java.util.Random;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
@@ -190,6 +191,16 @@ public class KafkaSinkBuilder<IN> {
         return setProperty(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
     }
 
+    /**
+     * Sets the client id prefix of this KafkaSink.
+     *
+     * @param prefix the client id prefix to use for this KafkaSink.
+     * @return {@link KafkaSinkBuilder}
+     */
+    public KafkaSinkBuilder<IN> setClientIdPrefix(String prefix) {
+        return setProperty(KafkaSinkOptions.CLIENT_ID_PREFIX.key(), prefix);
+    }
+
     private void sanityCheck() {
         checkNotNull(
                 kafkaProducerConfig.getProperty(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG),
@@ -202,6 +213,15 @@ public class KafkaSinkBuilder<IN> {
         checkNotNull(recordSerializer, "recordSerializer");
     }
 
+    private void parseAndSetRequiredProperties() {
+        // If the client id prefix is not set, generate a random string.
+        if (!kafkaProducerConfig.containsKey(KafkaSinkOptions.CLIENT_ID_PREFIX.key())) {
+            kafkaProducerConfig.setProperty(
+                    KafkaSinkOptions.CLIENT_ID_PREFIX.key(),
+                    "KafkaSink-" + new Random().nextLong());
+        }
+    }
+
     /**
      * Constructs the {@link KafkaSink} with the configured properties.
      *
@@ -209,6 +229,7 @@ public class KafkaSinkBuilder<IN> {
      */
     public KafkaSink<IN> build() {
         sanityCheck();
+        parseAndSetRequiredProperties();
         return new KafkaSink<>(
                 deliveryGuarantee, kafkaProducerConfig, transactionalIdPrefix, recordSerializer);
     }

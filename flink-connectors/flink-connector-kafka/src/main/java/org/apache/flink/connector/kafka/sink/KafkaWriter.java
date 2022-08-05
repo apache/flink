@@ -38,6 +38,7 @@ import org.apache.flink.shaded.guava30.com.google.common.collect.Lists;
 import org.apache.flink.shaded.guava30.com.google.common.io.Closer;
 
 import org.apache.kafka.clients.producer.Callback;
+import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.clients.producer.RecordMetadata;
 import org.apache.kafka.common.Metric;
@@ -156,6 +157,9 @@ class KafkaWriter<IN>
         this.numBytesOutCounter = metricGroup.getIOMetricGroup().getNumBytesOutCounter();
         this.numRecordsOutCounter = metricGroup.getIOMetricGroup().getNumRecordsOutCounter();
         this.numRecordsOutErrorsCounter = metricGroup.getNumRecordsOutErrorsCounter();
+        this.kafkaProducerConfig.setProperty(
+                ProducerConfig.CLIENT_ID_CONFIG,
+                createProducerClientId(kafkaProducerConfig, sinkInitContext.getSubtaskId()));
         this.kafkaSinkContext =
                 new DefaultKafkaSinkContext(
                         sinkInitContext.getSubtaskId(),
@@ -260,6 +264,11 @@ class KafkaWriter<IN>
     @VisibleForTesting
     FlinkKafkaInternalProducer<byte[], byte[]> getCurrentProducer() {
         return currentProducer;
+    }
+
+    @VisibleForTesting
+    Properties getKafkaProducerConfig() {
+        return kafkaProducerConfig;
     }
 
     void abortLingeringTransactions(
@@ -393,6 +402,11 @@ class KafkaWriter<IN>
                     lastSync = time;
                     registerMetricSync();
                 });
+    }
+
+    private String createProducerClientId(Properties props, int subtaskId) {
+        String prefix = props.getProperty(KafkaSinkOptions.CLIENT_ID_PREFIX.key());
+        return prefix + "-" + subtaskId;
     }
 
     private class WriterCallback implements Callback {

@@ -562,6 +562,16 @@ The following properties are **required** to build a KafkaSink:
 - If you configure the delivery guarantee with ```DeliveryGuarantee.EXACTLY_ONCE``` you also have
   use ```setTransactionalIdPrefix(String)```
 
+### Additional Properties
+In addition to properties described above, you can set arbitrary properties for KafkaSink and
+KafkaProducer by using ```setProperty(String, String)```.
+KafkaSink has following options for configuration:
+- ```client.id.prefix``` defines the prefix to use for Kafka producer's client ID
+
+For configurations of KafkaProducer, you can refer to
+<a href="http://kafka.apache.org/documentation/#producerconfigs">Apache Kafka documentation</a>
+for more details.
+
 ### Serializer
 
 You always need to supply a ```KafkaRecordSerializationSchema``` to transform incoming elements from
@@ -644,6 +654,15 @@ Kafka sink exposes the following metrics in the respective [scope]({{< ref "docs
     </tr>
   </tbody>
 </table>
+
+#### Kafka Producer Metrics
+
+In case you experience a warning with a stack trace containing
+`javax.management.InstanceAlreadyExistsException: kafka.producer:[...]`, you are probably trying to
+register multiple ```KafkaProducers``` with the same client.id. The warning indicates that not all
+available metrics are correctly forwarded to the metrics system. You must ensure that a different
+```client.id.prefix``` for every ```KafkaSink``` is configured and that no other
+```KafkaProducer``` in your job uses the same ```client.id```.
 
 ## Kafka Producer
 
