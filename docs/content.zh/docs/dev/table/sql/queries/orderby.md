@@ -28,7 +28,7 @@ under the License.
 
 The `ORDER BY` clause causes the result rows to be sorted according to the specified expression(s). If two rows are equal according to the leftmost expression, they are compared according to the next expression and so on. If they are equal according to all specified expressions, they are returned in an implementation-dependent order.
 
-When running in streaming mode, the primary sort order of a table must be ascending on a [time attribute]({{< ref "docs/dev/table/concepts/time_attributes" >}}). All subsequent orders can be freely chosen. But there is no this limitation in batch mode.
+When running in streaming mode, the primary sort order of a table must be ascending on a [time attribute]({{< ref "docs/dev/table/concepts/time_attributes" >}}). All subsequent orders can be freely chosen. But there is no such limitation in batch mode.
 
 ```sql
 SELECT *
