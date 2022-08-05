@@ -226,7 +226,7 @@ public class HiveTableSourceITCase extends BatchAbstractTestBase {
                 .executeSql(
                         "insert into source_db.test_table_pt_1 values ('2014', 1, null), ('2015', 2, null)")
                 .await();
-        // currently, the expression "is null" is supported HiveCatalog#listPartitionsByFilter,
+        // currently, the expression "is null" is not supported HiveCatalog#listPartitionsByFilter,
         // then the planer will list all partitions and then prue the partitions.
         // the test is to cover such case
         src =
