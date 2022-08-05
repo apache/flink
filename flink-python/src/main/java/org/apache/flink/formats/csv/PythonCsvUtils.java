@@ -18,7 +18,7 @@
 package org.apache.flink.formats.csv;
 
 import org.apache.flink.api.common.serialization.BulkWriter;
-import org.apache.flink.formats.common.Converter;
+import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.RowType;
@@ -62,8 +62,10 @@ public class PythonCsvUtils {
     /**
      * Util for creating a {@link BulkWriter.Factory} that wraps {@link CsvBulkWriter#forSchema}.
      */
-    public static <T, R, C> BulkWriter.Factory<T> createCsvBulkWriterFactory(
-            CsvMapper mapper, CsvSchema schema, Converter<T, R, C> converter, C converterContext) {
-        return (out) -> CsvBulkWriter.forSchema(mapper, schema, converter, converterContext, out);
+    public static BulkWriter.Factory<RowData> createCsvBulkWriterFactory(
+            CsvSchema schema, DataType physicalDataType) {
+
+        return CsvFileFormatFactory.createCsvBulkWriterFactory(
+                schema, (RowType) physicalDataType.getLogicalType());
     }
 }

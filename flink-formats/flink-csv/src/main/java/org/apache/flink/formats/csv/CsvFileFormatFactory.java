@@ -163,26 +163,27 @@ public class CsvFileFormatFactory implements BulkReaderFormatFactory, BulkWriter
                 final RowType rowType = (RowType) physicalDataType.getLogicalType();
                 final CsvSchema schema = buildCsvSchema(rowType, formatOptions);
 
-                final RowDataToCsvConverter converter =
-                        RowDataToCsvConverters.createRowConverter(rowType);
-
-                return out -> {
-                    final CsvMapper mapper = new CsvMapper();
-                    final ObjectNode container = mapper.createObjectNode();
-
-                    final RowDataToCsvConverter.RowDataToCsvFormatConverterContext
-                            converterContext =
-                                    new RowDataToCsvConverter.RowDataToCsvFormatConverterContext(
-                                            mapper, container);
-                    return CsvBulkWriter.forSchema(
-                            mapper, schema, converter, converterContext, out);
-                };
+                return createCsvBulkWriterFactory(schema, rowType);
             }
 
             @Override
             public ChangelogMode getChangelogMode() {
                 return ChangelogMode.insertOnly();
             }
+        };
+    }
+
+    static BulkWriter.Factory<RowData> createCsvBulkWriterFactory(
+            CsvSchema schema, RowType rowType) {
+        final RowDataToCsvConverter converter = RowDataToCsvConverters.createRowConverter(rowType);
+
+        return out -> {
+            final CsvMapper mapper = new CsvMapper();
+            final ObjectNode container = mapper.createObjectNode();
+
+            final RowDataToCsvConverter.RowDataToCsvFormatConverterContext converterContext =
+                    new RowDataToCsvConverter.RowDataToCsvFormatConverterContext(mapper, container);
+            return CsvBulkWriter.forSchema(mapper, schema, converter, converterContext, out);
         };
     }
 
