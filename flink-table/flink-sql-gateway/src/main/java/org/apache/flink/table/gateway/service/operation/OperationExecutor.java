@@ -105,14 +105,12 @@ public class OperationExecutor {
         return getTableEnvironment().getCatalogManager().listCatalogs();
     }
 
-
     public Set<String> listDatabases(String catalogName) {
         return Collections.unmodifiableSet(
                 new HashSet<>(getTableEnvironment().getCatalogManager().listSchemas(catalogName)));
     }
 
     // --------------------------------------------------------------------------------------------
-
 
     @VisibleForTesting
     public TableEnvironmentInternal getTableEnvironment() {
