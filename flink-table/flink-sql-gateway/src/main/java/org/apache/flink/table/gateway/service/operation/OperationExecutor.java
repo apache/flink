@@ -20,6 +20,7 @@ package org.apache.flink.table.gateway.service.operation;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.table.api.CatalogNotExistException;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.internal.TableEnvironmentInternal;
 import org.apache.flink.table.api.internal.TableResultInternal;
@@ -106,8 +107,17 @@ public class OperationExecutor {
     }
 
     public Set<String> listDatabases(String catalogName) {
-        return Collections.unmodifiableSet(
-                new HashSet<>(getTableEnvironment().getCatalogManager().listSchemas(catalogName)));
+        return new HashSet<>(
+                getTableEnvironment()
+                        .getCatalogManager()
+                        .getCatalog(catalogName)
+                        .orElseThrow(
+                                () ->
+                                        new CatalogNotExistException(
+                                                String.format(
+                                                        "Catalog '%s' does not exist.",
+                                                        catalogName)))
+                        .listDatabases());
     }
 
     // --------------------------------------------------------------------------------------------

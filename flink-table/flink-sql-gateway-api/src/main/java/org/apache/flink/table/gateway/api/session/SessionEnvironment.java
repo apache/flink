@@ -41,7 +41,6 @@ public class SessionEnvironment {
     private final @Nullable String sessionName;
     private final EndpointVersion version;
     private final Map<String, Catalog> registeredCatalogs;
-
     private final Map<String, Module> registeredModules;
     private final @Nullable String defaultCatalog;
     private final @Nullable String defaultDatabase;

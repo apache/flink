@@ -200,8 +200,7 @@ public interface SqlGatewayService {
     Set<String> listCatalogs(SessionHandle sessionHandle) throws SqlGatewayException;
 
     /**
-     * Return all available schemas' name matching {@param databaseNamePattern} in the given
-     * catalog.
+     * Return all available schemas in the given catalog.
      *
      * @param sessionHandle handle to identify the session.
      * @param catalogName name string of the given catalog.
@@ -209,4 +208,12 @@ public interface SqlGatewayService {
      */
     Set<String> listDatabases(SessionHandle sessionHandle, String catalogName)
             throws SqlGatewayException;
+
+    /**
+     * Return current catalog name.
+     *
+     * @param sessionHandle handle to identify the session.
+     * @return name of the current catalog.
+     */
+    String getCurrentCatalog(SessionHandle sessionHandle) throws SqlGatewayException;
 }

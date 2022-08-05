@@ -323,12 +323,12 @@ public class SqlGatewayServiceITCase extends AbstractTestBase {
                 SessionEnvironment.newBuilder()
                         .setSessionEndpointVersion(MockedEndpointVersion.V1)
                         .registerCatalog("cat", new GenericInMemoryCatalog("cat"))
+                        .setDefaultCatalog("cat")
                         .build();
         SessionHandle sessionHandle = service.openSession(environment);
         Configuration configuration =
                 Configuration.fromMap(service.getSessionConfig(sessionHandle));
 
-        service.executeStatement(sessionHandle, "USE CATALOG cat", -1, configuration);
         service.executeStatement(sessionHandle, "CREATE DATABASE db1", -1, configuration);
         OperationHandle operationHandle =
                 service.executeStatement(sessionHandle, "CREATE DATABASE db2", -1, configuration);
@@ -341,6 +341,20 @@ public class SqlGatewayServiceITCase extends AbstractTestBase {
                 Duration.ofSeconds(100),
                 "Failed to wait operation finish.");
         assertThat(service.listDatabases(sessionHandle, "cat")).contains("db1", "db2");
+    }
+
+    @Test
+    public void testGetCurrentCatalog() throws Exception {
+        SessionEnvironment environment =
+                SessionEnvironment.newBuilder()
+                        .setSessionEndpointVersion(MockedEndpointVersion.V1)
+                        .registerCatalog("cat1", new GenericInMemoryCatalog("cat1"))
+                        .registerCatalog("cat2", new GenericInMemoryCatalog("cat2"))
+                        .setDefaultCatalog("cat2")
+                        .build();
+        SessionHandle sessionHandle = service.openSession(environment);
+
+        assertThat(service.getCurrentCatalog(sessionHandle)).isEqualTo("cat2");
     }
 
     // --------------------------------------------------------------------------------------------

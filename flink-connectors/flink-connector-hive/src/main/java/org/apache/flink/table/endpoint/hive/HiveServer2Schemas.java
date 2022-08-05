@@ -40,12 +40,11 @@ public class HiveServer2Schemas {
     /** Schema for {@link HiveServer2Endpoint#GetSchemas}. */
     public static final ResolvedSchema GET_SCHEMAS_SCHEMA =
             new ResolvedSchema(
-                    Collections.unmodifiableList(
-                            Arrays.asList(
-                                    Column.physical("TABLE_SCHEMA", DataTypes.STRING())
-                                            .withComment("Schema name. NULL if not applicable."),
-                                    Column.physical("TABLE_CAT", DataTypes.STRING())
-                                            .withComment("Catalog name. NULL if not applicable"))),
+                    Arrays.asList(
+                            Column.physical("TABLE_SCHEMA", DataTypes.STRING())
+                                    .withComment("Schema name. NULL if not applicable."),
+                            Column.physical("TABLE_CAT", DataTypes.STRING())
+                                    .withComment("Catalog name. NULL if not applicable")),
                     Collections.emptyList(),
                     null);
 }

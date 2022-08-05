@@ -63,6 +63,7 @@ import org.junit.jupiter.api.extension.RegisterExtension;
 import java.net.InetAddress;
 import java.sql.Connection;
 import java.sql.ResultSetMetaData;
+import java.sql.Statement;
 import java.util.AbstractMap;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -216,44 +217,74 @@ public class HiveServer2EndpointITCase extends TestLogger {
     @Test
     public void testGetSchemas() throws Exception {
         try (Connection connection = ENDPOINT_EXTENSION.getConnection()) {
-            connection.createStatement().execute("CREATE SCHEMA schema1");
-            connection.createStatement().execute("CREATE SCHEMA schema2");
-            connection.createStatement().execute("CREATE SCHEMA different");
-
+            initDefaultTestConnection(connection);
             // test all
-            java.sql.ResultSet resultAll = connection.getMetaData().getSchemas("hive", null);
-            assertSchemaEquals(
-                    ResolvedSchema.of(
-                            Column.physical("TABLE_SCHEMA", DataTypes.STRING()),
-                            Column.physical("TABLE_CAT", DataTypes.STRING())),
-                    resultAll.getMetaData());
-
-            List<List<String>> actual = new ArrayList<>();
-            while (resultAll.next()) {
-                actual.add(Arrays.asList(resultAll.getString(1), resultAll.getString(2)));
-            }
-            assertThat(new HashSet<>(actual))
-                    .isEqualTo(
-                            new HashSet<>(
-                                    Arrays.asList(
-                                            Arrays.asList("default", "hive"),
-                                            Arrays.asList("schema1", "hive"),
-                                            Arrays.asList("schema2", "hive"),
-                                            Arrays.asList("different", "hive"))));
-
+            testGetSchemasAll(connection);
             // test schema pattern parameter
-            java.sql.ResultSet result = connection.getMetaData().getSchemas("hive", "schema%");
-            actual.clear();
-            while (result.next()) {
-                actual.add(Arrays.asList(result.getString(1), result.getString(2)));
-            }
-            assertThat(new HashSet<>(actual))
-                    .isEqualTo(
-                            new HashSet<>(
-                                    Arrays.asList(
-                                            Arrays.asList("schema1", "hive"),
-                                            Arrays.asList("schema2", "hive"))));
+            testGetSchemasWithPattern(connection);
         }
+    }
+
+    private void testGetSchemasAll(Connection connection) throws Exception {
+        java.sql.ResultSet resultAll = connection.getMetaData().getSchemas("hive", null);
+        assertSchemaEquals(
+                ResolvedSchema.of(
+                        Column.physical("TABLE_SCHEMA", DataTypes.STRING()),
+                        Column.physical("TABLE_CAT", DataTypes.STRING())),
+                resultAll.getMetaData());
+
+        List<List<String>> actual = new ArrayList<>();
+        while (resultAll.next()) {
+            actual.add(Arrays.asList(resultAll.getString(1), resultAll.getString(2)));
+        }
+        assertThat(new HashSet<>(actual))
+                .isEqualTo(
+                        new HashSet<>(
+                                Arrays.asList(
+                                        Arrays.asList("default", "hive"),
+                                        Arrays.asList("db_test1", "hive"),
+                                        Arrays.asList("db_test2", "hive"),
+                                        Arrays.asList("db_diff", "hive"))));
+    }
+
+    private void testGetSchemasWithPattern(Connection connection) throws Exception {
+        java.sql.ResultSet result = connection.getMetaData().getSchemas("hive", "db\\_test%");
+        List<List<String>> actual = new ArrayList<>();
+        while (result.next()) {
+            actual.add(Arrays.asList(result.getString(1), result.getString(2)));
+        }
+        assertThat(new HashSet<>(actual))
+                .isEqualTo(
+                        new HashSet<>(
+                                Arrays.asList(
+                                        Arrays.asList("db_test1", "hive"),
+                                        Arrays.asList("db_test2", "hive"))));
+    }
+
+    private void initDefaultTestConnection(Connection connection) throws Exception {
+        // hive: db_test1 | db_test2 | db_diff
+        //     db_test1: temporary table tb_1, table tb_2, temporary view tb_3, view tb_4
+        //     db_test2: table tb_1, table diff_1, view tb_2, view diff_2
+        //     db_diff:  table tb_1, view tb_2
+        Statement statement = connection.createStatement();
+        statement.execute("SET table.sql-dialect=default");
+        statement.execute("CREATE DATABASE db_test1");
+        statement.execute("CREATE DATABASE db_test2");
+        statement.execute("CREATE DATABASE db_diff");
+
+        statement.execute("CREATE TEMPORARY TABLE db_test1.tb_1 COMMENT 'temporary table tb_1'");
+        statement.execute("CREATE TABLE db_test1.tb_2 COMMENT 'table tb_2'");
+        statement.execute(
+                "CREATE TEMPORARY VIEW db_test1.tb_3 COMMENT 'temporary view tb_3' AS SELECT 1");
+        statement.execute("CREATE VIEW db_test1.tb_4 COMMENT 'view tb_4' AS SELECT 1");
+
+        statement.execute("CREATE TABLE db_test2.tb_1 COMMENT 'table tb_1'");
+        statement.execute("CREATE TABLE db_test2.diff_1 COMMENT 'table diff_1'");
+        statement.execute("CREATE VIEW db_test2.tb_2 COMMENT 'view tb_2' AS SELECT 1");
+        statement.execute("CREATE VIEW db_test2.diff_2 COMMENT 'view diff_2' AS SELECT 1");
+
+        statement.execute("CREATE TABLE db_diff.tb_1 COMMENT 'table tb_1'");
+        statement.execute("CREATE VIEW db_diff.tb_2 COMMENT 'view tb_2' AS SELECT 1");
     }
 
     private void runOperationRequest(

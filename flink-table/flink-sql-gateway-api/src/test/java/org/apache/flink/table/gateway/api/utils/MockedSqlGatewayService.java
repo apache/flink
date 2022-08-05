@@ -126,4 +126,9 @@ public class MockedSqlGatewayService implements SqlGatewayService {
             throws SqlGatewayException {
         throw new UnsupportedOperationException();
     }
+
+    @Override
+    public String getCurrentCatalog(SessionHandle sessionHandle) throws SqlGatewayException {
+        throw new UnsupportedOperationException();
+    }
 }
