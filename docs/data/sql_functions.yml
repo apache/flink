@@ -1007,6 +1007,8 @@ aggregate:
     description: Concatenates the values of string expressions and places separator values between them. The separator is not added at the end of string. The default value of separator is ','.
   - sql: CUME_DIST()
     description: Return the cumulative distribution of a value in a group of values. The result is the number of rows preceding or equal to the current row in the ordering of the partition divided by the number of rows in the window partition.
+  - sql: PERCENT_RANK()
+    description: Return the percentage ranking of a value in a group of values. The result is the rank value minus one, divided by the number of rows in the parition minus one. If the partition only contains one row, the function will return 0.
 
 catalog:
   - sql: CURRENT_DATABASE()
