@@ -23,6 +23,7 @@ import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.io.InputFormat;
 import org.apache.flink.api.common.typeinfo.BasicArrayTypeInfo;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
+import org.apache.flink.api.common.typeinfo.LocalTimeTypeInfo;
 import org.apache.flink.api.common.typeinfo.PrimitiveArrayTypeInfo;
 import org.apache.flink.api.common.typeinfo.SqlTimeTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
@@ -38,6 +39,9 @@ import org.apache.flink.api.common.typeutils.base.GenericArraySerializer;
 import org.apache.flink.api.common.typeutils.base.InstantSerializer;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.api.common.typeutils.base.ListSerializer;
+import org.apache.flink.api.common.typeutils.base.LocalDateSerializer;
+import org.apache.flink.api.common.typeutils.base.LocalDateTimeSerializer;
+import org.apache.flink.api.common.typeutils.base.LocalTimeSerializer;
 import org.apache.flink.api.common.typeutils.base.LongSerializer;
 import org.apache.flink.api.common.typeutils.base.MapSerializer;
 import org.apache.flink.api.common.typeutils.base.ShortSerializer;
@@ -69,10 +73,10 @@ import org.apache.flink.table.runtime.typeutils.serializers.python.DateSerialize
 import org.apache.flink.table.runtime.typeutils.serializers.python.StringSerializer;
 import org.apache.flink.table.runtime.typeutils.serializers.python.TimeSerializer;
 import org.apache.flink.table.runtime.typeutils.serializers.python.TimestampSerializer;
-import org.apache.flink.table.types.logical.LogicalTypeRoot;
+import org.apache.flink.table.types.logical.ArrayType;
+import org.apache.flink.table.types.logical.MapType;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.utils.LegacyTypeInfoDataTypeConverter;
-import org.apache.flink.table.types.utils.TypeConversions;
 import org.apache.flink.table.typeutils.TimeIntervalTypeInfo;
 import org.apache.flink.types.Row;
 import org.apache.flink.types.RowKind;
@@ -183,6 +187,10 @@ public class PythonTypeUtils {
                 return buildSqlTimeTypeProto((SqlTimeTypeInfo<?>) typeInformation);
             }
 
+            if (typeInformation instanceof LocalTimeTypeInfo) {
+                return buildLocalTimeTypeProto((LocalTimeTypeInfo<?>) typeInformation);
+            }
+
             if (typeInformation instanceof RowTypeInfo) {
                 return buildRowTypeProto((RowTypeInfo) typeInformation, userClassLoader);
             }
@@ -218,12 +226,8 @@ public class PythonTypeUtils {
             }
 
             if (typeInformation instanceof InternalTypeInfo) {
-                LogicalTypeRoot logicalTypeRoot =
-                        ((InternalTypeInfo<?>) typeInformation).toLogicalType().getTypeRoot();
-                if (logicalTypeRoot.equals(LogicalTypeRoot.ROW)) {
-                    return buildRowDataTypeProto(
-                            (InternalTypeInfo<?>) typeInformation, userClassLoader);
-                }
+                return buildInternalTypeProto(
+                        (InternalTypeInfo<?>) typeInformation, userClassLoader);
             }
 
             if (typeInformation
@@ -267,6 +271,12 @@ public class PythonTypeUtils {
                                 sqlTimeTypeInfo.toString()));
             }
 
+            return FlinkFnApi.TypeInfo.newBuilder().setTypeName(typeName).build();
+        }
+
+        private static FlinkFnApi.TypeInfo buildLocalTimeTypeProto(
+                LocalTimeTypeInfo<?> localTimeTypeInfo) {
+            FlinkFnApi.TypeInfo.TypeName typeName = getTypeName(localTimeTypeInfo);
             return FlinkFnApi.TypeInfo.newBuilder().setTypeName(typeName).build();
         }
 
@@ -336,34 +346,6 @@ public class PythonTypeUtils {
                     .build();
         }
 
-        private static FlinkFnApi.TypeInfo buildRowDataTypeProto(
-                InternalTypeInfo<?> internalTypeInfo, ClassLoader userClassLoader) {
-            RowType rowType = internalTypeInfo.toRowType();
-            FlinkFnApi.TypeInfo.RowTypeInfo.Builder rowTypeInfoBuilder =
-                    FlinkFnApi.TypeInfo.RowTypeInfo.newBuilder();
-
-            int arity = rowType.getFieldCount();
-            for (int index = 0; index < arity; index++) {
-                rowTypeInfoBuilder.addFields(
-                        FlinkFnApi.TypeInfo.RowTypeInfo.Field.newBuilder()
-                                .setFieldName(rowType.getFieldNames().get(index))
-                                .setFieldType(
-                                        toTypeInfoProto(
-                                                ExternalTypeInfo.of(
-                                                        TypeConversions.fromLogicalToDataType(
-                                                                rowType.getFields()
-                                                                        .get(index)
-                                                                        .getType())),
-                                                userClassLoader))
-                                .build());
-            }
-
-            return FlinkFnApi.TypeInfo.newBuilder()
-                    .setTypeName(FlinkFnApi.TypeInfo.TypeName.ROW)
-                    .setRowTypeInfo(rowTypeInfoBuilder.build())
-                    .build();
-        }
-
         private static FlinkFnApi.TypeInfo buildTupleTypeProto(
                 TupleTypeInfo<?> tupleTypeInfo, ClassLoader userClassLoader) {
             FlinkFnApi.TypeInfo.TupleTypeInfo.Builder tupleTypeInfoBuilder =
@@ -420,6 +402,138 @@ public class PythonTypeUtils {
                     .setAvroTypeInfo(
                             FlinkFnApi.TypeInfo.AvroTypeInfo.newBuilder().setSchema(schema).build())
                     .build();
+        }
+
+        private static FlinkFnApi.TypeInfo buildTableBinaryTypeProto() {
+            return FlinkFnApi.TypeInfo.newBuilder()
+                    .setTypeName(FlinkFnApi.TypeInfo.TypeName.PRIMITIVE_ARRAY)
+                    .setCollectionElementType(
+                            FlinkFnApi.TypeInfo.newBuilder()
+                                    .setTypeName(FlinkFnApi.TypeInfo.TypeName.BYTE)
+                                    .build())
+                    .build();
+        }
+
+        private static FlinkFnApi.TypeInfo buildTableArrayTypeProto(
+                InternalTypeInfo<?> internalTypeInfo, ClassLoader userClassLoader) {
+            ArrayType arrayType = (ArrayType) internalTypeInfo.toLogicalType();
+            return FlinkFnApi.TypeInfo.newBuilder()
+                    .setTypeName(FlinkFnApi.TypeInfo.TypeName.LIST)
+                    .setCollectionElementType(
+                            toTypeInfoProto(
+                                    InternalTypeInfo.of(arrayType.getElementType()),
+                                    userClassLoader))
+                    .build();
+        }
+
+        private static FlinkFnApi.TypeInfo buildTableMapTypeProto(
+                InternalTypeInfo<?> internalTypeInfo, ClassLoader userClassLoader) {
+            MapType mapType = (MapType) internalTypeInfo.toLogicalType();
+            FlinkFnApi.TypeInfo.MapTypeInfo.Builder mapTypeInfoBuilder =
+                    FlinkFnApi.TypeInfo.MapTypeInfo.newBuilder();
+            mapTypeInfoBuilder
+                    .setKeyType(
+                            toTypeInfoProto(
+                                    InternalTypeInfo.of(mapType.getKeyType()), userClassLoader))
+                    .setValueType(
+                            toTypeInfoProto(
+                                    InternalTypeInfo.of(mapType.getValueType()), userClassLoader));
+            return FlinkFnApi.TypeInfo.newBuilder()
+                    .setTypeName(FlinkFnApi.TypeInfo.TypeName.MAP)
+                    .setMapTypeInfo(mapTypeInfoBuilder.build())
+                    .build();
+        }
+
+        private static FlinkFnApi.TypeInfo buildTableRowTypeProto(
+                InternalTypeInfo<?> internalTypeInfo, ClassLoader userClassLoader) {
+            RowType rowType = internalTypeInfo.toRowType();
+            FlinkFnApi.TypeInfo.RowTypeInfo.Builder rowTypeInfoBuilder =
+                    FlinkFnApi.TypeInfo.RowTypeInfo.newBuilder();
+
+            int arity = rowType.getFieldCount();
+            for (int index = 0; index < arity; index++) {
+                rowTypeInfoBuilder.addFields(
+                        FlinkFnApi.TypeInfo.RowTypeInfo.Field.newBuilder()
+                                .setFieldName(rowType.getFieldNames().get(index))
+                                .setFieldType(
+                                        toTypeInfoProto(
+                                                InternalTypeInfo.of(
+                                                        rowType.getFields().get(index).getType()),
+                                                userClassLoader))
+                                .build());
+            }
+
+            return FlinkFnApi.TypeInfo.newBuilder()
+                    .setTypeName(FlinkFnApi.TypeInfo.TypeName.ROW)
+                    .setRowTypeInfo(rowTypeInfoBuilder.build())
+                    .build();
+        }
+
+        private static FlinkFnApi.TypeInfo buildInternalTypeProto(
+                InternalTypeInfo<?> internalTypeInfo, ClassLoader userClassLoader)
+                throws UnsupportedOperationException {
+            FlinkFnApi.TypeInfo.TypeName typeName;
+            switch (internalTypeInfo.toLogicalType().getTypeRoot()) {
+                case CHAR:
+                case VARCHAR:
+                    typeName = FlinkFnApi.TypeInfo.TypeName.STRING;
+                    break;
+                case BOOLEAN:
+                    typeName = FlinkFnApi.TypeInfo.TypeName.BOOLEAN;
+                    break;
+                case BINARY:
+                case VARBINARY:
+                    return buildTableBinaryTypeProto();
+                case DECIMAL:
+                    typeName = FlinkFnApi.TypeInfo.TypeName.BIG_DEC;
+                    break;
+                case TINYINT:
+                    typeName = FlinkFnApi.TypeInfo.TypeName.BYTE;
+                    break;
+                case SMALLINT:
+                    typeName = FlinkFnApi.TypeInfo.TypeName.SHORT;
+                    break;
+                case INTEGER:
+                case INTERVAL_YEAR_MONTH:
+                    typeName = FlinkFnApi.TypeInfo.TypeName.INT;
+                    break;
+                case BIGINT:
+                    typeName = FlinkFnApi.TypeInfo.TypeName.BIG_INT;
+                    break;
+                case INTERVAL_DAY_TIME:
+                    typeName = FlinkFnApi.TypeInfo.TypeName.LONG;
+                    break;
+                case FLOAT:
+                    typeName = FlinkFnApi.TypeInfo.TypeName.FLOAT;
+                    break;
+                case DOUBLE:
+                    typeName = FlinkFnApi.TypeInfo.TypeName.DOUBLE;
+                    break;
+                case DATE:
+                    typeName = FlinkFnApi.TypeInfo.TypeName.SQL_DATE;
+                    break;
+                case TIME_WITHOUT_TIME_ZONE:
+                    typeName = FlinkFnApi.TypeInfo.TypeName.SQL_TIME;
+                    break;
+                case TIMESTAMP_WITHOUT_TIME_ZONE:
+                    typeName = FlinkFnApi.TypeInfo.TypeName.SQL_TIMESTAMP;
+                    break;
+                case TIMESTAMP_WITH_LOCAL_TIME_ZONE:
+                    typeName = FlinkFnApi.TypeInfo.TypeName.LOCAL_ZONED_TIMESTAMP;
+                    break;
+                case ARRAY:
+                    return buildTableArrayTypeProto(internalTypeInfo, userClassLoader);
+                case MAP:
+                    return buildTableMapTypeProto(internalTypeInfo, userClassLoader);
+                case ROW:
+                    return buildTableRowTypeProto(internalTypeInfo, userClassLoader);
+                default:
+                    throw new UnsupportedOperationException(
+                            String.format(
+                                    "InternalTypeInfo %s is still not supported in PyFlink",
+                                    internalTypeInfo));
+            }
+            return FlinkFnApi.TypeInfo.newBuilder().setTypeName(typeName).build();
         }
 
         private static FlinkFnApi.TypeInfo.TypeName getTypeName(TypeInformation<?> typeInfo) {
@@ -515,6 +629,18 @@ public class PythonTypeUtils {
                 return FlinkFnApi.TypeInfo.TypeName.SQL_TIMESTAMP;
             }
 
+            if (typeInfo.equals(LocalTimeTypeInfo.LOCAL_DATE)) {
+                return FlinkFnApi.TypeInfo.TypeName.LOCAL_DATE;
+            }
+
+            if (typeInfo.equals(LocalTimeTypeInfo.LOCAL_TIME)) {
+                return FlinkFnApi.TypeInfo.TypeName.LOCAL_TIME;
+            }
+
+            if (typeInfo.equals(LocalTimeTypeInfo.LOCAL_DATE_TIME)) {
+                return FlinkFnApi.TypeInfo.TypeName.LOCAL_DATETIME;
+            }
+
             throw new UnsupportedOperationException(
                     String.format(
                             "Type %s is still not supported in PyFlink.", typeInfo.toString()));
@@ -582,6 +708,14 @@ public class PythonTypeUtils {
                     SqlTimeTypeInfo.TIME.getTypeClass(), TimeSerializer.INSTANCE);
             typeInfoToSerializerMap.put(
                     SqlTimeTypeInfo.TIMESTAMP.getTypeClass(), new TimestampSerializer(3));
+
+            typeInfoToSerializerMap.put(
+                    LocalTimeTypeInfo.LOCAL_DATE.getTypeClass(), LocalDateSerializer.INSTANCE);
+            typeInfoToSerializerMap.put(
+                    LocalTimeTypeInfo.LOCAL_TIME.getTypeClass(), LocalTimeSerializer.INSTANCE);
+            typeInfoToSerializerMap.put(
+                    LocalTimeTypeInfo.LOCAL_DATE_TIME.getTypeClass(),
+                    LocalDateTimeSerializer.INSTANCE);
         }
 
         @SuppressWarnings("unchecked")
@@ -670,16 +804,9 @@ public class PythonTypeUtils {
                 }
 
                 if (typeInformation instanceof InternalTypeInfo) {
-                    LogicalTypeRoot logicalTypeRoot =
-                            ((InternalTypeInfo<?>) typeInformation)
-                                    .getDataType()
-                                    .getLogicalType()
-                                    .getTypeRoot();
-                    if (logicalTypeRoot.equals(LogicalTypeRoot.ROW)) {
-                        return org.apache.flink.table.runtime.typeutils.PythonTypeUtils
-                                .toInternalSerializer(
-                                        ((InternalTypeInfo<?>) typeInformation).toRowType());
-                    }
+                    InternalTypeInfo<?> internalTypeInfo = (InternalTypeInfo<?>) typeInformation;
+                    return org.apache.flink.table.runtime.typeutils.PythonTypeUtils
+                            .toInternalSerializer(internalTypeInfo.toLogicalType());
                 }
 
                 if (typeInformation

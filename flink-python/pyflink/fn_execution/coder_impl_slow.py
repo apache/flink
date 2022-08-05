@@ -857,3 +857,46 @@ class AvroCoderImpl(FieldCoderImpl):
         # Since writer_schema equals reader_schema, in_stream does not need to support seek and tell
         self._buffer_wrapper.switch_stream(in_stream)
         return self._reader.read(self._decoder)
+
+
+class LocalDateCoderImpl(FieldCoderImpl):
+
+    def encode_to_stream(self, value, out_stream: OutputStream):
+        pass
+
+    def decode_from_stream(self, in_stream: InputStream, length: int = 0):
+        year = in_stream.read_int32()
+        if year == 0xFFFFFFFF:
+            in_stream.read(2)
+            return None
+        month = in_stream.read_int8()
+        day = in_stream.read_int8()
+        return datetime.date(year, month, day)
+
+
+class LocalTimeCoderImpl(FieldCoderImpl):
+
+    def encode_to_stream(self, value, out_stream: OutputStream):
+        pass
+
+    def decode_from_stream(self, in_stream: InputStream, length: int = 0):
+        hour = in_stream.read_int8()
+        if hour == 0xFF:
+            in_stream.read(6)
+            return None
+        minute = in_stream.read_int8()
+        second = in_stream.read_int8()
+        nano = in_stream.read_int32()
+        return datetime.time(hour, minute, second, nano // 1000)
+
+
+class LocalDateTimeCoderImpl(FieldCoderImpl):
+
+    def encode_to_stream(self, value, out_stream: OutputStream):
+        pass
+
+    def decode_from_stream(self, in_stream: InputStream, length: int = 0):
+        date = LocalDateCoderImpl.decode_from_stream(self, in_stream, length)
+        time = LocalTimeCoderImpl.decode_from_stream(self, in_stream, length)
+        return datetime.datetime(date.year, date.month, date.day, time.hour, time.minute,
+                                 time.second, time.microsecond)

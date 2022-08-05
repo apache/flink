@@ -192,3 +192,12 @@ cdef class AvroCoderImpl(FieldCoderImpl):
     cdef object _encoder
     cdef object _reader
     cdef object _writer
+
+cdef class LocalDateCoderImpl(FieldCoderImpl):
+    pass
+
+cdef class LocalTimeCoderImpl(FieldCoderImpl):
+    pass
+
+cdef class LocalDateTimeCoderImpl(FieldCoderImpl):
+    pass
