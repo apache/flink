@@ -27,6 +27,8 @@ import org.apache.flink.table.catalog.CatalogBaseTable.TableKind;
 import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.catalog.hive.HiveCatalog;
 import org.apache.flink.table.catalog.hive.client.HiveShimLoader;
+import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.endpoint.hive.util.GetTypeInfoUtils;
 import org.apache.flink.table.gateway.api.SqlGatewayService;
 import org.apache.flink.table.gateway.api.endpoint.EndpointVersion;
 import org.apache.flink.table.gateway.api.endpoint.SqlGatewayEndpoint;
@@ -111,6 +113,7 @@ import java.net.ServerSocket;
 import java.time.Duration;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
@@ -121,6 +124,7 @@ import static org.apache.flink.configuration.ExecutionOptions.RUNTIME_MODE;
 import static org.apache.flink.table.api.config.TableConfigOptions.TABLE_DML_SYNC;
 import static org.apache.flink.table.api.config.TableConfigOptions.TABLE_SQL_DIALECT;
 import static org.apache.flink.table.endpoint.hive.HiveServer2EndpointVersion.HIVE_CLI_SERVICE_PROTOCOL_V10;
+import static org.apache.flink.table.endpoint.hive.HiveServer2Schemas.GET_TYPE_INFO_SCHEMA;
 import static org.apache.flink.table.endpoint.hive.util.HiveJdbcParameterUtils.getUsedDefaultDatabase;
 import static org.apache.flink.table.endpoint.hive.util.HiveJdbcParameterUtils.validateAndNormalize;
 import static org.apache.flink.table.endpoint.hive.util.OperationExecutorFactory.createGetCatalogsExecutor;
@@ -136,6 +140,7 @@ import static org.apache.flink.table.endpoint.hive.util.ThriftObjectConversions.
 import static org.apache.flink.table.endpoint.hive.util.ThriftObjectConversions.toTSessionHandle;
 import static org.apache.flink.table.endpoint.hive.util.ThriftObjectConversions.toTStatus;
 import static org.apache.flink.table.endpoint.hive.util.ThriftObjectConversions.toTTableSchema;
+import static org.apache.flink.table.gateway.api.results.ResultSet.ResultType.EOS;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
@@ -391,7 +396,27 @@ public class HiveServer2Endpoint implements TCLIService.Iface, SqlGatewayEndpoin
 
     @Override
     public TGetTypeInfoResp GetTypeInfo(TGetTypeInfoReq tGetTypeInfoReq) throws TException {
-        throw new UnsupportedOperationException(ERROR_MESSAGE);
+        TGetTypeInfoResp resp = new TGetTypeInfoResp();
+        try {
+            SessionHandle sessionHandle = toSessionHandle(tGetTypeInfoReq.getSessionHandle());
+            OperationHandle operationHandle =
+                    service.submitOperation(
+                            sessionHandle,
+                            () -> {
+                                List<RowData> typeInfoRowDataList =
+                                        GetTypeInfoUtils.getTypeInfoRowDataList();
+                                return new ResultSet(
+                                        EOS, null, GET_TYPE_INFO_SCHEMA, typeInfoRowDataList);
+                            });
+            resp.setStatus(OK_STATUS);
+            resp.setOperationHandle(
+                    toTOperationHandle(
+                            sessionHandle, operationHandle, TOperationType.GET_TYPE_INFO));
+        } catch (Throwable t) {
+            LOG.error("Failed to GetTypeInfo.", t);
+            resp.setStatus(toTStatus(t));
+        }
+        return resp;
     }
 
     @Override
@@ -601,7 +626,7 @@ public class HiveServer2Endpoint implements TCLIService.Iface, SqlGatewayEndpoin
                             toFetchOrientation(tFetchResultsReq.getFetchType()),
                             maxRows);
             resp.setStatus(OK_STATUS);
-            resp.setHasMoreRows(resultSet.getResultType() != ResultSet.ResultType.EOS);
+            resp.setHasMoreRows(resultSet.getResultType() != EOS);
             EndpointVersion sessionEndpointVersion =
                     service.getSessionEndpointVersion(sessionHandle);
 
@@ -644,6 +669,7 @@ public class HiveServer2Endpoint implements TCLIService.Iface, SqlGatewayEndpoin
     }
 
     // CHECKSTYLE.OFF: MethodName
+
     /** To be compatible with Hive3, add a default implementation. */
     public TGetQueryIdResp GetQueryId(TGetQueryIdReq tGetQueryIdReq) throws TException {
         throw new UnsupportedOperationException(ERROR_MESSAGE);

@@ -78,4 +78,48 @@ public class HiveServer2Schemas {
                                                     "Specifies how values in SELF_REFERENCING_COL_NAME are created."))),
                     Collections.emptyList(),
                     null);
+
+    /** Schema for {@link HiveServer2Endpoint#GetTypeInfo}. */
+    public static final ResolvedSchema GET_TYPE_INFO_SCHEMA =
+            new ResolvedSchema(
+                    Arrays.asList(
+                            Column.physical("TYPE_NAME", DataTypes.STRING())
+                                    .withComment("Type name."),
+                            Column.physical("DATA_TYPE", DataTypes.INT())
+                                    .withComment("SQL data type from java.sql.Types."),
+                            Column.physical("PRECISION", DataTypes.INT())
+                                    .withComment("Maximum precision."),
+                            Column.physical("LITERAL_PREFIX", DataTypes.STRING())
+                                    .withComment("Prefix used to quote a literal (may be null)."),
+                            Column.physical("LITERAL_SUFFIX", DataTypes.STRING())
+                                    .withComment("Suffix used to quote a literal (may be null)."),
+                            Column.physical("CREATE_PARAMS", DataTypes.STRING())
+                                    .withComment(
+                                            "Parameters used in creating the type (may be null)."),
+                            Column.physical("NULLABLE", DataTypes.SMALLINT())
+                                    .withComment("Can you use NULL for this type."),
+                            Column.physical("CASE_SENSITIVE", DataTypes.BOOLEAN())
+                                    .withComment("Is it case sensitive."),
+                            Column.physical("SEARCHABLE", DataTypes.SMALLINT())
+                                    .withComment("Can you use \"WHERE\" based on this type."),
+                            Column.physical("UNSIGNED_ATTRIBUTE", DataTypes.BOOLEAN())
+                                    .withComment("Is it unsigned."),
+                            Column.physical("FIXED_PREC_SCALE", DataTypes.BOOLEAN())
+                                    .withComment("Can it be a money value."),
+                            Column.physical("AUTO_INCREMENT", DataTypes.BOOLEAN())
+                                    .withComment("Can it be used for an auto-increment value."),
+                            Column.physical("LOCAL_TYPE_NAME", DataTypes.STRING())
+                                    .withComment("Localized version of type name (may be null)."),
+                            Column.physical("MINIMUM_SCALE", DataTypes.SMALLINT())
+                                    .withComment("Minimum scale supported."),
+                            Column.physical("MAXIMUM_SCALE", DataTypes.SMALLINT())
+                                    .withComment("Maximum scale supported."),
+                            Column.physical("SQL_DATA_TYPE", DataTypes.INT())
+                                    .withComment("Unused."),
+                            Column.physical("SQL_DATETIME_SUB", DataTypes.INT())
+                                    .withComment("Unused."),
+                            Column.physical("NUM_PREC_RADIX", DataTypes.INT())
+                                    .withComment("Usually 2 or 10.")),
+                    Collections.emptyList(),
+                    null);
 }

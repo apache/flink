@@ -452,6 +452,69 @@ public class HiveServer2EndpointITCase extends TestLogger {
         }
     }
 
+    @Test
+    public void testGetTypeInfo() throws Exception {
+        try (Connection connection = ENDPOINT_EXTENSION.getConnection()) {
+            java.sql.ResultSet result = connection.getMetaData().getTypeInfo();
+            assertSchemaEquals(
+                    ResolvedSchema.of(
+                            Column.physical("TYPE_NAME", DataTypes.STRING()),
+                            Column.physical("DATA_TYPE", DataTypes.INT()),
+                            Column.physical("PRECISION", DataTypes.INT()),
+                            Column.physical("LITERAL_PREFIX", DataTypes.STRING()),
+                            Column.physical("LITERAL_SUFFIX", DataTypes.STRING()),
+                            Column.physical("CREATE_PARAMS", DataTypes.STRING()),
+                            Column.physical("NULLABLE", DataTypes.SMALLINT()),
+                            Column.physical("CASE_SENSITIVE", DataTypes.BOOLEAN()),
+                            Column.physical("SEARCHABLE", DataTypes.SMALLINT()),
+                            Column.physical("UNSIGNED_ATTRIBUTE", DataTypes.BOOLEAN()),
+                            Column.physical("FIXED_PREC_SCALE", DataTypes.BOOLEAN()),
+                            Column.physical("AUTO_INCREMENT", DataTypes.BOOLEAN()),
+                            Column.physical("LOCAL_TYPE_NAME", DataTypes.STRING()),
+                            Column.physical("MINIMUM_SCALE", DataTypes.SMALLINT()),
+                            Column.physical("MAXIMUM_SCALE", DataTypes.SMALLINT()),
+                            Column.physical("SQL_DATA_TYPE", DataTypes.INT()),
+                            Column.physical("SQL_DATETIME_SUB", DataTypes.INT()),
+                            Column.physical("NUM_PREC_RADIX", DataTypes.INT())),
+                    result.getMetaData());
+            List<String> actual = new ArrayList<>();
+            while (result.next()) {
+                actual.add(result.getString(1));
+            }
+            assertThat(actual)
+                    .contains(
+                            "CHAR",
+                            "VARCHAR",
+                            "BOOLEAN",
+                            "BINARY",
+                            "VARBINARY",
+                            "DECIMAL",
+                            "TINYINT",
+                            "SMALLINT",
+                            "INTEGER",
+                            "BIGINT",
+                            "FLOAT",
+                            "DOUBLE",
+                            "DATE",
+                            "TIME_WITHOUT_TIME_ZONE",
+                            "TIMESTAMP_WITHOUT_TIME_ZONE",
+                            "TIMESTAMP_WITH_TIME_ZONE",
+                            "TIMESTAMP_WITH_LOCAL_TIME_ZONE",
+                            "INTERVAL_YEAR_MONTH",
+                            "INTERVAL_DAY_TIME",
+                            "ARRAY",
+                            "MULTISET",
+                            "MAP",
+                            "ROW",
+                            "DISTINCT_TYPE",
+                            "STRUCTURED_TYPE",
+                            "NULL",
+                            "RAW",
+                            "SYMBOL",
+                            "UNRESOLVED");
+        }
+    }
+
     private void runOperationRequest(
             ThrowingConsumer<TOperationHandle, Exception> manipulateOp,
             BiConsumerWithException<SessionHandle, OperationHandle, Exception> operationValidator)
