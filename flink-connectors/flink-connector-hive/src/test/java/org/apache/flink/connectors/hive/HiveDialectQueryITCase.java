@@ -85,6 +85,7 @@ public class HiveDialectQueryITCase {
         tableEnv.executeSql("create table destp (x int) partitioned by (p string, q string)");
         tableEnv.executeSql("alter table destp add partition (p='-1',q='-1')");
         tableEnv.executeSql("CREATE TABLE src (key STRING, value STRING)");
+        tableEnv.executeSql("CREATE TABLE t_sub_query (x int)");
         tableEnv.executeSql(
                 "CREATE TABLE srcpart (key STRING, `value` STRING) PARTITIONED BY (ds STRING, hr STRING)");
         tableEnv.executeSql("create table binary_t (a int, ab array<binary>)");
@@ -118,6 +119,10 @@ public class HiveDialectQueryITCase {
                 .addRow(new Object[] {"1", "val1"})
                 .addRow(new Object[] {"2", "val2"})
                 .addRow(new Object[] {"3", "val3"})
+                .commit();
+        HiveTestUtils.createTextTableInserter(hiveCatalog, "default", "t_sub_query")
+                .addRow(new Object[] {2})
+                .addRow(new Object[] {3})
                 .commit();
         HiveTestUtils.createTextTableInserter(hiveCatalog, "default", "employee")
                 .addRow(new Object[] {1, "A", "Management", 4500, 55})

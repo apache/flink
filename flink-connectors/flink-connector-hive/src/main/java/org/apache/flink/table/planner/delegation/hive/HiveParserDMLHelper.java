@@ -224,7 +224,8 @@ public class HiveParserDMLHelper {
                         queryRelNode,
                         new ArrayList<>(targetColToCalcType.values()),
                         targetHiveTypes,
-                        funcConverter);
+                        funcConverter,
+                        false);
 
         // create identifier
         List<String> targetTablePath =
@@ -442,34 +443,61 @@ public class HiveParserDMLHelper {
             RelNode queryRelNode,
             List<RelDataType> targetCalcTypes,
             List<TypeInfo> targetHiveTypes,
-            SqlFunctionConverter funcConverter)
+            SqlFunctionConverter funcConverter,
+            boolean isSubQuery)
             throws SemanticException {
-        if (queryRelNode instanceof LogicalScriptTransform) {
-            return addProjectForTypeConversion(
-                    rexBuilder,
-                    (LogicalScriptTransform) queryRelNode,
-                    targetCalcTypes,
-                    targetHiveTypes,
-                    funcConverter);
-        } else if (queryRelNode instanceof Project) {
-            return replaceProjectForTypeConversion(
-                    rexBuilder,
-                    (Project) queryRelNode,
-                    targetCalcTypes,
-                    targetHiveTypes,
-                    funcConverter);
+        if (isSubQuery) {
+            // if it's subquery, we will skip create project in the case that the subquery and the
+            // project is identity. so when it's needed to do type conversion in subquey, we add a
+            // project to it directly instead of finding project in parent for we may well find not
+            // project
+            if (isTypeConversionNeeded(queryRelNode, targetCalcTypes)) {
+                Project typeConvProject =
+                        LogicalProject.create(
+                                queryRelNode,
+                                Collections.emptyList(),
+                                rexBuilder.identityProjects(queryRelNode.getRowType()),
+                                queryRelNode.getRowType());
+                return replaceProjectForTypeConversion(
+                        rexBuilder,
+                        typeConvProject,
+                        targetCalcTypes,
+                        targetHiveTypes,
+                        funcConverter);
+            }
         } else {
-            // current node is not Project, we search for it in inputs
-            RelNode newInput =
-                    addTypeConversions(
+            if (queryRelNode instanceof Project) {
+                if (isTypeConversionNeeded(queryRelNode, targetCalcTypes)) {
+                    return replaceProjectForTypeConversion(
                             rexBuilder,
-                            queryRelNode.getInput(0),
+                            (Project) queryRelNode,
                             targetCalcTypes,
                             targetHiveTypes,
                             funcConverter);
-            queryRelNode.replaceInput(0, newInput);
-            return queryRelNode;
+                }
+            } else if (queryRelNode instanceof LogicalScriptTransform) {
+                if (isTypeConversionNeeded(queryRelNode, targetCalcTypes)) {
+                    return addProjectForTypeConversion(
+                            rexBuilder,
+                            (LogicalScriptTransform) queryRelNode,
+                            targetCalcTypes,
+                            targetHiveTypes,
+                            funcConverter);
+                }
+            } else {
+                // current node is not Project, we search for it in inputs
+                RelNode newInput =
+                        addTypeConversions(
+                                rexBuilder,
+                                queryRelNode.getInput(0),
+                                targetCalcTypes,
+                                targetHiveTypes,
+                                funcConverter,
+                                isSubQuery);
+                queryRelNode.replaceInput(0, newInput);
+            }
         }
+        return queryRelNode;
     }
 
     private static RexNode createConversionCast(
@@ -518,6 +546,20 @@ public class HiveParserDMLHelper {
         }
     }
 
+    // to check whether it's needed to do type conversion
+    private static boolean isTypeConversionNeeded(
+            RelNode queryRelNode, List<RelDataType> targetCalcTypes) {
+        List<RelDataTypeField> fields = queryRelNode.getRowType().getFieldList();
+        Preconditions.checkState(fields.size() == targetCalcTypes.size());
+        for (int i = 0; i < fields.size(); i++) {
+            if (fields.get(i).getType().getSqlTypeName()
+                    != targetCalcTypes.get(i).getSqlTypeName()) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     private static RelNode replaceProjectForTypeConversion(
             RexBuilder rexBuilder,
             Project project,
@@ -526,11 +568,7 @@ public class HiveParserDMLHelper {
             SqlFunctionConverter funcConverter)
             throws SemanticException {
         List<RexNode> exprs = project.getProjects();
-        Preconditions.checkState(
-                exprs.size() == targetCalcTypes.size(),
-                "Expressions and target types size mismatch");
         List<RexNode> updatedExprs = new ArrayList<>(exprs.size());
-        boolean updated = false;
         for (int i = 0; i < exprs.size(); i++) {
             RexNode expr = exprs.get(i);
             if (expr.getType().getSqlTypeName() != targetCalcTypes.get(i).getSqlTypeName()) {
@@ -541,23 +579,18 @@ public class HiveParserDMLHelper {
                     expr =
                             createConversionCast(
                                     rexBuilder, expr, hiveType, calcType, funcConverter);
-                    updated = true;
                 }
             }
             updatedExprs.add(expr);
         }
-        if (updated) {
-            RelNode newProject =
-                    LogicalProject.create(
-                            project.getInput(),
-                            Collections.emptyList(),
-                            updatedExprs,
-                            getProjectNames(project));
-            project.replaceInput(0, null);
-            return newProject;
-        } else {
-            return project;
-        }
+        RelNode newProject =
+                LogicalProject.create(
+                        project.getInput(),
+                        Collections.emptyList(),
+                        updatedExprs,
+                        getProjectNames(project));
+        project.replaceInput(0, null);
+        return newProject;
     }
 
     private static RelNode addProjectForTypeConversion(
@@ -568,11 +601,7 @@ public class HiveParserDMLHelper {
             SqlFunctionConverter funcConverter)
             throws SemanticException {
         List<RelDataTypeField> outPutDataTypes = scriptTransform.getRowType().getFieldList();
-        Preconditions.checkState(
-                outPutDataTypes.size() == targetCalcTypes.size(),
-                "Output types of Script transform and target types size mismatch");
         List<RexNode> updatedExprs = new ArrayList<>(outPutDataTypes.size());
-        boolean updated = false;
         for (int i = 0; i < outPutDataTypes.size(); i++) {
             RelDataTypeField outputDataType = outPutDataTypes.get(i);
             RexNode expr = rexBuilder.makeInputRef(scriptTransform, i);
@@ -585,17 +614,12 @@ public class HiveParserDMLHelper {
                     expr =
                             createConversionCast(
                                     rexBuilder, expr, hiveType, calcType, funcConverter);
-                    updated = true;
                 }
             }
             updatedExprs.add(expr);
         }
-        if (updated) {
-            return LogicalProject.create(
-                    scriptTransform, Collections.emptyList(), updatedExprs, (List<String>) null);
-        } else {
-            return scriptTransform;
-        }
+        return LogicalProject.create(
+                scriptTransform, Collections.emptyList(), updatedExprs, (List<String>) null);
     }
 
     private RelNode handleDestSchema(
