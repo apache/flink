@@ -446,7 +446,8 @@ public class HiveDialectQueryITCase {
         // test insert overwrite directory with row format parameters
         tableEnv.executeSql("create table map_table (foo STRING , bar MAP<STRING, INT>)");
         tableEnv.executeSql(
-                "insert into map_table select 'A', map('math',100,'english',90,'history',85)");
+                        "insert into map_table select 'A', map('math',100,'english',90,'history',85)")
+                .await();
 
         String dataDir = warehouse + "/map_table_dir";
         tableEnv.executeSql(
