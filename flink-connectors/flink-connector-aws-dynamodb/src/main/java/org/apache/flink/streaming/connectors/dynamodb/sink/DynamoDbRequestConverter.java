@@ -16,20 +16,17 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.connectors.dynamodb.util;
+package org.apache.flink.streaming.connectors.dynamodb.sink;
 
-import org.apache.flink.annotation.Internal;
+import org.apache.flink.annotation.PublicEvolving;
+
+import java.io.Serializable;
+import java.util.function.Function;
 
 /**
- * Represents a DynamoDb Write Request type. The following types are currently supported
- *
- * <ul>
- *   <li>PUT - Put Request
- *   <li>DELETE - Delete Request
- * </ul>
+ * This is a serializable function whose {@code accept()} method specifies how to convert from an
+ * input element to a {@link DynamoDbRequest}.
  */
-@Internal
-public enum DynamoDbWriteRequestType {
-    PUT,
-    DELETE,
-}
+@PublicEvolving
+public interface DynamoDbRequestConverter<InputT>
+        extends Function<InputT, DynamoDbRequest>, Serializable {}

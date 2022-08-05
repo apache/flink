@@ -20,30 +20,31 @@ package org.apache.flink.streaming.connectors.dynamodb.sink;
 
 import org.assertj.core.api.Assertions;
 import org.junit.Test;
-import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
-
-import java.util.Map;
-import java.util.UUID;
 
 /** Tests for {@link DynamoDbSinkBuilder}. */
 public class DynamoDbSinkBuilderTest {
 
     @Test
     public void testCreateDynamoDbSinkBuilder() {
-        DynamoDbSink<Map<String, AttributeValue>> dynamoDbSink =
-                DynamoDbSink.<Map<String, AttributeValue>>builder()
-                        .setElementConverter(
-                                new TestDynamoDbElementConverter(UUID.randomUUID().toString()))
+        DynamoDbSink<String> dynamoDbSink =
+                DynamoDbSink.<String>builder()
+                        .setDynamoDbRequestConverter(
+                                new DynamoDbRequestConverter<String>() {
+                                    @Override
+                                    public DynamoDbRequest apply(String element) {
+                                        return null;
+                                    }
+                                })
                         .build();
 
         Assertions.assertThat(dynamoDbSink.getWriterStateSerializer().getVersion()).isEqualTo(1);
     }
 
     @Test
-    public void elementConverterOfSinkMustBeSetWhenBuilt() {
+    public void dynamoDbRequestConverterOfSinkMustBeSetWhenBuilt() {
         Assertions.assertThatExceptionOfType(NullPointerException.class)
                 .isThrownBy(() -> DynamoDbSink.builder().setFailOnError(true).build())
                 .withMessageContaining(
-                        "ElementConverter must be not null when initializing the AsyncSinkBase.");
+                        "No DynamoDbRequestConverter was supplied to the DynamoDbSink builder.");
     }
 }

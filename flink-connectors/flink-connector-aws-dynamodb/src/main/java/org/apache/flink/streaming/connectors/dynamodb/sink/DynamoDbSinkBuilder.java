@@ -20,7 +20,6 @@ package org.apache.flink.streaming.connectors.dynamodb.sink;
 
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.connector.base.sink.AsyncSinkBaseBuilder;
-import org.apache.flink.connector.base.sink.writer.ElementConverter;
 import org.apache.flink.streaming.connectors.dynamodb.config.DynamoDbTablesConfig;
 
 import java.util.Optional;
@@ -33,22 +32,20 @@ import java.util.Properties;
  * records into DynamoDb
  *
  * <pre>{@code
- * private static class DummyElementConverter
- *         implements ElementConverter<String, DynamoDbWriteRequest> {
+ * private static class DummyDynamoDbRequestConverter implements DynamoDbRequestConverter<String> {
  *
- *     @Override
- *     public DynamoDbWriteRequest apply(String element, SinkWriter.Context context) {
- *         final Map<String, AttributeValue> map = new HashMap<>();
- *         map.put("your-key", AttributeValue.builder().s(element).build());
- *         return new DynamoDbWriteRequest(
- *                 "your-table-name",
- *                 WriteRequest.builder()
- *                         .putRequest(PutRequest.builder().item(map).build())
- *                         .build());
- *      }
- * }
+ *         @Override
+ *         public DynamoDbRequest apply(String s) {
+ *             final Map<String, DynamoDbAttributeValue> item = new HashMap<>();
+ *             item.put("your-key", DynamoDbAttributeValue.builder().s(s).build());
+ *             return DynamoDbRequest.builder()
+ *                     .tableName("your-table-name")
+ *                     .putRequest(DynamoDbPutRequest.builder().item(item).build())
+ *                     .build();
+ *         }
+ *     }
  * DynamoDbSink<String> dynamoDbSink = DynamoDbSink.<String>builder()
- *                                          .setElementConverter(new DummyElementConverter())
+ *                                          .setDynamoDbRequestConverter(new DummyDynamoDbRequestConverter())
  *                                       .build();
  * }</pre>
  *
@@ -84,7 +81,7 @@ public class DynamoDbSinkBuilder<InputT>
     private DynamoDbTablesConfig dynamoDbTablesConfig;
     private Properties dynamodbClientProperties;
 
-    private ElementConverter<InputT, DynamoDbWriteRequest> elementConverter;
+    private DynamoDbRequestConverter<InputT> dynamoDbRequestConverter;
 
     public DynamoDbSinkBuilder<InputT> setDynamoDbProperties(Properties properties) {
         this.dynamodbClientProperties = properties;
@@ -92,17 +89,13 @@ public class DynamoDbSinkBuilder<InputT>
     }
 
     /**
-     * @param elementConverter the {@link ElementConverter} to be used for the sink
+     * @param dynamoDbRequestConverter the {@link DynamoDbRequestConverter} to be used for the sink
      * @return {@link DynamoDbSinkBuilder} itself
      */
-    public DynamoDbSinkBuilder<InputT> setElementConverter(
-            ElementConverter<InputT, DynamoDbWriteRequest> elementConverter) {
-        this.elementConverter = elementConverter;
+    public DynamoDbSinkBuilder<InputT> setDynamoDbRequestConverter(
+            DynamoDbRequestConverter<InputT> dynamoDbRequestConverter) {
+        this.dynamoDbRequestConverter = dynamoDbRequestConverter;
         return this;
-    }
-
-    public ElementConverter<InputT, DynamoDbWriteRequest> getElementConverter() {
-        return elementConverter;
     }
 
     /**
@@ -125,7 +118,9 @@ public class DynamoDbSinkBuilder<InputT>
     @Override
     public DynamoDbSink<InputT> build() {
         return new DynamoDbSink<>(
-                getElementConverter(),
+                DynamoDbSinkElementConverter.<InputT>builder()
+                        .setDynamoDbRequestConverter(dynamoDbRequestConverter)
+                        .build(),
                 Optional.ofNullable(getMaxBatchSize()).orElse(DEFAULT_MAX_BATCH_SIZE),
                 Optional.ofNullable(getMaxInFlightRequests())
                         .orElse(DEFAULT_MAX_IN_FLIGHT_REQUESTS),

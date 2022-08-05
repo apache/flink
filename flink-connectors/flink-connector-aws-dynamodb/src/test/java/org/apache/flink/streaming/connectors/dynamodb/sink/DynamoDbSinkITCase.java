@@ -36,9 +36,7 @@ import org.junit.ClassRule;
 import org.junit.Test;
 import org.testcontainers.containers.Network;
 import org.testcontainers.utility.DockerImageName;
-import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
 
-import java.util.Map;
 import java.util.Properties;
 import java.util.UUID;
 
@@ -161,7 +159,7 @@ public class DynamoDbSinkITCase {
             dynamoDBHelpers.createTable(testTableName, PARTITION_KEY, SORT_KEY);
             DataStream<String> stream =
                     env.addSource(
-                                    new DataGeneratorSource<String>(
+                                    new DataGeneratorSource<>(
                                             RandomGenerator.stringGenerator(sizeOfMessageBytes),
                                             100,
                                             (long) numberOfElementsToSend))
@@ -175,9 +173,10 @@ public class DynamoDbSinkITCase {
             prop.setProperty(TRUST_ALL_CERTIFICATES, "true");
             prop.setProperty(HTTP_PROTOCOL_VERSION, "HTTP1_1");
 
-            DynamoDbSink<Map<String, AttributeValue>> dynamoDbSink =
-                    DynamoDbSink.<Map<String, AttributeValue>>builder()
-                            .setElementConverter(new TestDynamoDbElementConverter(tableName))
+            DynamoDbSink<String> dynamoDbSink =
+                    DynamoDbSink.<String>builder()
+                            .setDynamoDbRequestConverter(
+                                    new TestDynamoDbRequestConverter(tableName))
                             .setMaxTimeInBufferMS(bufferMaxTimeMS)
                             .setMaxInFlightRequests(maxInflightReqs)
                             .setMaxBatchSize(maxBatchSize)
@@ -189,7 +188,7 @@ public class DynamoDbSinkITCase {
                             .setDynamoDbProperties(prop)
                             .build();
 
-            stream.map(new TestMapper(PARTITION_KEY, SORT_KEY)).sinkTo(dynamoDbSink);
+            stream.sinkTo(dynamoDbSink);
 
             env.execute("DynamoDbSink Async Sink Example Program");
 

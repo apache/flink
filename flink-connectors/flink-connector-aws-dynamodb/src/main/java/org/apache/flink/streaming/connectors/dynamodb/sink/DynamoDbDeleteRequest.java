@@ -18,36 +18,26 @@
 
 package org.apache.flink.streaming.connectors.dynamodb.sink;
 
-import org.apache.flink.annotation.Internal;
-
-import software.amazon.awssdk.services.dynamodb.model.WriteRequest;
+import org.apache.flink.annotation.PublicEvolving;
 
 import java.io.Serializable;
+import java.util.Map;
 import java.util.Objects;
 
-/**
- * Represents a single DynamoDb {@link WriteRequest}. Contains the name of the DynamoDb table name
- * to write to as well as the {@link WriteRequest}
- */
-@Internal
-public class DynamoDbWriteRequest implements Serializable {
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
-    private static final long serialVersionUID = 1L;
+/** Represents a DynamoDb Delete Request. */
+@PublicEvolving
+public class DynamoDbDeleteRequest implements Serializable {
 
-    private final String tableName;
-    private final WriteRequest writeRequest;
+    private final Map<String, DynamoDbAttributeValue> key;
 
-    public DynamoDbWriteRequest(String tableName, WriteRequest writeRequest) {
-        this.tableName = tableName;
-        this.writeRequest = writeRequest;
+    private DynamoDbDeleteRequest(Map<String, DynamoDbAttributeValue> key) {
+        this.key = key;
     }
 
-    public String getTableName() {
-        return tableName;
-    }
-
-    public WriteRequest getWriteRequest() {
-        return writeRequest;
+    public Map<String, DynamoDbAttributeValue> key() {
+        return key;
     }
 
     @Override
@@ -58,13 +48,31 @@ public class DynamoDbWriteRequest implements Serializable {
         if (o == null || getClass() != o.getClass()) {
             return false;
         }
-        DynamoDbWriteRequest that = (DynamoDbWriteRequest) o;
-        return Objects.equals(tableName, that.tableName)
-                && Objects.equals(writeRequest, that.writeRequest);
+        DynamoDbDeleteRequest that = (DynamoDbDeleteRequest) o;
+        return Objects.equals(key, that.key);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(tableName, writeRequest);
+        return Objects.hash(key);
+    }
+
+    public static Builder builder() {
+        return new Builder();
+    }
+
+    /** Builder. */
+    public static class Builder {
+        private Map<String, DynamoDbAttributeValue> key;
+
+        public Builder key(Map<String, DynamoDbAttributeValue> key) {
+            this.key = key;
+            return this;
+        }
+
+        public DynamoDbDeleteRequest build() {
+            checkNotNull(key);
+            return new DynamoDbDeleteRequest(key);
+        }
     }
 }

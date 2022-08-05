@@ -18,31 +18,30 @@
 
 package org.apache.flink.streaming.connectors.dynamodb.sink;
 
-import org.apache.flink.api.connector.sink2.SinkWriter;
-import org.apache.flink.connector.base.sink.writer.ElementConverter;
-
-import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
-import software.amazon.awssdk.services.dynamodb.model.PutRequest;
-import software.amazon.awssdk.services.dynamodb.model.WriteRequest;
+import org.apache.flink.shaded.guava30.com.google.common.collect.ImmutableMap;
 
 import java.util.Map;
 
 /** DynamoDB element converter test implementation. */
-public class TestDynamoDbElementConverter
-        implements ElementConverter<Map<String, AttributeValue>, DynamoDbWriteRequest> {
+public class TestDynamoDbRequestConverter implements DynamoDbRequestConverter<String> {
+
     private final String tableName;
 
-    public TestDynamoDbElementConverter(String tableName) {
+    public TestDynamoDbRequestConverter(String tableName) {
         this.tableName = tableName;
     }
 
     @Override
-    public DynamoDbWriteRequest apply(
-            Map<String, AttributeValue> elements, SinkWriter.Context context) {
-        return new DynamoDbWriteRequest(
-                tableName,
-                WriteRequest.builder()
-                        .putRequest(PutRequest.builder().item(elements).build())
-                        .build());
+    public DynamoDbRequest apply(String s) {
+        Map<String, DynamoDbAttributeValue> item =
+                ImmutableMap.of(
+                        "key",
+                        DynamoDbAttributeValue.builder().s(s).build(),
+                        "sort_key",
+                        DynamoDbAttributeValue.builder().s(s).build());
+        return DynamoDbRequest.builder()
+                .tableName(tableName)
+                .putRequest(DynamoDbPutRequest.builder().item(item).build())
+                .build();
     }
 }
