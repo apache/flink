@@ -26,6 +26,7 @@ import org.apache.flink.table.planner.plan.nodes.physical.batch._
 import org.apache.flink.table.planner.plan.stats.ValueInterval
 import org.apache.flink.table.planner.plan.utils.{FlinkRelMdUtil, SortUtil}
 import org.apache.flink.table.planner.plan.utils.AggregateUtil.{hasTimeIntervalType, toLong}
+import org.apache.flink.table.planner.utils.DynamicPartitionPruningUtils
 import org.apache.flink.table.planner.utils.ShortcutUtils.unwrapTableConfig
 
 import org.apache.calcite.adapter.enumerable.EnumerableLimit
@@ -335,10 +336,22 @@ class FlinkRelMdRowCount private extends MetadataHandler[BuiltInMetadata.RowCoun
       fmq.getSelectivity(joinWithOnlyEquiPred, nonEquiPred)
     }
 
+    // Currently, join-reorder is before dynamic partition pruning rewrite. This factor
+    // is adding to adjust join cost for these join node which meets dynamic partition
+    // pruning pattern. Try best to reorder the fact table and fact table together to
+    // make DPP succeed.
+    val dynamicPartitionPruningFactor =
+      if (DynamicPartitionPruningUtils.supportDynamicPartitionPruning(join)) {
+        0.0001
+      } else {
+        1
+      }
+
     if (leftNdv != null && rightNdv != null) {
       // selectivity of equi part is 1 / Max(leftNdv, rightNdv)
       val selectivityOfEquiPred = Math.min(1d, 1d / Math.max(leftNdv, rightNdv))
-      return leftRowCount * rightRowCount * selectivityOfEquiPred * selectivityOfNonEquiPred
+      return leftRowCount * rightRowCount * selectivityOfEquiPred *
+        selectivityOfNonEquiPred * dynamicPartitionPruningFactor
     }
 
     val leftKeysAreUnique = fmq.areColumnsUnique(leftChild, leftKeySet)
