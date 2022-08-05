@@ -75,7 +75,9 @@ class ListStateImpl(StateImpl, InternalListState):
         self._state.addAll(self._value_converter.to_external(values))
 
     def get(self) -> OUT:
-        return self._value_converter.to_internal(self._state.get())
+        states = self._value_converter.to_internal(self._state.get())
+        if states:
+            yield from states
 
     def add(self, value: IN) -> None:
         self._state.add(self._element_converter.to_external(value))
@@ -117,16 +119,18 @@ class ReducingStateImpl(StateImpl, InternalReducingState):
         for source in sources:
             self.set_current_namespace(source)
             source_state = self.get()
-            self.clear()
-            if merged and source_state:
-                if merged:
-                    merged = self._reduce_function.reduce(merged, source_state)
-                else:
-                    merged = source_state
-            elif merged is None:
-                merged = source_state
 
-        if merged:
+            if source_state is None:
+                continue
+
+            self.clear()
+
+            if merged is None:
+                merged = source_state
+            else:
+                merged = self._reduce_function.reduce(merged, source_state)
+
+        if merged is not None:
             self.set_current_namespace(target)
             self._state.update(self._value_converter.to_external(merged))
 
@@ -165,13 +169,18 @@ class AggregatingStateImpl(StateImpl, InternalAggregatingState):
         for source in sources:
             self.set_current_namespace(source)
             source_state = self.get()
-            self.clear()
-            if merged and source_state:
-                merged = self._agg_function.merge(merged, source_state)
-            elif merged is None:
-                merged = source_state
 
-        if merged:
+            if source_state is None:
+                continue
+
+            self.clear()
+
+            if merged is None:
+                merged = source_state
+            else:
+                merged = self._agg_function.merge(merged, source_state)
+
+        if merged is not None:
             self.set_current_namespace(target)
             self._state.update(self._value_converter.to_external(merged))
 
@@ -186,7 +195,7 @@ class MapStateImpl(StateImpl, InternalMapState):
         self._v_converter = map_converter._value_converter
 
     def get(self, key: K) -> V:
-        return self._value_converter.to_internal(
+        return self._v_converter.to_internal(
             self._state.get(self._k_converter.to_external(key)))
 
     def put(self, key: K, value: V) -> None:
@@ -203,17 +212,22 @@ class MapStateImpl(StateImpl, InternalMapState):
 
     def items(self) -> Iterable[Tuple[K, V]]:
         entries = self._state.entries()
-        for entry in entries:
-            yield (self._k_converter.to_internal(entry.getKey()),
-                   self._v_converter.to_internal(entry.getValue()))
+        if entries:
+            for entry in entries:
+                yield (self._k_converter.to_internal(entry.getKey()),
+                       self._v_converter.to_internal(entry.getValue()))
 
     def keys(self) -> Iterable[K]:
-        for k in self._state.keys():
-            yield self._k_converter.to_internal(k)
+        keys = self._state.keys()
+        if keys:
+            for k in keys:
+                yield self._k_converter.to_internal(k)
 
     def values(self) -> Iterable[V]:
-        for v in self._state.values():
-            yield self._v_converter.to_internal(v)
+        values = self._state.values()
+        if values:
+            for v in values:
+                yield self._v_converter.to_internal(v)
 
     def is_empty(self) -> bool:
         return self._state.isEmpty()

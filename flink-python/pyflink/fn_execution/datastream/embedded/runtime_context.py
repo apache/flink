@@ -20,19 +20,14 @@ from pyflink.datastream.state import (AggregatingStateDescriptor, AggregatingSta
                                       ReducingStateDescriptor, ReducingState, MapStateDescriptor,
                                       MapState, ListStateDescriptor, ListState,
                                       ValueStateDescriptor, ValueState)
-from pyflink.fn_execution.datastream.embedded.state_impl import (ValueStateImpl, ListStateImpl,
-                                                                 MapStateImpl, ReducingStateImpl,
-                                                                 AggregatingStateImpl)
-from pyflink.fn_execution.embedded.converters import from_type_info
-from pyflink.fn_execution.embedded.java_utils import to_java_state_descriptor
+from pyflink.fn_execution.embedded.state_impl import KeyedStateBackend
 
 
 class StreamingRuntimeContext(RuntimeContext):
-    def __init__(self, runtime_context, job_parameters, keyed_state_backend=None):
+    def __init__(self, runtime_context, job_parameters):
         self._runtime_context = runtime_context
         self._job_parameters = job_parameters
-        if keyed_state_backend:
-            self._keyed_state_backend = keyed_state_backend
+        self._keyed_state_backend = None  # type: KeyedStateBackend
 
     def get_task_name(self) -> str:
         """
@@ -84,48 +79,27 @@ class StreamingRuntimeContext(RuntimeContext):
         return self._runtime_context.getMetricGroup()
 
     def get_state(self, state_descriptor: ValueStateDescriptor) -> ValueState:
-        if hasattr(self, '_keyed_state_backend'):
-            return self._keyed_state_backend.get_value_state(state_descriptor)
-        else:
-            return ValueStateImpl(
-                self._runtime_context.getState(to_java_state_descriptor(state_descriptor)),
-                from_type_info(state_descriptor.type_info))
+        return self._keyed_state_backend.get_value_state(state_descriptor)
 
     def get_list_state(self, state_descriptor: ListStateDescriptor) -> ListState:
-        if hasattr(self, '_keyed_state_backend'):
-            return self._keyed_state_backend.get_list_state(state_descriptor)
-        else:
-            return ListStateImpl(
-                self._runtime_context.getListState(to_java_state_descriptor(state_descriptor)),
-                from_type_info(state_descriptor.type_info))
+        return self._keyed_state_backend.get_list_state(state_descriptor)
 
     def get_map_state(self, state_descriptor: MapStateDescriptor) -> MapState:
-        if hasattr(self, '_keyed_state_backend'):
-            return self._keyed_state_backend.get_map_state(state_descriptor)
-        else:
-            return MapStateImpl(
-                self._runtime_context.getMapState(to_java_state_descriptor(state_descriptor)),
-                from_type_info(state_descriptor.type_info))
+        return self._keyed_state_backend.get_map_state(state_descriptor)
 
     def get_reducing_state(self, state_descriptor: ReducingStateDescriptor) -> ReducingState:
-        if hasattr(self, '_keyed_state_backend'):
-            return self._keyed_state_backend.get_reducing_state(state_descriptor)
-        else:
-            return ReducingStateImpl(
-                self._runtime_context.getState(to_java_state_descriptor(state_descriptor)),
-                from_type_info(state_descriptor.type_info),
-                state_descriptor.get_reduce_function())
+        return self._keyed_state_backend.get_reducing_state(state_descriptor)
 
     def get_aggregating_state(self,
                               state_descriptor: AggregatingStateDescriptor) -> AggregatingState:
-        if hasattr(self, '_keyed_state_backend'):
-            return self._keyed_state_backend.get_aggregating_state(state_descriptor)
-        else:
-            return AggregatingStateImpl(
-                self._runtime_context.getState(to_java_state_descriptor(state_descriptor)),
-                from_type_info(state_descriptor.type_info),
-                state_descriptor.get_agg_function())
+        return self._keyed_state_backend.get_aggregating_state(state_descriptor)
+
+    def set_keyed_state_backend(self, keyed_state_backend: KeyedStateBackend):
+        self._keyed_state_backend = keyed_state_backend
+
+    def get_keyed_state_backend(self):
+        return self._keyed_state_backend
 
     @staticmethod
-    def of(runtime_context, job_parameters, keyed_state_backend=None):
-        return StreamingRuntimeContext(runtime_context, job_parameters, keyed_state_backend)
+    def of(runtime_context, job_parameters):
+        return StreamingRuntimeContext(runtime_context, job_parameters)

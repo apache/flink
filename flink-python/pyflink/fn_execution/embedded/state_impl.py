@@ -28,11 +28,18 @@ from pyflink.fn_execution.embedded.converters import from_type_info
 from pyflink.fn_execution.embedded.java_utils import to_java_state_descriptor
 
 JVoidNamespace = findClass('org.apache.flink.runtime.state.VoidNamespace')
+JVoidNamespaceSerializer = findClass('org.apache.flink.runtime.state.VoidNamespaceSerializer')
+
 JVoidNamespace_INSTANCE = JVoidNamespace.INSTANCE
+JVoidNamespaceSerializer_INSTANCE = JVoidNamespaceSerializer.INSTANCE
 
 
 class KeyedStateBackend(object):
-    def __init__(self, function_context, keyed_state_backend, window_serializer, window_converter):
+    def __init__(self,
+                 function_context,
+                 keyed_state_backend,
+                 window_serializer=JVoidNamespaceSerializer_INSTANCE,
+                 window_converter=None):
         self._function_context = function_context
         self._keyed_state_backend = keyed_state_backend
         self._window_serializer = window_serializer

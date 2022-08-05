@@ -80,7 +80,7 @@ class TwoInputOperation(operations.TwoInputOperation):
 
 def extract_process_function(
         user_defined_function_proto, j_runtime_context, j_function_context, j_timer_context,
-        job_parameters):
+        job_parameters, j_keyed_state_backend):
     from pyflink.fn_execution import flink_fn_execution_pb2
 
     user_defined_func = pickle.loads(user_defined_function_proto.payload)
@@ -117,6 +117,12 @@ def extract_process_function(
         timer_context = InternalKeyedProcessFunctionOnTimerContext(
             j_timer_context, user_defined_function_proto.key_type_info)
 
+        keyed_state_backend = KeyedStateBackend(
+            function_context,
+            j_keyed_state_backend)
+
+        runtime_context.set_keyed_state_backend(keyed_state_backend)
+
         on_timer = user_defined_func.on_timer
 
         def process_element(value, context):
@@ -152,6 +158,12 @@ def extract_process_function(
 
         timer_context = InternalKeyedProcessFunctionOnTimerContext(
             j_timer_context, user_defined_function_proto.key_type_info)
+
+        keyed_state_backend = KeyedStateBackend(
+            function_context,
+            j_keyed_state_backend)
+
+        runtime_context.set_keyed_state_backend(keyed_state_backend)
 
         on_timer = user_defined_func.on_timer
 
@@ -211,14 +223,11 @@ def extract_process_function(
 
         keyed_state_backend = KeyedStateBackend(
             function_context,
-            j_function_context.getCurrentKeyedStateBackend(),
+            j_keyed_state_backend,
             j_function_context.getWindowSerializer(),
             window_converter)
 
-        runtime_context = StreamingRuntimeContext.of(
-            j_runtime_context,
-            job_parameters,
-            keyed_state_backend)
+        runtime_context.set_keyed_state_backend(keyed_state_backend)
 
         window_operator = WindowOperator(
             window_assigner,

@@ -25,7 +25,6 @@ import org.apache.flink.api.java.typeutils.RowTypeInfo;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.fnexecution.v1.FlinkFnApi;
 import org.apache.flink.python.util.ProtoUtils;
-import org.apache.flink.runtime.state.KeyedStateBackend;
 import org.apache.flink.streaming.api.functions.python.DataStreamPythonFunctionInfo;
 import org.apache.flink.streaming.api.operators.InternalTimer;
 import org.apache.flink.streaming.api.operators.InternalTimerService;
@@ -166,10 +165,6 @@ public class EmbeddedPythonWindowOperator<K, IN, OUT, W extends Window>
 
         public TypeSerializer<W> getWindowSerializer() {
             return windowSerializer;
-        }
-
-        public KeyedStateBackend<K> getCurrentKeyedStateBackend() {
-            return getKeyedStateBackend();
         }
 
         public long timestamp() {
