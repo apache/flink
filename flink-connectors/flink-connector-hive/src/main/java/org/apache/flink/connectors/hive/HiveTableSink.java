@@ -339,6 +339,7 @@ public class HiveTableSink implements DynamicTableSink, SupportsPartitioning, Su
         builder.setOutputFileConfig(fileNaming);
         return dataStream
                 .map((MapFunction<RowData, Row>) value -> (Row) converter.toExternal(value))
+                .setParallelism(parallelism)
                 .writeUsingOutputFormat(builder.build())
                 .setParallelism(parallelism);
     }
