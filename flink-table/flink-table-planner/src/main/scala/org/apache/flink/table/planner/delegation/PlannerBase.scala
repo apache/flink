@@ -104,6 +104,9 @@ abstract class PlannerBase(
   private var parser: Parser = _
   private var extendedOperationExecutor: ExtendedOperationExecutor = _
   private var currentDialect: SqlDialect = getTableConfig.getSqlDialect
+  // the transformations generated in translateToPlan method, they are not connected
+  // with sink transformations but also are needed in the final graph.
+  private[flink] val extraTransformations = new util.ArrayList[Transformation[_]]()
 
   @VisibleForTesting
   private[flink] val plannerContext: PlannerContext =
@@ -358,6 +361,12 @@ abstract class PlannerBase(
    */
   protected def translateToPlan(execGraph: ExecNodeGraph): util.List[Transformation[_]]
 
+  def addExtraTransformation(transformation: Transformation[_]): Unit = {
+    if (!extraTransformations.contains(transformation)) {
+      extraTransformations.add(transformation)
+    }
+  }
+
   private def getTableSink(
       contextResolvedTable: ContextResolvedTable,
       dynamicOptions: JMap[String, String]): Option[(ResolvedCatalogTable, Any)] = {
@@ -480,6 +489,7 @@ abstract class PlannerBase(
 
     // Clean caches that might have filled up during optimization
     CompileUtils.cleanUp()
+    extraTransformations.clear()
   }
 
   /** Returns all the graphs required to execute EXPLAIN */

@@ -46,6 +46,8 @@ import org.apache.calcite.sql.SqlExplainLevel
 import java.io.{File, IOException}
 import java.util
 
+import scala.collection.mutable
+
 class StreamPlanner(
     executor: Executor,
     tableConfig: TableConfig,
@@ -87,13 +89,13 @@ class StreamPlanner(
             "This is a bug and should not happen. Please file an issue.")
     }
     afterTranslation()
-    transformations
+    transformations ++ planner.extraTransformations
   }
 
   override def explain(operations: util.List[Operation], extraDetails: ExplainDetail*): String = {
     val (sinkRelNodes, optimizedRelNodes, execGraph, streamGraph) = getExplainGraphs(operations)
 
-    val sb = new StringBuilder
+    val sb = new mutable.StringBuilder
     sb.append("== Abstract Syntax Tree ==")
     sb.append(System.lineSeparator)
     sinkRelNodes.foreach {

@@ -17,7 +17,11 @@
  */
 package org.apache.flink.table.planner.plan.nodes.physical.batch
 
-import org.apache.flink.table.planner.plan.nodes.exec.ExecNode
+import org.apache.flink.table.planner.calcite.FlinkTypeFactory
+import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, InputProperty}
+import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecDynamicFilteringDataCollector
+import org.apache.flink.table.planner.utils.JavaScalaConversionUtil
+import org.apache.flink.table.planner.utils.ShortcutUtils.unwrapTableConfig
 
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.`type`.RelDataType
@@ -54,6 +58,11 @@ class BatchPhysicalDynamicFilteringDataCollector(
   }
 
   override def translateToExecNode(): ExecNode[_] = {
-    throw new UnsupportedOperationException()
+    new BatchExecDynamicFilteringDataCollector(
+      JavaScalaConversionUtil.toJava(dynamicFilteringFieldIndices.map(i => Integer.valueOf(i))),
+      unwrapTableConfig(this),
+      InputProperty.DEFAULT,
+      FlinkTypeFactory.toLogicalRowType(getRowType),
+      getRelDetailedDescription)
   }
 }
