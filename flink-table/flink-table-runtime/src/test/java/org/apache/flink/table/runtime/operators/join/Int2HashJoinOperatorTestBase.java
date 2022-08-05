@@ -221,7 +221,7 @@ public abstract class Int2HashJoinOperatorTestBase implements Serializable {
                         typeInfo,
                         (TypeInformation) typeInfo,
                         rowDataTypeInfo);
-        testHarness.memorySize = 36 * 1024 * 1024;
+        testHarness.memorySize = 3 * 1024 * 1024;
         testHarness.getExecutionConfig().enableObjectReuse();
         testHarness.setupOutputForSingletonOperatorChain();
         if (operator instanceof StreamOperator) {

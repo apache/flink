@@ -40,7 +40,7 @@ public class Int2AdaptiveHashJoinOperatorTest extends Int2HashJoinOperatorTestBa
         // level. we use them to make sure one partition grows over-proportionally large
         final int repeatedValue1 = 405590;
         final int repeatedValue2 = 928820;
-        final int repeatedValueCountBuild = 1500000;
+        final int repeatedValueCountBuild = 100000;
 
         final int numKeys1 = 100000;
         final int numKeys2 = 160000;
@@ -79,7 +79,7 @@ public class Int2AdaptiveHashJoinOperatorTest extends Int2HashJoinOperatorTestBa
         // level. we use them to make sure one partition grows over-proportionally large
         final int repeatedValue1 = 40559;
         final int repeatedValue2 = 92882;
-        final int repeatedValueCountBuild = 1500000;
+        final int repeatedValueCountBuild = 100000;
 
         final int numKeys1 = 100000;
         final int numKeys2 = 50000;
@@ -122,7 +122,7 @@ public class Int2AdaptiveHashJoinOperatorTest extends Int2HashJoinOperatorTestBa
         // level. we use them to make sure one partition grows over-proportionally large
         final int repeatedValue1 = 40559;
         final int repeatedValue2 = 92882;
-        final int repeatedValueCountBuild = 1500000;
+        final int repeatedValueCountBuild = 100000;
 
         final int numKeys1 = 100000;
         final int numKeys2 = 50000;
@@ -161,7 +161,7 @@ public class Int2AdaptiveHashJoinOperatorTest extends Int2HashJoinOperatorTestBa
         // level. we use them to make sure one partition grows over-proportionally large
         final int repeatedValue1 = 40559;
         final int repeatedValue2 = 92882;
-        final int repeatedValueCountBuild = 1500000;
+        final int repeatedValueCountBuild = 100000;
 
         final int numKeys1 = 100000;
         final int numKeys2 = 150000;
@@ -204,7 +204,7 @@ public class Int2AdaptiveHashJoinOperatorTest extends Int2HashJoinOperatorTestBa
         // level. we use them to make sure one partition grows over-proportionally large
         final int repeatedValue1 = 40559;
         final int repeatedValue2 = 92882;
-        final int repeatedValueCountBuild = 1500000;
+        final int repeatedValueCountBuild = 100000;
 
         final int numKeys1 = 100000;
         final int numKeys2 = 50000;
@@ -243,7 +243,7 @@ public class Int2AdaptiveHashJoinOperatorTest extends Int2HashJoinOperatorTestBa
         // level. we use them to make sure one partition grows over-proportionally large
         final int repeatedValue1 = 40559;
         final int repeatedValue2 = 92882;
-        final int repeatedValueCountBuild = 1500000;
+        final int repeatedValueCountBuild = 100000;
 
         final int numKeys1 = 100000;
         final int numKeys2 = 50000;
@@ -281,9 +281,9 @@ public class Int2AdaptiveHashJoinOperatorTest extends Int2HashJoinOperatorTestBa
         // level. we use them to make sure one partition grows over-proportionally large
         final int repeatedValue1 = 40559;
         final int repeatedValue2 = 92882;
-        final int repeatedValueCountBuild = 1000000;
+        final int repeatedValueCountBuild = 100000;
 
-        final int numKeys1 = 1000000;
+        final int numKeys1 = 100000;
         final int numKeys2 = 100000;
         final int buildValsPerKey = 3;
         final int probeValsPerKey = 1;
@@ -321,7 +321,7 @@ public class Int2AdaptiveHashJoinOperatorTest extends Int2HashJoinOperatorTestBa
         // level. we use them to make sure one partition grows over-proportionally large
         final int repeatedValue1 = 40559;
         final int repeatedValue2 = 92882;
-        final int repeatedValueCountBuild = 1500000;
+        final int repeatedValueCountBuild = 100000;
 
         final int numKeys1 = 100000;
         final int numKeys2 = 160000;
@@ -362,7 +362,7 @@ public class Int2AdaptiveHashJoinOperatorTest extends Int2HashJoinOperatorTestBa
         // level. we use them to make sure one partition grows over-proportionally large
         final int repeatedValue1 = 405;
         final int repeatedValue2 = 928;
-        final int repeatedValueCountBuild = 1500000;
+        final int repeatedValueCountBuild = 100000;
 
         final int numKeys1 = 100000;
         final int numKeys2 = 1000;
@@ -408,10 +408,10 @@ public class Int2AdaptiveHashJoinOperatorTest extends Int2HashJoinOperatorTestBa
         // level. we use them to make sure one partition grows over-proportionally large
         final int repeatedValue1 = 40559;
         final int repeatedValue2 = 92882;
-        final int repeatedValueCountBuild = 500000;
+        final int repeatedValueCountBuild = 100000;
 
-        final int numKeys1 = 100000;
-        final int numKeys2 = 10000;
+        final int numKeys1 = 500000;
+        final int numKeys2 = 100000;
         final int buildValsPerKey = 1;
         final int probeValsPerKey = 3;
 
@@ -443,7 +443,7 @@ public class Int2AdaptiveHashJoinOperatorTest extends Int2HashJoinOperatorTestBa
                         false);
 
         // output build side in left that not matched with probe side
-        int expectOutSize = numKeys1 - numKeys2 + repeatedValueCountBuild * 2;
+        int expectOutSize = numKeys1 - numKeys2;
         joinAndAssert(
                 operator, buildInput, probeInput, expectOutSize, numKeys1 - numKeys2, -1, true);
     }
