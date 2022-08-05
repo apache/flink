@@ -521,6 +521,22 @@ object TestData {
 
   val nullablesOfDuplicateData5 = Array(true, true, true, true, true)
 
+  lazy val data7 = Seq(
+    row(1, 0, 1L),
+    row(2, 1, 1L),
+    row(2, 2, 2L),
+    row(3, 3, 2L),
+    row(3, 4, 3L),
+    row(4, 5, 2L),
+    row(4, 6, 1L),
+    row(4, 7, 2L),
+    row(5, 8, 1L),
+    row(5, 9, 2L),
+    row(5, 10, 3L),
+    row(6, 11, 2L),
+    row(6, 11, 4L)
+  )
+
   lazy val numericData: Seq[Row] = Seq(
     row(1, 1L, 1.0f, 1.0d, JBigDecimal.valueOf(1)),
     row(2, 2L, 2.0f, 2.0d, JBigDecimal.valueOf(2)),

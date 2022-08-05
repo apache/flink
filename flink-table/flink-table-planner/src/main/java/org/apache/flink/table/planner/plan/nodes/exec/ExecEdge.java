@@ -113,6 +113,14 @@ public class ExecEdge {
         private Shuffle shuffle = FORWARD_SHUFFLE;
         private StreamExchangeMode exchangeMode = StreamExchangeMode.PIPELINED;
 
+        public Builder from(ExecEdge original) {
+            this.source = original.source;
+            this.target = original.target;
+            this.shuffle = original.shuffle;
+            this.exchangeMode = original.exchangeMode;
+            return this;
+        }
+
         public Builder source(ExecNode<?> source) {
             this.source = source;
             return this;

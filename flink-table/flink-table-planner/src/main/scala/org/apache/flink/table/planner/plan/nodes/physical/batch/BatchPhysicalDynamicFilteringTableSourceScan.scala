@@ -18,7 +18,7 @@
 package org.apache.flink.table.planner.plan.nodes.physical.batch
 
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
-import org.apache.flink.table.planner.plan.nodes.exec.ExecNode
+import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, InputProperty}
 import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecTableSourceScan
 import org.apache.flink.table.planner.plan.nodes.exec.spec.DynamicTableSourceSpec
 import org.apache.flink.table.planner.plan.schema.TableSourceTable
@@ -88,6 +88,7 @@ class BatchPhysicalDynamicFilteringTableSourceScan(
     new BatchExecTableSourceScan(
       unwrapTableConfig(this),
       tableSourceSpec,
+      InputProperty.DEFAULT,
       FlinkTypeFactory.toLogicalRowType(getRowType),
       getRelDetailedDescription)
   }

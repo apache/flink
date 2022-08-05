@@ -27,6 +27,7 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.io.CollectionInputFormat;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ConfigOptions;
+import org.apache.flink.connector.source.DynamicFilteringValuesSource;
 import org.apache.flink.connector.source.ValuesSource;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSink;
@@ -743,7 +744,8 @@ public final class TestValuesTableFactory
                     SupportsLimitPushDown,
                     SupportsPartitionPushDown,
                     SupportsReadingMetadata,
-                    SupportsAggregatePushDown {
+                    SupportsAggregatePushDown,
+                    SupportsDynamicFiltering {
 
         protected DataType producedDataType;
         protected final ChangelogMode changelogMode;
@@ -765,6 +767,7 @@ public final class TestValuesTableFactory
 
         private @Nullable int[] groupingSet;
         private List<AggregateExpression> aggregateExpressions;
+        private List<String> acceptedPartitionFilterFields;
 
         private TestValuesScanTableSourceWithoutProjectionPushDown(
                 DataType producedDataType,
@@ -817,11 +820,11 @@ public final class TestValuesTableFactory
                     runtimeProviderContext.createDataStructureConverter(producedDataType);
             converter.open(
                     RuntimeConverter.Context.create(TestValuesTableFactory.class.getClassLoader()));
-            Collection<RowData> values = convertToRowData(converter);
 
             switch (runtimeSource) {
                 case "SourceFunction":
                     try {
+                        Collection<RowData> values = convertToRowData(converter);
                         final SourceFunction<RowData> sourceFunction;
                         if (failingSource) {
                             sourceFunction =
@@ -838,14 +841,16 @@ public final class TestValuesTableFactory
                     checkArgument(
                             !failingSource,
                             "Values InputFormat Source doesn't support as failing source.");
+                    Collection<RowData> values = convertToRowData(converter);
                     return InputFormatProvider.of(new CollectionInputFormat<>(values, serializer));
                 case "DataStream":
                     checkArgument(
                             !failingSource,
                             "Values DataStream Source doesn't support as failing source.");
                     try {
+                        Collection<RowData> values2 = convertToRowData(converter);
                         FromElementsFunction<RowData> function =
-                                new FromElementsFunction<>(serializer, values);
+                                new FromElementsFunction<>(serializer, values2);
                         return new DataStreamScanProvider() {
                             @Override
                             public DataStream<RowData> produceDataStream(
@@ -870,7 +875,18 @@ public final class TestValuesTableFactory
                 case "NewSource":
                     checkArgument(
                             !failingSource, "Values Source doesn't support as failing new source.");
-                    return SourceProvider.of(new ValuesSource(values, serializer));
+                    if (acceptedPartitionFilterFields == null
+                            || acceptedPartitionFilterFields.isEmpty()) {
+                        Collection<RowData> values2 = convertToRowData(converter);
+                        return SourceProvider.of(new ValuesSource(values2, serializer));
+                    } else {
+                        Map<Map<String, String>, Collection<RowData>> partitionValues =
+                                convertToPartitionedRowData(converter);
+                        DynamicFilteringValuesSource source =
+                                new DynamicFilteringValuesSource(
+                                        partitionValues, serializer, acceptedPartitionFilterFields);
+                        return SourceProvider.of(source);
+                    }
                 default:
                     throw new IllegalArgumentException(
                             "Unsupported runtime source class: " + runtimeSource);
@@ -931,8 +947,21 @@ public final class TestValuesTableFactory
 
         protected Collection<RowData> convertToRowData(DataStructureConverter converter) {
             List<RowData> result = new ArrayList<>();
+            for (Collection<RowData> rowData : convertToPartitionedRowData(converter).values()) {
+                result.addAll(rowData);
+            }
+            return result;
+        }
+
+        protected Map<Map<String, String>, Collection<RowData>> convertToPartitionedRowData(
+                DataStructureConverter converter) {
+            Map<Map<String, String>, Collection<RowData>> result = new HashMap<>();
+            int size = 0;
             int numSkipped = 0;
             for (Map<String, String> partition : data.keySet()) {
+                List<RowData> partitionResult = new ArrayList<>();
+                result.put(partition, partitionResult);
+
                 Collection<Row> rowsInPartition = data.get(partition);
 
                 // handle element skipping
@@ -968,11 +997,12 @@ public final class TestValuesTableFactory
                     final RowData rowData = (RowData) converter.toInternal(row);
                     if (rowData != null) {
                         rowData.setRowKind(row.getKind());
-                        result.add(rowData);
+                        partitionResult.add(rowData);
+                        size++;
                     }
 
                     // handle limit. No aggregates will be pushed down when there is a limit.
-                    if (result.size() >= limit) {
+                    if (size >= limit) {
                         return result;
                     }
                 }
@@ -1214,12 +1244,31 @@ public final class TestValuesTableFactory
             projectedMetadataFields =
                     remainingMetadataKeys.stream().mapToInt(allMetadataKeys::indexOf).toArray();
         }
+
+        @Override
+        public List<String> applyDynamicFiltering(List<String> candidateFilterFields) {
+            if (dynamicFilteringFields != null && dynamicFilteringFields.size() != 0) {
+                checkArgument(!candidateFilterFields.isEmpty());
+                acceptedPartitionFilterFields = new ArrayList<>();
+                for (String field : candidateFilterFields) {
+                    if (dynamicFilteringFields.contains(field)) {
+                        acceptedPartitionFilterFields.add(field);
+                    }
+                }
+
+                return new ArrayList<>(acceptedPartitionFilterFields);
+            } else {
+                throw new UnsupportedOperationException(
+                        "Should adding dynamic filtering fields by adding factor"
+                                + " in with like: 'dynamic-filtering-fields' = 'a;b'.");
+            }
+        }
     }
 
     /** Values {@link ScanTableSource} for testing that supports projection push down. */
     private static class TestValuesScanTableSource
             extends TestValuesScanTableSourceWithoutProjectionPushDown
-            implements SupportsProjectionPushDown, SupportsDynamicFiltering {
+            implements SupportsProjectionPushDown {
 
         private TestValuesScanTableSource(
                 DataType producedDataType,
@@ -1289,25 +1338,6 @@ public final class TestValuesTableFactory
             this.projectedPhysicalFields = projectedFields;
             // we can't immediately project the data here,
             // because ReadingMetadataSpec may bring new fields
-        }
-
-        @Override
-        public List<String> applyDynamicFiltering(List<String> candidateFilterFields) {
-            if (dynamicFilteringFields != null && dynamicFilteringFields.size() != 0) {
-                checkArgument(!candidateFilterFields.isEmpty());
-                List<String> acceptedPartitionFields = new ArrayList<>();
-                for (String field : candidateFilterFields) {
-                    if (dynamicFilteringFields.contains(field)) {
-                        acceptedPartitionFields.add(field);
-                    }
-                }
-
-                return acceptedPartitionFields;
-            } else {
-                throw new UnsupportedOperationException(
-                        "Should adding dynamic filtering fields by adding factor"
-                                + " in with like: 'dynamic-filtering-fields' = 'a;b'.");
-            }
         }
     }
 
@@ -1546,25 +1576,6 @@ public final class TestValuesTableFactory
                     allPartitions,
                     readableMetadata,
                     projectedMetadataFields);
-        }
-
-        @Override
-        public List<String> applyDynamicFiltering(List<String> candidateFilterFields) {
-            if (dynamicFilteringFields != null && dynamicFilteringFields.size() != 0) {
-                checkArgument(!candidateFilterFields.isEmpty());
-                List<String> acceptedPartitionFields = new ArrayList<>();
-                for (String field : candidateFilterFields) {
-                    if (dynamicFilteringFields.contains(field)) {
-                        acceptedPartitionFields.add(field);
-                    }
-                }
-
-                return acceptedPartitionFields;
-            } else {
-                throw new UnsupportedOperationException(
-                        "Should adding dynamic filtering fields by adding factor"
-                                + " in with like: 'dynamic-filtering-fields' = 'a;b'.");
-            }
         }
     }
 
