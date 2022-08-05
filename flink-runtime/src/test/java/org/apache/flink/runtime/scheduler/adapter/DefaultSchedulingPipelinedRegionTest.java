@@ -147,7 +147,7 @@ public class DefaultSchedulingPipelinedRegionTest extends TestLogger {
         final Set<IntermediateResultPartitionID> secondPipelinedRegionConsumedResults =
                 new HashSet<>();
         for (ConsumedPartitionGroup consumedPartitionGroup :
-                secondPipelinedRegion.getAllBlockingConsumedPartitionGroups()) {
+                secondPipelinedRegion.getAllNonPipelinedConsumedPartitionGroups()) {
             for (IntermediateResultPartitionID partitionId : consumedPartitionGroup) {
                 if (!secondPipelinedRegion.contains(
                         topology.getResultPartition(partitionId).getProducer().getId())) {
@@ -157,7 +157,10 @@ public class DefaultSchedulingPipelinedRegionTest extends TestLogger {
         }
 
         assertThat(
-                firstPipelinedRegion.getAllBlockingConsumedPartitionGroups().iterator().hasNext(),
+                firstPipelinedRegion
+                        .getAllNonPipelinedConsumedPartitionGroups()
+                        .iterator()
+                        .hasNext(),
                 is(false));
         assertThat(secondPipelinedRegionConsumedResults, contains(b0ConsumedResultPartition));
     }

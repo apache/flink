@@ -267,7 +267,7 @@ class PipelinedRegionSchedulingStrategyTest {
     }
 
     @Test
-    void testSchedulingTopologyWithCrossRegionConsumedPartitionGroups() throws Exception {
+    void testSchedulingTopologyWithBlockingCrossRegionConsumedPartitionGroups() throws Exception {
         final JobVertex v1 = createJobVertex("v1", 4);
         final JobVertex v2 = createJobVertex("v2", 3);
         final JobVertex v3 = createJobVertex("v3", 2);
@@ -340,6 +340,74 @@ class PipelinedRegionSchedulingStrategyTest {
     }
 
     @Test
+    void testSchedulingTopologyWithHybridCrossRegionConsumedPartitionGroups() throws Exception {
+        final JobVertex v1 = createJobVertex("v1", 4);
+        final JobVertex v2 = createJobVertex("v2", 3);
+        final JobVertex v3 = createJobVertex("v3", 2);
+
+        v2.connectNewDataSetAsInput(
+                v1, DistributionPattern.POINTWISE, ResultPartitionType.PIPELINED);
+        v3.connectNewDataSetAsInput(v2, DistributionPattern.POINTWISE, ResultPartitionType.HYBRID);
+        v3.connectNewDataSetAsInput(
+                v1, DistributionPattern.POINTWISE, ResultPartitionType.PIPELINED);
+
+        final List<JobVertex> ordered = new ArrayList<>(Arrays.asList(v1, v2, v3));
+        final JobGraph jobGraph =
+                JobGraphBuilder.newBatchJobGraphBuilder().addJobVertices(ordered).build();
+        final ExecutionGraph executionGraph =
+                TestingDefaultExecutionGraphBuilder.newBuilder()
+                        .setJobGraph(jobGraph)
+                        .build(EXECUTOR_RESOURCE.getExecutor());
+
+        final SchedulingTopology schedulingTopology = executionGraph.getSchedulingTopology();
+
+        // Test whether the topology is built correctly
+        final List<SchedulingPipelinedRegion> regions = new ArrayList<>();
+        schedulingTopology.getAllPipelinedRegions().forEach(regions::add);
+        assertThat(regions).hasSize(2);
+
+        final ExecutionVertex v31 = executionGraph.getJobVertex(v3.getID()).getTaskVertices()[0];
+
+        final Set<ExecutionVertexID> region1 = new HashSet<>();
+        schedulingTopology
+                .getPipelinedRegionOfVertex(v31.getID())
+                .getVertices()
+                .forEach(vertex -> region1.add(vertex.getId()));
+        assertThat(region1).hasSize(5);
+
+        final ExecutionVertex v32 = executionGraph.getJobVertex(v3.getID()).getTaskVertices()[1];
+
+        final Set<ExecutionVertexID> region2 = new HashSet<>();
+        schedulingTopology
+                .getPipelinedRegionOfVertex(v32.getID())
+                .getVertices()
+                .forEach(vertex -> region2.add(vertex.getId()));
+        assertThat(region2).hasSize(4);
+
+        startScheduling(schedulingTopology);
+
+        assertThat(testingSchedulerOperation.getScheduledVertices()).hasSize(2);
+
+        // Test whether region 1 is scheduled correctly
+        final List<ExecutionVertexID> scheduledVertices1 =
+                testingSchedulerOperation.getScheduledVertices().get(0);
+        assertThat(scheduledVertices1).hasSize(5);
+
+        for (ExecutionVertexID vertexId : scheduledVertices1) {
+            assertThat(region1).contains(vertexId);
+        }
+
+        // Test whether region 2 is scheduled correctly
+        final List<ExecutionVertexID> scheduledVertices2 =
+                testingSchedulerOperation.getScheduledVertices().get(1);
+        assertThat(scheduledVertices2).hasSize(4);
+
+        for (ExecutionVertexID vertexId : scheduledVertices2) {
+            assertThat(region2).contains(vertexId);
+        }
+    }
+
+    @Test
     void testScheduleBlockingDownstreamTaskIndividually() throws Exception {
         final JobVertex v1 = createJobVertex("v1", 2);
         final JobVertex v2 = createJobVertex("v2", 2);
@@ -395,6 +463,60 @@ class PipelinedRegionSchedulingStrategyTest {
         schedulingStrategy.onExecutionStateChange(v11.getID(), ExecutionState.FINISHED);
 
         assertThat(testingSchedulerOperation.getScheduledVertices()).hasSize(2);
+    }
+
+    /**
+     * Source and it's downstream with hybrid edge will be scheduled. When blocking result partition
+     * finished, it's downstream will be scheduled.
+     *
+     * <pre>
+     * V1 ----> V2 ----> V3 ----> V4
+     *     |        |         |
+     *  Hybrid   Blocking   Hybrid
+     * </pre>
+     */
+    @Test
+    void testScheduleTopologyWithHybridAndBlockingEdge() throws Exception {
+        final JobVertex v1 = createJobVertex("v1", 1);
+        final JobVertex v2 = createJobVertex("v2", 1);
+        final JobVertex v3 = createJobVertex("v3", 1);
+        final JobVertex v4 = createJobVertex("v4", 1);
+
+        v2.connectNewDataSetAsInput(v1, DistributionPattern.POINTWISE, ResultPartitionType.HYBRID);
+        v3.connectNewDataSetAsInput(
+                v2, DistributionPattern.POINTWISE, ResultPartitionType.BLOCKING);
+        v4.connectNewDataSetAsInput(v3, DistributionPattern.POINTWISE, ResultPartitionType.HYBRID);
+
+        final List<JobVertex> ordered = new ArrayList<>(Arrays.asList(v1, v2, v3, v4));
+        final JobGraph jobGraph =
+                JobGraphBuilder.newBatchJobGraphBuilder().addJobVertices(ordered).build();
+        final ExecutionGraph executionGraph =
+                TestingDefaultExecutionGraphBuilder.newBuilder()
+                        .setJobGraph(jobGraph)
+                        .build(EXECUTOR_RESOURCE.getExecutor());
+
+        final SchedulingTopology schedulingTopology = executionGraph.getSchedulingTopology();
+
+        PipelinedRegionSchedulingStrategy schedulingStrategy = startScheduling(schedulingTopology);
+
+        // v1 & v2 will be scheduled as v1 is a source and v1 -> v2 is a hybrid downstream.
+        assertThat(testingSchedulerOperation.getScheduledVertices()).hasSize(2);
+        final ExecutionVertex v11 = executionGraph.getJobVertex(v1.getID()).getTaskVertices()[0];
+        final ExecutionVertex v21 = executionGraph.getJobVertex(v2.getID()).getTaskVertices()[0];
+        assertThat(testingSchedulerOperation.getScheduledVertices().get(0))
+                .containsExactly(v11.getID());
+        assertThat(testingSchedulerOperation.getScheduledVertices().get(1))
+                .containsExactly(v21.getID());
+        // finish v2 to trigger new round of scheduling.
+        v21.finishAllBlockingPartitions();
+        schedulingStrategy.onExecutionStateChange(v21.getID(), ExecutionState.FINISHED);
+        assertThat(testingSchedulerOperation.getScheduledVertices()).hasSize(4);
+        final ExecutionVertex v31 = executionGraph.getJobVertex(v3.getID()).getTaskVertices()[0];
+        final ExecutionVertex v41 = executionGraph.getJobVertex(v4.getID()).getTaskVertices()[0];
+        assertThat(testingSchedulerOperation.getScheduledVertices().get(2))
+                .containsExactly(v31.getID());
+        assertThat(testingSchedulerOperation.getScheduledVertices().get(3))
+                .containsExactly(v41.getID());
     }
 
     /** Inner non-pipelined edge will not affect it's region be scheduled. */
