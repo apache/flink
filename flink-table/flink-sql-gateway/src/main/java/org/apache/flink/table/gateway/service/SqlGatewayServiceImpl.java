@@ -233,7 +233,7 @@ public class SqlGatewayServiceImpl implements SqlGatewayService {
 
     @Override
     public String getCurrentCatalog(SessionHandle sessionHandle) {
-        return getSession(sessionHandle).createExecutor().getTableEnvironment().getCurrentCatalog();
+        return getSession(sessionHandle).createExecutor().getCurrentCatalog();
     }
 
     @VisibleForTesting

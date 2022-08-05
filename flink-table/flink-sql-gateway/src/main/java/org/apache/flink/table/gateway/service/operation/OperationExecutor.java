@@ -102,6 +102,10 @@ public class OperationExecutor {
         }
     }
 
+    public String getCurrentCatalog() {
+        return getTableEnvironment().getCatalogManager().getCurrentCatalog();
+    }
+
     public Set<String> listCatalogs() {
         return getTableEnvironment().getCatalogManager().listCatalogs();
     }
