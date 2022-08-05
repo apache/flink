@@ -122,7 +122,7 @@ run sdist.
         OPT_SQL_CLIENT_JAR_NAME = os.path.basename(
             find_file_path(os.path.join(OPT_PATH, "flink-sql-client_*.jar")))
         OPT_FLINK_SQL_CONNECTOR_HIVE_JAR_NAME = os.path.basename(
-            find_file_path(os.path.join(OPT_PATH, "flink-sql-connector-hive_3.1.2_*.jar")))
+            find_file_path(os.path.join(OPT_PATH, "flink-sql-connector-hive-3.1.2_*.jar")))
         LICENSES_PATH = os.path.join(FLINK_HOME, "licenses")
         PLUGINS_PATH = os.path.join(FLINK_HOME, "plugins")
         SCRIPTS_PATH = os.path.join(FLINK_HOME, "bin")
