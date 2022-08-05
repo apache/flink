@@ -425,7 +425,7 @@ public class ElasticsearchSinkBaseTest {
                 new DummyElasticsearchSink<>(
                         new HashMap<>(), sinkFunction, new DummyRetryFailureHandler());
 
-        sink.open(mock(Configuration.class));
+        sink.open(new Configuration());
         sink.close();
 
         assertThat(sinkFunction.openCalled).isTrue();
