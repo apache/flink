@@ -125,6 +125,7 @@ import static org.apache.flink.table.endpoint.hive.util.HiveJdbcParameterUtils.g
 import static org.apache.flink.table.endpoint.hive.util.HiveJdbcParameterUtils.validateAndNormalize;
 import static org.apache.flink.table.endpoint.hive.util.OperationExecutorFactory.createGetCatalogsExecutor;
 import static org.apache.flink.table.endpoint.hive.util.OperationExecutorFactory.createGetSchemasExecutor;
+import static org.apache.flink.table.endpoint.hive.util.OperationExecutorFactory.createGetTableInfoExecutor;
 import static org.apache.flink.table.endpoint.hive.util.OperationExecutorFactory.createGetTablesExecutor;
 import static org.apache.flink.table.endpoint.hive.util.ThriftObjectConversions.toFetchOrientation;
 import static org.apache.flink.table.endpoint.hive.util.ThriftObjectConversions.toFlinkTableKinds;
@@ -136,6 +137,7 @@ import static org.apache.flink.table.endpoint.hive.util.ThriftObjectConversions.
 import static org.apache.flink.table.endpoint.hive.util.ThriftObjectConversions.toTSessionHandle;
 import static org.apache.flink.table.endpoint.hive.util.ThriftObjectConversions.toTStatus;
 import static org.apache.flink.table.endpoint.hive.util.ThriftObjectConversions.toTTableSchema;
+import static org.apache.flink.table.gateway.api.results.ResultSet.ResultType.EOS;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
@@ -391,7 +393,20 @@ public class HiveServer2Endpoint implements TCLIService.Iface, SqlGatewayEndpoin
 
     @Override
     public TGetTypeInfoResp GetTypeInfo(TGetTypeInfoReq tGetTypeInfoReq) throws TException {
-        throw new UnsupportedOperationException(ERROR_MESSAGE);
+        TGetTypeInfoResp resp = new TGetTypeInfoResp();
+        try {
+            SessionHandle sessionHandle = toSessionHandle(tGetTypeInfoReq.getSessionHandle());
+            OperationHandle operationHandle =
+                    service.submitOperation(sessionHandle, createGetTableInfoExecutor());
+            resp.setStatus(OK_STATUS);
+            resp.setOperationHandle(
+                    toTOperationHandle(
+                            sessionHandle, operationHandle, TOperationType.GET_TYPE_INFO));
+        } catch (Throwable t) {
+            LOG.error("Failed to GetTypeInfo.", t);
+            resp.setStatus(toTStatus(t));
+        }
+        return resp;
     }
 
     @Override
@@ -447,7 +462,6 @@ public class HiveServer2Endpoint implements TCLIService.Iface, SqlGatewayEndpoin
             OperationHandle operationHandle =
                     service.submitOperation(
                             sessionHandle,
-                            OperationType.LIST_TABLES,
                             createGetTablesExecutor(
                                     service,
                                     sessionHandle,
@@ -458,7 +472,7 @@ public class HiveServer2Endpoint implements TCLIService.Iface, SqlGatewayEndpoin
 
             resp.setStatus(OK_STATUS);
             resp.setOperationHandle(
-                    toTOperationHandle(sessionHandle, operationHandle, OperationType.LIST_TABLES));
+                    toTOperationHandle(sessionHandle, operationHandle, TOperationType.GET_TABLES));
         } catch (Throwable t) {
             LOG.error("Failed to GetTables.", t);
             resp.setStatus(toTStatus(t));
@@ -601,7 +615,7 @@ public class HiveServer2Endpoint implements TCLIService.Iface, SqlGatewayEndpoin
                             toFetchOrientation(tFetchResultsReq.getFetchType()),
                             maxRows);
             resp.setStatus(OK_STATUS);
-            resp.setHasMoreRows(resultSet.getResultType() != ResultSet.ResultType.EOS);
+            resp.setHasMoreRows(resultSet.getResultType() != EOS);
             EndpointVersion sessionEndpointVersion =
                     service.getSessionEndpointVersion(sessionHandle);
 
@@ -644,6 +658,7 @@ public class HiveServer2Endpoint implements TCLIService.Iface, SqlGatewayEndpoin
     }
 
     // CHECKSTYLE.OFF: MethodName
+
     /** To be compatible with Hive3, add a default implementation. */
     public TGetQueryIdResp GetQueryId(TGetQueryIdReq tGetQueryIdReq) throws TException {
         throw new UnsupportedOperationException(ERROR_MESSAGE);
