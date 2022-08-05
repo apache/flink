@@ -319,7 +319,8 @@ object LongHashJoinGenerator {
     ctx.addReusableMember(s"""
                              |private void fallbackSMJProcessPartition() throws Exception {
                              |  if(!table.getPartitionsPendingForSMJ().isEmpty()) {
-                             |    LOG.info("Fallback to sort merge join.");
+                             |    LOG.info(
+                             |    "Fallback to sort merge join to process spilled partitions.");
                              |    initialSortMergeJoinFunction();
                              |    $fallbackSMJ = true;
                              |
@@ -343,7 +344,7 @@ object LongHashJoinGenerator {
                              |
                              |    sortMergeJoinFunction.endInput(1);
                              |    sortMergeJoinFunction.endInput(2);
-                             |    LOG.info("Finish sort merge join.");
+                             |    LOG.info("Finish sort merge join for spilled partitions.");
                              |  }
                              |}
        """.stripMargin)

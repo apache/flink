@@ -172,7 +172,7 @@ public class BinaryHashPartition extends AbstractPagedInputView implements Seeka
      *
      * @return This partition's number.
      */
-    public int getPartitionNumber() {
+    int getPartitionNumber() {
         return this.partitionNumber;
     }
 
@@ -235,7 +235,7 @@ public class BinaryHashPartition extends AbstractPagedInputView implements Seeka
         return bloomFilter == null || bloomFilter.testHash(hash);
     }
 
-    void freeBloomFilter() {
+    private void freeBloomFilter() {
         memPool.returnAll(Arrays.asList(bloomFilter.getBuffers()));
         bloomFilter = null;
     }
@@ -355,8 +355,13 @@ public class BinaryHashPartition extends AbstractPagedInputView implements Seeka
      */
     int finalizeBuildPhase(IOManager ioAccess, FileIOChannel.Enumerator probeChannelEnumerator)
             throws IOException {
-        finalizePartitionBuffer();
+        this.finalBufferLimit = this.buildSideWriteBuffer.getCurrentPositionInSegment();
+        this.partitionBuffers = this.buildSideWriteBuffer.close();
+
         if (!isInMemory()) {
+            // close the channel.
+            this.buildSideChannel.close();
+
             this.probeSideBuffer =
                     FileChannelUtil.createOutputView(
                             ioAccess,
@@ -368,15 +373,6 @@ public class BinaryHashPartition extends AbstractPagedInputView implements Seeka
             return 1;
         } else {
             return 0;
-        }
-    }
-
-    void finalizePartitionBuffer() throws IOException {
-        this.finalBufferLimit = this.buildSideWriteBuffer.getCurrentPositionInSegment();
-        this.partitionBuffers = this.buildSideWriteBuffer.close();
-        if (!isInMemory()) {
-            // close the channel.
-            this.buildSideChannel.close();
         }
     }
 

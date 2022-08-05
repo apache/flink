@@ -476,8 +476,13 @@ public class LongHashPartition extends AbstractPagedInputView implements Seekabl
      */
     int finalizeBuildPhase(IOManager ioAccess, FileIOChannel.Enumerator probeChannelEnumerator)
             throws IOException {
-        finalizePartitionBuffer();
+        this.finalBufferLimit = this.buildSideWriteBuffer.getCurrentPositionInSegment();
+        this.partitionBuffers = this.buildSideWriteBuffer.close();
+
         if (!isInMemory()) {
+            // close the channel.
+            this.buildSideChannel.close();
+
             this.probeSideBuffer =
                     FileChannelUtil.createOutputView(
                             ioAccess,
@@ -489,15 +494,6 @@ public class LongHashPartition extends AbstractPagedInputView implements Seekabl
             return 1;
         } else {
             return 0;
-        }
-    }
-
-    void finalizePartitionBuffer() throws IOException {
-        this.finalBufferLimit = this.buildSideWriteBuffer.getCurrentPositionInSegment();
-        this.partitionBuffers = this.buildSideWriteBuffer.close();
-        if (!isInMemory()) {
-            // close the channel.
-            this.buildSideChannel.close();
         }
     }
 

@@ -411,9 +411,9 @@ public class BinaryHashTable extends BaseHybridHashTable {
             LOG.info("Recursive hash join: partition number is " + p.getPartitionNumber());
         } else if (nextRecursionLevel > MAX_RECURSION_DEPTH) {
             LOG.info(
-                    String.format(
-                            "Partition number [%s] recursive level more than %s.",
-                            p.getPartitionNumber(), MAX_RECURSION_DEPTH));
+                    "Partition number [{}] recursive level more than {}, process the partition using SortMergeJoin later.",
+                    p.getPartitionNumber(),
+                    MAX_RECURSION_DEPTH);
             // if the partition has spilled to disk more than three times, process it by sort merge
             // join later
             this.partitionsPendingForSMJ.add(p);

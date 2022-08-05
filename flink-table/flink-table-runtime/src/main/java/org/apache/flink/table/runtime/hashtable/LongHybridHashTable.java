@@ -374,6 +374,10 @@ public abstract class LongHybridHashTable extends BaseHybridHashTable {
         if (nextRecursionLevel == 2) {
             LOG.info("Recursive hash join: partition number is " + p.getPartitionNumber());
         } else if (nextRecursionLevel > MAX_RECURSION_DEPTH) {
+            LOG.info(
+                    "Partition number [{}] recursive level more than {}, process the partition using SortMergeJoin later.",
+                    p.getPartitionNumber(),
+                    MAX_RECURSION_DEPTH);
             // if the partition has spilled to disk more than three times, process it by sort merge
             // join later
             this.partitionsPendingForSMJ.add(p);

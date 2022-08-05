@@ -260,7 +260,7 @@ public abstract class HashJoinOperator extends TableStreamOperator<RowData>
     private void fallbackSMJProcessPartition() throws Exception {
         if (!table.getPartitionsPendingForSMJ().isEmpty()) {
             // initialize sort merge join operator
-            LOG.info("Fallback to sort merge join.");
+            LOG.info("Fallback to sort merge join to process spilled partitions.");
             initialSortMergeJoinFunction();
             fallbackSMJ = true;
 
@@ -286,7 +286,7 @@ public abstract class HashJoinOperator extends TableStreamOperator<RowData>
             // finish build and probe
             sortMergeJoinFunction.endInput(1);
             sortMergeJoinFunction.endInput(2);
-            LOG.info("Finish sort merge join.");
+            LOG.info("Finish sort merge join for spilled partitions.");
         }
     }
 
