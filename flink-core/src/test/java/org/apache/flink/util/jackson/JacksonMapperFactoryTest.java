@@ -17,10 +17,18 @@
 
 package org.apache.flink.util.jackson;
 
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectReader;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectWriter;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.dataformat.csv.CsvMapper;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.dataformat.csv.CsvParser;
 
 import org.junit.jupiter.api.Test;
+
+import java.time.Instant;
+import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -40,5 +48,92 @@ class JacksonMapperFactoryTest {
         final CsvMapper mapper2 = JacksonMapperFactory.createCsvMapper();
 
         assertThat(mapper1).isNotSameAs(mapper2);
+    }
+
+    @Test
+    void testObjectMapperOptionalSupportedEnabled() throws Exception {
+        final ObjectMapper mapper = JacksonMapperFactory.createObjectMapper();
+
+        assertThat(mapper.writeValueAsString(new TypeWithOptional(Optional.of("value"))))
+                .isEqualTo("{\"data\":\"value\"}");
+        assertThat(mapper.writeValueAsString(new TypeWithOptional(Optional.empty())))
+                .isEqualTo("{\"data\":null}");
+
+        assertThat(mapper.readValue("{\"data\":\"value\"}", TypeWithOptional.class).data)
+                .contains("value");
+        assertThat(mapper.readValue("{\"data\":null}", TypeWithOptional.class).data).isEmpty();
+        assertThat(mapper.readValue("{}", TypeWithOptional.class).data).isEmpty();
+    }
+
+    @Test
+    void testCsvMapperOptionalSupportedEnabled() throws Exception {
+        final CsvMapper mapper =
+                JacksonMapperFactory.createCsvMapper()
+                        // ensures symmetric read/write behavior for empty optionals/strings
+                        // ensures:   Optional.empty() --write--> "" --read--> Optional.empty()
+                        // otherwise: Optional.empty() --write--> "" --read--> Optional("")
+                        // we should consider enabling this by default, but it unfortunately
+                        // also affects String parsing without Optionals (i.e., prior code)
+                        .enable(CsvParser.Feature.EMPTY_STRING_AS_NULL);
+
+        final ObjectWriter writer = mapper.writerWithSchemaFor(TypeWithOptional.class);
+
+        assertThat(writer.writeValueAsString(new TypeWithOptional(Optional.of("value"))))
+                .isEqualTo("value\n");
+        assertThat(writer.writeValueAsString(new TypeWithOptional(Optional.empty())))
+                .isEqualTo("\n");
+
+        final ObjectReader reader = mapper.readerWithSchemaFor(TypeWithOptional.class);
+
+        assertThat(reader.readValue("value\n", TypeWithOptional.class).data).contains("value");
+        assertThat(reader.readValue("null\n", TypeWithOptional.class).data).contains("null");
+        assertThat(reader.readValue("\n", TypeWithOptional.class).data).isEmpty();
+    }
+
+    @Test
+    void testObjectMappeDateTimeSupportedEnabled() throws Exception {
+        final ObjectMapper mapper = JacksonMapperFactory.createObjectMapper();
+
+        final String instantString = "2022-08-07T12:00:33.107787800Z";
+        final Instant instant = Instant.parse(instantString);
+        final String instantJson = String.format("{\"data\":\"%s\"}", instantString);
+
+        assertThat(mapper.writeValueAsString(new TypeWithInstant(instant))).isEqualTo(instantJson);
+        assertThat(mapper.readValue(instantJson, TypeWithInstant.class).data).isEqualTo(instant);
+    }
+
+    @Test
+    void testCsvMapperDateTimeSupportedEnabled() throws Exception {
+        final CsvMapper mapper = JacksonMapperFactory.createCsvMapper();
+
+        final String instantString = "2022-08-07T12:00:33.107787800Z";
+        final Instant instant = Instant.parse(instantString);
+        final String instantCsv = String.format("\"%s\"\n", instantString);
+
+        final ObjectWriter writer = mapper.writerWithSchemaFor(TypeWithInstant.class);
+
+        assertThat(writer.writeValueAsString(new TypeWithInstant(instant))).isEqualTo(instantCsv);
+
+        final ObjectReader reader = mapper.readerWithSchemaFor(TypeWithInstant.class);
+
+        assertThat(reader.readValue(instantCsv, TypeWithInstant.class).data).isEqualTo(instant);
+    }
+
+    public static class TypeWithOptional {
+        public Optional<String> data;
+
+        @JsonCreator
+        public TypeWithOptional(@JsonProperty("data") Optional<String> data) {
+            this.data = data;
+        }
+    }
+
+    public static class TypeWithInstant {
+        public Instant data;
+
+        @JsonCreator
+        public TypeWithInstant(@JsonProperty("data") Instant data) {
+            this.data = data;
+        }
     }
 }
