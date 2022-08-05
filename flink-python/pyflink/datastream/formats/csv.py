@@ -340,17 +340,9 @@ class CsvBulkWriter(object):
         Builds a :class:`BulkWriterFactory` for writing records to files in CSV format.
         """
         jvm = get_gateway().jvm
-        jackson = jvm.org.apache.flink.shaded.jackson2.com.fasterxml.jackson
         csv = jvm.org.apache.flink.formats.csv
 
-        j_converter = csv.RowDataToCsvConverters.createRowConverter(
-            _to_java_data_type(schema._row_type).getLogicalType())
-        j_mapper = jackson.dataformat.csv.CsvMapper()
-        j_container = j_mapper.createObjectNode()
-        j_context = csv.PythonCsvUtils.createRowDataToCsvFormatConverterContext(
-            j_mapper, j_container)
-
         j_factory = csv.PythonCsvUtils.createCsvBulkWriterFactory(
-            j_mapper, schema._j_schema, j_converter, j_context
-        )
+            schema._j_schema,
+            _to_java_data_type(schema._row_type))
         return RowDataBulkWriterFactory(j_factory, schema._row_type)
