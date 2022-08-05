@@ -2105,6 +2105,35 @@ logged by `SystemResourcesMetricsInitializer` during the startup.
   </tbody>
 </table>
 
+### Speculative Execution
+
+Metrics below can be used to measure the effectiveness of speculative execution.
+
+<table class="table table-bordered">
+  <thead>
+    <tr>
+      <th class="text-left" style="width: 18%">Scope</th>
+      <th class="text-left" style="width: 26%">Metrics</th>
+      <th class="text-left" style="width: 48%">Description</th>
+      <th class="text-left" style="width: 8%">Type</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <th rowspan="2"><strong>Job (only available on JobManager)</strong></th>
+      <td>numSlowExecutionVertices</td>
+      <td>Number of slow execution vertices at the moment.</td>
+      <td>Gauge</td>
+    </tr>
+    <tr>
+      <td>numEffectiveSpeculativeExecutions</td>
+      <td>Number of effective speculative execution attempts, i.e. speculative execution attempts which 
+      finish earlier than their corresponding original attempts.</td>
+      <td>Counter</td>
+    </tr>
+  </tbody>
+</table>
+
 ## End-to-End latency tracking
 
 Flink allows to track the latency of records travelling through the system. This feature is disabled by default.

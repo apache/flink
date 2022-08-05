@@ -2161,6 +2161,34 @@ logged by `SystemResourcesMetricsInitializer` during the startup.
   </tbody>
 </table>
 
+### 预测执行
+
+以下指标可以用来衡量预测执行的有效性。
+
+<table class="table table-bordered">
+  <thead>
+    <tr>
+      <th class="text-left" style="width: 18%">Scope</th>
+      <th class="text-left" style="width: 26%">Metrics</th>
+      <th class="text-left" style="width: 48%">Description</th>
+      <th class="text-left" style="width: 8%">Type</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <th rowspan="2"><strong>Job (only available on JobManager)</strong></th>
+      <td>numSlowExecutionVertices</td>
+      <td>当前的慢执行节点数量。</td>
+      <td>Gauge</td>
+    </tr>
+    <tr>
+      <td>numEffectiveSpeculativeExecutions</td>
+      <td>有效的预测执行数量，即比初始执行实例更早结束的预测执行实例的数量。</td>
+      <td>Counter</td>
+    </tr>
+  </tbody>
+</table>
+
 ## End-to-End latency tracking
 
 Flink allows to track the latency of records travelling through the system. This feature is disabled by default.
