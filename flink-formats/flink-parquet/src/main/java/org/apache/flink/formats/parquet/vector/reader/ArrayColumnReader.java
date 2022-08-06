@@ -142,7 +142,7 @@ public class ArrayColumnReader extends BaseVectorizedColumnReader {
             case VARCHAR:
             case BINARY:
             case VARBINARY:
-                return dataColumn.readString();
+                return dataColumn.readBytes();
             case BOOLEAN:
                 return dataColumn.readBoolean();
             case TIME_WITHOUT_TIME_ZONE:
@@ -167,7 +167,7 @@ public class ArrayColumnReader extends BaseVectorizedColumnReader {
                         return dataColumn.readLong();
                     case BINARY:
                     case FIXED_LEN_BYTE_ARRAY:
-                        return dataColumn.readString();
+                        return dataColumn.readBytes();
                 }
             case TIMESTAMP_WITHOUT_TIME_ZONE:
             case TIMESTAMP_WITH_LOCAL_TIME_ZONE:
@@ -187,7 +187,7 @@ public class ArrayColumnReader extends BaseVectorizedColumnReader {
             case VARCHAR:
             case BINARY:
             case VARBINARY:
-                return dictionary.readString(dictionaryValue);
+                return dictionary.readBytes(dictionaryValue);
             case DATE:
             case TIME_WITHOUT_TIME_ZONE:
             case INTEGER:
@@ -212,7 +212,7 @@ public class ArrayColumnReader extends BaseVectorizedColumnReader {
                         return dictionary.readLong(dictionaryValue);
                     case FIXED_LEN_BYTE_ARRAY:
                     case BINARY:
-                        return dictionary.readString(dictionaryValue);
+                        return dictionary.readBytes(dictionaryValue);
                 }
             case TIMESTAMP_WITHOUT_TIME_ZONE:
             case TIMESTAMP_WITH_LOCAL_TIME_ZONE:
@@ -229,7 +229,7 @@ public class ArrayColumnReader extends BaseVectorizedColumnReader {
      * @param total maximum number of rows to collect
      * @param lcv column vector to do initial setup in data collection time
      * @param valueList collection of values that will be fed into the vector later
-     * @param type the element type in array
+     * @param type the element type of array
      * @return int
      * @throws IOException
      */

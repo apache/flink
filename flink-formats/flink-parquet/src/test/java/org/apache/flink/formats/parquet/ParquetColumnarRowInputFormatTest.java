@@ -103,7 +103,7 @@ public class ParquetColumnarRowInputFormatTest {
                     new DoubleType(),
                     new TimestampType(9),
                     new DecimalType(5, 0),
-                    new DecimalType(15, 0),
+                    new DecimalType(15, 2),
                     new DecimalType(20, 0),
                     new DecimalType(5, 0),
                     new DecimalType(15, 0),
@@ -508,8 +508,8 @@ public class ParquetColumnarRowInputFormatTest {
                                             DecimalData.fromBigDecimal(
                                                     BigDecimal.valueOf(v), 5, 0));
                         }
-                        assertThat(row.getDecimal(10, 15, 0).toBigDecimal())
-                                .isEqualTo(BigDecimal.valueOf(v));
+                        assertThat(row.getDecimal(10, 15, 2))
+                                .isEqualTo(DecimalData.fromUnscaledLong(v.longValue(), 15, 2));
                         assertThat(row.getDecimal(11, 20, 0).toBigDecimal())
                                 .isEqualTo(BigDecimal.valueOf(v));
                         assertThat(row.getDecimal(13, 15, 0).toBigDecimal())
@@ -573,7 +573,7 @@ public class ParquetColumnarRowInputFormatTest {
                 v.doubleValue(),
                 TimestampData.fromLocalDateTime(toDateTime(v)),
                 DecimalData.fromBigDecimal(BigDecimal.valueOf(v), 5, 0),
-                DecimalData.fromBigDecimal(BigDecimal.valueOf(v), 15, 0),
+                DecimalData.fromUnscaledLong(v.longValue(), 15, 2),
                 DecimalData.fromBigDecimal(BigDecimal.valueOf(v), 20, 0),
                 DecimalData.fromBigDecimal(BigDecimal.valueOf(v), 5, 0),
                 DecimalData.fromBigDecimal(BigDecimal.valueOf(v), 15, 0),
@@ -619,7 +619,6 @@ public class ParquetColumnarRowInputFormatTest {
                 new GenericMapData(f30),
                 new GenericMapData(f31),
                 GenericRowData.of(StringData.fromString("" + v), v));
-        // new String[]{"" + v});
     }
 
     private LocalDateTime toDateTime(Integer v) {
@@ -641,7 +640,7 @@ public class ParquetColumnarRowInputFormatTest {
                     new DoubleType(),
                     new TimestampType(9),
                     new DecimalType(5, 0),
-                    new DecimalType(15, 0),
+                    new DecimalType(15, 2),
                     new DecimalType(20, 0),
                     new DecimalType(5, 0),
                     new DecimalType(15, 0),

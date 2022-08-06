@@ -36,20 +36,19 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 /**
  * Parquet file has self-describing schema which may differ from the user required schema (e.g.
  * schema evolution). This factory is used to retrieve user required typed data via corresponding
- * reader which reads the underlying data.
+ * reader which reads the underlying data. Part of the code is referred from Apache Hive.
  */
 public final class ParquetDataColumnReaderFactory {
 
     private ParquetDataColumnReaderFactory() {}
 
-    /** default reader for {@link ParquetDataColumnReader}. */
+    /**
+     * The default data column reader for existing Parquet page reader which works for both
+     * dictionary or non dictionary types, Mirror from dictionary encoding path.
+     */
     public static class DefaultParquetDataColumnReader implements ParquetDataColumnReader {
-        protected final @Nullable ValuesReader valuesReader;
-        protected final @Nullable Dictionary dict;
-
-        // After the data is read in the parquet type, isValid will be set to true if the data can
-        // be returned is the type defined in HMS. Otherwise, isValid is set to false.
-        boolean isValid = true;
+        protected final ValuesReader valuesReader;
+        protected final Dictionary dict;
 
         public DefaultParquetDataColumnReader(ValuesReader valuesReader) {
             this.valuesReader = checkNotNull(valuesReader);
@@ -77,53 +76,12 @@ public final class ParquetDataColumnReaderFactory {
         }
 
         @Override
-        public byte[] readString(int id) {
-            return dict.decodeToBinary(id).getBytesUnsafe();
-        }
-
-        @Override
-        public byte[] readString() {
-            return valuesReader.readBytes().getBytesUnsafe();
-        }
-
-        @Override
-        public byte[] readVarchar() {
-            // we need to enforce the size here even the types are the same
-            return valuesReader.readBytes().getBytesUnsafe();
-        }
-
-        @Override
-        public byte[] readVarchar(int id) {
-            return dict.decodeToBinary(id).getBytesUnsafe();
-        }
-
-        @Override
-        public byte[] readChar() {
-            return valuesReader.readBytes().getBytesUnsafe();
-        }
-
-        @Override
-        public byte[] readChar(int id) {
-            return dict.decodeToBinary(id).getBytesUnsafe();
-        }
-
-        @Override
         public byte[] readBytes() {
             return valuesReader.readBytes().getBytesUnsafe();
         }
 
         @Override
         public byte[] readBytes(int id) {
-            return dict.decodeToBinary(id).getBytesUnsafe();
-        }
-
-        @Override
-        public byte[] readDecimal() {
-            return valuesReader.readBytes().getBytesUnsafe();
-        }
-
-        @Override
-        public byte[] readDecimal(int id) {
             return dict.decodeToBinary(id).getBytesUnsafe();
         }
 
@@ -165,11 +123,6 @@ public final class ParquetDataColumnReaderFactory {
         @Override
         public int readInteger(int id) {
             return dict.decodeToInt(id);
-        }
-
-        @Override
-        public boolean isValid() {
-            return isValid;
         }
 
         @Override

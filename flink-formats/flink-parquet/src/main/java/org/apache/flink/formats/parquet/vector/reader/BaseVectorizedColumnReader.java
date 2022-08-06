@@ -45,7 +45,8 @@ import static org.apache.parquet.column.ValuesType.REPETITION_LEVEL;
 import static org.apache.parquet.column.ValuesType.VALUES;
 
 /**
- * Abstract {@link ColumnReader}. part of the code is referred from Apache Hive and Apache Parquet.
+ * It's column level Parquet reader which is used to read a batch of records for a column, part of
+ * the code is referred from Apache Hive and Apache Parquet.
  */
 public abstract class BaseVectorizedColumnReader implements ColumnReader<WritableColumnVector> {
 

@@ -282,6 +282,12 @@ public class ParquetSplitReaderUtil {
                 res.add(descriptor);
             }
         }
+
+        // If doesn't find the type descriptor in corresponding depth, throw exception
+        if (res.isEmpty()) {
+            throw new InvalidSchemaException(
+                    "Failed to find related Parquet column descriptor with type " + type);
+        }
         return res;
     }
 
