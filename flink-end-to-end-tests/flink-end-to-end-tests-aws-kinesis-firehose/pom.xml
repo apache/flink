@@ -27,13 +27,25 @@
 	</parent>
 	<modelVersion>4.0.0</modelVersion>
 
-
 	<artifactId>flink-end-to-end-tests-aws-kinesis-firehose</artifactId>
 	<name>Flink : E2E Tests : Kinesis Firehose SQL tests</name>
-	<properties>
-		<aws.sdk.version>2.17.52</aws.sdk.version>
-	</properties>
 	<packaging>jar</packaging>
+
+	<properties>
+		<aws.sdk.version>2.17.247</aws.sdk.version>
+	</properties>
+
+	<dependencyManagement>
+		<dependencies>
+			<dependency>
+				<groupId>software.amazon.awssdk</groupId>
+				<artifactId>bom</artifactId>
+				<version>${aws.sdk.version}</version>
+				<type>pom</type>
+				<scope>import</scope>
+			</dependency>
+		</dependencies>
+	</dependencyManagement>
 
 	<dependencies>
 		<dependency>
@@ -89,14 +101,12 @@
 		<dependency>
 			<groupId>software.amazon.awssdk</groupId>
 			<artifactId>s3</artifactId>
-			<version>${aws.sdk.version}</version>
 			<scope>test</scope>
 		</dependency>
 
 		<dependency>
 			<groupId>software.amazon.awssdk</groupId>
 			<artifactId>iam</artifactId>
-			<version>${aws.sdk.version}</version>
 			<scope>test</scope>
 		</dependency>
 	</dependencies>
@@ -145,6 +155,4 @@
 			</plugin>
 		</plugins>
 	</build>
-
-
 </project>
