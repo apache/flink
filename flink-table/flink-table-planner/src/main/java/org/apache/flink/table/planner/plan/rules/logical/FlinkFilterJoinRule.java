@@ -62,9 +62,9 @@ import static org.apache.calcite.plan.RelOptUtil.conjunctions;
  *
  * <p>This rule is copied from {@link FilterJoinRule}.
  *
- * <p>For the above filter of inner/left/right join or the join condition of inner join, the
- * predicate which field references are all from one side join condition can be pushed into another
- * join side. Such as:
+ * <p>Different from {@link FilterJoinRule}, this rule can handle more cases: for the above filter
+ * of inner/left/right join or the join condition of inner join, the predicate which field
+ * references are all from one side join condition can be pushed into another join side. Such as:
  * <li>SELECT * FROM MyTable1 join MyTable2 ON a1 = a2 AND a1 = 2
  * <li>SELECT * FROM MyTable1, MyTable2 WHERE a1 = a2 AND a1 = 2
  */
