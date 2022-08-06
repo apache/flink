@@ -25,14 +25,14 @@ import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.streaming.api.functions.source.RichSourceFunction;
 
 import org.junit.Assert;
-import org.junit.ClassRule;
+import org.junit.Rule;
 import org.junit.Test;
 
 /** Test for {@link JobManagerWatermarkTracker}. */
 public class JobManagerWatermarkTrackerTest {
 
-    @ClassRule
-    public static final MiniClusterResource FLINK =
+    @Rule
+    public final MiniClusterResource miniCluster =
             new MiniClusterResource(
                     new MiniClusterResourceConfiguration.Builder()
                             .setNumberTaskManagers(1)
