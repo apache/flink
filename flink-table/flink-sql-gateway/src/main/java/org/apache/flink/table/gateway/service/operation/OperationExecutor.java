@@ -29,10 +29,14 @@ import org.apache.flink.table.catalog.CatalogManager;
 import org.apache.flink.table.catalog.Column;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.catalog.ResolvedSchema;
+import org.apache.flink.table.catalog.UnresolvedIdentifier;
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.StringData;
+import org.apache.flink.table.functions.FunctionDefinition;
+import org.apache.flink.table.functions.FunctionIdentifier;
 import org.apache.flink.table.gateway.api.operation.OperationHandle;
+import org.apache.flink.table.gateway.api.results.FunctionInfo;
 import org.apache.flink.table.gateway.api.results.TableInfo;
 import org.apache.flink.table.gateway.service.context.SessionContext;
 import org.apache.flink.table.gateway.service.result.ResultFetcher;
@@ -45,6 +49,9 @@ import org.apache.flink.table.operations.QueryOperation;
 import org.apache.flink.table.operations.StatementSetOperation;
 import org.apache.flink.table.operations.command.ResetOperation;
 import org.apache.flink.table.operations.command.SetOperation;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -64,6 +71,8 @@ import static org.apache.flink.util.Preconditions.checkArgument;
 
 /** An executor to execute the {@link Operation}. */
 public class OperationExecutor {
+
+    private static final Logger LOG = LoggerFactory.getLogger(OperationExecutor.class);
 
     private final SessionContext sessionContext;
     private final Configuration executionConfig;
@@ -111,17 +120,18 @@ public class OperationExecutor {
     }
 
     public String getCurrentCatalog() {
-        return getTableEnvironment().getCatalogManager().getCurrentCatalog();
+        return sessionContext.getSessionState().catalogManager.getCurrentCatalog();
     }
 
     public Set<String> listCatalogs() {
-        return getTableEnvironment().getCatalogManager().listCatalogs();
+        return sessionContext.getSessionState().catalogManager.listCatalogs();
     }
 
     public Set<String> listDatabases(String catalogName) {
         return new HashSet<>(
-                getTableEnvironment()
-                        .getCatalogManager()
+                sessionContext
+                        .getSessionState()
+                        .catalogManager
                         .getCatalog(catalogName)
                         .orElseThrow(
                                 () ->
@@ -144,6 +154,53 @@ public class OperationExecutor {
         } else {
             return listViews(catalogName, databaseName);
         }
+    }
+
+    public Set<FunctionInfo> listUserDefinedFunctions(String catalogName, String databaseName) {
+        return sessionContext.getSessionState().functionCatalog
+                .getUserDefinedFunctions(catalogName, databaseName).stream()
+                // Load the CatalogFunction from the remote catalog is time wasted. Set the
+                // FunctionKind null.
+                .map(FunctionInfo::new)
+                .collect(Collectors.toSet());
+    }
+
+    public Set<FunctionInfo> listSystemFunctions() {
+        Set<FunctionInfo> info = new HashSet<>();
+        for (String functionName : sessionContext.getSessionState().moduleManager.listFunctions()) {
+            try {
+                info.add(
+                        sessionContext
+                                .getSessionState()
+                                .moduleManager
+                                .getFunctionDefinition(functionName)
+                                .map(
+                                        definition ->
+                                                new FunctionInfo(
+                                                        FunctionIdentifier.of(functionName),
+                                                        definition.getKind()))
+                                .orElse(new FunctionInfo(FunctionIdentifier.of(functionName))));
+            } catch (Throwable t) {
+                // Failed to load the function. Ignore.
+                LOG.error(
+                        String.format("Failed to load the system function `%s`.", functionName), t);
+            }
+        }
+        return info;
+    }
+
+    public FunctionDefinition getFunctionDefinition(UnresolvedIdentifier identifier) {
+        return sessionContext
+                .getSessionState()
+                .functionCatalog
+                .lookupFunction(identifier)
+                .orElseThrow(
+                        () ->
+                                new IllegalArgumentException(
+                                        String.format(
+                                                "Can not find the definition: %s.",
+                                                identifier.asSummaryString())))
+                .getDefinition();
     }
 
     // --------------------------------------------------------------------------------------------
@@ -226,7 +283,7 @@ public class OperationExecutor {
 
     private Set<TableInfo> listTables(
             String catalogName, String databaseName, boolean includeViews) {
-        CatalogManager catalogManager = getTableEnvironment().getCatalogManager();
+        CatalogManager catalogManager = sessionContext.getSessionState().catalogManager;
         Map<String, TableInfo> views = new HashMap<>();
         catalogManager
                 .listViews(catalogName, databaseName)
@@ -257,9 +314,9 @@ public class OperationExecutor {
     }
 
     private Set<TableInfo> listViews(String catalogName, String databaseName) {
-        CatalogManager catalogManager = getTableEnvironment().getCatalogManager();
         return Collections.unmodifiableSet(
-                catalogManager.listViews(catalogName, databaseName).stream()
+                sessionContext.getSessionState().catalogManager.listViews(catalogName, databaseName)
+                        .stream()
                         .map(
                                 name ->
                                         new TableInfo(

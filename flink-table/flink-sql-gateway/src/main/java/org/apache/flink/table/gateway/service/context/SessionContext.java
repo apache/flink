@@ -120,6 +120,10 @@ public class SessionContext {
         return endpointVersion;
     }
 
+    public SessionState getSessionState() {
+        return sessionState;
+    }
+
     public void set(String key, String value) {
         try {
             // Test whether the key value will influence the creation of the Executor.

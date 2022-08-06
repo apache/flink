@@ -30,96 +30,98 @@ public class HiveServer2Schemas {
 
     /** Schema for {@link HiveServer2Endpoint#GetCatalogs}. */
     public static final ResolvedSchema GET_CATALOGS_SCHEMA =
-            new ResolvedSchema(
-                    Collections.singletonList(
-                            Column.physical("TABLE_CAT", DataTypes.STRING())
-                                    .withComment("Catalog name. NULL if not applicable.")),
-                    Collections.emptyList(),
-                    null);
+            buildSchema(
+                    Column.physical("TABLE_CAT", DataTypes.STRING())
+                            .withComment("Catalog name. NULL if not applicable."));
 
     /** Schema for {@link HiveServer2Endpoint#GetSchemas}. */
     public static final ResolvedSchema GET_SCHEMAS_SCHEMA =
-            new ResolvedSchema(
-                    Arrays.asList(
-                            Column.physical("TABLE_SCHEMA", DataTypes.STRING())
-                                    .withComment("Schema name. NULL if not applicable."),
-                            Column.physical("TABLE_CAT", DataTypes.STRING())
-                                    .withComment("Catalog name. NULL if not applicable")),
-                    Collections.emptyList(),
-                    null);
+            buildSchema(
+                    Column.physical("TABLE_SCHEMA", DataTypes.STRING())
+                            .withComment("Schema name. NULL if not applicable."),
+                    Column.physical("TABLE_CAT", DataTypes.STRING())
+                            .withComment("Catalog name. NULL if not applicable"));
 
     /** Schema for {@link HiveServer2Endpoint#GetTables}. */
     public static final ResolvedSchema GET_TABLES_SCHEMA =
-            new ResolvedSchema(
-                    Collections.unmodifiableList(
-                            Arrays.asList(
-                                    Column.physical("TABLE_CAT", DataTypes.STRING())
-                                            .withComment("Catalog name. NULL if not applicable."),
-                                    Column.physical("TABLE_SCHEMA", DataTypes.STRING())
-                                            .withComment("Schema name. NULL if not applicable."),
-                                    Column.physical("TABLE_NAME", DataTypes.STRING())
-                                            .withComment("Table name. NULL if not applicable."),
-                                    Column.physical("TABLE_TYPE", DataTypes.STRING())
-                                            .withComment(
-                                                    "The table type, e.g. \"TABLE\", \"VIEW\", etc."),
-                                    Column.physical("REMARKS", DataTypes.STRING())
-                                            .withComment("Comments about the table."),
-                                    Column.physical("TYPE_CAT", DataTypes.STRING())
-                                            .withComment("The types catalog."),
-                                    Column.physical("TYPE_SCHEM", DataTypes.STRING())
-                                            .withComment("The types schema."),
-                                    Column.physical("TYPE_NAME", DataTypes.STRING())
-                                            .withComment("Type name."),
-                                    Column.physical("SELF_REFERENCING_COL_NAME", DataTypes.STRING())
-                                            .withComment(
-                                                    "Name of the designated \"identifier\" column of a typed table."),
-                                    Column.physical("REF_GENERATION", DataTypes.STRING())
-                                            .withComment(
-                                                    "Specifies how values in SELF_REFERENCING_COL_NAME are created."))),
-                    Collections.emptyList(),
-                    null);
+            buildSchema(
+                    Column.physical("TABLE_CAT", DataTypes.STRING())
+                            .withComment("Catalog name. NULL if not applicable."),
+                    Column.physical("TABLE_SCHEMA", DataTypes.STRING())
+                            .withComment("Schema name. NULL if not applicable."),
+                    Column.physical("TABLE_NAME", DataTypes.STRING())
+                            .withComment("Table name. NULL if not applicable."),
+                    Column.physical("TABLE_TYPE", DataTypes.STRING())
+                            .withComment("The table type, e.g. \"TABLE\", \"VIEW\", etc."),
+                    Column.physical("REMARKS", DataTypes.STRING())
+                            .withComment("Comments about the table."),
+                    Column.physical("TYPE_CAT", DataTypes.STRING())
+                            .withComment("The types catalog."),
+                    Column.physical("TYPE_SCHEM", DataTypes.STRING())
+                            .withComment("The types schema."),
+                    Column.physical("TYPE_NAME", DataTypes.STRING()).withComment("Type name."),
+                    Column.physical("SELF_REFERENCING_COL_NAME", DataTypes.STRING())
+                            .withComment(
+                                    "Name of the designated \"identifier\" column of a typed table."),
+                    Column.physical("REF_GENERATION", DataTypes.STRING())
+                            .withComment(
+                                    "Specifies how values in SELF_REFERENCING_COL_NAME are created."));
+
+    /** Schema for {@link HiveServer2Endpoint#GetFunctions}. */
+    public static final ResolvedSchema GET_FUNCTIONS_SCHEMA =
+            buildSchema(
+                    Column.physical("FUNCTION_CAT", DataTypes.STRING())
+                            .withComment("Function catalog (may be null)"),
+                    Column.physical("FUNCTION_SCHEM", DataTypes.STRING())
+                            .withComment("Function schema (may be null)"),
+                    Column.physical("FUNCTION_NAME", DataTypes.STRING())
+                            .withComment(
+                                    "Function name. This is the name used to invoke the function"),
+                    Column.physical("REMARKS", DataTypes.STRING())
+                            .withComment("Explanatory comment on the function"),
+                    Column.physical("FUNCTION_TYPE", DataTypes.INT())
+                            .withComment("Kind of function."),
+                    Column.physical("SPECIFIC_NAME", DataTypes.STRING())
+                            .withComment(
+                                    "The name which uniquely identifies this function within its schema"));
 
     /** Schema for {@link HiveServer2Endpoint#GetTypeInfo}. */
     public static final ResolvedSchema GET_TYPE_INFO_SCHEMA =
-            new ResolvedSchema(
-                    Arrays.asList(
-                            Column.physical("TYPE_NAME", DataTypes.STRING())
-                                    .withComment("Type name."),
-                            Column.physical("DATA_TYPE", DataTypes.INT())
-                                    .withComment("SQL data type from java.sql.Types."),
-                            Column.physical("PRECISION", DataTypes.INT())
-                                    .withComment("Maximum precision."),
-                            Column.physical("LITERAL_PREFIX", DataTypes.STRING())
-                                    .withComment("Prefix used to quote a literal (may be null)."),
-                            Column.physical("LITERAL_SUFFIX", DataTypes.STRING())
-                                    .withComment("Suffix used to quote a literal (may be null)."),
-                            Column.physical("CREATE_PARAMS", DataTypes.STRING())
-                                    .withComment(
-                                            "Parameters used in creating the type (may be null)."),
-                            Column.physical("NULLABLE", DataTypes.SMALLINT())
-                                    .withComment("Can you use NULL for this type."),
-                            Column.physical("CASE_SENSITIVE", DataTypes.BOOLEAN())
-                                    .withComment("Is it case sensitive."),
-                            Column.physical("SEARCHABLE", DataTypes.SMALLINT())
-                                    .withComment("Can you use \"WHERE\" based on this type."),
-                            Column.physical("UNSIGNED_ATTRIBUTE", DataTypes.BOOLEAN())
-                                    .withComment("Is it unsigned."),
-                            Column.physical("FIXED_PREC_SCALE", DataTypes.BOOLEAN())
-                                    .withComment("Can it be a money value."),
-                            Column.physical("AUTO_INCREMENT", DataTypes.BOOLEAN())
-                                    .withComment("Can it be used for an auto-increment value."),
-                            Column.physical("LOCAL_TYPE_NAME", DataTypes.STRING())
-                                    .withComment("Localized version of type name (may be null)."),
-                            Column.physical("MINIMUM_SCALE", DataTypes.SMALLINT())
-                                    .withComment("Minimum scale supported."),
-                            Column.physical("MAXIMUM_SCALE", DataTypes.SMALLINT())
-                                    .withComment("Maximum scale supported."),
-                            Column.physical("SQL_DATA_TYPE", DataTypes.INT())
-                                    .withComment("Unused."),
-                            Column.physical("SQL_DATETIME_SUB", DataTypes.INT())
-                                    .withComment("Unused."),
-                            Column.physical("NUM_PREC_RADIX", DataTypes.INT())
-                                    .withComment("Usually 2 or 10.")),
-                    Collections.emptyList(),
-                    null);
+            buildSchema(
+                    Column.physical("TYPE_NAME", DataTypes.STRING()).withComment("Type name."),
+                    Column.physical("DATA_TYPE", DataTypes.INT())
+                            .withComment("SQL data type from java.sql.Types."),
+                    Column.physical("PRECISION", DataTypes.INT()).withComment("Maximum precision."),
+                    Column.physical("LITERAL_PREFIX", DataTypes.STRING())
+                            .withComment("Prefix used to quote a literal (may be null)."),
+                    Column.physical("LITERAL_SUFFIX", DataTypes.STRING())
+                            .withComment("Suffix used to quote a literal (may be null)."),
+                    Column.physical("CREATE_PARAMS", DataTypes.STRING())
+                            .withComment("Parameters used in creating the type (may be null)."),
+                    Column.physical("NULLABLE", DataTypes.SMALLINT())
+                            .withComment("Can you use NULL for this type."),
+                    Column.physical("CASE_SENSITIVE", DataTypes.BOOLEAN())
+                            .withComment("Is it case sensitive."),
+                    Column.physical("SEARCHABLE", DataTypes.SMALLINT())
+                            .withComment("Can you use \"WHERE\" based on this type."),
+                    Column.physical("UNSIGNED_ATTRIBUTE", DataTypes.BOOLEAN())
+                            .withComment("Is it unsigned."),
+                    Column.physical("FIXED_PREC_SCALE", DataTypes.BOOLEAN())
+                            .withComment("Can it be a money value."),
+                    Column.physical("AUTO_INCREMENT", DataTypes.BOOLEAN())
+                            .withComment("Can it be used for an auto-increment value."),
+                    Column.physical("LOCAL_TYPE_NAME", DataTypes.STRING())
+                            .withComment("Localized version of type name (may be null)."),
+                    Column.physical("MINIMUM_SCALE", DataTypes.SMALLINT())
+                            .withComment("Minimum scale supported."),
+                    Column.physical("MAXIMUM_SCALE", DataTypes.SMALLINT())
+                            .withComment("Maximum scale supported."),
+                    Column.physical("SQL_DATA_TYPE", DataTypes.INT()).withComment("Unused."),
+                    Column.physical("SQL_DATETIME_SUB", DataTypes.INT()).withComment("Unused."),
+                    Column.physical("NUM_PREC_RADIX", DataTypes.INT())
+                            .withComment("Usually 2 or 10."));
+
+    private static ResolvedSchema buildSchema(Column... columns) {
+        return new ResolvedSchema(Arrays.asList(columns), Collections.emptyList(), null);
+    }
 }

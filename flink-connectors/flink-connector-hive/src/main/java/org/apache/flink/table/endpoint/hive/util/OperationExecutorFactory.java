@@ -19,9 +19,23 @@
 package org.apache.flink.table.endpoint.hive.util;
 
 import org.apache.flink.table.catalog.CatalogBaseTable.TableKind;
+import org.apache.flink.table.catalog.ObjectIdentifier;
+import org.apache.flink.table.catalog.ResolvedSchema;
+import org.apache.flink.table.catalog.UnresolvedIdentifier;
 import org.apache.flink.table.data.GenericRowData;
+import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.StringData;
+import org.apache.flink.table.functions.AggregateFunctionDefinition;
+import org.apache.flink.table.functions.BuiltInFunctionDefinition;
+import org.apache.flink.table.functions.FunctionDefinition;
+import org.apache.flink.table.functions.FunctionKind;
+import org.apache.flink.table.functions.ScalarFunctionDefinition;
+import org.apache.flink.table.functions.TableAggregateFunctionDefinition;
+import org.apache.flink.table.functions.TableFunctionDefinition;
+import org.apache.flink.table.functions.UserDefinedFunction;
+import org.apache.flink.table.functions.hive.HiveFunction;
 import org.apache.flink.table.gateway.api.SqlGatewayService;
+import org.apache.flink.table.gateway.api.results.FunctionInfo;
 import org.apache.flink.table.gateway.api.results.ResultSet;
 import org.apache.flink.table.gateway.api.results.TableInfo;
 import org.apache.flink.table.gateway.api.session.SessionHandle;
@@ -30,8 +44,10 @@ import org.apache.hadoop.hive.serde2.thrift.Type;
 
 import javax.annotation.Nullable;
 
+import java.sql.DatabaseMetaData;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -41,6 +57,7 @@ import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.table.endpoint.hive.HiveServer2Schemas.GET_CATALOGS_SCHEMA;
+import static org.apache.flink.table.endpoint.hive.HiveServer2Schemas.GET_FUNCTIONS_SCHEMA;
 import static org.apache.flink.table.endpoint.hive.HiveServer2Schemas.GET_SCHEMAS_SCHEMA;
 import static org.apache.flink.table.endpoint.hive.HiveServer2Schemas.GET_TABLES_SCHEMA;
 import static org.apache.flink.table.endpoint.hive.HiveServer2Schemas.GET_TYPE_INFO_SCHEMA;
@@ -94,11 +111,20 @@ public class OperationExecutorFactory {
                         service, sessionHandle, catalogName, schemaName, tableName, tableKinds);
     }
 
+    public static Callable<ResultSet> createGetFunctionsExecutor(
+            SqlGatewayService service,
+            SessionHandle sessionHandle,
+            @Nullable String catalogName,
+            @Nullable String databasePattern,
+            @Nullable String functionNamePattern) {
+        return () ->
+                executeGetFunctions(
+                        service, sessionHandle, catalogName, databasePattern, functionNamePattern);
+    }
+
     public static Callable<ResultSet> createGetTableInfoExecutor() {
         return () ->
-                new ResultSet(
-                        EOS,
-                        null,
+                buildResultSet(
                         GET_TYPE_INFO_SCHEMA,
                         getSupportedHiveType().stream()
                                 .map(
@@ -134,9 +160,7 @@ public class OperationExecutorFactory {
     private static ResultSet executeGetCatalogs(
             SqlGatewayService service, SessionHandle sessionHandle) {
         Set<String> catalogNames = service.listCatalogs(sessionHandle);
-        return new ResultSet(
-                EOS,
-                null,
+        return buildResultSet(
                 GET_CATALOGS_SCHEMA,
                 catalogNames.stream()
                         .map(OperationExecutorFactory::wrap)
@@ -152,9 +176,7 @@ public class OperationExecutorFactory {
                 isNullOrEmpty(catalogName) ? service.getCurrentCatalog(sessionHandle) : catalogName;
         Set<String> databaseNames =
                 filter(service.listDatabases(sessionHandle, specifiedCatalogName), schemaName);
-        return new ResultSet(
-                EOS,
-                null,
+        return buildResultSet(
                 GET_SCHEMAS_SCHEMA,
                 databaseNames.stream()
                         .map(name -> wrap(name, specifiedCatalogName))
@@ -180,9 +202,7 @@ public class OperationExecutorFactory {
                             candidate -> candidate.getIdentifier().getObjectName(),
                             tableName));
         }
-        return new ResultSet(
-                EOS,
-                null,
+        return buildResultSet(
                 GET_TABLES_SCHEMA,
                 tableInfos.stream()
                         .map(
@@ -200,6 +220,77 @@ public class OperationExecutorFactory {
                                                 null,
                                                 null,
                                                 null))
+                        .collect(Collectors.toList()));
+    }
+
+    private static ResultSet executeGetFunctions(
+            SqlGatewayService service,
+            SessionHandle sessionHandle,
+            @Nullable String catalogName,
+            @Nullable String databasePattern,
+            @Nullable String functionNamePattern) {
+        String specifiedCatalogName =
+                isNullOrEmpty(catalogName) ? service.getCurrentCatalog(sessionHandle) : catalogName;
+
+        Set<FunctionInfo> candidates = new HashSet<>();
+        // Add user defined functions
+        for (String databaseName :
+                filter(
+                        service.listDatabases(sessionHandle, specifiedCatalogName),
+                        databasePattern)) {
+            candidates.addAll(
+                    service.listUserDefinedFunctions(
+                            sessionHandle, specifiedCatalogName, databaseName));
+        }
+        // Add system functions
+        if (isNullOrEmpty(catalogName) && isNullOrEmpty(databasePattern)) {
+            candidates.addAll(service.listSystemFunctions(sessionHandle));
+        }
+        // Filter out unmatched functions
+        Set<FunctionInfo> matchedFunctions =
+                filter(
+                        candidates,
+                        candidate -> candidate.getIdentifier().getFunctionName(),
+                        functionNamePattern);
+        return buildResultSet(
+                GET_FUNCTIONS_SCHEMA,
+                // Sort
+                matchedFunctions.stream()
+                        .sorted(
+                                Comparator.comparing(
+                                        info ->
+                                                info.getIdentifier()
+                                                        .asSummaryString()
+                                                        .toLowerCase()))
+                        .map(
+                                info ->
+                                        wrap(
+                                                info.getIdentifier()
+                                                        .getIdentifier()
+                                                        .map(ObjectIdentifier::getCatalogName)
+                                                        .orElse(null), // FUNCTION_CAT
+                                                info.getIdentifier()
+                                                        .getIdentifier()
+                                                        .map(ObjectIdentifier::getDatabaseName)
+                                                        .orElse(null), // FUNCTION_SCHEM
+                                                info.getIdentifier()
+                                                        .getFunctionName(), // FUNCTION_NAME
+                                                "", // REMARKS
+                                                info.getKind()
+                                                        .map(
+                                                                OperationExecutorFactory
+                                                                        ::toFunctionResult)
+                                                        .orElse(
+                                                                DatabaseMetaData
+                                                                        .functionResultUnknown), // FUNCTION_TYPE
+                                                // TODO: remove until Catalog listFunctions return
+                                                // CatalogFunction
+                                                getFunctionName(
+                                                        service.getFunctionDefinition(
+                                                                sessionHandle,
+                                                                UnresolvedIdentifier.of(
+                                                                        info.getIdentifier()
+                                                                                .toList()))))) // SPECIFIC_NAME
                         .collect(Collectors.toList()));
     }
 
@@ -270,6 +361,10 @@ public class OperationExecutorFactory {
         return GenericRowData.of(pack);
     }
 
+    private static ResultSet buildResultSet(ResolvedSchema schema, List<RowData> data) {
+        return new ResultSet(EOS, null, schema, data);
+    }
+
     private static List<Type> getSupportedHiveType() {
         return Collections.unmodifiableList(
                 Arrays.asList(
@@ -293,5 +388,47 @@ public class OperationExecutorFactory {
                         VARCHAR_TYPE,
                         INTERVAL_YEAR_MONTH_TYPE,
                         INTERVAL_DAY_TIME_TYPE));
+    }
+
+    private static int toFunctionResult(FunctionKind kind) {
+        switch (kind) {
+            case SCALAR:
+            case AGGREGATE:
+                return DatabaseMetaData.functionNoTable;
+            case TABLE:
+            case ASYNC_TABLE:
+            case TABLE_AGGREGATE:
+                return DatabaseMetaData.functionReturnsTable;
+            case OTHER:
+                return DatabaseMetaData.functionResultUnknown;
+            default:
+                throw new UnsupportedOperationException(
+                        String.format("Unknown function kind: %s.", kind));
+        }
+    }
+
+    private static String getFunctionName(FunctionDefinition definition) {
+        if (definition instanceof HiveFunction) {
+            return ((HiveFunction<?>) definition).getFunctionWrapper().getUDFClassName();
+        } else if (definition instanceof UserDefinedFunction) {
+            return ((UserDefinedFunction) definition).functionIdentifier();
+        } else if (definition instanceof TableFunctionDefinition) {
+            return ((TableFunctionDefinition) definition).getTableFunction().functionIdentifier();
+        } else if (definition instanceof ScalarFunctionDefinition) {
+            return ((ScalarFunctionDefinition) definition).getScalarFunction().functionIdentifier();
+        } else if (definition instanceof AggregateFunctionDefinition) {
+            return ((AggregateFunctionDefinition) definition)
+                    .getAggregateFunction()
+                    .functionIdentifier();
+        } else if (definition instanceof TableAggregateFunctionDefinition) {
+            return ((TableAggregateFunctionDefinition) definition)
+                    .getTableAggregateFunction()
+                    .functionIdentifier();
+        } else if (definition instanceof BuiltInFunctionDefinition) {
+            BuiltInFunctionDefinition builtIn = (BuiltInFunctionDefinition) definition;
+            return builtIn.getRuntimeClass().orElse(definition.getClass().getCanonicalName());
+        } else {
+            return definition.getClass().getCanonicalName();
+        }
     }
 }
