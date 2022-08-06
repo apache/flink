@@ -44,15 +44,26 @@ import java.util.stream.Stream;
 import static java.util.Collections.singletonList;
 
 /**
- * Resolve and validate Hints, currently only join hints are supported.
+ * Resolve and validate the join hints.
  *
- * <p>Here the duplicated join hints will not be checked.
+ * <p>Note: duplicate join hints are not checked here.
  */
 public class JoinHintResolver extends RelShuttleImpl {
     private final Set<RelHint> allHints = new HashSet<>();
     private final Set<RelHint> validHints = new HashSet<>();
 
-    /** Transforms a relational expression into another relational expression. */
+    /**
+     * Resolves and validates join hints in the given {@link RelNode} list, an {@link
+     * ValidationException} will be raised for invalid hints.
+     *
+     * <p>After resolving join hints, the options of the join hints (declared table name or query
+     * block name) will be replaced to {@link JoinStrategy#LEFT_INPUT} or {@link
+     * JoinStrategy#RIGHT_INPUT}
+     *
+     * <p>If the declared table name or query name in a join hint could not match the left side or
+     * right side of this join, that means this join hint is invalid and a {@link
+     * ValidationException} will be thrown.
+     */
     public List<RelNode> resolve(List<RelNode> roots) {
         List<RelNode> resolvedRoots =
                 roots.stream().map(node -> node.accept(this)).collect(Collectors.toList());
@@ -106,13 +117,6 @@ public class JoinHintResolver extends RelShuttleImpl {
                                                     return Stream.of();
                                                 }
                                             } else {
-                                                //                                                //
-                                                // filter alias hints
-                                                //                                                if
-                                                // (h.hintName.equals(FlinkHints.HINT_ALIAS)) {
-                                                //
-                                                //  return Stream.of();
-                                                //                                                }
                                                 if (existentKVHints.contains(h)) {
                                                     return Stream.of();
                                                 } else {

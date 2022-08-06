@@ -50,7 +50,7 @@ class BatchPhysicalSortMergeJoinRule
 
   override def matches(call: RelOptRuleCall): Boolean = {
     val join: Join = call.rel(0)
-    val tableConfig = unwrapTableConfig(call)
+    val tableConfig = unwrapTableConfig(join)
     canUseJoinStrategy(join, tableConfig, JoinStrategy.SHUFFLE_MERGE)
   }
 
@@ -105,7 +105,7 @@ class BatchPhysicalSortMergeJoinRule
       call.transformTo(newJoin)
     }
 
-    val tableConfig = unwrapTableConfig(call)
+    val tableConfig = unwrapTableConfig(join)
     val candidates =
       if (tableConfig.get(BatchPhysicalSortMergeJoinRule.TABLE_OPTIMIZER_SMJ_REMOVE_SORT_ENABLED)) {
         // add more possibility to remove redundant sort, and longer optimization time

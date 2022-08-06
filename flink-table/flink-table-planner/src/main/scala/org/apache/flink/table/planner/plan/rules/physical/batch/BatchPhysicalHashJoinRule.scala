@@ -47,15 +47,15 @@ class BatchPhysicalHashJoinRule
 
   override def matches(call: RelOptRuleCall): Boolean = {
     val join: Join = call.rel(0)
-    val tableConfig = unwrapTableConfig(call)
+    val tableConfig = unwrapTableConfig(join)
 
     canUseJoinStrategy(join, tableConfig, JoinStrategy.BROADCAST) ||
     canUseJoinStrategy(join, tableConfig, JoinStrategy.SHUFFLE_HASH)
   }
 
   override def onMatch(call: RelOptRuleCall): Unit = {
-    val tableConfig = unwrapTableConfig(call)
     val join: Join = call.rel(0)
+    val tableConfig = unwrapTableConfig(join)
     val joinInfo = join.analyzeCondition
     val joinType = join.getJoinType
 
@@ -75,9 +75,8 @@ class BatchPhysicalHashJoinRule
 
     val firstValidJoinHintOp = getFirstValidJoinHint(join, tableConfig)
 
-    val (isBroadcast: Boolean, isLeftToBroadcastOrBuild: Boolean) =
-      if (firstValidJoinHintOp.isDefined) {
-        val firstValidJoinHint = firstValidJoinHintOp.get
+    val (isBroadcast: Boolean, isLeftToBroadcastOrBuild: Boolean) = firstValidJoinHintOp match {
+      case Some(firstValidJoinHint) =>
         firstValidJoinHint match {
           case JoinStrategy.BROADCAST =>
             val (_, isLeftToBroadcast: Boolean) =
@@ -97,7 +96,7 @@ class BatchPhysicalHashJoinRule
                 firstValidJoinHint
               ))
         }
-      } else {
+      case None =>
         // treat as non-join-hints
         val (canBroadcast, isLeftToBroadcast) =
           checkBroadcast(join, tableConfig, withBroadcastHint = false)
@@ -108,7 +107,7 @@ class BatchPhysicalHashJoinRule
           val (_, isLeftToBuild) = checkShuffleHash(join, tableConfig, withShuffleHashHint = false)
           (false, isLeftToBuild)
         }
-      }
+    }
 
     def transformToEquiv(leftRequiredTrait: RelTraitSet, rightRequiredTrait: RelTraitSet): Unit = {
       val newLeft = RelOptRule.convert(left, leftRequiredTrait)
