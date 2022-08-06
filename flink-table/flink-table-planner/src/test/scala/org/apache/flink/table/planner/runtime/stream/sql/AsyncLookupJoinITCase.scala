@@ -415,6 +415,8 @@ class AsyncLookupJoinITCase(
     new java.lang.Long(l)
   }
 
+// TODO add case with async and retry in FLINK-28849
+
 }
 
 object AsyncLookupJoinITCase {

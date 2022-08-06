@@ -18,7 +18,11 @@
 
 package org.apache.flink.table.planner.hint;
 
+import org.apache.flink.configuration.ConfigOption;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.table.planner.plan.rules.logical.WrapJsonAggFunctionArgumentsRule;
+
+import org.apache.flink.shaded.guava30.com.google.common.collect.ImmutableSet;
 
 import org.apache.calcite.rel.hint.HintOptionChecker;
 import org.apache.calcite.rel.hint.HintPredicates;
@@ -26,6 +30,7 @@ import org.apache.calcite.rel.hint.HintStrategy;
 import org.apache.calcite.rel.hint.HintStrategyTable;
 import org.apache.calcite.util.Litmus;
 
+import java.time.Duration;
 import java.util.Collections;
 
 /** A collection of Flink style {@link HintStrategy}s. */
@@ -82,6 +87,13 @@ public abstract class FlinkHintStrategies {
                         HintStrategy.builder(HintPredicates.JOIN)
                                 .optionChecker(NON_EMPTY_LIST_OPTION_CHECKER)
                                 .build())
+                .hintStrategy(
+                        JoinStrategy.LOOKUP.getJoinHintName(),
+                        HintStrategy.builder(
+                                        HintPredicates.or(
+                                                HintPredicates.CORRELATE, HintPredicates.JOIN))
+                                .optionChecker(LOOKUP_NON_EMPTY_KV_OPTION_CHECKER)
+                                .build())
                 .build();
     }
 
@@ -107,4 +119,82 @@ public abstract class FlinkHintStrategies {
                                     + "one table or view specified in hint {}.",
                             FlinkHints.stringifyHints(Collections.singletonList(hint)),
                             hint.hintName);
+
+    private static final HintOptionChecker LOOKUP_NON_EMPTY_KV_OPTION_CHECKER =
+            (lookupHint, litmus) -> {
+                litmus.check(
+                        lookupHint.listOptions.size() == 0,
+                        "Invalid list options in LOOKUP hint, only support key-value options.");
+
+                Configuration conf = Configuration.fromMap(lookupHint.kvOptions);
+                ImmutableSet<ConfigOption> requiredKeys =
+                        LookupJoinHintOptions.getRequiredOptions();
+                litmus.check(
+                        requiredKeys.stream().allMatch(conf::contains),
+                        "Invalid LOOKUP hint: incomplete required option(s): {}",
+                        requiredKeys);
+
+                ImmutableSet<ConfigOption> supportedKeys =
+                        LookupJoinHintOptions.getSupportedOptions();
+                litmus.check(
+                        lookupHint.kvOptions.size() <= supportedKeys.size(),
+                        "Too many LOOKUP hint options {} beyond max number of supported options {}",
+                        lookupHint.kvOptions.size(),
+                        supportedKeys.size());
+
+                try {
+                    // try to validate all hint options by parsing them
+                    supportedKeys.forEach(conf::get);
+                } catch (IllegalArgumentException e) {
+                    litmus.fail("Invalid LOOKUP hint options: {}", e.getMessage());
+                }
+
+                // option value check
+                // async options are all optional
+                Boolean async = conf.get(LookupJoinHintOptions.ASYNC_LOOKUP);
+                if (Boolean.TRUE.equals(async)) {
+                    Integer capacity = conf.get(LookupJoinHintOptions.ASYNC_CAPACITY);
+                    litmus.check(
+                            null == capacity || capacity > 0,
+                            "Invalid LOOKUP hint option: {} value should be positive integer but was {}",
+                            LookupJoinHintOptions.ASYNC_CAPACITY.key(),
+                            capacity);
+                }
+
+                // retry options can be both null or all not null
+                String retryPredicate = conf.get(LookupJoinHintOptions.RETRY_PREDICATE);
+                LookupJoinHintOptions.RetryStrategy retryStrategy =
+                        conf.get(LookupJoinHintOptions.RETRY_STRATEGY);
+                Duration fixedDelay = conf.get(LookupJoinHintOptions.FIXED_DELAY);
+                Integer maxAttempts = conf.get(LookupJoinHintOptions.MAX_ATTEMPTS);
+                litmus.check(
+                        (null == retryPredicate
+                                        && null == retryStrategy
+                                        && null == fixedDelay
+                                        && null == fixedDelay
+                                        && null == maxAttempts)
+                                || (null != retryPredicate
+                                        && null != retryStrategy
+                                        && null != fixedDelay
+                                        && null != fixedDelay
+                                        && null != maxAttempts),
+                        "Invalid LOOKUP hint: retry options can be both null or all not null");
+
+                // if with retry options, all values should be valid
+                if (null != retryPredicate) {
+                    litmus.check(
+                            LookupJoinHintOptions.LOOKUP_MISS_PREDICATE.equalsIgnoreCase(
+                                    retryPredicate),
+                            "Invalid LOOKUP hint option: unsupported {} '{}', only '{}' is supported currently",
+                            LookupJoinHintOptions.RETRY_PREDICATE.key(),
+                            retryPredicate,
+                            LookupJoinHintOptions.LOOKUP_MISS_PREDICATE);
+                    litmus.check(
+                            maxAttempts > 0,
+                            "Invalid LOOKUP hint option: {} value should be positive integer but was {}",
+                            LookupJoinHintOptions.MAX_ATTEMPTS.key(),
+                            maxAttempts);
+                }
+                return true;
+            };
 }

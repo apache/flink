@@ -76,11 +76,24 @@ public class LookupJoinJsonPlanTest extends TableTestBase {
                         + "  age int"
                         + ") with (\n"
                         + "  'connector' = 'values',\n"
-                        + "  'sink-insert-only' = 'false'\n"
-                        + ")";
-        tEnv.executeSql(sinkTable1);
+                        + "  'sink-insert-only' = 'false')";
+        String sinkTable2 =
+                "CREATE TABLE MySink1 (\n"
+                        + "  a int,\n"
+                        + "  b varchar,"
+                        + "  c bigint,"
+                        + "  proctime timestamp(3),"
+                        + "  rowtime timestamp(3),"
+                        + "  id int,"
+                        + "  name varchar,"
+                        + "  age int"
+                        + ") with (\n"
+                        + "  'connector' = 'values',\n"
+                        + "  'table-sink-class' = 'DEFAULT')";
         tEnv.executeSql(srcTableA);
         tEnv.executeSql(srcTableB);
+        tEnv.executeSql(sinkTable1);
+        tEnv.executeSql(sinkTable2);
     }
 
     @Test
@@ -180,6 +193,55 @@ public class LookupJoinJsonPlanTest extends TableTestBase {
                         + "SELECT T.a, D.name, D.age "
                         + "FROM (SELECT max(a) a, count(c) c, PROCTIME() proctime FROM MyTable GROUP BY b) T "
                         + "LEFT JOIN LookupTable "
+                        + "FOR SYSTEM_TIME AS OF T.proctime AS D ON T.a = D.id");
+    }
+
+    @Test
+    public void testJoinTemporalTableWithAsyncHint() {
+        // LookupTable has sync func only, just verify the hint has take effect
+        util.verifyJsonPlan(
+                "INSERT INTO MySink1 SELECT "
+                        + "/*+ LOOKUP('table'='LookupTable', 'async'='true', 'output-mode'='allow_unordered') */ * "
+                        + "FROM MyTable AS T JOIN LookupTable "
+                        + "FOR SYSTEM_TIME AS OF T.proctime AS D ON T.a = D.id");
+    }
+
+    @Test
+    public void testJoinTemporalTableWithAsyncHint2() {
+        // LookupTable has sync func only, just verify the hint has take effect
+        util.verifyJsonPlan(
+                "INSERT INTO MySink1 SELECT "
+                        + "/*+ LOOKUP('table'='LookupTable', 'async'='true', 'timeout'='600s', 'capacity'='1000') */ * "
+                        + "FROM MyTable AS T JOIN LookupTable "
+                        + "FOR SYSTEM_TIME AS OF T.proctime AS D ON T.a = D.id");
+    }
+
+    @Test
+    public void testJoinTemporalTableWithRetryHint() {
+        util.verifyJsonPlan(
+                "INSERT INTO MySink1 SELECT "
+                        + "/*+ LOOKUP('table'='LookupTable', 'retry-predicate'='lookup_miss', 'retry-strategy'='fixed_delay', 'fixed-delay'='10s', 'max-attempts'='3') */ * "
+                        + "FROM MyTable AS T JOIN LookupTable "
+                        + "FOR SYSTEM_TIME AS OF T.proctime AS D ON T.a = D.id");
+    }
+
+    @Test
+    public void testJoinTemporalTableWithAsyncRetryHint() {
+        // LookupTable has sync func only, just verify the hint has take effect
+        util.verifyJsonPlan(
+                "INSERT INTO MySink1 SELECT "
+                        + "/*+ LOOKUP('table'='LookupTable', 'async'='true', 'retry-predicate'='lookup_miss', 'retry-strategy'='fixed_delay', 'fixed-delay'='10s', 'max-attempts'='3') */ * "
+                        + "FROM MyTable AS T JOIN LookupTable "
+                        + "FOR SYSTEM_TIME AS OF T.proctime AS D ON T.a = D.id");
+    }
+
+    @Test
+    public void testJoinTemporalTableWithAsyncRetryHint2() {
+        // LookupTable has sync func only, just verify the hint has take effect
+        util.verifyJsonPlan(
+                "INSERT INTO MySink1 SELECT "
+                        + "/*+ LOOKUP('table'='LookupTable', 'async'='true', 'timeout'='600s', 'capacity'='1000', 'retry-predicate'='lookup_miss', 'retry-strategy'='fixed_delay', 'fixed-delay'='10s', 'max-attempts'='3') */ * "
+                        + "FROM MyTable AS T JOIN LookupTable "
                         + "FOR SYSTEM_TIME AS OF T.proctime AS D ON T.a = D.id");
     }
 }

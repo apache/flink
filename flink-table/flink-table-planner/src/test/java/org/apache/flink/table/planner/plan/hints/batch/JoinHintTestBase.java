@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.planner.plan.batch.sql.join.hints;
+package org.apache.flink.table.planner.plan.hints.batch;
 
 import org.apache.flink.table.api.ExplainDetail;
 import org.apache.flink.table.api.SqlParserException;
@@ -57,6 +57,8 @@ public abstract class JoinHintTestBase extends TableTestBase {
 
     private final List<String> allJoinHintNames =
             Lists.newArrayList(JoinStrategy.values()).stream()
+                    // LOOKUP hint has different kv-options against other join hints
+                    .filter(hint -> hint != JoinStrategy.LOOKUP)
                     .map(JoinStrategy::getJoinHintName)
                     .collect(Collectors.toList());
 

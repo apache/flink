@@ -256,11 +256,7 @@
         "index" : 0
       }
     },
-    "projectionOnTemporalTable" : [ {
-      "kind" : "INPUT_REF",
-      "inputIndex" : 0,
-      "type" : "INT"
-    } ],
+    "projectionOnTemporalTable" : null,
     "filterOnTemporalTable" : null,
     "inputChangelogMode" : [ "INSERT" ],
     "inputProperties" : [ {
@@ -299,10 +295,25 @@
       }, {
         "name" : "id",
         "fieldType" : "INT"
+      }, {
+        "name" : "name",
+        "fieldType" : "VARCHAR(2147483647)"
+      }, {
+        "name" : "age",
+        "fieldType" : "INT"
       } ]
     },
     "lookupKeyContainsPrimaryKey" : false,
-    "description" : "LookupJoin(table=[default_catalog.default_database.LookupTable], joinType=[InnerJoin], async=[false], lookup=[id=a], select=[a, b, c, proctime, rowtime, id])"
+    "joinHint" : {
+      "output-mode" : "ORDERED",
+      "capacity" : 100,
+      "timeout" : 180000,
+      "retry-predicate" : "lookup_miss",
+      "retry-strategy" : "FIXED_DELAY",
+      "fixed-delay" : 10000,
+      "max-attempts" : 3
+    },
+    "description" : "LookupJoin(table=[default_catalog.default_database.LookupTable], joinType=[InnerJoin], async=[false], lookup=[id=a], select=[a, b, c, proctime, rowtime, id, name, age])"
   }, {
     "id" : 5,
     "type" : "stream-exec-calc_1",
@@ -356,6 +367,14 @@
       "kind" : "INPUT_REF",
       "inputIndex" : 5,
       "type" : "INT"
+    }, {
+      "kind" : "INPUT_REF",
+      "inputIndex" : 6,
+      "type" : "VARCHAR(2147483647)"
+    }, {
+      "kind" : "INPUT_REF",
+      "inputIndex" : 7,
+      "type" : "INT"
     } ],
     "condition" : null,
     "inputProperties" : [ {
@@ -365,8 +384,8 @@
       "damBehavior" : "PIPELINED",
       "priority" : 0
     } ],
-    "outputType" : "ROW<`a` INT, `b` VARCHAR(2147483647), `c` BIGINT, `proctime` TIMESTAMP(3), `rowtime` TIMESTAMP(3), `id` INT>",
-    "description" : "Calc(select=[a, b, c, CAST(PROCTIME_MATERIALIZE(proctime) AS TIMESTAMP(3)) AS proctime, CAST(rowtime AS TIMESTAMP(3)) AS rowtime, id])"
+    "outputType" : "ROW<`a` INT, `b` VARCHAR(2147483647), `c` BIGINT, `proctime` TIMESTAMP(3), `rowtime` TIMESTAMP(3), `id` INT, `name` VARCHAR(2147483647), `age` INT>",
+    "description" : "Calc(select=[a, b, c, CAST(PROCTIME_MATERIALIZE(proctime) AS TIMESTAMP(3)) AS proctime, CAST(rowtime AS TIMESTAMP(3)) AS rowtime, id, name, age])"
   }, {
     "id" : 6,
     "type" : "stream-exec-sink_1",
@@ -378,7 +397,7 @@
     },
     "dynamicTableSink" : {
       "table" : {
-        "identifier" : "`default_catalog`.`default_database`.`MySink`",
+        "identifier" : "`default_catalog`.`default_database`.`MySink1`",
         "resolvedTable" : {
           "schema" : {
             "columns" : [ {
@@ -399,6 +418,12 @@
             }, {
               "name" : "id",
               "dataType" : "INT"
+            }, {
+              "name" : "name",
+              "dataType" : "VARCHAR(2147483647)"
+            }, {
+              "name" : "age",
+              "dataType" : "INT"
             } ],
             "watermarkSpecs" : [ ]
           },
@@ -418,8 +443,8 @@
       "damBehavior" : "PIPELINED",
       "priority" : 0
     } ],
-    "outputType" : "ROW<`a` INT, `b` VARCHAR(2147483647), `c` BIGINT, `proctime` TIMESTAMP(3), `rowtime` TIMESTAMP(3), `id` INT>",
-    "description" : "Sink(table=[default_catalog.default_database.MySink], fields=[a, b, c, proctime, rowtime, id])"
+    "outputType" : "ROW<`a` INT, `b` VARCHAR(2147483647), `c` BIGINT, `proctime` TIMESTAMP(3), `rowtime` TIMESTAMP(3), `id` INT, `name` VARCHAR(2147483647), `age` INT>",
+    "description" : "Sink(table=[default_catalog.default_database.MySink1], fields=[a, b, c, proctime, rowtime, id, name, age])"
   } ],
   "edges" : [ {
     "source" : 1,
