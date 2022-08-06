@@ -90,14 +90,9 @@ public class OperationExecutorFactory {
             @Nullable String catalogName,
             @Nullable String schemaName) {
         String specifiedCatalogName =
-                catalogName == null || catalogName.equals("")
-                        ? service.getCurrentCatalog(sessionHandle)
-                        : catalogName;
+                isNullOrEmpty(catalogName) ? service.getCurrentCatalog(sessionHandle) : catalogName;
         Set<String> databaseNames =
-                filter(
-                        service.listDatabases(sessionHandle, specifiedCatalogName),
-                        Function.identity(),
-                        schemaName);
+                filter(service.listDatabases(sessionHandle, specifiedCatalogName), schemaName);
         return new ResultSet(
                 EOS,
                 null,
@@ -116,15 +111,9 @@ public class OperationExecutorFactory {
             Set<TableKind> tableKinds) {
         Set<TableInfo> tableInfos = new HashSet<>();
         String specifiedCatalogName =
-                catalogName == null || catalogName.equals("")
-                        ? service.getCurrentCatalog(sessionHandle)
-                        : catalogName;
-        Set<String> schemaNames =
-                filter(
-                        service.listDatabases(sessionHandle, specifiedCatalogName),
-                        Function.identity(),
-                        schemaName);
-        for (String schema : schemaNames) {
+                isNullOrEmpty(catalogName) ? service.getCurrentCatalog(sessionHandle) : catalogName;
+        for (String schema :
+                filter(service.listDatabases(sessionHandle, specifiedCatalogName), schemaName)) {
             tableInfos.addAll(
                     filter(
                             service.listTables(
@@ -144,9 +133,14 @@ public class OperationExecutorFactory {
                                                 info.getIdentifier().getDatabaseName(),
                                                 info.getIdentifier().getObjectName(),
                                                 info.getTableKind().name(),
-                                                // currently return empty string of description
-                                                // considering performance
-                                                ""))
+                                                // It requires to load the CatalogFunction from the
+                                                // remote server, which is time wasted.
+                                                "",
+                                                null,
+                                                null,
+                                                null,
+                                                null,
+                                                null))
                         .collect(Collectors.toList()));
     }
 
@@ -154,8 +148,16 @@ public class OperationExecutorFactory {
     // Utilities
     // --------------------------------------------------------------------------------------------
 
+    private static boolean isNullOrEmpty(@Nullable String input) {
+        return input == null || input.isEmpty();
+    }
+
+    private static Set<String> filter(Set<String> candidates, @Nullable String pattern) {
+        return filter(candidates, Function.identity(), pattern);
+    }
+
     private static <T> Set<T> filter(
-            Set<T> candidates, Function<T, String> featureGetter, String pattern) {
+            Set<T> candidates, Function<T, String> featureGetter, @Nullable String pattern) {
         Pattern compiledPattern = convertNamePattern(pattern);
         return candidates.stream()
                 .filter(

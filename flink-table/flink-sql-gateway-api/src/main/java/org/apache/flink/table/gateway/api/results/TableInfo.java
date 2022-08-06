@@ -19,26 +19,28 @@
 package org.apache.flink.table.gateway.api.results;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.table.api.Schema;
 import org.apache.flink.table.catalog.CatalogBaseTable.TableKind;
+import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 
 import java.util.Objects;
 
-/** Information of the {@code Table}. */
+/**
+ * Information of the table or view.
+ *
+ * <p>Note: It is not equivalent to the {@link CatalogTable} that also contains {@link Schema}. The
+ * invoker can get basic information for the table without to read all information in the remote
+ * catalog.
+ */
 @PublicEvolving
 public class TableInfo {
-    private final boolean isTemporary;
     private final ObjectIdentifier identifier;
     private final TableKind tableKind;
 
-    public TableInfo(boolean isTemporary, ObjectIdentifier identifier, TableKind tableKind) {
-        this.isTemporary = isTemporary;
+    public TableInfo(ObjectIdentifier identifier, TableKind tableKind) {
         this.identifier = identifier;
         this.tableKind = tableKind;
-    }
-
-    public boolean isTemporary() {
-        return isTemporary;
     }
 
     public ObjectIdentifier getIdentifier() {
@@ -58,13 +60,16 @@ public class TableInfo {
             return false;
         }
         TableInfo that = (TableInfo) o;
-        return isTemporary == that.isTemporary
-                && identifier.equals(that.identifier)
-                && tableKind == that.tableKind;
+        return identifier.equals(that.identifier) && tableKind == that.tableKind;
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(isTemporary, identifier, tableKind);
+        return Objects.hash(identifier, tableKind);
+    }
+
+    @Override
+    public String toString() {
+        return "TableInfo{" + "identifier=" + identifier + ", tableKind=" + tableKind + '}';
     }
 }

@@ -126,8 +126,8 @@ import static org.apache.flink.table.endpoint.hive.util.HiveJdbcParameterUtils.v
 import static org.apache.flink.table.endpoint.hive.util.OperationExecutorFactory.createGetCatalogsExecutor;
 import static org.apache.flink.table.endpoint.hive.util.OperationExecutorFactory.createGetSchemasExecutor;
 import static org.apache.flink.table.endpoint.hive.util.OperationExecutorFactory.createGetTablesExecutor;
-import static org.apache.flink.table.endpoint.hive.util.ThriftObjectConversions.mapToFlinkTableKinds;
 import static org.apache.flink.table.endpoint.hive.util.ThriftObjectConversions.toFetchOrientation;
+import static org.apache.flink.table.endpoint.hive.util.ThriftObjectConversions.toFlinkTableKinds;
 import static org.apache.flink.table.endpoint.hive.util.ThriftObjectConversions.toOperationHandle;
 import static org.apache.flink.table.endpoint.hive.util.ThriftObjectConversions.toSessionHandle;
 import static org.apache.flink.table.endpoint.hive.util.ThriftObjectConversions.toTOperationHandle;
@@ -445,7 +445,7 @@ public class HiveServer2Endpoint implements TCLIService.Iface, SqlGatewayEndpoin
         TGetTablesResp resp = new TGetTablesResp();
         try {
             SessionHandle sessionHandle = toSessionHandle(tGetTablesReq.getSessionHandle());
-            Set<TableKind> tableKinds = mapToFlinkTableKinds(tGetTablesReq.getTableTypes());
+            Set<TableKind> tableKinds = toFlinkTableKinds(tGetTablesReq.getTableTypes());
 
             OperationHandle operationHandle =
                     service.submitOperation(

@@ -84,8 +84,11 @@ import org.apache.hive.service.rpc.thrift.TTypeEntry;
 import org.apache.hive.service.rpc.thrift.TTypeQualifierValue;
 import org.apache.hive.service.rpc.thrift.TTypeQualifiers;
 
+import javax.annotation.Nullable;
+
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.BitSet;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -93,6 +96,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -107,6 +111,7 @@ public class ThriftObjectConversions {
     private static final RowDataToJsonConverters TO_JSON_CONVERTERS =
             new RowDataToJsonConverters(
                     TimestampFormat.SQL, JsonFormatOptions.MapNullKeyMode.LITERAL, "null");
+    private static final Map<String, TableKind> TABLE_TYPE_MAPPINGS = buildTableTypeMapping();
 
     // --------------------------------------------------------------------------------------------
     // Flink SessionHandle from/to Hive SessionHandle
@@ -277,6 +282,30 @@ public class ThriftObjectConversions {
         } else {
             return toColumnBasedSet(fieldTypes, fieldGetters, data);
         }
+    }
+
+    // --------------------------------------------------------------------------------------------
+    // Catalog API related conversions
+    // --------------------------------------------------------------------------------------------
+
+    /** Counterpart of the {@code org.apache.hive.service.cli.operation.TableTypeMapping}. */
+    public static Set<TableKind> toFlinkTableKinds(@Nullable List<String> tableTypes) {
+        Set<TableKind> tableKinds = new HashSet<>();
+        if (tableTypes == null || tableTypes.isEmpty()) {
+            tableKinds.addAll(Arrays.asList(TableKind.values()));
+            return tableKinds;
+        }
+
+        for (String tableType : tableTypes) {
+            if (!TABLE_TYPE_MAPPINGS.containsKey(tableType)) {
+                throw new UnsupportedOperationException(
+                        String.format(
+                                "Can not find the mapping from the TableType '%s' to the Flink TableKind. Please remove it from the specified tableTypes.",
+                                tableType));
+            }
+            tableKinds.add(TABLE_TYPE_MAPPINGS.get(tableType));
+        }
+        return tableKinds;
     }
 
     public static TStatus toTStatus(Throwable t) {
@@ -575,6 +604,19 @@ public class ThriftObjectConversions {
         };
     }
 
+    private static Map<String, TableKind> buildTableTypeMapping() {
+        Map<String, TableKind> mappings = new ConcurrentHashMap<>();
+        // Add {@code org.apache.hive.service.cli.operation.ClassicTableTypeMapping }
+        mappings.put("TABLE", TableKind.TABLE);
+        mappings.put("VIEW", TableKind.VIEW);
+        // Add {@code org.apache.hive.service.cli.operation.HiveTableTypeMapping }
+        mappings.put(TableType.MANAGED_TABLE.name(), TableKind.TABLE);
+        mappings.put(TableType.EXTERNAL_TABLE.name(), TableKind.TABLE);
+        mappings.put(TableType.INDEX_TABLE.name(), TableKind.TABLE);
+        mappings.put(TableType.VIRTUAL_VIEW.name(), TableKind.VIEW);
+        return mappings;
+    }
+
     /**
      * Converts a {@link Throwable} object into a flattened list of texts including its stack trace
      * and the stack traces of the nested causes.
@@ -622,30 +664,5 @@ public class ThriftObjectConversions {
             details.add(builder.toString());
         }
         return details;
-    }
-
-    public static Set<TableKind> mapToFlinkTableKinds(List<String> tableTypes)
-            throws UnsupportedOperationException {
-        Set<TableKind> tableKinds = new HashSet<>();
-
-        if (tableTypes == null || tableTypes.isEmpty()) {
-            tableKinds.add(TableKind.TABLE);
-            tableKinds.add(TableKind.VIEW);
-            return tableKinds;
-        }
-
-        if (tableTypes.contains(TableType.MATERIALIZED_VIEW.name())) {
-            throw new UnsupportedOperationException(
-                    "Table type 'MATERIALIZED_VIEW' not supported currently.");
-        }
-
-        if (tableTypes.contains(TableType.MANAGED_TABLE.name())
-                || tableTypes.contains(TableType.EXTERNAL_TABLE.name())) {
-            tableKinds.add(TableKind.TABLE);
-        }
-        if (tableTypes.contains(TableType.VIRTUAL_VIEW.name())) {
-            tableKinds.add(TableKind.VIEW);
-        }
-        return tableKinds;
     }
 }

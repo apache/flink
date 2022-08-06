@@ -60,10 +60,22 @@ public class HiveServer2Schemas {
                                     Column.physical("TABLE_NAME", DataTypes.STRING())
                                             .withComment("Table name. NULL if not applicable."),
                                     Column.physical("TABLE_TYPE", DataTypes.STRING())
-                                            .withComment("Table type, e.g. TABLE, VIEW."),
-                                    Column.physical("REMARKS", DataTypes.STRING())
                                             .withComment(
-                                                    "Table description. Currently Empty considering performance."))),
+                                                    "The table type, e.g. \"TABLE\", \"VIEW\", etc."),
+                                    Column.physical("REMARKS", DataTypes.STRING())
+                                            .withComment("Comments about the table."),
+                                    Column.physical("TYPE_CAT", DataTypes.STRING())
+                                            .withComment("The types catalog."),
+                                    Column.physical("TYPE_SCHEM", DataTypes.STRING())
+                                            .withComment("The types schema."),
+                                    Column.physical("TYPE_NAME", DataTypes.STRING())
+                                            .withComment("Type name."),
+                                    Column.physical("SELF_REFERENCING_COL_NAME", DataTypes.STRING())
+                                            .withComment(
+                                                    "Name of the designated \"identifier\" column of a typed table."),
+                                    Column.physical("REF_GENERATION", DataTypes.STRING())
+                                            .withComment(
+                                                    "Specifies how values in SELF_REFERENCING_COL_NAME are created."))),
                     Collections.emptyList(),
                     null);
 }
