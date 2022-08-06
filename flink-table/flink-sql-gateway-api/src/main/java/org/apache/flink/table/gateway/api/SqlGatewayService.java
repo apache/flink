@@ -22,10 +22,13 @@ import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.table.catalog.CatalogBaseTable.TableKind;
 import org.apache.flink.table.catalog.ResolvedSchema;
+import org.apache.flink.table.catalog.UnresolvedIdentifier;
+import org.apache.flink.table.functions.FunctionDefinition;
 import org.apache.flink.table.gateway.api.endpoint.EndpointVersion;
 import org.apache.flink.table.gateway.api.operation.OperationHandle;
 import org.apache.flink.table.gateway.api.operation.OperationStatus;
 import org.apache.flink.table.gateway.api.results.FetchOrientation;
+import org.apache.flink.table.gateway.api.results.FunctionInfo;
 import org.apache.flink.table.gateway.api.results.GatewayInfo;
 import org.apache.flink.table.gateway.api.results.OperationInfo;
 import org.apache.flink.table.gateway.api.results.ResultSet;
@@ -232,6 +235,39 @@ public interface SqlGatewayService {
             String catalogName,
             String databaseName,
             Set<TableKind> tableKinds)
+            throws SqlGatewayException;
+
+    /**
+     * List all user defined functions.
+     *
+     * @param sessionHandle handle to identify the session.
+     * @param catalogName name string of the given catalog.
+     * @param databaseName name string of the given database.
+     * @return user defined functions info.
+     */
+    Set<FunctionInfo> listUserDefinedFunctions(
+            SessionHandle sessionHandle, String catalogName, String databaseName)
+            throws SqlGatewayException;
+
+    /**
+     * List all available system functions.
+     *
+     * @param sessionHandle handle to identify the session.
+     * @return system functions info.
+     */
+    Set<FunctionInfo> listSystemFunctions(SessionHandle sessionHandle) throws SqlGatewayException;
+
+    /**
+     * Get the specific definition of the function. If the input identifier only contains the
+     * function name, it is resolved with the order of the temporary system function, system
+     * function, temporary function and catalog function.
+     *
+     * @param sessionHandle handle to identify the session.
+     * @param functionIdentifier identifier of the function.
+     * @return the definition of the function.
+     */
+    FunctionDefinition getFunctionDefinition(
+            SessionHandle sessionHandle, UnresolvedIdentifier functionIdentifier)
             throws SqlGatewayException;
 
     // -------------------------------------------------------------------------------------------

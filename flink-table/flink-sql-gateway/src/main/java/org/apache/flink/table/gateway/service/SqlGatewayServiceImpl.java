@@ -22,10 +22,13 @@ import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.table.catalog.CatalogBaseTable.TableKind;
 import org.apache.flink.table.catalog.ResolvedSchema;
+import org.apache.flink.table.catalog.UnresolvedIdentifier;
+import org.apache.flink.table.functions.FunctionDefinition;
 import org.apache.flink.table.gateway.api.SqlGatewayService;
 import org.apache.flink.table.gateway.api.endpoint.EndpointVersion;
 import org.apache.flink.table.gateway.api.operation.OperationHandle;
 import org.apache.flink.table.gateway.api.results.FetchOrientation;
+import org.apache.flink.table.gateway.api.results.FunctionInfo;
 import org.apache.flink.table.gateway.api.results.GatewayInfo;
 import org.apache.flink.table.gateway.api.results.OperationInfo;
 import org.apache.flink.table.gateway.api.results.ResultSet;
@@ -249,6 +252,43 @@ public class SqlGatewayServiceImpl implements SqlGatewayService {
         } catch (Throwable t) {
             LOG.error("Failed to listTables.", t);
             throw new SqlGatewayException("Failed to listTables.", t);
+        }
+    }
+
+    @Override
+    public Set<FunctionInfo> listUserDefinedFunctions(
+            SessionHandle sessionHandle, String catalogName, String databaseName)
+            throws SqlGatewayException {
+        try {
+            return getSession(sessionHandle)
+                    .createExecutor()
+                    .listUserDefinedFunctions(catalogName, databaseName);
+        } catch (Throwable t) {
+            LOG.error("Failed to listUserDefinedFunctions.", t);
+            throw new SqlGatewayException("Failed to listUserDefinedFunctions.", t);
+        }
+    }
+
+    public Set<FunctionInfo> listSystemFunctions(SessionHandle sessionHandle) {
+        try {
+            return getSession(sessionHandle).createExecutor().listSystemFunctions();
+        } catch (Throwable t) {
+            LOG.error("Failed to listSystemFunctions.", t);
+            throw new SqlGatewayException("Failed to listSystemFunctions.", t);
+        }
+    }
+
+    @Override
+    public FunctionDefinition getFunctionDefinition(
+            SessionHandle sessionHandle, UnresolvedIdentifier functionIdentifier)
+            throws SqlGatewayException {
+        try {
+            return getSession(sessionHandle)
+                    .createExecutor()
+                    .getFunctionDefinition(functionIdentifier);
+        } catch (Throwable t) {
+            LOG.error("Failed to getFunctionDefinition.", t);
+            throw new SqlGatewayException("Failed to getFunctionDefinition.", t);
         }
     }
 

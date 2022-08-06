@@ -45,7 +45,6 @@ import org.apache.flink.table.resource.ResourceUri;
 import org.apache.flink.util.Preconditions;
 
 import java.util.Collections;
-import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -290,7 +289,50 @@ public final class FunctionCatalog {
      * functions and catalog functions in the current catalog and current database.
      */
     public String[] getUserDefinedFunctions() {
-        return getUserDefinedFunctionNames().toArray(new String[0]);
+        return getUserDefinedFunctions(
+                        catalogManager.getCurrentCatalog(), catalogManager.getCurrentDatabase())
+                .stream()
+                .map(FunctionIdentifier::getFunctionName)
+                .toArray(String[]::new);
+    }
+
+    /**
+     * Get names of all user including temp system functions, temp catalog * functions and catalog
+     * functions in the specified catalog and specified database.
+     */
+    public Set<FunctionIdentifier> getUserDefinedFunctions(
+            String catalogName, String databaseName) {
+        // add temp system functions
+        Set<FunctionIdentifier> result =
+                tempSystemFunctions.keySet().stream()
+                        .map(FunctionIdentifier::of)
+                        .collect(Collectors.toSet());
+
+        // add temp catalog functions
+        result.addAll(
+                tempCatalogFunctions.keySet().stream()
+                        .filter(
+                                oi ->
+                                        oi.getCatalogName().equals(catalogName)
+                                                && oi.getDatabaseName().equals(databaseName))
+                        .map(FunctionIdentifier::of)
+                        .collect(Collectors.toSet()));
+
+        // add catalog functions
+        Catalog catalog = catalogManager.getCatalog(catalogName).get();
+        try {
+            catalog.listFunctions(databaseName)
+                    .forEach(
+                            name ->
+                                    result.add(
+                                            FunctionIdentifier.of(
+                                                    ObjectIdentifier.of(
+                                                            catalogName, databaseName, name))));
+        } catch (DatabaseNotExistException e) {
+            // Ignore since there will always be a current database of the current catalog
+        }
+
+        return result;
     }
 
     /**
@@ -298,7 +340,13 @@ public final class FunctionCatalog {
      * functions and catalog functions in the current catalog and current database.
      */
     public String[] getFunctions() {
-        Set<String> result = getUserDefinedFunctionNames();
+        Set<String> result =
+                getUserDefinedFunctions(
+                                catalogManager.getCurrentCatalog(),
+                                catalogManager.getCurrentDatabase())
+                        .stream()
+                        .map(FunctionIdentifier::getFunctionName)
+                        .collect(Collectors.toSet());
 
         // add system functions
         result.addAll(moduleManager.listFunctions());
@@ -522,35 +570,6 @@ public final class FunctionCatalog {
     }
 
     // --------------------------------------------------------------------------------------------
-
-    private Set<String> getUserDefinedFunctionNames() {
-
-        // add temp system functions
-        Set<String> result = new HashSet<>(tempSystemFunctions.keySet());
-
-        String currentCatalog = catalogManager.getCurrentCatalog();
-        String currentDatabase = catalogManager.getCurrentDatabase();
-
-        // add temp catalog functions
-        result.addAll(
-                tempCatalogFunctions.keySet().stream()
-                        .filter(
-                                oi ->
-                                        oi.getCatalogName().equals(currentCatalog)
-                                                && oi.getDatabaseName().equals(currentDatabase))
-                        .map(ObjectIdentifier::getObjectName)
-                        .collect(Collectors.toSet()));
-
-        // add catalog functions
-        Catalog catalog = catalogManager.getCatalog(currentCatalog).get();
-        try {
-            result.addAll(catalog.listFunctions(currentDatabase));
-        } catch (DatabaseNotExistException e) {
-            // Ignore since there will always be a current database of the current catalog
-        }
-
-        return result;
-    }
 
     private Optional<ContextResolvedFunction> resolvePreciseFunctionReference(ObjectIdentifier oi) {
         // resolve order:

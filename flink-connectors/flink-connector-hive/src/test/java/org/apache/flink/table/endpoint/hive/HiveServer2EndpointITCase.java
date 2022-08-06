@@ -36,6 +36,7 @@ import org.apache.flink.table.gateway.api.session.SessionHandle;
 import org.apache.flink.table.gateway.api.utils.SqlGatewayException;
 import org.apache.flink.table.gateway.service.session.SessionManager;
 import org.apache.flink.table.gateway.service.utils.SqlGatewayServiceExtension;
+import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedScalarFunctions.JavaFunc0;
 import org.apache.flink.test.junit5.MiniClusterExtension;
 import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.function.BiConsumerWithException;
@@ -250,116 +251,16 @@ public class HiveServer2EndpointITCase extends TestLogger {
                                         new String[] {"MANAGED_TABLE", "VIRTUAL_VIEW"}),
                 getExpectedGetTablesOperationSchema(),
                 Arrays.asList(
-                        Arrays.asList(
-                                "default_catalog",
-                                "db_test1",
-                                "tbl_1",
-                                "TABLE",
-                                "",
-                                null,
-                                null,
-                                null,
-                                null,
-                                null),
-                        Arrays.asList(
-                                "default_catalog",
-                                "db_test1",
-                                "tbl_2",
-                                "TABLE",
-                                "",
-                                null,
-                                null,
-                                null,
-                                null,
-                                null),
-                        Arrays.asList(
-                                "default_catalog",
-                                "db_test1",
-                                "tbl_3",
-                                "VIEW",
-                                "",
-                                null,
-                                null,
-                                null,
-                                null,
-                                null),
-                        Arrays.asList(
-                                "default_catalog",
-                                "db_test1",
-                                "tbl_4",
-                                "VIEW",
-                                "",
-                                null,
-                                null,
-                                null,
-                                null,
-                                null),
-                        Arrays.asList(
-                                "default_catalog",
-                                "db_test2",
-                                "tbl_1",
-                                "TABLE",
-                                "",
-                                null,
-                                null,
-                                null,
-                                null,
-                                null),
-                        Arrays.asList(
-                                "default_catalog",
-                                "db_test2",
-                                "diff_1",
-                                "TABLE",
-                                "",
-                                null,
-                                null,
-                                null,
-                                null,
-                                null),
-                        Arrays.asList(
-                                "default_catalog",
-                                "db_test2",
-                                "tbl_2",
-                                "VIEW",
-                                "",
-                                null,
-                                null,
-                                null,
-                                null,
-                                null),
-                        Arrays.asList(
-                                "default_catalog",
-                                "db_test2",
-                                "diff_2",
-                                "VIEW",
-                                "",
-                                null,
-                                null,
-                                null,
-                                null,
-                                null),
-                        Arrays.asList(
-                                "default_catalog",
-                                "db_diff",
-                                "tbl_1",
-                                "TABLE",
-                                "",
-                                null,
-                                null,
-                                null,
-                                null,
-                                null),
-                        Arrays.asList(
-                                "default_catalog",
-                                "db_diff",
-                                "tbl_2",
-                                "VIEW",
-                                "",
-                                null,
-                                null,
-                                null,
-                                null,
-                                null)));
+                        Arrays.asList("default_catalog", "db_test1", "tbl_1", "TABLE", ""),
+                        Arrays.asList("default_catalog", "db_test1", "tbl_2", "TABLE", ""),
+                        Arrays.asList("default_catalog", "db_test1", "tbl_3", "VIEW", ""),
+                        Arrays.asList("default_catalog", "db_test1", "tbl_4", "VIEW", ""),
+                        Arrays.asList("default_catalog", "db_test2", "tbl_1", "TABLE", ""),
+                        Arrays.asList("default_catalog", "db_test2", "diff_1", "TABLE", ""),
+                        Arrays.asList("default_catalog", "db_test2", "tbl_2", "VIEW", ""),
+                        Arrays.asList("default_catalog", "db_test2", "diff_2", "VIEW", ""),
+                        Arrays.asList("default_catalog", "db_diff", "tbl_1", "TABLE", ""),
+                        Arrays.asList("default_catalog", "db_diff", "tbl_2", "VIEW", "")));
     }
 
     @Test
@@ -375,39 +276,9 @@ public class HiveServer2EndpointITCase extends TestLogger {
                                         new String[] {"VIRTUAL_VIEW"}),
                 getExpectedGetTablesOperationSchema(),
                 Arrays.asList(
-                        Arrays.asList(
-                                "default_catalog",
-                                "db_test1",
-                                "tbl_3",
-                                "VIEW",
-                                "",
-                                null,
-                                null,
-                                null,
-                                null,
-                                null),
-                        Arrays.asList(
-                                "default_catalog",
-                                "db_test1",
-                                "tbl_4",
-                                "VIEW",
-                                "",
-                                null,
-                                null,
-                                null,
-                                null,
-                                null),
-                        Arrays.asList(
-                                "default_catalog",
-                                "db_test2",
-                                "tbl_2",
-                                "VIEW",
-                                "",
-                                null,
-                                null,
-                                null,
-                                null,
-                                null)));
+                        Arrays.asList("default_catalog", "db_test1", "tbl_3", "VIEW", ""),
+                        Arrays.asList("default_catalog", "db_test1", "tbl_4", "VIEW", ""),
+                        Arrays.asList("default_catalog", "db_test2", "tbl_2", "VIEW", "")));
     }
 
     @Test
@@ -442,6 +313,70 @@ public class HiveServer2EndpointITCase extends TestLogger {
                                                 "VARCHAR",
                                                 "INTERVAL_YEAR_MONTH",
                                                 "INTERVAL_DAY_TIME")));
+    }
+
+    @Test
+    public void testGetFunctions() throws Exception {
+        runGetObjectTest(
+                connection -> connection.getMetaData().getFunctions(null, null, ".*"),
+                ResolvedSchema.of(
+                        Column.physical("FUNCTION_CAT", DataTypes.STRING()),
+                        Column.physical("FUNCTION_SCHEM", DataTypes.STRING()),
+                        Column.physical("FUNCTION_NAME", DataTypes.STRING()),
+                        Column.physical("REMARKS", DataTypes.STRING()),
+                        Column.physical("FUNCTION_TYPE", DataTypes.INT()),
+                        Column.physical("SPECIFIC_NAME", DataTypes.STRING())),
+                compactedResult ->
+                        assertThat(compactedResult)
+                                .contains(
+                                        Arrays.asList(
+                                                "withColumns",
+                                                "",
+                                                0,
+                                                "org.apache.flink.table.functions.BuiltInFunctionDefinition"),
+                                        Arrays.asList(
+                                                "bin",
+                                                "",
+                                                1,
+                                                "org.apache.hadoop.hive.ql.udf.UDFBin"),
+                                        Arrays.asList(
+                                                "parse_url_tuple",
+                                                "",
+                                                2,
+                                                "org.apache.hadoop.hive.ql.udf.generic.GenericUDTFParseUrlTuple")));
+    }
+
+    @Test
+    public void testGetFunctionWithPattern() throws Exception {
+        runGetObjectTest(
+                connection -> {
+                    try (Statement statement = connection.createStatement()) {
+                        statement.execute(
+                                String.format(
+                                        "CREATE FUNCTION `default_catalog`.`db_test2`.`my_abs` as '%s'",
+                                        JavaFunc0.class.getName()));
+                        statement.execute(
+                                String.format(
+                                        "CREATE FUNCTION `default_catalog`.`db_diff`.`your_abs` as '%s'",
+                                        JavaFunc0.class.getName()));
+                    }
+                    return connection.getMetaData().getFunctions("default_catalog", "db.*", "my.*");
+                },
+                ResolvedSchema.of(
+                        Column.physical("FUNCTION_CAT", DataTypes.STRING()),
+                        Column.physical("FUNCTION_SCHEM", DataTypes.STRING()),
+                        Column.physical("FUNCTION_NAME", DataTypes.STRING()),
+                        Column.physical("REMARKS", DataTypes.STRING()),
+                        Column.physical("FUNCTION_TYPE", DataTypes.INT()),
+                        Column.physical("SPECIFIC_NAME", DataTypes.STRING())),
+                Collections.singletonList(
+                        Arrays.asList(
+                                "default_catalog",
+                                "db_test2",
+                                "my_abs",
+                                "",
+                                0,
+                                JavaFunc0.class.getName())));
     }
 
     @Test
@@ -508,7 +443,7 @@ public class HiveServer2EndpointITCase extends TestLogger {
         try (Connection connection = getInitializedConnection();
                 java.sql.ResultSet result = resultSetSupplier.apply(connection)) {
             assertSchemaEquals(expectedSchema, result.getMetaData());
-            validator.accept(collect(result, expectedSchema.getColumnCount()));
+            validator.accept(collectAndCompact(result, expectedSchema.getColumnCount()));
         }
     }
 
@@ -608,12 +543,18 @@ public class HiveServer2EndpointITCase extends TestLogger {
         }
     }
 
-    private Set<List<Object>> collect(java.sql.ResultSet result, int columnCount) throws Exception {
+    private Set<List<Object>> collectAndCompact(java.sql.ResultSet result, int columnCount)
+            throws Exception {
         List<List<Object>> actual = new ArrayList<>();
         while (result.next()) {
             List<Object> row = new ArrayList<>();
             for (int i = 1; i <= columnCount; i++) {
-                row.add(result.getObject(i));
+                Object value = result.getObject(i);
+                // ignore the null value for better presentation
+                if (value == null) {
+                    continue;
+                }
+                row.add(value);
             }
             actual.add(row);
         }

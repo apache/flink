@@ -21,6 +21,7 @@ package org.apache.flink.table.gateway.service;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.testutils.CommonTestUtils;
 import org.apache.flink.table.api.DataTypes;
+import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.internal.TableEnvironmentInternal;
 import org.apache.flink.table.catalog.CatalogBaseTable.TableKind;
 import org.apache.flink.table.catalog.CatalogDatabaseImpl;
@@ -31,8 +32,10 @@ import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.StringData;
+import org.apache.flink.table.functions.FunctionIdentifier;
 import org.apache.flink.table.gateway.api.operation.OperationHandle;
 import org.apache.flink.table.gateway.api.operation.OperationStatus;
+import org.apache.flink.table.gateway.api.results.FunctionInfo;
 import org.apache.flink.table.gateway.api.results.OperationInfo;
 import org.apache.flink.table.gateway.api.results.ResultSet;
 import org.apache.flink.table.gateway.api.results.TableInfo;
@@ -45,7 +48,10 @@ import org.apache.flink.table.gateway.service.session.SessionManager;
 import org.apache.flink.table.gateway.service.utils.IgnoreExceptionHandler;
 import org.apache.flink.table.gateway.service.utils.SqlExecutionException;
 import org.apache.flink.table.gateway.service.utils.SqlGatewayServiceExtension;
+import org.apache.flink.table.planner.plan.utils.JavaUserDefinedAggFunctions;
 import org.apache.flink.table.planner.runtime.batch.sql.TestModule;
+import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedScalarFunctions;
+import org.apache.flink.table.planner.utils.TableFunc0;
 import org.apache.flink.test.util.AbstractTestBase;
 import org.apache.flink.util.concurrent.ExecutorThreadFactory;
 import org.apache.flink.util.function.RunnableWithException;
@@ -73,6 +79,9 @@ import java.util.concurrent.atomic.AtomicReference;
 
 import static org.apache.flink.core.testutils.FlinkAssertions.anyCauseMatches;
 import static org.apache.flink.core.testutils.FlinkAssertions.assertThatChainOfCauses;
+import static org.apache.flink.table.functions.FunctionKind.AGGREGATE;
+import static org.apache.flink.table.functions.FunctionKind.OTHER;
+import static org.apache.flink.table.functions.FunctionKind.SCALAR;
 import static org.apache.flink.table.gateway.api.results.ResultSet.ResultType.PAYLOAD;
 import static org.apache.flink.types.RowKind.DELETE;
 import static org.apache.flink.types.RowKind.INSERT;
@@ -403,6 +412,60 @@ public class SqlGatewayServiceITCase extends AbstractTestBase {
                                 "db0",
                                 Collections.singleton(TableKind.VIEW)))
                 .isEqualTo(Collections.emptySet());
+    }
+
+    @Test
+    public void testListSystemFunctions() {
+        SessionEnvironment environment =
+                SessionEnvironment.newBuilder()
+                        .setSessionEndpointVersion(MockedEndpointVersion.V1)
+                        .registerCatalog("cat1", new GenericInMemoryCatalog("cat1"))
+                        .registerCatalog("cat2", new GenericInMemoryCatalog("cat2"))
+                        .build();
+        SessionHandle sessionHandle = service.openSession(environment);
+
+        assertThat(service.listSystemFunctions(sessionHandle))
+                .contains(
+                        new FunctionInfo(FunctionIdentifier.of("sin"), SCALAR),
+                        new FunctionInfo(FunctionIdentifier.of("sum"), AGGREGATE),
+                        new FunctionInfo(FunctionIdentifier.of("as"), OTHER));
+    }
+
+    @Test
+    public void testListUserDefinedFunctions() {
+        SessionEnvironment environment =
+                SessionEnvironment.newBuilder()
+                        .setSessionEndpointVersion(MockedEndpointVersion.V1)
+                        .registerCatalog("cat1", new GenericInMemoryCatalog("cat1"))
+                        .registerCatalog("cat2", new GenericInMemoryCatalog("cat2"))
+                        .build();
+        SessionHandle sessionHandle = service.openSession(environment);
+        TableEnvironment tEnv =
+                service.getSession(sessionHandle).createExecutor().getTableEnvironment();
+        tEnv.createTemporarySystemFunction(
+                "count_distinct", JavaUserDefinedAggFunctions.CountDistinct.class);
+        tEnv.createFunction("java1", JavaUserDefinedScalarFunctions.JavaFunc1.class);
+        tEnv.createTemporaryFunction("table_func0", TableFunc0.class);
+
+        // register catalog function in another catalog
+        tEnv.createFunction(
+                "cat1.default.filter_out_function", JavaUserDefinedScalarFunctions.JavaFunc1.class);
+
+        assertThat(
+                        service.listUserDefinedFunctions(
+                                sessionHandle, "default_catalog", "default_database"))
+                .contains(
+                        new FunctionInfo(FunctionIdentifier.of("count_distinct")),
+                        new FunctionInfo(
+                                FunctionIdentifier.of(
+                                        ObjectIdentifier.of(
+                                                "default_catalog", "default_database", "java1"))),
+                        new FunctionInfo(
+                                FunctionIdentifier.of(
+                                        ObjectIdentifier.of(
+                                                "default_catalog",
+                                                "default_database",
+                                                "table_func0"))));
     }
 
     // --------------------------------------------------------------------------------------------

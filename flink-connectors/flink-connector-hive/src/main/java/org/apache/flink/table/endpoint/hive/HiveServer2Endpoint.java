@@ -126,6 +126,7 @@ import static org.apache.flink.table.endpoint.hive.HiveServer2EndpointVersion.HI
 import static org.apache.flink.table.endpoint.hive.util.HiveJdbcParameterUtils.getUsedDefaultDatabase;
 import static org.apache.flink.table.endpoint.hive.util.HiveJdbcParameterUtils.validateAndNormalize;
 import static org.apache.flink.table.endpoint.hive.util.OperationExecutorFactory.createGetCatalogsExecutor;
+import static org.apache.flink.table.endpoint.hive.util.OperationExecutorFactory.createGetFunctionsExecutor;
 import static org.apache.flink.table.endpoint.hive.util.OperationExecutorFactory.createGetSchemasExecutor;
 import static org.apache.flink.table.endpoint.hive.util.OperationExecutorFactory.createGetTableInfoExecutor;
 import static org.apache.flink.table.endpoint.hive.util.OperationExecutorFactory.createGetTablesExecutor;
@@ -518,7 +519,27 @@ public class HiveServer2Endpoint implements TCLIService.Iface, SqlGatewayEndpoin
 
     @Override
     public TGetFunctionsResp GetFunctions(TGetFunctionsReq tGetFunctionsReq) throws TException {
-        throw new UnsupportedOperationException(ERROR_MESSAGE);
+        TGetFunctionsResp resp = new TGetFunctionsResp();
+        try {
+            SessionHandle sessionHandle = toSessionHandle(tGetFunctionsReq.getSessionHandle());
+            OperationHandle operationHandle =
+                    service.submitOperation(
+                            sessionHandle,
+                            createGetFunctionsExecutor(
+                                    service,
+                                    sessionHandle,
+                                    tGetFunctionsReq.getCatalogName(),
+                                    tGetFunctionsReq.getSchemaName(),
+                                    tGetFunctionsReq.getFunctionName()));
+            resp.setStatus(OK_STATUS);
+            resp.setOperationHandle(
+                    toTOperationHandle(
+                            sessionHandle, operationHandle, TOperationType.GET_FUNCTIONS));
+        } catch (Throwable t) {
+            LOG.error("Failed to GetFunctions.", t);
+            resp.setStatus(toTStatus(t));
+        }
+        return resp;
     }
 
     @Override
