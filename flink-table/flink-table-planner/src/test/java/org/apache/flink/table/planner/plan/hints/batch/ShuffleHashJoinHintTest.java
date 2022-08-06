@@ -16,20 +16,20 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.planner.plan.batch.sql.join.hints;
+package org.apache.flink.table.planner.plan.hints.batch;
 
 import org.apache.flink.table.planner.hint.JoinStrategy;
 
-/** Test for Nest Loop join hint. */
-public class NestLoopJoinHintTest extends JoinHintTestBase {
+/** Test for Shuffle Hash join hint. */
+public class ShuffleHashJoinHintTest extends JoinHintTestBase {
 
     @Override
     protected String getTestSingleJoinHint() {
-        return JoinStrategy.NEST_LOOP.getJoinHintName();
+        return JoinStrategy.SHUFFLE_HASH.getJoinHintName();
     }
 
     @Override
     protected String getDisabledOperatorName() {
-        return "NestedLoopJoin";
+        return "HashJoin";
     }
 }

@@ -18,84 +18,27 @@
 
 package org.apache.flink.table.planner.alias;
 
-import org.apache.flink.api.common.RuntimeExecutionMode;
-import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.ExecutionOptions;
 import org.apache.flink.table.api.TableConfig;
-import org.apache.flink.table.catalog.Catalog;
-import org.apache.flink.table.catalog.CatalogManager;
-import org.apache.flink.table.catalog.GenericInMemoryCatalog;
-import org.apache.flink.table.planner.calcite.FlinkRelBuilder;
 import org.apache.flink.table.planner.hint.FlinkHints;
 import org.apache.flink.table.planner.hint.JoinStrategy;
-import org.apache.flink.table.planner.plan.utils.FlinkRelOptUtil;
-import org.apache.flink.table.planner.utils.BatchTableTestUtil;
-import org.apache.flink.table.planner.utils.PlannerMocks;
-import org.apache.flink.table.planner.utils.TableTestBase;
-import org.apache.flink.table.utils.CatalogManagerMocks;
+import org.apache.flink.table.planner.utils.TableTestUtil;
 
-import org.apache.calcite.plan.RelOptUtil;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.core.JoinRelType;
 import org.apache.calcite.rel.hint.RelHint;
-import org.apache.calcite.sql.SqlExplainLevel;
-import org.junit.Before;
 import org.junit.Test;
 
-import java.util.Collections;
+/** Tests clearing join hint with invalid propagation in batch. */
+public class ClearJoinHintWithInvalidPropagationShuttleTest
+        extends ClearJoinHintWithInvalidPropagationShuttleTestBase {
+    @Override
+    TableTestUtil getTableTestUtil() {
+        return batchTestUtil(TableConfig.getDefault());
+    }
 
-/** A test class for {@link ClearJoinHintWithInvalidPropagationShuttle}. */
-public class ClearJoinHintWithInvalidPropagationShuttleTest extends TableTestBase {
-
-    private final BatchTableTestUtil util = batchTestUtil(TableConfig.getDefault());
-    private final Catalog catalog = new GenericInMemoryCatalog("MockCatalog", "default");
-    private final CatalogManager catalogManager =
-            CatalogManagerMocks.preparedCatalogManager()
-                    .defaultCatalog("builtin", catalog)
-                    .config(
-                            Configuration.fromMap(
-                                    Collections.singletonMap(
-                                            ExecutionOptions.RUNTIME_MODE.key(),
-                                            RuntimeExecutionMode.BATCH.name())))
-                    .build();
-    private final PlannerMocks plannerMocks =
-            PlannerMocks.newBuilder()
-                    .withBatchMode(true)
-                    .withCatalogManager(catalogManager)
-                    .build();
-    private final FlinkRelBuilder builder = plannerMocks.getPlannerContext().createRelBuilder();
-
-    @Before
-    public void before() throws Exception {
-        util.tableEnv().registerCatalog("testCatalog", catalog);
-        util.tableEnv().executeSql("use catalog testCatalog");
-
-        util.tableEnv()
-                .executeSql(
-                        "CREATE TABLE t1 (\n"
-                                + "  a BIGINT\n"
-                                + ") WITH (\n"
-                                + " 'connector' = 'values',\n"
-                                + " 'bounded' = 'true'\n"
-                                + ")");
-
-        util.tableEnv()
-                .executeSql(
-                        "CREATE TABLE t2 (\n"
-                                + "  a BIGINT\n"
-                                + ") WITH (\n"
-                                + " 'connector' = 'values',\n"
-                                + " 'bounded' = 'true'\n"
-                                + ")");
-
-        util.tableEnv()
-                .executeSql(
-                        "CREATE TABLE t3 (\n"
-                                + "  a BIGINT\n"
-                                + ") WITH (\n"
-                                + " 'connector' = 'values',\n"
-                                + " 'bounded' = 'true'\n"
-                                + ")");
+    @Override
+    boolean isBatchMode() {
+        return true;
     }
 
     @Test
@@ -201,25 +144,5 @@ public class ClearJoinHintWithInvalidPropagationShuttleTest extends TableTestBas
                         .hints(joinHintRoot)
                         .build();
         verifyRelPlan(root);
-    }
-
-    private String buildRelPlanWithQueryBlockAlias(RelNode node) {
-        return System.lineSeparator()
-                + FlinkRelOptUtil.toString(
-                        node, SqlExplainLevel.EXPPLAN_ATTRIBUTES, false, false, true, false, true);
-    }
-
-    private void verifyRelPlan(RelNode node) {
-        String plan = buildRelPlanWithQueryBlockAlias(node);
-        util.assertEqualsOrExpand("beforePropagatingHints", plan, true);
-
-        RelNode rootAfterHintPropagation = RelOptUtil.propagateRelHints(node, false);
-        plan = buildRelPlanWithQueryBlockAlias(rootAfterHintPropagation);
-        util.assertEqualsOrExpand("afterPropagatingHints", plan, true);
-
-        RelNode rootAfterClearingJoinHintWithInvalidPropagation =
-                rootAfterHintPropagation.accept(new ClearJoinHintWithInvalidPropagationShuttle());
-        plan = buildRelPlanWithQueryBlockAlias(rootAfterClearingJoinHintWithInvalidPropagation);
-        util.assertEqualsOrExpand("afterClearingJoinHints", plan, false);
     }
 }

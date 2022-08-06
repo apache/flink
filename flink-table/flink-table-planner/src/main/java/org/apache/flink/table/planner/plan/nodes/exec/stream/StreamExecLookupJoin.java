@@ -29,6 +29,7 @@ import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeContext;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeMetadata;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
 import org.apache.flink.table.planner.plan.nodes.exec.common.CommonExecLookupJoin;
+import org.apache.flink.table.planner.plan.nodes.exec.spec.LookupJoinHintSpec;
 import org.apache.flink.table.planner.plan.nodes.exec.spec.TemporalTableSourceSpec;
 import org.apache.flink.table.planner.plan.utils.LookupJoinUtil;
 import org.apache.flink.table.runtime.operators.join.FlinkJoinType;
@@ -79,6 +80,7 @@ public class StreamExecLookupJoin extends CommonExecLookupJoin implements Stream
             RowType outputType,
             boolean lookupKeyContainsPrimaryKey,
             boolean upsertMaterialize,
+            @Nullable LookupJoinHintSpec lookupJoinHintSpec,
             String description) {
         this(
                 ExecNodeContext.newNodeId(),
@@ -95,6 +97,7 @@ public class StreamExecLookupJoin extends CommonExecLookupJoin implements Stream
                 outputType,
                 lookupKeyContainsPrimaryKey,
                 upsertMaterialize,
+                lookupJoinHintSpec,
                 description);
     }
 
@@ -119,6 +122,7 @@ public class StreamExecLookupJoin extends CommonExecLookupJoin implements Stream
             @JsonProperty(FIELD_NAME_LOOKUP_KEY_CONTAINS_PRIMARY_KEY)
                     boolean lookupKeyContainsPrimaryKey,
             @JsonProperty(FIELD_NAME_REQUIRE_UPSERT_MATERIALIZE) boolean upsertMaterialize,
+            @JsonProperty(FIELD_NAME_JOIN_HINT) @Nullable LookupJoinHintSpec lookupJoinHintSpec,
             @JsonProperty(FIELD_NAME_DESCRIPTION) String description) {
         super(
                 id,
@@ -133,6 +137,7 @@ public class StreamExecLookupJoin extends CommonExecLookupJoin implements Stream
                 inputChangelogMode,
                 inputProperties,
                 outputType,
+                lookupJoinHintSpec,
                 description);
         this.lookupKeyContainsPrimaryKey = lookupKeyContainsPrimaryKey;
         this.upsertMaterialize = upsertMaterialize;

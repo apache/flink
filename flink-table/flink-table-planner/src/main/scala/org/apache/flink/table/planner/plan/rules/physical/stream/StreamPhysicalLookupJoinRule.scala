@@ -17,7 +17,9 @@
  */
 package org.apache.flink.table.planner.plan.rules.physical.stream
 
+import org.apache.flink.table.planner.hint.JoinStrategy
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions
+import org.apache.flink.table.planner.plan.nodes.exec.spec.LookupJoinHintSpec
 import org.apache.flink.table.planner.plan.nodes.logical._
 import org.apache.flink.table.planner.plan.nodes.physical.common.CommonPhysicalLookupJoin
 import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalLookupJoin
@@ -77,6 +79,17 @@ object StreamPhysicalLookupJoinRule {
     val requiredTrait = input.getTraitSet.replace(FlinkConventions.STREAM_PHYSICAL)
 
     val convInput = RelOptRule.convert(input, requiredTrait)
+
+    val lookupJoinHint = join.getHints
+      .stream()
+      .filter(hint => JoinStrategy.isLookupHint(hint.hintName))
+      .findFirst()
+    val lookupJoinHintSpec = if (lookupJoinHint.isPresent) {
+      Option.apply(LookupJoinHintSpec.fromJoinHint(lookupJoinHint.get()))
+    } else {
+      Option.empty[LookupJoinHintSpec]
+    }
+
     new StreamPhysicalLookupJoin(
       cluster,
       providedTrait,
@@ -84,6 +97,7 @@ object StreamPhysicalLookupJoinRule {
       temporalTable,
       calcProgram,
       joinInfo,
-      join.getJoinType)
+      join.getJoinType,
+      lookupJoinHintSpec)
   }
 }

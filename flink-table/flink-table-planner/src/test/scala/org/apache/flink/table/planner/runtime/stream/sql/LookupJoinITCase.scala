@@ -708,6 +708,8 @@ class LookupJoinITCase(legacyTableSource: Boolean, cacheType: LookupCacheType)
     val expected = Seq("3", "8", "9")
     assertEquals(expected.sorted, sink.getRetractResults.sorted)
   }
+  // TODO add case with retry hint in FLINK-28849
+
 }
 
 object LookupJoinITCase {

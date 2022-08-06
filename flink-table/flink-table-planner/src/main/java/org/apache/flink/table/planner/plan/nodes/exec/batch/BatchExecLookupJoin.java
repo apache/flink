@@ -66,6 +66,8 @@ public class BatchExecLookupJoin extends CommonExecLookupJoin implements BatchEx
                 ChangelogMode.insertOnly(),
                 Collections.singletonList(inputProperty),
                 outputType,
+                // batch lookup join does not support hint currently
+                null,
                 description);
     }
 
