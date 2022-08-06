@@ -27,6 +27,7 @@ import org.apache.flink.connector.file.table.FileSystemConnectorOptions;
 import org.apache.flink.connector.file.table.FileSystemOutputFormat;
 import org.apache.flink.connector.file.table.FileSystemTableSink;
 import org.apache.flink.connector.file.table.FileSystemTableSink.TableBucketAssigner;
+import org.apache.flink.connector.file.table.PartitionCommitPolicyFactory;
 import org.apache.flink.connector.file.table.TableMetaStoreFactory;
 import org.apache.flink.connector.file.table.stream.PartitionCommitInfo;
 import org.apache.flink.connector.file.table.stream.StreamingSink;
@@ -322,6 +323,9 @@ public class HiveTableSink implements DynamicTableSink, SupportsPartitioning, Su
             boolean isToLocal,
             final int parallelism)
             throws IOException {
+        org.apache.flink.configuration.Configuration conf =
+                new org.apache.flink.configuration.Configuration();
+        catalogTable.getOptions().forEach(conf::setString);
         FileSystemOutputFormat.Builder<Row> builder = new FileSystemOutputFormat.Builder<>();
         builder.setPartitionComputer(
                 new HiveRowPartitionComputer(
@@ -341,6 +345,12 @@ public class HiveTableSink implements DynamicTableSink, SupportsPartitioning, Su
         builder.setTempPath(
                 new org.apache.flink.core.fs.Path(toStagingDir(stagingParentDir, jobConf)));
         builder.setOutputFileConfig(fileNaming);
+        builder.setIdentifier(identifier);
+        builder.setPartitionCommitPolicyFactory(
+                new PartitionCommitPolicyFactory(
+                        conf.get(HiveOptions.SINK_PARTITION_COMMIT_POLICY_KIND),
+                        conf.get(HiveOptions.SINK_PARTITION_COMMIT_POLICY_CLASS),
+                        conf.get(HiveOptions.SINK_PARTITION_COMMIT_SUCCESS_FILE_NAME)));
         return dataStream
                 .map((MapFunction<RowData, Row>) value -> (Row) converter.toExternal(value))
                 .setParallelism(parallelism)

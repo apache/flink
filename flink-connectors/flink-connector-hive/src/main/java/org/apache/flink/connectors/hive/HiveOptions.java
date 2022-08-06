@@ -23,6 +23,7 @@ import org.apache.flink.configuration.DescribedEnum;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.description.Description;
 import org.apache.flink.configuration.description.InlineElement;
+import org.apache.flink.connector.file.table.FileSystemConnectorOptions;
 
 import java.time.Duration;
 
@@ -107,6 +108,31 @@ public class HiveOptions {
                                     + " If it's disabled, there won't be extra sorting,"
                                     + " but it may throw OutOfMemory exception if there are too many dynamic partitions fall into same sink node."
                                     + " Note: it only works in batch mode.");
+
+    /**
+     * Hive users usually commit partition for metastore and a _SUCCESS file. That's why we create a
+     * same option with {@link FileSystemConnectorOptions#SINK_PARTITION_COMMIT_POLICY_KIND} with
+     * different default value.
+     */
+    public static final ConfigOption<String> SINK_PARTITION_COMMIT_POLICY_KIND =
+            key("sink.partition-commit.policy.kind")
+                    .stringType()
+                    .defaultValue("metastore,success-file")
+                    .withDescription(
+                            "Policy to commit a partition is to notify the downstream"
+                                    + " application that the partition has finished writing, the partition"
+                                    + " is ready to be read."
+                                    + " metastore: add partition to metastore. "
+                                    + " success-file: add a success file to the partition directory. The success file name can be configured by the 'sink.partition-commit.success-file.name' option."
+                                    + " Both can be configured at the same time: 'metastore,success-file'."
+                                    + " custom: use policy class to create a commit policy."
+                                    + " Support to configure multiple policies: 'metastore,success-file'.");
+
+    public static final ConfigOption<String> SINK_PARTITION_COMMIT_POLICY_CLASS =
+            FileSystemConnectorOptions.SINK_PARTITION_COMMIT_POLICY_CLASS;
+
+    public static final ConfigOption<String> SINK_PARTITION_COMMIT_SUCCESS_FILE_NAME =
+            FileSystemConnectorOptions.SINK_PARTITION_COMMIT_SUCCESS_FILE_NAME;
 
     public static final ConfigOption<Boolean> STREAMING_SOURCE_ENABLE =
             key("streaming-source.enable")
