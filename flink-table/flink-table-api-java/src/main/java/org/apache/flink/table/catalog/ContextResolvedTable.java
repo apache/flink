@@ -108,9 +108,7 @@ public final class ContextResolvedTable {
         return this.anonymous;
     }
 
-    /**
-     * @return true if the table is temporary. An anonymous table is always temporary.
-     */
+    /** @return true if the table is temporary. An anonymous table is always temporary. */
     public boolean isTemporary() {
         return catalog == null;
     }
