@@ -27,7 +27,7 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonPro
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public class OpenSessionResponseBody implements ResponseBody {
 
-    private static final String FIELD_SESSION_HANDLE = "session_handle";
+    private static final String FIELD_SESSION_HANDLE = "sessionHandle";
 
     @JsonProperty(FIELD_SESSION_HANDLE)
     private final String sessionHandle;
