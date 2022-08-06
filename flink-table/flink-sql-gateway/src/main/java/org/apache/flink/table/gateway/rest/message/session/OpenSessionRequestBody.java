@@ -32,7 +32,7 @@ import java.util.Map;
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public class OpenSessionRequestBody implements RequestBody {
 
-    private static final String FIELD_NAME_SESSION_NAME = "session_name";
+    private static final String FIELD_NAME_SESSION_NAME = "sessionName";
     private static final String FIELD_NAME_PROPERTIES = "properties";
 
     @JsonProperty(FIELD_NAME_SESSION_NAME)
