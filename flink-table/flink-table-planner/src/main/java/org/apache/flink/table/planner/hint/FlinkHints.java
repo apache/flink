@@ -20,6 +20,7 @@ package org.apache.flink.table.planner.hint;
 
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.planner.plan.rules.logical.WrapJsonAggFunctionArgumentsRule;
+import org.apache.flink.table.planner.plan.schema.DataStreamTable;
 import org.apache.flink.table.planner.plan.schema.LegacyTableSourceTable;
 import org.apache.flink.table.planner.plan.schema.TableSourceTable;
 
@@ -29,6 +30,7 @@ import org.apache.calcite.rel.hint.Hintable;
 import org.apache.calcite.rel.hint.RelHint;
 import org.apache.calcite.rel.logical.LogicalFilter;
 import org.apache.calcite.rel.logical.LogicalProject;
+import org.apache.commons.lang3.StringUtils;
 
 import java.util.Collections;
 import java.util.HashMap;
@@ -129,6 +131,8 @@ public abstract class FlinkHints {
                             .asSummaryString();
         } else if (table instanceof LegacyTableSourceTable) {
             tableName = ((LegacyTableSourceTable<?>) table).tableIdentifier().asSummaryString();
+        } else if (table instanceof DataStreamTable) {
+            tableName = StringUtils.join(((DataStreamTable<?>) table).getNames(), '.');
         } else {
             throw new TableException(
                     String.format(
