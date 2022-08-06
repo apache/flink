@@ -47,7 +47,7 @@ public abstract class AsyncLookupFunction extends AsyncTableFunction<RowData> {
     public final void eval(CompletableFuture<Collection<RowData>> future, Object... keys) {
         GenericRowData keyRow = GenericRowData.of(keys);
         asyncLookup(keyRow)
-                .whenCompleteAsync(
+                .whenComplete(
                         (result, exception) -> {
                             if (exception != null) {
                                 future.completeExceptionally(

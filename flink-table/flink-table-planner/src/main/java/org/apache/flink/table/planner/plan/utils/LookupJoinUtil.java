@@ -23,10 +23,16 @@ import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.connector.source.AsyncTableFunctionProvider;
 import org.apache.flink.table.connector.source.LookupTableSource;
 import org.apache.flink.table.connector.source.TableFunctionProvider;
+import org.apache.flink.table.connector.source.lookup.AsyncLookupFunctionProvider;
+import org.apache.flink.table.connector.source.lookup.LookupFunctionProvider;
+import org.apache.flink.table.connector.source.lookup.PartialCachingAsyncLookupProvider;
+import org.apache.flink.table.connector.source.lookup.PartialCachingLookupProvider;
 import org.apache.flink.table.functions.UserDefinedFunction;
 import org.apache.flink.table.planner.plan.schema.LegacyTableSourceTable;
 import org.apache.flink.table.planner.plan.schema.TableSourceTable;
 import org.apache.flink.table.runtime.connector.source.LookupRuntimeProviderContext;
+import org.apache.flink.table.runtime.functions.table.lookup.CachingAsyncLookupFunction;
+import org.apache.flink.table.runtime.functions.table.lookup.CachingLookupFunction;
 import org.apache.flink.table.sources.LookupableTableSource;
 import org.apache.flink.table.types.logical.LogicalType;
 
@@ -182,7 +188,25 @@ public final class LookupJoinUtil {
                                         + "found in TableSourceTable: %s, please check the code to ensure a proper TableFunctionProvider is specified.",
                                 temporalTable.getQualifiedName()));
             }
-            if (provider instanceof TableFunctionProvider) {
+            if (provider instanceof LookupFunctionProvider) {
+                if (provider instanceof PartialCachingLookupProvider) {
+                    PartialCachingLookupProvider partialCachingLookupProvider =
+                            (PartialCachingLookupProvider) provider;
+                    return new CachingLookupFunction(
+                            partialCachingLookupProvider.getCache(),
+                            partialCachingLookupProvider.createLookupFunction());
+                }
+                return ((LookupFunctionProvider) provider).createLookupFunction();
+            } else if (provider instanceof AsyncLookupFunctionProvider) {
+                if (provider instanceof PartialCachingAsyncLookupProvider) {
+                    PartialCachingAsyncLookupProvider partialCachingLookupProvider =
+                            (PartialCachingAsyncLookupProvider) provider;
+                    return new CachingAsyncLookupFunction(
+                            partialCachingLookupProvider.getCache(),
+                            partialCachingLookupProvider.createAsyncLookupFunction());
+                }
+                return ((AsyncLookupFunctionProvider) provider).createAsyncLookupFunction();
+            } else if (provider instanceof TableFunctionProvider) {
                 return ((TableFunctionProvider<?>) provider).createTableFunction();
             } else if (provider instanceof AsyncTableFunctionProvider) {
                 return ((AsyncTableFunctionProvider<?>) provider).createAsyncTableFunction();
