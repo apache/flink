@@ -1155,21 +1155,21 @@ public class HiveDialectITCase {
         assertThat(operation).isInstanceOf(AddJarOperation.class);
         assertThat(((AddJarOperation) operation).getPath()).isEqualTo("test.jar");
         // test add jar with variable substitute
-        operation = parser.parse("add jar \"${hiveconf:common-key}.jar\"").get(0);
+        operation = parser.parse("add jar ${hiveconf:common-key}.jar").get(0);
         assertThat(operation).isInstanceOf(AddJarOperation.class);
-        assertThat(((AddJarOperation) operation).getPath()).isEqualTo("\"common-val.jar\"");
+        assertThat(((AddJarOperation) operation).getPath()).isEqualTo("common-val.jar");
 
         // test unsupported add command
         assertThatThrownBy(() -> tableEnv.executeSql("add jar t1.jar t2.jar"))
                 .isInstanceOf(UnsupportedOperationException.class)
                 .hasMessage(
-                        "Add multiple jar in one single statement is not supported yet. Usage: add JAR <value>");
-        assertThatThrownBy(() -> tableEnv.executeSql("add File t1.txt"))
+                        "Add multiple jar in one single statement is not supported yet. Usage: ADD JAR <file_path>");
+        assertThatThrownBy(() -> tableEnv.executeSql("add file t1.txt"))
                 .isInstanceOf(UnsupportedOperationException.class)
-                .hasMessage("ADD FILE is not supported yet. Usage: add JAR <value>");
-        assertThatThrownBy(() -> tableEnv.executeSql("add Archive t1.tgz"))
+                .hasMessage("ADD FILE is not supported yet. Usage: ADD JAR <file_path>");
+        assertThatThrownBy(() -> tableEnv.executeSql("add archive t1.tgz"))
                 .isInstanceOf(UnsupportedOperationException.class)
-                .hasMessage("Add ARCHIVE is not supported yet. Usage: add JAR <value>");
+                .hasMessage("ADD ARCHIVE is not supported yet. Usage: ADD JAR <file_path>");
     }
 
     @Test

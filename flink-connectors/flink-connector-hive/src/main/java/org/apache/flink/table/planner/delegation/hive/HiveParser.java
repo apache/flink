@@ -313,14 +313,14 @@ public class HiveParser extends ParserImpl {
         SessionState.ResourceType resourceType = SessionState.find_resource_type(tokens[0]);
         if (resourceType == SessionState.ResourceType.FILE) {
             throw new UnsupportedOperationException(
-                    "ADD FILE is not supported yet. Usage: add JAR <value>");
+                    "ADD FILE is not supported yet. Usage: ADD JAR <file_path>");
         } else if (resourceType == SessionState.ResourceType.ARCHIVE) {
             throw new UnsupportedOperationException(
-                    "Add ARCHIVE is not supported yet. Usage: add JAR <value>");
+                    "ADD ARCHIVE is not supported yet. Usage: ADD JAR <file_path>");
         } else if (resourceType == SessionState.ResourceType.JAR) {
             if (tokens.length != 2) {
                 throw new UnsupportedOperationException(
-                        "Add multiple jar in one single statement is not supported yet. Usage: add JAR <value>");
+                        "Add multiple jar in one single statement is not supported yet. Usage: ADD JAR <file_path>");
             }
             return new AddJarOperation(tokens[1]);
         } else {
