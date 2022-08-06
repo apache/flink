@@ -624,7 +624,7 @@ public class ThriftObjectConversions {
         return details;
     }
 
-    public static Set<TableKind> mapToFlinkTableType(List<String> tableTypes)
+    public static Set<TableKind> mapToFlinkTableKinds(List<String> tableTypes)
             throws UnsupportedOperationException {
         Set<TableKind> tableKinds = new HashSet<>();
 

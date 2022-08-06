@@ -18,7 +18,6 @@
 
 package org.apache.flink.table.catalog;
 
-import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.table.api.TableSchema;
 
 /**
@@ -26,7 +25,6 @@ import org.apache.flink.table.api.TableSchema;
  *
  * @param <T> {@link CatalogTable} or {@link CatalogView}
  */
-@PublicEvolving
 public interface ResolvedCatalogBaseTable<T extends CatalogBaseTable> extends CatalogBaseTable {
 
     /**
