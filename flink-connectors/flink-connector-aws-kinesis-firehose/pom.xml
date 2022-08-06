@@ -33,10 +33,22 @@ under the License.
 	<artifactId>flink-connector-aws-kinesis-firehose</artifactId>
 	<name>Flink : Connectors : Amazon Kinesis Data Firehose</name>
 	<properties>
-		<aws.sdk.version>2.17.52</aws.sdk.version>
+		<aws.sdk.version>2.17.247</aws.sdk.version>
 	</properties>
 
 	<packaging>jar</packaging>
+
+	<dependencyManagement>
+		<dependencies>
+			<dependency>
+				<groupId>software.amazon.awssdk</groupId>
+				<artifactId>bom</artifactId>
+				<version>${aws.sdk.version}</version>
+				<type>pom</type>
+				<scope>import</scope>
+			</dependency>
+		</dependencies>
+	</dependencyManagement>
 
 	<dependencies>
 		<dependency>
@@ -60,20 +72,12 @@ under the License.
 
 		<dependency>
 			<groupId>software.amazon.awssdk</groupId>
-			<artifactId>sdk-core</artifactId>
-			<version>${aws.sdk.version}</version>
-		</dependency>
-
-		<dependency>
-			<groupId>software.amazon.awssdk</groupId>
 			<artifactId>firehose</artifactId>
-			<version>${aws.sdk.version}</version>
 		</dependency>
 
 		<dependency>
 			<groupId>software.amazon.awssdk</groupId>
 			<artifactId>netty-nio-client</artifactId>
-			<version>${aws.sdk.version}</version>
 		</dependency>
 
         <!--Table Api Dependencies-->

@@ -220,8 +220,23 @@ public class AWSAsyncSinkUtilTest {
         }
 
         @Override
+        public MockAsyncClientBuilder dualstackEnabled(Boolean aBoolean) {
+            return null;
+        }
+
+        @Override
+        public MockAsyncClientBuilder fipsEnabled(Boolean aBoolean) {
+            return null;
+        }
+
+        @Override
         public MockAsyncClientBuilder overrideConfiguration(
                 ClientOverrideConfiguration clientOverrideConfiguration) {
+            return null;
+        }
+
+        @Override
+        public ClientOverrideConfiguration overrideConfiguration() {
             return null;
         }
 
