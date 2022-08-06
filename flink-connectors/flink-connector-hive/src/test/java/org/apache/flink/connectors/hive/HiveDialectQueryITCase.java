@@ -469,7 +469,14 @@ public class HiveDialectQueryITCase {
                 .await();
         java.nio.file.Path[] files =
                 FileUtils.listFilesInDirectory(
-                                Paths.get(dataDir), (path) -> !path.toFile().isHidden())
+                                Paths.get(dataDir),
+                                (path) ->
+                                        !path.toFile().isHidden()
+                                                && !path.toFile()
+                                                        .getName()
+                                                        .equals(
+                                                                HiveOptions
+                                                                        .SINK_PARTITION_COMMIT_SUCCESS_FILE_NAME))
                         .toArray(new Path[0]);
         assertThat(files.length).isEqualTo(1);
         String actualString = FileUtils.readFileUtf8(files[0].toFile());

@@ -20,6 +20,8 @@ package org.apache.flink.connector.file.table;
 
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
+import org.apache.flink.core.fs.local.LocalFileSystem;
+import org.apache.flink.table.catalog.ObjectIdentifier;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -30,6 +32,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -37,15 +40,27 @@ import static org.assertj.core.api.Assertions.assertThat;
 /** Test for {@link FileSystemCommitter}. */
 class FileSystemCommitterTest {
 
+    private static final String SUCCESS_FILE_NAME = "_SUCCESS";
+
     private FileSystemFactory fileSystemFactory = FileSystem::get;
 
     private TableMetaStoreFactory metaStoreFactory;
+    private List<PartitionCommitPolicy> policies;
+    private ObjectIdentifier identifier;
     @TempDir private java.nio.file.Path outputPath;
     @TempDir private java.nio.file.Path path;
 
     @BeforeEach
     public void before() throws IOException {
         metaStoreFactory = new TestMetaStoreFactory(new Path(outputPath.toString()));
+        policies =
+                new PartitionCommitPolicyFactory("metastore,success-file", null, SUCCESS_FILE_NAME)
+                        .createPolicyChain(
+                                Thread.currentThread().getContextClassLoader(),
+                                () -> {
+                                    return LocalFileSystem.getSharedInstance();
+                                });
+        identifier = ObjectIdentifier.of("hiveCatalog", "default", "test");
     }
 
     @SuppressWarnings("ResultOfMethodCallIgnored")
@@ -67,7 +82,9 @@ class FileSystemCommitterTest {
                         new Path(path.toString()),
                         2,
                         false,
-                        new LinkedHashMap<String, String>());
+                        identifier,
+                        new LinkedHashMap<String, String>(),
+                        policies);
 
         createFile(path, "task-1/p1=0/p2=0/", "f1", "f2");
         createFile(path, "task-2/p1=0/p2=0/", "f3");
@@ -76,14 +93,18 @@ class FileSystemCommitterTest {
         assertThat(new File(outputPath.toFile(), "p1=0/p2=0/f1")).exists();
         assertThat(new File(outputPath.toFile(), "p1=0/p2=0/f2")).exists();
         assertThat(new File(outputPath.toFile(), "p1=0/p2=0/f3")).exists();
+        assertThat(new File(outputPath.toFile(), "p1=0/p2=0/" + SUCCESS_FILE_NAME)).exists();
         assertThat(new File(outputPath.toFile(), "p1=0/p2=1/f4")).exists();
+        assertThat(new File(outputPath.toFile(), "p1=0/p2=1/" + SUCCESS_FILE_NAME)).exists();
 
         createFile(path, "task-2/p1=0/p2=1/", "f5");
         committer.commitPartitions();
         assertThat(new File(outputPath.toFile(), "p1=0/p2=0/f1")).exists();
         assertThat(new File(outputPath.toFile(), "p1=0/p2=0/f2")).exists();
         assertThat(new File(outputPath.toFile(), "p1=0/p2=0/f3")).exists();
+        assertThat(new File(outputPath.toFile(), "p1=0/p2=0/" + SUCCESS_FILE_NAME)).exists();
         assertThat(new File(outputPath.toFile(), "p1=0/p2=1/f5")).exists();
+        assertThat(new File(outputPath.toFile(), "p1=0/p2=1/" + SUCCESS_FILE_NAME)).exists();
 
         committer =
                 new FileSystemCommitter(
@@ -93,11 +114,14 @@ class FileSystemCommitterTest {
                         new Path(path.toString()),
                         2,
                         false,
-                        new LinkedHashMap<String, String>());
+                        identifier,
+                        new LinkedHashMap<String, String>(),
+                        policies);
         createFile(path, "task-2/p1=0/p2=1/", "f6");
         committer.commitPartitions();
         assertThat(new File(outputPath.toFile(), "p1=0/p2=1/f5")).exists();
         assertThat(new File(outputPath.toFile(), "p1=0/p2=1/f6")).exists();
+        assertThat(new File(outputPath.toFile(), "p1=0/p2=1/" + SUCCESS_FILE_NAME)).exists();
     }
 
     @Test
@@ -110,7 +134,9 @@ class FileSystemCommitterTest {
                         new Path(path.toString()),
                         0,
                         false,
-                        new LinkedHashMap<String, String>());
+                        identifier,
+                        new LinkedHashMap<String, String>(),
+                        policies);
 
         createFile(path, "task-1/", "f1", "f2");
         createFile(path, "task-2/", "f3");
@@ -118,10 +144,12 @@ class FileSystemCommitterTest {
         assertThat(new File(outputPath.toFile(), "f1")).exists();
         assertThat(new File(outputPath.toFile(), "f2")).exists();
         assertThat(new File(outputPath.toFile(), "f3")).exists();
+        assertThat(new File(outputPath.toFile(), SUCCESS_FILE_NAME)).exists();
 
         createFile(path, "task-2/", "f4");
         committer.commitPartitions();
         assertThat(new File(outputPath.toFile(), "f4")).exists();
+        assertThat(new File(outputPath.toFile(), SUCCESS_FILE_NAME)).exists();
 
         committer =
                 new FileSystemCommitter(
@@ -131,11 +159,14 @@ class FileSystemCommitterTest {
                         new Path(path.toString()),
                         0,
                         false,
-                        new LinkedHashMap<String, String>());
+                        identifier,
+                        new LinkedHashMap<String, String>(),
+                        policies);
         createFile(path, "task-2/", "f5");
         committer.commitPartitions();
         assertThat(new File(outputPath.toFile(), "f4")).exists();
         assertThat(new File(outputPath.toFile(), "f5")).exists();
+        assertThat(new File(outputPath.toFile(), SUCCESS_FILE_NAME)).exists();
     }
 
     @Test
@@ -151,7 +182,9 @@ class FileSystemCommitterTest {
                         new Path(path.toString()),
                         1,
                         false,
-                        staticPartitions);
+                        identifier,
+                        staticPartitions,
+                        policies);
 
         createFile(path, "task-1/dt=2022-08-02/");
         createFile(path, "task-2/dt=2022-08-02/");
@@ -161,7 +194,8 @@ class FileSystemCommitterTest {
         File emptyPartitionFile = new File(outputPath.toFile(), "dt=2022-08-02");
         assertThat(emptyPartitionFile).exists();
         assertThat(emptyPartitionFile).isDirectory();
-        assertThat(emptyPartitionFile).isEmptyDirectory();
+        assertThat(emptyPartitionFile)
+                .isDirectoryNotContaining(file -> !file.getName().equals(SUCCESS_FILE_NAME));
 
         // Add new empty partition to overwrite the old one with data
         createFile(outputPath, "dt=2022-08-02/f1");
@@ -173,7 +207,8 @@ class FileSystemCommitterTest {
 
         assertThat(emptyPartitionFile).exists();
         assertThat(emptyPartitionFile).isDirectory();
-        assertThat(emptyPartitionFile).isEmptyDirectory();
+        assertThat(emptyPartitionFile)
+                .isDirectoryNotContaining(file -> !file.getName().equals(SUCCESS_FILE_NAME));
 
         // Add empty partition to the old one with data
         createFile(outputPath, "dt=2022-08-02/f1");
@@ -189,13 +224,16 @@ class FileSystemCommitterTest {
                         new Path(path.toString()),
                         1,
                         false,
-                        staticPartitions);
+                        identifier,
+                        staticPartitions,
+                        policies);
         committer.commitPartitions();
 
         assertThat(emptyPartitionFile).exists();
         assertThat(emptyPartitionFile).isDirectory();
         assertThat(emptyPartitionFile).isNotEmptyDirectory();
         assertThat(new File(emptyPartitionFile, "f1")).exists();
+        assertThat(new File(emptyPartitionFile, SUCCESS_FILE_NAME)).exists();
     }
 
     static class TestMetaStoreFactory implements TableMetaStoreFactory {

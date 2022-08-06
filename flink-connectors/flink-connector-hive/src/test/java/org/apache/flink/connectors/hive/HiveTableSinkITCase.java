@@ -42,6 +42,7 @@ import org.apache.flink.util.CollectionUtil;
 
 import org.apache.flink.shaded.guava30.com.google.common.collect.Lists;
 
+import org.apache.hadoop.hive.conf.HiveConf;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -520,6 +521,59 @@ public class HiveTableSinkITCase {
         } finally {
             tEnv.executeSql("drop table dynamic_partition_t");
         }
+    }
+
+    @Test
+    public void testWriteSuccessFile() throws Exception {
+        TableEnvironment tEnv = HiveTestUtils.createTableEnvInBatchMode(SqlDialect.HIVE);
+        tEnv.registerCatalog(hiveCatalog.getName(), hiveCatalog);
+        tEnv.useCatalog(hiveCatalog.getName());
+
+        String successFileName = tEnv.getConfig().get(SINK_PARTITION_COMMIT_SUCCESS_FILE_NAME);
+        String warehouse =
+                hiveCatalog.getHiveConf().get(HiveConf.ConfVars.METASTOREWAREHOUSE.varname);
+
+        tEnv.executeSql("CREATE TABLE zm_test_non_partition_table (name string)");
+        tEnv.executeSql(
+                "CREATE TABLE zm_test_partition_table (name string) PARTITIONED BY (`dt` string)");
+
+        // test partition table
+        String partitionTablePath = warehouse + "/zm_test_partition_table";
+
+        tEnv.executeSql(
+                        "INSERT INTO zm_test_partition_table partition (dt='2022-07-27') values ('zm')")
+                .await();
+        assertThat(new File(partitionTablePath, "dt=2022-07-27/" + successFileName)).exists();
+
+        // test non-partition table
+        String nonPartitionTablePath = warehouse + "/zm_test_non_partition_table";
+        tEnv.executeSql("INSERT INTO zm_test_non_partition_table values ('zm')").await();
+        assertThat(new File(nonPartitionTablePath, successFileName)).exists();
+
+        // test only metastore policy
+        tEnv.executeSql(
+                "CREATE TABLE zm_test_partition_table_only_meta (name string) "
+                        + "PARTITIONED BY (`dt` string) "
+                        + "TBLPROPERTIES ('sink.partition-commit.policy.kind' = 'metastore')");
+        String onlyMetaTablePath = warehouse + "/zm_test_partition_table_only_meta";
+        ;
+        tEnv.executeSql(
+                        "INSERT INTO zm_test_partition_table_only_meta partition (dt='2022-08-15') values ('zm')")
+                .await();
+        assertThat(new File(onlyMetaTablePath, "dt=2022-08-15/" + successFileName)).doesNotExist();
+
+        // test change success file name
+        tEnv.executeSql(
+                "CREATE TABLE zm_test_partition_table_success_file (name string) "
+                        + "PARTITIONED BY (`dt` string) "
+                        + "TBLPROPERTIES ('sink.partition-commit.success-file.name' = '_ZM')");
+        String changeFileNameTablePath = warehouse + "/zm_test_partition_table_success_file";
+        tEnv.executeSql(
+                        "INSERT INTO zm_test_partition_table_success_file partition (dt='2022-08-15') values ('zm')")
+                .await();
+        assertThat(new File(changeFileNameTablePath, "dt=2022-08-15/" + successFileName))
+                .doesNotExist();
+        assertThat(new File(changeFileNameTablePath, "dt=2022-08-15/_ZM")).exists();
     }
 
     private static List<String> fetchRows(Iterator<Row> iter, int size) {
