@@ -27,8 +27,6 @@ import org.apache.flink.table.catalog.CatalogDatabaseImpl;
 import org.apache.flink.table.catalog.Column;
 import org.apache.flink.table.catalog.GenericInMemoryCatalog;
 import org.apache.flink.table.catalog.ObjectIdentifier;
-import org.apache.flink.table.catalog.ResolvedCatalogTable;
-import org.apache.flink.table.catalog.ResolvedCatalogView;
 import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
@@ -310,6 +308,61 @@ public class SqlGatewayServiceITCase extends AbstractTestBase {
                 task -> assertThat(task.get()).isEqualTo(getDefaultResultSet().getResultSchema()));
     }
 
+    // --------------------------------------------------------------------------------------------
+    // Catalog API tests
+    // --------------------------------------------------------------------------------------------
+
+    @Test
+    public void testGetCurrentCatalog() {
+        SessionEnvironment environment =
+                SessionEnvironment.newBuilder()
+                        .setSessionEndpointVersion(MockedEndpointVersion.V1)
+                        .registerCatalog("cat1", new GenericInMemoryCatalog("cat1"))
+                        .registerCatalog("cat2", new GenericInMemoryCatalog("cat2"))
+                        .setDefaultCatalog("cat2")
+                        .build();
+        SessionHandle sessionHandle = service.openSession(environment);
+        assertThat(service.getCurrentCatalog(sessionHandle)).isEqualTo("cat2");
+    }
+
+    @Test
+    public void testListCatalogs() {
+        SessionEnvironment environment =
+                SessionEnvironment.newBuilder()
+                        .setSessionEndpointVersion(MockedEndpointVersion.V1)
+                        .registerCatalog("cat1", new GenericInMemoryCatalog("cat1"))
+                        .registerCatalog("cat2", new GenericInMemoryCatalog("cat2"))
+                        .build();
+        SessionHandle sessionHandle = service.openSession(environment);
+        assertThat(service.listCatalogs(sessionHandle)).contains("cat1", "cat2");
+    }
+
+    @Test
+    public void testListDatabases() throws Exception {
+        SessionEnvironment environment =
+                SessionEnvironment.newBuilder()
+                        .setSessionEndpointVersion(MockedEndpointVersion.V1)
+                        .registerCatalog("cat", new GenericInMemoryCatalog("cat"))
+                        .setDefaultCatalog("cat")
+                        .build();
+        SessionHandle sessionHandle = service.openSession(environment);
+        Configuration configuration =
+                Configuration.fromMap(service.getSessionConfig(sessionHandle));
+
+        service.executeStatement(sessionHandle, "CREATE DATABASE db1", -1, configuration);
+        OperationHandle operationHandle =
+                service.executeStatement(sessionHandle, "CREATE DATABASE db2", -1, configuration);
+
+        CommonTestUtils.waitUtil(
+                () ->
+                        service.getOperationInfo(sessionHandle, operationHandle)
+                                .getStatus()
+                                .isTerminalStatus(),
+                Duration.ofSeconds(100),
+                "Failed to wait operation finish.");
+        assertThat(service.listDatabases(sessionHandle, "cat")).contains("db1", "db2");
+    }
+
     @Test
     public void testListTables() throws Exception {
         SessionEnvironment environment =
@@ -368,168 +421,6 @@ public class SqlGatewayServiceITCase extends AbstractTestBase {
                                 "cat1",
                                 "db1",
                                 new HashSet<>(Arrays.asList(TableKind.TABLE, TableKind.VIEW))))
-                .contains(
-                        new TableInfo(
-                                true, ObjectIdentifier.of("cat1", "db1", "tb1"), TableKind.TABLE),
-                        new TableInfo(
-                                false, ObjectIdentifier.of("cat1", "db1", "tb2"), TableKind.TABLE),
-                        new TableInfo(
-                                true, ObjectIdentifier.of("cat1", "db1", "tb3"), TableKind.VIEW),
-                        new TableInfo(
-                                false, ObjectIdentifier.of("cat1", "db1", "tb4"), TableKind.VIEW));
-    }
-
-    @Test
-    public void testGetTable() throws Exception {
-        SessionEnvironment environment =
-                SessionEnvironment.newBuilder()
-                        .setSessionEndpointVersion(MockedEndpointVersion.V1)
-                        .registerCatalog("cat", new GenericInMemoryCatalog("cat"))
-                        .build();
-        SessionHandle sessionHandle = service.openSession(environment);
-        Configuration configuration =
-                Configuration.fromMap(service.getSessionConfig(sessionHandle));
-
-        service.executeStatement(sessionHandle, "USE CATALOG cat", -1, configuration);
-        service.executeStatement(sessionHandle, "CREATE DATABASE db", -1, configuration);
-        service.executeStatement(sessionHandle, "USE db", -1, configuration);
-        service.executeStatement(
-                sessionHandle, "CREATE TABLE tb WITH('connector' = 'values')", -1, configuration);
-        OperationHandle operationHandle =
-                service.executeStatement(
-                        sessionHandle, "CREATE VIEW tmp AS SELECT 1", -1, configuration);
-
-        CommonTestUtils.waitUtil(
-                () ->
-                        service.getOperationInfo(sessionHandle, operationHandle)
-                                .getStatus()
-                                .isTerminalStatus(),
-                Duration.ofSeconds(100),
-                "Failed to wait operation finish.");
-        // test get literally table
-        assertThat(service.getTable(sessionHandle, ObjectIdentifier.of("cat", "db", "tb")))
-                .isNotNull()
-                .isInstanceOf(ResolvedCatalogTable.class);
-        // test get view
-        assertThat(service.getTable(sessionHandle, ObjectIdentifier.of("cat", "db", "tmp")))
-                .isNotNull()
-                .isInstanceOf(ResolvedCatalogView.class);
-    }
-
-    // --------------------------------------------------------------------------------------------
-    // Catalog API tests
-    // --------------------------------------------------------------------------------------------
-
-    @Test
-    public void testListCatalogs() {
-        SessionEnvironment environment =
-                SessionEnvironment.newBuilder()
-                        .setSessionEndpointVersion(MockedEndpointVersion.V1)
-                        .registerCatalog("cat1", new GenericInMemoryCatalog("cat1"))
-                        .registerCatalog("cat2", new GenericInMemoryCatalog("cat2"))
-                        .build();
-        SessionHandle sessionHandle = service.openSession(environment);
-        assertThat(service.listCatalogs(sessionHandle)).contains("cat1", "cat2");
-    }
-
-    @Test
-    public void testListDatabases() throws Exception {
-        SessionEnvironment environment =
-                SessionEnvironment.newBuilder()
-                        .setSessionEndpointVersion(MockedEndpointVersion.V1)
-                        .registerCatalog("cat", new GenericInMemoryCatalog("cat"))
-                        .setDefaultCatalog("cat")
-                        .build();
-        SessionHandle sessionHandle = service.openSession(environment);
-        Configuration configuration =
-                Configuration.fromMap(service.getSessionConfig(sessionHandle));
-
-        service.executeStatement(sessionHandle, "CREATE DATABASE db1", -1, configuration);
-        OperationHandle operationHandle =
-                service.executeStatement(sessionHandle, "CREATE DATABASE db2", -1, configuration);
-
-        CommonTestUtils.waitUtil(
-                () ->
-                        service.getOperationInfo(sessionHandle, operationHandle)
-                                .getStatus()
-                                .isTerminalStatus(),
-                Duration.ofSeconds(100),
-                "Failed to wait operation finish.");
-        assertThat(service.listDatabases(sessionHandle, "cat")).contains("db1", "db2");
-    }
-
-    @Test
-    public void testGetCurrentCatalog() {
-        SessionEnvironment environment =
-                SessionEnvironment.newBuilder()
-                        .setSessionEndpointVersion(MockedEndpointVersion.V1)
-                        .registerCatalog("cat1", new GenericInMemoryCatalog("cat1"))
-                        .registerCatalog("cat2", new GenericInMemoryCatalog("cat2"))
-                        .setDefaultCatalog("cat2")
-                        .build();
-        SessionHandle sessionHandle = service.openSession(environment);
-
-        assertThat(service.getCurrentCatalog(sessionHandle)).isEqualTo("cat2");
-    }
-
-    @Test
-    public void testListTables() throws Exception {
-        SessionEnvironment environment =
-                SessionEnvironment.newBuilder()
-                        .setSessionEndpointVersion(MockedEndpointVersion.V1)
-                        .registerCatalog("cat1", new GenericInMemoryCatalog("cat1"))
-                        .registerCatalog("cat2", new GenericInMemoryCatalog("cat2"))
-                        .build();
-        SessionHandle sessionHandle = service.openSession(environment);
-        Configuration configuration =
-                Configuration.fromMap(service.getSessionConfig(sessionHandle));
-
-        // catalogs: cat1 | cat2
-        //     cat1: db1 | db2
-        //         db1: temporary table tb1, table tb2, temporary view tb3, view tb4
-        //         db2: table tb1, view tb2
-        //     cat2 db0
-        //         db0: table tb0
-        service.executeStatement(sessionHandle, "CREATE DATABASE cat1.db1", -1, configuration);
-        service.executeStatement(
-                sessionHandle,
-                "CREATE TEMPORARY TABLE cat1.db1.tb1 WITH('connector' = 'values')",
-                -1,
-                configuration);
-        service.executeStatement(
-                sessionHandle,
-                "CREATE TABLE cat1.db1.tb2 WITH('connector' = 'values')",
-                -1,
-                configuration);
-        service.executeStatement(
-                sessionHandle, "CREATE TEMPORARY VIEW cat1.db1.tb3 AS SELECT 1", -1, configuration);
-        service.executeStatement(
-                sessionHandle, "CREATE VIEW cat1.db1.tb4 AS SELECT 1", -1, configuration);
-
-        service.executeStatement(sessionHandle, "CREATE DATABASE cat1.db2", -1, configuration);
-        service.executeStatement(sessionHandle, "CREATE TABLE cat1.db2.tb1", -1, configuration);
-        service.executeStatement(
-                sessionHandle, "CREATE VIEW cat1.db2.tb2 AS SELECT 1", -1, configuration);
-
-        service.executeStatement(sessionHandle, "CREATE DATABASE cat2.db0", -1, configuration);
-        OperationHandle operationHandle =
-                service.executeStatement(
-                        sessionHandle, "CREATE TABLE cat2.db0.tb0", -1, configuration);
-
-        CommonTestUtils.waitUtil(
-                () ->
-                        service.getOperationInfo(sessionHandle, operationHandle)
-                                .getStatus()
-                                .isTerminalStatus(),
-                Duration.ofSeconds(100),
-                "Failed to wait operation finish.");
-
-        assertThat(
-                service.listTables(
-                        sessionHandle,
-                        "cat1",
-                        "db1",
-                        new HashSet<>(Arrays.asList(TableKind.TABLE, TableKind.VIEW))))
                 .contains(
                         new TableInfo(
                                 true, ObjectIdentifier.of("cat1", "db1", "tb1"), TableKind.TABLE),

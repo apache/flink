@@ -21,8 +21,6 @@ package org.apache.flink.table.gateway.service;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.table.catalog.CatalogBaseTable.TableKind;
-import org.apache.flink.table.catalog.ObjectIdentifier;
-import org.apache.flink.table.catalog.ResolvedCatalogBaseTable;
 import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.gateway.api.SqlGatewayService;
 import org.apache.flink.table.gateway.api.endpoint.EndpointVersion;
@@ -216,6 +214,11 @@ public class SqlGatewayServiceImpl implements SqlGatewayService {
     }
 
     @Override
+    public String getCurrentCatalog(SessionHandle sessionHandle) {
+        return getSession(sessionHandle).createExecutor().getCurrentCatalog();
+    }
+
+    @Override
     public Set<String> listCatalogs(SessionHandle sessionHandle) throws SqlGatewayException {
         try {
             return getSession(sessionHandle).createExecutor().listCatalogs();
@@ -236,24 +239,6 @@ public class SqlGatewayServiceImpl implements SqlGatewayService {
     }
 
     @Override
-    public String getCurrentCatalog(SessionHandle sessionHandle) {
-        return getSession(sessionHandle).createExecutor().getCurrentCatalog();
-    }
-
-    @Override
-    public ResolvedCatalogBaseTable<?> getTable(
-            SessionHandle sessionHandle, ObjectIdentifier tableIdentifier)
-            throws SqlGatewayException {
-        try {
-            return getSession(sessionHandle).createExecutor().getTable(tableIdentifier);
-        } catch (Throwable t) {
-            LOG.error("Failed to getTable.", t);
-            throw new SqlGatewayException("Failed to getTable.", t);
-        }
-    }
-
-
-    @Override
     public Set<TableInfo> listTables(
             SessionHandle sessionHandle,
             String catalogName,
@@ -268,8 +253,6 @@ public class SqlGatewayServiceImpl implements SqlGatewayService {
             throw new SqlGatewayException("Failed to listTables.", t);
         }
     }
-
-
 
     @VisibleForTesting
     Session getSession(SessionHandle sessionHandle) {

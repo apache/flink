@@ -420,7 +420,6 @@ public class HiveServer2Endpoint implements TCLIService.Iface, SqlGatewayEndpoin
         TGetSchemasResp resp = new TGetSchemasResp();
         try {
             SessionHandle sessionHandle = toSessionHandle(tGetSchemasReq.getSessionHandle());
-            String catalogName = tGetSchemasReq.getCatalogName();
             OperationHandle operationHandle =
                     service.submitOperation(
                             sessionHandle,
@@ -428,7 +427,7 @@ public class HiveServer2Endpoint implements TCLIService.Iface, SqlGatewayEndpoin
                             createGetSchemasExecutor(
                                     service,
                                     sessionHandle,
-                                    catalogName,
+                                    tGetSchemasReq.getCatalogName(),
                                     tGetSchemasReq.getSchemaName()));
 
             resp.setStatus(OK_STATUS);

@@ -23,21 +23,16 @@ import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.StringData;
 import org.apache.flink.table.gateway.api.SqlGatewayService;
 import org.apache.flink.table.gateway.api.results.ResultSet;
+import org.apache.flink.table.gateway.api.results.TableInfo;
 import org.apache.flink.table.gateway.api.session.SessionHandle;
 
 import javax.annotation.Nullable;
 
-import java.util.Set;
-import java.util.concurrent.Callable;
-import java.util.regex.Pattern;
-import org.apache.flink.table.gateway.api.results.TableInfo;
-import org.apache.flink.table.gateway.api.session.SessionHandle;
-
-import java.util.Arrays;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Set;
 import java.util.concurrent.Callable;
+import java.util.function.Function;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.table.endpoint.hive.HiveServer2Schemas.GET_CATALOGS_SCHEMA;
@@ -64,9 +59,9 @@ public class OperationExecutorFactory {
     public static Callable<ResultSet> createGetTablesExecutor(
             SqlGatewayService service,
             SessionHandle sessionHandle,
-            String catalogName,
-            String schemaName,
-            String tableName,
+            @Nullable String catalogName,
+            @Nullable String schemaName,
+            @Nullable String tableName,
             Set<TableKind> tableKinds) {
         return () ->
                 executeGetTables(
@@ -99,7 +94,10 @@ public class OperationExecutorFactory {
                         ? service.getCurrentCatalog(sessionHandle)
                         : catalogName;
         Set<String> databaseNames =
-                filter(service.listDatabases(sessionHandle, specifiedCatalogName), schemaName);
+                filter(
+                        service.listDatabases(sessionHandle, specifiedCatalogName),
+                        Function.identity(),
+                        schemaName);
         return new ResultSet(
                 EOS,
                 null,
@@ -112,23 +110,28 @@ public class OperationExecutorFactory {
     private static ResultSet executeGetTables(
             SqlGatewayService service,
             SessionHandle sessionHandle,
-            String catalogName,
-            String schemaName,
-            String tableName,
+            @Nullable String catalogName,
+            @Nullable String schemaName,
+            @Nullable String tableName,
             Set<TableKind> tableKinds) {
         Set<TableInfo> tableInfos = new HashSet<>();
-        Set<String> catalogs = filterStringSetBy(service.listCatalogs(sessionHandle), catalogName);
-        for (String catalog : catalogs) {
-            Set<String> schemas =
-                    filterStringSetBy(service.listDatabases(sessionHandle, catalog), schemaName);
-            for (String schema : schemas) {
-                tableInfos.addAll(
-                        filterTableInfoBy(
-                                service.listTables(sessionHandle, catalog, schema, tableKinds),
-                                tableName));
-            }
+        String specifiedCatalogName =
+                catalogName == null || catalogName.equals("")
+                        ? service.getCurrentCatalog(sessionHandle)
+                        : catalogName;
+        Set<String> schemaNames =
+                filter(
+                        service.listDatabases(sessionHandle, specifiedCatalogName),
+                        Function.identity(),
+                        schemaName);
+        for (String schema : schemaNames) {
+            tableInfos.addAll(
+                    filter(
+                            service.listTables(
+                                    sessionHandle, specifiedCatalogName, schema, tableKinds),
+                            candidate -> candidate.getIdentifier().getObjectName(),
+                            tableName));
         }
-
         return new ResultSet(
                 EOS,
                 null,
@@ -136,7 +139,7 @@ public class OperationExecutorFactory {
                 tableInfos.stream()
                         .map(
                                 info ->
-                                        packData(
+                                        wrap(
                                                 info.getIdentifier().getCatalogName(),
                                                 info.getIdentifier().getDatabaseName(),
                                                 info.getIdentifier().getObjectName(),
@@ -151,10 +154,13 @@ public class OperationExecutorFactory {
     // Utilities
     // --------------------------------------------------------------------------------------------
 
-    private static Set<String> filter(Set<String> candidates, String pattern) {
+    private static <T> Set<T> filter(
+            Set<T> candidates, Function<T, String> featureGetter, String pattern) {
         Pattern compiledPattern = convertNamePattern(pattern);
         return candidates.stream()
-                .filter(name -> compiledPattern.matcher(name).matches())
+                .filter(
+                        candidate ->
+                                compiledPattern.matcher(featureGetter.apply(candidate)).matches())
                 .collect(Collectors.toSet());
     }
 

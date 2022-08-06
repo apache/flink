@@ -28,7 +28,6 @@ import org.apache.flink.table.catalog.CatalogBaseTable.TableKind;
 import org.apache.flink.table.catalog.CatalogManager;
 import org.apache.flink.table.catalog.Column;
 import org.apache.flink.table.catalog.ObjectIdentifier;
-import org.apache.flink.table.catalog.ResolvedCatalogBaseTable;
 import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
@@ -49,6 +48,7 @@ import org.apache.flink.table.operations.command.SetOperation;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -130,13 +130,6 @@ public class OperationExecutor {
                         .listDatabases());
     }
 
-    public ResolvedCatalogBaseTable<?> getTable(ObjectIdentifier tableIdentifier) {
-        return getTableEnvironment()
-                .getCatalogManager()
-                .getTableOrError(tableIdentifier)
-                .getResolvedTable();
-    }
-
     public Set<TableInfo> listTables(
             String catalogName, String databaseName, Set<TableKind> tableKinds) {
         if (tableKinds.contains(TableKind.TABLE) && tableKinds.contains(TableKind.VIEW)) {
@@ -150,23 +143,6 @@ public class OperationExecutor {
         } else {
             return listOnlyViews(catalogName, databaseName);
         }
-    }
-
-    private Set<TableInfo> listOnlyViews(String catalogName, String databaseName) {
-        CatalogManager catalogManager = getTableEnvironment().getCatalogManager();
-        catalogManager.setCurrentCatalog(catalogName);
-        catalogManager.setCurrentDatabase(databaseName);
-        Set<String> temporaryViews = catalogManager.listTemporaryViews();
-
-        return Collections.unmodifiableSet(
-                catalogManager.listViews(catalogName, databaseName).stream()
-                        .map(
-                                v ->
-                                        new TableInfo(
-                                                temporaryViews.contains(v),
-                                                ObjectIdentifier.of(catalogName, databaseName, v),
-                                                TableKind.VIEW))
-                        .collect(Collectors.toSet()));
     }
 
     private Set<TableInfo> listOnlyTables(String catalogName, String databaseName) {
@@ -185,6 +161,23 @@ public class OperationExecutor {
                                                 temporaryTables.contains(t),
                                                 ObjectIdentifier.of(catalogName, databaseName, t),
                                                 TableKind.TABLE))
+                        .collect(Collectors.toSet()));
+    }
+
+    private Set<TableInfo> listOnlyViews(String catalogName, String databaseName) {
+        CatalogManager catalogManager = getTableEnvironment().getCatalogManager();
+        catalogManager.setCurrentCatalog(catalogName);
+        catalogManager.setCurrentDatabase(databaseName);
+        Set<String> temporaryViews = catalogManager.listTemporaryViews();
+
+        return Collections.unmodifiableSet(
+                catalogManager.listViews(catalogName, databaseName).stream()
+                        .map(
+                                v ->
+                                        new TableInfo(
+                                                temporaryViews.contains(v),
+                                                ObjectIdentifier.of(catalogName, databaseName, v),
+                                                TableKind.VIEW))
                         .collect(Collectors.toSet()));
     }
 
