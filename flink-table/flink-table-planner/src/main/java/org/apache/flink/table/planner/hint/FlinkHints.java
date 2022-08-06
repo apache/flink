@@ -99,10 +99,8 @@ public abstract class FlinkHints {
                             .collect(Collectors.toList());
             if (aliasNames.size() > 0) {
                 return Optional.of(aliasNames.get(0));
-            } else {
-                if (canTransposeToTableScan(node)) {
-                    return getTableAlias(node.getInput(0));
-                }
+            } else if (canTransposeToTableScan(node)) {
+                return getTableAlias(node.getInput(0));
             }
         }
         return Optional.empty();
@@ -145,23 +143,37 @@ public abstract class FlinkHints {
             }
             sb.append(h.hintName);
             if (h.listOptions.size() > 0) {
-                sb.append("(").append(String.join(", ", h.listOptions)).append(")");
+                String listStr = h.listOptions.stream().collect(Collectors.joining(",", "(", ")"));
+                sb.append(listStr);
             } else if (h.kvOptions.size() > 0) {
                 String mapStr =
                         h.kvOptions.entrySet().stream()
                                 .map(e -> e.getKey() + "=" + e.getValue())
-                                .collect(Collectors.joining(", "));
-                sb.append("(").append(mapStr).append(")");
+                                .collect(Collectors.joining(", ", "(", ")"));
+                sb.append(mapStr);
             }
             first = false;
         }
         return sb.toString();
     }
 
-    /** Get all hints without alias hint. */
-    public static List<RelHint> getHintsWithoutAlias(List<RelHint> allHints) {
+    /** Get all join hints. */
+    public static List<RelHint> getAllJoinHints(List<RelHint> allHints) {
         return allHints.stream()
-                .filter(hint -> !(hint.hintName.equals(FlinkHints.HINT_ALIAS)))
+                .filter(hint -> JoinStrategy.isJoinStrategy(hint.hintName))
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * Get all query block alias hints.
+     *
+     * <p>Because query block alias hints will be propagated from root to leaves, so maybe one node
+     * will contain multi alias hints. But only the first one is the really query block name where
+     * this node is.
+     */
+    public static List<RelHint> getQueryBlockAliasHints(List<RelHint> allHints) {
+        return allHints.stream()
+                .filter(hint -> hint.hintName.equals(FlinkHints.HINT_ALIAS))
                 .collect(Collectors.toList());
     }
 }

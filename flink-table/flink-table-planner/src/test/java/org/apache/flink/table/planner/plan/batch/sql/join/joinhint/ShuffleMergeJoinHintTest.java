@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.planner.plan.batch.sql.join.joinhint;
 
+import org.apache.flink.table.api.StatementSet;
 import org.apache.flink.table.planner.hint.JoinStrategy;
 
 /** Test for Shuffle Merge join hint. */
@@ -31,5 +32,15 @@ public class ShuffleMergeJoinHintTest extends JoinHintTestBase {
     @Override
     protected String getDisabledOperatorName() {
         return "SortMergeJoin";
+    }
+
+    @Override
+    protected void verifyRelPlanByCustom(String sql) {
+        util.verifyRelPlanWithQueryBlockAlias(sql);
+    }
+
+    @Override
+    protected void verifyRelPlanByCustom(StatementSet set) {
+        util.verifyRelPlanWithQueryBlockAlias(set);
     }
 }

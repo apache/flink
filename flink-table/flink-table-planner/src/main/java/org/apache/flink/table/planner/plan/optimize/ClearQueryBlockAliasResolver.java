@@ -22,6 +22,7 @@ import org.apache.flink.table.planner.hint.FlinkHints;
 
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.RelShuttleImpl;
+import org.apache.calcite.rel.core.TableScan;
 import org.apache.calcite.rel.hint.Hintable;
 import org.apache.calcite.rel.hint.RelHint;
 
@@ -38,11 +39,22 @@ public class ClearQueryBlockAliasResolver extends RelShuttleImpl {
 
     @Override
     protected RelNode visitChild(RelNode parent, int i, RelNode child) {
-        if (!(parent instanceof Hintable)) {
-            return super.visitChild(parent, i, child);
+        RelNode newParent = clearQueryBlockAlias(parent);
+        return super.visitChild(newParent, i, child);
+    }
+
+    @Override
+    public RelNode visit(TableScan scan) {
+        RelNode newScan = clearQueryBlockAlias(scan);
+        return super.visit(newScan);
+    }
+
+    private RelNode clearQueryBlockAlias(RelNode relNode) {
+        if (!(relNode instanceof Hintable)) {
+            return relNode;
         }
 
-        List<RelHint> hints = ((Hintable) parent).getHints();
+        List<RelHint> hints = ((Hintable) relNode).getHints();
         List<RelHint> newHints = new ArrayList<>();
         for (RelHint hint : hints) {
             if (!FlinkHints.HINT_ALIAS.equals(hint.hintName)) {
@@ -50,11 +62,10 @@ public class ClearQueryBlockAliasResolver extends RelShuttleImpl {
             }
         }
 
-        RelNode newParent = parent;
         if (newHints.size() != hints.size()) {
-            newParent = ((Hintable) parent).withHints(newHints);
+            return ((Hintable) relNode).withHints(newHints);
         }
 
-        return super.visitChild(newParent, i, child);
+        return relNode;
     }
 }

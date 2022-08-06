@@ -44,7 +44,7 @@ class BatchCommonSubGraphBasedOptimizer(planner: BatchPlanner)
     val joinHintResolver = new JoinHintResolver()
     val resolvedHintRoots = joinHintResolver.resolve(toJava(roots))
 
-    // clear query block alias bef optimizing
+    // clear query block alias before optimizing
     val clearQueryBlockAliasResolver = new ClearQueryBlockAliasResolver
     val resolvedAliasRoots = clearQueryBlockAliasResolver.resolve(resolvedHintRoots)
 

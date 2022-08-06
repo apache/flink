@@ -40,7 +40,10 @@ import java.util.stream.Collectors;
  * be propagated from root to leaves in the whole RelNode tree. This shuttle is used to clear the
  * join hints that are propagated into the query block incorrectly.
  *
- * <p>See more at {@see org.apache.calcite.sql2rel.SqlToRelConverter#convertFrom()}
+ * <p>See more at {@see org.apache.calcite.sql2rel.SqlToRelConverter#convertFrom()}.
+ *
+ * <p>TODO some node will be attached join hints when parse SqlNode to RelNode such as Project and
+ * etc. The join hints on these node can also be cleared.
  */
 public class ClearJoinHintWithInvalidPropagationShuttle extends RelShuttleImpl {
 

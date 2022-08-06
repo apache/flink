@@ -300,7 +300,8 @@ abstract class TableTestUtilBase(test: TableTestBase, isStreamingMode: Boolean) 
       query,
       Array.empty[ExplainDetail],
       withRowType = false,
-      Array(PlanKind.AST, PlanKind.OPT_REL, PlanKind.OPT_EXEC))
+      Array(PlanKind.AST, PlanKind.OPT_REL, PlanKind.OPT_EXEC),
+      withQueryBlockAlias = false)
   }
 
   /**
@@ -313,7 +314,8 @@ abstract class TableTestUtilBase(test: TableTestBase, isStreamingMode: Boolean) 
       query,
       extraDetails.toArray,
       withRowType = false,
-      Array(PlanKind.AST, PlanKind.OPT_REL, PlanKind.OPT_EXEC))
+      Array(PlanKind.AST, PlanKind.OPT_REL, PlanKind.OPT_EXEC),
+      withQueryBlockAlias = false)
   }
 
   /**
@@ -406,7 +408,8 @@ abstract class TableTestUtilBase(test: TableTestBase, isStreamingMode: Boolean) 
       extraDetails.toArray,
       withRowType = false,
       Array(PlanKind.AST, PlanKind.OPT_REL, PlanKind.OPT_EXEC),
-      () => Unit)
+      () => Unit,
+      withQueryBlockAlias = false)
   }
 
   /** Verify the AST (abstract syntax tree). */
@@ -416,7 +419,8 @@ abstract class TableTestUtilBase(test: TableTestBase, isStreamingMode: Boolean) 
       Array.empty[ExplainDetail],
       withRowType = false,
       Array(PlanKind.AST),
-      () => Unit)
+      () => Unit,
+      withQueryBlockAlias = false)
   }
 
   /** Verify the AST (abstract syntax tree). The plans will contain the extra [[ExplainDetail]]s. */
@@ -426,7 +430,8 @@ abstract class TableTestUtilBase(test: TableTestBase, isStreamingMode: Boolean) 
       extraDetails.toArray,
       withRowType = false,
       Array(PlanKind.AST),
-      () => Unit)
+      () => Unit,
+      withQueryBlockAlias = false)
   }
 
   /**
@@ -437,7 +442,21 @@ abstract class TableTestUtilBase(test: TableTestBase, isStreamingMode: Boolean) 
       query,
       Array.empty[ExplainDetail],
       withRowType = false,
-      Array(PlanKind.AST, PlanKind.OPT_REL))
+      Array(PlanKind.AST, PlanKind.OPT_REL),
+      withQueryBlockAlias = false)
+  }
+
+  /**
+   * Verify the AST (abstract syntax tree) and the optimized rel plan for the given SELECT query.
+   * The plans will contain the extra QueryBlockAlias.
+   */
+  def verifyRelPlanWithQueryBlockAlias(query: String): Unit = {
+    doVerifyPlan(
+      query,
+      Array.empty[ExplainDetail],
+      withRowType = false,
+      Array(PlanKind.AST, PlanKind.OPT_REL),
+      withQueryBlockAlias = true)
   }
 
   /**
@@ -449,7 +468,8 @@ abstract class TableTestUtilBase(test: TableTestBase, isStreamingMode: Boolean) 
       query,
       extraDetails.toArray,
       withRowType = false,
-      Array(PlanKind.AST, PlanKind.OPT_REL))
+      Array(PlanKind.AST, PlanKind.OPT_REL),
+      withQueryBlockAlias = false)
   }
 
   /**
@@ -533,7 +553,22 @@ abstract class TableTestUtilBase(test: TableTestBase, isStreamingMode: Boolean) 
       Array.empty[ExplainDetail],
       withRowType = false,
       Array(PlanKind.AST, PlanKind.OPT_REL),
-      () => Unit)
+      () => Unit,
+      withQueryBlockAlias = false)
+  }
+
+  /**
+   * Verify the AST (abstract syntax tree) and the optimized rel plan for the given
+   * [[StatementSet]]. The plans will contain the extra QueryBlockAlias.
+   */
+  def verifyRelPlanWithQueryBlockAlias(stmtSet: StatementSet): Unit = {
+    doVerifyPlan(
+      stmtSet,
+      Array.empty[ExplainDetail],
+      withRowType = false,
+      Array(PlanKind.AST, PlanKind.OPT_REL),
+      () => Unit,
+      withQueryBlockAlias = true)
   }
 
   /**
@@ -546,7 +581,8 @@ abstract class TableTestUtilBase(test: TableTestBase, isStreamingMode: Boolean) 
       extraDetails.toArray,
       withRowType = false,
       Array(PlanKind.AST, PlanKind.OPT_REL),
-      () => Unit)
+      () => Unit,
+      withQueryBlockAlias = false)
   }
 
   /**
@@ -558,7 +594,8 @@ abstract class TableTestUtilBase(test: TableTestBase, isStreamingMode: Boolean) 
       query,
       Array.empty[ExplainDetail],
       withRowType = true,
-      Array(PlanKind.AST, PlanKind.OPT_REL))
+      Array(PlanKind.AST, PlanKind.OPT_REL),
+      withQueryBlockAlias = false)
   }
 
   /**
@@ -584,7 +621,8 @@ abstract class TableTestUtilBase(test: TableTestBase, isStreamingMode: Boolean) 
       Array.empty[ExplainDetail],
       withRowType = true,
       Array(PlanKind.AST, PlanKind.OPT_REL),
-      () => Unit)
+      () => Unit,
+      withQueryBlockAlias = false)
   }
 
   /**
@@ -618,7 +656,8 @@ abstract class TableTestUtilBase(test: TableTestBase, isStreamingMode: Boolean) 
       query,
       Array.empty[ExplainDetail],
       withRowType = false,
-      Array(PlanKind.AST, PlanKind.OPT_EXEC))
+      Array(PlanKind.AST, PlanKind.OPT_EXEC),
+      withQueryBlockAlias = false)
   }
 
   /**
@@ -668,7 +707,8 @@ abstract class TableTestUtilBase(test: TableTestBase, isStreamingMode: Boolean) 
       Array.empty[ExplainDetail],
       withRowType = false,
       Array(PlanKind.AST, PlanKind.OPT_EXEC),
-      () => Unit)
+      () => Unit,
+      withQueryBlockAlias = false)
   }
 
   /** Verify the explain result for the given SELECT query. See more about [[Table#explain()]]. */
@@ -819,7 +859,8 @@ abstract class TableTestUtilBase(test: TableTestBase, isStreamingMode: Boolean) 
       query: String,
       extraDetails: Array[ExplainDetail],
       withRowType: Boolean,
-      expectedPlans: Array[PlanKind]): Unit = {
+      expectedPlans: Array[PlanKind],
+      withQueryBlockAlias: Boolean): Unit = {
     val table = getTableEnv.sqlQuery(query)
     val relNode = TableTestUtil.toRelNode(table)
 
@@ -828,7 +869,8 @@ abstract class TableTestUtilBase(test: TableTestBase, isStreamingMode: Boolean) 
       extraDetails,
       withRowType,
       expectedPlans,
-      () => assertEqualsOrExpand("sql", query))
+      () => assertEqualsOrExpand("sql", query),
+      withQueryBlockAlias)
   }
 
   /**
@@ -855,7 +897,8 @@ abstract class TableTestUtilBase(test: TableTestBase, isStreamingMode: Boolean) 
       extraDetails,
       withRowType,
       expectedPlans,
-      () => assertEqualsOrExpand("sql", insert))
+      () => assertEqualsOrExpand("sql", insert),
+      withQueryBlockAlias = false)
   }
 
   /**
@@ -899,7 +942,8 @@ abstract class TableTestUtilBase(test: TableTestBase, isStreamingMode: Boolean) 
       extraDetails: Array[ExplainDetail],
       withRowType: Boolean,
       expectedPlans: Array[PlanKind],
-      assertSqlEqualsOrExpandFunc: () => Unit): Unit = {
+      assertSqlEqualsOrExpandFunc: () => Unit,
+      withQueryBlockAlias: Boolean): Unit = {
     val testStmtSet = stmtSet.asInstanceOf[StatementSetImpl[_]]
 
     val relNodes = testStmtSet.getOperations.map(getPlanner.translateToRel)
@@ -915,7 +959,8 @@ abstract class TableTestUtilBase(test: TableTestBase, isStreamingMode: Boolean) 
       extraDetails,
       withRowType,
       expectedPlans,
-      assertSqlEqualsOrExpandFunc)
+      assertSqlEqualsOrExpandFunc,
+      withQueryBlockAlias)
   }
 
   /**
@@ -932,13 +977,16 @@ abstract class TableTestUtilBase(test: TableTestBase, isStreamingMode: Boolean) 
    * @param assertSqlEqualsOrExpandFunc
    *   the function to check whether the sql equals to the expected if the `relNodes` are translated
    *   from sql
+   * @param withQueryBlockAlias
+   *   whether the rel plans contains the query block alias, default is false
    */
-  private def assertPlanEquals(
+  def assertPlanEquals(
       relNodes: Array[RelNode],
       extraDetails: Array[ExplainDetail],
       withRowType: Boolean,
       expectedPlans: Array[PlanKind],
-      assertSqlEqualsOrExpandFunc: () => Unit): Unit = {
+      assertSqlEqualsOrExpandFunc: () => Unit,
+      withQueryBlockAlias: Boolean = false): Unit = {
 
     // build ast plan
     val astBuilder = new StringBuilder
@@ -946,8 +994,13 @@ abstract class TableTestUtilBase(test: TableTestBase, isStreamingMode: Boolean) 
       sink =>
         astBuilder
           .append(System.lineSeparator)
-          .append(FlinkRelOptUtil
-            .toString(sink, SqlExplainLevel.EXPPLAN_ATTRIBUTES, withRowType = withRowType))
+          .append(
+            FlinkRelOptUtil
+              .toString(
+                sink,
+                SqlExplainLevel.EXPPLAN_ATTRIBUTES,
+                withRowType = withRowType,
+                withQueryBlockAlias = withQueryBlockAlias))
     }
     val astPlan = astBuilder.toString()
 
@@ -1040,7 +1093,7 @@ abstract class TableTestUtilBase(test: TableTestBase, isStreamingMode: Boolean) 
     str
   }
 
-  protected def assertEqualsOrExpand(tag: String, actual: String, expand: Boolean = true): Unit = {
+  def assertEqualsOrExpand(tag: String, actual: String, expand: Boolean = true): Unit = {
     val expected = s"$${$tag}"
     if (!expand) {
       diffRepository.assertEquals(test.name.getMethodName, tag, expected, actual)

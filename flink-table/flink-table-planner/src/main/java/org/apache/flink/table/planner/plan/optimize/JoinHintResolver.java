@@ -22,8 +22,6 @@ import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.planner.hint.FlinkHints;
 import org.apache.flink.table.planner.hint.JoinStrategy;
 
-import org.apache.calcite.plan.hep.HepRelVertex;
-import org.apache.calcite.plan.volcano.RelSubset;
 import org.apache.calcite.rel.BiRel;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.RelShuttleImpl;
@@ -31,15 +29,14 @@ import org.apache.calcite.rel.core.TableScan;
 import org.apache.calcite.rel.hint.Hintable;
 import org.apache.calcite.rel.hint.RelHint;
 import org.apache.calcite.rel.logical.LogicalJoin;
-import org.apache.calcite.util.Util;
 import org.apache.commons.lang3.StringUtils;
 
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 import static java.util.Collections.singletonList;
 
@@ -82,58 +79,39 @@ public class JoinHintResolver extends RelShuttleImpl {
 
         Set<RelHint> existentKVHints = new HashSet<>();
 
-        List<RelHint> newHints =
-                ((Hintable) biRel)
-                        .getHints().stream()
-                                .flatMap(
-                                        h -> {
-                                            if (JoinStrategy.isJoinStrategy(h.hintName)) {
-                                                allHints.add(trimInheritPath(h));
-                                                // if the hint is valid
-                                                List<String> newOptions =
-                                                        getNewJoinHintOptions(
-                                                                leftName,
-                                                                rightName,
-                                                                h.listOptions,
-                                                                h.hintName);
+        List<RelHint> oldHints = ((Hintable) biRel).getHints();
+        List<RelHint> newHints = new ArrayList<>();
 
-                                                // check whether the join hints options are valid
-                                                boolean isValidOption =
-                                                        JoinStrategy.validOptions(
-                                                                h.hintName, newOptions);
-                                                if (isValidOption) {
-                                                    validHints.add(trimInheritPath(h));
-                                                    // if the hint defines more than one args, only
-                                                    // retain the first one
-                                                    return Stream.of(
-                                                            RelHint.builder(h.hintName)
-                                                                    .hintOptions(
-                                                                            singletonList(
-                                                                                    newOptions.get(
-                                                                                            0)))
-                                                                    .build());
-                                                } else {
-                                                    // invalid hint
-                                                    return Stream.of();
-                                                }
-                                            } else {
-                                                if (existentKVHints.contains(h)) {
-                                                    return Stream.of();
-                                                } else {
-                                                    existentKVHints.add(h);
-                                                    return Stream.of(h);
-                                                }
-                                            }
-                                        })
-                                .collect(Collectors.toList());
+        for (RelHint hint : oldHints) {
+            if (JoinStrategy.isJoinStrategy(hint.hintName)) {
+                allHints.add(trimInheritPath(hint));
+                // the declared table name or query block name is replaced by
+                // JoinStrategy#LEFT_INPUT or JoinStrategy#RIGHT_INPUT
+                List<String> newOptions =
+                        getNewJoinHintOptions(leftName, rightName, hint.listOptions, hint.hintName);
+
+                // check whether the join hints options are valid
+                boolean isValidOption = JoinStrategy.validOptions(hint.hintName, newOptions);
+                if (isValidOption) {
+                    validHints.add(trimInheritPath(hint));
+                    // if the hint defines more than one args, only
+                    // retain the first one
+                    newHints.add(
+                            RelHint.builder(hint.hintName)
+                                    .hintOptions(singletonList(newOptions.get(0)))
+                                    .build());
+                }
+            } else {
+                if (!existentKVHints.contains(hint)) {
+                    existentKVHints.add(hint);
+                    newHints.add(hint);
+                }
+            }
+        }
+
         RelNode newNode = super.visitChildren(biRel);
 
-        List<RelHint> oldJoinHints =
-                ((Hintable) biRel)
-                        .getHints().stream()
-                                // ignore the alias hint
-                                .filter(hint -> JoinStrategy.isJoinStrategy(hint.hintName))
-                                .collect(Collectors.toList());
+        List<RelHint> oldJoinHints = FlinkHints.getAllJoinHints(oldHints);
         if (!oldJoinHints.isEmpty()) {
             // replace the table name as LEFT or RIGHT
             return ((Hintable) newNode).withHints(newHints);
@@ -181,12 +159,11 @@ public class JoinHintResolver extends RelShuttleImpl {
                     invalidHints.stream()
                             .map(
                                     hint ->
-                                            "\n`"
-                                                    + hint.hintName
+                                            hint.hintName
                                                     + "("
                                                     + StringUtils.join(hint.listOptions, ", ")
                                                     + ")`")
-                            .reduce("", (msg, hintMsg) -> msg + hintMsg);
+                            .collect(Collectors.joining("\n`", "\n`", ""));
             throw new ValidationException(
                     String.format(
                             "The options of following hints cannot match the name of "
@@ -227,21 +204,10 @@ public class JoinHintResolver extends RelShuttleImpl {
             return Optional.of((TableScan) node);
         } else {
             if (FlinkHints.canTransposeToTableScan(node)) {
-                return getTableScan(trimHep(node.getInput(0)));
+                return getTableScan(node.getInput(0));
             } else {
                 return Optional.empty();
             }
-        }
-    }
-
-    private RelNode trimHep(RelNode node) {
-        if (node instanceof HepRelVertex) {
-            return ((HepRelVertex) node).getCurrentRel();
-        } else if (node instanceof RelSubset) {
-            RelSubset subset = ((RelSubset) node);
-            return Util.first(subset.getBest(), subset.getOriginal());
-        } else {
-            return node;
         }
     }
 
