@@ -254,14 +254,14 @@ public class HiveInputFormat implements BulkFormat<RowData, HiveSourceSplit> {
             case TIME_WITHOUT_TIME_ZONE:
             case TIMESTAMP_WITHOUT_TIME_ZONE:
             case TIMESTAMP_WITH_LOCAL_TIME_ZONE:
+            case ARRAY:
+            case MAP:
+            case ROW:
                 return false;
             case TIMESTAMP_WITH_TIME_ZONE:
             case INTERVAL_YEAR_MONTH:
             case INTERVAL_DAY_TIME:
-            case ARRAY:
             case MULTISET:
-            case MAP:
-            case ROW:
             case DISTINCT_TYPE:
             case STRUCTURED_TYPE:
             case NULL:
