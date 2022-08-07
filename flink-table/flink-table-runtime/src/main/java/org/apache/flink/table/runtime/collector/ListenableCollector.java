@@ -20,6 +20,8 @@ package org.apache.flink.table.runtime.collector;
 
 import org.apache.flink.annotation.Internal;
 
+import javax.annotation.Nullable;
+
 import java.util.Optional;
 
 /**
@@ -27,7 +29,7 @@ import java.util.Optional;
  */
 @Internal
 public abstract class ListenableCollector<T> extends TableFunctionCollector<T> {
-    private CollectListener<T> collectListener;
+    @Nullable private CollectListener<T> collectListener;
 
     public void setCollectListener(CollectListener<T> collectListener) {
         this.collectListener = collectListener;
