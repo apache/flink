@@ -355,17 +355,16 @@ public abstract class CommonExecLookupJoin extends ExecNodeBase<RowData>
 
         List<Integer> refKeys =
                 allLookupKeys.values().stream()
-                        .filter(key -> key instanceof LookupJoinUtil.ConstantLookupKey)
+                        .filter(key -> key instanceof LookupJoinUtil.FieldRefLookupKey)
                         .map(key -> ((LookupJoinUtil.FieldRefLookupKey) key).index)
                         .collect(Collectors.toList());
         RowDataKeySelector keySelector;
 
-        int parallelism = inputTransformation.getParallelism();
-        if (refKeys.isEmpty()) {
+        // use single parallelism for empty key shuffle
+        boolean singleParallelism = refKeys.isEmpty();
+        if (singleParallelism) {
             // all lookup keys are constants, then use an empty key selector
             keySelector = EmptyRowDataKeySelector.INSTANCE;
-            // single parallelism for empty key shuffle
-            parallelism = 1;
         } else {
             // make it a deterministic asc order
             Collections.sort(refKeys);
@@ -380,7 +379,11 @@ public abstract class CommonExecLookupJoin extends ExecNodeBase<RowData>
                         keySelector, KeyGroupRangeAssignment.DEFAULT_LOWER_BOUND_MAX_PARALLELISM);
         Transformation<RowData> partitionedTransform =
                 new PartitionTransformation<>(inputTransformation, partitioner);
-        partitionedTransform.setParallelism(parallelism);
+        if (singleParallelism) {
+            setSingletonParallelism(partitionedTransform);
+        } else {
+            partitionedTransform.setParallelism(inputTransformation.getParallelism());
+        }
 
         OneInputTransformation<RowData, RowData> transform =
                 ExecNodeUtil.createOneInputTransformation(
@@ -388,9 +391,12 @@ public abstract class CommonExecLookupJoin extends ExecNodeBase<RowData>
                         createTransformationMeta(LOOKUP_JOIN_WITH_STATE_TRANSFORMATION, config),
                         operator,
                         InternalTypeInfo.of(resultRowType),
-                        parallelism);
+                        partitionedTransform.getParallelism());
         transform.setStateKeySelector(keySelector);
         transform.setStateKeyType(keySelector.getProducedType());
+        if (singleParallelism) {
+            setSingletonParallelism(transform);
+        }
         return transform;
     }
 
@@ -401,6 +407,11 @@ public abstract class CommonExecLookupJoin extends ExecNodeBase<RowData>
         } else {
             return ((LookupJoinUtil.ConstantLookupKey) lookupKey).sourceType;
         }
+    }
+
+    private void setSingletonParallelism(Transformation transformation) {
+        transformation.setParallelism(1);
+        transformation.setMaxParallelism(1);
     }
 
     protected void validateLookupKeyType(

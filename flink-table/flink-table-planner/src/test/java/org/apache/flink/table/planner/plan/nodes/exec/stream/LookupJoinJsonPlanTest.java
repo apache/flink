@@ -19,10 +19,12 @@
 package org.apache.flink.table.planner.plan.nodes.exec.stream;
 
 import org.apache.flink.api.common.typeinfo.Types;
+import org.apache.flink.table.api.ExplainDetail;
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.ValidationException;
+import org.apache.flink.table.api.config.OptimizerConfigOptions;
 import org.apache.flink.table.planner.runtime.utils.InMemoryLookupableTableSource;
 import org.apache.flink.table.planner.utils.StreamTableTestUtil;
 import org.apache.flink.table.planner.utils.TableTestBase;
@@ -36,7 +38,12 @@ import java.util.ArrayList;
 import scala.collection.JavaConverters;
 
 import static org.apache.flink.core.testutils.FlinkAssertions.anyCauseMatches;
+import static org.apache.flink.table.planner.utils.TableTestUtil.readFromResource;
+import static org.apache.flink.table.planner.utils.TableTestUtil.replaceNodeIdInOperator;
+import static org.apache.flink.table.planner.utils.TableTestUtil.replaceStageId;
+import static org.apache.flink.table.planner.utils.TableTestUtil.replaceStreamNodeId;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.junit.Assert.assertEquals;
 
 /** Test json serialization/deserialization for LookupJoin. */
 public class LookupJoinJsonPlanTest extends TableTestBase {
@@ -68,6 +75,16 @@ public class LookupJoinJsonPlanTest extends TableTestBase {
                         + ") with (\n"
                         + "  'connector' = 'values',\n"
                         + "  'bounded' = 'false')";
+        String sinkTable1 =
+                "CREATE TABLE Sink1 (\n"
+                        + "  a int,\n"
+                        + "  name varchar,"
+                        + "  age int"
+                        + ") with (\n"
+                        + "  'connector' = 'values',\n"
+                        + "  'sink-insert-only' = 'false'\n"
+                        + ")";
+        tEnv.executeSql(sinkTable1);
         tEnv.executeSql(srcTableA);
         tEnv.executeSql(srcTableB);
     }
@@ -155,5 +172,44 @@ public class LookupJoinJsonPlanTest extends TableTestBase {
                         anyCauseMatches(
                                 ValidationException.class,
                                 "TemporalTableSourceSpec can not be serialized."));
+    }
+
+    @Test
+    public void testAggAndLeftJoinWithTryResolveMode() {
+        tEnv.getConfig()
+                .set(
+                        OptimizerConfigOptions.TABLE_OPTIMIZER_NONDETERMINISTIC_UPDATE_STRATEGY,
+                        OptimizerConfigOptions.NonDeterministicUpdateStrategy.TRY_RESOLVE);
+
+        util.verifyJsonPlan(
+                "INSERT INTO Sink1 "
+                        + "SELECT T.a, D.name, D.age "
+                        + "FROM (SELECT max(a) a, count(c) c, PROCTIME() proctime FROM MyTable GROUP BY b) T "
+                        + "LEFT JOIN LookupTable "
+                        + "FOR SYSTEM_TIME AS OF T.proctime AS D ON T.a = D.id");
+    }
+
+    @Test
+    public void testAggAndAllConstantLookupKeyWithTryResolveMode() {
+        util.getStreamEnv().setParallelism(4);
+        // expect lookup join using single parallelism due to all constant lookup key
+        tEnv.getConfig()
+                .set(
+                        OptimizerConfigOptions.TABLE_OPTIMIZER_NONDETERMINISTIC_UPDATE_STRATEGY,
+                        OptimizerConfigOptions.NonDeterministicUpdateStrategy.TRY_RESOLVE);
+
+        String sql =
+                "INSERT INTO Sink1 "
+                        + "SELECT T.a, D.name, D.age "
+                        + "FROM (SELECT max(a) a, count(c) c, PROCTIME() proctime FROM MyTable GROUP BY b) T "
+                        + "LEFT JOIN LookupTable "
+                        + "FOR SYSTEM_TIME AS OF T.proctime AS D ON D.id = 100";
+        final String actual = tEnv.explainSql(sql, ExplainDetail.JSON_EXECUTION_PLAN);
+        final String expected =
+                readFromResource(
+                        "explain/stream/join/lookup/testAggAndAllConstantLookupKeyWithTryResolveMode.out");
+        assertEquals(
+                replaceNodeIdInOperator(replaceStreamNodeId(replaceStageId(expected))),
+                replaceNodeIdInOperator(replaceStreamNodeId(replaceStageId(actual))));
     }
 }
