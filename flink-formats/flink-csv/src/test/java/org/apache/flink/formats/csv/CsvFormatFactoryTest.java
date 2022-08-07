@@ -256,6 +256,7 @@ public class CsvFormatFactoryTest extends TestLogger {
 
         SerializationSchema<RowData> runtimeEncoder =
                 sinkMock.valueFormat.createRuntimeEncoder(null, schema.toPhysicalRowDataType());
+        open(runtimeEncoder);
 
         RowData rowData =
                 GenericRowData.of(
@@ -282,6 +283,7 @@ public class CsvFormatFactoryTest extends TestLogger {
 
         SerializationSchema<RowData> runtimeEncoder =
                 sinkMock.valueFormat.createRuntimeEncoder(null, schema.toPhysicalRowDataType());
+        open(runtimeEncoder);
 
         RowData rowData =
                 GenericRowData.of(
