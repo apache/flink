@@ -63,11 +63,16 @@ CREATE TABLE foo as select 1;
 
 # test add jar
 ADD JAR $VAR_UDF_JAR_PATH;
-[INFO] The specified jar is added into session classloader.
+[INFO] Execute statement succeed.
 !info
 
 SHOW JARS;
-$VAR_UDF_JAR_PATH
++-$VAR_UDF_JAR_PATH_DASH-----+
+| $VAR_UDF_JAR_PATH_SPACEjars |
++-$VAR_UDF_JAR_PATH_DASH-----+
+| $VAR_UDF_JAR_PATH |
++-$VAR_UDF_JAR_PATH_DASH-----+
+1 row in set
 !ok
 
 CREATE FUNCTION hive_add_one as 'HiveAddOneFunc';
@@ -192,11 +197,11 @@ ADD JAR '$VAR_UDF_JAR_PATH';
 !info
 
 SHOW JARS;
-+-------------------------------------------------------------------------------------------------------------+
-|                                                                                                        jars |
-+-------------------------------------------------------------------------------------------------------------+
++-$VAR_UDF_JAR_PATH_DASH-----+
+| $VAR_UDF_JAR_PATH_SPACEjars |
++-$VAR_UDF_JAR_PATH_DASH-----+
 | $VAR_UDF_JAR_PATH |
-+-------------------------------------------------------------------------------------------------------------+
++-$VAR_UDF_JAR_PATH_DASH-----+
 1 row in set
 !ok
 
@@ -219,11 +224,11 @@ reset;
 !info
 
 SHOW JARS;
-+-------------------------------------------------------------------------------------------------------------+
-|                                                                                                        jars |
-+-------------------------------------------------------------------------------------------------------------+
++-$VAR_UDF_JAR_PATH_DASH-----+
+| $VAR_UDF_JAR_PATH_SPACEjars |
++-$VAR_UDF_JAR_PATH_DASH-----+
 | $VAR_UDF_JAR_PATH |
-+-------------------------------------------------------------------------------------------------------------+
++-$VAR_UDF_JAR_PATH_DASH-----+
 1 row in set
 !ok
 

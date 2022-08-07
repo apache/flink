@@ -66,6 +66,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+import static org.apache.commons.lang3.StringUtils.repeat;
 import static org.apache.flink.configuration.JobManagerOptions.ADDRESS;
 import static org.apache.flink.configuration.RestOptions.PORT;
 import static org.apache.flink.table.utils.UserDefinedFunctions.GENERATED_LOWER_UDF_CLASS;
@@ -127,10 +128,16 @@ public class CliClientITCase extends AbstractTestBase {
                         "test-classloader-udf.jar",
                         classNameCodes);
         URL udfDependency = udfJar.toURI().toURL();
+        String path = udfDependency.getPath();
+        // we need to pad the displayed "jars" tableau to have the same width of path string
+        // 4 for the "jars" characters, see `set.q` test file
+        int paddingLen = path.length() - 4;
         historyPath = tempFolder.newFile("history").toPath();
 
         replaceVars = new HashMap<>();
-        replaceVars.put("$VAR_UDF_JAR_PATH", udfDependency.getPath());
+        replaceVars.put("$VAR_UDF_JAR_PATH", path);
+        replaceVars.put("$VAR_UDF_JAR_PATH_DASH", repeat('-', paddingLen));
+        replaceVars.put("$VAR_UDF_JAR_PATH_SPACE", repeat(' ', paddingLen));
         replaceVars.put("$VAR_PIPELINE_JARS_URL", udfDependency.toString());
         replaceVars.put(
                 "$VAR_REST_PORT",
