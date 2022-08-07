@@ -45,6 +45,7 @@ import org.apache.flink.table.connector.ProviderContext;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.factories.DynamicTableFactory;
 import org.apache.flink.table.factories.TableSourceFactory;
+import org.apache.flink.table.module.hive.HiveModule;
 import org.apache.flink.table.planner.delegation.PlannerBase;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.runtime.utils.BatchAbstractTestBase;
@@ -154,6 +155,33 @@ public class HiveTableSourceITCase extends BatchAbstractTestBase {
         assertThat((Integer[]) rows.get(0).getField(0)).isEqualTo(array);
         assertThat(rows.get(0).getField(1)).isEqualTo(map);
         assertThat(rows.get(0).getField(2)).isEqualTo(Row.of(struct[0], struct[1]));
+    }
+
+    @Test
+    public void testReadParquetComplexDataType() throws Exception {
+        batchTableEnv.executeSql(
+                "create table parquet_complex_type_test("
+                        + "a array<int>, m map<int,string>, s struct<f1:int,f2:bigint>) stored as parquet");
+        String[] modules = batchTableEnv.listModules();
+        // load hive module so that we can use array,map, named_struct function
+        // for convenient writing complex data
+        batchTableEnv.loadModule("hive", new HiveModule());
+        String[] newModules = new String[modules.length + 1];
+        newModules[0] = "hive";
+        System.arraycopy(modules, 0, newModules, 1, modules.length);
+        batchTableEnv.useModules(newModules);
+
+        batchTableEnv
+                .executeSql(
+                        "insert into parquet_complex_type_test"
+                                + " select array(1, 2), map(1, 'val1', 2, 'val2'),"
+                                + " named_struct('f1', 1,  'f2', 2)")
+                .await();
+
+        Table src = batchTableEnv.sqlQuery("select * from parquet_complex_type_test");
+        List<Row> rows = CollectionUtil.iteratorToList(src.execute().collect());
+        assertThat(rows.toString()).isEqualTo("[+I[[1, 2], {1=val1, 2=val2}, +I[1, 2]]]");
+        batchTableEnv.unloadModule("hive");
     }
 
     /**
