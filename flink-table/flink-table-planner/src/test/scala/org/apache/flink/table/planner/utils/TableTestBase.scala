@@ -448,19 +448,6 @@ abstract class TableTestUtilBase(test: TableTestBase, isStreamingMode: Boolean) 
 
   /**
    * Verify the AST (abstract syntax tree) and the optimized rel plan for the given SELECT query.
-   * The plans will contain the extra QueryBlockAlias.
-   */
-  def verifyRelPlanWithQueryBlockAlias(query: String): Unit = {
-    doVerifyPlan(
-      query,
-      Array.empty[ExplainDetail],
-      withRowType = false,
-      Array(PlanKind.AST, PlanKind.OPT_REL),
-      withQueryBlockAlias = true)
-  }
-
-  /**
-   * Verify the AST (abstract syntax tree) and the optimized rel plan for the given SELECT query.
    * The plans will contain the extra [[ExplainDetail]]s.
    */
   def verifyRelPlan(query: String, extraDetails: ExplainDetail*): Unit = {
@@ -555,20 +542,6 @@ abstract class TableTestUtilBase(test: TableTestBase, isStreamingMode: Boolean) 
       Array(PlanKind.AST, PlanKind.OPT_REL),
       () => Unit,
       withQueryBlockAlias = false)
-  }
-
-  /**
-   * Verify the AST (abstract syntax tree) and the optimized rel plan for the given
-   * [[StatementSet]]. The plans will contain the extra QueryBlockAlias.
-   */
-  def verifyRelPlanWithQueryBlockAlias(stmtSet: StatementSet): Unit = {
-    doVerifyPlan(
-      stmtSet,
-      Array.empty[ExplainDetail],
-      withRowType = false,
-      Array(PlanKind.AST, PlanKind.OPT_REL),
-      () => Unit,
-      withQueryBlockAlias = true)
   }
 
   /**

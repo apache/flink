@@ -21,15 +21,10 @@ package org.apache.flink.table.planner.alias;
 import org.apache.flink.api.common.RuntimeExecutionMode;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ExecutionOptions;
-import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.TableConfig;
-import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.catalog.Catalog;
 import org.apache.flink.table.catalog.CatalogManager;
-import org.apache.flink.table.catalog.CatalogTable;
-import org.apache.flink.table.catalog.CatalogTableImpl;
 import org.apache.flink.table.catalog.GenericInMemoryCatalog;
-import org.apache.flink.table.catalog.ObjectPath;
 import org.apache.flink.table.planner.calcite.FlinkRelBuilder;
 import org.apache.flink.table.planner.hint.FlinkHints;
 import org.apache.flink.table.planner.hint.JoinStrategy;
@@ -48,8 +43,6 @@ import org.junit.Before;
 import org.junit.Test;
 
 import java.util.Collections;
-import java.util.HashMap;
-import java.util.Map;
 
 /** A test class for {@link ClearJoinHintWithInvalidPropagationShuttle}. */
 public class ClearJoinHintWithInvalidPropagationShuttleTest extends TableTestBase {
@@ -74,22 +67,35 @@ public class ClearJoinHintWithInvalidPropagationShuttleTest extends TableTestBas
 
     @Before
     public void before() throws Exception {
-        final ObjectPath path1 = new ObjectPath(catalogManager.getCurrentDatabase(), "t1");
-        final ObjectPath path2 = new ObjectPath(catalogManager.getCurrentDatabase(), "t2");
-        final ObjectPath path3 = new ObjectPath(catalogManager.getCurrentDatabase(), "t3");
-        final TableSchema tableSchema =
-                TableSchema.builder()
-                        .field("a", DataTypes.BIGINT())
-                        .field("b", DataTypes.VARCHAR(Integer.MAX_VALUE))
-                        .field("c", DataTypes.INT())
-                        .field("d", DataTypes.VARCHAR(Integer.MAX_VALUE))
-                        .build();
-        Map<String, String> options = new HashMap<>();
-        options.put("connector", "COLLECTION");
-        final CatalogTable catalogTable = new CatalogTableImpl(tableSchema, options, "");
-        catalog.createTable(path1, catalogTable, true);
-        catalog.createTable(path2, catalogTable, true);
-        catalog.createTable(path3, catalogTable, true);
+        util.tableEnv().registerCatalog("testCatalog", catalog);
+        util.tableEnv().executeSql("use catalog testCatalog");
+
+        util.tableEnv()
+                .executeSql(
+                        "CREATE TABLE t1 (\n"
+                                + "  a BIGINT\n"
+                                + ") WITH (\n"
+                                + " 'connector' = 'values',\n"
+                                + " 'bounded' = 'true'\n"
+                                + ")");
+
+        util.tableEnv()
+                .executeSql(
+                        "CREATE TABLE t2 (\n"
+                                + "  a BIGINT\n"
+                                + ") WITH (\n"
+                                + " 'connector' = 'values',\n"
+                                + " 'bounded' = 'true'\n"
+                                + ")");
+
+        util.tableEnv()
+                .executeSql(
+                        "CREATE TABLE t3 (\n"
+                                + "  a BIGINT\n"
+                                + ") WITH (\n"
+                                + " 'connector' = 'values',\n"
+                                + " 'bounded' = 'true'\n"
+                                + ")");
     }
 
     @Test
@@ -111,7 +117,7 @@ public class ClearJoinHintWithInvalidPropagationShuttleTest extends TableTestBas
     }
 
     @Test
-    public void testClearJoinHintWithInvalidPropagationToView() {
+    public void testClearJoinHintWithInvalidPropagationToViewWhileViewHasJoinHints() {
         //  SELECT /*+ BROADCAST(t3)*/t4.a FROM (
         //      SELECT /*+ BROADCAST(t1)*/t1.a FROM t1 JOIN t2 ON t1.a = t2.a
         //  ) t4 JOIN t3 ON t4.a = t3.a
@@ -141,33 +147,51 @@ public class ClearJoinHintWithInvalidPropagationShuttleTest extends TableTestBas
         verifyRelPlan(root);
     }
 
+    @Test
+    public void testClearJoinHintWithInvalidPropagationToViewWhileViewHasNoJoinHints() {
+        //  SELECT /*+ BROADCAST(t3)*/t4.a FROM (
+        //      SELECT t1.a FROM t1 JOIN t2 ON t1.a = t2.a
+        //  ) t4 JOIN t3 ON t4.a = t3.a
+        RelHint joinHintRoot =
+                RelHint.builder(JoinStrategy.BROADCAST.getJoinHintName()).hintOption("t3").build();
+
+        RelHint aliasHint = RelHint.builder(FlinkHints.HINT_ALIAS).hintOption("t4").build();
+
+        RelNode root =
+                builder.scan("t1")
+                        .scan("t2")
+                        .join(
+                                JoinRelType.INNER,
+                                builder.equals(builder.field(2, 0, "a"), builder.field(2, 1, "a")))
+                        .project(builder.field(1, 0, "a"))
+                        .hints(aliasHint)
+                        .scan("t3")
+                        .join(
+                                JoinRelType.INNER,
+                                builder.equals(builder.field(2, 0, "a"), builder.field(2, 1, "a")))
+                        .project(builder.field(1, 0, "a"))
+                        .hints(joinHintRoot)
+                        .build();
+        verifyRelPlan(root);
+    }
+
     private String buildRelPlanWithQueryBlockAlias(RelNode node) {
-        StringBuilder astBuilder = new StringBuilder();
-        astBuilder
-                .append(System.lineSeparator())
-                .append(
-                        FlinkRelOptUtil.toString(
-                                node,
-                                SqlExplainLevel.EXPPLAN_ATTRIBUTES,
-                                false,
-                                false,
-                                true,
-                                false,
-                                true));
-        return astBuilder.toString();
+        return System.lineSeparator()
+                + FlinkRelOptUtil.toString(
+                        node, SqlExplainLevel.EXPPLAN_ATTRIBUTES, false, false, true, false, true);
     }
 
     private void verifyRelPlan(RelNode node) {
         String plan = buildRelPlanWithQueryBlockAlias(node);
-        util.assertEqualsOrExpand("PlanBeforePropagatingHints", plan, true);
+        util.assertEqualsOrExpand("beforePropagatingHint", plan, true);
 
         RelNode rootAfterHintPropagation = RelOptUtil.propagateRelHints(node, false);
         plan = buildRelPlanWithQueryBlockAlias(rootAfterHintPropagation);
-        util.assertEqualsOrExpand("PlanAfterPropagatingHints", plan, true);
+        util.assertEqualsOrExpand("afterPropagatingHints", plan, true);
 
         RelNode rootAfterClearingJoinHintWithInvalidPropagation =
                 rootAfterHintPropagation.accept(new ClearJoinHintWithInvalidPropagationShuttle());
         plan = buildRelPlanWithQueryBlockAlias(rootAfterClearingJoinHintWithInvalidPropagation);
-        util.assertEqualsOrExpand("rootAfterClearingJoinHintWithInvalidPropagation", plan, false);
+        util.assertEqualsOrExpand("afterClearingJoinHints", plan, false);
     }
 }

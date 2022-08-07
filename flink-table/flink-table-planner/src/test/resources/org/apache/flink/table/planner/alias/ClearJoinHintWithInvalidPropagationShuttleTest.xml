@@ -16,64 +16,99 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 <Root>
-  <TestCase name="testNoNeedToClearJoinHint">
-    <Resource name="PlanBeforePropagatingHints">
+  <TestCase name="testClearJoinHintWithInvalidPropagationToViewWhileViewHasJoinHints">
+    <Resource name="beforePropagatingHint">
       <![CDATA[
 LogicalProject(a=[$0]), rowType=[RecordType(BIGINT a)]
-+- LogicalJoin(condition=[=($0, $4)], joinType=[inner]), rowType=[RecordType(BIGINT a, VARCHAR(2147483647) b, INTEGER c, VARCHAR(2147483647) d, BIGINT a0, VARCHAR(2147483647) b0, INTEGER c0, VARCHAR(2147483647) d0)]
-   :- LogicalTableScan(table=[[builtin, default, t1, source: [CollectionTableSource(a, b, c, d)]]]), rowType=[RecordType(BIGINT a, VARCHAR(2147483647) b, INTEGER c, VARCHAR(2147483647) d)]
-   +- LogicalTableScan(table=[[builtin, default, t2, source: [CollectionTableSource(a, b, c, d)]]]), rowType=[RecordType(BIGINT a, VARCHAR(2147483647) b, INTEGER c, VARCHAR(2147483647) d)]
++- LogicalJoin(condition=[=($0, $1)], joinType=[inner]), rowType=[RecordType(BIGINT a, BIGINT a0)]
+   :- LogicalProject(a=[$0], hints=[[[ALIAS options:[t4]]]]), rowType=[RecordType(BIGINT a)]
+   :  +- LogicalJoin(condition=[=($0, $1)], joinType=[inner]), rowType=[RecordType(BIGINT a, BIGINT a0)]
+   :     :- LogicalTableScan(table=[[builtin, default, t1]]), rowType=[RecordType(BIGINT a)]
+   :     +- LogicalTableScan(table=[[builtin, default, t2]]), rowType=[RecordType(BIGINT a)]
+   +- LogicalTableScan(table=[[builtin, default, t3]]), rowType=[RecordType(BIGINT a)]
 ]]>
     </Resource>
-    <Resource name="PlanAfterPropagatingHints">
+    <Resource name="afterPropagatingHints">
       <![CDATA[
 LogicalProject(a=[$0]), rowType=[RecordType(BIGINT a)]
-+- LogicalJoin(condition=[=($0, $4)], joinType=[inner], joinHints=[[[BROADCAST inheritPath:[0] options:[t1]]]]), rowType=[RecordType(BIGINT a, VARCHAR(2147483647) b, INTEGER c, VARCHAR(2147483647) d, BIGINT a0, VARCHAR(2147483647) b0, INTEGER c0, VARCHAR(2147483647) d0)]
-   :- LogicalTableScan(table=[[builtin, default, t1, source: [CollectionTableSource(a, b, c, d)]]]), rowType=[RecordType(BIGINT a, VARCHAR(2147483647) b, INTEGER c, VARCHAR(2147483647) d)]
-   +- LogicalTableScan(table=[[builtin, default, t2, source: [CollectionTableSource(a, b, c, d)]]]), rowType=[RecordType(BIGINT a, VARCHAR(2147483647) b, INTEGER c, VARCHAR(2147483647) d)]
++- LogicalJoin(condition=[=($0, $1)], joinType=[inner], joinHints=[[[BROADCAST inheritPath:[0] options:[t3]]]]), rowType=[RecordType(BIGINT a, BIGINT a0)]
+   :- LogicalProject(a=[$0], hints=[[[ALIAS options:[t4]]]]), rowType=[RecordType(BIGINT a)]
+   :  +- LogicalJoin(condition=[=($0, $1)], joinType=[inner], joinHints=[[[BROADCAST inheritPath:[0] options:[t1]][BROADCAST inheritPath:[0, 0, 0] options:[t3]]]], hints=[[[ALIAS inheritPath:[0] options:[t4]]]]), rowType=[RecordType(BIGINT a, BIGINT a0)]
+   :     :- LogicalTableScan(table=[[builtin, default, t1]]), rowType=[RecordType(BIGINT a)]
+   :     +- LogicalTableScan(table=[[builtin, default, t2]]), rowType=[RecordType(BIGINT a)]
+   +- LogicalTableScan(table=[[builtin, default, t3]]), rowType=[RecordType(BIGINT a)]
 ]]>
     </Resource>
-    <Resource name="rootAfterClearingJoinHintWithInvalidPropagation">
+    <Resource name="afterClearingJoinHints">
       <![CDATA[
 LogicalProject(a=[$0]), rowType=[RecordType(BIGINT a)]
-+- LogicalJoin(condition=[=($0, $4)], joinType=[inner], joinHints=[[[BROADCAST inheritPath:[0] options:[t1]]]]), rowType=[RecordType(BIGINT a, VARCHAR(2147483647) b, INTEGER c, VARCHAR(2147483647) d, BIGINT a0, VARCHAR(2147483647) b0, INTEGER c0, VARCHAR(2147483647) d0)]
-   :- LogicalTableScan(table=[[builtin, default, t1, source: [CollectionTableSource(a, b, c, d)]]]), rowType=[RecordType(BIGINT a, VARCHAR(2147483647) b, INTEGER c, VARCHAR(2147483647) d)]
-   +- LogicalTableScan(table=[[builtin, default, t2, source: [CollectionTableSource(a, b, c, d)]]]), rowType=[RecordType(BIGINT a, VARCHAR(2147483647) b, INTEGER c, VARCHAR(2147483647) d)]
++- LogicalJoin(condition=[=($0, $1)], joinType=[inner], joinHints=[[[BROADCAST inheritPath:[0] options:[t3]]]]), rowType=[RecordType(BIGINT a, BIGINT a0)]
+   :- LogicalProject(a=[$0], hints=[[[ALIAS options:[t4]]]]), rowType=[RecordType(BIGINT a)]
+   :  +- LogicalJoin(condition=[=($0, $1)], joinType=[inner], joinHints=[[[BROADCAST inheritPath:[0] options:[t1]]]], hints=[[[ALIAS inheritPath:[0] options:[t4]]]]), rowType=[RecordType(BIGINT a, BIGINT a0)]
+   :     :- LogicalTableScan(table=[[builtin, default, t1]]), rowType=[RecordType(BIGINT a)]
+   :     +- LogicalTableScan(table=[[builtin, default, t2]]), rowType=[RecordType(BIGINT a)]
+   +- LogicalTableScan(table=[[builtin, default, t3]]), rowType=[RecordType(BIGINT a)]
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testClearJoinHintWithInvalidPropagationToView">
-    <Resource name="PlanBeforePropagatingHints">
+  <TestCase name="testClearJoinHintWithInvalidPropagationToViewWhileViewHasNoJoinHints">
+    <Resource name="beforePropagatingHint">
       <![CDATA[
 LogicalProject(a=[$0]), rowType=[RecordType(BIGINT a)]
-+- LogicalJoin(condition=[=($0, $1)], joinType=[inner]), rowType=[RecordType(BIGINT a, BIGINT a0, VARCHAR(2147483647) b, INTEGER c, VARCHAR(2147483647) d)]
++- LogicalJoin(condition=[=($0, $1)], joinType=[inner]), rowType=[RecordType(BIGINT a, BIGINT a0)]
    :- LogicalProject(a=[$0], hints=[[[ALIAS options:[t4]]]]), rowType=[RecordType(BIGINT a)]
-   :  +- LogicalJoin(condition=[=($0, $4)], joinType=[inner]), rowType=[RecordType(BIGINT a, VARCHAR(2147483647) b, INTEGER c, VARCHAR(2147483647) d, BIGINT a0, VARCHAR(2147483647) b0, INTEGER c0, VARCHAR(2147483647) d0)]
-   :     :- LogicalTableScan(table=[[builtin, default, t1, source: [CollectionTableSource(a, b, c, d)]]]), rowType=[RecordType(BIGINT a, VARCHAR(2147483647) b, INTEGER c, VARCHAR(2147483647) d)]
-   :     +- LogicalTableScan(table=[[builtin, default, t2, source: [CollectionTableSource(a, b, c, d)]]]), rowType=[RecordType(BIGINT a, VARCHAR(2147483647) b, INTEGER c, VARCHAR(2147483647) d)]
-   +- LogicalTableScan(table=[[builtin, default, t3, source: [CollectionTableSource(a, b, c, d)]]]), rowType=[RecordType(BIGINT a, VARCHAR(2147483647) b, INTEGER c, VARCHAR(2147483647) d)]
+   :  +- LogicalJoin(condition=[=($0, $1)], joinType=[inner]), rowType=[RecordType(BIGINT a, BIGINT a0)]
+   :     :- LogicalTableScan(table=[[builtin, default, t1]]), rowType=[RecordType(BIGINT a)]
+   :     +- LogicalTableScan(table=[[builtin, default, t2]]), rowType=[RecordType(BIGINT a)]
+   +- LogicalTableScan(table=[[builtin, default, t3]]), rowType=[RecordType(BIGINT a)]
 ]]>
     </Resource>
-    <Resource name="PlanAfterPropagatingHints">
+    <Resource name="afterPropagatingHints">
       <![CDATA[
 LogicalProject(a=[$0]), rowType=[RecordType(BIGINT a)]
-+- LogicalJoin(condition=[=($0, $1)], joinType=[inner], joinHints=[[[BROADCAST inheritPath:[0] options:[t3]]]]), rowType=[RecordType(BIGINT a, BIGINT a0, VARCHAR(2147483647) b, INTEGER c, VARCHAR(2147483647) d)]
++- LogicalJoin(condition=[=($0, $1)], joinType=[inner], joinHints=[[[BROADCAST inheritPath:[0] options:[t3]]]]), rowType=[RecordType(BIGINT a, BIGINT a0)]
    :- LogicalProject(a=[$0], hints=[[[ALIAS options:[t4]]]]), rowType=[RecordType(BIGINT a)]
-   :  +- LogicalJoin(condition=[=($0, $4)], joinType=[inner], joinHints=[[[BROADCAST inheritPath:[0] options:[t1]][BROADCAST inheritPath:[0, 0, 0] options:[t3]]]], hints=[[[ALIAS inheritPath:[0] options:[t4]]]]), rowType=[RecordType(BIGINT a, VARCHAR(2147483647) b, INTEGER c, VARCHAR(2147483647) d, BIGINT a0, VARCHAR(2147483647) b0, INTEGER c0, VARCHAR(2147483647) d0)]
-   :     :- LogicalTableScan(table=[[builtin, default, t1, source: [CollectionTableSource(a, b, c, d)]]]), rowType=[RecordType(BIGINT a, VARCHAR(2147483647) b, INTEGER c, VARCHAR(2147483647) d)]
-   :     +- LogicalTableScan(table=[[builtin, default, t2, source: [CollectionTableSource(a, b, c, d)]]]), rowType=[RecordType(BIGINT a, VARCHAR(2147483647) b, INTEGER c, VARCHAR(2147483647) d)]
-   +- LogicalTableScan(table=[[builtin, default, t3, source: [CollectionTableSource(a, b, c, d)]]]), rowType=[RecordType(BIGINT a, VARCHAR(2147483647) b, INTEGER c, VARCHAR(2147483647) d)]
+   :  +- LogicalJoin(condition=[=($0, $1)], joinType=[inner], joinHints=[[[BROADCAST inheritPath:[0, 0, 0] options:[t3]]]], hints=[[[ALIAS inheritPath:[0] options:[t4]]]]), rowType=[RecordType(BIGINT a, BIGINT a0)]
+   :     :- LogicalTableScan(table=[[builtin, default, t1]]), rowType=[RecordType(BIGINT a)]
+   :     +- LogicalTableScan(table=[[builtin, default, t2]]), rowType=[RecordType(BIGINT a)]
+   +- LogicalTableScan(table=[[builtin, default, t3]]), rowType=[RecordType(BIGINT a)]
 ]]>
     </Resource>
-    <Resource name="rootAfterClearingJoinHintWithInvalidPropagation">
+    <Resource name="afterClearingJoinHints">
       <![CDATA[
 LogicalProject(a=[$0]), rowType=[RecordType(BIGINT a)]
-+- LogicalJoin(condition=[=($0, $1)], joinType=[inner], joinHints=[[[BROADCAST inheritPath:[0] options:[t3]]]]), rowType=[RecordType(BIGINT a, BIGINT a0, VARCHAR(2147483647) b, INTEGER c, VARCHAR(2147483647) d)]
++- LogicalJoin(condition=[=($0, $1)], joinType=[inner], joinHints=[[[BROADCAST inheritPath:[0] options:[t3]]]]), rowType=[RecordType(BIGINT a, BIGINT a0)]
    :- LogicalProject(a=[$0], hints=[[[ALIAS options:[t4]]]]), rowType=[RecordType(BIGINT a)]
-   :  +- LogicalJoin(condition=[=($0, $4)], joinType=[inner], joinHints=[[[BROADCAST inheritPath:[0] options:[t1]]]], hints=[[[ALIAS inheritPath:[0] options:[t4]]]]), rowType=[RecordType(BIGINT a, VARCHAR(2147483647) b, INTEGER c, VARCHAR(2147483647) d, BIGINT a0, VARCHAR(2147483647) b0, INTEGER c0, VARCHAR(2147483647) d0)]
-   :     :- LogicalTableScan(table=[[builtin, default, t1, source: [CollectionTableSource(a, b, c, d)]]]), rowType=[RecordType(BIGINT a, VARCHAR(2147483647) b, INTEGER c, VARCHAR(2147483647) d)]
-   :     +- LogicalTableScan(table=[[builtin, default, t2, source: [CollectionTableSource(a, b, c, d)]]]), rowType=[RecordType(BIGINT a, VARCHAR(2147483647) b, INTEGER c, VARCHAR(2147483647) d)]
-   +- LogicalTableScan(table=[[builtin, default, t3, source: [CollectionTableSource(a, b, c, d)]]]), rowType=[RecordType(BIGINT a, VARCHAR(2147483647) b, INTEGER c, VARCHAR(2147483647) d)]
+   :  +- LogicalJoin(condition=[=($0, $1)], joinType=[inner], hints=[[[ALIAS inheritPath:[0] options:[t4]]]]), rowType=[RecordType(BIGINT a, BIGINT a0)]
+   :     :- LogicalTableScan(table=[[builtin, default, t1]]), rowType=[RecordType(BIGINT a)]
+   :     +- LogicalTableScan(table=[[builtin, default, t2]]), rowType=[RecordType(BIGINT a)]
+   +- LogicalTableScan(table=[[builtin, default, t3]]), rowType=[RecordType(BIGINT a)]
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testNoNeedToClearJoinHint">
+    <Resource name="beforePropagatingHint">
+      <![CDATA[
+LogicalProject(a=[$0]), rowType=[RecordType(BIGINT a)]
++- LogicalJoin(condition=[=($0, $1)], joinType=[inner]), rowType=[RecordType(BIGINT a, BIGINT a0)]
+   :- LogicalTableScan(table=[[builtin, default, t1]]), rowType=[RecordType(BIGINT a)]
+   +- LogicalTableScan(table=[[builtin, default, t2]]), rowType=[RecordType(BIGINT a)]
+]]>
+    </Resource>
+    <Resource name="afterPropagatingHints">
+      <![CDATA[
+LogicalProject(a=[$0]), rowType=[RecordType(BIGINT a)]
++- LogicalJoin(condition=[=($0, $1)], joinType=[inner], joinHints=[[[BROADCAST inheritPath:[0] options:[t1]]]]), rowType=[RecordType(BIGINT a, BIGINT a0)]
+   :- LogicalTableScan(table=[[builtin, default, t1]]), rowType=[RecordType(BIGINT a)]
+   +- LogicalTableScan(table=[[builtin, default, t2]]), rowType=[RecordType(BIGINT a)]
+]]>
+    </Resource>
+    <Resource name="afterClearingJoinHints">
+      <![CDATA[
+LogicalProject(a=[$0]), rowType=[RecordType(BIGINT a)]
++- LogicalJoin(condition=[=($0, $1)], joinType=[inner], joinHints=[[[BROADCAST inheritPath:[0] options:[t1]]]]), rowType=[RecordType(BIGINT a, BIGINT a0)]
+   :- LogicalTableScan(table=[[builtin, default, t1]]), rowType=[RecordType(BIGINT a)]
+   +- LogicalTableScan(table=[[builtin, default, t2]]), rowType=[RecordType(BIGINT a)]
 ]]>
     </Resource>
   </TestCase>

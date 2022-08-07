@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.planner.plan.batch.sql.join.joinhint;
 
+import org.apache.flink.table.api.ExplainDetail;
 import org.apache.flink.table.api.SqlParserException;
 import org.apache.flink.table.api.StatementSet;
 import org.apache.flink.table.api.TableConfig;
@@ -27,6 +28,7 @@ import org.apache.flink.table.planner.hint.JoinStrategy;
 import org.apache.flink.table.planner.plan.optimize.RelNodeBlockPlanBuilder;
 import org.apache.flink.table.planner.plan.utils.FlinkRelOptUtil;
 import org.apache.flink.table.planner.utils.BatchTableTestUtil;
+import org.apache.flink.table.planner.utils.PlanKind;
 import org.apache.flink.table.planner.utils.TableTestBase;
 
 import org.apache.flink.shaded.curator5.org.apache.curator.shaded.com.google.common.collect.Lists;
@@ -39,6 +41,10 @@ import org.junit.Test;
 
 import java.util.List;
 import java.util.stream.Collectors;
+
+import scala.Enumeration;
+
+import static scala.runtime.BoxedUnit.UNIT;
 
 /**
  * A test base for join hint.
@@ -93,9 +99,24 @@ public abstract class JoinHintTestBase extends TableTestBase {
 
     protected abstract String getDisabledOperatorName();
 
-    protected abstract void verifyRelPlanByCustom(String sql);
+    protected void verifyRelPlanByCustom(String sql) {
+        util.doVerifyPlan(
+                sql,
+                new ExplainDetail[] {},
+                false,
+                new Enumeration.Value[] {PlanKind.AST(), PlanKind.OPT_REL()},
+                true);
+    }
 
-    protected abstract void verifyRelPlanByCustom(StatementSet set);
+    protected void verifyRelPlanByCustom(StatementSet set) {
+        util.doVerifyPlan(
+                set,
+                new ExplainDetail[] {},
+                false,
+                new Enumeration.Value[] {PlanKind.AST(), PlanKind.OPT_REL()},
+                () -> UNIT,
+                true);
+    }
 
     protected List<String> getOtherJoinHints() {
         return allJoinHintNames.stream()
