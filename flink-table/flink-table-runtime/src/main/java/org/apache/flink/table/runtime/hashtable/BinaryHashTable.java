@@ -681,26 +681,17 @@ public class BinaryHashTable extends BaseHybridHashTable {
         final BinaryHashPartition p = partitionsBeingBuilt.get(largestPartNum);
 
         // spill the partition
-        int numBuffersFreed = spillPartition(p);
-        LOG.info(
-                String.format(
-                        "Grace hash join: Ran out memory, choosing partition "
-                                + "[%d] to spill, %d memory segments being freed",
-                        largestPartNum, numBuffersFreed));
-
-        // The bloomFilter is built by bucket area after the data is spilled, so that we can use
-        // enough memory.
-        p.buildBloomFilterAndFreeBucket();
-        return largestPartNum;
-    }
-
-    private int spillPartition(BinaryHashPartition p) throws IOException {
         int numBuffersFreed =
                 p.spillPartition(
                         this.ioManager,
                         this.currentEnumerator.next(),
                         this.buildSpillReturnBuffers);
         this.buildSpillRetBufferNumbers += numBuffersFreed;
+        LOG.info(
+                String.format(
+                        "Grace hash join: Ran out memory, choosing partition "
+                                + "[%d] to spill, %d memory segments being freed",
+                        largestPartNum, numBuffersFreed));
 
         // grab as many buffers as are available directly
         MemorySegment currBuff;
@@ -711,7 +702,10 @@ public class BinaryHashTable extends BaseHybridHashTable {
         }
         numSpillFiles++;
         spillInBytes += numBuffersFreed * segmentSize;
-        return numBuffersFreed;
+        // The bloomFilter is built by bucket area after the data is spilled, so that we can use
+        // enough memory.
+        p.buildBloomFilterAndFreeBucket();
+        return largestPartNum;
     }
 
     public List<BinaryHashPartition> getPartitionsPendingForSMJ() {

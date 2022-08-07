@@ -555,18 +555,6 @@ public abstract class LongHybridHashTable extends BaseHybridHashTable {
         final LongHashPartition p = partitionsBeingBuilt.get(largestPartNum);
 
         // spill the partition
-        int numBuffersFreed = spillPartition(p);
-        LOG.info(
-                String.format(
-                        "Grace hash join: Ran out memory, choosing partition "
-                                + "[%d] to spill, %d memory segments being freed",
-                        largestPartNum, numBuffersFreed));
-
-        return largestPartNum;
-    }
-
-    private int spillPartition(LongHashPartition p) throws IOException {
-        // spill the partition
         int numBuffersFreed =
                 p.spillPartition(
                         this.ioManager,
@@ -574,6 +562,12 @@ public abstract class LongHybridHashTable extends BaseHybridHashTable {
                         this.buildSpillReturnBuffers);
         p.releaseBuckets();
         this.buildSpillRetBufferNumbers += numBuffersFreed;
+
+        LOG.info(
+                String.format(
+                        "Grace hash join: Ran out memory, choosing partition "
+                                + "[%d] to spill, %d memory segments being freed",
+                        largestPartNum, numBuffersFreed));
 
         // grab as many buffers as are available directly
         MemorySegment currBuff;
@@ -584,7 +578,7 @@ public abstract class LongHybridHashTable extends BaseHybridHashTable {
         }
         numSpillFiles++;
         spillInBytes += numBuffersFreed * segmentSize;
-        return numBuffersFreed;
+        return largestPartNum;
     }
 
     public List<LongHashPartition> getPartitionsPendingForSMJ() {
