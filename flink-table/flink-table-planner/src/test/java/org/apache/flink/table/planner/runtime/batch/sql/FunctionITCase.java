@@ -151,12 +151,8 @@ public class FunctionITCase extends BatchTestBase {
         tEnv().executeSql(String.format("ADD JAR '%s'", jarPath));
 
         TableResult tableResult = tEnv().executeSql("SHOW JARS");
-        assertThat(
-                        CollectionUtil.iteratorToList(tableResult.collect())
-                                .equals(
-                                        Collections.singletonList(
-                                                Row.of(new Path(jarPath).getPath()))))
-                .isTrue();
+        assertThat(CollectionUtil.iteratorToList(tableResult.collect()))
+                .isEqualTo(Collections.singletonList(Row.of(new Path(jarPath).getPath())));
 
         testUserDefinedFunctionByUsingJar(
                 String.format("create function lowerUdf as '%s' LANGUAGE JAVA", udfClassName),

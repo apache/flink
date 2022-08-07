@@ -152,6 +152,7 @@ import org.apache.flink.table.operations.ddl.DropTempSystemFunctionOperation;
 import org.apache.flink.table.operations.ddl.DropViewOperation;
 import org.apache.flink.table.operations.utils.OperationTreeBuilder;
 import org.apache.flink.table.resource.ResourceManager;
+import org.apache.flink.table.resource.ResourceType;
 import org.apache.flink.table.resource.ResourceUri;
 import org.apache.flink.table.sinks.TableSink;
 import org.apache.flink.table.sources.TableSource;
@@ -468,7 +469,7 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
 
     // TODO: Maybe we should expose addJar as tEnv's API later.
     private TableResultInternal addJar(AddJarOperation addJarOperation) {
-        ResourceUri resourceUri = addJarOperation.getResourceUri();
+        ResourceUri resourceUri = new ResourceUri(ResourceType.JAR, addJarOperation.getPath());
         try {
             resourceManager.registerJarResources(Collections.singletonList(resourceUri));
             return TableResultImpl.TABLE_RESULT_OK;
