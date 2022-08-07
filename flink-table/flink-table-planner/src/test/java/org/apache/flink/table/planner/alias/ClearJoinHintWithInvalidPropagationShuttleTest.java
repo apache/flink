@@ -175,6 +175,34 @@ public class ClearJoinHintWithInvalidPropagationShuttleTest extends TableTestBas
         verifyRelPlan(root);
     }
 
+    @Test
+    public void testClearJoinHintWithoutPropagatingToView() {
+        //  SELECT /*+ BROADCAST(t1)*/t4.a FROM (
+        //      SELECT t1.a FROM t1 JOIN t2 ON t1.a = t2.a
+        //  ) t4 JOIN t3 ON t4.a = t3.a
+        RelHint joinHintRoot =
+                RelHint.builder(JoinStrategy.BROADCAST.getJoinHintName()).hintOption("t1").build();
+
+        RelHint aliasHint = RelHint.builder(FlinkHints.HINT_ALIAS).hintOption("t4").build();
+
+        RelNode root =
+                builder.scan("t1")
+                        .scan("t2")
+                        .join(
+                                JoinRelType.INNER,
+                                builder.equals(builder.field(2, 0, "a"), builder.field(2, 1, "a")))
+                        .project(builder.field(1, 0, "a"))
+                        .hints(aliasHint)
+                        .scan("t3")
+                        .join(
+                                JoinRelType.INNER,
+                                builder.equals(builder.field(2, 0, "a"), builder.field(2, 1, "a")))
+                        .project(builder.field(1, 0, "a"))
+                        .hints(joinHintRoot)
+                        .build();
+        verifyRelPlan(root);
+    }
+
     private String buildRelPlanWithQueryBlockAlias(RelNode node) {
         return System.lineSeparator()
                 + FlinkRelOptUtil.toString(
@@ -183,7 +211,7 @@ public class ClearJoinHintWithInvalidPropagationShuttleTest extends TableTestBas
 
     private void verifyRelPlan(RelNode node) {
         String plan = buildRelPlanWithQueryBlockAlias(node);
-        util.assertEqualsOrExpand("beforePropagatingHint", plan, true);
+        util.assertEqualsOrExpand("beforePropagatingHints", plan, true);
 
         RelNode rootAfterHintPropagation = RelOptUtil.propagateRelHints(node, false);
         plan = buildRelPlanWithQueryBlockAlias(rootAfterHintPropagation);
