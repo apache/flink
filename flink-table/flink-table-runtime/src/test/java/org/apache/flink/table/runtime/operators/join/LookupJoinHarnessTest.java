@@ -239,13 +239,13 @@ public class LookupJoinHarnessTest {
      * The {@link TestingFetcherCollector} is a simple implementation of {@link
      * TableFunctionCollector} which combines left and right into a JoinedRowData.
      */
-    public static final class TestingFetcherCollector extends ListenableCollector {
+    public static final class TestingFetcherCollector extends ListenableCollector<RowData> {
         private static final long serialVersionUID = -312754413938303160L;
 
         @Override
-        public void collect(Object record) {
+        public void collect(RowData record) {
             RowData left = (RowData) getInput();
-            RowData right = (RowData) record;
+            RowData right = record;
             getCollectListener()
                     .ifPresent(listener -> ((CollectListener) listener).onCollect(record));
 

@@ -154,6 +154,8 @@ public abstract class CommonExecLookupJoin extends ExecNodeBase<RowData>
 
     public static final String LOOKUP_JOIN_TRANSFORMATION = "lookup-join";
 
+    public static final String LOOKUP_JOIN_WITH_STATE_TRANSFORMATION = "lookup-join-with-state";
+
     public static final String FIELD_NAME_JOIN_TYPE = "joinType";
     public static final String FIELD_NAME_JOIN_CONDITION = "joinCondition";
     public static final String FIELD_NAME_TEMPORAL_TABLE = "temporalTable";
@@ -352,12 +354,9 @@ public abstract class CommonExecLookupJoin extends ExecNodeBase<RowData>
                 new KeyedProcessOperator<>(keyedLookupJoinWrapper);
 
         List<Integer> refKeys =
-                allLookupKeys.entrySet().stream()
-                        .filter(
-                                key ->
-                                        !(key.getValue()
-                                                instanceof LookupJoinUtil.ConstantLookupKey))
-                        .map(key -> ((LookupJoinUtil.FieldRefLookupKey) key.getValue()).index)
+                allLookupKeys.values().stream()
+                        .filter(key -> key instanceof LookupJoinUtil.ConstantLookupKey)
+                        .map(key -> ((LookupJoinUtil.FieldRefLookupKey) key).index)
                         .collect(Collectors.toList());
         RowDataKeySelector keySelector;
 
@@ -386,7 +385,7 @@ public abstract class CommonExecLookupJoin extends ExecNodeBase<RowData>
         OneInputTransformation<RowData, RowData> transform =
                 ExecNodeUtil.createOneInputTransformation(
                         partitionedTransform,
-                        createTransformationMeta(LOOKUP_JOIN_TRANSFORMATION, config),
+                        createTransformationMeta(LOOKUP_JOIN_WITH_STATE_TRANSFORMATION, config),
                         operator,
                         InternalTypeInfo.of(resultRowType),
                         parallelism);
