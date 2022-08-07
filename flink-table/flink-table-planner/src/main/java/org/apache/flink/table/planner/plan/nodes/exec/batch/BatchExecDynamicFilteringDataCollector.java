@@ -53,7 +53,7 @@ public class BatchExecDynamicFilteringDataCollector extends ExecNodeBase<Object>
         implements BatchExecNode<Object> {
 
     @Experimental
-    public static final ConfigOption<MemorySize> TABLE_EXEC_DYNAMIC_FILTERING_THRESHOLD =
+    private static final ConfigOption<MemorySize> TABLE_EXEC_DYNAMIC_FILTERING_THRESHOLD =
             key("table.exec.dynamic-filtering.threshold")
                     .memoryType()
                     .defaultValue(MemorySize.parse("8 mb"))
