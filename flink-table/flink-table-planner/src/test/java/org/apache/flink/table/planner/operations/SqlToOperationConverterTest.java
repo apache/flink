@@ -1675,7 +1675,7 @@ public class SqlToOperationConverterTest {
                                     (AddJarOperation)
                                             parser.parse(String.format("ADD JAR '%s'", jarPath))
                                                     .get(0);
-                            assertThat(operation.getResourceUri().getUri()).isEqualTo(jarPath);
+                            assertThat(operation.getPath()).isEqualTo(jarPath);
                         });
     }
 

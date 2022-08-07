@@ -70,7 +70,6 @@ public abstract class SqlITCaseBase extends TestLogger {
                             FlinkResourceSetup.builder()
                                     .addConfiguration(getConfiguration())
                                     .build());
-;
 
     @Rule public final TemporaryFolder tmp = new TemporaryFolder();
 
