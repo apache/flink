@@ -21,6 +21,8 @@ package org.apache.flink.table.gateway.api;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.table.catalog.CatalogBaseTable.TableKind;
+import org.apache.flink.table.catalog.ObjectIdentifier;
+import org.apache.flink.table.catalog.ResolvedCatalogBaseTable;
 import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.gateway.api.endpoint.EndpointVersion;
 import org.apache.flink.table.gateway.api.operation.OperationHandle;
@@ -234,5 +236,16 @@ public interface SqlGatewayService {
             String catalogName,
             String databaseName,
             Set<TableKind> tableKinds)
+            throws SqlGatewayException;
+
+    /**
+     * Return table of the given fully qualified name.
+     *
+     * @param sessionHandle handle to identify the session.
+     * @param tableIdentifier fully qualified name of the table.
+     * @return information of the table, see {@link ResolvedCatalogBaseTable}.
+     */
+    ResolvedCatalogBaseTable<?> getTable(
+            SessionHandle sessionHandle, ObjectIdentifier tableIdentifier)
             throws SqlGatewayException;
 }

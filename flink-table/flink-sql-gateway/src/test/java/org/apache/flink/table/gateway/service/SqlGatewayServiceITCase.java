@@ -27,6 +27,8 @@ import org.apache.flink.table.catalog.CatalogDatabaseImpl;
 import org.apache.flink.table.catalog.Column;
 import org.apache.flink.table.catalog.GenericInMemoryCatalog;
 import org.apache.flink.table.catalog.ObjectIdentifier;
+import org.apache.flink.table.catalog.ResolvedCatalogTable;
+import org.apache.flink.table.catalog.ResolvedCatalogView;
 import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
@@ -405,6 +407,18 @@ public class SqlGatewayServiceITCase extends AbstractTestBase {
                                 "db0",
                                 Collections.singleton(TableKind.VIEW)))
                 .isEqualTo(Collections.emptySet());
+    }
+
+    @Test
+    public void testGetTable() throws Exception {
+        SessionHandle sessionHandle = createInitializedSession();
+        // TODO 更好的测试？
+        // test get literally table
+        assertThat(service.getTable(sessionHandle, ObjectIdentifier.of("cat1", "db1", "tbl1")))
+                .isInstanceOf(ResolvedCatalogTable.class);
+        // test get view
+        assertThat(service.getTable(sessionHandle, ObjectIdentifier.of("cat1", "db1", "tbl3")))
+                .isInstanceOf(ResolvedCatalogView.class);
     }
 
     // --------------------------------------------------------------------------------------------
