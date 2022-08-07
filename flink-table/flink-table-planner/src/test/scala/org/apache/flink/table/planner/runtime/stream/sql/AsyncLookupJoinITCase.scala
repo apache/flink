@@ -447,18 +447,6 @@ object AsyncLookupJoinITCase {
         DYNAMIC_TABLE_SOURCE,
         HEAP_BACKEND,
         ENABLE_OBJECT_REUSE,
-        AsyncOutputMode.ORDERED,
-        ENABLE_CACHE),
-      Array(
-        DYNAMIC_TABLE_SOURCE,
-        ROCKSDB_BACKEND,
-        DISABLE_OBJECT_REUSE,
-        AsyncOutputMode.ALLOW_UNORDERED,
-        ENABLE_CACHE),
-      Array(
-        DYNAMIC_TABLE_SOURCE,
-        ROCKSDB_BACKEND,
-        ENABLE_OBJECT_REUSE,
         AsyncOutputMode.ALLOW_UNORDERED,
         ENABLE_CACHE)
     )
