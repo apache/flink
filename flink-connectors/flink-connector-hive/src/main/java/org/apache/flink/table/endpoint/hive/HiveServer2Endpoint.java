@@ -32,7 +32,6 @@ import org.apache.flink.table.gateway.api.endpoint.EndpointVersion;
 import org.apache.flink.table.gateway.api.endpoint.SqlGatewayEndpoint;
 import org.apache.flink.table.gateway.api.operation.OperationHandle;
 import org.apache.flink.table.gateway.api.operation.OperationStatus;
-import org.apache.flink.table.gateway.api.operation.OperationType;
 import org.apache.flink.table.gateway.api.results.OperationInfo;
 import org.apache.flink.table.gateway.api.results.ResultSet;
 import org.apache.flink.table.gateway.api.session.SessionEnvironment;
@@ -88,6 +87,7 @@ import org.apache.hive.service.rpc.thrift.TGetTypeInfoResp;
 import org.apache.hive.service.rpc.thrift.TOpenSessionReq;
 import org.apache.hive.service.rpc.thrift.TOpenSessionResp;
 import org.apache.hive.service.rpc.thrift.TOperationHandle;
+import org.apache.hive.service.rpc.thrift.TOperationType;
 import org.apache.hive.service.rpc.thrift.TProtocolVersion;
 import org.apache.hive.service.rpc.thrift.TRenewDelegationTokenReq;
 import org.apache.hive.service.rpc.thrift.TRenewDelegationTokenResp;
@@ -381,7 +381,7 @@ public class HiveServer2Endpoint implements TCLIService.Iface, SqlGatewayEndpoin
 
             resp.setOperationHandle(
                     toTOperationHandle(
-                            sessionHandle, operationHandle, OperationType.EXECUTE_STATEMENT));
+                            sessionHandle, operationHandle, TOperationType.EXECUTE_STATEMENT));
         } catch (Throwable t) {
             LOG.error("Failed to ExecuteStatement.", t);
             resp.setStatus(toTStatus(t));
@@ -401,13 +401,11 @@ public class HiveServer2Endpoint implements TCLIService.Iface, SqlGatewayEndpoin
             SessionHandle sessionHandle = toSessionHandle(tGetCatalogsReq.getSessionHandle());
             OperationHandle operationHandle =
                     service.submitOperation(
-                            sessionHandle,
-                            OperationType.LIST_CATALOGS,
-                            createGetCatalogsExecutor(service, sessionHandle));
+                            sessionHandle, createGetCatalogsExecutor(service, sessionHandle));
             resp.setStatus(OK_STATUS);
             resp.setOperationHandle(
                     toTOperationHandle(
-                            sessionHandle, operationHandle, OperationType.LIST_CATALOGS));
+                            sessionHandle, operationHandle, TOperationType.GET_CATALOGS));
         } catch (Throwable t) {
             LOG.error("Failed to GetCatalogs.", t);
             resp.setStatus(toTStatus(t));
@@ -423,7 +421,6 @@ public class HiveServer2Endpoint implements TCLIService.Iface, SqlGatewayEndpoin
             OperationHandle operationHandle =
                     service.submitOperation(
                             sessionHandle,
-                            OperationType.LIST_SCHEMAS,
                             createGetSchemasExecutor(
                                     service,
                                     sessionHandle,
@@ -432,7 +429,7 @@ public class HiveServer2Endpoint implements TCLIService.Iface, SqlGatewayEndpoin
 
             resp.setStatus(OK_STATUS);
             resp.setOperationHandle(
-                    toTOperationHandle(sessionHandle, operationHandle, OperationType.LIST_SCHEMAS));
+                    toTOperationHandle(sessionHandle, operationHandle, TOperationType.GET_SCHEMAS));
         } catch (Throwable t) {
             LOG.error("Failed to GetSchemas.", t);
             resp.setStatus(toTStatus(t));

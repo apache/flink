@@ -31,7 +31,6 @@ import org.apache.flink.table.data.StringData;
 import org.apache.flink.table.data.TimestampData;
 import org.apache.flink.table.gateway.api.operation.OperationHandle;
 import org.apache.flink.table.gateway.api.operation.OperationStatus;
-import org.apache.flink.table.gateway.api.operation.OperationType;
 import org.apache.flink.table.gateway.api.session.SessionHandle;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.LogicalType;
@@ -45,6 +44,7 @@ import org.apache.hive.service.cli.TableSchema;
 import org.apache.hive.service.cli.operation.ClassicTableTypeMapping.ClassicTableTypes;
 import org.apache.hive.service.rpc.thrift.TOperationHandle;
 import org.apache.hive.service.rpc.thrift.TOperationState;
+import org.apache.hive.service.rpc.thrift.TOperationType;
 import org.apache.hive.service.rpc.thrift.TRowSet;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -118,7 +118,7 @@ class ThriftObjectConversionsTest {
         OperationHandle originOperationHandle = OperationHandle.create();
         TOperationHandle tOperationHandle =
                 toTOperationHandle(
-                        originSessionHandle, originOperationHandle, OperationType.UNKNOWN);
+                        originSessionHandle, originOperationHandle, TOperationType.UNKNOWN);
 
         assertThat(toSessionHandle(tOperationHandle)).isEqualTo(originSessionHandle);
         assertThat(toOperationHandle(tOperationHandle)).isEqualTo(originOperationHandle);

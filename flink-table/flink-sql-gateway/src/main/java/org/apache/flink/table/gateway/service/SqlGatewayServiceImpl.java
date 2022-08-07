@@ -25,7 +25,6 @@ import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.gateway.api.SqlGatewayService;
 import org.apache.flink.table.gateway.api.endpoint.EndpointVersion;
 import org.apache.flink.table.gateway.api.operation.OperationHandle;
-import org.apache.flink.table.gateway.api.operation.OperationType;
 import org.apache.flink.table.gateway.api.results.FetchOrientation;
 import org.apache.flink.table.gateway.api.results.OperationInfo;
 import org.apache.flink.table.gateway.api.results.ResultSet;
@@ -98,10 +97,9 @@ public class SqlGatewayServiceImpl implements SqlGatewayService {
 
     @Override
     public OperationHandle submitOperation(
-            SessionHandle sessionHandle, OperationType type, Callable<ResultSet> executor)
-            throws SqlGatewayException {
+            SessionHandle sessionHandle, Callable<ResultSet> executor) throws SqlGatewayException {
         try {
-            return getSession(sessionHandle).getOperationManager().submitOperation(type, executor);
+            return getSession(sessionHandle).getOperationManager().submitOperation(executor);
         } catch (Throwable e) {
             LOG.error("Failed to submitOperation.", e);
             throw new SqlGatewayException("Failed to submitOperation.", e);
@@ -172,7 +170,6 @@ public class SqlGatewayServiceImpl implements SqlGatewayService {
             return getSession(sessionHandle)
                     .getOperationManager()
                     .submitOperation(
-                            OperationType.EXECUTE_STATEMENT,
                             handle ->
                                     getSession(sessionHandle)
                                             .createExecutor(executionConfig)

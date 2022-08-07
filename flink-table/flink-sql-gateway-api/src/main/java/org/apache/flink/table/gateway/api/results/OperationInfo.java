@@ -20,7 +20,6 @@ package org.apache.flink.table.gateway.api.results;
 
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.table.gateway.api.operation.OperationStatus;
-import org.apache.flink.table.gateway.api.operation.OperationType;
 import org.apache.flink.util.ExceptionUtils;
 
 import javax.annotation.Nullable;
@@ -33,22 +32,15 @@ import java.util.Optional;
 public class OperationInfo {
 
     private final OperationStatus status;
-    private final OperationType type;
     @Nullable private final Exception exception;
 
-    public OperationInfo(OperationStatus status, OperationType type) {
-        this(status, type, null);
+    public OperationInfo(OperationStatus status) {
+        this(status, null);
     }
 
-    public OperationInfo(
-            OperationStatus status, OperationType type, @Nullable Exception exception) {
+    public OperationInfo(OperationStatus status, @Nullable Exception exception) {
         this.status = status;
-        this.type = type;
         this.exception = exception;
-    }
-
-    public OperationType getType() {
-        return type;
     }
 
     public OperationStatus getStatus() {
@@ -68,14 +60,12 @@ public class OperationInfo {
             return false;
         }
         OperationInfo that = (OperationInfo) o;
-        return status == that.status
-                && type == that.type
-                && Objects.equals(exception, that.exception);
+        return status == that.status && Objects.equals(exception, that.exception);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(status, type, exception);
+        return Objects.hash(status, exception);
     }
 
     @Override
@@ -83,8 +73,6 @@ public class OperationInfo {
         return "OperationInfo{"
                 + "status="
                 + status
-                + ", type="
-                + type
                 + ", exception="
                 + (exception == null ? "null" : ExceptionUtils.stringifyException(exception))
                 + '}';
