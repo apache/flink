@@ -29,7 +29,6 @@ import org.apache.flink.table.endpoint.hive.util.HiveServer2EndpointExtension;
 import org.apache.flink.table.endpoint.hive.util.ThriftObjectConversions;
 import org.apache.flink.table.gateway.api.operation.OperationHandle;
 import org.apache.flink.table.gateway.api.operation.OperationStatus;
-import org.apache.flink.table.gateway.api.operation.OperationType;
 import org.apache.flink.table.gateway.api.results.ResultSet;
 import org.apache.flink.table.gateway.api.session.SessionEnvironment;
 import org.apache.flink.table.gateway.api.session.SessionHandle;
@@ -54,6 +53,7 @@ import org.apache.hive.service.rpc.thrift.TCloseSessionResp;
 import org.apache.hive.service.rpc.thrift.TOpenSessionReq;
 import org.apache.hive.service.rpc.thrift.TOpenSessionResp;
 import org.apache.hive.service.rpc.thrift.TOperationHandle;
+import org.apache.hive.service.rpc.thrift.TOperationType;
 import org.apache.hive.service.rpc.thrift.TStatusCode;
 import org.apache.thrift.protocol.TBinaryProtocol;
 import org.apache.thrift.transport.TTransport;
@@ -471,13 +471,12 @@ public class HiveServer2EndpointITCase extends TestLogger {
                         .getService()
                         .submitOperation(
                                 sessionHandle,
-                                OperationType.UNKNOWN,
                                 () -> {
                                     latch.await();
                                     return ResultSet.NOT_READY_RESULTS;
                                 });
         manipulateOp.accept(
-                toTOperationHandle(sessionHandle, operationHandle, OperationType.UNKNOWN));
+                toTOperationHandle(sessionHandle, operationHandle, TOperationType.UNKNOWN));
         operationValidator.accept(sessionHandle, operationHandle);
         SQL_GATEWAY_SERVICE_EXTENSION.getService().closeSession(sessionHandle);
     }

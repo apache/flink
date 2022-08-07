@@ -30,7 +30,6 @@ import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.gateway.api.SqlGatewayService;
 import org.apache.flink.table.gateway.api.operation.OperationHandle;
 import org.apache.flink.table.gateway.api.operation.OperationStatus;
-import org.apache.flink.table.gateway.api.operation.OperationType;
 import org.apache.flink.table.gateway.api.results.FetchOrientation;
 import org.apache.flink.table.gateway.api.session.SessionHandle;
 import org.apache.flink.table.types.DataType;
@@ -144,10 +143,10 @@ public class ThriftObjectConversions {
     public static TOperationHandle toTOperationHandle(
             SessionHandle sessionHandle,
             OperationHandle operationHandle,
-            OperationType operationType) {
+            TOperationType operationType) {
         return new TOperationHandle(
                 toTHandleIdentifier(operationHandle.getIdentifier(), sessionHandle.getIdentifier()),
-                toTOperationType(operationType),
+                operationType,
                 true);
     }
 
@@ -164,24 +163,6 @@ public class ThriftObjectConversions {
     // --------------------------------------------------------------------------------------------
     // Operation related conversions
     // --------------------------------------------------------------------------------------------
-
-    public static TOperationType toTOperationType(OperationType type) {
-        switch (type) {
-            case EXECUTE_STATEMENT:
-                return TOperationType.EXECUTE_STATEMENT;
-            case LIST_CATALOGS:
-                return TOperationType.GET_CATALOGS;
-            case LIST_SCHEMAS:
-                return TOperationType.GET_SCHEMAS;
-            case LIST_TABLES:
-                return TOperationType.GET_TABLES;
-            case UNKNOWN:
-                return TOperationType.UNKNOWN;
-            default:
-                throw new IllegalArgumentException(
-                        String.format("Unknown operation type: %s.", type));
-        }
-    }
 
     public static TOperationState toTOperationState(OperationStatus operationStatus) {
         switch (operationStatus) {

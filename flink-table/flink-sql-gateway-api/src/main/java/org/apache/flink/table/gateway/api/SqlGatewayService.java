@@ -25,7 +25,6 @@ import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.gateway.api.endpoint.EndpointVersion;
 import org.apache.flink.table.gateway.api.operation.OperationHandle;
 import org.apache.flink.table.gateway.api.operation.OperationStatus;
-import org.apache.flink.table.gateway.api.operation.OperationType;
 import org.apache.flink.table.gateway.api.results.FetchOrientation;
 import org.apache.flink.table.gateway.api.results.OperationInfo;
 import org.apache.flink.table.gateway.api.results.ResultSet;
@@ -87,12 +86,10 @@ public interface SqlGatewayService {
      * execution and assign the {@link OperationHandle} for later to retrieve the results.
      *
      * @param sessionHandle handle to identify the session.
-     * @param type describe the operation type.
      * @param executor the main logic to get the execution results.
      * @return Returns the handle for later retrieve results.
      */
-    OperationHandle submitOperation(
-            SessionHandle sessionHandle, OperationType type, Callable<ResultSet> executor)
+    OperationHandle submitOperation(SessionHandle sessionHandle, Callable<ResultSet> executor)
             throws SqlGatewayException;
 
     /**

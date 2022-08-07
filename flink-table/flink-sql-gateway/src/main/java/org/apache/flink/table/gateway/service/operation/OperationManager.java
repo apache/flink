@@ -23,7 +23,6 @@ import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.gateway.api.operation.OperationHandle;
 import org.apache.flink.table.gateway.api.operation.OperationStatus;
-import org.apache.flink.table.gateway.api.operation.OperationType;
 import org.apache.flink.table.gateway.api.results.FetchOrientation;
 import org.apache.flink.table.gateway.api.results.OperationInfo;
 import org.apache.flink.table.gateway.api.results.ResultSet;
@@ -80,17 +79,14 @@ public class OperationManager {
      * the lifecycle of the {@link Operation}, including register resources, fire the execution and
      * so on.
      *
-     * @param operationType The type of the submitted operation.
      * @param executor Worker to execute.
      * @return OperationHandle to fetch the results or check the status.
      */
-    public OperationHandle submitOperation(
-            OperationType operationType, Callable<ResultSet> executor) {
+    public OperationHandle submitOperation(Callable<ResultSet> executor) {
         OperationHandle handle = OperationHandle.create();
         Operation operation =
                 new Operation(
                         handle,
-                        operationType,
                         () -> {
                             ResultSet resultSet = executor.call();
                             return new ResultFetcher(
@@ -106,15 +102,13 @@ public class OperationManager {
      * lifecycle of the {@link Operation}, including register resources, fire the execution and so
      * on.
      *
-     * @param operationType The type of the submitted operation.
      * @param fetcherSupplier offer the fetcher to get the results.
      * @return OperationHandle to fetch the results or check the status.
      */
     public OperationHandle submitOperation(
-            OperationType operationType, Function<OperationHandle, ResultFetcher> fetcherSupplier) {
+            Function<OperationHandle, ResultFetcher> fetcherSupplier) {
         OperationHandle handle = OperationHandle.create();
-        Operation operation =
-                new Operation(handle, operationType, () -> fetcherSupplier.apply(handle));
+        Operation operation = new Operation(handle, () -> fetcherSupplier.apply(handle));
         submitOperationInternal(handle, operation);
         return handle;
     }
@@ -210,22 +204,16 @@ public class OperationManager {
 
         private final OperationHandle operationHandle;
 
-        private final OperationType operationType;
         private final AtomicReference<OperationStatus> status;
-
         private final Callable<ResultFetcher> resultSupplier;
 
         private volatile FutureTask<?> invocation;
         private volatile ResultFetcher resultFetcher;
         private volatile SqlExecutionException operationError;
 
-        public Operation(
-                OperationHandle operationHandle,
-                OperationType operationType,
-                Callable<ResultFetcher> resultSupplier) {
+        public Operation(OperationHandle operationHandle, Callable<ResultFetcher> resultSupplier) {
             this.operationHandle = operationHandle;
             this.status = new AtomicReference<>(OperationStatus.INITIALIZED);
-            this.operationType = operationType;
             this.resultSupplier = resultSupplier;
         }
 
@@ -331,7 +319,7 @@ public class OperationManager {
         }
 
         public OperationInfo getOperationInfo() {
-            return new OperationInfo(status.get(), operationType, operationError);
+            return new OperationInfo(status.get(), operationError);
         }
 
         private ResultSet fetchResultsInternal(Supplier<ResultSet> results) {

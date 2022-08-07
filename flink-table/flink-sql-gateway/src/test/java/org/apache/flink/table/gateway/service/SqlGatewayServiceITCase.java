@@ -33,7 +33,6 @@ import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.StringData;
 import org.apache.flink.table.gateway.api.operation.OperationHandle;
 import org.apache.flink.table.gateway.api.operation.OperationStatus;
-import org.apache.flink.table.gateway.api.operation.OperationType;
 import org.apache.flink.table.gateway.api.results.OperationInfo;
 import org.apache.flink.table.gateway.api.results.ResultSet;
 import org.apache.flink.table.gateway.api.results.TableInfo;
@@ -187,11 +186,10 @@ public class SqlGatewayServiceITCase extends AbstractTestBase {
 
         startRunningLatch.await();
         assertThat(service.getOperationInfo(sessionHandle, operationHandle))
-                .isEqualTo(new OperationInfo(OperationStatus.RUNNING, OperationType.UNKNOWN));
+                .isEqualTo(new OperationInfo(OperationStatus.RUNNING));
 
         endRunningLatch.countDown();
-        OperationInfo expectedInfo =
-                new OperationInfo(OperationStatus.FINISHED, OperationType.UNKNOWN);
+        OperationInfo expectedInfo = new OperationInfo(OperationStatus.FINISHED);
 
         CommonTestUtils.waitUtil(
                 () -> service.getOperationInfo(sessionHandle, operationHandle).equals(expectedInfo),
@@ -230,12 +228,12 @@ public class SqlGatewayServiceITCase extends AbstractTestBase {
 
         startRunningLatch.await();
         assertThat(service.getOperationInfo(sessionHandle, operationHandle))
-                .isEqualTo(new OperationInfo(OperationStatus.RUNNING, OperationType.UNKNOWN));
+                .isEqualTo(new OperationInfo(OperationStatus.RUNNING));
 
         service.cancelOperation(sessionHandle, operationHandle);
 
         assertThat(service.getOperationInfo(sessionHandle, operationHandle))
-                .isEqualTo(new OperationInfo(OperationStatus.CANCELED, OperationType.UNKNOWN));
+                .isEqualTo(new OperationInfo(OperationStatus.CANCELED));
         service.closeOperation(sessionHandle, operationHandle);
         assertThat(sessionManager.getOperationCount(sessionHandle)).isEqualTo(0);
     }
@@ -537,7 +535,6 @@ public class SqlGatewayServiceITCase extends AbstractTestBase {
                             () ->
                                     service.submitOperation(
                                             sessionHandle,
-                                            OperationType.UNKNOWN,
                                             () -> {
                                                 startRunning.countDown();
                                                 terminateRunning.await();
@@ -562,7 +559,6 @@ public class SqlGatewayServiceITCase extends AbstractTestBase {
             handles.add(
                     service.submitOperation(
                             sessionHandle,
-                            OperationType.UNKNOWN,
                             () -> {
                                 // If execute in parallel, the value of v may be overridden by
                                 // another thread
@@ -596,7 +592,6 @@ public class SqlGatewayServiceITCase extends AbstractTestBase {
             operations.add(
                     service.submitOperation(
                             sessionHandle,
-                            OperationType.UNKNOWN,
                             () -> {
                                 latch.await();
                                 return getDefaultResultSet();
@@ -608,7 +603,6 @@ public class SqlGatewayServiceITCase extends AbstractTestBase {
                         () ->
                                 service.submitOperation(
                                         sessionHandle,
-                                        OperationType.UNKNOWN,
                                         () -> {
                                             latch.await();
                                             return getDefaultResultSet();
@@ -627,7 +621,6 @@ public class SqlGatewayServiceITCase extends AbstractTestBase {
         CountDownLatch success = new CountDownLatch(1);
         service.submitOperation(
                 sessionHandle,
-                OperationType.UNKNOWN,
                 () -> {
                     success.countDown();
                     return getDefaultResultSet();
@@ -701,7 +694,6 @@ public class SqlGatewayServiceITCase extends AbstractTestBase {
             SessionHandle sessionHandle, RunnableWithException executor) {
         return service.submitOperation(
                 sessionHandle,
-                OperationType.UNKNOWN,
                 () -> {
                     executor.run();
                     return getDefaultResultSet();
@@ -735,7 +727,6 @@ public class SqlGatewayServiceITCase extends AbstractTestBase {
         OperationHandle operationHandle =
                 service.submitOperation(
                         sessionHandle,
-                        OperationType.UNKNOWN,
                         () -> {
                             operationIsRunning.await();
                             return executor.call();
