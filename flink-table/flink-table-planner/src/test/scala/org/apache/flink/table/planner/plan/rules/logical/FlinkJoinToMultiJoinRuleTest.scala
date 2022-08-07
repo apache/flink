@@ -100,6 +100,14 @@ class FlinkJoinToMultiJoinRuleTest extends TableTestBase {
   }
 
   @Test
+  def testSubRightOuterJoinQuery(): Unit = {
+    // This case will be set into one multi join set.
+    val sqlQuery =
+      "SELECT * FROM T3 RIGHT OUTER JOIN (SELECT * FROM T1 RIGHT OUTER JOIN T2 ON a = c) t ON t.a = T3.e"
+    util.verifyRelPlan(sqlQuery)
+  }
+
+  @Test
   def testRightOuterJoinLeftOuterJoin(): Unit = {
     // Cannot not translate join to multi join because right outer join in join left.
     val sqlQuery =

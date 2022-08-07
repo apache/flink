@@ -904,6 +904,41 @@ class JoinITCase(expectedJoinType: JoinType) extends BatchTestBase {
   }
 
   @Test
+  def testRightOuterJoinRightOuterJoinCannotReorder: Unit = {
+    // This test is used to test the result after join to multi join and join reorder.
+    tEnv.getConfig.set(
+      OptimizerConfigOptions.TABLE_OPTIMIZER_JOIN_REORDER_ENABLED,
+      Boolean.box(true))
+    registerCollection("Table2", data2, type2, "d, e, f, g, h", nullablesOfData2)
+    // This query will be set into one multi jon set by FlinkJoinToMultiJoinRule,
+    // but it can not reorder, because the sub right outer join query join condition is from generate-null side.
+    checkResult(
+      """
+        |SELECT Table5.g, c, t.g FROM Table5 RIGHT OUTER JOIN
+        |(SELECT * FROM SmallTable3 RIGHT OUTER JOIN Table2 ON b = Table2.e) t ON t.e = Table5.e
+        |""".stripMargin,
+      Seq(
+        row("ABC", null, "ABC"),
+        row("BCD", null, "BCD"),
+        row("CDE", null, "CDE"),
+        row("DEF", null, "DEF"),
+        row("EFG", null, "EFG"),
+        row("FGH", null, "FGH"),
+        row("GHI", null, "GHI"),
+        row("HIJ", null, "HIJ"),
+        row("Hallo Welt wie gehts?", null, "Hallo Welt wie gehts?"),
+        row("Hallo Welt wie", null, "Hallo Welt wie"),
+        row("Hallo Welt", "Hello", "Hallo Welt"),
+        row("Hallo Welt", "Hello world", "Hallo Welt"),
+        row("Hallo", "Hi", "Hallo"),
+        row("IJK", null, "IJK"),
+        row("JKL", null, "JKL"),
+        row("KLM", null, "KLM")
+      )
+    )
+  }
+
+  @Test
   def testInnerJoinReorder(): Unit = {
     // This test is used to test the result after join to multi join and join reorder.
     tEnv.getConfig.set(
