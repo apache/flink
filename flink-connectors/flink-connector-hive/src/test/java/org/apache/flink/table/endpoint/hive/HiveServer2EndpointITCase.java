@@ -71,9 +71,13 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.CountDownLatch;
+import java.util.function.Consumer;
+import java.util.stream.Collectors;
 
 import static org.apache.flink.api.common.RuntimeExecutionMode.BATCH;
 import static org.apache.flink.configuration.ExecutionOptions.RUNTIME_MODE;
@@ -404,6 +408,40 @@ public class HiveServer2EndpointITCase extends TestLogger {
                                 null)));
     }
 
+    @Test
+    public void testGetTypeInfo() throws Exception {
+        runGetObjectTest(
+                connection -> connection.getMetaData().getTypeInfo(),
+                getExpectedGetTypeInfoSchema(),
+                types ->
+                        assertThat(
+                                        types.stream()
+                                                .map(type -> type.get(0))
+                                                .collect(Collectors.toList()))
+                                .isEqualTo(
+                                        Arrays.asList(
+                                                "VOID",
+                                                "BOOLEAN",
+                                                "STRING",
+                                                "BINARY",
+                                                "TINYINT",
+                                                "SMALLINT",
+                                                "INT",
+                                                "BIGINT",
+                                                "FLOAT",
+                                                "DOUBLE",
+                                                "DECIMAL",
+                                                "DATE",
+                                                "TIMESTAMP",
+                                                "ARRAY",
+                                                "MAP",
+                                                "STRUCT",
+                                                "CHAR",
+                                                "VARCHAR",
+                                                "INTERVAL_YEAR_MONTH",
+                                                "INTERVAL_DAY_TIME")));
+    }
+
     // --------------------------------------------------------------------------------------------
 
     private Connection getInitializedConnection() throws Exception {
@@ -444,74 +482,21 @@ public class HiveServer2EndpointITCase extends TestLogger {
             ResolvedSchema expectedSchema,
             List<List<Object>> expectedResults)
             throws Exception {
+        runGetObjectTest(
+                resultSetSupplier,
+                expectedSchema,
+                result -> assertThat(result).isEqualTo(new HashSet<>(expectedResults)));
+    }
+
+    private void runGetObjectTest(
+            FunctionWithException<Connection, java.sql.ResultSet, Exception> resultSetSupplier,
+            ResolvedSchema expectedSchema,
+            Consumer<Set<List<Object>>> validator)
+            throws Exception {
         try (Connection connection = getInitializedConnection();
                 java.sql.ResultSet result = resultSetSupplier.apply(connection)) {
             assertSchemaEquals(expectedSchema, result.getMetaData());
-            assertThat(new HashSet<>(collect(result, expectedSchema.getColumnCount())))
-                    .isEqualTo(new HashSet<>(expectedResults));
-        }
-    }
-
-    @Test
-    public void testGetTypeInfo() throws Exception {
-        try (Connection connection = ENDPOINT_EXTENSION.getConnection()) {
-            java.sql.ResultSet result = connection.getMetaData().getTypeInfo();
-            assertSchemaEquals(
-                    ResolvedSchema.of(
-                            Column.physical("TYPE_NAME", DataTypes.STRING()),
-                            Column.physical("DATA_TYPE", DataTypes.INT()),
-                            Column.physical("PRECISION", DataTypes.INT()),
-                            Column.physical("LITERAL_PREFIX", DataTypes.STRING()),
-                            Column.physical("LITERAL_SUFFIX", DataTypes.STRING()),
-                            Column.physical("CREATE_PARAMS", DataTypes.STRING()),
-                            Column.physical("NULLABLE", DataTypes.SMALLINT()),
-                            Column.physical("CASE_SENSITIVE", DataTypes.BOOLEAN()),
-                            Column.physical("SEARCHABLE", DataTypes.SMALLINT()),
-                            Column.physical("UNSIGNED_ATTRIBUTE", DataTypes.BOOLEAN()),
-                            Column.physical("FIXED_PREC_SCALE", DataTypes.BOOLEAN()),
-                            Column.physical("AUTO_INCREMENT", DataTypes.BOOLEAN()),
-                            Column.physical("LOCAL_TYPE_NAME", DataTypes.STRING()),
-                            Column.physical("MINIMUM_SCALE", DataTypes.SMALLINT()),
-                            Column.physical("MAXIMUM_SCALE", DataTypes.SMALLINT()),
-                            Column.physical("SQL_DATA_TYPE", DataTypes.INT()),
-                            Column.physical("SQL_DATETIME_SUB", DataTypes.INT()),
-                            Column.physical("NUM_PREC_RADIX", DataTypes.INT())),
-                    result.getMetaData());
-            List<String> actual = new ArrayList<>();
-            while (result.next()) {
-                actual.add(result.getString(1));
-            }
-            assertThat(actual)
-                    .contains(
-                            "CHAR",
-                            "VARCHAR",
-                            "BOOLEAN",
-                            "BINARY",
-                            "VARBINARY",
-                            "DECIMAL",
-                            "TINYINT",
-                            "SMALLINT",
-                            "INTEGER",
-                            "BIGINT",
-                            "FLOAT",
-                            "DOUBLE",
-                            "DATE",
-                            "TIME_WITHOUT_TIME_ZONE",
-                            "TIMESTAMP_WITHOUT_TIME_ZONE",
-                            "TIMESTAMP_WITH_TIME_ZONE",
-                            "TIMESTAMP_WITH_LOCAL_TIME_ZONE",
-                            "INTERVAL_YEAR_MONTH",
-                            "INTERVAL_DAY_TIME",
-                            "ARRAY",
-                            "MULTISET",
-                            "MAP",
-                            "ROW",
-                            "DISTINCT_TYPE",
-                            "STRUCTURED_TYPE",
-                            "NULL",
-                            "RAW",
-                            "SYMBOL",
-                            "UNRESOLVED");
+            validator.accept(collect(result, expectedSchema.getColumnCount()));
         }
     }
 
@@ -574,6 +559,28 @@ public class HiveServer2EndpointITCase extends TestLogger {
                 Column.physical("REF_GENERATION", DataTypes.STRING()));
     }
 
+    private ResolvedSchema getExpectedGetTypeInfoSchema() {
+        return ResolvedSchema.of(
+                Column.physical("TYPE_NAME", DataTypes.STRING()),
+                Column.physical("DATA_TYPE", DataTypes.INT()),
+                Column.physical("PRECISION", DataTypes.INT()),
+                Column.physical("LITERAL_PREFIX", DataTypes.STRING()),
+                Column.physical("LITERAL_SUFFIX", DataTypes.STRING()),
+                Column.physical("CREATE_PARAMS", DataTypes.STRING()),
+                Column.physical("NULLABLE", DataTypes.SMALLINT()),
+                Column.physical("CASE_SENSITIVE", DataTypes.BOOLEAN()),
+                Column.physical("SEARCHABLE", DataTypes.SMALLINT()),
+                Column.physical("UNSIGNED_ATTRIBUTE", DataTypes.BOOLEAN()),
+                Column.physical("FIXED_PREC_SCALE", DataTypes.BOOLEAN()),
+                Column.physical("AUTO_INCREMENT", DataTypes.BOOLEAN()),
+                Column.physical("LOCAL_TYPE_NAME", DataTypes.STRING()),
+                Column.physical("MINIMUM_SCALE", DataTypes.SMALLINT()),
+                Column.physical("MAXIMUM_SCALE", DataTypes.SMALLINT()),
+                Column.physical("SQL_DATA_TYPE", DataTypes.INT()),
+                Column.physical("SQL_DATETIME_SUB", DataTypes.INT()),
+                Column.physical("NUM_PREC_RADIX", DataTypes.INT()));
+    }
+
     private void assertSchemaEquals(ResolvedSchema expected, ResultSetMetaData metaData)
             throws Exception {
         assertThat(metaData.getColumnCount()).isEqualTo(expected.getColumnCount());
@@ -589,8 +596,7 @@ public class HiveServer2EndpointITCase extends TestLogger {
         }
     }
 
-    private List<List<Object>> collect(java.sql.ResultSet result, int columnCount)
-            throws Exception {
+    private Set<List<Object>> collect(java.sql.ResultSet result, int columnCount) throws Exception {
         List<List<Object>> actual = new ArrayList<>();
         while (result.next()) {
             List<Object> row = new ArrayList<>();
@@ -599,6 +605,6 @@ public class HiveServer2EndpointITCase extends TestLogger {
             }
             actual.add(row);
         }
-        return actual;
+        return new LinkedHashSet<>(actual);
     }
 }

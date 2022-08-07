@@ -27,8 +27,6 @@ import org.apache.flink.table.catalog.CatalogBaseTable.TableKind;
 import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.catalog.hive.HiveCatalog;
 import org.apache.flink.table.catalog.hive.client.HiveShimLoader;
-import org.apache.flink.table.data.RowData;
-import org.apache.flink.table.endpoint.hive.util.GetTypeInfoUtils;
 import org.apache.flink.table.gateway.api.SqlGatewayService;
 import org.apache.flink.table.gateway.api.endpoint.EndpointVersion;
 import org.apache.flink.table.gateway.api.endpoint.SqlGatewayEndpoint;
@@ -113,7 +111,6 @@ import java.net.ServerSocket;
 import java.time.Duration;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
@@ -124,11 +121,11 @@ import static org.apache.flink.configuration.ExecutionOptions.RUNTIME_MODE;
 import static org.apache.flink.table.api.config.TableConfigOptions.TABLE_DML_SYNC;
 import static org.apache.flink.table.api.config.TableConfigOptions.TABLE_SQL_DIALECT;
 import static org.apache.flink.table.endpoint.hive.HiveServer2EndpointVersion.HIVE_CLI_SERVICE_PROTOCOL_V10;
-import static org.apache.flink.table.endpoint.hive.HiveServer2Schemas.GET_TYPE_INFO_SCHEMA;
 import static org.apache.flink.table.endpoint.hive.util.HiveJdbcParameterUtils.getUsedDefaultDatabase;
 import static org.apache.flink.table.endpoint.hive.util.HiveJdbcParameterUtils.validateAndNormalize;
 import static org.apache.flink.table.endpoint.hive.util.OperationExecutorFactory.createGetCatalogsExecutor;
 import static org.apache.flink.table.endpoint.hive.util.OperationExecutorFactory.createGetSchemasExecutor;
+import static org.apache.flink.table.endpoint.hive.util.OperationExecutorFactory.createGetTableInfoExecutor;
 import static org.apache.flink.table.endpoint.hive.util.OperationExecutorFactory.createGetTablesExecutor;
 import static org.apache.flink.table.endpoint.hive.util.ThriftObjectConversions.toFetchOrientation;
 import static org.apache.flink.table.endpoint.hive.util.ThriftObjectConversions.toFlinkTableKinds;
@@ -400,14 +397,7 @@ public class HiveServer2Endpoint implements TCLIService.Iface, SqlGatewayEndpoin
         try {
             SessionHandle sessionHandle = toSessionHandle(tGetTypeInfoReq.getSessionHandle());
             OperationHandle operationHandle =
-                    service.submitOperation(
-                            sessionHandle,
-                            () -> {
-                                List<RowData> typeInfoRowDataList =
-                                        GetTypeInfoUtils.getTypeInfoRowDataList();
-                                return new ResultSet(
-                                        EOS, null, GET_TYPE_INFO_SCHEMA, typeInfoRowDataList);
-                            });
+                    service.submitOperation(sessionHandle, createGetTableInfoExecutor());
             resp.setStatus(OK_STATUS);
             resp.setOperationHandle(
                     toTOperationHandle(
@@ -472,7 +462,6 @@ public class HiveServer2Endpoint implements TCLIService.Iface, SqlGatewayEndpoin
             OperationHandle operationHandle =
                     service.submitOperation(
                             sessionHandle,
-                            OperationType.LIST_TABLES,
                             createGetTablesExecutor(
                                     service,
                                     sessionHandle,
@@ -483,7 +472,7 @@ public class HiveServer2Endpoint implements TCLIService.Iface, SqlGatewayEndpoin
 
             resp.setStatus(OK_STATUS);
             resp.setOperationHandle(
-                    toTOperationHandle(sessionHandle, operationHandle, OperationType.LIST_TABLES));
+                    toTOperationHandle(sessionHandle, operationHandle, TOperationType.GET_TABLES));
         } catch (Throwable t) {
             LOG.error("Failed to GetTables.", t);
             resp.setStatus(toTStatus(t));
