@@ -16,7 +16,7 @@
 
 # Utility for invoking Maven in CI
 function run_mvn {
-	MVN_CMD="mvn"
+	MVN_CMD="./mvnw"
 	if [[ "$M2_HOME" != "" ]]; then
 		MVN_CMD="${M2_HOME}/bin/mvn"
 	fi
