@@ -811,6 +811,36 @@ class PersonVectorizer(schema: String) extends Vectorizer[Person](schema) {
 {{< /tab >}}
 {{< /tabs >}}
 
+PyFlink 用户可以使用 `OrcBulkWriters.for_row_data_vectorization` 来创建将 `Row` 数据写入 Orc 文件的 `BulkWriterFactory` 。
+注意如果 sink 的前置算子的输出类型为 `RowData` ，例如 CSV source ，则需要先转换为 `Row` 类型。
+
+{{< py_download_link "orc" >}}
+
+```python
+row_type = DataTypes.ROW([
+    DataTypes.FIELD('name', DataTypes.STRING()),
+    DataTypes.FIELD('age', DataTypes.INT()),
+])
+row_type_info = Types.ROW_NAMED(
+    ['name', 'age'],
+    [Types.STRING(), Types.INT()]
+)
+
+sink = FileSink.for_bulk_format(
+    OUTPUT_DIR,
+    OrcBulkWriters.for_row_data_vectorization(
+        row_type=row_type,
+        writer_properties=Configuration(),
+        hadoop_config=Configuration(),
+    )
+).build()
+
+# 如果 ds 是产生 RowData 的数据源，可以使用一个 map 函数来指定其对应的 Row 类型。
+ds.map(lambda e: e, output_type=row_type_info).sink_to(sink)
+# 否则
+ds.sink_to(sink)
+```
+
 <a name="hadoop-sequencefile-format"></a>
 
 ##### Hadoop SequenceFile Format

@@ -816,6 +816,36 @@ class PersonVectorizer(schema: String) extends Vectorizer[Person](schema) {
 {{< /tab >}}
 {{< /tabs >}}
 
+For PyFlink users, `OrcBulkWriters.for_row_data_vectorization` could be used to create `BulkWriterFactory` to write `Row` records to files in Orc format.
+It should be noted that if the preceding operator of sink is an operator producing `RowData` records, e.g. CSV source, it needs to be converted to `Row` records before writing to sink.
+
+{{< py_download_link "orc" >}}
+
+```python
+row_type = DataTypes.ROW([
+    DataTypes.FIELD('name', DataTypes.STRING()),
+    DataTypes.FIELD('age', DataTypes.INT()),
+])
+row_type_info = Types.ROW_NAMED(
+    ['name', 'age'],
+    [Types.STRING(), Types.INT()]
+)
+
+sink = FileSink.for_bulk_format(
+    OUTPUT_DIR,
+    OrcBulkWriters.for_row_data_vectorization(
+        row_type=row_type,
+        writer_properties=Configuration(),
+        hadoop_config=Configuration(),
+    )
+).build()
+
+# If ds is a source stream producing RowData records, a map could be added to help converting RowData records into Row records.
+ds.map(lambda e: e, output_type=row_type_info).sink_to(sink)
+# Else
+ds.sink_to(sink)
+```
+
 ##### Hadoop SequenceFile format
 
 To use the `SequenceFile` bulk encoder in your application you need to add the following dependency:
