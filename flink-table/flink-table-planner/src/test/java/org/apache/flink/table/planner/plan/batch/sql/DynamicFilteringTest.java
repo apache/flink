@@ -18,6 +18,8 @@
 
 package org.apache.flink.table.planner.plan.batch.sql;
 
+import org.apache.flink.api.common.BatchShuffleMode;
+import org.apache.flink.configuration.ExecutionOptions;
 import org.apache.flink.table.api.ExplainDetail;
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.config.ExecutionConfigOptions;
@@ -27,11 +29,32 @@ import org.apache.flink.table.planner.utils.TableTestBase;
 
 import org.junit.Before;
 import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.junit.runners.Parameterized;
 
+import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
 
 /** Plan test for dynamic filtering. */
+@RunWith(Parameterized.class)
 public class DynamicFilteringTest extends TableTestBase {
+
+    // Notes that the here name is used to load the correct plan.
+    @Parameterized.Parameters(name = "mode = {0}")
+    public static Collection<Object[]> data() {
+        return Arrays.asList(
+                new Object[][] {
+                    {BatchShuffleMode.ALL_EXCHANGES_BLOCKING},
+                    {BatchShuffleMode.ALL_EXCHANGES_PIPELINED},
+                });
+    }
+
+    private final BatchShuffleMode batchShuffleMode;
+
+    public DynamicFilteringTest(BatchShuffleMode batchShuffleMode) {
+        this.batchShuffleMode = batchShuffleMode;
+    }
 
     private BatchTableTestUtil util;
 
@@ -42,6 +65,11 @@ public class DynamicFilteringTest extends TableTestBase {
                 .getConfig()
                 .getConfiguration()
                 .set(ExecutionConfigOptions.TABLE_EXEC_RESOURCE_DEFAULT_PARALLELISM, 10);
+
+        util.tableEnv()
+                .getConfig()
+                .getConfiguration()
+                .set(ExecutionOptions.BATCH_SHUFFLE_MODE, batchShuffleMode);
 
         util.tableEnv()
                 .executeSql(
