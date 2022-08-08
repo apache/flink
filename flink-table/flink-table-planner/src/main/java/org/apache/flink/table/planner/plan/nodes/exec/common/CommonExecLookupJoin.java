@@ -333,6 +333,15 @@ public abstract class CommonExecLookupJoin extends ExecNodeBase<RowData>
         throw new UnsupportedOperationException("to be supported");
     }
 
+    private LogicalType getLookupKeyLogicalType(
+            LookupJoinUtil.LookupKey lookupKey, RowType inputRowType) {
+        if (lookupKey instanceof LookupJoinUtil.FieldRefLookupKey) {
+            return inputRowType.getTypeAt(((LookupJoinUtil.FieldRefLookupKey) lookupKey).index);
+        } else {
+            return ((LookupJoinUtil.ConstantLookupKey) lookupKey).sourceType;
+        }
+    }
+
     protected void validateLookupKeyType(
             final Map<Integer, LookupJoinUtil.LookupKey> lookupKeys,
             final RowType inputRowType,

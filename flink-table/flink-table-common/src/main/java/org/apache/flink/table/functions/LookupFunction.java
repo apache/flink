@@ -37,6 +37,9 @@ public abstract class LookupFunction extends TableFunction<RowData> {
     /**
      * Synchronously lookup rows matching the lookup keys.
      *
+     * <p>Please note that the returning collection of RowData shouldn't be reused across
+     * invocations.
+     *
      * @param keyRow - A {@link RowData} that wraps lookup keys.
      * @return A collection of all matching rows in the lookup table.
      */
