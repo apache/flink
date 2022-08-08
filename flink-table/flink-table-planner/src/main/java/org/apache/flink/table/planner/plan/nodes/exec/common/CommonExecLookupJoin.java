@@ -154,7 +154,7 @@ public abstract class CommonExecLookupJoin extends ExecNodeBase<RowData>
 
     public static final String LOOKUP_JOIN_TRANSFORMATION = "lookup-join";
 
-    public static final String LOOKUP_JOIN_WITH_STATE_TRANSFORMATION = "lookup-join-with-state";
+    public static final String LOOKUP_JOIN_MATERIALIZE_TRANSFORMATION = "lookup-join-materialize";
 
     public static final String FIELD_NAME_JOIN_TYPE = "joinType";
     public static final String FIELD_NAME_JOIN_CONDITION = "joinCondition";
@@ -343,7 +343,7 @@ public abstract class CommonExecLookupJoin extends ExecNodeBase<RowData>
                         isObjectReuseEnabled);
 
         RowType rightRowType =
-                getRightRowType(
+                getFinalRightRowType(
                         getProjectionRowTypeOnTemporalTable(relBuilder), tableSourceRowType);
 
         KeyedLookupJoinWrapper keyedLookupJoinWrapper =
@@ -392,7 +392,7 @@ public abstract class CommonExecLookupJoin extends ExecNodeBase<RowData>
         OneInputTransformation<RowData, RowData> transform =
                 ExecNodeUtil.createOneInputTransformation(
                         partitionedTransform,
-                        createTransformationMeta(LOOKUP_JOIN_WITH_STATE_TRANSFORMATION, config),
+                        createTransformationMeta(LOOKUP_JOIN_MATERIALIZE_TRANSFORMATION, config),
                         operator,
                         InternalTypeInfo.of(resultRowType),
                         partitionedTransform.getParallelism());
@@ -402,15 +402,6 @@ public abstract class CommonExecLookupJoin extends ExecNodeBase<RowData>
             setSingletonParallelism(transform);
         }
         return transform;
-    }
-
-    private LogicalType getLookupKeyLogicalType(
-            LookupJoinUtil.LookupKey lookupKey, RowType inputRowType) {
-        if (lookupKey instanceof LookupJoinUtil.FieldRefLookupKey) {
-            return inputRowType.getTypeAt(((LookupJoinUtil.FieldRefLookupKey) lookupKey).index);
-        } else {
-            return ((LookupJoinUtil.ConstantLookupKey) lookupKey).sourceType;
-        }
     }
 
     private void setSingletonParallelism(Transformation transformation) {
@@ -489,16 +480,8 @@ public abstract class CommonExecLookupJoin extends ExecNodeBase<RowData>
                                 asyncLookupFunction,
                                 StringUtils.join(temporalTable.getQualifiedName(), "."));
 
-        Optional<RelDataType> temporalTableOutputType =
-                projectionOnTemporalTable != null
-                        ? Optional.of(
-                                RexUtil.createStructType(
-                                        unwrapTypeFactory(relBuilder), projectionOnTemporalTable))
-                        : Optional.empty();
-        RowType rightRowType =
-                projectionOnTemporalTable != null
-                        ? (RowType) toLogicalType(temporalTableOutputType.get())
-                        : tableSourceRowType;
+        RelDataType temporalTableOutputType = getProjectionRowTypeOnTemporalTable(relBuilder);
+        RowType rightRowType = getFinalRightRowType(temporalTableOutputType, tableSourceRowType);
         // a projection or filter after table source scan
         GeneratedResultFuture<TableFunctionResultFuture<RowData>> generatedResultFuture =
                 LookupJoinCodeGenerator.generateTableAsyncCollector(
@@ -520,7 +503,7 @@ public abstract class CommonExecLookupJoin extends ExecNodeBase<RowData>
                             classLoader,
                             JavaScalaConversionUtil.toScala(projectionOnTemporalTable),
                             filterOnTemporalTable,
-                            temporalTableOutputType.get(),
+                            temporalTableOutputType,
                             tableSourceRowType);
             asyncFunc =
                     new AsyncLookupJoinWithCalcRunner(
@@ -584,18 +567,16 @@ public abstract class CommonExecLookupJoin extends ExecNodeBase<RowData>
                                 isObjectReuseEnabled)));
     }
 
-    private Optional<RelDataType> getProjectionRowTypeOnTemporalTable(RelBuilder relBuilder) {
+    private RelDataType getProjectionRowTypeOnTemporalTable(RelBuilder relBuilder) {
         return projectionOnTemporalTable != null
-                ? Optional.of(
-                        RexUtil.createStructType(
-                                unwrapTypeFactory(relBuilder), projectionOnTemporalTable))
-                : Optional.empty();
+                ? RexUtil.createStructType(unwrapTypeFactory(relBuilder), projectionOnTemporalTable)
+                : null;
     }
 
-    private RowType getRightRowType(
-            Optional<RelDataType> temporalTableOutputType, RowType tableSourceRowType) {
+    private RowType getFinalRightRowType(
+            RelDataType temporalTableOutputType, RowType tableSourceRowType) {
         return projectionOnTemporalTable != null
-                ? (RowType) toLogicalType(temporalTableOutputType.get())
+                ? (RowType) toLogicalType(temporalTableOutputType)
                 : tableSourceRowType;
     }
 
@@ -631,9 +612,8 @@ public abstract class CommonExecLookupJoin extends ExecNodeBase<RowData>
                         StringUtils.join(temporalTable.getQualifiedName(), "."),
                         isObjectReuseEnabled);
 
-        Optional<RelDataType> temporalTableOutputType =
-                getProjectionRowTypeOnTemporalTable(relBuilder);
-        RowType rightRowType = getRightRowType(temporalTableOutputType, tableSourceRowType);
+        RelDataType temporalTableOutputType = getProjectionRowTypeOnTemporalTable(relBuilder);
+        RowType rightRowType = getFinalRightRowType(temporalTableOutputType, tableSourceRowType);
         GeneratedCollector<ListenableCollector<RowData>> generatedCollector =
                 LookupJoinCodeGenerator.generateCollector(
                         new CodeGeneratorContext(config, classLoader),
@@ -652,7 +632,7 @@ public abstract class CommonExecLookupJoin extends ExecNodeBase<RowData>
                             classLoader,
                             JavaScalaConversionUtil.toScala(projectionOnTemporalTable),
                             filterOnTemporalTable,
-                            temporalTableOutputType.get(),
+                            temporalTableOutputType,
                             tableSourceRowType);
 
             processFunc =
