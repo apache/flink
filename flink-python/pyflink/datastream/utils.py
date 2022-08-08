@@ -20,7 +20,7 @@ import datetime
 import pickle
 from abc import abstractmethod
 
-from pyflink.common import Row, RowKind
+from pyflink.common import Row, RowKind, Configuration
 from pyflink.common.typeinfo import (RowTypeInfo, TupleTypeInfo, Types, BasicArrayTypeInfo,
                                      PrimitiveArrayTypeInfo, MapTypeInfo, ListTypeInfo,
                                      ObjectArrayTypeInfo, ExternalTypeInfo, TypeInformation)
@@ -41,6 +41,14 @@ class JavaObjectWrapper(object):
 
     def get_java_object(self):
         return self._j_object
+
+
+def create_hadoop_configuration(config: Configuration):
+    jvm = get_gateway().jvm
+    hadoop_config = jvm.org.apache.hadoop.conf.Configuration()
+    for k, v in config.to_dict().items():
+        hadoop_config.set(k, v)
+    return hadoop_config
 
 
 def convert_to_python_obj(data, type_info):

@@ -418,7 +418,7 @@ public class PythonTypeUtils {
                 InternalTypeInfo<?> internalTypeInfo, ClassLoader userClassLoader) {
             ArrayType arrayType = (ArrayType) internalTypeInfo.toLogicalType();
             return FlinkFnApi.TypeInfo.newBuilder()
-                    .setTypeName(FlinkFnApi.TypeInfo.TypeName.LIST)
+                    .setTypeName(FlinkFnApi.TypeInfo.TypeName.OBJECT_ARRAY)
                     .setCollectionElementType(
                             toTypeInfoProto(
                                     InternalTypeInfo.of(arrayType.getElementType()),

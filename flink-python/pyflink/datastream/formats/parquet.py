@@ -15,9 +15,13 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 ################################################################################
+from typing import Optional
+
 from pyflink.common import Configuration
-from pyflink.datastream.connectors.file_system import StreamFormat, BulkFormat, BulkWriterFactory
+from pyflink.datastream.connectors.file_system import StreamFormat, BulkFormat, BulkWriterFactory, \
+    RowDataBulkWriterFactory
 from pyflink.datastream.formats.avro import AvroSchema
+from pyflink.datastream.utils import create_hadoop_configuration
 from pyflink.java_gateway import get_gateway
 from pyflink.table.types import RowType, _to_java_data_type
 
@@ -81,10 +85,10 @@ class ParquetColumnarRowInputFormat(BulkFormat):
         ...     DataTypes.FIELD('b', DataTypes.STRING()),
         ... ])
         >>> source = FileSource.for_bulk_file_format(ParquetColumnarRowInputFormat(
-        ...     hadoop_config=Configuration(),
         ...     row_type=row_type,
-        ...     batch_size=500,
-        ...     is_utc_timestamp=True,
+        ...     hadoop_config=Configuration(),
+        ...     batch_size=2048,
+        ...     is_utc_timestamp=False,
         ...     is_case_sensitive=True,
         ... ), PARQUET_FILE_PATH).build()
         >>> ds = env.from_source(source, WatermarkStrategy.no_watermarks(), "parquet-source")
@@ -92,30 +96,29 @@ class ParquetColumnarRowInputFormat(BulkFormat):
     .. versionadded:: 1.16.0
     """
 
-    def __init__(self, hadoop_config: Configuration, row_type: RowType, batch_size: int,
-                 is_utc_timestamp: bool, is_case_sensitive: bool):
+    def __init__(self,
+                 row_type: RowType,
+                 hadoop_config: Optional[Configuration] = None,
+                 batch_size: int = 2048,
+                 is_utc_timestamp: bool = False,
+                 is_case_sensitive: bool = True):
+        if not hadoop_config:
+            hadoop_config = Configuration()
+
         jvm = get_gateway().jvm
         j_row_type = _to_java_data_type(row_type).getLogicalType()
         produced_type_info = jvm.org.apache.flink.table.runtime.typeutils. \
             InternalTypeInfo.of(j_row_type)
         j_parquet_columnar_format = jvm.org.apache.flink.formats.parquet. \
-            ParquetColumnarRowInputFormat(self._create_hadoop_configuration(hadoop_config),
+            ParquetColumnarRowInputFormat(create_hadoop_configuration(hadoop_config),
                                           j_row_type, produced_type_info, batch_size,
                                           is_utc_timestamp, is_case_sensitive)
         super().__init__(j_parquet_columnar_format)
 
-    @staticmethod
-    def _create_hadoop_configuration(config: Configuration):
-        jvm = get_gateway().jvm
-        hadoop_config = jvm.org.apache.hadoop.conf.Configuration()
-        for k, v in config.to_dict().items():
-            hadoop_config.set(k, v)
-        return hadoop_config
-
 
 class AvroParquetWriters(object):
     """
-    Convenience builder to create ParquetWriterFactory instances for Avro types. Only GenericRecord
+    Convenient builder to create ParquetWriterFactory instances for Avro types. Only GenericRecord
     is supported in PyFlink.
 
     .. versionadded:: 1.16.0
@@ -155,3 +158,54 @@ class AvroParquetWriters(object):
         jvm = get_gateway().jvm
         JAvroParquetWriters = jvm.org.apache.flink.formats.parquet.avro.AvroParquetWriters
         return BulkWriterFactory(JAvroParquetWriters.forGenericRecord(schema._j_schema))
+
+
+class ParquetRowDataWriter(object):
+    """
+    Convenient builder to create a :class:`BulkWriterFactory` that writes Rows with a defined
+    :class:`RowType` into Parquet files in a batch fashion.
+
+    .. versionadded:: 1.16.0
+    """
+
+    @staticmethod
+    def for_row_type(row_type: RowType, hadoop_config: Optional[Configuration] = None,
+                     utc_timestamp: bool = False) -> 'BulkWriterFactory':
+        """
+        Create a :class:`RowDataBulkWriterFactory` that writes Rows records with a defined
+        :class:`RowType` into Parquet files in a batch fashion.
+
+        Example:
+        ::
+
+            >>> row_type = DataTypes.ROW([
+            ...     DataTypes.FIELD('string', DataTypes.STRING()),
+            ...     DataTypes.FIELD('int_array', DataTypes.ARRAY(DataTypes.INT()))
+            ... ])
+            >>> row_type_info = Types.ROW_NAMED(
+            ...     ['string', 'int_array'],
+            ...     [Types.STRING(), Types.LIST(Types.INT())]
+            ... )
+            >>> sink = FileSink.for_bulk_format(
+            ...     OUTPUT_DIR, ParquetRowDataWriter.for_row_type(
+            ...         row_type,
+            ...         hadoop_config=Configuration(),
+            ...         utc_timestamp=True,
+            ...     )
+            ... ).build()
+            >>> ds.map(lambda e: e, output_type=row_type_info).sink_to(sink)
+
+        Note that in the above example, an identity map to indicate its :class:`RowTypeInfo` is
+        necessary before ``sink_to`` when ``ds`` is a source stream producing **RowData** records,
+        because :class:`RowDataBulkWriterFactory` assumes the input record type is :class:`Row`.
+        """
+        if not hadoop_config:
+            hadoop_config = Configuration()
+
+        jvm = get_gateway().jvm
+        JParquetRowDataBuilder = jvm.org.apache.flink.formats.parquet.row.ParquetRowDataBuilder
+        return RowDataBulkWriterFactory(JParquetRowDataBuilder.createWriterFactory(
+            _to_java_data_type(row_type).getLogicalType(),
+            create_hadoop_configuration(hadoop_config),
+            utc_timestamp
+        ), row_type)

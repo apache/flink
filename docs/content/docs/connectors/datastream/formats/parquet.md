@@ -181,8 +181,8 @@ row_type = DataTypes.ROW([
     DataTypes.FIELD('f99', DataTypes.VARCHAR()),
 ])
 source = FileSource.for_bulk_file_format(ParquetColumnarRowInputFormat(
-    hadoop_config=Configuration(),
     row_type=row_type,
+    hadoop_config=Configuration(),
     batch_size=500,
     is_utc_timestamp=False,
     is_case_sensitive=True,
