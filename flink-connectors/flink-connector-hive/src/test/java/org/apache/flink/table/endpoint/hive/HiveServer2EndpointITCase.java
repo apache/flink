@@ -71,8 +71,10 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.CountDownLatch;
 
 import static org.apache.flink.api.common.RuntimeExecutionMode.BATCH;
@@ -244,116 +246,16 @@ public class HiveServer2EndpointITCase extends TestLogger {
                                         new String[] {"MANAGED_TABLE", "VIRTUAL_VIEW"}),
                 getExpectedGetTablesOperationSchema(),
                 Arrays.asList(
-                        Arrays.asList(
-                                "default_catalog",
-                                "db_test1",
-                                "tbl_1",
-                                "TABLE",
-                                "",
-                                null,
-                                null,
-                                null,
-                                null,
-                                null),
-                        Arrays.asList(
-                                "default_catalog",
-                                "db_test1",
-                                "tbl_2",
-                                "TABLE",
-                                "",
-                                null,
-                                null,
-                                null,
-                                null,
-                                null),
-                        Arrays.asList(
-                                "default_catalog",
-                                "db_test1",
-                                "tbl_3",
-                                "VIEW",
-                                "",
-                                null,
-                                null,
-                                null,
-                                null,
-                                null),
-                        Arrays.asList(
-                                "default_catalog",
-                                "db_test1",
-                                "tbl_4",
-                                "VIEW",
-                                "",
-                                null,
-                                null,
-                                null,
-                                null,
-                                null),
-                        Arrays.asList(
-                                "default_catalog",
-                                "db_test2",
-                                "tbl_1",
-                                "TABLE",
-                                "",
-                                null,
-                                null,
-                                null,
-                                null,
-                                null),
-                        Arrays.asList(
-                                "default_catalog",
-                                "db_test2",
-                                "diff_1",
-                                "TABLE",
-                                "",
-                                null,
-                                null,
-                                null,
-                                null,
-                                null),
-                        Arrays.asList(
-                                "default_catalog",
-                                "db_test2",
-                                "tbl_2",
-                                "VIEW",
-                                "",
-                                null,
-                                null,
-                                null,
-                                null,
-                                null),
-                        Arrays.asList(
-                                "default_catalog",
-                                "db_test2",
-                                "diff_2",
-                                "VIEW",
-                                "",
-                                null,
-                                null,
-                                null,
-                                null,
-                                null),
-                        Arrays.asList(
-                                "default_catalog",
-                                "db_diff",
-                                "tbl_1",
-                                "TABLE",
-                                "",
-                                null,
-                                null,
-                                null,
-                                null,
-                                null),
-                        Arrays.asList(
-                                "default_catalog",
-                                "db_diff",
-                                "tbl_2",
-                                "VIEW",
-                                "",
-                                null,
-                                null,
-                                null,
-                                null,
-                                null)));
+                        Arrays.asList("default_catalog", "db_test1", "tbl_1", "TABLE", ""),
+                        Arrays.asList("default_catalog", "db_test1", "tbl_2", "TABLE", ""),
+                        Arrays.asList("default_catalog", "db_test1", "tbl_3", "VIEW", ""),
+                        Arrays.asList("default_catalog", "db_test1", "tbl_4", "VIEW", ""),
+                        Arrays.asList("default_catalog", "db_test2", "tbl_1", "TABLE", ""),
+                        Arrays.asList("default_catalog", "db_test2", "diff_1", "TABLE", ""),
+                        Arrays.asList("default_catalog", "db_test2", "tbl_2", "VIEW", ""),
+                        Arrays.asList("default_catalog", "db_test2", "diff_2", "VIEW", ""),
+                        Arrays.asList("default_catalog", "db_diff", "tbl_1", "TABLE", ""),
+                        Arrays.asList("default_catalog", "db_diff", "tbl_2", "VIEW", "")));
     }
 
     @Test
@@ -369,39 +271,9 @@ public class HiveServer2EndpointITCase extends TestLogger {
                                         new String[] {"VIRTUAL_VIEW"}),
                 getExpectedGetTablesOperationSchema(),
                 Arrays.asList(
-                        Arrays.asList(
-                                "default_catalog",
-                                "db_test1",
-                                "tbl_3",
-                                "VIEW",
-                                "",
-                                null,
-                                null,
-                                null,
-                                null,
-                                null),
-                        Arrays.asList(
-                                "default_catalog",
-                                "db_test1",
-                                "tbl_4",
-                                "VIEW",
-                                "",
-                                null,
-                                null,
-                                null,
-                                null,
-                                null),
-                        Arrays.asList(
-                                "default_catalog",
-                                "db_test2",
-                                "tbl_2",
-                                "VIEW",
-                                "",
-                                null,
-                                null,
-                                null,
-                                null,
-                                null)));
+                        Arrays.asList("default_catalog", "db_test1", "tbl_3", "VIEW", ""),
+                        Arrays.asList("default_catalog", "db_test1", "tbl_4", "VIEW", ""),
+                        Arrays.asList("default_catalog", "db_test2", "tbl_2", "VIEW", "")));
     }
 
     @Test
@@ -418,21 +290,12 @@ public class HiveServer2EndpointITCase extends TestLogger {
                                 -5,
                                 "BIGINT",
                                 19,
-                                null,
                                 0,
                                 10,
                                 1,
                                 "",
-                                null,
-                                null,
-                                null,
-                                null,
                                 1,
                                 "YES",
-                                null,
-                                null,
-                                null,
-                                null,
                                 "NO"),
                         Arrays.asList(
                                 "default_catalog",
@@ -442,21 +305,10 @@ public class HiveServer2EndpointITCase extends TestLogger {
                                 12,
                                 "STRING",
                                 2147483647,
-                                null,
-                                null,
-                                null,
                                 1,
                                 "",
-                                null,
-                                null,
-                                null,
-                                null,
                                 2,
                                 "YES",
-                                null,
-                                null,
-                                null,
-                                null,
                                 "NO"),
                         Arrays.asList(
                                 "default_catalog",
@@ -466,21 +318,12 @@ public class HiveServer2EndpointITCase extends TestLogger {
                                 4,
                                 "INT",
                                 10,
-                                null,
                                 0,
                                 10,
                                 1,
                                 "",
-                                null,
-                                null,
-                                null,
-                                null,
                                 3,
                                 "YES",
-                                null,
-                                null,
-                                null,
-                                null,
                                 "NO"),
                         Arrays.asList(
                                 "default_catalog",
@@ -490,21 +333,12 @@ public class HiveServer2EndpointITCase extends TestLogger {
                                 4,
                                 "INT",
                                 10,
-                                null,
                                 0,
                                 10,
                                 0,
                                 "",
-                                null,
-                                null,
-                                null,
-                                null,
                                 1,
                                 "NO",
-                                null,
-                                null,
-                                null,
-                                null,
                                 "NO"),
                         Arrays.asList(
                                 "default_catalog",
@@ -514,21 +348,12 @@ public class HiveServer2EndpointITCase extends TestLogger {
                                 4,
                                 "INT",
                                 10,
-                                null,
                                 0,
                                 10,
                                 0,
                                 "",
-                                null,
-                                null,
-                                null,
-                                null,
                                 1,
                                 "NO",
-                                null,
-                                null,
-                                null,
-                                null,
                                 "NO"),
                         Arrays.asList(
                                 "default_catalog",
@@ -538,21 +363,12 @@ public class HiveServer2EndpointITCase extends TestLogger {
                                 4,
                                 "INT",
                                 10,
-                                null,
                                 0,
                                 10,
                                 0,
                                 "",
-                                null,
-                                null,
-                                null,
-                                null,
                                 1,
                                 "NO",
-                                null,
-                                null,
-                                null,
-                                null,
                                 "NO"),
                         Arrays.asList(
                                 "default_catalog",
@@ -562,21 +378,12 @@ public class HiveServer2EndpointITCase extends TestLogger {
                                 4,
                                 "INT",
                                 10,
-                                null,
                                 0,
                                 10,
                                 0,
                                 "",
-                                null,
-                                null,
-                                null,
-                                null,
                                 1,
                                 "NO",
-                                null,
-                                null,
-                                null,
-                                null,
                                 "NO"),
                         Arrays.asList(
                                 "default_catalog",
@@ -586,21 +393,12 @@ public class HiveServer2EndpointITCase extends TestLogger {
                                 4,
                                 "INT",
                                 10,
-                                null,
                                 0,
                                 10,
                                 0,
                                 "",
-                                null,
-                                null,
-                                null,
-                                null,
                                 1,
                                 "NO",
-                                null,
-                                null,
-                                null,
-                                null,
                                 "NO")));
     }
 
@@ -621,21 +419,12 @@ public class HiveServer2EndpointITCase extends TestLogger {
                                 -5,
                                 "BIGINT",
                                 19,
-                                null,
                                 0,
                                 10,
                                 1,
                                 "",
-                                null,
-                                null,
-                                null,
-                                null,
                                 1,
                                 "YES",
-                                null,
-                                null,
-                                null,
-                                null,
                                 "NO")));
     }
 
@@ -686,7 +475,7 @@ public class HiveServer2EndpointITCase extends TestLogger {
         try (Connection connection = getInitializedConnection();
                 java.sql.ResultSet result = resultSetSupplier.apply(connection)) {
             assertSchemaEquals(expectedSchema, result.getMetaData());
-            assertThat(new HashSet<>(collect(result, expectedSchema.getColumnCount())))
+            assertThat(new HashSet<>(collectAndCompact(result, expectedSchema.getColumnCount())))
                     .isEqualTo(new HashSet<>(expectedResults));
         }
     }
@@ -793,16 +582,21 @@ public class HiveServer2EndpointITCase extends TestLogger {
         }
     }
 
-    private List<List<Object>> collect(java.sql.ResultSet result, int columnCount)
+    private Set<List<Object>> collectAndCompact(java.sql.ResultSet result, int columnCount)
             throws Exception {
         List<List<Object>> actual = new ArrayList<>();
         while (result.next()) {
             List<Object> row = new ArrayList<>();
             for (int i = 1; i <= columnCount; i++) {
-                row.add(result.getObject(i));
+                Object value = result.getObject(i);
+                // ignore the null value for better presentation
+                if (value == null) {
+                    continue;
+                }
+                row.add(value);
             }
             actual.add(row);
         }
-        return actual;
+        return new LinkedHashSet<>(actual);
     }
 }

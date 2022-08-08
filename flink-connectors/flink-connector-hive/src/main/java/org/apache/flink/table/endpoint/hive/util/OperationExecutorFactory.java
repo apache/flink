@@ -21,8 +21,10 @@ package org.apache.flink.table.endpoint.hive.util;
 import org.apache.flink.table.catalog.CatalogBaseTable.TableKind;
 import org.apache.flink.table.catalog.Column;
 import org.apache.flink.table.catalog.ResolvedCatalogBaseTable;
+import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.catalog.hive.util.HiveTypeUtil;
 import org.apache.flink.table.data.GenericRowData;
+import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.StringData;
 import org.apache.flink.table.gateway.api.SqlGatewayService;
 import org.apache.flink.table.gateway.api.results.ResultSet;
@@ -101,9 +103,7 @@ public class OperationExecutorFactory {
     private static ResultSet executeGetCatalogs(
             SqlGatewayService service, SessionHandle sessionHandle) {
         Set<String> catalogNames = service.listCatalogs(sessionHandle);
-        return new ResultSet(
-                EOS,
-                null,
+        return buildResultSet(
                 GET_CATALOGS_SCHEMA,
                 catalogNames.stream()
                         .map(OperationExecutorFactory::wrap)
@@ -119,9 +119,7 @@ public class OperationExecutorFactory {
                 isNullOrEmpty(catalogName) ? service.getCurrentCatalog(sessionHandle) : catalogName;
         Set<String> databaseNames =
                 filter(service.listDatabases(sessionHandle, specifiedCatalogName), schemaName);
-        return new ResultSet(
-                EOS,
-                null,
+        return buildResultSet(
                 GET_SCHEMAS_SCHEMA,
                 databaseNames.stream()
                         .map(name -> wrap(name, specifiedCatalogName))
@@ -147,9 +145,7 @@ public class OperationExecutorFactory {
                             candidate -> candidate.getIdentifier().getObjectName(),
                             tableName));
         }
-        return new ResultSet(
-                EOS,
-                null,
+        return buildResultSet(
                 GET_TABLES_SCHEMA,
                 tableInfos.stream()
                         .map(
@@ -223,7 +219,7 @@ public class OperationExecutorFactory {
                                     hiveColumnType.getNumPrecRadix(), // NUM_PREC_RADIX
                                     flinkColumnType.isNullable()
                                             ? DatabaseMetaData.columnNullable
-                                            : DatabaseMetaData.columnNoNulls, // NULLABLE TODO, 还有下面
+                                            : DatabaseMetaData.columnNoNulls, // NULLABLE
                                     column.getComment().orElse(""), // REMARKS
                                     null, // COLUMN_DEF
                                     null, // SQL_DATA_TYPE
@@ -241,9 +237,7 @@ public class OperationExecutorFactory {
                 }
             }
         }
-        return new ResultSet(
-                EOS,
-                null,
+        return buildResultSet(
                 GET_COLUMNS_SCHEMA,
                 rowData.stream().map(OperationExecutorFactory::wrap).collect(Collectors.toList()));
     }
@@ -251,6 +245,10 @@ public class OperationExecutorFactory {
     // --------------------------------------------------------------------------------------------
     // Utilities
     // --------------------------------------------------------------------------------------------
+
+    private static ResultSet buildResultSet(ResolvedSchema resolvedSchema, List<RowData> data) {
+        return new ResultSet(EOS, null, resolvedSchema, data);
+    }
 
     private static boolean isNullOrEmpty(@Nullable String input) {
         return input == null || input.isEmpty();
