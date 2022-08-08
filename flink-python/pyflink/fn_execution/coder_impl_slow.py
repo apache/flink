@@ -861,10 +861,18 @@ class AvroCoderImpl(FieldCoderImpl):
 
 class LocalDateCoderImpl(FieldCoderImpl):
 
-    def encode_to_stream(self, value, out_stream: OutputStream):
-        pass
+    @staticmethod
+    def _encode_to_stream(value: datetime.date, out_stream: OutputStream):
+        if value is None:
+            out_stream.write_int32(0xFFFFFFFF)
+            out_stream.write_int16(0xFFFF)
+        else:
+            out_stream.write_int32(value.year)
+            out_stream.write_int8(value.month)
+            out_stream.write_int8(value.day)
 
-    def decode_from_stream(self, in_stream: InputStream, length: int = 0):
+    @staticmethod
+    def _decode_from_stream(in_stream: InputStream):
         year = in_stream.read_int32()
         if year == 0xFFFFFFFF:
             in_stream.read(2)
@@ -873,13 +881,29 @@ class LocalDateCoderImpl(FieldCoderImpl):
         day = in_stream.read_int8()
         return datetime.date(year, month, day)
 
+    def encode_to_stream(self, value: datetime.date, out_stream: OutputStream):
+        self._encode_to_stream(value, out_stream)
+
+    def decode_from_stream(self, in_stream: InputStream, length: int = 0):
+        return self._decode_from_stream(in_stream)
+
 
 class LocalTimeCoderImpl(FieldCoderImpl):
 
-    def encode_to_stream(self, value, out_stream: OutputStream):
-        pass
+    @staticmethod
+    def _encode_to_stream(value: datetime.time, out_stream: OutputStream):
+        if value is None:
+            out_stream.write_int8(0xFF)
+            out_stream.write_int16(0xFFFF)
+            out_stream.write_int32(0xFFFFFFFF)
+        else:
+            out_stream.write_int8(value.hour)
+            out_stream.write_int8(value.minute)
+            out_stream.write_int8(value.second)
+            out_stream.write_int32(value.microsecond * 1000)
 
-    def decode_from_stream(self, in_stream: InputStream, length: int = 0):
+    @staticmethod
+    def _decode_from_stream(in_stream: InputStream):
         hour = in_stream.read_int8()
         if hour == 0xFF:
             in_stream.read(6)
@@ -889,14 +913,27 @@ class LocalTimeCoderImpl(FieldCoderImpl):
         nano = in_stream.read_int32()
         return datetime.time(hour, minute, second, nano // 1000)
 
+    def encode_to_stream(self, value: datetime.time, out_stream: OutputStream):
+        self._encode_to_stream(value, out_stream)
+
+    def decode_from_stream(self, in_stream: InputStream, length: int = 0):
+        return self._decode_from_stream(in_stream)
+
 
 class LocalDateTimeCoderImpl(FieldCoderImpl):
 
-    def encode_to_stream(self, value, out_stream: OutputStream):
-        pass
+    def encode_to_stream(self, value: datetime.datetime, out_stream: OutputStream):
+        if value is None:
+            LocalDateCoderImpl._encode_to_stream(None, out_stream)
+            LocalTimeCoderImpl._encode_to_stream(None, out_stream)
+        else:
+            LocalDateCoderImpl._encode_to_stream(value.date(), out_stream)
+            LocalTimeCoderImpl._encode_to_stream(value.time(), out_stream)
 
     def decode_from_stream(self, in_stream: InputStream, length: int = 0):
-        date = LocalDateCoderImpl.decode_from_stream(self, in_stream, length)
-        time = LocalTimeCoderImpl.decode_from_stream(self, in_stream, length)
+        date = LocalDateCoderImpl._decode_from_stream(in_stream)
+        time = LocalTimeCoderImpl._decode_from_stream(in_stream)
+        if date is None or time is None:
+            return None
         return datetime.datetime(date.year, date.month, date.day, time.hour, time.minute,
                                  time.second, time.microsecond)

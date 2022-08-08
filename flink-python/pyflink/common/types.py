@@ -15,20 +15,12 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 ################################################################################
-import calendar
-import datetime
-import time
-from decimal import Decimal
 from enum import Enum
 from typing import List
 
 from pyflink.java_gateway import get_gateway
 
-from .time import Instant, Time
-
 __all__ = ['Row', 'RowKind']
-
-from ..util.java_utils import to_jarray
 
 
 class RowKind(Enum):
@@ -289,55 +281,3 @@ class Row(object):
 
     def __len__(self):
         return len(self._values)
-
-
-def to_java_data_structure(value):
-    jvm = get_gateway().jvm
-    if isinstance(value, (int, float, str, bytes)):
-        return value
-    elif isinstance(value, Decimal):
-        return jvm.java.math.BigDecimal.valueOf(float(value))
-    elif isinstance(value, datetime.datetime):
-        local_date_time = jvm.java.time.LocalDateTime.of(
-            value.year, value.month, value.day, value.hour, value.minute, value.second,
-            value.microsecond * 1000
-        )
-        if value.tzinfo is None:
-            return local_date_time
-        return jvm.java.time.Instant.ofEpochMilli(
-            (
-                calendar.timegm(value.utctimetuple()) +
-                calendar.timegm(time.localtime(0))
-            ) * 1000 +
-            value.microsecond // 1000
-        )
-    elif isinstance(value, datetime.date):
-        return jvm.java.time.LocalDate.of(value.year, value.month, value.day)
-    elif isinstance(value, datetime.time):
-        return jvm.java.time.LocalTime.of(value.hour, value.minute, value.second,
-                                          value.microsecond * 1000)
-    elif isinstance(value, Time):
-        return jvm.java.time.LocalTime.of()
-    elif isinstance(value, Instant):
-        return jvm.java.time.Instant.ofEpochMilli(value.to_epoch_milli())
-    elif isinstance(value, (list, tuple)):
-        return to_jarray(jvm.Object, [to_java_data_structure(i) for i in value])
-    elif isinstance(value, map):
-        j_map = jvm.java.util.HashMap()
-        for k, v in value:
-            j_map.put(to_java_data_structure(k), to_java_data_structure(v))
-        return j_map
-    elif isinstance(value, Row):
-        if hasattr(value, '_fields'):
-            j_row = jvm.org.apache.flink.types.Row.withNames(value.get_row_kind().to_j_row_kind())
-            for field_name, value in zip(value._fields, value._values):
-                j_row.setField(field_name, to_java_data_structure(value))
-        else:
-            j_row = jvm.org.apache.flink.types.Row.withPositions(
-                value.get_row_kind().to_j_row_kind(), len(value)
-            )
-            for idx, value in enumerate(value._values):
-                j_row.setField(idx, to_java_data_structure(value))
-        return j_row
-    else:
-        raise TypeError('unsupported value type {}'.format(str(type(value))))

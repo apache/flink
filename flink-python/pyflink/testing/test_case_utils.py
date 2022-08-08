@@ -15,6 +15,8 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 #################################################################################
+import calendar
+import datetime
 import glob
 import logging
 import os
@@ -22,18 +24,20 @@ import re
 import shutil
 import sys
 import tempfile
+import time
 import unittest
 from abc import abstractmethod
+from decimal import Decimal
 
 from py4j.java_gateway import JavaObject
 
-from pyflink.common import JobExecutionResult
+from pyflink.common import JobExecutionResult, Time, Instant, Row
 from pyflink.datastream.execution_mode import RuntimeExecutionMode
 from pyflink.datastream.stream_execution_environment import StreamExecutionEnvironment
 from pyflink.find_flink_home import _find_flink_home, _find_flink_source_root
-from pyflink.table.table_environment import TableEnvironment
-from pyflink.table.environment_settings import EnvironmentSettings
 from pyflink.java_gateway import get_gateway
+from pyflink.table.environment_settings import EnvironmentSettings
+from pyflink.table.table_environment import TableEnvironment
 from pyflink.util.java_utils import add_jars_to_context_class_loader, to_jarray
 
 if os.getenv("VERBOSE"):
@@ -277,3 +281,58 @@ class TestEnv(object):
         for item in self.result:
             result[item.f0] = item.f1
         return result
+
+
+def to_java_data_structure(value):
+    jvm = get_gateway().jvm
+    if isinstance(value, (int, float, str, bytes)):
+        return value
+    elif isinstance(value, Decimal):
+        return jvm.java.math.BigDecimal.valueOf(float(value))
+    elif isinstance(value, datetime.datetime):
+        local_date_time = jvm.java.time.LocalDateTime.of(
+            value.year, value.month, value.day, value.hour, value.minute, value.second,
+            value.microsecond * 1000
+        )
+        if value.tzinfo is None:
+            return local_date_time
+        return jvm.java.time.Instant.ofEpochMilli(
+            (
+                calendar.timegm(value.utctimetuple()) +
+                calendar.timegm(time.localtime(0))
+            ) * 1000 +
+            value.microsecond // 1000
+        )
+    elif isinstance(value, datetime.date):
+        return jvm.java.time.LocalDate.of(value.year, value.month, value.day)
+    elif isinstance(value, datetime.time):
+        return jvm.java.time.LocalTime.of(value.hour, value.minute, value.second,
+                                          value.microsecond * 1000)
+    elif isinstance(value, Time):
+        return jvm.java.time.LocalTime.of()
+    elif isinstance(value, Instant):
+        return jvm.java.time.Instant.ofEpochMilli(value.to_epoch_milli())
+    elif isinstance(value, (list, tuple)):
+        j_list = jvm.java.util.ArrayList()
+        for i in value:
+            j_list.add(to_java_data_structure(i))
+        return j_list
+    elif isinstance(value, dict):
+        j_map = jvm.java.util.HashMap()
+        for k, v in value.items():
+            j_map.put(to_java_data_structure(k), to_java_data_structure(v))
+        return j_map
+    elif isinstance(value, Row):
+        if hasattr(value, '_fields'):
+            j_row = jvm.org.apache.flink.types.Row.withNames(value.get_row_kind().to_j_row_kind())
+            for field_name, value in zip(value._fields, value._values):
+                j_row.setField(field_name, to_java_data_structure(value))
+        else:
+            j_row = jvm.org.apache.flink.types.Row.withPositions(
+                value.get_row_kind().to_j_row_kind(), len(value)
+            )
+            for idx, value in enumerate(value._values):
+                j_row.setField(idx, to_java_data_structure(value))
+        return j_row
+    else:
+        raise TypeError('unsupported value type {}'.format(str(type(value))))
