@@ -30,6 +30,12 @@ ONE_PHASE: Enforce to use one stage aggregate which only has CompleteGlobalAggre
             <td>Tells the optimizer whether to split distinct aggregation (e.g. COUNT(DISTINCT col), SUM(DISTINCT col)) into two level. The first aggregation is shuffled by an additional key which is calculated using the hashcode of distinct_key and number of buckets. This optimization is very useful when there is data skew in distinct aggregation and gives the ability to scale-up the job. Default is false.</td>
         </tr>
         <tr>
+            <td><h5>table.optimizer.dynamic-filtering.enabled</h5><br> <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span></td>
+            <td style="word-wrap: break-word;">true</td>
+            <td>Boolean</td>
+            <td>When it is true, the optimizer will try to push dynamic filtering into scan table source, the irrelevant partitions or input data will be filtered to reduce scan I/O in runtime.</td>
+        </tr>
+        <tr>
             <td><h5>table.optimizer.join-reorder-enabled</h5><br> <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span></td>
             <td style="word-wrap: break-word;">false</td>
             <td>Boolean</td>
@@ -76,12 +82,6 @@ ONE_PHASE: Enforce to use one stage aggregate which only has CompleteGlobalAggre
             <td style="word-wrap: break-word;">true</td>
             <td>Boolean</td>
             <td>When it is true, the optimizer will collect and use the statistics from source connectors if the source extends from SupportsStatisticReport and the statistics from catalog is UNKNOWN.Default value is true.</td>
-        </tr>
-        <tr>
-            <td><h5>table.optimizer.dynamic-filtering.enabled</h5><br> <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span></td>
-            <td style="word-wrap: break-word;">true</td>
-            <td>Boolean</td>
-            <td>When it is true, the optimizer will try to push dynamic filtering into scan table source, the irrelevant partitions or input data will be filtered to reduce scan I/O in runtime.</td>
         </tr>
     </tbody>
 </table>
