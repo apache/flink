@@ -32,7 +32,6 @@ import org.apache.flink.table.gateway.api.operation.OperationHandle;
 import org.apache.flink.table.gateway.api.operation.OperationStatus;
 import org.apache.flink.table.gateway.api.results.FetchOrientation;
 import org.apache.flink.table.gateway.api.session.SessionHandle;
-import org.apache.flink.table.gateway.api.utils.SqlGatewayException;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.CharType;
 import org.apache.flink.table.types.logical.DecimalType;
@@ -59,8 +58,6 @@ import org.apache.hive.service.rpc.thrift.TColumnValue;
 import org.apache.hive.service.rpc.thrift.TDoubleColumn;
 import org.apache.hive.service.rpc.thrift.TDoubleValue;
 import org.apache.hive.service.rpc.thrift.TFetchOrientation;
-import org.apache.hive.service.rpc.thrift.TGetInfoType;
-import org.apache.hive.service.rpc.thrift.TGetInfoValue;
 import org.apache.hive.service.rpc.thrift.THandleIdentifier;
 import org.apache.hive.service.rpc.thrift.TI16Column;
 import org.apache.hive.service.rpc.thrift.TI16Value;
@@ -103,8 +100,6 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.table.endpoint.hive.HiveServer2EndpointVersion.HIVE_CLI_SERVICE_PROTOCOL_V6;
-import static org.apache.flink.table.gateway.api.utils.GatewayInfoKeys.GATEWAY_INFO_PRODUCT_NAME_KEY;
-import static org.apache.flink.table.gateway.api.utils.GatewayInfoKeys.GATEWAY_INFO_VERSION_KEY;
 import static org.apache.flink.table.types.logical.LogicalTypeFamily.CONSTRUCTED;
 
 /** Conversion between thrift object and flink object. */
@@ -299,22 +294,6 @@ public class ThriftObjectConversions {
         tStatus.setErrorMessage(t.getMessage());
         tStatus.setInfoMessages(toString(t));
         return tStatus;
-    }
-
-    // --------------------------------------------------------------------------------------------
-    // Flink Gateway Info Map to Hive TGetInfoValue
-    // --------------------------------------------------------------------------------------------
-    public static TGetInfoValue getTInfoValue(
-            Map<String, String> gatewayInfo, TGetInfoType infoType) {
-        switch (infoType) {
-            case CLI_SERVER_NAME:
-            case CLI_DBMS_NAME:
-                return TGetInfoValue.stringValue(gatewayInfo.get(GATEWAY_INFO_PRODUCT_NAME_KEY));
-            case CLI_DBMS_VER:
-                return TGetInfoValue.stringValue(gatewayInfo.get(GATEWAY_INFO_VERSION_KEY));
-            default:
-                throw new SqlGatewayException("Unrecognized TGetInfoType value: " + infoType);
-        }
     }
 
     // --------------------------------------------------------------------------------------------

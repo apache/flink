@@ -18,7 +18,6 @@
 
 package org.apache.flink.table.gateway.service;
 
-import org.apache.flink.FlinkVersion;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.table.catalog.CatalogBaseTable.TableKind;
@@ -27,6 +26,7 @@ import org.apache.flink.table.gateway.api.SqlGatewayService;
 import org.apache.flink.table.gateway.api.endpoint.EndpointVersion;
 import org.apache.flink.table.gateway.api.operation.OperationHandle;
 import org.apache.flink.table.gateway.api.results.FetchOrientation;
+import org.apache.flink.table.gateway.api.results.GatewayInfo;
 import org.apache.flink.table.gateway.api.results.OperationInfo;
 import org.apache.flink.table.gateway.api.results.ResultSet;
 import org.apache.flink.table.gateway.api.results.TableInfo;
@@ -39,13 +39,9 @@ import org.apache.flink.table.gateway.service.session.SessionManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.Callable;
-
-import static org.apache.flink.table.gateway.api.utils.GatewayInfoKeys.GATEWAY_INFO_PRODUCT_NAME_KEY;
-import static org.apache.flink.table.gateway.api.utils.GatewayInfoKeys.GATEWAY_INFO_VERSION_KEY;
 
 /** The implementation of the {@link SqlGatewayService} interface. */
 public class SqlGatewayServiceImpl implements SqlGatewayService {
@@ -54,16 +50,8 @@ public class SqlGatewayServiceImpl implements SqlGatewayService {
 
     private final SessionManager sessionManager;
 
-    private final Map<String, String> gatewayInfo = new HashMap<>(2);
-
     public SqlGatewayServiceImpl(SessionManager sessionManager) {
         this.sessionManager = sessionManager;
-        this.initGatewayInfo();
-    }
-
-    private void initGatewayInfo() {
-        this.gatewayInfo.put(GATEWAY_INFO_PRODUCT_NAME_KEY, "Apache Flink");
-        this.gatewayInfo.put(GATEWAY_INFO_VERSION_KEY, FlinkVersion.current().toString());
     }
 
     @Override
@@ -264,10 +252,10 @@ public class SqlGatewayServiceImpl implements SqlGatewayService {
         }
     }
 
-	@Override
-	public Map<String, String> getGatewayInfo() {
-		return this.gatewayInfo;
-	}
+    @Override
+    public GatewayInfo getGatewayInfo() {
+        return GatewayInfo.INSTANCE;
+    }
 
     @VisibleForTesting
     Session getSession(SessionHandle sessionHandle) {

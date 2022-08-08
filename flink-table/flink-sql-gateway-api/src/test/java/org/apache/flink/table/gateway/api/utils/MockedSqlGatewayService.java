@@ -25,6 +25,7 @@ import org.apache.flink.table.gateway.api.SqlGatewayService;
 import org.apache.flink.table.gateway.api.endpoint.EndpointVersion;
 import org.apache.flink.table.gateway.api.operation.OperationHandle;
 import org.apache.flink.table.gateway.api.results.FetchOrientation;
+import org.apache.flink.table.gateway.api.results.GatewayInfo;
 import org.apache.flink.table.gateway.api.results.OperationInfo;
 import org.apache.flink.table.gateway.api.results.ResultSet;
 import org.apache.flink.table.gateway.api.results.TableInfo;
@@ -94,11 +95,6 @@ public class MockedSqlGatewayService implements SqlGatewayService {
     }
 
     @Override
-    public Map<String, String> getGatewayInfo() {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
     public OperationInfo getOperationInfo(
             SessionHandle sessionHandle, OperationHandle operationHandle) {
         throw new UnsupportedOperationException();
@@ -144,6 +140,11 @@ public class MockedSqlGatewayService implements SqlGatewayService {
             String databaseName,
             Set<TableKind> tableKinds)
             throws SqlGatewayException {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public GatewayInfo getGatewayInfo() {
         throw new UnsupportedOperationException();
     }
 }

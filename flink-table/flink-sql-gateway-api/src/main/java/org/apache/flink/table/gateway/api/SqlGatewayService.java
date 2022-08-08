@@ -26,6 +26,7 @@ import org.apache.flink.table.gateway.api.endpoint.EndpointVersion;
 import org.apache.flink.table.gateway.api.operation.OperationHandle;
 import org.apache.flink.table.gateway.api.operation.OperationStatus;
 import org.apache.flink.table.gateway.api.results.FetchOrientation;
+import org.apache.flink.table.gateway.api.results.GatewayInfo;
 import org.apache.flink.table.gateway.api.results.OperationInfo;
 import org.apache.flink.table.gateway.api.results.ResultSet;
 import org.apache.flink.table.gateway.api.results.TableInfo;
@@ -187,13 +188,6 @@ public interface SqlGatewayService {
             int maxRows)
             throws SqlGatewayException;
 
-    /**
-     * Describe the cluster info.
-     *
-     * @return Returns gateway info.
-     */
-    Map<String, String> getGatewayInfo();
-
     // -------------------------------------------------------------------------------------------
     // Catalog API
     // -------------------------------------------------------------------------------------------
@@ -239,4 +233,15 @@ public interface SqlGatewayService {
             String databaseName,
             Set<TableKind> tableKinds)
             throws SqlGatewayException;
+
+    // -------------------------------------------------------------------------------------------
+    // Utilities
+    // -------------------------------------------------------------------------------------------
+
+    /**
+     * Get the info about the {@link SqlGatewayService}.
+     *
+     * @return Returns gateway info.
+     */
+    GatewayInfo getGatewayInfo();
 }

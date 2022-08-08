@@ -51,13 +51,9 @@ import org.apache.hive.service.rpc.thrift.TCloseOperationReq;
 import org.apache.hive.service.rpc.thrift.TCloseOperationResp;
 import org.apache.hive.service.rpc.thrift.TCloseSessionReq;
 import org.apache.hive.service.rpc.thrift.TCloseSessionResp;
-import org.apache.hive.service.rpc.thrift.TGetInfoReq;
-import org.apache.hive.service.rpc.thrift.TGetInfoResp;
-import org.apache.hive.service.rpc.thrift.TGetInfoType;
 import org.apache.hive.service.rpc.thrift.TOpenSessionReq;
 import org.apache.hive.service.rpc.thrift.TOpenSessionResp;
 import org.apache.hive.service.rpc.thrift.TOperationHandle;
-import org.apache.hive.service.rpc.thrift.TSessionHandle;
 import org.apache.hive.service.rpc.thrift.TOperationType;
 import org.apache.hive.service.rpc.thrift.TStatusCode;
 import org.apache.thrift.protocol.TBinaryProtocol;
@@ -68,6 +64,7 @@ import org.junit.jupiter.api.extension.RegisterExtension;
 
 import java.net.InetAddress;
 import java.sql.Connection;
+import java.sql.DatabaseMetaData;
 import java.sql.ResultSetMetaData;
 import java.sql.Statement;
 import java.util.AbstractMap;
@@ -88,6 +85,7 @@ import static org.apache.flink.api.common.RuntimeExecutionMode.BATCH;
 import static org.apache.flink.configuration.ExecutionOptions.RUNTIME_MODE;
 import static org.apache.flink.table.api.config.TableConfigOptions.MAX_LENGTH_GENERATED_CODE;
 import static org.apache.flink.table.api.config.TableConfigOptions.TABLE_DML_SYNC;
+import static org.apache.flink.table.endpoint.hive.util.ThriftObjectConversions.toTOperationHandle;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -446,6 +444,16 @@ public class HiveServer2EndpointITCase extends TestLogger {
                                                 "INTERVAL_DAY_TIME")));
     }
 
+    @Test
+    public void testGetInfo() throws Exception {
+        try (Connection connection = ENDPOINT_EXTENSION.getConnection()) {
+            DatabaseMetaData metaData = connection.getMetaData();
+            assertThat(metaData.getDatabaseProductName()).isEqualTo("Apache Flink");
+            assertThat(metaData.getDatabaseProductVersion())
+                    .isEqualTo(FlinkVersion.current().toString());
+        }
+    }
+
     // --------------------------------------------------------------------------------------------
 
     private Connection getInitializedConnection() throws Exception {
@@ -504,43 +512,19 @@ public class HiveServer2EndpointITCase extends TestLogger {
         }
     }
 
-    @Test
-    public void testGetInfo() throws Exception {
-        SessionHandle sessionHandle = createSessionHandle();
-        TSessionHandle tSessionHandle = ThriftObjectConversions.toTSessionHandle(sessionHandle);
-        TGetInfoType[] getInfoTypes =
-                new TGetInfoType[] {
-                    TGetInfoType.CLI_SERVER_NAME,
-                    TGetInfoType.CLI_DBMS_NAME,
-                    TGetInfoType.CLI_DBMS_VER
-                };
-        String[] expectValues =
-                new String[] {"Apache Flink", "Apache Flink", FlinkVersion.current().toString()};
-        for (int i = 0; i < getInfoTypes.length; i++) {
-            TGetInfoReq tGetInfoReq = new TGetInfoReq(tSessionHandle, getInfoTypes[i]);
-            TGetInfoResp tGetInfoResp = ENDPOINT_EXTENSION.getEndpoint().GetInfo(tGetInfoReq);
-            assertThat(tGetInfoResp.getStatus().getStatusCode())
-                    .isEqualTo(TStatusCode.SUCCESS_STATUS);
-            assertThat(tGetInfoResp.getInfoValue().getStringValue()).isEqualTo(expectValues[i]);
-        }
-        SQL_GATEWAY_SERVICE_EXTENSION.getService().closeSession(sessionHandle);
-    }
-
-    private SessionHandle createSessionHandle() {
-        return SQL_GATEWAY_SERVICE_EXTENSION
-                .getService()
-                .openSession(
-                        SessionEnvironment.newBuilder()
-                                .setSessionEndpointVersion(
-                                        HiveServer2EndpointVersion.HIVE_CLI_SERVICE_PROTOCOL_V10)
-                                .build());
-    }
-
     private void runOperationRequest(
             ThrowingConsumer<TOperationHandle, Exception> manipulateOp,
             BiConsumerWithException<SessionHandle, OperationHandle, Exception> operationValidator)
             throws Exception {
-        SessionHandle sessionHandle = createSessionHandle();
+        SessionHandle sessionHandle =
+                SQL_GATEWAY_SERVICE_EXTENSION
+                        .getService()
+                        .openSession(
+                                SessionEnvironment.newBuilder()
+                                        .setSessionEndpointVersion(
+                                                HiveServer2EndpointVersion
+                                                        .HIVE_CLI_SERVICE_PROTOCOL_V10)
+                                        .build());
         CountDownLatch latch = new CountDownLatch(1);
         OperationHandle operationHandle =
                 SQL_GATEWAY_SERVICE_EXTENSION

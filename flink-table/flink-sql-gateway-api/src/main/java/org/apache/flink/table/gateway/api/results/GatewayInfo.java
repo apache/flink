@@ -16,13 +16,23 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.gateway.api.utils;
+package org.apache.flink.table.gateway.api.results;
 
-import org.apache.flink.annotation.Internal;
+import org.apache.flink.FlinkVersion;
+import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.table.gateway.api.SqlGatewayService;
 
-/** GatewayInfoKeys Constants. */
-@Internal
-public class GatewayInfoKeys {
-    public static final String GATEWAY_INFO_PRODUCT_NAME_KEY = "product_name";
-    public static final String GATEWAY_INFO_VERSION_KEY = "version";
+/** Info to describe the {@link SqlGatewayService}. */
+@PublicEvolving
+public class GatewayInfo {
+
+    public static final GatewayInfo INSTANCE = new GatewayInfo();
+
+    public String getProductName() {
+        return "Apache Flink";
+    }
+
+    public FlinkVersion getVersion() {
+        return FlinkVersion.current();
+    }
 }
