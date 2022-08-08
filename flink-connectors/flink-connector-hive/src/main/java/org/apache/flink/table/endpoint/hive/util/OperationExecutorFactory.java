@@ -56,7 +56,6 @@ import java.util.function.Function;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
-import static java.sql.DatabaseMetaData.functionResultUnknown;
 import static org.apache.flink.table.endpoint.hive.HiveServer2Schemas.GET_CATALOGS_SCHEMA;
 import static org.apache.flink.table.endpoint.hive.HiveServer2Schemas.GET_FUNCTIONS_SCHEMA;
 import static org.apache.flink.table.endpoint.hive.HiveServer2Schemas.GET_SCHEMAS_SCHEMA;
@@ -282,7 +281,8 @@ public class OperationExecutorFactory {
                                                                 OperationExecutorFactory
                                                                         ::toFunctionResult)
                                                         .orElse(
-                                                                functionResultUnknown), // FUNCTION_TYPE
+                                                                DatabaseMetaData
+                                                                        .functionResultUnknown), // FUNCTION_TYPE
                                                 // TODO: remove until Catalog listFunctions return
                                                 // CatalogFunction
                                                 getFunctionName(
@@ -400,7 +400,7 @@ public class OperationExecutorFactory {
             case TABLE_AGGREGATE:
                 return DatabaseMetaData.functionReturnsTable;
             case OTHER:
-                return functionResultUnknown;
+                return DatabaseMetaData.functionResultUnknown;
             default:
                 throw new UnsupportedOperationException(
                         String.format("Unknown function kind: %s.", kind));
@@ -408,12 +408,10 @@ public class OperationExecutorFactory {
     }
 
     private static String getFunctionName(FunctionDefinition definition) {
-        if (definition instanceof UserDefinedFunction) {
-            if (definition instanceof HiveFunction) {
-                return ((HiveFunction<?>) definition).getFunctionWrapper().getUDFClassName();
-            } else {
-                return ((UserDefinedFunction) definition).functionIdentifier();
-            }
+        if (definition instanceof HiveFunction) {
+            return ((HiveFunction<?>) definition).getFunctionWrapper().getUDFClassName();
+        } else if (definition instanceof UserDefinedFunction) {
+            return ((UserDefinedFunction) definition).functionIdentifier();
         } else if (definition instanceof TableFunctionDefinition) {
             return ((TableFunctionDefinition) definition).getTableFunction().functionIdentifier();
         } else if (definition instanceof ScalarFunctionDefinition) {
