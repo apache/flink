@@ -31,7 +31,7 @@ import java.util.Optional;
 public abstract class ListenableCollector<T> extends TableFunctionCollector<T> {
     @Nullable private CollectListener<T> collectListener;
 
-    public void setCollectListener(CollectListener<T> collectListener) {
+    public void setCollectListener(@Nullable CollectListener<T> collectListener) {
         this.collectListener = collectListener;
     }
 

@@ -246,8 +246,7 @@ public class LookupJoinHarnessTest {
         public void collect(RowData record) {
             RowData left = (RowData) getInput();
             RowData right = record;
-            getCollectListener()
-                    .ifPresent(listener -> ((CollectListener) listener).onCollect(record));
+            getCollectListener().ifPresent(listener -> listener.onCollect(record));
 
             outputResult(new JoinedRowData(left, right));
         }
