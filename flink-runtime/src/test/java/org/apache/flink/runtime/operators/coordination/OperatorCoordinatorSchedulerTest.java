@@ -313,6 +313,13 @@ public class OperatorCoordinatorSchedulerTest extends TestLogger {
         final CompletableFuture<CompletedCheckpoint> checkpointFuture =
                 triggerCheckpoint(scheduler);
         coordinator.getLastTriggeredCheckpoint().complete(checkpointData);
+        executor.triggerAll();
+        OperatorEvent event =
+                new AcknowledgeCheckpointEvent(coordinator.getLastTriggeredCheckpointId());
+        OperatorCoordinatorHolder holder = getCoordinatorHolder(scheduler);
+        for (int i = 0; i < holder.currentParallelism(); i++) {
+            holder.handleEventFromOperator(i, 0, event);
+        }
         acknowledgeCurrentCheckpoint(scheduler);
 
         final OperatorState state = checkpointFuture.get().getOperatorStates().get(testOperatorId);
@@ -777,6 +784,15 @@ public class OperatorCoordinatorSchedulerTest extends TestLogger {
     }
 
     private TestingOperatorCoordinator getCoordinator(DefaultScheduler scheduler) {
+        OperatorCoordinatorHolder holder = getCoordinatorHolder(scheduler);
+
+        final OperatorCoordinator coordinator = holder.coordinator();
+        assertThat(coordinator, instanceOf(TestingOperatorCoordinator.class));
+
+        return (TestingOperatorCoordinator) coordinator;
+    }
+
+    private OperatorCoordinatorHolder getCoordinatorHolder(DefaultScheduler scheduler) {
         final ExecutionJobVertex vertexWithCoordinator = getJobVertex(scheduler, testVertexId);
         assertNotNull("vertex for coordinator not found", vertexWithCoordinator);
 
@@ -786,10 +802,7 @@ public class OperatorCoordinatorSchedulerTest extends TestLogger {
                         .findFirst();
         assertTrue("vertex does not contain coordinator", coordinatorOptional.isPresent());
 
-        final OperatorCoordinator coordinator = coordinatorOptional.get().coordinator();
-        assertThat(coordinator, instanceOf(TestingOperatorCoordinator.class));
-
-        return (TestingOperatorCoordinator) coordinator;
+        return coordinatorOptional.get();
     }
 
     // ------------------------------------------------------------------------
@@ -836,8 +849,8 @@ public class OperatorCoordinatorSchedulerTest extends TestLogger {
         scheduler.handleGlobalFailure(reason);
         SchedulerTestingUtils.setAllExecutionsToCancelled(scheduler);
 
-        // make sure the checkpoint is no longer triggering (this means that the operator event
-        // valve has been closed)
+        // make sure the checkpoint is no longer triggering (this means that the subtask
+        // gateway has been closed)
         final CheckpointCoordinator checkpointCoordinator =
                 scheduler.getExecutionGraph().getCheckpointCoordinator();
         while (checkpointCoordinator != null && checkpointCoordinator.isTriggering()) {
@@ -920,6 +933,14 @@ public class OperatorCoordinatorSchedulerTest extends TestLogger {
                 triggerCheckpoint(scheduler);
 
         testingOperatorCoordinator.getLastTriggeredCheckpoint().complete(coordinatorState);
+        executor.triggerAll();
+        OperatorEvent event =
+                new AcknowledgeCheckpointEvent(
+                        testingOperatorCoordinator.getLastTriggeredCheckpointId());
+        OperatorCoordinatorHolder holder = getCoordinatorHolder(scheduler);
+        for (int i = 0; i < holder.currentParallelism(); i++) {
+            holder.handleEventFromOperator(i, 0, event);
+        }
         acknowledgeCurrentCheckpoint(scheduler);
 
         // wait until checkpoint has completed

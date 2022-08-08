@@ -18,13 +18,18 @@
 
 package org.apache.flink.runtime.operators.coordination;
 
+import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.operators.coordination.util.IncompleteFuturesTracker;
+import org.apache.flink.runtime.testutils.DirectScheduledExecutorService;
 import org.apache.flink.util.SerializedValue;
-import org.apache.flink.util.concurrent.Executors;
 import org.apache.flink.util.concurrent.FutureUtils;
+import org.apache.flink.util.concurrent.ScheduledExecutor;
+import org.apache.flink.util.concurrent.ScheduledExecutorServiceAdapter;
+
+import org.jetbrains.annotations.NotNull;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -34,6 +39,8 @@ import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.createExecutionAttemptId;
@@ -114,8 +121,7 @@ public class EventReceivingTasks implements SubtaskAccess.SubtaskAccessFactory {
         final SubtaskAccess sta = getAccessForAttempt(subtaskIndex, attemptNumber);
         return new SubtaskGatewayImpl(
                 sta,
-                new OperatorEventValve(),
-                Executors.directExecutor(),
+                new NoMainThreadCheckComponentMainThreadExecutor(),
                 new IncompleteFuturesTracker());
     }
 
@@ -226,6 +232,50 @@ public class EventReceivingTasks implements SubtaskAccess.SubtaskAccessFactory {
         @Override
         public void triggerTaskFailover(Throwable cause) {
             // ignore this in the tests
+        }
+    }
+
+    /**
+     * An implementation of {@link ComponentMainThreadExecutor} that executes Runnables with a
+     * wrapped {@link ScheduledExecutor} and disables {@link #assertRunningInMainThread()} checks.
+     */
+    private static class NoMainThreadCheckComponentMainThreadExecutor
+            implements ComponentMainThreadExecutor {
+        private final ScheduledExecutor scheduledExecutor;
+
+        private NoMainThreadCheckComponentMainThreadExecutor() {
+            this.scheduledExecutor =
+                    new ScheduledExecutorServiceAdapter(new DirectScheduledExecutorService());
+        }
+
+        @Override
+        public ScheduledFuture<?> schedule(Runnable command, long delay, TimeUnit unit) {
+            return scheduledExecutor.schedule(command, delay, unit);
+        }
+
+        @Override
+        public <V> ScheduledFuture<V> schedule(Callable<V> callable, long delay, TimeUnit unit) {
+            return scheduledExecutor.schedule(callable, delay, unit);
+        }
+
+        @Override
+        public ScheduledFuture<?> scheduleAtFixedRate(
+                Runnable command, long initialDelay, long period, TimeUnit unit) {
+            return scheduledExecutor.scheduleAtFixedRate(command, initialDelay, period, unit);
+        }
+
+        @Override
+        public ScheduledFuture<?> scheduleWithFixedDelay(
+                Runnable command, long initialDelay, long delay, TimeUnit unit) {
+            return scheduledExecutor.scheduleAtFixedRate(command, initialDelay, delay, unit);
+        }
+
+        @Override
+        public void assertRunningInMainThread() {}
+
+        @Override
+        public void execute(@NotNull Runnable command) {
+            scheduledExecutor.execute(command);
         }
     }
 }

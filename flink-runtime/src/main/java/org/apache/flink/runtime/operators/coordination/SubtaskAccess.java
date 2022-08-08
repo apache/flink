@@ -43,9 +43,9 @@ interface SubtaskAccess {
      * subtask that this {@code SubtaskAccess} instance binds to. The resulting future from the
      * sending is returned by the callable.
      *
-     * <p>This let's the caller target the specific subtask without necessarily sending the event
-     * now (for example, the event may be sent at a later point due to checkpoint alignment through
-     * the {@link OperatorEventValve}).
+     * <p>This lets the caller target the specific subtask without necessarily sending the event now
+     * (for example, the event may be sent at a later point due to checkpoint alignment through the
+     * {@link SubtaskGatewayImpl}).
      */
     Callable<CompletableFuture<Acknowledge>> createEventSendAction(
             SerializedValue<OperatorEvent> event);
