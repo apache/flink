@@ -23,13 +23,17 @@ from pyflink.datastream.functions import SourceFunction
 from pyflink.datastream.connectors import Sink
 from pyflink.java_gateway import get_gateway
 
-__all__ = ['KinesisShardAssigner',
-           'KinesisDeserializationSchema',
-           'WatermarkTracker',
-           'PartitionKeyGenerator',
-           'FlinkKinesisConsumer',
-           'KinesisStreamsSink',
-           'KinesisFirehoseSink']
+__all__ = [
+    'KinesisShardAssigner',
+    'KinesisDeserializationSchema',
+    'WatermarkTracker',
+    'PartitionKeyGenerator',
+    'FlinkKinesisConsumer',
+    'KinesisStreamsSink',
+    'KinesisStreamsSinkBuilder',
+    'KinesisFirehoseSink',
+    'KinesisFirehoseSinkBuilder'
+]
 
 
 # ---- KinesisSource ----

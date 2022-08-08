@@ -43,7 +43,8 @@ from pyflink.common import WatermarkStrategy, Row
 from pyflink.common.serialization import Encoder
 from pyflink.common.typeinfo import Types
 from pyflink.datastream import StreamExecutionEnvironment
-from pyflink.datastream.connectors import FileSink, OutputFileConfig, NumberSequenceSource
+from pyflink.datastream.connectors.file_system import FileSink, OutputFileConfig
+from pyflink.datastream.connectors.number_seq import NumberSequenceSource
 from pyflink.datastream.functions import RuntimeContext, MapFunction
 from pyflink.datastream.state import ValueStateDescriptor
 
@@ -156,7 +157,7 @@ You can also create a `DataStream` using DataStream connectors with method `add_
 from pyflink.common.serialization import JsonRowDeserializationSchema
 from pyflink.common.typeinfo import Types
 from pyflink.datastream import StreamExecutionEnvironment
-from pyflink.datastream.connectors import FlinkKafkaConsumer
+from pyflink.datastream.connectors.kafka import FlinkKafkaConsumer
 
 env = StreamExecutionEnvironment.get_execution_environment()
 # the sql connector for kafka is used here as it's a fat jar and could avoid dependency issues
@@ -186,7 +187,7 @@ source connectors:
 from pyflink.common.typeinfo import Types
 from pyflink.common.watermark_strategy import WatermarkStrategy
 from pyflink.datastream import StreamExecutionEnvironment
-from pyflink.datastream.connectors import NumberSequenceSource
+from pyflink.datastream.connectors.number_seq import NumberSequenceSource
 
 env = StreamExecutionEnvironment.get_execution_environment()
 seq_num_source = NumberSequenceSource(1, 1000)
@@ -303,7 +304,7 @@ You can call the `add_sink` method to emit the data of a `DataStream` to a DataS
 
 ```python
 from pyflink.common.typeinfo import Types
-from pyflink.datastream.connectors import FlinkKafkaProducer
+from pyflink.datastream.connectors.kafka import FlinkKafkaProducer
 from pyflink.common.serialization import JsonRowSerializationSchema
 
 serialization_schema = JsonRowSerializationSchema.builder().with_type_info(
@@ -327,7 +328,7 @@ You could also call the `sink_to` method to emit the data of a `DataStream` to a
 sink connector:
 
 ```python
-from pyflink.datastream.connectors import FileSink, OutputFileConfig
+from pyflink.datastream.connectors.file_system import FileSink, OutputFileConfig
 from pyflink.common.serialization import Encoder
 
 output_path = '/opt/output/'

@@ -53,20 +53,6 @@ class Sink(JavaFunctionWrapper):
         super(Sink, self).__init__(sink)
 
 
-class StreamTransformer(ABC):
-
-    @abstractmethod
-    def apply(self, ds):
-        pass
-
-
-class SupportsPreprocessing(ABC):
-
-    @abstractmethod
-    def get_transformer(self) -> Optional[StreamTransformer]:
-        pass
-
-
 class DeliveryGuarantee(Enum):
     """
     DeliverGuarantees that can be chosen. In general your pipeline can only offer the lowest
@@ -97,3 +83,17 @@ class DeliveryGuarantee(Enum):
         JDeliveryGuarantee = get_gateway().jvm \
             .org.apache.flink.connector.base.DeliveryGuarantee
         return getattr(JDeliveryGuarantee, self.name)
+
+
+class StreamTransformer(ABC):
+
+    @abstractmethod
+    def apply(self, ds):
+        pass
+
+
+class SupportsPreprocessing(ABC):
+
+    @abstractmethod
+    def get_transformer(self) -> Optional[StreamTransformer]:
+        pass

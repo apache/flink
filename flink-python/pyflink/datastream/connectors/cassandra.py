@@ -21,11 +21,14 @@ from pyflink.common import Duration
 from pyflink.java_gateway import get_gateway
 
 
-__all__ = ['ConsistencyLevel',
-           'MapperOptions',
-           'ClusterBuilder',
-           'CassandraCommitter',
-           'CassandraFailureHandler']
+__all__ = [
+    'CassandraSink',
+    'ConsistencyLevel',
+    'MapperOptions',
+    'ClusterBuilder',
+    'CassandraCommitter',
+    'CassandraFailureHandler'
+]
 
 # ---- Classes introduced to construct the MapperOptions ----
 

@@ -122,8 +122,7 @@ import sys
 
 from pyflink.common import WatermarkStrategy, Encoder, Types
 from pyflink.datastream import StreamExecutionEnvironment, RuntimeExecutionMode
-from pyflink.datastream.connectors import (FileSource, StreamFormat, FileSink, OutputFileConfig,
-                                           RollingPolicy)
+from pyflink.datastream.connectors.file_system import FileSource, StreamFormat, FileSink, OutputFileConfig, RollingPolicy
 
 
 word_count_data = ["To be, or not to be,--that is the question:--",

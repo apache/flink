@@ -66,7 +66,7 @@ For example, types need to be provided if you want to output data using the File
 from pyflink.common.serialization import Encoder
 from pyflink.common.typeinfo import Types
 from pyflink.datastream import StreamExecutionEnvironment
-from pyflink.datastream.connectors import FileSink
+from pyflink.datastream.connectors.file_system import FileSink
 
 
 def file_sink():

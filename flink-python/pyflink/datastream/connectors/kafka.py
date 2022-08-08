@@ -34,17 +34,17 @@ from pyflink.util.java_utils import to_jarray, get_field, get_field_value
 __all__ = [
     'FlinkKafkaConsumer',
     'FlinkKafkaProducer',
-    'Semantic',
     'KafkaSource',
     'KafkaSourceBuilder',
+    'KafkaSink',
+    'KafkaSinkBuilder',
+    'Semantic',
     'KafkaTopicPartition',
     'KafkaOffsetsInitializer',
     'KafkaOffsetResetStrategy',
-    'KafkaSink',
-    'KafkaSinkBuilder',
     'KafkaRecordSerializationSchema',
     'KafkaRecordSerializationSchemaBuilder',
-    'KafkaTopicSelector',
+    'KafkaTopicSelector'
 ]
 
 

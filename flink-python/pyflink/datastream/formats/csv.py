@@ -18,8 +18,8 @@
 from typing import Optional
 
 from pyflink.common.typeinfo import _from_java_type
-from pyflink.datastream.connectors import StreamFormat
-from pyflink.datastream.connectors.file_system import BulkWriterFactory, RowDataBulkWriterFactory
+from pyflink.datastream.connectors.file_system import BulkWriterFactory, RowDataBulkWriterFactory, \
+    StreamFormat
 from pyflink.java_gateway import get_gateway
 from pyflink.table.types import DataType, DataTypes, _to_java_data_type, RowType, NumericType
 

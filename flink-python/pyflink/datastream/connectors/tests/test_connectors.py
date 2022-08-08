@@ -16,23 +16,26 @@
 # limitations under the License.
 ################################################################################
 
-from pyflink.datastream.connectors.elasticsearch import Elasticsearch7SinkBuilder, \
-    FlushBackoffType, ElasticsearchEmitter
-
 from pyflink.common import typeinfo, Duration, WatermarkStrategy, ConfigOptions
 from pyflink.common.serialization import JsonRowDeserializationSchema, \
     JsonRowSerializationSchema, Encoder, SimpleStringSchema
 from pyflink.common.typeinfo import Types
-from pyflink.datastream.connectors import FlinkKafkaConsumer, FlinkKafkaProducer, JdbcSink, \
-    JdbcConnectionOptions, JdbcExecutionOptions, StreamingFileSink, \
-    OutputFileConfig, FileSource, StreamFormat, FileEnumeratorProvider, FileSplitAssignerProvider, \
-    NumberSequenceSource, RollingPolicy, FileSink, BucketAssigner, RMQSink, RMQSource, \
-    RMQConnectionConfig, PulsarSource, StartCursor, PulsarDeserializationSchema, StopCursor, \
-    SubscriptionType, PulsarSink, PulsarSerializationSchema, DeliveryGuarantee, TopicRoutingMode, \
-    MessageDelayer, FlinkKinesisConsumer, KinesisStreamsSink, KinesisFirehoseSink
+from pyflink.datastream.connectors import DeliveryGuarantee
 from pyflink.datastream.connectors.cassandra import CassandraSink, MapperOptions, ConsistencyLevel
-from pyflink.datastream.connectors.file_system import FileCompactStrategy, FileCompactor
-from pyflink.datastream.connectors.kinesis import PartitionKeyGenerator
+from pyflink.datastream.connectors.elasticsearch import Elasticsearch7SinkBuilder, \
+    FlushBackoffType, ElasticsearchEmitter
+from pyflink.datastream.connectors.file_system import FileCompactStrategy, FileCompactor, \
+    StreamingFileSink, OutputFileConfig, FileSource, StreamFormat, FileEnumeratorProvider, \
+    FileSplitAssignerProvider, RollingPolicy, FileSink, BucketAssigner
+from pyflink.datastream.connectors.jdbc import JdbcSink, JdbcConnectionOptions, JdbcExecutionOptions
+from pyflink.datastream.connectors.number_seq import NumberSequenceSource
+from pyflink.datastream.connectors.kafka import FlinkKafkaConsumer, FlinkKafkaProducer
+from pyflink.datastream.connectors.kinesis import PartitionKeyGenerator, FlinkKinesisConsumer, \
+    KinesisStreamsSink, KinesisFirehoseSink
+from pyflink.datastream.connectors.pulsar import PulsarSerializationSchema, TopicRoutingMode, \
+    MessageDelayer, PulsarSink, PulsarSource, StartCursor, PulsarDeserializationSchema, \
+    StopCursor, SubscriptionType
+from pyflink.datastream.connectors.rabbitmq import RMQSink, RMQSource, RMQConnectionConfig
 from pyflink.datastream.tests.test_util import DataStreamTestSinkFunction
 from pyflink.java_gateway import get_gateway
 from pyflink.testing.test_case_utils import invoke_java_object_method, PyFlinkStreamingTestCase

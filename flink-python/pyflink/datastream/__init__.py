@@ -165,37 +165,48 @@ Classes to define source & sink:
 
     - :class:`connectors.elasticsearch.ElasticsearchSink`:
       A sink for publishing data into Elasticsearch 6 or Elasticsearch 7.
-    - :class:`connectors.FlinkKafkaConsumer`:
+    - :class:`connectors.kafka.FlinkKafkaConsumer`:
       A streaming data source that pulls a parallel data stream from Apache Kafka.
-    - :class:`connectors.FlinkKafkaProducer`:
+    - :class:`connectors.kafka.FlinkKafkaProducer`:
       A streaming data sink to produce data into a Kafka topic.
-    - :class:`connectors.KafkaSource`:
+    - :class:`connectors.kafka.KafkaSource`:
       The new API to read data in parallel from Apache Kafka.
-    - :class:`connectors.KafkaSink`:
+    - :class:`connectors.kafka.KafkaSink`:
       The new API to write data into to Apache Kafka topics.
-    - :class:`connectors.FileSource`:
+    - :class:`connectors.file_system.FileSource`:
       A unified data source that reads files - both in batch and in streaming mode.
       This source supports all (distributed) file systems and object stores that can be accessed via
       the Flink's FileSystem class.
-    - :class:`connectors.FileSink`:
+    - :class:`connectors.file_system.FileSink`:
       A unified sink that emits its input elements to FileSystem files within buckets. This
       sink achieves exactly-once semantics for both BATCH and STREAMING.
-    - :class:`connectors.NumberSequenceSource`:
-      A data source that produces a sequence of numbers (longs). This source is useful for testing
-      and for cases that just need a stream of N events of any kind.
-    - :class:`connectors.JdbcSink`:
-      A data sink to produce data into an external storage using JDBC.
-    - :class:`connectors.StreamingFileSink`:
+    - :class:`connectors.file_system.StreamingFileSink`:
       Sink that emits its input elements to files within buckets. This is integrated with the
       checkpointing mechanism to provide exactly once semantics.
-    - :class:`connectors.PulsarSource`:
+    - :class:`connectors.number_seq.NumberSequenceSource`:
+      A data source that produces a sequence of numbers (longs). This source is useful for testing
+      and for cases that just need a stream of N events of any kind.
+    - :class:`connectors.jdbc.JdbcSink`:
+      A data sink to produce data into an external storage using JDBC.
+    - :class:`connectors.pulsar.PulsarSource`:
       A streaming data source that pulls a parallel data stream from Pulsar.
-    - :class:`connectors.PulsarSink`:
+    - :class:`connectors.pulsar.PulsarSink`:
       A streaming data sink to produce data into Pulsar.
-    - :class:`connectors.RMQSource`:
+    - :class:`connectors.rabbitmq.RMQSource`:
       A streaming data source that pulls a parallel data stream from RabbitMQ.
-    - :class:`connectors.RMQSink`:
+    - :class:`connectors.rabbitmq.RMQSink`:
       A Sink for publishing data into RabbitMQ.
+    - :class:`connectors.cassandra.CassandraSink`:
+      A Sink for publishing data into Cassandra.
+    - :class:`connectors.kinesis.FlinkKinesisConsumer`:
+      A streaming data source that pulls a parallel data stream from Kinesis.
+    - :class:`connectors.kinesis.KinesisStreamsSink`:
+      A Kinesis Data Streams (KDS) Sink that performs async requests against a destination stream
+      using the buffering protocol.
+    - :class:`connectors.kinesis.KinesisFirehoseSink`:
+      A Kinesis Data Firehose (KDF) Sink that performs async requests against a destination delivery
+      stream using the buffering protocol.
+
 
 Classes to define formats used together with source & sink:
 

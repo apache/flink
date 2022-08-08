@@ -33,7 +33,20 @@ from pyflink.util.java_utils import to_jarray
 
 __all__ = [
     'FileCompactor',
-    'FileCompactStrategy'
+    'FileCompactStrategy',
+    'OutputFileConfig',
+    'FileSource',
+    'FileSourceBuilder',
+    'FileSink',
+    'StreamingFileSink',
+    'BulkFormat',
+    'StreamFormat',
+    'InputFormat',
+    'BulkWriterFactory',
+    'FileEnumeratorProvider',
+    'FileSplitAssignerProvider',
+    'RollingPolicy',
+    'BucketAssigner'
 ]
 
 
