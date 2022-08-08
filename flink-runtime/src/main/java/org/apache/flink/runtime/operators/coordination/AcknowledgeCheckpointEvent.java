@@ -18,20 +18,20 @@
 
 package org.apache.flink.runtime.operators.coordination;
 
-import org.apache.flink.runtime.messages.Acknowledge;
+/**
+ * An {@link OperatorEvent} sent from a subtask to its {@link OperatorCoordinator} to signal that
+ * the checkpoint of an individual task is completed.
+ */
+public class AcknowledgeCheckpointEvent implements OperatorEvent {
 
-import java.util.concurrent.Callable;
-import java.util.concurrent.CompletableFuture;
+    /** The ID of the checkpoint that this event is related to. */
+    private final long checkpointId;
 
-/** Simple interface for a component that takes and sends events. */
-@FunctionalInterface
-interface EventSender {
+    public AcknowledgeCheckpointEvent(long checkpointId) {
+        this.checkpointId = checkpointId;
+    }
 
-    /**
-     * Takes the given Callable and calls it at a certain point to send the event. The result of
-     * that Callable are bridged to the given result future.
-     */
-    void sendEvent(
-            Callable<CompletableFuture<Acknowledge>> sendAction,
-            CompletableFuture<Acknowledge> result);
+    long getCheckpointID() {
+        return checkpointId;
+    }
 }
