@@ -1321,8 +1321,7 @@ public class StreamingJobGraphGeneratorTest extends TestLogger {
         Configuration configuration = new Configuration();
         // set all edge to HYBRID_FULL result partition type.
         configuration.set(
-                ExecutionOptions.BATCH_SHUFFLE_MODE,
-                BatchShuffleMode.WIP_ALL_EXCHANGES_HYBRID_FULL);
+                ExecutionOptions.BATCH_SHUFFLE_MODE, BatchShuffleMode.ALL_EXCHANGES_HYBRID_FULL);
 
         final StreamGraph streamGraph = createStreamGraphForSlotSharingTest(configuration);
         // specify slot sharing group for map1
@@ -1339,7 +1338,7 @@ public class StreamingJobGraphGeneratorTest extends TestLogger {
         // set all edge to HYBRID_SELECTIVE result partition type.
         configuration.set(
                 ExecutionOptions.BATCH_SHUFFLE_MODE,
-                BatchShuffleMode.WIP_ALL_EXCHANGES_HYBRID_SELECTIVE);
+                BatchShuffleMode.ALL_EXCHANGES_HYBRID_SELECTIVE);
 
         final StreamGraph streamGraph2 = createStreamGraphForSlotSharingTest(configuration);
         // specify slot sharing group for map1
