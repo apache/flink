@@ -336,9 +336,10 @@ class FlinkRelMdRowCount private extends MetadataHandler[BuiltInMetadata.RowCoun
       fmq.getSelectivity(joinWithOnlyEquiPred, nonEquiPred)
     }
 
-    // Dynamic partition pruning factor is adding to adjust join cost for these join
-    // node which meets dynamic partition pruning pattern. Try best to reorder the
-    // fact table and fact table together to make dpp succeed.
+    // Currently, join-reorder is before dynamic partition pruning rewrite. This factor
+    // is adding to adjust join cost for these join node which meets dynamic partition
+    // pruning pattern. Try best to reorder the fact table and fact table together to
+    // make DPP succeed.
     val dynamicPartitionPruningFactor =
       if (DynamicPartitionPruningUtils.supportDynamicPartitionPruning(join)) {
         0.0001

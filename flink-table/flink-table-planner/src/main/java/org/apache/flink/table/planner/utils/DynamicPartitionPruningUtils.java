@@ -198,6 +198,7 @@ public class DynamicPartitionPruningUtils {
             ImmutableIntList inputJoinKeys = getInputIndices(projects, joinKeys);
             if (inputJoinKeys.isEmpty()) {
                 factSideFactors.isSuitableJoinKey = false;
+                return;
             }
 
             visitFactSide(rel.getInput(0), factSideFactors, joinKeys);
@@ -211,6 +212,7 @@ public class DynamicPartitionPruningUtils {
             ImmutableIntList inputJoinKeys = getInputIndices(projects, joinKeys);
             if (inputJoinKeys.isEmpty()) {
                 factSideFactors.isSuitableJoinKey = false;
+                return;
             } else {
                 factSideFactors.calcJoinKeysIndexInFactTable = inputJoinKeys;
             }
