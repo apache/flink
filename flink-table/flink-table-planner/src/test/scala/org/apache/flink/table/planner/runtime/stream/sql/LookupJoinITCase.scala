@@ -673,6 +673,29 @@ class LookupJoinITCase(legacyTableSource: Boolean, enableCache: Boolean) extends
     val expected = Seq("3,Fabian,33", "8,Fabian,33", "9,Fabian,33")
     assertEquals(expected.sorted, sink.getRetractResults.sorted)
   }
+
+  @Test
+  def testAggAndJoinAllConstantKeyWithTryResolveMode(): Unit = {
+    // in fact this case will omit materialization because not right column was required from sink
+    tEnv.getConfig.set(
+      OptimizerConfigOptions.TABLE_OPTIMIZER_NONDETERMINISTIC_UPDATE_STRATEGY,
+      OptimizerConfigOptions.NonDeterministicUpdateStrategy.TRY_RESOLVE)
+
+    val sql1 = "SELECT max(id) as id, PROCTIME() as proctime FROM src AS T group by len"
+
+    val table1 = tEnv.sqlQuery(sql1)
+    tEnv.registerTable("t1", table1)
+
+    val sql2 = "SELECT t1.id FROM t1 LEFT JOIN user_table " +
+      "for system_time as of t1.proctime AS D ON D.id = 3"
+
+    val sink = new TestingRetractSink
+    tEnv.sqlQuery(sql2).toRetractStream[Row].addSink(sink).setParallelism(1)
+    env.execute()
+
+    val expected = Seq("3", "8", "9")
+    assertEquals(expected.sorted, sink.getRetractResults.sorted)
+  }
 }
 
 object LookupJoinITCase {
