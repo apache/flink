@@ -140,7 +140,7 @@ public class HiveOperationExecutor implements ExtendedOperationExecutor {
                 catalogManager.getCatalog(catalogManager.getCurrentCatalog()).orElse(null);
         if (!(currentCatalog instanceof HiveCatalog)) {
             throw new FlinkHiveException(
-                    "Only support 'LOAD DATA INPATH' when the current catalog is HiveCatalog ing Hive dialect.");
+                    "Only support 'LOAD DATA INPATH' when the current catalog is HiveCatalog in Hive dialect.");
         }
         try {
             // Hive's loadTable/loadPartition will call method
@@ -170,20 +170,43 @@ public class HiveOperationExecutor implements ExtendedOperationExecutor {
 
     private Optional<TableResultInternal> explainHiveLoadDataOperation(
             HiveLoadDataOperation hiveLoadDataOperation) {
+        // get the plan for the partition part
+        String partitionExplain = "";
+        Map<String, String> partitionSpec = hiveLoadDataOperation.getPartitionSpec();
+        if (!partitionSpec.isEmpty()) {
+            String[] pv = new String[partitionSpec.size()];
+            int i = 0;
+            for (Map.Entry<String, String> partition : partitionSpec.entrySet()) {
+                pv[i++] = String.format("%s=%s", partition.getKey(), partition.getValue());
+            }
+            partitionExplain = String.format(", partition=[%s]", String.join(", ", pv));
+        }
+        // construct the full plan
+        String plan =
+                String.format(
+                        "LoadData(filepath=[%s], "
+                                + "table=[%s],"
+                                + " overwrite=[%s], local=[%s]%s)",
+                        hiveLoadDataOperation.getPath(),
+                        hiveLoadDataOperation.getTablePath(),
+                        hiveLoadDataOperation.isOverwrite(),
+                        hiveLoadDataOperation.isSrcLocal(),
+                        partitionExplain);
+
         String explanation =
                 "== Abstract Syntax Tree =="
                         + System.lineSeparator()
-                        + hiveLoadDataOperation.asSummaryString()
+                        + plan
                         + System.lineSeparator()
                         + System.lineSeparator()
                         + "== Optimized Physical Plan =="
                         + System.lineSeparator()
-                        + hiveLoadDataOperation.asSummaryString()
+                        + plan
                         + System.lineSeparator()
                         + System.lineSeparator()
                         + "== Optimized Execution Plan =="
                         + System.lineSeparator()
-                        + hiveLoadDataOperation.asSummaryString()
+                        + plan
                         + System.lineSeparator();
 
         return Optional.of(

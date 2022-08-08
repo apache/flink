@@ -49,7 +49,7 @@ import java.util.Optional;
 /** Shim for Hive version 2.1.0. */
 public class HiveShimV210 extends HiveShimV201 {
 
-    protected boolean hasFollowingStatsTask = false;
+    protected final boolean hasFollowingStatsTask = false;
 
     @Override
     public void alterPartition(

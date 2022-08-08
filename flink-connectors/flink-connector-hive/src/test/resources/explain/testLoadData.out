@@ -1,8 +1,8 @@
 == Abstract Syntax Tree ==
-LOAD DATA LOCAL INPATH '$filepath' OVERWRITE INTO TABLE default.p_table PARTITION (dateint=2022)
+LoadData(filepath=[$filepath], table=[default.p_table], overwrite=[true], local=[true], partition=[dateint=2022])
 
 == Optimized Physical Plan ==
-LOAD DATA LOCAL INPATH '$filepath' OVERWRITE INTO TABLE default.p_table PARTITION (dateint=2022)
+LoadData(filepath=[$filepath], table=[default.p_table], overwrite=[true], local=[true], partition=[dateint=2022])
 
 == Optimized Execution Plan ==
-LOAD DATA LOCAL INPATH '$filepath' OVERWRITE INTO TABLE default.p_table PARTITION (dateint=2022)
+LoadData(filepath=[$filepath], table=[default.p_table], overwrite=[true], local=[true], partition=[dateint=2022])

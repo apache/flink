@@ -72,8 +72,8 @@ public class HiveShimV310 extends HiveShimV239 {
     private static volatile boolean loadFileClassInited;
     private static Class clazzLoadFileType;
 
-    protected long writeIdInLoadTableOrPartition = 0L;
-    protected int stmtIdInLoadTableOrPartition = 0;
+    protected final long writeIdInLoadTableOrPartition = 0L;
+    protected final int stmtIdInLoadTableOrPartition = 0;
 
     private static void initDateTimeClasses() {
         if (!hiveClassesInited) {

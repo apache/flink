@@ -96,10 +96,10 @@ import java.util.stream.Collectors;
 /** Shim for Hive version 1.0.0. */
 public class HiveShimV100 implements HiveShim {
 
-    protected boolean holdDDLTime = false;
-    protected boolean isAcid = false;
-    protected boolean inheritTableSpecs = true;
-    protected boolean isSkewedStoreAsSubdir = false;
+    protected final boolean holdDDLTime = false;
+    protected final boolean isAcid = false;
+    protected final boolean inheritTableSpecs = true;
+    protected final boolean isSkewedStoreAsSubdir = false;
 
     private static final Method registerTemporaryFunction =
             HiveReflectionUtils.tryGetMethod(
