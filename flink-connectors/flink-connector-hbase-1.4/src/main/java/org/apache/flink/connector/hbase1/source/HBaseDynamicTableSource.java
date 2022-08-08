@@ -19,15 +19,16 @@
 package org.apache.flink.connector.hbase1.source;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.io.InputFormat;
-import org.apache.flink.connector.hbase.options.HBaseLookupOptions;
 import org.apache.flink.connector.hbase.source.AbstractHBaseDynamicTableSource;
 import org.apache.flink.connector.hbase.util.HBaseTableSchema;
 import org.apache.flink.table.connector.source.DynamicTableSource;
+import org.apache.flink.table.connector.source.lookup.cache.LookupCache;
 import org.apache.flink.table.data.RowData;
 
 import org.apache.hadoop.conf.Configuration;
+
+import javax.annotation.Nullable;
 
 /** HBase table source implementation. */
 @Internal
@@ -38,23 +39,19 @@ public class HBaseDynamicTableSource extends AbstractHBaseDynamicTableSource {
             String tableName,
             HBaseTableSchema hbaseSchema,
             String nullStringLiteral,
-            HBaseLookupOptions lookupOptions) {
-        super(conf, tableName, hbaseSchema, nullStringLiteral, lookupOptions);
+            int maxRetryTimes,
+            @Nullable LookupCache cache) {
+        super(conf, tableName, hbaseSchema, nullStringLiteral, maxRetryTimes, cache);
     }
 
     @Override
     public DynamicTableSource copy() {
         return new HBaseDynamicTableSource(
-                conf, tableName, hbaseSchema, nullStringLiteral, lookupOptions);
+                conf, tableName, hbaseSchema, nullStringLiteral, maxRetryTimes, cache);
     }
 
     @Override
     public InputFormat<RowData, ?> getInputFormat() {
         return new HBaseRowDataInputFormat(conf, tableName, hbaseSchema, nullStringLiteral);
-    }
-
-    @VisibleForTesting
-    public HBaseLookupOptions getLookupOptions() {
-        return this.lookupOptions;
     }
 }
