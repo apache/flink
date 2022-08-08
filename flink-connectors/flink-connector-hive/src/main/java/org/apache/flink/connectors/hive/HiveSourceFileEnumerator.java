@@ -77,8 +77,6 @@ public class HiveSourceFileEnumerator implements FileEnumerator {
                                             .key())));
 
         } else {
-            Preconditions.checkArgument(
-                    minNumSplits >= 1, "The minNumSplits for Hive source shouldn't less that 1.");
             setSplitMaxSize(partitions, jobConf, minNumSplits);
         }
         int threadNum = getThreadNumToSplitHiveFile(jobConf);
@@ -102,9 +100,26 @@ public class HiveSourceFileEnumerator implements FileEnumerator {
         return hiveSplits;
     }
 
+    private static boolean isSetSplitMaxSizeSupport(List<HiveTablePartition> partitions) {
+        // now, only orc format supports set max size for split
+        for (HiveTablePartition partition : partitions) {
+            String serializationLib =
+                    partition.getStorageDescriptor().getSerdeInfo().getSerializationLib();
+            if (!serializationLib.equalsIgnoreCase("orc")) {
+                return false;
+            }
+        }
+        return !partitions.isEmpty();
+    }
+
     private static void setSplitMaxSize(
             List<HiveTablePartition> partitions, JobConf jobConf, int minNumSplits)
             throws IOException {
+        if (!isSetSplitMaxSizeSupport(partitions)) {
+            return;
+        }
+        // if minNumSplits <= 0, we set it to 1 manually
+        minNumSplits = minNumSplits <= 0 ? 1 : minNumSplits;
         long defaultMaxSplitBytes = getSplitMaxSize(jobConf);
         long openCost = getFileOpenCost(jobConf);
         long totalByteWithOpenCost = calculateFilesSizeWithOpenCost(partitions, jobConf, openCost);

@@ -77,11 +77,6 @@ public class PartitionMonitorTest {
                 newSplitsAndState.getSeenPartitions());
     }
 
-    @Test
-    public void testSplitChangesWithParameter() throws Exception {
-
-    }
-
     private void assertPartitionEquals(
             Collection<List<String>> expected, Collection<List<String>> actual) {
         assertThat(expected != null && actual != null && expected.size() == actual.size()).isTrue();
