@@ -29,9 +29,13 @@ class SideOutputContext(object):
              context.getAllSideOutputTypeInfoPayloads().items()})  # type: Dict[str, DataConverter]
 
     def collect(self, tag_id: str, record):
-        self._context.collectSideOutputById(
-            tag_id,
-            self._side_output_converters[tag_id].to_external(record))
+        try:
+            self._context.collectSideOutputById(
+                tag_id,
+                self._side_output_converters[tag_id].to_external(record))
+        except KeyError:
+            raise Exception("Unknown OutputTag id {0}, supported OutputTag ids are {1}".format(
+                tag_id, list(self._side_output_converters.keys())))
 
 
 def _parse_type_info_proto(type_info_payload):
