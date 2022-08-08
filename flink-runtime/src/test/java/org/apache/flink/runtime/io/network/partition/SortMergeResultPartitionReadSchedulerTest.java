@@ -105,9 +105,7 @@ public class SortMergeResultPartitionReadSchedulerTest extends TestLogger {
                 new PartitionedFileReader(partitionedFile, 0, dataFileChannel, indexFileChannel);
         bufferPool = new BatchShuffleReadBufferPool(totalBytes, bufferSize);
         executor = Executors.newFixedThreadPool(numThreads);
-        readScheduler =
-                new SortMergeResultPartitionReadScheduler(
-                        numSubpartitions, bufferPool, executor, this);
+        readScheduler = new SortMergeResultPartitionReadScheduler(bufferPool, executor, this);
     }
 
     @After
@@ -254,7 +252,7 @@ public class SortMergeResultPartitionReadSchedulerTest extends TestLogger {
         List<MemorySegment> buffers = bufferPool.requestBuffers();
         SortMergeResultPartitionReadScheduler readScheduler =
                 new SortMergeResultPartitionReadScheduler(
-                        numSubpartitions, bufferPool, executor, this, bufferRequestTimeout);
+                        bufferPool, executor, this, bufferRequestTimeout);
 
         long startTimestamp = System.nanoTime();
         Assertions.assertThatThrownBy(readScheduler::allocateBuffers)
@@ -273,7 +271,7 @@ public class SortMergeResultPartitionReadSchedulerTest extends TestLogger {
                 new FakeBatchShuffleReadBufferPool(bufferSize * 3, bufferSize);
         SortMergeResultPartitionReadScheduler readScheduler =
                 new SortMergeResultPartitionReadScheduler(
-                        numSubpartitions, bufferPool, executor, this, bufferRequestTimeout);
+                        bufferPool, executor, this, bufferRequestTimeout);
         SortMergeSubpartitionReader subpartitionReader =
                 new SortMergeSubpartitionReader(new NoOpBufferAvailablityListener(), fileReader);
 

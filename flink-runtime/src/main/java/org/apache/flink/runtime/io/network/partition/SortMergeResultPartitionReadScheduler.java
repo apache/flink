@@ -85,9 +85,6 @@ class SortMergeResultPartitionReadScheduler implements Runnable, BufferRecycler 
     /** Executor to run the shuffle data reading task. */
     private final Executor ioExecutor;
 
-    /** Maximum number of buffers can be allocated by this partition reader. */
-    private final int maxRequestedBuffers;
-
     /**
      * Maximum time to wait when requesting read buffers from the buffer pool before throwing an
      * exception.
@@ -133,15 +130,11 @@ class SortMergeResultPartitionReadScheduler implements Runnable, BufferRecycler 
     private volatile boolean isReleased;
 
     SortMergeResultPartitionReadScheduler(
-            int numSubpartitions,
-            BatchShuffleReadBufferPool bufferPool,
-            Executor ioExecutor,
-            Object lock) {
-        this(numSubpartitions, bufferPool, ioExecutor, lock, DEFAULT_BUFFER_REQUEST_TIMEOUT);
+            BatchShuffleReadBufferPool bufferPool, Executor ioExecutor, Object lock) {
+        this(bufferPool, ioExecutor, lock, DEFAULT_BUFFER_REQUEST_TIMEOUT);
     }
 
     SortMergeResultPartitionReadScheduler(
-            int numSubpartitions,
             BatchShuffleReadBufferPool bufferPool,
             Executor ioExecutor,
             Object lock,
@@ -150,11 +143,6 @@ class SortMergeResultPartitionReadScheduler implements Runnable, BufferRecycler 
         this.lock = checkNotNull(lock);
         this.bufferPool = checkNotNull(bufferPool);
         this.ioExecutor = checkNotNull(ioExecutor);
-        // one partition reader can consume at most Math.max(16M, numSubpartitions) (the expected
-        // buffers per request is 4M) buffers for data read, which means larger parallelism, more
-        // buffers. Currently, it is only an empirical strategy which can not be configured.
-        this.maxRequestedBuffers =
-                Math.max(4 * bufferPool.getNumBuffersPerRequest(), numSubpartitions);
         this.bufferRequestTimeout = checkNotNull(bufferRequestTimeout);
     }
 
@@ -405,6 +393,12 @@ class SortMergeResultPartitionReadScheduler implements Runnable, BufferRecycler 
 
     private void mayTriggerReading() {
         assert Thread.holdsLock(lock);
+
+        // one partition reader can consume at most Math.max(16M, 2 * numReaders) (the expected
+        // buffers per request is 4M) buffers for data read, which means larger parallelism, more
+        // buffers. Currently, it is only an empirical strategy which can not be configured.
+        int maxRequestedBuffers =
+                Math.max(4 * bufferPool.getNumBuffersPerRequest(), 2 * allReaders.size());
 
         if (!isRunning
                 && !allReaders.isEmpty()
