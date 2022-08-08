@@ -22,7 +22,8 @@ import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-class MySqlDialectTest {
+/** Tests for {@link MySqlDialect}. */
+public class MySqlDialectTest {
 
     @Test
     void testAppendDefaultUrlProperties() {

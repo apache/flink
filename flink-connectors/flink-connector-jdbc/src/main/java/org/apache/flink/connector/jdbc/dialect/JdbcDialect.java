@@ -144,10 +144,12 @@ public interface JdbcDialect extends Serializable {
             String tableName, String[] selectFields, String[] conditionFields);
 
     /**
-     * Some database need require additional JDBC options，such as MySQL require
-     * rewriteBatchedStatements=true to enable batch writing. Inspired by the Alibaba DataX.
+     * Appends default JDBC properties to url for current dialect. Some database dialects will set
+     * default JDBC properties for performance or optimization consideration, such as MySQL dialect
+     * uses 'rewriteBatchedStatements=true' to enable execute multiple MySQL statements in batch
+     * mode.
      *
-     * @return A JDBC url.
+     * @return A JDBC url that has appended the default properties.
      */
     default String appendDefaultUrlProperties(String url) {
         return url;
