@@ -74,8 +74,8 @@ class AvroParquetReaders(object):
 
 class AvroParquetWriters(object):
     """
-    Convenient builder to create ParquetWriterFactory instances for Avro types. Only GenericRecord
-    is supported in PyFlink.
+    Convenient builder to create Parquet BulkWriterFactory instances for Avro types.
+    Only GenericRecord is supported at present.
 
     .. versionadded:: 1.16.0
     """
