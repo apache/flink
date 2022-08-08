@@ -289,7 +289,7 @@ class AsyncLookupJoinITCase(
     // only legacy source can provide both sync and async functions
     if (!legacyTableSource) {
       thrown.expectMessage(
-        "Require a synchronous TableFunction due to planner's requirement but no TableFunctionProvider found")
+        "Require a synchronous lookup function due to planner's requirement but no available functions")
       thrown.expect(classOf[TableException])
     }
     tEnv.getConfig.set(
