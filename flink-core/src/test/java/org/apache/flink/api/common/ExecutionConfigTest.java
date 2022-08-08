@@ -285,7 +285,7 @@ public class ExecutionConfigTest extends TestLogger {
     public void testLoadingIsDynamicGraphFromConfiguration() {
         testLoadingIsDynamicGraphFromConfiguration(
                 JobManagerOptions.SchedulerType.AdaptiveBatch, true);
-        testLoadingIsDynamicGraphFromConfiguration(JobManagerOptions.SchedulerType.Ng, false);
+        testLoadingIsDynamicGraphFromConfiguration(JobManagerOptions.SchedulerType.Default, false);
         testLoadingIsDynamicGraphFromConfiguration(JobManagerOptions.SchedulerType.Adaptive, false);
     }
 

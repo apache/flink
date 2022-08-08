@@ -411,26 +411,38 @@ public class JobManagerOptions {
                     .withDescription("The timeout in milliseconds for a idle slot in Slot Pool.");
 
     /** Config parameter determining the scheduler implementation. */
-    @Documentation.ExcludeFromDocumentation("SchedulerNG is still in development.")
+    @Documentation.Section({
+        Documentation.Sections.EXPERT_SCHEDULING,
+        Documentation.Sections.ALL_JOB_MANAGER
+    })
     public static final ConfigOption<SchedulerType> SCHEDULER =
             key("jobmanager.scheduler")
                     .enumType(SchedulerType.class)
-                    .defaultValue(SchedulerType.Ng)
+                    .defaultValue(SchedulerType.Default)
                     .withDescription(
                             Description.builder()
                                     .text(
                                             "Determines which scheduler implementation is used to schedule tasks. Accepted values are:")
                                     .list(
-                                            text("'Ng': new generation scheduler"),
+                                            text("'Default': Default scheduler"),
                                             text(
-                                                    "'Adaptive': adaptive scheduler; supports reactive mode"),
+                                                    "'Adaptive': Adaptive scheduler. More details can be found %s.",
+                                                    link(
+                                                            "{{.Site.BaseURL}}{{.Site.LanguagePrefix}}/docs/deployment/elastic_scaling#adaptive-scheduler",
+                                                            "here")),
                                             text(
-                                                    "'AdaptiveBatch': adaptive batch scheduler, which can automatically decide parallelisms of job vertices for batch jobs"))
+                                                    "'AdaptiveBatch': Adaptive batch scheduler. More details can be found %s.",
+                                                    link(
+                                                            "{{.Site.BaseURL}}{{.Site.LanguagePrefix}}/docs/deployment/elastic_scaling#adaptive-batch-scheduler",
+                                                            "here")))
                                     .build());
 
     /** Type of scheduler implementation. */
     public enum SchedulerType {
+        /** @deprecated Use {@link SchedulerType#Default} instead. */
+        @Deprecated
         Ng,
+        Default,
         Adaptive,
         AdaptiveBatch
     }
