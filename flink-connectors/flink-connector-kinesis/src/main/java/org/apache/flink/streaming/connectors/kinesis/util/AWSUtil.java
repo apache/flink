@@ -102,8 +102,7 @@ public class AWSUtil {
                             configProps.getProperty(AWSConfigConstants.AWS_ENDPOINT),
                             configProps.getProperty(AWSConfigConstants.AWS_REGION)));
         } else {
-            builder.withRegion(
-                    Regions.fromName(configProps.getProperty(AWSConfigConstants.AWS_REGION)));
+            builder.withRegion(configProps.getProperty(AWSConfigConstants.AWS_REGION));
         }
         return builder.build();
     }
