@@ -112,6 +112,10 @@ public class Fabric8FlinkKubeClient implements FlinkKubeClient {
     public void createJobManagerComponent(KubernetesJobManagerSpecification kubernetesJMSpec) {
         final Deployment deployment = kubernetesJMSpec.getDeployment();
         final List<HasMetadata> accompanyingResources = kubernetesJMSpec.getAccompanyingResources();
+        final List<HasMetadata> prePreparedResources = kubernetesJMSpec.getPrePreparedResources();
+
+        // before create Deployment
+        this.internalClient.resourceList(prePreparedResources).createOrReplace();
 
         // create Deployment
         LOG.debug(
@@ -121,6 +125,8 @@ public class Fabric8FlinkKubeClient implements FlinkKubeClient {
         final Deployment createdDeployment =
                 this.internalClient.apps().deployments().create(deployment);
 
+        // Add all prepared AccompanyingResources to refresh owner reference
+        accompanyingResources.addAll(prePreparedResources);
         // Note that we should use the uid of the created Deployment for the OwnerReference.
         setOwnerReference(createdDeployment, accompanyingResources);
 

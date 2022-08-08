@@ -630,4 +630,37 @@ public class Fabric8FlinkKubeClientTest extends KubernetesClientTestBase {
                         .withData(data)
                         .build());
     }
+
+    @Test
+    void testMockPrePreparedResources() throws Exception {
+        // regenerate a test JM spec
+        Deployment testDeployment = kubernetesJobManagerSpecification.getDeployment();
+        List<HasMetadata> testAccompanyingResources =
+                kubernetesJobManagerSpecification.getAccompanyingResources();
+        List<HasMetadata> mockPrePreparedResources = new ArrayList<>();
+        for (int i = 0; i < 3; i++) {
+            Pod mockPod =
+                    new PodBuilder()
+                            .editOrNewMetadata()
+                            .withName("mock-pod-preprepared-resource-" + i)
+                            .endMetadata()
+                            .editOrNewSpec()
+                            .endSpec()
+                            .build();
+            mockPrePreparedResources.add(mockPod);
+        }
+        KubernetesJobManagerSpecification testKubernetesJobManagerSpecification =
+                new KubernetesJobManagerSpecification(
+                        testDeployment, testAccompanyingResources, mockPrePreparedResources);
+        flinkKubeClient.createJobManagerComponent(testKubernetesJobManagerSpecification);
+
+        // check the preprepared resources had been created.
+        final List<Pod> resultPods = kubeClient.pods().inNamespace(NAMESPACE).list().getItems();
+        assertThat(resultPods).hasSize(3);
+
+        final List<Deployment> resultedDeployments =
+                kubeClient.apps().deployments().inNamespace(NAMESPACE).list().getItems();
+        // check resource owner reference had been refreshed.
+        testOwnerReferenceSetting(resultedDeployments.get(0), resultPods);
+    }
 }

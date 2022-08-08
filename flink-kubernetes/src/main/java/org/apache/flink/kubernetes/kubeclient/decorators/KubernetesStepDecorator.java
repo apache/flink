@@ -43,4 +43,7 @@ public interface KubernetesStepDecorator {
      * feature. This could only be applicable on the client-side submission process.
      */
     List<HasMetadata> buildAccompanyingKubernetesResources() throws IOException;
+
+    /** Build the Kubernetes resources before Flink Job Manager deployment creation. */
+    List<HasMetadata> buildPrePreparedResources();
 }
