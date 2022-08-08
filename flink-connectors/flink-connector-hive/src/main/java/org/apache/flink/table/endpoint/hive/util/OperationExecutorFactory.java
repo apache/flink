@@ -53,6 +53,7 @@ import static org.apache.flink.table.endpoint.hive.HiveServer2Schemas.GET_CATALO
 import static org.apache.flink.table.endpoint.hive.HiveServer2Schemas.GET_COLUMNS_SCHEMA;
 import static org.apache.flink.table.endpoint.hive.HiveServer2Schemas.GET_SCHEMAS_SCHEMA;
 import static org.apache.flink.table.endpoint.hive.HiveServer2Schemas.GET_TABLES_SCHEMA;
+import static org.apache.flink.table.endpoint.hive.HiveServer2Schemas.GET_TABLE_TYPES_SCHEMA;
 import static org.apache.flink.table.gateway.api.results.ResultSet.ResultType.EOS;
 import static org.apache.hadoop.hive.serde2.typeinfo.TypeInfoFactory.getPrimitiveTypeInfo;
 
@@ -94,6 +95,10 @@ public class OperationExecutorFactory {
         return () ->
                 executeGetColumns(
                         service, sessionHandle, catalogName, schemaName, tableName, columnsName);
+    }
+
+    public static Callable<ResultSet> createGetTableTypes() {
+        return OperationExecutorFactory::executeGetTableTypes;
     }
 
     // --------------------------------------------------------------------------------------------
@@ -240,6 +245,14 @@ public class OperationExecutorFactory {
         return buildResultSet(
                 GET_COLUMNS_SCHEMA,
                 rowData.stream().map(OperationExecutorFactory::wrap).collect(Collectors.toList()));
+    }
+
+    private static ResultSet executeGetTableTypes() {
+        return buildResultSet(
+                GET_TABLE_TYPES_SCHEMA,
+                Arrays.stream(TableKind.values())
+                        .map(kind -> wrap(kind.name()))
+                        .collect(Collectors.toList()));
     }
 
     // --------------------------------------------------------------------------------------------

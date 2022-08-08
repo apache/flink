@@ -22,6 +22,7 @@ import org.apache.flink.core.testutils.FlinkAssertions;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.SqlDialect;
 import org.apache.flink.table.api.config.TableConfigOptions;
+import org.apache.flink.table.catalog.CatalogBaseTable.TableKind;
 import org.apache.flink.table.catalog.Column;
 import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.catalog.hive.util.HiveTypeUtil;
@@ -76,6 +77,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CountDownLatch;
+import java.util.stream.Collectors;
 
 import static org.apache.flink.api.common.RuntimeExecutionMode.BATCH;
 import static org.apache.flink.configuration.ExecutionOptions.RUNTIME_MODE;
@@ -274,6 +276,14 @@ public class HiveServer2EndpointITCase extends TestLogger {
                         Arrays.asList("default_catalog", "db_test1", "tbl_3", "VIEW", ""),
                         Arrays.asList("default_catalog", "db_test1", "tbl_4", "VIEW", ""),
                         Arrays.asList("default_catalog", "db_test2", "tbl_2", "VIEW", "")));
+    }
+
+    @Test
+    public void testGetTableTypes() throws Exception {
+        runGetObjectTest(
+                connection -> connection.getMetaData().getTableTypes(),
+                ResolvedSchema.of(Column.physical("TABLE_TYPE", DataTypes.STRING())),
+                getActualGetTableTypesOperationResults());
     }
 
     @Test
@@ -538,6 +548,12 @@ public class HiveServer2EndpointITCase extends TestLogger {
                 Column.physical("TYPE_NAME", DataTypes.STRING()),
                 Column.physical("SELF_REFERENCING_COL_NAME", DataTypes.STRING()),
                 Column.physical("REF_GENERATION", DataTypes.STRING()));
+    }
+
+    private List<List<Object>> getActualGetTableTypesOperationResults() {
+        return Arrays.stream(TableKind.values())
+                .map(kind -> Collections.singletonList((Object) kind.name()))
+                .collect(Collectors.toList());
     }
 
     private ResolvedSchema getExpectedGetColumnsOperationSchema() {

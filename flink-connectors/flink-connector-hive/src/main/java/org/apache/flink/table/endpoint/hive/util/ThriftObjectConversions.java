@@ -177,6 +177,8 @@ public class ThriftObjectConversions {
                 return TOperationType.GET_TABLES;
             case LIST_COLUMNS:
                 return TOperationType.GET_COLUMNS;
+            case LIST_TABLE_TYPES:
+                return TOperationType.GET_TABLE_TYPES;
             case UNKNOWN:
                 return TOperationType.UNKNOWN;
             default:

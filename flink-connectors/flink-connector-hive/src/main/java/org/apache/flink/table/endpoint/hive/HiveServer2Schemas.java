@@ -118,6 +118,12 @@ public class HiveServer2Schemas {
                     Column.physical("IS_AUTO_INCREMENT", DataTypes.STRING())
                             .withComment("Indicates whether this column is auto incremented."));
 
+    /** Schema for {@link HiveServer2Endpoint#GetTableTypes}. */
+    public static final ResolvedSchema GET_TABLE_TYPES_SCHEMA =
+            buildSchema(
+                    Column.physical("TABLE_TYPE", DataTypes.STRING())
+                            .withComment("Table type name."));
+
     private static ResolvedSchema buildSchema(Column... columns) {
         return new ResolvedSchema(Arrays.asList(columns), Collections.emptyList(), null);
     }
