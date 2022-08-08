@@ -189,6 +189,12 @@
             <td>The config parameter defining the network port to connect to for communication with the job manager. Like jobmanager.rpc.address, this value is only interpreted in setups where a single JobManager with static name/address and port exists (simple standalone setups, or container setups with dynamic service name resolution). This config option is not used in many high-availability setups, when a leader-election service (like ZooKeeper) is used to elect and discover the JobManager leader from potentially multiple standby JobManagers.</td>
         </tr>
         <tr>
+            <td><h5>jobmanager.scheduler</h5></td>
+            <td style="word-wrap: break-word;">Default</td>
+            <td><p>Enum</p></td>
+            <td>Determines which scheduler implementation is used to schedule tasks. Accepted values are:<ul><li>'Default': Default scheduler</li><li>'Adaptive': Adaptive scheduler. More details can be found <a href="{{.Site.BaseURL}}{{.Site.LanguagePrefix}}/docs/deployment/elastic_scaling#adaptive-scheduler">here</a>.</li><li>'AdaptiveBatch': Adaptive batch scheduler. More details can be found <a href="{{.Site.BaseURL}}{{.Site.LanguagePrefix}}/docs/deployment/elastic_scaling#adaptive-batch-scheduler">here</a>.</li></ul><br /><br />Possible values:<ul><li>"Default"</li><li>"Adaptive"</li><li>"AdaptiveBatch"</li></ul></td>
+        </tr>
+        <tr>
             <td><h5>jobstore.cache-size</h5></td>
             <td style="word-wrap: break-word;">52428800</td>
             <td>Long</td>

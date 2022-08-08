@@ -78,6 +78,6 @@ public class TestingSchedulerNGFactory implements SchedulerNGFactory {
 
     @Override
     public JobManagerOptions.SchedulerType getSchedulerType() {
-        return JobManagerOptions.SchedulerType.Ng;
+        return JobManagerOptions.SchedulerType.Default;
     }
 }

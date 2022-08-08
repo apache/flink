@@ -162,13 +162,21 @@ public final class DefaultSlotPoolServiceSchedulerFactory
                 ClusterOptions.getSchedulerType(configuration);
         if (schedulerType == JobManagerOptions.SchedulerType.Adaptive && jobType == JobType.BATCH) {
             LOG.info(
-                    "Adaptive Scheduler configured, but Batch job detected. Changing scheduler type to NG / DefaultScheduler.");
+                    "Adaptive Scheduler configured, but Batch job detected. Changing scheduler type to 'Default'.");
             // overwrite
-            schedulerType = JobManagerOptions.SchedulerType.Ng;
+            schedulerType = JobManagerOptions.SchedulerType.Default;
+        } else if (schedulerType == JobManagerOptions.SchedulerType.Ng) {
+            LOG.warn(
+                    "Config value '{}' for option '{}' is deprecated, use '{}' instead.",
+                    JobManagerOptions.SchedulerType.Ng,
+                    JobManagerOptions.SCHEDULER.key(),
+                    JobManagerOptions.SchedulerType.Default);
+            // overwrite
+            schedulerType = JobManagerOptions.SchedulerType.Default;
         }
 
         switch (schedulerType) {
-            case Ng:
+            case Default:
                 schedulerNGFactory = new DefaultSchedulerFactory();
                 slotPoolServiceFactory =
                         new DeclarativeSlotPoolBridgeServiceFactory(

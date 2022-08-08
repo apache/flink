@@ -54,13 +54,13 @@ cd "$END_TO_END_DIR"
 
 echo "[INFO]Preparing Flink cluster..."
 
-SCHEDULER="${1:-Ng}"
+SCHEDULER="${1:-Default}"
 
 set_config_key "jobmanager.scheduler" "${SCHEDULER}"
 set_config_key "taskmanager.memory.process.size" "4096m"
 set_config_key "taskmanager.memory.network.fraction" "0.2"
 
-if [ "${SCHEDULER}" == "Ng" ]; then
+if [ "${SCHEDULER}" == "Default" ]; then
     set_config_key "taskmanager.numberOfTaskSlots" "4"
     set_config_key "parallelism.default" "4"
 elif [ "${SCHEDULER}" == "AdaptiveBatch" ]; then
