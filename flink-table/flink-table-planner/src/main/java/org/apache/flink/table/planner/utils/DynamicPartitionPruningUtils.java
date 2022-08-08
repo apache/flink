@@ -315,8 +315,6 @@ public class DynamicPartitionPruningUtils {
             RexNode rexNode = projects.get(k);
             if (rexNode instanceof RexInputRef) {
                 indices.add(((RexInputRef) rexNode).getIndex());
-            } else {
-                return ImmutableIntList.of();
             }
         }
         return ImmutableIntList.copyOf(indices);

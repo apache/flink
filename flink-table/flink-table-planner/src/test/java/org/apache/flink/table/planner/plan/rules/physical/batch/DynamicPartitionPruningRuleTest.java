@@ -279,8 +279,7 @@ public class DynamicPartitionPruningRuleTest extends TableTestBase {
         CatalogTableStatistics tableStatistics = new CatalogTableStatistics(1, 1, 1, 1);
         catalog.alterTableStatistics(
                 new ObjectPath("test_database", "dim"), tableStatistics, false);
-        // in this case. amount + 1 as amount is a dynamic filtering key which is a compute column,
-        // will will not succeed.
+        // in this case. amount + 1 as amount is not a partition key, will succeed.
         String query =
                 "Select * from dim join (select fact_date_sk, amount + 1 as amount from fact_part) t1 on"
                         + " fact_date_sk = dim_date_sk and t1.amount = dim.amount where dim.price < 500";
