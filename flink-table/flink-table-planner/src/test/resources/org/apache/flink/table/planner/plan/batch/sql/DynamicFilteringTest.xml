@@ -30,10 +30,10 @@ HashJoin(joinType=[InnerJoin], where=[=(p1, p)], select=[a1, b1, c1, p1, x, y, z
 :- Exchange(distribution=[hash[p1]])
 :  +- DynamicFilteringTableSourceScan(table=[[default_catalog, default_database, fact1, partitions=[{p1=2}, {p1=3}]]], fields=[a1, b1, c1, p1])
 :     +- DynamicFilteringDataCollector(fields=[p])
-:        +- Calc(select=[x, y, z, p], where=[>(x, 10)])
+:        +- Calc(select=[x, y, z, p], where=[AND(>(x, 10), >(CAST(p AS BIGINT), 1))])
 :           +- TableSourceScan(table=[[default_catalog, default_database, dim, filter=[]]], fields=[x, y, z, p])
 +- Exchange(distribution=[hash[p]])
-   +- Calc(select=[x, y, z, p], where=[>(x, 10)])
+   +- Calc(select=[x, y, z, p], where=[AND(>(x, 10), >(CAST(p AS BIGINT), 1))])
       +- TableSourceScan(table=[[default_catalog, default_database, dim, filter=[]]], fields=[x, y, z, p])
 
 == Optimized Execution Plan ==
@@ -41,7 +41,7 @@ HashJoin(joinType=[InnerJoin], where=[(p1 = p)], select=[a1, b1, c1, p1, x, y, z
 :- Exchange(distribution=[hash[p1]])
 :  +- DynamicFilteringTableSourceScan(table=[[default_catalog, default_database, fact1, partitions=[{p1=2}, {p1=3}]]], fields=[a1, b1, c1, p1])
 :     +- DynamicFilteringDataCollector(fields=[p])
-:        +- Calc(select=[x, y, z, p], where=[(x > 10)])(reuse_id=[1])
+:        +- Calc(select=[x, y, z, p], where=[((x > 10) AND (CAST(p AS BIGINT) > 1))])(reuse_id=[1])
 :           +- TableSourceScan(table=[[default_catalog, default_database, dim, filter=[]]], fields=[x, y, z, p])
 +- Exchange(distribution=[hash[p]])
    +- Reused(reference_id=[1])
@@ -64,7 +64,7 @@ HashJoin(joinType=[InnerJoin], where=[(p1 = p)], select=[a1, b1, c1, p1, x, y, z
     "id" : ,
     "type" : "Calc[]",
     "pact" : "Operator",
-    "contents" : "[]:Calc(select=[x, y, z, p], where=[(x > 10)])",
+    "contents" : "[]:Calc(select=[x, y, z, p], where=[((x > 10) AND (CAST(p AS BIGINT) > 1))])",
     "parallelism" : 1,
     "predecessors" : [ {
       "id" : ,
