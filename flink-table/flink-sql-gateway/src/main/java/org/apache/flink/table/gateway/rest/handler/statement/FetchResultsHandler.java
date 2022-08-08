@@ -74,13 +74,7 @@ public class FetchResultsHandler
             nextToken = resultSet.getNextToken();
             resultType = resultSet.getResultType().toString();
         } catch (Exception e) {
-            Throwable root = e;
-            while (root.getCause() != null
-                    && root.getCause().getMessage() != null
-                    && !root.getCause().getMessage().isEmpty()) {
-                root = root.getCause();
-            }
-            throw new SqlGatewayException(root);
+            throw new SqlGatewayException(e);
         }
 
         // Build the response

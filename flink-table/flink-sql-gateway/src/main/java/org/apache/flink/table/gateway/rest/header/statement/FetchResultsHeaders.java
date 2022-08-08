@@ -29,6 +29,8 @@ import org.apache.flink.table.gateway.rest.message.statement.FetchResultsTokenPa
 
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
 
+import javax.annotation.Nullable;
+
 /** Message headers for fetching results. */
 public class FetchResultsHeaders
         implements SqlGatewayMessageHeaders<
@@ -73,6 +75,7 @@ public class FetchResultsHeaders
         return INSTANCE;
     }
 
+    @Nullable
     public static String buildNextUri(
             String version, String sessionId, String operationId, Long nextToken) {
         if (nextToken != null) {

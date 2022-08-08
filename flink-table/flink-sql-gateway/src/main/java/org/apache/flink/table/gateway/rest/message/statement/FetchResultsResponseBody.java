@@ -31,7 +31,6 @@ public class FetchResultsResponseBody implements ResponseBody {
     private static final String FIELD_RESULT_TYPE = "resultType";
     private static final String FIELD_RESULTS = "results";
     private static final String FIELD_NEXT_RESULT_URI = "nextResultUri";
-    private static final String FIELD_EXCEPTION = "exception";
 
     @JsonProperty(FIELD_RESULTS)
     private final ResultSet results;

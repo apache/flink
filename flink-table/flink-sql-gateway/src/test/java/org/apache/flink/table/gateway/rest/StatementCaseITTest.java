@@ -88,11 +88,8 @@ class StatementCaseITTest extends AbstractSqlGatewayStatementITCase {
             FetchResultsHeaders.getInstance();
     private static final int OPERATION_WAIT_SECONDS = 100;
 
-    private static final String PATTERN1 = "server side:\n";
-    private static final String PATTERN2 =
-            "at org.apache.flink.table.gateway.rest.handler.statement.FetchResultsHandler.handleRequest";
-    private static final String PATTERN3 =
-            "org.apache.flink.table.gateway.api.utils.SqlGatewayException: ";
+    private static final String PATTERN1 = "Caused by: ";
+    private static final String PATTERN2 = "\tat ";
 
     static {
         String address = InetAddress.getLoopbackAddress().getHostAddress();
@@ -201,7 +198,8 @@ class StatementCaseITTest extends AbstractSqlGatewayStatementITCase {
     @Override
     protected String stringifyException(Throwable t) {
         String message = t.getMessage();
-        return message.split(PATTERN1)[1].split(PATTERN2)[0].replaceAll(PATTERN3, "");
+        String[] splitExceptions = message.split(PATTERN1);
+        return splitExceptions[splitExceptions.length - 1].split(PATTERN2)[0];
     }
 
     @Override
