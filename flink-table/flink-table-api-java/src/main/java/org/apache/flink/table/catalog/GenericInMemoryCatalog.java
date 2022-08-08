@@ -720,25 +720,6 @@ public class GenericInMemoryCatalog extends AbstractCatalog {
         return result != null ? result.copy() : CatalogTableStatistics.UNKNOWN;
     }
 
-    /**
-     * For in memory catalog, just iteratively call {@link #getPartitionStatistics(ObjectPath,
-     * CatalogPartitionSpec)} for each partition.
-     */
-    @Override
-    public List<CatalogTableStatistics> bulkGetPartitionStatistics(
-            ObjectPath tablePath, List<CatalogPartitionSpec> partitionSpecs)
-            throws PartitionNotExistException, CatalogException {
-
-        checkNotNull(partitionSpecs);
-        List<CatalogTableStatistics> result = new ArrayList<>(partitionSpecs.size());
-
-        for (CatalogPartitionSpec partitionSpec : partitionSpecs) {
-            result.add(getPartitionStatistics(tablePath, partitionSpec));
-        }
-
-        return result;
-    }
-
     @Override
     public CatalogColumnStatistics getPartitionColumnStatistics(
             ObjectPath tablePath, CatalogPartitionSpec partitionSpec)
@@ -752,25 +733,6 @@ public class GenericInMemoryCatalog extends AbstractCatalog {
 
         CatalogColumnStatistics result = partitionColumnStats.get(tablePath).get(partitionSpec);
         return result != null ? result.copy() : CatalogColumnStatistics.UNKNOWN;
-    }
-
-    /**
-     * For in memory catalog, just iteratively call {@link #getPartitionColumnStatistics(ObjectPath,
-     * CatalogPartitionSpec)} for each partition.
-     */
-    @Override
-    public List<CatalogColumnStatistics> bulkGetPartitionColumnStatistics(
-            ObjectPath tablePath, List<CatalogPartitionSpec> partitionSpecs)
-            throws PartitionNotExistException, CatalogException {
-
-        checkNotNull(partitionSpecs);
-        List<CatalogColumnStatistics> result = new ArrayList<>(partitionSpecs.size());
-
-        for (CatalogPartitionSpec partitionSpec : partitionSpecs) {
-            result.add(getPartitionColumnStatistics(tablePath, partitionSpec));
-        }
-
-        return result;
     }
 
     @Override

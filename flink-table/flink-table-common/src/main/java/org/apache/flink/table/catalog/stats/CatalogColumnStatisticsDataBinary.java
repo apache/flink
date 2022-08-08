@@ -66,12 +66,13 @@ public class CatalogColumnStatisticsDataBinary extends CatalogColumnStatisticsDa
         }
         CatalogColumnStatisticsDataBinary that = (CatalogColumnStatisticsDataBinary) o;
         return Objects.equals(maxLength, that.maxLength)
-                && Objects.equals(avgLength, that.avgLength);
+                && Objects.equals(avgLength, that.avgLength)
+                && Objects.equals(getNullCount(), that.getNullCount());
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(maxLength, avgLength);
+        return Objects.hash(maxLength, avgLength, getNullCount());
     }
 
     @Override
@@ -81,53 +82,8 @@ public class CatalogColumnStatisticsDataBinary extends CatalogColumnStatisticsDa
                 + maxLength
                 + ", avgLength="
                 + avgLength
+                + ", nullCount="
+                + getNullCount()
                 + '}';
-    }
-
-    public static Builder builder() {
-        return new Builder();
-    }
-
-    /** {@link CatalogColumnStatisticsDataBinary} builder static inner class. */
-    public static final class Builder
-            implements CatalogColumnStatisticDataBuilder<CatalogColumnStatisticsDataBinary> {
-        private Long nullCount;
-        private Map<String, String> properties;
-        private Long maxLength;
-        private Double avgLength;
-
-        private Long count = 0L;
-
-        private Builder() {}
-
-        public Builder nullCount(Long nullCount) {
-            this.nullCount = nullCount;
-            return this;
-        }
-
-        public Builder properties(Map<String, String> properties) {
-            this.properties = properties;
-            return this;
-        }
-
-        public Builder maxLength(Long maxLength) {
-            this.maxLength = StatisticDataUtils.max(this.maxLength, maxLength);
-            return this;
-        }
-
-        public Builder accumulateAvgLength(Long newLength) {
-            this.avgLength =
-                    StatisticDataUtils.acculmulateAverage(
-                            this.avgLength, this.count, newLength, 1L);
-
-            this.count++;
-            return this;
-        }
-
-        @Override
-        public CatalogColumnStatisticsDataBinary build() {
-            return new CatalogColumnStatisticsDataBinary(
-                    maxLength, avgLength, nullCount, properties);
-        }
     }
 }

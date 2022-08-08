@@ -311,16 +311,15 @@ public class TestCatalogFactory implements CatalogFactory {
 
         @Override
         public CatalogTableStatistics getPartitionStatistics(
-                ObjectPath tablePath, CatalogPartitionSpec partitionSpec)
-                throws PartitionNotExistException, CatalogException {
+                ObjectPath tablePath, CatalogPartitionSpec partitionSpec) throws CatalogException {
             throw new UnsupportedOperationException();
         }
 
         @Override
         public List<CatalogTableStatistics> bulkGetPartitionStatistics(
                 ObjectPath tablePath, List<CatalogPartitionSpec> partitionSpecs)
-                throws PartitionNotExistException, CatalogException {
-            throw new UnsupportedClassVersionError();
+                throws CatalogException {
+            throw new UnsupportedOperationException();
         }
 
         @Override
@@ -334,7 +333,7 @@ public class TestCatalogFactory implements CatalogFactory {
         public List<CatalogColumnStatistics> bulkGetPartitionColumnStatistics(
                 ObjectPath tablePath, List<CatalogPartitionSpec> partitionSpecs)
                 throws PartitionNotExistException, CatalogException {
-            throw new UnsupportedClassVersionError();
+            throw new UnsupportedOperationException();
         }
 
         @Override

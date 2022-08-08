@@ -29,6 +29,9 @@ import java.util.function.BinaryOperator;
 @PublicEvolving
 public final class ColumnStats {
 
+    /** Unknown definition for column stats. */
+    public static final ColumnStats UNKNOWN = Builder.builder().build();
+
     /** number of distinct values. */
     private final Long ndv;
 
@@ -211,9 +214,8 @@ public final class ColumnStats {
      * @return The merged column stats.
      */
     public ColumnStats merge(ColumnStats other) {
-
-        if (other == null) {
-            return this;
+        if (this == UNKNOWN || other == UNKNOWN) {
+            return UNKNOWN;
         }
 
         Long ndv = combineIfNonNull(Long::sum, this.ndv, other.ndv);

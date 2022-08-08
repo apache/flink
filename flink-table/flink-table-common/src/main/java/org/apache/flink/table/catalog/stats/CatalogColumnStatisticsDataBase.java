@@ -54,25 +54,4 @@ public abstract class CatalogColumnStatisticsDataBase {
      * @return a deep copy
      */
     public abstract CatalogColumnStatisticsDataBase copy();
-
-    /**
-     * Abstract builder static inner class that builder in the subclass of {@link
-     * CatalogColumnStatisticsDataBase} should extend.
-     */
-    public abstract class Builder {
-        private Long nullCount;
-        private Map<String, String> properties;
-
-        public Builder nullCount(Long nullCount) {
-            this.nullCount = nullCount;
-            return this;
-        }
-
-        public Builder properties(Map<String, String> properties) {
-            this.properties = properties;
-            return this;
-        }
-
-        public abstract CatalogColumnStatisticsDataBase build();
-    }
 }

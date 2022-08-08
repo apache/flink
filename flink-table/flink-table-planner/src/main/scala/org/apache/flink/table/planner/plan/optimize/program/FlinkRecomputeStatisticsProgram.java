@@ -54,6 +54,7 @@ import java.util.stream.Collectors;
 
 import static org.apache.flink.table.api.config.OptimizerConfigOptions.TABLE_OPTIMIZER_SOURCE_REPORT_STATISTICS_ENABLED;
 import static org.apache.flink.table.planner.utils.CatalogTableStatisticsConverter.convertToAccumulatedTableStates;
+
 /**
  * A FlinkOptimizeProgram that recompute statistics after partition pruning and filter push down.
  *
@@ -162,11 +163,14 @@ public class FlinkRecomputeStatisticsProgram implements FlinkOptimizeProgram<Bat
 
     private TableStats getPartitionsTableStats(
             TableSourceTable table, @Nullable PartitionPushDownSpec partitionPushDownSpec) {
-        TableStats newTableStat = null;
         if (table.contextResolvedTable().isPermanent()) {
             ObjectIdentifier identifier = table.contextResolvedTable().getIdentifier();
             ObjectPath tablePath = identifier.toObjectPath();
-            Catalog catalog = table.contextResolvedTable().getCatalog().get();
+            Optional<Catalog> optionalCatalog = table.contextResolvedTable().getCatalog();
+            if (!optionalCatalog.isPresent()) {
+                return TableStats.UNKNOWN;
+            }
+            Catalog catalog = optionalCatalog.get();
             List<Map<String, String>> partitionList = new ArrayList<>();
             if (partitionPushDownSpec == null) {
                 try {
@@ -181,11 +185,13 @@ public class FlinkRecomputeStatisticsProgram implements FlinkOptimizeProgram<Bat
             } else {
                 partitionList = partitionPushDownSpec.getPartitions();
             }
-            return getPartitionStats(
-                            table.contextResolvedTable().getCatalog().get(),
+
+            Optional<TableStats> optionalTableStats =
+                    getPartitionStats(
+                            catalog,
                             table.contextResolvedTable().getIdentifier().toObjectPath(),
-                            partitionList)
-                    .get();
+                            partitionList);
+            return optionalTableStats.orElse(TableStats.UNKNOWN);
         }
 
         return TableStats.UNKNOWN;
@@ -196,9 +202,7 @@ public class FlinkRecomputeStatisticsProgram implements FlinkOptimizeProgram<Bat
         try {
 
             final List<CatalogPartitionSpec> partitionSpecs =
-                    partition.stream()
-                            .map(p -> new CatalogPartitionSpec(p))
-                            .collect(Collectors.toList());
+                    partition.stream().map(CatalogPartitionSpec::new).collect(Collectors.toList());
 
             return Optional.of(
                     convertToAccumulatedTableStates(

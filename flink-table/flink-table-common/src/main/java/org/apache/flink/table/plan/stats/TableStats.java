@@ -81,16 +81,14 @@ public final class TableStats {
      */
     @Nonnull
     public TableStats merge(TableStats other) {
-        long rowCount = mergeRowCount(other);
-        return rowCount == UNKNOWN.rowCount
-                ? UNKNOWN
-                : new TableStats(mergeRowCount(other), mergeColumnStates(other));
-    }
-
-    private long mergeRowCount(TableStats other) {
-        return this.rowCount >= 0 && other.rowCount >= 0
-                ? this.rowCount + other.rowCount
-                : UNKNOWN.rowCount;
+        if (this == UNKNOWN || other == UNKNOWN) {
+            return TableStats.UNKNOWN;
+        }
+        long rowCount =
+                this.rowCount >= 0 && other.rowCount >= 0
+                        ? this.rowCount + other.rowCount
+                        : UNKNOWN.rowCount;
+        return new TableStats(rowCount, mergeColumnStates(other));
     }
 
     private Map<String, ColumnStats> mergeColumnStates(TableStats other) {

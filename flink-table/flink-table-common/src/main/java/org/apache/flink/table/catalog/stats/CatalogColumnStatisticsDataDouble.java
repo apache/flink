@@ -76,7 +76,8 @@ public class CatalogColumnStatisticsDataDouble extends CatalogColumnStatisticsDa
         CatalogColumnStatisticsDataDouble that = (CatalogColumnStatisticsDataDouble) o;
         return doubleCompare(min, that.min)
                 && doubleCompare(max, that.max)
-                && Objects.equals(ndv, that.ndv);
+                && Objects.equals(ndv, that.ndv)
+                && Objects.equals(getNullCount(), that.getNullCount());
     }
 
     private boolean doubleCompare(Double d1, Double d2) {
@@ -91,7 +92,7 @@ public class CatalogColumnStatisticsDataDouble extends CatalogColumnStatisticsDa
 
     @Override
     public int hashCode() {
-        return Objects.hash(min, max, ndv);
+        return Objects.hash(min, max, ndv, getNullCount());
     }
 
     @Override
@@ -103,52 +104,8 @@ public class CatalogColumnStatisticsDataDouble extends CatalogColumnStatisticsDa
                 + max
                 + ", ndv="
                 + ndv
+                + ", nullCount="
+                + getNullCount()
                 + '}';
-    }
-
-    public static Builder builder() {
-        return new Builder();
-    }
-
-    /** {@link CatalogColumnStatisticsDataDouble} builder static inner class. */
-    public static final class Builder
-            implements CatalogColumnStatisticDataBuilder<CatalogColumnStatisticsDataDouble> {
-        private Long nullCount;
-        private Map<String, String> properties;
-        private Double min;
-        private Double max;
-        private Long ndv;
-
-        private Builder() {}
-
-        public Builder nullCount(Long nullCount) {
-            this.nullCount = nullCount;
-            return this;
-        }
-
-        public Builder properties(Map<String, String> properties) {
-            this.properties = properties;
-            return this;
-        }
-
-        public Builder min(Double min) {
-            this.min = StatisticDataUtils.min(this.min, min);
-            return this;
-        }
-
-        public Builder max(Double max) {
-            this.max = StatisticDataUtils.max(this.max, max);
-            return this;
-        }
-
-        public Builder ndv(Long ndv) {
-            this.ndv = ndv;
-            return this;
-        }
-
-        @Override
-        public CatalogColumnStatisticsDataDouble build() {
-            return new CatalogColumnStatisticsDataDouble(min, max, ndv, nullCount, properties);
-        }
     }
 }
