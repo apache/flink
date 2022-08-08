@@ -18,21 +18,11 @@
 
 package org.apache.flink.table.planner.plan.rules.physical.batch;
 
-import org.apache.flink.api.dag.Transformation;
-import org.apache.flink.streaming.api.transformations.SourceTransformation;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.config.OptimizerConfigOptions;
-import org.apache.flink.table.catalog.CatalogTable;
-import org.apache.flink.table.connector.source.DataStreamScanProvider;
 import org.apache.flink.table.connector.source.DynamicTableSource;
-import org.apache.flink.table.connector.source.ScanTableSource;
-import org.apache.flink.table.connector.source.SourceProvider;
 import org.apache.flink.table.connector.source.abilities.SupportsDynamicFiltering;
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
-import org.apache.flink.table.planner.connectors.TransformationScanProvider;
-import org.apache.flink.table.planner.plan.abilities.source.FilterPushDownSpec;
-import org.apache.flink.table.planner.plan.abilities.source.SourceAbilitySpec;
-import org.apache.flink.table.planner.connectors.DynamicSourceUtils;
 import org.apache.flink.table.planner.plan.nodes.physical.batch.BatchPhysicalCalc;
 import org.apache.flink.table.planner.plan.nodes.physical.batch.BatchPhysicalDynamicFilteringDataCollector;
 import org.apache.flink.table.planner.plan.nodes.physical.batch.BatchPhysicalDynamicFilteringTableSourceScan;
@@ -42,8 +32,6 @@ import org.apache.flink.table.planner.plan.nodes.physical.batch.BatchPhysicalRel
 import org.apache.flink.table.planner.plan.nodes.physical.batch.BatchPhysicalTableSourceScan;
 import org.apache.flink.table.planner.plan.schema.TableSourceTable;
 import org.apache.flink.table.planner.utils.DynamicPartitionPruningUtils;
-import org.apache.flink.table.planner.utils.ShortcutUtils;
-import org.apache.flink.table.runtime.connector.source.ScanRuntimeProviderContext;
 
 import org.apache.calcite.plan.RelOptRuleCall;
 import org.apache.calcite.plan.RelRule;
@@ -51,7 +39,6 @@ import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.core.Exchange;
 import org.apache.calcite.rel.core.Join;
 import org.apache.calcite.rel.core.JoinInfo;
-import org.apache.calcite.rel.core.JoinRelType;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rex.RexInputRef;
 import org.apache.calcite.rex.RexNode;
@@ -67,8 +54,6 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
-
-import static org.apache.flink.table.api.config.OptimizerConfigOptions.TABLE_OPTIMIZER_DYNAMIC_FILTERING_ENABLED;
 
 /**
  * Planner rule that tries to do partition prune in the execution phase, which can translate a
@@ -120,100 +105,6 @@ public abstract class DynamicPartitionPruningRule extends RelRule<RelRule.Config
 
     protected DynamicPartitionPruningRule(RelRule.Config config) {
         super(config);
-    }
-
-    protected boolean doMatches(
-            BatchPhysicalJoinBase join,
-            BatchPhysicalRel dimSide,
-            @Nullable BatchPhysicalCalc factCalc,
-            BatchPhysicalTableSourceScan factScan,
-            boolean factInLeft) {
-        if (!ShortcutUtils.unwrapContext(join)
-                .getTableConfig()
-                .get(TABLE_OPTIMIZER_DYNAMIC_FILTERING_ENABLED)) {
-            return false;
-        }
-        if (factScan instanceof BatchPhysicalDynamicFilteringTableSourceScan) {
-            // rule applied
-            return false;
-        }
-
-        // Now dynamic filtering support left outer join, right outer join, inner join and semi
-        // join.
-        if (join.getJoinType() == JoinRelType.LEFT) {
-            if (factInLeft) {
-                return false;
-            }
-        } else if (join.getJoinType() == JoinRelType.RIGHT) {
-            if (!factInLeft) {
-                return false;
-            }
-        } else if (join.getJoinType() != JoinRelType.INNER
-                && join.getJoinType() != JoinRelType.SEMI) {
-            return false;
-        }
-
-        JoinInfo joinInfo = join.analyzeCondition();
-        if (joinInfo.leftKeys.isEmpty()) {
-            return false;
-        }
-
-        // Judge whether input dim side RelNode meets the pattern of dimSide, joinKeys is null means
-        // need not care about join keys change in dim side.
-        if (!DynamicPartitionPruningUtils.isDimSide(dimSide, null)) {
-            return false;
-        }
-
-        TableSourceTable tableSourceTable = factScan.getTable().unwrap(TableSourceTable.class);
-        if (tableSourceTable == null) {
-            return false;
-        }
-        CatalogTable catalogTable = tableSourceTable.contextResolvedTable().getTable();
-        List<String> partitionKeys = catalogTable.getPartitionKeys();
-        if (partitionKeys.isEmpty()) {
-            return false;
-        }
-        DynamicTableSource tableSource = tableSourceTable.tableSource();
-        if (!(tableSource instanceof SupportsDynamicFiltering)
-                || !(tableSource instanceof ScanTableSource)) {
-            return false;
-        }
-
-        if (!DynamicSourceUtils.isNewSource((ScanTableSource) tableSource)) {
-            return false;
-        }
-
-        List<Integer> factJoinKeys = factInLeft ? joinInfo.leftKeys : joinInfo.rightKeys;
-
-        List<Integer> acceptedFieldIndices =
-                getAcceptedFieldIndices(factJoinKeys, factCalc, factScan, tableSource);
-
-        return !acceptedFieldIndices.isEmpty();
-    }
-
-    /** Returns true if the source is FLIP-27 source, else false. */
-    private static boolean isNewSource(ScanTableSource scanTableSource) {
-        ScanTableSource.ScanRuntimeProvider provider =
-                scanTableSource.getScanRuntimeProvider(ScanRuntimeProviderContext.INSTANCE);
-        if (provider instanceof SourceProvider) {
-            return true;
-        } else if (provider instanceof TransformationScanProvider) {
-            Transformation<?> transformation =
-                    ((TransformationScanProvider) provider)
-                            .createTransformation(name -> Optional.empty());
-            return transformation instanceof SourceTransformation;
-        } else if (provider instanceof DataStreamScanProvider) {
-            // Suppose DataStreamScanProvider of sources that support dynamic filtering will use new
-            // Source. It's not reliable and should be checked.
-            // TODO FLINK-28864 check if the source used by the DataStreamScanProvider is actually a
-            //  new source.
-            // This situation will not generate wrong result because it's handled when translating
-            // BatchTableSourceScan. The only effect is the physical plan and the exec node plan
-            // have DPP nodes, but they do not work in runtime.
-            return true;
-        }
-        // TODO supports more
-        return false;
     }
 
     private static List<Integer> getAcceptedFieldIndices(
@@ -359,9 +250,7 @@ public abstract class DynamicPartitionPruningRule extends RelRule<RelRule.Config
         @Override
         public boolean matches(RelOptRuleCall call) {
             final BatchPhysicalJoinBase join = call.rel(0);
-            final BatchPhysicalRel dimSide = call.rel(1);
-            final BatchPhysicalTableSourceScan factScan = call.rel(2);
-            return doMatches(join, dimSide, null, factScan, false);
+            return DynamicPartitionPruningUtils.supportDynamicPartitionPruning(join, false);
         }
 
         @Override
@@ -413,9 +302,7 @@ public abstract class DynamicPartitionPruningRule extends RelRule<RelRule.Config
         @Override
         public boolean matches(RelOptRuleCall call) {
             final BatchPhysicalJoinBase join = call.rel(0);
-            final BatchPhysicalTableSourceScan factScan = call.rel(1);
-            final BatchPhysicalRel dimSide = call.rel(2);
-            return doMatches(join, dimSide, null, factScan, true);
+            return DynamicPartitionPruningUtils.supportDynamicPartitionPruning(join, true);
         }
 
         @Override
@@ -472,9 +359,7 @@ public abstract class DynamicPartitionPruningRule extends RelRule<RelRule.Config
         @Override
         public boolean matches(RelOptRuleCall call) {
             final BatchPhysicalJoinBase join = call.rel(0);
-            final BatchPhysicalRel dimSide = call.rel(1);
-            final BatchPhysicalTableSourceScan factScan = call.rel(3);
-            return doMatches(join, dimSide, null, factScan, false);
+            return DynamicPartitionPruningUtils.supportDynamicPartitionPruning(join, false);
         }
 
         @Override
@@ -536,9 +421,7 @@ public abstract class DynamicPartitionPruningRule extends RelRule<RelRule.Config
         @Override
         public boolean matches(RelOptRuleCall call) {
             final BatchPhysicalJoinBase join = call.rel(0);
-            final BatchPhysicalTableSourceScan factScan = call.rel(2);
-            final BatchPhysicalRel dimSide = call.rel(3);
-            return doMatches(join, dimSide, null, factScan, true);
+            return DynamicPartitionPruningUtils.supportDynamicPartitionPruning(join, true);
         }
 
         @Override
@@ -600,10 +483,7 @@ public abstract class DynamicPartitionPruningRule extends RelRule<RelRule.Config
         @Override
         public boolean matches(RelOptRuleCall call) {
             final BatchPhysicalJoinBase join = call.rel(0);
-            final BatchPhysicalRel dimSide = call.rel(1);
-            final BatchPhysicalCalc factCalc = call.rel(2);
-            final BatchPhysicalTableSourceScan factScan = call.rel(3);
-            return doMatches(join, dimSide, factCalc, factScan, false);
+            return DynamicPartitionPruningUtils.supportDynamicPartitionPruning(join, false);
         }
 
         @Override
@@ -665,10 +545,7 @@ public abstract class DynamicPartitionPruningRule extends RelRule<RelRule.Config
         @Override
         public boolean matches(RelOptRuleCall call) {
             final BatchPhysicalJoinBase join = call.rel(0);
-            final BatchPhysicalCalc factCalc = call.rel(1);
-            final BatchPhysicalTableSourceScan factScan = call.rel(2);
-            final BatchPhysicalRel dimSide = call.rel(3);
-            return doMatches(join, dimSide, factCalc, factScan, true);
+            return DynamicPartitionPruningUtils.supportDynamicPartitionPruning(join, true);
         }
 
         @Override
@@ -740,10 +617,7 @@ public abstract class DynamicPartitionPruningRule extends RelRule<RelRule.Config
         @Override
         public boolean matches(RelOptRuleCall call) {
             final BatchPhysicalJoinBase join = call.rel(0);
-            final BatchPhysicalRel dimSide = call.rel(1);
-            final BatchPhysicalCalc factCalc = call.rel(3);
-            final BatchPhysicalTableSourceScan factScan = call.rel(4);
-            return doMatches(join, dimSide, factCalc, factScan, false);
+            return DynamicPartitionPruningUtils.supportDynamicPartitionPruning(join, false);
         }
 
         @Override
@@ -820,10 +694,7 @@ public abstract class DynamicPartitionPruningRule extends RelRule<RelRule.Config
         @Override
         public boolean matches(RelOptRuleCall call) {
             final BatchPhysicalJoinBase join = call.rel(0);
-            final BatchPhysicalCalc factCalc = call.rel(2);
-            final BatchPhysicalTableSourceScan factScan = call.rel(3);
-            final BatchPhysicalRel dimSide = call.rel(4);
-            return doMatches(join, dimSide, factCalc, factScan, true);
+            return DynamicPartitionPruningUtils.supportDynamicPartitionPruning(join, true);
         }
 
         @Override

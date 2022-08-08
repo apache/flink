@@ -549,10 +549,7 @@ NestedLoopJoin(joinType=[InnerJoin], where=[AND(=(fact_date_sk, dim_date_sk), =(
 :  +- Calc(select=[id, male, amount, price, dim_date_sk], where=[<(price, 500)])
 :     +- TableSourceScan(table=[[testCatalog, test_database, dim, filter=[]]], fields=[id, male, amount, price, dim_date_sk])
 +- Calc(select=[fact_date_sk, +(amount, 1) AS amount])
-   +- DynamicFilteringTableSourceScan(table=[[testCatalog, test_database, fact_part, project=[fact_date_sk, amount], metadata=[]]], fields=[fact_date_sk, amount])
-      +- DynamicFilteringDataCollector(fields=[dim_date_sk])
-         +- Calc(select=[id, male, amount, price, dim_date_sk], where=[<(price, 500)])
-            +- TableSourceScan(table=[[testCatalog, test_database, dim, filter=[]]], fields=[id, male, amount, price, dim_date_sk])
+   +- TableSourceScan(table=[[testCatalog, test_database, fact_part, project=[fact_date_sk, amount], metadata=[]]], fields=[fact_date_sk, amount])
 ]]>
     </Resource>
   </TestCase>
