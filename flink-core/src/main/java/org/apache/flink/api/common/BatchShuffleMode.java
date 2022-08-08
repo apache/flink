@@ -69,11 +69,27 @@ public enum BatchShuffleMode implements DescribedEnum {
      * <p>Downstream can start running anytime, as long as the upstream has started.
      *
      * <p>This adapts the resource usage to whatever is available.
+     *
+     * <p>This type will spill all data to disk to support re-consume.
      */
     // TODO remove the annotation and rename this enum constant when hybrid shuffle effort is
     // finished.
     @Documentation.ExcludeFromDocumentation
-    WIP_ALL_EXCHANGES_HYBRID(text("DO NOT USE - This feature is in progress."));
+    WIP_ALL_EXCHANGES_HYBRID_FULL(text("DO NOT USE - This feature is in progress.")),
+
+    /**
+     * *DO NOT USE* - This feature is in progress.
+     *
+     * <p>Downstream can start running anytime, as long as the upstream has started.
+     *
+     * <p>This adapts the resource usage to whatever is available.
+     *
+     * <p>This type will selective spilling data to reduce disk writes as much as possible.
+     */
+    // TODO remove the annotation and rename this enum constant when hybrid shuffle effort is
+    // finished.
+    @Documentation.ExcludeFromDocumentation
+    WIP_ALL_EXCHANGES_HYBRID_SELECTIVE(text("DO NOT USE - This feature is in progress."));
 
     private final InlineElement description;
 

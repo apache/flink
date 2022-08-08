@@ -214,7 +214,8 @@ public class ResultPartitionFactory {
 
                 partition = blockingPartition;
             }
-        } else if (type == ResultPartitionType.HYBRID) {
+        } else if (type == ResultPartitionType.HYBRID_FULL
+                || type == ResultPartitionType.HYBRID_SELECTIVE) {
             partition =
                     new HsResultPartition(
                             taskNameWithSubtaskAndId,
@@ -231,6 +232,12 @@ public class ResultPartitionFactory {
                             HybridShuffleConfiguration.builder(
                                             numberOfSubpartitions,
                                             batchShuffleReadBufferPool.getNumBuffersPerRequest())
+                                    .setSpillingStrategyType(
+                                            type == ResultPartitionType.HYBRID_FULL
+                                                    ? HybridShuffleConfiguration
+                                                            .SpillingStrategyType.FULL
+                                                    : HybridShuffleConfiguration
+                                                            .SpillingStrategyType.SELECTIVE)
                                     .build(),
                             bufferCompressor,
                             bufferPoolFactory);

@@ -1122,7 +1122,8 @@ public class StreamingJobGraphGenerator {
         StreamPartitioner<?> partitioner = output.getPartitioner();
         ResultPartitionType resultPartitionType = output.getPartitionType();
 
-        if (resultPartitionType == ResultPartitionType.HYBRID) {
+        if (resultPartitionType == ResultPartitionType.HYBRID_FULL
+                || resultPartitionType == ResultPartitionType.HYBRID_SELECTIVE) {
             hasHybridResultPartition = true;
         }
 
@@ -1187,8 +1188,10 @@ public class StreamingJobGraphGenerator {
                 return ResultPartitionType.PIPELINED_BOUNDED;
             case BATCH:
                 return ResultPartitionType.BLOCKING;
-            case HYBRID:
-                return ResultPartitionType.HYBRID;
+            case HYBRID_FULL:
+                return ResultPartitionType.HYBRID_FULL;
+            case HYBRID_SELECTIVE:
+                return ResultPartitionType.HYBRID_SELECTIVE;
             case UNDEFINED:
                 return determineUndefinedResultPartitionType(edge.getPartitioner());
             default:
@@ -1218,8 +1221,10 @@ public class StreamingJobGraphGenerator {
                 return ResultPartitionType.PIPELINED_BOUNDED;
             case ALL_EDGES_PIPELINED_APPROXIMATE:
                 return ResultPartitionType.PIPELINED_APPROXIMATE;
-            case ALL_EDGES_HYBRID:
-                return ResultPartitionType.HYBRID;
+            case ALL_EDGES_HYBRID_FULL:
+                return ResultPartitionType.HYBRID_FULL;
+            case ALL_EDGES_HYBRID_SELECTIVE:
+                return ResultPartitionType.HYBRID_SELECTIVE;
             default:
                 throw new RuntimeException(
                         "Unrecognized global data exchange mode "
