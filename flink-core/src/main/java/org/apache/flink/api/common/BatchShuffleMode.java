@@ -18,7 +18,6 @@
 package org.apache.flink.api.common;
 
 import org.apache.flink.annotation.PublicEvolving;
-import org.apache.flink.annotation.docs.Documentation;
 import org.apache.flink.configuration.DescribedEnum;
 import org.apache.flink.configuration.ExecutionOptions;
 import org.apache.flink.configuration.description.InlineElement;
@@ -64,32 +63,30 @@ public enum BatchShuffleMode implements DescribedEnum {
                             + "as downstream tasks are started after upstream tasks finished.")),
 
     /**
-     * *DO NOT USE* - This feature is in progress.
-     *
-     * <p>Downstream can start running anytime, as long as the upstream has started.
+     * Downstream can start running anytime, as long as the upstream has started.
      *
      * <p>This adapts the resource usage to whatever is available.
      *
      * <p>This type will spill all data to disk to support re-consume.
      */
-    // TODO remove the annotation and rename this enum constant when hybrid shuffle effort is
-    // finished.
-    @Documentation.ExcludeFromDocumentation
-    WIP_ALL_EXCHANGES_HYBRID_FULL(text("DO NOT USE - This feature is in progress.")),
+    ALL_EXCHANGES_HYBRID_FULL(
+            text(
+                    "Downstream can start running anytime, as long as the upstream has started. "
+                            + "This adapts the resource usage to whatever is available. "
+                            + "This type will spill all data to disk to support re-consume.")),
 
     /**
-     * *DO NOT USE* - This feature is in progress.
-     *
-     * <p>Downstream can start running anytime, as long as the upstream has started.
+     * Downstream can start running anytime, as long as the upstream has started.
      *
      * <p>This adapts the resource usage to whatever is available.
      *
      * <p>This type will selective spilling data to reduce disk writes as much as possible.
      */
-    // TODO remove the annotation and rename this enum constant when hybrid shuffle effort is
-    // finished.
-    @Documentation.ExcludeFromDocumentation
-    WIP_ALL_EXCHANGES_HYBRID_SELECTIVE(text("DO NOT USE - This feature is in progress."));
+    ALL_EXCHANGES_HYBRID_SELECTIVE(
+            text(
+                    "Downstream can start running anytime, as long as the upstream has started. "
+                            + "This adapts the resource usage to whatever is available. "
+                            + "This type will selective spilling data to reduce disk writes as much as possible."));
 
     private final InlineElement description;
 
