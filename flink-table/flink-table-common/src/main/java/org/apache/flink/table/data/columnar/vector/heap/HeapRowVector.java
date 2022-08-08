@@ -18,20 +18,26 @@
 
 package org.apache.flink.table.data.columnar.vector.heap;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.data.columnar.ColumnarRowData;
 import org.apache.flink.table.data.columnar.vector.RowColumnVector;
 import org.apache.flink.table.data.columnar.vector.VectorizedColumnBatch;
 import org.apache.flink.table.data.columnar.vector.writable.WritableColumnVector;
 
 /** This class represents a nullable heap row column vector. */
+@Internal
 public class HeapRowVector extends AbstractHeapVector
         implements WritableColumnVector, RowColumnVector {
 
-    public WritableColumnVector[] fields;
+    private WritableColumnVector[] fields;
 
     public HeapRowVector(int len, WritableColumnVector... fields) {
         super(len);
         this.fields = fields;
+    }
+
+    public WritableColumnVector[] getFields() {
+        return fields;
     }
 
     @Override

@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.data.columnar.vector.heap;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.data.MapData;
 import org.apache.flink.table.data.columnar.ColumnarMapData;
 import org.apache.flink.table.data.columnar.vector.ColumnVector;
@@ -25,6 +26,7 @@ import org.apache.flink.table.data.columnar.vector.MapColumnVector;
 import org.apache.flink.table.data.columnar.vector.writable.WritableColumnVector;
 
 /** This class represents a nullable heap map column vector. */
+@Internal
 public class HeapMapVector extends AbstractHeapVector
         implements WritableColumnVector, MapColumnVector {
 

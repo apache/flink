@@ -45,10 +45,10 @@ public class MapColumnReader implements ColumnReader<WritableColumnVector> {
         valueReader.readToVector(total, valueArrayColumnVector);
 
         // set the related attributes according to the keys and values
-        mapVector.setKeys(keyArrayColumnVector.child);
-        mapVector.setValues(valueArrayColumnVector.child);
-        mapVector.setOffsets(keyArrayColumnVector.offsets);
-        mapVector.setLengths(keyArrayColumnVector.lengths);
+        mapVector.setKeys(keyArrayColumnVector.getChild());
+        mapVector.setValues(valueArrayColumnVector.getChild());
+        mapVector.setOffsets(keyArrayColumnVector.getOffsets());
+        mapVector.setLengths(keyArrayColumnVector.getLengths());
         mapVector.setSize(keyArrayColumnVector.getSize());
         for (int i = 0; i < keyArrayColumnVector.getLen(); i++) {
             if (keyArrayColumnVector.isNullAt(i)) {

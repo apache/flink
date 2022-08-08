@@ -43,7 +43,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
-/** Array {@link ColumnReader}. */
+/** Array {@link ColumnReader}. TODO Currently ARRAY type only support non nested case. */
 public class ArrayColumnReader extends BaseVectorizedColumnReader {
 
     // The value read in last time
@@ -66,12 +66,12 @@ public class ArrayColumnReader extends BaseVectorizedColumnReader {
     }
 
     @Override
-    public void readToVector(int readNumber, WritableColumnVector vector) throws IOException {
+    public void readToVector(int readNumber, WritableColumnVector vector) {
         HeapArrayVector lcv = (HeapArrayVector) vector;
         // before readBatch, initial the size of offsets & lengths as the default value,
         // the actual size will be assigned in setChildrenInfo() after reading complete.
-        lcv.offsets = new long[VectorizedColumnBatch.DEFAULT_SIZE];
-        lcv.lengths = new long[VectorizedColumnBatch.DEFAULT_SIZE];
+        lcv.setOffsets(new long[VectorizedColumnBatch.DEFAULT_SIZE]);
+        lcv.setLengths(new long[VectorizedColumnBatch.DEFAULT_SIZE]);
 
         LogicalType elementType = ((ArrayType) logicalType).getElementType();
 
@@ -99,9 +99,8 @@ public class ArrayColumnReader extends BaseVectorizedColumnReader {
      *
      * @param type the element type of array
      * @return boolean
-     * @throws IOException
      */
-    private boolean fetchNextValue(LogicalType type) throws IOException {
+    private boolean fetchNextValue(LogicalType type) {
         int left = readPageIfNeed();
         if (left > 0) {
             // get the values of repetition and definitionLevel
@@ -123,7 +122,7 @@ public class ArrayColumnReader extends BaseVectorizedColumnReader {
         }
     }
 
-    private int readPageIfNeed() throws IOException {
+    private int readPageIfNeed() {
         // Compute the number of values we want to read in this page.
         int leftInPage = (int) (endOfPageValueCount - valuesRead);
         if (leftInPage == 0) {
@@ -231,11 +230,9 @@ public class ArrayColumnReader extends BaseVectorizedColumnReader {
      * @param valueList collection of values that will be fed into the vector later
      * @param type the element type of array
      * @return int
-     * @throws IOException
      */
     private int collectDataFromParquetPage(
-            int total, HeapArrayVector lcv, List<Object> valueList, LogicalType type)
-            throws IOException {
+            int total, HeapArrayVector lcv, List<Object> valueList, LogicalType type) {
         int index = 0;
         /*
          * Here is a nested loop for collecting all values from a parquet page.
@@ -253,7 +250,7 @@ public class ArrayColumnReader extends BaseVectorizedColumnReader {
          */
         while (!eof && index < total) {
             // add element to ListColumnVector one by one
-            lcv.offsets[index] = valueList.size();
+            lcv.getOffsets()[index] = valueList.size();
             /*
              * Let's collect all values for a single list.
              * Repetition level = 0 means that a new list started there in the parquet page,
@@ -273,7 +270,7 @@ public class ArrayColumnReader extends BaseVectorizedColumnReader {
                                 : lastValue);
             } while (fetchNextValue(type) && (repetitionLevel != 0));
 
-            lcv.lengths[index] = valueList.size() - lcv.offsets[index];
+            lcv.getLengths()[index] = valueList.size() - lcv.getOffsets()[index];
             index++;
         }
         return index;
@@ -287,10 +284,10 @@ public class ArrayColumnReader extends BaseVectorizedColumnReader {
         lcv.setSize(itemNum);
         long[] lcvLength = new long[elementNum];
         long[] lcvOffset = new long[elementNum];
-        System.arraycopy(lcv.lengths, 0, lcvLength, 0, elementNum);
-        System.arraycopy(lcv.offsets, 0, lcvOffset, 0, elementNum);
-        lcv.lengths = lcvLength;
-        lcv.offsets = lcvOffset;
+        System.arraycopy(lcv.getLengths(), 0, lcvLength, 0, elementNum);
+        System.arraycopy(lcv.getOffsets(), 0, lcvOffset, 0, elementNum);
+        lcv.setLengths(lcvLength);
+        lcv.setOffsets(lcvOffset);
     }
 
     private void fillColumnVector(
@@ -302,109 +299,120 @@ public class ArrayColumnReader extends BaseVectorizedColumnReader {
             case VARCHAR:
             case BINARY:
             case VARBINARY:
-                lcv.child = new HeapBytesVector(total);
-                ((HeapBytesVector) lcv.child).reset();
+                HeapBytesVector bytesVector = new HeapBytesVector(total);
+                bytesVector.reset();
+                lcv.setChild(bytesVector);
                 for (int i = 0; i < valueList.size(); i++) {
-                    byte[] src = ((List<byte[]>) valueList).get(i);
+                    byte[] src = (byte[]) valueList.get(i);
                     if (src == null) {
-                        ((HeapBytesVector) lcv.child).setNullAt(i);
+                        ((HeapBytesVector) lcv.getChild()).setNullAt(i);
                     } else {
-                        ((HeapBytesVector) lcv.child).appendBytes(i, src, 0, src.length);
+                        ((HeapBytesVector) lcv.getChild()).appendBytes(i, src, 0, src.length);
                     }
                 }
                 break;
             case BOOLEAN:
-                lcv.child = new HeapBooleanVector(total);
-                ((HeapBooleanVector) lcv.child).reset();
+                HeapBooleanVector booleanVector = new HeapBooleanVector(total);
+                booleanVector.reset();
+                lcv.setChild(booleanVector);
                 for (int i = 0; i < valueList.size(); i++) {
                     if (valueList.get(i) == null) {
-                        ((HeapBooleanVector) lcv.child).setNullAt(i);
+                        ((HeapBooleanVector) lcv.getChild()).setNullAt(i);
                     } else {
-                        ((HeapBooleanVector) lcv.child).vector[i] =
-                                ((List<Boolean>) valueList).get(i);
+                        ((HeapBooleanVector) lcv.getChild()).vector[i] = (boolean) valueList.get(i);
                     }
                 }
                 break;
             case TINYINT:
-                lcv.child = new HeapByteVector(total);
-                ((HeapByteVector) lcv.child).reset();
+                HeapByteVector byteVector = new HeapByteVector(total);
+                byteVector.reset();
+                lcv.setChild(byteVector);
                 for (int i = 0; i < valueList.size(); i++) {
                     if (valueList.get(i) == null) {
-                        ((HeapByteVector) lcv.child).setNullAt(i);
+                        ((HeapByteVector) lcv.getChild()).setNullAt(i);
                     } else {
-                        ((HeapByteVector) lcv.child).vector[i] =
-                                (byte) ((List<Integer>) valueList).get(i).intValue();
+                        ((HeapByteVector) lcv.getChild()).vector[i] =
+                                ((List<Integer>) valueList).get(i).byteValue();
                     }
                 }
                 break;
             case SMALLINT:
-                lcv.child = new HeapShortVector(total);
-                ((HeapShortVector) lcv.child).reset();
+                HeapShortVector shortVector = new HeapShortVector(total);
+                shortVector.reset();
+                lcv.setChild(shortVector);
                 for (int i = 0; i < valueList.size(); i++) {
                     if (valueList.get(i) == null) {
-                        ((HeapShortVector) lcv.child).setNullAt(i);
+                        ((HeapShortVector) lcv.getChild()).setNullAt(i);
                     } else {
-                        ((HeapShortVector) lcv.child).vector[i] =
-                                (short) ((List<Integer>) valueList).get(i).intValue();
+                        ((HeapShortVector) lcv.getChild()).vector[i] =
+                                ((List<Integer>) valueList).get(i).shortValue();
                     }
                 }
                 break;
             case INTEGER:
             case DATE:
             case TIME_WITHOUT_TIME_ZONE:
-                lcv.child = new HeapIntVector(total);
-                ((HeapIntVector) lcv.child).reset();
+                HeapIntVector intVector = new HeapIntVector(total);
+                intVector.reset();
+                lcv.setChild(intVector);
                 for (int i = 0; i < valueList.size(); i++) {
                     if (valueList.get(i) == null) {
-                        ((HeapIntVector) lcv.child).setNullAt(i);
+                        ((HeapIntVector) lcv.getChild()).setNullAt(i);
                     } else {
-                        ((HeapIntVector) lcv.child).vector[i] = ((List<Integer>) valueList).get(i);
+                        ((HeapIntVector) lcv.getChild()).vector[i] =
+                                ((List<Integer>) valueList).get(i);
                     }
                 }
                 break;
             case FLOAT:
-                lcv.child = new HeapFloatVector(total);
-                ((HeapFloatVector) lcv.child).reset();
+                HeapFloatVector floatVector = new HeapFloatVector(total);
+                floatVector.reset();
+                lcv.setChild(floatVector);
                 for (int i = 0; i < valueList.size(); i++) {
                     if (valueList.get(i) == null) {
-                        ((HeapFloatVector) lcv.child).setNullAt(i);
+                        ((HeapFloatVector) lcv.getChild()).setNullAt(i);
                     } else {
-                        ((HeapFloatVector) lcv.child).vector[i] = ((List<Float>) valueList).get(i);
+                        ((HeapFloatVector) lcv.getChild()).vector[i] =
+                                ((List<Float>) valueList).get(i);
                     }
                 }
                 break;
             case BIGINT:
-                lcv.child = new HeapLongVector(total);
-                ((HeapLongVector) lcv.child).reset();
+                HeapLongVector longVector = new HeapLongVector(total);
+                longVector.reset();
+                lcv.setChild(longVector);
                 for (int i = 0; i < valueList.size(); i++) {
                     if (valueList.get(i) == null) {
-                        ((HeapLongVector) lcv.child).setNullAt(i);
+                        ((HeapLongVector) lcv.getChild()).setNullAt(i);
                     } else {
-                        ((HeapLongVector) lcv.child).vector[i] = ((List<Long>) valueList).get(i);
+                        ((HeapLongVector) lcv.getChild()).vector[i] =
+                                ((List<Long>) valueList).get(i);
                     }
                 }
                 break;
             case DOUBLE:
-                lcv.child = new HeapDoubleVector(total);
-                ((HeapDoubleVector) lcv.child).reset();
+                HeapDoubleVector doubleVector = new HeapDoubleVector(total);
+                doubleVector.reset();
+                lcv.setChild(doubleVector);
                 for (int i = 0; i < valueList.size(); i++) {
                     if (valueList.get(i) == null) {
-                        ((HeapDoubleVector) lcv.child).setNullAt(i);
+                        ((HeapDoubleVector) lcv.getChild()).setNullAt(i);
                     } else {
-                        ((HeapDoubleVector) lcv.child).vector[i] =
+                        ((HeapDoubleVector) lcv.getChild()).vector[i] =
                                 ((List<Double>) valueList).get(i);
                     }
                 }
                 break;
             case TIMESTAMP_WITHOUT_TIME_ZONE:
             case TIMESTAMP_WITH_LOCAL_TIME_ZONE:
-                lcv.child = new HeapTimestampVector(total);
-                ((HeapTimestampVector) lcv.child).reset();
+                HeapTimestampVector timestampVector = new HeapTimestampVector(total);
+                timestampVector.reset();
+                lcv.setChild(timestampVector);
                 for (int i = 0; i < valueList.size(); i++) {
                     if (valueList.get(i) == null) {
-                        ((HeapTimestampVector) lcv.child).setNullAt(i);
+                        ((HeapTimestampVector) lcv.getChild()).setNullAt(i);
                     } else {
-                        ((HeapTimestampVector) lcv.child)
+                        ((HeapTimestampVector) lcv.getChild())
                                 .setTimestamp(i, ((List<TimestampData>) valueList).get(i));
                     }
                 }
@@ -414,43 +422,54 @@ public class ArrayColumnReader extends BaseVectorizedColumnReader {
                         descriptor.getPrimitiveType().getPrimitiveTypeName();
                 switch (primitiveTypeName) {
                     case INT32:
-                        lcv.child = new ParquetDecimalVector(new HeapIntVector(total));
-                        ((HeapIntVector) ((ParquetDecimalVector) lcv.child).vector).reset();
+                        HeapIntVector heapIntVector = new HeapIntVector(total);
+                        heapIntVector.reset();
+                        lcv.setChild(new ParquetDecimalVector(heapIntVector));
                         for (int i = 0; i < valueList.size(); i++) {
                             if (valueList.get(i) == null) {
-                                ((HeapIntVector) ((ParquetDecimalVector) lcv.child).vector)
+                                ((HeapIntVector)
+                                                ((ParquetDecimalVector) lcv.getChild()).getVector())
                                         .setNullAt(i);
                             } else {
-                                ((HeapIntVector) ((ParquetDecimalVector) lcv.child).vector)
+                                ((HeapIntVector)
+                                                        ((ParquetDecimalVector) lcv.getChild())
+                                                                .getVector())
                                                 .vector[i] =
                                         ((List<Integer>) valueList).get(i);
                             }
                         }
                         break;
                     case INT64:
-                        lcv.child = new ParquetDecimalVector(new HeapLongVector(total));
-                        ((HeapLongVector) ((ParquetDecimalVector) lcv.child).vector).reset();
+                        HeapLongVector heapLongVector = new HeapLongVector(total);
+                        heapLongVector.reset();
+                        lcv.setChild(new ParquetDecimalVector(heapLongVector));
                         for (int i = 0; i < valueList.size(); i++) {
                             if (valueList.get(i) == null) {
-                                ((HeapLongVector) ((ParquetDecimalVector) lcv.child).vector)
+                                ((HeapLongVector)
+                                                ((ParquetDecimalVector) lcv.getChild()).getVector())
                                         .setNullAt(i);
                             } else {
-                                ((HeapLongVector) ((ParquetDecimalVector) lcv.child).vector)
+                                ((HeapLongVector)
+                                                        ((ParquetDecimalVector) lcv.getChild())
+                                                                .getVector())
                                                 .vector[i] =
                                         ((List<Long>) valueList).get(i);
                             }
                         }
                         break;
                     default:
-                        lcv.child = new ParquetDecimalVector(new HeapBytesVector(total));
-                        ((HeapBytesVector) ((ParquetDecimalVector) lcv.child).vector).reset();
+                        HeapBytesVector heapBytesVector = new HeapBytesVector(total);
+                        heapBytesVector.reset();
+                        lcv.setChild(new ParquetDecimalVector(heapBytesVector));
                         for (int i = 0; i < valueList.size(); i++) {
-                            byte[] src = ((List<byte[]>) valueList).get(i);
+                            byte[] src = (byte[]) valueList.get(i);
                             if (valueList.get(i) == null) {
-                                ((HeapBytesVector) ((ParquetDecimalVector) lcv.child).vector)
+                                ((HeapBytesVector)
+                                                ((ParquetDecimalVector) lcv.getChild()).getVector())
                                         .setNullAt(i);
                             } else {
-                                ((HeapBytesVector) ((ParquetDecimalVector) lcv.child).vector)
+                                ((HeapBytesVector)
+                                                ((ParquetDecimalVector) lcv.getChild()).getVector())
                                         .appendBytes(i, src, 0, src.length);
                             }
                         }

@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.data.columnar.vector.heap;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.data.ArrayData;
 import org.apache.flink.table.data.columnar.ColumnarArrayData;
 import org.apache.flink.table.data.columnar.vector.ArrayColumnVector;
@@ -25,13 +26,14 @@ import org.apache.flink.table.data.columnar.vector.ColumnVector;
 import org.apache.flink.table.data.columnar.vector.writable.WritableColumnVector;
 
 /** This class represents a nullable heap array column vector. */
+@Internal
 public class HeapArrayVector extends AbstractHeapVector
         implements WritableColumnVector, ArrayColumnVector {
 
-    public long[] offsets;
-    public long[] lengths;
-    public int size;
-    public ColumnVector child;
+    private long[] offsets;
+    private long[] lengths;
+    private int size;
+    private ColumnVector child;
 
     public HeapArrayVector(int len) {
         super(len);
@@ -46,12 +48,36 @@ public class HeapArrayVector extends AbstractHeapVector
         this.child = vector;
     }
 
+    public long[] getOffsets() {
+        return offsets;
+    }
+
+    public void setOffsets(long[] offsets) {
+        this.offsets = offsets;
+    }
+
+    public long[] getLengths() {
+        return lengths;
+    }
+
+    public void setLengths(long[] lengths) {
+        this.lengths = lengths;
+    }
+
     public int getSize() {
         return size;
     }
 
     public void setSize(int size) {
         this.size = size;
+    }
+
+    public ColumnVector getChild() {
+        return child;
+    }
+
+    public void setChild(ColumnVector child) {
+        this.child = child;
     }
 
     @Override

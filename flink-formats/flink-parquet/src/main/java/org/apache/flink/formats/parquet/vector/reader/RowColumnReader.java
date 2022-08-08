@@ -35,7 +35,7 @@ public class RowColumnReader implements ColumnReader<WritableColumnVector> {
     @Override
     public void readToVector(int readNumber, WritableColumnVector vector) throws IOException {
         HeapRowVector rowVector = (HeapRowVector) vector;
-        WritableColumnVector[] vectors = rowVector.fields;
+        WritableColumnVector[] vectors = rowVector.getFields();
         for (int i = 0; i < vectors.length; i++) {
             fieldReaders.get(i).readToVector(readNumber, vectors[i]);
 
