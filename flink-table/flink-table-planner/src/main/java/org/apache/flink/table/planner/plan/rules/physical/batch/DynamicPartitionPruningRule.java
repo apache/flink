@@ -32,6 +32,7 @@ import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
 import org.apache.flink.table.planner.connectors.TransformationScanProvider;
 import org.apache.flink.table.planner.plan.abilities.source.FilterPushDownSpec;
 import org.apache.flink.table.planner.plan.abilities.source.SourceAbilitySpec;
+import org.apache.flink.table.planner.connectors.DynamicSourceUtils;
 import org.apache.flink.table.planner.plan.nodes.physical.batch.BatchPhysicalCalc;
 import org.apache.flink.table.planner.plan.nodes.physical.batch.BatchPhysicalDynamicFilteringDataCollector;
 import org.apache.flink.table.planner.plan.nodes.physical.batch.BatchPhysicalDynamicFilteringTableSourceScan;
@@ -178,7 +179,7 @@ public abstract class DynamicPartitionPruningRule extends RelRule<RelRule.Config
             return false;
         }
 
-        if (!isNewSource((ScanTableSource) tableSource)) {
+        if (!DynamicSourceUtils.isNewSource((ScanTableSource) tableSource)) {
             return false;
         }
 
