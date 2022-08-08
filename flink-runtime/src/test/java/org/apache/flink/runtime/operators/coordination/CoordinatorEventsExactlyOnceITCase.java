@@ -81,11 +81,7 @@ import java.util.concurrent.TimeUnit;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkState;
-import static org.hamcrest.CoreMatchers.instanceOf;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Integration Test case that validates the exactly-once mechanism for coordinator events around
@@ -172,24 +168,12 @@ public class CoordinatorEventsExactlyOnceITCase extends TestLogger {
         checkListContainsSequence(result.getAccumulatorResult(OPERATOR_2_NAME), numEvents2);
     }
 
-    private static void checkListContainsSequence(List<Integer> ints, int length) {
-        if (ints.size() != length) {
-            failList(ints, length);
+    protected static void checkListContainsSequence(List<Integer> ints, int length) {
+        Integer[] expected = new Integer[length];
+        for (int i = 0; i < length; i++) {
+            expected[i] = i;
         }
-
-        int nextExpected = 0;
-        for (int next : ints) {
-            if (next != nextExpected++) {
-                failList(ints, length);
-            }
-        }
-    }
-
-    private static void failList(List<Integer> ints, int length) {
-        fail(
-                String.format(
-                        "List did not contain expected sequence of %d elements, but was: (%d elements): %s",
-                        length, ints.size(), ints));
+        assertThat(ints).containsExactly(expected);
     }
 
     // ------------------------------------------------------------------------
@@ -364,10 +348,10 @@ public class CoordinatorEventsExactlyOnceITCase extends TestLogger {
         @Override
         public void close() throws Exception {
             scheduledExecutor.shutdownNow();
-            assertTrue(scheduledExecutor.awaitTermination(10, TimeUnit.MINUTES));
+            assertThat(scheduledExecutor.awaitTermination(10, TimeUnit.MINUTES)).isTrue();
 
             mailboxExecutor.shutdownNow();
-            assertTrue(mailboxExecutor.awaitTermination(10, TimeUnit.MINUTES));
+            assertThat(mailboxExecutor.awaitTermination(10, TimeUnit.MINUTES)).isTrue();
         }
 
         @Override
@@ -607,8 +591,8 @@ public class CoordinatorEventsExactlyOnceITCase extends TestLogger {
                                     operatorID, new SerializedValue<>(new IntegerRequest(100)))
                             .get();
 
-            assertThat(response, instanceOf(IntegerResponse.class));
-            assertEquals(101, ((IntegerResponse) response).value);
+            assertThat(response).isInstanceOf(IntegerResponse.class);
+            assertThat(((IntegerResponse) response).value).isEqualTo(101);
 
             // poor-man's mailbox
             Object next;
@@ -746,7 +730,7 @@ public class CoordinatorEventsExactlyOnceITCase extends TestLogger {
     }
 
     static int bytesToInt(byte[] bytes) {
-        assertEquals(4, bytes.length);
+        assertThat(bytes).hasSize(4);
         return ByteBuffer.wrap(bytes).order(ByteOrder.LITTLE_ENDIAN).getInt(0);
     }
 
