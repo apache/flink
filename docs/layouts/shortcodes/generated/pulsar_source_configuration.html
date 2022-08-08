@@ -15,6 +15,12 @@
             <td>This option is used only when the user disables the checkpoint and uses Exclusive or Failover subscription. We would automatically commit the cursor using the given period (in ms).</td>
         </tr>
         <tr>
+            <td><h5>pulsar.source.defaultFetchTime</h5></td>
+            <td style="word-wrap: break-word;">100</td>
+            <td>Long</td>
+            <td>The time (in ms) for fetching messages from Pulsar. If time exceed and no message returned from Pulsar. We would consider there is no record at the current topic and stop fetch until next switch.</td>
+        </tr>
+        <tr>
             <td><h5>pulsar.source.enableAutoAcknowledgeMessage</h5></td>
             <td style="word-wrap: break-word;">false</td>
             <td>Boolean</td>

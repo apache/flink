@@ -104,15 +104,14 @@ abstract class PulsarPartitionSplitReaderBase<OUT>
         PulsarMessageCollector<OUT> collector = new PulsarMessageCollector<>(splitId, builder);
         Deadline deadline = Deadline.fromNow(sourceConfiguration.getMaxFetchTime());
 
-        // Consume message from pulsar until it was woke up by flink reader.
+        // Consume messages from pulsar until it was waked up by flink reader.
         for (int messageNum = 0;
                 messageNum < sourceConfiguration.getMaxFetchRecords()
                         && deadline.hasTimeLeft()
                         && isNotWakeup();
                 messageNum++) {
             try {
-                Duration timeout = deadline.timeLeftIfAny();
-                Message<byte[]> message = pollMessage(timeout);
+                Message<byte[]> message = pollMessage(sourceConfiguration.getDefaultFetchTime());
                 if (message == null) {
                     break;
                 }

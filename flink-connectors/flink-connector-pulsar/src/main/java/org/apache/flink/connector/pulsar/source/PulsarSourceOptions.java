@@ -147,6 +147,14 @@ public final class PulsarSourceOptions {
     public static final ConfigOption<Long> PULSAR_TRANSACTION_TIMEOUT_MILLIS =
             PULSAR_READ_TRANSACTION_TIMEOUT;
 
+    public static final ConfigOption<Long> PULSAR_DEFAULT_FETCH_TIME =
+            ConfigOptions.key(SOURCE_CONFIG_PREFIX + "defaultFetchTime")
+                    .longType()
+                    .defaultValue(100L)
+                    .withDescription(
+                            "The time (in ms) for fetching messages from Pulsar. If time exceed and no message returned from Pulsar."
+                                    + " We would consider there is no record at the current topic and stop fetch until next switch.");
+
     public static final ConfigOption<Long> PULSAR_MAX_FETCH_TIME =
             ConfigOptions.key(SOURCE_CONFIG_PREFIX + "maxFetchTime")
                     .longType()

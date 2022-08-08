@@ -63,6 +63,7 @@ import static java.util.Collections.singletonList;
 import static org.apache.commons.lang3.RandomStringUtils.randomAlphabetic;
 import static org.apache.flink.connector.pulsar.common.utils.PulsarExceptionUtils.sneakyAdmin;
 import static org.apache.flink.connector.pulsar.common.utils.PulsarExceptionUtils.sneakyThrow;
+import static org.apache.flink.connector.pulsar.source.PulsarSourceOptions.PULSAR_DEFAULT_FETCH_TIME;
 import static org.apache.flink.connector.pulsar.source.PulsarSourceOptions.PULSAR_ENABLE_AUTO_ACKNOWLEDGE_MESSAGE;
 import static org.apache.flink.connector.pulsar.source.PulsarSourceOptions.PULSAR_MAX_FETCH_RECORDS;
 import static org.apache.flink.connector.pulsar.source.PulsarSourceOptions.PULSAR_MAX_FETCH_TIME;
@@ -96,7 +97,8 @@ public abstract class PulsarPartitionSplitReaderTestBase extends PulsarTestSuite
     private SourceConfiguration sourceConfig() {
         Configuration config = operator().config();
         config.set(PULSAR_MAX_FETCH_RECORDS, 1);
-        config.set(PULSAR_MAX_FETCH_TIME, 1000L);
+        config.set(PULSAR_DEFAULT_FETCH_TIME, 2000L);
+        config.set(PULSAR_MAX_FETCH_TIME, 3000L);
         config.set(PULSAR_SUBSCRIPTION_NAME, randomAlphabetic(10));
         config.set(PULSAR_ENABLE_AUTO_ACKNOWLEDGE_MESSAGE, true);
 

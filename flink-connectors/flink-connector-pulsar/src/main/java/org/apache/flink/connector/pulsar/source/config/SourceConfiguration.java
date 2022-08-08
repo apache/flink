@@ -35,6 +35,7 @@ import java.util.Objects;
 
 import static org.apache.flink.connector.base.source.reader.SourceReaderOptions.ELEMENT_QUEUE_CAPACITY;
 import static org.apache.flink.connector.pulsar.source.PulsarSourceOptions.PULSAR_AUTO_COMMIT_CURSOR_INTERVAL;
+import static org.apache.flink.connector.pulsar.source.PulsarSourceOptions.PULSAR_DEFAULT_FETCH_TIME;
 import static org.apache.flink.connector.pulsar.source.PulsarSourceOptions.PULSAR_ENABLE_AUTO_ACKNOWLEDGE_MESSAGE;
 import static org.apache.flink.connector.pulsar.source.PulsarSourceOptions.PULSAR_MAX_FETCH_RECORDS;
 import static org.apache.flink.connector.pulsar.source.PulsarSourceOptions.PULSAR_MAX_FETCH_TIME;
@@ -55,6 +56,7 @@ public class SourceConfiguration extends PulsarConfiguration {
     private final boolean enableAutoAcknowledgeMessage;
     private final long autoCommitCursorInterval;
     private final long transactionTimeoutMillis;
+    private final Duration defaultFetchTime;
     private final Duration maxFetchTime;
     private final int maxFetchRecords;
     private final CursorVerification verifyInitialOffsets;
@@ -70,6 +72,7 @@ public class SourceConfiguration extends PulsarConfiguration {
         this.enableAutoAcknowledgeMessage = get(PULSAR_ENABLE_AUTO_ACKNOWLEDGE_MESSAGE);
         this.autoCommitCursorInterval = get(PULSAR_AUTO_COMMIT_CURSOR_INTERVAL);
         this.transactionTimeoutMillis = get(PULSAR_READ_TRANSACTION_TIMEOUT);
+        this.defaultFetchTime = get(PULSAR_DEFAULT_FETCH_TIME, Duration::ofMillis);
         this.maxFetchTime = get(PULSAR_MAX_FETCH_TIME, Duration::ofMillis);
         this.maxFetchRecords = get(PULSAR_MAX_FETCH_RECORDS);
         this.verifyInitialOffsets = get(PULSAR_VERIFY_INITIAL_OFFSETS);
@@ -125,6 +128,14 @@ public class SourceConfiguration extends PulsarConfiguration {
      */
     public long getTransactionTimeoutMillis() {
         return transactionTimeoutMillis;
+    }
+
+    /**
+     * The fetch time for polling one message. We would stop polling message and return the message
+     * in {@link RecordsWithSplitIds} when timeout and no message consumed.
+     */
+    public Duration getDefaultFetchTime() {
+        return defaultFetchTime;
     }
 
     /**
@@ -205,8 +216,9 @@ public class SourceConfiguration extends PulsarConfiguration {
                 && enableAutoAcknowledgeMessage == that.enableAutoAcknowledgeMessage
                 && autoCommitCursorInterval == that.autoCommitCursorInterval
                 && transactionTimeoutMillis == that.transactionTimeoutMillis
-                && maxFetchRecords == that.maxFetchRecords
+                && Objects.equals(defaultFetchTime, that.defaultFetchTime)
                 && Objects.equals(maxFetchTime, that.maxFetchTime)
+                && maxFetchRecords == that.maxFetchRecords
                 && verifyInitialOffsets == that.verifyInitialOffsets
                 && Objects.equals(subscriptionName, that.subscriptionName)
                 && subscriptionType == that.subscriptionType
@@ -221,6 +233,7 @@ public class SourceConfiguration extends PulsarConfiguration {
                 enableAutoAcknowledgeMessage,
                 autoCommitCursorInterval,
                 transactionTimeoutMillis,
+                defaultFetchTime,
                 maxFetchTime,
                 maxFetchRecords,
                 verifyInitialOffsets,
