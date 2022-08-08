@@ -23,7 +23,7 @@ from typing import Tuple, List
 from pyflink.common import WatermarkStrategy, Types
 from pyflink.datastream import MapFunction
 from pyflink.datastream.connectors.file_system import FileSource, FileSink
-from pyflink.datastream.formats import CsvSchema, CsvReaderFormat, CsvBulkWriter
+from pyflink.datastream.formats.csv import CsvSchema, CsvReaderFormat, CsvBulkWriter
 from pyflink.datastream.tests.test_util import DataStreamTestSinkFunction
 from pyflink.table import DataTypes
 from pyflink.testing.test_case_utils import PyFlinkStreamingTestCase

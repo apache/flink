@@ -22,6 +22,13 @@ from pyflink.java_gateway import get_gateway
 from pyflink.table.types import RowType, _to_java_data_type
 
 
+__all__ = [
+    'AvroParquetReaders',
+    'AvroParquetWriters',
+    'ParquetColumnarRowInputFormat'
+]
+
+
 class AvroParquetReaders(object):
     """
     A convenience builder to create reader format that reads individual Avro records from a

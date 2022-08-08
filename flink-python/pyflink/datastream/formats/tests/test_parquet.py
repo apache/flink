@@ -34,7 +34,7 @@ from pyflink.datastream.formats.tests.test_avro import \
     _create_map_avro_schema_and_records, _create_array_avro_schema_and_records, \
     _create_union_avro_schema_and_records, _create_enum_avro_schema_and_records, \
     _create_basic_avro_schema_and_records, _import_avro_classes
-from pyflink.datastream.formats import GenericRecordAvroTypeInfo, AvroSchema
+from pyflink.datastream.formats.avro import GenericRecordAvroTypeInfo, AvroSchema
 from pyflink.datastream.formats.parquet import AvroParquetReaders, ParquetColumnarRowInputFormat, \
     AvroParquetWriters
 from pyflink.datastream.tests.test_util import DataStreamTestSinkFunction

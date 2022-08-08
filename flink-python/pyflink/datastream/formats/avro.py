@@ -24,6 +24,14 @@ from pyflink.java_gateway import get_gateway
 from pyflink.util.java_utils import get_field_value
 
 
+__all__ = [
+    'AvroInputFormat',
+    'AvroSchema',
+    'AvroWriters',
+    'GenericRecordAvroTypeInfo'
+]
+
+
 class AvroSchema(object):
     """
     Avro Schema class contains Java org.apache.avro.Schema.
@@ -103,7 +111,7 @@ class AvroInputFormat(InputFormat, ResultTypeQueryable):
     def __init__(self, path: str, schema: 'AvroSchema'):
         """
         :param path: The path to Avro data file.
-        :param schema: The :class:`Schema` of generic record.
+        :param schema: The :class:`AvroSchema` of generic record.
         """
         jvm = get_gateway().jvm
         j_avro_input_format = jvm.org.apache.flink.formats.avro.AvroInputFormat(
@@ -111,7 +119,6 @@ class AvroInputFormat(InputFormat, ResultTypeQueryable):
             get_java_class(jvm.org.apache.flink.avro.shaded.org.apache.avro.generic.GenericRecord)
         )
         super().__init__(j_avro_input_format)
-        self._schema = schema
         self._type_info = GenericRecordAvroTypeInfo(schema)
 
     def get_produced_type(self) -> GenericRecordAvroTypeInfo:

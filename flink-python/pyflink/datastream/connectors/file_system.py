@@ -109,9 +109,8 @@ class StreamFormat(object):
     """
     A reader format that reads individual records from a stream.
 
-    Compared to the :class:`~pyflink.datastream.connectors.FileSource.BulkFormat`, the stream
-    format handles a few things out-of-the-box, like deciding how to batch records or dealing
-    with compression.
+    Compared to the :class:`~BulkFormat`, the stream format handles a few things out-of-the-box,
+    like deciding how to batch records or dealing with compression.
 
     Internally in the file source, the readers pass batches of records from the reading threads
     (that perform the typically blocking I/O operations) to the async mailbox threads that do
@@ -202,12 +201,11 @@ class RowDataBulkWriterFactory(BulkWriterFactory):
 
 class FileSourceBuilder(object):
     """
-    The builder for the :class:`~pyflink.datastream.connectors.FileSource`, to configure the
-    various behaviors.
+    The builder for the :class:`~FileSource`, to configure the various behaviors.
 
     Start building the source via one of the following methods:
 
-        - :func:`~pyflink.datastream.connectors.FileSource.for_record_stream_format`
+        - :func:`~FileSource.for_record_stream_format`
     """
 
     def __init__(self, j_file_source_builder):
@@ -283,10 +281,10 @@ class FileSource(Source):
 
     Start building a file source via one of the following calls:
 
-        - :func:`~pyflink.datastream.connectors.FileSource.for_record_stream_format`
+        - :func:`~FileSource.for_record_stream_format`
 
-    This creates a :class:`~pyflink.datastream.connectors.FileSource.FileSourceBuilder` on which
-    you can configure all the properties of the file source.
+    This creates a :class:`~FileSource.FileSourceBuilder` on which you can configure all the
+    properties of the file source.
 
     <h2>Batch and Streaming</h2>
 
@@ -296,10 +294,10 @@ class FileSource(Source):
     reading those.
 
     When you start creating a file source (via the
-    :class:`~pyflink.datastream.connectors.FileSource.FileSourceBuilder` created
-    through one of the above-mentioned methods) the source is by default in bounded/batch mode. Call
-    :func:`~pyflink.datastream.connectors.FileSource.FileSourceBuilder.monitor_continuously` to put
-    the source into continuous streaming mode.
+    :class:`~FileSource.FileSourceBuilder` created through one of the above-mentioned methods)
+    the source is by default in bounded/batch mode. Call
+    :func:`~FileSource.FileSourceBuilder.monitor_continuously` to put the source into continuous
+    streaming mode.
 
     <h2>Format Types</h2>
 
@@ -308,18 +306,17 @@ class FileSource(Source):
     source supports. Their interfaces trade of simplicity of implementation and
     flexibility/efficiency.
 
-        - A :class:`~pyflink.datastream.connectors.FileSource.StreamFormat` reads the contents of
-          a file from a file stream. It is the simplest format to implement, and provides many
-          features out-of-the-box (like checkpointing logic) but is limited in the optimizations it
+        - A :class:`~FileSource.StreamFormat` reads the contents of a file from a file stream.
+          It is the simplest format to implement, and provides many features out-of-the-box
+          (like checkpointing logic) but is limited in the optimizations it
           can apply (such as object reuse, batching, etc.).
 
     <h2>Discovering / Enumerating Files</h2>
 
     The way that the source lists the files to be processes is defined by the
-    :class:`~pyflink.datastream.connectors.FileSource.FileEnumeratorProvider`. The
-    FileEnumeratorProvider is responsible to select the relevant files (for example filter out
-    hidden files) and to optionally splits files into multiple regions (= file source splits) that
-    can be read in parallel).
+    :class:`~FileSource.FileEnumeratorProvider`. The FileEnumeratorProvider is responsible to
+    select the relevant files (for example filter out hidden files) and to optionally splits files
+    into multiple regions (= file source splits) that can be read in parallel).
     """
 
     def __init__(self, j_file_source):
@@ -328,8 +325,7 @@ class FileSource(Source):
     @staticmethod
     def for_record_stream_format(stream_format: StreamFormat, *paths: str) -> FileSourceBuilder:
         """
-        Builds a new FileSource using a
-        :class:`~pyflink.datastream.connectors.FileSource.StreamFormat` to read record-by-record
+        Builds a new FileSource using a :class:`~FileSource.StreamFormat` to read record-by-record
         from a file stream.
 
         When possible, stream-based formats are generally easier (preferable) to file-based
@@ -632,8 +628,8 @@ class FileSink(Sink, SupportsPreprocessing):
     on every checkpoint or use time or a property of the element to determine the bucket directory.
     The default BucketAssigner is a DateTimeBucketAssigner which will create one new
     bucket every hour. You can specify a custom BucketAssigner using the
-    :func:`~pyflink.datastream.connectors.FileSink.RowFormatBuilder.with_bucket_assigner`,
-    after calling :class:`~pyflink.datastream.connectors.FileSink.for_row_format`.
+    :func:`~FileSink.RowFormatBuilder.with_bucket_assigner`, after calling
+    :class:`~FileSink.for_row_format`.
 
     The names of the part files could be defined using OutputFileConfig. This
     configuration contains a part prefix and a part suffix that will be used with a random uid

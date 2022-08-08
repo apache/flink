@@ -28,6 +28,12 @@ Module contents
     :show-inheritance:
     :inherited-members:
 
+pyflink.datastream.window module
+--------------------------------
+.. automodule:: pyflink.datastream.window
+    :members:
+    :undoc-members:
+
 pyflink.datastream.state module
 ------------------------------------
 .. automodule:: pyflink.datastream.state
@@ -41,14 +47,74 @@ pyflink.datastream.connectors module
     :members:
     :undoc-members:
 
-pyflink.datastream.formats module
-------------------------------------
-.. automodule:: pyflink.datastream.formats
+pyflink.datastream.connectors.kafka module
+---------------------------------------------
+.. automodule:: pyflink.datastream.connectors.kafka
     :members:
     :undoc-members:
 
-pyflink.datastream.window module
---------------------------------
-.. automodule:: pyflink.datastream.window
+pyflink.datastream.connectors.file_system module
+--------------------------------------------------
+.. automodule:: pyflink.datastream.connectors.file_system
+    :members:
+    :undoc-members:
+
+pyflink.datastream.connectors.kinesis module
+--------------------------------------------------
+.. automodule:: pyflink.datastream.connectors.kinesis
+    :members:
+    :undoc-members:
+
+pyflink.datastream.connectors.number_seq module
+--------------------------------------------------
+.. automodule:: pyflink.datastream.connectors.number_seq
+    :members:
+    :undoc-members:
+
+pyflink.datastream.connectors.jdbc module
+--------------------------------------------------
+.. automodule:: pyflink.datastream.connectors.jdbc
+    :members:
+    :undoc-members:
+
+pyflink.datastream.connectors.elasticsearch module
+--------------------------------------------------
+.. automodule:: pyflink.datastream.connectors.elasticsearch
+    :members:
+    :undoc-members:
+
+pyflink.datastream.connectors.rabbitmq module
+--------------------------------------------------
+.. automodule:: pyflink.datastream.connectors.rabbitmq
+    :members:
+    :undoc-members:
+
+pyflink.datastream.connectors.pulsar module
+--------------------------------------------------
+.. automodule:: pyflink.datastream.connectors.pulsar
+    :members:
+    :undoc-members:
+
+pyflink.datastream.connectors.cassandra module
+--------------------------------------------------
+.. automodule:: pyflink.datastream.connectors.cassandra
+    :members:
+    :undoc-members:
+
+pyflink.datastream.formats.csv module
+------------------------------------------
+.. automodule:: pyflink.datastream.formats.csv
+    :members:
+    :undoc-members:
+
+pyflink.datastream.formats.avro module
+---------------------------------------------
+.. automodule:: pyflink.datastream.formats.avro
+    :members:
+    :undoc-members:
+
+pyflink.datastream.formats.parquet module
+---------------------------------------------
+.. automodule:: pyflink.datastream.formats.parquet
     :members:
     :undoc-members:

@@ -26,7 +26,7 @@ from py4j.java_gateway import JavaObject, java_import
 
 from pyflink.datastream import MapFunction
 from pyflink.datastream.connectors.file_system import FileSink
-from pyflink.datastream.formats import AvroSchema, GenericRecordAvroTypeInfo, AvroWriters, \
+from pyflink.datastream.formats.avro import AvroSchema, GenericRecordAvroTypeInfo, AvroWriters, \
     AvroInputFormat
 from pyflink.datastream.tests.test_util import DataStreamTestSinkFunction
 from pyflink.java_gateway import get_gateway

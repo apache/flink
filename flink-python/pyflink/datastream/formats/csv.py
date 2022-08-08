@@ -23,6 +23,13 @@ from pyflink.datastream.connectors.file_system import BulkWriterFactory, RowData
 from pyflink.java_gateway import get_gateway
 from pyflink.table.types import DataType, DataTypes, _to_java_data_type, RowType, NumericType
 
+__all__ = [
+    'CsvBulkWriter',
+    'CsvReaderFormat',
+    'CsvSchema',
+    'CsvSchemaBuilder'
+]
+
 
 class CsvSchema(object):
     """
