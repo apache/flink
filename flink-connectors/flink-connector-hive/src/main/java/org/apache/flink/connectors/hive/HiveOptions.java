@@ -91,7 +91,7 @@ public class HiveOptions {
                     .defaultValue(MemorySize.parse("4mb"))
                     .withDescription(
                             "The estimated cost (default is 4MB) to open a file. Used to split Hive's files to splits."
-                                    + " When the value is over estimated, Flink wll tend to pack Hive's data into less splits, which will help when Hive's table contains many some files."
+                                    + " When the value is over estimated, Flink will tend to pack Hive's data into less splits, which will be helpful when Hive's table contains many small files."
                                     + " And vice versa.");
 
     public static final ConfigOption<Boolean> STREAMING_SOURCE_ENABLE =

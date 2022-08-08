@@ -169,7 +169,7 @@ following parameters in `TableConfig` (note that these parameters affect all sou
 ### Tuning Split Size While Reading Hive Table
 While reading Hive table, the data files will be enumerated into splits, one of which is a portion of data consumed by the source.
 Splits are granularity by which the source distributes the work and parallelize the data reading.
-Users can to do some performance tuning by tuning the split's size with the follow configurations.
+Users can do some performance tuning by tuning the split's size with the follow configurations.
 
 <table class="table table-bordered">
   <thead>
@@ -192,7 +192,7 @@ Users can to do some performance tuning by tuning the split's size with the foll
         <td style="word-wrap: break-word;">4mb</td>
         <td>MemorySize</td>
         <td>The estimated cost (default is 4MB) to open a file. Used to enumerate Hive's files to splits.
-            If the value is over estimated, Flink wll tend to pack Hive's data into less splits, which will help when Hive's table contains many some files.
+            If the value is overestimated, Flink will tend to pack Hive's data into less splits, which will helpful when Hive's table contains many small files.
             If the value is underestimated, Flink will tend to pack Hive's data into more splits, which will help improve parallelism.
         </td>
     </tr>
