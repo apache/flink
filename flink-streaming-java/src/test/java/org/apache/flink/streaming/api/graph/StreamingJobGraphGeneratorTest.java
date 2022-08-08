@@ -735,9 +735,9 @@ public class StreamingJobGraphGeneratorTest extends TestLogger {
                 .isEqualTo(ResultPartitionType.PIPELINED_BOUNDED);
     }
 
-    /** Test setting exchange mode to {@link StreamExchangeMode#HYBRID}. */
+    /** Test setting exchange mode to {@link StreamExchangeMode#HYBRID_FULL}. */
     @Test
-    public void testExchangeModeHybrid() {
+    void testExchangeModeHybridFull() {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         // fromElements -> Map -> Print
         DataStream<Integer> sourceDataStream = env.fromElements(1, 2, 3);
@@ -748,7 +748,7 @@ public class StreamingJobGraphGeneratorTest extends TestLogger {
                         new PartitionTransformation<>(
                                 sourceDataStream.getTransformation(),
                                 new ForwardPartitioner<>(),
-                                StreamExchangeMode.HYBRID));
+                                StreamExchangeMode.HYBRID_FULL));
         DataStream<Integer> mapDataStream =
                 partitionAfterSourceDataStream.map(value -> value).setParallelism(1);
 
@@ -758,7 +758,7 @@ public class StreamingJobGraphGeneratorTest extends TestLogger {
                         new PartitionTransformation<>(
                                 mapDataStream.getTransformation(),
                                 new RescalePartitioner<>(),
-                                StreamExchangeMode.HYBRID));
+                                StreamExchangeMode.HYBRID_FULL));
         partitionAfterMapDataStream.print().setParallelism(2);
 
         JobGraph jobGraph = StreamingJobGraphGenerator.createJobGraph(env.getStreamGraph());
@@ -766,12 +766,51 @@ public class StreamingJobGraphGeneratorTest extends TestLogger {
         List<JobVertex> verticesSorted = jobGraph.getVerticesSortedTopologicallyFromSources();
         Assertions.assertThat(verticesSorted.size()).isEqualTo(2);
 
-        // it can be chained with Hybrid exchange mode
+        // it can be chained with HYBRID_FULL exchange mode
         JobVertex sourceAndMapVertex = verticesSorted.get(0);
 
-        // Hybrid exchange mode is translated into Hybrid result partition
+        // HYBRID_FULL exchange mode is translated into HYBRID_FULL result partition
         Assertions.assertThat(sourceAndMapVertex.getProducedDataSets().get(0).getResultType())
-                .isEqualTo(ResultPartitionType.HYBRID);
+                .isEqualTo(ResultPartitionType.HYBRID_FULL);
+    }
+
+    /** Test setting exchange mode to {@link StreamExchangeMode#HYBRID_SELECTIVE}. */
+    @Test
+    void testExchangeModeHybridSelective() {
+        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        // fromElements -> Map -> Print
+        DataStream<Integer> sourceDataStream = env.fromElements(1, 2, 3);
+
+        DataStream<Integer> partitionAfterSourceDataStream =
+                new DataStream<>(
+                        env,
+                        new PartitionTransformation<>(
+                                sourceDataStream.getTransformation(),
+                                new ForwardPartitioner<>(),
+                                StreamExchangeMode.HYBRID_SELECTIVE));
+        DataStream<Integer> mapDataStream =
+                partitionAfterSourceDataStream.map(value -> value).setParallelism(1);
+
+        DataStream<Integer> partitionAfterMapDataStream =
+                new DataStream<>(
+                        env,
+                        new PartitionTransformation<>(
+                                mapDataStream.getTransformation(),
+                                new RescalePartitioner<>(),
+                                StreamExchangeMode.HYBRID_SELECTIVE));
+        partitionAfterMapDataStream.print().setParallelism(2);
+
+        JobGraph jobGraph = StreamingJobGraphGenerator.createJobGraph(env.getStreamGraph());
+
+        List<JobVertex> verticesSorted = jobGraph.getVerticesSortedTopologicallyFromSources();
+        Assertions.assertThat(verticesSorted.size()).isEqualTo(2);
+
+        // it can be chained with HYBRID_SELECTIVE exchange mode
+        JobVertex sourceAndMapVertex = verticesSorted.get(0);
+
+        // HYBRID_SELECTIVE exchange mode is translated into HYBRID_SELECTIVE result partition
+        Assertions.assertThat(sourceAndMapVertex.getProducedDataSets().get(0).getResultType())
+                .isEqualTo(ResultPartitionType.HYBRID_SELECTIVE);
     }
 
     @Test
@@ -1278,11 +1317,12 @@ public class StreamingJobGraphGeneratorTest extends TestLogger {
     }
 
     @Test
-    public void testSetNonDefaultSlotSharingInHybridMode() {
+    void testSetNonDefaultSlotSharingInHybridMode() {
         Configuration configuration = new Configuration();
-        // set all edge to HYBRID result partition type.
+        // set all edge to HYBRID_FULL result partition type.
         configuration.set(
-                ExecutionOptions.BATCH_SHUFFLE_MODE, BatchShuffleMode.WIP_ALL_EXCHANGES_HYBRID);
+                ExecutionOptions.BATCH_SHUFFLE_MODE,
+                BatchShuffleMode.WIP_ALL_EXCHANGES_HYBRID_FULL);
 
         final StreamGraph streamGraph = createStreamGraphForSlotSharingTest(configuration);
         // specify slot sharing group for map1
@@ -1292,6 +1332,23 @@ public class StreamingJobGraphGeneratorTest extends TestLogger {
                 .get()
                 .setSlotSharingGroup("testSlotSharingGroup");
         assertThatThrownBy(() -> StreamingJobGraphGenerator.createJobGraph(streamGraph))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessage(
+                        "hybrid shuffle mode currently does not support setting non-default slot sharing group.");
+
+        // set all edge to HYBRID_SELECTIVE result partition type.
+        configuration.set(
+                ExecutionOptions.BATCH_SHUFFLE_MODE,
+                BatchShuffleMode.WIP_ALL_EXCHANGES_HYBRID_SELECTIVE);
+
+        final StreamGraph streamGraph2 = createStreamGraphForSlotSharingTest(configuration);
+        // specify slot sharing group for map1
+        streamGraph2.getStreamNodes().stream()
+                .filter(n -> "map1".equals(n.getOperatorName()))
+                .findFirst()
+                .get()
+                .setSlotSharingGroup("testSlotSharingGroup");
+        assertThatThrownBy(() -> StreamingJobGraphGenerator.createJobGraph(streamGraph2))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessage(
                         "hybrid shuffle mode currently does not support setting non-default slot sharing group.");

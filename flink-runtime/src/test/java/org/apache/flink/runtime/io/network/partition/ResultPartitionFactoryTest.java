@@ -84,8 +84,15 @@ public class ResultPartitionFactoryTest extends TestLogger {
     }
 
     @Test
-    public void testHybridResultPartitionCreated() {
-        ResultPartition resultPartition = createResultPartition(ResultPartitionType.HYBRID);
+    public void testHybridFullResultPartitionCreated() {
+        ResultPartition resultPartition = createResultPartition(ResultPartitionType.HYBRID_FULL);
+        assertTrue(resultPartition instanceof HsResultPartition);
+    }
+
+    @Test
+    public void testHybridSelectiveResultPartitionCreated() {
+        ResultPartition resultPartition =
+                createResultPartition(ResultPartitionType.HYBRID_SELECTIVE);
         assertTrue(resultPartition instanceof HsResultPartition);
     }
 
@@ -109,8 +116,19 @@ public class ResultPartitionFactoryTest extends TestLogger {
     }
 
     @Test
-    public void testNoReleaseOnConsumptionForHybridPartition() {
-        final ResultPartition resultPartition = createResultPartition(ResultPartitionType.HYBRID);
+    public void testNoReleaseOnConsumptionForHybridFullPartition() {
+        final ResultPartition resultPartition =
+                createResultPartition(ResultPartitionType.HYBRID_FULL);
+
+        resultPartition.onConsumedSubpartition(0);
+
+        assertFalse(resultPartition.isReleased());
+    }
+
+    @Test
+    public void testNoReleaseOnConsumptionForHybridSelectivePartition() {
+        final ResultPartition resultPartition =
+                createResultPartition(ResultPartitionType.HYBRID_SELECTIVE);
 
         resultPartition.onConsumedSubpartition(0);
 

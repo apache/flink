@@ -90,8 +90,18 @@ public enum ResultPartitionType {
      * simultaneous reading and writing shuffle data.
      *
      * <p>Hybrid partitions can be consumed any time, whether fully produced or not.
+     *
+     * <p>HYBRID_FULL partitions is re-consumable, so double calculation can be avoided during
+     * failover.
      */
-    HYBRID(false, false, false, ConsumingConstraint.CAN_BE_PIPELINED, ReleaseBy.SCHEDULER);
+    HYBRID_FULL(true, false, false, ConsumingConstraint.CAN_BE_PIPELINED, ReleaseBy.SCHEDULER),
+
+    /**
+     * HYBRID_SELECTIVE partitions are similar to {@link #HYBRID_FULL} partitions, but it is not
+     * re-consumable.
+     */
+    HYBRID_SELECTIVE(
+            false, false, false, ConsumingConstraint.CAN_BE_PIPELINED, ReleaseBy.SCHEDULER);
 
     /**
      * Can this result partition be consumed by multiple downstream consumers for multiple times.
@@ -207,7 +217,9 @@ public enum ResultPartitionType {
     }
 
     public boolean supportCompression() {
-        return isBlockingOrBlockingPersistentResultPartition() || this == HYBRID;
+        return isBlockingOrBlockingPersistentResultPartition()
+                || this == HYBRID_FULL
+                || this == HYBRID_SELECTIVE;
     }
 
     public boolean isReconsumable() {

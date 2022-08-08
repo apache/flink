@@ -65,6 +65,8 @@ class PipelinedRegionSchedulingStrategyTest {
 
     private List<TestingSchedulingExecutionVertex> map2;
 
+    private List<TestingSchedulingExecutionVertex> map3;
+
     private List<TestingSchedulingExecutionVertex> sink;
 
     @BeforeEach
@@ -93,6 +95,13 @@ class PipelinedRegionSchedulingStrategyTest {
                         .addExecutionVertices()
                         .withParallelism(PARALLELISM)
                         .finish();
+
+        map3 =
+                testingSchedulingTopology
+                        .addExecutionVertices()
+                        .withParallelism(PARALLELISM)
+                        .finish();
+
         sink =
                 testingSchedulingTopology
                         .addExecutionVertices()
@@ -107,10 +116,15 @@ class PipelinedRegionSchedulingStrategyTest {
         testingSchedulingTopology
                 .connectPointwise(map1, map2)
                 .withResultPartitionState(ResultPartitionState.CREATED)
-                .withResultPartitionType(ResultPartitionType.HYBRID)
+                .withResultPartitionType(ResultPartitionType.HYBRID_FULL)
                 .finish();
         testingSchedulingTopology
-                .connectAllToAll(map2, sink)
+                .connectPointwise(map2, map3)
+                .withResultPartitionState(ResultPartitionState.CREATED)
+                .withResultPartitionType(ResultPartitionType.HYBRID_SELECTIVE)
+                .finish();
+        testingSchedulingTopology
+                .connectAllToAll(map3, sink)
                 .withResultPartitionState(ResultPartitionState.CREATED)
                 .withResultPartitionType(ResultPartitionType.BLOCKING)
                 .finish();
@@ -126,6 +140,8 @@ class PipelinedRegionSchedulingStrategyTest {
         expectedScheduledVertices.add(Arrays.asList(source.get(1), map1.get(1)));
         expectedScheduledVertices.add(Arrays.asList(map2.get(0)));
         expectedScheduledVertices.add(Arrays.asList(map2.get(1)));
+        expectedScheduledVertices.add(Arrays.asList(map3.get(0)));
+        expectedScheduledVertices.add(Arrays.asList(map3.get(1)));
         assertLatestScheduledVerticesAreEqualTo(
                 expectedScheduledVertices, testingSchedulerOperation);
     }
@@ -136,7 +152,7 @@ class PipelinedRegionSchedulingStrategyTest {
                 startScheduling(testingSchedulingTopology);
 
         final Set<ExecutionVertexID> verticesToRestart =
-                Stream.of(source, map1, map2, sink)
+                Stream.of(source, map1, map2, map3, sink)
                         .flatMap(List::stream)
                         .map(TestingSchedulingExecutionVertex::getId)
                         .collect(Collectors.toSet());
@@ -149,6 +165,8 @@ class PipelinedRegionSchedulingStrategyTest {
         expectedScheduledVertices.add(Arrays.asList(source.get(1), map1.get(1)));
         expectedScheduledVertices.add(Arrays.asList(map2.get(0)));
         expectedScheduledVertices.add(Arrays.asList(map2.get(1)));
+        expectedScheduledVertices.add(Arrays.asList(map3.get(0)));
+        expectedScheduledVertices.add(Arrays.asList(map3.get(1)));
         assertLatestScheduledVerticesAreEqualTo(
                 expectedScheduledVertices, testingSchedulerOperation);
     }
@@ -158,18 +176,18 @@ class PipelinedRegionSchedulingStrategyTest {
         final PipelinedRegionSchedulingStrategy schedulingStrategy =
                 startScheduling(testingSchedulingTopology);
 
-        final TestingSchedulingExecutionVertex upstream1 = map2.get(0);
+        final TestingSchedulingExecutionVertex upstream1 = map3.get(0);
         upstream1.getProducedResults().iterator().next().markFinished();
         schedulingStrategy.onExecutionStateChange(upstream1.getId(), ExecutionState.FINISHED);
 
         // sinks' inputs are not all consumable yet so they are not scheduled
-        assertThat(testingSchedulerOperation.getScheduledVertices()).hasSize(4);
+        assertThat(testingSchedulerOperation.getScheduledVertices()).hasSize(6);
 
-        final TestingSchedulingExecutionVertex upstream2 = map2.get(1);
+        final TestingSchedulingExecutionVertex upstream2 = map3.get(1);
         upstream2.getProducedResults().iterator().next().markFinished();
         schedulingStrategy.onExecutionStateChange(upstream2.getId(), ExecutionState.FINISHED);
 
-        assertThat(testingSchedulerOperation.getScheduledVertices()).hasSize(6);
+        assertThat(testingSchedulerOperation.getScheduledVertices()).hasSize(8);
 
         final List<List<TestingSchedulingExecutionVertex>> expectedScheduledVertices =
                 new ArrayList<>();
@@ -347,7 +365,8 @@ class PipelinedRegionSchedulingStrategyTest {
 
         v2.connectNewDataSetAsInput(
                 v1, DistributionPattern.POINTWISE, ResultPartitionType.PIPELINED);
-        v3.connectNewDataSetAsInput(v2, DistributionPattern.POINTWISE, ResultPartitionType.HYBRID);
+        v3.connectNewDataSetAsInput(
+                v2, DistributionPattern.POINTWISE, ResultPartitionType.HYBRID_FULL);
         v3.connectNewDataSetAsInput(
                 v1, DistributionPattern.POINTWISE, ResultPartitionType.PIPELINED);
 
@@ -441,10 +460,14 @@ class PipelinedRegionSchedulingStrategyTest {
     void testFinishHybridPartitionWillNotRescheduleDownstream() throws Exception {
         final JobVertex v1 = createJobVertex("v1", 1);
         final JobVertex v2 = createJobVertex("v2", 1);
+        final JobVertex v3 = createJobVertex("v3", 1);
 
-        v2.connectNewDataSetAsInput(v1, DistributionPattern.POINTWISE, ResultPartitionType.HYBRID);
+        v2.connectNewDataSetAsInput(
+                v1, DistributionPattern.POINTWISE, ResultPartitionType.HYBRID_FULL);
+        v3.connectNewDataSetAsInput(
+                v1, DistributionPattern.POINTWISE, ResultPartitionType.HYBRID_SELECTIVE);
 
-        final List<JobVertex> ordered = new ArrayList<>(Arrays.asList(v1, v2));
+        final List<JobVertex> ordered = new ArrayList<>(Arrays.asList(v1, v2, v3));
         final JobGraph jobGraph =
                 JobGraphBuilder.newBatchJobGraphBuilder().addJobVertices(ordered).build();
         final ExecutionGraph executionGraph =
@@ -457,12 +480,12 @@ class PipelinedRegionSchedulingStrategyTest {
         PipelinedRegionSchedulingStrategy schedulingStrategy = startScheduling(schedulingTopology);
 
         // all regions will be scheduled
-        assertThat(testingSchedulerOperation.getScheduledVertices()).hasSize(2);
+        assertThat(testingSchedulerOperation.getScheduledVertices()).hasSize(3);
 
         final ExecutionVertex v11 = executionGraph.getJobVertex(v1.getID()).getTaskVertices()[0];
         schedulingStrategy.onExecutionStateChange(v11.getID(), ExecutionState.FINISHED);
 
-        assertThat(testingSchedulerOperation.getScheduledVertices()).hasSize(2);
+        assertThat(testingSchedulerOperation.getScheduledVertices()).hasSize(3);
     }
 
     /**
@@ -482,10 +505,12 @@ class PipelinedRegionSchedulingStrategyTest {
         final JobVertex v3 = createJobVertex("v3", 1);
         final JobVertex v4 = createJobVertex("v4", 1);
 
-        v2.connectNewDataSetAsInput(v1, DistributionPattern.POINTWISE, ResultPartitionType.HYBRID);
+        v2.connectNewDataSetAsInput(
+                v1, DistributionPattern.POINTWISE, ResultPartitionType.HYBRID_FULL);
         v3.connectNewDataSetAsInput(
                 v2, DistributionPattern.POINTWISE, ResultPartitionType.BLOCKING);
-        v4.connectNewDataSetAsInput(v3, DistributionPattern.POINTWISE, ResultPartitionType.HYBRID);
+        v4.connectNewDataSetAsInput(
+                v3, DistributionPattern.POINTWISE, ResultPartitionType.HYBRID_SELECTIVE);
 
         final List<JobVertex> ordered = new ArrayList<>(Arrays.asList(v1, v2, v3, v4));
         final JobGraph jobGraph =
@@ -526,6 +551,7 @@ class PipelinedRegionSchedulingStrategyTest {
         final JobVertex v2 = createJobVertex("v2", 1);
         final JobVertex v3 = createJobVertex("v3", 1);
         final JobVertex v4 = createJobVertex("v4", 1);
+        final JobVertex v5 = createJobVertex("v5", 1);
 
         v2.connectNewDataSetAsInput(
                 v1, DistributionPattern.POINTWISE, ResultPartitionType.PIPELINED);
@@ -533,11 +559,16 @@ class PipelinedRegionSchedulingStrategyTest {
                 v2, DistributionPattern.POINTWISE, ResultPartitionType.PIPELINED);
         v4.connectNewDataSetAsInput(
                 v2, DistributionPattern.POINTWISE, ResultPartitionType.PIPELINED);
-        v3.connectNewDataSetAsInput(v1, DistributionPattern.POINTWISE, ResultPartitionType.HYBRID);
+        v5.connectNewDataSetAsInput(
+                v2, DistributionPattern.POINTWISE, ResultPartitionType.PIPELINED);
+        v3.connectNewDataSetAsInput(
+                v1, DistributionPattern.POINTWISE, ResultPartitionType.HYBRID_FULL);
+        v4.connectNewDataSetAsInput(
+                v1, DistributionPattern.POINTWISE, ResultPartitionType.HYBRID_SELECTIVE);
         v4.connectNewDataSetAsInput(
                 v1, DistributionPattern.POINTWISE, ResultPartitionType.BLOCKING);
 
-        final List<JobVertex> ordered = new ArrayList<>(Arrays.asList(v1, v2, v3, v4));
+        final List<JobVertex> ordered = new ArrayList<>(Arrays.asList(v1, v2, v3, v4, v5));
         final JobGraph jobGraph =
                 JobGraphBuilder.newBatchJobGraphBuilder().addJobVertices(ordered).build();
         final ExecutionGraph executionGraph =
@@ -552,7 +583,7 @@ class PipelinedRegionSchedulingStrategyTest {
         assertThat(testingSchedulerOperation.getScheduledVertices()).hasSize(1);
         List<ExecutionVertexID> executionVertexIds =
                 testingSchedulerOperation.getScheduledVertices().get(0);
-        assertThat(executionVertexIds).hasSize(4);
+        assertThat(executionVertexIds).hasSize(5);
     }
 
     /**
@@ -564,12 +595,16 @@ class PipelinedRegionSchedulingStrategyTest {
         final JobVertex v1 = createJobVertex("v1", 1);
         final JobVertex v2 = createJobVertex("v2", 1);
         final JobVertex v3 = createJobVertex("v3", 1);
+        final JobVertex v4 = createJobVertex("v4", 1);
 
-        v3.connectNewDataSetAsInput(
+        v4.connectNewDataSetAsInput(
                 v1, DistributionPattern.POINTWISE, ResultPartitionType.BLOCKING);
-        v3.connectNewDataSetAsInput(v2, DistributionPattern.POINTWISE, ResultPartitionType.HYBRID);
+        v4.connectNewDataSetAsInput(
+                v2, DistributionPattern.POINTWISE, ResultPartitionType.HYBRID_FULL);
+        v4.connectNewDataSetAsInput(
+                v3, DistributionPattern.POINTWISE, ResultPartitionType.HYBRID_SELECTIVE);
 
-        final List<JobVertex> ordered = new ArrayList<>(Arrays.asList(v1, v2, v3));
+        final List<JobVertex> ordered = new ArrayList<>(Arrays.asList(v1, v2, v3, v4));
         final JobGraph jobGraph =
                 JobGraphBuilder.newBatchJobGraphBuilder().addJobVertices(ordered).build();
         final ExecutionGraph executionGraph =
@@ -582,12 +617,12 @@ class PipelinedRegionSchedulingStrategyTest {
         final PipelinedRegionSchedulingStrategy schedulingStrategy =
                 startScheduling(schedulingTopology);
 
-        assertThat(testingSchedulerOperation.getScheduledVertices()).hasSize(2);
+        assertThat(testingSchedulerOperation.getScheduledVertices()).hasSize(3);
 
         final ExecutionVertex v11 = executionGraph.getJobVertex(v1.getID()).getTaskVertices()[0];
         v11.finishAllBlockingPartitions();
         schedulingStrategy.onExecutionStateChange(v11.getID(), ExecutionState.FINISHED);
-        assertThat(testingSchedulerOperation.getScheduledVertices()).hasSize(3);
+        assertThat(testingSchedulerOperation.getScheduledVertices()).hasSize(4);
     }
 
     private static JobVertex createJobVertex(String vertexName, int parallelism) {

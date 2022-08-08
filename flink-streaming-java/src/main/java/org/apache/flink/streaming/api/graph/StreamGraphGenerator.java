@@ -400,8 +400,10 @@ public class StreamGraphGenerator {
                 return GlobalStreamExchangeMode.ALL_EDGES_PIPELINED;
             case ALL_EXCHANGES_BLOCKING:
                 return GlobalStreamExchangeMode.ALL_EDGES_BLOCKING;
-            case WIP_ALL_EXCHANGES_HYBRID:
-                return GlobalStreamExchangeMode.ALL_EDGES_HYBRID;
+            case WIP_ALL_EXCHANGES_HYBRID_FULL:
+                return GlobalStreamExchangeMode.ALL_EDGES_HYBRID_FULL;
+            case WIP_ALL_EXCHANGES_HYBRID_SELECTIVE:
+                return GlobalStreamExchangeMode.ALL_EDGES_HYBRID_SELECTIVE;
             default:
                 throw new IllegalArgumentException(
                         String.format(
