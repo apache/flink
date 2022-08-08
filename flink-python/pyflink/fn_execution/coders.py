@@ -725,13 +725,17 @@ def from_type_info_proto(type_info):
             return RowCoder(
                 [from_type_info_proto(f.field_type) for f in type_info.row_type_info.fields],
                 [f.field_name for f in type_info.row_type_info.fields])
-        elif field_type_name == type_info_name.PRIMITIVE_ARRAY:
+        elif field_type_name in (
+            type_info_name.PRIMITIVE_ARRAY,
+            type_info_name.LIST,
+        ):
             if type_info.collection_element_type.type_name == type_info_name.BYTE:
                 return BinaryCoder()
             return PrimitiveArrayCoder(from_type_info_proto(type_info.collection_element_type))
-        elif field_type_name in (type_info_name.BASIC_ARRAY,
-                                 type_info_name.OBJECT_ARRAY,
-                                 type_info_name.LIST):
+        elif field_type_name in (
+            type_info_name.BASIC_ARRAY,
+            type_info_name.OBJECT_ARRAY,
+        ):
             return GenericArrayCoder(from_type_info_proto(type_info.collection_element_type))
         elif field_type_name == type_info_name.TUPLE:
             return TupleCoder([from_type_info_proto(field_type)
