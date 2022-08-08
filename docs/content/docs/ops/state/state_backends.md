@@ -407,7 +407,6 @@ dstl.dfs.base-path: s3://<bucket-name> # similar to state.checkpoints.dir
 Please keep the following defaults (see [limitations](#limitations)):
 ```yaml
 execution.checkpointing.max-concurrent-checkpoints: 1
-state.backend.local-recovery: false
 ```
 
 Please refer to the [configuration section]({{< ref "docs/deployment/config#state-changelog-options" >}}) for other options.
@@ -460,7 +459,6 @@ Resuming from both savepoints and checkpoints is supported:
 
 ### Limitations
  - At most one concurrent checkpoint
- - Local recovery not supported
  - As of Flink 1.15, only `filesystem` changelog implementation is available
 - [NO_CLAIM]({{< ref "docs/deployment/config#execution-savepoint-restore-mode" >}}) mode not supported
 
