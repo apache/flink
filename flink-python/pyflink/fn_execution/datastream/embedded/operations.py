@@ -15,6 +15,7 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 ################################################################################
+from pyflink.datastream import OutputTag
 from pyflink.datastream.window import WindowOperationDescriptor
 from pyflink.fn_execution import pickle
 from pyflink.fn_execution.coders import TimeWindowCoder, CountWindowCoder
@@ -27,6 +28,7 @@ from pyflink.fn_execution.datastream.embedded.process_function import (
     InternalKeyedBroadcastProcessFunctionReadOnlyContext,
     InternalKeyedBroadcastProcessFunctionOnTimerContext)
 from pyflink.fn_execution.datastream.embedded.runtime_context import StreamingRuntimeContext
+from pyflink.fn_execution.datastream.embedded.side_output_context import SideOutputContext
 from pyflink.fn_execution.datastream.embedded.timerservice_impl import InternalTimerServiceImpl
 from pyflink.fn_execution.datastream.window.window_operator import WindowOperator
 from pyflink.fn_execution.embedded.converters import (TimeWindowConverter, CountWindowConverter,
@@ -84,7 +86,7 @@ class TwoInputOperation(operations.TwoInputOperation):
 
 def extract_process_function(
         user_defined_function_proto, j_runtime_context, j_function_context, j_timer_context,
-        job_parameters, j_keyed_state_backend, j_operator_state_backend):
+        j_side_output_context, job_parameters, j_keyed_state_backend, j_operator_state_backend):
     from pyflink.fn_execution import flink_fn_execution_pb2
 
     user_defined_func = pickle.loads(user_defined_function_proto.payload)
@@ -94,6 +96,20 @@ def extract_process_function(
     UserDefinedDataStreamFunction = flink_fn_execution_pb2.UserDefinedDataStreamFunction
 
     runtime_context = StreamingRuntimeContext.of(j_runtime_context, job_parameters)
+
+    if j_side_output_context:
+        side_output_context = SideOutputContext(j_side_output_context)
+
+        def process_func(values):
+            for value in values:
+                if isinstance(value, tuple) and isinstance(value[0], OutputTag):
+                    output_tag = value[0]  # type: OutputTag
+                    side_output_context.collect(output_tag.tag_id, value[1])
+                else:
+                    yield value
+    else:
+        def process_func(values):
+            yield from values
 
     def open_func():
         if hasattr(user_defined_func, "open"):
@@ -109,7 +125,7 @@ def extract_process_function(
         process_element = user_defined_func.process_element
 
         def process_element_func(value):
-            yield from process_element(value, function_context)
+            yield from process_func(process_element(value, function_context))
 
         return OneInputOperation(open_func, close_func, process_element_func)
 
@@ -133,10 +149,10 @@ def extract_process_function(
             return user_defined_func.process_element(value[1], context)
 
         def on_timer_func(timestamp):
-            yield from on_timer(timestamp, timer_context)
+            yield from process_func(on_timer(timestamp, timer_context))
 
         def process_element_func(value):
-            yield from process_element(value, function_context)
+            yield from process_func(process_element(value, function_context))
 
         return OneInputOperation(open_func, close_func, process_element_func, on_timer_func)
 
@@ -147,10 +163,10 @@ def extract_process_function(
         process_element2 = user_defined_func.process_element2
 
         def process_element_func1(value):
-            yield from process_element1(value, function_context)
+            yield from process_func(process_element1(value, function_context))
 
         def process_element_func2(value):
-            yield from process_element2(value, function_context)
+            yield from process_func(process_element2(value, function_context))
 
         return TwoInputOperation(
             open_func, close_func, process_element_func1, process_element_func2)
@@ -203,13 +219,13 @@ def extract_process_function(
             return user_defined_func.process_element2(value[1], context)
 
         def on_timer_func(timestamp):
-            yield from on_timer(timestamp, timer_context)
+            yield from process_func(on_timer(timestamp, timer_context))
 
         def process_element_func1(value):
-            yield from process_element1(value, function_context)
+            yield from process_func(process_element1(value, function_context))
 
         def process_element_func2(value):
-            yield from process_element2(value, function_context)
+            yield from process_func(process_element2(value, function_context))
 
         return TwoInputOperation(
             open_func, close_func, process_element_func1, process_element_func2, on_timer_func)
@@ -307,18 +323,19 @@ def extract_process_function(
             window_operator.close()
 
         def process_element_func(value):
-            yield from window_operator.process_element(value[1], function_context.timestamp())
+            yield from process_func(
+                window_operator.process_element(value[1], function_context.timestamp()))
 
         if window_assigner.is_event_time():
             def on_timer_func(timestamp):
                 window = window_timer_context.window()
                 key = window_timer_context.get_current_key()
-                yield from window_operator.on_event_time(timestamp, key, window)
+                yield from process_func(window_operator.on_event_time(timestamp, key, window))
         else:
             def on_timer_func(timestamp):
                 window = window_timer_context.window()
                 key = window_timer_context.get_current_key()
-                yield from window_operator.on_processing_time(timestamp, key, window)
+                yield from process_func(window_operator.on_processing_time(timestamp, key, window))
 
         return OneInputOperation(open_func, close_func, process_element_func, on_timer_func)
 

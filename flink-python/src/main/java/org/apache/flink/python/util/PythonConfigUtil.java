@@ -36,7 +36,6 @@ import org.apache.flink.streaming.api.operators.SimpleOperatorFactory;
 import org.apache.flink.streaming.api.operators.StreamOperatorFactory;
 import org.apache.flink.streaming.api.operators.python.AbstractPythonFunctionOperator;
 import org.apache.flink.streaming.api.operators.python.DataStreamPythonFunctionOperator;
-import org.apache.flink.streaming.api.operators.python.process.AbstractExternalDataStreamPythonFunctionOperator;
 import org.apache.flink.streaming.api.operators.python.process.AbstractExternalOneInputPythonFunctionOperator;
 import org.apache.flink.streaming.api.transformations.AbstractMultipleInputTransformation;
 import org.apache.flink.streaming.api.transformations.OneInputTransformation;
@@ -60,6 +59,7 @@ import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -150,11 +150,12 @@ public class PythonConfigUtil {
                 final Transformation<?> upTransform =
                         Iterables.getOnlyElement(sideTransform.getInputs());
                 if (PythonConfigUtil.isPythonDataStreamOperator(upTransform)) {
-                    final AbstractExternalDataStreamPythonFunctionOperator<?> upOperator =
-                            (AbstractExternalDataStreamPythonFunctionOperator<?>)
+                    final DataStreamPythonFunctionOperator<?> upOperator =
+                            (DataStreamPythonFunctionOperator<?>)
                                     ((SimpleOperatorFactory<?>) getOperatorFactory(upTransform))
                                             .getOperator();
-                    upOperator.addSideOutputTag(sideTransform.getOutputTag());
+                    upOperator.addSideOutputTags(
+                            Collections.singletonList(sideTransform.getOutputTag()));
                 }
             }
 

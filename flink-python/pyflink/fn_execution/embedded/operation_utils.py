@@ -103,7 +103,7 @@ def create_table_operation_from_proto(proto, input_coder_info, output_coder_into
 
 def create_one_input_user_defined_data_stream_function_from_protos(
         function_infos, input_coder_info, output_coder_info, runtime_context,
-        function_context, timer_context, job_parameters, keyed_state_backend,
+        function_context, timer_context, side_output_context, job_parameters, keyed_state_backend,
         operator_state_backend):
     serialized_fns = [pare_user_defined_data_stream_function_proto(proto)
                       for proto in function_infos]
@@ -119,6 +119,7 @@ def create_one_input_user_defined_data_stream_function_from_protos(
         runtime_context,
         function_context,
         timer_context,
+        side_output_context,
         job_parameters,
         keyed_state_backend,
         operator_state_backend)
@@ -128,7 +129,7 @@ def create_one_input_user_defined_data_stream_function_from_protos(
 
 def create_two_input_user_defined_data_stream_function_from_protos(
         function_infos, input_coder_info1, input_coder_info2, output_coder_info, runtime_context,
-        function_context, timer_context, job_parameters, keyed_state_backend,
+        function_context, timer_context, side_output_context, job_parameters, keyed_state_backend,
         operator_state_backend):
     serialized_fns = [pare_user_defined_data_stream_function_proto(proto)
                       for proto in function_infos]
@@ -150,6 +151,7 @@ def create_two_input_user_defined_data_stream_function_from_protos(
         runtime_context,
         function_context,
         timer_context,
+        side_output_context,
         job_parameters,
         keyed_state_backend,
         operator_state_backend)

@@ -117,6 +117,7 @@ public abstract class AbstractOneInputEmbeddedPythonFunctionOperator<IN, OUT>
         interpreter.set("job_parameters", getJobParameters());
         interpreter.set("keyed_state_backend", getKeyedStateBackend());
         interpreter.set("operator_state_backend", getOperatorStateBackend());
+        interpreter.set("side_output_context", sideOutputContext);
 
         interpreter.exec(
                 "from pyflink.fn_execution.embedded.operation_utils import create_one_input_user_defined_data_stream_function_from_protos");
@@ -129,6 +130,7 @@ public abstract class AbstractOneInputEmbeddedPythonFunctionOperator<IN, OUT>
                         + "runtime_context,"
                         + "function_context,"
                         + "timer_context,"
+                        + "side_output_context,"
                         + "job_parameters,"
                         + "keyed_state_backend,"
                         + "operator_state_backend)");

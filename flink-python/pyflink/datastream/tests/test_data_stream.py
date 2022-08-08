@@ -526,6 +526,165 @@ class DataStreamTests(object):
         ]
         self.assert_equals_sorted(expected, self.test_sink.get_results())
 
+    def test_side_output_chained_with_upstream_operator(self):
+        tag = OutputTag("side", Types.INT())
+
+        ds = self.env.from_collection([('a', 0), ('b', 1), ('c', 2)],
+                                      type_info=Types.ROW([Types.STRING(), Types.INT()]))
+
+        class MyProcessFunction(ProcessFunction):
+
+            def process_element(self, value, ctx: 'ProcessFunction.Context'):
+                yield value[0]
+                yield tag, value[1]
+
+        ds2 = ds.map(lambda e: (e[0], e[1]+1)) \
+            .process(MyProcessFunction(), output_type=Types.STRING())
+        main_sink = DataStreamTestSinkFunction()
+        ds2.add_sink(main_sink)
+        side_sink = DataStreamTestSinkFunction()
+        ds2.get_side_output(tag).add_sink(side_sink)
+
+        self.env.execute("test_side_output_chained_with_upstream_operator")
+        main_expected = ['a', 'b', 'c']
+        self.assert_equals_sorted(main_expected, main_sink.get_results())
+        side_expected = ['1', '2', '3']
+        self.assert_equals_sorted(side_expected, side_sink.get_results())
+
+    def test_process_multiple_side_output(self):
+        tag1 = OutputTag("side1", Types.INT())
+        tag2 = OutputTag("side2", Types.STRING())
+
+        ds = self.env.from_collection([('a', 0), ('b', 1), ('c', 2)],
+                                      type_info=Types.ROW([Types.STRING(), Types.INT()]))
+
+        class MyProcessFunction(ProcessFunction):
+
+            def process_element(self, value, ctx: 'ProcessFunction.Context'):
+                yield value[0]
+                yield tag1, value[1]
+                yield tag2, value[0] + str(value[1])
+
+        ds2 = ds.process(MyProcessFunction(), output_type=Types.STRING())
+        main_sink = DataStreamTestSinkFunction()
+        ds2.add_sink(main_sink)
+        side1_sink = DataStreamTestSinkFunction()
+        ds2.get_side_output(tag1).add_sink(side1_sink)
+        side2_sink = DataStreamTestSinkFunction()
+        ds2.get_side_output(tag2).add_sink(side2_sink)
+
+        self.env.execute("test_process_multiple_side_output")
+        main_expected = ['a', 'b', 'c']
+        self.assert_equals_sorted(main_expected, main_sink.get_results())
+        side1_expected = ['0', '1', '2']
+        self.assert_equals_sorted(side1_expected, side1_sink.get_results())
+        side2_expected = ['a0', 'b1', 'c2']
+        self.assert_equals_sorted(side2_expected, side2_sink.get_results())
+
+    def test_co_process_side_output(self):
+        tag = OutputTag("side", Types.INT())
+
+        class MyCoProcessFunction(CoProcessFunction):
+
+            def process_element1(self, value, ctx: 'CoProcessFunction.Context'):
+                yield value[0]
+                yield tag, value[1]
+
+            def process_element2(self, value, ctx: 'CoProcessFunction.Context'):
+                yield value[1]
+                yield tag, value[0]
+
+        ds1 = self.env.from_collection([('a', 0), ('b', 1), ('c', 2)],
+                                       type_info=Types.ROW([Types.STRING(), Types.INT()]))
+        ds2 = self.env.from_collection([(3, 'c'), (1, 'a'), (0, 'd')],
+                                       type_info=Types.ROW([Types.INT(), Types.STRING()]))
+        ds3 = ds1.connect(ds2).process(MyCoProcessFunction(), output_type=Types.STRING())
+        ds3.add_sink(self.test_sink)
+        side_sink = DataStreamTestSinkFunction()
+        ds3.get_side_output(tag).add_sink(side_sink)
+
+        self.env.execute("test_co_process_side_output")
+        main_expected = ['a', 'a', 'b', 'c', 'c', 'd']
+        self.assert_equals_sorted(main_expected, self.test_sink.get_results())
+        side_expected = ['0', '0', '1', '1', '2', '3']
+        self.assert_equals_sorted(side_expected, side_sink.get_results())
+
+    def test_keyed_process_side_output(self):
+        tag = OutputTag("side", Types.INT())
+
+        ds = self.env.from_collection([('a', 1), ('b', 2), ('a', 3), ('b', 4)],
+                                      type_info=Types.ROW([Types.STRING(), Types.INT()]))
+
+        class MyKeyedProcessFunction(KeyedProcessFunction):
+
+            def __init__(self):
+                self.reducing_state = None  # type: ReducingState
+
+            def open(self, context: RuntimeContext):
+                self.reducing_state = context.get_reducing_state(
+                    ReducingStateDescriptor("reduce", lambda i, j: i+j, Types.INT())
+                )
+
+            def process_element(self, value, ctx: 'KeyedProcessFunction.Context'):
+                yield value[1]
+                self.reducing_state.add(value[1])
+                yield tag, self.reducing_state.get()
+
+        ds2 = ds.key_by(lambda e: e[0]).process(MyKeyedProcessFunction(),
+                                                output_type=Types.INT())
+        main_sink = DataStreamTestSinkFunction()
+        ds2.add_sink(main_sink)
+        side_sink = DataStreamTestSinkFunction()
+        ds2.get_side_output(tag).add_sink(side_sink)
+
+        self.env.execute("test_keyed_process_side_output")
+        main_expected = ['1', '2', '3', '4']
+        self.assert_equals_sorted(main_expected, main_sink.get_results())
+        side_expected = ['1', '2', '4', '6']
+        self.assert_equals_sorted(side_expected, side_sink.get_results())
+
+    def test_keyed_co_process_side_output(self):
+        tag = OutputTag("side", Types.INT())
+
+        ds1 = self.env.from_collection([('a', 1), ('b', 2), ('a', 3), ('b', 4)],
+                                       type_info=Types.ROW([Types.STRING(), Types.INT()]))
+        ds2 = self.env.from_collection([(8, 'a'), (7, 'b'), (6, 'a'), (5, 'b')],
+                                       type_info=Types.ROW([Types.INT(), Types.STRING()]))
+
+        class MyKeyedCoProcessFunction(KeyedCoProcessFunction):
+
+            def __init__(self):
+                self.reducing_state = None  # type: ReducingState
+
+            def open(self, context: RuntimeContext):
+                self.reducing_state = context.get_reducing_state(
+                    ReducingStateDescriptor("reduce", lambda i, j: i+j, Types.INT())
+                )
+
+            def process_element1(self, value, ctx: 'KeyedCoProcessFunction.Context'):
+                yield value[1]
+                self.reducing_state.add(1)
+                yield tag, self.reducing_state.get()
+
+            def process_element2(self, value, ctx: 'KeyedCoProcessFunction.Context'):
+                yield value[0]
+                self.reducing_state.add(1)
+                yield tag, self.reducing_state.get()
+
+        ds3 = ds1.key_by(lambda e: e[0])\
+            .connect(ds2.key_by(lambda e: e[1]))\
+            .process(MyKeyedCoProcessFunction(), output_type=Types.INT())
+        main_sink = DataStreamTestSinkFunction()
+        ds3.add_sink(main_sink)
+        side_sink = DataStreamTestSinkFunction()
+        ds3.get_side_output(tag).add_sink(side_sink)
+
+        self.env.execute("test_keyed_co_process_side_output")
+        main_expected = ['1', '2', '3', '4', '5', '6', '7', '8']
+        self.assert_equals_sorted(main_expected, main_sink.get_results())
+        side_expected = ['1', '1', '2', '2', '3', '3', '4', '4']
+        self.assert_equals_sorted(side_expected, side_sink.get_results())
+
 
 class DataStreamStreamingTests(DataStreamTests):
 
@@ -994,165 +1153,6 @@ class ProcessDataStreamTests(DataStreamTests):
         main_expected = ['a', 'b', 'c']
         self.assert_equals_sorted(main_expected, main_sink.get_results())
         side_expected = ['0', '1', '2']
-        self.assert_equals_sorted(side_expected, side_sink.get_results())
-
-    def test_side_output_chained_with_upstream_operator(self):
-        tag = OutputTag("side", Types.INT())
-
-        ds = self.env.from_collection([('a', 0), ('b', 1), ('c', 2)],
-                                      type_info=Types.ROW([Types.STRING(), Types.INT()]))
-
-        class MyProcessFunction(ProcessFunction):
-
-            def process_element(self, value, ctx: 'ProcessFunction.Context'):
-                yield value[0]
-                yield tag, value[1]
-
-        ds2 = ds.map(lambda e: (e[0], e[1]+1)) \
-            .process(MyProcessFunction(), output_type=Types.STRING())
-        main_sink = DataStreamTestSinkFunction()
-        ds2.add_sink(main_sink)
-        side_sink = DataStreamTestSinkFunction()
-        ds2.get_side_output(tag).add_sink(side_sink)
-
-        self.env.execute("test_side_output_chained_with_upstream_operator")
-        main_expected = ['a', 'b', 'c']
-        self.assert_equals_sorted(main_expected, main_sink.get_results())
-        side_expected = ['1', '2', '3']
-        self.assert_equals_sorted(side_expected, side_sink.get_results())
-
-    def test_process_multiple_side_output(self):
-        tag1 = OutputTag("side1", Types.INT())
-        tag2 = OutputTag("side2", Types.STRING())
-
-        ds = self.env.from_collection([('a', 0), ('b', 1), ('c', 2)],
-                                      type_info=Types.ROW([Types.STRING(), Types.INT()]))
-
-        class MyProcessFunction(ProcessFunction):
-
-            def process_element(self, value, ctx: 'ProcessFunction.Context'):
-                yield value[0]
-                yield tag1, value[1]
-                yield tag2, value[0] + str(value[1])
-
-        ds2 = ds.process(MyProcessFunction(), output_type=Types.STRING())
-        main_sink = DataStreamTestSinkFunction()
-        ds2.add_sink(main_sink)
-        side1_sink = DataStreamTestSinkFunction()
-        ds2.get_side_output(tag1).add_sink(side1_sink)
-        side2_sink = DataStreamTestSinkFunction()
-        ds2.get_side_output(tag2).add_sink(side2_sink)
-
-        self.env.execute("test_process_multiple_side_output")
-        main_expected = ['a', 'b', 'c']
-        self.assert_equals_sorted(main_expected, main_sink.get_results())
-        side1_expected = ['0', '1', '2']
-        self.assert_equals_sorted(side1_expected, side1_sink.get_results())
-        side2_expected = ['a0', 'b1', 'c2']
-        self.assert_equals_sorted(side2_expected, side2_sink.get_results())
-
-    def test_co_process_side_output(self):
-        tag = OutputTag("side", Types.INT())
-
-        class MyCoProcessFunction(CoProcessFunction):
-
-            def process_element1(self, value, ctx: 'CoProcessFunction.Context'):
-                yield value[0]
-                yield tag, value[1]
-
-            def process_element2(self, value, ctx: 'CoProcessFunction.Context'):
-                yield value[1]
-                yield tag, value[0]
-
-        ds1 = self.env.from_collection([('a', 0), ('b', 1), ('c', 2)],
-                                       type_info=Types.ROW([Types.STRING(), Types.INT()]))
-        ds2 = self.env.from_collection([(3, 'c'), (1, 'a'), (0, 'd')],
-                                       type_info=Types.ROW([Types.INT(), Types.STRING()]))
-        ds3 = ds1.connect(ds2).process(MyCoProcessFunction(), output_type=Types.STRING())
-        ds3.add_sink(self.test_sink)
-        side_sink = DataStreamTestSinkFunction()
-        ds3.get_side_output(tag).add_sink(side_sink)
-
-        self.env.execute("test_co_process_side_output")
-        main_expected = ['a', 'a', 'b', 'c', 'c', 'd']
-        self.assert_equals_sorted(main_expected, self.test_sink.get_results())
-        side_expected = ['0', '0', '1', '1', '2', '3']
-        self.assert_equals_sorted(side_expected, side_sink.get_results())
-
-    def test_keyed_process_side_output(self):
-        tag = OutputTag("side", Types.INT())
-
-        ds = self.env.from_collection([('a', 1), ('b', 2), ('a', 3), ('b', 4)],
-                                      type_info=Types.ROW([Types.STRING(), Types.INT()]))
-
-        class MyKeyedProcessFunction(KeyedProcessFunction):
-
-            def __init__(self):
-                self.reducing_state = None  # type: ReducingState
-
-            def open(self, context: RuntimeContext):
-                self.reducing_state = context.get_reducing_state(
-                    ReducingStateDescriptor("reduce", lambda i, j: i+j, Types.INT())
-                )
-
-            def process_element(self, value, ctx: 'KeyedProcessFunction.Context'):
-                yield value[1]
-                self.reducing_state.add(value[1])
-                yield tag, self.reducing_state.get()
-
-        ds2 = ds.key_by(lambda e: e[0]).process(MyKeyedProcessFunction(),
-                                                output_type=Types.INT())
-        main_sink = DataStreamTestSinkFunction()
-        ds2.add_sink(main_sink)
-        side_sink = DataStreamTestSinkFunction()
-        ds2.get_side_output(tag).add_sink(side_sink)
-
-        self.env.execute("test_keyed_process_side_output")
-        main_expected = ['1', '2', '3', '4']
-        self.assert_equals_sorted(main_expected, main_sink.get_results())
-        side_expected = ['1', '2', '4', '6']
-        self.assert_equals_sorted(side_expected, side_sink.get_results())
-
-    def test_keyed_co_process_side_output(self):
-        tag = OutputTag("side", Types.INT())
-
-        ds1 = self.env.from_collection([('a', 1), ('b', 2), ('a', 3), ('b', 4)],
-                                       type_info=Types.ROW([Types.STRING(), Types.INT()]))
-        ds2 = self.env.from_collection([(8, 'a'), (7, 'b'), (6, 'a'), (5, 'b')],
-                                       type_info=Types.ROW([Types.INT(), Types.STRING()]))
-
-        class MyKeyedCoProcessFunction(KeyedCoProcessFunction):
-
-            def __init__(self):
-                self.reducing_state = None  # type: ReducingState
-
-            def open(self, context: RuntimeContext):
-                self.reducing_state = context.get_reducing_state(
-                    ReducingStateDescriptor("reduce", lambda i, j: i+j, Types.INT())
-                )
-
-            def process_element1(self, value, ctx: 'KeyedCoProcessFunction.Context'):
-                yield value[1]
-                self.reducing_state.add(1)
-                yield tag, self.reducing_state.get()
-
-            def process_element2(self, value, ctx: 'KeyedCoProcessFunction.Context'):
-                yield value[0]
-                self.reducing_state.add(1)
-                yield tag, self.reducing_state.get()
-
-        ds3 = ds1.key_by(lambda e: e[0])\
-            .connect(ds2.key_by(lambda e: e[1]))\
-            .process(MyKeyedCoProcessFunction(), output_type=Types.INT())
-        main_sink = DataStreamTestSinkFunction()
-        ds3.add_sink(main_sink)
-        side_sink = DataStreamTestSinkFunction()
-        ds3.get_side_output(tag).add_sink(side_sink)
-
-        self.env.execute("test_keyed_co_process_side_output")
-        main_expected = ['1', '2', '3', '4', '5', '6', '7', '8']
-        self.assert_equals_sorted(main_expected, main_sink.get_results())
-        side_expected = ['1', '1', '2', '2', '3', '3', '4', '4']
         self.assert_equals_sorted(side_expected, side_sink.get_results())
 
 
