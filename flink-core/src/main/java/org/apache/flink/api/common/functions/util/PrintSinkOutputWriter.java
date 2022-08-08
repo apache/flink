@@ -18,13 +18,15 @@
 package org.apache.flink.api.common.functions.util;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.connector.sink2.SinkWriter;
 
+import java.io.IOException;
 import java.io.PrintStream;
 import java.io.Serializable;
 
 /** Print sink output writer for DataStream and DataSet print API. */
 @Internal
-public class PrintSinkOutputWriter<IN> implements Serializable {
+public class PrintSinkOutputWriter<IN> implements Serializable, SinkWriter<IN> {
 
     private static final long serialVersionUID = 1L;
 
@@ -70,6 +72,19 @@ public class PrintSinkOutputWriter<IN> implements Serializable {
     public void write(IN record) {
         stream.println(completedPrefix + record.toString());
     }
+
+    @Override
+    public void write(IN element, Context context) throws IOException, InterruptedException {
+        write(element);
+    }
+
+    @Override
+    public void flush(boolean endOfInput) throws IOException, InterruptedException {
+        stream.flush();
+    }
+
+    @Override
+    public void close() throws Exception {}
 
     @Override
     public String toString() {
