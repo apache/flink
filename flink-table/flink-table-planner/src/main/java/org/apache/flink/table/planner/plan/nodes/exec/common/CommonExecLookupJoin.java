@@ -342,12 +342,16 @@ public abstract class CommonExecLookupJoin extends ExecNodeBase<RowData>
                         isLeftOuterJoin,
                         isObjectReuseEnabled);
 
+        RowType rightRowType =
+                getRightRowType(
+                        getProjectionRowTypeOnTemporalTable(relBuilder), tableSourceRowType);
+
         KeyedLookupJoinWrapper keyedLookupJoinWrapper =
                 new KeyedLookupJoinWrapper(
                         (LookupJoinRunner) processFunction,
                         StateConfigUtil.createTtlConfig(
                                 config.get(ExecutionConfigOptions.IDLE_STATE_RETENTION).toMillis()),
-                        InternalSerializers.create(tableSourceRowType),
+                        InternalSerializers.create(rightRowType),
                         lookupKeyContainsPrimaryKey);
 
         KeyedProcessOperator<RowData, RowData, RowData> operator =
@@ -580,6 +584,21 @@ public abstract class CommonExecLookupJoin extends ExecNodeBase<RowData>
                                 isObjectReuseEnabled)));
     }
 
+    private Optional<RelDataType> getProjectionRowTypeOnTemporalTable(RelBuilder relBuilder) {
+        return projectionOnTemporalTable != null
+                ? Optional.of(
+                        RexUtil.createStructType(
+                                unwrapTypeFactory(relBuilder), projectionOnTemporalTable))
+                : Optional.empty();
+    }
+
+    private RowType getRightRowType(
+            Optional<RelDataType> temporalTableOutputType, RowType tableSourceRowType) {
+        return projectionOnTemporalTable != null
+                ? (RowType) toLogicalType(temporalTableOutputType.get())
+                : tableSourceRowType;
+    }
+
     private ProcessFunction<RowData, RowData> createSyncLookupJoinFunction(
             RelOptTable temporalTable,
             ExecNodeConfig config,
@@ -613,15 +632,8 @@ public abstract class CommonExecLookupJoin extends ExecNodeBase<RowData>
                         isObjectReuseEnabled);
 
         Optional<RelDataType> temporalTableOutputType =
-                projectionOnTemporalTable != null
-                        ? Optional.of(
-                                RexUtil.createStructType(
-                                        unwrapTypeFactory(relBuilder), projectionOnTemporalTable))
-                        : Optional.empty();
-        RowType rightRowType =
-                projectionOnTemporalTable != null
-                        ? (RowType) toLogicalType(temporalTableOutputType.get())
-                        : tableSourceRowType;
+                getProjectionRowTypeOnTemporalTable(relBuilder);
+        RowType rightRowType = getRightRowType(temporalTableOutputType, tableSourceRowType);
         GeneratedCollector<ListenableCollector<RowData>> generatedCollector =
                 LookupJoinCodeGenerator.generateCollector(
                         new CodeGeneratorContext(config, classLoader),

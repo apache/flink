@@ -22,6 +22,7 @@ import org.apache.flink.core.testutils.FlinkMatchers.containsMessage
 import org.apache.flink.streaming.api.datastream.DataStream
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
 import org.apache.flink.table.api._
+import org.apache.flink.table.api.config.OptimizerConfigOptions
 import org.apache.flink.table.api.internal.TableEnvironmentInternal
 import org.apache.flink.table.data.RowData
 import org.apache.flink.table.descriptors.ConnectorDescriptorValidator.CONNECTOR_TYPE
@@ -30,6 +31,7 @@ import org.apache.flink.table.factories.TableSourceFactory
 import org.apache.flink.table.functions.{AsyncTableFunction, TableFunction, UserDefinedFunction}
 import org.apache.flink.table.planner.plan.utils._
 import org.apache.flink.table.planner.utils.TableTestBase
+import org.apache.flink.table.planner.utils.TableTestUtil.{readFromResource, replaceNodeIdInOperator, replaceStageId, replaceStreamNodeId}
 import org.apache.flink.table.sources._
 import org.apache.flink.table.types.DataType
 import org.apache.flink.table.utils.EncodingUtils
@@ -40,7 +42,7 @@ import _root_.java.util
 import _root_.java.util.{ArrayList => JArrayList, Collection => JCollection, HashMap => JHashMap, List => JList, Map => JMap}
 import _root_.scala.collection.JavaConversions._
 import org.junit.{Assume, Before, Test}
-import org.junit.Assert.{assertThat, assertTrue, fail}
+import org.junit.Assert.{assertEquals, assertThat, assertTrue, fail}
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
 
@@ -541,6 +543,46 @@ class LookupJoinTest(legacyTableSource: Boolean) extends TableTestBase with Seri
       """.stripMargin
 
     util.verifyExecPlan(sql)
+  }
+
+  @Test
+  def testAggAndAllConstantLookupKeyWithTryResolveMode(): Unit = {
+    util.getStreamEnv.setParallelism(4)
+    // expect lookup join using single parallelism due to all constant lookup key
+    util.tableEnv.getConfig.set(
+      OptimizerConfigOptions.TABLE_OPTIMIZER_NONDETERMINISTIC_UPDATE_STRATEGY,
+      OptimizerConfigOptions.NonDeterministicUpdateStrategy.TRY_RESOLVE)
+
+    util.addTable("""
+                    |CREATE TABLE Sink1 (
+                    |  `id` INT,
+                    |  `name` STRING,
+                    |  `age` INT
+                    |) WITH (
+                    |  'connector' = 'values',
+                    |  'sink-insert-only' = 'false'
+                    |)
+                    |""".stripMargin)
+
+    val sql =
+      """
+        |INSERT INTO Sink1
+        |SELECT T.a, D.name, D.age
+        |FROM (SELECT max(a) a, count(c) c, PROCTIME() proctime FROM MyTable GROUP BY b) T
+        | LEFT JOIN LookupTable FOR SYSTEM_TIME AS OF T.proctime AS D
+        |  ON D.id = 100
+      """.stripMargin
+    val actual = util.tableEnv.explainSql(sql, ExplainDetail.JSON_EXECUTION_PLAN)
+    val expected = if (legacyTableSource) {
+      readFromResource(
+        "explain/stream/join/lookup/testAggAndAllConstantLookupKeyWithTryResolveMode.out")
+    } else {
+      readFromResource(
+        "explain/stream/join/lookup/testAggAndAllConstantLookupKeyWithTryResolveMode_newSource.out")
+    }
+    assertEquals(
+      replaceNodeIdInOperator(replaceStreamNodeId(replaceStageId(expected))),
+      replaceNodeIdInOperator(replaceStreamNodeId(replaceStageId(actual))))
   }
 
   // ==========================================================================================

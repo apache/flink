@@ -20,21 +20,25 @@ package org.apache.flink.table.planner.runtime.stream.sql
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api._
 import org.apache.flink.table.api.bridge.scala._
+<<<<<<< HEAD
 import org.apache.flink.table.connector.source.lookup.LookupOptions
 import org.apache.flink.table.data.GenericRowData
 import org.apache.flink.table.data.binary.BinaryStringData
+=======
+import org.apache.flink.table.api.config.OptimizerConfigOptions
+>>>>>>> 542a4200f1 (address comments and fix the case that lookup key contains constants)
 import org.apache.flink.table.planner.factories.TestValuesTableFactory
-import org.apache.flink.table.planner.runtime.utils.{InMemoryLookupableTableSource, StreamingTestBase, TestingAppendSink}
 import org.apache.flink.table.planner.runtime.utils.UserDefinedFunctionTestUtils.TestAddWithOpen
+import org.apache.flink.table.planner.runtime.utils.{InMemoryLookupableTableSource, StreamingTestBase, TestingAppendSink, TestingRetractSink}
 import org.apache.flink.table.runtime.functions.table.lookup.LookupCacheManager
 import org.apache.flink.types.Row
 
 import org.assertj.core.api.Assertions.assertThat
 import org.assertj.core.api.IterableAssert.assertThatIterable
-import org.junit.{After, Before, Test}
 import org.junit.Assert.{assertEquals, assertTrue}
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
+import org.junit.{After, Before, Test}
 
 import java.lang.{Boolean => JBoolean}
 import java.time.LocalDateTime
@@ -624,6 +628,50 @@ class LookupJoinITCase(legacyTableSource: Boolean, enableCache: Boolean) extends
 
   def jl(l: Long): java.lang.Long = {
     new java.lang.Long(l)
+  }
+
+  @Test
+  def testAggAndLeftJoinWithTryResolveMode(): Unit = {
+    tEnv.getConfig.set(
+      OptimizerConfigOptions.TABLE_OPTIMIZER_NONDETERMINISTIC_UPDATE_STRATEGY,
+      OptimizerConfigOptions.NonDeterministicUpdateStrategy.TRY_RESOLVE)
+
+    val sql1 = "SELECT max(id) as id, PROCTIME() as proctime FROM src AS T group by len"
+
+    val table1 = tEnv.sqlQuery(sql1)
+    tEnv.registerTable("t1", table1)
+
+    val sql2 = "SELECT t1.id, D.name, D.age FROM t1 LEFT JOIN user_table " +
+      "for system_time as of t1.proctime AS D ON t1.id = D.id"
+
+    val sink = new TestingRetractSink
+    tEnv.sqlQuery(sql2).toRetractStream[Row].addSink(sink).setParallelism(1)
+    env.execute()
+
+    val expected = Seq("3,Fabian,33", "8,null,null", "9,null,null")
+    assertEquals(expected.sorted, sink.getRetractResults.sorted)
+  }
+
+  @Test
+  def testAggAndLeftJoinAllConstantKeyWithTryResolveMode(): Unit = {
+    tEnv.getConfig.set(
+      OptimizerConfigOptions.TABLE_OPTIMIZER_NONDETERMINISTIC_UPDATE_STRATEGY,
+      OptimizerConfigOptions.NonDeterministicUpdateStrategy.TRY_RESOLVE)
+
+    val sql1 = "SELECT max(id) as id, PROCTIME() as proctime FROM src AS T group by len"
+
+    val table1 = tEnv.sqlQuery(sql1)
+    tEnv.registerTable("t1", table1)
+
+    val sql2 = "SELECT t1.id, D.name, D.age FROM t1 LEFT JOIN user_table " +
+      "for system_time as of t1.proctime AS D ON D.id = 3"
+
+    val sink = new TestingRetractSink
+    tEnv.sqlQuery(sql2).toRetractStream[Row].addSink(sink).setParallelism(1)
+    env.execute()
+
+    val expected = Seq("3,Fabian,33", "8,Fabian,33", "9,Fabian,33")
+    assertEquals(expected.sorted, sink.getRetractResults.sorted)
   }
 }
 
