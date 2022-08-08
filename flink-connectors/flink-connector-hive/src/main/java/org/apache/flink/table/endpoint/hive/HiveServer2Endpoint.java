@@ -124,6 +124,7 @@ import static org.apache.flink.table.endpoint.hive.HiveServer2EndpointVersion.HI
 import static org.apache.flink.table.endpoint.hive.util.HiveJdbcParameterUtils.getUsedDefaultDatabase;
 import static org.apache.flink.table.endpoint.hive.util.HiveJdbcParameterUtils.validateAndNormalize;
 import static org.apache.flink.table.endpoint.hive.util.OperationExecutorFactory.createGetCatalogsExecutor;
+import static org.apache.flink.table.endpoint.hive.util.OperationExecutorFactory.createGetColumnsExecutor;
 import static org.apache.flink.table.endpoint.hive.util.OperationExecutorFactory.createGetSchemasExecutor;
 import static org.apache.flink.table.endpoint.hive.util.OperationExecutorFactory.createGetTablesExecutor;
 import static org.apache.flink.table.endpoint.hive.util.ThriftObjectConversions.toFetchOrientation;
@@ -476,7 +477,29 @@ public class HiveServer2Endpoint implements TCLIService.Iface, SqlGatewayEndpoin
 
     @Override
     public TGetColumnsResp GetColumns(TGetColumnsReq tGetColumnsReq) throws TException {
-        throw new UnsupportedOperationException(ERROR_MESSAGE);
+        TGetColumnsResp resp = new TGetColumnsResp();
+        try {
+            SessionHandle sessionHandle = toSessionHandle(tGetColumnsReq.getSessionHandle());
+            OperationHandle operationHandle =
+                    service.submitOperation(
+                            sessionHandle,
+                            OperationType.LIST_COLUMNS,
+                            createGetColumnsExecutor(
+                                    service,
+                                    sessionHandle,
+                                    tGetColumnsReq.getCatalogName(),
+                                    tGetColumnsReq.getSchemaName(),
+                                    tGetColumnsReq.getTableName(),
+                                    tGetColumnsReq.getColumnName()));
+
+            resp.setStatus(OK_STATUS);
+            resp.setOperationHandle(
+                    toTOperationHandle(sessionHandle, operationHandle, OperationType.LIST_COLUMNS));
+        } catch (Throwable t) {
+            LOG.error("Failed to GetColumns.", t);
+            resp.setStatus(toTStatus(t));
+        }
+        return resp;
     }
 
     @Override

@@ -35,6 +35,8 @@ public enum OperationType {
     /** The type indicates the operation list tables. */
     LIST_TABLES,
 
+    LIST_COLUMNS,
+
     /** The type indicates the operation is unknown. */
     UNKNOWN;
 }

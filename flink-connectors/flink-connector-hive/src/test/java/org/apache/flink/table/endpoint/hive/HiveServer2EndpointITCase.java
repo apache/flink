@@ -43,7 +43,7 @@ import org.apache.flink.util.function.FunctionWithException;
 import org.apache.flink.util.function.ThrowingConsumer;
 
 import org.apache.hadoop.hive.common.auth.HiveAuthUtils;
-import org.apache.hive.jdbc.JdbcColumn;
+import org.apache.hadoop.hive.serde2.thrift.Type;
 import org.apache.hive.service.rpc.thrift.TCLIService;
 import org.apache.hive.service.rpc.thrift.TCancelOperationReq;
 import org.apache.hive.service.rpc.thrift.TCancelOperationResp;
@@ -404,6 +404,241 @@ public class HiveServer2EndpointITCase extends TestLogger {
                                 null)));
     }
 
+    @Test
+    void testGetColumns() throws Exception {
+        runGetObjectTest(
+                connection -> connection.getMetaData().getColumns(null, null, null, null),
+                getExpectedGetColumnsOperationSchema(),
+                Arrays.asList(
+                        Arrays.asList(
+                                "default_catalog",
+                                "db_test1",
+                                "tbl_1",
+                                "user",
+                                -5,
+                                "BIGINT",
+                                19,
+                                null,
+                                0,
+                                10,
+                                1,
+                                "",
+                                null,
+                                null,
+                                null,
+                                null,
+                                1,
+                                "YES",
+                                null,
+                                null,
+                                null,
+                                null,
+                                "NO"),
+                        Arrays.asList(
+                                "default_catalog",
+                                "db_test1",
+                                "tbl_1",
+                                "product",
+                                12,
+                                "STRING",
+                                2147483647,
+                                null,
+                                null,
+                                null,
+                                1,
+                                "",
+                                null,
+                                null,
+                                null,
+                                null,
+                                2,
+                                "YES",
+                                null,
+                                null,
+                                null,
+                                null,
+                                "NO"),
+                        Arrays.asList(
+                                "default_catalog",
+                                "db_test1",
+                                "tbl_1",
+                                "amount",
+                                4,
+                                "INT",
+                                10,
+                                null,
+                                0,
+                                10,
+                                1,
+                                "",
+                                null,
+                                null,
+                                null,
+                                null,
+                                3,
+                                "YES",
+                                null,
+                                null,
+                                null,
+                                null,
+                                "NO"),
+                        Arrays.asList(
+                                "default_catalog",
+                                "db_test1",
+                                "tbl_3",
+                                "EXPR$0",
+                                4,
+                                "INT",
+                                10,
+                                null,
+                                0,
+                                10,
+                                0,
+                                "",
+                                null,
+                                null,
+                                null,
+                                null,
+                                1,
+                                "NO",
+                                null,
+                                null,
+                                null,
+                                null,
+                                "NO"),
+                        Arrays.asList(
+                                "default_catalog",
+                                "db_test1",
+                                "tbl_4",
+                                "EXPR$0",
+                                4,
+                                "INT",
+                                10,
+                                null,
+                                0,
+                                10,
+                                0,
+                                "",
+                                null,
+                                null,
+                                null,
+                                null,
+                                1,
+                                "NO",
+                                null,
+                                null,
+                                null,
+                                null,
+                                "NO"),
+                        Arrays.asList(
+                                "default_catalog",
+                                "db_test2",
+                                "tbl_2",
+                                "EXPR$0",
+                                4,
+                                "INT",
+                                10,
+                                null,
+                                0,
+                                10,
+                                0,
+                                "",
+                                null,
+                                null,
+                                null,
+                                null,
+                                1,
+                                "NO",
+                                null,
+                                null,
+                                null,
+                                null,
+                                "NO"),
+                        Arrays.asList(
+                                "default_catalog",
+                                "db_test2",
+                                "diff_2",
+                                "EXPR$0",
+                                4,
+                                "INT",
+                                10,
+                                null,
+                                0,
+                                10,
+                                0,
+                                "",
+                                null,
+                                null,
+                                null,
+                                null,
+                                1,
+                                "NO",
+                                null,
+                                null,
+                                null,
+                                null,
+                                "NO"),
+                        Arrays.asList(
+                                "default_catalog",
+                                "db_diff",
+                                "tbl_2",
+                                "EXPR$0",
+                                4,
+                                "INT",
+                                10,
+                                null,
+                                0,
+                                10,
+                                0,
+                                "",
+                                null,
+                                null,
+                                null,
+                                null,
+                                1,
+                                "NO",
+                                null,
+                                null,
+                                null,
+                                null,
+                                "NO")));
+    }
+
+    @Test
+    public void testGetColumnsWithPattern() throws Exception {
+        runGetObjectTest(
+                connection ->
+                        connection
+                                .getMetaData()
+                                .getColumns("default_catalog", "db\\_test_", "tbl%", "user"),
+                getExpectedGetColumnsOperationSchema(),
+                Collections.singletonList(
+                        Arrays.asList(
+                                "default_catalog",
+                                "db_test1",
+                                "tbl_1",
+                                "user",
+                                -5,
+                                "BIGINT",
+                                19,
+                                null,
+                                0,
+                                10,
+                                1,
+                                "",
+                                null,
+                                null,
+                                null,
+                                null,
+                                1,
+                                "YES",
+                                null,
+                                null,
+                                null,
+                                null,
+                                "NO")));
+    }
+
     // --------------------------------------------------------------------------------------------
 
     private Connection getInitializedConnection() throws Exception {
@@ -421,7 +656,11 @@ public class HiveServer2EndpointITCase extends TestLogger {
         statement.execute("CREATE DATABASE db_test2");
         statement.execute("CREATE DATABASE db_diff");
 
-        statement.execute("CREATE TEMPORARY TABLE db_test1.tbl_1 COMMENT 'temporary table tbl_1'");
+        statement.execute(
+                "CREATE TEMPORARY TABLE db_test1.tbl_1(\n"
+                        + "`user` BIGINT COMMENT 'user id.',\n"
+                        + "`product` STRING,\n"
+                        + "`amount` INT) COMMENT 'temporary table tbl_1'");
         statement.execute("CREATE TABLE db_test1.tbl_2 COMMENT 'table tbl_2'");
         statement.execute(
                 "CREATE TEMPORARY VIEW db_test1.tbl_3 COMMENT 'temporary view tbl_3' AS SELECT 1");
@@ -512,6 +751,33 @@ public class HiveServer2EndpointITCase extends TestLogger {
                 Column.physical("REF_GENERATION", DataTypes.STRING()));
     }
 
+    private ResolvedSchema getExpectedGetColumnsOperationSchema() {
+        return ResolvedSchema.of(
+                Column.physical("TABLE_CAT", DataTypes.STRING()),
+                Column.physical("TABLE_SCHEM", DataTypes.STRING()),
+                Column.physical("TABLE_NAME", DataTypes.STRING()),
+                Column.physical("COLUMN_NAME", DataTypes.STRING()),
+                Column.physical("DATA_TYPE", DataTypes.INT()),
+                Column.physical("TYPE_NAME", DataTypes.STRING()),
+                Column.physical("COLUMN_SIZE", DataTypes.INT()),
+                Column.physical("BUFFER_LENGTH", DataTypes.TINYINT()),
+                Column.physical("DECIMAL_DIGITS", DataTypes.INT()),
+                Column.physical("NUM_PREC_RADIX", DataTypes.INT()),
+                Column.physical("NULLABLE", DataTypes.INT()),
+                Column.physical("REMARKS", DataTypes.STRING()),
+                Column.physical("COLUMN_DEF", DataTypes.STRING()),
+                Column.physical("SQL_DATA_TYPE", DataTypes.INT()),
+                Column.physical("SQL_DATETIME_SUB", DataTypes.INT()),
+                Column.physical("CHAR_OCTET_LENGTH", DataTypes.INT()),
+                Column.physical("ORDINAL_POSITION", DataTypes.INT()),
+                Column.physical("IS_NULLABLE", DataTypes.STRING()),
+                Column.physical("SCOPE_CATALOG", DataTypes.STRING()),
+                Column.physical("SCOPE_SCHEMA", DataTypes.STRING()),
+                Column.physical("SCOPE_TABLE", DataTypes.STRING()),
+                Column.physical("SOURCE_DATA_TYPE", DataTypes.SMALLINT()),
+                Column.physical("IS_AUTO_INCREMENT", DataTypes.STRING()));
+    }
+
     private void assertSchemaEquals(ResolvedSchema expected, ResultSetMetaData metaData)
             throws Exception {
         assertThat(metaData.getColumnCount()).isEqualTo(expected.getColumnCount());
@@ -521,8 +787,8 @@ public class HiveServer2EndpointITCase extends TestLogger {
                             .orElseThrow(() -> new RuntimeException("Can not get column."));
             assertThat(metaData.getColumnName(i)).isEqualTo(column.getName());
             int jdbcType =
-                    JdbcColumn.hiveTypeToSqlType(
-                            HiveTypeUtil.toHiveTypeInfo(column.getDataType(), false).getTypeName());
+                    Type.getType(HiveTypeUtil.toHiveTypeInfo(column.getDataType(), false))
+                            .toJavaSQLType();
             assertThat(metaData.getColumnType(i)).isEqualTo(jdbcType);
         }
     }

@@ -19,16 +19,28 @@
 package org.apache.flink.table.endpoint.hive.util;
 
 import org.apache.flink.table.catalog.CatalogBaseTable.TableKind;
+import org.apache.flink.table.catalog.Column;
+import org.apache.flink.table.catalog.ResolvedCatalogBaseTable;
+import org.apache.flink.table.catalog.hive.util.HiveTypeUtil;
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.StringData;
 import org.apache.flink.table.gateway.api.SqlGatewayService;
 import org.apache.flink.table.gateway.api.results.ResultSet;
 import org.apache.flink.table.gateway.api.results.TableInfo;
 import org.apache.flink.table.gateway.api.session.SessionHandle;
+import org.apache.flink.table.types.logical.DecimalType;
+import org.apache.flink.table.types.logical.LogicalType;
+
+import org.apache.hadoop.hive.serde2.thrift.Type;
+import org.apache.hadoop.hive.serde2.typeinfo.TypeInfoUtils;
 
 import javax.annotation.Nullable;
 
+import java.sql.DatabaseMetaData;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 import java.util.concurrent.Callable;
 import java.util.function.Function;
@@ -36,9 +48,11 @@ import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.table.endpoint.hive.HiveServer2Schemas.GET_CATALOGS_SCHEMA;
+import static org.apache.flink.table.endpoint.hive.HiveServer2Schemas.GET_COLUMNS_SCHEMA;
 import static org.apache.flink.table.endpoint.hive.HiveServer2Schemas.GET_SCHEMAS_SCHEMA;
 import static org.apache.flink.table.endpoint.hive.HiveServer2Schemas.GET_TABLES_SCHEMA;
 import static org.apache.flink.table.gateway.api.results.ResultSet.ResultType.EOS;
+import static org.apache.hadoop.hive.serde2.typeinfo.TypeInfoFactory.getPrimitiveTypeInfo;
 
 /** Factory to create the operation executor. */
 public class OperationExecutorFactory {
@@ -66,6 +80,18 @@ public class OperationExecutorFactory {
         return () ->
                 executeGetTables(
                         service, sessionHandle, catalogName, schemaName, tableName, tableKinds);
+    }
+
+    public static Callable<ResultSet> createGetColumnsExecutor(
+            SqlGatewayService service,
+            SessionHandle sessionHandle,
+            @Nullable String catalogName,
+            @Nullable String schemaName,
+            @Nullable String tableName,
+            @Nullable String columnsName) {
+        return () ->
+                executeGetColumns(
+                        service, sessionHandle, catalogName, schemaName, tableName, columnsName);
     }
 
     // --------------------------------------------------------------------------------------------
@@ -144,6 +170,84 @@ public class OperationExecutorFactory {
                         .collect(Collectors.toList()));
     }
 
+    private static ResultSet executeGetColumns(
+            SqlGatewayService service,
+            SessionHandle sessionHandle,
+            @Nullable String catalogName,
+            @Nullable String schemaName,
+            @Nullable String tableName,
+            @Nullable String columnName) {
+        String specifiedCatalogName =
+                isNullOrEmpty(catalogName) ? service.getCurrentCatalog(sessionHandle) : catalogName;
+        Set<String> schemaNames =
+                filter(service.listDatabases(sessionHandle, specifiedCatalogName), schemaName);
+        Set<TableKind> tableKinds = new HashSet<>(Arrays.asList(TableKind.TABLE, TableKind.VIEW));
+        List<Object[]> rowData = new ArrayList<>();
+
+        for (String schema : schemaNames) {
+            Set<TableInfo> tableInfos =
+                    filter(
+                            service.listTables(
+                                    sessionHandle, specifiedCatalogName, schema, tableKinds),
+                            candidates -> candidates.getIdentifier().getObjectName(),
+                            tableName);
+
+            for (TableInfo tableInfo : tableInfos) {
+                ResolvedCatalogBaseTable<?> table =
+                        service.getTable(sessionHandle, tableInfo.getIdentifier());
+                List<Column> columns = table.getResolvedSchema().getColumns();
+
+                Set<String> requiredColumnNames =
+                        filter(
+                                new HashSet<>(table.getResolvedSchema().getColumnNames()),
+                                columnName);
+                for (int i = 0; i < columns.size(); i++) {
+                    Column column = columns.get(i);
+                    if (requiredColumnNames.contains(column.getName())) {
+                        LogicalType flinkColumnType = column.getDataType().getLogicalType();
+                        Type hiveColumnType =
+                                Type.getType(
+                                        HiveTypeUtil.toHiveTypeInfo(column.getDataType(), false));
+                        rowData.add(
+                                new Object[] {
+                                    specifiedCatalogName, // TABLE_CAT
+                                    tableInfo.getIdentifier().getDatabaseName(), // TABLE_SCHEMA
+                                    tableInfo.getIdentifier().getObjectName(), // TABLE_NAME
+                                    column.getName(), // COLUMN_NAME
+                                    hiveColumnType.toJavaSQLType(), // DATA_TYPE
+                                    hiveColumnType.getName(), // TYPE_NAME
+                                    getColumnSize(hiveColumnType, flinkColumnType), // COLUMN_SIZE
+                                    null, // BUFFER_LENGTH, unused
+                                    getDecimalDigits(
+                                            hiveColumnType, flinkColumnType), // DECIMAL_DIGITS
+                                    hiveColumnType.getNumPrecRadix(), // NUM_PREC_RADIX
+                                    flinkColumnType.isNullable()
+                                            ? DatabaseMetaData.columnNullable
+                                            : DatabaseMetaData.columnNoNulls, // NULLABLE TODO, 还有下面
+                                    column.getComment().orElse(""), // REMARKS
+                                    null, // COLUMN_DEF
+                                    null, // SQL_DATA_TYPE
+                                    null, // SQL_DATETIME_SUB
+                                    null, // CHAR_OCTET_LENGTH
+                                    i + 1, // ORDINAL_POSITION
+                                    flinkColumnType.isNullable() ? "YES" : "NO", // IS_NULLABLE
+                                    null, // SCOPE_CATALOG
+                                    null, // SCOPE_SCHEMA
+                                    null, // SCOPE_TABLE
+                                    null, // SOURCE_DATA_TYPE
+                                    "NO", // IS_AUTO_INCREMENT
+                                });
+                    }
+                }
+            }
+        }
+        return new ResultSet(
+                EOS,
+                null,
+                GET_COLUMNS_SCHEMA,
+                rowData.stream().map(OperationExecutorFactory::wrap).collect(Collectors.toList()));
+    }
+
     // --------------------------------------------------------------------------------------------
     // Utilities
     // --------------------------------------------------------------------------------------------
@@ -207,5 +311,65 @@ public class OperationExecutorFactory {
             }
         }
         return GenericRowData.of(pack);
+    }
+
+    /**
+     * The column size for this type. For numeric data this is the maximum precision. For character
+     * data this is the length in characters. For datetime types this is the length in characters of
+     * the String representation (assuming the maximum allowed precision of the fractional seconds
+     * component). For binary data this is the length in bytes. Null is returned for for data types
+     * where the column size is not applicable.
+     */
+    // TODO
+    private static Integer getColumnSize(Type hiveColumnType, LogicalType flinkColumnType) {
+        if (hiveColumnType.isNumericType()) {
+            // Exactly precision for DECIMAL_TYPE and maximum precision for others.
+            return hiveColumnType == Type.DECIMAL_TYPE
+                    ? ((DecimalType) flinkColumnType).getPrecision()
+                    : hiveColumnType.getMaxPrecision();
+        }
+        switch (hiveColumnType) {
+            case STRING_TYPE:
+            case BINARY_TYPE:
+                return Integer.MAX_VALUE;
+            case CHAR_TYPE:
+            case VARCHAR_TYPE:
+                return TypeInfoUtils.getCharacterLengthForType(
+                        getPrimitiveTypeInfo(hiveColumnType.getName()));
+            case DATE_TYPE:
+                return 10;
+            case TIMESTAMP_TYPE:
+                return 29;
+                // case TIMESTAMPLOCALTZ_TYPE:
+                // return 31;
+                // 还是用flinkColumnType来实现？
+            default:
+                return null;
+        }
+    }
+
+    /**
+     * The number of fractional digits for this type. Null is returned for data types where this is
+     * not applicable.
+     */
+    private static Integer getDecimalDigits(Type hiveColumnType, LogicalType flinkColumnType) {
+        switch (hiveColumnType) {
+            case BOOLEAN_TYPE:
+            case TINYINT_TYPE:
+            case SMALLINT_TYPE:
+            case INT_TYPE:
+            case BIGINT_TYPE:
+                return 0;
+            case FLOAT_TYPE:
+                return 7;
+            case DOUBLE_TYPE:
+                return 15;
+            case DECIMAL_TYPE:
+                return ((DecimalType) flinkColumnType).getScale();
+            case TIMESTAMP_TYPE:
+                return 9;
+            default:
+                return null;
+        }
     }
 }
