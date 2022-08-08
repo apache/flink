@@ -95,18 +95,19 @@ class RowDataConverter(DataConverter):
 
     def __init__(self, field_data_converters: List[DataConverter], field_names: List[str]):
         self._field_data_converters = field_data_converters
-        self._reuse_row = Row()
-        self._reuse_row.set_field_names(field_names)
+        self._field_names = field_names
 
     def to_internal(self, value) -> IN:
         if value is None:
             return None
 
-        self._reuse_row._values = [self._field_data_converters[i].to_internal(item)
-                                   for i, item in enumerate(value[1])]
-        self._reuse_row.set_row_kind(RowKind(value[0]))
+        row = Row()
+        row._values = [self._field_data_converters[i].to_internal(item)
+                       for i, item in enumerate(value[1])]
+        row.set_field_names(self._field_names)
+        row.set_row_kind(RowKind(value[0]))
 
-        return self._reuse_row
+        return row
 
     def to_external(self, value: Row) -> OUT:
         if value is None:

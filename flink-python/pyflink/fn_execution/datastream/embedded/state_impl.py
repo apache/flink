@@ -19,33 +19,42 @@ from abc import ABC
 from typing import List, Iterable, Tuple, Dict, Collection
 
 from pyflink.datastream import ReduceFunction, AggregateFunction
-from pyflink.datastream.state import (T, IN, OUT, V, K)
+from pyflink.datastream.state import (T, IN, OUT, V, K, State)
 from pyflink.fn_execution.embedded.converters import (DataConverter, DictDataConverter,
                                                       ListDataConverter)
 from pyflink.fn_execution.internal_state import (InternalValueState, InternalKvState,
                                                  InternalListState, InternalReducingState,
                                                  InternalAggregatingState, InternalMapState,
-                                                 N)
+                                                 N, InternalReadOnlyBroadcastState,
+                                                 InternalBroadcastState)
 
 
-class StateImpl(InternalKvState, ABC):
+class StateImpl(State, ABC):
+    def __init__(self,
+                 state,
+                 value_converter: DataConverter):
+        self._state = state
+        self._value_converter = value_converter
+
+    def clear(self):
+        self._state.clear()
+
+
+class KeyedStateImpl(StateImpl, InternalKvState, ABC):
+
     def __init__(self,
                  state,
                  value_converter: DataConverter,
                  window_converter: DataConverter = None):
-        self._state = state
-        self._value_converter = value_converter
+        super(KeyedStateImpl, self).__init__(state, value_converter)
         self._window_converter = window_converter
-
-    def clear(self):
-        self._state.clear()
 
     def set_current_namespace(self, namespace) -> None:
         j_window = self._window_converter.to_external(namespace)
         self._state.setCurrentNamespace(j_window)
 
 
-class ValueStateImpl(StateImpl, InternalValueState):
+class ValueStateImpl(KeyedStateImpl, InternalValueState):
     def __init__(self,
                  value_state,
                  value_converter: DataConverter,
@@ -59,7 +68,7 @@ class ValueStateImpl(StateImpl, InternalValueState):
         self._state.update(self._value_converter.to_external(value))
 
 
-class ListStateImpl(StateImpl, InternalListState):
+class ListStateImpl(KeyedStateImpl, InternalListState):
 
     def __init__(self,
                  list_state,
@@ -88,7 +97,7 @@ class ListStateImpl(StateImpl, InternalListState):
         self._state.mergeNamespaces(j_target, j_sources)
 
 
-class ReducingStateImpl(StateImpl, InternalReducingState):
+class ReducingStateImpl(KeyedStateImpl, InternalReducingState):
 
     def __init__(self,
                  value_state,
@@ -135,7 +144,7 @@ class ReducingStateImpl(StateImpl, InternalReducingState):
             self._state.update(self._value_converter.to_external(merged))
 
 
-class AggregatingStateImpl(StateImpl, InternalAggregatingState):
+class AggregatingStateImpl(KeyedStateImpl, InternalAggregatingState):
     def __init__(self,
                  value_state,
                  value_converter,
@@ -185,7 +194,7 @@ class AggregatingStateImpl(StateImpl, InternalAggregatingState):
             self._state.update(self._value_converter.to_external(merged))
 
 
-class MapStateImpl(StateImpl, InternalMapState):
+class MapStateImpl(KeyedStateImpl, InternalMapState):
     def __init__(self,
                  map_state,
                  map_converter: DictDataConverter,
@@ -231,3 +240,59 @@ class MapStateImpl(StateImpl, InternalMapState):
 
     def is_empty(self) -> bool:
         return self._state.isEmpty()
+
+
+class ReadOnlyBroadcastStateImpl(StateImpl, InternalReadOnlyBroadcastState):
+
+    def __init__(self,
+                 map_state,
+                 map_converter: DictDataConverter):
+        super(ReadOnlyBroadcastStateImpl, self).__init__(map_state, map_converter)
+        self._k_converter = map_converter._key_converter
+        self._v_converter = map_converter._value_converter
+
+    def get(self, key: K) -> V:
+        return self._v_converter.to_internal(
+            self._state.get(self._k_converter.to_external(key)))
+
+    def contains(self, key: K) -> bool:
+        return self._state.contains(self._k_converter.to_external(key))
+
+    def items(self) -> Iterable[Tuple[K, V]]:
+        entries = self._state.entries()
+        for entry in entries:
+            yield (self._k_converter.to_internal(entry.getKey()),
+                   self._v_converter.to_internal(entry.getValue()))
+
+    def keys(self) -> Iterable[K]:
+        for k in self._state.keys():
+            yield self._k_converter.to_internal(k)
+
+    def values(self) -> Iterable[V]:
+        for v in self._state.values():
+            yield self._v_converter.to_internal(v)
+
+    def is_empty(self) -> bool:
+        return self._state.isEmpty()
+
+
+class BroadcastStateImpl(ReadOnlyBroadcastStateImpl, InternalBroadcastState):
+    def __init__(self,
+                 map_state,
+                 map_converter: DictDataConverter):
+        super(BroadcastStateImpl, self).__init__(map_state, map_converter)
+        self._map_converter = map_converter
+        self._k_converter = map_converter._key_converter
+        self._v_converter = map_converter._value_converter
+
+    def to_read_only_broadcast_state(self) -> InternalReadOnlyBroadcastState[K, V]:
+        return ReadOnlyBroadcastStateImpl(self._state, self._map_converter)
+
+    def put(self, key: K, value: V) -> None:
+        self._state.put(self._k_converter.to_external(key), self._v_converter.to_external(value))
+
+    def put_all(self, dict_value: Dict[K, V]) -> None:
+        self._state.putAll(self._value_converter.to_external(dict_value))
+
+    def remove(self, key: K) -> None:
+        self._state.remove(self._k_converter.to_external(key))

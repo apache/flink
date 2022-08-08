@@ -2636,7 +2636,8 @@ class BroadcastConnectedStream(object):
             jvm.String, [i.get_name() for i in self.broadcast_state_descriptors]
         )
         j_state_descriptors = JPythonConfigUtil.convertStateNamesToStateDescriptors(j_state_names)
-        j_conf = jvm.org.apache.flink.configuration.Configuration()
+        j_conf = get_j_env_configuration(
+            self.broadcast_stream.input_stream._j_data_stream.getExecutionEnvironment())
         j_data_stream_python_function_info = _create_j_data_stream_python_function_info(
             func, func_type
         )

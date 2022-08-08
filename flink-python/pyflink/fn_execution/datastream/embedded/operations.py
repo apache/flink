@@ -21,7 +21,11 @@ from pyflink.fn_execution.coders import TimeWindowCoder, CountWindowCoder
 from pyflink.fn_execution.datastream import operations
 from pyflink.fn_execution.datastream.embedded.process_function import (
     InternalProcessFunctionContext, InternalKeyedProcessFunctionContext,
-    InternalKeyedProcessFunctionOnTimerContext, InternalWindowTimerContext)
+    InternalKeyedProcessFunctionOnTimerContext, InternalWindowTimerContext,
+    InternalBroadcastProcessFunctionContext, InternalBroadcastProcessFunctionReadOnlyContext,
+    InternalKeyedBroadcastProcessFunctionContext,
+    InternalKeyedBroadcastProcessFunctionReadOnlyContext,
+    InternalKeyedBroadcastProcessFunctionOnTimerContext)
 from pyflink.fn_execution.datastream.embedded.runtime_context import StreamingRuntimeContext
 from pyflink.fn_execution.datastream.embedded.timerservice_impl import InternalTimerServiceImpl
 from pyflink.fn_execution.datastream.window.window_operator import WindowOperator
@@ -80,7 +84,7 @@ class TwoInputOperation(operations.TwoInputOperation):
 
 def extract_process_function(
         user_defined_function_proto, j_runtime_context, j_function_context, j_timer_context,
-        job_parameters, j_keyed_state_backend):
+        job_parameters, j_keyed_state_backend, j_operator_state_backend):
     from pyflink.fn_execution import flink_fn_execution_pb2
 
     user_defined_func = pickle.loads(user_defined_function_proto.payload)
@@ -151,6 +155,31 @@ def extract_process_function(
         return TwoInputOperation(
             open_func, close_func, process_element_func1, process_element_func2)
 
+    elif func_type == UserDefinedDataStreamFunction.CO_BROADCAST_PROCESS:
+
+        broadcast_ctx = InternalBroadcastProcessFunctionContext(
+            j_function_context, j_operator_state_backend)
+
+        read_only_broadcast_ctx = InternalBroadcastProcessFunctionReadOnlyContext(
+            j_function_context, j_operator_state_backend)
+
+        process_element = user_defined_func.process_element
+
+        process_broadcast_element = user_defined_func.process_broadcast_element
+
+        def process_element_func1(value):
+            elements = process_element(value, read_only_broadcast_ctx)
+            if elements:
+                yield from elements
+
+        def process_element_func2(value):
+            elements = process_broadcast_element(value, broadcast_ctx)
+            if elements:
+                yield from elements
+
+        return TwoInputOperation(
+            open_func, close_func, process_element_func1, process_element_func2)
+
     elif func_type == UserDefinedDataStreamFunction.KEYED_CO_PROCESS:
 
         function_context = InternalKeyedProcessFunctionContext(
@@ -181,6 +210,38 @@ def extract_process_function(
 
         def process_element_func2(value):
             yield from process_element2(value, function_context)
+
+        return TwoInputOperation(
+            open_func, close_func, process_element_func1, process_element_func2, on_timer_func)
+
+    elif func_type == UserDefinedDataStreamFunction.KEYED_CO_BROADCAST_PROCESS:
+        broadcast_ctx = InternalKeyedBroadcastProcessFunctionContext(
+            j_function_context, j_operator_state_backend)
+
+        read_only_broadcast_ctx = InternalKeyedBroadcastProcessFunctionReadOnlyContext(
+            j_function_context, user_defined_function_proto.key_type_info, j_operator_state_backend)
+
+        timer_context = InternalKeyedBroadcastProcessFunctionOnTimerContext(
+            j_timer_context, user_defined_function_proto.key_type_info, j_operator_state_backend)
+
+        process_element = user_defined_func.process_element
+
+        process_broadcast_element = user_defined_func.process_broadcast_element
+
+        on_timer = user_defined_func.on_timer
+
+        def process_element_func1(value):
+            elements = process_element(value[1], read_only_broadcast_ctx)
+            if elements:
+                yield from elements
+
+        def process_element_func2(value):
+            elements = process_broadcast_element(value, broadcast_ctx)
+            if elements:
+                yield from elements
+
+        def on_timer_func(timestamp):
+            yield from on_timer(timestamp, timer_context)
 
         return TwoInputOperation(
             open_func, close_func, process_element_func1, process_element_func2, on_timer_func)
