@@ -311,6 +311,10 @@ message TypeInfo {
     OBJECT_ARRAY = 21;
     INSTANT = 22;
     AVRO = 23;
+    LOCAL_DATE = 24;
+    LOCAL_TIME = 25;
+    LOCAL_DATETIME = 26;
+    LOCAL_ZONED_TIMESTAMP = 27;
   }
 
   message MapTypeInfo {
