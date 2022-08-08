@@ -28,7 +28,6 @@ import org.apache.flink.streaming.api.functions.python.DataStreamPythonFunctionI
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.SimpleOperatorFactory;
 import org.apache.flink.streaming.api.operators.SourceOperatorFactory;
-import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.api.operators.StreamOperatorFactory;
 import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
 import org.apache.flink.streaming.api.operators.python.DataStreamPythonFunctionOperator;
@@ -268,19 +267,22 @@ public class PythonOperatorChainingOptimizer {
     @SuppressWarnings("unchecked")
     private static Transformation<?> createChainedTransformation(
             Transformation<?> upTransform, Transformation<?> downTransform) {
-        StreamOperator<?> upOperator =
-                ((SimpleOperatorFactory<?>) getOperatorFactory(upTransform)).getOperator();
+        DataStreamPythonFunctionOperator<?> upOperator =
+                (DataStreamPythonFunctionOperator<?>)
+                        ((SimpleOperatorFactory<?>) getOperatorFactory(upTransform)).getOperator();
 
-        StreamOperator<?> downOperator =
-                ((SimpleOperatorFactory<?>) getOperatorFactory(downTransform)).getOperator();
+        DataStreamPythonFunctionOperator<?> downOperator =
+                (DataStreamPythonFunctionOperator<?>)
+                        ((SimpleOperatorFactory<?>) getOperatorFactory(downTransform))
+                                .getOperator();
 
         assert arePythonOperatorsInSameExecutionEnvironment(upOperator, downOperator);
 
         final DataStreamPythonFunctionInfo upPythonFunctionInfo =
-                ((DataStreamPythonFunctionOperator) upOperator).getPythonFunctionInfo().copy();
+                upOperator.getPythonFunctionInfo().copy();
 
         final DataStreamPythonFunctionInfo downPythonFunctionInfo =
-                ((DataStreamPythonFunctionOperator) downOperator).getPythonFunctionInfo().copy();
+                downOperator.getPythonFunctionInfo().copy();
 
         DataStreamPythonFunctionInfo headPythonFunctionInfoOfDownOperator = downPythonFunctionInfo;
         while (headPythonFunctionInfoOfDownOperator.getInputs().length != 0) {
@@ -292,17 +294,10 @@ public class PythonOperatorChainingOptimizer {
                 new DataStreamPythonFunctionInfo[] {upPythonFunctionInfo});
 
         final DataStreamPythonFunctionOperator chainedOperator =
-                ((DataStreamPythonFunctionOperator) upOperator)
-                        .copy(
-                                downPythonFunctionInfo,
-                                ((DataStreamPythonFunctionOperator) downOperator)
-                                        .getProducedType());
-        if (chainedOperator instanceof AbstractExternalDataStreamPythonFunctionOperator) {
-            ((AbstractExternalDataStreamPythonFunctionOperator) chainedOperator)
-                    .addSideOutputTags(
-                            ((AbstractExternalDataStreamPythonFunctionOperator) downOperator)
-                                    .getSideOutputTags());
-        }
+                upOperator.copy(
+                        downPythonFunctionInfo,
+                        ((DataStreamPythonFunctionOperator) downOperator).getProducedType());
+        chainedOperator.addSideOutputTags(downOperator.getSideOutputTags());
 
         PhysicalTransformation<?> chainedTransformation;
         if (upOperator instanceof OneInputStreamOperator) {
@@ -411,11 +406,14 @@ public class PythonOperatorChainingOptimizer {
             return false;
         }
 
-        StreamOperator<?> upOperator =
-                ((SimpleOperatorFactory<?>) getOperatorFactory(upTransform)).getOperator();
+        DataStreamPythonFunctionOperator<?> upOperator =
+                (DataStreamPythonFunctionOperator<?>)
+                        ((SimpleOperatorFactory<?>) getOperatorFactory(upTransform)).getOperator();
 
-        StreamOperator<?> downOperator =
-                ((SimpleOperatorFactory<?>) getOperatorFactory(downTransform)).getOperator();
+        DataStreamPythonFunctionOperator<?> downOperator =
+                (DataStreamPythonFunctionOperator<?>)
+                        ((SimpleOperatorFactory<?>) getOperatorFactory(downTransform))
+                                .getOperator();
 
         if (!arePythonOperatorsInSameExecutionEnvironment(upOperator, downOperator)) {
             return false;
@@ -435,7 +433,8 @@ public class PythonOperatorChainingOptimizer {
     }
 
     private static boolean arePythonOperatorsInSameExecutionEnvironment(
-            StreamOperator<?> upOperator, StreamOperator<?> downOperator) {
+            DataStreamPythonFunctionOperator<?> upOperator,
+            DataStreamPythonFunctionOperator<?> downOperator) {
         return upOperator instanceof AbstractExternalDataStreamPythonFunctionOperator
                         && downOperator instanceof AbstractExternalDataStreamPythonFunctionOperator
                 || upOperator instanceof AbstractEmbeddedDataStreamPythonFunctionOperator

@@ -66,6 +66,7 @@ class OneInputFunctionOperation(FunctionOperation):
                  runtime_context,
                  function_context,
                  timer_context,
+                 side_output_context,
                  job_parameters,
                  keyed_state_backend,
                  operator_state_backend):
@@ -75,6 +76,7 @@ class OneInputFunctionOperation(FunctionOperation):
                 runtime_context,
                 function_context,
                 timer_context,
+                side_output_context,
                 job_parameters,
                 keyed_state_backend,
                 operator_state_backend)
@@ -100,6 +102,7 @@ class TwoInputFunctionOperation(FunctionOperation):
                  runtime_context,
                  function_context,
                  timer_context,
+                 side_output_context,
                  job_parameters,
                  keyed_state_backend,
                  operator_state_backend):
@@ -109,6 +112,7 @@ class TwoInputFunctionOperation(FunctionOperation):
                 runtime_context,
                 function_context,
                 timer_context,
+                side_output_context,
                 job_parameters,
                 keyed_state_backend,
                 operator_state_backend)

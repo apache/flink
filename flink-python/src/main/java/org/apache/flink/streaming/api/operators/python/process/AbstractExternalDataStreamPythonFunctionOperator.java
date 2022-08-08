@@ -117,17 +117,15 @@ public abstract class AbstractExternalDataStreamPythonFunctionOperator<OUT>
     // Side outputs
     // ----------------------------------------------------------------------
 
-    public void addSideOutputTag(OutputTag<?> outputTag) {
-        sideOutputTags.put(outputTag.getId(), outputTag);
-    }
-
     protected OutputTag<?> getOutputTagById(String id) {
         Preconditions.checkArgument(sideOutputTags.containsKey(id));
         return sideOutputTags.get(id);
     }
 
     public void addSideOutputTags(Collection<OutputTag<?>> outputTags) {
-        outputTags.forEach(this::addSideOutputTag);
+        for (OutputTag<?> outputTag : outputTags) {
+            sideOutputTags.put(outputTag.getId(), outputTag);
+        }
     }
 
     public Collection<OutputTag<?>> getSideOutputTags() {

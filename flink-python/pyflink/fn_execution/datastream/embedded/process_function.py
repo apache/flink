@@ -65,7 +65,7 @@ class InternalKeyedProcessFunctionContext(KeyedProcessFunction.Context,
     def __init__(self, context, key_type_info):
         self._context = context
         self._timer_service = TimerServiceImpl(self._context.timerService())
-        self._key_converter = from_type_info(key_type_info)
+        self._key_converter = from_type_info_proto(key_type_info)
 
     def get_current_key(self):
         return self._key_converter.to_internal(self._context.getCurrentKey())
@@ -85,7 +85,7 @@ class InternalKeyedProcessFunctionOnTimerContext(KeyedProcessFunction.OnTimerCon
     def __init__(self, context, key_type_info):
         self._context = context
         self._timer_service = TimerServiceImpl(self._context.timerService())
-        self._key_converter = from_type_info(key_type_info)
+        self._key_converter = from_type_info_proto(key_type_info)
 
     def timer_service(self) -> TimerService:
         return self._timer_service
@@ -103,7 +103,7 @@ class InternalKeyedProcessFunctionOnTimerContext(KeyedProcessFunction.OnTimerCon
 class InternalWindowTimerContext(object):
     def __init__(self, context, key_type_info, window_converter):
         self._context = context
-        self._key_converter = from_type_info(key_type_info)
+        self._key_converter = from_type_info_proto(key_type_info)
         self._window_converter = window_converter
 
     def timestamp(self) -> int:

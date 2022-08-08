@@ -557,13 +557,6 @@ class WindowTests(object):
                     'key a timestamp sum 15']
         self.assert_equals_sorted(expected, results)
 
-
-class ProcessWindowTests(WindowTests, PyFlinkStreamingTestCase):
-    def setUp(self) -> None:
-        super(ProcessWindowTests, self).setUp()
-        config = get_j_env_configuration(self.env._j_stream_execution_environment)
-        config.setString("python.execution-mode", "process")
-
     def test_side_output_late_data(self):
         self.env.set_parallelism(1)
         config = Configuration(
@@ -598,6 +591,13 @@ class ProcessWindowTests(WindowTests, PyFlinkStreamingTestCase):
         self.assert_equals_sorted(main_expected, main_sink.get_results())
         side_expected = ['+I[a, 4]']
         self.assert_equals_sorted(side_expected, side_sink.get_results())
+
+
+class ProcessWindowTests(WindowTests, PyFlinkStreamingTestCase):
+    def setUp(self) -> None:
+        super(ProcessWindowTests, self).setUp()
+        config = get_j_env_configuration(self.env._j_stream_execution_environment)
+        config.setString("python.execution-mode", "process")
 
 
 @pytest.mark.skipif(sys.version_info < (3, 7), reason="requires python3.7")
