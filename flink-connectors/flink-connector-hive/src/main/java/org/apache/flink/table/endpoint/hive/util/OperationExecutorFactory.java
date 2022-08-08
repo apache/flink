@@ -20,8 +20,10 @@ package org.apache.flink.table.endpoint.hive.util;
 
 import org.apache.flink.table.catalog.CatalogBaseTable.TableKind;
 import org.apache.flink.table.catalog.ObjectIdentifier;
+import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.catalog.UnresolvedIdentifier;
 import org.apache.flink.table.data.GenericRowData;
+import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.StringData;
 import org.apache.flink.table.functions.AggregateFunctionDefinition;
 import org.apache.flink.table.functions.BuiltInFunctionDefinition;
@@ -123,9 +125,7 @@ public class OperationExecutorFactory {
 
     public static Callable<ResultSet> createGetTableInfoExecutor() {
         return () ->
-                new ResultSet(
-                        EOS,
-                        null,
+                buildResultSet(
                         GET_TYPE_INFO_SCHEMA,
                         getSupportedHiveType().stream()
                                 .map(
@@ -161,9 +161,7 @@ public class OperationExecutorFactory {
     private static ResultSet executeGetCatalogs(
             SqlGatewayService service, SessionHandle sessionHandle) {
         Set<String> catalogNames = service.listCatalogs(sessionHandle);
-        return new ResultSet(
-                EOS,
-                null,
+        return buildResultSet(
                 GET_CATALOGS_SCHEMA,
                 catalogNames.stream()
                         .map(OperationExecutorFactory::wrap)
@@ -179,9 +177,7 @@ public class OperationExecutorFactory {
                 isNullOrEmpty(catalogName) ? service.getCurrentCatalog(sessionHandle) : catalogName;
         Set<String> databaseNames =
                 filter(service.listDatabases(sessionHandle, specifiedCatalogName), schemaName);
-        return new ResultSet(
-                EOS,
-                null,
+        return buildResultSet(
                 GET_SCHEMAS_SCHEMA,
                 databaseNames.stream()
                         .map(name -> wrap(name, specifiedCatalogName))
@@ -207,9 +203,7 @@ public class OperationExecutorFactory {
                             candidate -> candidate.getIdentifier().getObjectName(),
                             tableName));
         }
-        return new ResultSet(
-                EOS,
-                null,
+        return buildResultSet(
                 GET_TABLES_SCHEMA,
                 tableInfos.stream()
                         .map(
@@ -259,9 +253,7 @@ public class OperationExecutorFactory {
                         candidates,
                         candidate -> candidate.getIdentifier().getFunctionName(),
                         functionNamePattern);
-        return new ResultSet(
-                EOS,
-                null,
+        return buildResultSet(
                 GET_FUNCTIONS_SCHEMA,
                 // Sort
                 matchedFunctions.stream()
@@ -367,6 +359,10 @@ public class OperationExecutorFactory {
             }
         }
         return GenericRowData.of(pack);
+    }
+
+    private static ResultSet buildResultSet(ResolvedSchema schema, List<RowData> data) {
+        return new ResultSet(EOS, null, schema, data);
     }
 
     private static List<Type> getSupportedHiveType() {
