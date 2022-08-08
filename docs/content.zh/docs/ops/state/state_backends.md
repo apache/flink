@@ -406,7 +406,6 @@ dstl.dfs.base-path: s3://<bucket-name> # 类似于 state.checkpoints.dir
 请将如下配置保持默认值 （参见[限制](#limitations)）:
 ```yaml
 execution.checkpointing.max-concurrent-checkpoints: 1
-state.backend.local-recovery: false
 ```
 
 有关其他配置选项，请参阅[配置]({{< ref "docs/deployment/config#state-changelog-options" >}})部分。
@@ -465,7 +464,6 @@ env.enable_changelog_statebackend(true)
 
 ### 限制
 - 最多同时创建一个 checkpoint
-- 本地恢复暂不支持
 - 到 Flink 1.15 为止, 只有 `filesystem` changelog 实现可用
 - 尚不支持 [NO_CLAIM]({{< ref "docs/deployment/config#execution-savepoint-restore-mode" >}}) 模式
 
