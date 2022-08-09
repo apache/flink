@@ -20,6 +20,7 @@ package org.apache.flink.runtime.operators.coordination;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.runtime.jobgraph.OperatorID;
+import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.function.ThrowingConsumer;
 import org.apache.flink.util.function.ThrowingRunnable;
@@ -39,7 +40,8 @@ import static org.apache.flink.runtime.operators.coordination.ComponentClosingUt
 /**
  * A class that will recreate a new {@link OperatorCoordinator} instance when reset to checkpoint.
  */
-public class RecreateOnResetOperatorCoordinator implements OperatorCoordinator {
+public class RecreateOnResetOperatorCoordinator
+        implements OperatorCoordinator, CoordinationRequestHandler {
     private static final Logger LOG =
             LoggerFactory.getLogger(RecreateOnResetOperatorCoordinator.class);
     private static final long CLOSING_TIMEOUT_MS = 60000L;
@@ -85,15 +87,15 @@ public class RecreateOnResetOperatorCoordinator implements OperatorCoordinator {
     }
 
     @Override
+    public void subtaskReset(int subtask, long checkpointId) {
+        coordinator.applyCall("subtaskReset", c -> c.subtaskReset(subtask, checkpointId));
+    }
+
+    @Override
     public void executionAttemptFailed(int subtask, int attemptNumber, @Nullable Throwable reason) {
         coordinator.applyCall(
                 "executionAttemptFailed",
                 c -> c.executionAttemptFailed(subtask, attemptNumber, reason));
-    }
-
-    @Override
-    public void subtaskReset(int subtask, long checkpointId) {
-        coordinator.applyCall("subtaskReset", c -> c.subtaskReset(subtask, checkpointId));
     }
 
     @Override
@@ -134,16 +136,8 @@ public class RecreateOnResetOperatorCoordinator implements OperatorCoordinator {
         // capture the status whether the coordinator was started when this method was called
         final boolean wasStarted = this.started;
 
-        closingFuture.whenComplete(
-                (ignored, e) -> {
-                    if (e != null) {
-                        LOG.warn(
-                                String.format(
-                                        "Received exception when closing "
-                                                + "operator coordinator for %s.",
-                                        oldCoordinator.operatorId),
-                                e);
-                    }
+        closingFuture.thenRun(
+                () -> {
                     if (!closed) {
                         // The previous coordinator has closed. Create a new one.
                         newCoordinator.createNewInternalCoordinator(context, provider);
@@ -172,6 +166,24 @@ public class RecreateOnResetOperatorCoordinator implements OperatorCoordinator {
         CompletableFuture<Void> future = new CompletableFuture<>();
         coordinator.applyCall("waitForAllAsyncCallsFinish", c -> future.complete(null));
         future.get();
+    }
+
+    @Override
+    public CompletableFuture<CoordinationResponse> handleCoordinationRequest(
+            CoordinationRequest request) {
+        try {
+            OperatorCoordinator internalCoordinator = getInternalCoordinator();
+            if (internalCoordinator instanceof CoordinationRequestHandler) {
+                return ((CoordinationRequestHandler) internalCoordinator)
+                        .handleCoordinationRequest(request);
+            }
+        } catch (Throwable e) {
+            throw new FlinkRuntimeException(
+                    "Coordinator of source operator encounters error when handling coordination event");
+        }
+
+        throw new FlinkRuntimeException(
+                "Coordinator of source operator cannot handle coordination event");
     }
 
     // ---------------------
@@ -249,12 +261,12 @@ public class RecreateOnResetOperatorCoordinator implements OperatorCoordinator {
 
         @Override
         public CoordinatorStore getCoordinatorStore() {
-            return context.getCoordinatorStore();
+            return null;
         }
 
         @Override
         public boolean isConcurrentExecutionAttemptsSupported() {
-            return context.isConcurrentExecutionAttemptsSupported();
+            return false;
         }
 
         @VisibleForTesting

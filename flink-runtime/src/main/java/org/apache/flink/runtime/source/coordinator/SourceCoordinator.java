@@ -22,6 +22,7 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.eventtime.Watermark;
 import org.apache.flink.api.common.eventtime.WatermarkAlignmentParams;
+import org.apache.flink.api.connector.source.CoordinationSplitEnumerator;
 import org.apache.flink.api.connector.source.Source;
 import org.apache.flink.api.connector.source.SourceEvent;
 import org.apache.flink.api.connector.source.SourceSplit;
@@ -30,6 +31,9 @@ import org.apache.flink.api.connector.source.SupportsHandleExecutionAttemptSourc
 import org.apache.flink.core.io.SimpleVersionedSerializer;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
+import org.apache.flink.runtime.operators.coordination.CoordinationRequest;
+import org.apache.flink.runtime.operators.coordination.CoordinationRequestHandler;
+import org.apache.flink.runtime.operators.coordination.CoordinationResponse;
 import org.apache.flink.runtime.operators.coordination.CoordinatorStore;
 import org.apache.flink.runtime.operators.coordination.OperatorCoordinator;
 import org.apache.flink.runtime.operators.coordination.OperatorEvent;
@@ -40,6 +44,7 @@ import org.apache.flink.runtime.source.event.SourceEventWrapper;
 import org.apache.flink.runtime.source.event.WatermarkAlignmentEvent;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
+import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.TemporaryClassLoaderContext;
 import org.apache.flink.util.function.ThrowingRunnable;
 
@@ -86,7 +91,8 @@ import static org.apache.flink.util.Preconditions.checkState;
  */
 @Internal
 public class SourceCoordinator<SplitT extends SourceSplit, EnumChkT>
-        implements OperatorCoordinator {
+        implements OperatorCoordinator, CoordinationRequestHandler {
+
     private static final Logger LOG = LoggerFactory.getLogger(SourceCoordinator.class);
 
     private final WatermarkAggregator<Integer> combinedWatermark = new WatermarkAggregator<>();
@@ -508,6 +514,17 @@ public class SourceCoordinator<SplitT extends SourceSplit, EnumChkT>
 
             return enumCheckpointSerializer.deserialize(enumSerializerVersion, serializedEnumChkpt);
         }
+    }
+
+    @Override
+    public CompletableFuture<CoordinationResponse> handleCoordinationRequest(
+            CoordinationRequest request) {
+        if (enumerator instanceof CoordinationSplitEnumerator) {
+            return ((CoordinationSplitEnumerator) enumerator).handleCoordinationRequest(request);
+        }
+
+        throw new FlinkRuntimeException(
+                "Coordinator of source operator cannot handle client event");
     }
 
     // --------------------- private methods -------------
