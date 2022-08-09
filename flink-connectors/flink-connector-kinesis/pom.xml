@@ -33,10 +33,10 @@ under the License.
 	<artifactId>flink-connector-kinesis_${scala.binary.version}</artifactId>
 	<name>Flink : Connectors : Kinesis</name>
 	<properties>
-		<aws.sdk.version>1.12.7</aws.sdk.version>
-		<aws.sdkv2.version>2.16.86</aws.sdkv2.version>
-		<aws.kinesis-kcl.version>1.11.2</aws.kinesis-kcl.version>
-		<aws.kinesis-kpl.version>0.14.0</aws.kinesis-kpl.version>
+		<aws.sdk.version>1.12.276</aws.sdk.version>
+		<aws.sdkv2.version>2.17.247</aws.sdkv2.version>
+		<aws.kinesis-kcl.version>1.14.8</aws.kinesis-kcl.version>
+		<aws.kinesis-kpl.version>0.14.1</aws.kinesis-kpl.version>
 		<aws.dynamodbstreams-kinesis-adapter.version>1.5.3</aws.dynamodbstreams-kinesis-adapter.version>
 		<httpclient.version>4.5.9</httpclient.version>
 		<httpcore.version>4.4.11</httpcore.version>
@@ -44,6 +44,31 @@ under the License.
 	</properties>
 
 	<packaging>jar</packaging>
+
+	<dependencyManagement>
+		<dependencies>
+			<dependency>
+				<groupId>com.amazonaws</groupId>
+				<artifactId>aws-java-sdk-bom</artifactId>
+				<version>${aws.sdk.version}</version>
+				<type>pom</type>
+				<scope>import</scope>
+			</dependency>
+			<dependency>
+				<groupId>software.amazon.awssdk</groupId>
+				<artifactId>bom</artifactId>
+				<version>${aws.sdkv2.version}</version>
+				<type>pom</type>
+				<scope>import</scope>
+			</dependency>
+
+			<dependency>
+				<groupId>org.apache.httpcomponents</groupId>
+				<artifactId>httpclient</artifactId>
+				<version>4.5.9</version>
+			</dependency>
+		</dependencies>
+	</dependencyManagement>
 
 	<dependencies>
 		<!-- AWS dependencies -->
@@ -58,32 +83,26 @@ under the License.
 		<dependency>
 			<groupId>com.amazonaws</groupId>
 			<artifactId>aws-java-sdk-kinesis</artifactId>
-			<version>${aws.sdk.version}</version>
 		</dependency>
 		<dependency>
 			<groupId>com.amazonaws</groupId>
 			<artifactId>aws-java-sdk-sts</artifactId>
-			<version>${aws.sdk.version}</version>
 		</dependency>
 		<dependency>
 			<groupId>com.amazonaws</groupId>
 			<artifactId>aws-java-sdk-kms</artifactId>
-			<version>${aws.sdk.version}</version>
 		</dependency>
 		<dependency>
 			<groupId>com.amazonaws</groupId>
 			<artifactId>aws-java-sdk-s3</artifactId>
-			<version>${aws.sdk.version}</version>
 		</dependency>
 		<dependency>
 			<groupId>com.amazonaws</groupId>
 			<artifactId>aws-java-sdk-dynamodb</artifactId>
-			<version>${aws.sdk.version}</version>
 		</dependency>
 		<dependency>
 			<groupId>com.amazonaws</groupId>
 			<artifactId>aws-java-sdk-cloudwatch</artifactId>
-			<version>${aws.sdk.version}</version>
 		</dependency>
 		<dependency>
 			<groupId>com.amazonaws</groupId>
@@ -196,19 +215,16 @@ under the License.
 		<dependency>
 			<groupId>software.amazon.awssdk</groupId>
 			<artifactId>kinesis</artifactId>
-			<version>${aws.sdkv2.version}</version>
 		</dependency>
 
 		<dependency>
 			<groupId>software.amazon.awssdk</groupId>
 			<artifactId>netty-nio-client</artifactId>
-			<version>${aws.sdkv2.version}</version>
 		</dependency>
 
 		<dependency>
 			<groupId>software.amazon.awssdk</groupId>
 			<artifactId>sts</artifactId>
-			<version>${aws.sdkv2.version}</version>
 		</dependency>
 
 		<dependency>
@@ -228,18 +244,6 @@ under the License.
 		</dependency>
 
 	</dependencies>
-
-	<dependencyManagement>
-		<dependencies>
-
-			<dependency>
-				<groupId>org.apache.httpcomponents</groupId>
-				<artifactId>httpclient</artifactId>
-				<version>4.5.9</version>
-			</dependency>
-
-		</dependencies>
-	</dependencyManagement>
 
 	<build>
 		<plugins>
