@@ -95,6 +95,12 @@ pyflink.datastream.connectors.pulsar module
     :members:
     :undoc-members:
 
+pyflink.datastream.connectors.hybrid_source module
+--------------------------------------------------
+.. automodule:: pyflink.datastream.connectors.hybrid_source
+    :members:
+    :undoc-members:
+
 pyflink.datastream.connectors.cassandra module
 --------------------------------------------------
 .. automodule:: pyflink.datastream.connectors.cassandra
