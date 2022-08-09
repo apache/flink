@@ -1463,19 +1463,24 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
     private StateBackend createStateBackend() throws Exception {
         final StateBackend fromApplication =
                 configuration.getStateBackend(getUserCodeClassLoader());
-        final Optional<Boolean> isChangelogEnabledOptional =
-                environment
-                        .getJobConfiguration()
+
+        // todo: move this parsing to SBL?
+        Configuration mergedConfig =
+                new Configuration(environment.getTaskManagerInfo().getConfiguration());
+        mergedConfig.addAll(
+                StateChangelogOptionsInternal.getConfiguration(
+                        environment.getJobConfiguration(), getClass().getClassLoader()));
+
+        final TernaryBoolean isChangelogEnabled =
+                mergedConfig
                         .getOptional(
-                                StateChangelogOptionsInternal.ENABLE_CHANGE_LOG_FOR_APPLICATION);
-        final TernaryBoolean isChangelogStateBackendEnableFromApplication =
-                isChangelogEnabledOptional.isPresent()
-                        ? TernaryBoolean.fromBoolean(isChangelogEnabledOptional.get())
-                        : TernaryBoolean.UNDEFINED;
+                                StateChangelogOptionsInternal.ENABLE_CHANGE_LOG_FOR_APPLICATION)
+                        .map(TernaryBoolean::fromBoolean)
+                        .orElse(TernaryBoolean.UNDEFINED);
 
         return StateBackendLoader.fromApplicationOrConfigOrDefault(
                 fromApplication,
-                isChangelogStateBackendEnableFromApplication,
+                isChangelogEnabled,
                 getEnvironment().getTaskManagerInfo().getConfiguration(),
                 getUserCodeClassLoader(),
                 LOG);

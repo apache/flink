@@ -22,6 +22,9 @@ import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.ClusterOptions;
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.IllegalConfigurationException;
+import org.apache.flink.configuration.StateChangelogOptionsInternal;
 import org.apache.flink.management.jmx.JMXService;
 import org.apache.flink.runtime.accumulators.AccumulatorSnapshot;
 import org.apache.flink.runtime.blob.JobPermanentBlobService;
@@ -686,22 +689,25 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
             PartitionProducerStateChecker partitionStateChecker =
                     jobManagerConnection.getPartitionStateChecker();
 
+            final Configuration mergedConfig =
+                    createMergedConfiguration(
+                            jobInformation.getJobConfiguration(),
+                            taskManagerConfiguration.getConfiguration());
+
             final TaskLocalStateStore localStateStore =
                     localStateStoresManager.localStateStoreForSubtask(
                             jobId,
                             tdd.getAllocationId(),
                             taskInformation.getJobVertexId(),
                             tdd.getSubtaskIndex(),
-                            taskManagerConfiguration.getConfiguration(),
-                            jobInformation.getJobConfiguration());
+                            mergedConfig);
 
-            // TODO: Pass config value from user program and do overriding here.
             final StateChangelogStorage<?> changelogStorage;
             try {
                 changelogStorage =
                         changelogStoragesManager.stateChangelogStorageForJob(
                                 jobId,
-                                taskManagerConfiguration.getConfiguration(),
+                                mergedConfig,
                                 jobGroup,
                                 localStateStore.getLocalRecoveryConfig());
             } catch (IOException e) {
@@ -787,6 +793,22 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
         } catch (TaskSubmissionException e) {
             return FutureUtils.completedExceptionally(e);
         }
+    }
+
+    /** Adds the relevant job configuration to this TM configuration */
+    private Configuration createMergedConfiguration(
+            Configuration jobConfiguration, Configuration configuration)
+            throws TaskSubmissionException {
+        Configuration mergedConfig = new Configuration(configuration);
+        try {
+            mergedConfig.addAll(
+                    StateChangelogOptionsInternal.getConfiguration(
+                            jobConfiguration, getClass().getClassLoader()));
+        } catch (IllegalConfigurationException e) {
+            throw new TaskSubmissionException(
+                    "Could not deserialize the changelog configuration.", e);
+        }
+        return mergedConfig;
     }
 
     private void setupResultPartitionBookkeeping(

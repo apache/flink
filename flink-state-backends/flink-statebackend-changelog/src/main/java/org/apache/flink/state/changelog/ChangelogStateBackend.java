@@ -20,6 +20,7 @@ package org.apache.flink.state.changelog;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.metrics.MetricGroup;
@@ -38,6 +39,8 @@ import org.apache.flink.util.Preconditions;
 
 import java.util.Collection;
 
+import static org.apache.flink.configuration.StateChangelogOptions.MATERIALIZATION_MAX_FAILURES_ALLOWED;
+import static org.apache.flink.configuration.StateChangelogOptions.PERIODIC_MATERIALIZATION_INTERVAL;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
@@ -86,11 +89,12 @@ public class ChangelogStateBackend extends AbstractChangelogStateBackend
 
         String subtaskName = env.getTaskInfo().getTaskNameWithSubtasks();
         ExecutionConfig executionConfig = env.getExecutionConfig();
+        Configuration mergedConfiguration = createMergedConfiguration(env);
 
         ChangelogStateFactory changelogStateFactory = new ChangelogStateFactory();
         CheckpointableKeyedStateBackend<K> keyedStateBackend =
                 ChangelogBackendRestoreOperation.restore(
-                        env.getTaskManagerInfo().getConfiguration(),
+                        mergedConfiguration,
                         env.getUserCodeClassLoader().asClassLoader(),
                         env.getTaskStateManager(),
                         stateBackendHandles,
@@ -122,8 +126,8 @@ public class ChangelogStateBackend extends AbstractChangelogStateBackend
                                 env.failExternally(new AsynchronousException(message, exception)),
                         changelogKeyedStateBackend,
                         new ChangelogMaterializationMetricGroup(metricGroup),
-                        executionConfig.getPeriodicMaterializeIntervalMillis(),
-                        executionConfig.getMaterializationMaxAllowedFailures(),
+                        mergedConfiguration.get(PERIODIC_MATERIALIZATION_INTERVAL).toMillis(),
+                        mergedConfiguration.get(MATERIALIZATION_MAX_FAILURES_ALLOWED),
                         operatorIdentifier);
 
         // keyedStateBackend is responsible to close periodicMaterializationManager

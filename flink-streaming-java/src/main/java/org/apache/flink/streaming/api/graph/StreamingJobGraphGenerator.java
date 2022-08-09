@@ -258,7 +258,9 @@ public class StreamingJobGraphGenerator {
                             + "This indicates that non-serializable types (like custom serializers) were registered");
         }
 
-        jobGraph.setChangelogStateBackendEnabled(streamGraph.isChangelogStateBackendEnabled());
+        jobGraph.setChangelogStateBackendEnabled(
+                streamGraph.isChangelogStateBackendEnabled(),
+                streamGraph.getChangelogConfiguration());
 
         addVertexIndexPrefixInVertexName();
 

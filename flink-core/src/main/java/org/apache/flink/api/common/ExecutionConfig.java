@@ -142,10 +142,6 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
     private long periodicMaterializeIntervalMillis =
             StateChangelogOptions.PERIODIC_MATERIALIZATION_INTERVAL.defaultValue().toMillis();
 
-    /** Max allowed number of consecutive failures for changelog materialization */
-    private int materializationMaxAllowedFailures =
-            StateChangelogOptions.MATERIALIZATION_MAX_FAILURES_ALLOWED.defaultValue();
-
     /**
      * @deprecated Should no longer be used because it is subsumed by RestartStrategyConfiguration
      */
@@ -303,16 +299,6 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
     @Internal
     public void setPeriodicMaterializeIntervalMillis(Duration periodicMaterializeInterval) {
         this.periodicMaterializeIntervalMillis = periodicMaterializeInterval.toMillis();
-    }
-
-    @Internal
-    public int getMaterializationMaxAllowedFailures() {
-        return materializationMaxAllowedFailures;
-    }
-
-    @Internal
-    public void setMaterializationMaxAllowedFailures(int materializationMaxAllowedFailures) {
-        this.materializationMaxAllowedFailures = materializationMaxAllowedFailures;
     }
 
     /**
@@ -1158,13 +1144,6 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
         configuration
                 .getOptional(MetricOptions.LATENCY_INTERVAL)
                 .ifPresent(this::setLatencyTrackingInterval);
-
-        configuration
-                .getOptional(StateChangelogOptions.PERIODIC_MATERIALIZATION_INTERVAL)
-                .ifPresent(this::setPeriodicMaterializeIntervalMillis);
-        configuration
-                .getOptional(StateChangelogOptions.MATERIALIZATION_MAX_FAILURES_ALLOWED)
-                .ifPresent(this::setMaterializationMaxAllowedFailures);
 
         configuration
                 .getOptional(PipelineOptions.MAX_PARALLELISM)

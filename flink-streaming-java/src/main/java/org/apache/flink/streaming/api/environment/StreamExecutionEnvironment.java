@@ -77,6 +77,7 @@ import org.apache.flink.runtime.scheduler.ClusterDatasetCorruptedException;
 import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
 import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.runtime.state.StateBackendLoader;
+import org.apache.flink.runtime.state.changelog.StateChangelogStorageLoader;
 import org.apache.flink.streaming.api.CheckpointingMode;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.datastream.DataStream;
@@ -199,9 +200,6 @@ public class StreamExecutionEnvironment implements AutoCloseable {
 
     /** The state backend used for storing k/v state and state snapshots. */
     private StateBackend defaultStateBackend;
-
-    /** Whether to enable ChangelogStateBackend, default value is unset. */
-    private TernaryBoolean changelogStateBackendEnabled = TernaryBoolean.UNDEFINED;
 
     /** The default savepoint directory used by the job. */
     private Path defaultSavepointDirectory;
@@ -707,7 +705,7 @@ public class StreamExecutionEnvironment implements AutoCloseable {
      */
     @PublicEvolving
     public StreamExecutionEnvironment enableChangelogStateBackend(boolean enabled) {
-        this.changelogStateBackendEnabled = TernaryBoolean.fromBoolean(enabled);
+        this.configuration.set(StateChangelogOptions.ENABLE_STATE_CHANGE_LOG, enabled);
         return this;
     }
 
@@ -721,7 +719,10 @@ public class StreamExecutionEnvironment implements AutoCloseable {
      */
     @PublicEvolving
     public TernaryBoolean isChangelogStateBackendEnabled() {
-        return changelogStateBackendEnabled;
+        return this.configuration
+                .getOptional(StateChangelogOptions.ENABLE_STATE_CHANGE_LOG)
+                .map(TernaryBoolean::fromBoolean)
+                .orElse(TernaryBoolean.UNDEFINED);
     }
 
     /**
@@ -985,7 +986,15 @@ public class StreamExecutionEnvironment implements AutoCloseable {
                 .ifPresent(this::setStreamTimeCharacteristic);
         configuration
                 .getOptional(StateChangelogOptions.ENABLE_STATE_CHANGE_LOG)
-                .ifPresent(this::enableChangelogStateBackend);
+                .ifPresent(
+                        enabled -> {
+                            enableChangelogStateBackend(enabled);
+                            if (enabled) {
+                                this.configuration.addAll(
+                                        StateChangelogStorageLoader.loadFactory(configuration)
+                                                .extractConfiguration(configuration));
+                            }
+                        });
         Optional.ofNullable(loadStateBackend(configuration, classLoader))
                 .ifPresent(this::setStateBackend);
         configuration
@@ -2289,7 +2298,6 @@ public class StreamExecutionEnvironment implements AutoCloseable {
         return new StreamGraphGenerator(
                         new ArrayList<>(transformations), config, checkpointCfg, configuration)
                 .setStateBackend(defaultStateBackend)
-                .setChangelogStateBackendEnabled(changelogStateBackendEnabled)
                 .setSavepointDir(defaultSavepointDirectory)
                 .setChaining(isChainingEnabled)
                 .setUserArtifacts(cacheFile)

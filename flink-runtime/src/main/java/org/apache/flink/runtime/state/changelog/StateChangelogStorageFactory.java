@@ -21,10 +21,16 @@ package org.apache.flink.runtime.state.changelog;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.runtime.metrics.groups.TaskManagerJobMetricGroup;
 import org.apache.flink.runtime.state.LocalRecoveryConfig;
 
 import java.io.IOException;
+
+import static org.apache.flink.configuration.StateChangelogOptions.ENABLE_STATE_CHANGE_LOG;
+import static org.apache.flink.configuration.StateChangelogOptions.MATERIALIZATION_MAX_FAILURES_ALLOWED;
+import static org.apache.flink.configuration.StateChangelogOptions.PERIODIC_MATERIALIZATION_INTERVAL;
+import static org.apache.flink.configuration.StateChangelogOptions.STATE_CHANGE_LOG_STORAGE;
 
 /**
  * A factory for {@link StateChangelogStorage}. Please use {@link StateChangelogStorageLoader} to
@@ -45,4 +51,16 @@ public interface StateChangelogStorageFactory {
 
     /** Create the storage for recovery. */
     StateChangelogStorageView<?> createStorageView(Configuration configuration) throws IOException;
+
+    /** Extract the relevant to this factory portion of the configuration. */
+    default Configuration extractConfiguration(ReadableConfig src) {
+        Configuration dst = new Configuration();
+        dst.set(PERIODIC_MATERIALIZATION_INTERVAL, src.get(PERIODIC_MATERIALIZATION_INTERVAL));
+        dst.set(
+                MATERIALIZATION_MAX_FAILURES_ALLOWED,
+                src.get(MATERIALIZATION_MAX_FAILURES_ALLOWED));
+        dst.set(ENABLE_STATE_CHANGE_LOG, src.get(ENABLE_STATE_CHANGE_LOG));
+        dst.set(STATE_CHANGE_LOG_STORAGE, src.get(STATE_CHANGE_LOG_STORAGE));
+        return dst;
+    }
 }
