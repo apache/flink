@@ -184,7 +184,7 @@ public class DynamicPartitionPruningUtils {
                 return;
             }
 
-            visitFactSide(rel.getInput(0), factSideFactors, joinKeys);
+            visitFactSide(rel.getInput(0), factSideFactors, inputJoinKeys);
         } else if (rel instanceof Calc) {
             Calc calc = (Calc) rel;
             RexProgram program = calc.getProgram();
