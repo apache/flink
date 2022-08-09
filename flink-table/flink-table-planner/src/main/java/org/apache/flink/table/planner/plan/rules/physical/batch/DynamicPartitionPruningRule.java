@@ -174,6 +174,10 @@ public abstract class DynamicPartitionPruningRule extends RelRule<RelRule.Config
         List<Integer> acceptedFieldIndices =
                 getAcceptedFieldIndices(factJoinKeys, factCalc, factScan, tableSource);
 
+        if (acceptedFieldIndices.isEmpty()) {
+            return null;
+        }
+
         List<Integer> dynamicFilteringFieldIndices = new ArrayList<>();
         for (int i = 0; i < joinInfo.leftKeys.size(); ++i) {
             if (acceptedFieldIndices.contains(factJoinKeys.get(i))) {
@@ -250,7 +254,7 @@ public abstract class DynamicPartitionPruningRule extends RelRule<RelRule.Config
         @Override
         public boolean matches(RelOptRuleCall call) {
             final BatchPhysicalJoinBase join = call.rel(0);
-            return DynamicPartitionPruningUtils.supportDynamicPartitionPruning(join, false, false);
+            return DynamicPartitionPruningUtils.supportDynamicPartitionPruning(join, false);
         }
 
         @Override
@@ -261,6 +265,9 @@ public abstract class DynamicPartitionPruningRule extends RelRule<RelRule.Config
 
             final BatchPhysicalDynamicFilteringTableSourceScan newFactScan =
                     createDynamicFilteringTableSourceScan(factScan, dimSide, join, null, false);
+            if (newFactScan == null) {
+                return;
+            }
             final Join newJoin = join.copy(join.getTraitSet(), Arrays.asList(dimSide, newFactScan));
             call.transformTo(newJoin);
         }
@@ -302,7 +309,7 @@ public abstract class DynamicPartitionPruningRule extends RelRule<RelRule.Config
         @Override
         public boolean matches(RelOptRuleCall call) {
             final BatchPhysicalJoinBase join = call.rel(0);
-            return DynamicPartitionPruningUtils.supportDynamicPartitionPruning(join, true, false);
+            return DynamicPartitionPruningUtils.supportDynamicPartitionPruning(join, true);
         }
 
         @Override
@@ -313,6 +320,9 @@ public abstract class DynamicPartitionPruningRule extends RelRule<RelRule.Config
 
             final BatchPhysicalDynamicFilteringTableSourceScan newFactScan =
                     createDynamicFilteringTableSourceScan(factScan, dimSide, join, null, true);
+            if (newFactScan == null) {
+                return;
+            }
             final Join newJoin = join.copy(join.getTraitSet(), Arrays.asList(newFactScan, dimSide));
             call.transformTo(newJoin);
         }
@@ -359,7 +369,7 @@ public abstract class DynamicPartitionPruningRule extends RelRule<RelRule.Config
         @Override
         public boolean matches(RelOptRuleCall call) {
             final BatchPhysicalJoinBase join = call.rel(0);
-            return DynamicPartitionPruningUtils.supportDynamicPartitionPruning(join, false, false);
+            return DynamicPartitionPruningUtils.supportDynamicPartitionPruning(join, false);
         }
 
         @Override
@@ -371,6 +381,9 @@ public abstract class DynamicPartitionPruningRule extends RelRule<RelRule.Config
 
             final BatchPhysicalDynamicFilteringTableSourceScan newFactScan =
                     createDynamicFilteringTableSourceScan(factScan, dimSide, join, null, false);
+            if (newFactScan == null) {
+                return;
+            }
             final BatchPhysicalExchange newExchange =
                     (BatchPhysicalExchange)
                             exchange.copy(
@@ -421,7 +434,7 @@ public abstract class DynamicPartitionPruningRule extends RelRule<RelRule.Config
         @Override
         public boolean matches(RelOptRuleCall call) {
             final BatchPhysicalJoinBase join = call.rel(0);
-            return DynamicPartitionPruningUtils.supportDynamicPartitionPruning(join, true, false);
+            return DynamicPartitionPruningUtils.supportDynamicPartitionPruning(join, true);
         }
 
         @Override
@@ -433,6 +446,9 @@ public abstract class DynamicPartitionPruningRule extends RelRule<RelRule.Config
 
             final BatchPhysicalDynamicFilteringTableSourceScan newFactScan =
                     createDynamicFilteringTableSourceScan(factScan, dimSide, join, null, true);
+            if (newFactScan == null) {
+                return;
+            }
             final BatchPhysicalExchange newExchange =
                     (BatchPhysicalExchange)
                             exchange.copy(
@@ -483,7 +499,7 @@ public abstract class DynamicPartitionPruningRule extends RelRule<RelRule.Config
         @Override
         public boolean matches(RelOptRuleCall call) {
             final BatchPhysicalJoinBase join = call.rel(0);
-            return DynamicPartitionPruningUtils.supportDynamicPartitionPruning(join, false, false);
+            return DynamicPartitionPruningUtils.supportDynamicPartitionPruning(join, false);
         }
 
         @Override
@@ -545,7 +561,7 @@ public abstract class DynamicPartitionPruningRule extends RelRule<RelRule.Config
         @Override
         public boolean matches(RelOptRuleCall call) {
             final BatchPhysicalJoinBase join = call.rel(0);
-            return DynamicPartitionPruningUtils.supportDynamicPartitionPruning(join, true, false);
+            return DynamicPartitionPruningUtils.supportDynamicPartitionPruning(join, true);
         }
 
         @Override
@@ -557,6 +573,9 @@ public abstract class DynamicPartitionPruningRule extends RelRule<RelRule.Config
 
             final BatchPhysicalDynamicFilteringTableSourceScan newFactScan =
                     createDynamicFilteringTableSourceScan(factScan, dimSide, join, factCalc, true);
+            if (newFactScan == null) {
+                return;
+            }
             final BatchPhysicalCalc newCalc =
                     (BatchPhysicalCalc)
                             factCalc.copy(
@@ -617,7 +636,7 @@ public abstract class DynamicPartitionPruningRule extends RelRule<RelRule.Config
         @Override
         public boolean matches(RelOptRuleCall call) {
             final BatchPhysicalJoinBase join = call.rel(0);
-            return DynamicPartitionPruningUtils.supportDynamicPartitionPruning(join, false, false);
+            return DynamicPartitionPruningUtils.supportDynamicPartitionPruning(join, false);
         }
 
         @Override
@@ -630,6 +649,9 @@ public abstract class DynamicPartitionPruningRule extends RelRule<RelRule.Config
 
             final BatchPhysicalDynamicFilteringTableSourceScan newFactScan =
                     createDynamicFilteringTableSourceScan(factScan, dimSide, join, factCalc, false);
+            if (newFactScan == null) {
+                return;
+            }
             final BatchPhysicalCalc newCalc =
                     (BatchPhysicalCalc)
                             factCalc.copy(
@@ -694,7 +716,7 @@ public abstract class DynamicPartitionPruningRule extends RelRule<RelRule.Config
         @Override
         public boolean matches(RelOptRuleCall call) {
             final BatchPhysicalJoinBase join = call.rel(0);
-            return DynamicPartitionPruningUtils.supportDynamicPartitionPruning(join, true, false);
+            return DynamicPartitionPruningUtils.supportDynamicPartitionPruning(join, true);
         }
 
         @Override
@@ -707,6 +729,9 @@ public abstract class DynamicPartitionPruningRule extends RelRule<RelRule.Config
 
             final BatchPhysicalDynamicFilteringTableSourceScan newFactScan =
                     createDynamicFilteringTableSourceScan(factScan, dimSide, join, factCalc, true);
+            if (newFactScan == null) {
+                return;
+            }
             final BatchPhysicalCalc newCalc =
                     (BatchPhysicalCalc)
                             factCalc.copy(

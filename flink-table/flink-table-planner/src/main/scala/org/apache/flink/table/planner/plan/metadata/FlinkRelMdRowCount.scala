@@ -341,7 +341,7 @@ class FlinkRelMdRowCount private extends MetadataHandler[BuiltInMetadata.RowCoun
     // pruning pattern. Try best to reorder the fact table and fact table together to
     // make DPP succeed.
     val dynamicPartitionPruningFactor =
-      if (DynamicPartitionPruningUtils.supportDynamicPartitionPruning(join, true)) {
+      if (DynamicPartitionPruningUtils.supportDynamicPartitionPruning(join)) {
         0.0001
       } else {
         1

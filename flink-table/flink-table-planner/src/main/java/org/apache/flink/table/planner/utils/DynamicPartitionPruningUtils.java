@@ -18,7 +18,6 @@
 
 package org.apache.flink.table.planner.utils;
 
-import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.config.OptimizerConfigOptions;
 import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.connector.source.DynamicTableSource;
@@ -58,23 +57,17 @@ public class DynamicPartitionPruningUtils {
      * For the input join node, judge whether the join left side and join right side meet the
      * requirements of dynamic partition pruning. Fact side in left or right join is not clear.
      */
-    public static boolean supportDynamicPartitionPruning(Join join, boolean isDPPJoinReorderJudge) {
-        return supportDynamicPartitionPruning(join, true, isDPPJoinReorderJudge)
-                || supportDynamicPartitionPruning(join, false, isDPPJoinReorderJudge);
+    public static boolean supportDynamicPartitionPruning(Join join) {
+        return supportDynamicPartitionPruning(join, true)
+                || supportDynamicPartitionPruning(join, false);
     }
 
     /**
      * For the input join node, judge whether the join left side and join right side meet the
      * requirements of dynamic partition pruning. Fact side in left or right is clear. If meets the
      * requirements, return true.
-     *
-     * @param join the join node need to judge whether support dynamic partition pruning
-     * @param factInLeft Inside join node, whether fact table in left join side
-     * @param isDPPJoinReorderJudge whether this method is called to support dpp pattern join
-     *     reorder.
      */
-    public static boolean supportDynamicPartitionPruning(
-            Join join, boolean factInLeft, boolean isDPPJoinReorderJudge) {
+    public static boolean supportDynamicPartitionPruning(Join join, boolean factInLeft) {
         if (!ShortcutUtils.unwrapContext(join)
                 .getTableConfig()
                 .get(OptimizerConfigOptions.TABLE_OPTIMIZER_DYNAMIC_FILTERING_ENABLED)) {
@@ -105,24 +98,18 @@ public class DynamicPartitionPruningUtils {
         // TODO Now fact side and dim side don't support many complex patterns, like join inside
         // fact/dim side, agg inside fact/dim side etc. which will support next.
         return factInLeft
-                ? isDynamicPartitionPruningPattern(
-                        left, right, joinInfo.leftKeys, isDPPJoinReorderJudge)
-                : isDynamicPartitionPruningPattern(
-                        right, left, joinInfo.rightKeys, isDPPJoinReorderJudge);
+                ? isDynamicPartitionPruningPattern(left, right, joinInfo.leftKeys)
+                : isDynamicPartitionPruningPattern(right, left, joinInfo.rightKeys);
     }
 
     private static boolean isDynamicPartitionPruningPattern(
-            RelNode factSide,
-            RelNode dimSide,
-            ImmutableIntList factSideJoinKey,
-            boolean isDPPJoinReorderJudge) {
-        return isDimSide(dimSide) && isFactSide(factSide, factSideJoinKey, isDPPJoinReorderJudge);
+            RelNode factSide, RelNode dimSide, ImmutableIntList factSideJoinKey) {
+        return isDimSide(dimSide) && isFactSide(factSide, factSideJoinKey);
     }
 
     /** make a dpp fact side factor to recurrence in fact side. */
-    private static boolean isFactSide(
-            RelNode rel, ImmutableIntList joinKeys, boolean isDPPJoinReorderJudge) {
-        DppFactSideFactors factSideFactors = new DppFactSideFactors(isDPPJoinReorderJudge);
+    private static boolean isFactSide(RelNode rel, ImmutableIntList joinKeys) {
+        DppFactSideFactors factSideFactors = new DppFactSideFactors();
         visitFactSide(rel, factSideFactors, joinKeys);
         return factSideFactors.isFactSide();
     }
@@ -174,42 +161,11 @@ public class DynamicPartitionPruningUtils {
                 return;
             }
 
-            List<String> candidateFields;
-            if (factSideFactors.calcJoinKeysIndexInFactTable == null
-                    || factSideFactors.calcJoinKeysIndexInFactTable.isEmpty()) {
-                candidateFields =
-                        joinKeys.stream()
-                                .map(i -> scan.getRowType().getFieldNames().get(i))
-                                .collect(Collectors.toList());
-            } else {
-                candidateFields =
-                        factSideFactors.calcJoinKeysIndexInFactTable.stream()
-                                .map(i -> scan.getRowType().getFieldNames().get(i))
-                                .collect(Collectors.toList());
-            }
-            List<String> acceptedFields;
-            // If isDPPJoinReorderJudge is true, we need not call applyDynamicFiltering method to
-            // avoid semantic errors caused by changing table source's acceptedPartitionFilterFields
-            // incorrectly.
-            if (factSideFactors.isDPPJoinReorderJudge) {
-                acceptedFields = candidateFields;
-            } else {
-                acceptedFields =
-                        ((SupportsDynamicFiltering) tableSource)
-                                .applyDynamicFiltering(candidateFields);
-            }
-
-            for (String field : acceptedFields) {
-                if (!candidateFields.contains(field)) {
-                    throw new TableException(
-                            String.format(
-                                    "Field: %s does not exist in the given fields: %s, "
-                                            + "please verify the applyDynamicFiltering method in connector: %s",
-                                    field, candidateFields, tableSource.asSummaryString()));
-                }
-            }
-
-            factSideFactors.isSuitableFactScanSource = !acceptedFields.isEmpty();
+            List<String> candidateFields =
+                    joinKeys.stream()
+                            .map(i -> scan.getRowType().getFieldNames().get(i))
+                            .collect(Collectors.toList());
+            factSideFactors.isSuitableFactScanSource = !candidateFields.isEmpty();
         } else if (rel instanceof HepRelVertex) {
             visitFactSide(((HepRelVertex) rel).getCurrentRel(), factSideFactors, joinKeys);
         } else if (rel instanceof Exchange || rel instanceof Filter) {
@@ -234,11 +190,9 @@ public class DynamicPartitionPruningUtils {
             if (inputJoinKeys.isEmpty()) {
                 factSideFactors.isSuitableJoinKey = false;
                 return;
-            } else {
-                factSideFactors.calcJoinKeysIndexInFactTable = inputJoinKeys;
             }
 
-            visitFactSide(rel.getInput(0), factSideFactors, joinKeys);
+            visitFactSide(rel.getInput(0), factSideFactors, inputJoinKeys);
         }
     }
 
@@ -353,15 +307,9 @@ public class DynamicPartitionPruningUtils {
 
     /** This class is used to remember fact side messages while recurring in fact side. */
     private static class DppFactSideFactors {
-        private final boolean isDPPJoinReorderJudge;
         private boolean isSuitableFactScanSource;
         // If join key is not changed in fact side, this value is always true.
         private boolean isSuitableJoinKey = true;
-        private List<Integer> calcJoinKeysIndexInFactTable;
-
-        private DppFactSideFactors(boolean isDPPJoinReorderJudge) {
-            this.isDPPJoinReorderJudge = isDPPJoinReorderJudge;
-        }
 
         public boolean isFactSide() {
             return isSuitableFactScanSource && isSuitableJoinKey;
