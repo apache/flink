@@ -26,6 +26,7 @@ import org.apache.flink.runtime.shuffle.ShuffleDescriptor;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import java.util.function.Function;
@@ -41,8 +42,9 @@ public class TestingJobMasterPartitionTracker implements JobMasterPartitionTrack
             startTrackingPartitionsConsumer = (ignoredA, ignoredB) -> {};
     private Consumer<Collection<ResultPartitionID>> stopTrackingAndReleasePartitionsConsumer =
             ignored -> {};
-    private Consumer<Collection<ResultPartitionID>>
-            stopTrackingAndReleaseOrPromotePartitionsConsumer = ignored -> {};
+
+    private Consumer<Collection<ResultPartitionID>> stopTrackingAndPromotePartitionsConsumer =
+            ignored -> {};
     private Consumer<Collection<ResultPartitionID>> stopTrackingPartitionsConsumer = ignored -> {};
     private Supplier<Collection<ResultPartitionDeploymentDescriptor>>
             getAllTrackedPartitionsSupplier = () -> Collections.emptyList();
@@ -73,13 +75,6 @@ public class TestingJobMasterPartitionTracker implements JobMasterPartitionTrack
         this.stopTrackingAndReleasePartitionsConsumer = stopTrackingAndReleasePartitionsConsumer;
     }
 
-    public void setStopTrackingAndReleaseOrPromotePartitionsConsumer(
-            Consumer<Collection<ResultPartitionID>>
-                    stopTrackingAndReleaseOrPromotePartitionsConsumer) {
-        this.stopTrackingAndReleaseOrPromotePartitionsConsumer =
-                stopTrackingAndReleaseOrPromotePartitionsConsumer;
-    }
-
     public void setStopTrackingPartitionsConsumer(
             Consumer<Collection<ResultPartitionID>> stopTrackingPartitionsConsumer) {
         this.stopTrackingPartitionsConsumer = stopTrackingPartitionsConsumer;
@@ -89,6 +84,11 @@ public class TestingJobMasterPartitionTracker implements JobMasterPartitionTrack
             Supplier<Collection<ResultPartitionDeploymentDescriptor>>
                     getAllTrackedPartitionsSupplier) {
         this.getAllTrackedPartitionsSupplier = getAllTrackedPartitionsSupplier;
+    }
+
+    public void setStopTrackingAndPromotePartitionsConsumer(
+            Consumer<Collection<ResultPartitionID>> stopTrackingAndPromotePartitionsConsumer) {
+        this.stopTrackingAndPromotePartitionsConsumer = stopTrackingAndPromotePartitionsConsumer;
     }
 
     @Override
@@ -113,16 +113,17 @@ public class TestingJobMasterPartitionTracker implements JobMasterPartitionTrack
     }
 
     @Override
+    public CompletableFuture<Void> stopTrackingAndPromotePartitions(
+            Collection<ResultPartitionID> resultPartitionIds) {
+        stopTrackingAndPromotePartitionsConsumer.accept(resultPartitionIds);
+        return CompletableFuture.completedFuture(null);
+    }
+
+    @Override
     public Collection<PartitionTrackerEntry<ResourceID, ResultPartitionDeploymentDescriptor>>
             stopTrackingPartitions(Collection<ResultPartitionID> resultPartitionIds) {
         stopTrackingPartitionsConsumer.accept(resultPartitionIds);
         return Collections.emptyList();
-    }
-
-    @Override
-    public void stopTrackingAndReleaseOrPromotePartitions(
-            Collection<ResultPartitionID> resultPartitionIds) {
-        stopTrackingAndReleaseOrPromotePartitionsConsumer.accept(resultPartitionIds);
     }
 
     @Override
