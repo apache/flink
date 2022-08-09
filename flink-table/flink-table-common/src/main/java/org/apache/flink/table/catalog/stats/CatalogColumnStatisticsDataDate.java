@@ -76,12 +76,13 @@ public class CatalogColumnStatisticsDataDate extends CatalogColumnStatisticsData
         CatalogColumnStatisticsDataDate that = (CatalogColumnStatisticsDataDate) o;
         return Objects.equals(min, that.min)
                 && Objects.equals(max, that.max)
-                && Objects.equals(ndv, that.ndv);
+                && Objects.equals(ndv, that.ndv)
+                && Objects.equals(getNullCount(), that.getNullCount());
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(min, max, ndv);
+        return Objects.hash(min, max, ndv, getNullCount());
     }
 
     @Override
@@ -93,6 +94,8 @@ public class CatalogColumnStatisticsDataDate extends CatalogColumnStatisticsData
                 + max
                 + ", ndv="
                 + ndv
+                + ", nullCount="
+                + getNullCount()
                 + '}';
     }
 }

@@ -66,12 +66,13 @@ public class CatalogColumnStatisticsDataBoolean extends CatalogColumnStatisticsD
         }
         CatalogColumnStatisticsDataBoolean that = (CatalogColumnStatisticsDataBoolean) o;
         return Objects.equals(trueCount, that.trueCount)
-                && Objects.equals(falseCount, that.falseCount);
+                && Objects.equals(falseCount, that.falseCount)
+                && Objects.equals(getNullCount(), that.getNullCount());
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(trueCount, falseCount);
+        return Objects.hash(trueCount, falseCount, getNullCount());
     }
 
     @Override
@@ -81,6 +82,8 @@ public class CatalogColumnStatisticsDataBoolean extends CatalogColumnStatisticsD
                 + trueCount
                 + ", falseCount="
                 + falseCount
+                + ", nullCount="
+                + getNullCount()
                 + '}';
     }
 }

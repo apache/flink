@@ -20,6 +20,7 @@ package org.apache.flink.connectors.hive.util;
 
 import org.apache.flink.connectors.hive.FlinkHiveException;
 import org.apache.flink.connectors.hive.HiveTablePartition;
+import org.apache.flink.table.catalog.CatalogPartitionSpec;
 import org.apache.flink.table.catalog.ObjectPath;
 import org.apache.flink.table.catalog.hive.client.HiveMetastoreClientFactory;
 import org.apache.flink.table.catalog.hive.client.HiveMetastoreClientWrapper;
@@ -54,6 +55,7 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.stream.Collectors;
 
+import static org.apache.flink.table.utils.PartitionPathUtils.unescapePathName;
 import static org.apache.flink.util.Preconditions.checkArgument;
 
 /** Utils to load hive partitions from HiveMetaStore. */
@@ -212,6 +214,26 @@ public class HivePartitionUtils {
             partitionNames.add(FileUtils.makePartName(partitionColNames, pVals, defaultStr));
         }
         return partitionNames;
+    }
+
+    /**
+     * Creates a {@link CatalogPartitionSpec} from a Hive partition name string. Example of Hive
+     * partition name string - "name=bob/year=2019". If the partition name for the given partition
+     * column is equal to {@param defaultPartitionName}, the partition value in returned {@link
+     * CatalogPartitionSpec} will be null.
+     */
+    public static CatalogPartitionSpec createPartitionSpec(
+            String hivePartitionName, String defaultPartitionName) {
+        String[] partKeyVals = hivePartitionName.split("/");
+        Map<String, String> spec = new HashMap<>(partKeyVals.length);
+        for (String keyVal : partKeyVals) {
+            String[] kv = keyVal.split("=");
+            String partitionValue = unescapePathName(kv[1]);
+            spec.put(
+                    unescapePathName(kv[0]),
+                    partitionValue.equals(defaultPartitionName) ? null : partitionValue);
+        }
+        return new CatalogPartitionSpec(spec);
     }
 
     public static List<String> partitionSpecToValues(

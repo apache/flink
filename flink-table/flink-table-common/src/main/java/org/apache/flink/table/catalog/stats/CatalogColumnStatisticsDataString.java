@@ -81,12 +81,13 @@ public class CatalogColumnStatisticsDataString extends CatalogColumnStatisticsDa
         CatalogColumnStatisticsDataString that = (CatalogColumnStatisticsDataString) o;
         return Objects.equals(maxLength, that.maxLength)
                 && Objects.equals(avgLength, that.avgLength)
-                && Objects.equals(ndv, that.ndv);
+                && Objects.equals(ndv, that.ndv)
+                && Objects.equals(getNullCount(), that.getNullCount());
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(maxLength, avgLength, ndv);
+        return Objects.hash(maxLength, avgLength, ndv, getNullCount());
     }
 
     @Override
@@ -98,6 +99,8 @@ public class CatalogColumnStatisticsDataString extends CatalogColumnStatisticsDa
                 + avgLength
                 + ", ndv="
                 + ndv
+                + ", nullCount="
+                + getNullCount()
                 + '}';
     }
 }

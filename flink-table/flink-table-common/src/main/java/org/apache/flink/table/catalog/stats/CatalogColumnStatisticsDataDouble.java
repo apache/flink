@@ -76,7 +76,8 @@ public class CatalogColumnStatisticsDataDouble extends CatalogColumnStatisticsDa
         CatalogColumnStatisticsDataDouble that = (CatalogColumnStatisticsDataDouble) o;
         return doubleCompare(min, that.min)
                 && doubleCompare(max, that.max)
-                && Objects.equals(ndv, that.ndv);
+                && Objects.equals(ndv, that.ndv)
+                && Objects.equals(getNullCount(), that.getNullCount());
     }
 
     private boolean doubleCompare(Double d1, Double d2) {
@@ -91,7 +92,7 @@ public class CatalogColumnStatisticsDataDouble extends CatalogColumnStatisticsDa
 
     @Override
     public int hashCode() {
-        return Objects.hash(min, max, ndv);
+        return Objects.hash(min, max, ndv, getNullCount());
     }
 
     @Override
@@ -103,6 +104,8 @@ public class CatalogColumnStatisticsDataDouble extends CatalogColumnStatisticsDa
                 + max
                 + ", ndv="
                 + ndv
+                + ", nullCount="
+                + getNullCount()
                 + '}';
     }
 }

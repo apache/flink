@@ -66,12 +66,13 @@ public class CatalogColumnStatisticsDataBinary extends CatalogColumnStatisticsDa
         }
         CatalogColumnStatisticsDataBinary that = (CatalogColumnStatisticsDataBinary) o;
         return Objects.equals(maxLength, that.maxLength)
-                && Objects.equals(avgLength, that.avgLength);
+                && Objects.equals(avgLength, that.avgLength)
+                && Objects.equals(getNullCount(), that.getNullCount());
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(maxLength, avgLength);
+        return Objects.hash(maxLength, avgLength, getNullCount());
     }
 
     @Override
@@ -81,6 +82,8 @@ public class CatalogColumnStatisticsDataBinary extends CatalogColumnStatisticsDa
                 + maxLength
                 + ", avgLength="
                 + avgLength
+                + ", nullCount="
+                + getNullCount()
                 + '}';
     }
 }

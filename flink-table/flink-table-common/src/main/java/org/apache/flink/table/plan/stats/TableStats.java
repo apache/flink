@@ -81,6 +81,17 @@ public final class TableStats {
      */
     @Nonnull
     public TableStats merge(TableStats other) {
+        if (this == UNKNOWN || other == UNKNOWN) {
+            return TableStats.UNKNOWN;
+        }
+        long rowCount =
+                this.rowCount >= 0 && other.rowCount >= 0
+                        ? this.rowCount + other.rowCount
+                        : UNKNOWN.rowCount;
+        return new TableStats(rowCount, mergeColumnStates(other));
+    }
+
+    private Map<String, ColumnStats> mergeColumnStates(TableStats other) {
         Map<String, ColumnStats> colStats = new HashMap<>();
         for (Map.Entry<String, ColumnStats> entry : this.colStats.entrySet()) {
             String col = entry.getKey();
@@ -90,11 +101,7 @@ public final class TableStats {
                 colStats.put(col, stats.merge(otherStats));
             }
         }
-        return new TableStats(
-                this.rowCount >= 0 && other.rowCount >= 0
-                        ? this.rowCount + other.rowCount
-                        : UNKNOWN.rowCount,
-                colStats);
+        return colStats;
     }
 
     @Override

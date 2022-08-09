@@ -35,6 +35,9 @@ import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.CatalogTableImpl;
 import org.apache.flink.table.catalog.CatalogTestUtil;
 import org.apache.flink.table.catalog.CatalogView;
+import org.apache.flink.table.catalog.Column;
+import org.apache.flink.table.catalog.ResolvedCatalogTable;
+import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.catalog.hive.client.HiveShimLoader;
 import org.apache.flink.table.catalog.hive.util.HiveTypeUtil;
 import org.apache.flink.table.catalog.stats.CatalogColumnStatistics;
@@ -61,9 +64,12 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 import static org.apache.flink.sql.parser.hive.ddl.SqlCreateHiveTable.IDENTIFIER;
 import static org.apache.flink.table.factories.FactoryUtil.CONNECTOR;
@@ -329,7 +335,303 @@ class HiveCatalogHiveMetadataTest extends HiveCatalogMetadataTestBase {
         assertThat(statistics.getTotalSize()).isEqualTo(expectStat);
     }
 
+    @Test
+    public void testBulkGetPartitionStatistics() throws Exception {
+        final List<CatalogPartitionSpec> catalogPartitionSpecList = prepareCatalogPartition();
+        List<CatalogTableStatistics> partitionStatistics =
+                catalog.bulkGetPartitionStatistics(path1, catalogPartitionSpecList);
+        // check the statistic for all partitions
+        for (CatalogTableStatistics catalogTableStatistics : partitionStatistics) {
+            // since we haven't put statistic to the partition, the statistic should be unknown
+            assertThat(catalogTableStatistics).isEqualTo(CatalogTableStatistics.UNKNOWN);
+        }
+
+        // now, we put statistic to partition
+        List<CatalogTableStatistics> expectedStatistic = new ArrayList<>();
+        for (int i = 0; i < catalogPartitionSpecList.size(); i++) {
+            CatalogTableStatistics statistics =
+                    new CatalogTableStatistics((long) i + 1, i, i, i + 2);
+            expectedStatistic.add(statistics);
+            catalog.alterPartitionStatistics(
+                    path1, catalogPartitionSpecList.get(i), statistics, false);
+        }
+
+        // get the statistic again
+        partitionStatistics = catalog.bulkGetPartitionStatistics(path1, catalogPartitionSpecList);
+        assertThat(partitionStatistics.size()).isEqualTo(expectedStatistic.size());
+        for (int i = 0; i < partitionStatistics.size(); i++) {
+            // we can't alter Hive's fileCount/totalSize by alterPartitionStatistics,
+            // so, only check rowCount/rawDataSize
+            assertThat(partitionStatistics.get(i).getRowCount())
+                    .isEqualTo(expectedStatistic.get(i).getRowCount());
+            assertThat(partitionStatistics.get(i).getRawDataSize())
+                    .isEqualTo(expectedStatistic.get(i).getRawDataSize());
+        }
+    }
+
+    @Test
+    public void testBulkGetPartitionColumnStatistics() throws Exception {
+        final List<CatalogPartitionSpec> catalogPartitionSpecList = prepareCatalogPartition();
+
+        List<CatalogColumnStatistics> tableColumnStatistics =
+                catalog.bulkGetPartitionColumnStatistics(path1, catalogPartitionSpecList);
+
+        for (int i = 0; i < catalogPartitionSpecList.size(); i++) {
+            CatalogPartitionSpec catalogPartitionSpec = catalogPartitionSpecList.get(i);
+            // the non-partition column statistic should be empty since we haven't put any
+            // statistic to the partition
+            Map<String, CatalogColumnStatisticsDataBase> columnActualStatistics =
+                    tableColumnStatistics.get(i).getColumnStatisticsData();
+            assertThat(columnActualStatistics.get("first")).isNull();
+            assertThat(columnActualStatistics.get("four")).isNull();
+            assertThat(columnActualStatistics.get("five")).isNull();
+
+            checkPartitionColumnStatistic(
+                    catalogPartitionSpec,
+                    (CatalogColumnStatisticsDataDate) columnActualStatistics.get("second"),
+                    (CatalogColumnStatisticsDataLong) columnActualStatistics.get("third"));
+        }
+
+        // put statistic for non-partition column
+        List<Map<String, CatalogColumnStatisticsDataBase>> nonPartitionColumnsExpectStatisticList =
+                new ArrayList<>();
+        for (int i = 0; i < catalogPartitionSpecList.size(); i++) {
+            CatalogPartitionSpec spec = catalogPartitionSpecList.get(i);
+            Map<String, CatalogColumnStatisticsDataBase> nonPartitionColumnsStatistic =
+                    new HashMap<>();
+            nonPartitionColumnsStatistic.put(
+                    "first",
+                    new CatalogColumnStatisticsDataString(
+                            (long) i, (double) i, (long) i, (long) i));
+            nonPartitionColumnsStatistic.put(
+                    "four", new CatalogColumnStatisticsDataBoolean((long) i, (long) i, (long) i));
+            nonPartitionColumnsStatistic.put(
+                    "five",
+                    new CatalogColumnStatisticsDataDouble(
+                            (double) i, (double) i, (long) i, (long) i));
+            nonPartitionColumnsExpectStatisticList.add(nonPartitionColumnsStatistic);
+            catalog.alterPartitionColumnStatistics(
+                    path1, spec, new CatalogColumnStatistics(nonPartitionColumnsStatistic), false);
+        }
+
+        tableColumnStatistics =
+                catalog.bulkGetPartitionColumnStatistics(path1, catalogPartitionSpecList);
+
+        // check statistic for each partition
+        for (int i = 0; i < catalogPartitionSpecList.size(); i++) {
+            CatalogPartitionSpec catalogPartitionSpec = catalogPartitionSpecList.get(i);
+            Map<String, CatalogColumnStatisticsDataBase> columnActualStatistics =
+                    tableColumnStatistics.get(i).getColumnStatisticsData();
+            // check the statistic for non-partition column
+            checkColumnStatistics(
+                    columnActualStatistics.get("first"),
+                    nonPartitionColumnsExpectStatisticList.get(i).get("first"));
+            checkColumnStatistics(
+                    columnActualStatistics.get("four"),
+                    nonPartitionColumnsExpectStatisticList.get(i).get("four"));
+            checkColumnStatistics(
+                    columnActualStatistics.get("five"),
+                    nonPartitionColumnsExpectStatisticList.get(i).get("five"));
+
+            // check the statistic for partition column
+            checkPartitionColumnStatistic(
+                    catalogPartitionSpec,
+                    (CatalogColumnStatisticsDataDate) columnActualStatistics.get("second"),
+                    (CatalogColumnStatisticsDataLong) columnActualStatistics.get("third"));
+        }
+    }
+
+    @Test
+    public void testBulkGetNullValuePartitionColumnStatistics() throws Exception {
+        prepareCatalogPartition();
+        List<CatalogPartitionSpec> catalogPartitionSpecs = new ArrayList<>();
+        List<Map<String, CatalogColumnStatisticsDataBase>> columnExpectStatisticsList =
+                new ArrayList<>();
+        // we mock four partition, (null, 0), (null, 1), (2022-8-8, null), (2022-8-9, null)
+        // add twos partition: (null, 0), (null, 1)
+        Map<String, String> partitionSpec = new HashMap<>();
+        partitionSpec.put("second", null);
+        partitionSpec.put("third", "0");
+        catalogPartitionSpecs.add(new CatalogPartitionSpec(new HashMap<>(partitionSpec)));
+        // expect statistic for this partition is as follows:
+        columnExpectStatisticsList.add(
+                new HashMap<String, CatalogColumnStatisticsDataBase>() {
+                    {
+                        // we haven't put statistic to the partition, so the nullCount should be
+                        // null
+                        put("second", new CatalogColumnStatisticsDataDate(null, null, 1L, null));
+                        put("third", new CatalogColumnStatisticsDataLong(0L, 0L, 1L, 0L));
+                    }
+                });
+
+        createPartition(partitionSpec);
+        partitionSpec.put("third", "1");
+        createPartition(partitionSpec);
+        catalogPartitionSpecs.add(new CatalogPartitionSpec(new HashMap<>(partitionSpec)));
+        // expect statistic for this partition is as follows:
+        columnExpectStatisticsList.add(
+                new HashMap<String, CatalogColumnStatisticsDataBase>() {
+                    {
+                        put("second", new CatalogColumnStatisticsDataDate(null, null, 1L, null));
+                        put("third", new CatalogColumnStatisticsDataLong(1L, 1L, 1L, 0L));
+                    }
+                });
+
+        partitionSpec = new HashMap<>();
+        // add twos partition: (2022-8-8, null), (2022-8-9, null)
+        partitionSpec.put("second", "2022-8-8");
+        partitionSpec.put("third", null);
+        createPartition(partitionSpec);
+        catalogPartitionSpecs.add(new CatalogPartitionSpec(new HashMap<>(partitionSpec)));
+        // expect statistic for this partition is as follows:
+        Date expectDate = new Date(java.sql.Date.valueOf("2022-8-8").toLocalDate().toEpochDay());
+        columnExpectStatisticsList.add(
+                new HashMap<String, CatalogColumnStatisticsDataBase>() {
+                    {
+                        put(
+                                "second",
+                                new CatalogColumnStatisticsDataDate(
+                                        expectDate, expectDate, 1L, 0L));
+                        put("third", new CatalogColumnStatisticsDataLong(null, null, 1L, null));
+                    }
+                });
+
+        partitionSpec.put("second", "2022-8-9");
+        createPartition(partitionSpec);
+        catalogPartitionSpecs.add(new CatalogPartitionSpec(new HashMap<>(partitionSpec)));
+        // expect statistic for this partition is as follows:
+        Date expectDate1 = new Date(java.sql.Date.valueOf("2022-8-9").toLocalDate().toEpochDay());
+        columnExpectStatisticsList.add(
+                new HashMap<String, CatalogColumnStatisticsDataBase>() {
+                    {
+                        put(
+                                "second",
+                                new CatalogColumnStatisticsDataDate(
+                                        expectDate1, expectDate1, 1L, 0L));
+                        put("third", new CatalogColumnStatisticsDataLong(null, null, 1L, null));
+                    }
+                });
+
+        // check the statistic for the partition column
+        List<CatalogColumnStatistics> catalogColumnActualStatisticsList =
+                catalog.bulkGetPartitionColumnStatistics(path1, catalogPartitionSpecs);
+        for (int i = 0; i < catalogColumnActualStatisticsList.size(); i++) {
+            Map<String, CatalogColumnStatisticsDataBase> columnActualStatistics =
+                    catalogColumnActualStatisticsList.get(i).getColumnStatisticsData();
+            assertThat(columnActualStatistics).isEqualTo(columnExpectStatisticsList.get(i));
+        }
+
+        // now we put statistic to the partition
+        // (null, 0): rowCount 1
+        catalog.alterPartitionStatistics(
+                path1, catalogPartitionSpecs.get(0), new CatalogTableStatistics(1, 1, 1, 1), false);
+        // (null, 1): rowCount 2
+        catalog.alterPartitionStatistics(
+                path1, catalogPartitionSpecs.get(1), new CatalogTableStatistics(2, 1, 1, 1), false);
+        columnExpectStatisticsList
+                .get(0)
+                .put("second", new CatalogColumnStatisticsDataDate(null, null, 1L, 3L));
+        columnExpectStatisticsList
+                .get(1)
+                .put("second", new CatalogColumnStatisticsDataDate(null, null, 1L, 3L));
+
+        // (2022-8-8, null): rowCount 3
+        catalog.alterPartitionStatistics(
+                path1, catalogPartitionSpecs.get(2), new CatalogTableStatistics(3, 1, 1, 1), false);
+        // (2022-8-9, null): rowCount 4
+        catalog.alterPartitionStatistics(
+                path1, catalogPartitionSpecs.get(3), new CatalogTableStatistics(4, 1, 1, 1), false);
+        columnExpectStatisticsList
+                .get(2)
+                .put("third", new CatalogColumnStatisticsDataLong(null, null, 1L, 7L));
+        columnExpectStatisticsList
+                .get(3)
+                .put("third", new CatalogColumnStatisticsDataLong(null, null, 1L, 7L));
+
+        // check the statistic for the partition column again
+        catalogColumnActualStatisticsList =
+                catalog.bulkGetPartitionColumnStatistics(path1, catalogPartitionSpecs);
+        for (int i = 0; i < catalogColumnActualStatisticsList.size(); i++) {
+            Map<String, CatalogColumnStatisticsDataBase> columnActualStatistics =
+                    catalogColumnActualStatisticsList.get(i).getColumnStatisticsData();
+            assertThat(columnActualStatistics).isEqualTo(columnExpectStatisticsList.get(i));
+        }
+    }
+
+    private void checkPartitionColumnStatistic(
+            CatalogPartitionSpec catalogPartitionSpec,
+            CatalogColumnStatisticsDataDate secondColumnActualStatistics,
+            CatalogColumnStatisticsDataLong thirdColumnActualStatistics) {
+        // expect date for second column
+        Date expectSecondDate =
+                new Date(
+                        java.sql.Date.valueOf(catalogPartitionSpec.getPartitionSpec().get("second"))
+                                .toLocalDate()
+                                .toEpochDay());
+        checkColumnStatistics(
+                secondColumnActualStatistics,
+                new CatalogColumnStatisticsDataDate(expectSecondDate, expectSecondDate, 1L, 0L));
+
+        // expect value for third column
+        Long expectThirdValue = Long.valueOf(catalogPartitionSpec.getPartitionSpec().get("third"));
+        checkColumnStatistics(
+                thirdColumnActualStatistics,
+                new CatalogColumnStatisticsDataLong(expectThirdValue, expectThirdValue, 1L, 0L));
+    }
+
     // ------ utils ------
+
+    /** Prepare catalog partition, which will create partition table, and create partitions. */
+    private List<CatalogPartitionSpec> prepareCatalogPartition() throws Exception {
+        ResolvedSchema resolvedSchema =
+                new ResolvedSchema(
+                        Arrays.asList(
+                                Column.physical("first", DataTypes.STRING()),
+                                Column.physical("four", DataTypes.BOOLEAN()),
+                                Column.physical("five", DataTypes.DOUBLE()),
+                                Column.physical("second", DataTypes.DATE()),
+                                Column.physical("third", DataTypes.INT())),
+                        Collections.emptyList(),
+                        null);
+        catalog.createDatabase(db1, createDb(), false);
+        final CatalogTable origin =
+                CatalogTable.of(
+                        Schema.newBuilder().fromResolvedSchema(resolvedSchema).build(),
+                        TEST_COMMENT,
+                        createPartitionKeys(),
+                        getBatchTableProperties());
+        CatalogTable catalogTable = new ResolvedCatalogTable(origin, resolvedSchema);
+
+        catalog.createTable(path1, catalogTable, false);
+
+        int secondPartitionNum = 10;
+        int thirdPartitionNum = 5;
+        List<Map<String, String>> partitionSpecs = new ArrayList<>();
+        final String testDatePrefix = "2010-04-";
+        Map<String, String> partitionSpec;
+
+        // create partitions, the number of partitions is: secondPartitionNum * thirdPartitionNum
+        for (int i = 0; i < secondPartitionNum; i++) {
+            for (int j = 0; j < thirdPartitionNum; j++) {
+                partitionSpec = new HashMap<>();
+                partitionSpec.put("second", testDatePrefix + (i + 1));
+                partitionSpec.put("third", Integer.toString(j));
+                createPartition(partitionSpec);
+                partitionSpecs.add(partitionSpec);
+            }
+        }
+        return partitionSpecs.stream().map(CatalogPartitionSpec::new).collect(Collectors.toList());
+    }
+
+    private void checkColumnStatistics(
+            CatalogColumnStatisticsDataBase actual, CatalogColumnStatisticsDataBase expect) {
+        assertThat(actual).isEqualTo(expect);
+    }
+
+    private void createPartition(Map<String, String> partitionSpec) throws Exception {
+        catalog.createPartition(
+                path1, new CatalogPartitionSpec(partitionSpec), createPartition(), true);
+    }
 
     @Override
     protected boolean isGeneric() {

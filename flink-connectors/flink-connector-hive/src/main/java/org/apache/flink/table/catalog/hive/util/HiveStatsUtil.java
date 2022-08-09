@@ -18,7 +18,10 @@
 
 package org.apache.flink.table.catalog.hive.util;
 
+import org.apache.flink.connectors.hive.util.HivePartitionUtils;
+import org.apache.flink.table.catalog.CatalogPartitionSpec;
 import org.apache.flink.table.catalog.exceptions.CatalogException;
+import org.apache.flink.table.catalog.hive.client.HiveMetastoreClientWrapper;
 import org.apache.flink.table.catalog.hive.client.HiveShim;
 import org.apache.flink.table.catalog.hive.client.HiveShimLoader;
 import org.apache.flink.table.catalog.stats.CatalogColumnStatisticsDataBase;
@@ -28,9 +31,15 @@ import org.apache.flink.table.catalog.stats.CatalogColumnStatisticsDataDate;
 import org.apache.flink.table.catalog.stats.CatalogColumnStatisticsDataDouble;
 import org.apache.flink.table.catalog.stats.CatalogColumnStatisticsDataLong;
 import org.apache.flink.table.catalog.stats.CatalogColumnStatisticsDataString;
+import org.apache.flink.table.catalog.stats.CatalogTableStatistics;
+import org.apache.flink.table.catalog.stats.Date;
+import org.apache.flink.table.plan.stats.TableStats;
 import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
 
+import org.apache.commons.lang3.StringUtils;
+import org.apache.hadoop.hive.common.StatsSetupConst;
 import org.apache.hadoop.hive.common.type.HiveDecimal;
 import org.apache.hadoop.hive.metastore.api.BinaryColumnStatsData;
 import org.apache.hadoop.hive.metastore.api.BooleanColumnStatsData;
@@ -56,10 +65,14 @@ import javax.annotation.Nonnull;
 import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.nio.ByteBuffer;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
+import java.util.stream.Collectors;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -88,6 +101,267 @@ public class HiveStatsUtil {
         }
 
         return colStats;
+    }
+
+    /** Get column statistic for partition columns. */
+    public static Map<String, CatalogColumnStatisticsDataBase> getCatalogPartitionColumnStats(
+            HiveMetastoreClientWrapper client,
+            HiveShim hiveShim,
+            Table hiveTable,
+            String partitionName,
+            List<FieldSchema> partitionColsSchema,
+            String defaultPartitionName) {
+        Map<String, CatalogColumnStatisticsDataBase> partitionColumnStats = new HashMap<>();
+        List<String> partitionCols = new ArrayList<>(partitionColsSchema.size());
+        List<LogicalType> partitionColsType = new ArrayList<>(partitionColsSchema.size());
+        for (FieldSchema fieldSchema : partitionColsSchema) {
+            partitionCols.add(fieldSchema.getName());
+            partitionColsType.add(
+                    HiveTypeUtil.toFlinkType(
+                                    TypeInfoUtils.getTypeInfoFromTypeString(fieldSchema.getType()))
+                            .getLogicalType());
+        }
+
+        // the partition column and values for the partition column
+        Map<String, Object> partitionColValues = new HashMap<>();
+        CatalogPartitionSpec partitionSpec =
+                HivePartitionUtils.createPartitionSpec(partitionName, defaultPartitionName);
+        for (int i = 0; i < partitionCols.size(); i++) {
+            String partitionCol = partitionCols.get(i);
+            String partitionStrVal = partitionSpec.getPartitionSpec().get(partitionCols.get(i));
+            if (partitionStrVal == null) {
+                partitionColValues.put(partitionCol, null);
+            } else {
+                partitionColValues.put(
+                        partitionCol,
+                        HivePartitionUtils.restorePartitionValueFromType(
+                                hiveShim,
+                                partitionStrVal,
+                                partitionColsType.get(i),
+                                defaultPartitionName));
+            }
+        }
+
+        // calculate statistic for each partition column
+        for (int i = 0; i < partitionCols.size(); i++) {
+            Object partitionValue = partitionColValues.get(partitionCols.get(i));
+            LogicalType logicalType = partitionColsType.get(i);
+            CatalogColumnStatisticsDataBase catalogColumnStatistics =
+                    getPartitionColumnStats(
+                            client,
+                            hiveTable,
+                            logicalType,
+                            partitionValue,
+                            i,
+                            defaultPartitionName);
+            if (catalogColumnStatistics != null) {
+                partitionColumnStats.put(partitionCols.get(i), catalogColumnStatistics);
+            }
+        }
+
+        return partitionColumnStats;
+    }
+
+    /**
+     * Get statistics for a specific partition column.
+     *
+     * @param logicalType the specific partition column's logical type
+     * @param partitionValue the partition value for the specific partition column
+     * @param partitionColIndex the index of the specific partition column
+     * @param defaultPartitionName the default partition name for null value
+     */
+    private static CatalogColumnStatisticsDataBase getPartitionColumnStats(
+            HiveMetastoreClientWrapper client,
+            Table hiveTable,
+            LogicalType logicalType,
+            Object partitionValue,
+            int partitionColIndex,
+            String defaultPartitionName) {
+        switch (logicalType.getTypeRoot()) {
+            case CHAR:
+            case VARCHAR:
+                {
+                    Long maxLength = null;
+                    Double avgLength = null;
+                    Long nullCount = 0L;
+                    if (partitionValue == null) {
+                        nullCount =
+                                getPartitionColumnNullCount(
+                                        client, hiveTable, partitionColIndex, defaultPartitionName);
+                    } else {
+                        long valLength = ((String) partitionValue).length();
+                        maxLength = valLength;
+                        avgLength = (double) valLength;
+                    }
+                    return new CatalogColumnStatisticsDataString(
+                            maxLength, avgLength, 1L, nullCount);
+                }
+            case BOOLEAN:
+                {
+                    long trueCount = 0L;
+                    long falseCount = 0L;
+                    Long nullCount = 0L;
+                    if (partitionValue == null) {
+                        nullCount =
+                                getPartitionColumnNullCount(
+                                        client, hiveTable, partitionColIndex, defaultPartitionName);
+                    } else {
+                        Boolean boolVal = (Boolean) partitionValue;
+                        if (boolVal) {
+                            trueCount = 1L;
+                        } else {
+                            falseCount = 1L;
+                        }
+                    }
+                    return new CatalogColumnStatisticsDataBoolean(trueCount, falseCount, nullCount);
+                }
+            case TINYINT:
+            case SMALLINT:
+            case INTEGER:
+            case BIGINT:
+                {
+                    Long min = null;
+                    Long max = null;
+                    Long nullCount = 0L;
+                    if (partitionValue == null) {
+                        nullCount =
+                                getPartitionColumnNullCount(
+                                        client, hiveTable, partitionColIndex, defaultPartitionName);
+                    } else {
+                        min = ((Number) partitionValue).longValue();
+                        max = min;
+                    }
+                    return new CatalogColumnStatisticsDataLong(min, max, 1L, nullCount);
+                }
+            case FLOAT:
+            case DOUBLE:
+            case DECIMAL:
+                {
+                    Double min = null;
+                    Double max = null;
+                    Long nullCount = 0L;
+                    if (partitionValue == null) {
+                        nullCount =
+                                getPartitionColumnNullCount(
+                                        client, hiveTable, partitionColIndex, defaultPartitionName);
+                    } else {
+                        min = ((Number) partitionValue).doubleValue();
+                        max = min;
+                    }
+                    return new CatalogColumnStatisticsDataDouble(min, max, 1L, nullCount);
+                }
+            case DATE:
+            case TIMESTAMP_WITH_LOCAL_TIME_ZONE:
+                {
+                    Date min = null;
+                    Date max = null;
+                    Long nullCount = 0L;
+                    if (partitionValue == null) {
+                        nullCount =
+                                getPartitionColumnNullCount(
+                                        client, hiveTable, partitionColIndex, defaultPartitionName);
+                    } else {
+                        if (partitionValue instanceof LocalDate) {
+                            min = new Date(((LocalDate) partitionValue).toEpochDay());
+                        } else if (partitionValue instanceof LocalDateTime) {
+                            min =
+                                    new Date(
+                                            ((LocalDateTime) partitionValue)
+                                                    .toLocalDate()
+                                                    .toEpochDay());
+                        }
+                        max = min;
+                    }
+                    return new CatalogColumnStatisticsDataDate(min, max, 1L, nullCount);
+                }
+            default:
+                return null;
+        }
+    }
+
+    /**
+     * Get the null count for the {@param partitionColIndex} partition column in table {@param
+     * hiveTable}.
+     *
+     * <p>To get the null count, it will first list all the partitions whose {@param
+     * partitionColIndex} partition column is null, and merge the partition's statistic to get the
+     * total rows, which is exactly null count for the {@param partitionColIndex} partition column.
+     */
+    private static Long getPartitionColumnNullCount(
+            HiveMetastoreClientWrapper client,
+            Table hiveTable,
+            int partitionColIndex,
+            String defaultPartitionName) {
+        // get the partial partition values
+        List<String> partialPartitionVals =
+                getPartialPartitionVals(partitionColIndex, defaultPartitionName);
+        try {
+            // list all the partitions that match the partial partition values
+            List<Partition> partitions =
+                    client.listPartitions(
+                            hiveTable.getDbName(),
+                            hiveTable.getTableName(),
+                            partialPartitionVals,
+                            (short) -1);
+            List<TableStats> catalogTableStatistics =
+                    partitions.stream()
+                            .map(
+                                    p ->
+                                            new TableStats(
+                                                    HiveStatsUtil.createCatalogTableStatistics(
+                                                                    p.getParameters())
+                                                            .getRowCount()))
+                            .collect(Collectors.toList());
+            Optional<TableStats> optionalTableStats =
+                    catalogTableStatistics.stream().reduce(TableStats::merge);
+            if (!optionalTableStats.isPresent()) {
+                return 0L;
+            } else {
+                TableStats tableStats = optionalTableStats.get();
+                if (tableStats == TableStats.UNKNOWN || tableStats.getRowCount() < 0) {
+                    return null;
+                } else {
+                    return tableStats.getRowCount();
+                }
+            }
+        } catch (Exception e) {
+            LOG.warn(
+                    "Can't list partition for table `{}.{}`, partition value {}.",
+                    hiveTable.getDbName(),
+                    hiveTable.getTableName(),
+                    partialPartitionVals);
+        }
+        return null;
+    }
+
+    public static CatalogTableStatistics createCatalogTableStatistics(
+            Map<String, String> parameters) {
+        return new CatalogTableStatistics(
+                parsePositiveLongStat(parameters, StatsSetupConst.ROW_COUNT),
+                parsePositiveIntStat(parameters, StatsSetupConst.NUM_FILES),
+                parsePositiveLongStat(parameters, StatsSetupConst.TOTAL_SIZE),
+                parsePositiveLongStat(parameters, StatsSetupConst.RAW_DATA_SIZE));
+    }
+
+    /**
+     * Get the partial partition values whose {@param partitionColIndex} partition column value will
+     * be {@param defaultPartitionName} and the value for preceding partition column will empty
+     * string.
+     *
+     * <p>For example, if partitionColIndex = 3, defaultPartitionName = __default_partition__, the
+     * partial partition values will be ["", "", "", __default_partition__].
+     *
+     * <p>It's be useful when we want to list all the these Hive's partitions, of which the value
+     * for one specific partition column is null.
+     */
+    private static List<String> getPartialPartitionVals(
+            int partitionColIndex, String defaultPartitionName) {
+        List<String> partitionValues = new ArrayList<>();
+        for (int i = 0; i < partitionColIndex; i++) {
+            partitionValues.add(StringUtils.EMPTY);
+        }
+        partitionValues.add(defaultPartitionName);
+        return partitionValues;
     }
 
     /** Create columnStatistics from the given Hive column stats of a hive table. */
