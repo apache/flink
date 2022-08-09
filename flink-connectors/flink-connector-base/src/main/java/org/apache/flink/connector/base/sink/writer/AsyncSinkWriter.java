@@ -291,7 +291,7 @@ public abstract class AsyncSinkWriter<InputT, RequestEntryT extends Serializable
                         INFLIGHT_MESSAGES_LIMIT_INCREASE_RATE,
                         INFLIGHT_MESSAGES_LIMIT_DECREASE_FACTOR,
                         maxBatchSize * maxInFlightRequests,
-                        maxBatchSize * maxInFlightRequests);
+                        INFLIGHT_MESSAGES_LIMIT_INCREASE_RATE);
 
         this.metrics = context.metricGroup();
         this.metrics.setCurrentSendTimeGauge(() -> this.ackTime - this.lastSendTimestamp);
