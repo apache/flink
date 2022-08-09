@@ -19,6 +19,7 @@ package org.apache.flink.table.planner.runtime.batch.sql.join
 
 import org.apache.flink.table.api.{TableSchema, Types}
 import org.apache.flink.table.connector.source.lookup.LookupOptions
+import org.apache.flink.table.connector.source.lookup.LookupOptions.{LookupCacheType, ReloadStrategy}
 import org.apache.flink.table.data.GenericRowData
 import org.apache.flink.table.data.binary.BinaryStringData
 import org.apache.flink.table.planner.factories.TestValuesTableFactory
@@ -39,7 +40,7 @@ import java.util
 import scala.collection.JavaConversions._
 
 @RunWith(classOf[Parameterized])
-class LookupJoinITCase(legacyTableSource: Boolean, isAsyncMode: Boolean, enableCache: Boolean)
+class LookupJoinITCase(legacyTableSource: Boolean, isAsyncMode: Boolean, cacheType: LookupCacheType)
   extends BatchTestBase {
 
   val data = List(
@@ -104,10 +105,16 @@ class LookupJoinITCase(legacyTableSource: Boolean, isAsyncMode: Boolean, enableC
     } else {
       val dataId = TestValuesTableFactory.registerData(data)
       val cacheOptions =
-        if (enableCache)
+        if (cacheType == LookupCacheType.PARTIAL)
           s"""
-             |  '${LookupOptions.CACHE_TYPE.key()}' = '${LookupOptions.LookupCacheType.PARTIAL}',
+             |  '${LookupOptions.CACHE_TYPE.key()}' = '${LookupCacheType.PARTIAL}',
              |  '${LookupOptions.PARTIAL_CACHE_MAX_ROWS.key()}' = '${Long.MaxValue}',
+             |""".stripMargin
+        else if (cacheType == LookupCacheType.FULL)
+          s"""
+             |  '${LookupOptions.CACHE_TYPE.key()}' = '${LookupCacheType.FULL}',
+             |  '${LookupOptions.FULL_CACHE_RELOAD_STRATEGY.key()}' = '${ReloadStrategy.PERIODIC}',
+             |  '${LookupOptions.FULL_CACHE_PERIODIC_RELOAD_INTERVAL.key()}' = '${Long.MaxValue}',
              |""".stripMargin
         else ""
 
@@ -131,10 +138,16 @@ class LookupJoinITCase(legacyTableSource: Boolean, isAsyncMode: Boolean, enableC
     if (!legacyTableSource) {
       val dataId = TestValuesTableFactory.registerData(data)
       val cacheOptions =
-        if (enableCache)
+        if (cacheType == LookupCacheType.PARTIAL)
           s"""
-             |  '${LookupOptions.CACHE_TYPE.key()}' = '${LookupOptions.LookupCacheType.PARTIAL}',
+             |  '${LookupOptions.CACHE_TYPE.key()}' = '${LookupCacheType.PARTIAL}',
              |  '${LookupOptions.PARTIAL_CACHE_MAX_ROWS.key()}' = '${Long.MaxValue}',
+             |""".stripMargin
+        else if (cacheType == LookupCacheType.FULL)
+          s"""
+             |  '${LookupOptions.CACHE_TYPE.key()}' = '${LookupCacheType.FULL}',
+             |  '${LookupOptions.FULL_CACHE_RELOAD_STRATEGY.key()}' = '${ReloadStrategy.PERIODIC}',
+             |  '${LookupOptions.FULL_CACHE_PERIODIC_RELOAD_INTERVAL.key()}' = '${Long.MaxValue}',
              |""".stripMargin
         else ""
       tEnv.executeSql(s"""
@@ -331,7 +344,7 @@ class LookupJoinITCase(legacyTableSource: Boolean, isAsyncMode: Boolean, enableC
 
   @Test
   def testLookupCacheSharingAcrossSubtasks(): Unit = {
-    if (!enableCache) {
+    if (cacheType == LookupCacheType.NONE) {
       return
     }
     // Keep the cache for later validation
@@ -364,9 +377,10 @@ class LookupJoinITCase(legacyTableSource: Boolean, isAsyncMode: Boolean, enableC
       val managedCaches = LookupCacheManager.getInstance().getManagedCaches
       assertThat(managedCaches.size()).isEqualTo(1)
 
-      // Validate 6 entries are cached
+      val numEntries = if (cacheType == LookupCacheType.PARTIAL) 6 else userData.size
+      // Validate 6 entries are cached for PARTIAL and all entries for FULL
       val cache = managedCaches.get(managedCaches.keySet().iterator().next()).getCache
-      assertThat(cache.size()).isEqualTo(6)
+      assertThat(cache.size()).isEqualTo(numEntries)
 
       // Validate contents of cached entries
       assertThatIterable(cache.getIfPresent(GenericRowData.of(jl(1L))))
@@ -401,18 +415,17 @@ object LookupJoinITCase {
   val DYNAMIC_TABLE_SOURCE: JBoolean = JBoolean.FALSE;
   val ASYNC_MODE: JBoolean = JBoolean.TRUE;
   val SYNC_MODE: JBoolean = JBoolean.FALSE;
-  val ENABLE_CACHE: JBoolean = JBoolean.TRUE;
-  val DISABLE_CACHE: JBoolean = JBoolean.FALSE;
 
-  @Parameterized.Parameters(name = "LegacyTableSource={0}, isAsyncMode = {1}, enableCache = {2}")
+  @Parameterized.Parameters(name = "LegacyTableSource={0}, isAsyncMode = {1}, cacheType = {2}")
   def parameters(): util.Collection[Array[java.lang.Object]] = {
     Seq[Array[AnyRef]](
-      Array(LEGACY_TABLE_SOURCE, ASYNC_MODE, DISABLE_CACHE),
-      Array(LEGACY_TABLE_SOURCE, SYNC_MODE, DISABLE_CACHE),
-      Array(DYNAMIC_TABLE_SOURCE, ASYNC_MODE, DISABLE_CACHE),
-      Array(DYNAMIC_TABLE_SOURCE, SYNC_MODE, DISABLE_CACHE),
-      Array(DYNAMIC_TABLE_SOURCE, ASYNC_MODE, ENABLE_CACHE),
-      Array(DYNAMIC_TABLE_SOURCE, SYNC_MODE, ENABLE_CACHE)
+      Array(LEGACY_TABLE_SOURCE, ASYNC_MODE, LookupCacheType.NONE),
+      Array(LEGACY_TABLE_SOURCE, SYNC_MODE, LookupCacheType.NONE),
+      Array(DYNAMIC_TABLE_SOURCE, ASYNC_MODE, LookupCacheType.NONE),
+      Array(DYNAMIC_TABLE_SOURCE, SYNC_MODE, LookupCacheType.NONE),
+      Array(DYNAMIC_TABLE_SOURCE, ASYNC_MODE, LookupCacheType.PARTIAL),
+      Array(DYNAMIC_TABLE_SOURCE, SYNC_MODE, LookupCacheType.PARTIAL),
+      Array(DYNAMIC_TABLE_SOURCE, SYNC_MODE, LookupCacheType.FULL)
     )
   }
 }

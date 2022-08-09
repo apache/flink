@@ -138,4 +138,21 @@ object ProjectionCodeGenerator {
       outputType,
       inputMapping,
       inputTerm = DEFAULT_INPUT1_TERM)
+
+  /** For java invoke. */
+  def generateProjection(
+      ctx: CodeGeneratorContext,
+      name: String,
+      inputType: RowType,
+      outputType: RowType,
+      inputMapping: Array[Int],
+      outClass: Class[_ <: RowData]): GeneratedProjection =
+    generateProjection(
+      ctx,
+      name,
+      inputType,
+      outputType,
+      inputMapping,
+      outClass = outClass,
+      inputTerm = DEFAULT_INPUT1_TERM)
 }

@@ -249,7 +249,11 @@ public abstract class CommonExecLookupJoin extends ExecNodeBase<RowData>
         // upsertMaterialize only works on sync lookup mode, async lookup is unsupported.
         if (!inputInsertOnly && upsertMaterialize) {
             userDefinedFunction =
-                    LookupJoinUtil.getLookupFunction(temporalTable, lookupKeys.keySet(), true);
+                    LookupJoinUtil.getLookupFunction(
+                            temporalTable,
+                            lookupKeys.keySet(),
+                            planner.getFlinkContext().getClassLoader(),
+                            true);
             UserDefinedFunctionHelper.prepareInstance(config, userDefinedFunction);
 
             return createSyncLookupJoinWithState(
@@ -268,7 +272,10 @@ public abstract class CommonExecLookupJoin extends ExecNodeBase<RowData>
                     lookupKeyContainsPrimaryKey);
         } else {
             userDefinedFunction =
-                    LookupJoinUtil.getLookupFunction(temporalTable, lookupKeys.keySet());
+                    LookupJoinUtil.getLookupFunction(
+                            temporalTable,
+                            lookupKeys.keySet(),
+                            planner.getFlinkContext().getClassLoader());
             if (userDefinedFunction instanceof AsyncTableFunction) {
                 isAsyncEnabled = true;
             }
