@@ -19,7 +19,7 @@ from typing import Optional
 
 from pyflink.common import Configuration
 from pyflink.datastream.connectors.file_system import BulkWriterFactory, RowDataBulkWriterFactory
-from pyflink.datastream.utils import create_hadoop_configuration
+from pyflink.datastream.utils import create_hadoop_configuration, create_java_properties
 from pyflink.java_gateway import get_gateway
 from pyflink.table.types import _to_java_data_type, RowType
 from pyflink.util.java_utils import to_jarray
@@ -27,8 +27,8 @@ from pyflink.util.java_utils import to_jarray
 
 class OrcBulkWriters(object):
     """
-    Convenient builder to create a :class:`BulkWriterFactory` that writes Row records with a defined
-    :class:`RowType` into Orc files in a batch fashion.
+    Convenient builder to create a :class:`~connectors.file_system.BulkWriterFactory` that writes
+    Row records with a defined RowType into Orc files in a batch fashion.
 
     .. versionadded:: 1.16.0
     """
@@ -39,8 +39,8 @@ class OrcBulkWriters(object):
                                    hadoop_config: Optional[Configuration] = None) \
             -> BulkWriterFactory:
         """
-        Create a :class:`RowDataBulkWriterFactory` that writes Row records with a defined
-        :class:`RowType` into Orc files in a batch fashion.
+        Create a RowDataBulkWriterFactory that writes Row records with a defined RowType into Orc
+        files in a batch fashion.
 
         Example:
         ::
@@ -62,9 +62,9 @@ class OrcBulkWriters(object):
             ... ).build()
             >>> ds.map(lambda e: e, output_type=row_type_info).sink_to(sink)
 
-        Note that in the above example, an identity map to indicate its :class:`RowTypeInfo` is
-        necessary before ``sink_to`` when ``ds`` is a source stream producing **RowData** records,
-        because :class:`RowDataBulkWriterFactory` assumes the input record type is :class:`Row`.
+        Note that in the above example, an identity map to indicate its RowTypeInfo is necessary
+        before ``sink_to`` when ``ds`` is a source stream producing **RowData** records,
+        because RowDataBulkWriterFactory assumes the input record type is Row.
         """
         if not isinstance(row_type, RowType):
             raise TypeError('row_type must be an instance of RowType')
@@ -89,16 +89,8 @@ class OrcBulkWriters(object):
                     type_description.toString(),
                     orc_types
                 ),
-                OrcBulkWriters._create_properties(writer_properties),
+                create_java_properties(writer_properties),
                 create_hadoop_configuration(hadoop_config)
             ),
             row_type
         )
-
-    @staticmethod
-    def _create_properties(conf: Configuration):
-        jvm = get_gateway().jvm
-        properties = jvm.java.util.Properties()
-        for k, v in conf.to_dict().items():
-            properties.put(k, v)
-        return properties

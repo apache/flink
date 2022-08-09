@@ -51,6 +51,14 @@ def create_hadoop_configuration(config: Configuration):
     return hadoop_config
 
 
+def create_java_properties(config: Configuration):
+    jvm = get_gateway().jvm
+    properties = jvm.java.util.Properties()
+    for k, v in config.to_dict().items():
+        properties.put(k, v)
+    return properties
+
+
 def convert_to_python_obj(data, type_info):
     if type_info == Types.PICKLED_BYTE_ARRAY():
         return pickle.loads(data)
