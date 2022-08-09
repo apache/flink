@@ -36,7 +36,6 @@ public class LookupFullCache implements LookupCache {
     private final CacheLoader cacheLoader;
     private final CacheReloadTrigger reloadTrigger;
 
-    private volatile boolean metricsOpened;
     private transient volatile ReloadTriggerContext reloadTriggerContext;
     private transient volatile Throwable reloadFailCause;
 
@@ -47,17 +46,23 @@ public class LookupFullCache implements LookupCache {
 
     @Override
     public synchronized void open(CacheMetricGroup metricGroup) {
-        if (!metricsOpened) {
-            cacheLoader.open(metricGroup);
-            metricsOpened = true;
-        }
+        cacheLoader.open(metricGroup);
     }
 
     public synchronized void open(Configuration parameters) throws Exception {
         if (reloadTriggerContext == null) {
             cacheLoader.open(parameters);
             reloadTriggerContext =
-                    new ReloadTriggerContext(cacheLoader, th -> reloadFailCause = th);
+                    new ReloadTriggerContext(
+                            cacheLoader,
+                            th -> {
+                                if (reloadFailCause == null) {
+                                    reloadFailCause = th;
+                                } else {
+                                    reloadFailCause.addSuppressed(th);
+                                }
+                            });
+
             reloadTrigger.open(reloadTriggerContext);
             cacheLoader.awaitFirstLoad();
         }

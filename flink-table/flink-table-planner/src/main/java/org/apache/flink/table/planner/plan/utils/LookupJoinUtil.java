@@ -214,13 +214,11 @@ public final class LookupJoinUtil {
                     RowType tableSourceRowType =
                             FlinkTypeFactory.toLogicalRowType(temporalTable.getRowType());
                     LookupFullCache fullCache =
-                            classLoader == null
-                                    ? null
-                                    : createFullCache(
-                                            fullCachingLookupProvider,
-                                            lookupKeyIndicesInOrder,
-                                            classLoader,
-                                            tableSourceRowType);
+                            createFullCache(
+                                    fullCachingLookupProvider,
+                                    lookupKeyIndicesInOrder,
+                                    classLoader,
+                                    tableSourceRowType);
                     return new CachingLookupFunction(
                             fullCache, fullCachingLookupProvider.createLookupFunction());
                 }
