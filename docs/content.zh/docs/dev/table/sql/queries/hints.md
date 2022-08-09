@@ -24,18 +24,18 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-# Hints
+# 提示
 
 {{< label Batch >}} {{< label Streaming >}}
 
 
-SQL hints 是和 SQL 语句一起使用来改变执行计划的。本章介绍如何使用 SQL hints 增强各种方法。
+SQL 提示（SQL Hints）是和 SQL 语句一起使用来改变执行计划的。本章介绍如何使用 SQL 提示来实现各种干预。
 
-SQL hints 一般可以用于以下：
+SQL 提示一般可以用于以下：
 
-- 增强 planner：没有完美的 planner，所以实现 SQL hints 让用户更好地控制执行是非常有意义的；
-- 增加元数据（或者统计信息）：如"已扫描的表索引"和"一些混洗键（shuffle keys）的倾斜信息"的一些统计数据对于查询来说是动态的，用 hints 来配置它们会非常方便，因为我们从 planner 获得的计划元数据通常不那么准确；
-- 算子（Operator）资源约束：在许多情况下，我们会为执行算子提供默认的资源配置，即最小并行度或托管内存（UDF 资源消耗）或特殊资源需求（GPU 或 SSD 磁盘）等，可以使用 SQL hints 非常灵活地为每个查询（非作业）配置资源。
+- 增强 planner：没有完美的 planner，所以实现 SQL 提示让用户更好地控制执行是非常有意义的；
+- 增加元数据（或者统计信息）：如"已扫描的表索引"和"一些混洗键（shuffle keys）的倾斜信息"的一些统计数据对于查询来说是动态的，用提示来配置它们会非常方便，因为我们从 planner 获得的计划元数据通常不那么准确；
+- 算子（Operator）资源约束：在许多情况下，我们会为执行算子提供默认的资源配置，即最小并行度或托管内存（UDF 资源消耗）或特殊资源需求（GPU 或 SSD 磁盘）等，可以使用 SQL 提示非常灵活地为每个查询（非作业）配置资源。
 
 <a name="dynamic-table-options"></a>
 ## 动态表（Dynamic Table）选项
@@ -81,7 +81,159 @@ insert into kafka_table1 /*+ OPTIONS('sink.partitioner'='round-robin') */ select
 
 ## 查询提示
 
+查询提示（`Query Hints`）用于为优化器修改执行计划提供建议，该修改只能在当前查询提示所在的查询块中生效（`Query block`, [什么是查询块](#什么是查询块)）。
+目前，Flink 查询提示只支持联接提示（`Join Hints`）。
+
+### 语法
+Flink 中的查询提示语法与 Apache Calcite 的语法一致：
+```sql
+# Query hints:
+SELECT /*+ hint [, hint ] */ ...
+
+hint:
+        hintName
+    |   hintName '(' optionKey '=' optionVal [, optionKey '=' optionVal ]* ')'
+    |   hintName '(' hintOption [, hintOption ]* ')'
+
+optionKey:
+        simpleIdentifier
+    |   stringLiteral
+
+optionVal:
+        stringLiteral
+
+hintOption:
+        simpleIdentifier
+    |   numericLiteral
+    |   stringLiteral
+```
+
 ### 联接提示
+
+联接提示（`Join Hints`）是查询提示（`Query Hints`）的一种，该提示允许用户手动指定表联接（join）时使用的联接策略，来达到优化执行的目的。Flink 联接提示现在支持 `BROADCAST`，
+`SHUFFLE_HASH`，`SHUFFLE_MERGE` 和 `NEST_LOOP`。
+
+{{< hint info >}}
+注意：
+- 联接提示中定义的表必须存在，否则，将会报表不存在的错误。
+- Flink 联接提示在一个查询块（Query Block）中只支持定义一个提示块，如果定义了多个提示块，类似 `/*+ BROADCAST(t1) */ /*+ SHUFFLE_HASH(t1) */`，则在 SQL 解析时会报错。
+- 在同一个提示块中，Flink 支持在一个联接提示中定义多个表如：`/*+ BROADCAST(t1, t2, ..., tn) */` 或者定义多个联接提示如：`/*+ BROADCAST(t1), BROADCAST(t2), ..., BROADCAST(tn) */`。
+- 对于上述的在一个联接提示中定义多个表或定义多个联接提示的例子，联接提示可能产生冲突。如果冲突产生，Flink 会选择最匹配的表或者联接策略。（详见： [联接提示使用中的冲突](#联接提示使用中的冲突)）
+  {{< /hint >}}
+
+#### BROADCAST
+
+{{< label Batch >}}
+
+`BROADCAST` 推荐联接使用 `BroadCast` 策略。如果该联接提示生效，不管是否设置了 `table.optimizer.join.broadcast-threshold`，
+指定了联接提示的联接端（join side）都会被广播到下游。所以当该联接端是小表时，更推荐使用 `BROADCAST`。
+
+{{< hint info >}}
+注意： BROADCAST 只支持等值的联接条件，且不支持 Full Outer Join。
+{{< /hint >}}
+
+##### 示例
+
+```sql
+CREATE TABLE t1 (id BIGINT, name STRING, age INT) WITH (...);
+CREATE TABLE t2 (id BIGINT, name STRING, age INT) WITH (...);
+CREATE TABLE t3 (id BIGINT, name STRING, age INT) WITH (...);
+
+-- Flink 会使用 broadcast join，且表 t1 会被当作需 broadcast 的表。
+SELECT /*+ BROADCAST(t1) */ * FROM t1 JOIN t2 ON t1.id = t2.id;
+
+-- Flink 会在两个联接中都使用 broadcast join，且 t1 和 t3 会被作为需 broadcast 到下游的表。
+SELECT /*+ BROADCAST(t1, t3) */ * FROM t1 JOIN t2 ON t1.id = t2.id JOIN t3 ON t1.id = t3.id;
+
+-- BROADCAST 只支持等值的联接条件
+-- 联接提示会失效，只能使用支持非等值条件联接的 nested loop join。
+SELECT /*+ BROADCAST(t1) */ * FROM t1 join t2 ON t1.id > t2.id;
+
+-- BROADCAST 不支持 `Full Outer Join`
+-- 联接提示会失效，planner 会根据 cost 选择最合适的联接策略。
+SELECT /*+ BROADCAST(t1) */ * FROM t1 FULL OUTER JOIN t2 ON t1.id = t2.id;
+```
+
+#### SHUFFLE_HASH
+
+{{< label Batch >}}
+
+`SHUFFLE_HASH` 推荐联接使用 `Shuffle Hash` 策略。如果该联接提示生效，指定了联接提示的联接端将会被作为联接的 build 端。
+该提示在被指定的表较小（相较于 `BROADCAST`，小表的数据量更大）时，表现得更好。
+
+{{< hint info >}}
+注意：SHUFFLE_HASH 只支持等值的联接条件。
+{{< /hint >}}
+
+##### 示例
+
+```sql
+CREATE TABLE t1 (id BIGINT, name STRING, age INT) WITH (...);
+CREATE TABLE t2 (id BIGINT, name STRING, age INT) WITH (...);
+CREATE TABLE t3 (id BIGINT, name STRING, age INT) WITH (...);
+
+-- Flink 会使用 hash join，且 t1 会被作为联接的 build 端。
+SELECT /*+ SHUFFLE_HASH(t1) */ * FROM t1 JOIN t2 ON t1.id = t2.id;
+
+-- Flink 会在两个联接中都使用 hash join，且 t1 和 t3 会被作为联接的 build 端。
+SELECT /*+ SHUFFLE_HASH(t1, t3) */ * FROM t1 JOIN t2 ON t1.id = t2.id JOIN t3 ON t1.id = t3.id;
+
+-- SHUFFLE_HASH 只支持等值联接条件
+-- 联接提示会失效，只能使用支持非等值条件联接的 nested loop join。
+SELECT /*+ SHUFFLE_HASH(t1) */ * FROM t1 join t2 ON t1.id > t2.id;
+```
+
+#### SHUFFLE_MERGE
+
+{{< label Batch >}}
+
+`SHUFFLE_MERGE` 推荐联接使用 `Sort Merge` 策略。该联接提示适用于联接两端的表数据量都非常大，或者联接两端的表都有序的场景。
+
+{{< hint info >}}
+注意：SHUFFLE_MERGE 只支持等值的联接条件。
+{{< /hint >}}
+
+##### 示例
+
+```sql
+CREATE TABLE t1 (id BIGINT, name STRING, age INT) WITH (...);
+CREATE TABLE t2 (id BIGINT, name STRING, age INT) WITH (...);
+CREATE TABLE t3 (id BIGINT, name STRING, age INT) WITH (...);
+
+-- 会使用 sort merge join。
+SELECT /*+ SHUFFLE_MERGE(t1) */ * FROM t1 JOIN t2 ON t1.id = t2.id;
+
+-- Sort merge join 会使用在两次不同的联接中。
+SELECT /*+ SHUFFLE_MERGE(t1, t3) */ * FROM t1 JOIN t2 ON t1.id = t2.id JOIN t3 ON t1.id = t3.id;
+
+-- SHUFFLE_MERGE 只支持等值的联接条件，
+-- 联接提示会失效，只能使用支持非等值条件联接的 nested loop join。
+SELECT /*+ SHUFFLE_MERGE(t1) */ * FROM t1 join t2 ON t1.id > t2.id;
+```
+
+#### NEST_LOOP
+
+{{< label Batch >}}
+
+`NEST_LOOP` 推荐联接使用 `Nested Loop` 策略。如无特殊的场景需求，不推荐使用该类型的联接提示。
+
+{{< hint info >}}
+注意：NEST_LOOP 同时支持等值的和非等值的联接条件。
+{{< /hint >}}
+
+##### 示例
+
+```sql
+CREATE TABLE t1 (id BIGINT, name STRING, age INT) WITH (...);
+CREATE TABLE t2 (id BIGINT, name STRING, age INT) WITH (...);
+CREATE TABLE t3 (id BIGINT, name STRING, age INT) WITH (...);
+
+-- Flink 会使用 nest loop join，且 t1 会被作为联接的 build 端。
+SELECT /*+ NEST_LOOP(t1) */ * FROM t1 JOIN t2 ON t1.id = t2.id;
+
+-- Flink 会在两次联接中都使用 nest loop join，且 t1 和 t3 会被作为联接的 build 端。
+SELECT /*+ NEST_LOOP(t1, t3) */ * FROM t1 JOIN t2 ON t1.id = t2.id JOIN t3 ON t1.id = t3.id;
+```
 
 #### LOOKUP
 
@@ -91,19 +243,6 @@ LOOKUP 联接提示允许用户建议 Flink 优化器:
 1. 使用同步或异步的查找函数
 2. 配置异步查找相关参数
 3. 启用延迟重试查找策略
-
-#### 语法
-```sql
-SELECT /*+ LOOKUP(hint_options) */
-
-hint_options: key=value[, key=value]*
-
-key:
-    stringLiteral
-
-value:
-    stringLiteral
-```
 
 #### LOOKUP 提示选项：
 
@@ -190,10 +329,12 @@ value:
 </tbody>
 </table>
 
+{{< hint info >}}
 注意：其中 
 - 'table' 是必选项，需要填写目标联接表的表名（和 FROM 子句引用的表名保持一致），注意当前不支持填写表的别名（这将在后续版本中支持）。
 - 异步查找参数可按需设置一个或多个，未设置的参数按默认值生效。
 - 重试查找参数没有默认值，在需要开启时所有参数都必须设置为有效值。
+{{< /hint >}}
 
 #### 1. 使用同步或异步的查找函数
 如果连接器同时具备同步和异步查找能力，用户通过给出提示选项值 'async'='false' 来建议优化器选择同步查找, 或 'async'='true' 来建议选择异步查找。
@@ -206,9 +347,11 @@ LOOKUP('table'='Customers', 'async'='false')
 -- 建议优化器选择异步查找
 LOOKUP('table'='Customers', 'async'='true')
 ```
+{{< hint info >}}
 注意：当没有指定 'async' 选项值时，优化器优先选择异步查找，在以下两种情况下优化器会选择同步查找：
 1. 当连接器仅实现了同步查找时
 2. 用户在参数 ['table.optimizer.non-deterministic-update.strategy']({{< ref "docs/dev/table/config" >}}#table-optimizer-non-deterministic-update-strategy) 上启用了 'TRY_RESOLVE' 模式，并且优化器推断用户查询中存在非确定性更新的潜在风险时
+{{< /hint >}}
 
 #### 2. 配置异步查找相关参数
 在异步查找模式下，用户可通过提示选项直接配置异步查找相关参数
@@ -218,7 +361,9 @@ LOOKUP('table'='Customers', 'async'='true')
 -- 设置异步查找参数 'output-mode', 'capacity', 'timeout', 可按需设置单个或多个参数
 LOOKUP('table'='Customers', 'async'='true', 'output-mode'='allow_unordered', 'capacity'='100', 'timeout'='180s')
 ```
+{{< hint info >}}
 注意：联接提示上的异步查找参数和[作业级别配置参数]({{< ref "docs/dev/table/config" >}}#execution-options)的含义是一致的，没有设置的参数值由默认值生效，另一个区别是联接提示作用的范围更小，仅限于当前联接操作中对应联接提示选项设置的表名（未被联接提示作用的其他联接查询不受影响）。
+{{< /hint >}}
 
 例如：作业级别异步查找参数设置为
 ```gitexclude
@@ -359,9 +504,73 @@ ON o.customer_id = c.id AND DATE_FORMAT(o.order_timestamp, 'yyyy-MM-dd HH:mm') =
 1. 异步查找：`RetryableAsyncLookupFunctionDelegator`
 2. 同步查找：`RetryableLookupFunctionDelegator`
 
+{{< hint info >}}
 注意：
 - 异步查找时，如果所有流数据需要等待一定时长再去查找维表，我们建议尝试其他更轻量的方式（比如源表延迟一定时间消费）。
 - 同步查找中的延迟等待重试执行是完全同步的，即在当前数据没有完成重试前，不会开始下一条数据的处理。
 - 异步查找中，如果 'output-mode' 最终为 'ORDERED'，那延迟重试造成反压的概率相对 'UNORDERED' 更高，这种情况下调大 'capacity' 不一定能有效减轻反压，可能需要考虑减小延迟等待的时长。
+{{< /hint >}}
+
+### 联接提示使用中的冲突
+
+当联接提示产生冲突时，Flink 会选择最匹配的执行方式。
+- 同一种联接提示间产生冲突时，Flink 会为联接选择第一个最匹配的表。
+- 不同联接提示间产生冲突时，Flink 会为联接选择第一个最匹配的联接提示。
+
+#### 示例
+
+```sql
+CREATE TABLE t1 (id BIGINT, name STRING, age INT) WITH (...);
+CREATE TABLE t2 (id BIGINT, name STRING, age INT) WITH (...);
+CREATE TABLE t3 (id BIGINT, name STRING, age INT) WITH (...);
+
+-- 同一种联接提示间产生冲突
+
+-- 前一个联接提示策略会被选择，即 t2 会被作为需 broadcast 的表。
+SELECT /*+ BROADCAST(t2), BROADCAST(t1) */ * FROM t1 JOIN t2 ON t1.id = t2.id;
+
+-- BROADCAST(t2, t1) 会被选择， 且 t2 会被作为需 broadcast 的表。
+SELECT /*+ BROADCAST(t2, t1), BROADCAST(t1, t2) */ * FROM t1 JOIN t2 ON t1.id = t2.id;
+
+-- 这个例子等同于 BROADCAST(t1, t2) + BROADCAST(t3)，
+-- 当 t1 与 t2 联接时，t1 会被作为需 broadcast 的表,
+-- 当 t1 与 t2 联接后，再与 t3 联接时，则 t3 会被作为需 broadcast 的表。
+SELECT /*+ BROADCAST(t1, t2, t3) */ * FROM t1 JOIN t2 ON t1.id = t2.id JOIN t3 ON t1.id = t3.id;
+
+
+-- 不同联接提示间产生冲突
+
+-- BROADCAST(t1) 会被选择，且 t1 会被作为需 broadcast 的表。
+SELECT /*+ BROADCAST(t1) SHUFFLE_HASH(t1) */ * FROM t1 JOIN t2 ON t1.id = t2.id;
+
+-- 尽管先指定的是 BROADCAST 策略。但是，因为 BROADCAST 不支持 Full Outer Join。所以，后一种策略会被选择。
+SELECT /*+ BROADCAST(t1) SHUFFLE_HASH(t1) */ * FROM t1 FULL OUTER JOIN t2 ON t1.id = t2.id;
+
+-- 由于指定的两种联接提示都不支持不等值的联接条件。所以，只能使用支持非等值联接条件的 nested loop join。
+SELECT /*+ BROADCAST(t1) SHUFFLE_HASH(t1) */ * FROM t1 FULL OUTER JOIN t2 ON t1.id > t2.id;
+```
+
+### 什么是查询块？
+
+查询块（`query block`）是 SQL 语句的一个基础组成部分。例如，SQL 语句中任何的内联视图或者子查询（sub-query）都可以被当作外部查询的查询块。
+
+#### 示例
+
+一个 SQL 语句可以由多个子查询组成，子查询可以是一个 `SELECT`，`INSERT` 或者 `DELETE`。子查询中又可以在 `FROM` 子句，`WHERE` 子句或者
+在 `UNION`/`UNION ALL` 的子 `SELECT` 语句中包含其他的子查询。
+
+对于不同类型的子查询，他们可以由多个查询块组成，例如：
+
+下面的查询语句由两个查询块组成：一个是 `WHERE` 子句中的 `SELECT`，另一个是外层的 `SELECT`。
+
+{{< img src="/fig/hint/hint_query_block_where.png" alt="hint where query block" >}}
+
+下面的查询语句是一个 `UNION` 查询，其由两个查询块组成：一个 `UNION` 前的 `SELECT`， 另一个是 `UNION` 后的 `SELECT`。
+
+{{< img src="/fig/hint/hint_query_block_union.png" alt="hint union query block" >}}
+
+下面的查询语句包含 视图（View），其包含两个查询块：一个是外层的 `SELECT`，另一个是视图。
+
+{{< img src="/fig/hint/hint_query_block_view.png" alt="hint view query block" >}}
 
 {{< top >}}
