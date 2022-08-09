@@ -908,23 +908,6 @@ public class StreamGraphGeneratorTest extends TestLogger {
     }
 
     @Test
-    public void testCacheInStreamModeThrowsException() {
-        final TestingStreamExecutionEnvironment env = new TestingStreamExecutionEnvironment();
-        env.setRuntimeMode(RuntimeExecutionMode.STREAMING);
-
-        DataStream<Integer> source = env.fromElements(1, 2, 3);
-        final int upstreamParallelism = 3;
-        CachedDataStream<Integer> cachedStream =
-                source.keyBy(i -> i)
-                        .reduce(Integer::sum)
-                        .setParallelism(upstreamParallelism)
-                        .cache();
-        cachedStream.print();
-
-        Assertions.assertThatThrownBy(env::getStreamGraph).isInstanceOf(RuntimeException.class);
-    }
-
-    @Test
     public void testCacheTransformation() {
         final TestingStreamExecutionEnvironment env = new TestingStreamExecutionEnvironment();
         env.setRuntimeMode(RuntimeExecutionMode.BATCH);
