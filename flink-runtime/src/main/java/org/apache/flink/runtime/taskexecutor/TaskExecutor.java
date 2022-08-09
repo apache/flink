@@ -906,27 +906,40 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
     }
 
     @Override
-    public void releaseOrPromotePartitions(
-            JobID jobId,
-            Set<ResultPartitionID> partitionToRelease,
-            Set<ResultPartitionID> partitionsToPromote) {
+    public void releasePartitions(JobID jobId, Set<ResultPartitionID> partitionIds) {
         try {
-            partitionTracker.stopTrackingAndReleaseJobPartitions(partitionToRelease);
-            partitionTracker.promoteJobPartitions(partitionsToPromote);
+            partitionTracker.stopTrackingAndReleaseJobPartitions(partitionIds);
+            closeJobManagerConnectionIfNoAllocatedResources(jobId);
+        } catch (Throwable t) {
+            onFatalError(t);
+        }
+    }
+
+    @Override
+    public CompletableFuture<Acknowledge> promotePartitions(
+            JobID jobId, Set<ResultPartitionID> partitionIds) {
+        CompletableFuture<Acknowledge> future = new CompletableFuture<>();
+        try {
+            partitionTracker.promoteJobPartitions(partitionIds);
             if (establishedResourceManagerConnection != null) {
                 establishedResourceManagerConnection
                         .getResourceManagerGateway()
                         .reportClusterPartitions(
-                                getResourceID(), partitionTracker.createClusterPartitionReport());
+                                getResourceID(), partitionTracker.createClusterPartitionReport())
+                        .thenAccept(ignore -> future.complete(Acknowledge.get()));
+            } else {
+                future.completeExceptionally(
+                        new RuntimeException(
+                                "Task executor is not connecting to ResourceManager. "
+                                        + "Fail to report cluster partition to ResourceManager"));
             }
             closeJobManagerConnectionIfNoAllocatedResources(jobId);
         } catch (Throwable t) {
-            // TODO: Do we still need this catch branch?
+            future.completeExceptionally(t);
             onFatalError(t);
         }
 
-        // TODO: Maybe it's better to return an Acknowledge here to notify the JM about the
-        // success/failure with an Exception
+        return future;
     }
 
     @Override

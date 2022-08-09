@@ -1069,22 +1069,42 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId>
     private void jobStatusChanged(final JobStatus newJobStatus) {
         validateRunsInMainThread();
         if (newJobStatus.isGloballyTerminalState()) {
-            runAsync(
-                    () -> {
-                        Collection<ResultPartitionID> allTracked =
-                                partitionTracker.getAllTrackedPartitions().stream()
-                                        .map(d -> d.getShuffleDescriptor().getResultPartitionID())
-                                        .collect(Collectors.toList());
-                        if (newJobStatus == JobStatus.FINISHED) {
-                            partitionTracker.stopTrackingAndReleaseOrPromotePartitions(allTracked);
-                        } else {
-                            partitionTracker.stopTrackingAndReleasePartitions(allTracked);
-                        }
-                    });
+            CompletableFuture<Void> partitionPromoteFuture;
+            if (newJobStatus == JobStatus.FINISHED) {
+                Collection<ResultPartitionID> jobPartitions =
+                        partitionTracker.getAllTrackedNonClusterPartitions().stream()
+                                .map(d -> d.getShuffleDescriptor().getResultPartitionID())
+                                .collect(Collectors.toList());
+                partitionTracker.stopTrackingAndReleasePartitions(jobPartitions);
+                Collection<ResultPartitionID> clusterPartitions =
+                        partitionTracker.getAllTrackedClusterPartitions().stream()
+                                .map(d -> d.getShuffleDescriptor().getResultPartitionID())
+                                .collect(Collectors.toList());
+                partitionPromoteFuture =
+                        partitionTracker.stopTrackingAndPromotePartitions(clusterPartitions);
+            } else {
+                Collection<ResultPartitionID> allTracked =
+                        partitionTracker.getAllTrackedPartitions().stream()
+                                .map(d -> d.getShuffleDescriptor().getResultPartitionID())
+                                .collect(Collectors.toList());
+                partitionTracker.stopTrackingAndReleasePartitions(allTracked);
+                partitionPromoteFuture = CompletableFuture.completedFuture(null);
+            }
 
             final ExecutionGraphInfo executionGraphInfo = schedulerNG.requestJob();
+
             futureExecutor.execute(
-                    () -> jobCompletionActions.jobReachedGloballyTerminalState(executionGraphInfo));
+                    () -> {
+                        try {
+                            partitionPromoteFuture.get();
+                        } catch (Throwable e) {
+                            // We do not want to fail the job in case of partition releasing and
+                            // promoting fail. The TaskExecutors will release the partitions
+                            // eventually when they find out the JobMaster is closed.
+                            log.warn("Fail to release or promote partitions", e);
+                        }
+                        jobCompletionActions.jobReachedGloballyTerminalState(executionGraphInfo);
+                    });
         }
     }
 

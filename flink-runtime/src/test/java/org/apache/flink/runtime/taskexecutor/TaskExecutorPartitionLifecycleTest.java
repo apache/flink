@@ -149,20 +149,16 @@ public class TaskExecutorPartitionLifecycleTest extends TestLogger {
     public void testJobMasterConnectionTerminationAfterExternalRelease() throws Exception {
         testJobMasterConnectionTerminationAfterExternalReleaseOrPromotion(
                 ((taskExecutorGateway, jobID, resultPartitionID) ->
-                        taskExecutorGateway.releaseOrPromotePartitions(
-                                jobID,
-                                Collections.singleton(resultPartitionID),
-                                Collections.emptySet())));
+                        taskExecutorGateway.releasePartitions(
+                                jobID, Collections.singleton(resultPartitionID))));
     }
 
     @Test
     public void testJobMasterConnectionTerminationAfterExternalPromotion() throws Exception {
         testJobMasterConnectionTerminationAfterExternalReleaseOrPromotion(
                 ((taskExecutorGateway, jobID, resultPartitionID) ->
-                        taskExecutorGateway.releaseOrPromotePartitions(
-                                jobID,
-                                Collections.emptySet(),
-                                Collections.singleton(resultPartitionID))));
+                        taskExecutorGateway.promotePartitions(
+                                jobID, Collections.singleton(resultPartitionID))));
     }
 
     private void testJobMasterConnectionTerminationAfterExternalReleaseOrPromotion(
@@ -225,8 +221,8 @@ public class TaskExecutorPartitionLifecycleTest extends TestLogger {
             trackerIsTrackingPartitions.set(true);
             assertThat(firstReleasePartitionsCallFuture.isDone(), is(false));
 
-            taskExecutorGateway.releaseOrPromotePartitions(
-                    jobId, Collections.singleton(new ResultPartitionID()), Collections.emptySet());
+            taskExecutorGateway.releasePartitions(
+                    jobId, Collections.singleton(new ResultPartitionID()));
 
             // at this point we only know that the TE has entered releasePartitions; we cannot be
             // certain whether it
@@ -276,10 +272,8 @@ public class TaskExecutorPartitionLifecycleTest extends TestLogger {
                                     .getShuffleDescriptor()
                                     .getResultPartitionID();
 
-                    taskExecutorGateway.releaseOrPromotePartitions(
-                            jobId,
-                            Collections.singleton(resultPartitionId),
-                            Collections.emptySet());
+                    taskExecutorGateway.releasePartitions(
+                            jobId, Collections.singleton(resultPartitionId));
 
                     assertThat(releasePartitionsFuture.get(), hasItems(resultPartitionId));
                 });
@@ -299,10 +293,8 @@ public class TaskExecutorPartitionLifecycleTest extends TestLogger {
                                     .getShuffleDescriptor()
                                     .getResultPartitionID();
 
-                    taskExecutorGateway.releaseOrPromotePartitions(
-                            jobId,
-                            Collections.emptySet(),
-                            Collections.singleton(resultPartitionId));
+                    taskExecutorGateway.promotePartitions(
+                            jobId, Collections.singleton(resultPartitionId));
 
                     assertThat(promotePartitionsFuture.get(), hasItems(resultPartitionId));
                 });

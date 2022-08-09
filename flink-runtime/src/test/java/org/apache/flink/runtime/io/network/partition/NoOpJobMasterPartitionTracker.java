@@ -26,6 +26,7 @@ import org.apache.flink.runtime.shuffle.ShuffleDescriptor;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 
 /** No-op implementation of {@link JobMasterPartitionTracker}. */
 public class NoOpJobMasterPartitionTracker implements JobMasterPartitionTracker {
@@ -50,8 +51,10 @@ public class NoOpJobMasterPartitionTracker implements JobMasterPartitionTracker 
             Collection<ResultPartitionID> resultPartitionIds, boolean releaseOnShuffleMaster) {}
 
     @Override
-    public void stopTrackingAndReleaseOrPromotePartitions(
-            Collection<ResultPartitionID> resultPartitionIds) {}
+    public CompletableFuture<Void> stopTrackingAndPromotePartitions(
+            Collection<ResultPartitionID> resultPartitionIds) {
+        return null;
+    }
 
     @Override
     public Collection<ResultPartitionDeploymentDescriptor> getAllTrackedPartitions() {
