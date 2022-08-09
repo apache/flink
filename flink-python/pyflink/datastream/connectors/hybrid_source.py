@@ -50,7 +50,7 @@ class HybridSource(Source):
     """
 
     def __init__(self, j_hybrid_source: JavaObject):
-        super().__init__(j_hybrid_source)
+        super(HybridSource, self).__init__(j_hybrid_source)
 
     @staticmethod
     def builder(first_source: Source) -> 'HybridSourceBuilder':

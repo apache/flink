@@ -15,13 +15,13 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 ################################################################################
-from pyflink.datastream.connectors.base import Sink, Source, DeliveryGuarantee, Boundedness
+from pyflink.datastream.connectors.base import Sink, Source, DeliveryGuarantee
+
 
 __all__ = [
     'Sink',
     'Source',
-    'DeliveryGuarantee',
-    'Boundedness'
+    'DeliveryGuarantee'
 ]
 
 
