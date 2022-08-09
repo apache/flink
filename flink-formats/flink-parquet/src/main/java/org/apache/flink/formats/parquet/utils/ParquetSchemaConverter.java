@@ -123,7 +123,7 @@ public class ParquetSchemaConverter {
                         repetition,
                         name,
                         MAP_REPEATED_NAME,
-                        convertToParquetType("key", mapType.getKeyType(), Type.Repetition.REQUIRED),
+                        convertToParquetType("key", mapType.getKeyType()),
                         convertToParquetType("value", mapType.getValueType()));
             case ROW:
                 RowType rowType = (RowType) type;

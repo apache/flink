@@ -253,6 +253,8 @@ class FileSinkParquetBulkWriterTests(PyFlinkStreamingTestCase):
         results = self._read_parquet_file()
         _check_parquet_array_results(self, results)
 
+    @unittest.skip('ParquetSchemaConverter in flink-parquet annotate map keys as optional, but '
+                   'Arrow restricts them to be required')
     def test_parquet_row_data_map_write(self):
         row_type, row_type_info, data = _create_parquet_map_row_and_data()
         self._build_parquet_job(row_type, row_type_info, data)
