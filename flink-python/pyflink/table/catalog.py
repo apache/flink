@@ -469,7 +469,6 @@ class Catalog(object):
             j_catalog_table_statistics=self._j_catalog.getPartitionStatistics(
                 table_path._j_object_path, partition_spec._j_catalog_partition_spec))
 
-
     def bulk_get_partition_statistics(self,
                                       table_path: 'ObjectPath',
                                       partition_specs: List['CatalogPartitionSpec']) \
@@ -483,9 +482,9 @@ class Catalog(object):
         :raise: CatalogException in case of any runtime exception.
                 PartitionNotExistException if the partition does not exist.
         """
-        return [CatalogTableStatistics(j_catalog_table_statistics=p) \
-                        for p in self._j_catalog.bulkGetPartitionStatistics(
-                        table_path._j_object_path, partition_specs)]
+        return [CatalogTableStatistics(j_catalog_table_statistics=p)
+                for p in self._j_catalog.bulkGetPartitionStatistics(table_path._j_object_path,
+                partition_specs)]
 
     def get_partition_column_statistics(self,
                                         table_path: 'ObjectPath',
@@ -513,13 +512,13 @@ class Catalog(object):
 
         :param table_path: Path :class:`ObjectPath` of the table.
         :param partition_specs: The list of :class:`CatalogPartitionSpec` of the given partitions.
-        return: The statistics list of :class:`CatalogTableStatistics` of the given partitions.
+        :return: The statistics list of :class:`CatalogTableStatistics` of the given partitions.
         :raise: CatalogException in case of any runtime exception.
                 PartitionNotExistException if the partition does not exist.
         """
-        return [CatalogColumnStatistics(j_catalog_column_statistics=p) \
-                                for p in self._j_catalog.bulkGetPartitionStatistics(
-                                table_path._j_object_path, partition_specs)]
+        return [CatalogColumnStatistics(j_catalog_column_statistics=p)
+                for p in self._j_catalog.bulkGetPartitionStatistics(
+                table_path._j_object_path, partition_specs)]
 
     def alter_table_statistics(self,
                                table_path: 'ObjectPath',

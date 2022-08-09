@@ -66,7 +66,6 @@ import org.junit.jupiter.api.Test;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -344,7 +343,7 @@ class HiveCatalogHiveMetadataTest extends HiveCatalogMetadataTestBase {
         // check the statistic for all partitions
         for (CatalogTableStatistics catalogTableStatistics : partitionStatistics) {
             // since we haven't put statistic to the partition, the statistic should be unknown
-            assertThat(catalogTableStatistics.equals(CatalogTableStatistics.UNKNOWN)).isTrue();
+            assertThat(catalogTableStatistics).isEqualTo(CatalogTableStatistics.UNKNOWN);
         }
 
         // now, we put statistic to partition
@@ -359,9 +358,6 @@ class HiveCatalogHiveMetadataTest extends HiveCatalogMetadataTestBase {
 
         // get the statistic again
         partitionStatistics = catalog.bulkGetPartitionStatistics(path1, catalogPartitionSpecList);
-        // the order of returned statistics may be different from the passed partition spec list
-        // so, sort it
-        partitionStatistics.sort(Comparator.comparing(CatalogTableStatistics::getRowCount));
         assertThat(partitionStatistics.size()).isEqualTo(expectedStatistic.size());
         for (int i = 0; i < partitionStatistics.size(); i++) {
             // we can't alter Hive's fileCount/totalSize by alterPartitionStatistics,
@@ -522,7 +518,7 @@ class HiveCatalogHiveMetadataTest extends HiveCatalogMetadataTestBase {
         for (int i = 0; i < catalogColumnActualStatisticsList.size(); i++) {
             Map<String, CatalogColumnStatisticsDataBase> columnActualStatistics =
                     catalogColumnActualStatisticsList.get(i).getColumnStatisticsData();
-            assertThat(columnActualStatistics.equals(columnExpectStatisticsList.get(i))).isTrue();
+            assertThat(columnActualStatistics).isEqualTo(columnExpectStatisticsList.get(i));
         }
 
         // now we put statistic to the partition
@@ -558,7 +554,7 @@ class HiveCatalogHiveMetadataTest extends HiveCatalogMetadataTestBase {
         for (int i = 0; i < catalogColumnActualStatisticsList.size(); i++) {
             Map<String, CatalogColumnStatisticsDataBase> columnActualStatistics =
                     catalogColumnActualStatisticsList.get(i).getColumnStatisticsData();
-            assertThat(columnActualStatistics.equals(columnExpectStatisticsList.get(i))).isTrue();
+            assertThat(columnActualStatistics).isEqualTo(columnExpectStatisticsList.get(i));
         }
     }
 
@@ -629,7 +625,7 @@ class HiveCatalogHiveMetadataTest extends HiveCatalogMetadataTestBase {
 
     private void checkColumnStatistics(
             CatalogColumnStatisticsDataBase actual, CatalogColumnStatisticsDataBase expect) {
-        assertThat(actual.equals(expect)).isTrue();
+        assertThat(actual).isEqualTo(expect);
     }
 
     private void createPartition(Map<String, String> partitionSpec) throws Exception {

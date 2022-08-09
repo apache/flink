@@ -30,8 +30,6 @@ public class CatalogTableStatistics {
 
     public static final CatalogTableStatistics UNKNOWN = new CatalogTableStatistics(-1, -1, -1, -1);
 
-    public static final CatalogTableStatistics EMPTY = new CatalogTableStatistics(0, 0, 0, 0);
-
     /** The number of rows in the table or partition. */
     private final long rowCount;
 

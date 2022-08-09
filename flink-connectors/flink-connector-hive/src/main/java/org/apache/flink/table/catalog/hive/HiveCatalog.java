@@ -150,8 +150,6 @@ public class HiveCatalog extends AbstractCatalog {
 
     private static final Logger LOG = LoggerFactory.getLogger(HiveCatalog.class);
 
-    public static final String HIVE_DEFAULT_PARTITION = "__HIVE_DEFAULT_PARTITION__";
-
     // Default database of Hive metastore
     public static final String DEFAULT_DB = "default";
 
@@ -1724,13 +1722,27 @@ public class HiveCatalog extends AbstractCatalog {
             ObjectPath tablePath, Table hiveTable, List<CatalogPartitionSpec> partitionSpecs)
             throws PartitionSpecInvalidException, TException {
         List<Partition> partitions = new ArrayList<>(partitionSpecs.size());
+        List<String> partitionNames =
+                getPartitionNameByPartitionSpecs(tablePath, hiveTable, partitionSpecs);
+        // the order of partitions may be different from the order of partitionSpecs
         partitions.addAll(
                 client.getPartitionsByNames(
-                        tablePath.getDatabaseName(),
-                        tablePath.getObjectName(),
-                        getPartitionNameByPartitionSpecs(tablePath, hiveTable, partitionSpecs)));
-        // todo: make partition's order is same as partitionSpecs
-        return partitions;
+                        tablePath.getDatabaseName(), tablePath.getObjectName(), partitionNames));
+        // make the order partitions be same as the order of partitionSpecs
+        Map<String, Partition> partitionMap = new HashMap<>();
+        for (Partition partition : partitions) {
+            partitionMap.put(
+                    FileUtils.makePartName(
+                            getFieldNames(hiveTable.getPartitionKeys()),
+                            partition.getValues(),
+                            getHiveConf().getVar(HiveConf.ConfVars.DEFAULTPARTITIONNAME)),
+                    partition);
+        }
+        List<Partition> orderedPartitions = new ArrayList<>(partitions.size());
+        for (String partitionName : partitionNames) {
+            orderedPartitions.add(partitionMap.get(partitionName));
+        }
+        return orderedPartitions;
     }
 
     private List<String> getPartitionNameByPartitionSpecs(
@@ -1805,7 +1817,7 @@ public class HiveCatalog extends AbstractCatalog {
             for (String partitionName : partitionNames) {
                 // get statistic for partition columns
                 Map<String, CatalogColumnStatisticsDataBase> partitionColumnStatistics =
-                        HiveStatsUtil.createCatalogPartitionColumnStats(
+                        HiveStatsUtil.getCatalogPartitionColumnStats(
                                 client,
                                 hiveShim,
                                 hiveTable,

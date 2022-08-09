@@ -66,6 +66,7 @@ import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.nio.ByteBuffer;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -102,7 +103,8 @@ public class HiveStatsUtil {
         return colStats;
     }
 
-    public static Map<String, CatalogColumnStatisticsDataBase> createCatalogPartitionColumnStats(
+    /** Get column statistic for partition columns. */
+    public static Map<String, CatalogColumnStatisticsDataBase> getCatalogPartitionColumnStats(
             HiveMetastoreClientWrapper client,
             HiveShim hiveShim,
             Table hiveTable,
@@ -145,7 +147,7 @@ public class HiveStatsUtil {
             Object partitionValue = partitionColValues.get(partitionCols.get(i));
             LogicalType logicalType = partitionColsType.get(i);
             CatalogColumnStatisticsDataBase catalogColumnStatistics =
-                    getColumnStatistics(
+                    getPartitionColumnStats(
                             client,
                             hiveTable,
                             logicalType,
@@ -161,14 +163,14 @@ public class HiveStatsUtil {
     }
 
     /**
-     * Get statistics for specific partition column.
+     * Get statistics for a specific partition column.
      *
      * @param logicalType the specific partition column's logical type
      * @param partitionValue the partition value for the specific partition column
-     * @param partitionColIndex the index of the specific partition
+     * @param partitionColIndex the index of the specific partition column
      * @param defaultPartitionName the default partition name for null value
      */
-    private static CatalogColumnStatisticsDataBase getColumnStatistics(
+    private static CatalogColumnStatisticsDataBase getPartitionColumnStats(
             HiveMetastoreClientWrapper client,
             Table hiveTable,
             LogicalType logicalType,
@@ -184,7 +186,7 @@ public class HiveStatsUtil {
                     Long nullCount = 0L;
                     if (partitionValue == null) {
                         nullCount =
-                                getNullCount(
+                                getPartitionColumnNullCount(
                                         client, hiveTable, partitionColIndex, defaultPartitionName);
                     } else {
                         long valLength = ((String) partitionValue).length();
@@ -201,7 +203,7 @@ public class HiveStatsUtil {
                     Long nullCount = 0L;
                     if (partitionValue == null) {
                         nullCount =
-                                getNullCount(
+                                getPartitionColumnNullCount(
                                         client, hiveTable, partitionColIndex, defaultPartitionName);
                     } else {
                         Boolean boolVal = (Boolean) partitionValue;
@@ -223,7 +225,7 @@ public class HiveStatsUtil {
                     Long nullCount = 0L;
                     if (partitionValue == null) {
                         nullCount =
-                                getNullCount(
+                                getPartitionColumnNullCount(
                                         client, hiveTable, partitionColIndex, defaultPartitionName);
                     } else {
                         min = ((Number) partitionValue).longValue();
@@ -240,7 +242,7 @@ public class HiveStatsUtil {
                     Long nullCount = 0L;
                     if (partitionValue == null) {
                         nullCount =
-                                getNullCount(
+                                getPartitionColumnNullCount(
                                         client, hiveTable, partitionColIndex, defaultPartitionName);
                     } else {
                         min = ((Number) partitionValue).doubleValue();
@@ -249,16 +251,25 @@ public class HiveStatsUtil {
                     return new CatalogColumnStatisticsDataDouble(min, max, 1L, nullCount);
                 }
             case DATE:
+            case TIMESTAMP_WITH_LOCAL_TIME_ZONE:
                 {
                     Date min = null;
                     Date max = null;
                     Long nullCount = 0L;
                     if (partitionValue == null) {
                         nullCount =
-                                getNullCount(
+                                getPartitionColumnNullCount(
                                         client, hiveTable, partitionColIndex, defaultPartitionName);
                     } else {
-                        min = new Date(((LocalDate) partitionValue).toEpochDay());
+                        if (partitionValue instanceof LocalDate) {
+                            min = new Date(((LocalDate) partitionValue).toEpochDay());
+                        } else if (partitionValue instanceof LocalDateTime) {
+                            min =
+                                    new Date(
+                                            ((LocalDateTime) partitionValue)
+                                                    .toLocalDate()
+                                                    .toEpochDay());
+                        }
                         max = min;
                     }
                     return new CatalogColumnStatisticsDataDate(min, max, 1L, nullCount);
@@ -276,7 +287,7 @@ public class HiveStatsUtil {
      * partitionColIndex} partition column is null, and merge the partition's statistic to get the
      * total rows, which is exactly null count for the {@param partitionColIndex} partition column.
      */
-    private static Long getNullCount(
+    private static Long getPartitionColumnNullCount(
             HiveMetastoreClientWrapper client,
             Table hiveTable,
             int partitionColIndex,
