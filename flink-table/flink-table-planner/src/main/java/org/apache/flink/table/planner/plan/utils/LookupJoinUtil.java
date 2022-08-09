@@ -19,22 +19,38 @@
 package org.apache.flink.table.planner.plan.utils;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.common.io.InputFormat;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.connector.source.AsyncTableFunctionProvider;
+import org.apache.flink.table.connector.source.InputFormatProvider;
 import org.apache.flink.table.connector.source.LookupTableSource;
+import org.apache.flink.table.connector.source.ScanTableSource;
+import org.apache.flink.table.connector.source.SourceFunctionProvider;
 import org.apache.flink.table.connector.source.TableFunctionProvider;
 import org.apache.flink.table.connector.source.lookup.AsyncLookupFunctionProvider;
+import org.apache.flink.table.connector.source.lookup.FullCachingLookupProvider;
 import org.apache.flink.table.connector.source.lookup.LookupFunctionProvider;
 import org.apache.flink.table.connector.source.lookup.PartialCachingAsyncLookupProvider;
 import org.apache.flink.table.connector.source.lookup.PartialCachingLookupProvider;
+import org.apache.flink.table.data.GenericRowData;
+import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.functions.UserDefinedFunction;
+import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
 import org.apache.flink.table.planner.plan.schema.LegacyTableSourceTable;
 import org.apache.flink.table.planner.plan.schema.TableSourceTable;
 import org.apache.flink.table.runtime.connector.source.LookupRuntimeProviderContext;
 import org.apache.flink.table.runtime.functions.table.lookup.CachingAsyncLookupFunction;
 import org.apache.flink.table.runtime.functions.table.lookup.CachingLookupFunction;
+import org.apache.flink.table.runtime.functions.table.lookup.fullcache.CacheLoader;
+import org.apache.flink.table.runtime.functions.table.lookup.fullcache.LookupFullCache;
+import org.apache.flink.table.runtime.functions.table.lookup.fullcache.inputformat.InputFormatCacheLoader;
+import org.apache.flink.table.runtime.keyselector.GenericRowDataKeySelector;
+import org.apache.flink.table.runtime.typeutils.InternalSerializers;
+import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.sources.LookupableTableSource;
 import org.apache.flink.table.types.logical.LogicalType;
+import org.apache.flink.table.types.logical.RowType;
+import org.apache.flink.util.Preconditions;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonIgnoreProperties;
@@ -153,8 +169,8 @@ public final class LookupJoinUtil {
 
     /** Gets LookupFunction from temporal table according to the given lookup keys. */
     public static UserDefinedFunction getLookupFunction(
-            RelOptTable temporalTable, Collection<Integer> lookupKeys) {
-        return getLookupFunction(temporalTable, lookupKeys, false);
+            RelOptTable temporalTable, Collection<Integer> lookupKeys, ClassLoader classLoader) {
+        return getLookupFunction(temporalTable, lookupKeys, classLoader, false);
     }
 
     /**
@@ -163,23 +179,16 @@ public final class LookupJoinUtil {
      * implemented.
      */
     public static UserDefinedFunction getLookupFunction(
-            RelOptTable temporalTable, Collection<Integer> lookupKeys, boolean requireSyncLookup) {
+            RelOptTable temporalTable,
+            Collection<Integer> lookupKeys,
+            ClassLoader classLoader,
+            boolean requireSyncLookup) {
 
         int[] lookupKeyIndicesInOrder = getOrderedLookupKeys(lookupKeys);
 
         if (temporalTable instanceof TableSourceTable) {
-            // TODO: support nested lookup keys in the future,
-            //  currently we only support top-level lookup keys
-            int[][] indices =
-                    IntStream.of(lookupKeyIndicesInOrder)
-                            .mapToObj(i -> new int[] {i})
-                            .toArray(int[][]::new);
-            LookupTableSource tableSource =
-                    (LookupTableSource) ((TableSourceTable) temporalTable).tableSource();
-            LookupRuntimeProviderContext providerContext =
-                    new LookupRuntimeProviderContext(indices);
             LookupTableSource.LookupRuntimeProvider provider =
-                    tableSource.getLookupRuntimeProvider(providerContext);
+                    getLookupRuntimeProvider(temporalTable, lookupKeys);
 
             // TODO this method will be refactored in FLINK-28848
             if (requireSyncLookup
@@ -199,6 +208,19 @@ public final class LookupJoinUtil {
                     return new CachingLookupFunction(
                             partialCachingLookupProvider.getCache(),
                             partialCachingLookupProvider.createLookupFunction());
+                } else if (provider instanceof FullCachingLookupProvider) {
+                    FullCachingLookupProvider fullCachingLookupProvider =
+                            (FullCachingLookupProvider) provider;
+                    RowType tableSourceRowType =
+                            FlinkTypeFactory.toLogicalRowType(temporalTable.getRowType());
+                    LookupFullCache fullCache =
+                            createFullCache(
+                                    fullCachingLookupProvider,
+                                    lookupKeyIndicesInOrder,
+                                    classLoader,
+                                    tableSourceRowType);
+                    return new CachingLookupFunction(
+                            fullCache, fullCachingLookupProvider.createLookupFunction());
                 }
                 return ((LookupFunctionProvider) provider).createLookupFunction();
             } else if (provider instanceof AsyncLookupFunctionProvider) {
@@ -245,5 +267,78 @@ public final class LookupJoinUtil {
                 String.format(
                         "table %s is neither TableSourceTable not LegacyTableSourceTable",
                         temporalTable.getQualifiedName()));
+    }
+
+    public static boolean isAsyncLookup(RelOptTable temporalTable, Collection<Integer> lookupKeys) {
+        if (temporalTable instanceof TableSourceTable) {
+            LookupTableSource.LookupRuntimeProvider provider =
+                    getLookupRuntimeProvider(temporalTable, lookupKeys);
+            return provider instanceof AsyncLookupFunctionProvider
+                    || provider instanceof AsyncTableFunctionProvider;
+        } else if (temporalTable instanceof LegacyTableSourceTable) {
+            LegacyTableSourceTable<?> legacyTableSourceTable =
+                    (LegacyTableSourceTable<?>) temporalTable;
+            LookupableTableSource<?> lookupableTableSource =
+                    (LookupableTableSource<?>) legacyTableSourceTable.tableSource();
+            return lookupableTableSource.isAsyncEnabled();
+        }
+        throw new TableException(
+                String.format(
+                        "table %s is neither TableSourceTable not LegacyTableSourceTable",
+                        temporalTable.getQualifiedName()));
+    }
+
+    private static LookupTableSource.LookupRuntimeProvider getLookupRuntimeProvider(
+            RelOptTable temporalTable, Collection<Integer> lookupKeys) {
+        int[] lookupKeyIndicesInOrder = getOrderedLookupKeys(lookupKeys);
+        // TODO: support nested lookup keys in the future,
+        //  currently we only support top-level lookup keys
+        int[][] indices =
+                IntStream.of(lookupKeyIndicesInOrder)
+                        .mapToObj(i -> new int[] {i})
+                        .toArray(int[][]::new);
+        LookupTableSource tableSource =
+                (LookupTableSource) ((TableSourceTable) temporalTable).tableSource();
+        LookupRuntimeProviderContext providerContext = new LookupRuntimeProviderContext(indices);
+        return tableSource.getLookupRuntimeProvider(providerContext);
+    }
+
+    private static LookupFullCache createFullCache(
+            FullCachingLookupProvider provider,
+            int[] lookupKeyIndicesInOrder,
+            ClassLoader classLoader,
+            RowType tableSourceRowType) {
+
+        ScanTableSource.ScanRuntimeProvider scanProvider = provider.getScanRuntimeProvider();
+        Preconditions.checkArgument(
+                scanProvider.isBounded(),
+                "ScanRuntimeProvider that is used for data loading in "
+                        + "lookup 'FULL' cache must be bounded.");
+
+        GenericRowDataKeySelector lookupTableKeySelector =
+                (GenericRowDataKeySelector)
+                        KeySelectorUtil.getRowDataSelector(
+                                classLoader,
+                                lookupKeyIndicesInOrder,
+                                InternalTypeInfo.of(tableSourceRowType),
+                                GenericRowData.class);
+
+        if (scanProvider instanceof InputFormatProvider) {
+            InputFormat<RowData, ?> inputFormat =
+                    ((InputFormatProvider) scanProvider).createInputFormat();
+            CacheLoader cacheLoader =
+                    new InputFormatCacheLoader(
+                            inputFormat,
+                            lookupTableKeySelector,
+                            InternalSerializers.create(tableSourceRowType));
+            return new LookupFullCache(cacheLoader, provider.getCacheReloadTrigger());
+        } else if (scanProvider instanceof SourceFunctionProvider) {
+            // TODO support SourceFunctions
+            throw new UnsupportedOperationException(
+                    "Full caching using SourceFunction currently not supported.");
+        } else {
+            throw new UnsupportedOperationException(
+                    "Currently only InputFormatProvider and SourceFunctionProvider are supported as ScanRuntimeProviders for Full caching lookup join.");
+        }
     }
 }

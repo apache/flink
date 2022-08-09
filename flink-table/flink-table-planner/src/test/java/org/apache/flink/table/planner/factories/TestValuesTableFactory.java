@@ -69,13 +69,17 @@ import org.apache.flink.table.connector.source.abilities.SupportsReadingMetadata
 import org.apache.flink.table.connector.source.abilities.SupportsSourceWatermark;
 import org.apache.flink.table.connector.source.abilities.SupportsWatermarkPushDown;
 import org.apache.flink.table.connector.source.lookup.AsyncLookupFunctionProvider;
+import org.apache.flink.table.connector.source.lookup.FullCachingLookupProvider;
 import org.apache.flink.table.connector.source.lookup.LookupFunctionProvider;
 import org.apache.flink.table.connector.source.lookup.LookupOptions;
 import org.apache.flink.table.connector.source.lookup.PartialCachingAsyncLookupProvider;
 import org.apache.flink.table.connector.source.lookup.PartialCachingLookupProvider;
 import org.apache.flink.table.connector.source.lookup.cache.DefaultLookupCache;
 import org.apache.flink.table.connector.source.lookup.cache.LookupCache;
+import org.apache.flink.table.connector.source.lookup.cache.trigger.CacheReloadTrigger;
+import org.apache.flink.table.connector.source.lookup.cache.trigger.PeriodicCacheReloadTrigger;
 import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.data.util.DataFormatConverters;
 import org.apache.flink.table.expressions.AggregateExpression;
 import org.apache.flink.table.expressions.FieldReferenceExpression;
 import org.apache.flink.table.expressions.ResolvedExpression;
@@ -100,6 +104,7 @@ import org.apache.flink.table.planner.functions.aggfunctions.SumAggFunction;
 import org.apache.flink.table.planner.runtime.utils.FailingCollectionSource;
 import org.apache.flink.table.planner.utils.FilterUtils;
 import org.apache.flink.table.planner.utils.JavaScalaConversionUtil;
+import org.apache.flink.table.runtime.functions.table.fullcache.FullCacheTestInputFormat;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.BigIntType;
 import org.apache.flink.table.types.logical.LogicalType;
@@ -136,6 +141,11 @@ import java.util.stream.Collectors;
 import scala.collection.Seq;
 
 import static org.apache.flink.table.connector.source.lookup.LookupOptions.CACHE_TYPE;
+import static org.apache.flink.table.connector.source.lookup.LookupOptions.FULL_CACHE_PERIODIC_RELOAD_INTERVAL;
+import static org.apache.flink.table.connector.source.lookup.LookupOptions.FULL_CACHE_PERIODIC_RELOAD_SCHEDULE_MODE;
+import static org.apache.flink.table.connector.source.lookup.LookupOptions.FULL_CACHE_RELOAD_STRATEGY;
+import static org.apache.flink.table.connector.source.lookup.LookupOptions.FULL_CACHE_TIMED_RELOAD_INTERVAL_IN_DAYS;
+import static org.apache.flink.table.connector.source.lookup.LookupOptions.FULL_CACHE_TIMED_RELOAD_ISO_TIME;
 import static org.apache.flink.table.connector.source.lookup.LookupOptions.PARTIAL_CACHE_CACHE_MISSING_KEY;
 import static org.apache.flink.table.connector.source.lookup.LookupOptions.PARTIAL_CACHE_EXPIRE_AFTER_ACCESS;
 import static org.apache.flink.table.connector.source.lookup.LookupOptions.PARTIAL_CACHE_EXPIRE_AFTER_WRITE;
@@ -410,6 +420,10 @@ public final class TestValuesTableFactory
         if (helper.getOptions().get(CACHE_TYPE).equals(LookupOptions.LookupCacheType.PARTIAL)) {
             cache = DefaultLookupCache.fromConfig(helper.getOptions());
         }
+        CacheReloadTrigger reloadTrigger = null;
+        if (helper.getOptions().get(CACHE_TYPE).equals(LookupOptions.LookupCacheType.FULL)) {
+            reloadTrigger = PeriodicCacheReloadTrigger.fromConfig(helper.getOptions());
+        }
 
         Optional<List<String>> filterableFields =
                 helper.getOptions().getOptional(FILTERABLE_FIELDS);
@@ -525,7 +539,8 @@ public final class TestValuesTableFactory
                         partitions,
                         readableMetadata,
                         null,
-                        cache);
+                        cache,
+                        reloadTrigger);
             }
         } else {
             try {
@@ -631,7 +646,12 @@ public final class TestValuesTableFactory
                         PARTIAL_CACHE_EXPIRE_AFTER_ACCESS,
                         PARTIAL_CACHE_EXPIRE_AFTER_WRITE,
                         PARTIAL_CACHE_CACHE_MISSING_KEY,
-                        PARTIAL_CACHE_MAX_ROWS));
+                        PARTIAL_CACHE_MAX_ROWS,
+                        FULL_CACHE_RELOAD_STRATEGY,
+                        FULL_CACHE_PERIODIC_RELOAD_INTERVAL,
+                        FULL_CACHE_PERIODIC_RELOAD_SCHEDULE_MODE,
+                        FULL_CACHE_TIMED_RELOAD_ISO_TIME,
+                        FULL_CACHE_TIMED_RELOAD_INTERVAL_IN_DAYS));
     }
 
     private static int validateAndExtractRowtimeIndex(
@@ -1474,6 +1494,7 @@ public final class TestValuesTableFactory
 
         private final @Nullable String lookupFunctionClass;
         private final @Nullable LookupCache cache;
+        private final @Nullable CacheReloadTrigger reloadTrigger;
         private final boolean isAsync;
 
         private TestValuesScanLookupTableSource(
@@ -1495,7 +1516,8 @@ public final class TestValuesTableFactory
                 List<Map<String, String>> allPartitions,
                 Map<String, DataType> readableMetadata,
                 @Nullable int[] projectedMetadataFields,
-                @Nullable LookupCache cache) {
+                @Nullable LookupCache cache,
+                @Nullable CacheReloadTrigger reloadTrigger) {
             super(
                     producedDataType,
                     changelogMode,
@@ -1516,6 +1538,7 @@ public final class TestValuesTableFactory
             this.lookupFunctionClass = lookupFunctionClass;
             this.isAsync = isAsync;
             this.cache = cache;
+            this.reloadTrigger = reloadTrigger;
         }
 
         @SuppressWarnings({"unchecked", "rawtypes"})
@@ -1569,10 +1592,18 @@ public final class TestValuesTableFactory
             } else {
                 TestValuesLookupFunction lookupFunction =
                         new TestValuesLookupFunction(data, lookupIndices, converter);
-                if (cache == null) {
-                    return LookupFunctionProvider.of(lookupFunction);
-                } else {
+                if (cache != null) {
                     return PartialCachingLookupProvider.of(lookupFunction, cache);
+                } else if (reloadTrigger != null) {
+                    DataFormatConverters.RowConverter rowConverter =
+                            new DataFormatConverters.RowConverter(
+                                    producedDataType.getChildren().toArray(new DataType[] {}));
+                    FullCacheTestInputFormat inputFormat =
+                            new FullCacheTestInputFormat(data, rowConverter);
+                    return FullCachingLookupProvider.of(
+                            InputFormatProvider.of(inputFormat), reloadTrigger);
+                } else {
+                    return LookupFunctionProvider.of(lookupFunction);
                 }
             }
         }
@@ -1598,7 +1629,8 @@ public final class TestValuesTableFactory
                     allPartitions,
                     readableMetadata,
                     projectedMetadataFields,
-                    cache);
+                    cache,
+                    reloadTrigger);
         }
     }
 

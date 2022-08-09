@@ -19,7 +19,6 @@ package org.apache.flink.table.planner.plan.nodes.physical.common
 
 import org.apache.flink.table.api.TableException
 import org.apache.flink.table.catalog.{ObjectIdentifier, UniqueConstraint}
-import org.apache.flink.table.functions.{AsyncTableFunction, TableFunction, UserDefinedFunction}
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.plan.nodes.FlinkRelNode
 import org.apache.flink.table.planner.plan.schema.{IntermediateRelTable, LegacyTableSourceTable, TableSourceTable}
@@ -160,12 +159,8 @@ abstract class CommonPhysicalLookupJoin(
       case t: LegacyTableSourceTable[_] => t.tableIdentifier
     }
 
-    val lookupFunction: UserDefinedFunction =
-      LookupJoinUtil.getLookupFunction(temporalTable, allLookupKeys.keys.map(Int.box).toList.asJava)
-    val isAsyncEnabled: Boolean = lookupFunction match {
-      case _: TableFunction[_] => false
-      case _: AsyncTableFunction[_] => true
-    }
+    val isAsyncEnabled: Boolean =
+      LookupJoinUtil.isAsyncLookup(temporalTable, allLookupKeys.keys.map(Int.box).toList.asJava)
 
     super
       .explainTerms(pw)

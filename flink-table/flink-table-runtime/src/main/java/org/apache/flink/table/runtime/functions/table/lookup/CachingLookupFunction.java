@@ -20,6 +20,7 @@ package org.apache.flink.table.runtime.functions.table.lookup;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.SimpleCounter;
 import org.apache.flink.metrics.groups.CacheMetricGroup;
@@ -29,6 +30,10 @@ import org.apache.flink.table.connector.source.lookup.cache.LookupCache;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.functions.FunctionContext;
 import org.apache.flink.table.functions.LookupFunction;
+import org.apache.flink.table.runtime.functions.table.lookup.fullcache.LookupFullCache;
+import org.apache.flink.util.Preconditions;
+
+import javax.annotation.Nullable;
 
 import java.io.IOException;
 import java.util.Collection;
@@ -52,7 +57,7 @@ public class CachingLookupFunction extends LookupFunction {
     private static final long UNINITIALIZED = -1;
 
     // The actual user-provided lookup function
-    private final LookupFunction delegate;
+    @Nullable private final LookupFunction delegate;
 
     private LookupCache cache;
     private transient String cacheIdentifier;
@@ -70,7 +75,7 @@ public class CachingLookupFunction extends LookupFunction {
      * actual cache instance will be retrieved from the {@link LookupCacheManager} during {@link
      * #open}.
      */
-    public CachingLookupFunction(LookupCache cache, LookupFunction delegate) {
+    public CachingLookupFunction(LookupCache cache, @Nullable LookupFunction delegate) {
         this.cache = cache;
         this.delegate = delegate;
     }
@@ -103,7 +108,13 @@ public class CachingLookupFunction extends LookupFunction {
 
         // Initialize cache and the delegating function
         cache.open(cacheMetricGroup);
-        delegate.open(context);
+        if (cache instanceof LookupFullCache) {
+            // TODO add Configuration into FunctionContext
+            ((LookupFullCache) cache).open(new Configuration());
+        }
+        if (delegate != null) {
+            delegate.open(context);
+        }
     }
 
     @Override
@@ -128,7 +139,9 @@ public class CachingLookupFunction extends LookupFunction {
 
     @Override
     public void close() throws Exception {
-        delegate.close();
+        if (delegate != null) {
+            delegate.close();
+        }
         if (cacheIdentifier != null) {
             LookupCacheManager.getInstance().unregisterCache(cacheIdentifier);
         }
@@ -142,6 +155,9 @@ public class CachingLookupFunction extends LookupFunction {
     // -------------------------------- Helper functions ------------------------------
     private Collection<RowData> lookupByDelegate(RowData keyRow) throws IOException {
         try {
+            Preconditions.checkState(
+                    delegate != null,
+                    "User's lookup function can't be null, if there are possible cache misses.");
             Collection<RowData> lookupValues = delegate.lookup(keyRow);
             loadCounter.inc();
             updateLatestLoadTime();
