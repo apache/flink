@@ -47,7 +47,6 @@ import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.SerializedValue;
 import org.apache.flink.util.concurrent.FutureUtils;
 import org.apache.flink.util.function.QuadFunction;
-import org.apache.flink.util.function.TriConsumer;
 import org.apache.flink.util.function.TriFunction;
 
 import java.util.Collection;
@@ -92,9 +91,8 @@ public class TestingTaskExecutorGateway implements TaskExecutorGateway {
 
     private final Supplier<CompletableFuture<Boolean>> canBeReleasedSupplier;
 
-    private final TriConsumer<JobID, Set<ResultPartitionID>, Set<ResultPartitionID>>
-            releaseOrPromotePartitionsConsumer;
-
+    private BiConsumer<JobID, Set<ResultPartitionID>> releasePartitionsConsumer;
+    private BiConsumer<JobID, Set<ResultPartitionID>> promotePartitionsConsumer;
     private final Consumer<Collection<IntermediateDataSetID>> releaseClusterPartitionsConsumer;
 
     private final TriFunction<
@@ -144,8 +142,8 @@ public class TestingTaskExecutorGateway implements TaskExecutorGateway {
             Consumer<Exception> disconnectResourceManagerConsumer,
             Function<ExecutionAttemptID, CompletableFuture<Acknowledge>> cancelTaskFunction,
             Supplier<CompletableFuture<Boolean>> canBeReleasedSupplier,
-            TriConsumer<JobID, Set<ResultPartitionID>, Set<ResultPartitionID>>
-                    releaseOrPromotePartitionsConsumer,
+            BiConsumer<JobID, Set<ResultPartitionID>> releasePartitionsConsumer,
+            BiConsumer<JobID, Set<ResultPartitionID>> promotePartitionsConsumer,
             Consumer<Collection<IntermediateDataSetID>> releaseClusterPartitionsConsumer,
             TriFunction<
                             ExecutionAttemptID,
@@ -178,7 +176,8 @@ public class TestingTaskExecutorGateway implements TaskExecutorGateway {
         this.disconnectResourceManagerConsumer = disconnectResourceManagerConsumer;
         this.cancelTaskFunction = cancelTaskFunction;
         this.canBeReleasedSupplier = canBeReleasedSupplier;
-        this.releaseOrPromotePartitionsConsumer = releaseOrPromotePartitionsConsumer;
+        this.releasePartitionsConsumer = releasePartitionsConsumer;
+        this.promotePartitionsConsumer = promotePartitionsConsumer;
         this.releaseClusterPartitionsConsumer = releaseClusterPartitionsConsumer;
         this.operatorEventHandler = operatorEventHandler;
         this.requestThreadDumpSupplier = requestThreadDumpSupplier;
@@ -221,11 +220,15 @@ public class TestingTaskExecutorGateway implements TaskExecutorGateway {
     }
 
     @Override
-    public void releaseOrPromotePartitions(
-            JobID jobId,
-            Set<ResultPartitionID> partitionToRelease,
-            Set<ResultPartitionID> partitionsToPromote) {
-        releaseOrPromotePartitionsConsumer.accept(jobId, partitionToRelease, partitionsToPromote);
+    public void releasePartitions(JobID jobId, Set<ResultPartitionID> partitionIds) {
+        releasePartitionsConsumer.accept(jobId, partitionIds);
+    }
+
+    @Override
+    public CompletableFuture<Acknowledge> promotePartitions(
+            JobID jobId, Set<ResultPartitionID> partitionIds) {
+        promotePartitionsConsumer.accept(jobId, partitionIds);
+        return CompletableFuture.completedFuture(Acknowledge.get());
     }
 
     @Override
