@@ -150,6 +150,14 @@ public class HsMemoryDataManager implements HsSpillingInfoProvider, HsMemoryData
         spiller.release();
     }
 
+    public void setOutputMetrics(HsOutputMetrics metrics) {
+        // HsOutputMetrics is not thread-safe. It can be shared by all the subpartitions because it
+        // is expected always updated from the producer task's mailbox thread.
+        for (int i = 0; i < numSubpartitions; i++) {
+            getSubpartitionMemoryDataManager(i).setOutputMetrics(metrics);
+        }
+    }
+
     // ------------------------------------
     //        For Spilling Strategy
     // ------------------------------------

@@ -23,6 +23,7 @@ import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.core.memory.MemorySegmentFactory;
 import org.apache.flink.core.testutils.CheckedThread;
 import org.apache.flink.runtime.event.AbstractEvent;
+import org.apache.flink.runtime.executiongraph.IOMetrics;
 import org.apache.flink.runtime.io.disk.BatchShuffleReadBufferPool;
 import org.apache.flink.runtime.io.disk.FileChannelManager;
 import org.apache.flink.runtime.io.disk.FileChannelManagerImpl;
@@ -40,6 +41,8 @@ import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.io.network.partition.ResultSubpartition;
 import org.apache.flink.runtime.io.network.partition.ResultSubpartitionView;
 import org.apache.flink.runtime.io.network.partition.hybrid.HybridShuffleConfiguration.SpillingStrategyType;
+import org.apache.flink.runtime.metrics.groups.TaskIOMetricGroup;
+import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -83,6 +86,8 @@ class HsResultPartitionTest {
     private BatchShuffleReadBufferPool readBufferPool;
 
     private ExecutorService readIOExecutor;
+
+    private TaskIOMetricGroup taskIOMetricGroup;
 
     @TempDir public Path tempDataPath;
 
@@ -280,6 +285,22 @@ class HsResultPartitionTest {
         assertThat(partition.isAvailable()).isTrue();
     }
 
+    @Test
+    void testMetricsUpdate() throws Exception {
+        BufferPool bufferPool = globalPool.createBufferPool(3, 3);
+        try (HsResultPartition partition = createHsResultPartition(2, bufferPool)) {
+            partition.emitRecord(ByteBuffer.allocate(bufferSize), 0);
+            partition.broadcastRecord(ByteBuffer.allocate(bufferSize));
+            assertThat(taskIOMetricGroup.getNumBuffersOutCounter().getCount()).isEqualTo(3);
+            assertThat(taskIOMetricGroup.getNumBytesOutCounter().getCount())
+                    .isEqualTo(3 * bufferSize);
+            IOMetrics ioMetrics = taskIOMetricGroup.createSnapshot();
+            assertThat(ioMetrics.getNumBytesProducedOfPartitions())
+                    .hasSize(1)
+                    .containsValue((long) 2 * bufferSize);
+        }
+    }
+
     private static void recordDataWritten(
             ByteBuffer record,
             Queue<Tuple2<ByteBuffer, Buffer.DataType>>[] dataWritten,
@@ -391,7 +412,10 @@ class HsResultPartitionTest {
                                 .build(),
                         null,
                         () -> bufferPool);
+        taskIOMetricGroup =
+                UnregisteredMetricGroups.createUnregisteredTaskMetricGroup().getIOMetricGroup();
         hsResultPartition.setup();
+        hsResultPartition.setMetricGroup(taskIOMetricGroup);
         return hsResultPartition;
     }
 

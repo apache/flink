@@ -20,6 +20,7 @@ package org.apache.flink.runtime.io.network.partition.hybrid;
 
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.core.memory.MemorySegmentFactory;
+import org.apache.flink.metrics.util.TestCounter;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferBuilder;
 import org.apache.flink.runtime.io.network.buffer.FreeingBufferRecycler;
@@ -67,5 +68,9 @@ public class HybridShuffleTestUtils {
         return new BufferBuilder(
                 MemorySegmentFactory.allocateUnpooledSegment(bufferSize),
                 FreeingBufferRecycler.INSTANCE);
+    }
+
+    public static HsOutputMetrics createTestingOutputMetrics() {
+        return new HsOutputMetrics(new TestCounter(), new TestCounter());
     }
 }
