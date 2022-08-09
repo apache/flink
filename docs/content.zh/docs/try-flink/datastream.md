@@ -111,9 +111,9 @@ $ mvn archetype:generate \
 
 {{< unstable >}}
 {{< hint warning >}}
-    Maven 3.0 及更高版本，不再支持通过命令行指定仓库（-DarchetypeCatalog）。有关这个改动的详细信息，
-    请参阅 [Maven 官方文档](http://maven.apache.org/archetype/maven-archetype-plugin/archetype-repository.html)
-    如果你希望使用快照仓库，则需要在 settings.xml 文件中添加一个仓库条目。例如：
+Maven 3.0 及更高版本，不再支持通过命令行指定仓库（-DarchetypeCatalog）。有关这个改动的详细信息，
+请参阅 [Maven 官方文档](http://maven.apache.org/archetype/maven-archetype-plugin/archetype-repository.html)
+如果你希望使用快照仓库，则需要在 settings.xml 文件中添加一个仓库条目。例如：
 ```xml
 <settings>
   <activeProfiles>
