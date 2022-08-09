@@ -144,7 +144,7 @@ public class HBaseDynamicTableFactoryTest {
     }
 
     @Test
-    public void testCacheOptions() {
+    public void testLookupOptions() {
         ResolvedSchema schema = ResolvedSchema.of(Column.physical(ROWKEY, STRING()));
         Map<String, String> options = getAllOptions();
         options.put("lookup.cache", "PARTIAL");

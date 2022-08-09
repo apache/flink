@@ -90,7 +90,9 @@ public class HBaseRowDataLookupFunction extends LookupFunction {
     public Collection<RowData> lookup(RowData keyRow) throws IOException {
         for (int retry = 0; retry <= maxRetryTimes; retry++) {
             try {
-                // fetch result
+                // TODO: The implementation of LookupFunction will pass a GenericRowData as key row
+                // and it's safe to cast for now. We need to update the logic once we improve the
+                // LookupFunction in the future.
                 Get get = serde.createGet(((GenericRowData) keyRow).getField(0));
                 if (get != null) {
                     Result result = table.get(get);

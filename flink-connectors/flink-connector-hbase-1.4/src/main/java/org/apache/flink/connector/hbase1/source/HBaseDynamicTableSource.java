@@ -30,6 +30,8 @@ import org.apache.hadoop.conf.Configuration;
 
 import javax.annotation.Nullable;
 
+import java.util.Objects;
+
 /** HBase table source implementation. */
 @Internal
 public class HBaseDynamicTableSource extends AbstractHBaseDynamicTableSource {
@@ -53,5 +55,24 @@ public class HBaseDynamicTableSource extends AbstractHBaseDynamicTableSource {
     @Override
     public InputFormat<RowData, ?> getInputFormat() {
         return new HBaseRowDataInputFormat(conf, tableName, hbaseSchema, nullStringLiteral);
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (!(o instanceof HBaseDynamicTableSource)) {
+            return false;
+        }
+        HBaseDynamicTableSource that = (HBaseDynamicTableSource) o;
+        return Objects.equals(conf, that.conf)
+                && Objects.equals(tableName, that.tableName)
+                && Objects.equals(hbaseSchema, that.hbaseSchema)
+                && Objects.equals(nullStringLiteral, that.nullStringLiteral)
+                && Objects.equals(maxRetryTimes, that.maxRetryTimes)
+                && Objects.equals(cache, that.cache);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(conf, tableName, hbaseSchema, nullStringLiteral, maxRetryTimes, cache);
     }
 }
