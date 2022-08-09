@@ -486,6 +486,30 @@ input.sinkTo(sink)
 {{< /tab >}}
 {{< /tabs >}}
 
+For PyFlink users, `ParquetBulkWriter` could be used to create a `BulkWriterFactory` that writes `Row`s into Parquet files.
+
+```python
+row_type = DataTypes.ROW([
+    DataTypes.FIELD('string', DataTypes.STRING()),
+    DataTypes.FIELD('int_array', DataTypes.ARRAY(DataTypes.INT()))
+])
+row_type_info = Types.ROW_NAMED(
+    ['string', 'int_array'],
+    [Types.STRING(), Types.LIST(Types.INT())]
+)
+sink = FileSink.for_bulk_format(
+    OUTPUT_DIR, ParquetBulkWriter.for_row_type(
+        row_type,
+        hadoop_config=Configuration(),
+        utc_timestamp=True,
+    )
+).build()
+# If ds is a source stream producing RowData records, a map could be added to help converting RowData records into Row records.
+ds.map(lambda e: e, output_type=row_type_info).sink_to(sink)
+# Else
+ds.sink_to(sink)
+```
+
 ##### Avro format
 
 Flink also provides built-in support for writing data into Avro files. A list of convenience methods to create

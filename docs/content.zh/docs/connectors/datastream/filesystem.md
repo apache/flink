@@ -488,6 +488,30 @@ input.sinkTo(sink)
 {{< /tab >}}
 {{< /tabs >}}
 
+PyFlink 用户可以使用 `ParquetBulkWriter` 来创建一个将 `Row` 数据写入 Parquet 文件的 `BulkWriterFactory` 。
+
+```python
+row_type = DataTypes.ROW([
+    DataTypes.FIELD('string', DataTypes.STRING()),
+    DataTypes.FIELD('int_array', DataTypes.ARRAY(DataTypes.INT()))
+])
+row_type_info = Types.ROW_NAMED(
+    ['string', 'int_array'],
+    [Types.STRING(), Types.LIST(Types.INT())]
+)
+sink = FileSink.for_bulk_format(
+    OUTPUT_DIR, ParquetBulkWriter.for_row_type(
+        row_type,
+        hadoop_config=Configuration(),
+        utc_timestamp=True,
+    )
+).build()
+# 如果 ds 是一个输出类型为 RowData 的源数据源，可以使用一个 map 来转换为 Row 类型
+ds.map(lambda e: e, output_type=row_type_info).sink_to(sink)
+# 否则
+ds.sink_to(sink)
+```
+
 <a name="avro-format"></a>
 
 ##### Avro Format
