@@ -211,23 +211,23 @@ Classes to define source & sink:
 Classes to define formats used together with source & sink:
 
     - :class:`formats.csv.CsvReaderFormat`:
-      A :class:`connectors.file_system.StreamFormat` to read CSV files into Row data.
+      A :class:`~connectors.file_system.StreamFormat` to read CSV files into Row data.
     - :class:`formats.csv.CsvBulkWriter`:
-      Creates :class:`connectors.file_system.BulkWriterFactory` to write Row data into CSV files.
+      Creates :class:`~connectors.file_system.BulkWriterFactory` to write Row data into CSV files.
     - :class:`formats.avro.GenericRecordAvroTypeInfo`:
-      A :class:`pyflink.common.typeinfo.TypeInformation` to indicate vanilla Python records will be
+      A :class:`~pyflink.common.typeinfo.TypeInformation` to indicate vanilla Python records will be
       translated to GenericRecordAvroTypeInfo on the Java side.
     - :class:`formats.avro.AvroInputFormat`:
-      A :class:`connector.file_system.InputFormat` to read avro files in a streaming fashion.
+      A :class:`~connector.file_system.InputFormat` to read avro files in a streaming fashion.
     - :class:`formats.avro.AvroWriters`:
-      A class to provide :class:`connector.file_system.BulkWriterFactory` to write vanilla Python
+      A class to provide :class:`~connector.file_system.BulkWriterFactory` to write vanilla Python
       objects into avro files in a batch fashion.
     - :class:`formats.parquet.ParquetColumnarRowInputFormat`:
-      A :class:`connectors.file_system.BulkFormat` to read columnar parquet files into Row data in a
-      batch-processing fashion.
-    - :class:`formats.parquet.ParquetRowDataWriter`:
-      Convenient builder to create a :class:`BulkWriterFactory` that writes Rows with a defined
-      :class:`RowType` into Parquet files in a batch fashion.
+      A :class:`~connectors.file_system.BulkFormat` to read columnar parquet files into Row data in
+      a batch-processing fashion.
+    - :class:`formats.parquet.ParquetBulkWriter`:
+      Convenient builder to create a :class:`~connectors.file_system.BulkWriterFactory` that writes
+      Rows with a defined RowType into Parquet files in a batch fashion.
     - :class:`formats.parquet.AvroParquetReaders`:
       A convenience builder to create reader format that reads individual Avro records from a
       Parquet stream. Only GenericRecord is supported in PyFlink.

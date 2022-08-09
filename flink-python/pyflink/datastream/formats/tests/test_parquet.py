@@ -15,23 +15,24 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 ################################################################################
+import calendar
+import datetime
 import glob
 import os
 import tempfile
+import time
 import unittest
-from datetime import date, time, datetime
 from decimal import Decimal
 from typing import List, Optional, Tuple
 
 import pandas as pd
 import pytz
-from py4j.java_gateway import get_java_class
+from pyflink.common.time import Instant
 
 from pyflink.common import Configuration, Row
 from pyflink.common.typeinfo import RowTypeInfo, Types
 from pyflink.common.watermark_strategy import WatermarkStrategy
 from pyflink.datastream.connectors.file_system import FileSource, FileSink
-from pyflink.datastream.data_stream import DataStream
 from pyflink.datastream.formats.tests.test_avro import \
     _create_basic_avro_schema_and_py_objects, _check_basic_avro_schema_results, \
     _create_enum_avro_schema_and_py_objects, _check_enum_avro_schema_results, \
@@ -43,12 +44,12 @@ from pyflink.datastream.formats.tests.test_avro import \
     _create_basic_avro_schema_and_records, _import_avro_classes
 from pyflink.datastream.formats.avro import GenericRecordAvroTypeInfo, AvroSchema
 from pyflink.datastream.formats.parquet import AvroParquetReaders, ParquetColumnarRowInputFormat, \
-    AvroParquetWriters, ParquetRowDataWriter
+    AvroParquetWriters, ParquetBulkWriter
 from pyflink.datastream.tests.test_util import DataStreamTestSinkFunction
+from pyflink.datastream.utils import create_hadoop_configuration
 from pyflink.java_gateway import get_gateway
 from pyflink.table.types import RowType, DataTypes, _to_java_data_type
 from pyflink.testing.test_case_utils import PyFlinkStreamingTestCase, to_java_data_structure
-from pyflink.util.java_utils import to_jarray
 
 
 @unittest.skipIf(os.environ.get('HADOOP_CLASSPATH') is None,
@@ -204,6 +205,7 @@ class FileSourceParquetColumnarRowInputFormatTests(PyFlinkStreamingTestCase):
 
     def test_parquet_columnar_basic_read(self):
         os.environ['TZ'] = 'Asia/Shanghai'
+        time.tzset()
         row_type, _, data = _create_parquet_basic_row_and_data()
         _write_row_data_to_parquet_file(self.parquet_file_name, row_type, data)
         self._build_parquet_columnar_job(row_type)
@@ -213,7 +215,7 @@ class FileSourceParquetColumnarRowInputFormatTests(PyFlinkStreamingTestCase):
 
     def _build_parquet_columnar_job(self, row_type: RowType):
         source = FileSource.for_bulk_file_format(
-            ParquetColumnarRowInputFormat(row_type, Configuration(), 10, False, False),
+            ParquetColumnarRowInputFormat(row_type, Configuration(), 10, True, False),
             self.parquet_file_name
         ).build()
         ds = self.env.from_source(source, WatermarkStrategy.no_watermarks(), 'parquet-source')
@@ -222,7 +224,7 @@ class FileSourceParquetColumnarRowInputFormatTests(PyFlinkStreamingTestCase):
 
 @unittest.skipIf(os.environ.get('HADOOP_CLASSPATH') is None,
                  'Some Hadoop lib is needed for Parquet RowData format tests')
-class FileSinkParquetRowDataWriterTests(PyFlinkStreamingTestCase):
+class FileSinkParquetBulkWriterTests(PyFlinkStreamingTestCase):
 
     def setUp(self):
         super().setUp()
@@ -232,6 +234,7 @@ class FileSinkParquetRowDataWriterTests(PyFlinkStreamingTestCase):
 
     def test_parquet_row_data_basic_write(self):
         os.environ['TZ'] = 'Asia/Shanghai'
+        time.tzset()
         row_type, row_type_info, data = _create_parquet_basic_row_and_data()
         self._build_parquet_job(row_type, row_type_info, data)
         self.env.execute('test_parquet_row_data_basic_write')
@@ -264,17 +267,10 @@ class FileSinkParquetRowDataWriterTests(PyFlinkStreamingTestCase):
         data: List[Row],
         conversion_type_info: Optional[RowTypeInfo] = None,
     ):
-        jvm = get_gateway().jvm
         sink = FileSink.for_bulk_format(
-            self.parquet_dir_name, ParquetRowDataWriter.for_row_type(row_type, utc_timestamp=True)
+            self.parquet_dir_name, ParquetBulkWriter.for_row_type(row_type, utc_timestamp=True)
         ).build()
-        j_list = jvm.java.util.ArrayList()
-        for d in data:
-            j_list.add(to_java_data_structure(d))
-        ds = DataStream(self.env._j_stream_execution_environment.fromCollection(
-            j_list,
-            row_type_info.get_java_type_info()
-        ))
+        ds = self.env.from_collection(data, type_info=row_type_info)
         if conversion_type_info:
             ds = ds.map(lambda e: e, output_type=conversion_type_info)
         ds.sink_to(sink)
@@ -293,28 +289,21 @@ def _write_row_data_to_parquet_file(path: str, row_type: RowType, rows: List[Row
     flink = jvm.org.apache.flink
 
     j_output_stream = flink.core.fs.local.LocalDataOutputStream(jvm.java.io.File(path))
-    constructor = get_java_class(flink.formats.parquet.StreamOutputFile).getDeclaredConstructor(
-        to_jarray(jvm.Class, [get_java_class(flink.core.fs.FSDataOutputStream)])
-    )
-    constructor.setAccessible(True)
-    j_output_file = constructor.newInstance(to_jarray(jvm.Object, [j_output_stream]))
-
-    j_parquet_writer = flink.formats.parquet.row.ParquetRowDataBuilder(
-        j_output_file, _to_java_data_type(row_type).getLogicalType(), False
-    ).build()
+    j_bulk_writer = flink.formats.parquet.row.ParquetRowDataBuilder.createWriterFactory(
+        _to_java_data_type(row_type).getLogicalType(),
+        create_hadoop_configuration(Configuration()),
+        True,
+    ).create(j_output_stream)
     row_row_converter = flink.table.data.conversion.RowRowConverter.create(
         _to_java_data_type(row_type)
     )
     row_row_converter.open(row_row_converter.getClass().getClassLoader())
     for row in rows:
-        j_parquet_writer.write(
-            row_row_converter.toInternal(to_java_data_structure(row))
-        )
-    j_parquet_writer.close()
+        j_bulk_writer.addElement(row_row_converter.toInternal(to_java_data_structure(row)))
+    j_bulk_writer.finish()
 
 
 def _create_parquet_basic_row_and_data() -> Tuple[RowType, RowTypeInfo, List[Row]]:
-    jvm = get_gateway().jvm
     row_type = DataTypes.ROW([
         DataTypes.FIELD('char', DataTypes.CHAR(10)),
         DataTypes.FIELD('varchar', DataTypes.VARCHAR(10)),
@@ -325,9 +314,9 @@ def _create_parquet_basic_row_and_data() -> Tuple[RowType, RowTypeInfo, List[Row
         DataTypes.FIELD('int', DataTypes.INT()),
         DataTypes.FIELD('bigint', DataTypes.BIGINT()),
         DataTypes.FIELD('double', DataTypes.DOUBLE()),
-        DataTypes.FIELD('date', DataTypes.DATE()),
-        DataTypes.FIELD('time', DataTypes.TIME()),
-        DataTypes.FIELD('timestamp', DataTypes.TIMESTAMP(3)),
+        DataTypes.FIELD('date', DataTypes.DATE().bridged_to('java.sql.Date')),
+        DataTypes.FIELD('time', DataTypes.TIME().bridged_to('java.sql.Time')),
+        DataTypes.FIELD('timestamp', DataTypes.TIMESTAMP(3).bridged_to('java.sql.Timestamp')),
         DataTypes.FIELD('timestamp_ltz', DataTypes.TIMESTAMP_LTZ(3)),
     ])
     row_type_info = Types.ROW_NAMED(
@@ -335,9 +324,15 @@ def _create_parquet_basic_row_and_data() -> Tuple[RowType, RowTypeInfo, List[Row
          'date', 'time', 'timestamp', 'timestamp_ltz'],
         [Types.STRING(), Types.STRING(), Types.PRIMITIVE_ARRAY(Types.BYTE()),
          Types.PRIMITIVE_ARRAY(Types.BYTE()), Types.BOOLEAN(), Types.BIG_DEC(), Types.INT(),
-         Types.LONG(), Types.DOUBLE(), Types.JAVA(jvm.java.time.LocalDate),
-         Types.JAVA(jvm.java.time.LocalTime), Types.JAVA(jvm.java.time.LocalDateTime),
+         Types.LONG(), Types.DOUBLE(), Types.SQL_DATE(), Types.SQL_TIME(), Types.SQL_TIMESTAMP(),
          Types.INSTANT()]
+    )
+    datetime_ltz = datetime.datetime(1970, 2, 3, 4, 5, 6, 700000, tzinfo=pytz.timezone('UTC'))
+    timestamp_ltz = Instant.of_epoch_milli(
+        (
+            calendar.timegm(datetime_ltz.utctimetuple()) +
+            calendar.timegm(time.localtime(0))
+        ) * 1000 + datetime_ltz.microsecond // 1000
     )
     data = [Row(
         char='char',
@@ -349,10 +344,10 @@ def _create_parquet_basic_row_and_data() -> Tuple[RowType, RowTypeInfo, List[Row
         int=2147483647,
         bigint=-9223372036854775808,
         double=2e-308,
-        date=date(1970, 1, 1),
-        time=time(1, 1, 1),
-        timestamp=datetime(1970, 1, 2, 3, 4, 5, 600000),
-        timestamp_ltz=datetime(1970, 2, 3, 4, 5, 6, 700000, tzinfo=pytz.timezone('UTC')),
+        date=datetime.date(1970, 1, 1),
+        time=datetime.time(1, 1, 1),
+        timestamp=datetime.datetime(1970, 1, 2, 3, 4, 5, 600000),
+        timestamp_ltz=timestamp_ltz
     )]
     return row_type, row_type_info, data
 
@@ -368,18 +363,18 @@ def _check_parquet_basic_results(test, results):
     test.assertEqual(row['int'], 2147483647)
     test.assertEqual(row['bigint'], -9223372036854775808)
     test.assertAlmostEqual(row['double'], 2e-308, delta=1e-311)
-    test.assertEqual(row['date'], date(1970, 1, 1))
-    test.assertEqual(row['time'], time(1, 1, 1))
+    test.assertEqual(row['date'], datetime.date(1970, 1, 1))
+    test.assertEqual(row['time'], datetime.time(1, 1, 1))
     ts = row['timestamp']
     if isinstance(ts, pd.Timestamp):
         ts = ts.to_pydatetime()
-    test.assertEqual(ts, datetime(1970, 1, 2, 3, 4, 5, 600000))
+    test.assertEqual(ts, datetime.datetime(1970, 1, 2, 3, 4, 5, 600000))
     ts_ltz = row['timestamp_ltz']
     if isinstance(ts_ltz, pd.Timestamp):
         ts_ltz = pytz.timezone('Asia/Shanghai').localize(ts_ltz.to_pydatetime())
     test.assertEqual(
         ts_ltz,
-        pytz.timezone('Asia/Shanghai').localize(datetime(1970, 2, 3, 12, 5, 6, 700000))
+        pytz.timezone('Asia/Shanghai').localize(datetime.datetime(1970, 2, 3, 12, 5, 6, 700000))
     )
 
 

@@ -283,6 +283,27 @@ class TestEnv(object):
         return result
 
 
+DATE_EPOCH_ORDINAL = datetime.datetime(1970, 1, 1).toordinal()
+TIME_EPOCH_ORDINAL = calendar.timegm(time.localtime(0)) * 10 ** 3
+
+
+def _date_to_millis(d: datetime.date):
+    return (d.toordinal() - DATE_EPOCH_ORDINAL) * 86400 * 1000
+
+
+def _time_to_millis(t: datetime.time):
+    if t.tzinfo is not None:
+        offset = t.utcoffset()
+        offset = offset if offset else datetime.timedelta()
+        offset_millis = \
+            (offset.days * 86400 + offset.seconds) * 10 ** 3 + offset.microseconds // 1000
+    else:
+        offset_millis = TIME_EPOCH_ORDINAL
+    minutes = t.hour * 60 + t.minute
+    seconds = minutes * 60 + t.second
+    return seconds * 10 ** 3 + t.microsecond // 1000 - offset_millis
+
+
 def to_java_data_structure(value):
     jvm = get_gateway().jvm
     if isinstance(value, (int, float, str, bytes)):
@@ -290,12 +311,10 @@ def to_java_data_structure(value):
     elif isinstance(value, Decimal):
         return jvm.java.math.BigDecimal.valueOf(float(value))
     elif isinstance(value, datetime.datetime):
-        local_date_time = jvm.java.time.LocalDateTime.of(
-            value.year, value.month, value.day, value.hour, value.minute, value.second,
-            value.microsecond * 1000
-        )
         if value.tzinfo is None:
-            return local_date_time
+            return jvm.java.sql.Timestamp(
+                _date_to_millis(value.date()) + _time_to_millis(value.time())
+            )
         return jvm.java.time.Instant.ofEpochMilli(
             (
                 calendar.timegm(value.utctimetuple()) +
@@ -304,12 +323,11 @@ def to_java_data_structure(value):
             value.microsecond // 1000
         )
     elif isinstance(value, datetime.date):
-        return jvm.java.time.LocalDate.of(value.year, value.month, value.day)
+        return jvm.java.sql.Date(_date_to_millis(value))
     elif isinstance(value, datetime.time):
-        return jvm.java.time.LocalTime.of(value.hour, value.minute, value.second,
-                                          value.microsecond * 1000)
+        return jvm.java.sql.Time(_time_to_millis(value))
     elif isinstance(value, Time):
-        return jvm.java.time.LocalTime.of()
+        return jvm.java.sql.Time(value.to_milliseconds())
     elif isinstance(value, Instant):
         return jvm.java.time.Instant.ofEpochMilli(value.to_epoch_milli())
     elif isinstance(value, (list, tuple)):

@@ -21,7 +21,7 @@ import time
 from enum import Enum
 from typing import List, Union
 
-from py4j.java_gateway import JavaClass, JavaObject, get_java_class
+from py4j.java_gateway import JavaClass, JavaObject
 
 from pyflink.java_gateway import get_gateway
 
@@ -463,7 +463,7 @@ class RowTypeInfo(TypeInformation):
                 return (RowKind.INSERT.value,) + tuple(obj.get(n) for n in self.get_field_names())
             elif isinstance(obj, Row) and hasattr(obj, "_fields"):
                 return (obj.get_row_kind().value,) + tuple(
-                    obj.get(n) for n in self.get_field_names())
+                    obj[n] for n in self.get_field_names())
             elif isinstance(obj, Row):
                 return (obj.get_row_kind().value,) + tuple(obj)
             elif isinstance(obj, (list, tuple)):
@@ -744,21 +744,6 @@ class ExternalTypeInfo(TypeInformation):
         return 'ExternalTypeInfo<{}>'.format(self._type_info)
 
 
-class JavaTypeInfo(TypeInformation):
-
-    def __init__(self, j_class):
-        super().__init__()
-        self._j_class = j_class
-
-    def get_java_type_info(self) -> JavaObject:
-        if not self._j_typeinfo:
-            jvm = get_gateway().jvm
-            self._j_typeinfo = jvm.org.apache.flink.api.common.typeinfo.TypeInformation.of(
-                self._j_class
-            )
-        return self._j_typeinfo
-
-
 class Types(object):
     """
     This class gives access to the type information of the most common types for which Flink has
@@ -959,10 +944,6 @@ class Types(object):
         :param element_type_info: The type of the elements in the list
         """
         return ListTypeInfo(element_type_info)
-
-    @staticmethod
-    def JAVA(clz) -> TypeInformation:
-        return JavaTypeInfo(get_java_class(clz))
 
 
 def _from_java_type(j_type_info: JavaObject) -> TypeInformation:
