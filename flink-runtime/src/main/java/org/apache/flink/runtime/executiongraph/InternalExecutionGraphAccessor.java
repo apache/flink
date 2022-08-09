@@ -90,7 +90,10 @@ public interface InternalExecutionGraphAccessor {
      */
     void failGlobal(Throwable t);
 
-    void notifyExecutionChange(final Execution execution, final ExecutionState newExecutionState);
+    void notifyExecutionChange(
+            final Execution execution,
+            ExecutionState previousState,
+            final ExecutionState newExecutionState);
 
     void notifySchedulerNgAboutInternalTaskFailure(
             ExecutionAttemptID attemptId,

@@ -22,6 +22,7 @@ import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
+import org.apache.flink.configuration.MetricOptions;
 import org.apache.flink.configuration.SchedulerExecutionMode;
 import org.apache.flink.metrics.Gauge;
 import org.apache.flink.runtime.checkpoint.CheckpointException;
@@ -44,10 +45,13 @@ import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.TaskExecutionStateTransition;
 import org.apache.flink.runtime.executiongraph.failover.flip1.NoRestartBackoffTimeStrategy;
 import org.apache.flink.runtime.executiongraph.failover.flip1.TestRestartBackoffTimeStrategy;
+import org.apache.flink.runtime.executiongraph.metrics.DownTimeGauge;
+import org.apache.flink.runtime.executiongraph.metrics.UpTimeGauge;
 import org.apache.flink.runtime.executiongraph.utils.SimpleAckingTaskManagerGateway;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.jobgraph.JobGraphBuilder;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration;
@@ -57,7 +61,7 @@ import org.apache.flink.runtime.jobmaster.slotpool.DefaultAllocatedSlotPool;
 import org.apache.flink.runtime.jobmaster.slotpool.DefaultDeclarativeSlotPool;
 import org.apache.flink.runtime.metrics.MetricNames;
 import org.apache.flink.runtime.metrics.MetricRegistry;
-import org.apache.flink.runtime.metrics.groups.JobManagerJobMetricGroup;
+import org.apache.flink.runtime.metrics.groups.JobManagerMetricGroup;
 import org.apache.flink.runtime.metrics.util.TestingMetricRegistry;
 import org.apache.flink.runtime.operators.coordination.CoordinationRequest;
 import org.apache.flink.runtime.operators.coordination.TaskNotRunningException;
@@ -89,6 +93,7 @@ import javax.annotation.Nullable;
 import java.io.IOException;
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.ArrayBlockingQueue;
@@ -106,8 +111,8 @@ import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.cr
 import static org.apache.flink.runtime.jobgraph.JobGraphTestUtils.streamingJobGraph;
 import static org.apache.flink.runtime.jobmaster.slotpool.DefaultDeclarativeSlotPoolTest.createSlotOffersForResourceRequirements;
 import static org.apache.flink.runtime.jobmaster.slotpool.SlotPoolTestUtils.offerSlots;
-import static org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups.createUnregisteredJobManagerMetricGroup;
 import static org.hamcrest.Matchers.contains;
+import static org.hamcrest.Matchers.greaterThan;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.core.Is.is;
 import static org.junit.Assert.assertFalse;
@@ -440,11 +445,12 @@ public class AdaptiveSchedulerTest extends TestLogger {
                 new AdaptiveSchedulerBuilder(jobGraph, singleThreadMainThreadExecutor)
                         .setJobMasterConfiguration(configuration)
                         .setJobManagerJobMetricGroup(
-                                new JobManagerJobMetricGroup(
-                                        metricRegistry,
-                                        createUnregisteredJobManagerMetricGroup(),
-                                        new JobID(),
-                                        "jobName"))
+                                JobManagerMetricGroup.createJobManagerMetricGroup(
+                                                metricRegistry, "localhost")
+                                        .addJob(
+                                                JobGraphBuilder.newStreamingJobGraphBuilder()
+                                                        .setJobName("jobName")
+                                                        .build()))
                         .setDeclarativeSlotPool(declarativeSlotPool)
                         .build();
 
@@ -487,6 +493,105 @@ public class AdaptiveSchedulerTest extends TestLogger {
         taskManagerGateway.waitForSubmissions(PARALLELISM, Duration.ofSeconds(5));
 
         assertThat(numRestartsMetric.getValue(), is(1));
+    }
+
+    @Test
+    public void testStatusMetrics() throws Exception {
+        final CompletableFuture<UpTimeGauge> upTimeMetricFuture = new CompletableFuture<>();
+        final CompletableFuture<DownTimeGauge> downTimeMetricFuture = new CompletableFuture<>();
+        final CompletableFuture<Gauge<Long>> restartTimeMetricFuture = new CompletableFuture<>();
+        final MetricRegistry metricRegistry =
+                TestingMetricRegistry.builder()
+                        .setRegisterConsumer(
+                                (metric, name, group) -> {
+                                    switch (name) {
+                                        case UpTimeGauge.METRIC_NAME:
+                                            upTimeMetricFuture.complete((UpTimeGauge) metric);
+                                            break;
+                                        case DownTimeGauge.METRIC_NAME:
+                                            downTimeMetricFuture.complete((DownTimeGauge) metric);
+                                            break;
+                                        case "restartingTimeTotal":
+                                            restartTimeMetricFuture.complete((Gauge<Long>) metric);
+                                            break;
+                                    }
+                                })
+                        .build();
+
+        final JobGraph jobGraph = createJobGraph();
+
+        final DefaultDeclarativeSlotPool declarativeSlotPool =
+                createDeclarativeSlotPool(jobGraph.getJobID());
+
+        final Configuration configuration = new Configuration();
+        configuration.set(JobManagerOptions.MIN_PARALLELISM_INCREASE, 1);
+        configuration.set(JobManagerOptions.RESOURCE_WAIT_TIMEOUT, Duration.ofMillis(10L));
+        configuration.set(
+                MetricOptions.JOB_STATUS_METRICS,
+                Arrays.asList(MetricOptions.JobStatusMetrics.TOTAL_TIME));
+
+        final AdaptiveScheduler scheduler =
+                new AdaptiveSchedulerBuilder(jobGraph, singleThreadMainThreadExecutor)
+                        .setJobMasterConfiguration(configuration)
+                        .setJobManagerJobMetricGroup(
+                                JobManagerMetricGroup.createJobManagerMetricGroup(
+                                                metricRegistry, "localhost")
+                                        .addJob(
+                                                JobGraphBuilder.newStreamingJobGraphBuilder()
+                                                        .setJobName("jobName")
+                                                        .build()))
+                        .setDeclarativeSlotPool(declarativeSlotPool)
+                        .build();
+
+        final UpTimeGauge upTimeGauge = upTimeMetricFuture.get();
+        final DownTimeGauge downTimeGauge = downTimeMetricFuture.get();
+        final Gauge<Long> restartTimeGauge = restartTimeMetricFuture.get();
+
+        final SubmissionBufferingTaskManagerGateway taskManagerGateway =
+                new SubmissionBufferingTaskManagerGateway(1 + PARALLELISM);
+
+        taskManagerGateway.setCancelConsumer(createCancelConsumer(scheduler));
+
+        singleThreadMainThreadExecutor.execute(
+                () -> {
+                    scheduler.startScheduling();
+
+                    offerSlots(
+                            declarativeSlotPool,
+                            createSlotOffersForResourceRequirements(
+                                    ResourceCounter.withResource(ResourceProfile.UNKNOWN, 1)),
+                            taskManagerGateway);
+                });
+
+        // wait for the first task submission
+        taskManagerGateway.waitForSubmissions(1, Duration.ofSeconds(5));
+
+        // sleep a bit to ensure uptime is > 0
+        Thread.sleep(10L);
+
+        assertThat(upTimeGauge.getValue(), greaterThan(0L));
+        assertThat(downTimeGauge.getValue(), is(0L));
+        assertThat(restartTimeGauge.getValue(), is(0L));
+
+        singleThreadMainThreadExecutor.execute(
+                () -> {
+                    // offer more slots, which will cause a restart in order to scale up
+                    offerSlots(
+                            declarativeSlotPool,
+                            createSlotOffersForResourceRequirements(
+                                    ResourceCounter.withResource(ResourceProfile.UNKNOWN, 1)),
+                            taskManagerGateway);
+                });
+
+        // wait for the second task submissions
+        taskManagerGateway.waitForSubmissions(2, Duration.ofSeconds(5));
+
+        // sleep a bit to ensure uptime is > 0
+        Thread.sleep(10L);
+
+        assertThat(upTimeGauge.getValue(), greaterThan(0L));
+        assertThat(downTimeGauge.getValue(), is(0L));
+        assertThat(restartTimeGauge.getValue(), greaterThan(0L));
     }
 
     // ---------------------------------------------------------------------------------------------

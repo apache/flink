@@ -1464,7 +1464,7 @@ public class Execution
             // make sure that the state transition completes normally.
             // potential errors (in listeners may not affect the main logic)
             try {
-                vertex.notifyStateTransition(this, targetState);
+                vertex.notifyStateTransition(this, currentState, targetState);
             } catch (Throwable t) {
                 LOG.error(
                         "Error while notifying execution graph of execution state transition.", t);

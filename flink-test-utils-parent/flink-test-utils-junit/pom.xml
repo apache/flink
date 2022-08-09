@@ -56,6 +56,7 @@ under the License.
 			<artifactId>log4j-core</artifactId>
 			<scope>compile</scope>
 		</dependency>
+
 	</dependencies>
 
 </project>

@@ -909,7 +909,10 @@ public class ExecutingTest extends TestLogger {
         }
 
         @Override
-        public void notifyExecutionChange(Execution execution, ExecutionState newExecutionState) {}
+        public void notifyExecutionChange(
+                Execution execution,
+                ExecutionState previousState,
+                ExecutionState newExecutionState) {}
 
         @Override
         public EdgeManager getEdgeManager() {

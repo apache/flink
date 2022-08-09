@@ -23,6 +23,7 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
+import org.apache.flink.configuration.MetricOptions;
 import org.apache.flink.configuration.SchedulerExecutionMode;
 import org.apache.flink.metrics.Gauge;
 import org.apache.flink.queryablestate.KvStateID;
@@ -87,6 +88,7 @@ import org.apache.flink.runtime.scheduler.DefaultVertexParallelismStore;
 import org.apache.flink.runtime.scheduler.ExecutionGraphFactory;
 import org.apache.flink.runtime.scheduler.ExecutionGraphHandler;
 import org.apache.flink.runtime.scheduler.ExecutionGraphInfo;
+import org.apache.flink.runtime.scheduler.JobStatusStore;
 import org.apache.flink.runtime.scheduler.OperatorCoordinatorHandler;
 import org.apache.flink.runtime.scheduler.SchedulerBase;
 import org.apache.flink.runtime.scheduler.SchedulerNG;
@@ -99,6 +101,7 @@ import org.apache.flink.runtime.scheduler.adaptive.allocator.SlotAllocator;
 import org.apache.flink.runtime.scheduler.adaptive.allocator.VertexParallelism;
 import org.apache.flink.runtime.scheduler.adaptive.scalingpolicy.ReactiveScaleUpController;
 import org.apache.flink.runtime.scheduler.adaptive.scalingpolicy.ScaleUpController;
+import org.apache.flink.runtime.scheduler.metrics.DeploymentStateTimeMetrics;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.util.ResourceCounter;
 import org.apache.flink.util.ExceptionUtils;
@@ -116,7 +119,9 @@ import javax.annotation.Nullable;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.Iterator;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
@@ -178,7 +183,7 @@ public class AdaptiveScheduler
     private final ComponentMainThreadExecutor componentMainThreadExecutor;
     private final FatalErrorHandler fatalErrorHandler;
 
-    private final JobStatusListener jobStatusListener;
+    private final Collection<JobStatusListener> jobStatusListeners;
 
     private final SlotAllocator slotAllocator;
 
@@ -202,6 +207,10 @@ public class AdaptiveScheduler
     private BackgroundTask<ExecutionGraph> backgroundTask = BackgroundTask.finishedBackgroundTask();
 
     private final SchedulerExecutionMode executionMode;
+
+    private final JobStatusStore jobStatusStore;
+
+    private final DeploymentStateTimeMetrics deploymentTimeMetrics;
 
     public AdaptiveScheduler(
             JobGraph jobGraph,
@@ -255,7 +264,6 @@ public class AdaptiveScheduler
         declarativeSlotPool.registerNewSlotsListener(this::newResourcesAvailable);
 
         this.componentMainThreadExecutor = mainThreadExecutor;
-        this.jobStatusListener = jobStatusListener;
 
         this.scaleUpController = new ReactiveScaleUpController(configuration);
 
@@ -265,7 +273,30 @@ public class AdaptiveScheduler
 
         this.executionGraphFactory = executionGraphFactory;
 
-        registerMetrics();
+        // registerMetrics();
+
+        this.jobStatusStore = new JobStatusStore(initializationTimestamp);
+
+        final Collection<JobStatusListener> tmpJobStatusListeners = new ArrayList<>();
+        tmpJobStatusListeners.add(Preconditions.checkNotNull(jobStatusListener));
+        tmpJobStatusListeners.add(jobStatusStore);
+
+        final MetricOptions.JobStatusMetricsSettings jobStatusMetricsSettings =
+                MetricOptions.JobStatusMetricsSettings.fromConfiguration(configuration);
+
+        this.deploymentTimeMetrics =
+                new DeploymentStateTimeMetrics(jobGraph.getJobType(), jobStatusMetricsSettings);
+
+        SchedulerBase.registerJobMetrics(
+                jobManagerJobMetricGroup,
+                jobStatusStore,
+                () -> (long) numRestarts,
+                deploymentTimeMetrics,
+                tmpJobStatusListeners::add,
+                initializationTimestamp,
+                jobStatusMetricsSettings);
+
+        this.jobStatusListeners = Collections.unmodifiableCollection(tmpJobStatusListeners);
     }
 
     private static void assertPreconditions(JobGraph jobGraph) throws RuntimeException {
@@ -993,6 +1024,7 @@ public class AdaptiveScheduler
                 initializationTimestamp,
                 vertexAttemptNumberStore,
                 adjustedParallelismStore,
+                deploymentTimeMetrics,
                 LOG);
     }
 
@@ -1046,14 +1078,6 @@ public class AdaptiveScheduler
                 archivedExecutionGraph.getJobID(),
                 archivedExecutionGraph.getState(),
                 optionalFailure);
-
-        if (jobStatusListener != null) {
-            jobStatusListener.jobStatusChanges(
-                    jobInformation.getJobID(),
-                    archivedExecutionGraph.getState(),
-                    archivedExecutionGraph.getStatusTimestamp(archivedExecutionGraph.getState()),
-                    optionalFailure);
-        }
 
         jobTerminationFuture.complete(archivedExecutionGraph.getState());
     }
@@ -1135,9 +1159,22 @@ public class AdaptiveScheduler
                     state.getClass().getSimpleName(),
                     targetState.getStateClass().getSimpleName());
 
+            final JobStatus previousJobStatus = state.getJobStatus();
+
             state.onLeave(targetState.getStateClass());
             T targetStateInstance = targetState.getState();
             state = targetStateInstance;
+
+            final JobStatus newJobStatus = state.getJobStatus();
+
+            if (previousJobStatus != newJobStatus) {
+                final long timestamp = System.currentTimeMillis();
+                jobStatusListeners.forEach(
+                        listener ->
+                                listener.jobStatusChanges(
+                                        jobInformation.getJobID(), newJobStatus, timestamp, null));
+            }
+
             return targetStateInstance;
         } finally {
             isTransitioningState = false;
