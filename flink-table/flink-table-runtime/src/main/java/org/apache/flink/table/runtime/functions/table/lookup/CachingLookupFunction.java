@@ -159,9 +159,10 @@ public class CachingLookupFunction extends LookupFunction {
             Preconditions.checkState(
                     delegate != null,
                     "User's lookup function can't be null, if there are possible cache misses.");
+            long loadStart = System.currentTimeMillis();
             Collection<RowData> lookupValues = delegate.lookup(keyRow);
+            updateLatestLoadTime(System.currentTimeMillis() - loadStart);
             loadCounter.inc();
-            updateLatestLoadTime();
             return lookupValues;
         } catch (Exception e) {
             // TODO: Should implement retry on failure logic as proposed in FLIP-234
@@ -170,7 +171,7 @@ public class CachingLookupFunction extends LookupFunction {
         }
     }
 
-    private void updateLatestLoadTime() {
+    private void updateLatestLoadTime(long loadTime) {
         checkNotNull(
                 cacheMetricGroup,
                 "Could not register metric '%s' as cache metric group is not initialized",
@@ -179,6 +180,6 @@ public class CachingLookupFunction extends LookupFunction {
         if (latestLoadTime == UNINITIALIZED) {
             cacheMetricGroup.latestLoadTimeGauge(() -> latestLoadTime);
         }
-        latestLoadTime = System.currentTimeMillis();
+        latestLoadTime = loadTime;
     }
 }
