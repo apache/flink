@@ -250,10 +250,7 @@ object LookupJoinCodeGenerator {
         val defaultOutputDataType = callContext.getOutputDataType.get()
 
         val outputClass =
-          if (
-            udf.getClass.getSuperclass == classOf[LookupFunction]
-            || udf.getClass.getSuperclass == classOf[AsyncLookupFunction]
-          ) {
+          if (udf.isInstanceOf[LookupFunction] || udf.isInstanceOf[AsyncLookupFunction]) {
             Some(classOf[RowData])
           } else {
             toScala(extractSimpleGeneric(baseClass, udf.getClass, 0))
