@@ -148,6 +148,8 @@ run sdist.
                        os.path.join(OPT_TEMP_PATH, OPT_PYTHON_JAR_NAME))
             os.symlink(os.path.join(OPT_PATH, OPT_SQL_CLIENT_JAR_NAME),
                        os.path.join(OPT_TEMP_PATH, OPT_SQL_CLIENT_JAR_NAME))
+            # Ensure the path we are trying to symlink to does not exist.
+            os.unlink(os.path.join(LIB_TEMP_PATH, LIB_FLINK_SQL_CONNECTOR_HIVE_JAR_NAME))
             os.symlink(os.path.join(LIB_PATH, LIB_FLINK_SQL_CONNECTOR_HIVE_JAR_NAME),
                        os.path.join(LIB_TEMP_PATH, LIB_FLINK_SQL_CONNECTOR_HIVE_JAR_NAME))
             os.symlink(PLUGINS_PATH, PLUGINS_TEMP_PATH)
