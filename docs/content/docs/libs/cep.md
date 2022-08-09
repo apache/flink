@@ -754,7 +754,7 @@ The contiguity will be applied between elements accepted into such a pattern.
 To illustrate the above with an example, a pattern sequence `"a b+ c"` (`"a"` followed by any(non-deterministic relaxed) sequence of one or more `"b"`'s followed by a `"c"`) with
 input `"a", "b1", "d1", "b2", "d2", "b3" "c"` will have the following results:
 
- 1. **Strict Contiguity**: `{a b3 c}` -- the `"d1"` after `"b1"` causes `"b1"` to be discarded, the same happens for `"b2"` because of `"d2"`.
+ 1. **Strict Contiguity**: `{a b1 c}`, `{a b2 c}`, `{a b3 c}` - there are no adjacent `"b"`s.
 
  2. **Relaxed Contiguity**: `{a b1 c}`, `{a b1 b2 c}`, `{a b1 b2 b3 c}`, `{a b2 c}`, `{a b2 b3 c}`, `{a b3 c}` - `"d"`'s are ignored.
 
