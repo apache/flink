@@ -235,10 +235,8 @@ public abstract class AbstractRocksDBState<K, N, V> implements InternalKvState<K
         System.arraycopy(prefix, 0, upperBound, 0, prefix.length);
         boolean overFlow = true;
         for (int i = prefix.length - 1; i >= 0; i--) {
-            int unsignedValue = prefix[i] & 0xff;
-            int result = unsignedValue + 1;
-            upperBound[i] = (byte) (result & 0xff);
-            if (result >> 8 == 0) {
+            upperBound[i] = (byte) (prefix[i] + 1);
+            if (prefix[i] != (byte) 0xff) {
                 overFlow = false;
                 break;
             }
