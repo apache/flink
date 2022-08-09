@@ -122,7 +122,7 @@ run sdist.
         OPT_SQL_CLIENT_JAR_NAME = os.path.basename(
             find_file_path(os.path.join(OPT_PATH, "flink-sql-client_*.jar")))
         OPT_FLINK_SQL_CONNECTOR_HIVE_JAR_NAME = os.path.basename(
-            find_file_path(os.path.join(OPT_PATH, "flink-sql-connector-hive-3.1.2_*.jar")))
+            find_file_path(os.path.join(OPT_PATH, "flink-sql-connector-hive-2.3.6_*.jar")))
         LICENSES_PATH = os.path.join(FLINK_HOME, "licenses")
         PLUGINS_PATH = os.path.join(FLINK_HOME, "plugins")
         SCRIPTS_PATH = os.path.join(FLINK_HOME, "bin")
@@ -148,8 +148,8 @@ run sdist.
                        os.path.join(OPT_TEMP_PATH, OPT_PYTHON_JAR_NAME))
             os.symlink(os.path.join(OPT_PATH, OPT_SQL_CLIENT_JAR_NAME),
                        os.path.join(OPT_TEMP_PATH, OPT_SQL_CLIENT_JAR_NAME))
-            os.symlink(os.path.join(OPT_PATH, OPT_FLINK_SQL_CONNECTOR_HIVE_JAR_NAME),
-                       os.path.join(OPT_TEMP_PATH, OPT_FLINK_SQL_CONNECTOR_HIVE_JAR_NAME))
+            os.symlink(os.path.join(LIB_PATH, OPT_FLINK_SQL_CONNECTOR_HIVE_JAR_NAME),
+                       os.path.join(LIB_TEMP_PATH, OPT_FLINK_SQL_CONNECTOR_HIVE_JAR_NAME))
             os.symlink(PLUGINS_PATH, PLUGINS_TEMP_PATH)
             os.symlink(LICENSE_FILE_PATH, LICENSE_FILE_TEMP_PATH)
             os.symlink(README_FILE_PATH, README_FILE_TEMP_PATH)
@@ -160,8 +160,8 @@ run sdist.
                  os.path.join(OPT_TEMP_PATH, OPT_PYTHON_JAR_NAME))
             copy(os.path.join(OPT_PATH, OPT_SQL_CLIENT_JAR_NAME),
                  os.path.join(OPT_TEMP_PATH, OPT_SQL_CLIENT_JAR_NAME))
-            copy(os.path.join(OPT_PATH, OPT_FLINK_SQL_CONNECTOR_HIVE_JAR_NAME),
-                 os.path.join(OPT_TEMP_PATH, OPT_FLINK_SQL_CONNECTOR_HIVE_JAR_NAME))
+            copy(os.path.join(LIB_PATH, OPT_FLINK_SQL_CONNECTOR_HIVE_JAR_NAME),
+                 os.path.join(LIB_TEMP_PATH, OPT_FLINK_SQL_CONNECTOR_HIVE_JAR_NAME))
             copytree(PLUGINS_PATH, PLUGINS_TEMP_PATH)
             copy(LICENSE_FILE_PATH, LICENSE_FILE_TEMP_PATH)
             copy(README_FILE_PATH, README_FILE_TEMP_PATH)
