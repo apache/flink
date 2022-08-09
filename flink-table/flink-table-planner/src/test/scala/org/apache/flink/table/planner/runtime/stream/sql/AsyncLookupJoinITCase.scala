@@ -76,6 +76,10 @@ class AsyncLookupJoinITCase(
 
     createScanTable("src", data)
     createLookupTable("user_table", userData)
+    // lookup will start from the 2nd time, first lookup will always get null result
+    createLookupTable("user_table_with_lookup_threshold2", userData, 2)
+    // lookup will start from the 3rd time, first lookup will always get null result
+    createLookupTable("user_table_with_lookup_threshold3", userData, 3)
   }
 
   @After
@@ -88,7 +92,10 @@ class AsyncLookupJoinITCase(
     }
   }
 
-  private def createLookupTable(tableName: String, data: List[Row]): Unit = {
+  private def createLookupTable(
+      tableName: String,
+      data: List[Row],
+      lookupThreshold: Int = -1): Unit = {
     if (legacyTableSource) {
       val userSchema = TableSchema
         .builder()
@@ -111,6 +118,10 @@ class AsyncLookupJoinITCase(
              |  '${LookupOptions.PARTIAL_CACHE_MAX_ROWS.key()}' = '${Long.MaxValue}',
              |""".stripMargin
         else ""
+      val lookupThresholdOption = if (lookupThreshold > 0) {
+        s"'start-lookup-threshold'='$lookupThreshold',"
+      } else ""
+
       tEnv.executeSql(s"""
                          |CREATE TABLE $tableName (
                          |  `age` INT,
@@ -118,12 +129,26 @@ class AsyncLookupJoinITCase(
                          |  `name` STRING
                          |) WITH (
                          |  $cacheOptions
+                         |  $lookupThresholdOption
                          |  'connector' = 'values',
                          |  'data-id' = '$dataId',
                          |  'async' = 'true'
                          |)
                          |""".stripMargin)
     }
+  }
+
+  // TODO a base class or utility class is better to reuse code for this and LookupJoinITCase
+  private def getAsyncRetryLookupHint(lookupTable: String, maxAttempts: Int): String = {
+    s"""
+       |/*+ LOOKUP('table'='$lookupTable', 
+       | 'async'='true', 
+       | 'time-out'='300s',
+       | 'retry-predicate'='lookup_miss',
+       | 'retry-strategy'='fixed_delay',
+       | 'fixed-delay'='1 ms',
+       | 'max-attempts'='$maxAttempts')
+       |*/""".stripMargin
   }
 
   private def createScanTable(tableName: String, data: List[Row]): Unit = {
@@ -289,7 +314,7 @@ class AsyncLookupJoinITCase(
     // only legacy source can provide both sync and async functions
     if (!legacyTableSource) {
       thrown.expectMessage(
-        "Require a synchronous lookup function due to planner's requirement but no available functions")
+        "Required sync lookup function by planner, but table [default_catalog, default_database, user_table]does not offer a valid lookup function")
       thrown.expect(classOf[TableException])
     }
     tEnv.getConfig.set(
@@ -415,7 +440,72 @@ class AsyncLookupJoinITCase(
     new java.lang.Long(l)
   }
 
-// TODO add case with async and retry in FLINK-28849
+  @Test
+  def testAsyncJoinTemporalTableWithRetry(): Unit = {
+    val maxRetryTwiceHint = getAsyncRetryLookupHint("user_table", 2)
+    val sink = new TestingAppendSink
+    tEnv
+      .sqlQuery(s"""
+                   |SELECT $maxRetryTwiceHint T.id, T.len, T.content, D.name FROM src AS T
+                   |JOIN user_table for system_time as of T.proctime AS D
+                   |ON T.id = D.id
+                   |""".stripMargin)
+      .toAppendStream[Row]
+      .addSink(sink)
+    env.execute()
+
+    // the result is deterministic because the test data of lookup source is static
+    val expected = Seq("1,12,Julian,Julian", "2,15,Hello,Jark", "3,15,Fabian,Fabian")
+    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+  }
+
+  @Test
+  def testAsyncJoinTemporalTableWithLookupThresholdWithInsufficientRetry(): Unit = {
+    val maxRetryOnceHint = getAsyncRetryLookupHint("user_table_with_lookup_threshold3", 1)
+    val sink = new TestingAppendSink
+    tEnv
+      .sqlQuery(s"""
+                   |SELECT $maxRetryOnceHint T.id, T.len, T.content, D.name FROM src AS T
+                   |JOIN user_table_with_lookup_threshold3 for system_time as of T.proctime AS D
+                   |ON T.id = D.id
+                   |""".stripMargin)
+      .toAppendStream[Row]
+      .addSink(sink)
+    env.execute()
+
+    val expected = if (legacyTableSource) {
+      // test legacy lookup source do not support lookup threshold
+      // for real async lookup functions(both new and legacy api) do support retry
+      Seq("1,12,Julian,Julian", "2,15,Hello,Jark", "3,15,Fabian,Fabian")
+    } else {
+      // the user_table_with_lookup_threshold3 will return null result before 3rd lookup
+      Seq()
+    }
+    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+  }
+
+  @Test
+  def testAsyncJoinTemporalTableWithLookupThresholdWithSufficientRetry(): Unit = {
+    // When enable async retry, there should left enough time for the async operator doing delayed
+    // retry work, but due the fast finish of testing bounded source, it has no assurance of the
+    // max attempts number, it only ensures at least one retry for each element in current version
+    // so we can only use a max lookup threshold to 2 to get a deterministic results
+    val maxRetryTwiceHint = getAsyncRetryLookupHint("user_table_with_lookup_threshold2", 2)
+
+    val sink = new TestingAppendSink
+    tEnv
+      .sqlQuery(s"""
+                   |SELECT $maxRetryTwiceHint T.id, T.len, T.content, D.name FROM src AS T
+                   |JOIN user_table_with_lookup_threshold2 for system_time as of T.proctime AS D
+                   |ON T.id = D.id
+                   |""".stripMargin)
+      .toAppendStream[Row]
+      .addSink(sink)
+    env.execute()
+
+    val expected = Seq("1,12,Julian,Julian", "2,15,Hello,Jark", "3,15,Fabian,Fabian")
+    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+  }
 
 }
 

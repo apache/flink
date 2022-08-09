@@ -81,6 +81,10 @@ class LookupJoinITCase(legacyTableSource: Boolean, cacheType: LookupCacheType)
     createScanTable("nullable_src", dataWithNull)
     createLookupTable("user_table", userData)
     createLookupTable("nullable_user_table", userDataWithNull)
+    // lookup will start from the 2nd time, first lookup will always get null result
+    createLookupTable("user_table_with_lookup_threshold2", userData, 2)
+    // lookup will start from the 3rd time, first lookup will always get null result
+    createLookupTable("user_table_with_lookup_threshold3", userData, 3)
     createLookupTableWithComputedColumn("userTableWithComputedColumn", userData)
   }
 
@@ -93,7 +97,11 @@ class LookupJoinITCase(legacyTableSource: Boolean, cacheType: LookupCacheType)
     }
   }
 
-  private def createLookupTable(tableName: String, data: List[Row]): Unit = {
+  /** The lookupThreshold only works for new table source (not legacyTableSource). */
+  private def createLookupTable(
+      tableName: String,
+      data: List[Row],
+      lookupThreshold: Int = -1): Unit = {
     if (legacyTableSource) {
       val userSchema = TableSchema
         .builder()
@@ -122,6 +130,9 @@ class LookupJoinITCase(legacyTableSource: Boolean, cacheType: LookupCacheType)
              |  '${LookupOptions.FULL_CACHE_PERIODIC_RELOAD_INTERVAL.key()}' = '${Long.MaxValue}',
              |""".stripMargin
         else ""
+      val lookupThresholdOption = if (lookupThreshold > 0) {
+        s"'start-lookup-threshold'='$lookupThreshold',"
+      } else ""
 
       tEnv.executeSql(s"""
                          |CREATE TABLE $tableName (
@@ -130,6 +141,7 @@ class LookupJoinITCase(legacyTableSource: Boolean, cacheType: LookupCacheType)
                          |  `name` STRING
                          |) WITH (
                          |  $cacheOptions
+                         |  $lookupThresholdOption
                          |  'connector' = 'values',
                          |  'data-id' = '$dataId'
                          |)
@@ -708,8 +720,97 @@ class LookupJoinITCase(legacyTableSource: Boolean, cacheType: LookupCacheType)
     val expected = Seq("3", "8", "9")
     assertEquals(expected.sorted, sink.getRetractResults.sorted)
   }
-  // TODO add case with retry hint in FLINK-28849
 
+  private def getRetryLookupHint(lookupTable: String, maxAttempts: Int): String = {
+    s"""
+       |/*+ LOOKUP('table'='$lookupTable', 'retry-predicate'='lookup_miss',
+       | 'retry-strategy'='fixed_delay',
+       |  'fixed-delay'='5 ms',
+       |   'max-attempts'='$maxAttempts')
+       |*/""".stripMargin
+  }
+
+  @Test
+  def testJoinTemporalTableWithRetry(): Unit = {
+    val maxRetryTwiceHint = getRetryLookupHint("user_table", 2)
+    val sink = new TestingAppendSink
+    tEnv
+      .sqlQuery(s"""
+                   |SELECT $maxRetryTwiceHint T.id, T.len, T.content, D.name FROM src AS T
+                   |JOIN user_table for system_time as of T.proctime AS D
+                   |ON T.id = D.id
+                   |""".stripMargin)
+      .toAppendStream[Row]
+      .addSink(sink)
+    env.execute()
+
+    // the result is deterministic because the test data of lookup source is static
+    val expected = Seq("1,12,Julian,Julian", "2,15,Hello,Jark", "3,15,Fabian,Fabian")
+    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+  }
+
+  @Test
+  def testJoinTemporalTableWithLookupThresholdWithInsufficientRetry(): Unit = {
+    val maxRetryOnceHint = getRetryLookupHint("user_table_with_lookup_threshold3", 1)
+    val sink = new TestingAppendSink
+    tEnv
+      .sqlQuery(s"""
+                   |SELECT $maxRetryOnceHint T.id, T.len, T.content, D.name FROM src AS T
+                   |JOIN user_table_with_lookup_threshold3 for system_time as of T.proctime AS D
+                   |ON T.id = D.id
+                   |""".stripMargin)
+      .toAppendStream[Row]
+      .addSink(sink)
+    env.execute()
+
+    val expected = if (legacyTableSource) {
+      // legacy lookup source do not support retry
+      Seq("1,12,Julian,Julian", "2,15,Hello,Jark", "3,15,Fabian,Fabian")
+    } else {
+      // the user_table_with_lookup_threshold3 will return null result before 3rd lookup
+      Seq()
+    }
+    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+  }
+
+  @Test
+  def testJoinTemporalTableWithLookupThresholdWithSufficientRetry(): Unit = {
+    val maxRetryTwiceHint = getRetryLookupHint("user_table_with_lookup_threshold2", 2)
+
+    val sink = new TestingAppendSink
+    tEnv
+      .sqlQuery(s"""
+                   |SELECT $maxRetryTwiceHint T.id, T.len, T.content, D.name FROM src AS T
+                   |JOIN user_table_with_lookup_threshold2 for system_time as of T.proctime AS D
+                   |ON T.id = D.id
+                   |""".stripMargin)
+      .toAppendStream[Row]
+      .addSink(sink)
+    env.execute()
+
+    val expected = Seq("1,12,Julian,Julian", "2,15,Hello,Jark", "3,15,Fabian,Fabian")
+    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+  }
+
+  @Test
+  def testJoinTemporalTableWithLookupThresholdWithLargerRetry(): Unit = {
+    // max times beyond the lookup threshold of 'user_table_with_lookup_threshold2'
+    val largerRetryHint = getRetryLookupHint("user_table_with_lookup_threshold2", 10)
+
+    val sink = new TestingAppendSink
+    tEnv
+      .sqlQuery(s"""
+                   |SELECT $largerRetryHint T.id, T.len, T.content, D.name FROM src AS T
+                   |JOIN user_table_with_lookup_threshold2 for system_time as of T.proctime AS D
+                   |ON T.id = D.id
+                   |""".stripMargin)
+      .toAppendStream[Row]
+      .addSink(sink)
+    env.execute()
+
+    val expected = Seq("1,12,Julian,Julian", "2,15,Hello,Jark", "3,15,Fabian,Fabian")
+    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+  }
 }
 
 object LookupJoinITCase {
