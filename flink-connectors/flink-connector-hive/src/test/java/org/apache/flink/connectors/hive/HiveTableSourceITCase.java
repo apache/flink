@@ -45,6 +45,7 @@ import org.apache.flink.table.connector.ProviderContext;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.factories.DynamicTableFactory;
 import org.apache.flink.table.factories.TableSourceFactory;
+import org.apache.flink.table.module.CoreModuleFactory;
 import org.apache.flink.table.module.hive.HiveModule;
 import org.apache.flink.table.planner.delegation.PlannerBase;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
@@ -166,10 +167,7 @@ public class HiveTableSourceITCase extends BatchAbstractTestBase {
         // load hive module so that we can use array,map, named_struct function
         // for convenient writing complex data
         batchTableEnv.loadModule("hive", new HiveModule());
-        String[] newModules = new String[modules.length + 1];
-        newModules[0] = "hive";
-        System.arraycopy(modules, 0, newModules, 1, modules.length);
-        batchTableEnv.useModules(newModules);
+        batchTableEnv.useModules("hive", CoreModuleFactory.IDENTIFIER);
 
         batchTableEnv
                 .executeSql(
