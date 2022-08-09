@@ -86,14 +86,18 @@ import org.apache.flink.table.expressions.ResolvedExpression;
 import org.apache.flink.table.factories.DynamicTableSinkFactory;
 import org.apache.flink.table.factories.DynamicTableSourceFactory;
 import org.apache.flink.table.factories.FactoryUtil;
+import org.apache.flink.table.functions.AsyncLookupFunction;
 import org.apache.flink.table.functions.AsyncTableFunction;
 import org.apache.flink.table.functions.FunctionDefinition;
+import org.apache.flink.table.functions.LookupFunction;
 import org.apache.flink.table.functions.TableFunction;
 import org.apache.flink.table.planner.factories.TestValuesRuntimeFunctions.AppendingOutputFormat;
 import org.apache.flink.table.planner.factories.TestValuesRuntimeFunctions.AppendingSinkFunction;
 import org.apache.flink.table.planner.factories.TestValuesRuntimeFunctions.AsyncTestValueLookupFunction;
 import org.apache.flink.table.planner.factories.TestValuesRuntimeFunctions.KeyedUpsertingSinkFunction;
 import org.apache.flink.table.planner.factories.TestValuesRuntimeFunctions.RetractingSinkFunction;
+import org.apache.flink.table.planner.factories.TestValuesRuntimeFunctions.TestNoLookupUntilNthAccessAsyncLookupFunction;
+import org.apache.flink.table.planner.factories.TestValuesRuntimeFunctions.TestNoLookupUntilNthAccessLookupFunction;
 import org.apache.flink.table.planner.factories.TestValuesRuntimeFunctions.TestValuesLookupFunction;
 import org.apache.flink.table.planner.functions.aggfunctions.Count1AggFunction;
 import org.apache.flink.table.planner.functions.aggfunctions.CountAggFunction;
@@ -317,6 +321,13 @@ public final class TestValuesTableFactory
     private static final ConfigOption<String> LOOKUP_FUNCTION_CLASS =
             ConfigOptions.key("lookup-function-class").stringType().noDefaultValue();
 
+    private static final ConfigOption<Integer> LOOKUP_THRESHOLD =
+            ConfigOptions.key("start-lookup-threshold")
+                    .intType()
+                    .defaultValue(-1)
+                    .withDescription(
+                            "The threshold which backend lookup function will not do real lookup for"
+                                    + " a key (returns null value immediately) until its lookup times beyond");
     private static final ConfigOption<Boolean> ASYNC_ENABLED =
             ConfigOptions.key("async").booleanType().defaultValue(false);
 
@@ -416,6 +427,7 @@ public final class TestValuesTableFactory
         boolean failingSource = helper.getOptions().get(FAILING_SOURCE);
         int numElementToSkip = helper.getOptions().get(SOURCE_NUM_ELEMENT_TO_SKIP);
         boolean internalData = helper.getOptions().get(INTERNAL_DATA);
+        int lookupThreshold = helper.getOptions().get(LOOKUP_THRESHOLD);
         DefaultLookupCache cache = null;
         if (helper.getOptions().get(CACHE_TYPE).equals(LookupOptions.LookupCacheType.PARTIAL)) {
             cache = DefaultLookupCache.fromConfig(helper.getOptions());
@@ -540,7 +552,8 @@ public final class TestValuesTableFactory
                         readableMetadata,
                         null,
                         cache,
-                        reloadTrigger);
+                        reloadTrigger,
+                        lookupThreshold);
             }
         } else {
             try {
@@ -622,6 +635,7 @@ public final class TestValuesTableFactory
                         TABLE_SOURCE_CLASS,
                         FAILING_SOURCE,
                         LOOKUP_FUNCTION_CLASS,
+                        LOOKUP_THRESHOLD,
                         ASYNC_ENABLED,
                         DISABLE_LOOKUP,
                         TABLE_SOURCE_CLASS,
@@ -1496,6 +1510,7 @@ public final class TestValuesTableFactory
         private final @Nullable LookupCache cache;
         private final @Nullable CacheReloadTrigger reloadTrigger;
         private final boolean isAsync;
+        private final int lookupThreshold;
 
         private TestValuesScanLookupTableSource(
                 DataType producedDataType,
@@ -1517,7 +1532,8 @@ public final class TestValuesTableFactory
                 Map<String, DataType> readableMetadata,
                 @Nullable int[] projectedMetadataFields,
                 @Nullable LookupCache cache,
-                @Nullable CacheReloadTrigger reloadTrigger) {
+                @Nullable CacheReloadTrigger reloadTrigger,
+                int lookupThreshold) {
             super(
                     producedDataType,
                     changelogMode,
@@ -1539,6 +1555,7 @@ public final class TestValuesTableFactory
             this.isAsync = isAsync;
             this.cache = cache;
             this.reloadTrigger = reloadTrigger;
+            this.lookupThreshold = lookupThreshold;
         }
 
         @SuppressWarnings({"unchecked", "rawtypes"})
@@ -1549,7 +1566,11 @@ public final class TestValuesTableFactory
                 try {
                     Class<?> clazz = Class.forName(lookupFunctionClass);
                     Object udtf = InstantiationUtil.instantiate(clazz);
-                    if (udtf instanceof TableFunction) {
+                    if (udtf instanceof LookupFunction) {
+                        return LookupFunctionProvider.of((LookupFunction) udtf);
+                    } else if (udtf instanceof AsyncLookupFunction) {
+                        return AsyncLookupFunctionProvider.of((AsyncLookupFunction) udtf);
+                    } else if (udtf instanceof TableFunction) {
                         return TableFunctionProvider.of((TableFunction) udtf);
                     } else {
                         return AsyncTableFunctionProvider.of((AsyncTableFunction) udtf);
@@ -1582,7 +1603,7 @@ public final class TestValuesTableFactory
                     context.createDataStructureConverter(producedDataType);
             if (isAsync) {
                 AsyncTestValueLookupFunction asyncLookupFunction =
-                        new AsyncTestValueLookupFunction(data, lookupIndices, converter);
+                        getTestValuesAsyncLookupFunction(data, lookupIndices, converter);
                 if (cache == null) {
                     return AsyncLookupFunctionProvider.of(asyncLookupFunction);
                 } else {
@@ -1591,7 +1612,7 @@ public final class TestValuesTableFactory
                 }
             } else {
                 TestValuesLookupFunction lookupFunction =
-                        new TestValuesLookupFunction(data, lookupIndices, converter);
+                        getTestValuesLookupFunction(data, lookupIndices, converter);
                 if (cache != null) {
                     return PartialCachingLookupProvider.of(lookupFunction, cache);
                 } else if (reloadTrigger != null) {
@@ -1606,6 +1627,24 @@ public final class TestValuesTableFactory
                     return LookupFunctionProvider.of(lookupFunction);
                 }
             }
+        }
+
+        private AsyncTestValueLookupFunction getTestValuesAsyncLookupFunction(
+                List<Row> data, int[] lookupIndices, DataStructureConverter converter) {
+            if (lookupThreshold > 0) {
+                return new TestNoLookupUntilNthAccessAsyncLookupFunction(
+                        data, lookupIndices, converter, lookupThreshold);
+            }
+            return new AsyncTestValueLookupFunction(data, lookupIndices, converter);
+        }
+
+        private TestValuesLookupFunction getTestValuesLookupFunction(
+                List<Row> data, int[] lookupIndices, DataStructureConverter converter) {
+            if (lookupThreshold > 0) {
+                return new TestNoLookupUntilNthAccessLookupFunction(
+                        data, lookupIndices, converter, lookupThreshold);
+            }
+            return new TestValuesLookupFunction(data, lookupIndices, converter);
         }
 
         @Override
@@ -1630,7 +1669,8 @@ public final class TestValuesTableFactory
                     readableMetadata,
                     projectedMetadataFields,
                     cache,
-                    reloadTrigger);
+                    reloadTrigger,
+                    lookupThreshold);
         }
     }
 

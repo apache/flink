@@ -707,4 +707,95 @@ final class TestValuesRuntimeFunctions {
                     });
         }
     }
+
+    /**
+     * The {@link TestNoLookupUntilNthAccessLookupFunction} extends {@link
+     * TestValuesLookupFunction}, it will not do real lookup for a key (return null value
+     * immediately) until which lookup times beyond predefined threshold 'lookupThreshold'.
+     */
+    public static class TestNoLookupUntilNthAccessLookupFunction extends TestValuesLookupFunction {
+
+        private static final long serialVersionUID = 1L;
+
+        /** The threshold that a real lookup can happen, otherwise no lookup at all. */
+        private final int lookupThreshold;
+
+        private transient Map<RowData, Integer> accessCounter;
+
+        protected TestNoLookupUntilNthAccessLookupFunction(
+                List<Row> data,
+                int[] lookupIndices,
+                LookupTableSource.DataStructureConverter converter,
+                int lookupThreshold) {
+            super(data, lookupIndices, converter);
+            this.lookupThreshold = lookupThreshold;
+        }
+
+        @Override
+        public void open(FunctionContext context) throws Exception {
+            super.open(context);
+            accessCounter = new HashMap<>();
+        }
+
+        protected int counter(RowData key) {
+            int currentCnt = accessCounter.computeIfAbsent(key, cnt -> 0) + 1;
+            accessCounter.put(key, currentCnt);
+            return currentCnt;
+        }
+
+        @Override
+        public Collection<RowData> lookup(RowData keyRow) throws IOException {
+            int currentCnt = counter(keyRow);
+            if (currentCnt <= lookupThreshold) {
+                return null;
+            }
+            return super.lookup(keyRow);
+        }
+    }
+
+    /**
+     * The {@link TestNoLookupUntilNthAccessAsyncLookupFunction} extends {@link
+     * AsyncTestValueLookupFunction}, it will not do real lookup for a key (return empty result
+     * immediately) until which lookup times beyond predefined threshold 'lookupThreshold'.
+     */
+    public static class TestNoLookupUntilNthAccessAsyncLookupFunction
+            extends AsyncTestValueLookupFunction {
+        private static final long serialVersionUID = 1L;
+        private static Collection<RowData> emptyResult = Collections.emptyList();
+
+        /** The threshold that a real lookup can happen, otherwise no lookup at all. */
+        private final int lookupThreshold;
+
+        private transient Map<RowData, Integer> accessCounter;
+
+        public TestNoLookupUntilNthAccessAsyncLookupFunction(
+                List<Row> data,
+                int[] lookupIndices,
+                LookupTableSource.DataStructureConverter converter,
+                int lookupThreshold) {
+            super(data, lookupIndices, converter);
+            this.lookupThreshold = lookupThreshold;
+        }
+
+        @Override
+        public void open(FunctionContext context) throws Exception {
+            super.open(context);
+            accessCounter = new HashMap<>();
+        }
+
+        protected int counter(RowData key) {
+            int currentCnt = accessCounter.computeIfAbsent(key, cnt -> 0) + 1;
+            accessCounter.put(key, currentCnt);
+            return currentCnt;
+        }
+
+        @Override
+        public CompletableFuture<Collection<RowData>> asyncLookup(RowData keyRow) {
+            int currentCnt = counter(keyRow);
+            if (currentCnt <= lookupThreshold) {
+                return CompletableFuture.supplyAsync(() -> emptyResult);
+            }
+            return super.asyncLookup(keyRow);
+        }
+    }
 }
