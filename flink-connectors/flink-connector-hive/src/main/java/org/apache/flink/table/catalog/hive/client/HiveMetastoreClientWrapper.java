@@ -19,11 +19,13 @@
 package org.apache.flink.table.catalog.hive.client;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.connectors.hive.FlinkHiveException;
 import org.apache.flink.table.api.constraints.UniqueConstraint;
 import org.apache.flink.table.catalog.hive.HiveCatalog;
 import org.apache.flink.util.Preconditions;
 
 import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.hadoop.hive.metastore.HiveMetaStoreClient;
 import org.apache.hadoop.hive.metastore.IMetaStoreClient;
@@ -47,6 +49,8 @@ import org.apache.hadoop.hive.metastore.api.TxnAbortedException;
 import org.apache.hadoop.hive.metastore.api.TxnOpenException;
 import org.apache.hadoop.hive.metastore.api.UnknownDBException;
 import org.apache.hadoop.hive.metastore.partition.spec.PartitionSpecProxy;
+import org.apache.hadoop.hive.ql.metadata.Hive;
+import org.apache.hadoop.hive.ql.metadata.HiveException;
 import org.apache.thrift.TException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -67,6 +71,7 @@ public class HiveMetastoreClientWrapper implements AutoCloseable {
     private static final Logger LOG = LoggerFactory.getLogger(HiveMetastoreClientWrapper.class);
 
     private final IMetaStoreClient client;
+    private final Hive hive;
     private final HiveConf hiveConf;
     private final HiveShim hiveShim;
 
@@ -82,6 +87,11 @@ public class HiveMetastoreClientWrapper implements AutoCloseable {
                 HiveCatalog.isEmbeddedMetastore(hiveConf)
                         ? createMetastoreClient()
                         : HiveMetaStoreClient.newSynchronizedClient(createMetastoreClient());
+        try {
+            this.hive = Hive.get(hiveConf);
+        } catch (HiveException e) {
+            throw new FlinkHiveException(e);
+        }
     }
 
     @Override
@@ -335,5 +345,21 @@ public class HiveMetastoreClientWrapper implements AutoCloseable {
 
     public void unlock(long lockid) throws NoSuchLockException, TxnOpenException, TException {
         client.unlock(lockid);
+    }
+
+    public void loadTable(Path loadPath, String tableName, boolean replace, boolean isSrcLocal)
+            throws HiveException {
+        hiveShim.loadTable(hive, loadPath, tableName, replace, isSrcLocal);
+    }
+
+    public void loadPartition(
+            Path loadPath,
+            String tableName,
+            Map<String, String> partSpec,
+            boolean isSkewedStoreAsSubdir,
+            boolean replace,
+            boolean isSrcLocal) {
+        hiveShim.loadPartition(
+                hive, loadPath, tableName, partSpec, isSkewedStoreAsSubdir, replace, isSrcLocal);
     }
 }

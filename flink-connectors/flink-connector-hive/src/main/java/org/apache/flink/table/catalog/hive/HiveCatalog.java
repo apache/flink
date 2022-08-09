@@ -21,6 +21,7 @@ package org.apache.flink.table.catalog.hive;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.java.hadoop.mapred.utils.HadoopUtils;
+import org.apache.flink.connectors.hive.FlinkHiveException;
 import org.apache.flink.connectors.hive.HiveDynamicTableFactory;
 import org.apache.flink.connectors.hive.HiveTableFactory;
 import org.apache.flink.sql.parser.hive.ddl.HiveDDLUtils;
@@ -103,6 +104,7 @@ import org.apache.hadoop.hive.metastore.api.StorageDescriptor;
 import org.apache.hadoop.hive.metastore.api.Table;
 import org.apache.hadoop.hive.metastore.api.UnknownDBException;
 import org.apache.hadoop.hive.metastore.partition.spec.PartitionSpecProxy;
+import org.apache.hadoop.hive.ql.metadata.HiveException;
 import org.apache.thrift.TException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -118,6 +120,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -1767,6 +1770,45 @@ public class HiveCatalog extends AbstractCatalog {
     @Internal
     public static boolean isHiveTable(Map<String, String> properties) {
         return IDENTIFIER.equalsIgnoreCase(properties.get(CONNECTOR.key()));
+    }
+
+    @Internal
+    public void loadTable(
+            Path loadPath, ObjectPath tablePath, boolean isOverwrite, boolean isSrcLocal) {
+        try {
+            client.loadTable(loadPath, tablePath.getFullName(), isOverwrite, isSrcLocal);
+        } catch (HiveException e) {
+            throw new FlinkHiveException("Fail to load table.", e);
+        }
+    }
+
+    @Internal
+    public void loadPartition(
+            Path loadPath,
+            ObjectPath tablePath,
+            Map<String, String> partSpec,
+            boolean isOverwrite,
+            boolean isSrcLocal) {
+        Table hiveTable;
+        Map<String, String> orderedPartitionSpec = new LinkedHashMap<>();
+        try {
+            hiveTable = getHiveTable(tablePath);
+        } catch (TableNotExistException e) {
+            throw new FlinkHiveException("Fail to get Hive table when try to load partition", e);
+        }
+        hiveTable
+                .getPartitionKeys()
+                .forEach(
+                        column ->
+                                orderedPartitionSpec.put(
+                                        column.getName(), partSpec.get(column.getName())));
+        client.loadPartition(
+                loadPath,
+                tablePath.getFullName(),
+                orderedPartitionSpec,
+                hiveTable.getSd().isStoredAsSubDirectories(),
+                isOverwrite,
+                isSrcLocal);
     }
 
     private static void disallowChangeCatalogTableType(

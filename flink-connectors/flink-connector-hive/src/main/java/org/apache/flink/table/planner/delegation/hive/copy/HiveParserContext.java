@@ -82,7 +82,7 @@ public class HiveParserContext {
      */
     public HiveParserContext(Configuration conf) {
         this.conf = conf;
-        viewsTokenRewriteStreams = new HashMap<>();
+        this.viewsTokenRewriteStreams = new HashMap<>();
     }
 
     // Find whether we should execute the current query due to explain.
