@@ -33,118 +33,99 @@ under the License.
 	<packaging>jar</packaging>
 
 	<properties>
-		<aws.sdk.version>1.12.7</aws.sdk.version>
-		<aws.sdkv2.version>2.16.86</aws.sdkv2.version>
-		<reactivestreams.version>1.0.2</reactivestreams.version>
-		<netty.version>4.1.63.Final</netty.version>
-		<guava.version>29.0-jre</guava.version>
+		<aws.sdk.version>1.12.276</aws.sdk.version>
+		<aws.sdkv2.version>2.17.247</aws.sdkv2.version>
+		<kotlin.version>1.3.50</kotlin.version>
 	</properties>
 
-	<!-- ============================= -->
-	<!-- DEPENDENCY MANAGEMENT -->
-	<!-- ============================= -->
 	<dependencyManagement>
 		<dependencies>
-			<!-- dependencies to solve enforcer check issue -->
-			<!-- can be removed once new version of Glue Schema Registry releases -->
-
 			<dependency>
 				<groupId>software.amazon.awssdk</groupId>
-				<artifactId>http-client-spi</artifactId>
+				<artifactId>bom</artifactId>
 				<version>${aws.sdkv2.version}</version>
+				<type>pom</type>
+				<scope>import</scope>
 			</dependency>
-
 			<dependency>
-				<groupId>software.amazon.awssdk</groupId>
-				<artifactId>aws-core</artifactId>
-				<version>${aws.sdkv2.version}</version>
+				<groupId>com.amazonaws</groupId>
+				<artifactId>aws-java-sdk-bom</artifactId>
+				<version>${aws.sdk.version}</version>
+				<type>pom</type>
+				<scope>import</scope>
 			</dependency>
 
+			<!-- For dependency convergence -->
 			<dependency>
-				<groupId>software.amazon.awssdk</groupId>
-				<artifactId>protocol-core</artifactId>
-				<version>${aws.sdkv2.version}</version>
+				<groupId>com.google.protobuf</groupId>
+				<artifactId>protobuf-java</artifactId>
+				<version>3.19.4</version>
 			</dependency>
-
-			<dependency>
-				<groupId>software.amazon.awssdk</groupId>
-				<artifactId>annotations</artifactId>
-				<version>${aws.sdkv2.version}</version>
-			</dependency>
-
-			<dependency>
-				<groupId>software.amazon.awssdk</groupId>
-				<artifactId>utils</artifactId>
-				<version>${aws.sdkv2.version}</version>
-			</dependency>
-
-			<dependency>
-				<groupId>software.amazon.awssdk</groupId>
-				<artifactId>apache-client</artifactId>
-				<version>${aws.sdkv2.version}</version>
-			</dependency>
-
-			<dependency>
-				<groupId>org.reactivestreams</groupId>
-				<artifactId>reactive-streams</artifactId>
-				<version>${reactivestreams.version}</version>
-			</dependency>
-
-			<dependency>
-				<groupId>software.amazon.awssdk</groupId>
-				<artifactId>aws-json-protocol</artifactId>
-				<version>${aws.sdkv2.version}</version>
-			</dependency>
-
-			<dependency>
-				<groupId>software.amazon.awssdk</groupId>
-				<artifactId>regions</artifactId>
-				<version>${aws.sdkv2.version}</version>
-			</dependency>
-
-			<dependency>
-				<groupId>software.amazon.awssdk</groupId>
-				<artifactId>sdk-core</artifactId>
-				<version>${aws.sdkv2.version}</version>
-			</dependency>
-
-			<dependency>
-				<groupId>io.netty</groupId>
-				<artifactId>netty-codec-http</artifactId>
-				<version>${netty.version}</version>
-			</dependency>
-
-			<dependency>
-				<groupId>software.amazon.awssdk</groupId>
-				<artifactId>netty-nio-client</artifactId>
-				<version>${aws.sdkv2.version}</version>
-				<scope>runtime</scope>
-			</dependency>
-
-			<dependency>
-				<groupId>software.amazon.awssdk</groupId>
-				<artifactId>auth</artifactId>
-				<version>${aws.sdkv2.version}</version>
-			</dependency>
-
-			<dependency>
-				<groupId>software.amazon.awssdk</groupId>
-				<artifactId>metrics-spi</artifactId>
-				<version>${aws.sdkv2.version}</version>
-			</dependency>
-
-			<dependency>
-				<groupId>io.netty</groupId>
-				<artifactId>netty-handler</artifactId>
-				<version>${netty.version}</version>
-			</dependency>
-
 			<dependency>
 				<groupId>com.google.guava</groupId>
 				<artifactId>guava</artifactId>
-				<version>${guava.version}</version>
+				<version>29.0-jre</version>
 			</dependency>
-
+			<dependency>
+				<groupId>org.jetbrains.kotlin</groupId>
+				<artifactId>kotlin-reflect</artifactId>
+				<version>${kotlin.version}</version>
+			</dependency>
+			<dependency>
+				<groupId>org.jetbrains.kotlin</groupId>
+				<artifactId>kotlin-stdlib</artifactId>
+				<version>${kotlin.version}</version>
+			</dependency>
+			<dependency>
+				<groupId>org.jetbrains.kotlin</groupId>
+				<artifactId>kotlin-stdlib-common</artifactId>
+				<version>${kotlin.version}</version>
+			</dependency>
+			<dependency>
+				<groupId>org.jetbrains.kotlin</groupId>
+				<artifactId>kotlin-stdlib-jdk8</artifactId>
+				<version>${kotlin.version}</version>
+			</dependency>
+			<dependency>
+				<groupId>org.jetbrains.kotlinx</groupId>
+				<artifactId>kotlinx-serialization-core-jvm</artifactId>
+				<version>1.0.1</version>
+			</dependency>
+			<dependency>
+				<groupId>org.checkerframework</groupId>
+				<artifactId>checker-qual</artifactId>
+				<version>3.5.0</version>
+			</dependency>
+			<dependency>
+				<groupId>com.squareup.okio</groupId>
+				<artifactId>okio</artifactId>
+				<version>2.8.0</version>
+			</dependency>
+			<dependency>
+				<groupId>org.jetbrains</groupId>
+				<artifactId>annotations</artifactId>
+				<version>17.0.0</version>
+			</dependency>
+			<dependency>
+				<groupId>com.github.docker-java</groupId>
+				<artifactId>docker-java-api</artifactId>
+				<version>3.2.13</version>
+			</dependency>
+			<dependency>
+				<groupId>com.github.docker-java</groupId>
+				<artifactId>docker-java-transport-zerodep</artifactId>
+				<version>3.2.13</version>
+			</dependency>
+			<dependency>
+				<groupId>com.github.docker-java</groupId>
+				<artifactId>docker-java-transport</artifactId>
+				<version>3.2.13</version>
+			</dependency>
+			<dependency>
+				<groupId>com.amazonaws</groupId>
+				<artifactId>amazon-kinesis-client</artifactId>
+				<version>1.14.7</version>
+			</dependency>
 		</dependencies>
 	</dependencyManagement>
 
@@ -194,14 +175,8 @@ under the License.
 		</dependency>
 
 		<dependency>
-			<groupId>software.amazon.awssdk</groupId>
-			<artifactId>sdk-core</artifactId>
-			<version>${aws.sdkv2.version}</version>
-		</dependency>
-		<dependency>
 			<groupId>com.amazonaws</groupId>
 			<artifactId>aws-java-sdk-kinesis</artifactId>
-			<version>${aws.sdk.version}</version>
 		</dependency>
 	</dependencies>
 
