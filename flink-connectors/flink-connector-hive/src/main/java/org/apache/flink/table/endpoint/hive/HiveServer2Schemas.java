@@ -85,6 +85,77 @@ public class HiveServer2Schemas {
                             .withComment(
                                     "The name which uniquely identifies this function within its schema"));
 
+    /** Schema for {@link HiveServer2Endpoint#GetColumns}. */
+    public static final ResolvedSchema GET_COLUMNS_SCHEMA =
+            buildSchema(
+                    Column.physical("TABLE_CAT", DataTypes.STRING())
+                            .withComment("Catalog name. NULL if not applicable."),
+                    Column.physical("TABLE_SCHEM", DataTypes.STRING()).withComment("Schema name."),
+                    Column.physical("TABLE_NAME", DataTypes.STRING()).withComment("Table name."),
+                    Column.physical("COLUMN_NAME", DataTypes.STRING()).withComment("Column name."),
+                    Column.physical("DATA_TYPE", DataTypes.INT())
+                            .withComment("SQL type from java.sql.Types."),
+                    Column.physical("TYPE_NAME", DataTypes.STRING())
+                            .withComment(
+                                    "Data source dependent type name, for a UDT the type name is fully qualified."),
+                    Column.physical("COLUMN_SIZE", DataTypes.INT())
+                            .withComment(
+                                    "Column size. For char or date types this is the maximum number of characters, for numeric or decimal types this is precision."),
+                    Column.physical("BUFFER_LENGTH", DataTypes.TINYINT()).withComment("Unused."),
+                    Column.physical("DECIMAL_DIGITS", DataTypes.INT())
+                            .withComment("The number of fractional digits."),
+                    Column.physical("NUM_PREC_RADIX", DataTypes.INT())
+                            .withComment("Radix (typically either 10 or 2)."),
+                    Column.physical("NULLABLE", DataTypes.INT()).withComment("Is NULL allowed."),
+                    Column.physical("REMARKS", DataTypes.STRING())
+                            .withComment("Comment describing column (may be null)."),
+                    Column.physical("COLUMN_DEF", DataTypes.STRING())
+                            .withComment("Default value (may be null)."),
+                    Column.physical("SQL_DATA_TYPE", DataTypes.INT()).withComment("Unused."),
+                    Column.physical("SQL_DATETIME_SUB", DataTypes.INT()).withComment("Unused."),
+                    Column.physical("CHAR_OCTET_LENGTH", DataTypes.INT())
+                            .withComment(
+                                    "For char types the maximum number of bytes in the column."),
+                    Column.physical("ORDINAL_POSITION", DataTypes.INT())
+                            .withComment("Index of column in table (starting at 1)."),
+                    Column.physical("IS_NULLABLE", DataTypes.STRING())
+                            .withComment(
+                                    "\"NO\" means column definitely does not allow NULL values; \"YES\" means the column might allow NULL values. An empty string means nobody knows."),
+                    Column.physical("SCOPE_CATALOG", DataTypes.STRING())
+                            .withComment(
+                                    "Catalog of table that is the scope of a reference attribute (null if DATA_TYPE isn't REF)."),
+                    Column.physical("SCOPE_SCHEMA", DataTypes.STRING())
+                            .withComment(
+                                    "Schema of table that is the scope of a reference attribute (null if the DATA_TYPE isn't REF)."),
+                    Column.physical("SCOPE_TABLE", DataTypes.STRING())
+                            .withComment(
+                                    "Table name that this the scope of a reference attribute (null if the DATA_TYPE isn't REF)."),
+                    Column.physical("SOURCE_DATA_TYPE", DataTypes.SMALLINT())
+                            .withComment(
+                                    "Source type of a distinct type or user-generated Ref type, SQL type from java.sql.Types (null if DATA_TYPE isn't DISTINCT or user-generated REF)."),
+                    Column.physical("IS_AUTO_INCREMENT", DataTypes.STRING())
+                            .withComment("Indicates whether this column is auto incremented."));
+
+    /** Schema for {@link HiveServer2Endpoint#GetTableTypes}. */
+    public static final ResolvedSchema GET_TABLE_TYPES_SCHEMA =
+            buildSchema(
+                    Column.physical("TABLE_TYPE", DataTypes.STRING())
+                            .withComment("Table type name."));
+
+    /** Schema for {@link HiveServer2Endpoint#GetPrimaryKeys}. */
+    public static final ResolvedSchema GET_PRIMARY_KEYS_SCHEMA =
+            buildSchema(
+                    Column.physical("TABLE_CAT", DataTypes.STRING())
+                            .withComment("Table catalog (may be null)."),
+                    Column.physical("TABLE_SCHEM", DataTypes.STRING())
+                            .withComment("Table schema (may be null)."),
+                    Column.physical("TABLE_NAME", DataTypes.STRING()).withComment("Table name."),
+                    Column.physical("COLUMN_NAME", DataTypes.STRING()).withComment("Column name."),
+                    Column.physical("KEY_SEQ", DataTypes.INT())
+                            .withComment("Sequence number within primary key."),
+                    Column.physical("PK_NAME", DataTypes.STRING())
+                            .withComment("Primary key name (may be null)."));
+
     /** Schema for {@link HiveServer2Endpoint#GetTypeInfo}. */
     public static final ResolvedSchema GET_TYPE_INFO_SCHEMA =
             buildSchema(

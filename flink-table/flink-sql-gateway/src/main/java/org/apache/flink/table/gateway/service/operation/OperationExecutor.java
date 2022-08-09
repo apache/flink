@@ -28,6 +28,7 @@ import org.apache.flink.table.catalog.CatalogBaseTable.TableKind;
 import org.apache.flink.table.catalog.CatalogManager;
 import org.apache.flink.table.catalog.Column;
 import org.apache.flink.table.catalog.ObjectIdentifier;
+import org.apache.flink.table.catalog.ResolvedCatalogBaseTable;
 import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.catalog.UnresolvedIdentifier;
 import org.apache.flink.table.data.GenericRowData;
@@ -154,6 +155,13 @@ public class OperationExecutor {
         } else {
             return listViews(catalogName, databaseName);
         }
+    }
+
+    public ResolvedCatalogBaseTable<?> getTable(ObjectIdentifier tableIdentifier) {
+        return getTableEnvironment()
+                .getCatalogManager()
+                .getTableOrError(tableIdentifier)
+                .getResolvedTable();
     }
 
     public Set<FunctionInfo> listUserDefinedFunctions(String catalogName, String databaseName) {

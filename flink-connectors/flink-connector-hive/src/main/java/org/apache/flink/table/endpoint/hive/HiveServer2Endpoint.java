@@ -126,10 +126,13 @@ import static org.apache.flink.table.endpoint.hive.HiveServer2EndpointVersion.HI
 import static org.apache.flink.table.endpoint.hive.util.HiveJdbcParameterUtils.getUsedDefaultDatabase;
 import static org.apache.flink.table.endpoint.hive.util.HiveJdbcParameterUtils.validateAndNormalize;
 import static org.apache.flink.table.endpoint.hive.util.OperationExecutorFactory.createGetCatalogsExecutor;
+import static org.apache.flink.table.endpoint.hive.util.OperationExecutorFactory.createGetColumnsExecutor;
 import static org.apache.flink.table.endpoint.hive.util.OperationExecutorFactory.createGetFunctionsExecutor;
+import static org.apache.flink.table.endpoint.hive.util.OperationExecutorFactory.createGetPrimaryKeys;
 import static org.apache.flink.table.endpoint.hive.util.OperationExecutorFactory.createGetSchemasExecutor;
-import static org.apache.flink.table.endpoint.hive.util.OperationExecutorFactory.createGetTableInfoExecutor;
+import static org.apache.flink.table.endpoint.hive.util.OperationExecutorFactory.createGetTableTypesExecutor;
 import static org.apache.flink.table.endpoint.hive.util.OperationExecutorFactory.createGetTablesExecutor;
+import static org.apache.flink.table.endpoint.hive.util.OperationExecutorFactory.createGetTypeInfoExecutor;
 import static org.apache.flink.table.endpoint.hive.util.ThriftObjectConversions.toFetchOrientation;
 import static org.apache.flink.table.endpoint.hive.util.ThriftObjectConversions.toFlinkTableKinds;
 import static org.apache.flink.table.endpoint.hive.util.ThriftObjectConversions.toOperationHandle;
@@ -424,7 +427,7 @@ public class HiveServer2Endpoint implements TCLIService.Iface, SqlGatewayEndpoin
         try {
             SessionHandle sessionHandle = toSessionHandle(tGetTypeInfoReq.getSessionHandle());
             OperationHandle operationHandle =
-                    service.submitOperation(sessionHandle, createGetTableInfoExecutor());
+                    service.submitOperation(sessionHandle, createGetTypeInfoExecutor());
             resp.setStatus(OK_STATUS);
             resp.setOperationHandle(
                     toTOperationHandle(
@@ -509,12 +512,46 @@ public class HiveServer2Endpoint implements TCLIService.Iface, SqlGatewayEndpoin
 
     @Override
     public TGetTableTypesResp GetTableTypes(TGetTableTypesReq tGetTableTypesReq) throws TException {
-        throw new UnsupportedOperationException(ERROR_MESSAGE);
+        TGetTableTypesResp resp = new TGetTableTypesResp();
+        try {
+            SessionHandle sessionHandle = toSessionHandle(tGetTableTypesReq.getSessionHandle());
+            OperationHandle operationHandle =
+                    service.submitOperation(sessionHandle, createGetTableTypesExecutor());
+
+            resp.setStatus(OK_STATUS);
+            resp.setOperationHandle(
+                    toTOperationHandle(sessionHandle, operationHandle, TOperationType.GET_TABLES));
+        } catch (Throwable t) {
+            LOG.error("Failed to GetTableTypes.", t);
+            resp.setStatus(toTStatus(t));
+        }
+        return resp;
     }
 
     @Override
     public TGetColumnsResp GetColumns(TGetColumnsReq tGetColumnsReq) throws TException {
-        throw new UnsupportedOperationException(ERROR_MESSAGE);
+        TGetColumnsResp resp = new TGetColumnsResp();
+        try {
+            SessionHandle sessionHandle = toSessionHandle(tGetColumnsReq.getSessionHandle());
+            OperationHandle operationHandle =
+                    service.submitOperation(
+                            sessionHandle,
+                            createGetColumnsExecutor(
+                                    service,
+                                    sessionHandle,
+                                    tGetColumnsReq.getCatalogName(),
+                                    tGetColumnsReq.getSchemaName(),
+                                    tGetColumnsReq.getTableName(),
+                                    tGetColumnsReq.getColumnName()));
+
+            resp.setStatus(OK_STATUS);
+            resp.setOperationHandle(
+                    toTOperationHandle(sessionHandle, operationHandle, TOperationType.GET_COLUMNS));
+        } catch (Throwable t) {
+            LOG.error("Failed to GetColumns.", t);
+            resp.setStatus(toTStatus(t));
+        }
+        return resp;
     }
 
     @Override
@@ -545,7 +582,29 @@ public class HiveServer2Endpoint implements TCLIService.Iface, SqlGatewayEndpoin
     @Override
     public TGetPrimaryKeysResp GetPrimaryKeys(TGetPrimaryKeysReq tGetPrimaryKeysReq)
             throws TException {
-        throw new UnsupportedOperationException(ERROR_MESSAGE);
+        TGetPrimaryKeysResp resp = new TGetPrimaryKeysResp();
+        try {
+            SessionHandle sessionHandle = toSessionHandle(tGetPrimaryKeysReq.getSessionHandle());
+            OperationHandle operationHandle =
+                    service.submitOperation(
+                            sessionHandle,
+                            createGetPrimaryKeys(
+                                    service,
+                                    sessionHandle,
+                                    tGetPrimaryKeysReq.getCatalogName(),
+                                    tGetPrimaryKeysReq.getSchemaName(),
+                                    tGetPrimaryKeysReq.getTableName()));
+
+            resp.setStatus(OK_STATUS);
+            resp.setOperationHandle(
+                    toTOperationHandle(
+                            // hive's implementation use "GET_FUNCTIONS" here
+                            sessionHandle, operationHandle, TOperationType.GET_FUNCTIONS));
+        } catch (Throwable t) {
+            LOG.error("Failed to GetPrimaryKeys.", t);
+            resp.setStatus(toTStatus(t));
+        }
+        return resp;
     }
 
     @Override

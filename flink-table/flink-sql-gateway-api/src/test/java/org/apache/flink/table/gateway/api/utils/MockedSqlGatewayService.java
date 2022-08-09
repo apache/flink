@@ -20,6 +20,8 @@ package org.apache.flink.table.gateway.api.utils;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.table.catalog.CatalogBaseTable.TableKind;
+import org.apache.flink.table.catalog.ObjectIdentifier;
+import org.apache.flink.table.catalog.ResolvedCatalogBaseTable;
 import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.catalog.UnresolvedIdentifier;
 import org.apache.flink.table.functions.FunctionDefinition;
@@ -168,6 +170,13 @@ public class MockedSqlGatewayService implements SqlGatewayService {
 
     @Override
     public GatewayInfo getGatewayInfo() {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public ResolvedCatalogBaseTable<?> getTable(
+            SessionHandle sessionHandle, ObjectIdentifier tableIdentifier)
+            throws SqlGatewayException {
         throw new UnsupportedOperationException();
     }
 }

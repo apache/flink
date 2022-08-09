@@ -19,9 +19,13 @@
 package org.apache.flink.table.endpoint.hive.util;
 
 import org.apache.flink.table.catalog.CatalogBaseTable.TableKind;
+import org.apache.flink.table.catalog.Column;
 import org.apache.flink.table.catalog.ObjectIdentifier;
+import org.apache.flink.table.catalog.ResolvedCatalogBaseTable;
 import org.apache.flink.table.catalog.ResolvedSchema;
+import org.apache.flink.table.catalog.UniqueConstraint;
 import org.apache.flink.table.catalog.UnresolvedIdentifier;
+import org.apache.flink.table.catalog.hive.util.HiveTypeUtil;
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.StringData;
@@ -39,27 +43,35 @@ import org.apache.flink.table.gateway.api.results.FunctionInfo;
 import org.apache.flink.table.gateway.api.results.ResultSet;
 import org.apache.flink.table.gateway.api.results.TableInfo;
 import org.apache.flink.table.gateway.api.session.SessionHandle;
+import org.apache.flink.table.types.logical.DecimalType;
+import org.apache.flink.table.types.logical.LogicalType;
 
 import org.apache.hadoop.hive.serde2.thrift.Type;
 
 import javax.annotation.Nullable;
 
 import java.sql.DatabaseMetaData;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.Callable;
 import java.util.function.Function;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import static org.apache.flink.table.endpoint.hive.HiveServer2Schemas.GET_CATALOGS_SCHEMA;
+import static org.apache.flink.table.endpoint.hive.HiveServer2Schemas.GET_COLUMNS_SCHEMA;
 import static org.apache.flink.table.endpoint.hive.HiveServer2Schemas.GET_FUNCTIONS_SCHEMA;
+import static org.apache.flink.table.endpoint.hive.HiveServer2Schemas.GET_PRIMARY_KEYS_SCHEMA;
 import static org.apache.flink.table.endpoint.hive.HiveServer2Schemas.GET_SCHEMAS_SCHEMA;
 import static org.apache.flink.table.endpoint.hive.HiveServer2Schemas.GET_TABLES_SCHEMA;
+import static org.apache.flink.table.endpoint.hive.HiveServer2Schemas.GET_TABLE_TYPES_SCHEMA;
 import static org.apache.flink.table.endpoint.hive.HiveServer2Schemas.GET_TYPE_INFO_SCHEMA;
 import static org.apache.flink.table.gateway.api.results.ResultSet.ResultType.EOS;
 import static org.apache.hadoop.hive.serde2.thrift.Type.ARRAY_TYPE;
@@ -111,6 +123,37 @@ public class OperationExecutorFactory {
                         service, sessionHandle, catalogName, schemaName, tableName, tableKinds);
     }
 
+    public static Callable<ResultSet> createGetColumnsExecutor(
+            SqlGatewayService service,
+            SessionHandle sessionHandle,
+            @Nullable String catalogName,
+            @Nullable String schemaName,
+            @Nullable String tableName,
+            @Nullable String columnsName) {
+        return () ->
+                executeGetColumns(
+                        service, sessionHandle, catalogName, schemaName, tableName, columnsName);
+    }
+
+    public static Callable<ResultSet> createGetTableTypesExecutor() {
+        return () ->
+                buildResultSet(
+                        GET_TABLE_TYPES_SCHEMA,
+                        Arrays.stream(TableKind.values())
+                                .map(kind -> wrap(kind.name()))
+                                .collect(Collectors.toList()));
+    }
+
+    public static Callable<ResultSet> createGetPrimaryKeys(
+            SqlGatewayService service,
+            SessionHandle sessionHandle,
+            @Nullable String catalogName,
+            @Nullable String schemaName,
+            @Nullable String tableName) {
+        return () ->
+                executeGetPrimaryKeys(service, sessionHandle, catalogName, schemaName, tableName);
+    }
+
     public static Callable<ResultSet> createGetFunctionsExecutor(
             SqlGatewayService service,
             SessionHandle sessionHandle,
@@ -122,7 +165,7 @@ public class OperationExecutorFactory {
                         service, sessionHandle, catalogName, databasePattern, functionNamePattern);
     }
 
-    public static Callable<ResultSet> createGetTableInfoExecutor() {
+    public static Callable<ResultSet> createGetTypeInfoExecutor() {
         return () ->
                 buildResultSet(
                         GET_TYPE_INFO_SCHEMA,
@@ -175,7 +218,8 @@ public class OperationExecutorFactory {
         String specifiedCatalogName =
                 isNullOrEmpty(catalogName) ? service.getCurrentCatalog(sessionHandle) : catalogName;
         Set<String> databaseNames =
-                filter(service.listDatabases(sessionHandle, specifiedCatalogName), schemaName);
+                filterAndSort(
+                        service.listDatabases(sessionHandle, specifiedCatalogName), schemaName);
         return buildResultSet(
                 GET_SCHEMAS_SCHEMA,
                 databaseNames.stream()
@@ -190,21 +234,30 @@ public class OperationExecutorFactory {
             @Nullable String schemaName,
             @Nullable String tableName,
             Set<TableKind> tableKinds) {
-        Set<TableInfo> tableInfos = new HashSet<>();
+        Set<TableInfo> tableInfos = new LinkedHashSet<>();
+        Set<TableInfo> viewInfos = new LinkedHashSet<>();
+
         String specifiedCatalogName =
                 isNullOrEmpty(catalogName) ? service.getCurrentCatalog(sessionHandle) : catalogName;
         for (String schema :
-                filter(service.listDatabases(sessionHandle, specifiedCatalogName), schemaName)) {
-            tableInfos.addAll(
-                    filter(
+                filterAndSort(
+                        service.listDatabases(sessionHandle, specifiedCatalogName), schemaName)) {
+            for (TableInfo tableInfo :
+                    filterAndSort(
                             service.listTables(
                                     sessionHandle, specifiedCatalogName, schema, tableKinds),
                             candidate -> candidate.getIdentifier().getObjectName(),
-                            tableName));
+                            tableName)) {
+                if (tableInfo.getTableKind().equals(TableKind.TABLE)) {
+                    tableInfos.add(tableInfo);
+                } else {
+                    viewInfos.add(tableInfo);
+                }
+            }
         }
         return buildResultSet(
                 GET_TABLES_SCHEMA,
-                tableInfos.stream()
+                Stream.concat(tableInfos.stream(), viewInfos.stream())
                         .map(
                                 info ->
                                         wrap(
@@ -212,15 +265,136 @@ public class OperationExecutorFactory {
                                                 info.getIdentifier().getDatabaseName(),
                                                 info.getIdentifier().getObjectName(),
                                                 info.getTableKind().name(),
-                                                // It requires to load the CatalogFunction from the
+                                                // It requires to load the CatalogTable from the
                                                 // remote server, which is time wasted.
-                                                "",
+                                                null,
                                                 null,
                                                 null,
                                                 null,
                                                 null,
                                                 null))
                         .collect(Collectors.toList()));
+    }
+
+    private static ResultSet executeGetColumns(
+            SqlGatewayService service,
+            SessionHandle sessionHandle,
+            @Nullable String catalogName,
+            @Nullable String schemaName,
+            @Nullable String tableName,
+            @Nullable String columnName) {
+        String specifiedCatalogName =
+                isNullOrEmpty(catalogName) ? service.getCurrentCatalog(sessionHandle) : catalogName;
+        Set<String> schemaNames =
+                filterAndSort(
+                        service.listDatabases(sessionHandle, specifiedCatalogName), schemaName);
+        Set<TableKind> tableKinds = new HashSet<>(Arrays.asList(TableKind.values()));
+
+        List<RowData> results = new ArrayList<>();
+        for (String schema : schemaNames) {
+            Set<TableInfo> tableInfos =
+                    filterAndSort(
+                            service.listTables(
+                                    sessionHandle, specifiedCatalogName, schema, tableKinds),
+                            candidates -> candidates.getIdentifier().getObjectName(),
+                            tableName);
+
+            for (TableInfo tableInfo : tableInfos) {
+                ResolvedCatalogBaseTable<?> table =
+                        service.getTable(sessionHandle, tableInfo.getIdentifier());
+                List<Column> columns = table.getResolvedSchema().getColumns();
+
+                Set<String> matchedColumnNames =
+                        filterAndSort(
+                                new HashSet<>(table.getResolvedSchema().getColumnNames()),
+                                columnName);
+                for (int i = 0; i < columns.size(); i++) {
+                    Column column = columns.get(i);
+                    if (!matchedColumnNames.contains(column.getName())) {
+                        continue;
+                    }
+                    Type hiveColumnType =
+                            Type.getType(HiveTypeUtil.toHiveTypeInfo(column.getDataType(), false));
+                    LogicalType flinkColumnType = column.getDataType().getLogicalType();
+                    results.add(
+                            wrap(
+                                    specifiedCatalogName,
+                                    tableInfo.getIdentifier().getDatabaseName(),
+                                    tableInfo.getIdentifier().getObjectName(),
+                                    column.getName(),
+                                    hiveColumnType.toJavaSQLType(),
+                                    hiveColumnType.getName(),
+                                    getColumnSize(flinkColumnType),
+                                    null, // BUFFER_LENGTH, unused
+                                    getDecimalDigits(flinkColumnType),
+                                    hiveColumnType.getNumPrecRadix(),
+                                    flinkColumnType.isNullable()
+                                            ? DatabaseMetaData.columnNullable
+                                            : DatabaseMetaData.columnNoNulls,
+                                    column.getComment().orElse(null),
+                                    null, // COLUMN_DEF
+                                    null, // SQL_DATA_TYPE
+                                    null, // SQL_DATETIME_SUB
+                                    null, // CHAR_OCTET_LENGTH
+                                    i + 1,
+                                    flinkColumnType.isNullable() ? "YES" : "NO",
+                                    null, // SCOPE_CATALOG
+                                    null, // SCOPE_SCHEMA
+                                    null, // SCOPE_TABLE
+                                    null, // SOURCE_DATA_TYPE
+                                    "NO"));
+                }
+            }
+        }
+        return buildResultSet(GET_COLUMNS_SCHEMA, results);
+    }
+
+    private static ResultSet executeGetPrimaryKeys(
+            SqlGatewayService service,
+            SessionHandle sessionHandle,
+            @Nullable String catalogName,
+            @Nullable String schemaName,
+            @Nullable String tableName) {
+        String specifiedCatalogName =
+                isNullOrEmpty(catalogName) ? service.getCurrentCatalog(sessionHandle) : catalogName;
+        Set<String> schemaNames =
+                filterAndSort(
+                        service.listDatabases(sessionHandle, specifiedCatalogName), schemaName);
+        List<RowData> primaryKeys = new ArrayList<>();
+
+        for (String schema : schemaNames) {
+            Set<TableInfo> tableInfos =
+                    filterAndSort(
+                            service.listTables(
+                                    sessionHandle,
+                                    specifiedCatalogName,
+                                    schema,
+                                    new HashSet<>(Arrays.asList(TableKind.values()))),
+                            candidate -> candidate.getIdentifier().getObjectName(),
+                            tableName);
+
+            for (TableInfo tableInfo : tableInfos) {
+                ResolvedCatalogBaseTable<?> table =
+                        service.getTable(sessionHandle, tableInfo.getIdentifier());
+                UniqueConstraint primaryKey =
+                        table.getResolvedSchema().getPrimaryKey().orElse(null);
+                if (primaryKey == null) {
+                    continue;
+                }
+
+                for (int i = 0; i < primaryKey.getColumns().size(); i++) {
+                    primaryKeys.add(
+                            wrap(
+                                    specifiedCatalogName,
+                                    tableInfo.getIdentifier().getDatabaseName(),
+                                    tableInfo.getIdentifier().getObjectName(),
+                                    primaryKey.getColumns().get(i),
+                                    i + 1,
+                                    primaryKey.getName()));
+                }
+            }
+        }
+        return buildResultSet(GET_PRIMARY_KEYS_SCHEMA, primaryKeys);
     }
 
     private static ResultSet executeGetFunctions(
@@ -235,7 +409,7 @@ public class OperationExecutorFactory {
         Set<FunctionInfo> candidates = new HashSet<>();
         // Add user defined functions
         for (String databaseName :
-                filter(
+                filterAndSort(
                         service.listDatabases(sessionHandle, specifiedCatalogName),
                         databasePattern)) {
             candidates.addAll(
@@ -248,7 +422,7 @@ public class OperationExecutorFactory {
         }
         // Filter out unmatched functions
         Set<FunctionInfo> matchedFunctions =
-                filter(
+                filterAndSort(
                         candidates,
                         candidate -> candidate.getIdentifier().getFunctionName(),
                         functionNamePattern);
@@ -302,18 +476,19 @@ public class OperationExecutorFactory {
         return input == null || input.isEmpty();
     }
 
-    private static Set<String> filter(Set<String> candidates, @Nullable String pattern) {
-        return filter(candidates, Function.identity(), pattern);
+    private static Set<String> filterAndSort(Set<String> candidates, @Nullable String pattern) {
+        return filterAndSort(candidates, Function.identity(), pattern);
     }
 
-    private static <T> Set<T> filter(
+    private static <T> Set<T> filterAndSort(
             Set<T> candidates, Function<T, String> featureGetter, @Nullable String pattern) {
         Pattern compiledPattern = convertNamePattern(pattern);
         return candidates.stream()
                 .filter(
                         candidate ->
                                 compiledPattern.matcher(featureGetter.apply(candidate)).matches())
-                .collect(Collectors.toSet());
+                .sorted(Comparator.comparing(v -> featureGetter.apply(v).toLowerCase()))
+                .collect(Collectors.toCollection(LinkedHashSet::new));
     }
 
     /**
@@ -429,6 +604,65 @@ public class OperationExecutorFactory {
             return builtIn.getRuntimeClass().orElse(definition.getClass().getCanonicalName());
         } else {
             return definition.getClass().getCanonicalName();
+        }
+    }
+
+    /**
+     * The column size for this type. For numeric data this is the maximum precision. For character
+     * data this is the length in characters. For datetime types this is the length in characters of
+     * the String representation (assuming the maximum allowed precision of the fractional seconds
+     * component). For binary data this is the length in bytes. Null is returned for data types
+     * where the column size is not applicable.
+     */
+    private static @Nullable Integer getColumnSize(LogicalType columnType) {
+        switch (columnType.getTypeRoot()) {
+            case TINYINT:
+                return 3;
+            case SMALLINT:
+                return 5;
+            case INTEGER:
+            case DATE:
+                return 10;
+            case BIGINT:
+                return 19;
+            case FLOAT:
+                return 7;
+            case DOUBLE:
+                return 15;
+            case DECIMAL:
+                return ((DecimalType) columnType).getScale();
+            case VARCHAR:
+            case BINARY:
+                return Integer.MAX_VALUE;
+            case TIMESTAMP_WITHOUT_TIME_ZONE:
+                return 29;
+            default:
+                return null;
+        }
+    }
+
+    /**
+     * The number of fractional digits for this type. Null is returned for data types where this is
+     * not applicable.
+     */
+    private static @Nullable Integer getDecimalDigits(LogicalType columnType) {
+        switch (columnType.getTypeRoot()) {
+            case BOOLEAN:
+            case TINYINT:
+            case SMALLINT:
+            case INTEGER:
+            case BIGINT:
+                return 0;
+            case FLOAT:
+                return 7;
+            case DOUBLE:
+                return 15;
+            case DECIMAL:
+                return ((DecimalType) columnType).getScale();
+            case TIMESTAMP_WITHOUT_TIME_ZONE:
+                return 9;
+            default:
+                return null;
         }
     }
 }

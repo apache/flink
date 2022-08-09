@@ -21,6 +21,8 @@ package org.apache.flink.table.gateway.service;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.table.catalog.CatalogBaseTable.TableKind;
+import org.apache.flink.table.catalog.ObjectIdentifier;
+import org.apache.flink.table.catalog.ResolvedCatalogBaseTable;
 import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.catalog.UnresolvedIdentifier;
 import org.apache.flink.table.functions.FunctionDefinition;
@@ -252,6 +254,18 @@ public class SqlGatewayServiceImpl implements SqlGatewayService {
         } catch (Throwable t) {
             LOG.error("Failed to listTables.", t);
             throw new SqlGatewayException("Failed to listTables.", t);
+        }
+    }
+
+    @Override
+    public ResolvedCatalogBaseTable<?> getTable(
+            SessionHandle sessionHandle, ObjectIdentifier tableIdentifier)
+            throws SqlGatewayException {
+        try {
+            return getSession(sessionHandle).createExecutor().getTable(tableIdentifier);
+        } catch (Throwable t) {
+            LOG.error("Failed to getTable.", t);
+            throw new SqlGatewayException("Failed to getTable.", t);
         }
     }
 

@@ -28,6 +28,8 @@ import org.apache.flink.table.catalog.CatalogDatabaseImpl;
 import org.apache.flink.table.catalog.Column;
 import org.apache.flink.table.catalog.GenericInMemoryCatalog;
 import org.apache.flink.table.catalog.ObjectIdentifier;
+import org.apache.flink.table.catalog.ResolvedCatalogTable;
+import org.apache.flink.table.catalog.ResolvedCatalogView;
 import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
@@ -466,6 +468,22 @@ public class SqlGatewayServiceITCase extends AbstractTestBase {
                                                 "default_catalog",
                                                 "default_database",
                                                 "table_func0"))));
+    }
+
+    @Test
+    public void testGetTable() {
+        SessionHandle sessionHandle = createInitializedSession();
+        ResolvedCatalogTable actualTable =
+                (ResolvedCatalogTable)
+                        service.getTable(sessionHandle, ObjectIdentifier.of("cat1", "db1", "tbl1"));
+        assertThat(actualTable.getResolvedSchema()).isEqualTo(ResolvedSchema.of());
+        assertThat(actualTable.getOptions())
+                .isEqualTo(Collections.singletonMap("connector", "values"));
+
+        ResolvedCatalogView actualView =
+                (ResolvedCatalogView)
+                        service.getTable(sessionHandle, ObjectIdentifier.of("cat1", "db1", "tbl3"));
+        assertThat(actualView.getOriginalQuery()).isEqualTo("SELECT 1");
     }
 
     // --------------------------------------------------------------------------------------------
