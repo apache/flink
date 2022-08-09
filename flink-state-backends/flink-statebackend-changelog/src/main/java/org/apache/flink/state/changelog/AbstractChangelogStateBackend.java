@@ -21,6 +21,8 @@ package org.apache.flink.state.changelog;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.StateChangelogOptionsInternal;
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.execution.Environment;
@@ -44,6 +46,7 @@ import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nonnull;
 
+import java.io.IOException;
 import java.util.Collection;
 import java.util.Objects;
 import java.util.stream.Collectors;
@@ -197,5 +200,15 @@ public abstract class AbstractChangelogStateBackend
                 .filter(Objects::nonNull)
                 .map(ChangelogStateBackendHandleImpl::getChangelogStateBackendHandle)
                 .collect(Collectors.toList());
+    }
+
+    protected Configuration createMergedConfiguration(Environment env)
+            throws IOException, ClassNotFoundException {
+        Configuration configuration =
+                new Configuration(env.getTaskManagerInfo().getConfiguration());
+        configuration.addAll(
+                StateChangelogOptionsInternal.getConfiguration(
+                        env.getJobConfiguration(), getClass().getClassLoader()));
+        return configuration;
     }
 }

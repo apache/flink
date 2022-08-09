@@ -20,6 +20,8 @@ package org.apache.flink.runtime.state.changelog;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.IllegalConfigurationException;
+import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.configuration.StateChangelogOptions;
 import org.apache.flink.core.plugin.PluginManager;
 import org.apache.flink.runtime.metrics.groups.TaskManagerJobMetricGroup;
@@ -93,11 +95,7 @@ public class StateChangelogStorageLoader {
             TaskManagerJobMetricGroup metricGroup,
             LocalRecoveryConfig localRecoveryConfig)
             throws IOException {
-        final String identifier =
-                configuration
-                        .getString(StateChangelogOptions.STATE_CHANGE_LOG_STORAGE)
-                        .toLowerCase();
-
+        String identifier = getIdentifier(configuration);
         StateChangelogStorageFactory factory = STATE_CHANGELOG_STORAGE_FACTORIES.get(identifier);
         if (factory == null) {
             LOG.warn("Cannot find a factory for changelog storage with name '{}'.", identifier);
@@ -127,5 +125,20 @@ public class StateChangelogStorageLoader {
                     changelogStateHandle.getClass().getSimpleName());
             return factory.createStorageView(configuration);
         }
+    }
+
+    public static StateChangelogStorageFactory loadFactory(ReadableConfig configuration)
+            throws IllegalConfigurationException {
+        String identifier = getIdentifier(configuration);
+        StateChangelogStorageFactory factory = STATE_CHANGELOG_STORAGE_FACTORIES.get(identifier);
+        if (factory == null) {
+            throw new IllegalConfigurationException(
+                    String.format("StateChangelogStorageFactory not found: %s", identifier));
+        }
+        return factory;
+    }
+
+    private static String getIdentifier(ReadableConfig configuration) {
+        return configuration.get(StateChangelogOptions.STATE_CHANGE_LOG_STORAGE).toLowerCase();
     }
 }

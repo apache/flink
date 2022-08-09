@@ -68,7 +68,7 @@ public class DeactivatedChangelogStateBackend extends AbstractChangelogStateBack
         ChangelogStateFactory changelogStateFactory = new ChangelogStateFactory();
 
         return ChangelogBackendRestoreOperation.restore(
-                env.getTaskManagerInfo().getConfiguration(),
+                createMergedConfiguration(env),
                 env.getUserCodeClassLoader().asClassLoader(),
                 env.getTaskStateManager(),
                 stateBackendHandles,

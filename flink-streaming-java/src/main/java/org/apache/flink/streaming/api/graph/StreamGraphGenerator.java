@@ -35,6 +35,7 @@ import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.PipelineOptions;
 import org.apache.flink.configuration.ReadableConfig;
+import org.apache.flink.configuration.StateChangelogOptions;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.jobgraph.JobType;
@@ -42,6 +43,7 @@ import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 import org.apache.flink.runtime.state.CheckpointStorage;
 import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
 import org.apache.flink.runtime.state.StateBackend;
+import org.apache.flink.runtime.state.changelog.StateChangelogStorageLoader;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.environment.CheckpointConfig;
 import org.apache.flink.streaming.api.environment.ExecutionCheckpointingOptions;
@@ -98,6 +100,7 @@ import java.util.HashMap;
 import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -160,8 +163,6 @@ public class StreamGraphGenerator {
     private Path savepointDir;
 
     private StateBackend stateBackend;
-
-    private TernaryBoolean changelogStateBackendEnabled;
 
     private CheckpointStorage checkpointStorage;
 
@@ -252,12 +253,6 @@ public class StreamGraphGenerator {
 
     public StreamGraphGenerator setStateBackend(StateBackend stateBackend) {
         this.stateBackend = stateBackend;
-        return this;
-    }
-
-    public StreamGraphGenerator setChangelogStateBackendEnabled(
-            TernaryBoolean changelogStateBackendEnabled) {
-        this.changelogStateBackendEnabled = changelogStateBackendEnabled;
         return this;
     }
 
@@ -383,7 +378,7 @@ public class StreamGraphGenerator {
         graph.setJobName(deriveJobName(DEFAULT_STREAMING_JOB_NAME));
 
         graph.setStateBackend(stateBackend);
-        graph.setChangelogStateBackendEnabled(changelogStateBackendEnabled);
+        configureChangelogStorage(graph);
         graph.setCheckpointStorage(checkpointStorage);
         graph.setSavepointDirectory(savepointDir);
         graph.setGlobalStreamExchangeMode(deriveGlobalStreamExchangeModeStreaming());
@@ -436,12 +431,29 @@ public class StreamGraphGenerator {
         if (useStateBackend) {
             LOG.debug("Using BATCH execution state backend and timer service.");
             graph.setStateBackend(new BatchExecutionStateBackend());
-            graph.setChangelogStateBackendEnabled(TernaryBoolean.FALSE);
+            graph.setChangelogStateBackendEnabled(TernaryBoolean.FALSE, new Configuration());
             graph.setCheckpointStorage(new BatchExecutionCheckpointStorage());
             graph.setTimerServiceProvider(BatchExecutionInternalTimeServiceManager::create);
         } else {
             graph.setStateBackend(stateBackend);
-            graph.setChangelogStateBackendEnabled(changelogStateBackendEnabled);
+            configureChangelogStorage(graph);
+        }
+    }
+
+    private void configureChangelogStorage(StreamGraph graph) {
+        Optional<Boolean> enabled =
+                configuration.getOptional(StateChangelogOptions.ENABLE_STATE_CHANGE_LOG);
+        if (!enabled.isPresent()) {
+            graph.setChangelogStateBackendEnabled(TernaryBoolean.UNDEFINED, new Configuration());
+        } else if (!enabled.get()) {
+            graph.setChangelogStateBackendEnabled(TernaryBoolean.FALSE, new Configuration());
+        } else {
+            graph.setChangelogStateBackendEnabled(
+                    TernaryBoolean.TRUE,
+                    // assumption: if any factory option is passed here then the correct factory
+                    // must also be chosen
+                    StateChangelogStorageLoader.loadFactory(configuration)
+                            .extractConfiguration(configuration));
         }
     }
 

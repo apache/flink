@@ -22,7 +22,6 @@ import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.StateChangelogOptions;
-import org.apache.flink.configuration.StateChangelogOptionsInternal;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.util.FileUtils;
@@ -126,8 +125,7 @@ public class TaskExecutorLocalStateStoresManager {
             @Nonnull AllocationID allocationID,
             @Nonnull JobVertexID jobVertexID,
             @Nonnegative int subtaskIndex,
-            Configuration clusterConfiguration,
-            Configuration jobConfiguration) {
+            Configuration cfg) {
 
         synchronized (lock) {
             if (closed) {
@@ -169,16 +167,8 @@ public class TaskExecutorLocalStateStoresManager {
                 LocalRecoveryConfig localRecoveryConfig =
                         new LocalRecoveryConfig(directoryProvider);
 
-                boolean changelogEnabled =
-                        jobConfiguration
-                                .getOptional(
-                                        StateChangelogOptionsInternal
-                                                .ENABLE_CHANGE_LOG_FOR_APPLICATION)
-                                .orElse(
-                                        clusterConfiguration.getBoolean(
-                                                StateChangelogOptions.ENABLE_STATE_CHANGE_LOG));
-
-                if (localRecoveryConfig.isLocalRecoveryEnabled() && changelogEnabled) {
+                if (localRecoveryConfig.isLocalRecoveryEnabled()
+                        && cfg.getBoolean(StateChangelogOptions.ENABLE_STATE_CHANGE_LOG)) {
                     taskLocalStateStore =
                             new ChangelogTaskLocalStateStore(
                                     jobId,
