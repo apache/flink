@@ -219,9 +219,7 @@ public class RegularOperatorChain<OUT, OP extends StreamOperator<OUT>>
             backend = ((AbstractStreamOperator<?>) operator).getOperatorStateBackend();
         } else if (operator instanceof AbstractStreamOperatorV2) {
             backend = ((AbstractStreamOperatorV2<?>) operator).getOperatorStateBackend();
-        }
-
-        if (backend == null) {
+        } else {
             throw new IllegalStateException(
                     "Operator "
                             + operator
@@ -296,9 +294,7 @@ public class RegularOperatorChain<OUT, OP extends StreamOperator<OUT>>
                     ((AbstractStreamOperatorV2<?>) operator)
                             .getRuntimeContext()
                             .getIndexOfThisSubtask();
-        }
-
-        if (index < 0) {
+        } else {
             throw new IllegalStateException(
                     "Operator "
                             + operator

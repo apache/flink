@@ -204,7 +204,7 @@ public final class OperatorEventDispatcherImpl implements OperatorEventDispatche
             for (SerializedValue<OperatorEvent> blockedEvent : blockedEvents) {
                 toCoordinator.sendOperatorEventToCoordinator(operatorId, blockedEvent);
             }
-            blockedEvents = new ArrayList<>();
+            blockedEvents.clear();
         }
 
         /**

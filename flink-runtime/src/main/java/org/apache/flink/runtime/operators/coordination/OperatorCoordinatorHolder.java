@@ -334,7 +334,7 @@ public class OperatorCoordinatorHolder
         abortAllPendingAcknowledgeCloseGatewayFutures(
                 "The coordinator has been reset to checkpoint " + checkpointId);
         subtaskGatewayMap.values().forEach(SubtaskGatewayImpl::openGatewayAndUnmarkCheckpoint);
-        latestAttemptedCheckpointId = Math.max(latestAttemptedCheckpointId, checkpointId);
+        latestAttemptedCheckpointId = checkpointId;
         currentPendingCheckpointId = NO_CHECKPOINT;
         context.resetFailed();
 
@@ -354,35 +354,23 @@ public class OperatorCoordinatorHolder
     private void checkpointCoordinatorInternal(
             long checkpointId, CompletableFuture<byte[]> result) {
         mainThreadExecutor.assertRunningInMainThread();
-
-        try {
-            subtaskGatewayMap.forEach(
-                    (subtask, gateway) -> gateway.markForCheckpoint(checkpointId));
-
-            if (currentPendingCheckpointId != NO_CHECKPOINT
-                    && currentPendingCheckpointId != checkpointId) {
-                throw new IllegalStateException(
-                        String.format(
-                                "Cannot checkpoint coordinator for checkpoint %d, "
-                                        + "since checkpoint %d has already started.",
-                                checkpointId, currentPendingCheckpointId));
-            }
-
-            if (latestAttemptedCheckpointId >= checkpointId) {
-                throw new IllegalStateException(
-                        String.format(
-                                "Regressing checkpoint IDs. Previous checkpointId = %d, new checkpointId = %d",
-                                latestAttemptedCheckpointId, checkpointId));
-            }
-
-            Preconditions.checkState(acknowledgeCloseGatewayFutureMap.isEmpty());
-        } catch (Throwable t) {
-            ExceptionUtils.rethrowIfFatalErrorOrOOM(t);
-            result.completeExceptionally(t);
-            globalFailureHandler.handleGlobalFailure(t);
-            return;
+        if (latestAttemptedCheckpointId >= checkpointId) {
+            throw new IllegalStateException(
+                    String.format(
+                            "Cannot checkpoint coordinator for checkpoint %d since checkpointId %d is smaller than last checkpointId %d",
+                            checkpointId, currentPendingCheckpointId));
         }
 
+        if (currentPendingCheckpointId != NO_CHECKPOINT) {
+            throw new IllegalStateException(
+                    String.format(
+                            "Cannot checkpoint coordinator for checkpoint %d "
+                                    + "since checkpoint %d is still running.",
+                            checkpointId, currentPendingCheckpointId));
+        }
+        Preconditions.checkState(acknowledgeCloseGatewayFutureMap.isEmpty());
+
+        subtaskGatewayMap.forEach((subtask, gateway) -> gateway.markForCheckpoint(checkpointId));
         currentPendingCheckpointId = checkpointId;
         latestAttemptedCheckpointId = checkpointId;
 
@@ -455,10 +443,6 @@ public class OperatorCoordinatorHolder
     }
 
     private void abortAllPendingAcknowledgeCloseGatewayFutures(String message) {
-        if (acknowledgeCloseGatewayFutureMap.isEmpty()) {
-            return;
-        }
-
         for (int subtask : acknowledgeCloseGatewayFutureMap.keySet()) {
             completeAcknowledgeCloseGatewayFutureExceptionally(subtask, message, null);
         }
@@ -501,20 +485,7 @@ public class OperatorCoordinatorHolder
                             + " is related to a newer checkpoint that is unknown to the coordinator holder.");
         }
 
-        if (currentPendingCheckpointId == NO_CHECKPOINT) {
-            return false;
-        } else {
-            if (latestAttemptedCheckpointId != currentPendingCheckpointId) {
-                throw new IllegalStateException(
-                        "latest attempted checkpoint id should be equal to"
-                                + " current pending checkpoint id when a checkpoint is ongoing, "
-                                + "but latest attempted checkpoint id has value "
-                                + latestAttemptedCheckpointId
-                                + ", while current checkpoint id has value "
-                                + currentPendingCheckpointId);
-            }
-            return checkpointId == currentPendingCheckpointId;
-        }
+        return checkpointId == currentPendingCheckpointId;
     }
 
     private boolean closeGateways(final long checkpointId) {
