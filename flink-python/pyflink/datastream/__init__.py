@@ -206,6 +206,8 @@ Classes to define source & sink:
     - :class:`connectors.kinesis.KinesisFirehoseSink`:
       A Kinesis Data Firehose (KDF) Sink that performs async requests against a destination delivery
       stream using the buffering protocol.
+    - :class:`connectors.hybrid_source.HybridSource`:
+      A Hybrid source that switches underlying sources based on configured source chain.
 
 
 Classes to define formats used together with source & sink:

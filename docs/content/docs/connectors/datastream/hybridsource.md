@@ -55,6 +55,8 @@ Here we cover the most basic and then a more complex scenario, following the Fil
 Example: Read till pre-determined switch time from files and then continue reading from Kafka.
 Each source covers an upfront known range and therefore the contained sources can be created upfront as if they were used directly:
 
+{{< tabs "1a84c6a0-0b2f-4f96-8cf8-43ec6dd3bc5d" >}}
+{{< tab "Java" >}}
 ```java
 long switchTimestamp = ...; // derive from file input paths
 FileSource<String> fileSource =
@@ -67,7 +69,26 @@ HybridSource<String> hybridSource =
           HybridSource.builder(fileSource)
                   .addSource(kafkaSource)
                   .build();
-```  
+```
+{{< /tab >}}
+{{< tab "Python" >}}
+```python
+switch_timestamp = ... # derive from file input paths
+file_source = FileSource \
+    .for_record_stream_format(StreamFormat.text_line_format(), test_dir) \
+    .build()
+kafka_source = KafkaSource \
+    .builder() \
+    .set_bootstrap_servers('localhost:9092') \
+    .set_group_id('MY_GROUP') \
+    .set_topics('quickstart-events') \
+    .set_value_only_deserializer(SimpleStringSchema()) \
+    .set_starting_offsets(KafkaOffsetsInitializer.timestamp(switch_timestamp)) \
+    .build()
+hybrid_source = HybridSource.builder(file_source).add_source(kafka_source).build()
+```
+{{< /tab >}}
+{{< /tabs >}}
 
 #### Dynamic start position at switch time
 
@@ -79,6 +100,8 @@ by implementing `SourceFactory`.
 Note that enumerators need to support getting the end timestamp. This may currently require a source customization.
 Adding support for dynamic end position to `FileSource` is tracked in [FLINK-23633](https://issues.apache.org/jira/browse/FLINK-23633).
 
+{{< tabs "1a84c6a0-0b2f-4f96-8cf8-43ec6dd3bc5c" >}}
+{{< tab "Java" >}}
 ```java
 FileSource<String> fileSource = CustomFileSource.readTillOneDayFromLatest();
 HybridSource<String> hybridSource =
@@ -98,3 +121,8 @@ HybridSource<String> hybridSource =
             Boundedness.CONTINUOUS_UNBOUNDED)
         .build();
 ```
+{{< /tab >}}
+{{< tab "Python" >}}
+Still not supported in Python API.
+{{< /tab >}}
+{{< /tabs >}}
