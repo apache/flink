@@ -250,7 +250,7 @@ public abstract class DynamicPartitionPruningRule extends RelRule<RelRule.Config
         @Override
         public boolean matches(RelOptRuleCall call) {
             final BatchPhysicalJoinBase join = call.rel(0);
-            return DynamicPartitionPruningUtils.supportDynamicPartitionPruning(join, false);
+            return DynamicPartitionPruningUtils.supportDynamicPartitionPruning(join, false, false);
         }
 
         @Override
@@ -302,7 +302,7 @@ public abstract class DynamicPartitionPruningRule extends RelRule<RelRule.Config
         @Override
         public boolean matches(RelOptRuleCall call) {
             final BatchPhysicalJoinBase join = call.rel(0);
-            return DynamicPartitionPruningUtils.supportDynamicPartitionPruning(join, true);
+            return DynamicPartitionPruningUtils.supportDynamicPartitionPruning(join, true, false);
         }
 
         @Override
@@ -359,7 +359,7 @@ public abstract class DynamicPartitionPruningRule extends RelRule<RelRule.Config
         @Override
         public boolean matches(RelOptRuleCall call) {
             final BatchPhysicalJoinBase join = call.rel(0);
-            return DynamicPartitionPruningUtils.supportDynamicPartitionPruning(join, false);
+            return DynamicPartitionPruningUtils.supportDynamicPartitionPruning(join, false, false);
         }
 
         @Override
@@ -421,7 +421,7 @@ public abstract class DynamicPartitionPruningRule extends RelRule<RelRule.Config
         @Override
         public boolean matches(RelOptRuleCall call) {
             final BatchPhysicalJoinBase join = call.rel(0);
-            return DynamicPartitionPruningUtils.supportDynamicPartitionPruning(join, true);
+            return DynamicPartitionPruningUtils.supportDynamicPartitionPruning(join, true, false);
         }
 
         @Override
@@ -483,7 +483,7 @@ public abstract class DynamicPartitionPruningRule extends RelRule<RelRule.Config
         @Override
         public boolean matches(RelOptRuleCall call) {
             final BatchPhysicalJoinBase join = call.rel(0);
-            return DynamicPartitionPruningUtils.supportDynamicPartitionPruning(join, false);
+            return DynamicPartitionPruningUtils.supportDynamicPartitionPruning(join, false, false);
         }
 
         @Override
@@ -545,7 +545,7 @@ public abstract class DynamicPartitionPruningRule extends RelRule<RelRule.Config
         @Override
         public boolean matches(RelOptRuleCall call) {
             final BatchPhysicalJoinBase join = call.rel(0);
-            return DynamicPartitionPruningUtils.supportDynamicPartitionPruning(join, true);
+            return DynamicPartitionPruningUtils.supportDynamicPartitionPruning(join, true, false);
         }
 
         @Override
@@ -617,7 +617,7 @@ public abstract class DynamicPartitionPruningRule extends RelRule<RelRule.Config
         @Override
         public boolean matches(RelOptRuleCall call) {
             final BatchPhysicalJoinBase join = call.rel(0);
-            return DynamicPartitionPruningUtils.supportDynamicPartitionPruning(join, false);
+            return DynamicPartitionPruningUtils.supportDynamicPartitionPruning(join, false, false);
         }
 
         @Override
@@ -630,15 +630,15 @@ public abstract class DynamicPartitionPruningRule extends RelRule<RelRule.Config
 
             final BatchPhysicalDynamicFilteringTableSourceScan newFactScan =
                     createDynamicFilteringTableSourceScan(factScan, dimSide, join, factCalc, false);
-            final BatchPhysicalExchange newExchange =
-                    (BatchPhysicalExchange)
-                            exchange.copy(
-                                    exchange.getTraitSet(), Collections.singletonList(newFactScan));
             final BatchPhysicalCalc newCalc =
                     (BatchPhysicalCalc)
                             factCalc.copy(
-                                    factCalc.getTraitSet(), newExchange, factCalc.getProgram());
-            final Join newJoin = join.copy(join.getTraitSet(), Arrays.asList(dimSide, newCalc));
+                                    factCalc.getTraitSet(), newFactScan, factCalc.getProgram());
+            final BatchPhysicalExchange newExchange =
+                    (BatchPhysicalExchange)
+                            exchange.copy(
+                                    exchange.getTraitSet(), Collections.singletonList(newCalc));
+            final Join newJoin = join.copy(join.getTraitSet(), Arrays.asList(dimSide, newExchange));
             call.transformTo(newJoin);
         }
     }
@@ -694,7 +694,7 @@ public abstract class DynamicPartitionPruningRule extends RelRule<RelRule.Config
         @Override
         public boolean matches(RelOptRuleCall call) {
             final BatchPhysicalJoinBase join = call.rel(0);
-            return DynamicPartitionPruningUtils.supportDynamicPartitionPruning(join, true);
+            return DynamicPartitionPruningUtils.supportDynamicPartitionPruning(join, true, false);
         }
 
         @Override
@@ -707,15 +707,15 @@ public abstract class DynamicPartitionPruningRule extends RelRule<RelRule.Config
 
             final BatchPhysicalDynamicFilteringTableSourceScan newFactScan =
                     createDynamicFilteringTableSourceScan(factScan, dimSide, join, factCalc, true);
-            final BatchPhysicalExchange newExchange =
-                    (BatchPhysicalExchange)
-                            exchange.copy(
-                                    exchange.getTraitSet(), Collections.singletonList(newFactScan));
             final BatchPhysicalCalc newCalc =
                     (BatchPhysicalCalc)
                             factCalc.copy(
-                                    factCalc.getTraitSet(), newExchange, factCalc.getProgram());
-            final Join newJoin = join.copy(join.getTraitSet(), Arrays.asList(newCalc, dimSide));
+                                    factCalc.getTraitSet(), newFactScan, factCalc.getProgram());
+            final BatchPhysicalExchange newExchange =
+                    (BatchPhysicalExchange)
+                            exchange.copy(
+                                    exchange.getTraitSet(), Collections.singletonList(newCalc));
+            final Join newJoin = join.copy(join.getTraitSet(), Arrays.asList(newExchange, dimSide));
             call.transformTo(newJoin);
         }
     }
