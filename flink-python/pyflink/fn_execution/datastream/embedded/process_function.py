@@ -31,20 +31,20 @@ from pyflink.fn_execution.embedded.java_utils import to_java_state_descriptor
 
 class InternalProcessFunctionContext(ProcessFunction.Context, CoProcessFunction.Context,
                                      TimerService):
-    def __init__(self, context):
-        self._context = context
+    def __init__(self, j_context):
+        self._j_context = j_context
 
     def timer_service(self) -> TimerService:
         return self
 
     def timestamp(self) -> int:
-        return self._context.timestamp()
+        return self._j_context.timestamp()
 
     def current_processing_time(self):
-        return self._context.currentProcessingTime()
+        return self._j_context.currentProcessingTime()
 
     def current_watermark(self):
-        return self._context.currentWatermark()
+        return self._j_context.currentWatermark()
 
     def register_processing_time_timer(self, timestamp: int):
         raise Exception("Register timers is only supported on a keyed stream.")
@@ -62,19 +62,19 @@ class InternalProcessFunctionContext(ProcessFunction.Context, CoProcessFunction.
 class InternalKeyedProcessFunctionContext(KeyedProcessFunction.Context,
                                           KeyedCoProcessFunction.Context):
 
-    def __init__(self, context, key_type_info):
-        self._context = context
-        self._timer_service = TimerServiceImpl(self._context.timerService())
+    def __init__(self, j_context, key_type_info):
+        self._j_context = j_context
+        self._timer_service = TimerServiceImpl(self._j_context.timerService())
         self._key_converter = from_type_info_proto(key_type_info)
 
     def get_current_key(self):
-        return self._key_converter.to_internal(self._context.getCurrentKey())
+        return self._key_converter.to_internal(self._j_context.getCurrentKey())
 
     def timer_service(self) -> TimerService:
         return self._timer_service
 
     def timestamp(self) -> int:
-        return self._context.timestamp()
+        return self._j_context.timestamp()
 
 
 class InternalKeyedProcessFunctionOnTimerContext(KeyedProcessFunction.OnTimerContext,
@@ -82,66 +82,66 @@ class InternalKeyedProcessFunctionOnTimerContext(KeyedProcessFunction.OnTimerCon
                                                  KeyedCoProcessFunction.OnTimerContext,
                                                  KeyedCoProcessFunction.Context):
 
-    def __init__(self, context, key_type_info):
-        self._context = context
-        self._timer_service = TimerServiceImpl(self._context.timerService())
+    def __init__(self, j_timer_context, key_type_info):
+        self._j_timer_context = j_timer_context
+        self._timer_service = TimerServiceImpl(self._j_timer_context.timerService())
         self._key_converter = from_type_info_proto(key_type_info)
 
     def timer_service(self) -> TimerService:
         return self._timer_service
 
     def timestamp(self) -> int:
-        return self._context.timestamp()
+        return self._j_timer_context.timestamp()
 
     def time_domain(self) -> TimeDomain:
-        return TimeDomain(self._context.timeDomain())
+        return TimeDomain(self._j_timer_context.timeDomain())
 
     def get_current_key(self):
-        return self._key_converter.to_internal(self._context.getCurrentKey())
+        return self._key_converter.to_internal(self._j_timer_context.getCurrentKey())
 
 
 class InternalWindowTimerContext(object):
-    def __init__(self, context, key_type_info, window_converter):
-        self._context = context
+    def __init__(self, j_timer_context, key_type_info, window_converter):
+        self._j_timer_context = j_timer_context
         self._key_converter = from_type_info_proto(key_type_info)
         self._window_converter = window_converter
 
     def timestamp(self) -> int:
-        return self._context.timestamp()
+        return self._j_timer_context.timestamp()
 
     def window(self):
-        return self._window_converter.to_internal(self._context.getWindow())
+        return self._window_converter.to_internal(self._j_timer_context.getWindow())
 
     def get_current_key(self):
-        return self._key_converter.to_internal(self._context.getCurrentKey())
+        return self._key_converter.to_internal(self._j_timer_context.getCurrentKey())
 
 
 class InternalBaseBroadcastProcessFunctionContext(BaseBroadcastProcessFunction.Context, ABC):
 
-    def __init__(self, context, operator_state_backend):
-        self._context = context
-        self._operator_state_backend = operator_state_backend
+    def __init__(self, j_context, j_operator_state_backend):
+        self._j_context = j_context
+        self._j_operator_state_backend = j_operator_state_backend
 
     def timestamp(self) -> int:
-        return self._context.timestamp()
+        return self._j_context.timestamp()
 
     def current_processing_time(self) -> int:
-        return self._context.currentProcessingTime()
+        return self._j_context.currentProcessingTime()
 
     def current_watermark(self) -> int:
-        return self._context.currentWatermark()
+        return self._j_context.currentWatermark()
 
 
 class InternalBroadcastProcessFunctionContext(InternalBaseBroadcastProcessFunctionContext,
                                               BroadcastProcessFunction.Context):
 
-    def __init__(self, context, operator_state_backend):
+    def __init__(self, j_context, j_operator_state_backend):
         super(InternalBroadcastProcessFunctionContext, self).__init__(
-            context, operator_state_backend)
+            j_context, j_operator_state_backend)
 
     def get_broadcast_state(self, state_descriptor: MapStateDescriptor) -> BroadcastState:
         return BroadcastStateImpl(
-            self._operator_state_backend.getBroadcastState(
+            self._j_operator_state_backend.getBroadcastState(
                 to_java_state_descriptor(state_descriptor)),
             from_type_info(state_descriptor.type_info))
 
@@ -149,13 +149,13 @@ class InternalBroadcastProcessFunctionContext(InternalBaseBroadcastProcessFuncti
 class InternalBroadcastProcessFunctionReadOnlyContext(InternalBaseBroadcastProcessFunctionContext,
                                                       BroadcastProcessFunction.ReadOnlyContext):
 
-    def __init__(self, context, operator_state_backend):
+    def __init__(self, j_context, j_operator_state_backend):
         super(InternalBroadcastProcessFunctionReadOnlyContext, self).__init__(
-            context, operator_state_backend)
+            j_context, j_operator_state_backend)
 
     def get_broadcast_state(self, state_descriptor: MapStateDescriptor) -> ReadOnlyBroadcastState:
         return ReadOnlyBroadcastStateImpl(
-            self._operator_state_backend.getBroadcastState(
+            self._j_operator_state_backend.getBroadcastState(
                 to_java_state_descriptor(state_descriptor)),
             from_type_info(state_descriptor.type_info))
 
@@ -163,13 +163,13 @@ class InternalBroadcastProcessFunctionReadOnlyContext(InternalBaseBroadcastProce
 class InternalKeyedBroadcastProcessFunctionContext(InternalBaseBroadcastProcessFunctionContext,
                                                    KeyedBroadcastProcessFunction.Context):
 
-    def __init__(self, context, operator_state_backend):
+    def __init__(self, j_context, j_operator_state_backend):
         super(InternalKeyedBroadcastProcessFunctionContext, self).__init__(
-            context, operator_state_backend)
+            j_context, j_operator_state_backend)
 
     def get_broadcast_state(self, state_descriptor: MapStateDescriptor) -> BroadcastState:
         return BroadcastStateImpl(
-            self._operator_state_backend.getBroadcastState(
+            self._j_operator_state_backend.getBroadcastState(
                 to_java_state_descriptor(state_descriptor)),
             from_type_info(state_descriptor.type_info))
 
@@ -179,15 +179,15 @@ class InternalKeyedBroadcastProcessFunctionReadOnlyContext(
     KeyedBroadcastProcessFunction.ReadOnlyContext
 ):
 
-    def __init__(self, context, key_type_info, operator_state_backend):
+    def __init__(self, j_context, key_type_info, j_operator_state_backend):
         super(InternalKeyedBroadcastProcessFunctionReadOnlyContext, self).__init__(
-            context, operator_state_backend)
+            j_context, j_operator_state_backend)
         self._key_converter = from_type_info_proto(key_type_info)
-        self._timer_service = TimerServiceImpl(self._context.timerService())
+        self._timer_service = TimerServiceImpl(self._j_context.timerService())
 
     def get_broadcast_state(self, state_descriptor: MapStateDescriptor) -> ReadOnlyBroadcastState:
         return ReadOnlyBroadcastStateImpl(
-            self._operator_state_backend.getBroadcastState(
+            self._j_operator_state_backend.getBroadcastState(
                 to_java_state_descriptor(state_descriptor)),
             from_type_info(state_descriptor.type_info))
 
@@ -195,7 +195,7 @@ class InternalKeyedBroadcastProcessFunctionReadOnlyContext(
         return self._timer_service
 
     def get_current_key(self):
-        return self._key_converter.to_internal(self._context.getCurrentKey())
+        return self._key_converter.to_internal(self._j_context.getCurrentKey())
 
 
 class InternalKeyedBroadcastProcessFunctionOnTimerContext(
@@ -203,15 +203,15 @@ class InternalKeyedBroadcastProcessFunctionOnTimerContext(
     KeyedBroadcastProcessFunction.OnTimerContext,
 ):
 
-    def __init__(self, context, key_type_info, operator_state_backend):
+    def __init__(self, j_timer_context, key_type_info, j_operator_state_backend):
         super(InternalKeyedBroadcastProcessFunctionOnTimerContext, self).__init__(
-            context, operator_state_backend)
-        self._timer_service = TimerServiceImpl(self._context.timerService())
+            j_timer_context, j_operator_state_backend)
+        self._timer_service = TimerServiceImpl(self._j_context.timerService())
         self._key_converter = from_type_info_proto(key_type_info)
 
     def get_broadcast_state(self, state_descriptor: MapStateDescriptor) -> ReadOnlyBroadcastState:
         return ReadOnlyBroadcastStateImpl(
-            self._operator_state_backend.getBroadcastState(
+            self._j_operator_state_backend.getBroadcastState(
                 to_java_state_descriptor(state_descriptor)),
             from_type_info(state_descriptor.type_info))
 
@@ -225,10 +225,10 @@ class InternalKeyedBroadcastProcessFunctionOnTimerContext(
         return self._timer_service
 
     def timestamp(self) -> int:
-        return self._context.timestamp()
+        return self._j_context.timestamp()
 
     def time_domain(self) -> TimeDomain:
-        return TimeDomain(self._context.timeDomain())
+        return TimeDomain(self._j_context.timeDomain())
 
     def get_current_key(self):
-        return self._key_converter.to_internal(self._context.getCurrentKey())
+        return self._key_converter.to_internal(self._j_context.getCurrentKey())

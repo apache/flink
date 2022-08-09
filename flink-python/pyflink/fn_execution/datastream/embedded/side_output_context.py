@@ -21,16 +21,17 @@ from pyflink.fn_execution.embedded.converters import from_type_info_proto, DataC
 
 
 class SideOutputContext(object):
-    def __init__(self, context):
-        self._context = context
+    def __init__(self, j_side_output_context):
+        self._j_side_output_context = j_side_output_context
         self._side_output_converters = (
             {tag_id: from_type_info_proto(_parse_type_info_proto(payload))
              for tag_id, payload in
-             context.getAllSideOutputTypeInfoPayloads().items()})  # type: Dict[str, DataConverter]
+             j_side_output_context.getAllSideOutputTypeInfoPayloads().items()}
+        )  # type: Dict[str, DataConverter]
 
     def collect(self, tag_id: str, record):
         try:
-            self._context.collectSideOutputById(
+            self._j_side_output_context.collectSideOutputById(
                 tag_id,
                 self._side_output_converters[tag_id].to_external(record))
         except KeyError:

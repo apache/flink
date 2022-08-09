@@ -37,6 +37,7 @@ from pyflink.fn_execution.embedded.state_impl import KeyedStateBackend
 
 
 class OneInputOperation(operations.OneInputOperation):
+
     def __init__(self, open_func, close_func, process_element_func, on_timer_func=None):
         self._open_func = open_func
         self._close_func = close_func
@@ -88,12 +89,10 @@ def extract_process_function(
         user_defined_function_proto, j_runtime_context, j_function_context, j_timer_context,
         j_side_output_context, job_parameters, j_keyed_state_backend, j_operator_state_backend):
     from pyflink.fn_execution import flink_fn_execution_pb2
+    UserDefinedDataStreamFunction = flink_fn_execution_pb2.UserDefinedDataStreamFunction
 
     user_defined_func = pickle.loads(user_defined_function_proto.payload)
-
     func_type = user_defined_function_proto.function_type
-
-    UserDefinedDataStreamFunction = flink_fn_execution_pb2.UserDefinedDataStreamFunction
 
     runtime_context = StreamingRuntimeContext.of(j_runtime_context, job_parameters)
 
@@ -121,7 +120,6 @@ def extract_process_function(
 
     if func_type == UserDefinedDataStreamFunction.PROCESS:
         function_context = InternalProcessFunctionContext(j_function_context)
-
         process_element = user_defined_func.process_element
 
         def process_element_func(value):
@@ -130,29 +128,24 @@ def extract_process_function(
         return OneInputOperation(open_func, close_func, process_element_func)
 
     elif func_type == UserDefinedDataStreamFunction.KEYED_PROCESS:
-
         function_context = InternalKeyedProcessFunctionContext(
             j_function_context, user_defined_function_proto.key_type_info)
-
         timer_context = InternalKeyedProcessFunctionOnTimerContext(
             j_timer_context, user_defined_function_proto.key_type_info)
 
         keyed_state_backend = KeyedStateBackend(
             function_context,
             j_keyed_state_backend)
-
         runtime_context.set_keyed_state_backend(keyed_state_backend)
 
+        process_element = user_defined_func.process_element
         on_timer = user_defined_func.on_timer
 
-        def process_element(value, context):
-            return user_defined_func.process_element(value[1], context)
+        def process_element_func(value):
+            yield from process_func(process_element(value[1], function_context))
 
         def on_timer_func(timestamp):
             yield from process_func(on_timer(timestamp, timer_context))
-
-        def process_element_func(value):
-            yield from process_func(process_element(value, function_context))
 
         return OneInputOperation(open_func, close_func, process_element_func, on_timer_func)
 
@@ -172,15 +165,12 @@ def extract_process_function(
             open_func, close_func, process_element_func1, process_element_func2)
 
     elif func_type == UserDefinedDataStreamFunction.CO_BROADCAST_PROCESS:
-
         broadcast_ctx = InternalBroadcastProcessFunctionContext(
             j_function_context, j_operator_state_backend)
-
         read_only_broadcast_ctx = InternalBroadcastProcessFunctionReadOnlyContext(
             j_function_context, j_operator_state_backend)
 
         process_element = user_defined_func.process_element
-
         process_broadcast_element = user_defined_func.process_broadcast_element
 
         def process_element_func1(value):
@@ -197,35 +187,28 @@ def extract_process_function(
             open_func, close_func, process_element_func1, process_element_func2)
 
     elif func_type == UserDefinedDataStreamFunction.KEYED_CO_PROCESS:
-
         function_context = InternalKeyedProcessFunctionContext(
             j_function_context, user_defined_function_proto.key_type_info)
-
         timer_context = InternalKeyedProcessFunctionOnTimerContext(
             j_timer_context, user_defined_function_proto.key_type_info)
 
         keyed_state_backend = KeyedStateBackend(
             function_context,
             j_keyed_state_backend)
-
         runtime_context.set_keyed_state_backend(keyed_state_backend)
 
+        process_element1 = user_defined_func.process_element1
+        process_element2 = user_defined_func.process_element2
         on_timer = user_defined_func.on_timer
 
-        def process_element1(value, context):
-            return user_defined_func.process_element1(value[1], context)
+        def process_element_func1(value):
+            yield from process_func(process_element1(value[1], function_context))
 
-        def process_element2(value, context):
-            return user_defined_func.process_element2(value[1], context)
+        def process_element_func2(value):
+            yield from process_func(process_element2(value[1], function_context))
 
         def on_timer_func(timestamp):
             yield from process_func(on_timer(timestamp, timer_context))
-
-        def process_element_func1(value):
-            yield from process_func(process_element1(value, function_context))
-
-        def process_element_func2(value):
-            yield from process_func(process_element2(value, function_context))
 
         return TwoInputOperation(
             open_func, close_func, process_element_func1, process_element_func2, on_timer_func)
@@ -233,17 +216,13 @@ def extract_process_function(
     elif func_type == UserDefinedDataStreamFunction.KEYED_CO_BROADCAST_PROCESS:
         broadcast_ctx = InternalKeyedBroadcastProcessFunctionContext(
             j_function_context, j_operator_state_backend)
-
         read_only_broadcast_ctx = InternalKeyedBroadcastProcessFunctionReadOnlyContext(
             j_function_context, user_defined_function_proto.key_type_info, j_operator_state_backend)
-
         timer_context = InternalKeyedBroadcastProcessFunctionOnTimerContext(
             j_timer_context, user_defined_function_proto.key_type_info, j_operator_state_backend)
 
         process_element = user_defined_func.process_element
-
         process_broadcast_element = user_defined_func.process_broadcast_element
-
         on_timer = user_defined_func.on_timer
 
         def process_element_func1(value):
@@ -291,8 +270,8 @@ def extract_process_function(
             j_timer_context.timerService(), window_converter)
 
         function_context = InternalKeyedProcessFunctionContext(
-            j_function_context, user_defined_function_proto.key_type_info)
-
+            j_function_context,
+            user_defined_function_proto.key_type_info)
         window_timer_context = InternalWindowTimerContext(
             j_timer_context,
             user_defined_function_proto.key_type_info,
@@ -303,7 +282,6 @@ def extract_process_function(
             j_keyed_state_backend,
             j_function_context.getWindowSerializer(),
             window_converter)
-
         runtime_context.set_keyed_state_backend(keyed_state_backend)
 
         window_operator = WindowOperator(
