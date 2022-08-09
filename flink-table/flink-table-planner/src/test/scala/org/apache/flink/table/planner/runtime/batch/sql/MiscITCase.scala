@@ -545,18 +545,6 @@ class MiscITCase extends BatchTestBase {
 
     checkResult(
       "SELECT f, g, v FROM testTable," +
-        "LATERAL TABLE(GENERATE_SERIES(0, CAST(b AS INTEGER))) AS T(v)",
-      Seq(
-        row("abcd", "f%g", 0),
-        row(null, "hij_k", 0),
-        row(null, "hij_k", 1),
-        row("e fg", null, 0),
-        row("e fg", null, 1),
-        row("e fg", null, 2))
-    )
-
-    checkResult(
-      "SELECT f, g, v FROM testTable," +
         "LATERAL TABLE(JSON_TUPLE('{\"a1\": \"b1\", \"a2\": \"b2\", \"e fg\": \"b3\"}'," +
         "'a1', f)) AS T(v)",
       Seq(

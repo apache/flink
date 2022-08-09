@@ -17,6 +17,8 @@
  */
 package org.apache.flink.table.planner.runtime.batch.sql
 
+import org.apache.flink.api.common.typeinfo.BasicTypeInfo.{INT_TYPE_INFO, STRING_TYPE_INFO}
+import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.api.scala._
 import org.apache.flink.api.scala.typeutils.Types
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase
@@ -273,6 +275,89 @@ class CorrelateITCase2 extends BatchTestBase {
         row("nosharp", "nosharp", "haha"),
         row("Anna#44", "Anna#44", "haha")
       )
+    )
+  }
+
+  @Test
+  def testGenerateSeries(): Unit = {
+    registerCollection("t1", nullData4, type4, "a,b,c")
+
+    checkResult("SELECT a, b, c, v FROM t1, LATERAL TABLE(GENERATE_SERIES(1, 0)) AS T(v)", Seq())
+
+    checkResult(
+      "SELECT a, b, c, v FROM t1, LATERAL TABLE(GENERATE_SERIES(0, 0)) AS T(v)",
+      Seq(
+        row("book", 1, 12, 0),
+        row("book", 2, null, 0),
+        row("book", 4, 11, 0),
+        row("fruit", 3, 44, 0),
+        row("fruit", 4, null, 0),
+        row("fruit", 5, null, 0))
+    )
+
+    checkResult(
+      "SELECT a, b, c, v FROM t1, LATERAL TABLE(GENERATE_SERIES(0, 1)) AS T(v)",
+      Seq(
+        row("book", 1, 12, 0),
+        row("book", 1, 12, 1),
+        row("book", 2, null, 0),
+        row("book", 2, null, 1),
+        row("book", 4, 11, 0),
+        row("book", 4, 11, 1),
+        row("fruit", 3, 44, 0),
+        row("fruit", 3, 44, 1),
+        row("fruit", 4, null, 0),
+        row("fruit", 4, null, 1),
+        row("fruit", 5, null, 0),
+        row("fruit", 5, null, 1)
+      )
+    )
+
+    checkResult(
+      "SELECT a, b, c, v FROM t1 t1 join " +
+        "LATERAL TABLE(GENERATE_SERIES(1614325532, 1614325539)) AS T(v) ON TRUE " +
+        "where c is not null and substring(cast(v as varchar), 10, 1) = cast(b as varchar)",
+      Seq(row("book", 4, 11, 1614325534L), row("fruit", 3, 44, 1614325533L))
+    )
+  }
+
+  @Test
+  def testGenerateSeriesWithDifferentArgsType(): Unit = {
+    registerCollection("t1", Seq(row("book")), new RowTypeInfo(STRING_TYPE_INFO), "a")
+
+    checkResult(
+      "SELECT a, v FROM t1, LATERAL TABLE(" +
+        "GENERATE_SERIES(cast(2 AS SMALLINT), cast(4 AS BIGINT), cast(0.5 AS FLOAT))) AS T(v)",
+      Seq(
+        row("book", 2.0),
+        row("book", 2.5),
+        row("book", 3.0),
+        row("book", 3.5),
+        row("book", 4.0)
+      )
+    )
+
+    checkResult(
+      "SELECT a, v FROM t1, LATERAL TABLE(" +
+        "GENERATE_SERIES(cast(4 AS SMALLINT), cast(2 AS BIGINT), cast(-0.5 AS FLOAT))) AS T(v)",
+      Seq(
+        row("book", 4.0),
+        row("book", 3.5),
+        row("book", 2.5),
+        row("book", 3.0),
+        row("book", 2.0)
+      )
+    )
+  }
+
+  // The orginal exception is wrapped.
+  @Test(expected = classOf[RuntimeException])
+  def testTableGenerateFunctionLeftJoin(): Unit = {
+    registerCollection("t1", Seq(row("book")), new RowTypeInfo(STRING_TYPE_INFO), "a")
+
+    checkResult(
+      "SELECT a, v FROM t1, LATERAL TABLE(GENERATE_SERIES(2, 4, 0)) AS T(v)",
+      Seq()
     )
   }
 }

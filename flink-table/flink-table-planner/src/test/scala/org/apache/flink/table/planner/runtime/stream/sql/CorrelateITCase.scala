@@ -36,6 +36,14 @@ import scala.collection.mutable
 
 class CorrelateITCase extends StreamingTestBase {
 
+  val nullableData = List(
+    ("book", 1, 12),
+    ("book", 2, null),
+    ("book", 4, 11),
+    ("fruit", 4, null),
+    ("fruit", 3, 44),
+    ("fruit", 5, null))
+
   @Before
   override def before(): Unit = {
     super.before()
@@ -387,6 +395,61 @@ class CorrelateITCase extends StreamingTestBase {
 
     val expected = List("2,null", "3,null")
     assertEquals(expected.sorted, sink.getAppendResults.sorted)
+  }
+
+  @Test
+  def testGenerateSeries(): Unit = {
+    val t1 = env.fromCollection(nullableData).toTable(tEnv, 'a, 'b, 'c)
+    tEnv.registerTable("t1", t1)
+
+    val sql = "SELECT a, b, c, v FROM t1, LATERAL TABLE(GENERATE_SERIES(0, 0)) AS T(v)"
+
+    val result = tEnv.sqlQuery(sql)
+    val sink = TestSinkUtil.configureSink(result, new TestingAppendTableSink)
+    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal("MySink", sink)
+    result.executeInsert("MySink").await()
+
+    val expected = List(
+      "book,1,12,0",
+      "book,2,null,0",
+      "book,4,11,0",
+      "fruit,3,44,0",
+      "fruit,4,null,0",
+      "fruit,5,null,0")
+    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+  }
+
+  @Test
+  def testGenerateSeriesWithFilter(): Unit = {
+    val t1 = env.fromCollection(nullableData).toTable(tEnv, 'a, 'b, 'c)
+    tEnv.registerTable("t1", t1)
+
+    val sql = "SELECT a, b, c, v FROM t1 t1 join " +
+      "LATERAL TABLE(GENERATE_SERIES(1614325532, 1614325539)) AS T(v) ON TRUE where c is not null" +
+      " and substring(cast(v as varchar), 10, 1) = cast(b as varchar)"
+
+    val result = tEnv.sqlQuery(sql)
+    val sink = TestSinkUtil.configureSink(result, new TestingAppendTableSink)
+    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal("MySink", sink)
+    result.executeInsert("MySink").await()
+
+    val expected = List("book,4,11,1614325534", "fruit,3,44,1614325533")
+    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+  }
+
+  @Test
+  def testGenerateSeriesWithEmptyOutput(): Unit = {
+    val t1 = env.fromCollection(nullableData).toTable(tEnv, 'a, 'b, 'c)
+    tEnv.registerTable("t1", t1)
+
+    val sql = "SELECT a, b, c, v FROM t1, LATERAL TABLE(GENERATE_SERIES(1, 0)) AS T(v)"
+
+    val result = tEnv.sqlQuery(sql)
+    val sink = TestSinkUtil.configureSink(result, new TestingAppendTableSink)
+    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal("MySink", sink)
+    result.executeInsert("MySink").await()
+
+    assertEquals(List.empty, sink.getAppendResults.sorted)
   }
 
   // TODO support agg

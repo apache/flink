@@ -185,6 +185,30 @@ public final class BuiltInFunctionDefinitions {
                     .internal()
                     .build();
 
+    public static final BuiltInFunctionDefinition GENERATE_SERIES =
+            BuiltInFunctionDefinition.newBuilder()
+                    .name("GENERATE_SERIES")
+                    .kind(TABLE)
+                    .inputTypeStrategy(
+                            or(
+                                    sequence(
+                                            new String[] {"start", "stop"},
+                                            new ArgumentTypeStrategy[] {
+                                                logical(LogicalTypeFamily.NUMERIC),
+                                                logical(LogicalTypeFamily.NUMERIC)
+                                            }),
+                                    sequence(
+                                            new String[] {"start", "stop", "step"},
+                                            new ArgumentTypeStrategy[] {
+                                                logical(LogicalTypeFamily.NUMERIC),
+                                                logical(LogicalTypeFamily.NUMERIC),
+                                                logical(LogicalTypeFamily.NUMERIC)
+                                            })))
+                    .outputTypeStrategy(COMMON)
+                    .runtimeClass(
+                            "org.apache.flink.table.runtime.functions.table.GenerateSeriesFunction")
+                    .build();
+
     // --------------------------------------------------------------------------------------------
     // Logic functions
     // --------------------------------------------------------------------------------------------
