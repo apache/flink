@@ -84,7 +84,6 @@ public class HiveSourceDynamicFileEnumerator implements DynamicFileEnumerator {
     // For non-partition hive table, partitions only contains one partition which partitionValues is
     // empty.
     private final List<HiveTablePartition> allPartitions;
-    private final int threadNum;
     private final JobConf jobConf;
     private final String defaultPartitionName;
     private final HiveShim hiveShim;
@@ -94,13 +93,11 @@ public class HiveSourceDynamicFileEnumerator implements DynamicFileEnumerator {
             String table,
             List<String> dynamicFilterPartitionKeys,
             List<HiveTablePartition> allPartitions,
-            int threadNum,
             String hiveVersion,
             JobConf jobConf) {
         this.table = checkNotNull(table);
         this.dynamicFilterPartitionKeys = checkNotNull(dynamicFilterPartitionKeys);
         this.allPartitions = checkNotNull(allPartitions);
-        this.threadNum = threadNum;
         this.jobConf = checkNotNull(jobConf);
         this.defaultPartitionName = JobConfUtils.getDefaultPartitionName(jobConf);
         this.hiveShim = HiveShimLoader.loadHiveShim(hiveVersion);
@@ -172,7 +169,7 @@ public class HiveSourceDynamicFileEnumerator implements DynamicFileEnumerator {
             throws IOException {
         return new ArrayList<>(
                 HiveSourceFileEnumerator.createInputSplits(
-                        minDesiredSplits, finalPartitions, threadNum, jobConf));
+                        minDesiredSplits, finalPartitions, jobConf, false));
     }
 
     @VisibleForTesting
@@ -188,7 +185,6 @@ public class HiveSourceDynamicFileEnumerator implements DynamicFileEnumerator {
         private final String table;
         private final List<String> dynamicFilterPartitionKeys;
         private final List<HiveTablePartition> partitions;
-        private final int threadNum;
         private final String hiveVersion;
         private final JobConfWrapper jobConfWrapper;
 
@@ -196,13 +192,11 @@ public class HiveSourceDynamicFileEnumerator implements DynamicFileEnumerator {
                 String table,
                 List<String> dynamicFilterPartitionKeys,
                 List<HiveTablePartition> partitions,
-                int threadNum,
                 String hiveVersion,
                 JobConfWrapper jobConfWrapper) {
             this.table = checkNotNull(table);
             this.dynamicFilterPartitionKeys = checkNotNull(dynamicFilterPartitionKeys);
             this.partitions = checkNotNull(partitions);
-            this.threadNum = threadNum;
             this.hiveVersion = checkNotNull(hiveVersion);
             this.jobConfWrapper = checkNotNull(jobConfWrapper);
         }
@@ -213,7 +207,6 @@ public class HiveSourceDynamicFileEnumerator implements DynamicFileEnumerator {
                     table,
                     dynamicFilterPartitionKeys,
                     partitions,
-                    threadNum,
                     hiveVersion,
                     jobConfWrapper.conf());
         }

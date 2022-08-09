@@ -26,6 +26,7 @@ import org.apache.flink.util.Preconditions;
 
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.hadoop.hive.metastore.api.StorageDescriptor;
 import org.apache.hadoop.mapred.FileSplit;
 import org.apache.hadoop.mapred.InputSplit;
@@ -100,12 +101,13 @@ public class HiveSourceFileEnumerator implements FileEnumerator {
         return hiveSplits;
     }
 
-    private static boolean isSetSplitMaxSizeSupport(List<HiveTablePartition> partitions) {
-        // now, only orc format supports set max size for split
+    private static boolean supportSetSplitMaxSize(List<HiveTablePartition> partitions) {
+        // now, the configuration 'HiveConf.ConfVars.MAPREDMAXSPLITSIZE' we set only
+        // works for orc format
         for (HiveTablePartition partition : partitions) {
             String serializationLib =
                     partition.getStorageDescriptor().getSerdeInfo().getSerializationLib();
-            if (!serializationLib.equalsIgnoreCase("orc")) {
+            if (!"orc".equalsIgnoreCase(serializationLib)) {
                 return false;
             }
         }
@@ -115,7 +117,7 @@ public class HiveSourceFileEnumerator implements FileEnumerator {
     private static void setSplitMaxSize(
             List<HiveTablePartition> partitions, JobConf jobConf, int minNumSplits)
             throws IOException {
-        if (!isSetSplitMaxSizeSupport(partitions)) {
+        if (!supportSetSplitMaxSize(partitions)) {
             return;
         }
         // if minNumSplits <= 0, we set it to 1 manually
@@ -126,7 +128,7 @@ public class HiveSourceFileEnumerator implements FileEnumerator {
         long maxSplitBytes =
                 calculateMaxSplitBytes(
                         totalByteWithOpenCost, minNumSplits, defaultMaxSplitBytes, openCost);
-        jobConf.set("mapreduce.input.fileinputformat.split.maxsize", String.valueOf(maxSplitBytes));
+        jobConf.set(HiveConf.ConfVars.MAPREDMAXSPLITSIZE.varname, String.valueOf(maxSplitBytes));
     }
 
     private static long calculateMaxSplitBytes(
@@ -175,16 +177,21 @@ public class HiveSourceFileEnumerator implements FileEnumerator {
     }
 
     private static long getSplitMaxSize(JobConf jobConf) {
-        return Long.parseLong(jobConf.get(HiveOptions.TABLE_EXEC_HIVE_SPLIT_MAX_BYTES.key()));
+        return jobConf.getLong(
+                HiveOptions.TABLE_EXEC_HIVE_SPLIT_MAX_BYTES.key(),
+                HiveOptions.TABLE_EXEC_HIVE_SPLIT_MAX_BYTES.defaultValue().getBytes());
     }
 
     private static long getFileOpenCost(JobConf jobConf) {
-        return Long.parseLong(jobConf.get(HiveOptions.TABLE_EXEC_HIVE_FILE_OPEN_COST.key()));
+        return jobConf.getLong(
+                HiveOptions.TABLE_EXEC_HIVE_FILE_OPEN_COST.key(),
+                HiveOptions.TABLE_EXEC_HIVE_FILE_OPEN_COST.defaultValue().getBytes());
     }
 
     private static int getThreadNumToSplitHiveFile(JobConf jobConf) {
-        return Integer.parseInt(
-                jobConf.get(HiveOptions.TABLE_EXEC_HIVE_LOAD_PARTITION_SPLITS_THREAD_NUM.key()));
+        return jobConf.getInt(
+                HiveOptions.TABLE_EXEC_HIVE_LOAD_PARTITION_SPLITS_THREAD_NUM.key(),
+                HiveOptions.TABLE_EXEC_HIVE_LOAD_PARTITION_SPLITS_THREAD_NUM.defaultValue());
     }
 
     /** A factory to create {@link HiveSourceFileEnumerator}. */

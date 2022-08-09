@@ -183,6 +183,8 @@ Flink 允许你灵活的配置并发推断策略。你可以在 `TableConfig` �
   </tbody>
 </table>
 
+**注意：** 目前上述参数仅适用于 ORC 格式的 Hive 表。
+
 ### 加载分区切片
 
 Flink 使用多个线程并发将 Hive 分区切分成多个 split 进行读取。你可以使用 `table.exec.hive.load-partition-splits.thread-num` 去配置线程数。默认值是3，你配置的值应该大于0。

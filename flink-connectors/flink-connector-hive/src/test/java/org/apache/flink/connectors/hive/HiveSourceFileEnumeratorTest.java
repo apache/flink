@@ -46,24 +46,12 @@ public class HiveSourceFileEnumeratorTest {
     @Test
     public void testCreateInputSplits() throws Exception {
         int numSplits = 1000;
-        // set configuration related to create input splits
+        // create a jobConf with default configuration
         JobConf jobConf = new JobConf();
-        jobConf.set(
-                HiveOptions.TABLE_EXEC_HIVE_SPLIT_MAX_BYTES.key(),
-                String.valueOf(
-                        HiveOptions.TABLE_EXEC_HIVE_SPLIT_MAX_BYTES.defaultValue().getBytes()));
-        jobConf.set(
-                HiveOptions.TABLE_EXEC_HIVE_FILE_OPEN_COST.key(),
-                String.valueOf(
-                        HiveOptions.TABLE_EXEC_HIVE_SPLIT_MAX_BYTES.defaultValue().getBytes()));
-        jobConf.set(HiveOptions.TABLE_EXEC_HIVE_LOAD_PARTITION_SPLITS_THREAD_NUM.key(), "1");
-        // set to the strategy to 'etl` manually to make we can test configuration for splits
-        // with these small files
-
         File wareHouse = temporaryFolder.newFolder("testCreateInputSplits");
         // init the files for the partition
         StorageDescriptor sd = new StorageDescriptor();
-        // set parquet format
+        // set orc format
         SerDeInfo serdeInfo = new SerDeInfo();
         serdeInfo.setSerializationLib("orc");
         sd.setSerdeInfo(serdeInfo);
@@ -82,7 +70,8 @@ public class HiveSourceFileEnumeratorTest {
         // the single file is a single split
         assertThat(hiveSourceSplits.size()).isEqualTo(1);
 
-        // change split max size and verify it works
+        // set split max size and verify it works
+        jobConf = new JobConf();
         jobConf.set(HiveOptions.TABLE_EXEC_HIVE_SPLIT_MAX_BYTES.key(), "10");
         // the splits should be more than the number of files
         hiveSourceSplits =
@@ -94,12 +83,8 @@ public class HiveSourceFileEnumeratorTest {
         // the single file should be enumerated into two splits
         assertThat(hiveSourceSplits.size()).isEqualTo(2);
 
-        // revert the change of split max size
-        jobConf.set(
-                HiveOptions.TABLE_EXEC_HIVE_SPLIT_MAX_BYTES.key(),
-                String.valueOf(
-                        HiveOptions.TABLE_EXEC_HIVE_SPLIT_MAX_BYTES.defaultValue().getBytes()));
-        // change open cost and verify it works
+        jobConf = new JobConf();
+        // set open cost and verify it works
         jobConf.set(HiveOptions.TABLE_EXEC_HIVE_FILE_OPEN_COST.key(), "1");
         hiveSourceSplits =
                 HiveSourceFileEnumerator.createInputSplits(

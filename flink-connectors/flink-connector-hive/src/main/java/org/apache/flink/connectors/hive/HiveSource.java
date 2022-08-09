@@ -182,7 +182,6 @@ public class HiveSource<T> extends AbstractFileSource<T, HiveSourceSplit> {
                         tablePath.getFullName(),
                         dynamicFilterPartitionKeys,
                         partitions,
-                        threadNum,
                         hiveVersion,
                         jobConfWrapper),
                 getAssignerFactory());

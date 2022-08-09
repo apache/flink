@@ -199,6 +199,8 @@ Users can do some performance tuning by tuning the split's size with the follow 
   </tbody>
 </table>
 
+**NOTE**: Currently, these two configurations only works for the Hive table stored as ORC format.
+
 ### Load Partition Splits
 
 Multi-thread is used to split hive's partitions. You can use `table.exec.hive.load-partition-splits.thread-num` to configure the thread number. The default value is 3 and the configured value should be bigger than 0.

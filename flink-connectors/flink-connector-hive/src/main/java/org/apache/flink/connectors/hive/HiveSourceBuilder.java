@@ -35,7 +35,6 @@ import org.apache.flink.connectors.hive.util.HivePartitionUtils;
 import org.apache.flink.connectors.hive.util.JobConfUtils;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.table.api.TableSchema;
-import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.ObjectPath;
 import org.apache.flink.table.catalog.hive.HiveCatalog;
@@ -297,11 +296,6 @@ public class HiveSourceBuilder {
     }
 
     private void setFlinkConfigurationToJobConf() {
-        jobConf.set(
-                ExecutionConfigOptions.TABLE_EXEC_RESOURCE_DEFAULT_PARALLELISM.key(),
-                flinkConf
-                        .get(ExecutionConfigOptions.TABLE_EXEC_RESOURCE_DEFAULT_PARALLELISM)
-                        .toString());
         jobConf.set(
                 HiveOptions.TABLE_EXEC_HIVE_LOAD_PARTITION_SPLITS_THREAD_NUM.key(),
                 flinkConf
