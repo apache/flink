@@ -35,6 +35,7 @@ import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionManager;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.io.network.partition.ResultSubpartitionView;
+import org.apache.flink.runtime.metrics.groups.TaskIOMetricGroup;
 import org.apache.flink.util.function.SupplierWithException;
 
 import javax.annotation.Nullable;
@@ -128,7 +129,15 @@ public class HsResultPartition extends ResultPartition {
     }
 
     @Override
+    public void setMetricGroup(TaskIOMetricGroup metrics) {
+        super.setMetricGroup(metrics);
+        checkNotNull(memoryDataManager)
+                .setOutputMetrics(new HsOutputMetrics(numBytesOut, numBuffersOut));
+    }
+
+    @Override
     public void emitRecord(ByteBuffer record, int targetSubpartition) throws IOException {
+        numBytesProduced.inc(record.remaining());
         emit(record, targetSubpartition, Buffer.DataType.DATA_BUFFER);
     }
 
@@ -149,6 +158,7 @@ public class HsResultPartition extends ResultPartition {
     }
 
     private void broadcast(ByteBuffer record, Buffer.DataType dataType) throws IOException {
+        numBytesProduced.inc(record.remaining());
         for (int i = 0; i < numSubpartitions; i++) {
             emit(record.duplicate(), i, dataType);
         }

@@ -21,6 +21,8 @@ package org.apache.flink.runtime.io.network.partition.hybrid;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.core.memory.MemorySegmentFactory;
+import org.apache.flink.runtime.io.network.api.EndOfPartitionEvent;
+import org.apache.flink.runtime.io.network.api.serialization.EventSerializer;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.Buffer.DataType;
 import org.apache.flink.runtime.io.network.buffer.BufferBuilder;
@@ -44,6 +46,7 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.runtime.io.network.partition.hybrid.HybridShuffleTestUtils.createBufferBuilder;
+import static org.apache.flink.runtime.io.network.partition.hybrid.HybridShuffleTestUtils.createTestingOutputMetrics;
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -354,6 +357,29 @@ class HsSubpartitionMemoryDataManagerTest {
         checkMemorySegmentValue(recycledBuffers, Arrays.asList(0, 1, 2));
     }
 
+    @Test
+    void testMetricsUpdate() throws Exception {
+        final int recordSize = bufferSize / 2;
+        TestingMemoryDataManagerOperation memoryDataManagerOperation =
+                TestingMemoryDataManagerOperation.builder()
+                        .setRequestBufferFromPoolSupplier(() -> createBufferBuilder(bufferSize))
+                        .build();
+
+        HsOutputMetrics metrics = createTestingOutputMetrics();
+        HsSubpartitionMemoryDataManager subpartitionMemoryDataManager =
+                createSubpartitionMemoryDataManager(memoryDataManagerOperation);
+        subpartitionMemoryDataManager.setOutputMetrics(metrics);
+
+        subpartitionMemoryDataManager.append(ByteBuffer.allocate(recordSize), DataType.DATA_BUFFER);
+        ByteBuffer eventBuffer = EventSerializer.toSerializedEvent(EndOfPartitionEvent.INSTANCE);
+        final int eventSize = eventBuffer.remaining();
+        subpartitionMemoryDataManager.append(
+                EventSerializer.toSerializedEvent(EndOfPartitionEvent.INSTANCE),
+                DataType.EVENT_BUFFER);
+        assertThat(metrics.getNumBuffersOut().getCount()).isEqualTo(2);
+        assertThat(metrics.getNumBytesOut().getCount()).isEqualTo(recordSize + eventSize);
+    }
+
     private static void checkBufferIndex(
             Deque<BufferIndexAndChannel> bufferWithIdentities, List<Integer> expectedIndexes) {
         List<Integer> bufferIndexes =
@@ -413,8 +439,11 @@ class HsSubpartitionMemoryDataManagerTest {
 
     private HsSubpartitionMemoryDataManager createSubpartitionMemoryDataManager(
             HsMemoryDataManagerOperation memoryDataManagerOperation) {
-        return new HsSubpartitionMemoryDataManager(
-                SUBPARTITION_ID, bufferSize, lock.readLock(), memoryDataManagerOperation);
+        HsSubpartitionMemoryDataManager subpartitionMemoryDataManager =
+                new HsSubpartitionMemoryDataManager(
+                        SUBPARTITION_ID, bufferSize, lock.readLock(), memoryDataManagerOperation);
+        subpartitionMemoryDataManager.setOutputMetrics(createTestingOutputMetrics());
+        return subpartitionMemoryDataManager;
     }
 
     private static ByteBuffer createRecord(int value) {

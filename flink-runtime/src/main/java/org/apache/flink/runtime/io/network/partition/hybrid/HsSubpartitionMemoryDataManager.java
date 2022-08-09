@@ -33,6 +33,7 @@ import org.apache.flink.runtime.io.network.partition.hybrid.HsSpillingInfoProvid
 import org.apache.flink.util.function.SupplierWithException;
 import org.apache.flink.util.function.ThrowingRunnable;
 
+import javax.annotation.Nullable;
 import javax.annotation.concurrent.GuardedBy;
 
 import java.nio.ByteBuffer;
@@ -82,6 +83,8 @@ public class HsSubpartitionMemoryDataManager implements HsDataView {
 
     /** DO NOT USE DIRECTLY. Use {@link #runWithLock} or {@link #callWithLock} instead. */
     private final Object subpartitionLock = new Object();
+
+    @Nullable private HsOutputMetrics outputMetrics;
 
     HsSubpartitionMemoryDataManager(
             int targetChannel,
@@ -266,6 +269,10 @@ public class HsSubpartitionMemoryDataManager implements HsDataView {
                                 }));
     }
 
+    public void setOutputMetrics(HsOutputMetrics outputMetrics) {
+        this.outputMetrics = checkNotNull(outputMetrics);
+    }
+
     // ------------------------------------------------------------------------
     //  Internal Methods
     // ------------------------------------------------------------------------
@@ -368,6 +375,7 @@ public class HsSubpartitionMemoryDataManager implements HsDataView {
                                     bufferContext.getBufferIndexAndChannel().getBufferIndex(),
                                     bufferContext);
                             trimHeadingReleasedBuffers(unConsumedBuffers);
+                            updateStatistics(bufferContext.getBuffer());
                             return unConsumedBuffers.size() <= 1;
                         });
         if (needNotify) {
@@ -470,6 +478,11 @@ public class HsSubpartitionMemoryDataManager implements HsDataView {
                 break;
         }
         return match;
+    }
+
+    private void updateStatistics(Buffer buffer) {
+        checkNotNull(outputMetrics).getNumBuffersOut().inc();
+        checkNotNull(outputMetrics).getNumBytesOut().inc(buffer.readableBytes());
     }
 
     private <E extends Exception> void runWithLock(ThrowingRunnable<E> runnable) throws E {

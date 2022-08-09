@@ -150,6 +150,12 @@ public class HsMemoryDataManager implements HsSpillingInfoProvider, HsMemoryData
         spiller.release();
     }
 
+    public void setOutputMetrics(HsOutputMetrics metrics) {
+        for (int i = 0; i < numSubpartitions; i++) {
+            getSubpartitionMemoryDataManager(i).setOutputMetrics(metrics);
+        }
+    }
+
     // ------------------------------------
     //        For Spilling Strategy
     // ------------------------------------

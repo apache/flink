@@ -38,6 +38,7 @@ import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import static org.apache.flink.runtime.io.network.partition.hybrid.HybridShuffleTestUtils.createTestingOutputMetrics;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -114,6 +115,7 @@ class HsSubpartitionViewTest {
                         new HsFileDataIndexImpl(1),
                         dataFilePath.resolve(".data"),
                         null);
+        memoryDataManager.setOutputMetrics(createTestingOutputMetrics());
         HsDataView hsDataView = memoryDataManager.registerSubpartitionView(0, subpartitionView);
         subpartitionView.setMemoryDataView(hsDataView);
         subpartitionView.setDiskDataView(TestingHsDataView.NO_OP);
