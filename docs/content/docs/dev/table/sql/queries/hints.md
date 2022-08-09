@@ -86,7 +86,162 @@ insert into kafka_table1 /*+ OPTIONS('sink.partitioner'='round-robin') */ select
 
 ## Query Hints
 
+`Query hints` can be used to suggest the optimizer to affect query execution plan within a specified query scope.
+Their effective scope is current `Query block`([What are query blocks ?](#what-are-query-blocks-)) which `Query Hints` are specified.
+Now, Flink `Query Hints` only support `Join Hints`.
+
+### Syntax
+The `Query Hints` syntax in Flink follows the syntax of `Query Hints` in Apache Calcite:
+```sql
+# Query Hints:
+SELECT /*+ hint [, hint ] */ ...
+
+hint:
+        hintName
+    |   hintName '(' optionKey '=' optionVal [, optionKey '=' optionVal ]* ')'
+    |   hintName '(' hintOption [, hintOption ]* ')'
+
+optionKey:
+        simpleIdentifier
+    |   stringLiteral
+
+optionVal:
+        stringLiteral
+
+hintOption:
+        simpleIdentifier
+    |   numericLiteral
+    |   stringLiteral
+```
+
 ### Join Hints
+
+`Join Hints` allow users to suggest the join strategy to optimizer in order to get a more high-performance execution plan.
+Now Flink `Join Hints` support `BROADCAST`, `SHUFFLE_HASH`, `SHUFFLE_MERGE` and `NEST_LOOP`.
+
+{{< hint info >}}
+Note:
+- The table specified in Join Hints must exist. Otherwise, a table not exists error will be thrown.
+- Flink Join Hints only support one hint block in a query block, if multiple hint blocks are specified like `/*+ BROADCAST(t1) */ /*+ SHUFFLE_HASH(t1) */`, an exception will be thrown when parse this query statement.
+- In one hint block, specifying multiple tables in a single Join Hint like `/*+ BROADCAST(t1, t2, ..., tn) */` or specifying multiple Join Hints like `/*+ BROADCAST(t1), BROADCAST(t2), ..., BROADCAST(tn) */` are both supported.
+- For multiple tables in a single Join Hints or multiple Join Hints in a hint block, Flink Join Hints may conflict. If the conflicts occur, Flink will choose the most matching table or join strategy. (See: [Conflict Cases In Join Hints](#conflict-cases-in-join-hints))
+  {{< /hint >}}
+
+#### BROADCAST
+
+{{< label Batch >}}
+
+`BROADCAST` suggests that Flink uses `BroadCast join`. The join side with the hint will be broadcast
+regardless of `table.optimizer.join.broadcast-threshold`, so it performs well when the data volume of the hint side of table
+is very small.
+
+{{< hint info >}}
+Note: BROADCAST only supports join with equivalence join condition, and it doesn't support Full Outer Join.
+{{< /hint >}}
+
+##### Examples
+
+```sql
+CREATE TABLE t1 (id BIGINT, name STRING, age INT) WITH (...);
+CREATE TABLE t2 (id BIGINT, name STRING, age INT) WITH (...);
+CREATE TABLE t3 (id BIGINT, name STRING, age INT) WITH (...);
+
+-- Flink will use broadcast join and t1 will be the broadcast table.
+SELECT /*+ BROADCAST(t1) */ * FROM t1 JOIN t2 ON t1.id = t2.id;
+
+-- Flink will use broadcast join for both joins and t1, t3 will be the broadcast table.
+SELECT /*+ BROADCAST(t1, t3) */ * FROM t1 JOIN t2 ON t1.id = t2.id JOIN t3 ON t1.id = t3.id;
+
+-- BROADCAST don't support non-equivalent join conditions.
+-- Join Hint will not work, and only nested loop join can be applied.
+SELECT /*+ BROADCAST(t1) */ * FROM t1 join t2 ON t1.id > t2.id;
+
+-- BROADCAST don't support full outer join.
+-- Join Hint will not work in this case, and the planner will choose the appropriate join strategy based on cost.
+SELECT /*+ BROADCAST(t1) */ * FROM t1 FULL OUTER JOIN t2 ON t1.id = t2.id;
+```
+
+#### SHUFFLE_HASH
+
+{{< label Batch >}}
+
+`SHUFFLE_HASH` suggests that Flink uses `Shuffle Hash join`. The join side with the hint will be the join build side, it performs well when
+the data volume of the hint side of table is not too large.
+
+{{< hint info >}}
+Note: SHUFFLE_HASH only supports join with equivalence join condition.
+{{< /hint >}}
+
+##### Examples
+
+```sql
+CREATE TABLE t1 (id BIGINT, name STRING, age INT) WITH (...);
+CREATE TABLE t2 (id BIGINT, name STRING, age INT) WITH (...);
+CREATE TABLE t3 (id BIGINT, name STRING, age INT) WITH (...);
+
+-- Flink will use hash join and t1 will be the build side.
+SELECT /*+ SHUFFLE_HASH(t1) */ * FROM t1 JOIN t2 ON t1.id = t2.id;
+
+-- Flink will use hash join for both joins and t1, t3 will be the join build side.
+SELECT /*+ SHUFFLE_HASH(t1, t3) */ * FROM t1 JOIN t2 ON t1.id = t2.id JOIN t3 ON t1.id = t3.id;
+
+-- SHUFFLE_HASH don't support non-equivalent join conditions.
+-- For this case, Join Hint will not work, and only nested loop join can be applied.
+SELECT /*+ SHUFFLE_HASH(t1) */ * FROM t1 join t2 ON t1.id > t2.id;
+```
+
+#### SHUFFLE_MERGE
+
+{{< label Batch >}}
+
+`SHUFFLE_MERGE` suggests that Flink uses `Sort Merge join`. This type of `Join Hint` is recommended for using in the scenario of joining
+between two large tables or the scenario that the data at both sides of the join is already in order.
+
+{{< hint info >}}
+Note: SHUFFLE_MERGE only supports join with equivalence join condition.
+{{< /hint >}}
+
+##### Examples
+
+```sql
+CREATE TABLE t1 (id BIGINT, name STRING, age INT) WITH (...);
+CREATE TABLE t2 (id BIGINT, name STRING, age INT) WITH (...);
+CREATE TABLE t3 (id BIGINT, name STRING, age INT) WITH (...);
+
+-- Sort merge join strategy is adopted.
+SELECT /*+ SHUFFLE_MERGE(t1) */ * FROM t1 JOIN t2 ON t1.id = t2.id;
+
+-- Sort merge join strategy is both adopted in these two joins.
+SELECT /*+ SHUFFLE_MERGE(t1, t3) */ * FROM t1 JOIN t2 ON t1.id = t2.id JOIN t3 ON t1.id = t3.id;
+
+-- SHUFFLE_MERGE don't support non-equivalent join conditions.
+-- Join Hint will not work, and only nested loop join can be applied.
+SELECT /*+ SHUFFLE_MERGE(t1) */ * FROM t1 join t2 ON t1.id > t2.id;
+```
+
+#### NEST_LOOP
+
+{{< label Batch >}}
+
+`NEST_LOOP` suggests that Flink uses `Nested Loop join`. This type of join hint is not recommended without special scenario requirements.
+
+{{< hint info >}}
+Note: NEST_LOOP supports both equivalent and non-equivalent join condition.
+{{< /hint >}}
+
+##### Examples
+
+```sql
+CREATE TABLE t1 (id BIGINT, name STRING, age INT) WITH (...);
+CREATE TABLE t2 (id BIGINT, name STRING, age INT) WITH (...);
+CREATE TABLE t3 (id BIGINT, name STRING, age INT) WITH (...);
+
+-- Flink will use nested loop join and t1 will be the build side.
+SELECT /*+ NEST_LOOP(t1) */ * FROM t1 JOIN t2 ON t1.id = t2.id;
+
+-- Flink will use nested loop join for both joins and t1, t3 will be the join build side.
+SELECT /*+ NEST_LOOP(t1, t3) */ * FROM t1 JOIN t2 ON t1.id = t2.id JOIN t3 ON t1.id = t3.id;
+```
 
 #### LOOKUP
 
@@ -403,5 +558,72 @@ next record does not begin until the current record has completed.
 - in async lookup, if 'output-mode' is 'ORDERED' mode, the probability of backpressure caused by delayed
 retry maybe higher than 'UNORDERED' mode, in which case increasing async 'capacity' may not be effective
 in reducing backpressure, and it may be necessary to consider reducing the delay duration.
+
+### Conflict Cases In Join Hints
+
+If the `Join Hints` conflicts occur, Flink will choose the most matching one.
+- Conflict in one same Join Hint strategy, Flink will choose the first matching table for a join.
+- Conflict in different Join Hints strategies, Flink will choose the first matching hint for a join.
+
+##### Examples
+
+```sql
+CREATE TABLE t1 (id BIGINT, name STRING, age INT) WITH (...);
+CREATE TABLE t2 (id BIGINT, name STRING, age INT) WITH (...);
+CREATE TABLE t3 (id BIGINT, name STRING, age INT) WITH (...);
+
+-- Conflict in One Same Join Hints Strategy Case
+
+-- The first hint will be chosen, t2 will be the broadcast table.
+SELECT /*+ BROADCAST(t2), BROADCAST(t1) */ * FROM t1 JOIN t2 ON t1.id = t2.id;
+
+-- BROADCAST(t2, t1) will be chosen, and t2 will be the broadcast table.
+SELECT /*+ BROADCAST(t2, t1), BROADCAST(t1, t2) */ * FROM t1 JOIN t2 ON t1.id = t2.id;
+
+-- This case equals to BROADCAST(t1, t2) + BROADCAST(t3),
+-- when join between t1 and t2, t1 will be the broadcast table,
+-- when join between the result after t1 join t2 and t3, t3 will be the broadcast table.
+SELECT /*+ BROADCAST(t1, t2, t3) */ * FROM t1 JOIN t2 ON t1.id = t2.id JOIN t3 ON t1.id = t3.id;
+
+
+-- Conflict in Different Join Hints Strategies Case
+
+-- The first Join Hint (BROADCAST(t1)) will be chosen, and t1 will be the broadcast table.
+SELECT /*+ BROADCAST(t1) SHUFFLE_HASH(t1) */ * FROM t1 JOIN t2 ON t1.id = t2.id;
+
+-- Although BROADCAST is first one hint, but it doesn't support full outer join,
+-- so the following SHUFFLE_HASH(t1) will be chosen, and t1 will be the join build side.
+SELECT /*+ BROADCAST(t1) SHUFFLE_HASH(t1) */ * FROM t1 FULL OUTER JOIN t2 ON t1.id = t2.id;
+
+-- Although there are two Join Hints were defined, but all of them are neither support non-equivalent join,
+-- so only nested loop join can be applied.
+SELECT /*+ BROADCAST(t1) SHUFFLE_HASH(t1) */ * FROM t1 FULL OUTER JOIN t2 ON t1.id > t2.id;
+```
+
+### What are query blocks ?
+
+A `query block` is a basic unit of SQL. For example, any inline view or sub-query of a SQL statement are considered separate
+`query block` to the outer query.
+
+#### Examples
+
+An SQL statement can consist of several sub-queries. The sub-query can be a `SELECT`, `INSERT` or `DELETE`. A sub-query can contain
+other sub-queries in the `FROM` clause, the `WHERE` clause, or a sub-select of a `UNION` or `UNION ALL`.
+
+For these different sub-queries or view types, they can be composed of several `query blocks`, For example:
+
+The simple query below has just one sub-query, but it has two `query blocks` - one for the outer `SELECT` and another for the
+sub-query `SELECT`.
+
+{{< img src="/fig/hint/hint_query_block_where.png" alt="hint where query block" >}}
+
+The query below is a union query, which contains two `query blocks` - one for the first `SELECT` and another for the second `SELECT`.
+
+{{< img src="/fig/hint/hint_query_block_union.png" alt="hint union query block" >}}
+
+The query below contains a view, and it has two `query blocks` - one for the outer `SELECT` and another for the view.
+
+{{< img src="/fig/hint/hint_query_block_view.png" alt="hint view query block" >}}
+
 
 {{< top >}}
