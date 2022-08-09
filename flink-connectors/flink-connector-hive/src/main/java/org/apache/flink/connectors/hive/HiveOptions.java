@@ -96,16 +96,16 @@ public class HiveOptions {
                                     + " And vice versa. It only works for the Hive table stored as ORC format.");
 
     public static final ConfigOption<Boolean> TABLE_EXEC_HIVE_DYNAMIC_GROUPING_ENABLED =
-            key("table.exec.hive.dynamic-grouping.enabled")
+            key("table.exec.hive.sink.sort-by-dynamic-partition.enable")
                     .booleanType()
                     .defaultValue(true)
                     .withDescription(
-                            "Whether to enable dynamic grouping or not when it's for dynamic partition inserting."
-                                    + " The default is to enable dynamic grouping."
-                                    + " If dynamic grouping is enabled,"
-                                    + " the date will be sorted additionally by the dynamic partition columns before writing into sink table."
-                                    + " If dynamic grouping is disabled, there won't be extra sorting,"
-                                    + " but it may throw OOM exception if there are too many dynamic partitions."
+                            "Whether to enable sorting data by dynamic partition column or not when it's for dynamic partition writing."
+                                    + " The default is to enable sorting."
+                                    + " If it's enabled, the date will be sorted additionally by the dynamic partition columns"
+                                    + " before writing into sink table."
+                                    + " If it's disabled, there won't be extra sorting,"
+                                    + " but it may throw OutOfMemory exception if there are too many dynamic partitions fall into same sink node."
                                     + " Note: it only works in batch mode.");
 
     public static final ConfigOption<Boolean> STREAMING_SOURCE_ENABLE =

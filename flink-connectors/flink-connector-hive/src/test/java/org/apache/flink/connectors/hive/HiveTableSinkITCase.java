@@ -497,28 +497,28 @@ public class HiveTableSinkITCase {
     }
 
     @Test
-    public void testDynamicGroupingEnableConfigurationInBatchMode() {
+    public void testSortByDynamicPartitionEnableConfigurationInBatchMode() {
         final TableEnvironment tEnv = HiveTestUtils.createTableEnvInBatchMode();
         tEnv.registerCatalog(hiveCatalog.getName(), hiveCatalog);
         tEnv.useCatalog(hiveCatalog.getName());
         try {
-            // dynamic grouping is enabled by default
+            // sort by dynamic partition columns is enabled by default
             tEnv.executeSql(
                     String.format(
-                            "create table dynamic_grouping_t(a int, b int, d string)"
+                            "create table dynamic_partition_t(a int, b int, d string)"
                                     + " partitioned by (d) with ('connector' = 'hive', '%s' = 'metastore')",
                             SINK_PARTITION_COMMIT_POLICY_KIND.key()));
-            String actual = tEnv.explainSql("insert into dynamic_grouping_t select 1, 1, 'd'");
+            String actual = tEnv.explainSql("insert into dynamic_partition_t select 1, 1, 'd'");
             assertThat(actual)
-                    .isEqualTo(readFromResource("/explain/testDynamicGroupingEnabled.out"));
+                    .isEqualTo(readFromResource("/explain/testDynamicPartitionSortEnabled.out"));
 
-            // disable dynamic grouping
+            // disable sorting
             tEnv.getConfig().set(HiveOptions.TABLE_EXEC_HIVE_DYNAMIC_GROUPING_ENABLED, false);
-            actual = tEnv.explainSql("insert into dynamic_grouping_t select 1, 1, 'd'");
+            actual = tEnv.explainSql("insert into dynamic_partition_t select 1, 1, 'd'");
             assertThat(actual)
-                    .isEqualTo(readFromResource("/explain/testDynamicGroupingDisabled.out"));
+                    .isEqualTo(readFromResource("/explain/testDynamicPartitionSortDisabled.out"));
         } finally {
-            tEnv.executeSql("drop table dynamic_grouping_t");
+            tEnv.executeSql("drop table dynamic_partition_t");
         }
     }
 
