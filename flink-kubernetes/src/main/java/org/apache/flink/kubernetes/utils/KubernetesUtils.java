@@ -58,6 +58,7 @@ import io.fabric8.kubernetes.api.model.ConfigMapBuilder;
 import io.fabric8.kubernetes.api.model.Container;
 import io.fabric8.kubernetes.api.model.ContainerBuilder;
 import io.fabric8.kubernetes.api.model.KubernetesResource;
+import io.fabric8.kubernetes.api.model.PodSpecBuilder;
 import io.fabric8.kubernetes.api.model.Quantity;
 import io.fabric8.kubernetes.api.model.ResourceRequirements;
 import io.fabric8.kubernetes.api.model.ResourceRequirementsBuilder;
@@ -419,12 +420,18 @@ public class KubernetesUtils {
         final List<Container> otherContainers = new ArrayList<>();
         Container mainContainer = null;
 
-        for (Container container : pod.getInternalResource().getSpec().getContainers()) {
-            if (mainContainerName.equals(container.getName())) {
-                mainContainer = container;
-            } else {
-                otherContainers.add(container);
+        if (null != pod.getInternalResource().getSpec()) {
+            for (Container container : pod.getInternalResource().getSpec().getContainers()) {
+                if (mainContainerName.equals(container.getName())) {
+                    mainContainer = container;
+                } else {
+                    otherContainers.add(container);
+                }
             }
+            pod.getInternalResource().getSpec().setContainers(otherContainers);
+        } else {
+            // Set empty spec for taskmanager pod template
+            pod.getInternalResource().setSpec(new PodSpecBuilder().build());
         }
 
         if (mainContainer == null) {
@@ -434,7 +441,6 @@ public class KubernetesUtils {
             mainContainer = new ContainerBuilder().build();
         }
 
-        pod.getInternalResource().getSpec().setContainers(otherContainers);
         return new FlinkPod(pod.getInternalResource(), mainContainer);
     }
 
