@@ -48,6 +48,7 @@ import org.apache.flink.util.OutputTag;
 import org.apache.commons.io.FileUtils;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -65,6 +66,7 @@ import java.util.UUID;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test datastream cache. */
+@Disabled
 public class CacheITCase extends AbstractTestBase {
 
     private StreamExecutionEnvironment env;
