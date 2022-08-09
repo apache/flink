@@ -112,7 +112,7 @@ public class DynamicFilteringDependencyProcessor implements ExecNodeGraphProcess
         }
 
         Set<ExecNode<?>> nodesRequiredBlockingOutputs = new HashSet<>();
-        // Find all the dynamic filter collector node
+        // Find all the dynamic filter collector nodes and theirs inputs.
         AbstractExecNodeExactlyOnceVisitor nodesRequiredBlockingOutputsCollector =
                 new AbstractExecNodeExactlyOnceVisitor() {
                     @Override
@@ -142,7 +142,7 @@ public class DynamicFilteringDependencyProcessor implements ExecNodeGraphProcess
                     protected void visitNode(ExecNode<?> node) {
                         visitInputs(node);
 
-                        // We only contains the edges that the source is in the set, but
+                        // We only consider the edges that the source is in the set, but
                         // the target does not.
                         if (nodesRequiredBlockingOutputs.contains(node)) {
                             return;
@@ -152,7 +152,7 @@ public class DynamicFilteringDependencyProcessor implements ExecNodeGraphProcess
                             ExecEdge edge = node.getInputEdges().get(i);
                             ExecNode<?> source = edge.getSource();
 
-                            // We only contains the edges that the source is in the set, but
+                            // We only consider the edges that the source is in the set, but
                             // the target does not.
                             if (!nodesRequiredBlockingOutputs.contains(source)) {
                                 continue;
