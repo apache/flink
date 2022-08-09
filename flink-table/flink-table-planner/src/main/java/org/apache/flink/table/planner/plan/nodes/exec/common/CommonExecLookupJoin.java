@@ -542,30 +542,17 @@ public abstract class CommonExecLookupJoin extends ExecNodeBase<RowData>
                             isLeftOuterJoin,
                             asyncLookupOptions.asyncBufferCapacity);
         }
-        /**
-         * why not implements async-retry directly in AsyncLookupFunction ? - because the active
-         * sleeping on async callback thread will occupy the task cpu time while the retry support
-         * in async data stream api provides a more efficient way via processing time service which
-         * does not occupy callback thread. Both AsyncLookupFunction AsyncTableFunction can support
-         * retry. does not occupy callback thread. Both AsyncLookupFunction AsyncTableFunction can
-         * support retry.
-         */
-        if (null != joinHintSpec) {
-            // simplify code here, not check whether ResultRetryStrategy is NO_RETRY_STRATEGY or not
-            // because AsyncWaitOperator has short-path optimization during compile time.
-            return new AsyncWaitOperatorFactory<>(
-                    asyncFunc,
-                    asyncLookupOptions.asyncTimeout,
-                    asyncLookupOptions.asyncBufferCapacity,
-                    convert(asyncLookupOptions.asyncOutputMode),
-                    joinHintSpec.toRetryStrategy());
-        } else {
-            return new AsyncWaitOperatorFactory<>(
-                    asyncFunc,
-                    asyncLookupOptions.asyncTimeout,
-                    asyncLookupOptions.asyncBufferCapacity,
-                    convert(asyncLookupOptions.asyncOutputMode));
-        }
+        // TODO async retry to be supported, can not directly enable retry on 'AsyncWaitOperator'
+        // because of two reasons: 1. AsyncLookupJoinRunner has a 'stateful' resultFutureBuffer bind
+        // to each input record (it's non-reenter-able) 2. can not lookup new value if cache empty
+        // enabled when chained with the new AsyncCachingLookupFunction. This two issues should be
+        // resolved first before enable async retry.
+
+        return new AsyncWaitOperatorFactory<>(
+                asyncFunc,
+                asyncLookupOptions.asyncTimeout,
+                asyncLookupOptions.asyncBufferCapacity,
+                convert(asyncLookupOptions.asyncOutputMode));
     }
 
     private AsyncDataStream.OutputMode convert(

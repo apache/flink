@@ -503,7 +503,14 @@ class AsyncLookupJoinITCase(
       .addSink(sink)
     env.execute()
 
-    val expected = Seq("1,12,Julian,Julian", "2,15,Hello,Jark", "3,15,Fabian,Fabian")
+    val expected = if (legacyTableSource) {
+      // test legacy lookup source do not support lookup threshold
+      // for real async lookup functions(both new and legacy api) do support retry
+      Seq("1,12,Julian,Julian", "2,15,Hello,Jark", "3,15,Fabian,Fabian")
+    } else {
+      // TODO retry on async is not supported currently, this should be updated after supported
+      Seq()
+    }
     assertEquals(expected.sorted, sink.getAppendResults.sorted)
   }
 
