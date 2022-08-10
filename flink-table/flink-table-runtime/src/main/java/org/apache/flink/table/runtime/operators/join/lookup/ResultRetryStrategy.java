@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.runtime.operators.join.lookup;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.streaming.api.functions.async.AsyncRetryPredicate;
 import org.apache.flink.streaming.api.functions.async.AsyncRetryStrategy;
 import org.apache.flink.streaming.util.retryable.AsyncRetryStrategies;
@@ -36,7 +37,8 @@ public class ResultRetryStrategy implements AsyncRetryStrategy<RowData> {
             new ResultRetryStrategy(AsyncRetryStrategies.NO_RETRY_STRATEGY);
     private AsyncRetryStrategy retryStrategy;
 
-    private ResultRetryStrategy(AsyncRetryStrategy retryStrategy) {
+    @VisibleForTesting
+    public ResultRetryStrategy(AsyncRetryStrategy retryStrategy) {
         this.retryStrategy = retryStrategy;
     }
 
