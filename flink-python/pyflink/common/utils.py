@@ -15,17 +15,11 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 ################################################################################
-from pyflink.common.serialization import SimpleStringSchema
-from pyflink.testing.test_case_utils import PyFlinkTestCase
 
+class JavaObjectWrapper(object):
 
-class SimpleStringSchemaTests(PyFlinkTestCase):
+    def __init__(self, j_object):
+        self._j_object = j_object
 
-    def test_simple_string_schema(self):
-        expected_string = 'test string'
-        simple_string_schema = SimpleStringSchema()
-        self.assertEqual(expected_string.encode(encoding='utf-8'),
-                         simple_string_schema._j_serialization_schema.serialize(expected_string))
-
-        self.assertEqual(expected_string, simple_string_schema._j_deserialization_schema
-                         .deserialize(expected_string.encode(encoding='utf-8')))
+    def get_java_object(self):
+        return self._j_object

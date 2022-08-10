@@ -20,6 +20,8 @@ from abc import abstractmethod
 
 from typing import TYPE_CHECKING, Optional
 
+from pyflink.common.serialization import BulkWriterFactory, RowDataBulkWriterFactory
+
 if TYPE_CHECKING:
     from pyflink.table.types import RowType
 
@@ -27,7 +29,7 @@ from pyflink.common import Duration, Encoder
 from pyflink.datastream.connectors import Source, Sink
 from pyflink.datastream.connectors.base import SupportsPreprocessing, StreamTransformer
 from pyflink.datastream.functions import SinkFunction
-from pyflink.datastream.utils import JavaObjectWrapper
+from pyflink.common.utils import JavaObjectWrapper
 from pyflink.java_gateway import get_gateway
 from pyflink.util.java_utils import to_jarray
 
@@ -39,10 +41,8 @@ __all__ = [
     'FileSourceBuilder',
     'FileSink',
     'StreamingFileSink',
-    'BulkFormat',
     'StreamFormat',
-    'InputFormat',
-    'BulkWriterFactory',
+    'BulkFormat',
     'FileEnumeratorProvider',
     'FileSplitAssignerProvider',
     'RollingPolicy',
@@ -163,40 +163,6 @@ class BulkFormat(object):
 
     def __init__(self, j_bulk_format):
         self._j_bulk_format = j_bulk_format
-
-
-class InputFormat(JavaObjectWrapper):
-    """
-    The Python wrapper of Java InputFormat interface, which is the base interface for data sources
-    that produce records.
-    """
-
-    def __init__(self, j_input_format):
-        super().__init__(j_input_format)
-
-
-class BulkWriterFactory(JavaObjectWrapper):
-    """
-    The Python wrapper of Java BulkWriter.Factory interface, which is the base interface for data
-    sinks that write records into files in a bulk manner.
-    """
-
-    def __init__(self, j_bulk_writer_factory):
-        super().__init__(j_bulk_writer_factory)
-
-
-class RowDataBulkWriterFactory(BulkWriterFactory):
-    """
-    A :class:`BulkWriterFactory` that receives records with RowData type. This is for indicating
-    that Row record from Python must be first converted to RowData.
-    """
-
-    def __init__(self, j_bulk_writer_factory, row_type: 'RowType'):
-        super().__init__(j_bulk_writer_factory)
-        self._row_type = row_type
-
-    def get_row_type(self) -> 'RowType':
-        return self._row_type
 
 
 class FileSourceBuilder(object):

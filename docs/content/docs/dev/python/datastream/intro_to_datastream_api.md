@@ -154,10 +154,10 @@ will be `Types.PICKLED_BYTE_ARRAY()`.
 You can also create a `DataStream` using DataStream connectors with method `add_source` as following:
 
 ```python
-from pyflink.common.serialization import JsonRowDeserializationSchema
 from pyflink.common.typeinfo import Types
 from pyflink.datastream import StreamExecutionEnvironment
 from pyflink.datastream.connectors.kafka import FlinkKafkaConsumer
+from pyflink.datastream.formats.json import JsonRowDeserializationSchema
 
 env = StreamExecutionEnvironment.get_execution_environment()
 # the sql connector for kafka is used here as it's a fat jar and could avoid dependency issues
@@ -305,7 +305,7 @@ You can call the `add_sink` method to emit the data of a `DataStream` to a DataS
 ```python
 from pyflink.common.typeinfo import Types
 from pyflink.datastream.connectors.kafka import FlinkKafkaProducer
-from pyflink.common.serialization import JsonRowSerializationSchema
+from pyflink.datastream.formats.json import JsonRowSerializationSchema
 
 serialization_schema = JsonRowSerializationSchema.builder().with_type_info(
     type_info=Types.ROW([Types.INT(), Types.STRING()])).build()

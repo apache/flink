@@ -23,10 +23,12 @@ from typing import Tuple, List
 from pyflink.common import WatermarkStrategy, Types
 from pyflink.datastream import MapFunction
 from pyflink.datastream.connectors.file_system import FileSource, FileSink
-from pyflink.datastream.formats.csv import CsvSchema, CsvReaderFormat, CsvBulkWriter
+from pyflink.datastream.formats.csv import CsvSchema, CsvReaderFormat, CsvBulkWriters, \
+    CsvRowSerializationSchema, CsvRowDeserializationSchema
 from pyflink.datastream.tests.test_util import DataStreamTestSinkFunction
+from pyflink.java_gateway import get_gateway
 from pyflink.table import DataTypes
-from pyflink.testing.test_case_utils import PyFlinkStreamingTestCase
+from pyflink.testing.test_case_utils import PyFlinkStreamingTestCase, PyFlinkTestCase
 
 
 class FileSourceCsvReaderFormatTests(PyFlinkStreamingTestCase):
@@ -163,7 +165,7 @@ class FileSinkCsvBulkWriterTests(PyFlinkStreamingTestCase):
         ).build()
         ds = self.env.from_source(source, WatermarkStrategy.no_watermarks(), 'csv-source')
         sink = FileSink.for_bulk_format(
-            self.csv_dir_name, CsvBulkWriter.for_schema(schema)
+            self.csv_dir_name, CsvBulkWriters.for_schema(schema)
         ).build()
         ds.map(lambda e: e, output_type=schema.get_type_info()).sink_to(sink)
 
@@ -173,6 +175,54 @@ class FileSinkCsvBulkWriterTests(PyFlinkStreamingTestCase):
             with open(file, 'r') as f:
                 lines.extend(f.readlines())
         return lines
+
+
+class JsonSerializationSchemaTests(PyFlinkTestCase):
+
+    def test_csv_row_serialization_schema(self):
+        jvm = get_gateway().jvm
+        JRow = jvm.org.apache.flink.types.Row
+
+        j_row = JRow(3)
+        j_row.setField(0, "BEGIN")
+        j_row.setField(2, "END")
+
+        def field_assertion(field_info, csv_value, value, field_delimiter):
+            row_info = Types.ROW([Types.STRING(), field_info, Types.STRING()])
+            expected_csv = "BEGIN" + field_delimiter + csv_value + field_delimiter + "END\n"
+            j_row.setField(1, value)
+
+            csv_row_serialization_schema = CsvRowSerializationSchema.Builder(row_info)\
+                .set_escape_character('*').set_quote_character('\'')\
+                .set_array_element_delimiter(':').set_field_delimiter(';').build()
+            csv_row_deserialization_schema = CsvRowDeserializationSchema.Builder(row_info)\
+                .set_escape_character('*').set_quote_character('\'')\
+                .set_array_element_delimiter(':').set_field_delimiter(';').build()
+            csv_row_serialization_schema._j_serialization_schema.open(
+                jvm.org.apache.flink.connector.testutils.formats.DummyInitializationContext())
+            csv_row_deserialization_schema._j_deserialization_schema.open(
+                jvm.org.apache.flink.connector.testutils.formats.DummyInitializationContext())
+
+            serialized_bytes = csv_row_serialization_schema._j_serialization_schema.serialize(j_row)
+            self.assertEqual(expected_csv, str(serialized_bytes, encoding='utf-8'))
+
+            j_deserialized_row = csv_row_deserialization_schema._j_deserialization_schema\
+                .deserialize(expected_csv.encode("utf-8"))
+            self.assertTrue(j_row.equals(j_deserialized_row))
+
+        field_assertion(Types.STRING(), "'123''4**'", "123'4*", ";")
+        field_assertion(Types.STRING(), "'a;b''c'", "a;b'c", ";")
+        field_assertion(Types.INT(), "12", 12, ";")
+
+        test_j_row = JRow(2)
+        test_j_row.setField(0, "1")
+        test_j_row.setField(1, "hello")
+
+        field_assertion(Types.ROW([Types.STRING(), Types.STRING()]), "'1:hello'", test_j_row, ";")
+        test_j_row.setField(1, "hello world")
+        field_assertion(Types.ROW([Types.STRING(), Types.STRING()]), "'1:hello world'", test_j_row,
+                        ";")
+        field_assertion(Types.STRING(), "null", "null", ";")
 
 
 class PassThroughMapFunction(MapFunction):

@@ -18,9 +18,10 @@
 import logging
 import sys
 
-from pyflink.common import AvroRowSerializationSchema, Types, AvroRowDeserializationSchema
+from pyflink.common import Types
 from pyflink.datastream import StreamExecutionEnvironment
 from pyflink.datastream.connectors.kafka import FlinkKafkaProducer, FlinkKafkaConsumer
+from pyflink.datastream.formats.avro import AvroRowSerializationSchema, AvroRowDeserializationSchema
 
 
 # Make sure that the Kafka cluster is started and the topic 'test_avro_topic' is

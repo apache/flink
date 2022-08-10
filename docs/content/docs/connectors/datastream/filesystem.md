@@ -569,7 +569,7 @@ data_stream = ...
 
 avro_type_info = GenericRecordAvroTypeInfo(schema)
 sink = FileSink \
-    .for_bulk_format(OUTPUT_BASE_PATH, AvroWriters.for_generic_record(schema)) \
+    .for_bulk_format(OUTPUT_BASE_PATH, AvroBulkWriters.for_generic_record(schema)) \
     .build()
 
 # A map to indicate its Avro type info is necessary for serialization

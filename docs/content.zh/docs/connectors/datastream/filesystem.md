@@ -570,7 +570,7 @@ data_stream = ...
 
 avro_type_info = GenericRecordAvroTypeInfo(schema)
 sink = FileSink \
-    .for_bulk_format(OUTPUT_BASE_PATH, AvroWriters.for_generic_record(schema)) \
+    .for_bulk_format(OUTPUT_BASE_PATH, AvroBulkWriters.for_generic_record(schema)) \
     .build()
 
 # 必须通过 map 操作来指定其 Avro 类型信息，用于数据的序列化

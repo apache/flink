@@ -44,7 +44,7 @@ from pyflink.datastream.formats.tests.test_avro import \
     _create_basic_avro_schema_and_records, _import_avro_classes
 from pyflink.datastream.formats.avro import GenericRecordAvroTypeInfo, AvroSchema
 from pyflink.datastream.formats.parquet import AvroParquetReaders, ParquetColumnarRowInputFormat, \
-    AvroParquetWriters, ParquetBulkWriter
+    AvroParquetWriters, ParquetBulkWriters
 from pyflink.datastream.tests.test_util import DataStreamTestSinkFunction
 from pyflink.datastream.utils import create_hadoop_configuration
 from pyflink.java_gateway import get_gateway
@@ -270,7 +270,7 @@ class FileSinkParquetBulkWriterTests(PyFlinkStreamingTestCase):
         conversion_type_info: Optional[RowTypeInfo] = None,
     ):
         sink = FileSink.for_bulk_format(
-            self.parquet_dir_name, ParquetBulkWriter.for_row_type(row_type, utc_timestamp=True)
+            self.parquet_dir_name, ParquetBulkWriters.for_row_type(row_type, utc_timestamp=True)
         ).build()
         ds = self.env.from_collection(data, type_info=row_type_info)
         if conversion_type_info:

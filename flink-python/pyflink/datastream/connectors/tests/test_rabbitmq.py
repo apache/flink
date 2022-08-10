@@ -15,8 +15,9 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 ################################################################################
-from pyflink.common import Types, JsonRowDeserializationSchema, JsonRowSerializationSchema
+from pyflink.common import Types
 from pyflink.datastream.connectors.rabbitmq import RMQSink, RMQSource, RMQConnectionConfig
+from pyflink.datastream.formats.json import JsonRowDeserializationSchema, JsonRowSerializationSchema
 from pyflink.testing.test_case_utils import PyFlinkStreamingTestCase
 from pyflink.util.java_utils import get_field_value
 

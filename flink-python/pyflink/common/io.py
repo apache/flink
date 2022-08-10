@@ -15,17 +15,18 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 ################################################################################
-from pyflink.common.serialization import SimpleStringSchema
-from pyflink.testing.test_case_utils import PyFlinkTestCase
+from pyflink.common.utils import JavaObjectWrapper
+
+__all__ = [
+    'InputFormat'
+]
 
 
-class SimpleStringSchemaTests(PyFlinkTestCase):
+class InputFormat(JavaObjectWrapper):
+    """
+    The Python wrapper of Java InputFormat interface, which is the base interface for data sources
+    that produce records.
+    """
 
-    def test_simple_string_schema(self):
-        expected_string = 'test string'
-        simple_string_schema = SimpleStringSchema()
-        self.assertEqual(expected_string.encode(encoding='utf-8'),
-                         simple_string_schema._j_serialization_schema.serialize(expected_string))
-
-        self.assertEqual(expected_string, simple_string_schema._j_deserialization_schema
-                         .deserialize(expected_string.encode(encoding='utf-8')))
+    def __init__(self, j_input_format):
+        super().__init__(j_input_format)

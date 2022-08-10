@@ -26,8 +26,8 @@ from py4j.java_gateway import JavaObject, java_import
 
 from pyflink.datastream import MapFunction
 from pyflink.datastream.connectors.file_system import FileSink
-from pyflink.datastream.formats.avro import AvroSchema, GenericRecordAvroTypeInfo, AvroWriters, \
-    AvroInputFormat
+from pyflink.datastream.formats.avro import AvroSchema, GenericRecordAvroTypeInfo, \
+    AvroBulkWriters, AvroInputFormat
 from pyflink.datastream.tests.test_util import DataStreamTestSinkFunction
 from pyflink.java_gateway import get_gateway
 from pyflink.testing.test_case_utils import PyFlinkStreamingTestCase
@@ -144,7 +144,7 @@ class FileSinkAvroWritersTests(PyFlinkStreamingTestCase):
     def _build_avro_job(self, schema, objects):
         ds = self.env.from_collection(objects)
         sink = FileSink.for_bulk_format(
-            self.avro_dir_name, AvroWriters.for_generic_record(schema)
+            self.avro_dir_name, AvroBulkWriters.for_generic_record(schema)
         ).build()
         ds.map(lambda e: e, output_type=GenericRecordAvroTypeInfo(schema)).sink_to(sink)
 

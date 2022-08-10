@@ -15,20 +15,24 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 ################################################################################
-from py4j.java_gateway import get_java_class, JavaObject
+from py4j.java_gateway import get_java_class, JavaObject, java_import
+
+from pyflink.common.io import InputFormat
+from pyflink.common.serialization import BulkWriterFactory, SerializationSchema, \
+    DeserializationSchema
 from pyflink.common.typeinfo import TypeInformation
 
-from pyflink.datastream.connectors.file_system import InputFormat, BulkWriterFactory
 from pyflink.datastream.utils import ResultTypeQueryable
 from pyflink.java_gateway import get_gateway
-from pyflink.util.java_utils import get_field_value
-
+from pyflink.util.java_utils import get_field_value, load_java_class
 
 __all__ = [
-    'AvroInputFormat',
     'AvroSchema',
-    'AvroWriters',
-    'GenericRecordAvroTypeInfo'
+    'GenericRecordAvroTypeInfo',
+    'AvroInputFormat',
+    'AvroBulkWriters',
+    'AvroRowDeserializationSchema',
+    'AvroRowSerializationSchema'
 ]
 
 
@@ -85,7 +89,7 @@ class GenericRecordAvroTypeInfo(TypeInformation):
     """
 
     def __init__(self, schema: 'AvroSchema'):
-        super().__init__()
+        super(GenericRecordAvroTypeInfo, self).__init__()
         self._schema = schema
         self._j_typeinfo = get_gateway().jvm.org.apache.flink.formats.avro.typeutils \
             .GenericRecordAvroTypeInfo(schema._j_schema)
@@ -118,16 +122,17 @@ class AvroInputFormat(InputFormat, ResultTypeQueryable):
             jvm.org.apache.flink.core.fs.Path(path),
             get_java_class(jvm.org.apache.flink.avro.shaded.org.apache.avro.generic.GenericRecord)
         )
-        super().__init__(j_avro_input_format)
+        super(AvroInputFormat, self).__init__(j_avro_input_format)
         self._type_info = GenericRecordAvroTypeInfo(schema)
 
     def get_produced_type(self) -> GenericRecordAvroTypeInfo:
         return self._type_info
 
 
-class AvroWriters(object):
+class AvroBulkWriters(object):
     """
-    Convenience builder to create AvroWriterFactory instances.
+    Convenience builder to create :class:`~pyflink.common.serialization.BulkWriterFactory` for
+    Avro types.
 
     .. versionadded:: 1.16.0
     """
@@ -139,7 +144,7 @@ class AvroWriters(object):
         will use the given schema to build and write the records.
 
         Note that to make this works in PyFlink, you need to declare the output type of the
-        predecessor before FileSink to be :class:`GenericRecordAvroTypeInfo`, and the predecessor
+        predecessor before FileSink to be :class:`~GenericRecordAvroTypeInfo`, and the predecessor
         cannot be :meth:`StreamExecutionEnvironment.from_collection`, you can add a pass-through map
         function before the sink, as the example shown below.
 
@@ -155,7 +160,7 @@ class AvroWriters(object):
             >>> avro_type_info = GenericRecordAvroTypeInfo(schema)
             >>> ds = env.from_collection([{'array': [1, 2]}], type_info=Types.PICKLED_BYTE_ARRAY())
             >>> sink = FileSink.for_bulk_format(
-            ...     OUTPUT_DIR, AvroWriters.for_generic_record(schema)).build()
+            ...     OUTPUT_DIR, AvroBulkWriters.for_generic_record(schema)).build()
             >>> # A map to indicate its Avro type info is necessary for serialization
             >>> ds.map(lambda e: e, output_type=GenericRecordAvroTypeInfo(schema)) \\
             ...     .sink_to(sink)
@@ -168,3 +173,71 @@ class AvroWriters(object):
             schema._j_schema
         )
         return BulkWriterFactory(j_bulk_writer_factory)
+
+
+class AvroRowDeserializationSchema(DeserializationSchema):
+    """
+    Deserialization schema from Avro bytes to Row. Deserializes the byte[] messages into (nested)
+    Flink rows. It converts Avro types into types that are compatible with Flink's Table & SQL API.
+
+    Projects with Avro records containing logical date/time types need to add a JodaTime dependency.
+    """
+    def __init__(self, record_class: str = None, avro_schema_string: str = None):
+        """
+        Creates an Avro deserialization schema for the given specific record class or Avro schema
+        string. Having the concrete Avro record class might improve performance.
+
+        :param record_class: Avro record class used to deserialize Avro's record to Flink's row.
+        :param avro_schema_string: Avro schema string to deserialize Avro's record to Flink's row.
+        """
+
+        if avro_schema_string is None and record_class is None:
+            raise TypeError("record_class or avro_schema_string should be specified.")
+        j_deserialization_schema = None
+        if record_class is not None:
+            gateway = get_gateway()
+            java_import(gateway.jvm, record_class)
+            j_record_class = load_java_class(record_class)
+            JAvroRowDeserializationSchema = get_gateway().jvm \
+                .org.apache.flink.formats.avro.AvroRowDeserializationSchema
+            j_deserialization_schema = JAvroRowDeserializationSchema(j_record_class)
+
+        elif avro_schema_string is not None:
+            JAvroRowDeserializationSchema = get_gateway().jvm \
+                .org.apache.flink.formats.avro.AvroRowDeserializationSchema
+            j_deserialization_schema = JAvroRowDeserializationSchema(avro_schema_string)
+
+        super(AvroRowDeserializationSchema, self).__init__(j_deserialization_schema)
+
+
+class AvroRowSerializationSchema(SerializationSchema):
+    """
+    Serialization schema that serializes to Avro binary format.
+    """
+
+    def __init__(self, record_class: str = None, avro_schema_string: str = None):
+        """
+        Creates AvroSerializationSchema that serializes SpecificRecord using provided schema or
+        record class.
+
+        :param record_class: Avro record class used to serialize  Flink's row to Avro's record.
+        :param avro_schema_string: Avro schema string to serialize Flink's row to Avro's record.
+        """
+        if avro_schema_string is None and record_class is None:
+            raise TypeError("record_class or avro_schema_string should be specified.")
+
+        j_serialization_schema = None
+        if record_class is not None:
+            gateway = get_gateway()
+            java_import(gateway.jvm, record_class)
+            j_record_class = load_java_class(record_class)
+            JAvroRowSerializationSchema = get_gateway().jvm \
+                .org.apache.flink.formats.avro.AvroRowSerializationSchema
+            j_serialization_schema = JAvroRowSerializationSchema(j_record_class)
+
+        elif avro_schema_string is not None:
+            JAvroRowSerializationSchema = get_gateway().jvm \
+                .org.apache.flink.formats.avro.AvroRowSerializationSchema
+            j_serialization_schema = JAvroRowSerializationSchema(avro_schema_string)
+
+        super(AvroRowSerializationSchema, self).__init__(j_serialization_schema)

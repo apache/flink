@@ -18,9 +18,10 @@
 import logging
 import sys
 
-from pyflink.common import Types, JsonRowDeserializationSchema, JsonRowSerializationSchema
+from pyflink.common import Types
 from pyflink.datastream import StreamExecutionEnvironment
 from pyflink.datastream.connectors.kafka import FlinkKafkaProducer, FlinkKafkaConsumer
+from pyflink.datastream.formats.json import JsonRowSerializationSchema, JsonRowDeserializationSchema
 
 
 # Make sure that the Kafka cluster is started and the topic 'test_json_topic' is

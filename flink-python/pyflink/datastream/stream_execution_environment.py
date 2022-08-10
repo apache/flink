@@ -18,12 +18,13 @@
 import os
 import tempfile
 
-from typing import List, Any, Optional, cast, TYPE_CHECKING
+from typing import List, Any, Optional, cast
 
 from py4j.java_gateway import JavaObject
 
 from pyflink.common import Configuration, WatermarkStrategy
 from pyflink.common.execution_config import ExecutionConfig
+from pyflink.common.io import InputFormat
 from pyflink.common.job_client import JobClient
 from pyflink.common.job_execution_result import JobExecutionResult
 from pyflink.common.restart_strategy import RestartStrategies, RestartStrategyConfiguration
@@ -43,8 +44,6 @@ from pyflink.serializers import PickleSerializer
 from pyflink.util.java_utils import load_java_class, add_jars_to_context_class_loader, \
     invoke_method, get_field_value, is_local_deployment, get_j_env_configuration
 
-if TYPE_CHECKING:
-    from pyflink.datastream.connectors.file_system import InputFormat
 
 __all__ = ['StreamExecutionEnvironment']
 
@@ -837,7 +836,7 @@ class StreamExecutionEnvironment(object):
 
         return StreamExecutionEnvironment(j_stream_exection_environment)
 
-    def create_input(self, input_format: 'InputFormat',
+    def create_input(self, input_format: InputFormat,
                      type_info: Optional[TypeInformation] = None):
         """
         Create an input data stream with InputFormat.
