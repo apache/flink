@@ -387,6 +387,17 @@ public abstract class BaseHybridHashTable implements MemorySegmentPool {
             return;
         }
 
+        // clear the current build side channel, if there exist one
+        if (this.currentSpilledBuildSide != null) {
+            try {
+                this.currentSpilledBuildSide.getChannel().closeAndDelete();
+            } catch (Throwable t) {
+                LOG.warn(
+                        "Could not close and delete the temp file for the current spilled partition build side.",
+                        t);
+            }
+        }
+
         // clear the current probe side channel, if there is one
         if (this.currentSpilledProbeSide != null) {
             try {
