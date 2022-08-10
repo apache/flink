@@ -542,12 +542,12 @@ public abstract class CommonExecLookupJoin extends ExecNodeBase<RowData>
                             isLeftOuterJoin,
                             asyncLookupOptions.asyncBufferCapacity);
         }
-        // TODO async retry to be supported, can not directly enable retry on 'AsyncWaitOperator'
-        // because of two reasons: 1. AsyncLookupJoinRunner has a 'stateful' resultFutureBuffer bind
-        // to each input record (it's non-reenter-able) 2. can not lookup new value if cache empty
-        // enabled when chained with the new AsyncCachingLookupFunction. This two issues should be
-        // resolved first before enable async retry.
 
+        // Why not directly enable retry on 'AsyncWaitOperator'? because of two reasons:
+        // 1. AsyncLookupJoinRunner has a 'stateful' resultFutureBuffer bind to each input record
+        // (it's non-reenter-able) 2. can not lookup new value if cache empty values enabled when
+        // chained with the new AsyncCachingLookupFunction. So similar to sync lookup join with
+        // retry, use a 'RetryableAsyncLookupFunctionDelegator' to support retry.
         return new AsyncWaitOperatorFactory<>(
                 asyncFunc,
                 asyncLookupOptions.asyncTimeout,

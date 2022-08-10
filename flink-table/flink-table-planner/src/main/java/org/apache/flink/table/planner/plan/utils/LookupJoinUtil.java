@@ -35,6 +35,7 @@ import org.apache.flink.table.connector.source.lookup.PartialCachingAsyncLookupP
 import org.apache.flink.table.connector.source.lookup.PartialCachingLookupProvider;
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.functions.AsyncLookupFunction;
 import org.apache.flink.table.functions.LookupFunction;
 import org.apache.flink.table.functions.UserDefinedFunction;
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
@@ -49,6 +50,7 @@ import org.apache.flink.table.runtime.functions.table.lookup.fullcache.LookupFul
 import org.apache.flink.table.runtime.functions.table.lookup.fullcache.inputformat.InputFormatCacheLoader;
 import org.apache.flink.table.runtime.keyselector.GenericRowDataKeySelector;
 import org.apache.flink.table.runtime.operators.join.lookup.ResultRetryStrategy;
+import org.apache.flink.table.runtime.operators.join.lookup.RetryableAsyncLookupFunctionDelegator;
 import org.apache.flink.table.runtime.operators.join.lookup.RetryableLookupFunctionDelegator;
 import org.apache.flink.table.runtime.typeutils.InternalSerializers;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
@@ -196,9 +198,22 @@ public final class LookupJoinUtil {
     }
 
     /**
-     * Gets LookupFunction from temporal table according to the given lookup keys with preference.
+     * Gets lookup function (async or sync) from temporal table according to the given lookup keys
+     * with considering {@link LookupJoinHintSpec} and required upsertMaterialize. Note: if required
+     * upsertMaterialize is true, will return synchronous lookup function only, otherwise prefers
+     * asynchronous lookup function except there's a hint option 'async' = 'false', will raise an
+     * error if both candidates not found.
      *
-     * @return the UserDefinedFunction by preferable lookup mode, if require
+     * <pre>{@code
+     * 1. if upsertMaterialize == true : require sync lookup orElse error
+     *
+     * 2. preferAsync = except there is a hint option 'async' = 'false'
+     *  if (preferAsync) {
+     *    async lookup != null ? async : sync orElse error
+     *  } else {
+     *    sync lookup != null ? sync : async orElse error
+     *  }
+     * }</pre>
      */
     public static UserDefinedFunction getLookupFunction(
             RelOptTable temporalTable,
@@ -272,6 +287,22 @@ public final class LookupJoinUtil {
         return provider.createLookupFunction();
     }
 
+    /**
+     * Wraps AsyncLookupFunction into a RetryableAsyncLookupFunctionDelegator to support retry.
+     * Note: only AsyncLookupFunction is supported.
+     */
+    private static AsyncLookupFunction wrapASyncRetryDelegator(
+            AsyncLookupFunctionProvider provider, LookupJoinHintSpec joinHintSpec) {
+        if (joinHintSpec != null) {
+            ResultRetryStrategy retryStrategy = joinHintSpec.toRetryStrategy();
+            if (retryStrategy != NO_RETRY_STRATEGY) {
+                return new RetryableAsyncLookupFunctionDelegator(
+                        provider.createAsyncLookupFunction(), joinHintSpec.toRetryStrategy());
+            }
+        }
+        return provider.createAsyncLookupFunction();
+    }
+
     private static void findLookupFunctionFromNewSource(
             TableSourceTable temporalTable,
             int[] lookupKeyIndicesInOrder,
@@ -312,6 +343,7 @@ public final class LookupJoinUtil {
                                 lookupKeyIndicesInOrder,
                                 classLoader,
                                 tableSourceRowType);
+                // retry on fullCachingLookupFunction is meaningless
                 syncLookupFunction =
                         new CachingLookupFunction(
                                 fullCache, fullCachingLookupProvider.createLookupFunction());
@@ -327,10 +359,12 @@ public final class LookupJoinUtil {
                 asyncLookupFunction =
                         new CachingAsyncLookupFunction(
                                 partialCachingLookupProvider.getCache(),
-                                partialCachingLookupProvider.createAsyncLookupFunction());
+                                wrapASyncRetryDelegator(
+                                        partialCachingLookupProvider, joinHintSpec));
             } else {
                 asyncLookupFunction =
-                        ((AsyncLookupFunctionProvider) provider).createAsyncLookupFunction();
+                        wrapASyncRetryDelegator(
+                                (AsyncLookupFunctionProvider) provider, joinHintSpec);
             }
         }
         if (provider instanceof TableFunctionProvider) {
