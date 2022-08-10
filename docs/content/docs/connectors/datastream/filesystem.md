@@ -71,6 +71,15 @@ FileSource.forRecordStreamFormat(StreamFormat,Path...);
 FileSource.forBulkFileFormat(BulkFormat,Path...);
 ```
 {{< /tab >}}
+{{< tab "Python" >}}
+```python
+# reads the contents of a file from a file stream.
+FileSource.for_record_stream_format(stream_format, *path)
+
+# reads batches of records from a file at a time
+FileSource.for_bulk_file_format(bulk_format, *path)
+```
+{{< /tab >}}
 {{< /tabs >}}
 
 This creates a `FileSource.FileSourceBuilder` on which you can configure all the properties of the File Source.
@@ -89,6 +98,13 @@ final FileSource<String> source =
         FileSource.forRecordStreamFormat(...)
         .monitorContinuously(Duration.ofMillis(5))  
         .build();
+```
+{{< /tab >}}
+{{< tab "Python" >}}
+```python
+source = FileSource.for_record_stream_format(...) \
+    .monitor_continously(Duration.of_millis(5)) \
+    .build()
 ```
 {{< /tab >}}
 {{< /tabs >}}
@@ -349,6 +365,19 @@ val sink: FileSink[String] = FileSink
 
 input.sinkTo(sink)
 
+```
+{{< /tab >}}
+{{< tab "Python" >}}
+```python
+data_stream = ...
+
+sink = FileSink \
+    .for_row_format(OUTPUT_PATH, Encoder.simple_string_encoder("UTF-8")) \
+    .with_rolling_policy(RollingPolicy.default_rolling_policy(
+        part_size=1024 ** 3, rollover_interval=15 * 60 * 1000, inactivity_interval=5 * 60 * 1000)) \
+    .build()
+
+data_stream.sink_to(sink)
 ```
 {{< /tab >}}
 {{< /tabs >}}
@@ -918,6 +947,10 @@ Flink comes with two built-in BucketAssigners:
  - `DateTimeBucketAssigner` : Default time based assigner
  - `BasePathBucketAssigner` : Assigner that stores all part files in the base path (single global bucket)
 
+{{< hint info >}}
+Note: PyFlink only supports `DateTimeBucketAssigner` and `BasePathBucketAssigner`.
+{{< /hint >}}
+
 ### Rolling Policy
 
 The `RollingPolicy` defines when a given in-progress part file will be closed and moved to the pending and later to finished state.
@@ -930,6 +963,10 @@ Flink comes with two built-in RollingPolicies:
 
  - `DefaultRollingPolicy`
  - `OnCheckpointRollingPolicy`
+
+{{< hint info >}}
+Note: PyFlink only supports `DefaultRollingPolicy` and `OnCheckpointRollingPolicy`.
+{{< /hint >}}
 
 ### Part file lifecycle
 
@@ -1046,6 +1083,22 @@ val sink = FileSink
 			
 ```
 {{< /tab >}}
+{{< tab "Python" >}}
+```python
+config = OutputFileConfig \
+    .builder() \
+    .with_part_prefix("prefix") \
+    .with_part_suffix(".ext") \
+    .build()
+
+sink = FileSink \
+    .for_row_format(OUTPUT_PATH, Encoder.simple_string_encoder("UTF-8")) \
+    .with_bucket_assigner(BucketAssigner.base_path_bucket_assigner()) \
+    .with_rolling_policy(RollingPolicy.on_checkpoint_rolling_policy()) \
+    .with_output_file_config(config) \
+    .build()
+```
+{{< /tab >}}
 {{< /tabs >}}
 
 ### Compaction
@@ -1090,6 +1143,19 @@ val fileSink: FileSink[Integer] =
 
 ```
 {{< /tab >}}
+{{< tab "Python" >}}
+```python
+file_sink = FileSink \
+    .for_row_format(PATH, Encoder.simple_string_encoder()) \
+    .enable_compact(
+        FileCompactStrategy.builder()
+            .set_size_threshold(1024)
+            .enable_compaction_on_checkpoint(5)
+            .build(),
+        FileCompactor.concat_file_compactor()) \
+    .build()
+```
+{{< /tab >}}
 {{< /tabs >}}
 
 Once enabled, the compaction happens between the files become `pending` and get committed. The pending files will
@@ -1119,6 +1185,10 @@ the give list of `Path` and write the result file. It could be classified into t
 **Important Note 1** Once the compaction is enabled, you must explicitly call `disableCompact` when building the `FileSink` if you want to disable compaction.
 
 **Important Note 2** When the compaction is enabled, the written files need to wait for longer time before they get visible.
+{{< /hint >}}
+
+{{< hint info >}}
+Note: PyFlink only supports `ConcatFileCompactor` and `IdenticalFileCompactor`.
 {{< /hint >}}
 
 ### Important Considerations

@@ -35,6 +35,8 @@ To use the JSON format you need to add the Flink JSON dependency to your project
 </dependency>
 ```
 
+For PyFlink users, you could use it directly in your jobs.
+
 Flink supports reading/writing JSON records via the `JsonSerializationSchema/JsonDeserializationSchema`.
 These utilize the [Jackson](https://github.com/FasterXML/jackson) library, and support any type that is supported by Jackson, including, but not limited to, `POJO`s and `ObjectNode`.
 
@@ -74,4 +76,32 @@ JsonSerializationSchema<SomeClass> jsonFormat = new JsonSerializationSchema<>(
     () -> new ObjectMapper()
         .enable(SerializationFeature.ORDER_MAP_ENTRIES_BY_KEYS))
         .registerModule(new ParameterNamesModule());
+```
+
+## Python
+
+In PyFlink, `JsonRowSerializationSchema` and `JsonRowDeserializationSchema` are built-in support for `Row` type.
+For example to use it in `KafkaSource` and `KafkaSink`:
+
+```python
+row_type_info = Types.ROW_NAMED(['name', 'age'], [Types.STRING(), Types.INT()])
+json_format = JsonRowDeserializationSchema.builder().type_info(row_type_info).build()
+
+source = KafkaSource.builder() \
+    .set_value_only_deserializer(json_format) \
+    ...
+```
+
+```python
+row_type_info = Types.ROW_NAMED(['name', 'age'], [Types.STRING(), Types.INT()])
+json_format = JsonRowSerializationSchema.builder().with_type_info(row_type_info).build()
+
+source = KafkaSink.builder() \
+    .set_record_serializer(
+        KafkaRecordSerializationSchema.builder()
+            .set_topic('test')
+            .set_value_serialization_schema(json_format)
+            .build()
+    ) \
+    ...
 ```

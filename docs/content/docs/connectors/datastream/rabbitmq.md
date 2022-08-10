@@ -44,6 +44,8 @@ This connector provides access to data streams from [RabbitMQ](http://www.rabbit
 
 {{< artifact flink-connector-rabbitmq >}}
 
+{{< py_download_link "rabbitmq" >}}
+
 Note that the streaming connectors are currently not part of the binary distribution. See linking with them for cluster execution [here]({{< ref "docs/dev/configuration/overview" >}}).
 
 ### Installing RabbitMQ
