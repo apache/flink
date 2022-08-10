@@ -161,8 +161,13 @@ abstract class CommonPhysicalLookupJoin(
       case t: LegacyTableSourceTable[_] => t.tableIdentifier
     }
 
+    // The lookup function maybe not the final choice at runtime because lack of upsert materialize
+    // info here. This can be consistent after planner offers enough info here.
     val isAsyncEnabled: Boolean =
-      LookupJoinUtil.isAsyncLookup(temporalTable, allLookupKeys.keys.map(Int.box).toList.asJava)
+      LookupJoinUtil.isAsyncLookup(
+        temporalTable,
+        allLookupKeys.keys.map(Int.box).toList.asJava,
+        lookupHintSpec.orNull)
 
     super
       .explainTerms(pw)

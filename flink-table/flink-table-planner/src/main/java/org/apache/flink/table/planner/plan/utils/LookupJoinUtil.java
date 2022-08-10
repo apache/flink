@@ -400,18 +400,23 @@ public final class LookupJoinUtil {
                 || lookupJoinHintSpec.isAsync();
     }
 
-    public static boolean isAsyncLookup(RelOptTable temporalTable, Collection<Integer> lookupKeys) {
+    public static boolean isAsyncLookup(
+            RelOptTable temporalTable,
+            Collection<Integer> lookupKeys,
+            LookupJoinHintSpec lookupJoinHintSpec) {
+        boolean preferAsync = preferAsync(lookupJoinHintSpec);
         if (temporalTable instanceof TableSourceTable) {
             LookupTableSource.LookupRuntimeProvider provider =
                     getLookupRuntimeProvider(temporalTable, lookupKeys);
-            return provider instanceof AsyncLookupFunctionProvider
-                    || provider instanceof AsyncTableFunctionProvider;
+            return preferAsync
+                    && (provider instanceof AsyncLookupFunctionProvider
+                            || provider instanceof AsyncTableFunctionProvider);
         } else if (temporalTable instanceof LegacyTableSourceTable) {
             LegacyTableSourceTable<?> legacyTableSourceTable =
                     (LegacyTableSourceTable<?>) temporalTable;
             LookupableTableSource<?> lookupableTableSource =
                     (LookupableTableSource<?>) legacyTableSourceTable.tableSource();
-            return lookupableTableSource.isAsyncEnabled();
+            return preferAsync && lookupableTableSource.isAsyncEnabled();
         }
         throw new TableException(
                 String.format(
