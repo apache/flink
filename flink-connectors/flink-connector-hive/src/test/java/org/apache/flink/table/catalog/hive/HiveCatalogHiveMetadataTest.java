@@ -63,6 +63,7 @@ import org.apache.hadoop.hive.ql.udf.generic.GenericUDFAbs;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
+import java.sql.Timestamp;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -555,6 +556,94 @@ class HiveCatalogHiveMetadataTest extends HiveCatalogMetadataTestBase {
             Map<String, CatalogColumnStatisticsDataBase> columnActualStatistics =
                     catalogColumnActualStatisticsList.get(i).getColumnStatisticsData();
             assertThat(columnActualStatistics).isEqualTo(columnExpectStatisticsList.get(i));
+        }
+    }
+
+    @Test
+    public void testBulkGetPartitionColumnStatisticsForTimestampType() throws Exception {
+        // test timestamp as partition column
+        catalog.createDatabase(db1, createDb(), false);
+        ResolvedSchema resolvedSchema =
+                ResolvedSchema.of(
+                        Column.physical("c1", DataTypes.INT()),
+                        Column.physical("c2", DataTypes.TIMESTAMP(9)));
+        final CatalogTable origin =
+                CatalogTable.of(
+                        Schema.newBuilder().fromResolvedSchema(resolvedSchema).build(),
+                        TEST_COMMENT,
+                        Collections.singletonList("c2"),
+                        getBatchTableProperties());
+
+        CatalogTable catalogTable = new ResolvedCatalogTable(origin, resolvedSchema);
+
+        catalog.createTable(path1, catalogTable, false);
+
+        // create three partitions: c2=null, c2=2022-08-08 10:00:00, c3=2022-08-09 13:00:01.333
+        List<CatalogPartitionSpec> catalogPartitionSpecs = new ArrayList<>();
+        List<CatalogColumnStatistics> expectedColumnStatistics = new ArrayList<>();
+        Map<String, String> partitionSpec = Collections.singletonMap("c2", null);
+        createPartition(partitionSpec);
+        catalogPartitionSpecs.add(new CatalogPartitionSpec(partitionSpec));
+        expectedColumnStatistics.add(
+                new CatalogColumnStatistics(
+                        Collections.singletonMap(
+                                // nullCount is null since we haven't put statistic to this
+                                // partition, thus we have no way to know the actual row count for
+                                // this partition
+                                "c2", new CatalogColumnStatisticsDataDate(null, null, 1L, null))));
+
+        partitionSpec = Collections.singletonMap("c2", "2022-08-08 10:00:00");
+        createPartition(partitionSpec);
+        catalogPartitionSpecs.add(new CatalogPartitionSpec(partitionSpec));
+        Date expectDate =
+                new Date(
+                        Timestamp.valueOf("2022-08-08 10:00:00")
+                                .toLocalDateTime()
+                                .toLocalDate()
+                                .toEpochDay());
+        expectedColumnStatistics.add(
+                new CatalogColumnStatistics(
+                        Collections.singletonMap(
+                                "c2",
+                                new CatalogColumnStatisticsDataDate(
+                                        expectDate, expectDate, 1L, 0L))));
+
+        partitionSpec = Collections.singletonMap("c2", "2022-08-09 13:00:01.333");
+        createPartition(partitionSpec);
+        catalogPartitionSpecs.add(new CatalogPartitionSpec(partitionSpec));
+        expectDate =
+                new Date(
+                        Timestamp.valueOf("2022-08-09 13:00:01.333")
+                                .toLocalDateTime()
+                                .toLocalDate()
+                                .toEpochDay());
+        expectedColumnStatistics.add(
+                new CatalogColumnStatistics(
+                        Collections.singletonMap(
+                                "c2",
+                                new CatalogColumnStatisticsDataDate(
+                                        expectDate, expectDate, 1L, 0L))));
+
+        List<CatalogColumnStatistics> catalogColumnStatistics =
+                catalog.bulkGetPartitionColumnStatistics(path1, catalogPartitionSpecs);
+        for (int i = 0; i < catalogColumnStatistics.size(); i++) {
+            assertThat(catalogColumnStatistics.get(i)).isEqualTo(expectedColumnStatistics.get(i));
+        }
+
+        // put statistic to the first partition(c2=null), so that we can know the row count
+        catalog.alterPartitionStatistics(
+                path1, catalogPartitionSpecs.get(0), new CatalogTableStatistics(5, 5, 5, 5), false);
+        // change the corresponding expected partition statistic
+        expectedColumnStatistics.set(
+                0,
+                new CatalogColumnStatistics(
+                        Collections.singletonMap(
+                                "c2", new CatalogColumnStatisticsDataDate(null, null, 1L, 5L))));
+        catalogColumnStatistics =
+                catalog.bulkGetPartitionColumnStatistics(path1, catalogPartitionSpecs);
+
+        for (int i = 0; i < catalogColumnStatistics.size(); i++) {
+            assertThat(catalogColumnStatistics.get(i)).isEqualTo(expectedColumnStatistics.get(i));
         }
     }
 
