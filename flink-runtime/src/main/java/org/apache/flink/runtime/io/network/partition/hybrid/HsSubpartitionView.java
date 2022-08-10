@@ -118,7 +118,12 @@ public class HsSubpartitionView
                     && cachedNextDataType == Buffer.DataType.EVENT_BUFFER) {
                 availability = true;
             }
-            return new AvailabilityWithBacklog(availability, getSubpartitionBacklog());
+
+            int backlog = getSubpartitionBacklog();
+            if (backlog == 0) {
+                needNotify = true;
+            }
+            return new AvailabilityWithBacklog(availability, backlog);
         }
     }
 
