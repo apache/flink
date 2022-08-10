@@ -62,7 +62,6 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.stream.Collectors;
 
-import static org.apache.flink.table.catalog.hive.HiveCatalog.isEmbeddedMetastore;
 import static org.apache.flink.table.endpoint.hive.HiveServer2EndpointConfigOptions.CATALOG_HIVE_CONF_DIR;
 import static org.apache.flink.table.endpoint.hive.HiveServer2EndpointConfigOptions.THRIFT_PORT;
 import static org.apache.flink.tests.util.TestUtils.readCsvResultFiles;
@@ -134,7 +133,7 @@ public class SqlGatewayE2ECase extends TestLogger {
                                         .toURI()))) {
             hiveConf.addResource(inputStream, HiveCatalog.HIVE_SITE_FILE);
             // trigger a read from the conf so that the input stream is read
-            isEmbeddedMetastore(hiveConf);
+            hiveConf.getVar(HiveConf.ConfVars.METASTOREURIS);
         } catch (Exception e) {
             throw new RuntimeException("Failed to load hive-site.xml from specified path", e);
         }
