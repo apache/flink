@@ -238,7 +238,11 @@ public class RecreateOnResetOperatorCoordinatorTest {
             assertThat(failedTasks)
                     .satisfiesAnyOf(
                             x -> assertThat(x).isEmpty(),
-                            x -> assertThat(x).hasSize(1).containsExactly(finalIndexOfCoordinator));
+                            x ->
+                                    assertThat(x)
+                                            .hasSize(1)
+                                            .element(0)
+                                            .isEqualTo(finalIndexOfCoordinator));
             assertThat(internalCoordinator)
                     .satisfiesAnyOf(
                             x -> assertThat(x.hasCompleteCheckpoint()).isFalse(),
