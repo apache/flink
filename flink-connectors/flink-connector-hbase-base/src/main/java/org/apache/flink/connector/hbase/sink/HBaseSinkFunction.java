@@ -36,6 +36,7 @@ import org.apache.hadoop.hbase.client.BufferedMutatorParams;
 import org.apache.hadoop.hbase.client.Connection;
 import org.apache.hadoop.hbase.client.ConnectionFactory;
 import org.apache.hadoop.hbase.client.RetriesExhaustedWithDetailsException;
+import org.apache.hadoop.hbase.client.Mutation;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -46,6 +47,13 @@ import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
+
+import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
 
 /**
  * The sink function for HBase.
@@ -76,6 +84,8 @@ public class HBaseSinkFunction<T> extends RichSinkFunction<T>
     private transient ScheduledExecutorService executor;
     private transient ScheduledFuture scheduledFuture;
     private transient AtomicLong numPendingRequests;
+    private transient List<Mutation> mutationList;
+
 
     private transient volatile boolean closed = false;
 
@@ -102,6 +112,7 @@ public class HBaseSinkFunction<T> extends RichSinkFunction<T>
         this.bufferFlushMaxSizeInBytes = bufferFlushMaxSizeInBytes;
         this.bufferFlushMaxMutations = bufferFlushMaxMutations;
         this.bufferFlushIntervalMillis = bufferFlushIntervalMillis;
+        this.mutationList = new ArrayList<>();
     }
 
     @Override
@@ -191,11 +202,20 @@ public class HBaseSinkFunction<T> extends RichSinkFunction<T>
     public void invoke(T value, Context context) throws Exception {
         checkErrorAndRethrow();
 
-        mutator.mutate(mutationConverter.convertToMutation(value));
+        mutationList.add(mutationConverter.convertToMutation(value));
 
         // flush when the buffer number of mutations greater than the configured max size.
         if (bufferFlushMaxMutations > 0
                 && numPendingRequests.incrementAndGet() >= bufferFlushMaxMutations) {
+            // reduce mutationList
+            Map<String, Mutation> tempMutationMap = new HashMap<>();
+            for (Mutation mutation : mutationList) {
+                String s = new String(mutation.getRow(),StandardCharsets.UTF_8);
+                tempMutationMap.put(s, mutation);
+            }
+            for (Map.Entry<String, Mutation> entry : tempMutationMap.entrySet()) {
+                mutator.mutate(entry.getValue());
+            }
             flush();
         }
     }
@@ -204,6 +224,7 @@ public class HBaseSinkFunction<T> extends RichSinkFunction<T>
         // BufferedMutator is thread-safe
         mutator.flush();
         numPendingRequests.set(0);
+        mutationList = new ArrayList<>();
         checkErrorAndRethrow();
     }
 
