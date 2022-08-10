@@ -165,7 +165,7 @@ class FileSinkCsvBulkWriterTests(PyFlinkStreamingTestCase):
         sink = FileSink.for_bulk_format(
             self.csv_dir_name, CsvBulkWriter.for_schema(schema)
         ).build()
-        ds.map(lambda e: e, output_type=schema.get_type_info()).sink_to(sink)
+        ds.sink_to(sink)
 
     def _read_csv_file(self) -> List[str]:
         lines = []

@@ -29,7 +29,7 @@ from pyflink.datastream.connectors.base import SupportsPreprocessing, StreamTran
 from pyflink.datastream.functions import SinkFunction
 from pyflink.datastream.utils import JavaObjectWrapper
 from pyflink.java_gateway import get_gateway
-from pyflink.util.java_utils import to_jarray
+from pyflink.util.java_utils import to_jarray, is_instance_of
 
 __all__ = [
     'FileCompactor',
@@ -745,10 +745,26 @@ class FileSink(Sink, SupportsPreprocessing):
             from pyflink.datastream.data_stream import DataStream
             from pyflink.table.types import _to_java_data_type
 
+            def _check_if_row_data_type(ds) -> bool:
+                j_type_info = ds._j_data_stream.getType()
+                if not is_instance_of(
+                    j_type_info,
+                    'org.apache.flink.table.runtime.typeutils.InternalTypeInfo'
+                ):
+                    return False
+                return is_instance_of(
+                    j_type_info.toLogicalType(),
+                    'org.apache.flink.table.types.logical.RowType'
+                )
+
             class RowRowTransformer(StreamTransformer):
 
                 def apply(self, ds):
                     jvm = get_gateway().jvm
+
+                    if _check_if_row_data_type(ds):
+                        return ds
+
                     j_map_function = jvm.org.apache.flink.python.util.PythonConnectorUtils \
                         .RowRowMapper(_to_java_data_type(row_type))
                     return DataStream(ds._j_data_stream.process(j_map_function))
