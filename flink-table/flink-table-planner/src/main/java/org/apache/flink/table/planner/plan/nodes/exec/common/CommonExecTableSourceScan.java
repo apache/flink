@@ -30,7 +30,6 @@ import org.apache.flink.streaming.api.functions.source.ParallelSourceFunction;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.api.operators.StreamSource;
 import org.apache.flink.streaming.api.transformations.LegacySourceTransformation;
-import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.connector.ProviderContext;
 import org.apache.flink.table.connector.source.DataStreamScanProvider;
 import org.apache.flink.table.connector.source.InputFormatProvider;
@@ -152,10 +151,9 @@ public abstract class CommonExecTableSourceScan extends ExecNodeBase<RowData>
         }
     }
 
-    private ProviderContext createProviderContext(ReadableConfig config) {
+    private ProviderContext createProviderContext(ExecNodeConfig config) {
         return name -> {
-            if (this instanceof StreamExecNode
-                    && !config.get(ExecutionConfigOptions.TABLE_EXEC_LEGACY_TRANSFORMATION_UIDS)) {
+            if (this instanceof StreamExecNode && config.shouldSetUid()) {
                 return Optional.of(createTransformationUid(name));
             }
             return Optional.empty();
