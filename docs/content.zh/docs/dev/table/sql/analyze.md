@@ -1,9 +1,9 @@
 ---
-title: "ANALYZE TABLE Statements"
+title: "ANALYZE TABLE 语句"
 weight: 8
 type: docs
 aliases:
-  - /dev/table/sql/analyze.html
+  - /zh/dev/table/sql/analyze.html
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
@@ -24,39 +24,40 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-# ANALYZE TABLE Statements
+<a name="analyze-table-statements"></a>
 
-- `ANALYZE TABLE` statements are used to collect statistics for existing tables, and write statistics back to catalog. 
-- Only existing table is supported, and an exception will be thrown if the table is a view or table not exists.
-- Currently, `ANALYZE TABLE` only supports in batch mode.
-- `ANALYZE TABLE` statements is triggered manually instead of automatically.
+# ANALYZE TABLE 语句
 
+- `ANALYZE TABLE` 用于为存在的表收集表的统计信息，并将该统计信息写为该表的 catalog 中。
+- `ANALYZE TABLE` 语句仅能够使用于存在的表，如果表不存在或者是视图(View)则会报异常。
+- 当前版本，`ANALYZE TABLE`语句只支持在批模式(Batch Mode)下使用。
+- `ANALYZE TABLE`语句只能由由用户手动触发。
 
-## Run a ANALYZE TABLE statement
+<a name="run-a-analyze-table-statement"></a>
+
+## 执行 ANALYZE TABLE 语句
 
 {{< tabs "analyze table" >}}
 {{< tab "Java" >}}
-`ANALYZE TABLE` statements can be executed with the `executeSql()` method of the `TableEnvironment`. 
+可以使用 `TableEnvironment` 的 `executeSql()` 方法执行 `ANALYZE TABLE` 语句。
 
-The following examples show how to run a `ANALYZE TABLE` statement in `TableEnvironment`.
+以下示例展示了如何在 `TableEnvironment` 中执行一条 `ANALYZE TABLE` 语句。
 {{< /tab >}}
 {{< tab "Scala" >}}
-`ANALYZE TABLE` statements can be executed with the `executeSql()` method of the `TableEnvironment`. 
+可以使用 `TableEnvironment` 的 `executeSql()` 方法执行 `ANALYZE TABLE` 语句。
 
-The following examples show how to run a `ANALYZE TABLE` statement in `TableEnvironment`.
+以下示例展示了如何在 `TableEnvironment` 中执行一条 `ANALYZE TABLE` 语句。
 {{< /tab >}}
 {{< tab "Python" >}}
+可以使用 `TableEnvironment` 的 `execute_sql()` 方法执行 `ANALYZE TABLE` 语句。
 
-`ANALYZE TABLE` statements can be executed with the `execute_sql()` method of the `TableEnvironment`.
-
-The following examples show how to run a `ANALYZE TABLE` statement in `TableEnvironment`.
-
+以下示例展示了如何在 `TableEnvironment` 中执行一条 `ANALYZE TABLE` 语句。
 {{< /tab >}}
 {{< tab "SQL CLI" >}}
 
-`ANALYZE TABLE` statements can be executed in [SQL CLI]({{< ref "docs/dev/table/sqlClient" >}}).
+`ANALYZE TABLE` 语句可以在 [SQL CLI]({{< ref "docs/dev/table/sqlClient" >}}) 中执行。
 
-The following examples show how to run a `ANALYZE TABLE` statement in SQL CLI.
+以下示例展示了如何在 SQL CLI 中执行一条 `ANALYZE TABLE` 语句。
 
 {{< /tab >}}
 {{< /tabs >}}
@@ -66,7 +67,7 @@ The following examples show how to run a `ANALYZE TABLE` statement in SQL CLI.
 ```java
 TableEnvironment tableEnv = TableEnvironment.create(...);
 
-// register a non-partition table named "Orders"
+// 注册名为 “Orders” 的非分区表
 tableEnv.executeSql(
         "CREATE TABLE Orders (" +
         " `user` BIGINT NOT NULl," +
@@ -76,7 +77,7 @@ tableEnv.executeSql(
         " ptime AS PROCTIME()"
         ") with (...)");
 
-// register a partition table named "Store"
+// 注册名为 “Store” 的分区表
 tableEnv.executeSql(
         "CREATE TABLE Store (" +
         " `id` BIGINT NOT NULl," +
@@ -86,48 +87,48 @@ tableEnv.executeSql(
         ") PARTITIONED BY (`date_sk`, `id`) "
         ") with (...)");
 
-// Non-partition table, collect row count.
+// 非分区表，收集表级别的统计信息(表的统计信息主要为行数(row count))。
 tableEnv.executeSql("ANALYZE TABLE Orders COMPUTE STATISTICS");
 
-// Non-partition table, collect row count and all columns statistics.
+// 非分区表，收集表级别的统计信息和所有列的列统计信息。
 tableEnv.executeSql("ANALYZE TABLE Orders COMPUTE STATISTICS FOR ALL COLUMNS");
 
-// Non-partition table, collect row count and specify column `user`'s statistics.
+// 非分区表，收集表级别的统计信息和指定列(列: user)的列统计信息。
 tableEnv.executeSql("ANALYZE TABLE Orders COMPUTE STATISTICS FOR COLUMNS(user)");
 
 
-// Suppose table "Store" has 4 partitions with specs:
+// 假设分区表 “Store” 有 4 个分区，分区信息如下：
 // Partition1 : (date_sk='2022-8-8', id=1)
 // Partition2 : (date_sk='2022-8-8', id=2)
 // Partition3 : (date_sk='2022-8-9', id=1)
 // Partition3 : (date_sk='2022-8-9', id=2)
 
 
-// Partition table, collect row count for Partition1.
+// 分区表，收集分区 Partition1 的表级别统计信息。
 tableEnv.executeSql("ANALYZE TABLE Store PARTITION (date_sk='2022-8-8', id=1) COMPUTE STATISTICS");
 
-// Partition table, collect row count for Partition1 and Partition2.
+// 分区表，收集分区 Partition1 和 Partition2 的表级别统计信息。
 tableEnv.executeSql("ANALYZE TABLE Store PARTITION (date_sk='2022-8-8') COMPUTE STATISTICS");
 
-// Partition table, collect row count for all partitions.
+// 分区表，为所有分区收集表级别统计信息。
 tableEnv.executeSql("ANALYZE TABLE Store COMPUTE STATISTICS");
 
-// Partition table, collect row count and all columns statistics for partition1.
+// 分区表，收集分区 Partition1 的表级别统计信息和所有列的统计信息。
 tableEnv.executeSql("ANALYZE TABLE Store PARTITION (date_sk='2022-8-8', id=1) COMPUTE STATISTICS FOR ALL COLUMNS");
 
-// Partition table, collect row count and all columns statistics for partition1 and partition2.
+// 分区表，收集分区 Partition1 和 Partition2 的表级别统计信息和所有列统计信息。
 tableEnv.executeSql("ANALYZE TABLE Store PARTITION (date_sk='2022-8-8') COMPUTE STATISTICS FOR ALL COLUMNS");
 
-// Partition table, collect row count and all columns statistics for all partitions.
+// 分区表，为所有分区收集表级别统计信息和所有列的统计信息。
 tableEnv.executeSql("ANALYZE TABLE Store COMPUTE STATISTICS FOR ALL COLUMNS");
 
-// Partition table, collect row count and specify column `amount`'s statistics for partition1.
+// 分区表，收集分区 Partition1 的表级别统计信息和分区中指定列(列: amount)的列统计信息。
 tableEnv.executeSql("ANALYZE TABLE Store PARTITION (date_sk='2022-8-8', id=1) COMPUTE STATISTICS FOR COLUMNS(amount)");
 
-// Partition table, collect row count and specify column `amount` and `product`'s statistics for partition1 and partition2.
+// 分区表，收集分区 Partition1 和 Partition2 的表级别统计信息和分区中指定列(列: amount，列: product)的列统计信息。
 tableEnv.executeSql("ANALYZE TABLE Store PARTITION (date_sk='2022-8-8') COMPUTE STATISTICS FOR COLUMNS(amount, product)");
 
-// Partition table, collect row count and column `amount` and `product`'s statistics for all partitions.
+// 分区表，收集所有分区的表级别统计信息和指定列(列: amount，列: product)的列统计信息。
 tableEnv.executeSql("ANALYZE TABLE Store COMPUTE STATISTICS FOR COLUMNS(amount, product)");
 ```
 {{< /tab >}}
@@ -135,68 +136,68 @@ tableEnv.executeSql("ANALYZE TABLE Store COMPUTE STATISTICS FOR COLUMNS(amount, 
 ```scala
 val tableEnv = TableEnvironment.create(...)
 
-// register a non-partition table named "Orders"
+// 注册名为 “Orders” 的非分区表
 tableEnv.executeSql(
   "CREATE TABLE Orders (" +
-          " `user` BIGINT NOT NULl," +
-          " product VARCHAR(32)," +
-          " amount INT," +
-          " ts TIMESTAMP(3)," +
-          " ptime AS PROCTIME()"
+    " `user` BIGINT NOT NULl," +
+    " product VARCHAR(32)," +
+    " amount INT," +
+    " ts TIMESTAMP(3)," +
+    " ptime AS PROCTIME()"
 ") with (...)");
 
-// register a partition table named "Store"
+// 注册名为 “Store” 的分区表
 tableEnv.executeSql(
   "CREATE TABLE Store (" +
-          " `id` BIGINT NOT NULl," +
-          " product VARCHAR(32)," +
-          " amount INT," +
-          " `date_sk` BIGINT" +
-          ") PARTITIONED BY (`date_sk`, `id`) "
+    " `id` BIGINT NOT NULl," +
+    " product VARCHAR(32)," +
+    " amount INT," +
+    " `date_sk` BIGINT" +
+    ") PARTITIONED BY (`date_sk`, `id`) "
 ") with (...)");
 
-// Non-partition table, collect row count.
+// 非分区表，收集表级别的统计信息(表的统计信息主要为行数(row count))。
 tableEnv.executeSql("ANALYZE TABLE Orders COMPUTE STATISTICS");
 
-// Non-partition table, collect row count and all columns statistics.
+// 非分区表，收集表级别的统计信息和所有列的列统计信息。
 tableEnv.executeSql("ANALYZE TABLE Orders COMPUTE STATISTICS FOR ALL COLUMNS");
 
-// Non-partition table, collect row count and specify column `user`'s statistics.
-tableEnv.executeSql("ANALYZE TABLE Orders COMPUTE STATISTICS FOR COLUMNS(a)");
+// 非分区表，收集表级别的统计信息和指定列(列: user)的列统计信息。
+tableEnv.executeSql("ANALYZE TABLE Orders COMPUTE STATISTICS FOR COLUMNS(user)");
 
 
-// Suppose table "Store" has 4 partitions with specs:
+// 假设分区表 “Store” 有 4 个分区，分区信息如下：
 // Partition1 : (date_sk='2022-8-8', id=1)
 // Partition2 : (date_sk='2022-8-8', id=2)
 // Partition3 : (date_sk='2022-8-9', id=1)
 // Partition3 : (date_sk='2022-8-9', id=2)
 
 
-// Partition table, collect row count for Partition1.
+// 分区表，收集分区 Partition1 的表级别统计信息。
 tableEnv.executeSql("ANALYZE TABLE Store PARTITION (date_sk='2022-8-8', id=1) COMPUTE STATISTICS");
 
-// Partition table, collect row count for Partition1 and Partition2.
+// 分区表，收集分区 Partition1 和 Partition2 的表级别统计信息。
 tableEnv.executeSql("ANALYZE TABLE Store PARTITION (date_sk='2022-8-8') COMPUTE STATISTICS");
 
-// Partition table, collect row count for all partitions.
+// 分区表，为所有分区收集表级别统计信息。
 tableEnv.executeSql("ANALYZE TABLE Store COMPUTE STATISTICS");
 
-// Partition table, collect row count and all columns statistics for partition1.
+// 分区表，收集分区 Partition1 的表级别统计信息和所有列的统计信息。
 tableEnv.executeSql("ANALYZE TABLE Store PARTITION (date_sk='2022-8-8', id=1) COMPUTE STATISTICS FOR ALL COLUMNS");
 
-// Partition table, collect row count and all columns statistics for partition1 and partition2.
+// 分区表，收集分区 Partition1 和 Partition2 的表级别统计信息和所有列统计信息。
 tableEnv.executeSql("ANALYZE TABLE Store PARTITION (date_sk='2022-8-8') COMPUTE STATISTICS FOR ALL COLUMNS");
 
-// Partition table, collect row count and all columns statistics for all partitions.
+// 分区表，为所有分区收集表级别统计信息和所有列的统计信息。
 tableEnv.executeSql("ANALYZE TABLE Store COMPUTE STATISTICS FOR ALL COLUMNS");
 
-// Partition table, collect row count and specify column `amount`'s statistics for partition1.
+// 分区表，收集分区 Partition1 的表级别统计信息和分区中指定列(列: amount)的列统计信息。
 tableEnv.executeSql("ANALYZE TABLE Store PARTITION (date_sk='2022-8-8', id=1) COMPUTE STATISTICS FOR COLUMNS(amount)");
 
-// Partition table, collect row count and specify column `amount` and `product`'s statistics for partition1 and partition2.
+// 分区表，收集分区 Partition1 和 Partition2 的表级别统计信息和分区中指定列(列: amount，列: product)的列统计信息。
 tableEnv.executeSql("ANALYZE TABLE Store PARTITION (date_sk='2022-8-8') COMPUTE STATISTICS FOR COLUMNS(amount, product)");
 
-// Partition table, collect row count and column `amount` and `product`'s statistics for all partitions.
+// 分区表，收集所有分区的表级别统计信息和指定列(列: amount，列: product)的列统计信息。
 tableEnv.executeSql("ANALYZE TABLE Store COMPUTE STATISTICS FOR COLUMNS(amount, product)");
 ```
 {{< /tab >}}
@@ -204,88 +205,88 @@ tableEnv.executeSql("ANALYZE TABLE Store COMPUTE STATISTICS FOR COLUMNS(amount, 
 ```python
 table_env = TableEnvironment.create(...)
 
-# register a non-partition table named "Orders"
-table_env.execute_sql( \
+// 注册名为 “Orders” 的非分区表
+table_env.execute_sql(
   "CREATE TABLE Orders (" +
-          " `user` BIGINT NOT NULl," +
-          " product VARCHAR(32)," +
-          " amount INT," +
-          " ts TIMESTAMP(3)," +
-          " ptime AS PROCTIME()"
+    " `user` BIGINT NOT NULl," +
+    " product VARCHAR(32)," +
+    " amount INT," +
+    " ts TIMESTAMP(3)," +
+    " ptime AS PROCTIME()"
 ") with (...)");
 
-# register a partition table named "Store"
+// 注册名为 “Store” 的分区表
 table_env.execute_sql(
   "CREATE TABLE Store (" +
-          " `id` BIGINT NOT NULl," +
-          " product VARCHAR(32)," +
-          " amount INT," +
-          " `date_sk` BIGINT" +
-          ") PARTITIONED BY (`date_sk`, `id`) "
+    " `id` BIGINT NOT NULl," +
+    " product VARCHAR(32)," +
+    " amount INT," +
+    " `date_sk` BIGINT" +
+    ") PARTITIONED BY (`date_sk`, `id`) "
 ") with (...)");
 
-# Non-partition table, collect row count.
+// 非分区表，收集表级别的统计信息(表的统计信息主要为行数(row count))。
 table_env.execute_sql("ANALYZE TABLE Orders COMPUTE STATISTICS");
 
-# Non-partition table, collect row count and all columns statistics.
+// 非分区表，收集表级别的统计信息和所有列的列统计信息。
 table_env.execute_sql("ANALYZE TABLE Orders COMPUTE STATISTICS FOR ALL COLUMNS");
 
-# Non-partition table, collect row count and specify column `user`'s statistics.
-table_env.execute_sql("ANALYZE TABLE Orders COMPUTE STATISTICS FOR COLUMNS(a)");
+// 非分区表，收集表级别的统计信息和指定列(列: user)的列统计信息。
+table_env.execute_sql("ANALYZE TABLE Orders COMPUTE STATISTICS FOR COLUMNS(user)");
 
 
-# Suppose table "Store" has 4 partitions with specs:
-# Partition1 : (date_sk='2022-8-8', id=1)
-# Partition2 : (date_sk='2022-8-8', id=2)
-# Partition3 : (date_sk='2022-8-9', id=1)
-# Partition3 : (date_sk='2022-8-9', id=2)
+// 假设分区表 “Store” 有 4 个分区，分区信息如下：
+// Partition1 : (date_sk='2022-8-8', id=1)
+// Partition2 : (date_sk='2022-8-8', id=2)
+// Partition3 : (date_sk='2022-8-9', id=1)
+// Partition3 : (date_sk='2022-8-9', id=2)
 
 
-# Partition table, collect row count for Partition1.
+// 分区表，收集分区 Partition1 的表级别统计信息。
 table_env.execute_sql("ANALYZE TABLE Store PARTITION (date_sk='2022-8-8', id=1) COMPUTE STATISTICS");
 
-# Partition table, collect row count for Partition1 and Partition2.
+// 分区表，收集分区 Partition1 和 Partition2 的表级别统计信息。
 table_env.execute_sql("ANALYZE TABLE Store PARTITION (date_sk='2022-8-8') COMPUTE STATISTICS");
 
-# Partition table, collect row count for all partitions.
+// 分区表，为所有分区收集表级别统计信息。
 table_env.execute_sql("ANALYZE TABLE Store COMPUTE STATISTICS");
 
-# Partition table, collect row count and all columns statistics for partition1.
+// 分区表，收集分区 Partition1 的表级别统计信息和所有列的统计信息。
 table_env.execute_sql("ANALYZE TABLE Store PARTITION (date_sk='2022-8-8', id=1) COMPUTE STATISTICS FOR ALL COLUMNS");
 
-# Partition table, collect row count and all columns statistics for partition1 and partition2.
+// 分区表，收集分区 Partition1 和 Partition2 的表级别统计信息和所有列统计信息。
 table_env.execute_sql("ANALYZE TABLE Store PARTITION (date_sk='2022-8-8') COMPUTE STATISTICS FOR ALL COLUMNS");
 
-# Partition table, collect row count and all columns statistics for all partitions.
+// 分区表，为所有分区收集表级别统计信息和所有列的统计信息。
 table_env.execute_sql("ANALYZE TABLE Store COMPUTE STATISTICS FOR ALL COLUMNS");
 
-# Partition table, collect row count and specify column `amount`'s statistics for partition1.
+// 分区表，收集分区 Partition1 的表级别统计信息和分区中指定列(列: amount)的列统计信息。
 table_env.execute_sql("ANALYZE TABLE Store PARTITION (date_sk='2022-8-8', id=1) COMPUTE STATISTICS FOR COLUMNS(amount)");
 
-# Partition table, collect row count and specify column `amount` and `product`'s statistics for partition1 and partition2.
+// 分区表，收集分区 Partition1 和 Partition2 的表级别统计信息和分区中指定列(列: amount，列: product)的列统计信息。
 table_env.execute_sql("ANALYZE TABLE Store PARTITION (date_sk='2022-8-8') COMPUTE STATISTICS FOR COLUMNS(amount, product)");
 
-# Partition table, collect row count and column `amount` and `product`'s statistics for all partitions.
+// 分区表，收集所有分区的表级别统计信息和指定列(列: amount，列: product)的列统计信息。
 table_env.execute_sql("ANALYZE TABLE Store COMPUTE STATISTICS FOR COLUMNS(amount, product)");
 ```
 {{< /tab >}}
 {{< tab "SQL CLI" >}}
 ```sql
 Flink SQL> CREATE TABLE Orders (
->  `user` BIGINT NOT NULl,
->  product VARCHAR(32),
->  amount INT,
->  ts TIMESTAMP(3)
+    >  `user` BIGINT NOT NULl,
+    >  product VARCHAR(32),
+    >  amount INT,
+    >  ts TIMESTAMP(3)
 > ) with (
 >  ...
 > );
 [INFO] Table has been created.
 
 Flink SQL> CREATE TABLE Store (
->  `id` BIGINT NOT NULl,
->  product VARCHAR(32),
->  amount INT,
->  `date_sk` BIGINT
+    >  `id` BIGINT NOT NULl,
+    >  product VARCHAR(32),
+    >  amount INT,
+    >  `date_sk` BIGINT
 >  ) PARTITIONED BY (`date_sk`, `id`)
 >  ) with (
 >    ...
@@ -317,31 +318,32 @@ Flink SQL> ANALYZE TABLE Store COMPUTE STATISTICS FOR COLUMNS(amount, product);
 {{< /tab >}}
 {{< /tabs >}}
 
+<a name="syntax"></a>
 
-## Syntax
+## 语法
 
 ```sql
 ANALYZE TABLE [catalog_name.][db_name.]table_name [PARTITION(partcol1=val1 [, partcol2=val2, ...])] COMPUTE STATISTICS [FOR COLUMNS col1 [, col2, ...] | FOR ALL COLUMNS]
 ```
-- PARTITION(partcol1=val1 [, partcol2=val2, ...]) is optional for the partition table
-  - If no partition is specified, the statistics will be gathered for all partitions
-  - If a certain partition is specified, the statistics will be gathered only for specific partition
-  - If the table is non-partition table , while a partition is specified, an exception will be thrown
-  
-- FOR COLUMNS col1 [, col2, ...] or FOR ALL COLUMNS are also optional
-  - If no columns is specified, only the table level statistics will be gathered
-  - If a column or any column is specified, the column level statistics will be gathered
-    - the column level statistics including:
-      - ndv : the number of distinct values
-      - nullCount : the number of nulls
-      - avgLen : the average length of column values 
-      - maxLen : the max length of column values
-      - minValue : the min value of column values
-      - maxValue : the max value of column values
-      - valueCount : the value count only for boolean type
-    - the supported types and its corresponding column level statistics are as following sheet lists("Y" means support, "N" means unsupported):
+- 对于分区表， 语法中 PARTITION(partcol1=val1 [, partcol2=val2, ...]) 是可选的
+  - 如果没有指定某分区，则会收集所有分区的统计信息
+  - 如果指定了某分区，则只会收集该分区的统计信息
+  - 如果该表为非分区表，但语句中指定了分区，则会报异常
 
-| Types                            | `ndv` | `nullCount` | `avgLen` | `maxLen` | `maxValue` | `minValue` | `valueCount` |
+- 语法中，FOR COLUMNS col1 [, col2, ...] 或者 FOR ALL COLUMNS 也是可选的
+  - 如果没有指定某一列，则只会收集表级别的统计信息
+  - 如果指定了某一列或者某几列，则会收集列的统计信息
+  - 列级别的统计信息包括:
+    - ndv: 该列中列值不同的数量
+    - nullCount: 该列中空值的数量
+    - avgLen: 列值的平均长度
+    - maxLen: 列值的最大长度
+    - minValue: 列值的最小值
+    - maxValue: 列值的最大值
+    - valueCount: 该值只应用于 boolean 类型
+  - 对于列统计信息，支持类型和对应的列统计信息值如下表所示("Y" 代表支持，"N" 代表不支持):
+
+| 类型                               | `ndv` | `nullCount` | `avgLen` | `maxLen` | `maxValue` | `minValue` | `valueCount` |
 |:---------------------------------|:-----:|:-----------:|:--------:|:--------:|:----------:|:----------:|:------------:|
 | `BOOLEAN`                        |   N   |      Y      |    N     |    N     |     N      |     N      |      Y       |
 | `TINYINT`                        |   Y   |      Y      |    N     |    N     |     Y      |     Y      |      N       |
@@ -359,6 +361,6 @@ ANALYZE TABLE [catalog_name.][db_name.]table_name [PARTITION(partcol1=val1 [, pa
 | `VARCHAR`                        |   Y   |      Y      |    Y     |    Y     |     N      |     N      |      N       |
 | `other types`                    |   N   |      Y      |    N     |    N     |     N      |     N      |      N       |
 
-*NOTE:* For the fix length types (like `BOOLEAN`, `INTEGER`, `DOUBLE` etc.), we need not collect the `avgLen` and `maxLen` from the original records.
+*注意:* 对于数据值定长的类型(例如：`BOOLEAN`, `INTEGER`, `DOUBLE`等)， Flink 不会去收集 `avgLen` 和 `maxLen` 值。
 
 {{< top >}}
