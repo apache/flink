@@ -34,6 +34,7 @@ import org.apache.flink.runtime.state.CheckpointStorage;
 import org.apache.flink.runtime.state.CheckpointableKeyedStateBackend;
 import org.apache.flink.runtime.state.ConfigurableStateBackend;
 import org.apache.flink.runtime.state.IncrementalRemoteKeyedStateHandle;
+import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
 import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.SharedStateRegistry;
 import org.apache.flink.runtime.state.SharedStateRegistryImpl;
@@ -79,15 +80,18 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Queue;
+import java.util.Set;
 import java.util.concurrent.RunnableFuture;
 
 import static junit.framework.TestCase.assertNotNull;
 import static org.apache.flink.contrib.streaming.state.RocksDBKeyedStateBackendBuilder.DB_INSTANCE_DIR_STRING;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.mockito.Matchers.any;
@@ -145,6 +149,7 @@ public class EmbeddedRocksDBStateBackendTest
     private RocksDB db = null;
     private ColumnFamilyHandle defaultCFHandle = null;
     private RocksDBStateUploader rocksDBStateUploader = null;
+    private int maxParallelism = 2;
     private final RocksDBResourceContainer optionsContainer = new RocksDBResourceContainer();
 
     public void prepareRocksDB() throws Exception {
@@ -233,7 +238,8 @@ public class EmbeddedRocksDBStateBackendTest
                                 IntSerializer.INSTANCE,
                                 spy(db),
                                 defaultCFHandle,
-                                optionsContainer.getColumnOptions())
+                                optionsContainer.getColumnOptions(),
+                                maxParallelism)
                         .setEnableIncrementalCheckpointing(enableIncrementalCheckpointing);
 
         if (enableIncrementalCheckpointing) {
@@ -325,7 +331,8 @@ public class EmbeddedRocksDBStateBackendTest
                                     IntSerializer.INSTANCE,
                                     db,
                                     defaultCFHandle,
-                                    columnFamilyOptions)
+                                    columnFamilyOptions,
+                                    maxParallelism)
                             .setEnableIncrementalCheckpointing(enableIncrementalCheckpointing)
                             .build();
 
@@ -640,6 +647,68 @@ public class EmbeddedRocksDBStateBackendTest
                 .deleteRange(any(ColumnFamilyHandle.class), any(byte[].class), any(byte[].class));
 
         state.clear();
+    }
+
+    @Test
+    public void testMapStateClearCorrectly() throws Exception {
+        verifyMapStateClear(Byte.MAX_VALUE + 1); // one byte prefix
+        verifyMapStateClear(KeyGroupRangeAssignment.UPPER_BOUND_MAX_PARALLELISM); // two byte prefix
+    }
+
+    public void verifyMapStateClear(int maxParallelism) throws Exception {
+        try {
+            this.maxParallelism = maxParallelism;
+            setupRocksKeyedStateBackend();
+            MapStateDescriptor<Integer, String> kvId =
+                    new MapStateDescriptor<>("id", Integer.class, String.class);
+            MapState<Integer, String> state =
+                    keyedStateBackend.getPartitionedState(
+                            VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE, kvId);
+            keyedStateBackend = spy(keyedStateBackend);
+            doAnswer(
+                            invocationOnMock -> { // ensure that each KeyGroup can use the same Key
+                                keyedStateBackend
+                                        .getKeyContext()
+                                        .setCurrentKey(invocationOnMock.getArgument(0));
+                                keyedStateBackend
+                                        .getSharedRocksKeyBuilder()
+                                        .setKeyAndKeyGroup(
+                                                keyedStateBackend.getCurrentKey(),
+                                                keyedStateBackend.getCurrentKeyGroupIndex());
+                                return null;
+                            })
+                    .when(keyedStateBackend)
+                    .setCurrentKey(any());
+
+            Set<Integer> testKeyGroups =
+                    new HashSet<>(Arrays.asList(0, maxParallelism / 2, maxParallelism - 1));
+            for (int testKeyGroup : testKeyGroups) { // initialize
+                if (testKeyGroup >= maxParallelism - 1) {
+                    break;
+                }
+                keyedStateBackend.setCurrentKeyGroupIndex(testKeyGroup);
+                keyedStateBackend.setCurrentKey(testKeyGroup);
+                state.put(testKeyGroup, "retain " + testKeyGroup);
+                keyedStateBackend.setCurrentKey(-1); // 0xffff for the key
+                state.put(testKeyGroup, "clear " + testKeyGroup);
+            }
+
+            for (int testKeyGroup : testKeyGroups) { // test for clear
+                if (testKeyGroup >= maxParallelism - 1) {
+                    break;
+                }
+                keyedStateBackend.setCurrentKeyGroupIndex(testKeyGroup);
+                keyedStateBackend.setCurrentKey(-1);
+                assertEquals("clear " + testKeyGroup, state.get(testKeyGroup));
+                state.clear();
+                assertNull(state.get(testKeyGroup));
+                keyedStateBackend.setCurrentKey(testKeyGroup);
+                assertEquals("retain " + testKeyGroup, state.get(testKeyGroup));
+            }
+        } finally {
+            keyedStateBackend.dispose();
+            keyedStateBackend = null;
+        }
     }
 
     private void runStateUpdates() throws Exception {

@@ -31,6 +31,7 @@ import org.apache.flink.runtime.state.TestLocalRecoveryConfig;
 import org.apache.flink.runtime.state.UncompressedStreamCompressionDecorator;
 import org.apache.flink.runtime.state.metrics.LatencyTrackingStateConfig;
 import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
+import org.apache.flink.util.Preconditions;
 
 import org.rocksdb.ColumnFamilyHandle;
 import org.rocksdb.ColumnFamilyOptions;
@@ -85,7 +86,9 @@ public final class RocksDBTestUtils {
             TypeSerializer<K> keySerializer,
             RocksDB db,
             ColumnFamilyHandle defaultCFHandle,
-            ColumnFamilyOptions columnFamilyOptions) {
+            ColumnFamilyOptions columnFamilyOptions,
+            int numberOfKeyGroups) {
+        Preconditions.checkArgument(numberOfKeyGroups >= 1, "numberOfKeyGroups is less than 1.");
 
         final RocksDBResourceContainer optionsContainer = new RocksDBResourceContainer();
 
@@ -97,8 +100,8 @@ public final class RocksDBTestUtils {
                 stateName -> columnFamilyOptions,
                 new KvStateRegistry().createTaskRegistry(new JobID(), new JobVertexID()),
                 keySerializer,
-                2,
-                new KeyGroupRange(0, 1),
+                numberOfKeyGroups,
+                new KeyGroupRange(0, numberOfKeyGroups - 1),
                 new ExecutionConfig(),
                 TestLocalRecoveryConfig.disabled(),
                 EmbeddedRocksDBStateBackend.PriorityQueueStateType.HEAP,
