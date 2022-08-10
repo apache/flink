@@ -35,25 +35,23 @@ import org.apache.hadoop.hbase.client.BufferedMutator;
 import org.apache.hadoop.hbase.client.BufferedMutatorParams;
 import org.apache.hadoop.hbase.client.Connection;
 import org.apache.hadoop.hbase.client.ConnectionFactory;
-import org.apache.hadoop.hbase.client.RetriesExhaustedWithDetailsException;
 import org.apache.hadoop.hbase.client.Mutation;
+import org.apache.hadoop.hbase.client.RetriesExhaustedWithDetailsException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
-
-import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-
 
 /**
  * The sink function for HBase.
@@ -85,7 +83,6 @@ public class HBaseSinkFunction<T> extends RichSinkFunction<T>
     private transient ScheduledFuture scheduledFuture;
     private transient AtomicLong numPendingRequests;
     private transient List<Mutation> mutationList;
-
 
     private transient volatile boolean closed = false;
 
@@ -210,7 +207,7 @@ public class HBaseSinkFunction<T> extends RichSinkFunction<T>
             // reduce mutationList
             Map<String, Mutation> tempMutationMap = new HashMap<>();
             for (Mutation mutation : mutationList) {
-                String s = new String(mutation.getRow(),StandardCharsets.UTF_8);
+                String s = new String(mutation.getRow(), StandardCharsets.UTF_8);
                 tempMutationMap.put(s, mutation);
             }
             for (Map.Entry<String, Mutation> entry : tempMutationMap.entrySet()) {
