@@ -1612,7 +1612,7 @@ public final class TestValuesTableFactory
                 }
             } else {
                 TestValuesLookupFunction lookupFunction =
-                        new TestValuesLookupFunction(data, lookupIndices, converter);
+                        getTestValuesLookupFunction(data, lookupIndices, converter);
                 if (cache != null) {
                     return PartialCachingLookupProvider.of(lookupFunction, cache);
                 } else if (reloadTrigger != null) {

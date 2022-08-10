@@ -763,8 +763,8 @@ class LookupJoinITCase(legacyTableSource: Boolean, cacheType: LookupCacheType)
       .addSink(sink)
     env.execute()
 
-    val expected = if (legacyTableSource) {
-      // legacy lookup source do not support retry
+    val expected = if (legacyTableSource || cacheType == LookupCacheType.FULL) {
+      // legacy lookup source and full caching lookup do not support retry
       Seq("1,12,Julian,Julian", "2,15,Hello,Jark", "3,15,Fabian,Fabian")
     } else {
       // the user_table_with_lookup_threshold3 will return null result before 3rd lookup
