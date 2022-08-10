@@ -238,6 +238,12 @@ public class OperationManager {
                                 runBefore();
                                 resultFetcher = resultSupplier.call();
                                 runAfter();
+                            } catch (InterruptedException e) {
+                                // User cancel the execution.
+                                LOG.error(
+                                        String.format(
+                                                "Operation %s is interrupted.", operationHandle),
+                                        e);
                             } catch (Throwable t) {
                                 processThrowable(t);
                             }
