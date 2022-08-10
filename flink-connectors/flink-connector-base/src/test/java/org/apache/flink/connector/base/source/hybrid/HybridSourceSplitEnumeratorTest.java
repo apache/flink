@@ -178,6 +178,26 @@ public class HybridSourceSplitEnumeratorTest {
     }
 
     @Test
+    public void testRestoreEnumeratorWith2ndSource() throws Exception {
+        setupEnumeratorAndTriggerSourceSwitch();
+        HybridSourceEnumeratorState enumeratorState = enumerator.snapshotState(0);
+        MockSplitEnumerator underlyingEnumerator = getCurrentEnumerator(enumerator);
+        assertThat(
+                        (List<MockSourceSplit>)
+                                Whitebox.getInternalState(underlyingEnumerator, "splits"))
+                .hasSize(0);
+        enumerator =
+                (HybridSourceSplitEnumerator) source.restoreEnumerator(context, enumeratorState);
+        enumerator.start();
+        enumerator.handleSourceEvent(SUBTASK0, new SourceReaderFinishedEvent(-1));
+        underlyingEnumerator = getCurrentEnumerator(enumerator);
+        assertThat(
+                        (List<MockSourceSplit>)
+                                Whitebox.getInternalState(underlyingEnumerator, "splits"))
+                .hasSize(0);
+    }
+
+    @Test
     public void testDefaultMethodDelegation() throws Exception {
         setupEnumeratorAndTriggerSourceSwitch();
         SplitEnumerator<MockSourceSplit, Object> underlyingEnumeratorSpy =

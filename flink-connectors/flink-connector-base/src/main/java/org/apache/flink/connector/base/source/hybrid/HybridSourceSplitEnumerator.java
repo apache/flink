@@ -218,7 +218,7 @@ public class HybridSourceSplitEnumerator
             }
 
             if (subtaskSourceIndex < currentSourceIndex) {
-                subtaskSourceIndex++;
+                subtaskSourceIndex = switchedSources.getSourceIndex(subtaskSourceIndex);
                 sendSwitchSourceEvent(subtaskId, subtaskSourceIndex);
                 return;
             }
