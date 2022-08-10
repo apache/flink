@@ -72,7 +72,7 @@ public class SQLClientKafkaITCase extends TestLogger {
 
     @Parameterized.Parameters(name = "{index}: kafka-version:{0} kafka-sql-version:{1}")
     public static Collection<Object[]> data() {
-        return Arrays.asList(new Object[][] {{"3.1.1", "universal", "kafka", ".*kafka.jar"}});
+        return Arrays.asList(new Object[][] {{"3.2.1", "universal", "kafka", ".*kafka.jar"}});
     }
 
     private static Configuration getConfiguration() {
