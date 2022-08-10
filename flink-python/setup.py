@@ -179,6 +179,9 @@ except IOError:
           file=sys.stderr)
     sys.exit(-1)
 VERSION = __version__  # noqa
+APACHE_FLINK_VERSION = '1.17.1'
+APACHE_FLINK_LIBRARIES_VERSION = '1.13+lyft202208091660085522'
+
 
 with io.open(os.path.join(this_directory, 'README.md'), 'r', encoding='utf-8') as f:
     long_description = f.read()
@@ -252,15 +255,7 @@ try:
                   "is complete, or do this in the flink-python directory of the flink source "
                   "directory.")
             sys.exit(-1)
-    if VERSION.find('dev0') != -1:
-        apache_flink_libraries_dependency = 'apache-flink-libraries==%s' % VERSION
-    else:
-        split_versions = VERSION.split('.')
-        split_versions[-1] = str(int(split_versions[-1]) + 1)
-        NEXT_VERSION = '.'.join(split_versions)
-        apache_flink_libraries_dependency = 'apache-flink-libraries>=%s,<%s' % \
-                                            (VERSION, NEXT_VERSION)
-
+    apache_flink_libraries_dependency = 'apache-flink-libraries==%s' % APACHE_FLINK_LIBRARIES_VERSION
     script_names = ["pyflink-shell.sh", "find-flink-home.sh"]
     scripts = [os.path.join(SCRIPTS_TEMP_PATH, script) for script in script_names]
     scripts.append("pyflink/find_flink_home.py")
