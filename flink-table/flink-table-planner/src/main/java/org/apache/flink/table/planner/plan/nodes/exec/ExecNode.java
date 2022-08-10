@@ -116,4 +116,10 @@ public interface ExecNode<T> extends ExecNodeTranslator<T> {
      * @param visitor ExecNodeVisitor.
      */
     void accept(ExecNodeVisitor visitor);
+
+    /**
+     * Declares whether the node has been created as part of a plan compilation. Some translation
+     * properties might be impacted by this (e.g. UID generation for transformations).
+     */
+    void setCompiled(boolean isCompiled);
 }

@@ -30,6 +30,7 @@ import org.apache.flink.table.planner.plan.nodes.exec.visitor.ExecNodeVisitor;
 import org.apache.flink.table.planner.plan.utils.ExecNodeMetadataUtil;
 import org.apache.flink.table.types.logical.LogicalType;
 
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JacksonInject;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonIgnore;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonInclude;
@@ -48,6 +49,15 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  */
 @JsonIgnoreProperties(ignoreUnknown = true)
 public abstract class ExecNodeBase<T> implements ExecNode<T> {
+
+    /**
+     * The default value of this flag is false. Other cases must set this flag accordingly via
+     * {@link #setCompiled(boolean)}. It is not exposed via a constructor arg to avoid complex
+     * constructor overloading for all {@link ExecNode}s. However, during deserialization this flag
+     * will always be set to true.
+     */
+    @JacksonInject("isDeserialize")
+    private boolean isCompiled;
 
     private final String description;
 
@@ -147,8 +157,10 @@ public abstract class ExecNodeBase<T> implements ExecNode<T> {
             transformation =
                     translateToPlanInternal(
                             (PlannerBase) planner,
-                            new ExecNodeConfig(
-                                    ((PlannerBase) planner).getTableConfig(), persistedConfig));
+                            ExecNodeConfig.of(
+                                    ((PlannerBase) planner).getTableConfig(),
+                                    persistedConfig,
+                                    isCompiled));
             if (this instanceof SingleTransformationTranslator) {
                 if (inputsContainSingleton()) {
                     transformation.setParallelism(1);
@@ -157,6 +169,16 @@ public abstract class ExecNodeBase<T> implements ExecNode<T> {
             }
         }
         return transformation;
+    }
+
+    @Override
+    public void accept(ExecNodeVisitor visitor) {
+        visitor.visit(this);
+    }
+
+    @Override
+    public void setCompiled(boolean compiled) {
+        isCompiled = compiled;
     }
 
     /**
@@ -170,11 +192,6 @@ public abstract class ExecNodeBase<T> implements ExecNode<T> {
      */
     protected abstract Transformation<T> translateToPlanInternal(
             PlannerBase planner, ExecNodeConfig config);
-
-    @Override
-    public void accept(ExecNodeVisitor visitor) {
-        visitor.visit(this);
-    }
 
     /** Whether singleton distribution is required. */
     protected boolean inputsContainSingleton() {
@@ -203,13 +220,11 @@ public abstract class ExecNodeBase<T> implements ExecNode<T> {
     }
 
     protected TransformationMetadata createTransformationMeta(
-            String operatorName, ReadableConfig config) {
-        if (ExecNodeMetadataUtil.isUnsupported(this.getClass())
-                || config.get(ExecutionConfigOptions.TABLE_EXEC_LEGACY_TRANSFORMATION_UIDS)) {
+            String operatorName, ExecNodeConfig config) {
+        if (ExecNodeMetadataUtil.isUnsupported(this.getClass()) || !config.shouldSetUid()) {
             return new TransformationMetadata(
                     createTransformationName(config), createTransformationDescription(config));
         } else {
-            // Only classes supporting metadata util need to set the uid
             return new TransformationMetadata(
                     createTransformationUid(operatorName),
                     createTransformationName(config),
@@ -218,14 +233,12 @@ public abstract class ExecNodeBase<T> implements ExecNode<T> {
     }
 
     protected TransformationMetadata createTransformationMeta(
-            String operatorName, String detailName, String simplifiedName, ReadableConfig config) {
+            String operatorName, String detailName, String simplifiedName, ExecNodeConfig config) {
         final String name = createFormattedTransformationName(detailName, simplifiedName, config);
         final String desc = createFormattedTransformationDescription(detailName, config);
-        if (ExecNodeMetadataUtil.isUnsupported(this.getClass())
-                || config.get(ExecutionConfigOptions.TABLE_EXEC_LEGACY_TRANSFORMATION_UIDS)) {
+        if (ExecNodeMetadataUtil.isUnsupported(this.getClass()) || !config.shouldSetUid()) {
             return new TransformationMetadata(name, desc);
         } else {
-            // Only classes supporting metadata util need to set the uid
             return new TransformationMetadata(createTransformationUid(operatorName), name, desc);
         }
     }
