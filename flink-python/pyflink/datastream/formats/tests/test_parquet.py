@@ -23,7 +23,7 @@ import tempfile
 import time
 import unittest
 from decimal import Decimal
-from typing import List, Optional, Tuple
+from typing import List, Tuple
 
 import pandas as pd
 import pytz

@@ -17,7 +17,6 @@
 ################################################################################
 from typing import Optional
 
-from pyflink.common.typeinfo import _from_java_type
 from pyflink.datastream.connectors.file_system import BulkWriterFactory, RowDataBulkWriterFactory, \
     StreamFormat
 from pyflink.java_gateway import get_gateway
