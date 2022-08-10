@@ -138,20 +138,17 @@ The corresponding CSV file:
 
 Similarly to the `TextLineInputFormat`, `CsvReaderFormat` can be used in both continues and batch modes (see [TextLineInputFormat]({{< ref "docs/connectors/datastream/formats/text_files" >}})  for examples).
 
-For PyFlink users, `CsvBulkWriters` could be used to create `BulkWriterFactory` to write `Row` records to files in CSV format.
-It should be noted that if the preceding operator of sink is an operator which produces `RowData` records, e.g. CSV source, it needs to be converted to `Row` records before writing to sink.
+For PyFlink users, `CsvBulkWriters` could be used to create `BulkWriterFactory` to write records to files in CSV format.
+
 ```python
-schema = CsvSchema.builder()
-    .add_number_column('id', number_type=DataTypes.BIGINT())
-    .add_array_column('array', separator='#', element_type=DataTypes.INT())
-    .set_column_separator(',')
+schema = CsvSchema.builder() \
+    .add_number_column('id', number_type=DataTypes.BIGINT()) \
+    .add_array_column('array', separator='#', element_type=DataTypes.INT()) \
+    .set_column_separator(',') \
     .build()
 
 sink = FileSink.for_bulk_format(
     OUTPUT_DIR, CsvBulkWriters.for_schema(schema)).build()
 
-# If ds is a source stream producing RowData records, a map could be added to help converting RowData records into Row records.
-ds.map(lambda e: e, output_type=schema.get_type_info()).sink_to(sink)
-# Else
 ds.sink_to(sink)
 ```

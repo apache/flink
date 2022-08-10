@@ -514,6 +514,10 @@ under the License.
 								</artifactItem>
 								<artifactItem>
 									<groupId>org.apache.flink</groupId>
+									<artifactId>flink-sql-orc</artifactId>
+								</artifactItem>
+								<artifactItem>
+									<groupId>org.apache.flink</groupId>
 									<artifactId>flink-json</artifactId>
 								</artifactItem>
 								<artifactItem>

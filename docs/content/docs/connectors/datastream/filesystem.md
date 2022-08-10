@@ -486,27 +486,22 @@ input.sinkTo(sink)
 {{< /tab >}}
 {{< /tabs >}}
 
-For PyFlink users, `ParquetBulkWriter` could be used to create a `BulkWriterFactory` that writes `Row`s into Parquet files.
+For PyFlink users, `ParquetBulkWriters` could be used to create a `BulkWriterFactory` that writes `Row`s into Parquet files.
 
 ```python
 row_type = DataTypes.ROW([
     DataTypes.FIELD('string', DataTypes.STRING()),
     DataTypes.FIELD('int_array', DataTypes.ARRAY(DataTypes.INT()))
 ])
-row_type_info = Types.ROW_NAMED(
-    ['string', 'int_array'],
-    [Types.STRING(), Types.LIST(Types.INT())]
-)
+
 sink = FileSink.for_bulk_format(
-    OUTPUT_DIR, ParquetBulkWriter.for_row_type(
+    OUTPUT_DIR, ParquetBulkWriters.for_row_type(
         row_type,
         hadoop_config=Configuration(),
         utc_timestamp=True,
     )
 ).build()
-# If ds is a source stream producing RowData records, a map could be added to help converting RowData records into Row records.
-ds.map(lambda e: e, output_type=row_type_info).sink_to(sink)
-# Else
+
 ds.sink_to(sink)
 ```
 
@@ -816,8 +811,7 @@ class PersonVectorizer(schema: String) extends Vectorizer[Person](schema) {
 {{< /tab >}}
 {{< /tabs >}}
 
-For PyFlink users, `OrcBulkWriters.for_row_type` could be used to create `BulkWriterFactory` to write `Row` records to files in Orc format.
-It should be noted that if the preceding operator of sink is an operator producing `RowData` records, e.g. CSV source, it needs to be converted to `Row` records before writing to sink.
+For PyFlink users, `OrcBulkWriters` could be used to create `BulkWriterFactory` to write records to files in Orc format.
 
 {{< py_download_link "orc" >}}
 
@@ -826,10 +820,6 @@ row_type = DataTypes.ROW([
     DataTypes.FIELD('name', DataTypes.STRING()),
     DataTypes.FIELD('age', DataTypes.INT()),
 ])
-row_type_info = Types.ROW_NAMED(
-    ['name', 'age'],
-    [Types.STRING(), Types.INT()]
-)
 
 sink = FileSink.for_bulk_format(
     OUTPUT_DIR,
@@ -840,9 +830,6 @@ sink = FileSink.for_bulk_format(
     )
 ).build()
 
-# If ds is a source stream producing RowData records, a map could be added to help converting RowData records into Row records.
-ds.map(lambda e: e, output_type=row_type_info).sink_to(sink)
-# Else
 ds.sink_to(sink)
 ```
 

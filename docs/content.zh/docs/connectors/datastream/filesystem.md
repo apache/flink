@@ -488,27 +488,22 @@ input.sinkTo(sink)
 {{< /tab >}}
 {{< /tabs >}}
 
-PyFlink 用户可以使用 `ParquetBulkWriter` 来创建一个将 `Row` 数据写入 Parquet 文件的 `BulkWriterFactory` 。
+PyFlink 用户可以使用 `ParquetBulkWriters` 来创建一个将 `Row` 数据写入 Parquet 文件的 `BulkWriterFactory` 。
 
 ```python
 row_type = DataTypes.ROW([
     DataTypes.FIELD('string', DataTypes.STRING()),
     DataTypes.FIELD('int_array', DataTypes.ARRAY(DataTypes.INT()))
 ])
-row_type_info = Types.ROW_NAMED(
-    ['string', 'int_array'],
-    [Types.STRING(), Types.LIST(Types.INT())]
-)
+
 sink = FileSink.for_bulk_format(
-    OUTPUT_DIR, ParquetBulkWriter.for_row_type(
+    OUTPUT_DIR, ParquetBulkWriters.for_row_type(
         row_type,
         hadoop_config=Configuration(),
         utc_timestamp=True,
     )
 ).build()
-# 如果 ds 是一个输出类型为 RowData 的源数据源，可以使用一个 map 来转换为 Row 类型
-ds.map(lambda e: e, output_type=row_type_info).sink_to(sink)
-# 否则
+
 ds.sink_to(sink)
 ```
 
@@ -811,8 +806,7 @@ class PersonVectorizer(schema: String) extends Vectorizer[Person](schema) {
 {{< /tab >}}
 {{< /tabs >}}
 
-PyFlink 用户可以使用 `OrcBulkWriters.for_row_type` 来创建将 `Row` 数据写入 Orc 文件的 `BulkWriterFactory` 。
-注意如果 sink 的前置算子的输出类型为 `RowData` ，例如 CSV source ，则需要先转换为 `Row` 类型。
+PyFlink 用户可以使用 `OrcBulkWriters` 来创建将数据写入 Orc 文件的 `BulkWriterFactory` 。
 
 {{< py_download_link "orc" >}}
 
@@ -821,10 +815,6 @@ row_type = DataTypes.ROW([
     DataTypes.FIELD('name', DataTypes.STRING()),
     DataTypes.FIELD('age', DataTypes.INT()),
 ])
-row_type_info = Types.ROW_NAMED(
-    ['name', 'age'],
-    [Types.STRING(), Types.INT()]
-)
 
 sink = FileSink.for_bulk_format(
     OUTPUT_DIR,
@@ -835,9 +825,6 @@ sink = FileSink.for_bulk_format(
     )
 ).build()
 
-# 如果 ds 是产生 RowData 的数据源，可以使用一个 map 函数来指定其对应的 Row 类型。
-ds.map(lambda e: e, output_type=row_type_info).sink_to(sink)
-# 否则
 ds.sink_to(sink)
 ```
 

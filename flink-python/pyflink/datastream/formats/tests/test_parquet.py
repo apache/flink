@@ -23,7 +23,7 @@ import tempfile
 import time
 import unittest
 from decimal import Decimal
-from typing import List, Optional, Tuple
+from typing import List, Tuple
 
 import pandas as pd
 import pytz
@@ -242,13 +242,8 @@ class FileSinkParquetBulkWriterTests(PyFlinkStreamingTestCase):
         _check_parquet_basic_results(self, results)
 
     def test_parquet_row_data_array_write(self):
-        (
-            row_type,
-            row_type_info,
-            conversion_row_type_info,
-            data,
-        ) = _create_parquet_array_row_and_data()
-        self._build_parquet_job(row_type, row_type_info, data, conversion_row_type_info)
+        row_type, row_type_info, data = _create_parquet_array_row_and_data()
+        self._build_parquet_job(row_type, row_type_info, data)
         self.env.execute('test_parquet_row_data_array_write')
         results = self._read_parquet_file()
         _check_parquet_array_results(self, results)
@@ -262,19 +257,11 @@ class FileSinkParquetBulkWriterTests(PyFlinkStreamingTestCase):
         results = self._read_parquet_file()
         _check_parquet_map_results(self, results)
 
-    def _build_parquet_job(
-        self,
-        row_type: RowType,
-        row_type_info: RowTypeInfo,
-        data: List[Row],
-        conversion_type_info: Optional[RowTypeInfo] = None,
-    ):
+    def _build_parquet_job(self, row_type: RowType, row_type_info: RowTypeInfo, data: List[Row]):
         sink = FileSink.for_bulk_format(
             self.parquet_dir_name, ParquetBulkWriters.for_row_type(row_type, utc_timestamp=True)
         ).build()
         ds = self.env.from_collection(data, type_info=row_type_info)
-        if conversion_type_info:
-            ds = ds.map(lambda e: e, output_type=conversion_type_info)
         ds.sink_to(sink)
 
     def _read_parquet_file(self):
@@ -380,10 +367,16 @@ def _check_parquet_basic_results(test, results):
     )
 
 
-def _create_parquet_array_row_and_data() -> Tuple[RowType, RowTypeInfo, RowTypeInfo, List[Row]]:
+def _create_parquet_array_row_and_data() -> Tuple[RowType, RowTypeInfo, List[Row]]:
     row_type = DataTypes.ROW([
-        DataTypes.FIELD('string_array', DataTypes.ARRAY(DataTypes.STRING())),
-        DataTypes.FIELD('int_array', DataTypes.ARRAY(DataTypes.INT())),
+        DataTypes.FIELD(
+            'string_array',
+            DataTypes.ARRAY(DataTypes.STRING()).bridged_to('java.util.ArrayList')
+        ),
+        DataTypes.FIELD(
+            'int_array',
+            DataTypes.ARRAY(DataTypes.INT()).bridged_to('java.util.ArrayList')
+        ),
     ])
     row_type_info = Types.ROW_NAMED([
         'string_array',
@@ -392,18 +385,11 @@ def _create_parquet_array_row_and_data() -> Tuple[RowType, RowTypeInfo, RowTypeI
         Types.LIST(Types.STRING()),
         Types.LIST(Types.INT()),
     ])
-    conversion_row_type_info = Types.ROW_NAMED([
-        'string_array',
-        'int_array',
-    ], [
-        Types.OBJECT_ARRAY(Types.STRING()),
-        Types.OBJECT_ARRAY(Types.INT()),
-    ])
     data = [Row(
         string_array=['a', 'b', 'c'],
         int_array=[1, 2, 3],
     )]
-    return row_type, row_type_info, conversion_row_type_info, data
+    return row_type, row_type_info, data
 
 
 def _check_parquet_array_results(test, results):

@@ -228,7 +228,7 @@ Classes to define formats used together with source & sink:
     - :class:`formats.parquet.ParquetColumnarRowInputFormat`:
       A :class:`~connectors.file_system.BulkFormat` to read columnar parquet files into Row data in
       a batch-processing fashion.
-    - :class:`formats.parquet.ParquetBulkWriter`:
+    - :class:`formats.parquet.ParquetBulkWriters`:
       Convenient builder to create a :class:`~pyflink.common.serialization.BulkWriterFactory` that
       writes Rows with a defined RowType into Parquet files in a batch fashion.
     - :class:`formats.parquet.AvroParquetReaders`:
