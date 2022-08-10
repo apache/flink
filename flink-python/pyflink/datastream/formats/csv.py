@@ -51,14 +51,6 @@ class CsvSchema(object):
         """
         return CsvSchemaBuilder()
 
-    def get_type_info(self):
-        if self._type_info is None:
-            jvm = get_gateway().jvm
-            j_type_info = jvm.org.apache.flink.table.types.utils.LegacyTypeInfoDataTypeConverter \
-                .toLegacyTypeInfo(_to_java_data_type(self._row_type))
-            self._type_info = _from_java_type(j_type_info)
-        return self._type_info
-
     def size(self):
         return self._j_schema.size()
 
@@ -335,8 +327,7 @@ class CsvBulkWriter(object):
         ...     .build()
         >>> sink = FileSink.for_bulk_format(
         ...     OUTPUT_DIR, CsvBulkWriter.for_schema(schema)).build()
-        >>> # If ds is a source stream, an identity map before sink is required
-        >>> ds.map(lambda e: e, output_type=schema.get_type_info()).sink_to(sink)
+        >>> ds.sink_to(sink)
 
     .. versionadded:: 1.16.0
     """

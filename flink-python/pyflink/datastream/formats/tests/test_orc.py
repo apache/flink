@@ -29,7 +29,7 @@ from pyflink.common import Row
 from pyflink.common.typeinfo import RowTypeInfo, Types
 from pyflink.datastream import DataStream
 from pyflink.datastream.connectors.file_system import FileSink
-from pyflink.datastream.formats.orc import OrcBulkWriters
+from pyflink.datastream.formats.orc import OrcBulkWriter
 from pyflink.datastream.formats.tests.test_parquet import _create_parquet_array_row_and_data, \
     _check_parquet_array_results, _create_parquet_map_row_and_data, _check_parquet_map_results
 from pyflink.java_gateway import get_gateway
@@ -39,7 +39,7 @@ from pyflink.testing.test_case_utils import PyFlinkStreamingTestCase, to_java_da
 
 @unittest.skipIf(os.environ.get('HADOOP_CLASSPATH') is None,
                  'Some Hadoop lib is needed for Orc format tests')
-class FileSinkOrcBulkWritersTests(PyFlinkStreamingTestCase):
+class FileSinkOrcBulkWriterTests(PyFlinkStreamingTestCase):
 
     def setUp(self):
         super().setUp()
@@ -54,13 +54,8 @@ class FileSinkOrcBulkWritersTests(PyFlinkStreamingTestCase):
         _check_orc_basic_results(self, results)
 
     def test_orc_array_write(self):
-        (
-            row_type,
-            row_type_info,
-            conversion_row_type_info,
-            data,
-        ) = _create_parquet_array_row_and_data()
-        self._build_orc_job(row_type, row_type_info, data, conversion_row_type_info)
+        row_type, row_type_info, data = _create_parquet_array_row_and_data()
+        self._build_orc_job(row_type, row_type_info, data)
         self.env.execute()
         results = self._read_orc_file()
         _check_parquet_array_results(self, results)
@@ -72,16 +67,10 @@ class FileSinkOrcBulkWritersTests(PyFlinkStreamingTestCase):
         results = self._read_orc_file()
         _check_parquet_map_results(self, results)
 
-    def _build_orc_job(
-        self,
-        row_type: RowType,
-        row_type_info: RowTypeInfo,
-        data: List[Row],
-        conversion_type_info: Optional[RowTypeInfo] = None,
-    ):
+    def _build_orc_job(self, row_type: RowType, row_type_info: RowTypeInfo, data: List[Row]):
         jvm = get_gateway().jvm
         sink = FileSink.for_bulk_format(
-            self.orc_dir_name, OrcBulkWriters.for_row_type(row_type)
+            self.orc_dir_name, OrcBulkWriter.for_row_type(row_type)
         ).build()
         j_list = jvm.java.util.ArrayList()
         for d in data:
@@ -90,8 +79,6 @@ class FileSinkOrcBulkWritersTests(PyFlinkStreamingTestCase):
             j_list,
             row_type_info.get_java_type_info()
         ))
-        if conversion_type_info:
-            ds = ds.map(lambda e: e, output_type=conversion_type_info)
         ds.sink_to(sink)
 
     def _read_orc_file(self):
@@ -104,7 +91,6 @@ class FileSinkOrcBulkWritersTests(PyFlinkStreamingTestCase):
 
 
 def _create_orc_basic_row_and_data() -> Tuple[RowType, RowTypeInfo, List[Row]]:
-    jvm = get_gateway().jvm
     row_type = DataTypes.ROW([
         DataTypes.FIELD('char', DataTypes.CHAR(10)),
         DataTypes.FIELD('varchar', DataTypes.VARCHAR(10)),
@@ -114,15 +100,15 @@ def _create_orc_basic_row_and_data() -> Tuple[RowType, RowTypeInfo, List[Row]]:
         DataTypes.FIELD('int', DataTypes.INT()),
         DataTypes.FIELD('bigint', DataTypes.BIGINT()),
         DataTypes.FIELD('double', DataTypes.DOUBLE()),
-        DataTypes.FIELD('date', DataTypes.DATE()),
-        DataTypes.FIELD('timestamp', DataTypes.TIMESTAMP(3)),
+        DataTypes.FIELD('date', DataTypes.DATE().bridged_to('java.sql.Date')),
+        DataTypes.FIELD('timestamp', DataTypes.TIMESTAMP(3).bridged_to('java.sql.Timestamp')),
     ])
     row_type_info = Types.ROW_NAMED(
         ['char', 'varchar', 'bytes', 'boolean', 'decimal', 'int', 'bigint', 'double',
          'date', 'timestamp'],
         [Types.STRING(), Types.STRING(), Types.PRIMITIVE_ARRAY(Types.BYTE()), Types.BOOLEAN(),
-         Types.BIG_DEC(), Types.INT(), Types.LONG(), Types.DOUBLE(),
-         Types.JAVA(jvm.java.time.LocalTime), Types.JAVA(jvm.java.time.LocalDateTime)]
+         Types.BIG_DEC(), Types.INT(), Types.LONG(), Types.DOUBLE(), Types.SQL_DATE(),
+         Types.SQL_TIMESTAMP()]
     )
     data = [Row(
         char='char',

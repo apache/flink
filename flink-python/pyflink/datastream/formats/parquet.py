@@ -166,6 +166,22 @@ class ParquetBulkWriter(object):
     Convenient builder to create a :class:`BulkWriterFactory` that writes Rows with a defined
     RowType into Parquet files in a batch fashion.
 
+    Example:
+    ::
+
+        >>> row_type = DataTypes.ROW([
+        ...     DataTypes.FIELD('string', DataTypes.STRING()),
+        ...     DataTypes.FIELD('int_array', DataTypes.ARRAY(DataTypes.INT()))
+        ... ])
+        >>> sink = FileSink.for_bulk_format(
+        ...     OUTPUT_DIR, ParquetBulkWriter.for_row_type(
+        ...         row_type,
+        ...         hadoop_config=Configuration(),
+        ...         utc_timestamp=True,
+        ...     )
+        ... ).build()
+        >>> ds.sink_to(sink)
+
     .. versionadded:: 1.16.0
     """
 
@@ -176,29 +192,11 @@ class ParquetBulkWriter(object):
         Create a RowDataBulkWriterFactory that writes Rows records with a defined RowType into
         Parquet files in a batch fashion.
 
-        Example:
-        ::
-
-            >>> row_type = DataTypes.ROW([
-            ...     DataTypes.FIELD('string', DataTypes.STRING()),
-            ...     DataTypes.FIELD('int_array', DataTypes.ARRAY(DataTypes.INT()))
-            ... ])
-            >>> row_type_info = Types.ROW_NAMED(
-            ...     ['string', 'int_array'],
-            ...     [Types.STRING(), Types.LIST(Types.INT())]
-            ... )
-            >>> sink = FileSink.for_bulk_format(
-            ...     OUTPUT_DIR, ParquetBulkWriter.for_row_type(
-            ...         row_type,
-            ...         hadoop_config=Configuration(),
-            ...         utc_timestamp=True,
-            ...     )
-            ... ).build()
-            >>> ds.map(lambda e: e, output_type=row_type_info).sink_to(sink)
-
-        Note that in the above example, an identity map to indicate its RowTypeInfo is necessary
-        before ``sink_to`` when ``ds`` is a source stream producing **RowData** records, because
-        RowDataBulkWriterFactory assumes the input record type is **Row** .
+        :param row_type: The RowType of records, it should match the RowTypeInfo of Row records.
+        :param hadoop_config: Hadoop configuration.
+        :param utc_timestamp: Use UTC timezone or local timezone to the conversion between epoch
+            time and LocalDateTime. Hive 0.x/1.x/2.x use local timezone. But Hive 3.x use UTC
+            timezone.
         """
         if not hadoop_config:
             hadoop_config = Configuration()

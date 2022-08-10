@@ -236,7 +236,7 @@ Classes to define formats used together with source & sink:
     - :class:`formats.parquet.AvroParquetWriters`:
       Convenience builder to create ParquetWriterFactory instances for Avro types. Only
       GenericRecord is supported in PyFlink.
-    - :class:`formats.orc.OrcBulkWriters`:
+    - :class:`formats.orc.OrcBulkWriter`:
       Convenient builder to create a :class:`BulkWriterFactory` that writes Row records with a
       defined :class:`RowType` into Orc files.
 

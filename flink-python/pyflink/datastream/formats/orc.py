@@ -25,14 +25,30 @@ from pyflink.table.types import _to_java_data_type, RowType
 from pyflink.util.java_utils import to_jarray
 
 __all__ = [
-    'OrcBulkWriters'
+    'OrcBulkWriter'
 ]
 
 
-class OrcBulkWriters(object):
+class OrcBulkWriter(object):
     """
     Convenient builder to create a :class:`~connectors.file_system.BulkWriterFactory` that writes
     Row records with a defined RowType into Orc files in a batch fashion.
+
+    Example:
+    ::
+
+        >>> row_type = DataTypes.ROW([
+        ...     DataTypes.FIELD('string', DataTypes.STRING()),
+        ...     DataTypes.FIELD('int_array', DataTypes.ARRAY(DataTypes.INT()))
+        ... ])
+        >>> sink = FileSink.for_bulk_format(
+        ...     OUTPUT_DIR, OrcBulkWriter.for_row_type(
+        ...         row_type=row_type,
+        ...         writer_properties=Configuration(),
+        ...         hadoop_config=Configuration(),
+        ...     )
+        ... ).build()
+        >>> ds.sink_to(sink)
 
     .. versionadded:: 1.16.0
     """
@@ -46,29 +62,9 @@ class OrcBulkWriters(object):
         Create a RowDataBulkWriterFactory that writes Row records with a defined RowType into Orc
         files in a batch fashion.
 
-        Example:
-        ::
-
-            >>> row_type = DataTypes.ROW([
-            ...     DataTypes.FIELD('string', DataTypes.STRING()),
-            ...     DataTypes.FIELD('int_array', DataTypes.ARRAY(DataTypes.INT()))
-            ... ])
-            >>> row_type_info = Types.ROW_NAMED(
-            ...     ['string', 'int_array'],
-            ...     [Types.STRING(), Types.LIST(Types.INT())]
-            ... )
-            >>> sink = FileSink.for_bulk_format(
-            ...     OUTPUT_DIR, OrcBulkWriters.for_row_type(
-            ...         row_type=row_type,
-            ...         writer_properties=Configuration(),
-            ...         hadoop_config=Configuration(),
-            ...     )
-            ... ).build()
-            >>> ds.map(lambda e: e, output_type=row_type_info).sink_to(sink)
-
-        Note that in the above example, an identity map to indicate its RowTypeInfo is necessary
-        before ``sink_to`` when ``ds`` is a source stream producing **RowData** records,
-        because RowDataBulkWriterFactory assumes the input record type is Row.
+        :param row_type: The RowType of records, it should match the RowTypeInfo of Row records.
+        :param writer_properties: Orc writer options.
+        :param hadoop_config: Hadoop configuration.
         """
         if not isinstance(row_type, RowType):
             raise TypeError('row_type must be an instance of RowType')
