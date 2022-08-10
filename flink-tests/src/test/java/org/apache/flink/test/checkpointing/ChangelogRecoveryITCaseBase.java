@@ -61,6 +61,7 @@ import org.apache.flink.test.util.MiniClusterWithClientResource;
 import org.apache.flink.testutils.junit.SharedObjects;
 import org.apache.flink.util.AbstractID;
 import org.apache.flink.util.Collector;
+import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.After;
@@ -231,9 +232,14 @@ public abstract class ChangelogRecoveryITCaseBase extends TestLogger {
         CheckpointMetadata checkpointMetadata;
         try {
             checkpointMetadata = loadCheckpointMetadata(mostRecentCompletedCheckpointPath.get());
-        } catch (FileNotFoundException fileNotFoundException) {
-            // return empty result when the metadata file do not exist due to subsumed checkpoint.
-            return Collections.emptySet();
+        } catch (IOException ioException) {
+            if (ExceptionUtils.findThrowable(ioException, FileNotFoundException.class)
+                    .isPresent()) {
+                // return empty result when the metadata file do not exist due to subsumed
+                // checkpoint.
+                return Collections.emptySet();
+            }
+            throw ioException;
         }
 
         Set<StateHandleID> materializationIds =
