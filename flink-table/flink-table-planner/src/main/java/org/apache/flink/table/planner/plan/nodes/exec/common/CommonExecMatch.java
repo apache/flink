@@ -210,7 +210,7 @@ public abstract class CommonExecMatch extends ExecNodeBase<RowData>
     }
 
     protected Transformation<RowData> translateOrder(
-            Transformation<RowData> inputTransform, RowType inputRowType, ReadableConfig config) {
+            Transformation<RowData> inputTransform, RowType inputRowType, ExecNodeConfig config) {
         return inputTransform;
     }
 

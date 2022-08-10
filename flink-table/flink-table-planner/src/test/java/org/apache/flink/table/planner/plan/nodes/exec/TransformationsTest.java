@@ -26,12 +26,12 @@ import org.apache.flink.streaming.api.transformations.WithBoundedness;
 import org.apache.flink.table.api.CompiledPlan;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.EnvironmentSettings;
+import org.apache.flink.table.api.PlanReference;
 import org.apache.flink.table.api.Schema;
 import org.apache.flink.table.api.Table;
+import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.TableDescriptor;
-import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
-import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.api.internal.CompiledPlanUtils;
 
 import org.junit.jupiter.api.Test;
@@ -39,8 +39,15 @@ import org.junit.jupiter.api.parallel.Execution;
 import org.junit.jupiter.api.parallel.ExecutionMode;
 
 import java.util.List;
+import java.util.function.Consumer;
+import java.util.stream.Collectors;
 
 import static org.apache.flink.table.api.Expressions.$;
+import static org.apache.flink.table.api.config.ExecutionConfigOptions.TABLE_EXEC_LEGACY_TRANSFORMATION_UIDS;
+import static org.apache.flink.table.api.config.ExecutionConfigOptions.TABLE_EXEC_UID_GENERATION;
+import static org.apache.flink.table.api.config.ExecutionConfigOptions.UidGeneration.ALWAYS;
+import static org.apache.flink.table.api.config.ExecutionConfigOptions.UidGeneration.DISABLED;
+import static org.apache.flink.table.api.config.ExecutionConfigOptions.UidGeneration.PLAN_ONLY;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.InstanceOfAssertFactories.type;
 
@@ -108,10 +115,28 @@ class TransformationsTest {
     }
 
     @Test
-    public void testLegacyUid() {
-        final TableEnvironment env =
-                TableEnvironment.create(EnvironmentSettings.inStreamingMode().getConfiguration());
-        env.getConfig().set(ExecutionConfigOptions.TABLE_EXEC_LEGACY_TRANSFORMATION_UIDS, true);
+    public void testUidGeneration() {
+        checkUids(c -> c.set(TABLE_EXEC_UID_GENERATION, PLAN_ONLY), true, false);
+        checkUids(c -> c.set(TABLE_EXEC_UID_GENERATION, ALWAYS), true, true);
+        checkUids(c -> c.set(TABLE_EXEC_UID_GENERATION, DISABLED), false, false);
+        checkUids(
+                c -> {
+                    c.set(TABLE_EXEC_UID_GENERATION, PLAN_ONLY);
+                    c.set(TABLE_EXEC_LEGACY_TRANSFORMATION_UIDS, true);
+                },
+                false,
+                false);
+    }
+
+    private static void checkUids(
+            Consumer<TableConfig> config,
+            boolean expectUidWithCompilation,
+            boolean expectUidWithoutCompilation) {
+        final StreamTableEnvironment env =
+                StreamTableEnvironment.create(
+                        StreamExecutionEnvironment.getExecutionEnvironment(),
+                        EnvironmentSettings.newInstance().inStreamingMode().build());
+        config.accept(env.getConfig());
 
         env.createTemporaryTable(
                 "source_table",
@@ -122,24 +147,49 @@ class TransformationsTest {
         env.createTemporaryTable(
                 "sink_table", TableDescriptor.forConnector("values").schema(dummySchema()).build());
 
-        final CompiledPlan compiledPlan =
-                env.from("source_table")
-                        .select($("i").abs())
-                        .insertInto("sink_table")
-                        .compilePlan();
+        // There should be 3 transformations: sink -> calc -> source
+        final Table table = env.from("source_table").select($("i").abs());
 
-        // There should be 3 transformations in this list: sink -> calc -> source
-        final List<Transformation<?>> transformations =
-                CompiledPlanUtils.toTransformations(env, compiledPlan)
-                        .get(0)
-                        .getTransitivePredecessors();
-        assertThat(transformations).hasSize(3);
+        // Uses in-memory ExecNodes
+        final CompiledPlan memoryPlan = table.insertInto("sink_table").compilePlan();
+        final List<String> memoryUids =
+                CompiledPlanUtils.toTransformations(env, memoryPlan).get(0)
+                        .getTransitivePredecessors().stream()
+                        .map(Transformation::getUid)
+                        .collect(Collectors.toList());
+        assertThat(memoryUids).hasSize(3);
+        if (expectUidWithCompilation) {
+            assertThat(memoryUids).allSatisfy(u -> assertThat(u).isNotNull());
+        } else {
+            assertThat(memoryUids).allSatisfy(u -> assertThat(u).isNull());
+        }
 
-        // As the sink and source might set the uid, we only check the calc transformation.
-        assertThat(transformations)
-                .element(1, type(Transformation.class))
-                .extracting(Transformation::getUid)
-                .isNull();
+        // Uses deserialized ExecNodes
+        final String jsonPlan = table.insertInto("sink_table").compilePlan().asJsonString();
+        final List<String> jsonUids =
+                CompiledPlanUtils.toTransformations(
+                                env, env.loadPlan(PlanReference.fromJsonString(jsonPlan)))
+                        .get(0).getTransitivePredecessors().stream()
+                        .map(Transformation::getUid)
+                        .collect(Collectors.toList());
+        assertThat(jsonUids).hasSize(3);
+        if (expectUidWithCompilation) {
+            assertThat(jsonUids).allSatisfy(u -> assertThat(u).isNotNull());
+        } else {
+            assertThat(jsonUids).allSatisfy(u -> assertThat(u).isNull());
+        }
+
+        final List<String> inlineUids =
+                env.toChangelogStream(table).getTransformation().getTransitivePredecessors()
+                        .stream()
+                        .map(Transformation::getUid)
+                        .collect(Collectors.toList());
+        assertThat(inlineUids).hasSize(3);
+        if (expectUidWithoutCompilation) {
+            assertThat(inlineUids).allSatisfy(u -> assertThat(u).isNotNull());
+        } else {
+            assertThat(inlineUids).allSatisfy(u -> assertThat(u).isNull());
+        }
     }
 
     // --------------------------------------------------------------------------------------------

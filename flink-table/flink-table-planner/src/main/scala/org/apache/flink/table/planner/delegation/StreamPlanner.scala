@@ -179,7 +179,7 @@ class StreamPlanner(
     beforeTranslation()
     val relNodes = modifyOperations.map(translateToRel)
     val optimizedRelNodes = optimize(relNodes)
-    val execGraph = translateToExecNodeGraph(optimizedRelNodes)
+    val execGraph = translateToExecNodeGraph(optimizedRelNodes, isCompiled = true)
     afterTranslation()
 
     new ExecNodeGraphInternalPlan(

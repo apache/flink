@@ -22,7 +22,7 @@ import org.apache.flink.api.common.typeinfo.{AtomicType, TypeInformation}
 import org.apache.flink.api.java.typeutils.{PojoTypeInfo, RowTypeInfo, TupleTypeInfo}
 import org.apache.flink.api.scala.typeutils.CaseClassTypeInfo
 import org.apache.flink.configuration.ExecutionOptions
-import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.{JsonNode, ObjectMapper}
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.JsonNode
 import org.apache.flink.streaming.api.{environment, TimeCharacteristic}
 import org.apache.flink.streaming.api.datastream.DataStream
 import org.apache.flink.streaming.api.environment.{LocalStreamEnvironment, StreamExecutionEnvironment}
@@ -985,7 +985,7 @@ abstract class TableTestUtilBase(test: TableTestBase, isStreamingMode: Boolean) 
 
     // build optimized exec plan if `expectedPlans` contains OPT_EXEC
     val optimizedExecPlan = if (expectedPlans.contains(PlanKind.OPT_EXEC)) {
-      val execGraph = getPlanner.translateToExecNodeGraph(optimizedRels)
+      val execGraph = getPlanner.translateToExecNodeGraph(optimizedRels, isCompiled = false)
       System.lineSeparator + ExecNodePlanDumper.dagToString(execGraph)
     } else {
       ""

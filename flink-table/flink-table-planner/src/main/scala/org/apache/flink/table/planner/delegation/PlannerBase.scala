@@ -193,7 +193,7 @@ abstract class PlannerBase(
 
     val relNodes = modifyOperations.map(translateToRel)
     val optimizedRelNodes = optimize(relNodes)
-    val execGraph = translateToExecNodeGraph(optimizedRelNodes)
+    val execGraph = translateToExecNodeGraph(optimizedRelNodes, isCompiled = false)
     val transformations = translateToPlan(execGraph)
     afterTranslation()
     transformations
@@ -329,7 +329,9 @@ abstract class PlannerBase(
    * transforms the graph based on the given processors.
    */
   @VisibleForTesting
-  private[flink] def translateToExecNodeGraph(optimizedRelNodes: Seq[RelNode]): ExecNodeGraph = {
+  private[flink] def translateToExecNodeGraph(
+      optimizedRelNodes: Seq[RelNode],
+      isCompiled: Boolean): ExecNodeGraph = {
     val nonPhysicalRel = optimizedRelNodes.filterNot(_.isInstanceOf[FlinkPhysicalRel])
     if (nonPhysicalRel.nonEmpty) {
       throw new TableException(
@@ -341,7 +343,8 @@ abstract class PlannerBase(
 
     // convert FlinkPhysicalRel DAG to ExecNodeGraph
     val generator = new ExecNodeGraphGenerator()
-    val execGraph = generator.generate(optimizedRelNodes.map(_.asInstanceOf[FlinkPhysicalRel]))
+    val execGraph =
+      generator.generate(optimizedRelNodes.map(_.asInstanceOf[FlinkPhysicalRel]), isCompiled)
 
     // process the graph
     val context = new ProcessorContext(this)
@@ -522,8 +525,7 @@ abstract class PlannerBase(
       case o => throw new TableException(s"Unsupported operation: ${o.getClass.getCanonicalName}")
     }
     val optimizedRelNodes = optimize(sinkRelNodes)
-    val execGraph = translateToExecNodeGraph(optimizedRelNodes)
-
+    val execGraph = translateToExecNodeGraph(optimizedRelNodes, isCompiled = false)
     val transformations = translateToPlan(execGraph)
     afterTranslation()
 

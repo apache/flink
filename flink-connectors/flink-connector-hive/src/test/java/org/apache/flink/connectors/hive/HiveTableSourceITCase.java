@@ -519,7 +519,7 @@ public class HiveTableSourceITCase extends BatchAbstractTestBase {
         PlannerBase planner = (PlannerBase) ((TableEnvironmentImpl) tEnv).getPlanner();
         RelNode relNode = planner.optimize(TableTestUtil.toRelNode(table));
         ExecNode<?> execNode =
-                planner.translateToExecNodeGraph(toScala(Collections.singletonList(relNode)))
+                planner.translateToExecNodeGraph(toScala(Collections.singletonList(relNode)), false)
                         .getRootNodes()
                         .get(0);
         Transformation<?> transformation = execNode.translateToPlan(planner);
@@ -550,7 +550,7 @@ public class HiveTableSourceITCase extends BatchAbstractTestBase {
         PlannerBase planner = (PlannerBase) ((TableEnvironmentImpl) tEnv).getPlanner();
         RelNode relNode = planner.optimize(TableTestUtil.toRelNode(table));
         ExecNode<?> execNode =
-                planner.translateToExecNodeGraph(toScala(Collections.singletonList(relNode)))
+                planner.translateToExecNodeGraph(toScala(Collections.singletonList(relNode)), false)
                         .getRootNodes()
                         .get(0);
         Transformation<?> transformation =
@@ -584,7 +584,7 @@ public class HiveTableSourceITCase extends BatchAbstractTestBase {
         PlannerBase planner = (PlannerBase) ((TableEnvironmentImpl) tEnv).getPlanner();
         RelNode relNode = planner.optimize(TableTestUtil.toRelNode(table));
         ExecNode<?> execNode =
-                planner.translateToExecNodeGraph(toScala(Collections.singletonList(relNode)))
+                planner.translateToExecNodeGraph(toScala(Collections.singletonList(relNode)), false)
                         .getRootNodes()
                         .get(0);
         Transformation<?> transformation =

@@ -48,6 +48,7 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonParser;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.ObjectCodec;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.TreeNode;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.DeserializationContext;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.InjectableValues;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.JavaType;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.MapperFeature;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.Module;
@@ -112,13 +113,18 @@ public class JsonSerdeUtil {
     public static ObjectReader createObjectReader(SerdeContext serdeContext) {
         return OBJECT_MAPPER_INSTANCE
                 .reader()
-                .withAttribute(SerdeContext.SERDE_CONTEXT_KEY, serdeContext);
+                .withAttribute(SerdeContext.SERDE_CONTEXT_KEY, serdeContext)
+                .with(defaultInjectedValues());
     }
 
     public static ObjectWriter createObjectWriter(SerdeContext serdeContext) {
         return OBJECT_MAPPER_INSTANCE
                 .writer()
                 .withAttribute(SerdeContext.SERDE_CONTEXT_KEY, serdeContext);
+    }
+
+    private static InjectableValues defaultInjectedValues() {
+        return new InjectableValues.Std().addValue("isDeserialize", true);
     }
 
     private static Module createFlinkTableJacksonModule() {
