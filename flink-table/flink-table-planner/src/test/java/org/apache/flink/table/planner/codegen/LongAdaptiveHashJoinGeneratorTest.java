@@ -19,7 +19,6 @@
 package org.apache.flink.table.planner.codegen;
 
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeConfig;
 import org.apache.flink.table.planner.plan.utils.SorMergeJoinOperatorUtil;
 import org.apache.flink.table.runtime.generated.GeneratedJoinCondition;
@@ -88,7 +87,7 @@ public class LongAdaptiveHashJoinGeneratorTest extends Int2AdaptiveHashJoinOpera
             sortMergeJoinFunction =
                     SorMergeJoinOperatorUtil.getSortMergeJoinFunction(
                             Thread.currentThread().getContextClassLoader(),
-                            new ExecNodeConfig(TableConfig.getDefault(), new Configuration()),
+                            ExecNodeConfig.ofNodeConfig(new Configuration(), false),
                             flinkJoinType,
                             buildType,
                             probeType,
@@ -103,7 +102,7 @@ public class LongAdaptiveHashJoinGeneratorTest extends Int2AdaptiveHashJoinOpera
             sortMergeJoinFunction =
                     SorMergeJoinOperatorUtil.getSortMergeJoinFunction(
                             Thread.currentThread().getContextClassLoader(),
-                            new ExecNodeConfig(TableConfig.getDefault(), new Configuration()),
+                            ExecNodeConfig.ofNodeConfig(new Configuration(), false),
                             flinkJoinType,
                             probeType,
                             buildType,

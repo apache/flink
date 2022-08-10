@@ -257,8 +257,10 @@ public class StreamExecPythonGroupWindowAggregate extends StreamExecAggregateBas
                 generateWindowAssignerAndTrigger();
         WindowAssigner<?> windowAssigner = windowAssignerAndTrigger.f0;
         Trigger<?> trigger = windowAssignerAndTrigger.f1;
-        Configuration pythonConfig =
+        final Configuration pythonConfig =
                 CommonPythonUtil.extractPythonConfiguration(planner.getExecEnv(), config);
+        final ExecNodeConfig pythonNodeConfig =
+                ExecNodeConfig.ofNodeConfig(pythonConfig, config.isCompiled());
         boolean isGeneralPythonUDAF =
                 Arrays.stream(aggCalls)
                         .anyMatch(x -> PythonUtil.isPythonAggregate(x, PythonFunctionKind.GENERAL));
@@ -286,6 +288,7 @@ public class StreamExecPythonGroupWindowAggregate extends StreamExecAggregateBas
                             aggInfoList,
                             emitStrategy.getAllowLateness(),
                             pythonConfig,
+                            pythonNodeConfig,
                             shiftTimeZone);
         } else {
             transform =
@@ -298,7 +301,7 @@ public class StreamExecPythonGroupWindowAggregate extends StreamExecAggregateBas
                             trigger,
                             emitStrategy.getAllowLateness(),
                             pythonConfig,
-                            config,
+                            pythonNodeConfig,
                             planner.getFlinkContext().getClassLoader(),
                             shiftTimeZone);
         }
@@ -431,7 +434,8 @@ public class StreamExecPythonGroupWindowAggregate extends StreamExecAggregateBas
                     WindowAssigner<?> windowAssigner,
                     AggregateInfoList aggInfoList,
                     long allowance,
-                    Configuration config,
+                    Configuration pythonConfig,
+                    ExecNodeConfig pythonNodeConfig,
                     ZoneId shiftTimeZone) {
         final int inputCountIndex = aggInfoList.getIndexOfCountStar();
         final boolean countStarInserted = aggInfoList.countStarInserted();
@@ -441,7 +445,7 @@ public class StreamExecPythonGroupWindowAggregate extends StreamExecAggregateBas
         DataViewSpec[][] dataViewSpecs = aggInfosAndDataViewSpecs.f1;
         OneInputStreamOperator<RowData, RowData> pythonOperator =
                 getGeneralPythonStreamGroupWindowAggregateFunctionOperator(
-                        config,
+                        pythonConfig,
                         inputRowType,
                         outputRowType,
                         windowAssigner,
@@ -456,7 +460,8 @@ public class StreamExecPythonGroupWindowAggregate extends StreamExecAggregateBas
 
         return ExecNodeUtil.createOneInputTransformation(
                 inputTransform,
-                createTransformationMeta(PYTHON_GROUP_WINDOW_AGGREGATE_TRANSFORMATION, config),
+                createTransformationMeta(
+                        PYTHON_GROUP_WINDOW_AGGREGATE_TRANSFORMATION, pythonNodeConfig),
                 pythonOperator,
                 InternalTypeInfo.of(outputRowType),
                 inputTransform.getParallelism());

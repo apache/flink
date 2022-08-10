@@ -72,7 +72,8 @@ public class InternalConfigOptionsTest extends TableTestBase {
                 tEnv.sqlQuery("SELECT LOCALTIME, LOCALTIMESTAMP, CURRENT_TIME, CURRENT_TIMESTAMP");
         RelNode relNode = planner.optimize(TableTestUtil.toRelNode(table));
         ExecNodeGraph execNodeGraph =
-                planner.translateToExecNodeGraph(toScala(Collections.singletonList(relNode)));
+                planner.translateToExecNodeGraph(
+                        toScala(Collections.singletonList(relNode)), false);
         // PlannerBase#translateToExecNodeGraph will set internal temporal configurations and
         // cleanup them after translate finished
         List<Transformation<?>> transformation = planner.translateToPlan(execNodeGraph);

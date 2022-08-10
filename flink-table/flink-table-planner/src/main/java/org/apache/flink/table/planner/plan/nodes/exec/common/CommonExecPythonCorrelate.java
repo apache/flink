@@ -103,10 +103,12 @@ public abstract class CommonExecPythonCorrelate extends ExecNodeBase<RowData>
                 (Transformation<RowData>) inputEdge.translateToPlan(planner);
         final Configuration pythonConfig =
                 CommonPythonUtil.extractPythonConfiguration(planner.getExecEnv(), config);
-        OneInputTransformation<RowData, RowData> transform =
+        final ExecNodeConfig pythonNodeConfig =
+                ExecNodeConfig.ofNodeConfig(pythonConfig, config.isCompiled());
+        final OneInputTransformation<RowData, RowData> transform =
                 createPythonOneInputTransformation(
                         inputTransform,
-                        config,
+                        pythonNodeConfig,
                         planner.getFlinkContext().getClassLoader(),
                         pythonConfig);
         if (CommonPythonUtil.isPythonWorkerUsingManagedMemory(pythonConfig)) {
@@ -117,7 +119,7 @@ public abstract class CommonExecPythonCorrelate extends ExecNodeBase<RowData>
 
     private OneInputTransformation<RowData, RowData> createPythonOneInputTransformation(
             Transformation<RowData> inputTransform,
-            ExecNodeConfig config,
+            ExecNodeConfig pythonNodeConfig,
             ClassLoader classLoader,
             Configuration pythonConfig) {
         Tuple2<int[], PythonFunctionInfo> extractResult = extractPythonTableFunctionInfo();
@@ -129,7 +131,7 @@ public abstract class CommonExecPythonCorrelate extends ExecNodeBase<RowData>
                 InternalTypeInfo.of((RowType) getOutputType());
         OneInputStreamOperator<RowData, RowData> pythonOperator =
                 getPythonTableFunctionOperator(
-                        config,
+                        pythonNodeConfig,
                         classLoader,
                         pythonConfig,
                         pythonOperatorInputRowType,
@@ -138,7 +140,7 @@ public abstract class CommonExecPythonCorrelate extends ExecNodeBase<RowData>
                         pythonUdtfInputOffsets);
         return ExecNodeUtil.createOneInputTransformation(
                 inputTransform,
-                createTransformationMeta(PYTHON_CORRELATE_TRANSFORMATION, pythonConfig),
+                createTransformationMeta(PYTHON_CORRELATE_TRANSFORMATION, pythonNodeConfig),
                 pythonOperator,
                 pythonOperatorOutputRowType,
                 inputTransform.getParallelism());
