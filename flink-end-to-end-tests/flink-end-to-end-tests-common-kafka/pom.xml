@@ -76,7 +76,7 @@ under the License.
 		<dependency>
 			<groupId>org.apache.kafka</groupId>
 			<artifactId>kafka-clients</artifactId>
-			<version>3.1.1</version>
+			<version>3.2.1</version>
 		</dependency>
 
 		<!-- The following dependencies are for connector/format sql-jars that
@@ -234,7 +234,7 @@ under the License.
 						<artifactItem>
 							<groupId>org.apache.kafka</groupId>
 							<artifactId>kafka-clients</artifactId>
-							<version>3.1.1</version>
+							<version>3.2.1</version>
 							<destFileName>kafka-clients.jar</destFileName>
 							<type>jar</type>
 							<outputDirectory>${project.build.directory}/dependencies</outputDirectory>
