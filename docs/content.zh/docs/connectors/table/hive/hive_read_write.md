@@ -482,6 +482,32 @@ SELECT * FROM hive_table WHERE dt='2020-05-20' and hr='12';
   </tbody>
 </table>
 
+### 动态分区的写入
+不同于静态分区的写入总是需要用户指定分区列的值，动态分区允许用户在写入数据的时候不指定分区列的值。
+比如，有这样一个分区表：
+```sql
+CREATE TABLE fact_tz(x int) PARTITIONED BY (day STRING, hour STRING);
+```
+用户可以使用如下的 SQL 语句向该分区表写入数据：
+```sql
+INSERT INTO TABLE fact_tz PARTITION (day, hour) select 1, '2022-8-8', '14';
+```
+在该 SQL 语句中，用户没有指定分区列的值，这就是一个典型的动态分区写入的例子。
+
+默认情况下, 如果是动态分区的写入, 在实际写入目标表之前，Flink 将额外对数据按照动态分区列进行排序。
+这就意味着 sink 节点收到的数据都是按分区排序的，即首先收到一个分区的数据，然后收到另一个分区的数据，不同分区的数据不会混在一起。
+这样 Hive sink 节点就可以一次只维护一个分区的 writer，否则，Hive sink 需要维护收到的数据对应的所有分区的 writer，如果分区的 writer 过多的话，则可能会导致内存溢出（OutOfMemory）异常。
+
+为了避免额外的排序，你可以将作业的配置项 `table.exec.hive.sink.sort-by-dynamic-partition.enable`（默认是 `true`）设置为 `false`。
+但是这种配置下，如之前所述，如果单个 sink 节点收到的动态分区数过多的话，则有可能会出现内存溢出的异常。 
+
+如果数据倾斜不严重的话，你可以在 SQL 语句中添加 `DISTRIBUTED BY <partition_field>` 将相同分区的数据分布到到相同的 sink 节点上来缓解单个 sink 节点的分区 writer 过多的问题。
+
+此外，你也可以在 SQL 语句中添加 `DISTRIBUTED BY <partition_field>` 来达到将 `table.exec.hive.sink.sort-by-dynamic-partition.enable` 设置为 `false` 的效果。
+
+**注意：**
+- 该配置项 `table.exec.hive.sink.sort-by-dynamic-partition.enable` 只在批模式下生效。
+- 目前，只有在 Flink 批模式下使用了 [Hive 方言]({{< ref "docs/connectors/table/hive/hive_dialect" >}})，才可以使用 `DISTRIBUTED BY` and `SORTED BY`。
 
 ## 格式
 

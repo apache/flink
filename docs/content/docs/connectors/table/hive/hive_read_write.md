@@ -507,6 +507,34 @@ This configuration is set in the `TableConfig` and will affect all sinks of the 
   </tbody>
 </table>
 
+### Dynamic Partition Writing
+Different from static partition writing which requires users to specify the partition column value, dynamic partition writing allow
+users not to specify partition column value. 
+For example, for a partitioned table like:
+```sql
+CREATE TABLE fact_tz(x int) PARTITIONED BY (day STRING, hour STRING);
+```
+Users can use the follow SQL statement to write data to partitioned table `fact_tz`:
+```sql
+INSERT INTO TABLE fact_tz PARTITION (day, hour) select 1, '2022-8-8', '14';
+```
+It's a typical case for dynamic partition writing since user does not specify any partition column value in the SQL statement.
+
+By default, if it's for dynamic partition writing, Flink will sort the data additionally by dynamic partition columns before writing into sink table.
+That means the sink will receive all elements of one partition and then all elements of another partition.
+Elements of different partitions will not be mixed. This is helpful for Hive sink to reduce the number of partition writers and improve writing performance by writing one partition at a time.
+Otherwise, too many partition writers may cause the OutOfMemory exception.
+
+To avoid the extra sorting, you can set job configuration `table.exec.hive.sink.sort-by-dynamic-partition.enable` (`true` by default) to `false`.
+But with such a configuration, as said before, it may throw OutOfMemory exception if there are too many partitions fall into same sink node.
+
+To relieve the problem of too many partition writers, if data is not skewed, you can add `DISTRIBUTED BY <partition_field>` in your SQL statement to shuffle the data with same partition into same node.
+
+Also, you can manually add `SORTED BY <partition_field>` in your SQL statement to achieve the same purpose as `table.exec.hive.sink.sort-by-dynamic-partition.enable=true`.
+
+**NOTE:** 
+- The configuration `table.exec.hive.sink.sort-by-dynamic-partition.enable` only works in Flink `BATCH` mode.
+- Currently, `DISTRIBUTED BY` and `SORTED BY` is only supported when using [Hive dialect]({{< ref "docs/connectors/table/hive/hive_dialect" >}})  in Flink `BATCH` mode.
 
 ## Formats
 
