@@ -37,7 +37,6 @@ import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.utils.DataTypeUtils;
 import org.apache.flink.types.RowKind;
 
-import org.apache.hadoop.hive.metastore.TableType;
 import org.apache.hive.service.cli.RowSet;
 import org.apache.hive.service.cli.RowSetFactory;
 import org.apache.hive.service.cli.TableSchema;
@@ -200,10 +199,10 @@ class ThriftObjectConversionsTest {
 
     @Test
     public void testHiveTableTypeToFlinkTableKind() {
-        assertHiveTableTypeToFlinkTableKind(TableType.MANAGED_TABLE.name(), TableKind.TABLE);
-        assertHiveTableTypeToFlinkTableKind(TableType.EXTERNAL_TABLE.name(), TableKind.TABLE);
-        assertHiveTableTypeToFlinkTableKind(TableType.INDEX_TABLE.name(), TableKind.TABLE);
-        assertHiveTableTypeToFlinkTableKind(TableType.VIRTUAL_VIEW.name(), TableKind.VIEW);
+        assertHiveTableTypeToFlinkTableKind("MANAGED_TABLE", TableKind.TABLE);
+        assertHiveTableTypeToFlinkTableKind("EXTERNAL_TABLE", TableKind.TABLE);
+        assertHiveTableTypeToFlinkTableKind("INDEX_TABLE", TableKind.TABLE);
+        assertHiveTableTypeToFlinkTableKind("VIRTUAL_VIEW", TableKind.VIEW);
     }
 
     // --------------------------------------------------------------------------------------------
