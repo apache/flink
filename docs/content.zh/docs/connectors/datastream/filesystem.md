@@ -74,6 +74,15 @@ FileSource.forRecordStreamFormat(StreamFormat,Path...);
 FileSource.forBulkFileFormat(BulkFormat,Path...);
 ```
 {{< /tab >}}
+{{< tab "Python" >}}
+```python
+# 从文件流中读取文件内容
+FileSource.for_record_stream_format(stream_format, *path)
+
+# 从文件中一次读取一批记录
+FileSource.for_bulk_file_format(bulk_format, *path)
+```
+{{< /tab >}}
 {{< /tabs >}}
 
 可以通过创建 `FileSource.FileSourceBuilder` 设置 File Source 的所有参数。
@@ -91,6 +100,13 @@ final FileSource<String> source =
         FileSource.forRecordStreamFormat(...)
         .monitorContinuously(Duration.ofMillis(5))  
         .build();
+```
+{{< /tab >}}
+{{< tab "Python" >}}
+```python
+source = FileSource.for_record_stream_format(...) \
+    .monitor_continously(Duration.of_millis(5)) \
+    .build()
 ```
 {{< /tab >}}
 {{< /tabs >}}
@@ -351,6 +367,19 @@ val sink: FileSink[String] = FileSink
 
 input.sinkTo(sink)
 
+```
+{{< /tab >}}
+{{< tab "Python" >}}
+```python
+data_stream = ...
+
+sink = FileSink \
+    .for_row_format(OUTPUT_PATH, Encoder.simple_string_encoder("UTF-8")) \
+    .with_rolling_policy(RollingPolicy.default_rolling_policy(
+        part_size=1024 ** 3, rollover_interval=15 * 60 * 1000, inactivity_interval=5 * 60 * 1000)) \
+    .build()
+
+data_stream.sink_to(sink)
 ```
 {{< /tab >}}
 {{< /tabs >}}
@@ -902,6 +931,10 @@ Flink 内置了两种 BucketAssigners：
 - `DateTimeBucketAssigner` ：默认的基于时间的分配器
 - `BasePathBucketAssigner` ：分配所有文件存储在基础路径上（单个全局桶）
 
+{{< hint info >}}
+PyFlink 只支持 `DateTimeBucketAssigner` 和 `BasePathBucketAssigner` 。
+{{< /hint >}}
+
 <a name="rolling-policy"></a>
 
 ### 滚动策略
@@ -914,6 +947,10 @@ Flink 内置了两种 RollingPolicies：
 
 - `DefaultRollingPolicy`
 - `OnCheckpointRollingPolicy`
+
+{{< hint info >}}
+PyFlink 只支持 `DefaultRollingPolicy` 和 `OnCheckpointRollingPolicy` 。
+{{< /hint >}}
 
 <a name="part-file-lifecycle"></a>
 
@@ -1033,6 +1070,22 @@ val sink = FileSink
 			
 ```
 {{< /tab >}}
+{{< tab "Python" >}}
+```python
+config = OutputFileConfig \
+    .builder() \
+    .with_part_prefix("prefix") \
+    .with_part_suffix(".ext") \
+    .build()
+
+sink = FileSink \
+    .for_row_format(OUTPUT_PATH, Encoder.simple_string_encoder("UTF-8")) \
+    .with_bucket_assigner(BucketAssigner.base_path_bucket_assigner()) \
+    .with_rolling_policy(RollingPolicy.on_checkpoint_rolling_policy()) \
+    .with_output_file_config(config) \
+    .build()
+```
+{{< /tab >}}
 {{< /tabs >}}
 
 <a name="compaction"></a>
@@ -1078,6 +1131,19 @@ val fileSink: FileSink[Integer] =
 
 ```
 {{< /tab >}}
+{{< tab "Python" >}}
+```python
+file_sink = FileSink \
+    .for_row_format(PATH, Encoder.simple_string_encoder()) \
+    .enable_compact(
+        FileCompactStrategy.builder()
+            .set_size_threshold(1024)
+            .enable_compaction_on_checkpoint(5)
+            .build(),
+        FileCompactor.concat_file_compactor()) \
+    .build()
+```
+{{< /tab >}}
 {{< /tabs >}}
 
 这一功能开启后，在文件转为 `pending` 状态与文件最终提交之间会进行文件合并。这些 `pending` 状态的文件将首先被提交为一个以 `.` 开头的
@@ -1103,6 +1169,10 @@ val fileSink: FileSink[Integer] =
 **注意事项1** 一旦启用了文件合并功能，此后若需要再关闭，必须在构建`FileSink`时显式调用`disableCompact`方法。
 
 **注意事项2** 如果启用了文件合并功能，文件可见的时间会被延长。
+{{< /hint >}}
+
+{{< hint info >}}
+PyFlink 只支持 `ConcatFileCompactor` 和 `IdenticalFileCompactor` 。
 {{< /hint >}}
 
 <a name="important-considerations"></a>

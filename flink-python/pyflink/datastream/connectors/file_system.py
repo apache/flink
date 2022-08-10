@@ -569,14 +569,14 @@ class FileCompactor(JavaObjectWrapper):
             return FileCompactor(JConcatFileCompactor())
 
     @staticmethod
-    def identity_file_compactor():
+    def identical_file_compactor():
         """
         Returns a file compactor that directly copy the content of the only input file to the
         output.
         """
-        JIdentityFileCompactor = get_gateway().jvm.org.apache.flink.connector.file.sink.compactor.\
-            IdentityFileCompactor
-        return FileCompactor(JIdentityFileCompactor())
+        JIdenticalFileCompactor = get_gateway().jvm.org.apache.flink.connector.file.sink.compactor.\
+            IdenticalFileCompactor
+        return FileCompactor(JIdenticalFileCompactor())
 
 
 class FileSink(Sink, SupportsPreprocessing):
