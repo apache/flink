@@ -266,9 +266,11 @@ public class HsSubpartitionMemoryDataManager implements HsDataView {
                                 (indexAndChannel) -> {
                                     int bufferIndex = indexAndChannel.getBufferIndex();
                                     HsBufferContext bufferContext =
-                                            checkNotNull(bufferIndexToContexts.get(bufferIndex));
-                                    checkAndMarkBufferReadable(bufferContext);
-                                    releaseBuffer(bufferIndex);
+                                            bufferIndexToContexts.get(bufferIndex);
+                                    if (bufferContext != null) {
+                                        checkAndMarkBufferReadable(bufferContext);
+                                        releaseBuffer(bufferIndex);
+                                    }
                                 }));
     }
 
