@@ -15,17 +15,16 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 ################################################################################
-
-from pyflink.metrics.metricbase import GenericMetricGroup, MetricGroup
-from pyflink.table import FunctionContext
-
-from apache_beam.runners.worker import statesampler
-from apache_beam.utils import counters
+from apache_beam.metrics.cells import DistributionData
 from apache_beam.metrics.execution import MetricsContainer
 from apache_beam.metrics.execution import MetricsEnvironment
 from apache_beam.metrics.metricbase import MetricName
-from apache_beam.metrics.cells import DistributionData
+from apache_beam.runners.worker import statesampler
+from apache_beam.utils import counters
 
+from pyflink.fn_execution.metrics.process.metric_impl import GenericMetricGroup
+from pyflink.metrics.metricbase import MetricGroup
+from pyflink.table import FunctionContext
 from pyflink.testing.test_case_utils import PyFlinkTestCase
 
 

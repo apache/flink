@@ -1,4 +1,3 @@
-#!/usr/bin/env bash
 ################################################################################
 #  Licensed to the Apache Software Foundation (ASF) under one
 #  or more contributor license agreements.  See the NOTICE file
@@ -16,31 +15,22 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 ################################################################################
+from pyflink.metrics import Meter
 
-function test_module() {
-    module="$FLINK_PYTHON_DIR/pyflink/$1"
-    echo "test module $module"
-    pytest --durations=20 ${module} $2
-    if [[ $? -ne 0 ]]; then
-        echo "test module $module failed"
-        exit 1
-    fi
-}
 
-# CURRENT_DIR is "flink/flink-python/dev/"
-CURRENT_DIR="$(cd "$( dirname "$0" )" && pwd)"
+class MeterImpl(Meter):
 
-# FLINK_PYTHON_DIR is "flink/flink-python"
-FLINK_PYTHON_DIR=$(dirname "$CURRENT_DIR")
+    def __init__(self, inner_counter):
+        self._inner_counter = inner_counter
 
-# test common module
-test_module "common"
+    def mark_event(self, value: int = 1):
+        """
+        Mark occurrence of the specified number of events.
+        """
+        self._inner_counter.markEvent(value)
 
-# test datastream module
-test_module "datastream"
-
-# test fn_execution module
-test_module "fn_execution"
-
-# test table module
-test_module "table"
+    def get_count(self) -> int:
+        """
+        Get number of events marked on the meter.
+        """
+        return self._inner_counter.getCount()

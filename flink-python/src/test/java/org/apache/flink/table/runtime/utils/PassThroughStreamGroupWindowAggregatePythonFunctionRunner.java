@@ -21,7 +21,7 @@ package org.apache.flink.table.runtime.utils;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.fnexecution.v1.FlinkFnApi;
 import org.apache.flink.python.env.process.ProcessPythonEnvironmentManager;
-import org.apache.flink.python.metric.FlinkMetricContainer;
+import org.apache.flink.python.metric.process.FlinkMetricContainer;
 import org.apache.flink.runtime.state.KeyedStateBackend;
 import org.apache.flink.table.runtime.operators.python.aggregate.PassThroughPythonStreamGroupWindowAggregateOperator;
 import org.apache.flink.table.runtime.runners.python.beam.BeamTablePythonFunctionRunner;

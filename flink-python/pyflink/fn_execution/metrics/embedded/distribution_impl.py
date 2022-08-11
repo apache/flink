@@ -1,4 +1,3 @@
-#!/usr/bin/env bash
 ################################################################################
 #  Licensed to the Apache Software Foundation (ASF) under one
 #  or more contributor license agreements.  See the NOTICE file
@@ -16,31 +15,15 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 ################################################################################
+from pyflink.metrics import Distribution
 
-function test_module() {
-    module="$FLINK_PYTHON_DIR/pyflink/$1"
-    echo "test module $module"
-    pytest --durations=20 ${module} $2
-    if [[ $? -ne 0 ]]; then
-        echo "test module $module failed"
-        exit 1
-    fi
-}
 
-# CURRENT_DIR is "flink/flink-python/dev/"
-CURRENT_DIR="$(cd "$( dirname "$0" )" && pwd)"
+class DistributionImpl(Distribution):
+    def __init__(self, inner_distribution):
+        self._inner_distribution = inner_distribution
 
-# FLINK_PYTHON_DIR is "flink/flink-python"
-FLINK_PYTHON_DIR=$(dirname "$CURRENT_DIR")
-
-# test common module
-test_module "common"
-
-# test datastream module
-test_module "datastream"
-
-# test fn_execution module
-test_module "fn_execution"
-
-# test table module
-test_module "table"
+    def update(self, value):
+        """
+        Updates the distribution value.
+        """
+        self._inner_distribution.update(value)

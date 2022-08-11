@@ -42,6 +42,7 @@ from pyflink.datastream.state import (ValueStateDescriptor, ListStateDescriptor,
                                       AggregatingStateDescriptor, StateTtlConfig)
 from pyflink.datastream.tests.test_util import DataStreamTestSinkFunction
 from pyflink.java_gateway import get_gateway
+from pyflink.metrics import Counter, Meter, Distribution
 from pyflink.testing.test_case_utils import PyFlinkBatchTestCase, PyFlinkStreamingTestCase
 from pyflink.util.java_utils import get_j_env_configuration
 
@@ -1717,6 +1718,55 @@ class EmbeddedDataStreamStreamTests(DataStreamStreamingTests, PyFlinkStreamingTe
         super(EmbeddedDataStreamStreamTests, self).setUp()
         config = get_j_env_configuration(self.env._j_stream_execution_environment)
         config.setString("python.execution-mode", "thread")
+
+    def test_metrics(self):
+        ds = self.env.from_collection(
+            [('ab', 'a', decimal.Decimal(1)),
+             ('bdc', 'a', decimal.Decimal(2)),
+             ('cfgs', 'a', decimal.Decimal(3)),
+             ('deeefg', 'a', decimal.Decimal(4))],
+            type_info=Types.TUPLE(
+                [Types.STRING(), Types.STRING(), Types.BIG_DEC()]))
+
+        class MyMapFunction(MapFunction):
+            def __init__(self):
+                self.counter = None  # type: Counter
+                self.counter_value = 0
+                self.meter = None  # type: Meter
+                self.meter_value = 0
+                self.value_to_expose = 0
+                self.distribution = None  # type: Distribution
+
+            def open(self, runtime_context: RuntimeContext):
+                self.counter = runtime_context.get_metrics_group().counter("my_counter")
+                self.meter = runtime_context.get_metrics_group().meter('my_meter', 1)
+                runtime_context.get_metrics_group().gauge("my_gauge", lambda: self.value_to_expose)
+                self.distribution = runtime_context.get_metrics_group().distribution(
+                    "my_distribution")
+
+            def map(self, value):
+                self.counter.inc()
+                self.counter_value += 1
+                assert self.counter.get_count() == self.counter_value
+
+                self.meter.mark_event(1)
+                self.meter_value += 1
+                assert self.meter.get_count() == self.meter_value
+
+                self.value_to_expose += 1
+
+                self.distribution.update(int(value[2]))
+
+                return Row(value[0], len(value[0]), value[2])
+
+        (ds.key_by(lambda value: value[1])
+         .map(MyMapFunction(),
+              output_type=Types.ROW([Types.STRING(), Types.INT(), Types.BIG_DEC()]))
+         .add_sink(self.test_sink))
+        self.env.execute('test_basic_operations')
+        results = self.test_sink.get_results()
+        expected = ['+I[ab, 2, 1]', '+I[bdc, 3, 2]', '+I[cfgs, 4, 3]', '+I[deeefg, 6, 4]']
+        self.assert_equals_sorted(expected, results)
 
 
 @pytest.mark.skipif(sys.version_info < (3, 7), reason="requires python3.7")

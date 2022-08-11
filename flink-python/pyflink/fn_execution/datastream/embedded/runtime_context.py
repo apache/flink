@@ -21,6 +21,8 @@ from pyflink.datastream.state import (AggregatingStateDescriptor, AggregatingSta
                                       MapState, ListStateDescriptor, ListState,
                                       ValueStateDescriptor, ValueState)
 from pyflink.fn_execution.embedded.state_impl import KeyedStateBackend
+from pyflink.fn_execution.metrics.embedded.metric_impl import MetricGroupImpl
+from pyflink.metrics import MetricGroup
 
 
 class StreamingRuntimeContext(RuntimeContext):
@@ -75,8 +77,8 @@ class StreamingRuntimeContext(RuntimeContext):
         """
         return self._job_parameters[key] if key in self._job_parameters else default_value
 
-    def get_metrics_group(self):
-        return self._runtime_context.getMetricGroup()
+    def get_metrics_group(self) -> MetricGroup:
+        return MetricGroupImpl(self._runtime_context.getMetricGroup())
 
     def get_state(self, state_descriptor: ValueStateDescriptor) -> ValueState:
         return self._keyed_state_backend.get_value_state(state_descriptor)

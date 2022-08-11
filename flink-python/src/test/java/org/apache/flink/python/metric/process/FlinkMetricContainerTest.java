@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.python.metric;
+package org.apache.flink.python.metric.process;
 
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.metrics.Meter;

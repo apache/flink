@@ -47,7 +47,7 @@ from pyflink.fn_execution.datastream.process.timerservice_impl import (
     NonKeyedTimerServiceImpl,
 )
 from pyflink.fn_execution.datastream.window.window_operator import WindowOperator
-from pyflink.metrics.metricbase import GenericMetricGroup
+from pyflink.fn_execution.metrics.process.metric_impl import GenericMetricGroup
 
 
 class Operation(operations.OneInputOperation, abc.ABC):

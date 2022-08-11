@@ -30,7 +30,7 @@ import org.apache.flink.python.PythonOptions;
 import org.apache.flink.python.env.PythonEnvironment;
 import org.apache.flink.python.env.process.ProcessPythonEnvironment;
 import org.apache.flink.python.env.process.ProcessPythonEnvironmentManager;
-import org.apache.flink.python.metric.FlinkMetricContainer;
+import org.apache.flink.python.metric.process.FlinkMetricContainer;
 import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.memory.OpaqueMemoryResource;
 import org.apache.flink.runtime.state.KeyedStateBackend;
