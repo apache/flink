@@ -1507,6 +1507,19 @@ public final class BuiltInFunctionDefinitions {
                     .outputTypeStrategy(nullableIfArgs(explicit(STRING())))
                     .build();
 
+    public static final BuiltInFunctionDefinition DATEDIFF =
+            BuiltInFunctionDefinition.newBuilder()
+                    .name("DATEDIFF")
+                    .kind(SCALAR)
+                    .inputTypeStrategy(
+                            sequence(
+                                    logical(LogicalTypeFamily.DATETIME),
+                                    logical(LogicalTypeFamily.DATETIME)))
+                    .outputTypeStrategy(nullableIfArgs(explicit(INT())))
+                    .runtimeClass(
+                            "org.apache.flink.table.runtime.functions.scalar.DateDiffFunction")
+                    .build();
+
     public static final BuiltInFunctionDefinition TIMESTAMP_DIFF =
             BuiltInFunctionDefinition.newBuilder()
                     .name("timestampDiff")

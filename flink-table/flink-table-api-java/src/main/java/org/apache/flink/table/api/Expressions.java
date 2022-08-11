@@ -370,6 +370,20 @@ public final class Expressions {
     }
 
     /**
+     * Returns the (signed) number of days between datetime1 and datetime2.
+     *
+     * <p>For example, {@code dateDiff(lit("2007-12-31 23:59:59").toTimestamp(),
+     * lit("2007-12-30").toDate())} leads to 1.
+     *
+     * @param datetime1 The first date in time.
+     * @param datetime2 The second date in time.
+     * @return The number of intervals as integer value.
+     */
+    public static ApiExpression dateDiff(Object datetime1, Object datetime2) {
+        return apiCall(BuiltInFunctionDefinitions.DATEDIFF, datetime1, datetime2);
+    }
+
+    /**
      * Returns the (signed) number of {@link TimePointUnit} between timePoint1 and timePoint2.
      *
      * <p>For example, {@code timestampDiff(TimePointUnit.DAY, lit("2016-06-15").toDate(),

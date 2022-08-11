@@ -604,6 +604,10 @@ temporal:
     description: |
       返回 timepoint1 和 timepoint2 之间时间间隔。间隔的单位由第一个参数给出，它应该是以下值之一：
       SECOND，MINUTE，HOUR，DAY，MONTH 或 YEAR。
+  - sql: DATEDIFF(datetime1, datetime2)
+    table: dateDiff(datetime1, datetime2)
+    description: |
+      返回 datetime1 和 datetime2 之间的天数.
   - sql: CONVERT_TZ(string1, string2, string3)
     description: |
       将日期时间 string1（具有默认 ISO 时间戳格式 'yyyy-MM-dd HH:mm:ss'）从时区 string2 转换为时区 string3 的值。

@@ -328,6 +328,20 @@ def date_format(timestamp, format) -> Expression:
     """
     return _binary_op("dateFormat", timestamp, format)
 
+def date_diff(datetime1, datetime2) -> Expression:
+    """
+    Returns the (signed) number of days between datetime1 and datetime2.
+
+    For example,
+    `date_diff(lit("2007-12-31 23:59:59").to_timestamp, lit("2007-12-30").to_date`
+    leads to 1.
+
+    :param datetime1: The first date in time.
+    :param datetime2: The second date in time.
+    :return: The number of intervals as integer value.
+    """
+    return _binary_op("dateDiff", datetime1, datetime2)
+
 
 def timestamp_diff(time_point_unit: TimePointUnit, time_point1, time_point2) -> Expression:
     """
