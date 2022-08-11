@@ -40,7 +40,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.IOException;
-import java.util.concurrent.ExecutorService;
+import java.util.concurrent.ScheduledExecutorService;
 
 /** Factory for {@link ResultPartition} to use in {@link NettyShuffleEnvironment}. */
 public class ResultPartitionFactory {
@@ -55,7 +55,7 @@ public class ResultPartitionFactory {
 
     private final BatchShuffleReadBufferPool batchShuffleReadBufferPool;
 
-    private final ExecutorService batchShuffleReadIOExecutor;
+    private final ScheduledExecutorService batchShuffleReadIOExecutor;
 
     private final BoundedBlockingSubpartitionType blockingSubpartitionType;
 
@@ -84,7 +84,7 @@ public class ResultPartitionFactory {
             FileChannelManager channelManager,
             BufferPoolFactory bufferPoolFactory,
             BatchShuffleReadBufferPool batchShuffleReadBufferPool,
-            ExecutorService batchShuffleReadIOExecutor,
+            ScheduledExecutorService batchShuffleReadIOExecutor,
             BoundedBlockingSubpartitionType blockingSubpartitionType,
             int configuredNetworkBuffersPerChannel,
             int floatingNetworkBuffersPerGate,

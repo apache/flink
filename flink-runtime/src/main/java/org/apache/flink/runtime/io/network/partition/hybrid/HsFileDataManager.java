@@ -48,7 +48,7 @@ import java.util.PriorityQueue;
 import java.util.Queue;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.Executor;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeoutException;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -63,7 +63,7 @@ public class HsFileDataManager implements Runnable, BufferRecycler {
     private static final Logger LOG = LoggerFactory.getLogger(HsFileDataManager.class);
 
     /** Executor to run the shuffle data reading task. */
-    private final Executor ioExecutor;
+    private final ScheduledExecutorService ioExecutor;
 
     /** Maximum number of buffers can be allocated by this partition reader. */
     private final int maxRequestedBuffers;
@@ -121,7 +121,7 @@ public class HsFileDataManager implements Runnable, BufferRecycler {
 
     public HsFileDataManager(
             BatchShuffleReadBufferPool bufferPool,
-            Executor ioExecutor,
+            ScheduledExecutorService ioExecutor,
             HsFileDataIndex dataIndex,
             Path dataFilePath,
             HsSubpartitionFileReader.Factory fileReaderFactory,

@@ -59,7 +59,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executor;
-import java.util.concurrent.ExecutorService;
+import java.util.concurrent.ScheduledExecutorService;
 
 import static org.apache.flink.runtime.io.network.metrics.NettyShuffleMetricFactory.METRIC_GROUP_INPUT;
 import static org.apache.flink.runtime.io.network.metrics.NettyShuffleMetricFactory.METRIC_GROUP_OUTPUT;
@@ -104,7 +104,7 @@ public class NettyShuffleEnvironment
 
     private final BatchShuffleReadBufferPool batchShuffleReadBufferPool;
 
-    private final ExecutorService batchShuffleReadIOExecutor;
+    private final ScheduledExecutorService batchShuffleReadIOExecutor;
 
     private boolean isClosed;
 
@@ -119,7 +119,7 @@ public class NettyShuffleEnvironment
             SingleInputGateFactory singleInputGateFactory,
             Executor ioExecutor,
             BatchShuffleReadBufferPool batchShuffleReadBufferPool,
-            ExecutorService batchShuffleReadIOExecutor) {
+            ScheduledExecutorService batchShuffleReadIOExecutor) {
         this.taskExecutorResourceId = taskExecutorResourceId;
         this.config = config;
         this.networkBufferPool = networkBufferPool;
@@ -160,7 +160,7 @@ public class NettyShuffleEnvironment
     }
 
     @VisibleForTesting
-    public ExecutorService getBatchShuffleReadIOExecutor() {
+    public ScheduledExecutorService getBatchShuffleReadIOExecutor() {
         return batchShuffleReadIOExecutor;
     }
 

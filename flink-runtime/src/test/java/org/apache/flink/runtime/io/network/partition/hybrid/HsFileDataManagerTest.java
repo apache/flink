@@ -20,12 +20,12 @@ package org.apache.flink.runtime.io.network.partition.hybrid;
 
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.core.testutils.CheckedThread;
+import org.apache.flink.runtime.concurrent.ManuallyTriggeredScheduledExecutorService;
 import org.apache.flink.runtime.io.disk.BatchShuffleReadBufferPool;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferRecycler;
 import org.apache.flink.runtime.io.network.partition.ResultSubpartition;
 import org.apache.flink.util.TestLoggerExtension;
-import org.apache.flink.util.concurrent.ManuallyTriggeredScheduledExecutor;
 import org.apache.flink.util.function.BiConsumerWithException;
 
 import org.junit.jupiter.api.AfterEach;
@@ -66,7 +66,7 @@ class HsFileDataManagerTest {
 
     private final byte[] dataBytes = new byte[BUFFER_SIZE];
 
-    private ManuallyTriggeredScheduledExecutor ioExecutor;
+    private ManuallyTriggeredScheduledExecutorService ioExecutor;
 
     private BatchShuffleReadBufferPool bufferPool;
 
@@ -85,7 +85,7 @@ class HsFileDataManagerTest {
         Random random = new Random();
         random.nextBytes(dataBytes);
         bufferPool = new BatchShuffleReadBufferPool(BUFFER_POOL_SIZE * BUFFER_SIZE, BUFFER_SIZE);
-        ioExecutor = new ManuallyTriggeredScheduledExecutor();
+        ioExecutor = new ManuallyTriggeredScheduledExecutorService();
         dataFilePath = Files.createFile(tempDir.resolve(".data"));
         dataFileChannel = openFileChannel(dataFilePath);
         factory = new TestingHsSubpartitionFileReader.Factory();
