@@ -134,6 +134,17 @@ public class HiveOptions {
     public static final ConfigOption<String> SINK_PARTITION_COMMIT_SUCCESS_FILE_NAME =
             FileSystemConnectorOptions.SINK_PARTITION_COMMIT_SUCCESS_FILE_NAME;
 
+    public static final ConfigOption<Boolean> TABLE_EXEC_HIVE_SINK_STATISTIC_AUTO_GATHER_ENABLE =
+            key("table.exec.hive.sink.statistic-auto-gather.enable")
+                    .booleanType()
+                    .defaultValue(false)
+                    .withDescription(
+                            "If it's true, Flink will gather statistic automatically during writing Hive Table."
+                                    + " If it's false, no any statistic will be gathered. The default value is false."
+                                    + " For ORC and Parquet format, numFiles/totalSize/numRows/rawDataSize can be gathered."
+                                    + " For other format, only numFiles/totalSize can be gathered."
+                                    + " Note: only batch mode supports auto gather statistic, stream mode doesn't support it yet.");
+
     public static final ConfigOption<Boolean> STREAMING_SOURCE_ENABLE =
             key("streaming-source.enable")
                     .booleanType()

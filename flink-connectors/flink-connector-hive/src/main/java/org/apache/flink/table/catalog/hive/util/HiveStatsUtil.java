@@ -354,6 +354,43 @@ public class HiveStatsUtil {
     }
 
     /**
+     * Determine whether the table statistics changes.
+     *
+     * @param newTableStats new catalog table statistics.
+     * @param parameters original hive table statistics parameters.
+     * @return whether the table statistics changes
+     */
+    public static boolean statsChanged(
+            CatalogTableStatistics newTableStats, Map<String, String> parameters) {
+        return newTableStats.getRowCount()
+                        != parsePositiveLongStat(parameters, StatsSetupConst.ROW_COUNT)
+                || newTableStats.getTotalSize()
+                        != parsePositiveLongStat(parameters, StatsSetupConst.TOTAL_SIZE)
+                || newTableStats.getFileCount()
+                        != parsePositiveIntStat(parameters, StatsSetupConst.NUM_FILES)
+                || newTableStats.getRawDataSize()
+                        != parsePositiveLongStat(parameters, StatsSetupConst.RAW_DATA_SIZE);
+    }
+
+    /**
+     * Determine whether the stats change.
+     *
+     * @param newStats the new table statistics parameters
+     * @param oldStats the old table statistics parameters
+     * @return whether the stats change
+     */
+    public static boolean tableStatsChanged(
+            Map<String, String> newStats, Map<String, String> oldStats) {
+        return statsChanged(
+                new CatalogTableStatistics(
+                        parsePositiveLongStat(newStats, StatsSetupConst.ROW_COUNT),
+                        parsePositiveIntStat(newStats, StatsSetupConst.NUM_FILES),
+                        parsePositiveLongStat(newStats, StatsSetupConst.TOTAL_SIZE),
+                        parsePositiveLongStat(newStats, StatsSetupConst.RAW_DATA_SIZE)),
+                oldStats);
+    }
+
+    /**
      * Get the partial partition values whose {@param partitionColIndex} partition column value will
      * be {@param defaultPartitionName} and the value for preceding partition column will empty
      * string.
@@ -395,6 +432,21 @@ public class HiveStatsUtil {
                         false, hivePartition.getDbName(), hivePartition.getTableName());
         desc.setPartName(partName);
         return createHiveColumnStatistics(colStats, hivePartition.getSd(), desc, hiveVersion);
+    }
+
+    /**
+     * Update original table statistics parameters.
+     *
+     * @param newTableStats new catalog table statistics.
+     * @param parameters original hive table statistics parameters.
+     */
+    public static void updateStats(
+            CatalogTableStatistics newTableStats, Map<String, String> parameters) {
+        parameters.put(StatsSetupConst.ROW_COUNT, String.valueOf(newTableStats.getRowCount()));
+        parameters.put(StatsSetupConst.TOTAL_SIZE, String.valueOf(newTableStats.getTotalSize()));
+        parameters.put(StatsSetupConst.NUM_FILES, String.valueOf(newTableStats.getFileCount()));
+        parameters.put(
+                StatsSetupConst.RAW_DATA_SIZE, String.valueOf(newTableStats.getRawDataSize()));
     }
 
     private static ColumnStatistics createHiveColumnStatistics(

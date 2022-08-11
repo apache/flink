@@ -536,6 +536,17 @@ Also, you can manually add `SORTED BY <partition_field>` in your SQL statement t
 - The configuration `table.exec.hive.sink.sort-by-dynamic-partition.enable` only works in Flink `BATCH` mode.
 - Currently, `DISTRIBUTED BY` and `SORTED BY` is only supported when using [Hive dialect]({{< ref "docs/connectors/table/hive/hive_dialect" >}})  in Flink `BATCH` mode.
 
+### Auto Gather Statistic
+In some case, you may want to make Flink gather statistic auto automatically during writing Hive table by Flink. 
+To achieve such a purpose, You can set the job configuration `table.exec.hive.sink.statistic-auto-gather.enable` (`false` by default) to `true`.
+Then the statistic will be gathered by Flink automatically and committed to Hive metastore.
+
+If the Hive table is stored as Parquet or ORC format, `numFiles`/`totalSize`/`numRows`/`rawDataSize` can be gathered.
+Otherwise, only `numFiles`/`totalSize` can be gathered.
+
+**NOTE:**
+- Only `BATCH` mode supports to auto gather statistic, `STREAMING` mode doesn't support it yet.
+
 ## Formats
 
 Flink's Hive integration has been tested against the following file formats:

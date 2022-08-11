@@ -507,7 +507,18 @@ INSERT INTO TABLE fact_tz PARTITION (day, hour) select 1, '2022-8-8', '14';
 
 **注意：**
 - 该配置项 `table.exec.hive.sink.sort-by-dynamic-partition.enable` 只在批模式下生效。
-- 目前，只有在 Flink 批模式下使用了 [Hive 方言]({{< ref "docs/connectors/table/hive/hive_dialect" >}})，才可以使用 `DISTRIBUTED BY` and `SORTED BY`。
+- 目前，只有在 Flink 批模式下使用了 [Hive 方言]({{< ref "docs/connectors/table/hive/hive_dialect" >}})，才可以使用 `DISTRIBUTED BY` 和 `SORTED BY`。
+
+### 自动收集统计信息
+在某些情况下，在使用 Flink 写入 Hive 表的时候，你可能想让 Flink 自动收集写入数据的统计信息。
+为了达到这个目的，你可以设置作业参数 `table.exec.hive.sink.statistic-auto-gather.enable` (默认是 `false`) 为 `true`.
+然后，Flink 在写 Hive 表的时候将会自动收集统计信息并将其提交至 Hive metastore 中。
+
+如果写入的 Hive 表是以 Parquet 或者 ORC 格式存储的时候，`numFiles`/`totalSize`/`numRows`/`rawDataSize` 这些统计信息可以被 Flink 收集到。
+否则, 只有 `numFiles`/`totalSize` 可以被收集到。
+
+**注意：**
+- 只有批模式才支持自动收集统计信息，流模式目前还不支持自动收集统计信息。
 
 ## 格式
 
