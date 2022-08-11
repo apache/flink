@@ -207,8 +207,8 @@ public abstract class ExecNodeBase<T> implements ExecNode<T> {
         return getClass().getSimpleName().replace("StreamExec", "").replace("BatchExec", "");
     }
 
-    protected String createTransformationUid(String operatorName) {
-        return context.generateUid(operatorName);
+    protected String createTransformationUid(String operatorName, ExecNodeConfig config) {
+        return context.generateUid(operatorName, config);
     }
 
     protected String createTransformationName(ReadableConfig config) {
@@ -226,7 +226,7 @@ public abstract class ExecNodeBase<T> implements ExecNode<T> {
                     createTransformationName(config), createTransformationDescription(config));
         } else {
             return new TransformationMetadata(
-                    createTransformationUid(operatorName),
+                    createTransformationUid(operatorName, config),
                     createTransformationName(config),
                     createTransformationDescription(config));
         }
@@ -239,7 +239,8 @@ public abstract class ExecNodeBase<T> implements ExecNode<T> {
         if (ExecNodeMetadataUtil.isUnsupported(this.getClass()) || !config.shouldSetUid()) {
             return new TransformationMetadata(name, desc);
         } else {
-            return new TransformationMetadata(createTransformationUid(operatorName), name, desc);
+            return new TransformationMetadata(
+                    createTransformationUid(operatorName, config), name, desc);
         }
     }
 
