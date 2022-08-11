@@ -26,6 +26,7 @@ import org.apache.flink.runtime.io.network.api.serialization.EventSerializer;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.Buffer.DataType;
 import org.apache.flink.runtime.io.network.buffer.BufferBuilder;
+import org.apache.flink.runtime.io.network.buffer.ReadOnlySlicedNetworkBuffer;
 import org.apache.flink.runtime.io.network.partition.ResultSubpartition.BufferAndBacklog;
 import org.apache.flink.runtime.io.network.partition.hybrid.HsSpillingInfoProvider.ConsumeStatus;
 import org.apache.flink.runtime.io.network.partition.hybrid.HsSpillingInfoProvider.SpillStatus;
@@ -180,6 +181,25 @@ class HsSubpartitionMemoryDataManagerTest {
         subpartitionMemoryDataManager.releaseSubpartitionBuffers(toRelease);
 
         assertThat(subpartitionMemoryDataManager.consumeBuffer(2)).isPresent();
+    }
+
+    @Test
+    void testConsumeBufferReturnSlice() throws Exception {
+        TestingMemoryDataManagerOperation memoryDataManagerOperation =
+                TestingMemoryDataManagerOperation.builder()
+                        .setRequestBufferFromPoolSupplier(() -> createBufferBuilder(RECORD_SIZE))
+                        .build();
+        HsSubpartitionMemoryDataManager subpartitionMemoryDataManager =
+                createSubpartitionMemoryDataManager(memoryDataManagerOperation);
+
+        subpartitionMemoryDataManager.append(createRecord(0), DataType.DATA_BUFFER);
+
+        Optional<BufferAndBacklog> bufferOpt = subpartitionMemoryDataManager.consumeBuffer(0);
+        assertThat(bufferOpt)
+                .hasValueSatisfying(
+                        (bufferAndBacklog ->
+                                assertThat(bufferAndBacklog.buffer())
+                                        .isInstanceOf(ReadOnlySlicedNetworkBuffer.class)));
     }
 
     @Test
