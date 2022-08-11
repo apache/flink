@@ -1156,6 +1156,14 @@ class ProcessDataStreamTests(DataStreamTests):
         side_expected = ['0', '1', '2']
         self.assert_equals_sorted(side_expected, side_sink.get_results())
 
+    def test_java_list_deserialization(self):
+        row_type_info = Types.ROW_NAMED(['list'], [Types.LIST(Types.INT())])
+        ds = self.env.from_collection([Row(list=[1, 2, 3])], type_info=row_type_info)
+        ds.map(lambda e: str(e), Types.STRING()).add_sink(self.test_sink)
+        self.env.execute('test_java_list_deserialization')
+        expected = ['Row(list=[1, 2, 3])']
+        self.assert_equals(self.test_sink.get_results(), expected)
+
 
 class ProcessDataStreamStreamingTests(DataStreamStreamingTests, ProcessDataStreamTests,
                                       PyFlinkStreamingTestCase):
