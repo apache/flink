@@ -1250,7 +1250,7 @@ class RowType(DataType):
                     for n, f, c in zip(self.names, self.fields, self._need_conversion))
             elif isinstance(obj, Row) and hasattr(obj, "_fields"):
                 return (obj.get_row_kind().value,) + tuple(
-                    f.to_sql_type(obj.get(n)) if c else obj.get(n)
+                    f.to_sql_type(obj[n]) if c else obj[n]
                     for n, f, c in zip(self.names, self.fields, self._need_conversion))
             elif isinstance(obj, Row):
                 return (obj.get_row_kind().value, ) + tuple(
