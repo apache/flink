@@ -282,6 +282,15 @@ arithmetic:
     description: |
       根据 RFC 4122 类型 4（伪随机生成）UUID，返回 UUID（通用唯一标识符）字符串。
       例如“3d3c68f7-f608-473f-b60c-b0c44ad4cc4e”，UUID 是使用加密强的伪随机数生成器生成的。
+  - sql: |
+      CONV(numeric, numeric1, numeric2)
+      CONV(string, numeric1, numeric2)
+    table: |
+      NUMERIC.conv(numeric1, numeric2)
+      STRING.conv(numeric1, numeric2)
+    description: |
+      返回从numeric1进制转换成numeric2进制的字符串形式。如果 numeric1 或 numeric2 为 `NULL`，则返回 `NULL`。
+      例如'a'.conv(16,2) 为 ”1010”, 100.conv(10, -8) 为 ”144”.
   - sql: BIN(INT)
     table: INT.bin()
     description: |

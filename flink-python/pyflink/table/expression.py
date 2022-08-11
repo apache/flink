@@ -967,6 +967,15 @@ class Expression(Generic[T]):
         """
         return _unary_op("end")(self)
 
+    def conv(self,
+             from_base: Union[int, 'Expression[int]'],
+             to_base: Union[int, 'Expression[int]']) -> 'Expression[str]':
+        """
+        Converts numbers between different number bases. Returns NULL if any argument is NULL.
+        E.g. conv('a', 16, 2) leads to '1010', conv(100, 10, -8) leads to "144".
+        """
+        return _ternary_op("conv")(self, from_base, to_base)
+
     @property
     def bin(self) -> 'Expression[str]':
         """
