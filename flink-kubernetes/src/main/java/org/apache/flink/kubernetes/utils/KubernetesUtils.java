@@ -430,7 +430,7 @@ public class KubernetesUtils {
             }
             pod.getInternalResource().getSpec().setContainers(otherContainers);
         } else {
-            // Set empty spec for taskmanager pod template
+            // Set an empty spec for pod template
             pod.getInternalResource().setSpec(new PodSpecBuilder().build());
         }
 
