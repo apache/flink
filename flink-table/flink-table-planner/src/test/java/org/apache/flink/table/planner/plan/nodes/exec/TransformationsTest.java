@@ -31,19 +31,26 @@ import org.apache.flink.table.api.Schema;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.TableDescriptor;
+import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
 import org.apache.flink.table.api.internal.CompiledPlanUtils;
+import org.apache.flink.table.planner.utils.JsonTestUtils;
+
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.JsonNode;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.parallel.Execution;
 import org.junit.jupiter.api.parallel.ExecutionMode;
 
+import java.io.IOException;
 import java.util.List;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 import static org.apache.flink.table.api.Expressions.$;
 import static org.apache.flink.table.api.config.ExecutionConfigOptions.TABLE_EXEC_LEGACY_TRANSFORMATION_UIDS;
+import static org.apache.flink.table.api.config.ExecutionConfigOptions.TABLE_EXEC_UID_FORMAT;
 import static org.apache.flink.table.api.config.ExecutionConfigOptions.TABLE_EXEC_UID_GENERATION;
 import static org.apache.flink.table.api.config.ExecutionConfigOptions.UidGeneration.ALWAYS;
 import static org.apache.flink.table.api.config.ExecutionConfigOptions.UidGeneration.DISABLED;
@@ -192,9 +199,68 @@ class TransformationsTest {
         }
     }
 
+    @Test
+    public void testUidDefaults() throws IOException {
+        checkUidModification(
+                config -> {}, json -> {}, "\\d+_sink", "\\d+_constraint-validator", "\\d+_values");
+    }
+
+    @Test
+    public void testUidFlink1_15() throws IOException {
+        checkUidModification(
+                config ->
+                        config.set(TABLE_EXEC_UID_FORMAT, "<id>_<type>_<version>_<transformation>"),
+                json -> {},
+                "\\d+_stream-exec-sink_1_sink",
+                "\\d+_stream-exec-sink_1_constraint-validator",
+                "\\d+_stream-exec-values_1_values");
+    }
+
+    @Test
+    public void testPerNodeCustomUid() throws IOException {
+        checkUidModification(
+                config -> {},
+                json ->
+                        JsonTestUtils.setExecNodeConfig(
+                                json,
+                                "stream-exec-sink_1",
+                                TABLE_EXEC_UID_FORMAT.key(),
+                                "my_custom_<transformation>_<id>"),
+                "my_custom_sink_\\d+",
+                "my_custom_constraint-validator_\\d+",
+                "\\d+_values");
+    }
+
+    private static void checkUidModification(
+            Consumer<TableConfig> configModifier,
+            Consumer<JsonNode> jsonModifier,
+            String... expectedUidPatterns)
+            throws IOException {
+        final TableEnvironment env = TableEnvironment.create(EnvironmentSettings.inStreamingMode());
+        configModifier.accept(env.getConfig());
+        final String plan = minimalPlan(env).asJsonString();
+        final JsonNode json = JsonTestUtils.readFromString(plan);
+        jsonModifier.accept(json);
+        final List<String> planUids =
+                CompiledPlanUtils.toTransformations(
+                                env, env.loadPlan(PlanReference.fromJsonString(json.toString())))
+                        .get(0).getTransitivePredecessors().stream()
+                        .map(Transformation::getUid)
+                        .collect(Collectors.toList());
+        assertThat(planUids).hasSize(expectedUidPatterns.length);
+        IntStream.range(0, expectedUidPatterns.length)
+                .forEach(i -> assertThat(planUids.get(i)).matches(expectedUidPatterns[i]));
+    }
+
     // --------------------------------------------------------------------------------------------
     // Helper methods
     // --------------------------------------------------------------------------------------------
+
+    private static CompiledPlan minimalPlan(TableEnvironment env) {
+        return env.fromValues(1, 2, 3)
+                .insertInto(TableDescriptor.forConnector("blackhole").build())
+                .compilePlan();
+    }
 
     private static LegacySourceTransformation<?> toLegacySourceTransformation(
             StreamTableEnvironment env, Table table) {

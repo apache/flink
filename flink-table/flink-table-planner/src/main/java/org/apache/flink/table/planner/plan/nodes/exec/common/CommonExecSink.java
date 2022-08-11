@@ -532,7 +532,7 @@ public abstract class CommonExecSink extends ExecNodeBase<Object>
     private ProviderContext createProviderContext(ExecNodeConfig config) {
         return name -> {
             if (this instanceof StreamExecNode && config.shouldSetUid()) {
-                return Optional.of(createTransformationUid(name));
+                return Optional.of(createTransformationUid(name, config));
             }
             return Optional.empty();
         };

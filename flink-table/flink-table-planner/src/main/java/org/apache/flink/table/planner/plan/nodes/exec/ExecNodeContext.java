@@ -23,12 +23,15 @@ import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.TableException;
+import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.planner.plan.utils.ExecNodeMetadataUtil;
 import org.apache.flink.table.types.logical.LogicalType;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonValue;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.DatabindContext;
+
+import org.apache.commons.lang3.StringUtils;
 
 import javax.annotation.Nullable;
 
@@ -122,7 +125,7 @@ public final class ExecNodeContext {
     }
 
     /** Returns a new {@code uid} for transformations. */
-    public String generateUid(String transformationName) {
+    public String generateUid(String transformationName, ExecNodeConfig config) {
         if (!transformationNamePattern.matcher(transformationName).matches()) {
             throw new TableException(
                     "Invalid transformation name '"
@@ -130,7 +133,20 @@ public final class ExecNodeContext {
                             + "'. "
                             + "This is a bug, please file an issue.");
         }
-        return String.format("%s_%s_%s", getId(), getTypeAsString(), transformationName);
+        final String uidPattern = config.get(ExecutionConfigOptions.TABLE_EXEC_UID_FORMAT);
+        // Note: name and version are not included in the UID by default as they would prevent
+        // migration.
+        // No version because: An operator can change its state layout and bump up the ExecNode
+        // version, in this case the UID should still be able to map state even after plan
+        // migration to the new version.
+        // No name because: We might fuse operators in the future, and a new operator might
+        // subscribe to multiple old UIDs.
+        return StringUtils.replaceEach(
+                uidPattern,
+                new String[] {"<id>", "<type>", "<version>", "<transformation>"},
+                new String[] {
+                    String.valueOf(id), name, String.valueOf(version), transformationName
+                });
     }
 
     /**

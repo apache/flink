@@ -529,6 +529,19 @@ public class ExecutionConfigOptions {
                                                     + "affecting the stable UIDs.")
                                     .build());
 
+    @Documentation.TableOption(execMode = Documentation.ExecMode.STREAMING)
+    public static final ConfigOption<String> TABLE_EXEC_UID_FORMAT =
+            key("table.exec.uid.format")
+                    .stringType()
+                    .defaultValue("<id>_<transformation>")
+                    .withDescription(
+                            "Defines the format pattern for generating the UID of an ExecNode streaming transformation. "
+                                    + "The pattern can be defined globally or per-ExecNode in the compiled plan. "
+                                    + "Supported arguments are: <id> (from static counter), <type> (e.g. 'stream-exec-sink'), "
+                                    + "<version>, and <transformation> (e.g. 'constraint-validator' for a sink). "
+                                    + "In Flink 1.15.x the pattern was wrongly defined as '<id>_<type>_<version>_<transformation>' "
+                                    + "which would prevent migrations in the future.");
+
     // ------------------------------------------------------------------------------------------
     // Enum option types
     // ------------------------------------------------------------------------------------------
