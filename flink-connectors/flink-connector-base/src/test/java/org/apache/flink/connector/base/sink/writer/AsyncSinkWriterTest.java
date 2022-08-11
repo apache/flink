@@ -871,8 +871,19 @@ public class AsyncSinkWriterTest {
                         delayedStartLatch,
                         false);
 
+        // Write a single successful record to trigger increase in rateLimitingStrategy rate
+        // threshold
+        writeSingleElementUsingProcessingTimeTrigger(sink);
         writeTwoElementsAndInterleaveTheNextTwoElements(sink, blockedWriteLatch, delayedStartLatch);
-        assertThat(res).isEqualTo(Arrays.asList(4, 1, 2, 3));
+        assertThat(res).isEqualTo(Arrays.asList(0, 4, 1, 2, 3));
+    }
+
+    private void writeSingleElementUsingProcessingTimeTrigger(AsyncSinkWriterImpl sink)
+            throws Exception {
+        TestProcessingTimeService tpts = sinkInitContext.getTestProcessingTimeService();
+        tpts.setCurrentTime(0L);
+        sink.write("0");
+        tpts.setCurrentTime(100L);
     }
 
     private void writeTwoElementsAndInterleaveTheNextTwoElements(
@@ -898,7 +909,7 @@ public class AsyncSinkWriterTest {
 
         delayedStartLatch.await();
         sink.write("4");
-        tpts.setCurrentTime(100L);
+        tpts.setCurrentTime(200L);
         blockedWriteLatch.countDown();
         es.shutdown();
         assertThat(es.awaitTermination(500, TimeUnit.MILLISECONDS))
