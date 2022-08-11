@@ -34,7 +34,7 @@ from pyflink.fn_execution.table.window_trigger import EventTimeTrigger, Processi
     CountTrigger
 from pyflink.fn_execution.utils import operation_utils
 from pyflink.fn_execution.utils.operation_utils import extract_user_defined_aggregate_function
-from pyflink.metrics.metricbase import GenericMetricGroup
+from pyflink.fn_execution.metrics.process.metric_impl import GenericMetricGroup
 
 try:
     from pyflink.fn_execution.table.aggregate_fast import RowKeySelector, \
