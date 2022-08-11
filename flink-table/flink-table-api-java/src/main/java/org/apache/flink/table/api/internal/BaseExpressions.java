@@ -68,6 +68,7 @@ import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.CEIL;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.CHAR_LENGTH;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.CHR;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.COLLECT;
+import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.CONV;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.COS;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.COSH;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.COT;
@@ -720,6 +721,23 @@ public abstract class BaseExpressions<InType, OutType> {
     /** Rounds the given number to integer places right to the decimal point. */
     public OutType round(InType places) {
         return toApiSpecificExpression(unresolvedCall(ROUND, toExpr(), objectToExpression(places)));
+    }
+
+    /**
+     * Converts numbers between different number bases.
+     *
+     * <p>Returns a string representation of the number N, converted from base `fromBase` to base
+     * `toBase`. Returns NULL if any argument is NULL. The argument N is interpreted as an integer,
+     * but may be specified as an integer or a string. The minimum base is 2 and the maximum base is
+     * 36. If fromBase is a negative number, N is regarded as a signed number. Otherwise, N is
+     * treated as unsigned. CONV() works with 64-bit precision.
+     *
+     * <p>E.g. 'a'.conv(16, 2) leads to '1010', 100.conv(10, -8) leads to "144".
+     */
+    public OutType conv(InType fromBase, InType toBase) {
+        return toApiSpecificExpression(
+                unresolvedCall(
+                        CONV, toExpr(), objectToExpression(fromBase), objectToExpression(toBase)));
     }
 
     /**
