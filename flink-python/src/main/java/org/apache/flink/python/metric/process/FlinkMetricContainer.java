@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.python.metric;
+package org.apache.flink.python.metric.process;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.configuration.GlobalConfiguration;
