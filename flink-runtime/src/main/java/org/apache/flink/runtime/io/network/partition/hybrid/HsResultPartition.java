@@ -44,7 +44,7 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.file.Path;
-import java.util.concurrent.Executor;
+import java.util.concurrent.ScheduledExecutorService;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
@@ -79,7 +79,7 @@ public class HsResultPartition extends ResultPartition {
             int numSubpartitions,
             int numTargetKeyGroups,
             BatchShuffleReadBufferPool readBufferPool,
-            Executor readIOExecutor,
+            ScheduledExecutorService readIOExecutor,
             ResultPartitionManager partitionManager,
             String dataFileBashPath,
             int networkBufferSize,

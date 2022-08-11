@@ -27,13 +27,13 @@ import org.apache.flink.runtime.shuffle.PartitionDescriptorBuilder;
 import org.apache.flink.runtime.util.EnvironmentInformation;
 import org.apache.flink.runtime.util.NettyShuffleDescriptorBuilder;
 import org.apache.flink.util.TestLogger;
-import org.apache.flink.util.concurrent.Executors;
 
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
 import java.util.Arrays;
+import java.util.concurrent.Executors;
 
 import static org.hamcrest.CoreMatchers.instanceOf;
 import static org.hamcrest.MatcherAssert.assertThat;
@@ -149,7 +149,7 @@ public class ResultPartitionFactoryTest extends TestLogger {
                         fileChannelManager,
                         new NetworkBufferPool(1, SEGMENT_SIZE),
                         new BatchShuffleReadBufferPool(10 * SEGMENT_SIZE, SEGMENT_SIZE),
-                        Executors.newDirectExecutorService(),
+                        Executors.newSingleThreadScheduledExecutor(),
                         BoundedBlockingSubpartitionType.AUTO,
                         1,
                         1,
