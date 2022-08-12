@@ -48,11 +48,23 @@ public class KubernetesPodTemplateTestUtils {
 
     private static final String TESTING_TEMPLATE_FILE_NAME = "testing-pod-template.yaml";
 
+    private static final String TESTING_NO_SPEC_TEMPLATE_FILE_NAME =
+            "testing-nospec-pod-template.yaml";
+
     public static File getPodTemplateFile() {
         final URL podTemplateUrl =
                 KubernetesPodTemplateTestUtils.class
                         .getClassLoader()
                         .getResource(TESTING_TEMPLATE_FILE_NAME);
+        assertThat(podTemplateUrl, not(nullValue()));
+        return new File(podTemplateUrl.getPath());
+    }
+
+    public static File getNoSpecPodTemplateFile() {
+        final URL podTemplateUrl =
+                KubernetesPodTemplateTestUtils.class
+                        .getClassLoader()
+                        .getResource(TESTING_NO_SPEC_TEMPLATE_FILE_NAME);
         assertThat(podTemplateUrl, not(nullValue()));
         return new File(podTemplateUrl.getPath());
     }
