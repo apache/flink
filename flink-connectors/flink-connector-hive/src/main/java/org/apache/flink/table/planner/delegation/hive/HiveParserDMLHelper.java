@@ -534,7 +534,8 @@ public class HiveParserDMLHelper {
                                             udfName,
                                             functionInfo.getGenericUDF(),
                                             Collections.singletonList(srcRex.getType()),
-                                            targetCalType),
+                                            targetCalType,
+                                            funcConverter),
                                     srcRex);
             if (!funcConverter.hasOverloadedOp(
                     cast.getOperator(), SqlFunctionCategory.USER_DEFINED_FUNCTION)) {

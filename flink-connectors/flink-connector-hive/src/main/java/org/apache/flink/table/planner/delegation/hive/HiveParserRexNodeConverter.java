@@ -264,7 +264,8 @@ public class HiveParserRexNodeConverter {
                                 HiveGenericUDFArrayAccessStructField.NAME,
                                 Arrays.asList(arrayDataType, accessFieldType),
                                 retType,
-                                false);
+                                false,
+                                funcConverter);
 
                 return cluster.getRexBuilder().makeCall(calciteOp, rexNode, accessedField);
             } else {
@@ -562,7 +563,7 @@ public class HiveParserRexNodeConverter {
                 HiveParserTypeConverter.convert(func.getTypeInfo(), cluster.getTypeFactory());
         SqlOperator calciteOp =
                 HiveParserSqlFunctionConverter.getCalciteOperator(
-                        func.getFuncText(), func.getGenericUDF(), argTypes, retType);
+                        func.getFuncText(), func.getGenericUDF(), argTypes, retType, funcConverter);
         if (calciteOp.getKind() == SqlKind.CASE) {
             // If it is a case operator, we need to rewrite it
             childRexNodeLst = rewriteCaseChildren(func, childRexNodeLst);
