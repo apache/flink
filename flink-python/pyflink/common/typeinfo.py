@@ -439,7 +439,7 @@ class RowTypeInfo(TypeInformation):
                     zip(self.get_field_names(), self._field_types, self._need_conversion))
             elif isinstance(obj, Row) and hasattr(obj, "_fields"):
                 return (obj.get_row_kind().value,) + tuple(
-                    f.to_internal_type(obj.get(n)) if c else obj.get(n)
+                    f.to_internal_type(obj[n]) if c else obj[n]
                     for n, f, c in
                     zip(self.get_field_names(), self._field_types, self._need_conversion))
             elif isinstance(obj, Row):
@@ -463,7 +463,7 @@ class RowTypeInfo(TypeInformation):
                 return (RowKind.INSERT.value,) + tuple(obj.get(n) for n in self.get_field_names())
             elif isinstance(obj, Row) and hasattr(obj, "_fields"):
                 return (obj.get_row_kind().value,) + tuple(
-                    obj.get(n) for n in self.get_field_names())
+                    obj[n] for n in self.get_field_names())
             elif isinstance(obj, Row):
                 return (obj.get_row_kind().value,) + tuple(obj)
             elif isinstance(obj, (list, tuple)):
