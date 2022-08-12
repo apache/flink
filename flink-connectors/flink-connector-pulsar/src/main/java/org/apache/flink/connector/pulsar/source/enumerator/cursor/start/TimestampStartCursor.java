@@ -27,8 +27,8 @@ public class TimestampStartCursor implements StartCursor {
 
     private final long timestamp;
 
-    public TimestampStartCursor(long timestamp) {
-        this.timestamp = timestamp;
+    public TimestampStartCursor(long timestamp, boolean inclusive) {
+        this.timestamp = inclusive ? timestamp : timestamp + 1;
     }
 
     @Override

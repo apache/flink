@@ -76,7 +76,7 @@ Pulsar Source 提供了两种订阅 Topic 或 Topic 分区的方式。
   ```java
   PulsarSource.builder().setTopics("some-topic1", "some-topic2");
 
-  // 从 topic "topic-a" 的 0 和 1 分区上消费
+  // 从 topic "topic-a" 的 0 和 2 分区上消费
   PulsarSource.builder().setTopics("topic-a-partition-0", "topic-a-partition-2");
   ```
 
@@ -204,9 +204,13 @@ Pulsar Source 使用 `setStartCursor(StartCursor)` 方法给定开始消费的�
   ```java
   StartCursor.fromMessageId(MessageId, boolean);
   ```
-- 从给定的消息时间开始消费。
+- 从给定的消息发布时间开始消费，这个方法因为名称容易导致误解现在已经不建议使用。你可以使用方法 `StartCursor.fromPublishTime(long)`。
   ```java
   StartCursor.fromMessageTime(long);
+  ```
+- 从给定的消息发布时间开始消费。
+  ```java
+  StartCursor.fromPublishTime(long);
   ```
 
 {{< hint info >}}
@@ -239,14 +243,22 @@ Pulsar Source 默认情况下使用流的方式消费数据。除非任务失败
   ```java
   StopCursor.afterMessageId(MessageId);
   ```
-- 停止于某个给定的消息发布时间戳，比如 `Message<byte[]>.getPublishTime()`。
+- 停止于某个给定的消息事件时间戳，比如 `Message<byte[]>.getEventTime()`，消费结果里不包含此时间戳的消息。
+  ```java
+  StopCursor.atEventTime(long);
+  ```
+- 停止于某个给定的消息事件时间戳，比如 `Message<byte[]>.getEventTime()`，消费结果里包含此时间戳的消息。
+  ```java
+  StopCursor.afterEventTime(long);
+  ```
+- 停止于某个给定的消息发布时间戳，比如 `Message<byte[]>.getPublishTime()`，消费结果里不包含此时间戳的消息。
   ```java
   StopCursor.atPublishTime(long);
   ```
-
-{{< hint warning >}}
-StopCursor.atEventTime(long) 目前已经处于弃用状态。
-{{< /hint >}}
+- 停止于某个给定的消息发布时间戳，比如 `Message<byte[]>.getPublishTime()`，消费结果里包含此时间戳的消息。
+  ```java
+  StopCursor.afterPublishTime(long);
+  ```
 
 ### Source 配置项
 
@@ -352,7 +364,7 @@ PulsarSink<String> sink = PulsarSink.builder()
     .setAdminUrl(adminUrl)
     .setTopics("topic1")
     .setSerializationSchema(PulsarSerializationSchema.flinkSchema(new SimpleStringSchema()))
-    .setDeliverGuarantee(DeliveryGuarantee.AT_LEAST_ONCE)
+    .setDeliveryGuarantee(DeliveryGuarantee.AT_LEAST_ONCE)
     .build();
 
 stream.sinkTo(sink);
@@ -375,10 +387,10 @@ stream.sinkTo(sink);
 // Topic "some-topic1" 和 "some-topic2"
 PulsarSink.builder().setTopics("some-topic1", "some-topic2")
 
-// Topic "topic-a" 的分区 0 和 2 
+// Topic "topic-a" 的分区 0 和 2
 PulsarSink.builder().setTopics("topic-a-partition-0", "topic-a-partition-2")
 
-// Topic "topic-a" 以及 Topic "some-topic2" 分区 0 和 2 
+// Topic "topic-a" 以及 Topic "some-topic2" 分区 0 和 2
 PulsarSink.builder().setTopics("topic-a-partition-0", "topic-a-partition-2", "some-topic2")
 ```
 
@@ -619,7 +631,11 @@ Pulsar Sink 使用生产者 API 来发送消息。Pulsar 的 `ProducerConfigurat
 
 默认情况下，Pulsar 生产者每隔 60 秒才会刷新一次监控数据，然而 Pulsar Sink 每 500 毫秒就会从 Pulsar 生产者中获得最新的监控数据。因此 `numRecordsOut`、`numBytesOut`、`numAcksReceived` 以及 `numRecordsOutErrors` 4 个指标实际上每 60 秒才会刷新一次。
 
-如果想要更高地刷新评率，可以通过 `builder.setConfig(PulsarOptions.PULSAR_STATS_INTERVAL_SECONDS. 1L)` 来将 Pulsar 生产者的监控数据刷新频率调整至相应值（最低为1s）。
+如果想要更高地刷新评率，可以通过如下方式来将 Pulsar 生产者的监控数据刷新频率调整至相应值（最低为1s）：
+
+```java
+builder.setConfig(PulsarOptions.PULSAR_STATS_INTERVAL_SECONDS, 1L);
+```
 
 `numBytesOutRate` 和 `numRecordsOutRate` 指标是 Flink 内部通过 `numBytesOut` 和 `numRecordsOut` 计数器，在一个 60 秒的窗口内计算得到的。
 
@@ -650,7 +666,20 @@ Pulsar Sink 遵循 [FLIP-191](https://cwiki.apache.org/confluence/display/FLINK/
 
 用户遇到的问题可能与 Flink 无关，请先升级 Pulsar 的版本、Pulsar 客户端的版本，或者修改 Pulsar 的配置、Pulsar 连接器的配置来尝试解决问题。
 
+## 已知问题
+
+本节介绍有关 Pulsar 连接器的一些已知问题。
+
 ### 在 Java 11 上使用不稳定
 
-Pulsar connector 在 Java 11 中有一些尚未修复的问题。我们当前推荐在 Java 8 环境中运行Pulsar connector.
+Pulsar connector 在 Java 11 中有一些尚未修复的问题。我们当前推荐在 Java 8 环境中运行Pulsar connector。
+
+### 不自动重连，而是抛出TransactionCoordinatorNotFound异常
+
+Pulsar 事务机制仍在积极发展中，当前版本并不稳定。 Pulsar 2.9.2
+引入了这个问题 [a break change](https://github.com/apache/pulsar/pull/13135)。
+如果您使用 Pulsar 2.9.2或更高版本与较旧的 Pulsar 客户端一起使用，您可能会收到一个“TransactionCoordinatorNotFound”异常。
+
+您可以使用最新的`pulsar-client-all`分支来解决这个问题。
+
 {{< top >}}

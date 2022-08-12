@@ -97,7 +97,7 @@ import static org.apache.flink.util.Preconditions.checkState;
  * <p>To stop the connector user has to disable the auto partition discovery. As auto partition
  * discovery always expected new splits to come and not exiting. To disable auto partition
  * discovery, use builder.setConfig({@link
- * PulsarSourceOptions.PULSAR_PARTITION_DISCOVERY_INTERVAL_MS}, -1).
+ * PulsarSourceOptions#PULSAR_PARTITION_DISCOVERY_INTERVAL_MS}, -1).
  *
  * <pre>{@code
  * PulsarSource<String> source = PulsarSource
@@ -266,7 +266,7 @@ public final class PulsarSourceBuilder<OUT> {
     }
 
     /**
-     * The consumer name is informative and it can be used to identify a particular consumer
+     * The consumer name is informative, and it can be used to identify a particular consumer
      * instance from the topic stats.
      */
     public PulsarSourceBuilder<OUT> setConsumerName(String consumerName) {
@@ -321,7 +321,7 @@ public final class PulsarSourceBuilder<OUT> {
      * <p>To stop the connector user has to disable the auto partition discovery. As auto partition
      * discovery always expected new splits to come and not exiting. To disable auto partition
      * discovery, use builder.setConfig({@link
-     * PulsarSourceOptions.PULSAR_PARTITION_DISCOVERY_INTERVAL_MS}, -1).
+     * PulsarSourceOptions#PULSAR_PARTITION_DISCOVERY_INTERVAL_MS}, -1).
      *
      * @param stopCursor The {@link StopCursor} to specify the stopping offset.
      * @return this PulsarSourceBuilder.
@@ -334,7 +334,7 @@ public final class PulsarSourceBuilder<OUT> {
     }
 
     /**
-     * By default the PulsarSource is set to run in {@link Boundedness#CONTINUOUS_UNBOUNDED} manner
+     * By default, the PulsarSource is set to run in {@link Boundedness#CONTINUOUS_UNBOUNDED} manner
      * and thus never stops until the Flink job fails or is canceled. To let the PulsarSource run in
      * {@link Boundedness#BOUNDED} manner and stops at some point, one can set an {@link StopCursor}
      * to specify the stopping offsets for each partition. When all the partitions have reached
