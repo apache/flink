@@ -86,6 +86,17 @@ public class KubernetesUtilsTest extends KubernetesTestBase {
     }
 
     @Test
+    void testLoadPodFromNoSpecTemplate() {
+        final FlinkPod flinkPod =
+                KubernetesUtils.loadPodFromTemplateFile(
+                        flinkKubeClient,
+                        KubernetesPodTemplateTestUtils.getNoSpecPodTemplateFile(),
+                        KubernetesPodTemplateTestUtils.TESTING_MAIN_CONTAINER_NAME);
+        assertThat(flinkPod.getMainContainer(), is(EMPTY_POD.getMainContainer()));
+        assertThat(flinkPod.getPodWithoutMainContainer().getSpec().getContainers(), is(0));
+    }
+
+    @Test
     public void testLoadPodFromTemplateWithNonExistPathShouldFail() {
         final String nonExistFile = "/path/of/non-exist.yaml";
         try {
