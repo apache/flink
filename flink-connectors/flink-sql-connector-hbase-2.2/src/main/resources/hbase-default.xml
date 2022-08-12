@@ -1164,7 +1164,7 @@ possible configurations would overwhelm and obscure the important.
 	</property>
 	<property>
 		<name>hbase.defaults.for.version.skip</name>
-		<value>false</value>
+		<value>true</value>
 		<description>Set to true to skip the 'hbase.defaults.for.version' check.
 			Setting this to true can be useful in contexts other than
 			the other side of a maven generation; i.e. running in an
