@@ -178,7 +178,7 @@ public class HybridSourceSplitEnumeratorTest {
     }
 
     @Test
-    public void testRestoreEnumeratorWith2ndSource() throws Exception {
+    public void testRestoreEnumeratorAfterFirstSourceWithoutRestoredSplits() throws Exception {
         setupEnumeratorAndTriggerSourceSwitch();
         HybridSourceEnumeratorState enumeratorState = enumerator.snapshotState(0);
         MockSplitEnumerator underlyingEnumerator = getCurrentEnumerator(enumerator);
