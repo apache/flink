@@ -812,6 +812,24 @@ class DataStreamTests(object):
         expected = ['(hi,3)']
         self.assert_equals_sorted(expected, results)
 
+    def test_java_list_deserialization(self):
+        jvm = get_gateway().jvm
+        j_item = jvm.java.util.ArrayList()
+        j_item.add(1)
+        j_item.add(2)
+        j_item.add(3)
+        j_list = jvm.java.util.ArrayList()
+        j_list.add(j_item)
+        type_info = Types.LIST(Types.INT())
+        ds = DataStream(self.env._j_stream_execution_environment.fromCollection(
+            j_list, type_info.get_java_type_info()
+        ))
+        ds.map(lambda e: str(e), Types.STRING()).add_sink(self.test_sink)
+
+        self.env.execute('test_java_list_deserialization')
+        expected = ['[1, 2, 3]']
+        self.assert_equals(self.test_sink.get_results(), expected)
+
 
 class StreamingModeDataStreamTests(DataStreamTests, PyFlinkStreamingTestCase):
     def test_data_stream_name(self):
