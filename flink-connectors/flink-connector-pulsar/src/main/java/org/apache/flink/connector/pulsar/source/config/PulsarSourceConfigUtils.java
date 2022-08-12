@@ -59,7 +59,6 @@ import static org.apache.flink.connector.pulsar.source.PulsarSourceOptions.PULSA
 import static org.apache.flink.connector.pulsar.source.PulsarSourceOptions.PULSAR_REPLICATE_SUBSCRIPTION_STATE;
 import static org.apache.flink.connector.pulsar.source.PulsarSourceOptions.PULSAR_RETRY_ENABLE;
 import static org.apache.flink.connector.pulsar.source.PulsarSourceOptions.PULSAR_RETRY_LETTER_TOPIC;
-import static org.apache.flink.connector.pulsar.source.PulsarSourceOptions.PULSAR_SUBSCRIPTION_INITIAL_POSITION;
 import static org.apache.flink.connector.pulsar.source.PulsarSourceOptions.PULSAR_SUBSCRIPTION_MODE;
 import static org.apache.flink.connector.pulsar.source.PulsarSourceOptions.PULSAR_SUBSCRIPTION_NAME;
 import static org.apache.flink.connector.pulsar.source.PulsarSourceOptions.PULSAR_SUBSCRIPTION_TYPE;
@@ -113,8 +112,6 @@ public final class PulsarSourceConfigUtils {
                 builder::consumerName);
         configuration.useOption(PULSAR_READ_COMPACTED, builder::readCompacted);
         configuration.useOption(PULSAR_PRIORITY_LEVEL, builder::priorityLevel);
-        configuration.useOption(
-                PULSAR_SUBSCRIPTION_INITIAL_POSITION, builder::subscriptionInitialPosition);
         createDeadLetterPolicy(configuration).ifPresent(builder::deadLetterPolicy);
         configuration.useOption(
                 PULSAR_AUTO_UPDATE_PARTITIONS_INTERVAL_SECONDS,

@@ -24,7 +24,6 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.connector.base.source.reader.RecordsWithSplitIds;
 import org.apache.flink.connector.base.source.reader.splitreader.SplitsAddition;
 import org.apache.flink.connector.pulsar.source.config.SourceConfiguration;
-import org.apache.flink.connector.pulsar.source.enumerator.cursor.StartCursor;
 import org.apache.flink.connector.pulsar.source.enumerator.cursor.StopCursor;
 import org.apache.flink.connector.pulsar.source.enumerator.topic.TopicPartition;
 import org.apache.flink.connector.pulsar.source.reader.message.PulsarMessage;
@@ -86,7 +85,7 @@ import static org.assertj.core.api.Assertions.assertThat;
     TestOrderlinessExtension.class,
     TestLoggerExtension.class,
 })
-public abstract class PulsarPartitionSplitReaderTestBase extends PulsarTestSuiteBase {
+abstract class PulsarPartitionSplitReaderTestBase extends PulsarTestSuiteBase {
 
     @RegisterExtension
     PulsarSplitReaderInvocationContextProvider provider =
@@ -138,8 +137,7 @@ public abstract class PulsarPartitionSplitReaderTestBase extends PulsarTestSuite
         // create consumer and seek before split changes
         try (Consumer<byte[]> consumer = reader.createPulsarConsumer(partition)) {
             // inclusive messageId
-            StartCursor startCursor = StartCursor.fromMessageId(startPosition);
-            startCursor.seekPosition(partition.getTopic(), partition.getPartitionId(), consumer);
+            consumer.seek(startPosition);
         } catch (PulsarClientException e) {
             sneakyThrow(e);
         }
@@ -185,7 +183,7 @@ public abstract class PulsarPartitionSplitReaderTestBase extends PulsarTestSuite
         if (verify) {
             assertThat(messages).as("We should fetch the expected size").hasSize(expectedCount);
             if (boundedness == Boundedness.CONTINUOUS_UNBOUNDED) {
-                assertThat(finishedSplits).as("Split should not be marked as finished").hasSize(0);
+                assertThat(finishedSplits).as("Split should not be marked as finished").isEmpty();
             } else {
                 assertThat(finishedSplits).as("Split should be marked as finished").hasSize(1);
             }

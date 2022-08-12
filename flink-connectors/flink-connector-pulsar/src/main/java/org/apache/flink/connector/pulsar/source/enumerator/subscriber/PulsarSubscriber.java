@@ -48,7 +48,7 @@ public interface PulsarSubscriber extends Serializable {
 
     /**
      * Get a set of subscribed {@link TopicPartition}s. The method could throw {@link
-     * IllegalStateException}, a extra try catch is required.
+     * IllegalStateException}, an extra try catch is required.
      *
      * @param pulsarAdmin The admin interface used to retrieve subscribed topic partitions.
      * @param rangeGenerator The range for different partitions.

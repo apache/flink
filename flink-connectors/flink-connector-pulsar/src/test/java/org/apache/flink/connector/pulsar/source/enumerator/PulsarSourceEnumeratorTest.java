@@ -22,6 +22,8 @@ import org.apache.flink.api.connector.source.ReaderInfo;
 import org.apache.flink.api.connector.source.mocks.MockSplitEnumeratorContext;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.connector.pulsar.source.config.SourceConfiguration;
+import org.apache.flink.connector.pulsar.source.enumerator.assigner.SplitAssigner;
+import org.apache.flink.connector.pulsar.source.enumerator.assigner.SplitAssignerFactory;
 import org.apache.flink.connector.pulsar.source.enumerator.cursor.StartCursor;
 import org.apache.flink.connector.pulsar.source.enumerator.subscriber.PulsarSubscriber;
 import org.apache.flink.connector.pulsar.source.enumerator.topic.TopicPartition;
@@ -51,6 +53,7 @@ import java.util.stream.Collectors;
 
 import static org.apache.commons.lang3.RandomStringUtils.randomAlphabetic;
 import static org.apache.flink.connector.pulsar.source.PulsarSourceOptions.PULSAR_PARTITION_DISCOVERY_INTERVAL_MS;
+import static org.apache.flink.connector.pulsar.source.PulsarSourceOptions.PULSAR_SUBSCRIPTION_NAME;
 import static org.apache.flink.connector.pulsar.source.PulsarSourceOptions.PULSAR_SUBSCRIPTION_TYPE;
 import static org.apache.flink.connector.pulsar.source.enumerator.cursor.StopCursor.latest;
 import static org.apache.flink.connector.pulsar.source.enumerator.subscriber.PulsarSubscriber.getTopicPatternSubscriber;
@@ -368,6 +371,7 @@ class PulsarSourceEnumeratorTest extends PulsarTestSuiteBase {
 
         Configuration configuration = operator().config();
         configuration.set(PULSAR_SUBSCRIPTION_TYPE, subscriptionType);
+        configuration.set(PULSAR_SUBSCRIPTION_NAME, randomAlphabetic(10));
         if (enablePeriodicPartitionDiscovery) {
             configuration.set(PULSAR_PARTITION_DISCOVERY_INTERVAL_MS, 60L);
         } else {
@@ -375,15 +379,15 @@ class PulsarSourceEnumeratorTest extends PulsarTestSuiteBase {
         }
         SourceConfiguration sourceConfiguration = new SourceConfiguration(configuration);
 
-        SplitsAssignmentState assignmentState =
-                new SplitsAssignmentState(latest(), sourceConfiguration, sourceEnumState);
+        SplitAssigner assigner =
+                SplitAssignerFactory.create(latest(), sourceConfiguration, sourceEnumState);
         return new PulsarSourceEnumerator(
                 subscriber,
                 StartCursor.earliest(),
                 new FullRangeGenerator(),
                 sourceConfiguration,
                 enumContext,
-                assignmentState);
+                assigner);
     }
 
     private void registerReader(
