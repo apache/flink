@@ -49,6 +49,6 @@ class SwitchedSources {
     }
 
     public Integer getNextSubtaskSourceIndex(int previousSubtaskSourceIndex) {
-        return previousSubtaskSourceIndex == -1 ? sources.firstKey() : previousSubtaskSourceIndex++;
+        return previousSubtaskSourceIndex == -1 ? sources.firstKey() : ++previousSubtaskSourceIndex;
     }
 }
