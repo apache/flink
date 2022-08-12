@@ -50,21 +50,68 @@ There are two possible values:
  - `PROCESS`: The Python user-defined functions will be executed in separate Python process. (default)
  - `THREAD`: The Python user-defined functions will be executed in the same process as Java operator.
 
-You could specify the Python execution mode using Python Table API as following:
+You could specify the Python execution mode using Python Table API or DataStream API as following:
 
 ```python
+
+## Python Table API
 # Specify `PROCESS` mode
 table_env.get_config().set("python.execution-mode", "process")
 
 # Specify `THREAD` mode
 table_env.get_config().set("python.execution-mode", "thread")
+
+
+## Python DataStream API
+
+config = Configuration()
+
+# Specify `PROCESS` mode
+config.set_string("python.execution-mode", "process")
+
+# Specify `THREAD` mode
+config.set_string("python.execution-mode", "thread")
+
+# Create the corresponding StreamExecutionEnvironment
+env = StreamExecutionEnvironment.get_execution_environment(config)
+
 ```
+
+## Supported Cases
+
+### Python Table API
+
+The following Table shows the supported UDF cases in Python Table API.
+
+| UDFs| `PROCESS` | `THREAD`|
+|-----|-----------|---------|
+|Python UDF | Yes | Yes |
+|Python UDTF| Yes | Yes |
+|Python UDAF| Yes | No  |
+|Pandas UDFs| Yes | No  |
 
 {{< hint info >}}
 Currently, it still doesn't support to execute Python UDFs in `THREAD` execution mode in all places.
 It will fall back to `PROCESS` execution mode in these cases. So it may happen that you configure a job
 to execute in `THREAD` execution mode, however, it's actually executed in `PROCESS` execution mode.
 {{< /hint >}}
+
+### Python DataStream API
+
+The following Table shows the supported cases in Python DataStream API.
+
+| Operators | `PROCESS` | `THREAD` |
+|-----------|-----------|----------|
+|Process Function| Yes | Yes |
+|Windows         | Yes | Yes |
+|Joining         | No  | No  |
+|Async I/O       | No  | No  |
+
+|Other Cases| `PROCESS` | `THREAD` |
+|-----------|-----------|----------|
+|Side Outputs | Yes | Yes |
+|Broadcast    | Yes | Yes |
+
 {{< hint info >}}
 `THREAD` execution mode is only supported in Python 3.7+.
 {{< /hint >}}
