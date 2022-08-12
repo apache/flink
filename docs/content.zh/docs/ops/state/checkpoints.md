@@ -84,7 +84,7 @@ env.setStateBackend(new RocksDBStateBackend("hdfs:///checkpoints-data/"));
 
 ### 从保留的 checkpoint 中恢复状态
 
-与 savepoint 一样，作业可以从 checkpoint 的元数据文件恢复运行（[savepoint恢复指南]({{< ref "docs/ops/state/savepoints" >}}#resuming-from-savepoints)）。注意，如果元数据文件中信息不充分，那么 jobmanager 就需要使用相关的数据文件来恢复作业(参考[目录结构](#directory-structure))。
+与 savepoint 一样，作业可以从 checkpoint 的元数据文件恢复运行（[savepoint恢复指南]({{< ref "docs/ops/state/savepoints" >}}#resuming-from-savepoints)）。注意，如果元数据文件中信息不充分，那么 jobmanager 就需要使用相关的数据文件来恢复作业(参考[目录结构](#目录结构))。
 
 ```shell
 $ bin/flink run -s :checkpointMetaDataPath [:runArgs]
