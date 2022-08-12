@@ -414,7 +414,7 @@ class MyMapperMeter(MapFunction):
             .meter("my_meter", time_span_in_seconds=120)
 
     def map(self, value: str):
-        self.meter.markEvent()
+        self.meter.mark_event()
         return value
 
 ```
