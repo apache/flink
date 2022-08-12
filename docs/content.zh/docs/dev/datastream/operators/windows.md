@@ -35,6 +35,9 @@ under the License.
 
 **Keyed Windows**
 
+{{< tabs "Keyed Windows" >}}
+
+{{< tab "Java/Scala" >}}
     stream
            .keyBy(...)               <-  仅 keyed 窗口需要
            .window(...)              <-  必填项："assigner"
@@ -45,8 +48,26 @@ under the License.
            .reduce/aggregate/apply()      <-  必填项："function"
           [.getSideOutput(...)]      <-  可选项："output tag"
 
+{{< /tab >}}
+
+{{< tab "Python" >}}
+    stream
+           .key_by(...)                  <-  仅 keyed 窗口需要
+           .window(...)                  <-  必填项："assigner"
+          [.trigger(...)]                <-  可选项："trigger" (省略则使用默认 trigger)
+          [.allowed_lateness(...)]       <-  可选项："lateness" (省略则为 0)
+          [.side_output_late_data(...)]  <-  可选项："output tag" (省略则不对迟到数据使用 side output)
+           .reduce/aggregate/apply()     <-  必填项："function"
+          [.get_side_output(...)]        <-  可选项："output tag"
+
+{{< /tab >}}
+{{< /tabs >}}
+
 **Non-Keyed Windows**
 
+{{< tabs "Non-Keyed Windows" >}}
+
+{{< tab "Java/Scala" >}}
     stream
            .windowAll(...)           <-  必填项："assigner"
           [.trigger(...)]            <-  可选项："trigger" (else default trigger)
@@ -56,8 +77,23 @@ under the License.
            .reduce/aggregate/apply()      <-  必填项："function"
           [.getSideOutput(...)]      <-  可选项："output tag"
 
+{{< /tab >}}
+
+{{< tab "Python" >}}
+    stream
+           .window_all(...)             <-  必填项："assigner"
+          [.trigger(...)]               <-  可选项："trigger" (else default trigger)
+          [.allowed_lateness(...)]      <-  可选项："lateness" (else zero)
+          [.side_output_late_data(...)] <-  可选项："output tag" (else no side output for late data)
+           .reduce/aggregate/apply()    <-  必填项："function"
+          [.get_side_output(...)]       <-  可选项："output tag"
+
+{{< /tab >}}
+
+{{< /tabs >}}
+
 上面方括号（[...]）中的命令是可选的。也就是说，Flink 允许你自定义多样化的窗口操作来满足你的需求。
-{{< hint info >}} Note: Non-Keyed windows 在 Python DataStream API 中还不支持. {{< /hint >}}
+{{< hint info >}} Note: `Evictor` 在 Python DataStream API 中还不支持. {{< /hint >}}
 
 
 ## 窗口的生命周期
@@ -813,51 +849,51 @@ class ProcessWindowFunction(Function, Generic[IN, OUT, KEY, W]):
         """
         pass
 
-class Context(ABC, Generic[W2]):
-    """
-    The context holding window metadata.
-    """
-
-    @abstractmethod
-    def window(self) -> W2:
+    class Context(ABC, Generic[W2]):
         """
-        :return: The window that is being evaluated.
+        The context holding window metadata.
         """
-        pass
-
-    @abstractmethod
-    def current_processing_time(self) -> int:
-        """
-        :return: The current processing time.
-        """
-        pass
-
-    @abstractmethod
-    def current_watermark(self) -> int:
-        """
-        :return: The current event-time watermark.
-        """
-        pass
-
-    @abstractmethod
-    def window_state(self) -> KeyedStateStore:
-        """
-        State accessor for per-key and per-window state.
-  
-        .. note::
-            If you use per-window state you have to ensure that you clean it up by implementing
-            :func:`~ProcessWindowFunction.clear`.
-  
-        :return: The :class:`KeyedStateStore` used to access per-key and per-window states.
-        """
-        pass
-
-    @abstractmethod
-    def global_state(self) -> KeyedStateStore:
-        """
-        State accessor for per-key global state.
-        """
-        pass
+    
+        @abstractmethod
+        def window(self) -> W2:
+            """
+            :return: The window that is being evaluated.
+            """
+            pass
+    
+        @abstractmethod
+        def current_processing_time(self) -> int:
+            """
+            :return: The current processing time.
+            """
+            pass
+    
+        @abstractmethod
+        def current_watermark(self) -> int:
+            """
+            :return: The current event-time watermark.
+            """
+            pass
+    
+        @abstractmethod
+        def window_state(self) -> KeyedStateStore:
+            """
+            State accessor for per-key and per-window state.
+      
+            .. note::
+                If you use per-window state you have to ensure that you clean it up by implementing
+                :func:`~ProcessWindowFunction.clear`.
+      
+            :return: The :class:`KeyedStateStore` used to access per-key and per-window states.
+            """
+            pass
+    
+        @abstractmethod
+        def global_state(self) -> KeyedStateStore:
+            """
+            State accessor for per-key global state.
+            """
+            pass
 ```
 {{< /tab >}}
 {{< /tabs >}}
@@ -1412,6 +1448,8 @@ Flink 内置有三个 evictor：
 {{< hint danger >}}
 指定一个 evictor 可以避免预聚合，因为窗口中的所有元素在计算前都必须经过 evictor。
 {{< /hint >}}
+
+{{< hint info >}} Note: `Evictor` 在 Python DataStream API 中还不支持. {{< /hint >}}
 
 Flink 不对窗口中元素的顺序做任何保证。也就是说，即使 evictor 从窗口缓存的开头移除一个元素，这个元素也不一定是最先或者最后到达窗口的。
 
