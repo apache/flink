@@ -219,7 +219,10 @@ public class HybridSourceSplitEnumerator
 
             if (subtaskSourceIndex < currentSourceIndex) {
                 // find initial or next index for the reader
-                subtaskSourceIndex = switchedSources.getNextSubtaskSourceIndex(subtaskSourceIndex);
+                subtaskSourceIndex =
+                        subtaskSourceIndex == -1
+                                ? switchedSources.getFirstSourceIndex()
+                                : ++subtaskSourceIndex;
                 sendSwitchSourceEvent(subtaskId, subtaskSourceIndex);
                 return;
             }

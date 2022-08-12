@@ -189,6 +189,7 @@ public class HybridSourceSplitEnumeratorTest {
         enumerator =
                 (HybridSourceSplitEnumerator) source.restoreEnumerator(context, enumeratorState);
         enumerator.start();
+        // subtask starts at -1 since it has no splits after restore
         enumerator.handleSourceEvent(SUBTASK0, new SourceReaderFinishedEvent(-1));
         underlyingEnumerator = getCurrentEnumerator(enumerator);
         assertThat(

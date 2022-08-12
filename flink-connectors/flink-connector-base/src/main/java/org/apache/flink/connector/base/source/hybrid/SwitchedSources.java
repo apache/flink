@@ -48,7 +48,7 @@ class SwitchedSources {
         sources.put(sourceIndex, Preconditions.checkNotNull(source));
     }
 
-    public Integer getNextSubtaskSourceIndex(int previousSubtaskSourceIndex) {
-        return previousSubtaskSourceIndex == -1 ? sources.firstKey() : ++previousSubtaskSourceIndex;
+    public int getFirstSourceIndex() {
+        return sources.firstKey();
     }
 }
