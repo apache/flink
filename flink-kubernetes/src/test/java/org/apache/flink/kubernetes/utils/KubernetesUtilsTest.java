@@ -86,14 +86,14 @@ public class KubernetesUtilsTest extends KubernetesTestBase {
     }
 
     @Test
-    void testLoadPodFromNoSpecTemplate() {
+    public void testLoadPodFromNoSpecTemplate() {
         final FlinkPod flinkPod =
                 KubernetesUtils.loadPodFromTemplateFile(
                         flinkKubeClient,
                         KubernetesPodTemplateTestUtils.getNoSpecPodTemplateFile(),
                         KubernetesPodTemplateTestUtils.TESTING_MAIN_CONTAINER_NAME);
         assertThat(flinkPod.getMainContainer(), is(EMPTY_POD.getMainContainer()));
-        assertThat(flinkPod.getPodWithoutMainContainer().getSpec().getContainers(), is(0));
+        assertThat(flinkPod.getPodWithoutMainContainer().getSpec().getContainers().size(), is(0));
     }
 
     @Test
