@@ -197,20 +197,20 @@ public class SortMergeResultPartition extends ResultPartition {
             if (resultFile == null && fileWriter != null) {
                 fileWriter.releaseQuietly();
             }
-
-            // delete the produced file only when no reader is reading now
-            readScheduler
-                    .release()
-                    .thenRun(
-                            () -> {
-                                synchronized (lock) {
-                                    if (resultFile != null) {
-                                        resultFile.deleteQuietly();
-                                        resultFile = null;
-                                    }
-                                }
-                            });
         }
+
+        // delete the produced file only when no reader is reading now
+        readScheduler
+                .release()
+                .thenRun(
+                        () -> {
+                            synchronized (lock) {
+                                if (resultFile != null) {
+                                    resultFile.deleteQuietly();
+                                    resultFile = null;
+                                }
+                            }
+                        });
     }
 
     @Override
