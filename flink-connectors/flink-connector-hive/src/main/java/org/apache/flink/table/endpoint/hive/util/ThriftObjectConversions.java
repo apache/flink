@@ -42,7 +42,6 @@ import org.apache.flink.types.RowKind;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.JsonNode;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
 
-import org.apache.hadoop.hive.metastore.TableType;
 import org.apache.hadoop.hive.serde2.SerDeUtils;
 import org.apache.hadoop.hive.serde2.objectinspector.ObjectInspector;
 import org.apache.hadoop.hive.serde2.thrift.Type;
@@ -591,10 +590,12 @@ public class ThriftObjectConversions {
         mappings.put("TABLE", TableKind.TABLE);
         mappings.put("VIEW", TableKind.VIEW);
         // Add {@code org.apache.hive.service.cli.operation.HiveTableTypeMapping }
-        mappings.put(TableType.MANAGED_TABLE.name(), TableKind.TABLE);
-        mappings.put(TableType.EXTERNAL_TABLE.name(), TableKind.TABLE);
-        mappings.put(TableType.INDEX_TABLE.name(), TableKind.TABLE);
-        mappings.put(TableType.VIRTUAL_VIEW.name(), TableKind.VIEW);
+        // Use literal string instead of org.apache.hadoop.hive.metastore.TableType because hive may
+        // remove some members of this enum class
+        mappings.put("MANAGED_TABLE", TableKind.TABLE);
+        mappings.put("EXTERNAL_TABLE", TableKind.TABLE);
+        mappings.put("INDEX_TABLE", TableKind.TABLE);
+        mappings.put("VIRTUAL_VIEW", TableKind.VIEW);
         return mappings;
     }
 
