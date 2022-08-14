@@ -215,9 +215,7 @@ class CodeGeneratorContext(val tableConfig: TableConfig) {
   /** @return Comment to be added as a header comment on the generated class */
   def getClassHeaderComment: String = {
     s"""
-       |/*
-       | * ${reusableHeaderComments.mkString("\n * ")}
-       | */
+       |// ${reusableHeaderComments.mkString("\n// ")}
     """.stripMargin
   }
 
