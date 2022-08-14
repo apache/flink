@@ -95,35 +95,35 @@ The [configuration section](#configuration) explains how to declare table source
 
 There is a list of available key-strokes in SQL client
 
-| Key-Stroke | Description                                |
-|:-----------|:-------------------------------------------|
-| `alt-b`    | Backward word                              |
-| `alt-f`    | Forward word                               |
-| `alt-c`    | Capitalize word                            |
-| `alt-l`    | Lowercase word                             |
-| `alt-u`    | Uppercase word                             |
-| `alt-d`    | Kill word                                  |
-| `alt-n`    | History search forward                     |
-| `alt-p`    | History search backward                    |
-| `alt-t`    | Transpose words                            |
-| `ctrl-a`   | To the beginning of line                   |
-| `ctrl-e`   | To the end of line                         |
-| `ctrl-b`   | Backward char                              |
-| `ctrl-f`   | Forward char                               |
-| `ctrl-d`   | Delete char                                |
-| `ctrl-h`   | Backward delete char                       |
-| `ctrl-t`   | Transpose chars                            |
-| `ctrl-i`   | Invoke completion                          |
-| `ctrl-j`   | Submit a query                             |
-| `ctrl-m`   | Submit a query                             |
-| `ctrl-k`   | Kill the line to the right from the cursor |
-| `ctrl-w`   | Kill the line to the left from the cursor  |
-| `ctrl-u`   | Kill the whole line                        |
-| `ctrl-l`   | Clear screen                               |
-| `ctrl-n`   | Down line from history                     |
-| `ctrl-p`   | Up line from history                       |
-| `ctrl-r`   | History incremental search backward        |
-| `ctrl-s`   | History incremental search forward         |
+| Key-Stroke (Linux, Windows(WSL)) | Key-Stroke (Mac) | Description                                |
+|:---------------------------------|------------------|:-------------------------------------------|
+| `alt-b`                          | `Esc-b`          | Backward word                              |
+| `alt-f`                          | `Esc-f`          | Forward word                               |
+| `alt-c`                          | `Esc-c`          | Capitalize word                            |
+| `alt-l`                          | `Esc-l`          | Lowercase word                             |
+| `alt-u`                          | `Esc-u`          | Uppercase word                             |
+| `alt-d`                          | `Esc-d`          | Kill word                                  |
+| `alt-n`                          | `Esc-n`          | History search forward                     |
+| `alt-p`                          | `Esc-p`          | History search backward                    |
+| `alt-t`                          | `Esc-t`          | Transpose words                            |
+| `ctrl-a`                         | `⌘-a`            | To the beginning of line                   |
+| `ctrl-e`                         | `⌘-e`            | To the end of line                         |
+| `ctrl-b`                         | `⌘-b`            | Backward char                              |
+| `ctrl-f`                         | `⌘-f`            | Forward char                               |
+| `ctrl-d`                         | `⌘-d`            | Delete char                                |
+| `ctrl-h`                         | `⌘-h`            | Backward delete char                       |
+| `ctrl-t`                         | `⌘-t`            | Transpose chars                            |
+| `ctrl-i`                         | `⌘-i`            | Invoke completion                          |
+| `ctrl-j`                         | `⌘-j`            | Submit a query                             |
+| `ctrl-m`                         | `⌘-m`            | Submit a query                             |
+| `ctrl-k`                         | `⌘-k`            | Kill the line to the right from the cursor |
+| `ctrl-w`                         | `⌘-w`            | Kill the line to the left from the cursor  |
+| `ctrl-u`                         | `⌘-u`            | Kill the whole line                        |
+| `ctrl-l`                         | `⌘-l`            | Clear screen                               |
+| `ctrl-n`                         | `⌘-n`            | Down line from history                     |
+| `ctrl-p`                         | `⌘-p`            | Up line from history                       |
+| `ctrl-r`                         | `⌘-r`            | History incremental search backward        |
+| `ctrl-s`                         | `⌘-s`            | History incremental search forward         |
 
 ### Getting help
 
