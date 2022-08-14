@@ -44,6 +44,7 @@ import javax.annotation.Nullable;
 import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
@@ -292,6 +293,7 @@ public final class SchemaTranslator {
             boolean isTopLevelRecord, DataType patchedDataType, Schema declaredSchema) {
         final Schema.Builder builder = Schema.newBuilder();
 
+        final Map<String, String> commentMap = declaredSchema.getCommentMap();
         // physical columns
         if (isTopLevelRecord) {
             addPhysicalSourceDataTypeFields(builder, patchedDataType, null);
@@ -299,6 +301,8 @@ public final class SchemaTranslator {
             builder.column(
                     LogicalTypeUtils.getAtomicName(Collections.emptyList()), patchedDataType);
         }
+        // add comments for physical column
+        builder.setCommentsForColumn(commentMap);
 
         // remaining schema
         final List<UnresolvedColumn> nonPhysicalColumns =

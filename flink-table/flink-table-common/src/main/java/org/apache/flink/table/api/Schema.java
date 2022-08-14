@@ -44,7 +44,9 @@ import javax.annotation.Nullable;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.stream.Collectors;
@@ -114,6 +116,14 @@ public final class Schema {
 
     public Optional<UnresolvedPrimaryKey> getPrimaryKey() {
         return Optional.ofNullable(primaryKey);
+    }
+
+    public Map<String, String> getCommentMap() {
+        Map<String, String> map = new HashMap<>();
+        for (UnresolvedColumn column : columns) {
+            map.put(column.getName(), column.getComment().orElse(null));
+        }
+        return map;
     }
 
     /** Resolves the given {@link Schema} to a validated {@link ResolvedSchema}. */
@@ -233,6 +243,15 @@ public final class Schema {
         public Builder fromColumns(List<UnresolvedColumn> unresolvedColumns) {
             columns.addAll(unresolvedColumns);
             return this;
+        }
+
+        public void setCommentsForColumn(Map<String, String> commentMap) {
+            for (int i = 0; i < columns.size(); i++) {
+                UnresolvedColumn column = columns.get(i);
+                if (commentMap.containsKey(column.getName())) {
+                    columns.set(i, column.withComment(commentMap.get(column.getName())));
+                }
+            }
         }
 
         /**

@@ -88,8 +88,9 @@ final class ProjectionOperationFactory {
                         .map(ResolvedExpression::getOutputDataType)
                         .toArray(DataType[]::new);
 
-        return new ProjectQueryOperation(
-                finalExpression, child, ResolvedSchema.physical(fieldNames, fieldTypes));
+        ResolvedSchema resolvedSchema =
+                ResolvedSchema.physical(fieldNames, fieldTypes, child.getResolvedSchema());
+        return new ProjectQueryOperation(finalExpression, child, resolvedSchema);
     }
 
     private String[] validateAndGetUniqueNames(List<ResolvedExpression> namedExpressions) {

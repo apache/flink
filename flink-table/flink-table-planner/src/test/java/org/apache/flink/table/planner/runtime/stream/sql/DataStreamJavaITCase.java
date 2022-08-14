@@ -71,6 +71,7 @@ import org.apache.flink.util.Collector;
 import org.assertj.core.api.recursive.comparison.RecursiveComparisonConfiguration;
 import org.junit.Before;
 import org.junit.Test;
+import org.junit.jupiter.api.Assertions;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameter;
@@ -764,6 +765,96 @@ public class DataStreamJavaITCase extends AbstractTestBase {
                 resultStream, 0, Row.of(2, null, null, null), Row.of(1, 11.0, "1", "A"));
     }
 
+    @Test
+    public void testCreateSchemaWithComment() {
+        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        StreamTableEnvironment tableEnv = StreamTableEnvironment.create(env);
+        DataStream<String> dataStream = env.fromElements("Alice", "Bob", "John");
+        Schema.Builder builder = Schema.newBuilder();
+        builder.column("f0", DataTypes.of(String.class)).withComment("this is a comment");
+
+        Table table = tableEnv.fromDataStream(dataStream, builder.build()).as("user_name");
+        table.getResolvedSchema();
+        table.printSchema();
+        String expected = "(\n  `user_name` STRING COMMENT 'this is a comment'\n)";
+        Assertions.assertEquals(expected, table.getResolvedSchema().toString());
+    }
+
+    @Test
+    public void testCreateSchemaWithMultipleColumnAndComment() {
+        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        StreamTableEnvironment tableEnv = StreamTableEnvironment.create(env);
+        DataStream<Tuple2<String, Integer>> dataStream =
+                env.fromElements(
+                        Tuple2.of("Alice", 11), Tuple2.of("Bob", 22), Tuple2.of("John", 33));
+        Schema.Builder builder = Schema.newBuilder();
+        builder.column("f0", DataTypes.of(String.class)).withComment("this is a comment");
+        builder.column("f1", "DECIMAL(10, 2)").withComment("this is an another comment");
+
+        Table table = tableEnv.fromDataStream(dataStream, builder.build()).as("user_name", "age");
+        table.getResolvedSchema();
+        table.printSchema();
+        String expected =
+                "(\n"
+                        + "  `user_name` STRING COMMENT 'this is a comment',\n"
+                        + "  `age` DECIMAL(10, 2) COMMENT 'this is an another comment'\n"
+                        + ")";
+        Assertions.assertEquals(expected, table.getResolvedSchema().toString());
+    }
+
+    @Test
+    public void testCreateSchemaWithMetaDataColumnAndComment() {
+        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        StreamTableEnvironment tableEnv = StreamTableEnvironment.create(env);
+        DataStream<Tuple2<String, Integer>> dataStream =
+                env.fromElements(
+                        Tuple2.of("Alice", 11), Tuple2.of("Bob", 22), Tuple2.of("John", 33));
+        Schema.Builder builder = Schema.newBuilder();
+        builder.column("f0", DataTypes.of(String.class))
+                .withComment("this is a comment")
+                .column("f1", "DECIMAL(10, 2)")
+                .withComment("this is an another comment")
+                .columnByExpression("c", "f1 - 1")
+                .withComment("this is a comment for computed column")
+                .columnByMetadata("rowtime", "TIMESTAMP_LTZ(3)") // extract timestamp into a column
+                .withComment("this is a comment for metadata column")
+                .watermark("rowtime", "SOURCE_WATERMARK()"); // declare watermarks propagation
+        Table table =
+                tableEnv.fromDataStream(dataStream, builder.build()).as("user_name", "age", "num");
+        table.getResolvedSchema();
+        table.printSchema();
+        String expected =
+                "(\n"
+                        + "  `user_name` STRING COMMENT 'this is a comment',\n"
+                        + "  `age` DECIMAL(10, 2) COMMENT 'this is an another comment',\n"
+                        + "  `num` DECIMAL(13, 2) COMMENT 'this is a comment for computed column',\n"
+                        + "  `rowtime` TIMESTAMP_LTZ(3) *ROWTIME* COMMENT 'this is a comment for metadata column'\n"
+                        + ")";
+        Assertions.assertEquals(expected, table.getResolvedSchema().toString());
+    }
+
+    @Test
+    public void testCreateSchemaWithoutPhysicalNameAndComment() {
+        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        StreamTableEnvironment tableEnv = StreamTableEnvironment.create(env);
+        DataStream<Tuple2<String, Integer>> dataStream =
+                env.fromElements(
+                        Tuple2.of("Alice", 11), Tuple2.of("Bob", 22), Tuple2.of("John", 33));
+        Schema.Builder builder = Schema.newBuilder();
+        builder.columnByMetadata("rowtime", "TIMESTAMP_LTZ(3)") // extract timestamp into a column
+                .withComment("this is a comment for metadata column")
+                .watermark("rowtime", "SOURCE_WATERMARK()"); // declare watermarks propagation
+        Table table = tableEnv.fromDataStream(dataStream, builder.build()).as("user_name", "age");
+        table.getResolvedSchema();
+        table.printSchema();
+        String expected =
+                "(\n"
+                        + "  `user_name` STRING,\n"
+                        + "  `age` INT NOT NULL,\n"
+                        + "  `rowtime` TIMESTAMP_LTZ(3) *ROWTIME* COMMENT 'this is a comment for metadata column'\n"
+                        + ")";
+        Assertions.assertEquals(expected, table.getResolvedSchema().toString());
+    }
     // --------------------------------------------------------------------------------------------
     // Helper methods
     // --------------------------------------------------------------------------------------------

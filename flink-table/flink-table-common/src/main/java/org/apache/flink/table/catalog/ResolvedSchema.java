@@ -97,9 +97,36 @@ public final class ResolvedSchema {
         return new ResolvedSchema(columns, Collections.emptyList(), null);
     }
 
+    public static ResolvedSchema physical(
+            List<String> columnNames, List<DataType> columnDataTypes, ResolvedSchema fromSchema) {
+        Preconditions.checkArgument(
+                columnNames.size() == columnDataTypes.size(),
+                "Mismatch between number of columns names and data types.");
+        List<String> comments =
+                fromSchema.getColumns().stream()
+                        .map(column -> column.getComment().orElse(null))
+                        .collect(Collectors.toList());
+        Preconditions.checkArgument(
+                columnNames.size() == comments.size(),
+                "Mismatch between number of columns names and its comments.");
+        final List<Column> columns =
+                IntStream.range(0, columnNames.size())
+                        .mapToObj(
+                                i ->
+                                        Column.physical(columnNames.get(i), columnDataTypes.get(i))
+                                                .withComment(comments.get(i)))
+                        .collect(Collectors.toList());
+        return new ResolvedSchema(columns, Collections.emptyList(), null);
+    }
+
     /** Shortcut for a resolved schema of only physical columns. */
     public static ResolvedSchema physical(String[] columnNames, DataType[] columnDataTypes) {
         return physical(Arrays.asList(columnNames), Arrays.asList(columnDataTypes));
+    }
+
+    public static ResolvedSchema physical(
+            String[] columnNames, DataType[] columnDataTypes, ResolvedSchema fromSchema) {
+        return physical(Arrays.asList(columnNames), Arrays.asList(columnDataTypes), fromSchema);
     }
 
     /** Returns the number of {@link Column}s of this schema. */
