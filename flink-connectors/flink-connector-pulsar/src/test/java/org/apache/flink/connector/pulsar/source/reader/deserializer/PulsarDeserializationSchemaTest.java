@@ -113,7 +113,7 @@ class PulsarDeserializationSchemaTest {
         MessageMetadata metadata = new MessageMetadata();
         ByteBuffer payload = ByteBuffer.wrap(bytes);
 
-        return MessageImpl.create(metadata, payload, Schema.BYTES);
+        return MessageImpl.create(metadata, payload, Schema.BYTES, "");
     }
 
     /** This collector is used for collecting only one message. Used for test purpose. */

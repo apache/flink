@@ -36,13 +36,15 @@ under the License.
 	<packaging>jar</packaging>
 
 	<properties>
-		<pulsar.version>2.8.0</pulsar.version>
+		<pulsar.version>2.9.1</pulsar.version>
 
 		<!-- Test Libraries -->
 		<protobuf-maven-plugin.version>0.6.1</protobuf-maven-plugin.version>
 		<assertj-core.version>3.20.2</assertj-core.version>
-		<commons-lang3.version>3.11</commons-lang3.version>
-		<grpc.version>1.33.0</grpc.version>
+		<pulsar-commons-lang3.version>3.11</pulsar-commons-lang3.version>
+		<pulsar-zookeeper.version>3.6.3</pulsar-zookeeper.version>
+		<pulsar-netty.version>4.1.72.Final</pulsar-netty.version>
+		<pulsar-grpc.version>1.33.0</pulsar-grpc.version>
 	</properties>
 
 	<dependencies>
@@ -153,12 +155,22 @@ under the License.
 			<version>${pulsar.version}</version>
 			<scope>test</scope>
 		</dependency>
+
 		<!-- Pulsar use a newer commons-lang3 in broker. -->
 		<!-- Bump the version only for testing. -->
 		<dependency>
 			<groupId>org.apache.commons</groupId>
 			<artifactId>commons-lang3</artifactId>
-			<version>${commons-lang3.version}</version>
+			<version>${pulsar-commons-lang3.version}</version>
+			<scope>test</scope>
+		</dependency>
+
+		<!-- Pulsar use a newer zookeeper in broker. -->
+		<!-- Bump the version only for testing. -->
+		<dependency>
+			<groupId>org.apache.zookeeper</groupId>
+			<artifactId>zookeeper</artifactId>
+			<version>${pulsar-zookeeper.version}</version>
 			<scope>test</scope>
 		</dependency>
 
@@ -171,20 +183,62 @@ under the License.
 			<version>${pulsar.version}</version>
 			<exclusions>
 				<exclusion>
+					<groupId>com.sun.activation</groupId>
+					<artifactId>javax.activation</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>jakarta.activation</groupId>
+					<artifactId>jakarta.activation-api</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>jakarta.ws.rs</groupId>
+					<artifactId>jakarta.ws.rs-api</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>jakarta.xml.bind</groupId>
+					<artifactId>jakarta.xml.bind-api</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>javax.validation</groupId>
+					<artifactId>validation-api</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>javax.xml.bind</groupId>
+					<artifactId>jaxb-api</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>net.jcip</groupId>
+					<artifactId>jcip-annotations</artifactId>
+				</exclusion>
+				<exclusion>
 					<groupId>org.apache.pulsar</groupId>
 					<artifactId>pulsar-package-core</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>com.beust</groupId>
+					<artifactId>jcommander</artifactId>
 				</exclusion>
 			</exclusions>
 		</dependency>
 	</dependencies>
 
-	<!-- gRPC use version range which don't support by flink ci. -->
+
 	<dependencyManagement>
 		<dependencies>
+			<!-- Pulsar use higher gRPC version. -->
 			<dependency>
 				<groupId>io.grpc</groupId>
 				<artifactId>grpc-bom</artifactId>
-				<version>${grpc.version}</version>
+				<version>${pulsar-grpc.version}</version>
+				<type>pom</type>
+				<scope>import</scope>
+			</dependency>
+
+			<!-- Pulsar use higher netty version. -->
+			<dependency>
+				<groupId>io.netty</groupId>
+				<artifactId>netty-bom</artifactId>
+				<version>${pulsar-netty.version}</version>
 				<type>pom</type>
 				<scope>import</scope>
 			</dependency>
@@ -207,7 +261,9 @@ under the License.
 				<configuration>
 					<!-- Enforce single fork execution due to heavy mini cluster use in the tests -->
 					<forkCount>1</forkCount>
-					<argLine>-Xms256m -Xmx2048m -Dmvn.forkNumber=${surefire.forkNumber} -XX:-UseGCOverheadLimit -Duser.country=US -Duser.language=en</argLine>
+					<argLine>-Xms256m -Xmx2048m -Dmvn.forkNumber=${surefire.forkNumber}
+						-XX:-UseGCOverheadLimit -Duser.country=US -Duser.language=en
+					</argLine>
 				</configuration>
 			</plugin>
 			<plugin>
@@ -229,7 +285,8 @@ under the License.
 					<outputDirectory>
 						${project.build.directory}/generated-test-sources/protobuf/java
 					</outputDirectory>
-					<protocArtifact>com.google.protobuf:protoc:3.5.1:exe:${os.detected.classifier}
+					<protocArtifact>
+						com.google.protobuf:protoc:${protoc.version}:exe:${os.detected.classifier}
 					</protocArtifact>
 				</configuration>
 				<executions>
@@ -275,6 +332,7 @@ under the License.
 								<include>**/testutils/**</include>
 								<include>META-INF/LICENSE</include>
 								<include>META-INF/NOTICE</include>
+								<include>containers/txnStandalone.conf</include>
 							</includes>
 						</configuration>
 					</execution>
@@ -298,6 +356,7 @@ under the License.
 								<include>**/testutils/**</include>
 								<include>META-INF/LICENSE</include>
 								<include>META-INF/NOTICE</include>
+								<include>containers/txnStandalone.conf</include>
 							</includes>
 						</configuration>
 					</execution>

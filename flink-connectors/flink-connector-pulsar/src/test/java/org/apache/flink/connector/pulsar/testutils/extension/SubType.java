@@ -16,13 +16,17 @@
  * limitations under the License.
  */
 
-package org.apache.flink.connector.pulsar.source.reader.split;
+package org.apache.flink.connector.pulsar.testutils.extension;
 
-import org.apache.flink.connector.pulsar.testutils.extension.SubType;
+import org.apache.flink.annotation.Experimental;
 
-import org.apache.pulsar.client.api.SubscriptionType;
+import java.lang.annotation.ElementType;
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
+import java.lang.annotation.Target;
 
-/** Unit tests for {@link PulsarUnorderedPartitionSplitReaderTest}. */
-class PulsarUnorderedPartitionSplitReaderTest extends PulsarPartitionSplitReaderTestBase {
-    @SubType SubscriptionType subscriptionType = SubscriptionType.Shared;
-}
+/** Marks the field in test class defining {@link org.apache.pulsar.client.api.SubscriptionType}. */
+@Target(ElementType.FIELD)
+@Retention(RetentionPolicy.RUNTIME)
+@Experimental
+public @interface SubType {}

@@ -80,7 +80,7 @@ public final class PulsarSourceReaderFactory {
         SubscriptionType subscriptionType = sourceConfiguration.getSubscriptionType();
         if (subscriptionType == SubscriptionType.Failover
                 || subscriptionType == SubscriptionType.Exclusive) {
-            // Create a ordered split reader supplier.
+            // Create an ordered split reader supplier.
             Supplier<PulsarOrderedPartitionSplitReader<OUT>> splitReaderSupplier =
                     () ->
                             new PulsarOrderedPartitionSplitReader<>(

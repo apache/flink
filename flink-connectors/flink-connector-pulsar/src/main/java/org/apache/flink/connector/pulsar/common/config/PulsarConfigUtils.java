@@ -20,6 +20,7 @@ package org.apache.flink.connector.pulsar.common.config;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.configuration.ConfigOption;
+import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.configuration.Configuration;
 
 import org.apache.pulsar.client.admin.PulsarAdmin;
@@ -31,6 +32,8 @@ import org.apache.pulsar.client.api.ProxyProtocol;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.impl.auth.AuthenticationDisabled;
 
+import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.TreeSet;
 import java.util.function.Consumer;
@@ -40,6 +43,7 @@ import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static java.util.concurrent.TimeUnit.NANOSECONDS;
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static java.util.function.Function.identity;
+import static java.util.stream.Collectors.toList;
 import static org.apache.flink.connector.pulsar.common.config.PulsarOptions.PULSAR_ADMIN_URL;
 import static org.apache.flink.connector.pulsar.common.config.PulsarOptions.PULSAR_AUTH_PARAMS;
 import static org.apache.flink.connector.pulsar.common.config.PulsarOptions.PULSAR_AUTH_PARAM_MAP;
@@ -272,5 +276,33 @@ public final class PulsarConfigUtils {
             V value = getOptionValue(configuration, option, convertor);
             setter.accept(value);
         }
+    }
+
+    /**
+     * Get the option value by a prefix. We would return an empty map if the option doesn't exist.
+     */
+    public static Map<String, String> getProperties(
+            Configuration configuration, ConfigOption<Map<String, String>> option) {
+        Map<String, String> properties = new HashMap<>();
+        if (configuration.contains(option)) {
+            Map<String, String> map = configuration.get(option);
+            properties.putAll(map);
+        }
+
+        // Filter the sub config option. These options could be provided by SQL.
+        String prefix = option.key() + ".";
+        List<String> keys =
+                configuration.keySet().stream()
+                        .filter(key -> key.startsWith(prefix) && key.length() > prefix.length())
+                        .collect(toList());
+
+        // Put these config options' value into return result.
+        for (String key : keys) {
+            ConfigOption<String> o = ConfigOptions.key(key).stringType().noDefaultValue();
+            String value = configuration.get(o);
+            properties.put(key.substring(prefix.length()), value);
+        }
+
+        return properties;
     }
 }
