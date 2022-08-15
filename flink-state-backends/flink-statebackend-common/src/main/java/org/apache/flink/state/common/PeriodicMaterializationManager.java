@@ -147,7 +147,7 @@ public class PeriodicMaterializationManager implements Closeable {
 
             LOG.info("Task {} starts periodic materialization", subtaskName);
 
-            scheduleNextMaterialization(initialDelay);
+            scheduleNextMaterialization(periodicMaterializeDelay + initialDelay);
         }
     }
 
@@ -302,22 +302,19 @@ public class PeriodicMaterializationManager implements Closeable {
     }
 
     private void scheduleNextMaterialization() {
-        scheduleNextMaterialization(0);
+        scheduleNextMaterialization(periodicMaterializeDelay);
     }
 
     // task thread and asyncOperationsThreadPool can access this method
-    private synchronized void scheduleNextMaterialization(long offset) {
+    private synchronized void scheduleNextMaterialization(long delay) {
         if (started && !periodicExecutor.isShutdown()) {
 
             LOG.info(
                     "Task {} schedules the next materialization in {} seconds",
                     subtaskName,
-                    periodicMaterializeDelay / 1000);
+                    delay / 1000);
 
-            periodicExecutor.schedule(
-                    this::triggerMaterialization,
-                    periodicMaterializeDelay + offset,
-                    TimeUnit.MILLISECONDS);
+            periodicExecutor.schedule(this::triggerMaterialization, delay, TimeUnit.MILLISECONDS);
         }
     }
 
