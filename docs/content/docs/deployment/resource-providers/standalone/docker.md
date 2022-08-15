@@ -474,6 +474,18 @@ $ docker build --tag pyflink:latest .
 
 ## Configuring Flink on Docker
 
+### Via dynamic properties
+
+```sh
+$ docker run flink:{{< stable >}}{{< version >}}-scala{{< scala_version >}}{{< /stable >}}{{< unstable >}}latest{{< /unstable >}} \
+    <jobmanager|standalone-job|taskmanager|historyserver> \
+    -D jobmanager.rpc.address=host \
+    -D taskmanager.numberOfTaskSlots=3 \
+    -D blob.server.port=6124
+```
+
+Options set via dynamic properties overwrite the options from `flink-conf.yaml`.
+
 ### Via Environment Variables
 
 When you run Flink image, you can also change its configuration options by setting the environment variable `FLINK_PROPERTIES`:

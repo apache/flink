@@ -244,6 +244,17 @@ You can see that certain tags include the version of Hadoop, e.g. (e.g. `-hadoop
 Beginning with Flink 1.5, image tags that omit the Hadoop version correspond to Hadoop-free releases of Flink
 that do not include a bundled Hadoop distribution.
 
+### Passing configuration via via dynamic properties
+
+```sh
+$ docker run flink:{{< stable >}}{{< version >}}-scala{{< scala_version >}}{{< /stable >}}{{< unstable >}}latest{{< /unstable >}} \
+    <jobmanager|standalone-job|taskmanager|historyserver> \
+    -D jobmanager.rpc.address=host \
+    -D taskmanager.numberOfTaskSlots=3 \
+    -D blob.server.port=6124
+```
+
+Options set via dynamic properties overwrite the options from `flink-conf.yaml`.
 
 ### Passing configuration via environment variables
 

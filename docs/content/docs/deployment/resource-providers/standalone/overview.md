@@ -125,6 +125,19 @@ Local deployment in Session Mode has already been described in the [introduction
 
 All available configuration options are listed on the [configuration page]({{< ref "docs/deployment/config" >}}), in particular the [Basic Setup]({{< ref "docs/deployment/config" >}}#basic-setup) section contains good advise on configuring the ports, memory, parallelism etc.
 
+The following scripts also allow configuration parameters to be set via dynamic properties:
+* `jobmanager.sh`
+* `standalone-job.sh`
+* `taskmanager.sh`
+* `historyserver.sh`
+
+Example:
+```bash
+$ ./bin/jobmanager.sh start -D jobmanager.rpc.address=localhost -D rest.port=8081
+```
+
+Options set via dynamic properties overwrite the options from `flink-conf.yaml`.
+
 ### Debugging
 
 If Flink is behaving unexpectedly, we recommend looking at Flink's log files as a starting point for further investigations.
