@@ -55,8 +55,8 @@ import static org.apache.flink.connector.aws.config.AWSConfigConstants.Credentia
 import static org.apache.flink.connector.aws.config.AWSConfigConstants.roleArn;
 import static org.apache.flink.connector.aws.config.AWSConfigConstants.roleSessionName;
 import static org.apache.flink.connector.aws.config.AWSConfigConstants.webIdentityTokenFile;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
@@ -696,11 +696,16 @@ public class AWSGeneralUtilTest {
     @Test
     public void testValidRegion() {
         assertTrue(AWSGeneralUtil.isValidRegion(Region.of("us-east-1")));
+        assertTrue(AWSGeneralUtil.isValidRegion(Region.of("us-gov-west-1")));
+        assertTrue(AWSGeneralUtil.isValidRegion(Region.of("us-isob-east-1")));
+        assertTrue(AWSGeneralUtil.isValidRegion(Region.of("aws-global")));
+        assertTrue(AWSGeneralUtil.isValidRegion(Region.of("aws-iso-global")));
+        assertTrue(AWSGeneralUtil.isValidRegion(Region.of("aws-iso-b-global")));
     }
 
     @Test
     public void testInvalidRegion() {
-        assertFalse(AWSGeneralUtil.isValidRegion(Region.of("ur-east-1")));
+        assertThat(AWSGeneralUtil.isValidRegion(Region.of("unstructured-string"))).isFalse();
     }
 
     @Test

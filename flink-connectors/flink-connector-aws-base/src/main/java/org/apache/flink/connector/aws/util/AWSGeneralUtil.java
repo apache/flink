@@ -48,6 +48,7 @@ import java.time.Duration;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Properties;
+import java.util.regex.Pattern;
 
 /** Some general utilities specific to Amazon Web Service. */
 @Internal
@@ -313,7 +314,8 @@ public class AWSGeneralUtil {
      * @return true if the supplied region is valid, false otherwise
      */
     public static boolean isValidRegion(Region region) {
-        return Region.regions().contains(region);
+        return Pattern.matches(
+                "^[a-z]+-([a-z]+[-]{0,1}[a-z]+-([0-9]|global)|global)$", region.id());
     }
 
     /**
