@@ -30,6 +30,7 @@ import org.apache.flink.table.catalog.ObjectIdentifier;
 
 import java.io.IOException;
 import java.io.Serializable;
+import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 
@@ -94,16 +95,19 @@ public class FileSystemOutputFormat<T> implements OutputFormat<T>, FinalizeOnMas
     @Override
     public void finalizeGlobal(int parallelism) {
         try {
-            List<PartitionCommitPolicy> policies =
-                    partitionCommitPolicyFactory.createPolicyChain(
-                            Thread.currentThread().getContextClassLoader(),
-                            () -> {
-                                try {
-                                    return fsFactory.create(tmpPath.toUri());
-                                } catch (IOException e) {
-                                    throw new RuntimeException(e);
-                                }
-                            });
+            List<PartitionCommitPolicy> policies = Collections.emptyList();
+            if (partitionCommitPolicyFactory != null) {
+                policies =
+                        partitionCommitPolicyFactory.createPolicyChain(
+                                Thread.currentThread().getContextClassLoader(),
+                                () -> {
+                                    try {
+                                        return fsFactory.create(tmpPath.toUri());
+                                    } catch (IOException e) {
+                                        throw new RuntimeException(e);
+                                    }
+                                });
+            }
 
             FileSystemCommitter committer =
                     new FileSystemCommitter(
