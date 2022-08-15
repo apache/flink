@@ -205,13 +205,13 @@ public final class LookupJoinUtil {
      * error if both candidates not found.
      *
      * <pre>{@code
-     * 1. if upsertMaterialize == true : require sync lookup orElse error
+     * 1. if upsertMaterialize == true : require sync lookup or else error
      *
      * 2. preferAsync = except there is a hint option 'async' = 'false'
      *  if (preferAsync) {
-     *    async lookup != null ? async : sync orElse error
+     *    async lookup != null ? async : sync or else error
      *  } else {
-     *    sync lookup != null ? sync : async orElse error
+     *    sync lookup != null ? sync : async or else error
      *  }
      * }</pre>
      */

@@ -18,7 +18,9 @@
 
 package org.apache.flink.table.runtime.operators.join;
 
+import org.apache.flink.streaming.api.functions.async.AsyncRetryStrategy;
 import org.apache.flink.streaming.util.MockStreamingRuntimeContext;
+import org.apache.flink.streaming.util.retryable.AsyncRetryStrategies;
 import org.apache.flink.streaming.util.retryable.RetryPredicates;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.data.GenericRowData;
@@ -52,9 +54,6 @@ public class RetryableAsyncLookupFunctionDelegatorTest {
     private final ResultRetryStrategy retryStrategy =
             ResultRetryStrategy.fixedDelayRetry(3, 10, RetryPredicates.EMPTY_RESULT_PREDICATE);
 
-    private final RetryableAsyncLookupFunctionDelegator delegator =
-            new RetryableAsyncLookupFunctionDelegator(userLookupFunc, retryStrategy);
-
     private static final Map<RowData, Collection<RowData>> data = new HashMap<>();
 
     static {
@@ -71,6 +70,11 @@ public class RetryableAsyncLookupFunctionDelegatorTest {
                 Collections.singletonList(GenericRowData.of(4, fromString("Fabian"))));
     }
 
+    private RetryableAsyncLookupFunctionDelegator createDelegator(
+            ResultRetryStrategy retryStrategy) {
+        return new RetryableAsyncLookupFunctionDelegator(userLookupFunc, retryStrategy);
+    }
+
     private final RowDataHarnessAssertor assertor =
             new RowDataHarnessAssertor(
                     new LogicalType[] {
@@ -79,6 +83,41 @@ public class RetryableAsyncLookupFunctionDelegatorTest {
 
     @Test
     public void testLookupWithRetry() throws Exception {
+        final RetryableAsyncLookupFunctionDelegator delegator = createDelegator(retryStrategy);
+        delegator.open(new FunctionContext(new MockStreamingRuntimeContext(false, 1, 1)));
+        for (int i = 1; i <= 5; i++) {
+            RowData key = GenericRowData.of(i);
+            assertor.assertOutputEquals(
+                    "output wrong",
+                    Collections.singleton(data.get(key)),
+                    Collections.singleton(delegator.asyncLookup(key)));
+        }
+        delegator.close();
+    }
+
+    @Test
+    public void testLookupWithRetryDisabled() throws Exception {
+        final RetryableAsyncLookupFunctionDelegator delegator =
+                createDelegator(ResultRetryStrategy.NO_RETRY_STRATEGY);
+        delegator.open(new FunctionContext(new MockStreamingRuntimeContext(false, 1, 1)));
+        for (int i = 1; i <= 5; i++) {
+            RowData key = GenericRowData.of(i);
+            assertor.assertOutputEquals(
+                    "output wrong",
+                    Collections.singleton(data.get(key)),
+                    Collections.singleton(delegator.asyncLookup(key)));
+        }
+        delegator.close();
+    }
+
+    @Test
+    public void testLookupWithCustomRetry() throws Exception {
+        AsyncRetryStrategy retryStrategy =
+                new AsyncRetryStrategies.ExponentialBackoffDelayRetryStrategyBuilder<>(
+                                3, 1, 100, 1.1d)
+                        .build();
+        final RetryableAsyncLookupFunctionDelegator delegator =
+                createDelegator(new ResultRetryStrategy(retryStrategy));
         delegator.open(new FunctionContext(new MockStreamingRuntimeContext(false, 1, 1)));
         for (int i = 1; i <= 5; i++) {
             RowData key = GenericRowData.of(i);

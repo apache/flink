@@ -28,6 +28,8 @@ import java.util.Collection;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Predicate;
 
+import static org.apache.flink.util.Preconditions.checkNotNull;
+
 /** A delegator holds user's {@link AsyncLookupFunction} to handle retries. */
 public class RetryableAsyncLookupFunctionDelegator extends AsyncLookupFunction {
 
@@ -42,9 +44,17 @@ public class RetryableAsyncLookupFunctionDelegator extends AsyncLookupFunction {
     public RetryableAsyncLookupFunctionDelegator(
             @Nonnull AsyncLookupFunction userLookupFunction,
             @Nonnull ResultRetryStrategy retryStrategy) {
-        this.userLookupFunction = userLookupFunction;
-        this.retryStrategy = retryStrategy;
+        this.userLookupFunction = checkNotNull(userLookupFunction);
+        this.retryStrategy = checkNotNull(retryStrategy);
         this.retryEnabled = retryStrategy.getRetryPredicate().resultPredicate().isPresent();
+    }
+
+    @Override
+    public void open(FunctionContext context) throws Exception {
+        super.open(context);
+        userLookupFunction.open(context);
+        retryResultPredicate =
+                retryStrategy.getRetryPredicate().resultPredicate().orElse(ignore -> false);
     }
 
     @Override
@@ -82,14 +92,6 @@ public class RetryableAsyncLookupFunctionDelegator extends AsyncLookupFunction {
                         resultFuture.complete(result);
                     }
                 });
-    }
-
-    @Override
-    public void open(FunctionContext context) throws Exception {
-        super.open(context);
-        userLookupFunction.open(context);
-        retryResultPredicate =
-                retryStrategy.getRetryPredicate().resultPredicate().orElse(ignore -> false);
     }
 
     @Override
