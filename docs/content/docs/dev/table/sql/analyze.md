@@ -66,253 +66,250 @@ The following examples show how to run a `ANALYZE TABLE` statement in SQL CLI.
 ```java
 TableEnvironment tableEnv = TableEnvironment.create(...);
 
-// register a non-partition table named "Orders"
-tableEnv.executeSql(
-        "CREATE TABLE Orders (" +
-        " `user` BIGINT NOT NULl," +
-        " product VARCHAR(32)," +
-        " amount INT," +
-        " ts TIMESTAMP(3)," +
-        " ptime AS PROCTIME()"
-        ") with (...)");
-
-// register a partition table named "Store"
+// register a non-partition table named "Store"
 tableEnv.executeSql(
         "CREATE TABLE Store (" +
         " `id` BIGINT NOT NULl," +
+        " location VARCHAR(32)," +
+        " owner VARCHAR(32)" +
+        ") with (...)");
+
+// register a partition table named "Orders"
+tableEnv.executeSql(
+        "CREATE TABLE Orders (" +
+        " `id` BIGINT NOT NULl," +
         " product VARCHAR(32)," +
         " amount INT," +
-        " `date_sk` BIGINT" +
-        ") PARTITIONED BY (`date_sk`, `id`) "
+        " `sold_year` BIGINT", +
+        " `sold_month` BIGINT", +
+        ") PARTITIONED BY (`sold_year`, `sold_month`) "
         ") with (...)");
 
 // Non-partition table, collect row count.
-tableEnv.executeSql("ANALYZE TABLE Orders COMPUTE STATISTICS");
+tableEnv.executeSql("ANALYZE TABLE Store COMPUTE STATISTICS");
 
-// Non-partition table, collect row count and all columns statistics.
-tableEnv.executeSql("ANALYZE TABLE Orders COMPUTE STATISTICS FOR ALL COLUMNS");
+// Non-partition table, collect row count and statistics for all columns.
+tableEnv.executeSql("ANALYZE TABLE Store COMPUTE STATISTICS FOR ALL COLUMNS");
 
-// Non-partition table, collect row count and specify column `user`'s statistics.
-tableEnv.executeSql("ANALYZE TABLE Orders COMPUTE STATISTICS FOR COLUMNS(user)");
+// Non-partition table, collect row count and statistics for column `location`.
+tableEnv.executeSql("ANALYZE TABLE Store COMPUTE STATISTICS FOR COLUMNS(location)");
 
 
-// Suppose table "Store" has 4 partitions with specs:
-// Partition1 : (date_sk='2022-8-8', id=1)
-// Partition2 : (date_sk='2022-8-8', id=2)
-// Partition3 : (date_sk='2022-8-9', id=1)
-// Partition3 : (date_sk='2022-8-9', id=2)
+// Suppose table "Orders" has 4 partitions with specs:
+// Partition1 : (sold_year='2022', sold_month='8')
+// Partition2 : (sold_year='2022', sold_month='9')
+// Partition3 : (sold_year='2021', sold_month='8')
+// Partition3 : (sold_year='2021', sold_month='9')
 
 
 // Partition table, collect row count for Partition1.
-tableEnv.executeSql("ANALYZE TABLE Store PARTITION (date_sk='2022-8-8', id=1) COMPUTE STATISTICS");
+tableEnv.executeSql("ANALYZE TABLE Orders PARTITION (sold_year='2022', sold_month='8') COMPUTE STATISTICS");
 
 // Partition table, collect row count for Partition1 and Partition2.
-tableEnv.executeSql("ANALYZE TABLE Store PARTITION (date_sk='2022-8-8') COMPUTE STATISTICS");
+tableEnv.executeSql("ANALYZE TABLE Orders PARTITION (sold_year='2022', sold_month) COMPUTE STATISTICS");
 
 // Partition table, collect row count for all partitions.
-tableEnv.executeSql("ANALYZE TABLE Store COMPUTE STATISTICS");
+tableEnv.executeSql("ANALYZE TABLE Orders COMPUTE STATISTICS");
 
-// Partition table, collect row count and all columns statistics for partition1.
-tableEnv.executeSql("ANALYZE TABLE Store PARTITION (date_sk='2022-8-8', id=1) COMPUTE STATISTICS FOR ALL COLUMNS");
+// Partition table, collect row count and statistics for all columns on partition1.
+tableEnv.executeSql("ANALYZE TABLE Orders PARTITION (sold_year='2022', sold_month='8') COMPUTE STATISTICS FOR ALL COLUMNS");
 
-// Partition table, collect row count and all columns statistics for partition1 and partition2.
-tableEnv.executeSql("ANALYZE TABLE Store PARTITION (date_sk='2022-8-8') COMPUTE STATISTICS FOR ALL COLUMNS");
+// Partition table, collect row count and statistics for all columns on partition1 and partition2.
+tableEnv.executeSql("ANALYZE TABLE Orders PARTITION (sold_year='2022', sold_month) COMPUTE STATISTICS FOR ALL COLUMNS");
 
-// Partition table, collect row count and all columns statistics for all partitions.
-tableEnv.executeSql("ANALYZE TABLE Store COMPUTE STATISTICS FOR ALL COLUMNS");
+// Partition table, collect row count and statistics for all columns on all partitions.
+tableEnv.executeSql("ANALYZE TABLE Orders COMPUTE STATISTICS FOR ALL COLUMNS");
 
-// Partition table, collect row count and specify column `amount`'s statistics for partition1.
-tableEnv.executeSql("ANALYZE TABLE Store PARTITION (date_sk='2022-8-8', id=1) COMPUTE STATISTICS FOR COLUMNS(amount)");
+// Partition table, collect row count and statistics for column `amount` on partition1.
+tableEnv.executeSql("ANALYZE TABLE Orders PARTITION (sold_year='2022', sold_month='8') COMPUTE STATISTICS FOR COLUMNS(amount)");
 
-// Partition table, collect row count and specify column `amount` and `product`'s statistics for partition1 and partition2.
-tableEnv.executeSql("ANALYZE TABLE Store PARTITION (date_sk='2022-8-8') COMPUTE STATISTICS FOR COLUMNS(amount, product)");
+// Partition table, collect row count and statistics for `amount` and `product` on partition1 and partition2.
+tableEnv.executeSql("ANALYZE TABLE Orders PARTITION (sold_year='2022', sold_month) COMPUTE STATISTICS FOR COLUMNS(amount, product)");
 
-// Partition table, collect row count and column `amount` and `product`'s statistics for all partitions.
-tableEnv.executeSql("ANALYZE TABLE Store COMPUTE STATISTICS FOR COLUMNS(amount, product)");
+// Partition table, collect row count and statistics for column `amount` and `product` on all partitions.
+tableEnv.executeSql("ANALYZE TABLE Orders COMPUTE STATISTICS FOR COLUMNS(amount, product)");
 ```
 {{< /tab >}}
 {{< tab "Scala" >}}
 ```scala
 val tableEnv = TableEnvironment.create(...)
 
-// register a non-partition table named "Orders"
-tableEnv.executeSql(
-  "CREATE TABLE Orders (" +
-          " `user` BIGINT NOT NULl," +
-          " product VARCHAR(32)," +
-          " amount INT," +
-          " ts TIMESTAMP(3)," +
-          " ptime AS PROCTIME()"
-") with (...)");
-
-// register a partition table named "Store"
+// register a non-partition table named "Store"
 tableEnv.executeSql(
   "CREATE TABLE Store (" +
           " `id` BIGINT NOT NULl," +
+          " location VARCHAR(32)," +
+          " owner VARCHAR(32)" +
+          ") with (...)");
+
+// register a partition table named "Orders"
+tableEnv.executeSql(
+  "CREATE TABLE Orders (" +
+          " `id` BIGINT NOT NULl," +
           " product VARCHAR(32)," +
           " amount INT," +
-          " `date_sk` BIGINT" +
-          ") PARTITIONED BY (`date_sk`, `id`) "
+          " `sold_year` BIGINT", +
+          " `sold_month` BIGINT", +
+          ") PARTITIONED BY (`sold_year`, `sold_month`) "
 ") with (...)");
 
 // Non-partition table, collect row count.
-tableEnv.executeSql("ANALYZE TABLE Orders COMPUTE STATISTICS");
+tableEnv.executeSql("ANALYZE TABLE Store COMPUTE STATISTICS");
 
-// Non-partition table, collect row count and all columns statistics.
-tableEnv.executeSql("ANALYZE TABLE Orders COMPUTE STATISTICS FOR ALL COLUMNS");
+// Non-partition table, collect row count and statistics for all columns.
+tableEnv.executeSql("ANALYZE TABLE Store COMPUTE STATISTICS FOR ALL COLUMNS");
 
-// Non-partition table, collect row count and specify column `user`'s statistics.
-tableEnv.executeSql("ANALYZE TABLE Orders COMPUTE STATISTICS FOR COLUMNS(a)");
+// Non-partition table, collect row count and statistics for column `location`.
+tableEnv.executeSql("ANALYZE TABLE Store COMPUTE STATISTICS FOR COLUMNS(location)");
 
 
-// Suppose table "Store" has 4 partitions with specs:
-// Partition1 : (date_sk='2022-8-8', id=1)
-// Partition2 : (date_sk='2022-8-8', id=2)
-// Partition3 : (date_sk='2022-8-9', id=1)
-// Partition3 : (date_sk='2022-8-9', id=2)
+// Suppose table "Orders" has 4 partitions with specs:
+// Partition1 : (sold_year='2022', sold_month='8')
+// Partition2 : (sold_year='2022', sold_month='9')
+// Partition3 : (sold_year='2021', sold_month='8')
+// Partition3 : (sold_year='2021', sold_month='9')
 
 
 // Partition table, collect row count for Partition1.
-tableEnv.executeSql("ANALYZE TABLE Store PARTITION (date_sk='2022-8-8', id=1) COMPUTE STATISTICS");
+tableEnv.executeSql("ANALYZE TABLE Orders PARTITION (sold_year='2022', sold_month='8') COMPUTE STATISTICS");
 
 // Partition table, collect row count for Partition1 and Partition2.
-tableEnv.executeSql("ANALYZE TABLE Store PARTITION (date_sk='2022-8-8') COMPUTE STATISTICS");
+tableEnv.executeSql("ANALYZE TABLE Orders PARTITION (sold_year='2022', sold_month) COMPUTE STATISTICS");
 
 // Partition table, collect row count for all partitions.
-tableEnv.executeSql("ANALYZE TABLE Store COMPUTE STATISTICS");
+tableEnv.executeSql("ANALYZE TABLE Orders COMPUTE STATISTICS");
 
-// Partition table, collect row count and all columns statistics for partition1.
-tableEnv.executeSql("ANALYZE TABLE Store PARTITION (date_sk='2022-8-8', id=1) COMPUTE STATISTICS FOR ALL COLUMNS");
+// Partition table, collect row count and statistics for all columns on partition1.
+tableEnv.executeSql("ANALYZE TABLE Orders PARTITION (sold_year='2022', sold_month='8') COMPUTE STATISTICS FOR ALL COLUMNS");
 
-// Partition table, collect row count and all columns statistics for partition1 and partition2.
-tableEnv.executeSql("ANALYZE TABLE Store PARTITION (date_sk='2022-8-8') COMPUTE STATISTICS FOR ALL COLUMNS");
+// Partition table, collect row count and statistics for all columns on partition1 and partition2.
+tableEnv.executeSql("ANALYZE TABLE Orders PARTITION (sold_year='2022', sold_month) COMPUTE STATISTICS FOR ALL COLUMNS");
 
-// Partition table, collect row count and all columns statistics for all partitions.
-tableEnv.executeSql("ANALYZE TABLE Store COMPUTE STATISTICS FOR ALL COLUMNS");
+// Partition table, collect row count and statistics for all columns on all partitions.
+tableEnv.executeSql("ANALYZE TABLE Orders COMPUTE STATISTICS FOR ALL COLUMNS");
 
-// Partition table, collect row count and specify column `amount`'s statistics for partition1.
-tableEnv.executeSql("ANALYZE TABLE Store PARTITION (date_sk='2022-8-8', id=1) COMPUTE STATISTICS FOR COLUMNS(amount)");
+// Partition table, collect row count and statistics for column `amount` on partition1.
+tableEnv.executeSql("ANALYZE TABLE Orders PARTITION (sold_year='2022', sold_month='8') COMPUTE STATISTICS FOR COLUMNS(amount)");
 
-// Partition table, collect row count and specify column `amount` and `product`'s statistics for partition1 and partition2.
-tableEnv.executeSql("ANALYZE TABLE Store PARTITION (date_sk='2022-8-8') COMPUTE STATISTICS FOR COLUMNS(amount, product)");
+// Partition table, collect row count and statistics for `amount` and `product` on partition1 and partition2.
+tableEnv.executeSql("ANALYZE TABLE Orders PARTITION (sold_year='2022', sold_month) COMPUTE STATISTICS FOR COLUMNS(amount, product)");
 
-// Partition table, collect row count and column `amount` and `product`'s statistics for all partitions.
-tableEnv.executeSql("ANALYZE TABLE Store COMPUTE STATISTICS FOR COLUMNS(amount, product)");
+// Partition table, collect row count and statistics for column `amount` and `product` on all partitions.
+tableEnv.executeSql("ANALYZE TABLE Orders COMPUTE STATISTICS FOR COLUMNS(amount, product)");
 ```
 {{< /tab >}}
 {{< tab "Python" >}}
 ```python
 table_env = TableEnvironment.create(...)
 
-# register a non-partition table named "Orders"
-table_env.execute_sql( \
-  "CREATE TABLE Orders (" +
-          " `user` BIGINT NOT NULl," +
-          " product VARCHAR(32)," +
-          " amount INT," +
-          " ts TIMESTAMP(3)," +
-          " ptime AS PROCTIME()"
-") with (...)");
-
-# register a partition table named "Store"
+# register a non-partition table named "Store"
 table_env.execute_sql(
   "CREATE TABLE Store (" +
           " `id` BIGINT NOT NULl," +
+          " location VARCHAR(32)," +
+          " owner VARCHAR(32)" +
+          ") with (...)");
+
+# register a partition table named "Orders"
+table_env.execute_sql(
+  "CREATE TABLE Orders (" +
+          " `id` BIGINT NOT NULl," +
           " product VARCHAR(32)," +
           " amount INT," +
-          " `date_sk` BIGINT" +
-          ") PARTITIONED BY (`date_sk`, `id`) "
+          " `sold_year` BIGINT", +
+          " `sold_month` BIGINT", +
+          ") PARTITIONED BY (`sold_year`, `sold_month`) "
 ") with (...)");
 
 # Non-partition table, collect row count.
-table_env.execute_sql("ANALYZE TABLE Orders COMPUTE STATISTICS");
+table_env.execute_sql("ANALYZE TABLE Store COMPUTE STATISTICS");
 
-# Non-partition table, collect row count and all columns statistics.
-table_env.execute_sql("ANALYZE TABLE Orders COMPUTE STATISTICS FOR ALL COLUMNS");
+# Non-partition table, collect row count and statistics for all columns.
+table_env.execute_sql("ANALYZE TABLE Store COMPUTE STATISTICS FOR ALL COLUMNS");
 
-# Non-partition table, collect row count and specify column `user`'s statistics.
-table_env.execute_sql("ANALYZE TABLE Orders COMPUTE STATISTICS FOR COLUMNS(a)");
+# Non-partition table, collect row count and statistics for column `location`.
+table_env.execute_sql("ANALYZE TABLE Store COMPUTE STATISTICS FOR COLUMNS(location)");
 
 
-# Suppose table "Store" has 4 partitions with specs:
-# Partition1 : (date_sk='2022-8-8', id=1)
-# Partition2 : (date_sk='2022-8-8', id=2)
-# Partition3 : (date_sk='2022-8-9', id=1)
-# Partition3 : (date_sk='2022-8-9', id=2)
+# Suppose table "Orders" has 4 partitions with specs:
+# Partition1 : (sold_year='2022', sold_month='8')
+# Partition2 : (sold_year='2022', sold_month='9')
+# Partition3 : (sold_year='2021', sold_month='8')
+# Partition3 : (sold_year='2021', sold_month='9')
 
 
 # Partition table, collect row count for Partition1.
-table_env.execute_sql("ANALYZE TABLE Store PARTITION (date_sk='2022-8-8', id=1) COMPUTE STATISTICS");
+table_env.execute_sql("ANALYZE TABLE Orders PARTITION (sold_year='2022', sold_month='8') COMPUTE STATISTICS");
 
 # Partition table, collect row count for Partition1 and Partition2.
-table_env.execute_sql("ANALYZE TABLE Store PARTITION (date_sk='2022-8-8') COMPUTE STATISTICS");
+table_env.execute_sql("ANALYZE TABLE Orders PARTITION (sold_year='2022', sold_month) COMPUTE STATISTICS");
 
 # Partition table, collect row count for all partitions.
-table_env.execute_sql("ANALYZE TABLE Store COMPUTE STATISTICS");
+table_env.execute_sql("ANALYZE TABLE Orders COMPUTE STATISTICS");
 
-# Partition table, collect row count and all columns statistics for partition1.
-table_env.execute_sql("ANALYZE TABLE Store PARTITION (date_sk='2022-8-8', id=1) COMPUTE STATISTICS FOR ALL COLUMNS");
+# Partition table, collect row count and statistics for all columns on partition1.
+table_env.execute_sql("ANALYZE TABLE Orders PARTITION (sold_year='2022', sold_month='8') COMPUTE STATISTICS FOR ALL COLUMNS");
 
-# Partition table, collect row count and all columns statistics for partition1 and partition2.
-table_env.execute_sql("ANALYZE TABLE Store PARTITION (date_sk='2022-8-8') COMPUTE STATISTICS FOR ALL COLUMNS");
+# Partition table, collect row count and statistics for all columns on partition1 and partition2.
+table_env.execute_sql("ANALYZE TABLE Orders PARTITION (sold_year='2022', sold_month) COMPUTE STATISTICS FOR ALL COLUMNS");
 
-# Partition table, collect row count and all columns statistics for all partitions.
-table_env.execute_sql("ANALYZE TABLE Store COMPUTE STATISTICS FOR ALL COLUMNS");
+# Partition table, collect row count and statistics for all columns on all partitions.
+table_env.execute_sql("ANALYZE TABLE Orders COMPUTE STATISTICS FOR ALL COLUMNS");
 
-# Partition table, collect row count and specify column `amount`'s statistics for partition1.
-table_env.execute_sql("ANALYZE TABLE Store PARTITION (date_sk='2022-8-8', id=1) COMPUTE STATISTICS FOR COLUMNS(amount)");
+# Partition table, collect row count and statistics for column `amount` on partition1.
+table_env.execute_sql("ANALYZE TABLE Orders PARTITION (sold_year='2022', sold_month='8') COMPUTE STATISTICS FOR COLUMNS(amount)");
 
-# Partition table, collect row count and specify column `amount` and `product`'s statistics for partition1 and partition2.
-table_env.execute_sql("ANALYZE TABLE Store PARTITION (date_sk='2022-8-8') COMPUTE STATISTICS FOR COLUMNS(amount, product)");
+# Partition table, collect row count and statistics for `amount` and `product` on partition1 and partition2.
+table_env.execute_sql("ANALYZE TABLE Orders PARTITION (sold_year='2022', sold_month) COMPUTE STATISTICS FOR COLUMNS(amount, product)");
 
-# Partition table, collect row count and column `amount` and `product`'s statistics for all partitions.
-table_env.execute_sql("ANALYZE TABLE Store COMPUTE STATISTICS FOR COLUMNS(amount, product)");
+# Partition table, collect row count and statistics for column `amount` and `product` on all partitions.
+table_env.execute_sql("ANALYZE TABLE Orders COMPUTE STATISTICS FOR COLUMNS(amount, product)");
 ```
 {{< /tab >}}
 {{< tab "SQL CLI" >}}
 ```sql
-Flink SQL> CREATE TABLE Orders (
->  `user` BIGINT NOT NULl,
->  product VARCHAR(32),
->  amount INT,
->  ts TIMESTAMP(3)
+Flink SQL> CREATE TABLE Store (
+> `id` BIGINT NOT NULl,
+> location VARCHAR(32),
+> owner VARCHAR(32)
 > ) with (
->  ...
+> ...
 > );
 [INFO] Table has been created.
 
-Flink SQL> CREATE TABLE Store (
->  `id` BIGINT NOT NULl,
->  product VARCHAR(32),
->  amount INT,
->  `date_sk` BIGINT
->  ) PARTITIONED BY (`date_sk`, `id`)
->  ) with (
->    ...
->  );
+Flink SQL> CREATE TABLE Orders (
+> `id` BIGINT NOT NULl,
+> product VARCHAR(32),
+> amount INT,
+> `sold_year` BIGINT",
+> `sold_month` BIGINT",
+> ) PARTITIONED BY (`sold_year`, `sold_month`)
+> ) with (
+> ...
+> );
 [INFO] Table has been created.
 
-Flink SQL> ANALYZE TABLE Orders COMPUTE STATISTICS;
-    
-Flink SQL> ANALYZE TABLE Orders COMPUTE STATISTICS FOR ALL COLUMNS;
-
-Flink SQL> ANALYZE TABLE Orders COMPUTE STATISTICS FOR COLUMNS(a);
-    
-Flink SQL> ANALYZE TABLE Store PARTITION (date_sk='2022-8-8', id=1) COMPUTE STATISTICS;
-
-Flink SQL> ANALYZE TABLE Store PARTITION (date_sk='2022-8-8') COMPUTE STATISTICS;
-
 Flink SQL> ANALYZE TABLE Store COMPUTE STATISTICS;
+    
+Flink SQL> ANALYZE TABLE Store COMPUTE STATISTICS FOR ALL COLUMNS;
 
-Flink SQL> ANALYZE TABLE Store PARTITION (date_sk='2022-8-8', id=1) COMPUTE STATISTICS FOR ALL COLUMNS;
+Flink SQL> ANALYZE TABLE Store COMPUTE STATISTICS FOR COLUMNS(location);
+    
+Flink SQL> ANALYZE TABLE Orders PARTITION (sold_year='2022', sold_month='8') COMPUTE STATISTICS;
 
-Flink SQL> ANALYZE TABLE Store PARTITION (date_sk='2022-8-8') COMPUTE STATISTICS FOR ALL COLUMNS;
+Flink SQL> ANALYZE TABLE Orders PARTITION (sold_year='2022', sold_month) COMPUTE STATISTICS;
+
+Flink SQL> ANALYZE TABLE Orders COMPUTE STATISTICS;
+
+Flink SQL> ANALYZE TABLE Orders PARTITION (sold_year='2022', sold_month='8') COMPUTE STATISTICS FOR ALL COLUMNS;
+
+Flink SQL> ANALYZE TABLE Orders PARTITION (sold_year='2022', sold_month) COMPUTE STATISTICS FOR ALL COLUMNS;
     
-Flink SQL> ANALYZE TABLE Store PARTITION (date_sk='2022-8-8', id=1) COMPUTE STATISTICS FOR COLUMNS(amount);
+Flink SQL> ANALYZE TABLE Orders PARTITION (sold_year='2022', sold_month='8') COMPUTE STATISTICS FOR COLUMNS(amount);
     
-Flink SQL> ANALYZE TABLE Store PARTITION (date_sk='2022-8-8') COMPUTE STATISTICS FOR COLUMNS(amount, product);
+Flink SQL> ANALYZE TABLE Orders PARTITION (sold_year='2022', sold_month) COMPUTE STATISTICS FOR COLUMNS(amount, product);
     
-Flink SQL> ANALYZE TABLE Store COMPUTE STATISTICS FOR COLUMNS(amount, product);
+Flink SQL> ANALYZE TABLE Orders COMPUTE STATISTICS FOR COLUMNS(amount, product);
 ```
 {{< /tab >}}
 {{< /tabs >}}
@@ -323,15 +320,17 @@ Flink SQL> ANALYZE TABLE Store COMPUTE STATISTICS FOR COLUMNS(amount, product);
 ```sql
 ANALYZE TABLE [catalog_name.][db_name.]table_name [PARTITION(partcol1=val1 [, partcol2=val2, ...])] COMPUTE STATISTICS [FOR COLUMNS col1 [, col2, ...] | FOR ALL COLUMNS]
 ```
-- PARTITION(partcol1=val1 [, partcol2=val2, ...]) is optional for the partition table
+- PARTITION(partcol1=val1 [, partcol2=val2, ...]) is required for the partition table
   - If no partition is specified, the statistics will be gathered for all partitions
   - If a certain partition is specified, the statistics will be gathered only for specific partition
   - If the table is non-partition table , while a partition is specified, an exception will be thrown
+  - If a certain partition is specified, but the partition does not exist, an exception will be thrown
   
-- FOR COLUMNS col1 [, col2, ...] or FOR ALL COLUMNS are also optional
+- FOR COLUMNS col1 [, col2, ...] or FOR ALL COLUMNS are optional
   - If no columns is specified, only the table level statistics will be gathered
+  - If a column does not exist, or column is not a physical column, an exception will be thrown.
   - If a column or any column is specified, the column level statistics will be gathered
-    - the column level statistics including:
+    - the column level statistics include:
       - ndv : the number of distinct values
       - nullCount : the number of nulls
       - avgLen : the average length of column values 
