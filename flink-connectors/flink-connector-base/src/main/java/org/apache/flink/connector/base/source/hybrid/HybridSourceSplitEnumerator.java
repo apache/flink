@@ -246,7 +246,9 @@ public class HybridSourceSplitEnumerator
 
     @Override
     public void close() throws IOException {
-        currentEnumerator.close();
+        if (currentEnumerator != null) {
+            currentEnumerator.close();
+        }
     }
 
     private void switchEnumerator() {
