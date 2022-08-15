@@ -28,26 +28,26 @@ under the License.
 
 # 基于 Table API 实现实时报表
 
-Apache Flink 提供 Table API 作为批流统一的关系型 API，例如，相同语法的查询在无界的实时流数据或者有界的批数据集上执行会得到一致的结果。  
-Table API 在 Flink 中常被用于简化数据分析、数据流水线以及 ETL 应用的定义。
+Apache Flink 提供了 Table API 作为批流统一的关系型 API。也就是说，在无界的实时流数据或者有界的批数据集上进行查询具有相同的语义，得到的结果一致。
+Flink 的 Table API 可以简化数据分析、构建数据流水线以及 ETL 应用的定义。
 
 ## 你接下来要搭建的是什么系统？
 
-在本教程中，你会学习到如何创建一个按账户追踪金融交易的实时看板。  
-整条流水线为读 Kafka 中的数据并将结果写入到 MySQL 通过 Grafana 展示。
+在本教程中，你将学习构建一个通过账户来追踪金融交易的实时看板。
+数据流水线为：先从 Kafka 中读取数据，再将结果写入到 MySQL 中，最后通过 Grafana 展示。
 
 ## 准备条件
 
-本次代码练习假定你对 Java 或者 Scala 有一定的了解，当然如果你之前使用的是其他编程语言，也应该可以继续学习。  
-我们也假设你对关系型概念例如 `SELECT` 以及 `GROUP BY` 语句有一定的了解。
+我们默认你对 Java 或者 Scala 有一定了解，当然如果你使用的是其他编程语言，也可以继续学习。 
+同时也默认你了解基本的关系型概念，例如 SELECT 、GROUP BY 等语句。
 
 ## 困难求助
 
 如果遇到问题，可以参考 [社区支持资源](https://flink.apache.org/community.html)。
-Flink 的 [用户邮件列表](https://flink.apache.org/community.html#mailing-lists) 是 Apahe 项目中最活跃的一个，这也是快速获得帮助的一个好方法。
+Flink 的 [用户邮件列表](https://flink.apache.org/community.html#mailing-lists) 是 Apahe 项目中最活跃的一个，这也是快速寻求帮助的重要途径。
 
 {{< hint info >}}
-如果你是在 Windows 上运行的 docker，并且生成数据的容器启动失败了，可以检查下是否使用了正确的脚本。
+在 Windows 环境下，如果用来生成数据的 docker 容器启动失败，请检查使用的脚本是否正确。
 例如 **docker-entrypoint.sh** 是容器 **table-walkthrough_data-generator_1** 所需的 bash 脚本。
 如果不可用，会报 **standard_init_linux.go:211: exec user process caused "no such file or directory"** 的错误。
 一种解决办法是在 **docker-entrypoint.sh** 的第一行将脚本执行器切换到 **sh**
@@ -55,7 +55,7 @@ Flink 的 [用户邮件列表](https://flink.apache.org/community.html#mailing-l
 
 ## 如何跟着教程练习
 
-在电脑上安装如下环境： 
+本教程依赖如下运行环境： 
 
 * Java 11
 * Maven 
@@ -65,7 +65,7 @@ Flink 的 [用户邮件列表](https://flink.apache.org/community.html#mailing-l
 {{< hint warning >}}
 **注意：** 本文中使用的 Apache Flink Docker 镜像仅适用于 Apache Flink 发行版。
 
- 由于你目前正在浏览快照版的文档，因此下文中引用的分支可能已经不存在了，请先通过左侧菜单下方的版本选择器切换到发行版文档再查看。
+由于你目前正在浏览快照版的文档，因此下文中引用的分支可能已经不存在了，请先通过左侧菜单下方的版本选择器切换到发行版文档再查看。
 {{< /hint >}}
 {{< /unstable >}}
 
@@ -111,9 +111,9 @@ report(transactions).executeInsert("spend_report");
 
 #### 执行环境
 
-前两行创建 `TableEnvironment`。
-在表环境中，你可以设置作业的属性，定义写的应用是批的还是流的，也可以创建 sources。
-本次创建了一个使用流式执行器的标准表环境。
+前两行创建的是 `TableEnvironment`（表环境）。
+通过表环境，你可以设置作业属性，定义应用的批流模式，以及创建数据源。
+我们先创建一个标准的表环境，并选择流式执行器。
 
 ```java
 EnvironmentSettings settings = EnvironmentSettings.inStreamingMode();
@@ -122,10 +122,10 @@ TableEnvironment tEnv = TableEnvironment.create(settings);
 
 #### 注册表
 
-接下来，在当前 [catalog]({{< ref "docs/dev/table/catalogs" >}}) 中创建表，这样就可以读写外部系统的数据了，数据可以是批的也可以是流式的。
-表类型的 source 可以访问如数据库、键值类型存储、消息队列或者文件系统这些外部系统中的数据。
-表类型的 sink 会按照表的形式写数据到外部存储系统。
-根据 source 以及 sink 的类型，可以支持不同的存储格式，例如 CSV, JSON, Avro, 或者 Parquet。
+接下来，在当前 [catalog]({{< ref "docs/dev/table/catalogs" >}}) 中创建表，这样就可以读写外部系统的数据，批流数据都可以。
+表类型的 source 可以读取外部系统中的数据，这些外部系统可以是数据库、键值类型存储、消息队列或者文件系统。
+而表类型的 sink 则可以将表中的数据写到外部存储系统。
+不同的 source 或 sink 类型，有不同的表格式（formats），例如 CSV, JSON, Avro, 或者 Parquet。
 
 ```java
 tEnv.executeSql("CREATE TABLE transactions (\n" +
@@ -143,7 +143,7 @@ tEnv.executeSql("CREATE TABLE transactions (\n" +
 
 这里注册了两张表：一张存交易数据的输入表，一张存消费报告的输出表。
 交易表（`transactions`）存的是信用卡交易记录，记录包含账户 ID（`account_id`），交易时间（`transaction_time`），以及美元单位的金额（`amount`）。
-输入表是 Kafka topic 的逻辑视图，topic 为 `transactions`，按 CSV 格式存储的数据。
+交易表实际是一个 Kafka topic 上的逻辑视图，视图对应的 topic 是 `transactions`，表格式是 CSV。
 
 ```java
 tEnv.executeSql("CREATE TABLE spend_report (\n" +
@@ -161,13 +161,13 @@ tEnv.executeSql("CREATE TABLE spend_report (\n" +
     ")");
 ```
 
-第二张 `spend_report` 表存储聚合后的最终结果，底层存储是 MySQL 数据库。
+第二张 `spend_report` 表存储聚合后的最终结果，底层存储是 MySQL 数据库中的一张表。
 
 #### 查询数据
 
-在准备好环境配置并注册好表之后，你就可以开始开发你的第一个应用了。
-在 `TableEnvironment` 中你可以 `from` 输入表来读取数据并将结果通过 `executeInsert` 写入到输出表中。
-你可以在函数 `report` 中实现具体的业务逻辑，这里暂时还没有实现。
+配置好环境并注册好表后，你就可以开始开发你的第一个应用了。
+通过 `TableEnvironment` ，你可以 `from` 输入表读取数据，然后将结果调用 `executeInsert` 写入到输出表。
+函数 `report` 用于实现具体的业务逻辑，这里暂时未实现。
 
 ```java
 Table transactions = tEnv.from("transactions");
@@ -176,23 +176,26 @@ report(transactions).executeInsert("spend_report");
 
 ## 测试 
 
-当前项目包含一个辅助验证报表逻辑的测试类 `SpendReportTest`，该测试的表环境使用的是 batch 模式。
+项目还包含一个测试类 `SpendReportTest`，辅助验证报表逻辑。
+该测试类的表环境使用的是批处理模式。
 
 ```java
 EnvironmentSettings settings = EnvironmentSettings.inBatchMode();
 TableEnvironment tEnv = TableEnvironment.create(settings); 
 ```
 
-Flink 的一个独特特性是提供了批流统一的语义，这意味着你可以用静态数据集在 batch 模式下来开发和测试应用，而到生产环境式部署为流式应用。
+提供批流统一的语义是 Flink 的特性，这意味着应用的开发和测试可以在批模式下使用静态数据集完成，而实际部署到生产时再切换为流式。
 
 ## 尝试下
 
-现在，有了搭建好的环境，你就可以开始实现一些业务逻辑了。现在的目标是创建一个报表，报表按照账户显示一天中每个小时的总支出。因此毫秒粒度的时间戳字段需要向下舍入为小时。 
+在作业拉起来的大体处理框架下，你可以再添加一些业务逻辑。
+现在的目标是创建一个报表，报表按照账户显示一天中每个小时的总支出。因此，毫秒粒度的时间戳字段需要向下舍入到小时。 
 
 Flink 支持纯 [SQL]({{< ref "docs/dev/table/sql/overview" >}}) 或者 [Table API]({{< ref "docs/dev/table/tableApi" >}}) 开发关系型数据应用。
 
-Table API 是受 SQL 启发设计出的一套链式 DSL，可以用 Python、Java 或者 Scala 开发，在 IDE 中也集成的很好。同时也如 SQL 查询一样，Table 应用可以只查询指定的字段，或者按指定列做分组。
-通过类似 `floor` 以及 `sum` 这样的 [系统函数]({{< ref "docs/dev/table/functions/systemFunctions" >}})，你就可以开发这个报表了。
+其中，Table API 是受 SQL 启发设计出的一套链式 DSL，可以用 Python、Java 或者 Scala 开发，在 IDE 中也集成的很好。
+同时也如 SQL 查询一样，Table 应用可以按列查询，或者按列分组。
+通过类似 `floor` 以及 `sum` 这样的 [系统函数]({{< ref "docs/dev/table/functions/systemFunctions" >}})，你已经可以开发这个报表了。
 
 ```java
 public static Table report(Table transactions) {
@@ -211,7 +214,7 @@ public static Table report(Table transactions) {
 ## 用户定义函数
 
 Flink 内置的函数是有限的，有时是需要通过 [用户自定义函数]({{< ref "docs/dev/table/functions/udfs" >}})来拓展这些函数。
-假如没有预设好的 `floor` 函数，那么你就可以自己实现一个。
+假如没有预设好的 `floor` 函数，也可以自己实现一个。
 
 ```java
 import java.time.LocalDateTime;
@@ -230,7 +233,7 @@ public class MyFloor extends ScalarFunction {
 }
 ```
 
-然后就可以马上在你的应用中使用了。
+然后就可以在你的应用中使用了。
 
 ```java
 public static Table report(Table transactions) {
@@ -246,13 +249,13 @@ public static Table report(Table transactions) {
 }
 ```
 
-这条查询会从表 `transactions` 消费所有的记录，计算出报表内容，并将结果以高效、可拓展的方式输出。
-测试用例使用此实现可以通过。
+这条查询会从表 `transactions` 消费所有的记录，然后计算报表所需内容，最后将结果以高效、可拓展的方式输出。
+按此逻辑实现，可以通过测试。
 
 ## 添加窗口函数
 
 在数据处理中，按照时间做分组是一个典型的操作，尤其是在处理无限流时。
-用于按时间分组的函数叫 [window]({{< ref "docs/dev/datastream/operators/windows" >}})，Flink 提供了灵活的窗口函数语法。
+按时间分组的函数叫 [window]({{< ref "docs/dev/datastream/operators/windows" >}})，Flink 提供了灵活的窗口函数语法。
 最常见的窗口是 `Tumble` ，此窗口固定窗口区间并且每个区间都不重叠。
 
 ```java
@@ -267,25 +270,25 @@ public static Table report(Table transactions) {
 }
 ```
 
-上面为应用定义了一个基于时间戳字段的一小时区间大小的滚动窗口，因此时间戳为 `2019-06-01 01:23:47` 的行会进入窗口 `2019-06-01 01:00:00`。
+上面的代码含义为：应用使用滚动窗口，窗口按照指定的时间戳字段划分，区间为一小时。
+所以，时间戳为 `2019-06-01 01:23:47` 的行会进入窗口 `2019-06-01 01:00:00`中。
 
+不同于其他属性，时间在一个持续不断的流式应用中总是向前移动，因此基于时间的聚合总是不重复的。
 
-基于时间的聚合是不重复的，因为时间不同于其他属性，在一个持续性的流式应用中，时间通常是向前移动的。
+不同于 `floor` 以及 UDF，窗口函数是 [内部的][intrinsics](https://en.wikipedia.org/wiki/Intrinsic_function)，可以运行时优化。
+批环境中，如果需要按照时间属性分组数据，窗口函数也有便利的 API。
 
-不同于 `floor` 以及自己写的 UDF，窗口函数是 [内部的][intrinsics](https://en.wikipedia.org/wiki/Intrinsic_function)，这意味着会使用更多的运行时优化。
-在一个批上下文中，窗口函数是一个按时间属性分组数据的便利 API。
-
-测试用例使用此实现也是可以通过的。
+按此逻辑实现，测试也可以通过。
 
 ## 再用流式处理一次！
 
-这次的应用是一个功能齐全、有状态的分布式流式应用！
-查询语句从 Kafka 中持续消费流式的交易数据，并计算每小时的消费，只要计算好就提交结果。
-由于输入是无边界的，查询在手动停止前会一直运行。
-同时，由于作业使用了窗口函数，Flink 会执行一些特定的优化，例如当框架感知到特定的窗口不会再来数据时就释放状态数据。
+这次的编写的应用是一个功能齐全、有状态的分布式流式应用！
+查询语句持续消费 Kafka 中流式的交易数据，然后计算每小时的消费，最后当窗口结束时立刻提交结果。
+由于输入是无边界的，停止作业需要手工操作。
+同时，由于作业使用了窗口函数，Flink 会执行一些特定的优化，例如当框架检测出窗口结束时，清理状态数据。
 
-这次演示是完全容器化的，并可以在本地运行的流式应用。
-环境中包含了 Kafka 的 topic、持续数据生成器、MySQL 以及 Grafana。
+本次教程中的流式应用，已经完全容器化，并可以在本地运行。
+环境中具体包含了 Kafka 的 topic、持续数据生成器、MySQL 以及 Grafana。
 
 在 `table-walkthrough` 目录下启动 docker-compose 脚本。
 
@@ -294,11 +297,11 @@ $ docker-compose build
 $ docker-compose up -d
 ```
 
-你可以通过 [Flink console](http://localhost:8082/) 来查看运行中任务的信息。
+运行中的作业信息可以通过 [Flink console](http://localhost:8082/) 查看。
 
 {{< img src="/fig/spend-report-console.png" height="400px" width="800px" alt="Flink Console">}}
 
-在 MySQL 中查看结果数据。
+结果数据在 MySQL 中查看。
 
 ```bash
 $ docker-compose exec mysql mysql -Dsql-demo -usql-demo -pdemo-sql
@@ -314,6 +317,6 @@ mysql> select count(*) from spend_report;
 +----------+
 ```
 
-最后，完整的可视化结果可以访问 [Grafana](http://localhost:3000/d/FOe0PbmGk/walkthrough?viewPanel=2&orgId=1&refresh=5s)！
+完整的可视化结果可以访问 [Grafana](http://localhost:3000/d/FOe0PbmGk/walkthrough?viewPanel=2&orgId=1&refresh=5s)！
 
 {{< img src="/fig/spend-report-grafana.png" alt="Grafana" >}}
