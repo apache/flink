@@ -328,6 +328,7 @@ def date_format(timestamp, format) -> Expression:
     """
     return _binary_op("dateFormat", timestamp, format)
 
+
 def date_diff(datetime1, datetime2) -> Expression:
     """
     Returns the (signed) number of days between datetime1 and datetime2.

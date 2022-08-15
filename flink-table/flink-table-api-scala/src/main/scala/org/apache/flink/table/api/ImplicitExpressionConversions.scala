@@ -530,11 +530,14 @@ trait ImplicitExpressionConversions {
    * Returns the (signed) number of days between datetime1 and datetime2.
    *
    * <p>For example, {@code dateDiff(lit("2007-12-31 23:59:59").toTimestamp(),
-     * lit("2007-12-30").toDate())} leads to 1.
+   * lit("2007-12-30").toDate())} leads to 1.
    *
-   * @param datetime1 The first date in time.
-   * @param datetime2 The second date in time.
-   * @return The number of intervals as integer value.
+   * @param datetime1
+   *   The first date in time.
+   * @param datetime2
+   *   The second date in time.
+   * @return
+   *   The number of intervals as integer value.
    */
   def dateDiff(datetime1: Expression, datetime2: Expression): Expression = {
     Expressions.dateDiff(datetime1, datetime2)
