@@ -55,7 +55,7 @@ The schema for CSV parsing, in this case, is automatically derived based on the 
 Note: you might need to add `@JsonPropertyOrder({field1, field2, ...})` annotation to your class definition with the fields order exactly matching those of the CSV file columns.
 {{< /hint >}}
 
-### Advanced configuration
+## Advanced configuration
 
 If you need more fine-grained control over the CSV schema or the parsing options, use the more low-level `forSchema` static factory method of `CsvReaderFormat`:
 
@@ -113,6 +113,8 @@ CsvReaderFormat<ComplexPojo> csvFormat =
                         .build(),
                 TypeInformation.of(ComplexPojo.class));
 ```
+
+## Python
 
 For PyFlink users, a csv schema can be defined by manually adding columns, and the output type of the csv source will be a Row with each column mapped to a field.
 ```python

@@ -114,6 +114,8 @@ CsvReaderFormat<ComplexPojo> csvFormat =
                 TypeInformation.of(ComplexPojo.class));
 ```
 
+## Python
+
 For PyFlink users, a csv schema can be defined by manually adding columns, and the output type of the csv source will be a Row with each column mapped to a field.
 ```python
 schema = CsvSchema.builder() \
