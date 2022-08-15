@@ -43,7 +43,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 
-/** ITCase for adding remote jar. */
+/** End to End tests for using remote jar. */
 public class UsingRemoteJarITCase extends SqlITCaseBase {
     private static final Path HADOOP_CLASSPATH = TestUtils.getResource(".*hadoop.classpath");
 
@@ -104,6 +104,45 @@ public class UsingRemoteJarITCase extends SqlITCaseBase {
         runAndCheckSQL(
                 "remote_jar_e2e.sql",
                 generateReplaceVars(),
+                2,
+                Arrays.asList(
+                        "{\"before\":null,\"after\":{\"user_name\":\"Alice\",\"order_cnt\":1},\"op\":\"c\"}",
+                        "{\"before\":null,\"after\":{\"user_name\":\"Bob\",\"order_cnt\":2},\"op\":\"c\"}"));
+    }
+
+    @Test
+    public void testCreateTemporarySystemFunctionUsingRemoteJar() throws Exception {
+        Map<String, String> replaceVars = generateReplaceVars();
+        replaceVars.put("$TEMPORARY", "TEMPORARY SYSTEM");
+        runAndCheckSQL(
+                "create_function_using_remote_jar_e2e.sql",
+                replaceVars,
+                2,
+                Arrays.asList(
+                        "{\"before\":null,\"after\":{\"user_name\":\"Alice\",\"order_cnt\":1},\"op\":\"c\"}",
+                        "{\"before\":null,\"after\":{\"user_name\":\"Bob\",\"order_cnt\":2},\"op\":\"c\"}"));
+    }
+
+    @Test
+    public void testCreateCatalogFunctionUsingRemoteJar() throws Exception {
+        Map<String, String> replaceVars = generateReplaceVars();
+        replaceVars.put("$TEMPORARY", "");
+        runAndCheckSQL(
+                "create_function_using_remote_jar_e2e.sql",
+                replaceVars,
+                2,
+                Arrays.asList(
+                        "{\"before\":null,\"after\":{\"user_name\":\"Alice\",\"order_cnt\":1},\"op\":\"c\"}",
+                        "{\"before\":null,\"after\":{\"user_name\":\"Bob\",\"order_cnt\":2},\"op\":\"c\"}"));
+    }
+
+    @Test
+    public void testCreateTemporaryCatalogFunctionUsingRemoteJar() throws Exception {
+        Map<String, String> replaceVars = generateReplaceVars();
+        replaceVars.put("$TEMPORARY", "TEMPORARY");
+        runAndCheckSQL(
+                "create_function_using_remote_jar_e2e.sql",
+                replaceVars,
                 2,
                 Arrays.asList(
                         "{\"before\":null,\"after\":{\"user_name\":\"Alice\",\"order_cnt\":1},\"op\":\"c\"}",
