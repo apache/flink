@@ -20,6 +20,7 @@ package org.apache.flink.kubernetes.highavailability;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.core.testutils.FlinkMatchers;
+import org.apache.flink.kubernetes.configuration.KubernetesConfigOptions;
 import org.apache.flink.kubernetes.highavailability.KubernetesStateHandleStore.StateHandleWithDeleteMarker;
 import org.apache.flink.kubernetes.kubeclient.FlinkKubeClient;
 import org.apache.flink.kubernetes.kubeclient.resources.KubernetesConfigMap;
@@ -29,10 +30,13 @@ import org.apache.flink.runtime.persistence.StateHandleStore;
 import org.apache.flink.runtime.persistence.StringResourceVersion;
 import org.apache.flink.runtime.persistence.TestingLongStateHandleHelper;
 import org.apache.flink.runtime.state.RetrievableStateHandle;
+import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkRuntimeException;
+import org.apache.flink.util.concurrent.Executors;
 import org.apache.flink.util.concurrent.FutureUtils;
 import org.apache.flink.util.function.FunctionUtils;
 
+import io.fabric8.kubernetes.client.KubernetesClientException;
 import org.junit.Before;
 import org.junit.Test;
 
@@ -41,6 +45,10 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
@@ -216,6 +224,45 @@ public class KubernetesStateHandleStoreTest extends KubernetesHighAvailabilityTe
                             }
                             assertThat(TestingLongStateHandleHelper.getGlobalStorageSize(), is(1));
                             assertThat(TestingLongStateHandleHelper.getGlobalDiscardCount(), is(0));
+                        });
+            }
+        };
+    }
+
+    @Test
+    public void testAddAndLockShouldNotThrowAlreadyExistExceptionWithSameContents()
+            throws Exception {
+        new Context() {
+            {
+                runTest(
+                        () -> {
+                            leaderCallbackGrantLeadership();
+
+                            final FlinkKubeClient anotherFlinkKubeClient =
+                                    createFlinkKubeClientBuilder()
+                                            .setCheckAndUpdateConfigMapFunction(
+                                                    (configMapName, function) ->
+                                                            retryWithFirstFailedK8sOperation(
+                                                                    function, getLeaderConfigMap()))
+                                            .build();
+                            final KubernetesStateHandleStore<
+                                            TestingLongStateHandleHelper.LongStateHandle>
+                                    store =
+                                            new KubernetesStateHandleStore<>(
+                                                    anotherFlinkKubeClient,
+                                                    LEADER_CONFIGMAP_NAME,
+                                                    longStateStorage,
+                                                    filter,
+                                                    LOCK_IDENTITY);
+
+                            store.addAndLock(key, state);
+                            assertThat(TestingLongStateHandleHelper.getGlobalStorageSize(), is(1));
+                            assertThat(TestingLongStateHandleHelper.getGlobalDiscardCount(), is(0));
+                            assertThat(store.getAllHandles().size(), is(1));
+                            assertThat(store.getAllHandles(), containsInAnyOrder(key));
+                            assertThat(
+                                    store.getAndLock(key).retrieveState().getValue(),
+                                    is(state.getValue()));
                         });
             }
         };
@@ -1118,5 +1165,37 @@ public class KubernetesStateHandleStoreTest extends KubernetesHighAvailabilityTe
                                 .toDeleting());
         configMap.getData().put(key, deleting);
         return state;
+    }
+
+    private static CompletableFuture<Boolean> retryWithFirstFailedK8sOperation(
+            Function<KubernetesConfigMap, Optional<KubernetesConfigMap>> function,
+            KubernetesConfigMap leaderConfigMap) {
+        final AtomicInteger callbackInvocationCount = new AtomicInteger(0);
+        final CompletableFuture<Boolean> result =
+                FutureUtils.retry(
+                        () ->
+                                CompletableFuture.supplyAsync(
+                                        () -> {
+                                            callbackInvocationCount.incrementAndGet();
+                                            function.apply(leaderConfigMap);
+                                            if (callbackInvocationCount.get() == 1) {
+                                                throw new KubernetesClientException(
+                                                        "Expected exception to simulate unstable "
+                                                                + "kubernetes client operation");
+                                            }
+                                            return true;
+                                        },
+                                        Executors.newDirectExecutorService()),
+                        KubernetesConfigOptions.KUBERNETES_TRANSACTIONAL_OPERATION_MAX_RETRIES
+                                .defaultValue(),
+                        t ->
+                                ExceptionUtils.findThrowable(t, KubernetesClientException.class)
+                                        .isPresent(),
+                        Executors.newDirectExecutorService());
+        assertThat(callbackInvocationCount.get(), is(2));
+        assertThat(result.isDone(), is(true));
+        assertThat(result.isCompletedExceptionally(), is(false));
+        assertThat(result.isCancelled(), is(false));
+        return result;
     }
 }
