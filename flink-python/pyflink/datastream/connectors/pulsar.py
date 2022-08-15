@@ -154,6 +154,12 @@ class StartCursor(object):
 
     @staticmethod
     def from_message_time(timestamp: int) -> 'StartCursor':
+        """
+        This method is designed for seeking message from event time. But Pulsar didn't support
+        seeking from message time, instead, it would seek the position from publish time. We only
+        keep this method for backward compatible.
+        """
+        warnings.warn("Deprecated in 1.16, use from_publish_time() instead.", DeprecationWarning)
         JStartCursor = get_gateway().jvm \
             .org.apache.flink.connector.pulsar.source.enumerator.cursor.StartCursor
         return StartCursor(JStartCursor.fromMessageTime(timestamp))
@@ -176,6 +182,15 @@ class StartCursor(object):
         j_message_id = get_gateway().jvm.org.apache.pulsar.client.api.MessageId \
             .fromByteArray(message_id)
         return StartCursor(JStartCursor.fromMessageId(j_message_id, inclusive))
+
+    @staticmethod
+    def from_publish_time(timestamp: int) -> 'StartCursor':
+        """
+        Seek the start position by using message publish time.
+        """
+        JStartCursor = get_gateway().jvm \
+            .org.apache.flink.connector.pulsar.source.enumerator.cursor.StartCursor
+        return StartCursor(JStartCursor.fromPublishTime(timestamp))
 
 
 class StopCursor(object):
@@ -206,27 +221,46 @@ class StopCursor(object):
 
     @staticmethod
     def at_event_time(timestamp: int) -> 'StopCursor':
-        warnings.warn(
-            "at_event_time is deprecated. Use at_publish_time instead.", DeprecationWarning)
+        """
+        Stop consuming when message eventTime is greater than or equals the specified timestamp.
+        """
         JStopCursor = get_gateway().jvm \
             .org.apache.flink.connector.pulsar.source.enumerator.cursor.StopCursor
         return StopCursor(JStopCursor.atEventTime(timestamp))
 
     @staticmethod
+    def after_event_time(timestamp: int) -> 'StopCursor':
+        """
+        Stop consuming when message eventTime is greater than the specified timestamp.
+        """
+        JStopCursor = get_gateway().jvm \
+            .org.apache.flink.connector.pulsar.source.enumerator.cursor.StopCursor
+        return StopCursor(JStopCursor.afterEventTime(timestamp))
+
+    @staticmethod
     def at_publish_time(timestamp: int) -> 'StopCursor':
         """
-        Stop when message publishTime is greater than the specified timestamp.
+        Stop consuming when message publishTime is greater than or equals the specified timestamp.
         """
         JStopCursor = get_gateway().jvm \
             .org.apache.flink.connector.pulsar.source.enumerator.cursor.StopCursor
         return StopCursor(JStopCursor.atPublishTime(timestamp))
 
     @staticmethod
+    def after_publish_time(timestamp: int) -> 'StopCursor':
+        """
+        Stop consuming when message publishTime is greater than the specified timestamp.
+        """
+        JStopCursor = get_gateway().jvm \
+            .org.apache.flink.connector.pulsar.source.enumerator.cursor.StopCursor
+        return StopCursor(JStopCursor.afterPublishTime(timestamp))
+
+    @staticmethod
     def at_message_id(message_id: bytes) -> 'StopCursor':
         """
-        Stop when the messageId is equal or greater than the specified messageId. Message that is
-        equal to the specified messageId will not be consumed. User could call pulsar Python
-        library serialize method to cover messageId bytes.
+        Stop consuming when the messageId is equal or greater than the specified messageId.
+        Message that is equal to the specified messageId will not be consumed. User could call
+        pulsar Python library serialize method to cover messageId bytes.
 
         Example:
         ::
@@ -244,9 +278,9 @@ class StopCursor(object):
     @staticmethod
     def after_message_id(message_id: bytes) -> 'StopCursor':
         """
-        Stop when the messageId is greater than the specified messageId. Message that is equal to
-        the specified messageId will be consumed. User could call pulsar Python library serialize
-        method to cover messageId bytes.
+        Stop consuming when the messageId is greater than the specified messageId. Message that is
+        equal to the specified messageId will be consumed. User could call pulsar Python library
+        serialize method to cover messageId bytes.
 
         Example:
         ::

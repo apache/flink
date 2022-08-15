@@ -352,9 +352,18 @@ Pulsar Source 使用 `setStartCursor(StartCursor)` 方法给定开始消费的�
   {{< /tabs >}}
 
 - 从给定的消息发布时间开始消费。
+  {{< tabs "pulsar-starting-position-publish-time" >}}
+  {{< tab "Java" >}}
   ```java
   StartCursor.fromPublishTime(long);
   ```
+  {{< /tab >}}
+  {{< tab "Python" >}}
+  ```python
+  StartCursor.from_publish_time(int)
+  ```
+  {{< /tab >}}
+  {{< /tabs >}}
 
 {{< hint info >}}
 每条消息都有一个固定的序列号，这个序列号在 Pulsar 上有序排列，其包含了 ledger、entry、partition 等原始信息，用于在 Pulsar 底层存储上查找到具体的消息。
@@ -427,17 +436,35 @@ Pulsar Source 默认情况下使用流的方式消费数据。除非任务失败
   {{< /tabs >}}
 
 - 停止于某个给定的消息事件时间戳，比如 `Message<byte[]>.getEventTime()`，消费结果里不包含此时间戳的消息。
+  {{< tabs "pulsar-boundedness-at-event-time" >}} 
+  {{< tab "Java" >}}
   ```java
   StopCursor.atEventTime(long);
   ```
+  {{< /tab >}}
+  {{< tab "Python" >}}
+  ```python
+  StopCursor.at_event_time(int)
+  ```
+  {{< /tab >}}
+  {{< /tabs >}}
 
 - 停止于某个给定的消息事件时间戳，比如 `Message<byte[]>.getEventTime()`，消费结果里包含此时间戳的消息。
+  {{< tabs "pulsar-boundedness-after-event-time" >}}
+  {{< tab "Java" >}}
   ```java
   StopCursor.afterEventTime(long);
   ```
+  {{< /tab >}}
+  {{< tab "Python" >}}
+  ```python
+  StopCursor.after_event_time(int)
+  ```
+  {{< /tab >}}
+  {{< /tabs >}}
 
 - 停止于某个给定的消息发布时间戳，比如 `Message<byte[]>.getPublishTime()`，消费结果里不包含此时间戳的消息。
-  {{< tabs "pulsar-boundedness-publish-time" >}}
+  {{< tabs "pulsar-boundedness-at-publish-time" >}}
   {{< tab "Java" >}}
   ```java
   StopCursor.atPublishTime(long);
@@ -451,9 +478,18 @@ Pulsar Source 默认情况下使用流的方式消费数据。除非任务失败
   {{< /tabs >}}
 
 - 停止于某个给定的消息发布时间戳，比如 `Message<byte[]>.getPublishTime()`，消费结果里包含此时间戳的消息。
+  {{< tabs "pulsar-boundedness-after-publish-time" >}}
+  {{< tab "Java" >}}
   ```java
   StopCursor.afterPublishTime(long);
   ```
+  {{< /tab >}}
+  {{< tab "Python" >}}
+  ```python
+  StopCursor.after_publish_time(int)
+  ```
+  {{< /tab >}}
+  {{< /tabs >}}
 
 ### Source 配置项
 
