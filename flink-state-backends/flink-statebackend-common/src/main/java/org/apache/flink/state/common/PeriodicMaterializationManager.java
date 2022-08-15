@@ -74,6 +74,20 @@ public class PeriodicMaterializationManager implements Closeable {
                 long materializationID,
                 SequenceNumber upTo)
                 throws Exception;
+
+        MaterializationTarget NO_OP =
+                new MaterializationTarget() {
+                    @Override
+                    public Optional<MaterializationRunnable> initMaterialization() {
+                        return Optional.empty();
+                    }
+
+                    @Override
+                    public void handleMaterializationResult(
+                            SnapshotResult<KeyedStateHandle> materializedSnapshot,
+                            long materializationID,
+                            SequenceNumber upTo) {}
+                };
     }
 
     private static final Logger LOG = LoggerFactory.getLogger(PeriodicMaterializationManager.class);
@@ -118,6 +132,32 @@ public class PeriodicMaterializationManager implements Closeable {
             long periodicMaterializeDelay,
             int allowedNumberOfFailures,
             String operatorSubtaskId) {
+        this(
+                mailboxExecutor,
+                asyncOperationsThreadPool,
+                subtaskName,
+                asyncExceptionHandler,
+                target,
+                metricGroup,
+                periodicMaterializeDelay,
+                allowedNumberOfFailures,
+                operatorSubtaskId,
+                Executors.newSingleThreadScheduledExecutor(
+                        new ExecutorThreadFactory(
+                                "periodic-materialization-scheduler-" + subtaskName)));
+    }
+
+    PeriodicMaterializationManager(
+            MailboxExecutor mailboxExecutor,
+            ExecutorService asyncOperationsThreadPool,
+            String subtaskName,
+            AsyncExceptionHandler asyncExceptionHandler,
+            MaterializationTarget target,
+            ChangelogMaterializationMetricGroup metricGroup,
+            long periodicMaterializeDelay,
+            int allowedNumberOfFailures,
+            String operatorSubtaskId,
+            ScheduledExecutorService periodicExecutor) {
         this.mailboxExecutor = checkNotNull(mailboxExecutor);
         this.asyncOperationsThreadPool = checkNotNull(asyncOperationsThreadPool);
         this.subtaskName = checkNotNull(subtaskName);
@@ -129,10 +169,7 @@ public class PeriodicMaterializationManager implements Closeable {
         this.allowedNumberOfFailures = allowedNumberOfFailures;
         this.numberOfConsecutiveFailures = new AtomicInteger(0);
 
-        this.periodicExecutor =
-                Executors.newSingleThreadScheduledExecutor(
-                        new ExecutorThreadFactory(
-                                "periodic-materialization-scheduler-" + subtaskName));
+        this.periodicExecutor = periodicExecutor;
 
         this.initialDelay =
                 // randomize initial delay to avoid thundering herd problem
@@ -147,7 +184,7 @@ public class PeriodicMaterializationManager implements Closeable {
 
             LOG.info("Task {} starts periodic materialization", subtaskName);
 
-            scheduleNextMaterialization(periodicMaterializeDelay + initialDelay);
+            scheduleNextMaterialization(initialDelay);
         }
     }
 
