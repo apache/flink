@@ -726,11 +726,11 @@ public class HiveDialectQueryITCase {
     }
 
     @Test
-    public void testBoolComparison() {
+    public void testBoolComparison() throws Exception {
         tableEnv.executeSql("CREATE TABLE tbool (id int, a int, b string, c boolean)");
         try {
-            tableEnv.executeSql(
-                    "insert into tbool values (1, 1, '12', true), (2, 1, '0.4', false)");
+            tableEnv.executeSql("insert into tbool values (1, 1, '12', true), (2, 1, '0.4', false)")
+                    .await();
             // test compare boolean with numeric/string type
             List<Row> results =
                     CollectionUtil.iteratorToList(
