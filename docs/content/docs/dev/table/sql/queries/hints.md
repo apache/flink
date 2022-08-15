@@ -84,4 +84,311 @@ insert into kafka_table1 /*+ OPTIONS('sink.partitioner'='round-robin') */ select
 
 ```
 
+## Query Hints
+
+### Join Hints
+
+#### LOOKUP Hint
+
+{{< label Streaming >}}
+
+The LOOKUP hint allows users to suggest the Flink optimizer to: 
+1. use synchronous(sync) or asynchronous(async) lookup function
+2. configure the async parameters
+3. enable delayed retry strategy for lookup
+
+```sql
+SELECT /*+ LOOKUP(key=value[, key=value]*) */
+
+key:
+    stringLiteral
+
+value:
+    stringLiteral
+```
+
+The available hint options:
+
+<table class="table table-bordered">
+<thead>
+<tr>
+	<th>option type</th>
+	<th>option name</th>
+	<th>optional</th>
+	<th>value type</th>
+	<th>default value</th>
+	<th>description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+	<th rowspan="1">table</th>
+	<th>table</th>
+	<th>N</th>
+	<th>string</th>
+	<th>N/A</th>
+	<th>the table name of the lookup source</th>
+</tr>
+<tr>
+	<th rowspan="4">async</th>
+	<th>async</th>
+	<th>Y</th>
+	<th>boolean</th>
+	<th>N/A</th>
+	<th>value can be 'true' or 'false' to suggest the planner choose the corresponding lookup function.
+        If the backend lookup source does not support the suggested lookup mode, it will take no effect.</th>
+</tr>
+<tr>
+	<th>output-mode</th>
+	<th>Y</th>
+	<th>string</th>
+	<th>ordered</th>
+	<th>value can be 'ordered' or 'allow_unordered'.<br />'allow_unordered' means if users allow unordered result, it will attempt to use AsyncDataStream.OutputMode.UNORDERED when it does not affect the correctness of the result, otherwise ORDERED will be still used. It is consistent with <br />`ExecutionConfigOptions#TABLE_EXEC_ASYNC_LOOKUP_OUTPUT_MODE`.</th>
+</tr>
+<tr>
+	<th>capacity</th>
+	<th>Y</th>
+	<th>integer</th>
+	<th>100</th>
+	<th>the buffer capacity for the backend asyncWaitOperator of the lookup join operator.</th>
+</tr>
+<tr>
+	<th>timeout</th>
+	<th>Y</th>
+	<th>duration</th>
+	<th>300s</th>
+	<th>timeout from first invoke to final completion of asynchronous operation, may include multiple retries, and will be reset in case of failover</th>
+</tr>
+<tr>
+	<th rowspan="4">retry</th>
+	<th>retry-predicate</th>
+	<th>Y</th>
+	<th>string</th>
+	<th>N/A</th>
+	<th>can be 'lookup_miss' which will enable retry if lookup result is empty.</th>
+</tr>
+<tr>
+	<th>retry-strategy</th>
+	<th>Y</th>
+	<th>string</th>
+	<th>N/A</th>
+	<th>can be 'fixed_delay'</th>
+</tr>
+<tr>
+	<th>fixed-delay</th>
+	<th>Y</th>
+	<th>duration</th>
+	<th>N/A</th>
+	<th>delay time for the 'fixed_delay' strategy</th>
+</tr>
+<tr>
+	<th>max-attempts</th>
+	<th>Y</th>
+	<th>integer</th>
+	<th>N/A</th>
+	<th>max attempt number of the 'fixed_delay' strategy</th>
+</tr>
+</tbody>
+</table>
+
+Note: 
+- 'table' option is required, only table name is supported, alias name is not supported currently(will be supported in later versions).
+- async options are all optional, will use default value if not configured.
+- there is no default value for retry options, all retry options should be set to valid values when need to enable retry.
+
+##### 1. Use Sync And Async Lookup Function
+If the connector has both capabilities of async and sync lookup, users can give the option value 'async'='false'
+to suggest the planner to use the sync lookup or 'async'='true' to use the async lookup:
+
+Example:
+```sql
+-- suggest the optimizer to use sync lookup
+LOOKUP('table'='Customers', 'async'='false')
+
+-- suggest the optimizer to use async lookup
+LOOKUP('table'='Customers', 'async'='true')
+```
+Note: the optimizer prefers async lookup if no 'async' option is specified, it will always use sync lookup when:
+1. the connector only implements the sync lookup
+2. user enables 'TRY_RESOLVE' mode of 'table.optimizer.non-deterministic-update.strategy' and the 
+optimizer has checked there's correctness issue caused by non-deterministic update.
+
+##### 2. Configure The Async Parameters
+Users can configure the async parameters via async options on async lookup mode.
+
+Example:
+```sql
+-- configure the async parameters: 'output-mode', 'capacity', 'timeout', can set single one or multi params
+LOOKUP('table'='Customers', 'async'='true', 'output-mode'='allow_unordered', 'capacity'='100', 'timeout'='180s')
+```
+Note: the async options are consistent with the async options in [job level Execution Options]({{< ref "docs/dev/table/config/#execution-options" >}}),
+will use job level configuration if not set. Another difference is that the scope of the LOOKUP hint
+is smaller, limited to the table name corresponding to the hint option set in the current lookup
+operation (other lookup operations will not be affected by the LOOKUP hint).
+
+e.g., if the job level configuration is:
+```gitexclude
+table.exec.async-lookup.output-mode: ORDERED
+table.exec.async-lookup.buffer-capacity: 100
+table.exec.async-lookup.timeout: 180s
+```
+
+then the following hints:
+```sql
+1. LOOKUP('table'='Customers', 'async'='true', 'output-mode'='allow_unordered')
+2. LOOKUP('table'='Customers', 'async'='true', 'timeout'='300s')
+```
+
+are equivalent to:
+```sql
+1. LOOKUP('table'='Customers', 'async'='true', 'output-mode'='allow_unordered', 'capacity'='100', 'timeout'='180s')
+2. LOOKUP('table'='Customers', 'async'='true', 'output-mode'='ordered', 'capacity'='100', 'timeout'='300s')
+```
+
+##### 3. Enable Delayed Retry Strategy For Lookup
+Delayed retry for lookup join is intended to solve the problem of delayed updates in external system
+which cause unexpected enrichment with stream data. The hint option 'retry-predicate'='lookup_miss'
+can enable retry on both sync and async lookup, only support fixed delay retry strategy currently.
+
+Options of fixed delay retry strategy:
+```gitexclude
+'retry-strategy'='fixed_delay'
+-- fixed delay duration
+'fixed-delay'='10s'
+-- max number of retry(counting from the retry operation, if set to '1', then a single lookup process
+-- for a specific lookup key will actually execute up to 2 lookup requests)
+'max-attempts'='3'
+```
+
+Example:
+1. enable retry on async lookup
+```sql
+LOOKUP('table'='Customers', 'async'='true', 'retry-predicate'='lookup_miss', 'retry-strategy'='fixed_delay', 'fixed-delay'='10s','max-attempts'='3')
+```
+
+2. enable retry on sync lookup
+```sql
+LOOKUP('table'='Customers', 'async'='false', 'retry-predicate'='lookup_miss', 'retry-strategy'='fixed_delay', 'fixed-delay'='10s','max-attempts'='3')
+```
+
+If the lookup source only has one capability, then the 'async' mode option can be omitted:
+
+```sql
+LOOKUP('table'='Customers', 'retry-predicate'='lookup_miss', 'retry-strategy'='fixed_delay', 'fixed-delay'='10s','max-attempts'='3')
+```
+
+###### Note On Lookup Keys And 'retry-predicate'='lookup_miss' Retry Conditions
+For different connectors, the index-lookup capability maybe different, e.g., builtin HBase connector
+can lookup on rowkey only (without secondary index), while builtin JDBC connector can provide more
+powerful index-lookup capabilities on arbitrary columns, this is determined by the different physical
+storages.
+The lookup key mentioned here is the field or combination of fields for the index-lookup,
+as the example of [`lookup join`]({{< ref "docs/dev/table/sql/queries/joins/#lookup-join" >}}), where
+`c.id` is the lookup key of the join condition "ON o.customer_id = c.id":
+
+```sql
+SELECT o.order_id, o.total, c.country, c.zip
+FROM Orders AS o
+  JOIN Customers FOR SYSTEM_TIME AS OF o.proc_time AS c
+    ON o.customer_id = c.id
+```
+
+if we change the join condition to "ON o.customer_id = c.id and c.country = 'US'"：
+```sql
+SELECT o.order_id, o.total, c.country, c.zip
+FROM Orders AS o
+  JOIN Customers FOR SYSTEM_TIME AS OF o.proc_time AS c
+    ON o.customer_id = c.id and c.country = 'US'
+```
+
+both `c.id` and `c.country` will be used as lookup key when `Customers` table was stored in MySql:
+```sql
+CREATE TEMPORARY TABLE Customers (
+  id INT,
+  name STRING,
+  country STRING,
+  zip STRING
+) WITH (
+  'connector' = 'jdbc',
+  'url' = 'jdbc:mysql://mysqlhost:3306/customerdb',
+  'table-name' = 'customers'
+)
+```
+
+only `c.id` can be the lookup key when `Customers` table was stored in HBase, and the remaining join
+condition `c.country = 'US'` will be evaluated after lookup result returned
+```sql
+CREATE TEMPORARY TABLE Customers (
+  id INT,
+  name STRING,
+  country STRING,
+  zip STRING,
+  PRIMARY KEY (id) NOT ENFORCED
+) WITH (
+  'connector' = 'hbase-2.2',
+  ...
+)
+```
+
+Accordingly, the above query will have different retry effects on different storages when enable
+'lookup_miss' retry predicate and the fixed-delay retry strategy.
+
+e.g., if there is a row in the `Customers` table:
+```gitexclude
+id=100, country='CN'
+```
+When processing an record with 'id=100' in the order stream, in 'jdbc' connector, the corresponding
+lookup result is null (`country='CN'` does not satisfy the condition `c.country = 'US'`) because both
+`c.id` and `c.country` are used as lookup keys, so this will trigger a retry.
+
+When in 'hbase' connector, only `c.id` will be used as the lookup key, the corresponding lookup result
+will not be empty(it will return the record `id=100, country='CN'`), so it will not trigger a retry
+(the remaining join condition `c.country = 'US'` will be evaluated as not true for returned record).
+
+Currently, based on SQL semantic considerations, only the 'lookup_miss' retry predicate is provided,
+and when it is necessary to wait for delayed updates of the dimension table (where a historical
+version record already exists in the table, rather than not), users can try two solutions:
+1. implements a custom retry predicate with the new retry support in DataStream Async I/O (allows for more complex judgments on returned records).
+2. enable delayed retry by adding another join condition including comparison on some kind of data version generated by timestamp
+for the above example, assume the `Customers` table is updated every hour, we can add a new time-dependent
+version field `update_version`, which is reserved to hourly precision, e.g., update time '2022-08-15 12:01:02'
+of record will store the `update_version` as ' 2022-08-15 12:00'
+```sql
+CREATE TEMPORARY TABLE Customers (
+  id INT,
+  name STRING,
+  country STRING,
+  zip STRING,
+  -- the newly added time-dependent version field
+  update_version STRING
+) WITH (
+  'connector' = 'jdbc',
+  'url' = 'jdbc:mysql://mysqlhost:3306/customerdb',
+  'table-name' = 'customers'
+)
+```
+
+append an equal condition on both time field of Order stream and `Customers`.`update_version` to the join condition:
+```sql
+ON o.customer_id = c.id AND DATE_FORMAT(o.order_timestamp, 'yyyy-MM-dd HH:mm') = c.update_version
+```
+then we can enable delayed retry when Order's record can not lookup the new record with '12:00' version in `Customers` table. 
+
+
+###### Trouble Shooting
+When turning on the delayed retry lookup, it is more likely to encounter a backpressure problem in 
+the lookup node, this can be quickly confirmed via the 'Thread Dump' on the 'Task Manager' page of web ui.
+From async and sync lookups respectively, call stack of thread sleep will appear in:
+1. async lookup：`RetryableAsyncLookupFunctionDelegator`
+2. sync lookup：`RetryableLookupFunctionDelegator`
+
+Note:
+- async lookup with retry is not capable for fixed delayed processing for all input data (should use other 
+lighter ways to solve, e.g., pending source consumption or use sync lookup with retry)
+- delayed waiting for retry execution in sync lookup is fully synchronous, i.e., processing of the 
+next record does not begin until the current record has completed.
+- in async lookup, if 'output-mode' is 'ORDERED' mode, the probability of backpressure caused by delayed
+retry maybe higher than 'UNORDERED' mode, in which case increasing async 'capacity' may not be effective
+in reducing backpressure, and it may be necessary to consider reducing the delay duration.
+
 {{< top >}}
