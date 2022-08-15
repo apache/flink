@@ -817,7 +817,7 @@ class DataStreamTests(object):
         ds = self.env.from_collection([Row(list=[1, 2, 3])], type_info=row_type_info)
         ds.map(lambda e: str(e), Types.STRING()).add_sink(self.test_sink)
         self.env.execute('test_java_list_deserialization')
-        expected = ['[1, 2, 3]']
+        expected = ['Row(list=[1, 2, 3])']
         self.assert_equals(self.test_sink.get_results(), expected)
 
 
