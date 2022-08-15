@@ -102,6 +102,13 @@ under the License.
 		</dependency>
 
 		<dependency>
+			<groupId>org.apache.curator</groupId>
+			<artifactId>curator-test</artifactId>
+			<version>${curator.version}</version>
+			<scope>test</scope>
+		</dependency>
+
+		<dependency>
 			<groupId>org.apache.hadoop</groupId>
 			<artifactId>hadoop-common</artifactId>
 			<version>${flink.hadoop.version}</version>
@@ -186,16 +193,6 @@ under the License.
 		</dependency>
 
 	</dependencies>
-
-	<dependencyManagement>
-		<dependencies>
-			<dependency>
-				<groupId>org.apache.curator</groupId>
-				<artifactId>curator-test</artifactId>
-				<version>${curator.version}</version>
-			</dependency>
-		</dependencies>
-	</dependencyManagement>
 
 	<build>
 		<plugins>
