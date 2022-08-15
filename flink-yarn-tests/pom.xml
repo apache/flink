@@ -106,6 +106,13 @@ under the License.
 			<artifactId>curator-test</artifactId>
 			<version>${curator.version}</version>
 			<scope>test</scope>
+			<exclusions>
+				<exclusion>
+					<!-- Use whatever guava version Hadoop pulls in. -->
+					<groupId>com.google.guava</groupId>
+					<artifactId>guava</artifactId>
+				</exclusion>
+			</exclusions>
 		</dependency>
 
 		<dependency>
