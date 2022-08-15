@@ -187,7 +187,7 @@ public abstract class AbstractJdbcRowConverter implements JdbcRowConverter {
         }
     }
 
-    /** Create a nullable JDBC f{@link JdbcSerializationConverter} from given sql type. */
+    /** Create a nullable JDBC {@link JdbcSerializationConverter} from given sql type. */
     protected JdbcSerializationConverter createNullableExternalConverter(LogicalType type) {
         return wrapIntoNullableExternalConverter(createExternalConverter(type), type);
     }

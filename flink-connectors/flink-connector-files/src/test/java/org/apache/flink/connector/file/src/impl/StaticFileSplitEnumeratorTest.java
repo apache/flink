@@ -32,7 +32,7 @@ import java.util.Arrays;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-/** Unit tests for the {@link ContinuousFileSplitEnumerator}. */
+/** Unit tests for the {@link StaticFileSplitEnumerator}. */
 class StaticFileSplitEnumeratorTest {
 
     // this is no JUnit temporary folder, because we don't create actual files, we just
