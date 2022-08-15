@@ -556,7 +556,7 @@ public class HiveTableSinkITCase {
                         + "PARTITIONED BY (`dt` string) "
                         + "TBLPROPERTIES ('sink.partition-commit.policy.kind' = 'metastore')");
         String onlyMetaTablePath = warehouse + "/zm_test_partition_table_only_meta";
-        ;
+
         tEnv.executeSql(
                         "INSERT INTO zm_test_partition_table_only_meta partition (dt='2022-08-15') values ('zm')")
                 .await();
