@@ -114,7 +114,7 @@ class PeriodicMaterializationManager implements Closeable {
 
             LOG.info("Task {} starts periodic materialization", subtaskName);
 
-            scheduleNextMaterialization(periodicMaterializeDelay + initialDelay);
+            scheduleNextMaterialization(initialDelay);
         }
     }
 
