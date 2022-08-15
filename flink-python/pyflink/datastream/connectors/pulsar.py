@@ -177,6 +177,15 @@ class StartCursor(object):
             .fromByteArray(message_id)
         return StartCursor(JStartCursor.fromMessageId(j_message_id, inclusive))
 
+    @staticmethod
+    def from_publish_time(timestamp: int) -> 'StartCursor':
+        """
+        Seek the start position by using message publish time.
+        """
+        JStartCursor = get_gateway().jvm \
+            .org.apache.flink.connector.pulsar.source.enumerator.cursor.StartCursor
+        return StartCursor(JStartCursor.fromPublishTime(timestamp))
+
 
 class StopCursor(object):
     """
@@ -206,11 +215,21 @@ class StopCursor(object):
 
     @staticmethod
     def at_event_time(timestamp: int) -> 'StopCursor':
-        warnings.warn(
-            "at_event_time is deprecated. Use at_publish_time instead.", DeprecationWarning)
+        """
+        Stop consuming when message eventTime is greater than or equals the specified timestamp.
+        """
         JStopCursor = get_gateway().jvm \
             .org.apache.flink.connector.pulsar.source.enumerator.cursor.StopCursor
         return StopCursor(JStopCursor.atEventTime(timestamp))
+
+    @staticmethod
+    def after_event_time(timestamp: int) -> 'StopCursor':
+        """
+        Stop consuming when message eventTime is greater than the specified timestamp.
+        """
+        JStopCursor = get_gateway().jvm \
+            .org.apache.flink.connector.pulsar.source.enumerator.cursor.StopCursor
+        return StopCursor(JStopCursor.afterEventTime(timestamp))
 
     @staticmethod
     def at_publish_time(timestamp: int) -> 'StopCursor':
@@ -220,6 +239,15 @@ class StopCursor(object):
         JStopCursor = get_gateway().jvm \
             .org.apache.flink.connector.pulsar.source.enumerator.cursor.StopCursor
         return StopCursor(JStopCursor.atPublishTime(timestamp))
+
+    @staticmethod
+    def after_publish_time(timestamp: int) -> 'StopCursor':
+        """
+        Stop consuming when message publishTime is greater than the specified timestamp.
+        """
+        JStopCursor = get_gateway().jvm \
+            .org.apache.flink.connector.pulsar.source.enumerator.cursor.StopCursor
+        return StopCursor(JStopCursor.afterPublishTime(timestamp))
 
     @staticmethod
     def at_message_id(message_id: bytes) -> 'StopCursor':

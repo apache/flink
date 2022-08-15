@@ -127,6 +127,31 @@ class FlinkPulsarTest(PyFlinkStreamingTestCase):
                 .long_type()
                 .no_default_value()._j_config_option), 1000)
 
+    def test_stop_cursor_publish_time(self):
+        PulsarSource.builder() \
+            .set_service_url('pulsar://localhost:6650') \
+            .set_admin_url('http://localhost:8080') \
+            .set_topics('ada') \
+            .set_subscription_name('ff') \
+            .set_deserialization_schema(
+                PulsarDeserializationSchema.flink_schema(SimpleStringSchema())) \
+            .set_start_cursor(StartCursor.from_publish_time(2)) \
+            .set_bounded_stop_cursor(StopCursor.at_publish_time(14)) \
+            .set_bounded_stop_cursor(StopCursor.after_publish_time(24)) \
+            .build()
+
+    def test_stop_cursor_event_time(self):
+        PulsarSource.builder() \
+            .set_service_url('pulsar://localhost:6650') \
+            .set_admin_url('http://localhost:8080') \
+            .set_topics('ada') \
+            .set_subscription_name('ff') \
+            .set_deserialization_schema(
+                PulsarDeserializationSchema.flink_schema(SimpleStringSchema())) \
+            .set_bounded_stop_cursor(StopCursor.after_event_time(14)) \
+            .set_bounded_stop_cursor(StopCursor.at_event_time(24)) \
+            .build()
+
     def test_pulsar_sink(self):
         ds = self.env.from_collection([('ab', 1), ('bdc', 2), ('cfgs', 3), ('deeefg', 4)],
                                       type_info=Types.ROW([Types.STRING(), Types.INT()]))
