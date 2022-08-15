@@ -209,11 +209,16 @@ public class AWSUtilTest {
     @Test
     public void testValidRegion() {
         assertTrue(AWSUtil.isValidRegion("us-east-1"));
+        assertTrue(AWSUtil.isValidRegion("us-gov-west-1"));
+        assertTrue(AWSUtil.isValidRegion("us-isob-east-1"));
+        assertTrue(AWSUtil.isValidRegion("aws-global"));
+        assertTrue(AWSUtil.isValidRegion("aws-iso-global"));
+        assertTrue(AWSUtil.isValidRegion("aws-iso-b-global"));
     }
 
     @Test
     public void testInvalidRegion() {
-        assertFalse(AWSUtil.isValidRegion("ur-east-1"));
+        assertFalse(AWSUtil.isValidRegion("invalid-region"));
     }
 
     @Test
