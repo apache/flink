@@ -468,15 +468,7 @@ public class HiveDialectQueryITCase {
                                 dataDir))
                 .await();
         java.nio.file.Path[] files =
-                FileUtils.listFilesInDirectory(
-                                Paths.get(dataDir),
-                                (path) ->
-                                        !path.toFile().isHidden()
-                                                && !path.toFile()
-                                                        .getName()
-                                                        .equals(
-                                                                HiveOptions
-                                                                        .SINK_PARTITION_COMMIT_SUCCESS_FILE_NAME))
+                FileUtils.listFilesInDirectory(Paths.get(dataDir), this::isDataFile)
                         .toArray(new Path[0]);
         assertThat(files.length).isEqualTo(1);
         String actualString = FileUtils.readFileUtf8(files[0].toFile());
@@ -506,6 +498,16 @@ public class HiveDialectQueryITCase {
                         tableEnv.executeSql("select * from d_table_agg").collect());
         // verify the data read from the external table
         assertThat(result.toString()).isEqualTo("[+I[2, 1]]");
+    }
+
+    /**
+     * Checks whether the give file is a data file which must not be a hidden file or a success
+     * file.
+     */
+    private boolean isDataFile(Path path) {
+        String successFileName =
+                tableEnv.getConfig().get(HiveOptions.SINK_PARTITION_COMMIT_SUCCESS_FILE_NAME);
+        return !path.toFile().isHidden() && !path.toFile().getName().equals(successFileName);
     }
 
     @Test

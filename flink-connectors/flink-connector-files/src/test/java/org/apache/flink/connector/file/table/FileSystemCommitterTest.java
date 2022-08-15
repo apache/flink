@@ -42,7 +42,7 @@ class FileSystemCommitterTest {
 
     private static final String SUCCESS_FILE_NAME = "_SUCCESS";
 
-    private FileSystemFactory fileSystemFactory = FileSystem::get;
+    private final FileSystemFactory fileSystemFactory = FileSystem::get;
 
     private TableMetaStoreFactory metaStoreFactory;
     private List<PartitionCommitPolicy> policies;
@@ -57,13 +57,10 @@ class FileSystemCommitterTest {
                 new PartitionCommitPolicyFactory("metastore,success-file", null, SUCCESS_FILE_NAME)
                         .createPolicyChain(
                                 Thread.currentThread().getContextClassLoader(),
-                                () -> {
-                                    return LocalFileSystem.getSharedInstance();
-                                });
+                                LocalFileSystem::getSharedInstance);
         identifier = ObjectIdentifier.of("hiveCatalog", "default", "test");
     }
 
-    @SuppressWarnings("ResultOfMethodCallIgnored")
     private void createFile(java.nio.file.Path parent, String path, String... files)
             throws IOException {
         java.nio.file.Path dir = Files.createDirectories(Paths.get(parent.toString(), path));
@@ -83,7 +80,7 @@ class FileSystemCommitterTest {
                         2,
                         false,
                         identifier,
-                        new LinkedHashMap<String, String>(),
+                        new LinkedHashMap<>(),
                         policies);
 
         createFile(path, "task-1/p1=0/p2=0/", "f1", "f2");
@@ -115,7 +112,7 @@ class FileSystemCommitterTest {
                         2,
                         false,
                         identifier,
-                        new LinkedHashMap<String, String>(),
+                        new LinkedHashMap<>(),
                         policies);
         createFile(path, "task-2/p1=0/p2=1/", "f6");
         committer.commitPartitions();
@@ -171,7 +168,7 @@ class FileSystemCommitterTest {
 
     @Test
     void testEmptyPartition() throws Exception {
-        LinkedHashMap<String, String> staticPartitions = new LinkedHashMap<String, String>();
+        LinkedHashMap<String, String> staticPartitions = new LinkedHashMap<>();
         // add new empty partition
         staticPartitions.put("dt", "2022-08-02");
         FileSystemCommitter committer =
@@ -192,8 +189,11 @@ class FileSystemCommitterTest {
         committer.commitPartitions();
 
         File emptyPartitionFile = new File(outputPath.toFile(), "dt=2022-08-02");
+
+        // assert partition dir is empty with only success file
         assertThat(emptyPartitionFile).exists();
         assertThat(emptyPartitionFile).isDirectory();
+        assertThat(emptyPartitionFile).isNotEmptyDirectory();
         assertThat(emptyPartitionFile)
                 .isDirectoryNotContaining(file -> !file.getName().equals(SUCCESS_FILE_NAME));
 
@@ -205,8 +205,10 @@ class FileSystemCommitterTest {
         createFile(path, "task-2/dt=2022-08-02/");
         committer.commitPartitions();
 
+        // assert partition dir is still empty because the partition dir is overwritten
         assertThat(emptyPartitionFile).exists();
         assertThat(emptyPartitionFile).isDirectory();
+        assertThat(emptyPartitionFile).isNotEmptyDirectory();
         assertThat(emptyPartitionFile)
                 .isDirectoryNotContaining(file -> !file.getName().equals(SUCCESS_FILE_NAME));
 
@@ -229,6 +231,7 @@ class FileSystemCommitterTest {
                         policies);
         committer.commitPartitions();
 
+        // assert the partition dir contains remaining 'f1' because overwrite is disabled
         assertThat(emptyPartitionFile).exists();
         assertThat(emptyPartitionFile).isDirectory();
         assertThat(emptyPartitionFile).isNotEmptyDirectory();
@@ -237,6 +240,7 @@ class FileSystemCommitterTest {
     }
 
     static class TestMetaStoreFactory implements TableMetaStoreFactory {
+        private static final long serialVersionUID = 1L;
 
         private final Path outputPath;
 
