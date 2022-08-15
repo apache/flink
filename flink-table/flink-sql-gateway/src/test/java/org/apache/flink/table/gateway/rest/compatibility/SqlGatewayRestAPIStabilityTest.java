@@ -16,10 +16,11 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.rest.compatibility;
+package org.apache.flink.table.gateway.rest.compatibility;
 
-import org.apache.flink.runtime.rest.util.DocumentingDispatcherRestEndpoint;
-import org.apache.flink.runtime.rest.versioning.RuntimeRestAPIVersion;
+import org.apache.flink.runtime.rest.compatibility.RestAPIStabilityTestUtils;
+import org.apache.flink.table.gateway.rest.util.DocumentingSqlGatewayRestEndpoint;
+import org.apache.flink.table.gateway.rest.util.SqlGatewayRestAPIVersion;
 import org.apache.flink.util.ConfigurationException;
 
 import org.junit.jupiter.api.extension.ExtensionContext;
@@ -32,36 +33,34 @@ import java.io.IOException;
 import java.util.Arrays;
 import java.util.stream.Stream;
 
-import static org.apache.flink.runtime.rest.compatibility.RestAPIStabilityTestUtils.testStability;
+/** Stability test and snapshot generator for the SqlGateway REST API. */
+final class SqlGatewayRestAPIStabilityTest {
 
-/** Stability test and snapshot generator for the Runtime REST API. */
-final class RestAPIStabilityTest {
+    private static final String REGENERATE_SNAPSHOT_PROPERTY = "generate-sql-gateway-rest-snapshot";
 
-    private static final String REGENERATE_SNAPSHOT_PROPERTY = "generate-rest-snapshot";
+    private static final String SNAPSHOT_RESOURCE_PATTERN = "sql_gateway_rest_api_%s.snapshot";
 
-    private static final String SNAPSHOT_RESOURCE_PATTERN = "rest_api_%s.snapshot";
+    private static final String NOTIFY_MESSAGE_PREFIX = "SqlGateway";
 
-    private static final String NOTIFY_MESSAGE_PREFIX = "Runtime";
-
-    private static class StableRestApiVersionProvider implements ArgumentsProvider {
+    private static class StableSqlGatewayRestApiVersionProvider implements ArgumentsProvider {
 
         @Override
         public Stream<? extends Arguments> provideArguments(ExtensionContext context) {
-            return Arrays.stream(RuntimeRestAPIVersion.values())
-                    .filter(RuntimeRestAPIVersion::isStableVersion)
+            return Arrays.stream(SqlGatewayRestAPIVersion.values())
+                    .filter(SqlGatewayRestAPIVersion::isStableVersion)
                     .map(Arguments::of);
         }
     }
 
     @ParameterizedTest
-    @ArgumentsSource(StableRestApiVersionProvider.class)
-    void testDispatcherRestAPIStability(RuntimeRestAPIVersion apiVersion)
+    @ArgumentsSource(StableSqlGatewayRestApiVersionProvider.class)
+    void testSqlGatewayRestAPIStability(SqlGatewayRestAPIVersion apiVersion)
             throws IOException, ConfigurationException {
-        testStability(
+        RestAPIStabilityTestUtils.testStability(
                 NOTIFY_MESSAGE_PREFIX,
                 SNAPSHOT_RESOURCE_PATTERN,
                 REGENERATE_SNAPSHOT_PROPERTY,
                 apiVersion,
-                new DocumentingDispatcherRestEndpoint());
+                new DocumentingSqlGatewayRestEndpoint());
     }
 }
