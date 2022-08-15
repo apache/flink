@@ -71,9 +71,9 @@ public class HiveMetastoreClientWrapper implements AutoCloseable {
     private static final Logger LOG = LoggerFactory.getLogger(HiveMetastoreClientWrapper.class);
 
     private final IMetaStoreClient client;
-    private final Hive hive;
     private final HiveConf hiveConf;
     private final HiveShim hiveShim;
+    private volatile Hive hive;
 
     public HiveMetastoreClientWrapper(HiveConf hiveConf, String hiveVersion) {
         this(hiveConf, HiveShimLoader.loadHiveShim(hiveVersion));
@@ -87,11 +87,6 @@ public class HiveMetastoreClientWrapper implements AutoCloseable {
                 HiveCatalog.isEmbeddedMetastore(hiveConf)
                         ? createMetastoreClient()
                         : HiveMetaStoreClient.newSynchronizedClient(createMetastoreClient());
-        try {
-            this.hive = Hive.get(hiveConf);
-        } catch (HiveException e) {
-            throw new FlinkHiveException(e);
-        }
     }
 
     @Override
@@ -349,6 +344,7 @@ public class HiveMetastoreClientWrapper implements AutoCloseable {
 
     public void loadTable(Path loadPath, String tableName, boolean replace, boolean isSrcLocal)
             throws HiveException {
+        initHive();
         hiveShim.loadTable(hive, loadPath, tableName, replace, isSrcLocal);
     }
 
@@ -359,7 +355,22 @@ public class HiveMetastoreClientWrapper implements AutoCloseable {
             boolean isSkewedStoreAsSubdir,
             boolean replace,
             boolean isSrcLocal) {
+        initHive();
         hiveShim.loadPartition(
                 hive, loadPath, tableName, partSpec, isSkewedStoreAsSubdir, replace, isSrcLocal);
+    }
+
+    private void initHive() {
+        if (this.hive == null) {
+            synchronized (this) {
+                if (this.hive == null) {
+                    try {
+                        this.hive = Hive.get(hiveConf);
+                    } catch (HiveException e) {
+                        throw new FlinkHiveException(e);
+                    }
+                }
+            }
+        }
     }
 }
