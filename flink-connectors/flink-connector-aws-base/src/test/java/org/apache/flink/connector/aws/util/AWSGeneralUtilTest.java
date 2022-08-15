@@ -684,11 +684,16 @@ class AWSGeneralUtilTest {
     @Test
     void testValidRegion() {
         assertThat(AWSGeneralUtil.isValidRegion(Region.of("us-east-1"))).isTrue();
+        assertThat(AWSGeneralUtil.isValidRegion(Region.of("us-gov-west-1"))).isTrue();
+        assertThat(AWSGeneralUtil.isValidRegion(Region.of("us-isob-east-1"))).isTrue();
+        assertThat(AWSGeneralUtil.isValidRegion(Region.of("aws-global"))).isTrue();
+        assertThat(AWSGeneralUtil.isValidRegion(Region.of("aws-iso-global"))).isTrue();
+        assertThat(AWSGeneralUtil.isValidRegion(Region.of("aws-iso-b-global"))).isTrue();
     }
 
     @Test
     void testInvalidRegion() {
-        assertThat(AWSGeneralUtil.isValidRegion(Region.of("ur-east-1"))).isFalse();
+        assertThat(AWSGeneralUtil.isValidRegion(Region.of("unstructured-string"))).isFalse();
     }
 
     @Test
