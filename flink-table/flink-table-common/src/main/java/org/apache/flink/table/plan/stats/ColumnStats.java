@@ -218,7 +218,7 @@ public final class ColumnStats {
             return UNKNOWN;
         }
 
-        Long ndv = combineIfNonNull(Long::sum, this.ndv, other.ndv);
+        Long ndv = combineIfNonNull(Long::max, this.ndv, other.ndv);
         Long nullCount = combineIfNonNull(Long::sum, this.nullCount, other.nullCount);
         Double avgLen = combineIfNonNull((a1, a2) -> (a1 + a2) / 2, this.avgLen, other.avgLen);
         Integer maxLen = combineIfNonNull(Math::max, this.maxLen, other.maxLen);

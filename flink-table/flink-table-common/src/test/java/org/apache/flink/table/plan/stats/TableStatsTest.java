@@ -39,7 +39,7 @@ class TableStatsTest {
         TableStats stats2 = new TableStats(32, colStats2);
 
         Map<String, ColumnStats> colStatsMerge = new HashMap<>();
-        colStatsMerge.put("a", new ColumnStats(7L, 20L, 7D, 23, 35, 2));
+        colStatsMerge.put("a", new ColumnStats(4L, 20L, 7D, 23, 35, 2));
         assertThat(stats1.merge(stats2)).isEqualTo(new TableStats(62, colStatsMerge));
     }
 
@@ -55,7 +55,7 @@ class TableStatsTest {
         TableStats stats2 = new TableStats(32, colStats2);
 
         Map<String, ColumnStats> colStatsMerge = new HashMap<>();
-        colStatsMerge.put("a", new ColumnStats(7L, 20L, 7D, 23, 35, 2));
+        colStatsMerge.put("a", new ColumnStats(4L, 20L, 7D, 23, 35, 2));
         assertThat(stats1.merge(stats2)).isEqualTo(new TableStats(62, colStatsMerge));
     }
 
@@ -85,18 +85,18 @@ class TableStatsTest {
         ColumnStats columnStats6 = new ColumnStats(4L, 5L, null, 3, 15, 2);
 
         assertThat(columnStats0.merge(columnStats1))
-                .isEqualTo(new ColumnStats(8L, null, 2D, 3, 15, 2));
+                .isEqualTo(new ColumnStats(4L, null, 2D, 3, 15, 2));
         assertThat(columnStats0.merge(columnStats2))
-                .isEqualTo(new ColumnStats(8L, 10L, 2D, null, 15, 2));
+                .isEqualTo(new ColumnStats(4L, 10L, 2D, null, 15, 2));
         assertThat(columnStats0.merge(columnStats3))
                 .isEqualTo(new ColumnStats(null, 10L, 2D, 3, 15, 2));
         assertThat(columnStats0.merge(columnStats4))
-                .isEqualTo(new ColumnStats(8L, 10L, 2D, 3, null, 2));
+                .isEqualTo(new ColumnStats(4L, 10L, 2D, 3, null, 2));
         assertThat(columnStats0.merge(columnStats5))
-                .isEqualTo(new ColumnStats(8L, 10L, 2D, 3, 15, null));
+                .isEqualTo(new ColumnStats(4L, 10L, 2D, 3, 15, null));
         assertThat(columnStats0.merge(columnStats6))
-                .isEqualTo(new ColumnStats(8L, 10L, null, 3, 15, 2));
+                .isEqualTo(new ColumnStats(4L, 10L, null, 3, 15, 2));
         assertThat(columnStats6.merge(columnStats6))
-                .isEqualTo(new ColumnStats(8L, 10L, null, 3, 15, 2));
+                .isEqualTo(new ColumnStats(4L, 10L, null, 3, 15, 2));
     }
 }
