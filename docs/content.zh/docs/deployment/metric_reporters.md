@@ -270,7 +270,6 @@ metrics.reporter.stsd.interval: 60 SECONDS
 参数:
 
 - `apikey` - Datadog 的 API KEY。
-- `tags` - （可选的）发送到 Datadog 时将会转换为指标的全局 tag。tag 间只能以逗号分隔。
 - `proxyHost` - （可选的）发送到 Datadog 时使用的代理主机。
 - `proxyPort` - （可选的）发送到 Datadog 时使用的代理端口，默认为 8080。
 - `dataCenter` - （可选的）要连接的数据中心（`EU`/`US`），默认为 `US`。
@@ -282,7 +281,6 @@ metrics.reporter.stsd.interval: 60 SECONDS
 ```yaml
 metrics.reporter.dghttp.factory.class: org.apache.flink.metrics.datadog.DatadogHttpReporterFactory
 metrics.reporter.dghttp.apikey: xxx
-metrics.reporter.dghttp.tags: myflinkapp,prod
 metrics.reporter.dghttp.proxyHost: my.web.proxy.com
 metrics.reporter.dghttp.proxyPort: 8080
 metrics.reporter.dghttp.dataCenter: US
