@@ -321,7 +321,7 @@ class AllWindowedStream[T, W <: Window](javaStream: JavaAllWStream[T, W]) {
     val resultType: TypeInformation[R] = implicitly[TypeInformation[R]]
     
     asScalaStream(javaStream.aggregate(
-      cleanedPreAggregator, applyFunction, accumulatorType, resultType))
+      cleanedPreAggregator, applyFunction, accumulatorType, resultType, null))
   }
 
   /**
@@ -385,7 +385,7 @@ class AllWindowedStream[T, W <: Window](javaStream: JavaAllWStream[T, W]) {
     val resultType: TypeInformation[R] = implicitly[TypeInformation[R]]
 
     asScalaStream(javaStream.aggregate(
-      cleanPreAggregator, applyFunction, accumulatorType, resultType))
+      cleanPreAggregator, applyFunction, accumulatorType, resultType, null))
   }
 
   // ---------------------------- apply() -------------------------------------

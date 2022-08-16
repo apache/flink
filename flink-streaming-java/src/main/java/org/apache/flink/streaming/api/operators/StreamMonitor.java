@@ -24,6 +24,7 @@ import org.apache.flink.streaming.runtime.operators.windowing.WindowOperator;
 import org.json.simple.JSONObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import plangeneratorflink.utils.DataTuple;
 
 import java.io.Serializable;
 import java.util.ArrayList;
@@ -60,6 +61,7 @@ public class StreamMonitor implements Serializable {
     public StreamMonitor(HashMap<String, Object> description, AbstractUdfStreamOperator operator) {
         // this.topoConf = Utils.readStormConfig();
         this.description = Objects.requireNonNullElseGet(description, HashMap::new);
+
         this.logger = LoggerFactory.getLogger("observation");
         this.description.put("tupleWidthIn", -1);
         this.description.put("tupleWidthOut", -1);
