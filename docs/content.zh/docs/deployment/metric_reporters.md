@@ -263,8 +263,8 @@ metrics.reporter.stsd.interval: 60 SECONDS
 
 <span class="label label-danger">Note</span> For legacy reasons the reporter uses _both_ the metric identifier _and_ tags. This redundancy can be avoided by enabling `useLogicalIdentifier`.
 
-<span class="label label-info">注意</span> 按照 Datedog 的 Histograms 命名约定，Histograms 类的运行指标会作为一系列 gauges 显示（`<metric_name>.<aggregation>`）。
-默认情况下 `min` 即最小值被发送到 Datedog，`sum` 不会被发送。
+<span class="label label-info">注意</span> 按照 Datadog 的 Histograms 命名约定，Histograms 类的运行指标会作为一系列 gauges 显示（`<metric_name>.<aggregation>`）。
+默认情况下 `min` 即最小值被发送到 Datadog，`sum` 不会被发送。
 与 Datadog 提供的 Histograms 相比，Histograms 类的运行指标不会按照指定的发送间隔进行聚合计算。
 
 参数:
