@@ -110,6 +110,7 @@ import org.apache.flink.util.OutputTag;
 import org.apache.flink.util.Preconditions;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.UUID;
 
@@ -693,6 +694,11 @@ public class DataStream<T> {
      * @param filter The FilterFunction that is called for each element of the DataStream.
      * @return The filtered DataStream.
      */
+    public SingleOutputStreamOperator<T> filter(
+            FilterFunction<T> filter, HashMap<String, Object> description) {
+        return transform("Filter", getType(), new StreamFilter<>(clean(filter), description));
+    }
+
     public SingleOutputStreamOperator<T> filter(FilterFunction<T> filter) {
         return transform("Filter", getType(), new StreamFilter<>(clean(filter)));
     }

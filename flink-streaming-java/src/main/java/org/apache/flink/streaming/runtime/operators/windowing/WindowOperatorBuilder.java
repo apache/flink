@@ -200,7 +200,29 @@ public class WindowOperatorBuilder<T, K, W extends Window> {
             AggregateFunction<T, ACC, V> aggregateFunction,
             WindowFunction<V, R, K, W> windowFunction,
             TypeInformation<ACC> accumulatorType) {
-        return aggregate(aggregateFunction, windowFunction, accumulatorType, null);
+
+        Preconditions.checkNotNull(aggregateFunction, "AggregateFunction cannot be null");
+        Preconditions.checkNotNull(windowFunction, "WindowFunction cannot be null");
+
+        if (aggregateFunction instanceof RichFunction) {
+            throw new UnsupportedOperationException(
+                    "This aggregate function cannot be a RichFunction.");
+        }
+
+        if (evictor != null) {
+            return buildEvictingWindowOperator(
+                    new InternalIterableWindowFunction<>(
+                            new AggregateApplyWindowFunction<>(aggregateFunction, windowFunction)));
+        } else {
+            AggregatingStateDescriptor<T, ACC, V> stateDesc =
+                    new AggregatingStateDescriptor<>(
+                            WINDOW_STATE_NAME,
+                            aggregateFunction,
+                            accumulatorType.createSerializer(config));
+
+            return buildWindowOperator(
+                    stateDesc, new InternalSingleValueWindowFunction<>(windowFunction), null);
+        }
     }
 
     public <ACC, V, R> WindowOperator<K, T, ?, R, W> aggregate(
@@ -232,6 +254,37 @@ public class WindowOperatorBuilder<T, K, W extends Window> {
                     stateDesc,
                     new InternalSingleValueWindowFunction<>(windowFunction),
                     description);
+        }
+    }
+
+    public <ACC, V, R> WindowOperator<K, T, ?, R, W> aggregate(
+            AggregateFunction<T, ACC, V> aggregateFunction,
+            ProcessWindowFunction<V, R, K, W> windowFunction,
+            TypeInformation<ACC> accumulatorType) {
+
+        Preconditions.checkNotNull(aggregateFunction, "AggregateFunction cannot be null");
+        Preconditions.checkNotNull(windowFunction, "ProcessWindowFunction cannot be null");
+
+        if (aggregateFunction instanceof RichFunction) {
+            throw new UnsupportedOperationException(
+                    "This aggregate function cannot be a RichFunction.");
+        }
+
+        if (evictor != null) {
+            return buildEvictingWindowOperator(
+                    new InternalAggregateProcessWindowFunction<>(
+                            aggregateFunction, windowFunction));
+        } else {
+            AggregatingStateDescriptor<T, ACC, V> stateDesc =
+                    new AggregatingStateDescriptor<>(
+                            WINDOW_STATE_NAME,
+                            aggregateFunction,
+                            accumulatorType.createSerializer(config));
+
+            return buildWindowOperator(
+                    stateDesc,
+                    new InternalSingleValueProcessWindowFunction<>(windowFunction),
+                    null);
         }
     }
 

@@ -21,7 +21,7 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.functions.FilterFunction;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 
-import plangeneratorflink.operators.filter.FilterOperator;
+import java.util.HashMap;
 
 /** A {@link StreamOperator} for executing {@link FilterFunction FilterFunctions}. */
 @Internal
@@ -31,11 +31,16 @@ public class StreamFilter<IN> extends AbstractUdfStreamOperator<IN, FilterFuncti
     private static final long serialVersionUID = 1L;
     private StreamMonitor streamMonitor;
 
+    public StreamFilter(FilterFunction<IN> filterFunction, HashMap<String, Object> description) {
+        super(filterFunction);
+        chainingStrategy = ChainingStrategy.ALWAYS;
+        streamMonitor = new StreamMonitor(description, this);
+    }
+
     public StreamFilter(FilterFunction<IN> filterFunction) {
         super(filterFunction);
         chainingStrategy = ChainingStrategy.ALWAYS;
-        streamMonitor =
-                new StreamMonitor(((FilterOperator) getUserFunction()).getDescription(), this);
+        streamMonitor = new StreamMonitor(null, this);
     }
 
     @Override

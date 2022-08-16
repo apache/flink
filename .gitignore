@@ -56,3 +56,5 @@ tools/flink
 tools/flink-*
 tools/releasing/release
 tools/japicmp-output
+
+/flink-runtime-web/web-dashboard/.angular/cache/

@@ -650,6 +650,15 @@ public class AllWindowedStream<T, W extends Window> {
             AggregateFunction<T, ACC, V> aggregateFunction,
             AllWindowFunction<V, R, W> windowFunction,
             TypeInformation<ACC> accumulatorType,
+            TypeInformation<R> resultType) {
+        return aggregate(aggregateFunction, windowFunction, accumulatorType, resultType);
+    }
+
+    @PublicEvolving
+    public <ACC, V, R> SingleOutputStreamOperator<R> aggregate(
+            AggregateFunction<T, ACC, V> aggregateFunction,
+            AllWindowFunction<V, R, W> windowFunction,
+            TypeInformation<ACC> accumulatorType,
             TypeInformation<R> resultType,
             HashMap<String, Object> description) {
 
