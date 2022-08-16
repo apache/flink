@@ -518,7 +518,15 @@ Savepoints are compatible across Flink versions as indicated by the table below:
           <td class="text-center"></td>
           <td class="text-center"></td>
           <td class="text-center">O</td>
-          <td class="text-left"></td>
+          <td class="text-left">
+            For Table API: 1.15.0 and 1.15.1 generated non-deterministic UIDs for operators that 
+            make it difficult/impossible to restore state or upgrade to next patch version. A new 
+            table.exec.uid.generation config option (with correct default behavior) disables setting
+            a UID for new pipelines from non-compiled plans. Existing pipelines can set 
+            table.exec.uid.generation=ALWAYS if the 1.15.0/1 behavior was acceptable due to a stable
+            environment. See <a href="https://issues.apache.org/jira/browse/FLINK-28861">FLINK-28861</a>
+            for more information.
+          </td>
         </tr>
   </tbody>
 </table>
