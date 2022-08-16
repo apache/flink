@@ -128,7 +128,7 @@ tableEnv.executeSql("ANALYZE TABLE Orders PARTITION (sold_year='2022', sold_mont
 tableEnv.executeSql("ANALYZE TABLE Orders PARTITION (sold_year='2022', sold_month) COMPUTE STATISTICS FOR COLUMNS(amount, product)");
 
 // 分区表，收集所有分区的表级别统计信息和指定列(列: amount，列: product)的列统计信息。
-tableEnv.executeSql("ANALYZE TABLE Orders COMPUTE STATISTICS FOR COLUMNS(amount, product)");
+tableEnv.executeSql("ANALYZE TABLE Orders PARTITION (sold_year, sold_month) COMPUTE STATISTICS FOR COLUMNS(amount, product)");
 ```
 {{< /tab >}}
 {{< tab "Scala" >}}
@@ -196,7 +196,7 @@ tableEnv.executeSql("ANALYZE TABLE Orders PARTITION (sold_year='2022', sold_mont
 tableEnv.executeSql("ANALYZE TABLE Orders PARTITION (sold_year='2022', sold_month) COMPUTE STATISTICS FOR COLUMNS(amount, product)");
 
 // 分区表，收集所有分区的表级别统计信息和指定列(列: amount，列: product)的列统计信息。
-tableEnv.executeSql("ANALYZE TABLE Orders COMPUTE STATISTICS FOR COLUMNS(amount, product)");
+tableEnv.executeSql("ANALYZE TABLE Orders PARTITION (sold_year, sold_month) COMPUTE STATISTICS FOR COLUMNS(amount, product)");
 ```
 {{< /tab >}}
 {{< tab "Python" >}}
@@ -264,7 +264,7 @@ table_env.execute_sql("ANALYZE TABLE Orders PARTITION (sold_year='2022', sold_mo
 table_env.execute_sql("ANALYZE TABLE Orders PARTITION (sold_year='2022', sold_month) COMPUTE STATISTICS FOR COLUMNS(amount, product)");
 
 # 分区表，收集所有分区的表级别统计信息和指定列(列: amount，列: product)的列统计信息。
-table_env.execute_sql("ANALYZE TABLE Orders COMPUTE STATISTICS FOR COLUMNS(amount, product)");
+table_env.execute_sql("ANALYZE TABLE Orders PARTITION (sold_year, sold_month) COMPUTE STATISTICS FOR COLUMNS(amount, product)");
 ```
 {{< /tab >}}
 {{< tab "SQL CLI" >}}
@@ -310,7 +310,7 @@ Flink SQL> ANALYZE TABLE Orders PARTITION (sold_year='2022', sold_month='8') COM
     
 Flink SQL> ANALYZE TABLE Orders PARTITION (sold_year='2022', sold_month) COMPUTE STATISTICS FOR COLUMNS(amount, product);
     
-Flink SQL> ANALYZE TABLE Orders COMPUTE STATISTICS FOR COLUMNS(amount, product);
+Flink SQL> ANALYZE TABLE Orders PARTITION (sold_year, sold_month) COMPUTE STATISTICS FOR COLUMNS(amount, product);
 ```
 {{< /tab >}}
 {{< /tabs >}}
@@ -320,9 +320,9 @@ Flink SQL> ANALYZE TABLE Orders COMPUTE STATISTICS FOR COLUMNS(amount, product);
 ## 语法
 
 ```sql
-ANALYZE TABLE [catalog_name.][db_name.]table_name [PARTITION(partcol1=val1 [, partcol2=val2, ...])] COMPUTE STATISTICS [FOR COLUMNS col1 [, col2, ...] | FOR ALL COLUMNS]
+ANALYZE TABLE [catalog_name.][db_name.]table_name PARTITION(partcol1[=val1] [, partcol2[=val2], ...]) COMPUTE STATISTICS [FOR COLUMNS col1 [, col2, ...] | FOR ALL COLUMNS]
 ```
-- 对于分区表， 语法中 PARTITION(partcol1=val1 [, partcol2=val2, ...]) 是可选的
+- 对于分区表， 语法中 PARTITION(partcol1[=val1] [, partcol2[=val2], ...]) 是必须指定的
   - 如果没有指定某分区，则会收集所有分区的统计信息
   - 如果指定了某分区，则只会收集该分区的统计信息
   - 如果该表为非分区表，但语句中指定了分区，则会报异常

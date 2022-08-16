@@ -29,7 +29,7 @@ under the License.
 - `ANALYZE TABLE` statements are used to collect statistics for existing tables, and write statistics back to catalog. 
 - Only existing table is supported, and an exception will be thrown if the table is a view or table not exists.
 - Currently, `ANALYZE TABLE` only supports in batch mode.
-- `ANALYZE TABLE` statements is triggered manually instead of automatically.
+- `ANALYZE TABLE` statements are triggered manually instead of automatically.
 
 
 ## Run a ANALYZE TABLE statement
@@ -127,7 +127,7 @@ tableEnv.executeSql("ANALYZE TABLE Orders PARTITION (sold_year='2022', sold_mont
 tableEnv.executeSql("ANALYZE TABLE Orders PARTITION (sold_year='2022', sold_month) COMPUTE STATISTICS FOR COLUMNS(amount, product)");
 
 // Partition table, collect row count and statistics for column `amount` and `product` on all partitions.
-tableEnv.executeSql("ANALYZE TABLE Orders COMPUTE STATISTICS FOR COLUMNS(amount, product)");
+tableEnv.executeSql("ANALYZE TABLE Orders PARTITION (sold_year, sold_month) COMPUTE STATISTICS FOR COLUMNS(amount, product)");
 ```
 {{< /tab >}}
 {{< tab "Scala" >}}
@@ -195,7 +195,7 @@ tableEnv.executeSql("ANALYZE TABLE Orders PARTITION (sold_year='2022', sold_mont
 tableEnv.executeSql("ANALYZE TABLE Orders PARTITION (sold_year='2022', sold_month) COMPUTE STATISTICS FOR COLUMNS(amount, product)");
 
 // Partition table, collect row count and statistics for column `amount` and `product` on all partitions.
-tableEnv.executeSql("ANALYZE TABLE Orders COMPUTE STATISTICS FOR COLUMNS(amount, product)");
+tableEnv.executeSql("ANALYZE TABLE Orders PARTITION (sold_year, sold_month) COMPUTE STATISTICS FOR COLUMNS(amount, product)");
 ```
 {{< /tab >}}
 {{< tab "Python" >}}
@@ -263,7 +263,7 @@ table_env.execute_sql("ANALYZE TABLE Orders PARTITION (sold_year='2022', sold_mo
 table_env.execute_sql("ANALYZE TABLE Orders PARTITION (sold_year='2022', sold_month) COMPUTE STATISTICS FOR COLUMNS(amount, product)");
 
 # Partition table, collect row count and statistics for column `amount` and `product` on all partitions.
-table_env.execute_sql("ANALYZE TABLE Orders COMPUTE STATISTICS FOR COLUMNS(amount, product)");
+table_env.execute_sql("ANALYZE TABLE Orders PARTITION (sold_year, sold_month) COMPUTE STATISTICS FOR COLUMNS(amount, product)");
 ```
 {{< /tab >}}
 {{< tab "SQL CLI" >}}
@@ -309,7 +309,7 @@ Flink SQL> ANALYZE TABLE Orders PARTITION (sold_year='2022', sold_month='8') COM
     
 Flink SQL> ANALYZE TABLE Orders PARTITION (sold_year='2022', sold_month) COMPUTE STATISTICS FOR COLUMNS(amount, product);
     
-Flink SQL> ANALYZE TABLE Orders COMPUTE STATISTICS FOR COLUMNS(amount, product);
+Flink SQL> ANALYZE TABLE Orders PARTITION (sold_year, sold_month) COMPUTE STATISTICS FOR COLUMNS(amount, product);
 ```
 {{< /tab >}}
 {{< /tabs >}}
@@ -318,9 +318,9 @@ Flink SQL> ANALYZE TABLE Orders COMPUTE STATISTICS FOR COLUMNS(amount, product);
 ## Syntax
 
 ```sql
-ANALYZE TABLE [catalog_name.][db_name.]table_name [PARTITION(partcol1=val1 [, partcol2=val2, ...])] COMPUTE STATISTICS [FOR COLUMNS col1 [, col2, ...] | FOR ALL COLUMNS]
+ANALYZE TABLE [catalog_name.][db_name.]table_name PARTITION(partcol1[=val1] [, partcol2[=val2], ...]) COMPUTE STATISTICS [FOR COLUMNS col1 [, col2, ...] | FOR ALL COLUMNS]
 ```
-- PARTITION(partcol1=val1 [, partcol2=val2, ...]) is required for the partition table
+- PARTITION(partcol1[=val1] [, partcol2[=val2], ...]) is required for the partition table
   - If no partition is specified, the statistics will be gathered for all partitions
   - If a certain partition is specified, the statistics will be gathered only for specific partition
   - If the table is non-partition table , while a partition is specified, an exception will be thrown
