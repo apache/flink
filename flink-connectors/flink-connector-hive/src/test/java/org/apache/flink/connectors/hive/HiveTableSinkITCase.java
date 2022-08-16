@@ -576,6 +576,24 @@ public class HiveTableSinkITCase {
         assertThat(new File(changeFileNameTablePath, "dt=2022-08-15/_ZM")).exists();
     }
 
+    @Test
+    public void testInsertBothDynamicAndStaticPartitionWithoutData() throws Exception {
+        TableEnvironment tEnv = HiveTestUtils.createTableEnvInBatchMode(SqlDialect.HIVE);
+        tEnv.registerCatalog(hiveCatalog.getName(), hiveCatalog);
+        tEnv.useCatalog(hiveCatalog.getName());
+        tEnv.executeSql(
+                "create table partition_table(`name` string) partitioned by (`p_date` string, `p_hour` string)");
+        tEnv.executeSql("create table test_src_table(`name` string, `hour` string, age int)");
+        tEnv.executeSql(
+                        "insert overwrite table partition_table partition(`p_date`='20220816', `p_hour`)"
+                                + " select `name`, `hour` from test_src_table")
+                .await();
+        List<Row> partitions =
+                CollectionUtil.iteratorToList(
+                        tEnv.executeSql("show partitions partition_table").collect());
+        assertThat(partitions).hasSize(0);
+    }
+
     private static List<String> fetchRows(Iterator<Row> iter, int size) {
         List<String> strings = new ArrayList<>(size);
         for (int i = 0; i < size; i++) {
