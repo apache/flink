@@ -59,6 +59,8 @@ public class PulsarUnorderedSourceReader<OUT> extends PulsarSourceReaderBase<OUT
     private final SortedMap<Long, List<TxnID>> transactionsToCommit;
     private final List<TxnID> transactionsOfFinishedSplits;
 
+    private boolean started = false;
+
     public PulsarUnorderedSourceReader(
             FutureCompletingBlockingQueue<RecordsWithSplitIds<PulsarMessage<OUT>>> elementsQueue,
             Supplier<PulsarUnorderedPartitionSplitReader<OUT>> splitReaderSupplier,
@@ -80,6 +82,38 @@ public class PulsarUnorderedSourceReader<OUT> extends PulsarSourceReaderBase<OUT
         this.coordinatorClient = coordinatorClient;
         this.transactionsToCommit = Collections.synchronizedSortedMap(new TreeMap<>());
         this.transactionsOfFinishedSplits = Collections.synchronizedList(new ArrayList<>());
+    }
+
+    @Override
+    public void start() {
+        this.started = true;
+        super.start();
+    }
+
+    @Override
+    public void addSplits(List<PulsarPartitionSplit> splits) {
+        if (started) {
+            // We only accept splits after this reader is started and registered to the pipeline.
+            // This would ignore the splits from the state.
+            super.addSplits(splits);
+        } else {
+            // Abort the pending transaction in this split.
+            for (PulsarPartitionSplit split : splits) {
+                LOG.info("Ignore the split {} saved in checkpoint.", split);
+
+                TxnID transactionId = split.getUncommittedTransactionId();
+                if (transactionId != null && coordinatorClient != null) {
+                    try {
+                        coordinatorClient.abort(transactionId);
+                    } catch (Exception e) {
+                        LOG.debug(
+                                "Error in aborting transaction {} from the checkpoint",
+                                transactionId,
+                                e);
+                    }
+                }
+            }
+        }
     }
 
     @Override

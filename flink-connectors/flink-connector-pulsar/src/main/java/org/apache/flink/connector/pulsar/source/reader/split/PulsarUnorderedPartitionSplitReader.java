@@ -41,6 +41,7 @@ import org.slf4j.LoggerFactory;
 import javax.annotation.Nullable;
 
 import java.time.Duration;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
@@ -149,7 +150,11 @@ public class PulsarUnorderedPartitionSplitReader<OUT> extends PulsarPartitionSpl
         }
     }
 
-    public PulsarPartitionSplitState snapshotState(long checkpointId) {
+    public Optional<PulsarPartitionSplitState> snapshotState(long checkpointId) {
+        if (registeredSplit == null) {
+            return Optional.empty();
+        }
+
         PulsarPartitionSplitState state = new PulsarPartitionSplitState(registeredSplit);
 
         // Avoiding NP problem when Pulsar don't get the message before Flink checkpoint.
@@ -159,7 +164,7 @@ public class PulsarUnorderedPartitionSplitReader<OUT> extends PulsarPartitionSpl
             state.setUncommittedTransactionId(txnID);
         }
 
-        return state;
+        return Optional.of(state);
     }
 
     private Transaction newTransaction() {

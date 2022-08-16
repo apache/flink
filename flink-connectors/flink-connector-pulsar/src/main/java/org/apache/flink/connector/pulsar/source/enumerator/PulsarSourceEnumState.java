@@ -20,11 +20,8 @@ package org.apache.flink.connector.pulsar.source.enumerator;
 
 import org.apache.flink.connector.pulsar.source.enumerator.assigner.SplitAssigner;
 import org.apache.flink.connector.pulsar.source.enumerator.topic.TopicPartition;
-import org.apache.flink.connector.pulsar.source.split.PulsarPartitionSplit;
 
-import java.util.HashMap;
 import java.util.HashSet;
-import java.util.Map;
 import java.util.Set;
 
 /**
@@ -36,63 +33,16 @@ public class PulsarSourceEnumState {
     /** The topic partitions that have been appended to this source. */
     private final Set<TopicPartition> appendedPartitions;
 
-    /**
-     * We convert the topic partition into a split and add to this pending list for assigning to a
-     * reader. It is used for Key_Shared, Failover, Exclusive subscription.
-     */
-    private final Set<PulsarPartitionSplit> pendingPartitionSplits;
-
-    /**
-     * It is used for Shared subscription. When a reader is crashed in Shared subscription, its
-     * splits would be put in here.
-     */
-    private final Map<Integer, Set<PulsarPartitionSplit>> sharedPendingPartitionSplits;
-
-    /**
-     * It is used for Shared subscription. Every {@link PulsarPartitionSplit} should be assigned for
-     * all flink readers. Using this map for recording assign status.
-     */
-    private final Map<Integer, Set<String>> readerAssignedSplits;
-
-    /** The pipeline has been triggered and topic partitions have been assigned to readers. */
-    private final boolean initialized;
-
-    public PulsarSourceEnumState(
-            Set<TopicPartition> appendedPartitions,
-            Set<PulsarPartitionSplit> pendingPartitionSplits,
-            Map<Integer, Set<PulsarPartitionSplit>> pendingSharedPartitionSplits,
-            Map<Integer, Set<String>> readerAssignedSplits,
-            boolean initialized) {
+    public PulsarSourceEnumState(Set<TopicPartition> appendedPartitions) {
         this.appendedPartitions = appendedPartitions;
-        this.pendingPartitionSplits = pendingPartitionSplits;
-        this.sharedPendingPartitionSplits = pendingSharedPartitionSplits;
-        this.readerAssignedSplits = readerAssignedSplits;
-        this.initialized = initialized;
     }
 
     public Set<TopicPartition> getAppendedPartitions() {
         return appendedPartitions;
     }
 
-    public Set<PulsarPartitionSplit> getPendingPartitionSplits() {
-        return pendingPartitionSplits;
-    }
-
-    public Map<Integer, Set<PulsarPartitionSplit>> getSharedPendingPartitionSplits() {
-        return sharedPendingPartitionSplits;
-    }
-
-    public Map<Integer, Set<String>> getReaderAssignedSplits() {
-        return readerAssignedSplits;
-    }
-
-    public boolean isInitialized() {
-        return initialized;
-    }
-
     /** The initial assignment state for Pulsar. */
     public static PulsarSourceEnumState initialState() {
-        return new PulsarSourceEnumState(
-                new HashSet<>(), new HashSet<>(), new HashMap<>(), new HashMap<>(), false);
+        return new PulsarSourceEnumState(new HashSet<>());
     }
 }
