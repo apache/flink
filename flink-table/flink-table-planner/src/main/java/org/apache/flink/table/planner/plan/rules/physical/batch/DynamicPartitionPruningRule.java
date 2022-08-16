@@ -152,9 +152,15 @@ public abstract class DynamicPartitionPruningRule extends RelRule<RelRule.Config
             }
         }
 
-        return acceptedFields.stream()
-                .map(f -> factScan.getRowType().getFieldNames().indexOf(f))
-                .collect(Collectors.toList());
+        if (factCalc == null) {
+            return acceptedFields.stream()
+                    .map(f -> factScan.getRowType().getFieldNames().indexOf(f))
+                    .collect(Collectors.toList());
+        } else {
+            return acceptedFields.stream()
+                    .map(f -> factCalc.getRowType().getFieldNames().indexOf(f))
+                    .collect(Collectors.toList());
+        }
     }
 
     protected BatchPhysicalDynamicFilteringTableSourceScan createDynamicFilteringTableSourceScan(
@@ -200,7 +206,6 @@ public abstract class DynamicPartitionPruningRule extends RelRule<RelRule.Config
                         .projectStructType(
                                 dimSide.getRowType(),
                                 dynamicFilteringFieldIndices.stream().mapToInt(i -> i).toArray());
-
         return new BatchPhysicalDynamicFilteringDataCollector(
                 dimSide.getCluster(),
                 dimSide.getTraitSet(),
