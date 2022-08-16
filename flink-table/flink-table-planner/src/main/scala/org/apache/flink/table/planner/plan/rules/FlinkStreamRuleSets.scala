@@ -122,6 +122,8 @@ object FlinkStreamRuleSets {
           ConvertToNotInOrInRule.INSTANCE,
           // optimize limit 0
           FlinkLimit0RemoveRule.INSTANCE,
+          // fix: FLINK-28986 nested filter pattern causes unnest rule mismatch
+          CoreRules.FILTER_MERGE,
           // unnest rule
           LogicalUnnestRule.INSTANCE,
           // rewrite constant table function scan to correlate
