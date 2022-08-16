@@ -251,7 +251,9 @@ class FileSystemCommitterTest {
                         new Path(path.toString()),
                         1,
                         false,
-                        staticPartitions);
+                        identifier,
+                        staticPartitions,
+                        policies);
         committer.commitPartitions();
         assertThat(outputPath.toFile().list()).isEqualTo(new String[0]);
     }
