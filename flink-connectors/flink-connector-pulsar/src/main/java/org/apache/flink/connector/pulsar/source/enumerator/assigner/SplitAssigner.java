@@ -24,7 +24,6 @@ import org.apache.flink.connector.pulsar.source.enumerator.PulsarSourceEnumState
 import org.apache.flink.connector.pulsar.source.enumerator.topic.TopicPartition;
 import org.apache.flink.connector.pulsar.source.split.PulsarPartitionSplit;
 
-import java.io.Serializable;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -34,7 +33,7 @@ import java.util.Set;
  * readers and store all the state into checkpoint.
  */
 @Internal
-public interface SplitAssigner extends Serializable {
+public interface SplitAssigner {
 
     /**
      * Add the current available partitions into assigner.
@@ -54,8 +53,8 @@ public interface SplitAssigner extends Serializable {
     Optional<SplitsAssignment<PulsarPartitionSplit>> createAssignment(List<Integer> readers);
 
     /**
-     * It would return true only if periodically partition discovery is disabled, the initializing
-     * partition discovery has finished AND there is no pending splits for assignment.
+     * It would return true only if periodically partition discovery is turned off, the initializing
+     * partition discovery has finished, AND there are no pending splits for assignment.
      */
     boolean noMoreSplits(Integer reader);
 

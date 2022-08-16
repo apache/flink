@@ -160,24 +160,21 @@ abstract class PulsarPartitionSplitReaderBase<OUT>
         List<PulsarPartitionSplit> newSplits = splitsChanges.splits();
         Preconditions.checkArgument(
                 newSplits.size() == 1, "This pulsar split reader only support one split.");
-        PulsarPartitionSplit newSplit = newSplits.get(0);
+        this.registeredSplit = newSplits.get(0);
 
         // Open stop cursor.
-        newSplit.open(pulsarAdmin);
+        registeredSplit.open(pulsarAdmin);
 
         // Before creating the consumer.
-        beforeCreatingConsumer(newSplit);
+        beforeCreatingConsumer(registeredSplit);
 
         // Create pulsar consumer.
-        Consumer<byte[]> consumer = createPulsarConsumer(newSplit);
+        this.pulsarConsumer = createPulsarConsumer(registeredSplit);
 
         // After creating the consumer.
-        afterCreatingConsumer(newSplit, consumer);
+        afterCreatingConsumer(registeredSplit, pulsarConsumer);
 
-        LOG.info("Register split {} consumer for current reader.", newSplit);
-
-        this.registeredSplit = newSplit;
-        this.pulsarConsumer = consumer;
+        LOG.info("Register split {} consumer for current reader.", registeredSplit);
     }
 
     @Override

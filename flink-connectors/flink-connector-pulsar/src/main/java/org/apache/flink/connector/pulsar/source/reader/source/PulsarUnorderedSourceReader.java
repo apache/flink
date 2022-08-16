@@ -19,7 +19,6 @@
 package org.apache.flink.connector.pulsar.source.reader.source;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.connector.source.SourceReaderContext;
 import org.apache.flink.connector.base.source.reader.RecordsWithSplitIds;
 import org.apache.flink.connector.base.source.reader.synchronization.FutureCompletingBlockingQueue;
@@ -56,8 +55,10 @@ public class PulsarUnorderedSourceReader<OUT> extends PulsarSourceReaderBase<OUT
     private static final Logger LOG = LoggerFactory.getLogger(PulsarUnorderedSourceReader.class);
 
     @Nullable private final TransactionCoordinatorClient coordinatorClient;
-    @VisibleForTesting final SortedMap<Long, List<TxnID>> transactionsToCommit;
+    private final SortedMap<Long, List<TxnID>> transactionsToCommit;
     private final List<TxnID> transactionsOfFinishedSplits;
+
+    private boolean started = false;
 
     public PulsarUnorderedSourceReader(
             FutureCompletingBlockingQueue<RecordsWithSplitIds<PulsarMessage<OUT>>> elementsQueue,
@@ -78,6 +79,38 @@ public class PulsarUnorderedSourceReader<OUT> extends PulsarSourceReaderBase<OUT
         this.coordinatorClient = coordinatorClient;
         this.transactionsToCommit = Collections.synchronizedSortedMap(new TreeMap<>());
         this.transactionsOfFinishedSplits = Collections.synchronizedList(new ArrayList<>());
+    }
+
+    @Override
+    public void start() {
+        this.started = true;
+        super.start();
+    }
+
+    @Override
+    public void addSplits(List<PulsarPartitionSplit> splits) {
+        if (started) {
+            // We only accept splits after this reader is started and registered to the pipeline.
+            // This would ignore the splits from the state.
+            super.addSplits(splits);
+        } else {
+            // Abort the pending transaction in this split.
+            for (PulsarPartitionSplit split : splits) {
+                LOG.info("Ignore the split {} saved in checkpoint.", split);
+
+                TxnID transactionId = split.getUncommittedTransactionId();
+                if (transactionId != null && coordinatorClient != null) {
+                    try {
+                        coordinatorClient.abort(transactionId);
+                    } catch (Exception e) {
+                        LOG.debug(
+                                "Error in aborting transaction {} from the checkpoint",
+                                transactionId,
+                                e);
+                    }
+                }
+            }
+        }
     }
 
     @Override
