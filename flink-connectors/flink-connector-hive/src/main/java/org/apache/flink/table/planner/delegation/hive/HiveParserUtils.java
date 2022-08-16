@@ -88,6 +88,7 @@ import org.apache.calcite.sql.SqlSyntax;
 import org.apache.calcite.sql.fun.SqlStdOperatorTable;
 import org.apache.calcite.sql.parser.SqlParserPos;
 import org.apache.calcite.sql.type.SqlReturnTypeInference;
+import org.apache.calcite.sql.type.SqlTypeName;
 import org.apache.calcite.sql.type.SqlTypeUtil;
 import org.apache.calcite.sql.validate.SqlNameMatchers;
 import org.apache.calcite.sql.validate.SqlUserDefinedTableFunction;
@@ -1672,5 +1673,10 @@ public class HiveParserUtils {
                 collation,
                 type,
                 name);
+    }
+
+    public static boolean isFromTimeStampToDecimal(RelDataType srcType, RelDataType targetType) {
+        return srcType.getSqlTypeName().equals(SqlTypeName.TIMESTAMP)
+                && targetType.getSqlTypeName().equals(SqlTypeName.DECIMAL);
     }
 }

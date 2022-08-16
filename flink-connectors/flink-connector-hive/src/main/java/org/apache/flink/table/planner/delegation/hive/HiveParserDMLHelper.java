@@ -31,6 +31,7 @@ import org.apache.flink.table.catalog.UnresolvedIdentifier;
 import org.apache.flink.table.catalog.hive.HiveCatalog;
 import org.apache.flink.table.catalog.hive.factories.HiveCatalogFactoryOptions;
 import org.apache.flink.table.factories.FactoryUtil;
+import org.apache.flink.table.module.hive.udf.generic.HiveGenericUDFToDecimal;
 import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.QueryOperation;
 import org.apache.flink.table.operations.SinkModifyOperation;
@@ -61,6 +62,7 @@ import org.apache.calcite.rex.RexBuilder;
 import org.apache.calcite.rex.RexCall;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.sql.SqlFunctionCategory;
+import org.apache.calcite.sql.SqlOperator;
 import org.apache.hadoop.hive.metastore.api.FieldSchema;
 import org.apache.hadoop.hive.ql.exec.FunctionInfo;
 import org.apache.hadoop.hive.ql.exec.FunctionRegistry;
@@ -510,6 +512,27 @@ public class HiveParserDMLHelper {
         if (funcConverter == null) {
             return rexBuilder.makeCast(targetCalType, srcRex);
         }
+
+        if (HiveParserUtils.isFromTimeStampToDecimal(srcRex.getType(), targetCalType)) {
+            // special case for cast timestamp to decimal for Flink don't support cast from
+            // TIMESTAMP type to NUMERIC type.
+            // use custom to_decimal function to cast, which is consistent with Hive.
+            SqlOperator castOperator =
+                    HiveParserSqlFunctionConverter.getCalciteFn(
+                            HiveGenericUDFToDecimal.NAME,
+                            Arrays.asList(srcRex.getType(), targetCalType),
+                            targetCalType,
+                            false,
+                            funcConverter);
+            RexCall cast =
+                    (RexCall)
+                            rexBuilder.makeCall(
+                                    castOperator,
+                                    srcRex,
+                                    rexBuilder.makeNullLiteral(targetCalType));
+            return cast.accept(funcConverter);
+        }
+
         // hive implements CAST with UDFs
         String udfName = TypeInfoUtils.getBaseName(targetHiveType.getTypeName());
         FunctionInfo functionInfo;

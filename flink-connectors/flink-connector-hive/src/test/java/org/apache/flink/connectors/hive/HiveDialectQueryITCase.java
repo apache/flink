@@ -23,6 +23,9 @@ import org.apache.flink.table.api.SqlDialect;
 import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.catalog.hive.HiveCatalog;
 import org.apache.flink.table.catalog.hive.HiveTestUtils;
+import org.apache.flink.table.catalog.hive.client.HiveShim;
+import org.apache.flink.table.catalog.hive.client.HiveShimLoader;
+import org.apache.flink.table.functions.hive.conversion.HiveInspectors;
 import org.apache.flink.table.module.CoreModule;
 import org.apache.flink.table.module.hive.HiveModule;
 import org.apache.flink.table.planner.delegation.hive.HiveParserUtils;
@@ -30,6 +33,7 @@ import org.apache.flink.types.Row;
 import org.apache.flink.util.CollectionUtil;
 import org.apache.flink.util.FileUtils;
 
+import org.apache.hadoop.hive.common.type.HiveDecimal;
 import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.hadoop.hive.ql.exec.UDFArgumentException;
 import org.apache.hadoop.hive.ql.metadata.HiveException;
@@ -38,6 +42,8 @@ import org.apache.hadoop.hive.serde2.objectinspector.ObjectInspector;
 import org.apache.hadoop.hive.serde2.objectinspector.ObjectInspectorFactory;
 import org.apache.hadoop.hive.serde2.objectinspector.StructObjectInspector;
 import org.apache.hadoop.hive.serde2.objectinspector.primitive.PrimitiveObjectInspectorFactory;
+import org.apache.hadoop.hive.serde2.objectinspector.primitive.TimestampObjectInspector;
+import org.apache.hadoop.hive.serde2.typeinfo.TypeInfoFactory;
 import org.junit.BeforeClass;
 import org.junit.ComparisonFailure;
 import org.junit.Test;
@@ -47,6 +53,7 @@ import java.io.File;
 import java.io.FileReader;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.sql.Timestamp;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -751,6 +758,50 @@ public class HiveDialectQueryITCase {
             assertThat(results.toString()).isEqualTo("[+I[1]]");
         } finally {
             tableEnv.executeSql("drop table tbool");
+        }
+    }
+
+    @Test
+    public void testCastTimeStampToDecimal() throws Exception {
+        try {
+            String timestamp = "2012-12-19 11:12:19.1234567";
+            // timestamp's behavior is different between hive2 and hive3, so
+            // use HiveShim in this test to hide such difference
+            HiveShim hiveShim = HiveShimLoader.loadHiveShim(HiveShimLoader.getHiveVersion());
+            Object hiveTimestamp = hiveShim.toHiveTimestamp(Timestamp.valueOf(timestamp));
+            TimestampObjectInspector timestampObjectInspector =
+                    (TimestampObjectInspector)
+                            HiveInspectors.getObjectInspector(TypeInfoFactory.timestampTypeInfo);
+
+            HiveDecimal expectTimeStampDecimal =
+                    timestampObjectInspector
+                            .getPrimitiveWritableObject(hiveTimestamp)
+                            .getHiveDecimal();
+
+            // test cast timestamp to decimal explicitly
+            List<Row> results =
+                    CollectionUtil.iteratorToList(
+                            tableEnv.executeSql(
+                                            String.format(
+                                                    "select cast(cast('%s' as timestamp) as decimal(30,8))",
+                                                    timestamp))
+                                    .collect());
+            assertThat(results.toString())
+                    .isEqualTo(String.format("[+I[%s]]", expectTimeStampDecimal.toFormatString(8)));
+
+            // test insert timestamp type to decimal type directly
+            tableEnv.executeSql("create table t1 (c1 DECIMAL(38,6))");
+            tableEnv.executeSql("create table t2 (c2 TIMESTAMP)");
+            tableEnv.executeSql(String.format("insert into t2 values('%s')", timestamp)).await();
+            tableEnv.executeSql("insert into t1 select * from t2").await();
+            results =
+                    CollectionUtil.iteratorToList(
+                            tableEnv.executeSql("select * from t1").collect());
+            assertThat(results.toString())
+                    .isEqualTo(String.format("[+I[%s]]", expectTimeStampDecimal.toFormatString(6)));
+        } finally {
+            tableEnv.executeSql("drop table t1");
+            tableEnv.executeSql("drop table t2");
         }
     }
 
