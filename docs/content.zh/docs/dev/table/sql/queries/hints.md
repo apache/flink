@@ -218,7 +218,7 @@ LOOKUP('table'='Customers', 'async'='true')
 -- 设置异步查找参数 'output-mode', 'capacity', 'timeout', 可按需设置单个或多个参数
 LOOKUP('table'='Customers', 'async'='true', 'output-mode'='allow_unordered', 'capacity'='100', 'timeout'='180s')
 ```
-注意：联接提示上的异步查找参数和[作业级别配置参数]]({{< ref "docs/dev/table/config/#execution-options" >}})的
+注意：联接提示上的异步查找参数和[作业级别配置参数]]({{< ref "docs/dev/table/config" >}}#execution-options)的
 含义是一致的，没有设置的参数值由默认值生效，另一个区别是联接提示作用的范围更小，仅限于当前联接操作中对应联接提示选项设置的表名（未被联接提示作用的其他联接查询不受影响）。
 
 例如：作业级别异步查找参数设置为
@@ -272,7 +272,8 @@ LOOKUP('table'='Customers', 'retry-predicate'='lookup_miss', 'retry-strategy'='f
 ###### 关于查找键及 'retry-predicate'='lookup_miss' 重试条件的说明
 对不同的连接器，提供的索引查找能力可能是不同的，例如内置的 HBase 连接器，默认仅提供了基于 `rowkey` 的索引查找能力（未
 启用二级索引），而对于内置的 JDBC 连接器，默认情况下任何字段都可以被用作索引查找，这是物理存储的特性不同所决定的。
-查找键即这里提到的作为索引查找的字段或字段组合，以 `lookup join` 文档中的示例为例，联接条件 "ON o.customer_id = c.id" 中 `c.id` 即为查找键
+查找键即这里提到的作为索引查找的字段或字段组合，以 [`lookup join`]({{< ref "docs/dev/table/sql/queries/joins" >}}#lookup-join)
+文档中的示例为例，联接条件 "ON o.customer_id = c.id" 中 `c.id` 即为查找键
 
 ```sql
 SELECT o.order_id, o.total, c.country, c.zip

@@ -221,7 +221,7 @@ Example:
 -- configure the async parameters: 'output-mode', 'capacity', 'timeout', can set single one or multi params
 LOOKUP('table'='Customers', 'async'='true', 'output-mode'='allow_unordered', 'capacity'='100', 'timeout'='180s')
 ```
-Note: the async options are consistent with the async options in [job level Execution Options]({{< ref "docs/dev/table/config/#execution-options" >}}),
+Note: the async options are consistent with the async options in [job level Execution Options]({{< ref "docs/dev/table/config" >}}#execution-options),
 will use job level configuration if not set. Another difference is that the scope of the LOOKUP hint
 is smaller, limited to the table name corresponding to the hint option set in the current lookup
 operation (other lookup operations will not be affected by the LOOKUP hint).
@@ -283,7 +283,7 @@ can lookup on rowkey only (without secondary index), while builtin JDBC connecto
 powerful index-lookup capabilities on arbitrary columns, this is determined by the different physical
 storages.
 The lookup key mentioned here is the field or combination of fields for the index-lookup,
-as the example of [`lookup join`]({{< ref "docs/dev/table/sql/queries/joins/#lookup-join" >}}), where
+as the example of [`lookup join`]({{< ref "docs/dev/table/sql/queries/joins" >}}#lookup-join), where
 `c.id` is the lookup key of the join condition "ON o.customer_id = c.id":
 
 ```sql
