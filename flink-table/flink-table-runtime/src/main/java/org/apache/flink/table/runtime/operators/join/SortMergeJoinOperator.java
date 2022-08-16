@@ -48,6 +48,7 @@ public class SortMergeJoinOperator extends TableStreamOperator<RowData>
 
         // initialize sort merge join function
         this.sortMergeJoinFunction.open(
+                false,
                 this.getContainingTask(),
                 this.getOperatorConfig(),
                 new StreamRecordCollector(output),

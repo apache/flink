@@ -259,6 +259,8 @@ public abstract class HashJoinOperator extends TableStreamOperator<RowData>
      */
     private void fallbackSMJProcessPartition() throws Exception {
         if (!table.getPartitionsPendingForSMJ().isEmpty()) {
+            // release memory to MemoryManager first that is used to sort merge join operator
+            table.releaseMemoryCacheForSMJ();
             // initialize sort merge join operator
             LOG.info("Fallback to sort merge join to process spilled partitions.");
             initialSortMergeJoinFunction();
@@ -292,6 +294,7 @@ public abstract class HashJoinOperator extends TableStreamOperator<RowData>
 
     private void initialSortMergeJoinFunction() throws Exception {
         sortMergeJoinFunction.open(
+                true,
                 this.getContainingTask(),
                 this.getOperatorConfig(),
                 (StreamRecordCollector) this.collector,
