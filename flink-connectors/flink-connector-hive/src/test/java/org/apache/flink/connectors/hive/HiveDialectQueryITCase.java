@@ -172,7 +172,9 @@ public class HiveDialectQueryITCase {
                                 "select salary,sum(cnt) over (order by salary)/sum(cnt) over "
                                         + "(order by salary ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) from"
                                         + " (select salary,count(*) as cnt from employee group by salary) a",
-                                "select a, one from binary_t lateral view explode(ab) abs as one where a > 0"));
+                                "select a, one from binary_t lateral view explode(ab) abs as one where a > 0",
+                                "select /*+ mapjoin(dest) */ foo.x from foo join dest on foo.x = dest.x union"
+                                        + " all select /*+ mapjoin(dest) */ foo.x from foo join dest on foo.y = dest.y"));
         if (HiveVersionTestUtil.HIVE_230_OR_LATER) {
             toRun.add(
                     "select weekofyear(current_timestamp()), dayofweek(current_timestamp()) from src limit 1");
