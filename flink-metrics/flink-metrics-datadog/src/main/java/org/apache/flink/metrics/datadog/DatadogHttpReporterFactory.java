@@ -26,8 +26,30 @@ import java.util.Properties;
 /** {@link MetricReporterFactory} for {@link DatadogHttpReporter}. */
 public class DatadogHttpReporterFactory implements MetricReporterFactory {
 
+    private static final String API_KEY = "apikey";
+    private static final String PROXY_HOST = "proxyHost";
+    private static final String PROXY_PORT = "proxyPort";
+    private static final String DATA_CENTER = "dataCenter";
+    private static final String TAGS = "tags";
+    private static final String MAX_METRICS_PER_REQUEST = "maxMetricsPerRequest";
+
     @Override
-    public MetricReporter createMetricReporter(Properties properties) {
-        return new DatadogHttpReporter();
+    public MetricReporter createMetricReporter(Properties config) {
+        final String apiKey = config.getProperty(API_KEY, null);
+        final String proxyHost = config.getProperty(PROXY_HOST, null);
+        final int proxyPort = Integer.valueOf(config.getProperty(PROXY_PORT, "8080"));
+        final String rawDataCenter = config.getProperty(DATA_CENTER, "US");
+        final int maxMetricsPerRequestValue =
+                Integer.valueOf(config.getProperty(MAX_METRICS_PER_REQUEST, "2000"));
+        final DataCenter dataCenter = DataCenter.valueOf(rawDataCenter);
+        final String tags = config.getProperty(TAGS, "");
+
+        return new DatadogHttpReporter(
+                apiKey,
+                proxyHost,
+                proxyPort,
+                maxMetricsPerRequestValue,
+                dataCenter,
+                tags);
     }
 }
