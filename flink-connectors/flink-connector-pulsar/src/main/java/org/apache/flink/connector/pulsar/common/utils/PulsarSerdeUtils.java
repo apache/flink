@@ -50,10 +50,7 @@ public final class PulsarSerdeUtils {
     public static byte[] deserializeBytes(DataInputStream in) throws IOException {
         int size = in.readInt();
         byte[] bytes = new byte[size];
-        int result = in.read(bytes);
-        if (result < 0) {
-            throw new IOException("Couldn't deserialize the object, wrong byte buffer.");
-        }
+        in.readFully(bytes);
 
         return bytes;
     }
