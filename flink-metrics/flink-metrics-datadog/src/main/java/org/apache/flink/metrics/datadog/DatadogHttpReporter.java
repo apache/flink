@@ -53,18 +53,31 @@ public class DatadogHttpReporter implements MetricReporter, Scheduled {
     private final Map<Meter, DMeter> meters = new ConcurrentHashMap<>();
     private final Map<Histogram, DHistogram> histograms = new ConcurrentHashMap<>();
 
-    private DatadogHttpClient client;
-    private List<String> configTags;
-    private int maxMetricsPerRequestValue;
+    private final DatadogHttpClient client;
+    private final List<String> configTags;
+    private final int maxMetricsPerRequestValue;
 
     private final Clock clock = () -> System.currentTimeMillis() / 1000L;
 
-    public static final String API_KEY = "apikey";
-    public static final String PROXY_HOST = "proxyHost";
-    public static final String PROXY_PORT = "proxyPort";
-    public static final String DATA_CENTER = "dataCenter";
-    public static final String TAGS = "tags";
-    public static final String MAX_METRICS_PER_REQUEST = "maxMetricsPerRequest";
+    public DatadogHttpReporter(
+            String apiKey,
+            String proxyHost,
+            int proxyPort,
+            int maxMetricsPerRequestValue,
+            DataCenter dataCenter,
+            String tags) {
+        this.maxMetricsPerRequestValue = maxMetricsPerRequestValue;
+        this.client = new DatadogHttpClient(apiKey, proxyHost, proxyPort, dataCenter, true);
+        this.configTags = getTagsFromConfig(tags);
+
+        LOGGER.info(
+                "Configured DatadogHttpReporter with {tags={}, proxyHost={}, proxyPort={}, dataCenter={}, maxMetricsPerRequest={}",
+                tags,
+                proxyHost,
+                proxyPort,
+                dataCenter,
+                maxMetricsPerRequestValue);
+    }
 
     @Override
     public void notifyOfAddedMetric(Metric metric, String metricName, MetricGroup group) {
@@ -124,27 +137,7 @@ public class DatadogHttpReporter implements MetricReporter, Scheduled {
     }
 
     @Override
-    public void open(MetricConfig config) {
-        String apiKey = config.getString(API_KEY, null);
-        String proxyHost = config.getString(PROXY_HOST, null);
-        Integer proxyPort = config.getInteger(PROXY_PORT, 8080);
-        String rawDataCenter = config.getString(DATA_CENTER, "US");
-        maxMetricsPerRequestValue = config.getInteger(MAX_METRICS_PER_REQUEST, 2000);
-        DataCenter dataCenter = DataCenter.valueOf(rawDataCenter);
-        String tags = config.getString(TAGS, "");
-
-        client = new DatadogHttpClient(apiKey, proxyHost, proxyPort, dataCenter, true);
-
-        configTags = getTagsFromConfig(tags);
-
-        LOGGER.info(
-                "Configured DatadogHttpReporter with {tags={}, proxyHost={}, proxyPort={}, dataCenter={}, maxMetricsPerRequest={}",
-                tags,
-                proxyHost,
-                proxyPort,
-                dataCenter,
-                maxMetricsPerRequestValue);
-    }
+    public void open(MetricConfig config) {}
 
     @Override
     public void close() {
