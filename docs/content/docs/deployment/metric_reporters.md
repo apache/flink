@@ -245,6 +245,8 @@ Type: push/tags
 Note any variables in Flink metrics, such as `<host>`, `<job_name>`, `<tm_id>`, `<subtask_index>`, `<task_name>`, and `<operator_name>`,
 will be sent to Datadog as tags. Tags will look like `host:localhost` and `job_name:myjobname`.
 
+<span class="label label-danger">Note</span> For legacy reasons the reporter uses _both_ the metric identifier _and_ tags. This redundancy can be avoided by enabling `useLogicalIdentifier`.
+
 <span class="label label-info">Note</span> Histograms are exposed as a series of gauges following the naming convention of Datadog histograms (`<metric_name>.<aggregation>`).
 The `min` aggregation is reported by default, whereas `sum` is not available.
 In contrast to Datadog-provided Histograms the reported aggregations are not computed for a specific reporting interval.
@@ -257,6 +259,7 @@ Parameters:
 - `proxyPort` - (optional) The proxy port to use when sending to Datadog, defaults to 8080.
 - `dataCenter` - (optional) The data center (`EU`/`US`) to connect to, defaults to `US`.
 - `maxMetricsPerRequest` - (optional) The maximum number of metrics to include in each request, defaults to 2000.
+- `useLogicalIdentifier` -> (optional) Whether the reporter uses a logical metric identifier, defaults to `false`.
 
 Example configuration:
 
@@ -269,6 +272,7 @@ metrics.reporter.dghttp.proxyPort: 8080
 metrics.reporter.dghttp.dataCenter: US
 metrics.reporter.dghttp.maxMetricsPerRequest: 2000
 metrics.reporter.dghttp.interval: 60 SECONDS
+metrics.reporter.dghttp.useLogicalIdentifier: true
 ```
 
 
