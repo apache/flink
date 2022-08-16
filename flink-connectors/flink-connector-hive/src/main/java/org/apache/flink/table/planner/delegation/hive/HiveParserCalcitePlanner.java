@@ -57,7 +57,6 @@ import org.apache.flink.table.types.DataType;
 import org.apache.flink.util.Preconditions;
 
 import org.apache.calcite.plan.RelOptCluster;
-import org.apache.calcite.plan.RelOptUtil;
 import org.apache.calcite.plan.RelTraitSet;
 import org.apache.calcite.plan.ViewExpanders;
 import org.apache.calcite.rel.RelCollation;
@@ -113,6 +112,7 @@ import org.apache.hadoop.hive.ql.exec.FunctionRegistry;
 import org.apache.hadoop.hive.ql.lib.Node;
 import org.apache.hadoop.hive.ql.metadata.Table;
 import org.apache.hadoop.hive.ql.metadata.VirtualColumn;
+import org.apache.hadoop.hive.ql.optimizer.calcite.HiveRelOptUtil;
 import org.apache.hadoop.hive.ql.parse.ColumnAccessInfo;
 import org.apache.hadoop.hive.ql.parse.JoinType;
 import org.apache.hadoop.hive.ql.parse.SemanticException;
@@ -570,25 +570,18 @@ public class HiveParserCalcitePlanner {
             List<RexNode> rightJoinKeys = new ArrayList<>();
 
             RexNode nonEquiConds =
-                    RelOptUtil.splitJoinCondition(
+                    HiveRelOptUtil.splitHiveJoinCondition(
                             sysFieldList,
-                            leftRel,
-                            rightRel,
+                            Arrays.asList(leftRel, rightRel),
                             joinCondRex,
-                            leftJoinKeys,
-                            rightJoinKeys,
+                            Arrays.asList(leftJoinKeys, rightJoinKeys),
                             null,
                             null);
-
-            if (!nonEquiConds.isAlwaysTrue()) {
-                throw new SemanticException(
-                        "Non equality condition not supported in Semi-Join" + nonEquiConds);
-            }
 
             RelNode[] inputRels = new RelNode[] {leftRel, rightRel};
             final List<Integer> leftKeys = new ArrayList<>();
             final List<Integer> rightKeys = new ArrayList<>();
-            joinCondRex =
+            RexNode remainingEquiCond =
                     HiveParserUtils.projectNonColumnEquiConditions(
                             RelFactories.DEFAULT_PROJECT_FACTORY,
                             inputRels,
@@ -597,6 +590,22 @@ public class HiveParserCalcitePlanner {
                             0,
                             leftKeys,
                             rightKeys);
+            // Adjust right input fields in nonEquiConds if previous call modified the input
+            if (inputRels[0] != leftRel) {
+                nonEquiConds =
+                        RexUtil.shift(
+                                nonEquiConds,
+                                leftRel.getRowType().getFieldCount(),
+                                inputRels[0].getRowType().getFieldCount()
+                                        - leftRel.getRowType().getFieldCount());
+            }
+            joinCondRex =
+                    remainingEquiCond != null
+                            ? RexUtil.composeConjunction(
+                                    cluster.getRexBuilder(),
+                                    Arrays.asList(remainingEquiCond, nonEquiConds),
+                                    false)
+                            : nonEquiConds;
             topRel =
                     LogicalJoin.create(
                             inputRels[0],
