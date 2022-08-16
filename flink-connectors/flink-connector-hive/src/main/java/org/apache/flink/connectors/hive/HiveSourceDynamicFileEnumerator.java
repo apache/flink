@@ -115,7 +115,7 @@ public class HiveSourceDynamicFileEnumerator implements DynamicFileEnumerator {
         Preconditions.checkArgument(rowType.getFieldCount() == dynamicFilterPartitionKeys.size());
         for (HiveTablePartition partition : allPartitions) {
             RowData partitionRow = createRowData(rowType, partition.getPartitionSpec());
-            if (data.contains(partitionRow)) {
+            if (!partitionRow.isNullAt(0) && data.contains(partitionRow)) {
                 finalPartitions.add(partition);
             }
         }
