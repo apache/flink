@@ -149,7 +149,8 @@ public class HiveGenericUDAFTest {
         DataType[] argTypes = new DataType[] {DataTypes.ARRAY(DataTypes.INT().notNull())};
 
         // test CollectList
-        HiveGenericUDAF udf = init(GenericUDAFCollectList.class, constantArgs, argTypes);
+        HiveGenericUDAF udf =
+                init(GenericUDAFCollectList.class, constantArgs, argTypes, false, false);
         GenericUDAFEvaluator.AggregationBuffer acc = udf.createAccumulator();
 
         udf.accumulate(acc, new Integer[] {1, 2});
@@ -161,7 +162,7 @@ public class HiveGenericUDAFTest {
         assertArrayEquals(expectedResult, (Integer[][]) udf.getValue(acc));
 
         // test CollectSet
-        udf = init(GenericUDAFCollectSet.class, constantArgs, argTypes);
+        udf = init(GenericUDAFCollectSet.class, constantArgs, argTypes, false, false);
         acc = udf.createAccumulator();
 
         udf.accumulate(acc, new Integer[] {1, 2});
