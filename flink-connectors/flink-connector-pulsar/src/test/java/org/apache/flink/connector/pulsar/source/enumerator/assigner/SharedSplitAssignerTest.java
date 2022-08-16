@@ -18,10 +18,11 @@
 
 package org.apache.flink.connector.pulsar.source.enumerator.assigner;
 
+import org.apache.flink.api.connector.source.SplitEnumeratorContext;
 import org.apache.flink.api.connector.source.SplitsAssignment;
-import org.apache.flink.connector.pulsar.source.config.SourceConfiguration;
 import org.apache.flink.connector.pulsar.source.enumerator.PulsarSourceEnumState;
 import org.apache.flink.connector.pulsar.source.enumerator.cursor.StopCursor;
+import org.apache.flink.connector.pulsar.source.enumerator.topic.TopicPartition;
 import org.apache.flink.connector.pulsar.source.split.PulsarPartitionSplit;
 
 import org.junit.jupiter.api.Test;
@@ -29,6 +30,7 @@ import org.junit.jupiter.api.Test;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 import static java.util.Collections.singletonList;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -36,14 +38,14 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** Unit tests for {@link SharedSplitAssigner}. */
-class SharedSplitAssignerTest extends SplitAssignerTestBase<SharedSplitAssigner> {
+class SharedSplitAssignerTest extends SplitAssignerTestBase {
 
     @Test
     void noMoreSplits() {
-        SharedSplitAssigner assigner = splitAssigner(true);
+        SplitAssigner assigner = splitAssigner(true, 4);
         assertFalse(assigner.noMoreSplits(3));
 
-        assigner = splitAssigner(false);
+        assigner = splitAssigner(false, 4);
         assertFalse(assigner.noMoreSplits(3));
 
         assigner.registerTopicPartitions(createPartitions("f", 8));
@@ -59,7 +61,7 @@ class SharedSplitAssignerTest extends SplitAssignerTestBase<SharedSplitAssigner>
 
     @Test
     void partitionsAssignment() {
-        SharedSplitAssigner assigner = splitAssigner(true);
+        SplitAssigner assigner = splitAssigner(true, 8);
         assigner.registerTopicPartitions(createPartitions("d", 4));
         List<Integer> readers = Arrays.asList(1, 3, 5, 7);
 
@@ -80,7 +82,7 @@ class SharedSplitAssignerTest extends SplitAssignerTestBase<SharedSplitAssigner>
         assertThat(assignment.get().assignment()).hasSize(4);
 
         // Assign to new readers.
-        readers = Arrays.asList(2, 4, 6, 8);
+        readers = Arrays.asList(0, 2, 4, 6);
         assignment = assigner.createAssignment(readers);
         assertThat(assignment).isPresent();
         assertThat(assignment.get().assignment())
@@ -88,11 +90,32 @@ class SharedSplitAssignerTest extends SplitAssignerTestBase<SharedSplitAssigner>
                 .allSatisfy((k, v) -> assertThat(v).hasSize(2));
     }
 
+    @Test
+    void reassignSplitsAfterRestarting() {
+        SplitAssigner assigner = splitAssigner(true, 8);
+        Set<TopicPartition> partitions = createPartitions("d", 4);
+        assigner.registerTopicPartitions(partitions);
+        List<Integer> readers = Arrays.asList(0, 1, 2);
+
+        Optional<SplitsAssignment<PulsarPartitionSplit>> assignment =
+                assigner.createAssignment(readers);
+        assertThat(assignment).isPresent();
+        assertThat(assignment.get().assignment()).hasSize(3);
+
+        // Create a new split assigner with same state.
+        SplitAssigner assigner1 = splitAssigner(true, 8, partitions);
+        assigner1.registerTopicPartitions(partitions);
+        assignment = assigner1.createAssignment(readers);
+        assertThat(assignment).isPresent();
+        assertThat(assignment.get().assignment()).hasSize(3);
+    }
+
     @Override
-    protected SharedSplitAssigner createAssigner(
+    protected SplitAssigner createAssigner(
             StopCursor stopCursor,
-            SourceConfiguration sourceConfiguration,
-            PulsarSourceEnumState sourceEnumState) {
-        return new SharedSplitAssigner(stopCursor, sourceConfiguration, sourceEnumState);
+            boolean enablePartitionDiscovery,
+            SplitEnumeratorContext<PulsarPartitionSplit> context,
+            PulsarSourceEnumState enumState) {
+        return new SharedSplitAssigner(stopCursor, enablePartitionDiscovery, context, enumState);
     }
 }
