@@ -34,7 +34,7 @@ export class AppInterceptor implements HttpInterceptor {
     const ignoreErrorUrlEndsList = ['checkpoints/config', 'checkpoints'];
     const ignoreErrorMessage = ['File not found.'];
 
-    return next.handle(req).pipe(
+    return next.handle(req.clone({ withCredentials: true })).pipe(
       catchError(res => {
         const errorMessage = res && res.error && res.error.errors && res.error.errors[0];
         if (
