@@ -18,9 +18,11 @@
 
 package org.apache.flink.metrics.datadog;
 
+import org.apache.flink.metrics.CharacterFilter;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.Histogram;
+import org.apache.flink.metrics.LogicalScopeProvider;
 import org.apache.flink.metrics.Meter;
 import org.apache.flink.metrics.Metric;
 import org.apache.flink.metrics.MetricConfig;
@@ -56,6 +58,7 @@ public class DatadogHttpReporter implements MetricReporter, Scheduled {
     private final DatadogHttpClient client;
     private final List<String> configTags;
     private final int maxMetricsPerRequestValue;
+    private final boolean useLogicalIdentifier;
 
     private final Clock clock = () -> System.currentTimeMillis() / 1000L;
 
@@ -65,8 +68,10 @@ public class DatadogHttpReporter implements MetricReporter, Scheduled {
             int proxyPort,
             int maxMetricsPerRequestValue,
             DataCenter dataCenter,
-            String tags) {
+            String tags,
+            boolean useLogicalIdentifier) {
         this.maxMetricsPerRequestValue = maxMetricsPerRequestValue;
+        this.useLogicalIdentifier = useLogicalIdentifier;
         this.client = new DatadogHttpClient(apiKey, proxyHost, proxyPort, dataCenter, true);
         this.configTags = getTagsFromConfig(tags);
 
@@ -81,7 +86,13 @@ public class DatadogHttpReporter implements MetricReporter, Scheduled {
 
     @Override
     public void notifyOfAddedMetric(Metric metric, String metricName, MetricGroup group) {
-        final String name = group.getMetricIdentifier(metricName);
+        final String name =
+                this.useLogicalIdentifier
+                        ? ((LogicalScopeProvider) group)
+                                        .getLogicalScope(CharacterFilter.NO_OP_FILTER)
+                                + "."
+                                + metricName
+                        : group.getMetricIdentifier(metricName);
 
         List<String> tags = new ArrayList<>(configTags);
         tags.addAll(getTagsFromMetricGroup(group));

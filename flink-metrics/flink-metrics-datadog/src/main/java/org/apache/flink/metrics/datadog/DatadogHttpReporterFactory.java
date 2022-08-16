@@ -32,6 +32,7 @@ public class DatadogHttpReporterFactory implements MetricReporterFactory {
     private static final String DATA_CENTER = "dataCenter";
     private static final String TAGS = "tags";
     private static final String MAX_METRICS_PER_REQUEST = "maxMetricsPerRequest";
+    private static final String USE_LOGICAL_IDENTIFIER = "useLogicalIdentifier";
 
     @Override
     public MetricReporter createMetricReporter(Properties config) {
@@ -43,6 +44,8 @@ public class DatadogHttpReporterFactory implements MetricReporterFactory {
                 Integer.valueOf(config.getProperty(MAX_METRICS_PER_REQUEST, "2000"));
         final DataCenter dataCenter = DataCenter.valueOf(rawDataCenter);
         final String tags = config.getProperty(TAGS, "");
+        final boolean useLogicalIdentifier =
+                Boolean.parseBoolean(config.getProperty(USE_LOGICAL_IDENTIFIER, "false"));
 
         return new DatadogHttpReporter(
                 apiKey,
@@ -50,6 +53,7 @@ public class DatadogHttpReporterFactory implements MetricReporterFactory {
                 proxyPort,
                 maxMetricsPerRequestValue,
                 dataCenter,
-                tags);
+                tags,
+                useLogicalIdentifier);
     }
 }
