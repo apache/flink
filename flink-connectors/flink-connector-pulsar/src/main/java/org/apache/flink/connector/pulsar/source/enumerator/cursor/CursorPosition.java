@@ -25,6 +25,8 @@ import org.apache.pulsar.client.api.MessageId;
 
 import java.io.Serializable;
 
+import static org.apache.flink.util.Preconditions.checkNotNull;
+
 /**
  * The class for defining the start or stop position. We only expose the constructor for end user.
  */
@@ -39,12 +41,16 @@ public final class CursorPosition implements Serializable {
     private final Long timestamp;
 
     public CursorPosition(MessageId messageId) {
+        checkNotNull(messageId, "Message id couldn't be null.");
+
         this.type = Type.MESSAGE_ID;
         this.messageId = messageId;
         this.timestamp = null;
     }
 
     public CursorPosition(Long timestamp) {
+        checkNotNull(timestamp, "Timestamp couldn't be null.");
+
         this.type = Type.TIMESTAMP;
         this.messageId = null;
         this.timestamp = timestamp;

@@ -25,6 +25,7 @@ import org.apache.flink.connector.pulsar.source.config.SourceConfiguration;
 import org.apache.flink.connector.pulsar.source.enumerator.assigner.SplitAssigner;
 import org.apache.flink.connector.pulsar.source.enumerator.cursor.CursorPosition;
 import org.apache.flink.connector.pulsar.source.enumerator.cursor.StartCursor;
+import org.apache.flink.connector.pulsar.source.enumerator.cursor.StopCursor;
 import org.apache.flink.connector.pulsar.source.enumerator.subscriber.PulsarSubscriber;
 import org.apache.flink.connector.pulsar.source.enumerator.topic.TopicPartition;
 import org.apache.flink.connector.pulsar.source.enumerator.topic.range.RangeGenerator;
@@ -45,8 +46,10 @@ import java.util.Set;
 import static java.util.Collections.singletonList;
 import static org.apache.flink.connector.pulsar.common.config.PulsarClientFactory.createAdmin;
 import static org.apache.flink.connector.pulsar.common.utils.PulsarExceptionUtils.sneakyAdmin;
+import static org.apache.flink.connector.pulsar.source.enumerator.PulsarSourceEnumState.initialState;
+import static org.apache.flink.connector.pulsar.source.enumerator.assigner.SplitAssignerFactory.createAssigner;
 
-/** The enumerator class for pulsar source. */
+/** The enumerator class for the pulsar source. */
 @Internal
 public class PulsarSourceEnumerator
         implements SplitEnumerator<PulsarPartitionSplit, PulsarSourceEnumState> {
@@ -64,17 +67,35 @@ public class PulsarSourceEnumerator
     public PulsarSourceEnumerator(
             PulsarSubscriber subscriber,
             StartCursor startCursor,
+            StopCursor stopCursor,
+            RangeGenerator rangeGenerator,
+            SourceConfiguration sourceConfiguration,
+            SplitEnumeratorContext<PulsarPartitionSplit> context) {
+        this(
+                subscriber,
+                startCursor,
+                stopCursor,
+                rangeGenerator,
+                sourceConfiguration,
+                context,
+                initialState());
+    }
+
+    public PulsarSourceEnumerator(
+            PulsarSubscriber subscriber,
+            StartCursor startCursor,
+            StopCursor stopCursor,
             RangeGenerator rangeGenerator,
             SourceConfiguration sourceConfiguration,
             SplitEnumeratorContext<PulsarPartitionSplit> context,
-            SplitAssigner splitAssigner) {
+            PulsarSourceEnumState enumState) {
         this.pulsarAdmin = createAdmin(sourceConfiguration);
         this.subscriber = subscriber;
         this.startCursor = startCursor;
         this.rangeGenerator = rangeGenerator;
         this.sourceConfiguration = sourceConfiguration;
         this.context = context;
-        this.splitAssigner = splitAssigner;
+        this.splitAssigner = createAssigner(stopCursor, sourceConfiguration, context, enumState);
     }
 
     @Override
@@ -114,7 +135,12 @@ public class PulsarSourceEnumerator
 
         // If the failed subtask has already restarted, we need to assign pending splits to it.
         if (context.registeredReaders().containsKey(subtaskId)) {
-            assignPendingPartitionSplits(singletonList(subtaskId));
+            LOG.debug(
+                    "Reader {} has been restarted after crashing, we will put splits back to it.",
+                    subtaskId);
+            // Reassign for all readers in case of adding splits after scale up/down.
+            List<Integer> readers = new ArrayList<>(context.registeredReaders().keySet());
+            assignPendingPartitionSplits(readers);
         }
     }
 
@@ -155,8 +181,8 @@ public class PulsarSourceEnumerator
     }
 
     /**
-     * Check if there's any partition changes within subscribed topic partitions fetched by worker
-     * thread, and convert them to splits the assign them to pulsar readers.
+     * Check if there are any partition changes within subscribed topic partitions fetched by worker
+     * thread, and convert them to splits, then assign them to pulsar readers.
      *
      * <p>NOTE: This method should only be invoked in the coordinator executor thread.
      *
@@ -230,9 +256,17 @@ public class PulsarSourceEnumerator
                 });
 
         // Assign splits to downstream readers.
-        splitAssigner.createAssignment(pendingReaders).ifPresent(context::assignSplits);
+        splitAssigner
+                .createAssignment(pendingReaders)
+                .ifPresent(
+                        assignments -> {
+                            LOG.info(
+                                    "The split assignment results are: {}",
+                                    assignments.assignment());
+                            context.assignSplits(assignments);
+                        });
 
-        // If periodically partition discovery is disabled and the initializing discovery has done,
+        // If periodically partition discovery is turned off and the initializing discovery has done
         // signal NoMoreSplitsEvent to pending readers.
         for (Integer reader : pendingReaders) {
             if (splitAssigner.noMoreSplits(reader)) {
