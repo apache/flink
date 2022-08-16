@@ -142,6 +142,10 @@ public abstract class DynamicPartitionPruningRule extends RelRule<RelRule.Config
         List<String> acceptedFields =
                 ((SupportsDynamicFiltering) tableSource).applyDynamicFiltering(candidateFields);
 
+        if (acceptedFields == null) {
+            return new ArrayList<>();
+        }
+
         for (String field : acceptedFields) {
             if (!candidateFields.contains(field)) {
                 throw new TableException(
@@ -152,9 +156,35 @@ public abstract class DynamicPartitionPruningRule extends RelRule<RelRule.Config
             }
         }
 
-        return acceptedFields.stream()
-                .map(f -> factScan.getRowType().getFieldNames().indexOf(f))
-                .collect(Collectors.toList());
+        if (factCalc == null) {
+            return acceptedFields.stream()
+                    .map(f -> factScan.getRowType().getFieldNames().indexOf(f))
+                    .collect(Collectors.toList());
+        } else {
+            return getAcceptedFieldsIndicesInCalc(acceptedFields, factJoinKeys, factCalc, factScan);
+        }
+    }
+
+    private static List<Integer> getAcceptedFieldsIndicesInCalc(
+            List<String> acceptedFields,
+            List<Integer> factJoinKeys,
+            BatchPhysicalCalc factCalc,
+            BatchPhysicalTableSourceScan factScan) {
+        List<Integer> acceptedFieldsIndicesInFactScan =
+                acceptedFields.stream()
+                        .map(f -> factScan.getRowType().getFieldNames().indexOf(f))
+                        .collect(Collectors.toList());
+        RexProgram program = factCalc.getProgram();
+        List<Integer> acceptedFieldsIndicesInCalc = new ArrayList<>();
+        for (int joinKeyIdx : factJoinKeys) {
+            RexNode node = program.expandLocalRef(program.getProjectList().get(joinKeyIdx));
+            if (node instanceof RexInputRef
+                    && acceptedFieldsIndicesInFactScan.contains(((RexInputRef) node).getIndex())) {
+                acceptedFieldsIndicesInCalc.add(joinKeyIdx);
+            }
+        }
+
+        return acceptedFieldsIndicesInCalc;
     }
 
     protected BatchPhysicalDynamicFilteringTableSourceScan createDynamicFilteringTableSourceScan(
@@ -200,7 +230,6 @@ public abstract class DynamicPartitionPruningRule extends RelRule<RelRule.Config
                         .projectStructType(
                                 dimSide.getRowType(),
                                 dynamicFilteringFieldIndices.stream().mapToInt(i -> i).toArray());
-
         return new BatchPhysicalDynamicFilteringDataCollector(
                 dimSide.getCluster(),
                 dimSide.getTraitSet(),
