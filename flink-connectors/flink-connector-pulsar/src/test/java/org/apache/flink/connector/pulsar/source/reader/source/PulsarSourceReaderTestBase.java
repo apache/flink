@@ -40,7 +40,6 @@ import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.common.policies.data.SubscriptionStats;
-import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.TestTemplate;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -90,11 +89,6 @@ abstract class PulsarSourceReaderTestBase extends PulsarTestSuiteBase {
     void beforeEach(String topicName) {
         Random random = new Random(System.currentTimeMillis());
         operator().setupTopic(topicName, Schema.INT32, () -> random.nextInt(20));
-    }
-
-    @AfterEach
-    void afterEach(String topicName) {
-        operator().deleteTopic(topicName);
     }
 
     @TestTemplate

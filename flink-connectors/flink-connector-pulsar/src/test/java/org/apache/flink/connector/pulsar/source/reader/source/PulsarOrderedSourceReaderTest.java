@@ -28,14 +28,15 @@ import org.apache.flink.core.io.InputStatus;
 import org.apache.flink.core.testutils.CommonTestUtils;
 
 import org.apache.pulsar.client.admin.PulsarAdminException;
+import org.apache.pulsar.client.api.Consumer;
+import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.client.api.SubscriptionType;
-import org.apache.pulsar.common.policies.data.SubscriptionStats;
-import org.apache.pulsar.common.policies.data.TopicStats;
+import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.junit.jupiter.api.TestTemplate;
 
 import java.time.Duration;
 import java.util.Collections;
-import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.function.Supplier;
@@ -139,22 +140,6 @@ class PulsarOrderedSourceReaderTest extends PulsarSourceReaderTestBase {
         reader.notifyNoMoreSplits();
     }
 
-    private void pollUntilReadExpectedNumberOfRecordsAndValidate(
-            PulsarSourceReaderBase<Integer> reader,
-            TestingReaderOutput<Integer> output,
-            int expectedRecords,
-            String topicNameWithPartition)
-            throws Exception {
-        pollUntil(
-                reader,
-                output,
-                () -> output.getEmittedRecords().size() == expectedRecords,
-                "The output didn't poll enough records before timeout.");
-        reader.close();
-        verifyAllMessageAcknowledged(expectedRecords, topicNameWithPartition);
-        assertThat(output.getEmittedRecords()).hasSize(expectedRecords);
-    }
-
     private void pollUntil(
             PulsarSourceReaderBase<Integer> reader,
             ReaderOutput<Integer> output,
@@ -177,15 +162,19 @@ class PulsarOrderedSourceReaderTest extends PulsarSourceReaderTestBase {
     }
 
     private void verifyAllMessageAcknowledged(int expectedMessages, String partitionName)
-            throws PulsarAdminException {
-        TopicStats topicStats = operator().admin().topics().getStats(partitionName, true, true);
-        // verify if the messages has been consumed
-        Map<String, ? extends SubscriptionStats> subscriptionStats = topicStats.getSubscriptions();
-        assertThat(subscriptionStats).hasSizeGreaterThan(0);
-        subscriptionStats.forEach(
-                (subscription, stats) -> {
-                    assertThat(stats.getUnackedMessages()).isZero();
-                    assertThat(stats.getMsgOutCounter()).isEqualTo(expectedMessages);
-                });
+            throws PulsarAdminException, PulsarClientException {
+
+        Consumer<byte[]> consumer =
+                operator()
+                        .client()
+                        .newConsumer()
+                        .subscriptionType(SubscriptionType.Exclusive)
+                        .subscriptionInitialPosition(SubscriptionInitialPosition.Latest)
+                        .subscriptionName("verify-message")
+                        .topic(partitionName)
+                        .subscribe();
+
+        assertThat(((MessageIdImpl) consumer.getLastMessageId()).getEntryId())
+                .isEqualTo(expectedMessages - 1);
     }
 }

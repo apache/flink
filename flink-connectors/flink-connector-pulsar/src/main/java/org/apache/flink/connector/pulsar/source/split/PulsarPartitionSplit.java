@@ -62,8 +62,8 @@ public class PulsarPartitionSplit implements SourceSplit, Serializable {
     public PulsarPartitionSplit(
             TopicPartition partition,
             StopCursor stopCursor,
-            MessageId latestConsumedId,
-            TxnID uncommittedTransactionId) {
+            @Nullable MessageId latestConsumedId,
+            @Nullable TxnID uncommittedTransactionId) {
         this.partition = checkNotNull(partition);
         this.stopCursor = checkNotNull(stopCursor);
         this.latestConsumedId = latestConsumedId;

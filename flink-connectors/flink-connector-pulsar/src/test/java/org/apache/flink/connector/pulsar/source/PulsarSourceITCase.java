@@ -40,7 +40,7 @@ class PulsarSourceITCase extends SourceTestSuiteBase<String> {
 
     // Defines pulsar running environment
     @TestExternalSystem
-    PulsarTestEnvironment pulsar = new PulsarTestEnvironment(PulsarRuntime.embedded());
+    PulsarTestEnvironment pulsar = new PulsarTestEnvironment(PulsarRuntime.mock());
 
     @TestSemantics
     CheckpointingMode[] semantics = new CheckpointingMode[] {CheckpointingMode.EXACTLY_ONCE};

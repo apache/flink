@@ -36,14 +36,14 @@ under the License.
 	<packaging>jar</packaging>
 
 	<properties>
-		<pulsar.version>2.9.1</pulsar.version>
+		<pulsar.version>2.10.0</pulsar.version>
 
 		<!-- Test Libraries -->
 		<protobuf-maven-plugin.version>0.6.1</protobuf-maven-plugin.version>
+		<os-maven-plugin.version>1.7.0</os-maven-plugin.version>
 		<pulsar-commons-lang3.version>3.11</pulsar-commons-lang3.version>
-		<pulsar-zookeeper.version>3.6.3</pulsar-zookeeper.version>
-		<pulsar-netty.version>4.1.72.Final</pulsar-netty.version>
-		<pulsar-grpc.version>1.33.0</pulsar-grpc.version>
+		<pulsar-netty.version>4.1.74.Final</pulsar-netty.version>
+		<pulsar-grpc.version>1.42.1</pulsar-grpc.version>
 	</properties>
 
 	<dependencies>
@@ -116,8 +116,28 @@ under the License.
 			<scope>test</scope>
 		</dependency>
 
-		<!-- Pulsar bundles the latest bookkeeper & zookeeper, -->
+		<!-- Pulsar bundles the latest bookkeeper -->
 		<!-- we don't override the version here. -->
+		<dependency>
+			<groupId>org.apache.pulsar</groupId>
+			<artifactId>testmocks</artifactId>
+			<version>${pulsar.version}</version>
+			<scope>test</scope>
+			<exclusions>
+				<exclusion>
+					<groupId>org.testng</groupId>
+					<artifactId>testng</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.powermock</groupId>
+					<artifactId>powermock-module-testng</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.apache.zookeeper</groupId>
+					<artifactId>zookeeper</artifactId>
+				</exclusion>
+			</exclusions>
+		</dependency>
 		<dependency>
 			<groupId>org.apache.pulsar</groupId>
 			<artifactId>pulsar-broker</artifactId>
@@ -131,15 +151,6 @@ under the License.
 			<groupId>org.apache.commons</groupId>
 			<artifactId>commons-lang3</artifactId>
 			<version>${pulsar-commons-lang3.version}</version>
-			<scope>test</scope>
-		</dependency>
-
-		<!-- Pulsar use a newer zookeeper in broker. -->
-		<!-- Bump the version only for testing. -->
-		<dependency>
-			<groupId>org.apache.zookeeper</groupId>
-			<artifactId>zookeeper</artifactId>
-			<version>${pulsar-zookeeper.version}</version>
 			<scope>test</scope>
 		</dependency>
 
@@ -227,7 +238,7 @@ under the License.
 			<extension>
 				<groupId>kr.motd.maven</groupId>
 				<artifactId>os-maven-plugin</artifactId>
-				<version>1.7.0</version>
+				<version>${os-maven-plugin.version}</version>
 			</extension>
 		</extensions>
 
@@ -236,7 +247,6 @@ under the License.
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-surefire-plugin</artifactId>
 				<configuration>
-					<skip>true</skip>
 					<!-- Enforce single fork execution due to heavy mini cluster use in the tests -->
 					<forkCount>1</forkCount>
 					<argLine>-Xms256m -Xmx2048m -Dmvn.forkNumber=${surefire.forkNumber}
