@@ -21,10 +21,15 @@ package org.apache.flink.metrics.datadog;
 import org.apache.flink.metrics.reporter.MetricReporter;
 import org.apache.flink.metrics.reporter.MetricReporterFactory;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.util.Properties;
 
 /** {@link MetricReporterFactory} for {@link DatadogHttpReporter}. */
 public class DatadogHttpReporterFactory implements MetricReporterFactory {
+
+    private static final Logger LOG = LoggerFactory.getLogger(DatadogHttpReporterFactory.class);
 
     private static final String API_KEY = "apikey";
     private static final String PROXY_HOST = "proxyHost";
@@ -43,6 +48,10 @@ public class DatadogHttpReporterFactory implements MetricReporterFactory {
         final int maxMetricsPerRequestValue =
                 Integer.valueOf(config.getProperty(MAX_METRICS_PER_REQUEST, "2000"));
         final DataCenter dataCenter = DataCenter.valueOf(rawDataCenter);
+        if (config.containsKey(TAGS)) {
+            LOG.warn(
+                    "The 'tags' option is deprecated; please use 'scope.variables.additional' instead.");
+        }
         final String tags = config.getProperty(TAGS, "");
         final boolean useLogicalIdentifier =
                 Boolean.parseBoolean(config.getProperty(USE_LOGICAL_IDENTIFIER, "false"));
