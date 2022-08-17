@@ -157,10 +157,34 @@ public abstract class DynamicPartitionPruningRule extends RelRule<RelRule.Config
                     .map(f -> factScan.getRowType().getFieldNames().indexOf(f))
                     .collect(Collectors.toList());
         } else {
-            return acceptedFields.stream()
-                    .map(f -> factCalc.getRowType().getFieldNames().indexOf(f))
-                    .collect(Collectors.toList());
+            return getAcceptedFieldsIndicesInCalc(acceptedFields, factJoinKeys, factCalc, factScan);
         }
+    }
+
+    private static List<Integer> getAcceptedFieldsIndicesInCalc(
+            @Nullable List<String> acceptedFields,
+            List<Integer> factJoinKeys,
+            BatchPhysicalCalc factCalc,
+            BatchPhysicalTableSourceScan factScan) {
+        if (acceptedFields == null) {
+            return new ArrayList<>();
+        }
+
+        List<Integer> acceptedFieldsIndicesInFactScan =
+                acceptedFields.stream()
+                        .map(f -> factScan.getRowType().getFieldNames().indexOf(f))
+                        .collect(Collectors.toList());
+        RexProgram program = factCalc.getProgram();
+        List<Integer> acceptedFieldsIndicesInCalc = new ArrayList<>();
+        for (int joinKeyIdx : factJoinKeys) {
+            RexNode node = program.expandLocalRef(program.getProjectList().get(joinKeyIdx));
+            if (node instanceof RexInputRef
+                    && acceptedFieldsIndicesInFactScan.contains(((RexInputRef) node).getIndex())) {
+                acceptedFieldsIndicesInCalc.add(joinKeyIdx);
+            }
+        }
+
+        return acceptedFieldsIndicesInCalc;
     }
 
     protected BatchPhysicalDynamicFilteringTableSourceScan createDynamicFilteringTableSourceScan(

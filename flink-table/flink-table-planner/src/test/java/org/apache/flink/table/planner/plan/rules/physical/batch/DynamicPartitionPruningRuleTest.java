@@ -274,6 +274,24 @@ public class DynamicPartitionPruningRuleTest extends TableTestBase {
     }
 
     @Test
+    public void testPartitionKeysOrderIsChangedInFactSide() {
+        // Dynamic filtering will succeed for this query.
+        String query =
+                "Select * from dim join (select fact_date_sk, id, name, amount, price from fact_part) t1"
+                        + " on t1.fact_date_sk = dim_date_sk and t1.price > 200 and dim.price < 500";
+        util.verifyRelPlan(query);
+    }
+
+    @Test
+    public void testPartitionKeysNameIsChangedInFactSide() {
+        // Dynamic filtering will succeed for this query.
+        String query =
+                "Select * from dim join (select id, name, amount, price, fact_date_sk as fact_date_sk1 from fact_part) t1"
+                        + " on t1.fact_date_sk1 = dim_date_sk and t1.price > 200 and dim.price < 500";
+        util.verifyRelPlan(query);
+    }
+
+    @Test
     public void testDynamicFilteringFieldIsComputeColumnsInFactSide()
             throws TableNotExistException {
         CatalogTableStatistics tableStatistics = new CatalogTableStatistics(1, 1, 1, 1);
