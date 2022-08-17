@@ -111,8 +111,8 @@ report(transactions).executeInsert("spend_report");
 
 #### 执行环境
 
-前两行创建的是 `TableEnvironment`（表环境）。
-通过表环境，你可以设置作业属性，定义应用的批流模式，以及创建数据源。
+前两行代码创建了 `TableEnvironment`（表环境）。
+创建表环境时，你可以设置作业属性，定义应用的批流模式，以及创建数据源。
 我们先创建一个标准的表环境，并选择流式执行器。
 
 ```java
@@ -166,7 +166,7 @@ tEnv.executeSql("CREATE TABLE spend_report (\n" +
 #### 查询数据
 
 配置好环境并注册好表后，你就可以开始开发你的第一个应用了。
-通过 `TableEnvironment` ，你可以 `from` 输入表读取数据，然后将结果调用 `executeInsert` 写入到输出表。
+通过 `TableEnvironment` 实例 ，你可以使用函数 `from` 从输入表读取数据，然后将结果调用 `executeInsert` 写入到输出表。
 函数 `report` 用于实现具体的业务逻辑，这里暂时未实现。
 
 ```java
@@ -191,7 +191,7 @@ TableEnvironment tEnv = TableEnvironment.create(settings);
 在作业拉起来的大体处理框架下，你可以再添加一些业务逻辑。
 现在的目标是创建一个报表，报表按照账户显示一天中每个小时的总支出。因此，毫秒粒度的时间戳字段需要向下舍入到小时。 
 
-Flink 支持纯 [SQL]({{< ref "docs/dev/table/sql/overview" >}}) 或者 [Table API]({{< ref "docs/dev/table/tableApi" >}}) 开发关系型数据应用。
+Flink 支持使用纯 [SQL]({{< ref "docs/dev/table/sql/overview" >}}) 或者 [Table API]({{< ref "docs/dev/table/tableApi" >}}) 开发关系型数据应用。
 
 其中，Table API 是受 SQL 启发设计出的一套链式 DSL，可以用 Python、Java 或者 Scala 开发，在 IDE 中也集成的很好。
 同时也如 SQL 查询一样，Table 应用可以按列查询，或者按列分组。
@@ -211,7 +211,7 @@ public static Table report(Table transactions) {
 }
 ```
 
-## 用户定义函数
+## 用户自定义函数
 
 Flink 内置的函数是有限的，有时是需要通过 [用户自定义函数]({{< ref "docs/dev/table/functions/udfs" >}})来拓展这些函数。
 假如没有预设好的 `floor` 函数，也可以自己实现一个。
