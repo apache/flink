@@ -286,7 +286,7 @@ You can either use `avro-tools.jar` to generate code manually or you could use t
 code generation on any .avsc files present in the configured source directory. Please refer to 
 [Avro Getting Started](https://avro.apache.org/docs/1.10.0/gettingstartedjava.html) for more information.
 
-The following example uses the example schema [testdata.avsc](https://github.com/apache/flink/blob/master/flink-formats/flink-parquet/src/test/resources/avro/testdata.avsc):
+The following example uses the example schema {{< gh_link file="flink-formats/flink-parquet/src/test/resources/avro/testdata.avsc" name="testdata.avsc" >}}:
 
 ```json lines
 [
@@ -336,7 +336,7 @@ Flink also supports creating a DataStream from Parquet files based on existing J
 In this case, Avro will use Java reflection to generate schemas and protocols for these POJO classes.
 Java types are mapped to Avro schemas, please refer to the [Avro reflect](https://avro.apache.org/docs/1.10.0/api/java/index.html) documentation for more details.
 
-This example uses a simple Java POJO class [Datum](https://github.com/apache/flink/blob/master/flink-formats/flink-parquet/src/test/java/org/apache/flink/formats/parquet/avro/Datum.java):
+This example uses a simple Java POJO class {{< gh_link file="flink-formats/flink-parquet/src/test/java/org/apache/flink/formats/parquet/avro/Datum.java" name="Datum" >}}:
 
 ```java
 public class Datum implements Serializable {
