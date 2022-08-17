@@ -45,7 +45,7 @@ class DecimalITCase extends BatchTestBase {
       tableTransfer: Table => Table,
       expectedColTypes: Seq[DataType],
       expectedRows: Seq[Row],
-      isSorted: Boolean = false): Unit = {
+      isSorted: Boolean = true): Unit = {
     val t = tEnv.fromValues(DataTypes.ROW(sourceColTypes: _*), sourceRows: _*)
 
     // check result schema
@@ -56,7 +56,7 @@ class DecimalITCase extends BatchTestBase {
     expectedColTypes.zip(ts2).foreach { case (t1, t2) => assertEquals(t1, t2) }
 
     def prepareResult(isSorted: Boolean, seq: Seq[Row]) = {
-      if (!isSorted) seq.map(_.toString).sortBy(s => s) else seq.map(_.toString)
+      if (isSorted) seq.map(_.toString).sortBy(s => s) else seq.map(_.toString)
     }
 
     val resultRows = executeQuery(resultTable)

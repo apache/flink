@@ -104,11 +104,11 @@ class BatchTestBase extends BatchAbstractTestBase {
       s"$logicalPlan"
   }
 
-  def checkResult(sqlQuery: String, expectedResult: Seq[Row], isSorted: Boolean = false): Unit = {
+  def checkResult(sqlQuery: String, expectedResult: Seq[Row], isSorted: Boolean = true): Unit = {
     check(sqlQuery, (result: Seq[Row]) => checkSame(expectedResult, result, isSorted))
   }
 
-  def checkTableResult(table: Table, expectedResult: Seq[Row], isSorted: Boolean = false): Unit = {
+  def checkTableResult(table: Table, expectedResult: Seq[Row], isSorted: Boolean = true): Unit = {
     checkTable(table, (result: Seq[Row]) => checkSame(expectedResult, result, isSorted))
   }
 
@@ -314,13 +314,13 @@ class BatchTestBase extends BatchAbstractTestBase {
   }
 
   private def prepareResult(seq: Seq[Row], isSorted: Boolean): Seq[String] = {
-    if (!isSorted) seq.map(_.toString).sortBy(s => s) else seq.map(_.toString)
+    if (isSorted) seq.map(_.toString).sortBy(s => s) else seq.map(_.toString)
   }
 
   def checkSame(
       expectedResult: Seq[Row],
       result: Seq[Row],
-      isSorted: Boolean = false): Option[String] = {
+      isSorted: Boolean = true): Option[String] = {
     if (
       expectedResult.size != result.size
       || !prepareResult(expectedResult, isSorted).equals(prepareResult(result, isSorted))

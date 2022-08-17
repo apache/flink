@@ -46,7 +46,7 @@ class DecimalITCase extends BatchTestBase {
       tables: Seq[Coll],
       query: String,
       expected: Coll,
-      isSorted: Boolean = false): Unit = {
+      isSorted: Boolean = true): Unit = {
 
     var tableId = 0
     var queryX = query
@@ -71,7 +71,7 @@ class DecimalITCase extends BatchTestBase {
     Assert.assertTrue(ts1.zip(ts2).forall { case (t1, t2) => isInteroperable(t1, t2) })
 
     def prepareResult(isSorted: Boolean, seq: Seq[Row]) = {
-      if (!isSorted) seq.map(_.toString).sortBy(s => s) else seq.map(_.toString)
+      if (isSorted) seq.map(_.toString).sortBy(s => s) else seq.map(_.toString)
     }
     val resultRows = executeQuery(resultTable)
     Assert.assertEquals(prepareResult(isSorted, expected.rows), prepareResult(isSorted, resultRows))
@@ -83,7 +83,7 @@ class DecimalITCase extends BatchTestBase {
       query: String,
       expectedColTypes: Seq[LogicalType],
       expectedRows: Seq[Row],
-      isSorted: Boolean = false): Unit = {
+      isSorted: Boolean = true): Unit = {
     checkQueryX(
       Seq(Coll(sourceColTypes, sourceRows)),
       query,

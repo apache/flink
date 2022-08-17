@@ -69,7 +69,7 @@ class MiscITCase extends BatchTestBase {
       table1Data: Seq[T],
       sqlQuery: String,
       expected: Seq[_ <: Product],
-      isSorted: Boolean = false): Unit = {
+      isSorted: Boolean = true): Unit = {
     val table2Data: Seq[Tuple1[String]] = null
     checkQuery2(table1Data, table2Data, sqlQuery, expected, isSorted)
   }
@@ -79,7 +79,7 @@ class MiscITCase extends BatchTestBase {
       table2Data: Seq[T2],
       sqlQuery: String,
       expected: Seq[_ <: Product],
-      isSorted: Boolean = false): Unit = {
+      isSorted: Boolean = true): Unit = {
 
     var sqlQueryX: String = sqlQuery
     if (table1Data != null) {
