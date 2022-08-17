@@ -60,6 +60,7 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.stream.Collectors;
 
+import static org.apache.flink.table.data.StringData.fromString;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for HiveSourceDynamicFileEnumerator. */
@@ -156,6 +157,48 @@ class HiveSourceDynamicFileEnumeratorTest {
                                             + getter.getFieldOrNull(result))
                     .isEqualTo(testTypeValues.get(i).f1);
         }
+    }
+
+    @Test
+    void testNonNullFieldTypeWithDefaultPartitionName() {
+        String defaultPartitionName = HiveConf.ConfVars.DEFAULTPARTITIONNAME.defaultStrVal;
+        List<String> keys = Arrays.asList("NonNullString", "NonNullInt");
+        Map<String, String> partitionSpec = new HashMap<>();
+        partitionSpec.put("NonNullString", defaultPartitionName);
+        partitionSpec.put("NonNullInt", "0");
+
+        Map<String, String> partitionSpec2 = new HashMap<>();
+        partitionSpec2.put("NonNullString", "");
+        partitionSpec2.put("NonNullInt", defaultPartitionName);
+
+        List<Map<String, String>> partitionSpecs = Arrays.asList(partitionSpec, partitionSpec2);
+        HiveSourceDynamicFileEnumerator enumerator = createTestEnumerator(keys, partitionSpecs);
+
+        assertThat(enumerator.getFinalPartitions()).hasSize(2);
+        assertThat(
+                        enumerator.getFinalPartitions().stream()
+                                .map(HiveTablePartition::getPartitionSpec)
+                                .collect(Collectors.toList()))
+                .containsExactlyInAnyOrder(partitionSpecs.toArray(new Map[0]));
+
+        RowType rowType = RowType.of(new VarCharType(false, 32), new IntType(false));
+        TypeInformation<RowData> rowTypeInfo = InternalTypeInfo.of(rowType);
+        DynamicFilteringData data =
+                new DynamicFilteringData(
+                        InternalTypeInfo.of(rowType),
+                        rowType,
+                        Arrays.asList(
+                                serialize(
+                                        rowTypeInfo,
+                                        GenericRowData.of(fromString(defaultPartitionName), 0)),
+                                serialize(rowTypeInfo, GenericRowData.of(fromString(""), 0))),
+                        true);
+        enumerator.setDynamicFilteringData(data);
+
+        // No exception should be thrown and partitionSpec2 should not be retained
+        assertThat(enumerator.getFinalPartitions()).hasSize(1);
+        assertThat(enumerator.getFinalPartitions().get(0).getPartitionSpec())
+                .isEqualTo(partitionSpec);
     }
 
     private HiveSourceDynamicFileEnumerator createTestEnumerator(
