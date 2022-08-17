@@ -35,13 +35,11 @@ import java.util.stream.Stream;
 import static org.apache.flink.runtime.rest.compatibility.RestAPIStabilityTestUtils.testStability;
 
 /** Stability test and snapshot generator for the Runtime REST API. */
-final class RestAPIStabilityTest {
+final class RuntimeRestAPIStabilityTest {
 
     private static final String REGENERATE_SNAPSHOT_PROPERTY = "generate-rest-snapshot";
 
     private static final String SNAPSHOT_RESOURCE_PATTERN = "rest_api_%s.snapshot";
-
-    private static final String NOTIFY_MESSAGE_PREFIX = "Runtime";
 
     private static class StableRestApiVersionProvider implements ArgumentsProvider {
 
@@ -58,7 +56,6 @@ final class RestAPIStabilityTest {
     void testDispatcherRestAPIStability(RuntimeRestAPIVersion apiVersion)
             throws IOException, ConfigurationException {
         testStability(
-                NOTIFY_MESSAGE_PREFIX,
                 SNAPSHOT_RESOURCE_PATTERN,
                 REGENERATE_SNAPSHOT_PROPERTY,
                 apiVersion,

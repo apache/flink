@@ -40,8 +40,6 @@ final class SqlGatewayRestAPIStabilityTest {
 
     private static final String SNAPSHOT_RESOURCE_PATTERN = "sql_gateway_rest_api_%s.snapshot";
 
-    private static final String NOTIFY_MESSAGE_PREFIX = "SqlGateway";
-
     private static class StableSqlGatewayRestApiVersionProvider implements ArgumentsProvider {
 
         @Override
@@ -57,7 +55,6 @@ final class SqlGatewayRestAPIStabilityTest {
     void testSqlGatewayRestAPIStability(SqlGatewayRestAPIVersion apiVersion)
             throws IOException, ConfigurationException {
         RestAPIStabilityTestUtils.testStability(
-                NOTIFY_MESSAGE_PREFIX,
                 SNAPSHOT_RESOURCE_PATTERN,
                 REGENERATE_SNAPSHOT_PROPERTY,
                 apiVersion,

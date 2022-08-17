@@ -47,7 +47,6 @@ public final class RestAPIStabilityTestUtils {
     private static final ObjectMapper OBJECT_MAPPER = JacksonMapperFactory.createObjectMapper();
 
     public static void testStability(
-            String notifyMessagePrefix,
             String snapshotFileName,
             String snapshotRegenerateProperty,
             RestAPIVersion apiVersion,
@@ -59,7 +58,7 @@ public final class RestAPIStabilityTestUtils {
         final RestAPISnapshot currentSnapshot = createSnapshot(documentingRestEndpoint, apiVersion);
 
         if (System.getProperty(snapshotRegenerateProperty) != null) {
-            writeSnapshot(notifyMessagePrefix, versionedSnapshotFileName, currentSnapshot);
+            writeSnapshot(versionedSnapshotFileName, currentSnapshot);
         }
 
         final URL resource =
@@ -68,8 +67,7 @@ public final class RestAPIStabilityTestUtils {
                         .getResource(versionedSnapshotFileName);
         if (resource == null) {
             Assertions.fail(
-                    notifyMessagePrefix
-                            + " Snapshot file does not exist. If you added a new version, re-run this test with"
+                    "Snapshot file does not exist. If you added a new version, re-run this test with"
                             + " -D"
                             + snapshotFileName
                             + " being set.");
@@ -77,14 +75,11 @@ public final class RestAPIStabilityTestUtils {
         final RestAPISnapshot previousSnapshot =
                 OBJECT_MAPPER.readValue(resource, RestAPISnapshot.class);
 
-        assertCompatible(
-                notifyMessagePrefix, snapshotRegenerateProperty, previousSnapshot, currentSnapshot);
+        assertCompatible(snapshotRegenerateProperty, previousSnapshot, currentSnapshot);
     }
 
     private static void writeSnapshot(
-            final String notifyMessagePrefix,
-            final String versionedSnapshotFileName,
-            final RestAPISnapshot snapshot)
+            final String versionedSnapshotFileName, final RestAPISnapshot snapshot)
             throws IOException {
         OBJECT_MAPPER
                 .writer(
@@ -92,8 +87,7 @@ public final class RestAPIStabilityTestUtils {
                                 .withObjectIndenter(new DefaultIndenter().withLinefeed("\n")))
                 .writeValue(new File("src/test/resources/" + versionedSnapshotFileName), snapshot);
         System.out.println(
-                notifyMessagePrefix
-                        + " REST API snapshot "
+                "REST API snapshot "
                         + versionedSnapshotFileName
                         + " was updated, please remember to commit the snapshot.");
     }
@@ -124,7 +118,6 @@ public final class RestAPIStabilityTestUtils {
     }
 
     private static void assertCompatible(
-            final String notifyMessagePrefix,
             final String snapshotRegenerateProperty,
             final RestAPISnapshot old,
             final RestAPISnapshot cur) {
@@ -151,8 +144,7 @@ public final class RestAPIStabilityTestUtils {
                                     result.f1.getBackwardCompatibility()
                                             == Compatibility.IDENTICAL)) {
                 Assertions.fail(
-                        notifyMessagePrefix
-                                + " The API was modified in a compatible way, but the snapshot was not updated. "
+                        "The Rest API was modified in a compatible way, but the snapshot was not updated. "
                                 + "To update the snapshot, re-run this test with -D"
                                 + snapshotRegenerateProperty
                                 + " being set. If you see this message in a CI pipeline, rerun the test locally and commit the generated changes.");
@@ -175,8 +167,7 @@ public final class RestAPIStabilityTestUtils {
                                     result.f1.getBackwardCompatibility()
                                             == Compatibility.IDENTICAL)) {
                 Assertions.fail(
-                        notifyMessagePrefix
-                                + " API was modified in a compatible way, but the snapshot was not updated. "
+                        "API was modified in a compatible way, but the snapshot was not updated. "
                                 + "To update the snapshot, re-run this test with -D"
                                 + snapshotRegenerateProperty
                                 + " being set.");
