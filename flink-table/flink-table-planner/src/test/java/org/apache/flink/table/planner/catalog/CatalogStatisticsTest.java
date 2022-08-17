@@ -167,7 +167,7 @@ public class CatalogStatisticsTest {
         assertThat(mq.getAverageColumnSizes(t1)).isEqualTo(Arrays.asList(8.0, 43.5));
 
         // long type
-        assertThat(mq.getDistinctRowCount(t1, ImmutableBitSet.of(0), null)).isEqualTo(46.0);
+        assertThat(mq.getDistinctRowCount(t1, ImmutableBitSet.of(0), null)).isEqualTo(23.0);
         assertThat(mq.getColumnNullCount(t1, 0)).isEqualTo(154.0);
         assertThat(mq.getColumnInterval(t1, 0))
                 .isEqualTo(
@@ -178,7 +178,7 @@ public class CatalogStatisticsTest {
                                 true));
 
         // string type
-        assertThat(mq.getDistinctRowCount(t1, ImmutableBitSet.of(1), null)).isEqualTo(40.0);
+        assertThat(mq.getDistinctRowCount(t1, ImmutableBitSet.of(1), null)).isEqualTo(20.0);
         assertThat(mq.getColumnNullCount(t1, 1)).isEqualTo(0.0);
         assertThat(mq.getColumnInterval(t1, 1)).isNull();
     }
@@ -203,7 +203,7 @@ public class CatalogStatisticsTest {
         assertThat(mq.getAverageColumnSizes(t1)).isEqualTo(Arrays.asList(8.0, 43.5));
 
         // long type
-        assertThat(mq.getDistinctRowCount(t1, ImmutableBitSet.of(0), null)).isEqualTo(46.0);
+        assertThat(mq.getDistinctRowCount(t1, ImmutableBitSet.of(0), null)).isEqualTo(23.0);
         assertThat(mq.getColumnNullCount(t1, 0)).isEqualTo(154.0);
         assertThat(mq.getColumnInterval(t1, 0))
                 .isEqualTo(
@@ -214,7 +214,7 @@ public class CatalogStatisticsTest {
                                 true));
 
         // string type
-        assertThat(mq.getDistinctRowCount(t1, ImmutableBitSet.of(1), null)).isEqualTo(40.0);
+        assertThat(mq.getDistinctRowCount(t1, ImmutableBitSet.of(1), null)).isEqualTo(20.0);
         assertThat(mq.getColumnNullCount(t1, 1)).isEqualTo(0.0);
         assertThat(mq.getColumnInterval(t1, 1)).isNull();
     }
