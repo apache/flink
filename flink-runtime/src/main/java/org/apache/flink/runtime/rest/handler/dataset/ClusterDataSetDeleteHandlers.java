@@ -85,7 +85,7 @@ public class ClusterDataSetDeleteHandlers
                             resourceManagerGatewayRetriever);
             return resourceManagerGateway
                     .releaseClusterPartitions(clusterPartitionId)
-                    .thenApply(ignored -> null);
+                    .thenApply(ignored -> new SerializableVoid());
         }
 
         @Override
