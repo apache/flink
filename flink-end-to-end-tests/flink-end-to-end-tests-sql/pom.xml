@@ -201,13 +201,9 @@
     </build>
 
     <profiles>
-        <!-- Activate these profiles with -Phadoop3-tests to build and test against hadoop 3.1.3 -->
+        <!-- This profile adds dependencies needed to execute the tests with Hadoop 3 -->
         <profile>
             <id>hadoop3-tests</id>
-            <properties>
-                <flink.hadoop.version>3.1.3</flink.hadoop.version>
-            </properties>
-
             <dependencies>
                 <dependency>
                     <groupId>org.apache.hadoop</groupId>
