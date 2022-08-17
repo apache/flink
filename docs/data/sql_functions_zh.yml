@@ -159,7 +159,7 @@ arithmetic:
     table: NUMERIC1 + NUMERIC2
     description: 返回 numeric1 加 numeric2。
   - sql: numeric1 - numeric2
-    table: NUMERIC1 + NUMERIC2
+    table: NUMERIC1 - NUMERIC2
     description: 返回 numeric1 减 numeric2。
   - sql: numeric1 * numberic2
     table: NUMERIC1 * NUMERIC2
