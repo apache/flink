@@ -134,7 +134,7 @@ public class AbstractSessionClusterExecutor<
             final ClusterClient<ClusterID> clusterClient = clusterClientProvider.getClusterClient();
             return clusterClient
                     .invalidateClusterDataset(new IntermediateDataSetID(clusterDatasetId))
-                    .thenCompose(acknowledge -> null);
+                    .thenApply(acknowledge -> null);
         }
     }
 }
