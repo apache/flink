@@ -87,6 +87,7 @@ public class PythonEnvironmentManagerUtils {
      *
      * @param requirementsFilePath The path of the requirements file.
      * @param requirementsCacheDir The path of the requirements cached directory.
+     * @param indexUrl Base URL of Python Package Index (default https://pypi.python.org/simple).
      * @param requirementsInstallDir The target directory of the installation.
      * @param pythonExecutable The python interpreter used to launch the pip program.
      * @param environmentVariables The environment variables used to launch the pip program.
@@ -94,6 +95,7 @@ public class PythonEnvironmentManagerUtils {
     public static void pipInstallRequirements(
             String requirementsFilePath,
             @Nullable String requirementsCacheDir,
+            @Nullable String indexUrl,
             String requirementsInstallDir,
             String pythonExecutable,
             Map<String, String> environmentVariables)
@@ -114,6 +116,9 @@ public class PythonEnvironmentManagerUtils {
                                 "--ignore-installed",
                                 "-r",
                                 requirementsFilePath));
+        if (indexUrl != null) {
+            commands.addAll(Arrays.asList("--index-url", indexUrl));
+        }
         if (isPipVersionGreaterEqual("8.0.0", pythonExecutable, environmentVariables)) {
             commands.addAll(Arrays.asList("--prefix", requirementsInstallDir));
         } else {

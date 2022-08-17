@@ -114,6 +114,14 @@ public class PythonOptions {
                                     + "optional parameter exists. The option is equivalent to the command line option "
                                     + "\"-pyreq\".");
 
+    public static final ConfigOption<String> PYTHON_REQUIREMENTS_INDEX_URL =
+            ConfigOptions.key("python.requirements.index-url")
+                    .stringType()
+                    .noDefaultValue()
+                    .withDescription(
+                            "Base URL of Python Package Index (default https://pypi.python.org/simple). "
+                                    + "This should point to a repository compliant with PEP 503 (the simple repository API).");
+
     public static final ConfigOption<String> PYTHON_ARCHIVES =
             ConfigOptions.key("python.archives")
                     .stringType()

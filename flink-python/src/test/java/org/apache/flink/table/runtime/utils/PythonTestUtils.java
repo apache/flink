@@ -89,7 +89,8 @@ public final class PythonTestUtils {
         Map<String, String> env = new HashMap<>();
         env.put(PythonEnvironmentManagerUtils.PYFLINK_UDF_RUNNER_DIR, "");
         return new ProcessPythonEnvironmentManager(
-                new PythonDependencyInfo(new HashMap<>(), null, null, new HashMap<>(), "python"),
+                new PythonDependencyInfo(
+                        new HashMap<>(), null, null, null, new HashMap<>(), "python"),
                 new String[] {System.getProperty("java.io.tmpdir")},
                 env,
                 new JobID());

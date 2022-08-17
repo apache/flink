@@ -105,6 +105,12 @@
             <td>Specify a requirements.txt file which defines the third-party dependencies. These dependencies will be installed and added to the PYTHONPATH of the python UDF worker. A directory which contains the installation packages of these dependencies could be specified optionally. Use '#' as the separator if the optional parameter exists. The option is equivalent to the command line option "-pyreq".</td>
         </tr>
         <tr>
+            <td><h5>python.requirements.index-url</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>String</td>
+            <td>Base URL of Python Package Index (default https://pypi.python.org/simple). This should point to a repository compliant with PEP 503 (the simple repository API)</td>
+        </tr>
+        <tr>
             <td><h5>python.state.cache-size</h5></td>
             <td style="word-wrap: break-word;">1000</td>
             <td>Integer</td>

@@ -215,6 +215,7 @@ public abstract class AbstractPythonEnvironmentManager implements PythonEnvironm
             PythonEnvironmentManagerUtils.pipInstallRequirements(
                     dependencyInfo.getRequirementsFilePath().get(),
                     dependencyInfo.getRequirementsCacheDir().orElse(null),
+                    dependencyInfo.getRequirementsIndexUrl().orElse(null),
                     requirementsDirectory,
                     dependencyInfo.getPythonExec(),
                     env);

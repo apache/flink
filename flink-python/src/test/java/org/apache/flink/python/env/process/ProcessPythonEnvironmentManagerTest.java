@@ -167,7 +167,7 @@ class ProcessPythonEnvironmentManagerTest {
         pythonFiles.put(String.join(File.separator, tmpDir, "file2"), "test_file2.egg");
         pythonFiles.put(String.join(File.separator, tmpDir, "dir0"), "test_dir");
         PythonDependencyInfo dependencyInfo =
-                new PythonDependencyInfo(pythonFiles, null, null, new HashMap<>(), "python");
+                new PythonDependencyInfo(pythonFiles, null, null, null, new HashMap<>(), "python");
 
         try (ProcessPythonEnvironmentManager environmentManager =
                 createBasicPythonEnvironmentManager(dependencyInfo)) {
@@ -236,6 +236,7 @@ class ProcessPythonEnvironmentManagerTest {
                         new HashMap<>(),
                         String.join(File.separator, tmpDir, "file0"),
                         String.join(File.separator, tmpDir, "dir0"),
+                        null,
                         new HashMap<>(),
                         "python");
 
@@ -272,7 +273,7 @@ class ProcessPythonEnvironmentManagerTest {
         archives.put(String.join(File.separator, tmpDir, "zip0"), "py27.zip");
         archives.put(String.join(File.separator, tmpDir, "zip1"), "py37");
         PythonDependencyInfo dependencyInfo =
-                new PythonDependencyInfo(new HashMap<>(), null, null, archives, "python");
+                new PythonDependencyInfo(new HashMap<>(), null, null, null, archives, "python");
 
         try (ProcessPythonEnvironmentManager environmentManager =
                 createBasicPythonEnvironmentManager(dependencyInfo)) {
@@ -299,7 +300,12 @@ class ProcessPythonEnvironmentManagerTest {
     void testPythonExecutable() throws Exception {
         PythonDependencyInfo dependencyInfo =
                 new PythonDependencyInfo(
-                        new HashMap<>(), null, null, new HashMap<>(), "/usr/local/bin/python");
+                        new HashMap<>(),
+                        null,
+                        null,
+                        null,
+                        new HashMap<>(),
+                        "/usr/local/bin/python");
 
         try (ProcessPythonEnvironmentManager environmentManager =
                 createBasicPythonEnvironmentManager(dependencyInfo)) {
@@ -315,7 +321,8 @@ class ProcessPythonEnvironmentManagerTest {
     @Test
     void testCreateRetrievalToken() throws Exception {
         PythonDependencyInfo dependencyInfo =
-                new PythonDependencyInfo(new HashMap<>(), null, null, new HashMap<>(), "python");
+                new PythonDependencyInfo(
+                        new HashMap<>(), null, null, null, new HashMap<>(), "python");
         Map<String, String> sysEnv = new HashMap<>();
         sysEnv.put("FLINK_HOME", "/flink");
 
@@ -337,7 +344,8 @@ class ProcessPythonEnvironmentManagerTest {
     @Test
     void testSetLogDirectory() throws Exception {
         PythonDependencyInfo dependencyInfo =
-                new PythonDependencyInfo(new HashMap<>(), null, null, new HashMap<>(), "python");
+                new PythonDependencyInfo(
+                        new HashMap<>(), null, null, null, new HashMap<>(), "python");
 
         try (ProcessPythonEnvironmentManager environmentManager =
                 new ProcessPythonEnvironmentManager(
@@ -355,7 +363,8 @@ class ProcessPythonEnvironmentManagerTest {
     @Test
     void testOpenClose() throws Exception {
         PythonDependencyInfo dependencyInfo =
-                new PythonDependencyInfo(new HashMap<>(), null, null, new HashMap<>(), "python");
+                new PythonDependencyInfo(
+                        new HashMap<>(), null, null, null, new HashMap<>(), "python");
 
         try (ProcessPythonEnvironmentManager environmentManager =
                 createBasicPythonEnvironmentManager(dependencyInfo)) {

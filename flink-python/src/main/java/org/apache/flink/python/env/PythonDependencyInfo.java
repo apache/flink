@@ -38,6 +38,7 @@ import static org.apache.flink.python.PythonOptions.PYTHON_EXECUTABLE;
 import static org.apache.flink.python.PythonOptions.PYTHON_EXECUTION_MODE;
 import static org.apache.flink.python.PythonOptions.PYTHON_FILES_DISTRIBUTED_CACHE_INFO;
 import static org.apache.flink.python.PythonOptions.PYTHON_REQUIREMENTS_FILE_DISTRIBUTED_CACHE_INFO;
+import static org.apache.flink.python.PythonOptions.PYTHON_REQUIREMENTS_INDEX_URL;
 
 /** PythonDependencyInfo contains the information of third-party dependencies. */
 @Internal
@@ -64,6 +65,12 @@ public final class PythonDependencyInfo {
     @Nullable private final String requirementsCacheDir;
 
     /**
+     * Base URL of Python Package Index (default https://pypi.python.org/simple). This should point
+     * to a repository compliant with PEP 503 (the simple repository API).
+     */
+    @Nullable private final String requirementsIndexUrl;
+
+    /**
      * The python archives uploaded by TableEnvironment#add_python_archive() or command line option
      * "-pyarch". The key is the path of the archive file and the value is the name of the directory
      * to extract to.
@@ -83,12 +90,14 @@ public final class PythonDependencyInfo {
             @Nonnull Map<String, String> pythonFiles,
             @Nullable String requirementsFilePath,
             @Nullable String requirementsCacheDir,
+            @Nullable String requirementsIndexUrl,
             @Nonnull Map<String, String> archives,
             @Nonnull String pythonExec) {
         this(
                 pythonFiles,
                 requirementsFilePath,
                 requirementsCacheDir,
+                requirementsIndexUrl,
                 archives,
                 pythonExec,
                 PYTHON_EXECUTION_MODE.defaultValue());
@@ -98,12 +107,14 @@ public final class PythonDependencyInfo {
             @Nonnull Map<String, String> pythonFiles,
             @Nullable String requirementsFilePath,
             @Nullable String requirementsCacheDir,
+            @Nullable String requirementsIndexUrl,
             @Nonnull Map<String, String> archives,
             @Nonnull String pythonExec,
             @Nonnull String executionMode) {
         this.pythonFiles = Objects.requireNonNull(pythonFiles);
         this.requirementsFilePath = requirementsFilePath;
         this.requirementsCacheDir = requirementsCacheDir;
+        this.requirementsIndexUrl = requirementsIndexUrl;
         this.pythonExec = Objects.requireNonNull(pythonExec);
         this.archives = Objects.requireNonNull(archives);
         this.executionMode = Objects.requireNonNull(executionMode);
@@ -115,6 +126,10 @@ public final class PythonDependencyInfo {
 
     public Optional<String> getRequirementsFilePath() {
         return Optional.ofNullable(requirementsFilePath);
+    }
+
+    public Optional<String> getRequirementsIndexUrl() {
+        return Optional.ofNullable(requirementsIndexUrl);
     }
 
     public Optional<String> getRequirementsCacheDir() {
@@ -156,6 +171,8 @@ public final class PythonDependencyInfo {
         String requirementsFilePath = null;
         String requirementsCacheDir = null;
 
+        String requirementsIndexUrl =
+                config.getOptional(PYTHON_REQUIREMENTS_INDEX_URL).orElse(null);
         String requirementsFileName =
                 config.getOptional(PYTHON_REQUIREMENTS_FILE_DISTRIBUTED_CACHE_INFO)
                         .orElse(new HashMap<>())
@@ -188,6 +205,7 @@ public final class PythonDependencyInfo {
                 pythonFiles,
                 requirementsFilePath,
                 requirementsCacheDir,
+                requirementsIndexUrl,
                 archives,
                 pythonExec,
                 config.get(PYTHON_EXECUTION_MODE));
