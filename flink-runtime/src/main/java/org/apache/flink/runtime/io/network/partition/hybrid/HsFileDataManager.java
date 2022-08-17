@@ -49,6 +49,7 @@ import java.util.Queue;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -275,16 +276,16 @@ public class HsFileDataManager implements Runnable, BufferRecycler {
         return new ArrayDeque<>();
     }
 
-    @GuardedBy("lock")
     private void mayTriggerReading() {
-        assert Thread.holdsLock(lock);
-
-        if (!isRunning
-                && !allReaders.isEmpty()
-                && numRequestedBuffers + bufferPool.getNumBuffersPerRequest() <= maxRequestedBuffers
-                && numRequestedBuffers < bufferPool.getAverageBuffersPerRequester()) {
-            isRunning = true;
-            ioExecutor.execute(this);
+        synchronized (lock) {
+            if (!isRunning
+                    && !allReaders.isEmpty()
+                    && numRequestedBuffers + bufferPool.getNumBuffersPerRequest()
+                            <= maxRequestedBuffers
+                    && numRequestedBuffers < bufferPool.getAverageBuffersPerRequester()) {
+                isRunning = true;
+                ioExecutor.execute(this);
+            }
         }
     }
 
@@ -364,8 +365,16 @@ public class HsFileDataManager implements Runnable, BufferRecycler {
         synchronized (lock) {
             numRequestedBuffers += numBuffersRead;
             isRunning = false;
-            mayTriggerReading();
             mayNotifyReleased();
+        }
+        if (numBuffersRead == 0) {
+            // When fileReader has no data to read, for example, most of the data is
+            // consumed from memory. HsFileDataManager will encounter busy-loop
+            // problem, which will lead to a meaningless surge in CPU utilization
+            // and seriously affect performance.
+            ioExecutor.schedule(this::mayTriggerReading, 5, TimeUnit.MILLISECONDS);
+        } else {
+            mayTriggerReading();
         }
     }
 
