@@ -83,7 +83,8 @@ under the License.
 		<module>flink-end-to-end-tests-aws-kinesis-streams</module>
 		<module>flink-end-to-end-tests-aws-kinesis-firehose</module>
 		<module>flink-end-to-end-tests-sql</module>
-    </modules>
+		<module>flink-end-to-end-tests-mongodb</module>
+	</modules>
 
 	<dependencyManagement>
 		<dependencies>

@@ -50,4 +50,6 @@ public class DockerImageVersions {
             "gcr.io/google.com/cloudsdktool/cloud-sdk:379.0.0";
 
     public static final String HIVE2 = "prestodb/hdp2.6-hive:10";
+
+    public static final String MONGO_4_0 = "mongo:4.0.10";
 }
