@@ -28,9 +28,11 @@ under the License.
 
 # ANALYZE TABLE 语句
 
+{{< label Batch >}}
+
 - `ANALYZE TABLE` 用于为存在的表收集表的统计信息，并将该统计信息写为该表的 catalog 中。
-- `ANALYZE TABLE` 语句仅能够使用于存在的表，如果表不存在或者是视图(View)则会报异常。
-- 当前版本，`ANALYZE TABLE`语句只支持在批模式(Batch Mode)下使用。
+- `ANALYZE TABLE` 语句仅能够使用于存在的表，如果表不存在或者是视图（View）则会报异常。
+- 当前版本，`ANALYZE TABLE`语句只支持在批模式（Batch Mode）下使用。
 - `ANALYZE TABLE`语句只能由由用户手动触发。
 
 <a name="run-a-analyze-table-statement"></a>
@@ -104,7 +106,7 @@ tableEnv.executeSql("ANALYZE TABLE Store COMPUTE STATISTICS FOR COLUMNS(user)");
 
 
 // 分区表，收集分区 Partition1 的表级别统计信息。
-        tableEnv.executeSql("ANALYZE TABLE Orders PARTITION (sold_year='2022', sold_month='8') COMPUTE STATISTICS");
+tableEnv.executeSql("ANALYZE TABLE Orders PARTITION (sold_year='2022', sold_month='8') COMPUTE STATISTICS");
 
 // 分区表，收集分区 Partition1 和 Partition2 的表级别统计信息。
 tableEnv.executeSql("ANALYZE TABLE Orders PARTITION (sold_year='2022', sold_month) COMPUTE STATISTICS");
@@ -360,6 +362,6 @@ ANALYZE TABLE [catalog_name.][db_name.]table_name PARTITION(partcol1[=val1] [, p
 | `VARCHAR`                        |   Y   |      Y      |    Y     |    Y     |     N      |     N      |      N       |
 | `other types`                    |   N   |      Y      |    N     |    N     |     N      |     N      |      N       |
 
-*注意:* 对于数据值定长的类型(例如：`BOOLEAN`, `INTEGER`, `DOUBLE`等)， Flink 不会去收集 `avgLen` 和 `maxLen` 值。
+*注意:* 对于数据值定长的类型(例如：`BOOLEAN`, `INTEGER`, `DOUBLE` 等)， Flink 不会去收集 `avgLen` 和 `maxLen` 值。
 
 {{< top >}}

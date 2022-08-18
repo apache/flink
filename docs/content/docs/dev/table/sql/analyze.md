@@ -26,13 +26,15 @@ under the License.
 
 # ANALYZE TABLE Statements
 
+{{< label Batch >}}
+
 - `ANALYZE TABLE` statements are used to collect statistics for existing tables, and write statistics back to catalog. 
 - Only existing table is supported, and an exception will be thrown if the table is a view or table not exists.
 - Currently, `ANALYZE TABLE` only supports in batch mode.
 - `ANALYZE TABLE` statements are triggered manually instead of automatically.
 
 
-## Run a ANALYZE TABLE statement
+## Run an ANALYZE TABLE statement
 
 {{< tabs "analyze table" >}}
 {{< tab "Java" >}}
@@ -327,17 +329,17 @@ ANALYZE TABLE [catalog_name.][db_name.]table_name PARTITION(partcol1[=val1] [, p
   - If a certain partition is specified, but the partition does not exist, an exception will be thrown
   
 - FOR COLUMNS col1 [, col2, ...] or FOR ALL COLUMNS are optional
-  - If no columns is specified, only the table level statistics will be gathered
+  - If no column is specified, only the table level statistics will be gathered
   - If a column does not exist, or column is not a physical column, an exception will be thrown.
   - If a column or any column is specified, the column level statistics will be gathered
     - the column level statistics include:
-      - ndv : the number of distinct values
-      - nullCount : the number of nulls
-      - avgLen : the average length of column values 
-      - maxLen : the max length of column values
-      - minValue : the min value of column values
-      - maxValue : the max value of column values
-      - valueCount : the value count only for boolean type
+      - ndv: the number of distinct values
+      - nullCount: the number of nulls
+      - avgLen: the average length of column values 
+      - maxLen: the max length of column values
+      - minValue: the min value of column values
+      - maxValue: the max value of column values
+      - valueCount: the value count only for boolean type
     - the supported types and its corresponding column level statistics are as following sheet lists("Y" means support, "N" means unsupported):
 
 | Types                            | `ndv` | `nullCount` | `avgLen` | `maxLen` | `maxValue` | `minValue` | `valueCount` |
