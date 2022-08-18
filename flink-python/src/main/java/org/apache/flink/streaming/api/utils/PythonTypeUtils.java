@@ -66,6 +66,8 @@ import org.apache.flink.core.memory.ByteArrayInputStreamWithPos;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.fnexecution.v1.FlinkFnApi;
 import org.apache.flink.streaming.api.typeinfo.python.PickledByteArrayTypeInfo;
+import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.data.util.DataFormatConverters;
 import org.apache.flink.table.runtime.typeutils.ExternalTypeInfo;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.runtime.typeutils.serializers.python.BigDecSerializer;
@@ -74,9 +76,16 @@ import org.apache.flink.table.runtime.typeutils.serializers.python.StringSeriali
 import org.apache.flink.table.runtime.typeutils.serializers.python.TimeSerializer;
 import org.apache.flink.table.runtime.typeutils.serializers.python.TimestampSerializer;
 import org.apache.flink.table.types.logical.ArrayType;
+import org.apache.flink.table.types.logical.FloatType;
+import org.apache.flink.table.types.logical.IntType;
+import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.MapType;
 import org.apache.flink.table.types.logical.RowType;
+import org.apache.flink.table.types.logical.SmallIntType;
+import org.apache.flink.table.types.logical.TinyIntType;
+import org.apache.flink.table.types.logical.utils.LogicalTypeDefaultVisitor;
 import org.apache.flink.table.types.utils.LegacyTypeInfoDataTypeConverter;
+import org.apache.flink.table.types.utils.TypeConversions;
 import org.apache.flink.table.typeutils.TimeIntervalTypeInfo;
 import org.apache.flink.types.Row;
 import org.apache.flink.types.RowKind;
@@ -1019,6 +1028,72 @@ public class PythonTypeUtils {
             }
             return reuseExternalRow;
         }
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) {
+                return true;
+            }
+
+            if (o == null || getClass() != o.getClass()) {
+                return false;
+            }
+
+            final RowDataConverter other = (RowDataConverter) o;
+            if (other.fieldDataConverters.length != this.fieldDataConverters.length) {
+                return false;
+            }
+
+            for (int i = 0; i < other.fieldDataConverters.length; i++) {
+                if (!other.fieldDataConverters[i].equals(this.fieldDataConverters[i])) {
+                    return false;
+                }
+            }
+
+            return true;
+        }
+    }
+
+    /**
+     * RowData Data will be converted to the Object Array [RowKind(as Long Object), Field Values(as
+     * Object Array)].
+     */
+    public static final class RowDataDataConverter extends DataConverter<RowData, Object[]> {
+
+        private final RowDataConverter dataConverter;
+
+        private final DataFormatConverters.DataFormatConverter<RowData, Row> dataFormatConverter;
+
+        RowDataDataConverter(
+                RowDataConverter dataConverter,
+                DataFormatConverters.DataFormatConverter<RowData, Row> dataFormatConverter) {
+            this.dataConverter = dataConverter;
+            this.dataFormatConverter = dataFormatConverter;
+        }
+
+        @Override
+        public RowData toInternal(Object[] value) {
+            return dataFormatConverter.toInternal(dataConverter.toInternal(value));
+        }
+
+        @Override
+        public Object[] toExternal(RowData value) {
+            return dataConverter.toExternal(dataFormatConverter.toExternal(value));
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) {
+                return true;
+            }
+
+            if (o == null || getClass() != o.getClass()) {
+                return false;
+            }
+
+            final RowDataDataConverter other = (RowDataDataConverter) o;
+            return this.dataConverter.equals(other.dataConverter);
+        }
     }
 
     /** Tuple Data will be converted to the Object Array. */
@@ -1058,6 +1133,29 @@ public class PythonTypeUtils {
                 reuseExternalTuple[i] = fieldDataConverters[i].toExternal(value.getField(i));
             }
             return reuseExternalTuple;
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) {
+                return true;
+            }
+
+            if (o == null || getClass() != o.getClass()) {
+                return false;
+            }
+
+            final TupleDataConverter other = (TupleDataConverter) o;
+            if (other.fieldDataConverters.length != this.fieldDataConverters.length) {
+                return false;
+            }
+
+            for (int i = 0; i < other.fieldDataConverters.length; i++) {
+                if (!other.fieldDataConverters[i].equals(this.fieldDataConverters[i])) {
+                    return false;
+                }
+            }
+            return true;
         }
     }
 
@@ -1106,6 +1204,20 @@ public class PythonTypeUtils {
 
             return array;
         }
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) {
+                return true;
+            }
+
+            if (o == null || getClass() != o.getClass()) {
+                return false;
+            }
+
+            final ArrayDataConverter other = (ArrayDataConverter) o;
+            return this.elementConverter.equals(other.elementConverter);
+        }
     }
 
     /**
@@ -1148,6 +1260,20 @@ public class PythonTypeUtils {
                 list.add(elementConverter.toExternal(item));
             }
             return list;
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) {
+                return true;
+            }
+
+            if (o == null || getClass() != o.getClass()) {
+                return false;
+            }
+
+            final ListDataConverter other = (ListDataConverter) o;
+            return this.elementConverter.equals(other.elementConverter);
         }
     }
 
@@ -1198,6 +1324,21 @@ public class PythonTypeUtils {
                         valueConverter.toExternal(entry.getValue()));
             }
             return map;
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) {
+                return true;
+            }
+
+            if (o == null || getClass() != o.getClass()) {
+                return false;
+            }
+
+            final MapDataConverter other = (MapDataConverter) o;
+            return this.keyConverter.equals(other.keyConverter)
+                    && this.valueConverter.equals(other.valueConverter);
         }
     }
 
@@ -1282,6 +1423,13 @@ public class PythonTypeUtils {
                                             ((MapTypeInfo) typeInformation).getValueTypeInfo()));
                 }
 
+                if (typeInformation instanceof InternalTypeInfo) {
+
+                    return ((InternalTypeInfo<IN>) typeInformation)
+                            .toLogicalType()
+                            .accept(LogicalTypeToDataConverter.INSTANCE);
+                }
+
                 if (typeInformation instanceof ExternalTypeInfo) {
                     return (DataConverter<IN, OUT>)
                             TypeInfoToDataConverter.typeInfoDataConverter(
@@ -1290,6 +1438,66 @@ public class PythonTypeUtils {
                 }
             }
 
+            return IdentityDataConverter.INSTANCE;
+        }
+    }
+
+    private static class LogicalTypeToDataConverter
+            extends LogicalTypeDefaultVisitor<DataConverter> {
+
+        public static final LogicalTypeToDataConverter INSTANCE = new LogicalTypeToDataConverter();
+
+        @Override
+        public DataConverter visit(IntType intType) {
+            return IntDataConverter.INSTANCE;
+        }
+
+        @Override
+        public DataConverter visit(TinyIntType tinyIntType) {
+            return ByteDataConverter.INSTANCE;
+        }
+
+        @Override
+        public DataConverter visit(SmallIntType smallIntType) {
+            return ShortDataConverter.INSTANCE;
+        }
+
+        @Override
+        public DataConverter visit(FloatType floatType) {
+            return FloatDataConverter.INSTANCE;
+        }
+
+        @Override
+        public DataConverter visit(ArrayType arrayType) {
+            LogicalType elementType = arrayType.getElementType();
+            return new ArrayDataConverter<>(
+                    elementType.getDefaultConversion(), elementType.accept(this));
+        }
+
+        @Override
+        public DataConverter visit(MapType mapType) {
+            return new MapDataConverter(
+                    mapType.getKeyType().accept(this), mapType.getValueType().accept(this));
+        }
+
+        @SuppressWarnings("unchecked")
+        @Override
+        public DataConverter visit(RowType rowType) {
+            final DataConverter[] fieldTypeDataConverters =
+                    rowType.getFields().stream()
+                            .map(f -> f.getType().accept(this))
+                            .toArray(DataConverter[]::new);
+
+            DataFormatConverters.DataFormatConverter dataFormatConverter =
+                    DataFormatConverters.getConverterForDataType(
+                            TypeConversions.fromLogicalToDataType(rowType));
+
+            return new RowDataDataConverter(
+                    new RowDataConverter(fieldTypeDataConverters), dataFormatConverter);
+        }
+
+        @Override
+        protected DataConverter defaultMethod(LogicalType logicalType) {
             return IdentityDataConverter.INSTANCE;
         }
     }
