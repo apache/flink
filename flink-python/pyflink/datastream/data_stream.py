@@ -895,6 +895,20 @@ class DataStream(object):
         """
         return DataStream(self._j_data_stream.getSideOutput(output_tag.get_java_output_tag()))
 
+    def cache(self) -> 'DataStream':
+        """
+        Cache the intermediate result of the transformation. Only support bounded streams and
+        currently only block mode is supported. The cache is generated lazily at the first time the
+        intermediate result is computed. The cache will be clear when the StreamExecutionEnvironment
+        close.
+
+        :return: The cached DataStream that can use in later job to reuse the cached intermediate
+                 result.
+
+        .. versionadded:: 1.16.0
+        """
+        return DataStream(self._j_data_stream.cache())
+
     def _apply_chaining_optimization(self):
         """
         Chain the Python operators if possible.
@@ -1755,6 +1769,9 @@ class KeyedStream(DataStream):
 
     def slot_sharing_group(self, slot_sharing_group: Union[str, SlotSharingGroup]) -> 'DataStream':
         raise Exception("Setting slot sharing group for KeyedStream is not supported.")
+
+    def cache(self) -> 'DataStream':
+        raise Exception("Cache for KeyedStream is not supported.")
 
 
 class WindowedStream(object):
