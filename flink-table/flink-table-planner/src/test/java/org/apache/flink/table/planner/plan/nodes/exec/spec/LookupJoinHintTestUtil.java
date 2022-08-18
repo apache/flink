@@ -20,18 +20,14 @@ package org.apache.flink.table.planner.plan.nodes.exec.spec;
 
 import org.apache.flink.table.planner.hint.JoinStrategy;
 import org.apache.flink.table.planner.hint.LookupJoinHintOptions;
-import org.apache.flink.table.runtime.operators.join.lookup.ResultRetryStrategy;
 
 import org.apache.calcite.rel.hint.RelHint;
-import org.junit.jupiter.api.Test;
 
 import java.util.HashMap;
 import java.util.Map;
 
-import static org.junit.jupiter.api.Assertions.assertTrue;
-
-/** Tests for {@link LookupJoinHintSpec}. */
-public class LookupJoinHintSpecTest {
+/** Test util for lookup hint. */
+public class LookupJoinHintTestUtil {
     public static RelHint completeLookupHint = getLookupJoinHint(true, true);
     public static RelHint lookupHintWithAsync = getLookupJoinHint(true, false);
     public static RelHint lookupHintWithRetry = getLookupJoinHint(false, true);
@@ -67,32 +63,5 @@ public class LookupJoinHintSpecTest {
         kvOptions.put(LookupJoinHintOptions.RETRY_STRATEGY.key(), "fixed_delay");
         kvOptions.put(LookupJoinHintOptions.FIXED_DELAY.key(), "155 ms");
         kvOptions.put(LookupJoinHintOptions.MAX_ATTEMPTS.key(), "10");
-    }
-
-    @Test
-    void testJoinHintToRetryStrategy() {
-        LookupJoinHintSpec lookupJoinHintSpec = LookupJoinHintSpec.fromJoinHint(completeLookupHint);
-        assertTrue(lookupJoinHintSpec.toRetryStrategy() != ResultRetryStrategy.NO_RETRY_STRATEGY);
-    }
-
-    @Test
-    void testJoinHintWithTableOnlyToRetryStrategy() {
-        LookupJoinHintSpec lookupJoinHintSpec =
-                LookupJoinHintSpec.fromJoinHint(lookupHintWithTableOnly);
-        assertTrue(lookupJoinHintSpec.toRetryStrategy() == ResultRetryStrategy.NO_RETRY_STRATEGY);
-    }
-
-    @Test
-    void testJoinHintWithAsyncToRetryStrategy() {
-        LookupJoinHintSpec lookupJoinHintSpec =
-                LookupJoinHintSpec.fromJoinHint(lookupHintWithAsync);
-        assertTrue(lookupJoinHintSpec.toRetryStrategy() == ResultRetryStrategy.NO_RETRY_STRATEGY);
-    }
-
-    @Test
-    void testJoinHintWithRetryToRetryStrategy() {
-        LookupJoinHintSpec lookupJoinHintSpec =
-                LookupJoinHintSpec.fromJoinHint(lookupHintWithRetry);
-        assertTrue(lookupJoinHintSpec.toRetryStrategy() != ResultRetryStrategy.NO_RETRY_STRATEGY);
     }
 }

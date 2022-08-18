@@ -22,7 +22,7 @@ import org.apache.flink.core.testutils.FlinkMatchers.containsMessage
 import org.apache.flink.streaming.api.datastream.DataStream
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
 import org.apache.flink.table.api._
-import org.apache.flink.table.api.config.OptimizerConfigOptions
+import org.apache.flink.table.api.config.{ExecutionConfigOptions, OptimizerConfigOptions}
 import org.apache.flink.table.api.internal.TableEnvironmentInternal
 import org.apache.flink.table.data.RowData
 import org.apache.flink.table.descriptors.ConnectorDescriptorValidator.CONNECTOR_TYPE
@@ -103,6 +103,18 @@ class LookupJoinTest(legacyTableSource: Boolean) extends TableTestBase with Seri
                       |)
                       |""".stripMargin)
     }
+    util.addTable("""
+                    |CREATE TABLE Sink1 (
+                    |  a int,
+                    |  name varchar,
+                    |  age int
+                    |) with (
+                    |  'connector' = 'values',
+                    |  'sink-insert-only' = 'false'
+                    |)""".stripMargin)
+    // for json plan test
+    util.tableEnv.getConfig
+      .set(ExecutionConfigOptions.TABLE_EXEC_RESOURCE_DEFAULT_PARALLELISM, Int.box(4))
   }
 
   @Test
@@ -181,6 +193,7 @@ class LookupJoinTest(legacyTableSource: Boolean) extends TableTestBase with Seri
     }
     util.addDataStream[(Int, String, Long, Timestamp)]("T", 'a, 'b, 'c, 'ts, 'proctime.proctime)
     createLookupTable("LookupTable1", new InvalidTableFunctionResultType)
+
     expectExceptionThrown(
       "SELECT * FROM T JOIN LookupTable1 " +
         "FOR SYSTEM_TIME AS OF T.proctime AS D ON T.a = D.id AND T.b = D.name AND T.ts = D.ts",
@@ -558,22 +571,10 @@ class LookupJoinTest(legacyTableSource: Boolean) extends TableTestBase with Seri
 
   @Test
   def testAggAndAllConstantLookupKeyWithTryResolveMode(): Unit = {
-    util.getStreamEnv.setParallelism(4)
     // expect lookup join using single parallelism due to all constant lookup key
     util.tableEnv.getConfig.set(
       OptimizerConfigOptions.TABLE_OPTIMIZER_NONDETERMINISTIC_UPDATE_STRATEGY,
       OptimizerConfigOptions.NonDeterministicUpdateStrategy.TRY_RESOLVE)
-
-    util.addTable("""
-                    |CREATE TABLE Sink1 (
-                    |  `id` INT,
-                    |  `name` STRING,
-                    |  `age` INT
-                    |) WITH (
-                    |  'connector' = 'values',
-                    |  'sink-insert-only' = 'false'
-                    |)
-                    |""".stripMargin)
 
     val sql =
       """
@@ -789,6 +790,25 @@ class LookupJoinTest(legacyTableSource: Boolean) extends TableTestBase with Seri
         "FROM MyTable AS T JOIN AsyncLookupTable " +
         "FOR SYSTEM_TIME AS OF T.proctime AS D ON T.a = D.id"
     util.verifyExecPlan(sql)
+  }
+
+  @Test
+  def testAggAndLeftJoinAllowUnordered(): Unit = {
+    util.tableEnv.getConfig.set(
+      ExecutionConfigOptions.TABLE_EXEC_ASYNC_LOOKUP_OUTPUT_MODE,
+      ExecutionConfigOptions.AsyncOutputMode.ALLOW_UNORDERED)
+
+    val stmt = util.tableEnv.asInstanceOf[TestingTableEnvironment].createStatementSet()
+    stmt.addInsertSql(
+      """
+        |INSERT INTO Sink1
+        |SELECT T.a, D.name, D.age
+        |FROM (SELECT max(a) a, count(c) c, PROCTIME() proctime FROM MyTable GROUP BY b) T
+        |LEFT JOIN AsyncLookupTable
+        |FOR SYSTEM_TIME AS OF T.proctime AS D ON T.a = D.id
+        |""".stripMargin)
+
+    util.verifyExplain(stmt, ExplainDetail.JSON_EXECUTION_PLAN)
   }
 
   // ==========================================================================================

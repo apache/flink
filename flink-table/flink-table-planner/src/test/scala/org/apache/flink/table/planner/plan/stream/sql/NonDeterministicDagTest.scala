@@ -22,7 +22,7 @@ import org.apache.flink.api.java.tuple
 import org.apache.flink.api.scala._
 import org.apache.flink.streaming.api.datastream.{DataStream, DataStreamSink}
 import org.apache.flink.table.api._
-import org.apache.flink.table.api.config.OptimizerConfigOptions
+import org.apache.flink.table.api.config.{ExecutionConfigOptions, OptimizerConfigOptions}
 import org.apache.flink.table.api.config.OptimizerConfigOptions.NonDeterministicUpdateStrategy
 import org.apache.flink.table.api.internal.TableEnvironmentInternal
 import org.apache.flink.table.data.RowData
@@ -57,6 +57,10 @@ class NonDeterministicDagTest(nonDeterministicUpdateStrategy: NonDeterministicUp
     util.tableConfig.getConfiguration.set(
       OptimizerConfigOptions.TABLE_OPTIMIZER_NONDETERMINISTIC_UPDATE_STRATEGY,
       nonDeterministicUpdateStrategy)
+
+    // for json plan test
+    util.tableEnv.getConfig
+      .set(ExecutionConfigOptions.TABLE_EXEC_RESOURCE_DEFAULT_PARALLELISM, Int.box(4))
 
     util.addTableSource[(Int, Long, String, Boolean)]("T", 'a, 'b, 'c, 'd)
     util.addDataStream[(Int, String, Long)]("T1", 'a, 'b, 'c, 'proctime.proctime, 'rowtime.rowtime)

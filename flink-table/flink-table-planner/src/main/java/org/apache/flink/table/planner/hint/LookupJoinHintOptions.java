@@ -53,9 +53,7 @@ public class LookupJoinHintOptions {
     public static final ConfigOption<ExecutionConfigOptions.AsyncOutputMode> ASYNC_OUTPUT_MODE =
             key("output-mode")
                     .enumType(ExecutionConfigOptions.AsyncOutputMode.class)
-                    .defaultValue(
-                            ExecutionConfigOptions.TABLE_EXEC_ASYNC_LOOKUP_OUTPUT_MODE
-                                    .defaultValue())
+                    .noDefaultValue()
                     .withDescription(
                             "Output mode for asynchronous operations which will convert to {@see AsyncDataStream.OutputMode}, ORDERED by default. "
                                     + "If set to ALLOW_UNORDERED, will attempt to use {@see AsyncDataStream.OutputMode.UNORDERED} when it does not "
@@ -64,17 +62,14 @@ public class LookupJoinHintOptions {
     public static final ConfigOption<Integer> ASYNC_CAPACITY =
             key("capacity")
                     .intType()
-                    .defaultValue(
-                            ExecutionConfigOptions.TABLE_EXEC_ASYNC_LOOKUP_BUFFER_CAPACITY
-                                    .defaultValue())
+                    .noDefaultValue()
                     .withDescription(
                             "The max number of async i/o operation that the async lookup join can trigger.");
 
     public static final ConfigOption<Duration> ASYNC_TIMEOUT =
             key("timeout")
                     .durationType()
-                    .defaultValue(
-                            ExecutionConfigOptions.TABLE_EXEC_ASYNC_LOOKUP_TIMEOUT.defaultValue())
+                    .noDefaultValue()
                     .withDescription(
                             "Timeout from first invoke to final completion of asynchronous operation, may include multiple"
                                     + " retries, and will be reset in case of failover.");

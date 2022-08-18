@@ -21,7 +21,7 @@ package org.apache.flink.table.planner.alias;
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.planner.functions.sql.FlinkSqlOperatorTable;
 import org.apache.flink.table.planner.hint.FlinkHints;
-import org.apache.flink.table.planner.plan.nodes.exec.spec.LookupJoinHintSpecTest;
+import org.apache.flink.table.planner.plan.nodes.exec.spec.LookupJoinHintTestUtil;
 import org.apache.flink.table.planner.utils.TableTestUtil;
 
 import org.apache.calcite.rel.RelNode;
@@ -78,7 +78,7 @@ public class ClearLookupJoinHintWithInvalidPropagationShuttleTest
                                 JoinRelType.INNER,
                                 builder.equals(builder.field(2, 0, "a"), builder.field(2, 1, "a")))
                         .project(builder.field(1, 0, "a"))
-                        .hints(LookupJoinHintSpecTest.getLookupJoinHint("lookup", false, true))
+                        .hints(LookupJoinHintTestUtil.getLookupJoinHint("lookup", false, true))
                         .build();
         verifyRelPlan(root);
     }
@@ -103,7 +103,7 @@ public class ClearLookupJoinHintWithInvalidPropagationShuttleTest
                                 JoinRelType.INNER,
                                 builder.equals(builder.field(2, 0, "a"), builder.field(2, 1, "a")))
                         .project(builder.field(1, 0, "a"))
-                        .hints(LookupJoinHintSpecTest.getLookupJoinHint("lookup", false, true))
+                        .hints(LookupJoinHintTestUtil.getLookupJoinHint("lookup", false, true))
                         .hints(RelHint.builder(FlinkHints.HINT_ALIAS).hintOption("t1").build())
                         .scan("src")
                         .snapshot(builder.getRexBuilder().makeCall(FlinkSqlOperatorTable.PROCTIME))
@@ -111,7 +111,7 @@ public class ClearLookupJoinHintWithInvalidPropagationShuttleTest
                                 JoinRelType.INNER,
                                 builder.equals(builder.field(2, 0, "a"), builder.field(2, 1, "a")))
                         .project(builder.field(1, 0, "a"))
-                        .hints(LookupJoinHintSpecTest.getLookupJoinHint("lookup", true, false))
+                        .hints(LookupJoinHintTestUtil.getLookupJoinHint("lookup", true, false))
                         .build();
         verifyRelPlan(root);
     }
@@ -142,7 +142,7 @@ public class ClearLookupJoinHintWithInvalidPropagationShuttleTest
                                 JoinRelType.INNER,
                                 builder.equals(builder.field(2, 0, "a"), builder.field(2, 1, "a")))
                         .project(builder.field(1, 0, "a"))
-                        .hints(LookupJoinHintSpecTest.getLookupJoinHint("lookup", true, true))
+                        .hints(LookupJoinHintTestUtil.getLookupJoinHint("lookup", true, true))
                         .build();
         verifyRelPlan(root);
     }
