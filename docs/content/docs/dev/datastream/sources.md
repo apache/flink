@@ -37,13 +37,13 @@ If you are looking for pre-defined source connectors, please check the [Connecto
 
 A Data Source has three core components: *Splits*, the *SplitEnumerator*, and the *SourceReader*.
 
-  - A **Split** is a portion of data consumed by the source, like a file or a log partition. Splits are granularity by which the source distributes the work and parallelizes the data reading.
+  - A **Split** is a portion of data consumed by the source, like a file or a log partition. Splits are the granularity by which the source distributes the work and parallelizes reading data.
 
-  - The **SourceReader** requests *Splits* and processes them, for example by reading the file or log partition represented by the *Split*. The *SourceReader* run in parallel on the Task Managers in the `SourceOperators` and produces the parallel stream of events/records.
+  - The **SourceReader** requests *Splits* and processes them, for example by reading the file or log partition represented by the *Split*. The *SourceReaders* run in parallel on the Task Managers in the `SourceOperators` and produce the parallel stream of events/records.
 
   - The **SplitEnumerator** generates the *Splits* and assigns them to the *SourceReaders*. It runs as a single instance on the Job Manager and is responsible for maintaining the backlog of pending *Splits* and assigning them to the readers in a balanced manner.
 
-The {{< gh_link file="flink-core/src/main/java/org/apache/flink/api/connector/source/Source.java" name="Source" >}} class is API entry point that ties the above three components together.
+The {{< gh_link file="flink-core/src/main/java/org/apache/flink/api/connector/source/Source.java" name="Source" >}} class is the API entry point that ties the above three components together.
 
 {{< img src="/fig/source_components.svg" alt="Illustration of SplitEnumerator and SourceReader interacting" width="70%" >}}
 
@@ -52,7 +52,7 @@ The {{< gh_link file="flink-core/src/main/java/org/apache/flink/api/connector/so
 
 The Data Source API supports both unbounded streaming sources and bounded batch sources, in a unified way.
 
-The difference between both cases is minimal: In the bounded/batch case, the enumerator generates a fix set of splits, and each split is necessarily finite. In the unbounded streaming case, one of the two is not true (splits are not finite, or the enumerator keep generating new splits).
+The difference between both cases is minimal: In the bounded/batch case, the enumerator generates a fixed set of splits, and each split is necessarily finite. In the unbounded streaming case, one of the two is not true (splits are not finite, or the enumerator keeps generating new splits).
 
 #### Examples
 
@@ -95,7 +95,7 @@ The {{< gh_link file="flink-core/src/main/java/org/apache/flink/api/connector/so
   - *Split Serializer*
   - *Enumerator Checkpoint Serializer*
   
-In addition to that, the Source provides the {{< gh_link file="flink-core/src/main/java/org/apache/flink/api/connector/source/Boundedness.java" name="boundedness" >}} attribute of the source, so that Flink can choose appropriate mode to run the Flink jobs.
+In addition to that, the Source provides the {{< gh_link file="flink-core/src/main/java/org/apache/flink/api/connector/source/Boundedness.java" name="boundedness" >}} attribute of the source, so that Flink can choose the appropriate mode to run the Flink jobs.
 
 The Source implementations should be serializable as the Source instances are serialized and uploaded to the Flink cluster at runtime.
 
@@ -115,12 +115,12 @@ The `SplitEnumeratorContext` allows a `SplitEnumerator` to retrieve necessary in
 The `Source` implementation is expected to pass the `SplitEnumeratorContext` to the `SplitEnumerator` instance. 
 
 While a `SplitEnumerator` implementation can work well in a reactive way by only taking coordination actions when its method is invoked, some `SplitEnumerator` implementations might want to take actions actively. For example, a `SplitEnumerator` may want to periodically run split discovery and assign the new splits to the `SourceReaders`. 
-Such implementations may find that the `callAsync()` method `SplitEnumeratorContext` is handy. The code snippet below shows how the `SplitEnumerator` implementation can achieve that without maintaining its own threads.
+Such implementations may find that the `callAsync()` method in the `SplitEnumeratorContext` is handy. The code snippet below shows how the `SplitEnumerator` implementation can achieve that without maintaining its own threads.
 
 {{< tabs "066b6695-5bc3-4d7a-9033-ff6b1d15c3b1" >}}
 {{< tab "Java" >}}
 ```java
-class MySplitEnumerator implements SplitEnumerator<MySplit> {
+class MySplitEnumerator implements SplitEnumerator<MySplit, MyCheckpoint> {
     private final long DISCOVER_INTERVAL = 60_000L;
 
     /**
@@ -131,12 +131,12 @@ class MySplitEnumerator implements SplitEnumerator<MySplit> {
     @Override
     public void start() {
         ...
-        enumContext.callAsync(this::discoverSplits, splits -> {
-            Map<Integer, List<MockSourceSplit>> assignments = new HashMap<>();
+        enumContext.callAsync(this::discoverSplits, (splits, thrown) -> {
+            Map<Integer, List<MySplit>> assignments = new HashMap<>();
             int parallelism = enumContext.currentParallelism();
-            for (MockSourceSplit split : splits) {
+            for (MySplit split : splits) {
                 int owner = split.splitId().hashCode() % parallelism;
-                assignments.computeIfAbsent(owner, new ArrayList<>()).add(split);
+                assignments.computeIfAbsent(owner, s -> new ArrayList<>()).add(split);
             }
             enumContext.assignSplits(new SplitsAssignment<>(assignments));
         }, 0L, DISCOVER_INTERVAL);
@@ -221,12 +221,12 @@ env.from_source(
 
 ## The Split Reader API
 
-The core SourceReader API is fully asynchronous and requires implementations to manage asynchronous split reading manually.
+The core `SourceReader` API is fully asynchronous and requires implementations to manually manage reading splits asynchronously.
 However, in practice, most sources perform blocking operations, like blocking *poll()* calls on clients (for example the `KafkaConsumer`), or blocking I/O operations on distributed file systems (HDFS, S3, ...). To make this compatible with the asynchronous Source API, these blocking (synchronous) operations need to happen in separate threads, which hand over the data to the asynchronous part of the reader.
 
 The {{< gh_link file="flink-connectors/flink-connector-base/src/main/java/org/apache/flink/connector/base/source/reader/splitreader/SplitReader.java" name="SplitReader" >}} is the high-level API for simple synchronous reading/polling-based source implementations, like file reading, Kafka, etc.
 
-The core is the `SourceReaderBase` class, which takes a `SplitReader` and creates fetcher threads running the SplitReader, supporting different consumption threading models.
+The core is the `SourceReaderBase` class, which takes a `SplitReader` and creates fetcher threads running the `SplitReader`, supporting different consumption threading models.
 
 ### SplitReader
 
@@ -274,10 +274,9 @@ public class FixedSizeSplitFetcherManager<E, SplitT extends SourceSplit>
 
     public FixedSizeSplitFetcherManager(
             int numFetchers,
-            FutureNotifier futureNotifier,
             FutureCompletingBlockingQueue<RecordsWithSplitIds<E>> elementsQueue,
             Supplier<SplitReader<E, SplitT>> splitReaderSupplier) {
-        super(futureNotifier, elementsQueue, splitReaderSupplier);
+        super(elementsQueue, splitReaderSupplier);
         this.numFetchers = numFetchers;
         // Create numFetchers split fetchers.
         for (int i = 0; i < numFetchers; i++) {
@@ -319,18 +318,15 @@ public class FixedFetcherSizeSourceReader<E, T, SplitT extends SourceSplit, Spli
         extends SourceReaderBase<E, T, SplitT, SplitStateT> {
 
     public FixedFetcherSizeSourceReader(
-            FutureNotifier futureNotifier,
             FutureCompletingBlockingQueue<RecordsWithSplitIds<E>> elementsQueue,
             Supplier<SplitReader<E, SplitT>> splitFetcherSupplier,
             RecordEmitter<E, T, SplitStateT> recordEmitter,
             Configuration config,
             SourceReaderContext context) {
         super(
-                futureNotifier,
                 elementsQueue,
                 new FixedSizeSplitFetcherManager<>(
                         config.getInteger(SourceConfig.NUM_FETCHERS),
-                        futureNotifier,
                         elementsQueue,
                         splitFetcherSupplier),
                 recordEmitter,
@@ -339,7 +335,7 @@ public class FixedFetcherSizeSourceReader<E, T, SplitT extends SourceSplit, Spli
     }
 
     @Override
-    protected void onSplitFinished(Collection<String> finishedSplitIds) {
+    protected void onSplitFinished(Map<String, SplitStateT> finishedSplitIds) {
         // Do something in the callback for the finished splits.
     }
 
@@ -408,7 +404,7 @@ Event timestamps are assigned in two steps:
      This step is part of the source connector implementation and not parameterized by the application that uses the source.
 
   2. The `TimestampAssigner`, which is configured by the application, assigns the final timestamp.
-     The `TimestampAssigner` sees the original *source record timestamp* and the event. The assigner can use the *source record timestamp* or access a field of the event obtain the final event timestamp.
+     The `TimestampAssigner` sees the original *source record timestamp* and the event. The assigner can use the *source record timestamp* or access a field of the event to obtain the final event timestamp.
   
 This two-step approach allows users to reference both timestamps from the source systems and timestamps in the event's data as the event timestamp.
 

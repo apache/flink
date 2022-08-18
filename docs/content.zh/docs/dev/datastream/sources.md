@@ -129,7 +129,7 @@ SplitEnumerator 被认为是整个 Source 的“大脑”。SplitEnumerator 的�
 {{< tabs "066b6695-5bc3-4d7a-9032-ff6b1d15c3b1" >}}
 {{< tab "Java" >}}
 ```java
-class MySplitEnumerator implements SplitEnumerator<MySplit> {
+class MySplitEnumerator implements SplitEnumerator<MySplit, MyCheckpoint> {
     private final long DISCOVER_INTERVAL = 60_000L;
 
     /**
@@ -141,9 +141,9 @@ class MySplitEnumerator implements SplitEnumerator<MySplit> {
     public void start() {
         ...
         enumContext.callAsync(this::discoverSplits, splits -> {
-            Map<Integer, List<MockSourceSplit>> assignments = new HashMap<>();
+            Map<Integer, List<MySplit>> assignments = new HashMap<>();
             int parallelism = enumContext.currentParallelism();
-            for (MockSourceSplit split : splits) {
+            for (MySplit split : splits) {
                 int owner = split.splitId().hashCode() % parallelism;
                 assignments.computeIfAbsent(owner, new ArrayList<>()).add(split);
             }
@@ -294,10 +294,9 @@ public class FixedSizeSplitFetcherManager<E, SplitT extends SourceSplit>
 
     public FixedSizeSplitFetcherManager(
             int numFetchers,
-            FutureNotifier futureNotifier,
             FutureCompletingBlockingQueue<RecordsWithSplitIds<E>> elementsQueue,
             Supplier<SplitReader<E, SplitT>> splitReaderSupplier) {
-        super(futureNotifier, elementsQueue, splitReaderSupplier);
+        super(elementsQueue, splitReaderSupplier);
         this.numFetchers = numFetchers;
         // 创建 numFetchers 个分片提取器.
         for (int i = 0; i < numFetchers; i++) {
@@ -339,18 +338,15 @@ public class FixedFetcherSizeSourceReader<E, T, SplitT extends SourceSplit, Spli
         extends SourceReaderBase<E, T, SplitT, SplitStateT> {
 
     public FixedFetcherSizeSourceReader(
-            FutureNotifier futureNotifier,
             FutureCompletingBlockingQueue<RecordsWithSplitIds<E>> elementsQueue,
             Supplier<SplitReader<E, SplitT>> splitFetcherSupplier,
             RecordEmitter<E, T, SplitStateT> recordEmitter,
             Configuration config,
             SourceReaderContext context) {
         super(
-                futureNotifier,
                 elementsQueue,
                 new FixedSizeSplitFetcherManager<>(
                         config.getInteger(SourceConfig.NUM_FETCHERS),
-                        futureNotifier,
                         elementsQueue,
                         splitFetcherSupplier),
                 recordEmitter,
@@ -359,7 +355,7 @@ public class FixedFetcherSizeSourceReader<E, T, SplitT extends SourceSplit, Spli
     }
 
     @Override
-    protected void onSplitFinished(Collection<String> finishedSplitIds) {
+    protected void onSplitFinished(Map<String, SplitStateT> finishedSplitIds) {
         // 在回调过程中对完成的分片进行处理。
     }
 

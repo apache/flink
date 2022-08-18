@@ -76,12 +76,12 @@ import static org.apache.flink.util.Preconditions.checkState;
 
 /**
  * Base source operator only used for integrating the source reader which is proposed by FLIP-27. It
- * implements the interface of {@link PushingAsyncDataInput} for naturally compatible with one input
- * processing in runtime stack.
+ * implements the interface of {@link PushingAsyncDataInput} which is naturally compatible with one
+ * input processing in runtime stack.
  *
  * <p><b>Important Note on Serialization:</b> The SourceOperator inherits the {@link
  * java.io.Serializable} interface from the StreamOperator, but is in fact NOT serializable. The
- * operator must only be instantiates in the StreamTask from its factory.
+ * operator must only be instantiated in the StreamTask from its factory.
  *
  * @param <OUT> The output type of the operator.
  */
