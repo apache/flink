@@ -30,7 +30,7 @@ import org.apache.flink.table.descriptors.DescriptorProperties
 import org.apache.flink.table.factories.TableSourceFactory
 import org.apache.flink.table.functions.{AsyncTableFunction, TableFunction, UserDefinedFunction}
 import org.apache.flink.table.planner.plan.utils._
-import org.apache.flink.table.planner.utils.TableTestBase
+import org.apache.flink.table.planner.utils.{TableTestBase, TestingTableEnvironment}
 import org.apache.flink.table.planner.utils.TableTestUtil.{readFromResource, replaceNodeIdInOperator, replaceStageId, replaceStreamNodeId}
 import org.apache.flink.table.sources._
 import org.apache.flink.table.types.DataType
@@ -805,6 +805,89 @@ class LookupJoinTest(legacyTableSource: Boolean) extends TableTestBase with Seri
         |SELECT T.a, D.name, D.age
         |FROM (SELECT max(a) a, count(c) c, PROCTIME() proctime FROM MyTable GROUP BY b) T
         |LEFT JOIN AsyncLookupTable
+        |FOR SYSTEM_TIME AS OF T.proctime AS D ON T.a = D.id
+        |""".stripMargin)
+
+    util.verifyExplain(stmt, ExplainDetail.JSON_EXECUTION_PLAN)
+  }
+
+  def testAggAndLeftJoinWithTryResolveMode(): Unit = {
+    thrown.expectMessage("Required sync lookup function by planner, but table")
+    thrown.expect(classOf[TableException])
+
+    util.tableEnv.getConfig.set(
+      OptimizerConfigOptions.TABLE_OPTIMIZER_NONDETERMINISTIC_UPDATE_STRATEGY,
+      OptimizerConfigOptions.NonDeterministicUpdateStrategy.TRY_RESOLVE)
+
+    val stmt = util.tableEnv.asInstanceOf[TestingTableEnvironment].createStatementSet()
+    stmt.addInsertSql(
+      """
+        |INSERT INTO Sink1
+        |SELECT T.a, D.name, D.age
+        |FROM (SELECT max(a) a, count(c) c, PROCTIME() proctime FROM MyTable GROUP BY b) T
+        |LEFT JOIN AsyncLookupTable
+        |FOR SYSTEM_TIME AS OF T.proctime AS D ON T.a = D.id
+        |""".stripMargin)
+
+    util.verifyExplain(stmt, ExplainDetail.JSON_EXECUTION_PLAN)
+  }
+
+  @Test
+  def testAsyncJoinWithDefaultParams(): Unit = {
+    val stmt = util.tableEnv.asInstanceOf[TestingTableEnvironment].createStatementSet()
+    stmt.addInsertSql("""
+                        |INSERT INTO Sink1
+                        |SELECT T.a, D.name, D.age
+                        |FROM MyTable T
+                        |JOIN AsyncLookupTable
+                        |FOR SYSTEM_TIME AS OF T.proctime AS D ON T.a = D.id
+                        |""".stripMargin)
+
+    util.verifyExplain(stmt, ExplainDetail.JSON_EXECUTION_PLAN)
+  }
+
+  @Test
+  def testJoinWithAsyncHint(): Unit = {
+    val stmt = util.tableEnv.asInstanceOf[TestingTableEnvironment].createStatementSet()
+    stmt.addInsertSql(
+      """
+        |INSERT INTO Sink1
+        |SELECT /*+ LOOKUP('table'='AsyncLookupTable', 'output-mode'='allow_unordered', 'time-out'='600s', 'capacity'='300') */
+        | T.a, D.name, D.age
+        |FROM MyTable T
+        |JOIN AsyncLookupTable
+        |FOR SYSTEM_TIME AS OF T.proctime AS D ON T.a = D.id
+        |""".stripMargin)
+
+    util.verifyExplain(stmt, ExplainDetail.JSON_EXECUTION_PLAN)
+  }
+
+  @Test
+  def testJoinWithRetryHint(): Unit = {
+    val stmt = util.tableEnv.asInstanceOf[TestingTableEnvironment].createStatementSet()
+    stmt.addInsertSql(
+      """
+        |INSERT INTO Sink1
+        |SELECT /*+ LOOKUP('table'='LookupTable', 'retry-predicate'='lookup_miss', 'retry-strategy'='fixed_delay', 'fixed-delay'='10s', 'max-attempts'='3') */
+        | T.a, D.name, D.age
+        |FROM MyTable T
+        |JOIN LookupTable
+        |FOR SYSTEM_TIME AS OF T.proctime AS D ON T.a = D.id
+        |""".stripMargin)
+
+    util.verifyExplain(stmt, ExplainDetail.JSON_EXECUTION_PLAN)
+  }
+
+  @Test
+  def testJoinWithAsyncAndRetryHint(): Unit = {
+    val stmt = util.tableEnv.asInstanceOf[TestingTableEnvironment].createStatementSet()
+    stmt.addInsertSql(
+      """
+        |INSERT INTO Sink1
+        |SELECT /*+ LOOKUP('table'='AsyncLookupTable', 'output-mode'='allow_unordered', 'time-out'='600s', 'capacity'='300', 'retry-predicate'='lookup_miss', 'retry-strategy'='fixed_delay', 'fixed-delay'='10s', 'max-attempts'='3') */
+        | T.a, D.name, D.age
+        |FROM MyTable T
+        |JOIN AsyncLookupTable
         |FOR SYSTEM_TIME AS OF T.proctime AS D ON T.a = D.id
         |""".stripMargin)
 

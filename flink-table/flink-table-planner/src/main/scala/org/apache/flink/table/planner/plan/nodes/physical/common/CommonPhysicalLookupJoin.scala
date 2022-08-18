@@ -191,7 +191,6 @@ abstract class CommonPhysicalLookupJoin(
       .explainTerms(pw)
       .item("table", tableIdentifier.asSummaryString())
       .item("joinType", JoinTypeUtil.getFlinkJoinType(joinType))
-      .item("async", isAsyncEnabled)
       .item("lookup", lookupKeys)
       .itemIf("where", whereString, whereString.nonEmpty)
       .itemIf(
@@ -204,6 +203,8 @@ abstract class CommonPhysicalLookupJoin(
         remainingCondition.isDefined)
       .item("select", selection)
       .itemIf("upsertMaterialize", "true", upsertMaterialize)
+      .itemIf("async", asyncOptions.getOrElse(""), asyncOptions.isDefined)
+      .itemIf("retry", retryOptions.getOrElse(""), retryOptions.isDefined)
   }
 
   private def getInputChangelogMode(rel: RelNode): ChangelogMode = rel match {

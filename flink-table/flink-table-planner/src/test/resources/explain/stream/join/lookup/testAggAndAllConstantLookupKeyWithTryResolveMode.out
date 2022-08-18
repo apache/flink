@@ -12,7 +12,7 @@ LogicalSink(table=[default_catalog.default_database.Sink1], fields=[a, name, age
 
 == Optimized Physical Plan ==
 Sink(table=[default_catalog.default_database.Sink1], fields=[a, name, age])
-+- LookupJoin(table=[default_catalog.default_database.LookupTable], joinType=[LeftOuterJoin], async=[false], lookup=[id=100], where=[=(id, 100)], select=[a, name, age], upsertMaterialize=[true])
++- LookupJoin(table=[default_catalog.default_database.LookupTable], joinType=[LeftOuterJoin], lookup=[id=100], where=[=(id, 100)], select=[a, name, age], upsertMaterialize=[true])
    +- Calc(select=[a])
       +- GroupAggregate(groupBy=[b], select=[b, MAX(a) AS a])
          +- Exchange(distribution=[hash[b]])
@@ -21,7 +21,7 @@ Sink(table=[default_catalog.default_database.Sink1], fields=[a, name, age])
 
 == Optimized Execution Plan ==
 Sink(table=[default_catalog.default_database.Sink1], fields=[a, name, age])
-+- LookupJoin(table=[default_catalog.default_database.LookupTable], joinType=[LeftOuterJoin], async=[false], lookup=[id=100], where=[(id = 100)], select=[a, name, age], upsertMaterialize=[true])
++- LookupJoin(table=[default_catalog.default_database.LookupTable], joinType=[LeftOuterJoin], lookup=[id=100], where=[(id = 100)], select=[a, name, age], upsertMaterialize=[true])
    +- Calc(select=[a])
       +- GroupAggregate(groupBy=[b], select=[b, MAX(a) AS a])
          +- Exchange(distribution=[hash[b]])
@@ -84,7 +84,7 @@ Sink(table=[default_catalog.default_database.Sink1], fields=[a, name, age])
     "id" : 10,
     "type" : "LookupJoin[6]",
     "pact" : "Operator",
-    "contents" : "[6]:LookupJoin(table=[default_catalog.default_database.LookupTable], joinType=[LeftOuterJoin], async=[false], lookup=[id=100], where=[(id = 100)], select=[a, name, age], upsertMaterialize=[true])",
+    "contents" : "[6]:LookupJoin(table=[default_catalog.default_database.LookupTable], joinType=[LeftOuterJoin], lookup=[id=100], where=[(id = 100)], select=[a, name, age], upsertMaterialize=[true])",
     "parallelism" : 1,
     "predecessors" : [ {
       "id" : 8,
