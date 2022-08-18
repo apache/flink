@@ -16,13 +16,14 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.gateway.api.results;
+package org.apache.flink.table.gateway.api.results.serde;
 
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.util.DataFormatConverters;
+import org.apache.flink.table.gateway.api.results.ResultSet;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.types.Row;
 import org.apache.flink.types.RowKind;

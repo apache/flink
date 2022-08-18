@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.gateway.api.results;
+package org.apache.flink.table.gateway.api.results.serde;
 
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.formats.common.TimestampFormat;
@@ -24,6 +24,9 @@ import org.apache.flink.formats.json.JsonFormatOptions;
 import org.apache.flink.formats.json.RowDataToJsonConverters;
 import org.apache.flink.table.catalog.Column;
 import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.gateway.api.results.ColumnInfo;
+import org.apache.flink.table.gateway.api.results.ResultSet;
+import org.apache.flink.table.gateway.api.results.RowDataInfo;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.types.RowKind;
