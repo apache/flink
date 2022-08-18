@@ -246,6 +246,7 @@ public class HybridSourceSplitEnumerator
 
     @Override
     public void close() throws IOException {
+        // Sometimes, when SourceCoordinator calls this method, currentEnumerator is null.
         if (currentEnumerator != null) {
             currentEnumerator.close();
         }
