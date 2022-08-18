@@ -182,6 +182,7 @@ under the License.
 		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-shaded-jackson-module-jsonSchema</artifactId>
+			<scope>test</scope>
 		</dependency>
 
 		<dependency>
