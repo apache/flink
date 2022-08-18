@@ -80,7 +80,7 @@ public class FetchResultsHandler
         // Build the response
         String nextResultUri =
                 FetchResultsHeaders.buildNextUri(
-                        version.name(),
+                        version.name().toLowerCase(),
                         sessionHandle.getIdentifier().toString(),
                         operationHandle.getIdentifier().toString(),
                         nextToken);
