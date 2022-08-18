@@ -41,6 +41,7 @@ import org.junit.Test;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -138,31 +139,41 @@ public class AdaptiveHashJoinITCase extends TestLogger {
     }
 
     @Test
-    public void testBuildLeftIntKeyAdaptiveHashJoin() {
-        tEnv.executeSql("INSERT INTO sink SELECT x, z, a, b, c FROM t1 JOIN t2 ON t1.x=t2.a");
-        List<String> result = TestValuesTableFactory.getResults("sink");
-        assertThat(result.size()).isEqualTo(2000000);
+    public void testBuildLeftIntKeyAdaptiveHashJoin() throws Exception {
+        tEnv.executeSql("INSERT INTO sink SELECT x, z, a, b, c FROM t1 JOIN t2 ON t1.x=t2.a")
+                .await(60, TimeUnit.SECONDS);
+
+        asserResult("sink", 2000000);
     }
 
     @Test
-    public void testBuildRightIntKeyAdaptiveHashJoin() {
-        tEnv.executeSql("INSERT INTO sink SELECT x, z, a, b, c FROM t2 JOIN t1 ON t1.x=t2.a");
-        List<String> result = TestValuesTableFactory.getResults("sink");
-        assertThat(result.size()).isEqualTo(2000000);
+    public void testBuildRightIntKeyAdaptiveHashJoin() throws Exception {
+        tEnv.executeSql("INSERT INTO sink SELECT x, z, a, b, c FROM t2 JOIN t1 ON t1.x=t2.a")
+                .await(60, TimeUnit.SECONDS);
+
+        asserResult("sink", 2000000);
     }
 
     @Test
-    public void testBuildLeftStringKeyAdaptiveHashJoin() {
-        tEnv.executeSql("INSERT INTO sink SELECT x, z, a, b, c FROM t1 JOIN t2 ON t1.z=t2.c");
-        List<String> result = TestValuesTableFactory.getResults("sink");
-        assertThat(result.size()).isEqualTo(2000000);
+    public void testBuildLeftStringKeyAdaptiveHashJoin() throws Exception {
+        tEnv.executeSql("INSERT INTO sink SELECT x, z, a, b, c FROM t1 JOIN t2 ON t1.z=t2.c")
+                .await(60, TimeUnit.SECONDS);
+
+        asserResult("sink", 2000000);
     }
 
     @Test
-    public void testBuildRightStringKeyAdaptiveHashJoin() {
-        tEnv.executeSql("INSERT INTO sink SELECT x, z, a, b, c FROM t2 JOIN t1 ON t1.z=t2.c");
-        List<String> result = TestValuesTableFactory.getResults("sink");
-        assertThat(result.size()).isEqualTo(2000000);
+    public void testBuildRightStringKeyAdaptiveHashJoin() throws Exception {
+        tEnv.executeSql("INSERT INTO sink SELECT x, z, a, b, c FROM t2 JOIN t1 ON t1.z=t2.c")
+                .await(60, TimeUnit.SECONDS);
+
+        asserResult("sink", 2000000);
+    }
+
+    private void asserResult(String sinkTableName, int resultSize) {
+        // Due to concern OOM and record value is same, here just assert result size
+        List<String> result = TestValuesTableFactory.getResults(sinkTableName);
+        assertThat(result.size()).isEqualTo(resultSize);
     }
 
     private List<Row> getRepeatedRow(int key, int nums) {
