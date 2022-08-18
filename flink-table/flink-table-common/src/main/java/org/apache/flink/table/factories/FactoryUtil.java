@@ -114,7 +114,7 @@ public final class FactoryUtil {
             ConfigOptions.key("sql-gateway.endpoint.type")
                     .stringType()
                     .asList()
-                    .noDefaultValue()
+                    .defaultValues("rest")
                     .withDescription("Specify the endpoints that are used.");
 
     /**

@@ -64,6 +64,8 @@ import java.util.stream.Collectors;
 
 import static org.apache.flink.table.endpoint.hive.HiveServer2EndpointConfigOptions.CATALOG_HIVE_CONF_DIR;
 import static org.apache.flink.table.endpoint.hive.HiveServer2EndpointConfigOptions.THRIFT_PORT;
+import static org.apache.flink.table.gateway.rest.util.SqlGatewayRestOptions.ADDRESS;
+import static org.apache.flink.table.gateway.rest.util.SqlGatewayRestOptions.PORT;
 import static org.apache.flink.tests.util.TestUtils.readCsvResultFiles;
 import static org.junit.Assert.assertEquals;
 
@@ -81,7 +83,8 @@ public class SqlGatewayE2ECase extends TestLogger {
     @ClassRule public static final HiveContainer HIVE_CONTAINER = new HiveContainer();
     @Rule public final FlinkResource flinkResource = buildFlinkResource();
 
-    private static NetUtils.Port port;
+    private static NetUtils.Port hiveserver2Port;
+    private static NetUtils.Port restPort;
 
     @BeforeClass
     public static void beforeClass() {
@@ -91,34 +94,45 @@ public class SqlGatewayE2ECase extends TestLogger {
 
     @AfterClass
     public static void afterClass() throws Exception {
-        port.close();
+        hiveserver2Port.close();
+        restPort.close();
     }
 
     @Test
-    public void testExecuteStatement() throws Exception {
-        URL url = SqlGatewayE2ECase.class.getClassLoader().getResource(GATEWAY_E2E_SQL);
-        if (url == null) {
-            throw new FileNotFoundException(GATEWAY_E2E_SQL);
-        }
-        File result = FOLDER.newFolder("csv");
-        String sql =
-                Files.readAllLines(new File(url.getFile()).toPath()).stream()
-                        .filter(line -> !line.trim().startsWith("--"))
-                        .collect(Collectors.joining());
-        List<String> lines =
-                Arrays.stream(sql.split(";"))
-                        .map(line -> line.replace(RESULT_KEY, result.getAbsolutePath()))
-                        .collect(Collectors.toList());
+    public void testHiveserver2ExecuteStatement() throws Exception {
+        executeStatement(SQLJobSubmission.ClientMode.HIVE_JDBC);
+    }
 
+    @Test
+    public void testRestExecuteStatement() throws Exception {
+        executeStatement(SQLJobSubmission.ClientMode.REST);
+    }
+
+    private void executeStatement(SQLJobSubmission.ClientMode mode) throws Exception {
+        File result = FOLDER.newFolder("csv");
         try (GatewayController gateway = flinkResource.startSqlGateway();
                 ClusterController ignore = flinkResource.startCluster(1)) {
             gateway.submitSQLJob(
-                    new SQLJobSubmission.SQLJobSubmissionBuilder(lines)
-                            .setClientMode(SQLJobSubmission.ClientMode.HIVE_JDBC)
+                    new SQLJobSubmission.SQLJobSubmissionBuilder(getSqlLines(result))
+                            .setClientMode(mode)
                             .build(),
                     Duration.ofSeconds(60));
         }
         assertEquals(Collections.singletonList("1"), readCsvResultFiles(result.toPath()));
+    }
+
+    private static List<String> getSqlLines(File result) throws Exception {
+        URL url = SqlGatewayE2ECase.class.getClassLoader().getResource(GATEWAY_E2E_SQL);
+        if (url == null) {
+            throw new FileNotFoundException(GATEWAY_E2E_SQL);
+        }
+        String sql =
+                Files.readAllLines(new File(url.getFile()).toPath()).stream()
+                        .filter(line -> !line.trim().startsWith("--"))
+                        .collect(Collectors.joining());
+        return Arrays.stream(sql.split(";"))
+                .map(line -> line.replace(RESULT_KEY, result.getAbsolutePath()))
+                .collect(Collectors.toList());
     }
 
     private static File createHiveConf() {
@@ -177,12 +191,20 @@ public class SqlGatewayE2ECase extends TestLogger {
         } catch (Exception e) {
             throw new RuntimeException("Failed to build the FlinkResource.", e);
         }
-        // add hive server2 endpoint related configs
-        port = NetUtils.getAvailablePort();
+        // add configs for the following endpoints: hive server2, rest
+        hiveserver2Port = NetUtils.getAvailablePort();
+        restPort = NetUtils.getAvailablePort();
         Map<String, String> endpointConfig = new HashMap<>();
-        endpointConfig.put("sql-gateway.endpoint.type", "hiveserver2");
+        endpointConfig.put("sql-gateway.endpoint.type", "hiveserver2;rest");
+        // hive server2
         endpointConfig.put(
-                getPrefixedConfigOptionName(THRIFT_PORT), String.valueOf(port.getPort()));
+                getPrefixedConfigOptionName(THRIFT_PORT),
+                String.valueOf(hiveserver2Port.getPort()));
+        // rest
+        endpointConfig.put(getRestPrefixedConfigOptionName(ADDRESS), "127.0.0.1");
+        endpointConfig.put(
+                getRestPrefixedConfigOptionName(PORT), String.valueOf(restPort.getPort()));
+
         ENDPOINT_CONFIG.addAll(Configuration.fromMap(endpointConfig));
         builder.addConfiguration(ENDPOINT_CONFIG);
 
@@ -191,6 +213,11 @@ public class SqlGatewayE2ECase extends TestLogger {
 
     private static String getPrefixedConfigOptionName(ConfigOption<?> option) {
         String prefix = "sql-gateway.endpoint.hiveserver2.";
+        return prefix + option.key();
+    }
+
+    private static String getRestPrefixedConfigOptionName(ConfigOption<?> option) {
+        String prefix = "sql-gateway.endpoint.rest.";
         return prefix + option.key();
     }
 }
