@@ -142,6 +142,10 @@ public abstract class DynamicPartitionPruningRule extends RelRule<RelRule.Config
         List<String> acceptedFields =
                 ((SupportsDynamicFiltering) tableSource).applyDynamicFiltering(candidateFields);
 
+        if (acceptedFields == null) {
+            return new ArrayList<>();
+        }
+
         for (String field : acceptedFields) {
             if (!candidateFields.contains(field)) {
                 throw new TableException(
@@ -162,14 +166,10 @@ public abstract class DynamicPartitionPruningRule extends RelRule<RelRule.Config
     }
 
     private static List<Integer> getAcceptedFieldsIndicesInCalc(
-            @Nullable List<String> acceptedFields,
+            List<String> acceptedFields,
             List<Integer> factJoinKeys,
             BatchPhysicalCalc factCalc,
             BatchPhysicalTableSourceScan factScan) {
-        if (acceptedFields == null) {
-            return new ArrayList<>();
-        }
-
         List<Integer> acceptedFieldsIndicesInFactScan =
                 acceptedFields.stream()
                         .map(f -> factScan.getRowType().getFieldNames().indexOf(f))
