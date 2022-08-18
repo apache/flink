@@ -109,6 +109,8 @@ public class SQLJobSubmission {
     public enum ClientMode {
         SQL_CLIENT,
 
-        HIVE_JDBC
+        HIVE_JDBC,
+
+        REST
     }
 }
