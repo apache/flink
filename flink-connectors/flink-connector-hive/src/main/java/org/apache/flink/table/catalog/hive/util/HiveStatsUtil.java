@@ -69,9 +69,10 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -312,18 +313,25 @@ public class HiveStatsUtil {
                                                                     p.getParameters())
                                                             .getRowCount()))
                             .collect(Collectors.toList());
-            Optional<TableStats> optionalTableStats =
-                    catalogTableStatistics.stream().reduce(TableStats::merge);
-            if (!optionalTableStats.isPresent()) {
+
+            if (catalogTableStatistics.isEmpty()) {
                 return 0L;
-            } else {
-                TableStats tableStats = optionalTableStats.get();
-                if (tableStats == TableStats.UNKNOWN || tableStats.getRowCount() < 0) {
-                    return null;
-                } else {
-                    return tableStats.getRowCount();
-                }
             }
+
+            TableStats resultTableStats = catalogTableStatistics.get(0);
+            for (int i = 1; i < catalogTableStatistics.size(); i++) {
+                resultTableStats =
+                        resultTableStats.merge(
+                                catalogTableStatistics.get(i),
+                                getFieldNames(hiveTable.getPartitionKeys()));
+            }
+
+            if (resultTableStats == TableStats.UNKNOWN || resultTableStats.getRowCount() < 0) {
+                return null;
+            } else {
+                return resultTableStats.getRowCount();
+            }
+
         } catch (Exception e) {
             LOG.warn(
                     "Can't list partition for table `{}.{}`, partition value {}.",
@@ -332,6 +340,15 @@ public class HiveStatsUtil {
                     partialPartitionVals);
         }
         return null;
+    }
+
+    /** Get field names from field schemas. */
+    private static Set<String> getFieldNames(List<FieldSchema> fieldSchemas) {
+        Set<String> names = new HashSet<>();
+        for (FieldSchema fs : fieldSchemas) {
+            names.add(fs.getName());
+        }
+        return names;
     }
 
     public static CatalogTableStatistics createCatalogTableStatistics(

@@ -39,6 +39,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * Utility class for converting {@link CatalogTableStatistics} and {@link CatalogColumnStatistics}
@@ -66,7 +67,8 @@ public class CatalogTableStatisticsConverter {
 
     public static TableStats convertToAccumulatedTableStates(
             List<CatalogTableStatistics> tableStatisticsList,
-            List<CatalogColumnStatistics> catalogColumnStatisticsList) {
+            List<CatalogColumnStatistics> catalogColumnStatisticsList,
+            Set<String> partitionKeys) {
         Preconditions.checkState(
                 tableStatisticsList.size() == catalogColumnStatisticsList.size(),
                 String.format(
@@ -80,7 +82,16 @@ public class CatalogTableStatisticsConverter {
                     CatalogTableStatisticsConverter.convertToTableStats(
                             catalogTableStatistics, catalogColumnStatistics));
         }
-        return tableStats.stream().reduce(TableStats::merge).orElse(TableStats.UNKNOWN);
+
+        if (tableStats.isEmpty()) {
+            return TableStats.UNKNOWN;
+        }
+
+        TableStats resultTableStats = tableStats.get(0);
+        for (int i = 1; i < tableStats.size(); i++) {
+            resultTableStats = resultTableStats.merge(tableStats.get(i), partitionKeys);
+        }
+        return resultTableStats;
     }
 
     @VisibleForTesting

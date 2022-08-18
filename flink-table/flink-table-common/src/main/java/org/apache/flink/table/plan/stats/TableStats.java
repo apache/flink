@@ -20,11 +20,12 @@ package org.apache.flink.table.plan.stats;
 
 import org.apache.flink.annotation.PublicEvolving;
 
-import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 
 /** Table statistics. */
 @PublicEvolving
@@ -79,8 +80,7 @@ public final class TableStats {
      * @param other The other table stats to merge.
      * @return The merged table stats.
      */
-    @Nonnull
-    public TableStats merge(TableStats other) {
+    public TableStats merge(TableStats other, @Nullable Set<String> partitionKeys) {
         if (this == UNKNOWN || other == UNKNOWN) {
             return TableStats.UNKNOWN;
         }
@@ -88,17 +88,22 @@ public final class TableStats {
                 this.rowCount >= 0 && other.rowCount >= 0
                         ? this.rowCount + other.rowCount
                         : UNKNOWN.rowCount;
-        return new TableStats(rowCount, mergeColumnStates(other));
+        return new TableStats(rowCount, mergeColumnStates(other, partitionKeys));
     }
 
-    private Map<String, ColumnStats> mergeColumnStates(TableStats other) {
+    private Map<String, ColumnStats> mergeColumnStates(
+            TableStats other, @Nullable Set<String> partitionKeys) {
         Map<String, ColumnStats> colStats = new HashMap<>();
         for (Map.Entry<String, ColumnStats> entry : this.colStats.entrySet()) {
             String col = entry.getKey();
             ColumnStats stats = entry.getValue();
             ColumnStats otherStats = other.colStats.get(col);
             if (otherStats != null) {
-                colStats.put(col, stats.merge(otherStats));
+                if (partitionKeys != null) {
+                    colStats.put(col, stats.merge(otherStats, partitionKeys.contains(col)));
+                } else {
+                    colStats.put(col, stats.merge(otherStats, false));
+                }
             }
         }
         return colStats;
