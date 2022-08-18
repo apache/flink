@@ -23,16 +23,15 @@ import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.runtime.rest.RestServerEndpointConfiguration;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.gateway.api.endpoint.SqlGatewayEndpointFactoryUtils;
-import org.apache.flink.table.gateway.rest.util.SqlGatewayRestEndpointFactory;
 import org.apache.flink.table.gateway.rest.util.SqlGatewayRestOptions;
 import org.apache.flink.util.ConfigurationException;
 
 import org.junit.jupiter.api.Test;
 
 import static org.apache.flink.table.gateway.api.endpoint.SqlGatewayEndpointFactoryUtils.getEndpointConfig;
+import static org.apache.flink.table.gateway.rest.SqlGatewayRestEndpointFactory.IDENTIFIER;
 import static org.apache.flink.table.gateway.rest.util.RestConfigUtils.getBaseConfig;
 import static org.apache.flink.table.gateway.rest.util.RestConfigUtils.getSqlGatewayRestOptionFullName;
-import static org.apache.flink.table.gateway.rest.util.SqlGatewayRestEndpointFactory.IDENTIFIER;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 

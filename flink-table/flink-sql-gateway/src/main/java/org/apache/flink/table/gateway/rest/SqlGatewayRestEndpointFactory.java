@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.gateway.rest.util;
+package org.apache.flink.table.gateway.rest;
 
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.Configuration;
@@ -25,9 +25,7 @@ import org.apache.flink.table.gateway.api.endpoint.SqlGatewayEndpoint;
 import org.apache.flink.table.gateway.api.endpoint.SqlGatewayEndpointFactory;
 import org.apache.flink.table.gateway.api.endpoint.SqlGatewayEndpointFactoryUtils;
 import org.apache.flink.table.gateway.api.utils.SqlGatewayException;
-import org.apache.flink.table.gateway.rest.SqlGatewayRestEndpoint;
 
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
@@ -94,6 +92,10 @@ public class SqlGatewayRestEndpointFactory implements SqlGatewayEndpointFactory 
 
     @Override
     public Set<ConfigOption<?>> optionalOptions() {
-        return Collections.emptySet();
+        Set<ConfigOption<?>> options = new HashSet<>();
+        options.add(BIND_ADDRESS);
+        options.add(PORT);
+        options.add(BIND_PORT);
+        return options;
     }
 }

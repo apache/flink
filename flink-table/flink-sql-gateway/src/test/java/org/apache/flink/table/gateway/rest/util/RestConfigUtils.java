@@ -23,8 +23,8 @@ import org.apache.flink.table.gateway.api.endpoint.SqlGatewayEndpointFactoryUtil
 
 import static org.apache.flink.table.gateway.api.endpoint.SqlGatewayEndpointFactoryUtils.getEndpointConfig;
 import static org.apache.flink.table.gateway.api.endpoint.SqlGatewayEndpointFactoryUtils.getSqlGatewayOptionPrefix;
-import static org.apache.flink.table.gateway.rest.util.SqlGatewayRestEndpointFactory.IDENTIFIER;
-import static org.apache.flink.table.gateway.rest.util.SqlGatewayRestEndpointFactory.rebuildRestEndpointOptions;
+import static org.apache.flink.table.gateway.rest.SqlGatewayRestEndpointFactory.IDENTIFIER;
+import static org.apache.flink.table.gateway.rest.SqlGatewayRestEndpointFactory.rebuildRestEndpointOptions;
 
 /** The tools to get configuration in test cases. */
 public class RestConfigUtils {
