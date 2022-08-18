@@ -293,8 +293,8 @@ public class RestartPipelinedRegionFailoverStrategy implements FailoverStrategy 
                     && resultPartitionAvailabilityChecker.isAvailable(resultPartitionID)
                     // If the result partition is available in the partition tracker and does not
                     // fail, it will be available if it can be re-consumption, and it may also be
-                    // available for PIPELINED_APPROXIMATE type.
-                    && isResultPartitionIsReConsumableOrPipelinedApproximate(resultPartitionID);
+                    // available for PIPELINED_APPROXIMATE and HYBRID_FULL type.
+                    && isResultPartitionCanBeConsumedRepeatedly(resultPartitionID);
         }
 
         public void markResultPartitionFailed(IntermediateResultPartitionID resultPartitionID) {
@@ -306,12 +306,14 @@ public class RestartPipelinedRegionFailoverStrategy implements FailoverStrategy 
             failedPartitions.remove(resultPartitionID);
         }
 
-        private boolean isResultPartitionIsReConsumableOrPipelinedApproximate(
+        private boolean isResultPartitionCanBeConsumedRepeatedly(
                 IntermediateResultPartitionID resultPartitionID) {
             ResultPartitionType resultPartitionType =
                     resultPartitionTypeRetriever.apply(resultPartitionID);
             return resultPartitionType.isReconsumable()
-                    || resultPartitionType == ResultPartitionType.PIPELINED_APPROXIMATE;
+                    || resultPartitionType == ResultPartitionType.PIPELINED_APPROXIMATE
+                    // TODO support re-consumable for HYBRID_FULL resultPartitionType.
+                    || resultPartitionType == ResultPartitionType.HYBRID_FULL;
         }
     }
 
