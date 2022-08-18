@@ -23,9 +23,6 @@ import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -52,8 +49,6 @@ import static org.apache.flink.connector.file.table.PartitionTempFileManager.lis
  */
 @Internal
 class FileSystemCommitter {
-
-    private static final Logger LOG = LoggerFactory.getLogger(FileSystemCommitter.class);
 
     private final FileSystemFactory factory;
     private final TableMetaStoreFactory metaStoreFactory;
@@ -98,12 +93,6 @@ class FileSystemCommitter {
                 if (taskPaths.isEmpty() && !staticPartitions.isEmpty()) {
                     if (partitionColumnSize == staticPartitions.size()) {
                         loader.loadEmptyPartition(this.staticPartitions);
-                    } else {
-                        LOG.warn(
-                                "{} has {} partition columns, static partition only set {}, and no data is generated, flink will not commit partition!",
-                                identifier,
-                                partitionColumnSize,
-                                staticPartitions);
                     }
                 } else {
                     for (Map.Entry<LinkedHashMap<String, String>, List<Path>> entry :
