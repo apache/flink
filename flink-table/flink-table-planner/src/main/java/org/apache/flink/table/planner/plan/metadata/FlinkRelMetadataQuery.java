@@ -56,6 +56,13 @@ public class FlinkRelMetadataQuery extends RelMetadataQuery {
      * computing metadata.
      */
     public static FlinkRelMetadataQuery instance() {
+        if (THREAD_PROVIDERS.get() == null) {
+            // RelMetadataProvider is set to FlinkDefaultRelMetadataProvider in
+            // org.apache.flink.table.planner.calcite.FlinkRelOptClusterFactory anyway
+            THREAD_PROVIDERS.set(
+                    JaninoRelMetadataProvider.of(
+                            FlinkDefaultRelMetadataProvider$.MODULE$.INSTANCE()));
+        }
         return new FlinkRelMetadataQuery();
     }
 
