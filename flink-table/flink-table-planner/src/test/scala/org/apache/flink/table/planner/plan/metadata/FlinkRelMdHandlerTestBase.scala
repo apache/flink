@@ -33,7 +33,6 @@ import org.apache.flink.table.planner.plan.logical.{LogicalWindow, _}
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions
 import org.apache.flink.table.planner.plan.nodes.calcite._
 import org.apache.flink.table.planner.plan.nodes.common.CommonPhysicalWindowTableFunction
-import org.apache.flink.table.planner.plan.nodes.exec.spec.LookupJoinHintSpec
 import org.apache.flink.table.planner.plan.nodes.logical._
 import org.apache.flink.table.planner.plan.nodes.physical.batch._
 import org.apache.flink.table.planner.plan.nodes.physical.stream._
@@ -2627,7 +2626,8 @@ class FlinkRelMdHandlerTestBase {
       None,
       JoinInfo.of(ImmutableIntList.of(0), ImmutableIntList.of(0)),
       JoinRelType.INNER,
-      Option.empty[LookupJoinHintSpec]
+      Option.empty[RelHint],
+      false
     )
     (batchLookupJoin, streamLookupJoin)
   }

@@ -16,6 +16,252 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 <Root>
+  <TestCase name="testAggAndLeftJoinAllowUnordered[LegacyTableSource=false]">
+    <Resource name="explain">
+      <![CDATA[== Abstract Syntax Tree ==
+LogicalSink(table=[default_catalog.default_database.Sink1], fields=[a, name, age])
++- LogicalProject(a=[$0], name=[$4], age=[$5])
+   +- LogicalCorrelate(correlation=[$cor0], joinType=[left], requiredColumns=[{0, 2}])
+      :- LogicalProject(a=[$1], c=[$2], proctime=[PROCTIME()])
+      :  +- LogicalAggregate(group=[{0}], a=[MAX($1)], c=[COUNT($2)])
+      :     +- LogicalProject(b=[$1], a=[$0], c=[$2])
+      :        +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+      +- LogicalFilter(condition=[=($cor0.a, $0)])
+         +- LogicalSnapshot(period=[$cor0.proctime])
+            +- LogicalTableScan(table=[[default_catalog, default_database, AsyncLookupTable]])
+
+== Optimized Physical Plan ==
+Sink(table=[default_catalog.default_database.Sink1], fields=[a, name, age])
++- Calc(select=[a, name, age])
+   +- LookupJoin(table=[default_catalog.default_database.AsyncLookupTable], joinType=[LeftOuterJoin], lookup=[id=a], select=[a, id, name, age], async=[ORDERED, 180000ms, 100])
+      +- Calc(select=[a])
+         +- GroupAggregate(groupBy=[b], select=[b, MAX(a) AS a])
+            +- Exchange(distribution=[hash[b]])
+               +- Calc(select=[b, a, c])
+                  +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime])
+
+== Optimized Execution Plan ==
+Sink(table=[default_catalog.default_database.Sink1], fields=[a, name, age])
++- Calc(select=[a, name, age])
+   +- LookupJoin(table=[default_catalog.default_database.AsyncLookupTable], joinType=[LeftOuterJoin], lookup=[id=a], select=[a, id, name, age], async=[ORDERED, 180000ms, 100])
+      +- Calc(select=[a])
+         +- GroupAggregate(groupBy=[b], select=[b, MAX(a) AS a])
+            +- Exchange(distribution=[hash[b]])
+               +- Calc(select=[b, a, c])
+                  +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime])
+
+== Physical Execution Plan ==
+{
+  "nodes" : [ {
+    "id" : ,
+    "type" : "Source: Collection Source",
+    "pact" : "Data Source",
+    "contents" : "Source: Collection Source",
+    "parallelism" : 1
+  }, {
+    "id" : ,
+    "type" : "SourceConversion[]",
+    "pact" : "Operator",
+    "contents" : "[]:SourceConversion(table=[default_catalog.default_database.MyTable], fields=[a, b, c, proctime, rowtime])",
+    "parallelism" : 1,
+    "predecessors" : [ {
+      "id" : ,
+      "ship_strategy" : "FORWARD",
+      "side" : "second"
+    } ]
+  }, {
+    "id" : ,
+    "type" : "Calc[]",
+    "pact" : "Operator",
+    "contents" : "[]:Calc(select=[b, a, c])",
+    "parallelism" : 1,
+    "predecessors" : [ {
+      "id" : ,
+      "ship_strategy" : "FORWARD",
+      "side" : "second"
+    } ]
+  }, {
+    "id" : ,
+    "type" : "GroupAggregate[]",
+    "pact" : "Operator",
+    "contents" : "[]:GroupAggregate(groupBy=[b], select=[b, MAX(a) AS a])",
+    "parallelism" : 4,
+    "predecessors" : [ {
+      "id" : ,
+      "ship_strategy" : "HASH",
+      "side" : "second"
+    } ]
+  }, {
+    "id" : ,
+    "type" : "Calc[]",
+    "pact" : "Operator",
+    "contents" : "[]:Calc(select=[a])",
+    "parallelism" : 4,
+    "predecessors" : [ {
+      "id" : ,
+      "ship_strategy" : "FORWARD",
+      "side" : "second"
+    } ]
+  }, {
+    "id" : ,
+    "type" : "LookupJoin[]",
+    "pact" : "Operator",
+    "contents" : "[]:LookupJoin(table=[default_catalog.default_database.AsyncLookupTable], joinType=[LeftOuterJoin], lookup=[id=a], select=[a, id, name, age], async=[ORDERED, 180000ms, 100])",
+    "parallelism" : 4,
+    "predecessors" : [ {
+      "id" : ,
+      "ship_strategy" : "FORWARD",
+      "side" : "second"
+    } ]
+  }, {
+    "id" : ,
+    "type" : "Calc[]",
+    "pact" : "Operator",
+    "contents" : "[]:Calc(select=[a, name, age])",
+    "parallelism" : 4,
+    "predecessors" : [ {
+      "id" : ,
+      "ship_strategy" : "FORWARD",
+      "side" : "second"
+    } ]
+  }, {
+    "id" : ,
+    "type" : "Sink: Sink1[]",
+    "pact" : "Data Sink",
+    "contents" : "[]:Sink(table=[default_catalog.default_database.Sink1], fields=[a, name, age])",
+    "parallelism" : 4,
+    "predecessors" : [ {
+      "id" : ,
+      "ship_strategy" : "FORWARD",
+      "side" : "second"
+    } ]
+  } ]
+}]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testAggAndLeftJoinAllowUnordered[LegacyTableSource=true]">
+    <Resource name="explain">
+      <![CDATA[== Abstract Syntax Tree ==
+LogicalSink(table=[default_catalog.default_database.Sink1], fields=[a, name, age])
++- LogicalProject(a=[$0], name=[$4], age=[$5])
+   +- LogicalCorrelate(correlation=[$cor0], joinType=[left], requiredColumns=[{0, 2}])
+      :- LogicalProject(a=[$1], c=[$2], proctime=[PROCTIME()])
+      :  +- LogicalAggregate(group=[{0}], a=[MAX($1)], c=[COUNT($2)])
+      :     +- LogicalProject(b=[$1], a=[$0], c=[$2])
+      :        +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+      +- LogicalFilter(condition=[=($cor0.a, $0)])
+         +- LogicalSnapshot(period=[$cor0.proctime])
+            +- LogicalTableScan(table=[[default_catalog, default_database, AsyncLookupTable, source: [TestTemporalTable(id, name, age)]]])
+
+== Optimized Physical Plan ==
+Sink(table=[default_catalog.default_database.Sink1], fields=[a, name, age])
++- Calc(select=[a, name, age])
+   +- LookupJoin(table=[default_catalog.default_database.AsyncLookupTable], joinType=[LeftOuterJoin], lookup=[id=a], select=[a, id, name, age], async=[ORDERED, 180000ms, 100])
+      +- Calc(select=[a])
+         +- GroupAggregate(groupBy=[b], select=[b, MAX(a) AS a])
+            +- Exchange(distribution=[hash[b]])
+               +- Calc(select=[b, a, c])
+                  +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime])
+
+== Optimized Execution Plan ==
+Sink(table=[default_catalog.default_database.Sink1], fields=[a, name, age])
++- Calc(select=[a, name, age])
+   +- LookupJoin(table=[default_catalog.default_database.AsyncLookupTable], joinType=[LeftOuterJoin], lookup=[id=a], select=[a, id, name, age], async=[ORDERED, 180000ms, 100])
+      +- Calc(select=[a])
+         +- GroupAggregate(groupBy=[b], select=[b, MAX(a) AS a])
+            +- Exchange(distribution=[hash[b]])
+               +- Calc(select=[b, a, c])
+                  +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime])
+
+== Physical Execution Plan ==
+{
+  "nodes" : [ {
+    "id" : ,
+    "type" : "Source: Collection Source",
+    "pact" : "Data Source",
+    "contents" : "Source: Collection Source",
+    "parallelism" : 1
+  }, {
+    "id" : ,
+    "type" : "SourceConversion[]",
+    "pact" : "Operator",
+    "contents" : "[]:SourceConversion(table=[default_catalog.default_database.MyTable], fields=[a, b, c, proctime, rowtime])",
+    "parallelism" : 1,
+    "predecessors" : [ {
+      "id" : ,
+      "ship_strategy" : "FORWARD",
+      "side" : "second"
+    } ]
+  }, {
+    "id" : ,
+    "type" : "Calc[]",
+    "pact" : "Operator",
+    "contents" : "[]:Calc(select=[b, a, c])",
+    "parallelism" : 1,
+    "predecessors" : [ {
+      "id" : ,
+      "ship_strategy" : "FORWARD",
+      "side" : "second"
+    } ]
+  }, {
+    "id" : ,
+    "type" : "GroupAggregate[]",
+    "pact" : "Operator",
+    "contents" : "[]:GroupAggregate(groupBy=[b], select=[b, MAX(a) AS a])",
+    "parallelism" : 4,
+    "predecessors" : [ {
+      "id" : ,
+      "ship_strategy" : "HASH",
+      "side" : "second"
+    } ]
+  }, {
+    "id" : ,
+    "type" : "Calc[]",
+    "pact" : "Operator",
+    "contents" : "[]:Calc(select=[a])",
+    "parallelism" : 4,
+    "predecessors" : [ {
+      "id" : ,
+      "ship_strategy" : "FORWARD",
+      "side" : "second"
+    } ]
+  }, {
+    "id" : ,
+    "type" : "LookupJoin[]",
+    "pact" : "Operator",
+    "contents" : "[]:LookupJoin(table=[default_catalog.default_database.AsyncLookupTable], joinType=[LeftOuterJoin], lookup=[id=a], select=[a, id, name, age], async=[ORDERED, 180000ms, 100])",
+    "parallelism" : 4,
+    "predecessors" : [ {
+      "id" : ,
+      "ship_strategy" : "FORWARD",
+      "side" : "second"
+    } ]
+  }, {
+    "id" : ,
+    "type" : "Calc[]",
+    "pact" : "Operator",
+    "contents" : "[]:Calc(select=[a, name, age])",
+    "parallelism" : 4,
+    "predecessors" : [ {
+      "id" : ,
+      "ship_strategy" : "FORWARD",
+      "side" : "second"
+    } ]
+  }, {
+    "id" : ,
+    "type" : "Sink: Sink1[]",
+    "pact" : "Data Sink",
+    "contents" : "[]:Sink(table=[default_catalog.default_database.Sink1], fields=[a, name, age])",
+    "parallelism" : 4,
+    "predecessors" : [ {
+      "id" : ,
+      "ship_strategy" : "FORWARD",
+      "side" : "second"
+    } ]
+  } ]
+}]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testAvoidAggregatePushDown[LegacyTableSource=false]">
     <Resource name="sql">
       <![CDATA[
@@ -193,7 +439,7 @@ LogicalProject(a=[$0], b=[$1], c=[$2], proctime=[$3], rowtime=[$4], id=[$5], nam
     <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[a, b, c, PROCTIME_MATERIALIZE(proctime) AS proctime, rowtime, id, name, age])
-+- LookupJoin(table=[default_catalog.default_database.AsyncLookupTable], joinType=[InnerJoin], async=[false], lookup=[id=a], select=[a, b, c, proctime, rowtime, id, name, age])
++- LookupJoin(table=[default_catalog.default_database.AsyncLookupTable], joinType=[InnerJoin], async=[true], lookup=[id=a], select=[a, b, c, proctime, rowtime, id, name, age])
    +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime])
 ]]>
     </Resource>
@@ -215,7 +461,7 @@ LogicalProject(a=[$0], b=[$1], c=[$2], proctime=[$3], rowtime=[$4], id=[$5], nam
     <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[a, b, c, PROCTIME_MATERIALIZE(proctime) AS proctime, rowtime, id, name, age])
-+- LookupJoin(table=[default_catalog.default_database.AsyncLookupTable], joinType=[InnerJoin], async=[false], lookup=[id=a], select=[a, b, c, proctime, rowtime, id, name, age])
++- LookupJoin(table=[default_catalog.default_database.AsyncLookupTable], joinType=[InnerJoin], async=[true], lookup=[id=a], select=[a, b, c, proctime, rowtime, id, name, age])
    +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime])
 ]]>
     </Resource>

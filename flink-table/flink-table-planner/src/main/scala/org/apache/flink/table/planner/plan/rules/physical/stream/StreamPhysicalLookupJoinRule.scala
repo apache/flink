@@ -19,13 +19,13 @@ package org.apache.flink.table.planner.plan.rules.physical.stream
 
 import org.apache.flink.table.planner.hint.JoinStrategy
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions
-import org.apache.flink.table.planner.plan.nodes.exec.spec.LookupJoinHintSpec
 import org.apache.flink.table.planner.plan.nodes.logical._
 import org.apache.flink.table.planner.plan.nodes.physical.common.CommonPhysicalLookupJoin
 import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalLookupJoin
 import org.apache.flink.table.planner.plan.rules.physical.common.{BaseSnapshotOnCalcTableScanRule, BaseSnapshotOnTableScanRule}
 
 import org.apache.calcite.plan.{RelOptRule, RelOptTable}
+import org.apache.calcite.rel.hint.RelHint
 import org.apache.calcite.rex.RexProgram
 
 /**
@@ -80,14 +80,15 @@ object StreamPhysicalLookupJoinRule {
 
     val convInput = RelOptRule.convert(input, requiredTrait)
 
-    val lookupJoinHint = join.getHints
+    val lookupRelHint = join.getHints
       .stream()
       .filter(hint => JoinStrategy.isLookupHint(hint.hintName))
       .findFirst()
-    val lookupJoinHintSpec = if (lookupJoinHint.isPresent) {
-      Option.apply(LookupJoinHintSpec.fromJoinHint(lookupJoinHint.get()))
+
+    val lookupHint = if (lookupRelHint.isPresent) {
+      Option.apply(lookupRelHint.get())
     } else {
-      Option.empty[LookupJoinHintSpec]
+      Option.empty[RelHint]
     }
 
     new StreamPhysicalLookupJoin(
@@ -98,6 +99,7 @@ object StreamPhysicalLookupJoinRule {
       calcProgram,
       joinInfo,
       join.getJoinType,
-      lookupJoinHintSpec)
+      lookupHint,
+      false)
   }
 }
