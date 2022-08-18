@@ -31,7 +31,7 @@ import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
 import org.apache.flink.runtime.rest.handler.RestHandlerConfiguration;
 import org.apache.flink.runtime.rest.handler.RestHandlerSpecification;
 import org.apache.flink.runtime.rest.handler.legacy.metrics.VoidMetricFetcher;
-import org.apache.flink.runtime.rest.messages.MessageHeaders;
+import org.apache.flink.runtime.rest.messages.RuntimeMessageHeaders;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
 import org.apache.flink.util.ConfigurationException;
 
@@ -46,8 +46,8 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executors;
 
 /**
- * Utility class to extract the {@link MessageHeaders} that the {@link DispatcherRestEndpoint}
- * supports.
+ * Utility class to extract the {@link RuntimeMessageHeaders} that the {@link
+ * DispatcherRestEndpoint} supports.
  */
 public class DocumentingDispatcherRestEndpoint extends DispatcherRestEndpoint
         implements DocumentingRestEndpoint {
