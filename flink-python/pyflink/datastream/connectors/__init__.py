@@ -73,6 +73,13 @@ def _install():
     setattr(connectors, 'StreamFormat', file_system.StreamFormat)
     setattr(connectors, 'StreamingFileSink', file_system.StreamingFileSink)
 
+    # pubsub
+    from pyflink.datastream.connectors import pubsub
+    setattr(connectors, 'PubSubSource', pubsub.PubSubSource)
+    setattr(connectors, 'PubSubSink', pubsub.PubSubSink)
+    setattr(connectors, 'Credentials', pubsub.Credentials)
+    setattr(connectors, 'PubSubSubscriberFactory', pubsub.PubSubSubscriberFactory)
+
 
 # for backward compatibility
 _install()

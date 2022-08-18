@@ -71,6 +71,20 @@ SourceFunction<SomeObject> pubsubSource = PubSubSource.newBuilder()
 streamExecEnv.addSource(pubsubSource);
 ```
 {{< /tab >}}
+{{< tab "Python" >}}
+```python
+stream_exec_env = StreamExecutionEnvironment.get_execution_environment()
+
+deserializer = ...
+pubsub_source = PubSubSource.new_builder() \
+    .with_deserialization_schema(deserializer) \
+    .with_project_name("project") \
+    .with_subscription_name("subscription") \
+    .build()
+
+stream_exec_env.add_source(pubsub_source)
+```
+{{< /tab >}}
 {{< /tabs >}}
 
 Currently the source functions [pulls](https://cloud.google.com/pubsub/docs/pull) messages from PubSub, [push endpoints](https://cloud.google.com/pubsub/docs/push) are not supported.
@@ -83,6 +97,8 @@ This builder works in a similar way to the PubSubSource.
 
 Example:
 
+{{< tabs "f5af7878-b460-4e05-8072-a0fd077ba6e5" >}}
+{{< tab "Java" >}}
 ```java
 DataStream<SomeObject> dataStream = (...);
 
@@ -95,6 +111,22 @@ SinkFunction<SomeObject> pubsubSink = PubSubSink.newBuilder()
 
 dataStream.addSink(pubsubSink);
 ```
+{{< /tab >}}
+{{< tab "Python" >}}
+```python
+data_stream = ...
+
+serialization_schema = ...
+pubsub_sink = PubSubSink.new_builder() \
+    .with_serialization_schema(serialization_schema) \
+    .with_project_name("project") \
+    .with_topic_name("topic") \
+    .build()
+
+data_stream.add_sink(pubsub_sink)
+```
+{{< /tab >}}
+{{< /tabs >}}
 
 ### Google Credentials
 
@@ -110,6 +142,8 @@ When running integration tests you might not want to connect to PubSub directly 
 
 The following example shows how you would create a source to read messages from the emulator and send them back:
 
+{{< tabs "f5af7878-b460-4e05-8072-a0fd078ba6e1" >}}
+{{< tab "Java" >}}
 ```java
 String hostAndPort = "localhost:1234";
 DeserializationSchema<SomeObject> deserializationSchema = (...);
@@ -131,6 +165,31 @@ StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironm
 env.addSource(pubsubSource)
    .addSink(pubsubSink);
 ```
+{{< /tab >}}
+{{< tab "Python" >}}
+```python
+host_and_port = "localhost:1234"
+deserialization_schema = ...
+pubsub_source = PubSubSource.new_builder() \
+    .with_deserialization_schema(deserialization_schema) \
+    .with_project_name("my-fake-project") \
+    .with_subscription_name("subscription") \
+    .with_pubsub_subscriber_factory(PubSubSubscriberFactory.default(10, Duration.of_seconds(15), 100)) \
+    .build()
+serialization_schema = ...
+pubsub_sink = PubSubSink.new_builder() \
+    .with_serialization_schema(serialization_schema) \
+    .with_project_name("my-fake-project") \
+    .with_topic_name("topic") \
+    .with_host_and_port_for_emulator(host_and_port) \
+    .build()
+
+env = StreamExecutionEnvironment.get_execution_environment()
+env.add_source(pubsub_source) \
+    .add_sink(pubsub_sink)
+```
+{{< /tab >}}
+{{< /tabs >}}
 
 ### At least once guarantee
 
