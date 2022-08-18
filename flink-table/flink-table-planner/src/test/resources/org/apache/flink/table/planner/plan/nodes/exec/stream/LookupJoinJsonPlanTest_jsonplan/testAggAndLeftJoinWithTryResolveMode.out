@@ -315,7 +315,7 @@
       "priority" : 0
     } ],
     "outputType" : "ROW<`a` INT, `id` INT, `name` VARCHAR(2147483647), `age` INT>",
-    "description" : "LookupJoin(table=[default_catalog.default_database.LookupTable], joinType=[LeftOuterJoin], async=[false], lookup=[id=a], select=[a, id, name, age], upsertMaterialize=[true])"
+    "description" : "LookupJoin(table=[default_catalog.default_database.LookupTable], joinType=[LeftOuterJoin], lookup=[id=a], select=[a, id, name, age], upsertMaterialize=[true])"
   }, {
     "id" : 9,
     "type" : "stream-exec-calc_1",
