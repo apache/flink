@@ -199,4 +199,19 @@
             </plugin>
         </plugins>
     </build>
+
+    <profiles>
+        <!-- This profile adds dependencies needed to execute the tests with Hadoop 3 -->
+        <profile>
+            <id>hadoop3-tests</id>
+            <dependencies>
+                <dependency>
+                    <groupId>org.apache.hadoop</groupId>
+                    <artifactId>hadoop-hdfs-client</artifactId>
+                    <version>${flink.hadoop.version}</version>
+                    <scope>test</scope>
+                </dependency>
+            </dependencies>
+        </profile>
+    </profiles>
 </project>
