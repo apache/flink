@@ -17,8 +17,11 @@
 ################################################################################
 import glob
 import os
+import sys
 import tempfile
 from typing import Tuple, List
+
+import pytest
 
 from pyflink.common import WatermarkStrategy, Types
 from pyflink.datastream import MapFunction
@@ -29,12 +32,13 @@ from pyflink.datastream.tests.test_util import DataStreamTestSinkFunction
 from pyflink.java_gateway import get_gateway
 from pyflink.table import DataTypes
 from pyflink.testing.test_case_utils import PyFlinkStreamingTestCase, PyFlinkTestCase
+from pyflink.util.java_utils import get_j_env_configuration
 
 
-class FileSourceCsvReaderFormatTests(PyFlinkStreamingTestCase):
+class FileSourceCsvReaderFormatTests(object):
 
     def setUp(self):
-        super().setUp()
+        super(FileSourceCsvReaderFormatTests, self).setUp()
         self.test_sink = DataStreamTestSinkFunction()
         self.csv_file_name = tempfile.mktemp(suffix='.csv', dir=self.tempdir)
 
@@ -103,6 +107,20 @@ class FileSourceCsvReaderFormatTests(PyFlinkStreamingTestCase):
         ds = self.env.from_source(source, WatermarkStrategy.no_watermarks(), 'csv-source')
         ds.map(PassThroughMapFunction(), output_type=Types.PICKLED_BYTE_ARRAY()) \
             .add_sink(self.test_sink)
+
+
+class ProcessFileSourceCsvReaderFormatTests(FileSourceCsvReaderFormatTests,
+                                            PyFlinkStreamingTestCase):
+    pass
+
+
+@pytest.mark.skipif(sys.version_info < (3, 7), reason="requires python3.7")
+class EmbeddedFileSourceCsvReaderFormatTests(FileSourceCsvReaderFormatTests,
+                                             PyFlinkStreamingTestCase):
+    def setUp(self):
+        super(EmbeddedFileSourceCsvReaderFormatTests, self).setUp()
+        config = get_j_env_configuration(self.env._j_stream_execution_environment)
+        config.setString("python.execution-mode", "thread")
 
 
 class FileSinkCsvBulkWriterTests(PyFlinkStreamingTestCase):
@@ -288,9 +306,9 @@ def _create_csv_array_column_schema_and_lines() -> Tuple[CsvSchema, List[str]]:
 
 def _check_csv_array_column_results(test, results):
     row = results[0]
-    test.assertListEqual(row['number_array'], [1, 2, 3])
-    test.assertListEqual(row['boolean_array'], [True, False])
-    test.assertListEqual(row['string_array'], ['a', 'b', 'c'])
+    test.assertListEqual(list(row['number_array']), [1, 2, 3])
+    test.assertListEqual(list(row['boolean_array']), [True, False])
+    test.assertListEqual(list(row['string_array']), ['a', 'b', 'c'])
 
 
 def _create_csv_allow_comments_schema_and_lines() -> Tuple[CsvSchema, List[str]]:
