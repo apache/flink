@@ -314,18 +314,11 @@ public class HiveStatsUtil {
                                                             .getRowCount()))
                             .collect(Collectors.toList());
 
-            if (catalogTableStatistics.isEmpty()) {
-                return 0L;
-            }
-
-            TableStats resultTableStats = catalogTableStatistics.get(0);
-            for (int i = 1; i < catalogTableStatistics.size(); i++) {
-                resultTableStats =
-                        resultTableStats.merge(
-                                catalogTableStatistics.get(i),
-                                getFieldNames(hiveTable.getPartitionKeys()));
-            }
-
+            Set<String> partitionKeys = getFieldNames(hiveTable.getPartitionKeys());
+            TableStats resultTableStats =
+                    catalogTableStatistics.stream()
+                            .reduce((s1, s2) -> s1.merge(s2, partitionKeys))
+                            .orElse(TableStats.UNKNOWN);
             if (resultTableStats == TableStats.UNKNOWN || resultTableStats.getRowCount() < 0) {
                 return null;
             } else {

@@ -220,9 +220,7 @@ public class FlinkRecomputeStatisticsProgram implements FlinkOptimizeProgram<Bat
         Set<String> partitionKeys = new HashSet<>();
         for (CatalogPartitionSpec catalogPartitionSpec : catalogPartitionSpecs) {
             Map<String, String> partitionSpec = catalogPartitionSpec.getPartitionSpec();
-            for (Map.Entry<String, String> entry : partitionSpec.entrySet()) {
-                partitionKeys.add(entry.getKey());
-            }
+            partitionKeys.addAll(partitionSpec.keySet());
         }
         return partitionKeys;
     }

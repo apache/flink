@@ -43,12 +43,18 @@ class TableStatsTest {
         Map<String, ColumnStats> colStatsMerge = new HashMap<>();
         colStatsMerge.put("a", new ColumnStats(4L, 20L, 7D, 23, 35, 2));
         assertThat(stats1.merge(stats2, null)).isEqualTo(new TableStats(62, colStatsMerge));
+
+        Map<String, ColumnStats> colStatsMerge2 = new HashMap<>();
+        colStatsMerge2.put("a", new ColumnStats(4L, 20L, 7D, 23, 35, 2));
+        assertThat(stats1.merge(stats2, new HashSet<>()))
+                .isEqualTo(new TableStats(62, colStatsMerge2));
+
         // test column stats merge while column 'a' is partition key. Merged Ndv for columns which
         // are partition keys using sum instead of max.
-        Map<String, ColumnStats> colStatsMerge2 = new HashMap<>();
-        colStatsMerge2.put("a", new ColumnStats(7L, 20L, 7D, 23, 35, 2));
+        Map<String, ColumnStats> colStatsMerge3 = new HashMap<>();
+        colStatsMerge3.put("a", new ColumnStats(7L, 20L, 7D, 23, 35, 2));
         assertThat(stats1.merge(stats2, new HashSet<>(Collections.singletonList("a"))))
-                .isEqualTo(new TableStats(62, colStatsMerge2));
+                .isEqualTo(new TableStats(62, colStatsMerge3));
     }
 
     @Test
@@ -65,12 +71,18 @@ class TableStatsTest {
         Map<String, ColumnStats> colStatsMerge = new HashMap<>();
         colStatsMerge.put("a", new ColumnStats(4L, 20L, 7D, 23, 35, 2));
         assertThat(stats1.merge(stats2, null)).isEqualTo(new TableStats(62, colStatsMerge));
+
+        Map<String, ColumnStats> colStatsMerge2 = new HashMap<>();
+        colStatsMerge2.put("a", new ColumnStats(4L, 20L, 7D, 23, 35, 2));
+        assertThat(stats1.merge(stats2, new HashSet<>()))
+                .isEqualTo(new TableStats(62, colStatsMerge2));
+
         // test column stats merge while column 'a' is partition key. Merged Ndv for columns which
         // are partition keys using sum instead of max.
-        Map<String, ColumnStats> colStatsMerge2 = new HashMap<>();
-        colStatsMerge2.put("a", new ColumnStats(7L, 20L, 7D, 23, 35, 2));
+        Map<String, ColumnStats> colStatsMerge3 = new HashMap<>();
+        colStatsMerge3.put("a", new ColumnStats(7L, 20L, 7D, 23, 35, 2));
         assertThat(stats1.merge(stats2, new HashSet<>(Collections.singletonList("a"))))
-                .isEqualTo(new TableStats(62, colStatsMerge2));
+                .isEqualTo(new TableStats(62, colStatsMerge3));
     }
 
     @Test

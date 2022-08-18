@@ -83,15 +83,9 @@ public class CatalogTableStatisticsConverter {
                             catalogTableStatistics, catalogColumnStatistics));
         }
 
-        if (tableStats.isEmpty()) {
-            return TableStats.UNKNOWN;
-        }
-
-        TableStats resultTableStats = tableStats.get(0);
-        for (int i = 1; i < tableStats.size(); i++) {
-            resultTableStats = resultTableStats.merge(tableStats.get(i), partitionKeys);
-        }
-        return resultTableStats;
+        return tableStats.stream()
+                .reduce((s1, s2) -> s1.merge(s2, partitionKeys))
+                .orElse(TableStats.UNKNOWN);
     }
 
     @VisibleForTesting
