@@ -210,12 +210,6 @@
                     <artifactId>hadoop-hdfs-client</artifactId>
                     <version>${flink.hadoop.version}</version>
                     <scope>test</scope>
-                    <exclusions>
-                        <exclusion>
-                            <groupId>com.fasterxml.jackson.core</groupId>
-                            <artifactId>jackson-annotations</artifactId>
-                        </exclusion>
-                    </exclusions>
                 </dependency>
             </dependencies>
         </profile>
