@@ -44,10 +44,14 @@ import java.io.IOException;
 import java.util.Arrays;
 import java.util.stream.IntStream;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 /** Serializer for {@link RowData}. */
 @Internal
 public class RowDataSerializer extends AbstractRowDataSerializer<RowData> {
     private static final long serialVersionUID = 1L;
+    private static final Logger LOG = LoggerFactory.getLogger(RowDataSerializer.class);
 
     private BinaryRowDataSerializer binarySerializer;
     private final LogicalType[] types;
@@ -336,11 +340,14 @@ public class RowDataSerializer extends AbstractRowDataSerializer<RowData> {
         public TypeSerializerSchemaCompatibility<RowData> resolveSchemaCompatibility(
                 TypeSerializer<RowData> newSerializer) {
             if (!(newSerializer instanceof RowDataSerializer)) {
+                LOG.warn("SNAPSHORT instance mismatch {} != RowDataSerializer", newSerializer);
                 return TypeSerializerSchemaCompatibility.incompatible();
             }
 
             RowDataSerializer newRowSerializer = (RowDataSerializer) newSerializer;
             if (!Arrays.equals(previousTypes, newRowSerializer.types)) {
+                LOG.warn("SNAPSHOT field types mismatch: previous types {}  new types {}",
+                    previousTypes, newRowSerializer.types);
                 return TypeSerializerSchemaCompatibility.incompatible();
             }
 
