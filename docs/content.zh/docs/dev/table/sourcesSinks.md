@@ -36,6 +36,8 @@ Flink 为 Kafka、Hive 和不同的文件系统提供了预定义的连接器。
 
 本页重点介绍如何开发自定义的用户定义连接器。
 
+注意：从 FLINK-15635 开始，table 模块引入了一个用户类加载器，以统一管理所有的用户 jar 包，例如通过 `ADD JAR` 语句添加的 jar。在用户自定义连接器中，如果需要明确加载某些类，请使用用户类加载器而不是线程上下文类加载器，否则可能会出现 ClassNotFoundException 异常。用户可以通过 `DynamicTableFactory.Context` 获得用户类加载器。
+
 概述
 --------
 
