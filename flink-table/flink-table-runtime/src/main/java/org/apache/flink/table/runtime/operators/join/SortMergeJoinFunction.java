@@ -117,6 +117,7 @@ public class SortMergeJoinFunction implements Serializable {
     }
 
     public void open(
+            boolean adaptiveHashJoin,
             StreamTask<?, ?> taskContainer,
             StreamConfig operatorConfig,
             StreamRecordCollector collector,
@@ -132,11 +133,11 @@ public class SortMergeJoinFunction implements Serializable {
 
         ClassLoader cl = taskContainer.getUserCodeClassLoader();
         AbstractRowDataSerializer inputSerializer1 =
-                (AbstractRowDataSerializer) operatorConfig.getTypeSerializerIn1(cl);
+                getInputSerializer1(adaptiveHashJoin, leftIsSmaller, cl, operatorConfig);
         this.serializer1 = new BinaryRowDataSerializer(inputSerializer1.getArity());
 
         AbstractRowDataSerializer inputSerializer2 =
-                (AbstractRowDataSerializer) operatorConfig.getTypeSerializerIn2(cl);
+                getInputSerializer2(adaptiveHashJoin, leftIsSmaller, cl, operatorConfig);
         this.serializer2 = new BinaryRowDataSerializer(inputSerializer2.getArity());
 
         this.memManager = taskContainer.getEnvironment().getMemoryManager();
@@ -220,6 +221,30 @@ public class SortMergeJoinFunction implements Serializable {
         operatorMetricGroup.gauge(
                 "spillInBytes",
                 (Gauge<Long>) () -> sorter1.getSpillInBytes() + sorter2.getSpillInBytes());
+    }
+
+    private AbstractRowDataSerializer getInputSerializer1(
+            boolean adaptiveHashJoin,
+            boolean leftIsSmaller,
+            ClassLoader cl,
+            StreamConfig operatorConfig) {
+        if (adaptiveHashJoin && !leftIsSmaller) {
+            return (AbstractRowDataSerializer) operatorConfig.getTypeSerializerIn2(cl);
+        }
+
+        return (AbstractRowDataSerializer) operatorConfig.getTypeSerializerIn1(cl);
+    }
+
+    private AbstractRowDataSerializer getInputSerializer2(
+            boolean adaptiveHashJoin,
+            boolean leftIsSmaller,
+            ClassLoader cl,
+            StreamConfig operatorConfig) {
+        if (adaptiveHashJoin && !leftIsSmaller) {
+            return (AbstractRowDataSerializer) operatorConfig.getTypeSerializerIn1(cl);
+        }
+
+        return (AbstractRowDataSerializer) operatorConfig.getTypeSerializerIn2(cl);
     }
 
     public void processElement1(RowData element) throws Exception {

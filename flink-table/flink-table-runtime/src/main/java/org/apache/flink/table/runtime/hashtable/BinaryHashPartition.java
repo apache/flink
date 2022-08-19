@@ -215,7 +215,7 @@ public class BinaryHashPartition extends AbstractPagedInputView implements Seeka
                 : this.partitionBuffers.length;
     }
 
-    RandomAccessInputView getBuildStateInputView() {
+    RandomAccessInputView getBuildStageInputView() {
         return this.buildSideWriteBuffer.getBuildStageInputView();
     }
 
