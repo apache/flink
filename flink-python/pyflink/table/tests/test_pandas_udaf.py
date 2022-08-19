@@ -101,9 +101,9 @@ class BatchPandasUDAFITTests(PyFlinkBatchTableTestCase):
         self.t_env.execute_sql(sink_table_ddl)
         self.t_env.get_config().get_configuration().set_string('python.metric.enabled', 'true')
         self.t_env.get_config().set('python.metric.enabled', 'true')
-        self.t_env.register_function("max_add", udaf(MaxAdd(),
-                                                     result_type=DataTypes.INT(),
-                                                     func_type="pandas"))
+        self.t_env.create_temporary_system_function("max_add", udaf(MaxAdd(),
+                                                                    result_type=DataTypes.INT(),
+                                                                    func_type="pandas"))
         self.t_env.create_temporary_system_function("mean_udaf", mean_udaf)
         t.group_by(t.a) \
             .select(t.a,  (t.a + 1).alias("b"), (t.a + 2).alias("c")) \
@@ -172,9 +172,9 @@ class BatchPandasUDAFITTests(PyFlinkBatchTableTestCase):
         a TINYINT, b TIMESTAMP(3), c TIMESTAMP(3), d FLOAT, e INT) WITH ('connector'='test-sink')
         """
         self.t_env.execute_sql(sink_table_ddl)
-        self.t_env.register_function("max_add", udaf(MaxAdd(),
-                                                     result_type=DataTypes.INT(),
-                                                     func_type="pandas"))
+        self.t_env.create_temporary_system_function("max_add", udaf(MaxAdd(),
+                                                                    result_type=DataTypes.INT(),
+                                                                    func_type="pandas"))
         self.t_env.create_temporary_system_function("mean_udaf", mean_udaf)
         slide_window = Slide.over(lit(1).hours) \
             .every(lit(30).minutes) \
@@ -224,10 +224,10 @@ class BatchPandasUDAFITTests(PyFlinkBatchTableTestCase):
         """
         self.t_env.execute_sql(sink_table_ddl)
         self.t_env.create_temporary_system_function("mean_udaf", mean_udaf)
-        self.t_env.register_function("max_add", udaf(MaxAdd(),
-                                                     result_type=DataTypes.INT(),
-                                                     func_type="pandas"))
-        self.t_env.register_table("T", t)
+        self.t_env.create_temporary_system_function("max_add", udaf(MaxAdd(),
+                                                                    result_type=DataTypes.INT(),
+                                                                    func_type="pandas"))
+        self.t_env.create_temporary_view("T", t)
         self.t_env.execute_sql("""
             insert into Results
             select a,
@@ -292,7 +292,7 @@ class StreamPandasUDAFITTests(PyFlinkStreamTableTestCase):
         from pyflink.table.window import Slide
         self.t_env.get_config().set(
             "pipeline.time-characteristic", "EventTime")
-        self.t_env.register_function("mean_udaf", mean_udaf)
+        self.t_env.create_temporary_system_function("mean_udaf", mean_udaf)
 
         source_table = """
             create table source_table(
@@ -340,7 +340,7 @@ class StreamPandasUDAFITTests(PyFlinkStreamTableTestCase):
     def test_sliding_group_window_over_proctime(self):
         self.t_env.get_config().set("parallelism.default", "1")
         from pyflink.table.window import Slide
-        self.t_env.register_function("mean_udaf", mean_udaf)
+        self.t_env.create_temporary_system_function("mean_udaf", mean_udaf)
 
         source_table = """
             create table source_table(
@@ -393,7 +393,7 @@ class StreamPandasUDAFITTests(PyFlinkStreamTableTestCase):
         from pyflink.table.window import Slide
         self.t_env.get_config().set(
             "pipeline.time-characteristic", "ProcessingTime")
-        self.t_env.register_function("mean_udaf", mean_udaf)
+        self.t_env.create_temporary_system_function("mean_udaf", mean_udaf)
 
         source_table = """
             create table source_table(
@@ -448,7 +448,7 @@ class StreamPandasUDAFITTests(PyFlinkStreamTableTestCase):
         from pyflink.table.window import Tumble
         self.t_env.get_config().set(
             "pipeline.time-characteristic", "EventTime")
-        self.t_env.register_function("mean_udaf", mean_udaf)
+        self.t_env.create_temporary_system_function("mean_udaf", mean_udaf)
 
         source_table = """
             create table source_table(
@@ -516,7 +516,7 @@ class StreamPandasUDAFITTests(PyFlinkStreamTableTestCase):
         from pyflink.table.window import Tumble
         self.t_env.get_config().set(
             "pipeline.time-characteristic", "ProcessingTime")
-        self.t_env.register_function("mean_udaf", mean_udaf)
+        self.t_env.create_temporary_system_function("mean_udaf", mean_udaf)
 
         source_table = """
             create table source_table(
@@ -570,8 +570,8 @@ class StreamPandasUDAFITTests(PyFlinkStreamTableTestCase):
                                 func_type='pandas')
         self.t_env.get_config().set(
             "pipeline.time-characteristic", "EventTime")
-        self.t_env.register_function("mean_udaf", mean_udaf)
-        self.t_env.register_function("max_add_min_udaf", max_add_min_udaf)
+        self.t_env.create_temporary_system_function("mean_udaf", mean_udaf)
+        self.t_env.create_temporary_system_function("max_add_min_udaf", max_add_min_udaf)
         source_table = """
             create table source_table(
                 a TINYINT,
@@ -635,8 +635,8 @@ class StreamPandasUDAFITTests(PyFlinkStreamTableTestCase):
                                 func_type='pandas')
         self.t_env.get_config().set(
             "pipeline.time-characteristic", "EventTime")
-        self.t_env.register_function("mean_udaf", mean_udaf)
-        self.t_env.register_function("max_add_min_udaf", max_add_min_udaf)
+        self.t_env.create_temporary_system_function("mean_udaf", mean_udaf)
+        self.t_env.create_temporary_system_function("max_add_min_udaf", max_add_min_udaf)
         source_table = """
             create table source_table(
                 a TINYINT,
@@ -701,8 +701,8 @@ class StreamPandasUDAFITTests(PyFlinkStreamTableTestCase):
         self.t_env.get_config().set("parallelism.default", "1")
         self.t_env.get_config().set(
             "pipeline.time-characteristic", "ProcessingTime")
-        self.t_env.register_function("mean_udaf", mean_udaf)
-        self.t_env.register_function("max_add_min_udaf", max_add_min_udaf)
+        self.t_env.create_temporary_system_function("mean_udaf", mean_udaf)
+        self.t_env.create_temporary_system_function("max_add_min_udaf", max_add_min_udaf)
         source_table = """
             create table source_table(
                 a TINYINT,
