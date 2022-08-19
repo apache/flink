@@ -19,6 +19,8 @@ package org.apache.flink.types;
 
 import org.junit.jupiter.api.Test;
 
+import java.util.List;
+
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class PojoTestUtilsTest {
@@ -34,9 +36,32 @@ class PojoTestUtilsTest {
         PojoTestUtils.assertSerializedAsPojo(Pojo.class);
     }
 
+    @Test
+    void testPojoAcceptedIfKryoRequired() {
+        PojoTestUtils.assertSerializedAsPojo(PojoRequiringKryo.class);
+    }
+
+    @Test
+    void testWithoutKryoPojoAccepted() {
+        PojoTestUtils.assertSerializedAsPojoWithoutKryo(Pojo.class);
+    }
+
+    @Test
+    void testWithoutKryoPojoRejected() {
+        assertThatThrownBy(
+                        () ->
+                                PojoTestUtils.assertSerializedAsPojoWithoutKryo(
+                                        PojoRequiringKryo.class))
+                .isInstanceOf(AssertionError.class);
+    }
+
     private static class NoPojo {}
 
     public static class Pojo {
         public int x;
+    }
+
+    public static class PojoRequiringKryo {
+        public List<Integer> x;
     }
 }
