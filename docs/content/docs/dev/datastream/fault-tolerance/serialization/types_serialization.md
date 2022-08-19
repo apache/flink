@@ -117,6 +117,7 @@ You can also register your own custom serializer if required; see [Serialization
 Flink analyzes the structure of POJO types, i.e., it learns about the fields of a POJO. As a result POJO types are easier to use than general types. Moreover, Flink can process POJOs more efficiently than general types.
 
 You can test whether your class adheres to the POJO requirements via `org.apache.flink.types.PojoTestUtils#assertSerializedAsPojo()` from the `flink-test-utils`.
+If you additionally want to ensure that no field of the POJO will be serialized with Kryo, use `assertSerializedAsPojoWithoutKryo()` instead.
 
 The following example shows a simple POJO with two public fields.
 
