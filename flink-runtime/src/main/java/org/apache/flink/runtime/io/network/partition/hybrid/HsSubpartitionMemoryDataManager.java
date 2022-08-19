@@ -24,6 +24,7 @@ import org.apache.flink.core.memory.MemorySegmentFactory;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.Buffer.DataType;
 import org.apache.flink.runtime.io.network.buffer.BufferBuilder;
+import org.apache.flink.runtime.io.network.buffer.BufferCompressor;
 import org.apache.flink.runtime.io.network.buffer.BufferConsumer;
 import org.apache.flink.runtime.io.network.buffer.FreeingBufferRecycler;
 import org.apache.flink.runtime.io.network.buffer.NetworkBuffer;
@@ -84,17 +85,21 @@ public class HsSubpartitionMemoryDataManager implements HsDataView {
     /** DO NOT USE DIRECTLY. Use {@link #runWithLock} or {@link #callWithLock} instead. */
     private final Object subpartitionLock = new Object();
 
+    @Nullable private final BufferCompressor bufferCompressor;
+
     @Nullable private HsOutputMetrics outputMetrics;
 
     HsSubpartitionMemoryDataManager(
             int targetChannel,
             int bufferSize,
             Lock resultPartitionLock,
+            @Nullable BufferCompressor bufferCompressor,
             HsMemoryDataManagerOperation memoryDataManagerOperation) {
         this.targetChannel = targetChannel;
         this.bufferSize = bufferSize;
         this.resultPartitionLock = resultPartitionLock;
         this.memoryDataManagerOperation = memoryDataManagerOperation;
+        this.bufferCompressor = bufferCompressor;
     }
 
     // ------------------------------------------------------------------------
@@ -359,11 +364,26 @@ public class HsSubpartitionMemoryDataManager implements HsDataView {
         Buffer buffer = bufferConsumer.build();
         currentWritingBuffer.close();
         bufferConsumer.close();
-
         HsBufferContext bufferContext =
-                new HsBufferContext(buffer, finishedBufferIndex, targetChannel);
+                new HsBufferContext(
+                        compressBuffersIfPossible(buffer), finishedBufferIndex, targetChannel);
         addFinishedBuffer(bufferContext);
         memoryDataManagerOperation.onBufferFinished();
+    }
+
+    private Buffer compressBuffersIfPossible(Buffer buffer) {
+        if (!canBeCompressed(buffer)) {
+            return buffer;
+        }
+        return checkNotNull(bufferCompressor).compressToOriginalBuffer(buffer);
+    }
+
+    /**
+     * Whether the buffer can be compressed or not. Note that event is not compressed because it is
+     * usually small and the size can become even larger after compression.
+     */
+    private boolean canBeCompressed(Buffer buffer) {
+        return bufferCompressor != null && buffer.isBuffer() && buffer.readableBytes() > 0;
     }
 
     @SuppressWarnings("FieldAccessNotGuarded")

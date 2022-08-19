@@ -22,7 +22,6 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.core.memory.MemorySegmentFactory;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
-import org.apache.flink.runtime.io.network.buffer.BufferCompressor;
 import org.apache.flink.runtime.io.network.buffer.FreeingBufferRecycler;
 import org.apache.flink.runtime.io.network.buffer.NetworkBuffer;
 import org.apache.flink.runtime.io.network.partition.BufferReaderWriterUtil;
@@ -73,21 +72,20 @@ class HsMemoryDataSpillerTest {
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"LZ4", "LZO", "ZSTD", "NULL"})
-    void testSpillSuccessfully(String compressionFactoryName) throws Exception {
-        memoryDataSpiller =
-                createMemoryDataSpiller(
-                        dataFilePath,
-                        compressionFactoryName.equals("NULL")
-                                ? null
-                                : new BufferCompressor(BUFFER_SIZE, compressionFactoryName));
+    @ValueSource(booleans = {false, true})
+    void testSpillSuccessfully(boolean isCompressed) throws Exception {
+        memoryDataSpiller = createMemoryDataSpiller(dataFilePath);
         List<BufferWithIdentity> bufferWithIdentityList = new ArrayList<>();
         bufferWithIdentityList.addAll(
                 createBufferWithIdentityList(
-                        0, Arrays.asList(Tuple2.of(0, 0), Tuple2.of(1, 1), Tuple2.of(2, 2))));
+                        isCompressed,
+                        0,
+                        Arrays.asList(Tuple2.of(0, 0), Tuple2.of(1, 1), Tuple2.of(2, 2))));
         bufferWithIdentityList.addAll(
                 createBufferWithIdentityList(
-                        0, Arrays.asList(Tuple2.of(4, 0), Tuple2.of(5, 1), Tuple2.of(6, 2))));
+                        isCompressed,
+                        0,
+                        Arrays.asList(Tuple2.of(4, 0), Tuple2.of(5, 1), Tuple2.of(6, 2))));
         CompletableFuture<List<SpilledBuffer>> future =
                 memoryDataSpiller.spillAsync(bufferWithIdentityList);
         List<SpilledBuffer> expectedSpilledBuffers =
@@ -114,6 +112,7 @@ class HsMemoryDataSpillerTest {
                                                                             .fileOffset);
                                                 }));
         checkData(
+                isCompressed,
                 Arrays.asList(
                         Tuple2.of(0, 0),
                         Tuple2.of(1, 1),
@@ -129,7 +128,9 @@ class HsMemoryDataSpillerTest {
         List<BufferWithIdentity> bufferWithIdentityList = new ArrayList<>();
         bufferWithIdentityList.addAll(
                 createBufferWithIdentityList(
-                        0, Arrays.asList(Tuple2.of(0, 0), Tuple2.of(1, 1), Tuple2.of(2, 2))));
+                        false,
+                        0,
+                        Arrays.asList(Tuple2.of(0, 0), Tuple2.of(1, 1), Tuple2.of(2, 2))));
         memoryDataSpiller.close();
         assertThatThrownBy(() -> memoryDataSpiller.spillAsync(bufferWithIdentityList))
                 .isInstanceOf(RejectedExecutionException.class);
@@ -141,12 +142,13 @@ class HsMemoryDataSpillerTest {
         List<BufferWithIdentity> bufferWithIdentityList =
                 new ArrayList<>(
                         createBufferWithIdentityList(
+                                false,
                                 0,
                                 Arrays.asList(Tuple2.of(0, 0), Tuple2.of(1, 1), Tuple2.of(2, 2))));
         memoryDataSpiller.spillAsync(bufferWithIdentityList);
         // blocked until spill finished.
         memoryDataSpiller.release();
-        checkData(Arrays.asList(Tuple2.of(0, 0), Tuple2.of(1, 1), Tuple2.of(2, 2)));
+        checkData(false, Arrays.asList(Tuple2.of(0, 0), Tuple2.of(1, 1), Tuple2.of(2, 2)));
     }
 
     /**
@@ -156,7 +158,9 @@ class HsMemoryDataSpillerTest {
      * @param dataAndIndexes is the list contains pair of (bufferData, bufferIndex).
      */
     private static List<BufferWithIdentity> createBufferWithIdentityList(
-            int subpartitionId, List<Tuple2<Integer, Integer>> dataAndIndexes) {
+            boolean isCompressed,
+            int subpartitionId,
+            List<Tuple2<Integer, Integer>> dataAndIndexes) {
         List<BufferWithIdentity> bufferWithIdentityList = new ArrayList<>();
         for (Tuple2<Integer, Integer> dataAndIndex : dataAndIndexes) {
             Buffer.DataType dataType =
@@ -169,6 +173,9 @@ class HsMemoryDataSpillerTest {
             Buffer buffer =
                     new NetworkBuffer(
                             segment, FreeingBufferRecycler.INSTANCE, dataType, BUFFER_SIZE);
+            if (isCompressed) {
+                buffer.setCompressed(true);
+            }
             bufferWithIdentityList.add(
                     new BufferWithIdentity(buffer, dataAndIndex.f1, subpartitionId));
         }
@@ -191,7 +198,8 @@ class HsMemoryDataSpillerTest {
         return Collections.unmodifiableList(spilledBuffers);
     }
 
-    private void checkData(List<Tuple2<Integer, Integer>> dataAndIndexes) throws Exception {
+    private void checkData(boolean isCompressed, List<Tuple2<Integer, Integer>> dataAndIndexes)
+            throws Exception {
         FileChannel readChannel = FileChannel.open(dataFilePath, StandardOpenOption.READ);
         ByteBuffer headerBuf = BufferReaderWriterUtil.allocatedHeaderBuffer();
         MemorySegment segment = MemorySegmentFactory.allocateUnpooledSegment(BUFFER_SIZE);
@@ -200,6 +208,7 @@ class HsMemoryDataSpillerTest {
                     BufferReaderWriterUtil.readFromByteChannel(
                             readChannel, headerBuf, segment, (ignore) -> {});
 
+            assertThat(buffer.isCompressed()).isEqualTo(isCompressed);
             assertThat(buffer.readableBytes()).isEqualTo(BUFFER_SIZE);
             assertThat(buffer.getNioBufferReadable().order(ByteOrder.nativeOrder()).getInt())
                     .isEqualTo(dataAndIndex.f0);
@@ -208,11 +217,6 @@ class HsMemoryDataSpillerTest {
     }
 
     private static HsMemoryDataSpiller createMemoryDataSpiller(Path dataFilePath) throws Exception {
-        return new HsMemoryDataSpiller(dataFilePath, null);
-    }
-
-    private static HsMemoryDataSpiller createMemoryDataSpiller(
-            Path dataFilePath, BufferCompressor bufferCompressor) throws Exception {
-        return new HsMemoryDataSpiller(dataFilePath, bufferCompressor);
+        return new HsMemoryDataSpiller(dataFilePath);
     }
 }
