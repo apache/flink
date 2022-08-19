@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.gateway.api.results.serde;
 
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.types.logical.ArrayType;
 import org.apache.flink.table.types.logical.BigIntType;
@@ -73,6 +74,7 @@ import static org.apache.flink.table.gateway.api.results.serde.LogicalTypeJsonSe
  *
  * @see LogicalTypeJsonSerializer for the reverse operation.
  */
+@PublicEvolving
 public final class LogicalTypeJsonDeserializer extends StdDeserializer<LogicalType> {
 
     private static final long serialVersionUID = 1L;
