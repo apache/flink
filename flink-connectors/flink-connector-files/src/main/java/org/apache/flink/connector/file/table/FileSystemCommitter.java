@@ -91,7 +91,9 @@ class FileSystemCommitter {
                         overwrite, fs, metaStoreFactory, isToLocal, identifier, policies)) {
             if (partitionColumnSize > 0) {
                 if (taskPaths.isEmpty() && !staticPartitions.isEmpty()) {
-                    loader.loadEmptyPartition(this.staticPartitions);
+                    if (partitionColumnSize == staticPartitions.size()) {
+                        loader.loadEmptyPartition(this.staticPartitions);
+                    }
                 } else {
                     for (Map.Entry<LinkedHashMap<String, String>, List<Path>> entry :
                             collectPartSpecToPaths(fs, taskPaths, partitionColumnSize).entrySet()) {
