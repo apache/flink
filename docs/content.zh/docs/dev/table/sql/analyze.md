@@ -1,5 +1,5 @@
 ---
-title: "ANALYZE TABLE 语句"
+title: "ANALYZE 语句"
 weight: 8
 type: docs
 aliases:
@@ -24,7 +24,7 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-<a name="analyze-table-statements"></a>
+<a name="analyze-statements"></a>
 
 # ANALYZE TABLE 语句
 
@@ -73,19 +73,20 @@ TableEnvironment tableEnv = TableEnvironment.create(...);
 tableEnv.executeSql(
         "CREATE TABLE Store (" +
         " `id` BIGINT NOT NULl," +
-        " location VARCHAR(32)," +
-        " owner VARCHAR(32)" +
+        " `location` VARCHAR(32)," +
+        " `owner` VARCHAR(32)" +
         ") with (...)");
 
 // 注册名为 “Orders” 的分区表
 tableEnv.executeSql(
         "CREATE TABLE Orders (" +
         " `id` BIGINT NOT NULl," +
-        " product VARCHAR(32)," +
-        " amount INT," +
+        " `product` VARCHAR(32)," +
+        " `amount` INT," +
         " `sold_year` BIGINT", +
         " `sold_month` BIGINT", +
-        ") PARTITIONED BY (`sold_year`, `sold_month`) "
+        " `sold_day` BIGINT" +
+        ") PARTITIONED BY (`sold_year`, `sold_month`, `sold_day`) "
         ") with (...)");
 
 // 非分区表，收集表级别的统计信息(表的统计信息主要为行数(row count))。
@@ -94,43 +95,43 @@ tableEnv.executeSql("ANALYZE TABLE Store COMPUTE STATISTICS");
 // 非分区表，收集表级别的统计信息和所有列的列统计信息。
 tableEnv.executeSql("ANALYZE TABLE Store COMPUTE STATISTICS FOR ALL COLUMNS");
 
-// 非分区表，收集表级别的统计信息和指定列(列: user)的列统计信息。
-tableEnv.executeSql("ANALYZE TABLE Store COMPUTE STATISTICS FOR COLUMNS(user)");
+// 非分区表，收集表级别的统计信息和指定列(列: location)的列统计信息。
+tableEnv.executeSql("ANALYZE TABLE Store COMPUTE STATISTICS FOR COLUMNS location");
 
 
 // 假设分区表 “Orders” 有 4 个分区，分区信息如下：
-// Partition1 : (sold_year='2022', sold_month='8')
-// Partition2 : (sold_year='2022', sold_month='9')
-// Partition3 : (sold_year='2021', sold_month='8')
-// Partition3 : (sold_year='2021', sold_month='9')
+// Partition1 : (sold_year='2022', sold_month='1', sold_day='10')
+// Partition2 : (sold_year='2022', sold_month='1', sold_day='11')
+// Partition3 : (sold_year='2022', sold_month='2', sold_day='10')
+// Partition4 : (sold_year='2022', sold_month='2', sold_day='11')
 
 
 // 分区表，收集分区 Partition1 的表级别统计信息。
-tableEnv.executeSql("ANALYZE TABLE Orders PARTITION (sold_year='2022', sold_month='8') COMPUTE STATISTICS");
+tableEnv.executeSql("ANALYZE TABLE Orders PARTITION(sold_year='2022', sold_month='1', sold_day='10') COMPUTE STATISTICS");
 
 // 分区表，收集分区 Partition1 和 Partition2 的表级别统计信息。
-tableEnv.executeSql("ANALYZE TABLE Orders PARTITION (sold_year='2022', sold_month) COMPUTE STATISTICS");
+tableEnv.executeSql("ANALYZE TABLE Orders PARTITION(sold_year='2022', sold_month='1', sold_day) COMPUTE STATISTICS");
 
 // 分区表，为所有分区收集表级别统计信息。
-tableEnv.executeSql("ANALYZE TABLE Orders COMPUTE STATISTICS");
+tableEnv.executeSql("ANALYZE TABLE Orders PARTITION(sold_year, sold_month, sold_day) COMPUTE STATISTICS");
 
 // 分区表，收集分区 Partition1 的表级别统计信息和所有列的统计信息。
-tableEnv.executeSql("ANALYZE TABLE Orders PARTITION (sold_year='2022', sold_month='8') COMPUTE STATISTICS FOR ALL COLUMNS");
+tableEnv.executeSql("ANALYZE TABLE Orders PARTITION(sold_year='2022', sold_month='1', sold_day='10') COMPUTE STATISTICS FOR ALL COLUMNS");
 
 // 分区表，收集分区 Partition1 和 Partition2 的表级别统计信息和所有列统计信息。
-tableEnv.executeSql("ANALYZE TABLE Orders PARTITION (sold_year='2022', sold_month) COMPUTE STATISTICS FOR ALL COLUMNS");
+tableEnv.executeSql("ANALYZE TABLE Orders PARTITION(sold_year='2022', sold_month='1', sold_day) COMPUTE STATISTICS FOR ALL COLUMNS");
 
 // 分区表，为所有分区收集表级别统计信息和所有列的统计信息。
-tableEnv.executeSql("ANALYZE TABLE Orders COMPUTE STATISTICS FOR ALL COLUMNS");
+tableEnv.executeSql("ANALYZE TABLE Orders PARTITION(sold_year, sold_month, sold_day) COMPUTE STATISTICS FOR ALL COLUMNS");
 
 // 分区表，收集分区 Partition1 的表级别统计信息和分区中指定列(列: amount)的列统计信息。
-tableEnv.executeSql("ANALYZE TABLE Orders PARTITION (sold_year='2022', sold_month='8') COMPUTE STATISTICS FOR COLUMNS(amount)");
+tableEnv.executeSql("ANALYZE TABLE Orders PARTITION(sold_year='2022', sold_month='1', sold_day='10') COMPUTE STATISTICS FOR COLUMNS amount");
 
 // 分区表，收集分区 Partition1 和 Partition2 的表级别统计信息和分区中指定列(列: amount，列: product)的列统计信息。
-tableEnv.executeSql("ANALYZE TABLE Orders PARTITION (sold_year='2022', sold_month) COMPUTE STATISTICS FOR COLUMNS(amount, product)");
+tableEnv.executeSql("ANALYZE TABLE Orders PARTITION(sold_year='2022', sold_month='1', sold_day) COMPUTE STATISTICS FOR COLUMNS amount, product");
 
 // 分区表，收集所有分区的表级别统计信息和指定列(列: amount，列: product)的列统计信息。
-tableEnv.executeSql("ANALYZE TABLE Orders PARTITION (sold_year, sold_month) COMPUTE STATISTICS FOR COLUMNS(amount, product)");
+tableEnv.executeSql("ANALYZE TABLE Orders PARTITION(sold_year, sold_month, sold_day) COMPUTE STATISTICS FOR COLUMNS amount, product");
 ```
 {{< /tab >}}
 {{< tab "Scala" >}}
@@ -141,19 +142,20 @@ val tableEnv = TableEnvironment.create(...)
 tableEnv.executeSql(
   "CREATE TABLE Store (" +
           " `id` BIGINT NOT NULl," +
-          " location VARCHAR(32)," +
-          " owner VARCHAR(32)" +
+          " `location` VARCHAR(32)," +
+          " `owner` VARCHAR(32)" +
           ") with (...)");
 
 // 注册名为 “Orders” 的分区表
 tableEnv.executeSql(
   "CREATE TABLE Orders (" +
           " `id` BIGINT NOT NULl," +
-          " product VARCHAR(32)," +
-          " amount INT," +
+          " `product` VARCHAR(32)," +
+          " `amount` INT," +
           " `sold_year` BIGINT", +
           " `sold_month` BIGINT", +
-          ") PARTITIONED BY (`sold_year`, `sold_month`) "
+          " `sold_day` BIGINT" +
+          ") PARTITIONED BY (`sold_year`, `sold_month`, `sold_day`) "
 ") with (...)");
 
 // 非分区表，收集表级别的统计信息(表的统计信息主要为行数(row count))。
@@ -162,43 +164,43 @@ tableEnv.executeSql("ANALYZE TABLE Store COMPUTE STATISTICS");
 // 非分区表，收集表级别的统计信息和所有列的列统计信息。
 tableEnv.executeSql("ANALYZE TABLE Store COMPUTE STATISTICS FOR ALL COLUMNS");
 
-// 非分区表，收集表级别的统计信息和指定列(列: user)的列统计信息。
-tableEnv.executeSql("ANALYZE TABLE Store COMPUTE STATISTICS FOR COLUMNS(user)");
+// 非分区表，收集表级别的统计信息和指定列(列: location)的列统计信息。
+tableEnv.executeSql("ANALYZE TABLE Store COMPUTE STATISTICS FOR COLUMNS location");
 
 
 // 假设分区表 “Orders” 有 4 个分区，分区信息如下：
-// Partition1 : (sold_year='2022', sold_month='8')
-// Partition2 : (sold_year='2022', sold_month='9')
-// Partition3 : (sold_year='2021', sold_month='8')
-// Partition3 : (sold_year='2021', sold_month='9')
+// Partition1 : (sold_year='2022', sold_month='1', sold_day='10')
+// Partition2 : (sold_year='2022', sold_month='1', sold_day='11')
+// Partition3 : (sold_year='2022', sold_month='2', sold_day='10')
+// Partition4 : (sold_year='2022', sold_month='2', sold_day='11')
 
 
 // 分区表，收集分区 Partition1 的表级别统计信息。
-tableEnv.executeSql("ANALYZE TABLE Orders PARTITION (sold_year='2022', sold_month='8') COMPUTE STATISTICS");
+tableEnv.executeSql("ANALYZE TABLE Orders PARTITION(sold_year='2022', sold_month='1', sold_day='10') COMPUTE STATISTICS");
 
 // 分区表，收集分区 Partition1 和 Partition2 的表级别统计信息。
-tableEnv.executeSql("ANALYZE TABLE Orders PARTITION (sold_year='2022', sold_month) COMPUTE STATISTICS");
+tableEnv.executeSql("ANALYZE TABLE Orders PARTITION(sold_year='2022', sold_month='1', sold_day) COMPUTE STATISTICS");
 
 // 分区表，为所有分区收集表级别统计信息。
-tableEnv.executeSql("ANALYZE TABLE Orders COMPUTE STATISTICS");
+tableEnv.executeSql("ANALYZE TABLE Orders PARTITION(sold_year, sold_month, sold_day) COMPUTE STATISTICS");
 
 // 分区表，收集分区 Partition1 的表级别统计信息和所有列的统计信息。
-tableEnv.executeSql("ANALYZE TABLE Orders PARTITION (sold_year='2022', sold_month='8') COMPUTE STATISTICS FOR ALL COLUMNS");
+tableEnv.executeSql("ANALYZE TABLE Orders PARTITION(sold_year='2022', sold_month='1', sold_day='10') COMPUTE STATISTICS FOR ALL COLUMNS");
 
 // 分区表，收集分区 Partition1 和 Partition2 的表级别统计信息和所有列统计信息。
-tableEnv.executeSql("ANALYZE TABLE Orders PARTITION (sold_year='2022', sold_month) COMPUTE STATISTICS FOR ALL COLUMNS");
+tableEnv.executeSql("ANALYZE TABLE Orders PARTITION(sold_year='2022', sold_month='1', sold_day) COMPUTE STATISTICS FOR ALL COLUMNS");
 
 // 分区表，为所有分区收集表级别统计信息和所有列的统计信息。
-tableEnv.executeSql("ANALYZE TABLE Orders COMPUTE STATISTICS FOR ALL COLUMNS");
+tableEnv.executeSql("ANALYZE TABLE Orders PARTITION(sold_year, sold_month, sold_day) COMPUTE STATISTICS FOR ALL COLUMNS");
 
 // 分区表，收集分区 Partition1 的表级别统计信息和分区中指定列(列: amount)的列统计信息。
-tableEnv.executeSql("ANALYZE TABLE Orders PARTITION (sold_year='2022', sold_month='8') COMPUTE STATISTICS FOR COLUMNS(amount)");
+tableEnv.executeSql("ANALYZE TABLE Orders PARTITION(sold_year='2022', sold_month='1', sold_day='10') COMPUTE STATISTICS FOR COLUMNS amount");
 
 // 分区表，收集分区 Partition1 和 Partition2 的表级别统计信息和分区中指定列(列: amount，列: product)的列统计信息。
-tableEnv.executeSql("ANALYZE TABLE Orders PARTITION (sold_year='2022', sold_month) COMPUTE STATISTICS FOR COLUMNS(amount, product)");
+tableEnv.executeSql("ANALYZE TABLE Orders PARTITION(sold_year='2022', sold_month='1', sold_day) COMPUTE STATISTICS FOR COLUMNS amount, product");
 
 // 分区表，收集所有分区的表级别统计信息和指定列(列: amount，列: product)的列统计信息。
-tableEnv.executeSql("ANALYZE TABLE Orders PARTITION (sold_year, sold_month) COMPUTE STATISTICS FOR COLUMNS(amount, product)");
+tableEnv.executeSql("ANALYZE TABLE Orders PARTITION(sold_year, sold_month, sold_day) COMPUTE STATISTICS FOR COLUMNS amount, product");
 ```
 {{< /tab >}}
 {{< tab "Python" >}}
@@ -209,19 +211,20 @@ table_env = TableEnvironment.create(...)
 table_env.execute_sql(
   "CREATE TABLE Store (" +
           " `id` BIGINT NOT NULl," +
-          " location VARCHAR(32)," +
-          " owner VARCHAR(32)" +
+          " `location` VARCHAR(32)," +
+          " `owner` VARCHAR(32)" +
           ") with (...)");
 
 # 注册名为 “Orders” 的分区表
 table_env.execute_sql(
   "CREATE TABLE Orders (" +
           " `id` BIGINT NOT NULl," +
-          " product VARCHAR(32)," +
-          " amount INT," +
+          " `product` VARCHAR(32)," +
+          " `amount` INT," +
           " `sold_year` BIGINT", +
           " `sold_month` BIGINT", +
-          ") PARTITIONED BY (`sold_year`, `sold_month`) "
+          " `sold_day` BIGINT" +
+          ") PARTITIONED BY (`sold_year`, `sold_month`, `sold_day`) "
 ") with (...)");
 
 # 非分区表，收集表级别的统计信息(表的统计信息主要为行数(row count))。
@@ -230,63 +233,64 @@ table_env.execute_sql("ANALYZE TABLE Store COMPUTE STATISTICS");
 # 非分区表，收集表级别的统计信息和所有列的列统计信息。
 table_env.execute_sql("ANALYZE TABLE Store COMPUTE STATISTICS FOR ALL COLUMNS");
 
-# 非分区表，收集表级别的统计信息和指定列(列: user)的列统计信息。
-table_env.execute_sql("ANALYZE TABLE Store COMPUTE STATISTICS FOR COLUMNS(user)");
+# 非分区表，收集表级别的统计信息和指定列(列: location)的列统计信息。
+table_env.execute_sql("ANALYZE TABLE Store COMPUTE STATISTICS FOR COLUMNS location");
 
 
 # 假设分区表 “Orders” 有 4 个分区，分区信息如下：
-# Partition1 : (sold_year='2022', sold_month='8')
-# Partition2 : (sold_year='2022', sold_month='9')
-# Partition3 : (sold_year='2021', sold_month='8')
-# Partition3 : (sold_year='2021', sold_month='9')
+# Partition1 : (sold_year='2022', sold_month='1', sold_day='10')
+# Partition2 : (sold_year='2022', sold_month='1', sold_day='11')
+# Partition3 : (sold_year='2022', sold_month='2', sold_day='10')
+# Partition4 : (sold_year='2022', sold_month='2', sold_day='11')
 
 
 # 分区表，收集分区 Partition1 的表级别统计信息。
-table_env.execute_sql("ANALYZE TABLE Orders PARTITION (sold_year='2022', sold_month='8') COMPUTE STATISTICS");
+table_env.execute_sql("ANALYZE TABLE Orders PARTITION(sold_year='2022', sold_month='1', sold_day='10') COMPUTE STATISTICS");
 
 # 分区表，收集分区 Partition1 和 Partition2 的表级别统计信息。
-table_env.execute_sql("ANALYZE TABLE Orders PARTITION (sold_year='2022', sold_month) COMPUTE STATISTICS");
+table_env.execute_sql("ANALYZE TABLE Orders PARTITION(sold_year='2022', sold_month='1', sold_day) COMPUTE STATISTICS");
 
 # 分区表，为所有分区收集表级别统计信息。
-table_env.execute_sql("ANALYZE TABLE Orders COMPUTE STATISTICS");
+table_env.execute_sql("ANALYZE TABLE Orders PARTITION(sold_year, sold_month, sold_day) COMPUTE STATISTICS");
 
 # 分区表，收集分区 Partition1 的表级别统计信息和所有列的统计信息。
-table_env.execute_sql("ANALYZE TABLE Orders PARTITION (sold_year='2022', sold_month='8') COMPUTE STATISTICS FOR ALL COLUMNS");
+table_env.execute_sql("ANALYZE TABLE Orders PARTITION(sold_year='2022', sold_month='1', sold_day='10') COMPUTE STATISTICS FOR ALL COLUMNS");
 
 # 分区表，收集分区 Partition1 和 Partition2 的表级别统计信息和所有列统计信息。
-table_env.execute_sql("ANALYZE TABLE Orders PARTITION (sold_year='2022', sold_month) COMPUTE STATISTICS FOR ALL COLUMNS");
+table_env.execute_sql("ANALYZE TABLE Orders PARTITION(sold_year='2022', sold_month='1', sold_day) COMPUTE STATISTICS FOR ALL COLUMNS");
 
 # 分区表，为所有分区收集表级别统计信息和所有列的统计信息。
-table_env.execute_sql("ANALYZE TABLE Orders COMPUTE STATISTICS FOR ALL COLUMNS");
+table_env.execute_sql("ANALYZE TABLE Orders PARTITION(sold_year, sold_month, sold_day) COMPUTE STATISTICS FOR ALL COLUMNS");
 
 # 分区表，收集分区 Partition1 的表级别统计信息和分区中指定列(列: amount)的列统计信息。
-table_env.execute_sql("ANALYZE TABLE Orders PARTITION (sold_year='2022', sold_month='8') COMPUTE STATISTICS FOR COLUMNS(amount)");
+table_env.execute_sql("ANALYZE TABLE Orders PARTITION(sold_year='2022', sold_month='1', sold_day='10') COMPUTE STATISTICS FOR COLUMNS amount");
 
 # 分区表，收集分区 Partition1 和 Partition2 的表级别统计信息和分区中指定列(列: amount，列: product)的列统计信息。
-table_env.execute_sql("ANALYZE TABLE Orders PARTITION (sold_year='2022', sold_month) COMPUTE STATISTICS FOR COLUMNS(amount, product)");
+table_env.execute_sql("ANALYZE TABLE Orders PARTITION(sold_year='2022', sold_month='1', sold_day) COMPUTE STATISTICS FOR COLUMNS amount, product");
 
 # 分区表，收集所有分区的表级别统计信息和指定列(列: amount，列: product)的列统计信息。
-table_env.execute_sql("ANALYZE TABLE Orders PARTITION (sold_year, sold_month) COMPUTE STATISTICS FOR COLUMNS(amount, product)");
+table_env.execute_sql("ANALYZE TABLE Orders PARTITION(sold_year, sold_month, sold_day) COMPUTE STATISTICS FOR COLUMNS amount, product");
 ```
 {{< /tab >}}
 {{< tab "SQL CLI" >}}
 ```sql
 Flink SQL> CREATE TABLE Store (
-  > `id` BIGINT NOT NULl,
-  > location VARCHAR(32),
-  > owner VARCHAR(32)
+> `id` BIGINT NOT NULl,
+> `location` VARCHAR(32),
+> `owner` VARCHAR(32)
 > ) with (
 > ...
 > );
 [INFO] Table has been created.
 
 Flink SQL> CREATE TABLE Orders (
-  > `id` BIGINT NOT NULl,
-  > product VARCHAR(32),
-  > amount INT,
-  > `sold_year` BIGINT",
-> `sold_month` BIGINT",
-  > ) PARTITIONED BY (`sold_year`, `sold_month`)
+> `id` BIGINT NOT NULl,
+> `product` VARCHAR(32),
+> `amount` INT,
+> `sold_year` BIGINT,
+> `sold_month` BIGINT,
+> `sold_day` BIGINT  
+> ) PARTITIONED BY (`sold_year`, `sold_month`, `sold_day`)
 > ) with (
 > ...
 > );
@@ -298,21 +302,23 @@ Flink SQL> ANALYZE TABLE Store COMPUTE STATISTICS FOR ALL COLUMNS;
 
 Flink SQL> ANALYZE TABLE Store COMPUTE STATISTICS FOR COLUMNS(location);
     
-Flink SQL> ANALYZE TABLE Orders PARTITION (sold_year='2022', sold_month='8') COMPUTE STATISTICS;
+Flink SQL> ANALYZE TABLE Orders PARTITION(sold_year='2022', sold_month='1', sold_day='10') COMPUTE STATISTICS;
 
-Flink SQL> ANALYZE TABLE Orders PARTITION (sold_year='2022', sold_month) COMPUTE STATISTICS;
+Flink SQL> ANALYZE TABLE Orders PARTITION(sold_year='2022', sold_month='1', sold_day) COMPUTE STATISTICS;
 
-Flink SQL> ANALYZE TABLE Orders COMPUTE STATISTICS;
+Flink SQL> ANALYZE TABLE Orders PARTITION(sold_year, sold_month, sold_day) COMPUTE STATISTICS;
 
-Flink SQL> ANALYZE TABLE Orders PARTITION (sold_year='2022', sold_month='8') COMPUTE STATISTICS FOR ALL COLUMNS;
+Flink SQL> ANALYZE TABLE Orders PARTITION(sold_year='2022', sold_month='1', sold_day='10') COMPUTE STATISTICS FOR ALL COLUMNS;
 
-Flink SQL> ANALYZE TABLE Orders PARTITION (sold_year='2022', sold_month) COMPUTE STATISTICS FOR ALL COLUMNS;
+Flink SQL> ANALYZE TABLE Orders PARTITION(sold_year='2022', sold_month='1', sold_day) COMPUTE STATISTICS FOR ALL COLUMNS;
     
-Flink SQL> ANALYZE TABLE Orders PARTITION (sold_year='2022', sold_month='8') COMPUTE STATISTICS FOR COLUMNS(amount);
+Flink SQL> ANALYZE TABLE Orders PARTITION(sold_year, sold_month, sold_day) COMPUTE STATISTICS FOR ALL COLUMNS;
     
-Flink SQL> ANALYZE TABLE Orders PARTITION (sold_year='2022', sold_month) COMPUTE STATISTICS FOR COLUMNS(amount, product);
+Flink SQL> ANALYZE TABLE Orders PARTITION(sold_year='2022', sold_month='1', sold_day='10') COMPUTE STATISTICS FOR COLUMNS amount;
     
-Flink SQL> ANALYZE TABLE Orders PARTITION (sold_year, sold_month) COMPUTE STATISTICS FOR COLUMNS(amount, product);
+Flink SQL> ANALYZE TABLE Orders PARTITION (sold_year='2022', sold_month='1', sold_day) COMPUTE STATISTICS FOR COLUMNS amount, product;
+    
+Flink SQL> ANALYZE TABLE Orders PARTITION(sold_year, sold_month, sold_day) COMPUTE STATISTICS FOR COLUMNS amount, product;
 ```
 {{< /tab >}}
 {{< /tabs >}}
