@@ -578,6 +578,7 @@ CREATE [TEMPORARY] VIEW [IF NOT EXISTS] [catalog_name.][db_name.]view_name
 CREATE [TEMPORARY|TEMPORARY SYSTEM] FUNCTION
   [IF NOT EXISTS] [[catalog_name.]db_name.]function_name
   AS identifier [LANGUAGE JAVA|SCALA|PYTHON]
+  [USING JAR '<path_to_filename>.jar' [, JAR '<path_to_filename>.jar']* ]
 ```
 
 创建一个有 catalog 和数据库命名空间的 catalog function ，需要指定一个 identifier ，可指定 language tag 。 若 catalog 中，已经有同名的函数注册了，则无法注册。
@@ -604,3 +605,8 @@ CREATE [TEMPORARY|TEMPORARY SYSTEM] FUNCTION
 
 Language tag 用于指定 Flink runtime 如何执行这个函数。目前，只支持 JAVA, SCALA 和 PYTHON，且函数的默认语言为 JAVA。
 
+**USING**
+
+指定包含该函数的实现及其依赖的 jar 资源列表。该 jar 应该位于 Flink 当前支持的本地或远程[文件系统]（{{< ref "docs/deployment/filesystems/overview" >}}）中，比如 hdfs/s3/oss。
+
+<span class="label label-danger">注意</span> 目前只有 JAVA、SCALA 语言支持 USING 子句。
