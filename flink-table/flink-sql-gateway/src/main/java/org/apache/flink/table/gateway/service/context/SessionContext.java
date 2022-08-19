@@ -356,11 +356,11 @@ public class SessionContext {
             Configuration configuration, SessionHandle sessionId) {
         Path path =
                 Paths.get(
-                        configuration.get(TableConfigOptions.RESOURCE_DOWNLOAD_DIR),
+                        configuration.get(TableConfigOptions.RESOURCES_DOWNLOAD_DIR),
                         String.format("sql-gateway-%s", sessionId));
         // override resource download temp directory
         configuration.set(
-                TableConfigOptions.RESOURCE_DOWNLOAD_DIR, path.toAbsolutePath().toString());
+                TableConfigOptions.RESOURCES_DOWNLOAD_DIR, path.toAbsolutePath().toString());
     }
 
     // --------------------------------------------------------------------------------------------

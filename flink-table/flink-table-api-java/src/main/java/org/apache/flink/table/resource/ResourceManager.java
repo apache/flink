@@ -73,7 +73,7 @@ public class ResourceManager implements Closeable {
     public ResourceManager(ReadableConfig config, MutableURLClassLoader userClassLoader) {
         this.localResourceDir =
                 new Path(
-                        config.get(TableConfigOptions.RESOURCE_DOWNLOAD_DIR),
+                        config.get(TableConfigOptions.RESOURCES_DOWNLOAD_DIR),
                         String.format("flink-table-%s", UUID.randomUUID()));
         this.resourceInfos = new HashMap<>();
         this.userClassLoader = userClassLoader;
