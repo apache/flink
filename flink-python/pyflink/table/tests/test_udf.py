@@ -186,7 +186,7 @@ class UserDefinedFunctionTests(object):
         self.t_env.execute_sql(sink_table_ddl)
 
         t = self.t_env.from_elements([(1, 2, 3), (2, 5, 6), (3, 1, 9)], ['a', 'b', 'c'])
-        self.t_env.register_table("test_table", t)
+        self.t_env.create_temporary_view("test_table", t)
         self.t_env.sql_query("select udf_with_all_constant_params("
                              "cast (1 as BIGINT),"
                              "cast (2 as BIGINT)), "
@@ -567,10 +567,10 @@ class UserDefinedFunctionTests(object):
             "map_func", udf(map_func,
                             result_type=DataTypes.MAP(DataTypes.BIGINT(), DataTypes.STRING())))
 
-        self.t_env.register_function(
+        self.t_env.create_temporary_system_function(
             "decimal_func", udf(decimal_func, result_type=DataTypes.DECIMAL(38, 18)))
 
-        self.t_env.register_function(
+        self.t_env.create_temporary_system_function(
             "decimal_cut_func", udf(decimal_cut_func, result_type=DataTypes.DECIMAL(38, 18)))
 
         sink_table_ddl = """
