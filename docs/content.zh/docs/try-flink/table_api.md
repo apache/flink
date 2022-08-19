@@ -184,7 +184,7 @@ EnvironmentSettings settings = EnvironmentSettings.inBatchMode();
 TableEnvironment tEnv = TableEnvironment.create(settings); 
 ```
 
-提供批流统一的语义是 Flink 的特性，这意味着应用的开发和测试可以在批模式下使用静态数据集完成，而实际部署到生产时再切换为流式。
+提供批流统一的语义是 Flink 的重要特性，这意味着应用的开发和测试可以在批模式下使用静态数据集完成，而实际部署到生产时再切换为流式。
 
 ## 尝试下
 
@@ -214,7 +214,7 @@ public static Table report(Table transactions) {
 ## 用户自定义函数
 
 Flink 内置的函数是有限的，有时是需要通过 [用户自定义函数]({{< ref "docs/dev/table/functions/udfs" >}})来拓展这些函数。
-假如没有预设好的 `floor` 函数，也可以自己实现一个。
+假如 `floor` 函数不是系统预设函数，也可以自己实现。
 
 ```java
 import java.time.LocalDateTime;
@@ -254,9 +254,9 @@ public static Table report(Table transactions) {
 
 ## 添加窗口函数
 
-在数据处理中，按照时间做分组是一个典型的操作，尤其是在处理无限流时。
+在数据处理中，按照时间做分组是常见操作，在处理无限流时更是如此。
 按时间分组的函数叫 [window]({{< ref "docs/dev/datastream/operators/windows" >}})，Flink 提供了灵活的窗口函数语法。
-最常见的窗口是 `Tumble` ，此窗口固定窗口区间并且每个区间都不重叠。
+最常见的窗口是 `Tumble` ，窗口区间长度固定，并且区间不重叠。
 
 ```java
 public static Table report(Table transactions) {
@@ -270,8 +270,8 @@ public static Table report(Table transactions) {
 }
 ```
 
-上面的代码含义为：应用使用滚动窗口，窗口按照指定的时间戳字段划分，区间为一小时。
-所以，时间戳为 `2019-06-01 01:23:47` 的行会进入窗口 `2019-06-01 01:00:00`中。
+上面的代码含义为：使用滚动窗口，窗口按照指定的时间戳字段划分，区间为一小时。
+比如，时间戳为 `2019-06-01 01:23:47` 的行会进入窗口 `2019-06-01 01:00:00`中。
 
 不同于其他属性，时间在一个持续不断的流式应用中总是向前移动，因此基于时间的聚合总是不重复的。
 
@@ -282,8 +282,8 @@ public static Table report(Table transactions) {
 
 ## 再用流式处理一次！
 
-这次的编写的应用是一个功能齐全、有状态的分布式流式应用！
-查询语句持续消费 Kafka 中流式的交易数据，然后计算每小时的消费，最后当窗口结束时立刻提交结果。
+这次编写的应用是一个功能齐全、有状态的分布式流式应用！
+查询语句持续消费 Kafka 中交易数据流，然后计算每小时的消费，最后当窗口结束时立刻提交结果。
 由于输入是无边界的，停止作业需要手工操作。
 同时，由于作业使用了窗口函数，Flink 会执行一些特定的优化，例如当框架检测出窗口结束时，清理状态数据。
 
