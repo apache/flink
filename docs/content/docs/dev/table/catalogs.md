@@ -67,6 +67,8 @@ The factory is discovered using Java's Service Provider Interfaces (SPI).
 Classes that implement this interface can be added to  `META_INF/services/org.apache.flink.table.factories.Factory` in JAR files.
 The provided factory identifier will be used for matching against the required `type` property in a SQL `CREATE CATALOG` DDL statement.
 
+Note: Since FLINK-15635, a user classloader is introduced to the table module to manage all user jars uniformly such as the jar added by `ADD JAR` statement. In custom catalogs, if some classes need to be loaded explicitly, please use the user classloader instead of thread context classloader. Otherwise, ClassNotFoundException maybe occur. Users can get the user classloader through `CatalogFactory.Context`.
+
 ## How to Create and Register Flink Tables to Catalog
 
 ### Using SQL DDL
