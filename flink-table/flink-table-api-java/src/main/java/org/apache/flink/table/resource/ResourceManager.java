@@ -20,9 +20,11 @@ package org.apache.flink.table.resource;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.configuration.PipelineOptions;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
+import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.api.config.TableConfigOptions;
 import org.apache.flink.util.ExceptionUtils;
@@ -42,8 +44,10 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.net.URL;
 import java.net.URLClassLoader;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -150,6 +154,26 @@ public class ResourceManager implements Closeable {
                 .filter(entry -> ResourceType.JAR.equals(entry.getKey().getResourceType()))
                 .map(Map.Entry::getValue)
                 .collect(Collectors.toSet());
+    }
+
+    /**
+     * Adds the local jar resources to the given {@link TableConfig}. It implicitly considers the
+     * {@link TableConfig#getRootConfiguration()} and stores the merged result into {@link
+     * TableConfig#getConfiguration()}.
+     */
+    public void addJarConfiguration(TableConfig tableConfig) {
+        final List<String> jars =
+                getLocalJarResources().stream().map(URL::toString).collect(Collectors.toList());
+        if (jars.isEmpty()) {
+            return;
+        }
+        final Set<String> jarFiles =
+                tableConfig
+                        .getOptional(PipelineOptions.JARS)
+                        .map(LinkedHashSet::new)
+                        .orElseGet(LinkedHashSet::new);
+        jarFiles.addAll(jars);
+        tableConfig.set(PipelineOptions.JARS, new ArrayList<>(jarFiles));
     }
 
     @Override

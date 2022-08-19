@@ -22,9 +22,7 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.dag.Pipeline;
 import org.apache.flink.api.dag.Transformation;
-import org.apache.flink.configuration.ConfigUtils;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.PipelineOptions;
 import org.apache.flink.core.execution.JobClient;
 import org.apache.flink.table.api.CompiledPlan;
 import org.apache.flink.table.api.DataTypes;
@@ -179,7 +177,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.Set;
 import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
@@ -199,7 +196,7 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
     private static final boolean IS_STREAM_TABLE = true;
     private final CatalogManager catalogManager;
     private final ModuleManager moduleManager;
-    private final ResourceManager resourceManager;
+    protected final ResourceManager resourceManager;
     private final OperationTreeBuilder operationTreeBuilder;
 
     protected final TableConfig tableConfig;
@@ -829,9 +826,7 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
             List<Transformation<?>> transformations, List<String> sinkIdentifierNames) {
         final String defaultJobName = "insert-into_" + String.join(",", sinkIdentifierNames);
 
-        // Merge user jars to table configuration
-        mergePipelineJarsToConfig(
-                resourceManager.getLocalJarResources(), tableConfig.getConfiguration());
+        resourceManager.addJarConfiguration(tableConfig);
 
         // We pass only the configuration to avoid reconfiguration with the rootConfiguration
         Pipeline pipeline =
@@ -865,9 +860,7 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
                 translate(Collections.singletonList(sinkOperation));
         final String defaultJobName = "collect";
 
-        // Merge user jars to table configuration
-        mergePipelineJarsToConfig(
-                resourceManager.getLocalJarResources(), tableConfig.getConfiguration());
+        resourceManager.addJarConfiguration(tableConfig);
 
         // We pass only the configuration to avoid reconfiguration with the rootConfiguration
         Pipeline pipeline =
@@ -1926,15 +1919,6 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
         } catch (Exception e) {
             throw new TableException(getDDLOpExecuteErrorMsg(operation.asSummaryString()), e);
         }
-    }
-
-    private void mergePipelineJarsToConfig(Set<URL> jarUrls, Configuration configuration) {
-        ConfigUtils.mergeCollectionsToConfig(
-                configuration,
-                PipelineOptions.JARS,
-                jarUrls.stream().map(URL::toString).collect(Collectors.toSet()),
-                String::toString,
-                String::toString);
     }
 
     @VisibleForTesting
