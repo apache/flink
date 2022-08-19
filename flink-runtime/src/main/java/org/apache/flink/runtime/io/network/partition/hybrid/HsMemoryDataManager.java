@@ -82,7 +82,7 @@ public class HsMemoryDataManager implements HsSpillingInfoProvider, HsMemoryData
             throws IOException {
         this.numSubpartitions = numSubpartitions;
         this.bufferPool = bufferPool;
-        this.spiller = new HsMemoryDataSpiller(dataFilePath, bufferCompressor);
+        this.spiller = new HsMemoryDataSpiller(dataFilePath);
         this.spillStrategy = spillStrategy;
         this.fileDataIndex = fileDataIndex;
         this.subpartitionMemoryDataManagers = new HsSubpartitionMemoryDataManager[numSubpartitions];
@@ -93,7 +93,11 @@ public class HsMemoryDataManager implements HsSpillingInfoProvider, HsMemoryData
         for (int subpartitionId = 0; subpartitionId < numSubpartitions; ++subpartitionId) {
             subpartitionMemoryDataManagers[subpartitionId] =
                     new HsSubpartitionMemoryDataManager(
-                            subpartitionId, bufferSize, readWriteLock.readLock(), this);
+                            subpartitionId,
+                            bufferSize,
+                            readWriteLock.readLock(),
+                            bufferCompressor,
+                            this);
         }
     }
 

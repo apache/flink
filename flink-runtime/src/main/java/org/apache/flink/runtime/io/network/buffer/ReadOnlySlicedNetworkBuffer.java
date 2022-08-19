@@ -141,7 +141,9 @@ public final class ReadOnlySlicedNetworkBuffer extends ReadOnlyByteBuf implement
 
     @Override
     public ReadOnlySlicedNetworkBuffer readOnlySlice(int index, int length) {
-        checkState(!isCompressed, "Unable to slice a compressed buffer.");
+        checkState(
+                !isCompressed || index + length == writerIndex(),
+                "Unable to slice a partial compressed buffer.");
         return new ReadOnlySlicedNetworkBuffer(
                 super.unwrap(), index, length, memorySegmentOffset, false);
     }
