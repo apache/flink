@@ -21,6 +21,7 @@ package org.apache.flink.connector.jdbc.dialect;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.connector.jdbc.converter.JdbcRowConverter;
 import org.apache.flink.table.api.ValidationException;
+import org.apache.flink.table.catalog.Catalog;
 import org.apache.flink.table.types.logical.RowType;
 
 import java.io.Serializable;
@@ -34,6 +35,12 @@ import java.util.Optional;
  */
 @PublicEvolving
 public interface JdbcDialect extends Serializable {
+    /**
+     * Get the class of jdbc dialect.
+     *
+     * @return the catalog class.
+     */
+    Class<? extends Catalog> catalogClass();
 
     /**
      * Get the name of jdbc dialect.

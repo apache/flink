@@ -21,6 +21,7 @@ package org.apache.flink.connector.jdbc.dialect.oracle;
 import org.apache.flink.connector.jdbc.converter.JdbcRowConverter;
 import org.apache.flink.connector.jdbc.dialect.AbstractDialect;
 import org.apache.flink.connector.jdbc.internal.converter.OracleRowConverter;
+import org.apache.flink.table.catalog.Catalog;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
 import org.apache.flink.table.types.logical.RowType;
 
@@ -58,6 +59,11 @@ class OracleDialect extends AbstractDialect {
     @Override
     public Optional<String> defaultDriverName() {
         return Optional.of("oracle.jdbc.OracleDriver");
+    }
+
+    @Override
+    public Class<? extends Catalog> catalogClass() {
+        return null;
     }
 
     @Override
