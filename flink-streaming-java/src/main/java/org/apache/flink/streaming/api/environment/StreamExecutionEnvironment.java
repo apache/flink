@@ -62,7 +62,6 @@ import org.apache.flink.configuration.PipelineOptions;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.configuration.StateChangelogOptions;
-import org.apache.flink.configuration.UnmodifiableConfiguration;
 import org.apache.flink.core.execution.CacheSupportedPipelineExecutor;
 import org.apache.flink.core.execution.DefaultExecutorServiceLoader;
 import org.apache.flink.core.execution.DetachedJobExecutionResult;
@@ -2351,7 +2350,22 @@ public class StreamExecutionEnvironment implements AutoCloseable {
      */
     @Internal
     public ReadableConfig getConfiguration() {
-        return new UnmodifiableConfiguration(configuration);
+        // Note to implementers:
+        // In theory, you can cast the return value of this method to Configuration and perform
+        // mutations. In practice, this could cause side effects. A better approach is to implement
+        // the ReadableConfig interface and create a layered configuration.
+        // For example:
+        //   TableConfig implements ReadableConfig {
+        //     underlyingLayer ReadableConfig
+        //     thisConfigLayer Configuration
+        //
+        //     get(configOption) {
+        //        return thisConfigLayer
+        //          .getOptional(configOption)
+        //          .orElseGet(underlyingLayer.get(configOption))
+        //     }
+        //   }
+        return configuration;
     }
 
     // --------------------------------------------------------------------------------------------
