@@ -239,9 +239,40 @@ public class FileSystemStatisticsReportTest extends StatisticsReportTestBase {
                         new CatalogPartitionSpec(Collections.singletonMap("b", "2")),
                         new CatalogTableStatistics(3L, 1, 100L, 100L),
                         false);
+        tEnv.getCatalog(tEnv.getCurrentCatalog())
+                .orElseThrow(Exception::new)
+                .alterPartitionStatistics(
+                        new ObjectPath(tEnv.getCurrentDatabase(), "PartTable"),
+                        new CatalogPartitionSpec(Collections.singletonMap("b", "3")),
+                        new CatalogTableStatistics(3L, 1, 100L, 100L),
+                        false);
 
         FlinkStatistic statistic = getStatisticsFromOptimizedPlan("select * from PartTable");
-        assertThat(statistic.getTableStats()).isEqualTo(new TableStats(9));
+        assertThat(statistic.getTableStats()).isEqualTo(new TableStats(12));
+    }
+
+    @Test
+    public void tesNoPartitionPushDownAndCatalogStatisticsPartialExist() throws Exception {
+        tEnv.getCatalog(tEnv.getCurrentCatalog())
+                .orElseThrow(Exception::new)
+                .alterPartitionStatistics(
+                        new ObjectPath(tEnv.getCurrentDatabase(), "PartTable"),
+                        new CatalogPartitionSpec(Collections.singletonMap("b", "1")),
+                        new CatalogTableStatistics(6L, 1, 100L, 100L),
+                        false);
+        tEnv.getCatalog(tEnv.getCurrentCatalog())
+                .orElseThrow(Exception::new)
+                .alterPartitionStatistics(
+                        new ObjectPath(tEnv.getCurrentDatabase(), "PartTable"),
+                        new CatalogPartitionSpec(Collections.singletonMap("b", "2")),
+                        new CatalogTableStatistics(3L, 1, 100L, 100L),
+                        false);
+        // For partition table 'PartTable', partition 'b=3' have no catalog statistics, so get
+        // partition table stats from catalog will return TableStats.UNKNOWN. So we will recompute
+        // stats from source.
+        FlinkStatistic statistic = getStatisticsFromOptimizedPlan("select * from PartTable");
+        // there are four rows in file system.
+        assertThat(statistic.getTableStats()).isEqualTo(new TableStats(4));
     }
 
     @Test
@@ -348,8 +379,7 @@ public class FileSystemStatisticsReportTest extends StatisticsReportTestBase {
 
         FlinkStatistic statistic =
                 getStatisticsFromOptimizedPlan("select * from PartTable where a > 10 and b = 1");
-        assertThat(statistic.getTableStats())
-                .isEqualTo(new TableStats(6, createMergedPartitionColumnStats()));
+        assertThat(statistic.getTableStats()).isEqualTo(new TableStats(6));
     }
 
     @Test

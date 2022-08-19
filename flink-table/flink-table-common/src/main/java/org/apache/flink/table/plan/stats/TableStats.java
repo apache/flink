@@ -81,7 +81,7 @@ public final class TableStats {
      * @return The merged table stats.
      */
     public TableStats merge(TableStats other, @Nullable Set<String> partitionKeys) {
-        if (this == UNKNOWN || other == UNKNOWN) {
+        if (this.rowCount < 0 || other.rowCount < 0) {
             return TableStats.UNKNOWN;
         }
         long rowCount =

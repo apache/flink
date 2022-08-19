@@ -55,6 +55,14 @@ class TableStatsTest {
         colStatsMerge3.put("a", new ColumnStats(7L, 20L, 7D, 23, 35, 2));
         assertThat(stats1.merge(stats2, new HashSet<>(Collections.singletonList("a"))))
                 .isEqualTo(new TableStats(62, colStatsMerge3));
+
+        // test merge with one side is TableStats.UNKNOWN.
+        stats2 = TableStats.UNKNOWN;
+        assertThat(stats1.merge(stats2, null)).isEqualTo(TableStats.UNKNOWN);
+
+        // test merge with one side have no column stats.
+        stats2 = new TableStats(32);
+        assertThat(stats1.merge(stats2, null)).isEqualTo(new TableStats(62));
     }
 
     @Test
@@ -89,15 +97,15 @@ class TableStatsTest {
     void testMergeUnknownRowCount() {
         TableStats stats1 = new TableStats(-1, new HashMap<>());
         TableStats stats2 = new TableStats(32, new HashMap<>());
-        assertThat(stats1.merge(stats2, null)).isEqualTo(new TableStats(-1, new HashMap<>()));
+        assertThat(stats1.merge(stats2, null)).isEqualTo(TableStats.UNKNOWN);
 
         stats1 = new TableStats(-1, new HashMap<>());
         stats2 = new TableStats(-1, new HashMap<>());
-        assertThat(stats1.merge(stats2, null)).isEqualTo(new TableStats(-1, new HashMap<>()));
+        assertThat(stats1.merge(stats2, null)).isEqualTo(TableStats.UNKNOWN);
 
         stats1 = new TableStats(-3, new HashMap<>());
         stats2 = new TableStats(-2, new HashMap<>());
-        assertThat(stats1.merge(stats2, null)).isEqualTo(new TableStats(-1, new HashMap<>()));
+        assertThat(stats1.merge(stats2, null)).isEqualTo(TableStats.UNKNOWN);
     }
 
     @Test
