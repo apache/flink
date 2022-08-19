@@ -895,7 +895,7 @@ class DataStream(object):
         """
         return DataStream(self._j_data_stream.getSideOutput(output_tag.get_java_output_tag()))
 
-    def cache(self) -> 'DataStream':
+    def cache(self) -> 'CachedDataStream':
         """
         Cache the intermediate result of the transformation. Only support bounded streams and
         currently only block mode is supported. The cache is generated lazily at the first time the
@@ -907,7 +907,7 @@ class DataStream(object):
 
         .. versionadded:: 1.16.0
         """
-        return DataStream(self._j_data_stream.cache())
+        return CachedDataStream(self._j_data_stream.cache())
 
     def _apply_chaining_optimization(self):
         """
@@ -1770,8 +1770,62 @@ class KeyedStream(DataStream):
     def slot_sharing_group(self, slot_sharing_group: Union[str, SlotSharingGroup]) -> 'DataStream':
         raise Exception("Setting slot sharing group for KeyedStream is not supported.")
 
-    def cache(self) -> 'DataStream':
+    def cache(self) -> 'CachedDataStream':
         raise Exception("Cache for KeyedStream is not supported.")
+
+
+class CachedDataStream(DataStream):
+    """
+    CachedDataStream represents a DataStream whose intermediate result will be cached at the first
+    time when it is computed. And the cached intermediate result can be used in later job that using
+    the same CachedDataStream to avoid re-computing the intermediate result.
+    """
+
+    def __init__(self, j_data_stream):
+        super(CachedDataStream, self).__init__(j_data_stream)
+
+    def invalidate(self):
+        """
+        Invalidate the cache intermediate result of this DataStream to release the physical
+        resources. Users are not required to invoke this method to release physical resources unless
+        they want to. Cache will be recreated if it is used after invalidated.
+
+        .. versionadded:: 1.16.0
+        """
+        self._j_data_stream.invalidate()
+
+    def set_parallelism(self, parallelism: int):
+        raise Exception("Set parallelism for CachedDataStream is not supported.")
+
+    def name(self, name: str):
+        raise Exception("Set name for CachedDataStream is not supported.")
+
+    def get_name(self) -> str:
+        raise Exception("Get name of CachedDataStream is not supported.")
+
+    def uid(self, uid: str):
+        raise Exception("Set uid for CachedDataStream is not supported.")
+
+    def set_uid_hash(self, uid_hash: str):
+        raise Exception("Set uid hash for CachedDataStream is not supported.")
+
+    def set_max_parallelism(self, max_parallelism: int):
+        raise Exception("Set max parallelism for CachedDataStream is not supported.")
+
+    def force_non_parallel(self):
+        raise Exception("Set force non-parallel for CachedDataStream is not supported.")
+
+    def set_buffer_timeout(self, timeout_millis: int):
+        raise Exception("Set buffer timeout for CachedDataStream is not supported.")
+
+    def start_new_chain(self) -> 'DataStream':
+        raise Exception("Start new chain for CachedDataStream is not supported.")
+
+    def disable_chaining(self) -> 'DataStream':
+        raise Exception("Disable chaining for CachedDataStream is not supported.")
+
+    def slot_sharing_group(self, slot_sharing_group: Union[str, SlotSharingGroup]) -> 'DataStream':
+        raise Exception("Setting slot sharing group for CachedDataStream is not supported.")
 
 
 class WindowedStream(object):
