@@ -20,7 +20,7 @@ package org.apache.flink.table.resource;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
-import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.table.api.ValidationException;
@@ -64,13 +64,13 @@ public class ResourceManager implements Closeable {
     protected final MutableURLClassLoader userClassLoader;
 
     public static ResourceManager createResourceManager(
-            URL[] urls, ClassLoader parent, Configuration configuration) {
+            URL[] urls, ClassLoader parent, ReadableConfig config) {
         MutableURLClassLoader mutableURLClassLoader =
-                FlinkUserCodeClassLoaders.create(urls, parent, configuration);
-        return new ResourceManager(configuration, mutableURLClassLoader);
+                FlinkUserCodeClassLoaders.create(urls, parent, config);
+        return new ResourceManager(config, mutableURLClassLoader);
     }
 
-    public ResourceManager(Configuration config, MutableURLClassLoader userClassLoader) {
+    public ResourceManager(ReadableConfig config, MutableURLClassLoader userClassLoader) {
         this.localResourceDir =
                 new Path(
                         config.get(TableConfigOptions.RESOURCE_DOWNLOAD_DIR),
