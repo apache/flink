@@ -20,7 +20,7 @@ import datetime
 from decimal import Decimal
 
 import pandas as pd
-from pandas.util.testing import assert_frame_equal
+from pandas.testing import assert_frame_equal
 
 from pyflink.common import Row, RowKind
 from pyflink.fn_execution.state_impl import RemovableConcatIterator
@@ -172,7 +172,7 @@ class CountDistinctAggregateFunction(AggregateFunction):
         return DataTypes.BIGINT()
 
 
-class TestIterateAggregateFunction(AggregateFunction):
+class CustomIterateAggregateFunction(AggregateFunction):
 
     def get_value(self, accumulator):
         # test iterate keys
@@ -242,7 +242,7 @@ class TestIterateAggregateFunction(AggregateFunction):
 class StreamTableAggregateTests(PyFlinkStreamTableTestCase):
 
     def test_double_aggregate(self):
-        self.t_env.register_function("my_count", CountAggregateFunction())
+        self.t_env.create_temporary_system_function("my_count", CountAggregateFunction())
         self.t_env.create_temporary_function("my_sum", SumAggregateFunction())
         # trigger the finish bundle more frequently to ensure testing the communication
         # between RemoteKeyedStateBackend and the StateGrpcService.
@@ -433,7 +433,7 @@ class StreamTableAggregateTests(PyFlinkStreamTableTestCase):
                            pd.DataFrame([[2, "hello"]], columns=['a', 'c']))
 
     def test_map_view_iterate(self):
-        test_iterate = udaf(TestIterateAggregateFunction())
+        test_iterate = udaf(CustomIterateAggregateFunction())
         self.t_env.get_config().set_idle_state_retention(datetime.timedelta(days=1))
         self.t_env.get_config().set(
             "python.fn-execution.bundle.size", "2")
@@ -511,7 +511,7 @@ class StreamTableAggregateTests(PyFlinkStreamTableTestCase):
                                         columns=['a', 'b', 'c', 'd']))
 
     def test_clean_state(self):
-        self.t_env.register_function("my_count", CountAggregateFunction())
+        self.t_env.create_temporary_system_function("my_count", CountAggregateFunction())
         self.t_env.get_config().set("parallelism.default", "1")
         self.t_env.get_config().set(
             "python.fn-execution.bundle.size", "1")
@@ -608,7 +608,7 @@ class StreamTableAggregateTests(PyFlinkStreamTableTestCase):
             for ele in data:
                 fd.write(ele + '\n')
 
-        self.t_env.register_function("my_sum", SumAggregateFunction())
+        self.t_env.create_temporary_system_function("my_sum", SumAggregateFunction())
 
         source_table = """
             create table source_table(
@@ -721,7 +721,7 @@ class StreamTableAggregateTests(PyFlinkStreamTableTestCase):
             for ele in data:
                 fd.write(ele + '\n')
 
-        self.t_env.register_function("my_sum", SumAggregateFunction())
+        self.t_env.create_temporary_system_function("my_sum", SumAggregateFunction())
 
         source_table = """
             create table source_table(
@@ -769,7 +769,7 @@ class StreamTableAggregateTests(PyFlinkStreamTableTestCase):
             for ele in data:
                 fd.write(ele + '\n')
 
-        self.t_env.register_function("my_count", CountAggregateFunction())
+        self.t_env.create_temporary_system_function("my_count", CountAggregateFunction())
 
         source_table = """
             create table source_table(

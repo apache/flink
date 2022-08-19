@@ -32,8 +32,8 @@ from pyflink.datastream.functions import WindowFunction
 from pyflink.datastream.tests.test_util import DataStreamTestSinkFunction
 from pyflink.datastream.window import TimeWindowSerializer
 from pyflink.java_gateway import get_gateway
-from pyflink.table import DataTypes, CsvTableSink, StreamTableEnvironment, EnvironmentSettings, \
-    Module, ResultKind, ModuleEntry
+from pyflink.table import (DataTypes, StreamTableEnvironment, EnvironmentSettings, Module,
+                           ResultKind, ModuleEntry)
 from pyflink.table.catalog import ObjectPath, CatalogBaseTable
 from pyflink.table.explain_detail import ExplainDetail
 from pyflink.table.expressions import col, source_watermark
@@ -85,15 +85,16 @@ class TableEnvironmentTest(object):
     def test_register_functions(self):
         t_env = self.t_env
 
-        t_env.register_function(
+        t_env.create_temporary_system_function(
             "python_scalar_func", udf(lambda i: i, result_type=DataTypes.INT()))
 
-        t_env.register_java_function("scalar_func",
-                                     "org.apache.flink.table.utils.TestingFunctions$RichFunc0")
-        t_env.register_java_function(
+        t_env.create_java_temporary_system_function(
+            "scalar_func", "org.apache.flink.table.utils.TestingFunctions$RichFunc0")
+
+        t_env.create_java_temporary_system_function(
             "agg_func", "org.apache.flink.table.utils.TestingFunctions$ByteMaxAggFunction")
-        t_env.register_java_function("table_func",
-                                     "org.apache.flink.table.utils.TestingFunctions$TableFunc1")
+        t_env.create_java_temporary_system_function(
+            "table_func", "org.apache.flink.table.utils.TestingFunctions$TableFunc1")
 
         actual = t_env.list_user_defined_functions()
         expected = ['python_scalar_func', 'scalar_func', 'agg_func', 'table_func']
@@ -613,14 +614,29 @@ class BatchTableEnvironmentTests(PyFlinkBatchTableTestCase):
     def test_explain_with_multi_sinks(self):
         t_env = self.t_env
         source = t_env.from_elements([(1, "Hi", "Hello"), (2, "Hello", "Hello")], ["a", "b", "c"])
-        field_names = ["a", "b", "c"]
-        field_types = [DataTypes.BIGINT(), DataTypes.STRING(), DataTypes.STRING()]
-        t_env.register_table_sink(
-            "sink1",
-            CsvTableSink(field_names, field_types, "path1"))
-        t_env.register_table_sink(
-            "sink2",
-            CsvTableSink(field_names, field_types, "path2"))
+        t_env.execute_sql("""
+            CREATE TABLE sink1 (
+                a BIGINT,
+                b STRING,
+                c STRING
+            ) WITH (
+                'connector' = 'filesystem',
+                'path'='path1',
+                'format' = 'csv'
+            )
+        """)
+
+        t_env.execute_sql("""
+            CREATE TABLE sink2 (
+                a BIGINT,
+                b STRING,
+                c STRING
+            ) WITH (
+                'connector' = 'filesystem',
+                'path'='path2',
+                'format' = 'csv'
+            )
+        """)
 
         stmt_set = t_env.create_statement_set()
         stmt_set.add_insert_sql("insert into sink1 select * from %s where a > 100" % source)
@@ -633,13 +649,13 @@ class BatchTableEnvironmentTests(PyFlinkBatchTableTestCase):
     def test_register_java_function(self):
         t_env = self.t_env
 
-        t_env.register_java_function(
+        t_env.create_java_temporary_system_function(
             "scalar_func", "org.apache.flink.table.utils.TestingFunctions$RichFunc0")
 
-        t_env.register_java_function(
+        t_env.create_java_temporary_system_function(
             "agg_func", "org.apache.flink.table.utils.TestingFunctions$ByteMaxAggFunction")
 
-        t_env.register_java_function(
+        t_env.create_java_temporary_system_function(
             "table_func", "org.apache.flink.table.utils.TestingFunctions$TableFunc1")
 
         actual = t_env.list_user_defined_functions()

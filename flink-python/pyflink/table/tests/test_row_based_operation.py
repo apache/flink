@@ -17,7 +17,7 @@
 ################################################################################
 import unittest
 
-from pandas.util.testing import assert_frame_equal
+from pandas.testing import assert_frame_equal
 
 from pyflink.common import Row
 from pyflink.table import expressions as expr, ListView

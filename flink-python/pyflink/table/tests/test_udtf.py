@@ -57,7 +57,7 @@ class UserDefinedTableFunctionTests(object):
             "multi_emit", udtf(MultiEmit(), result_types=[DataTypes.BIGINT(), DataTypes.BIGINT()]))
 
         t = self.t_env.from_elements([(1, 1, 3), (2, 1, 6), (3, 2, 9)], ['a', 'b', 'c'])
-        self.t_env.register_table("MyTable", t)
+        self.t_env.create_temporary_view("MyTable", t)
         t = self.t_env.sql_query(
             "SELECT a, x, y FROM MyTable LEFT JOIN LATERAL TABLE(multi_emit(a, b)) as T(x, y)"
             " ON TRUE")
