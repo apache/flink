@@ -56,6 +56,21 @@ class TableStatsTest {
         assertThat(stats1.merge(stats2, new HashSet<>(Collections.singletonList("a"))))
                 .isEqualTo(new TableStats(62, colStatsMerge3));
 
+        Map<String, ColumnStats> colStats3 = new HashMap<>();
+        colStats3.put("a", new ColumnStats(4L, 5L, 2D, 3, 15, 2));
+        colStats3.put("b", new ColumnStats(4L, 5L, 2D, 3, 15, 2));
+        stats1 = new TableStats(30, colStats3);
+        Map<String, ColumnStats> colStats4 = new HashMap<>();
+        colStats4.put("a", new ColumnStats(3L, 15L, 12D, 23, 35, 6));
+        colStats4.put("b", new ColumnStats(3L, 15L, 12D, 23, 35, 6));
+        stats2 = new TableStats(32, colStats4);
+
+        Map<String, ColumnStats> colStatsMerge4 = new HashMap<>();
+        colStatsMerge4.put("a", new ColumnStats(7L, 20L, 7D, 23, 35, 2));
+        colStatsMerge4.put("b", new ColumnStats(4L, 20L, 7D, 23, 35, 2));
+        assertThat(stats1.merge(stats2, new HashSet<>(Collections.singletonList("a"))))
+                .isEqualTo(new TableStats(62, colStatsMerge4));
+
         // test merge with one side is TableStats.UNKNOWN.
         stats2 = TableStats.UNKNOWN;
         assertThat(stats1.merge(stats2, null)).isEqualTo(TableStats.UNKNOWN);
