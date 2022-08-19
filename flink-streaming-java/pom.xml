@@ -81,6 +81,12 @@ under the License.
 			<version>3.5</version>
 		</dependency>
 
+		<dependency>
+			<groupId>org.mongodb</groupId>
+			<artifactId>mongo-java-driver</artifactId>
+			<version>3.12.11</version>
+		</dependency>
+
 		<!-- test dependencies -->
 
 		<dependency>

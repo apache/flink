@@ -45,7 +45,7 @@ public class StreamFilter<IN> extends AbstractUdfStreamOperator<IN, FilterFuncti
 
     @Override
     public void processElement(StreamRecord<IN> element) throws Exception {
-        streamMonitor.reportInput(element.getValue());
+        streamMonitor.reportInput(element.getValue(), getExecutionConfig());
         if (userFunction.filter(element.getValue())) {
             streamMonitor.reportOutput(element.getValue());
             output.collect(element);

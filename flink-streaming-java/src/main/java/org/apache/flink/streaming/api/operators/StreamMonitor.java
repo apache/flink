@@ -18,17 +18,25 @@
 
 package org.apache.flink.streaming.api.operators;
 
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.streaming.runtime.operators.windowing.WindowOperator;
 
+import com.mongodb.MongoClient;
+import com.mongodb.MongoClientOptions;
+import com.mongodb.MongoCredential;
+import com.mongodb.ServerAddress;
+import com.mongodb.client.MongoCollection;
+import com.mongodb.client.MongoDatabase;
+import com.mongodb.internal.connection.ServerAddressHelper;
 import org.json.simple.JSONObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import plangeneratorflink.utils.DataTuple;
 
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.Map;
 import java.util.Objects;
 
 /**
@@ -51,15 +59,14 @@ public class StreamMonitor implements Serializable {
     private int outputCounter;
     private final long duration = 30_000_000_000L; // 30 seconds, starting after first call
     private boolean localMode;
+    private boolean distributedLogging;
     private final AbstractUdfStreamOperator operator;
-    // private final Map<String, Object> topoConf;
     private final ArrayList<Double> joinSelectivities;
     private final ArrayList<Integer> windowLengths;
     private final Logger logger;
-    // private MongoCollection<JSONObject> mongoCollection;
+    private MongoCollection<JSONObject> mongoCollection;
 
     public StreamMonitor(HashMap<String, Object> description, AbstractUdfStreamOperator operator) {
-        // this.topoConf = Utils.readStormConfig();
         this.description = Objects.requireNonNullElseGet(description, HashMap::new);
 
         this.logger = LoggerFactory.getLogger("observation");
@@ -75,21 +82,35 @@ public class StreamMonitor implements Serializable {
         }
     }
 
-    public <T> void reportInput(T input) {
+    public <T> void reportInput(T input, ExecutionConfig config) {
         if (!initialized) {
             initialized = true;
-
+            Map<String, String> globalJobParametersMap = config.getGlobalJobParameters().toMap();
             // initialize loggers
-            //  if (((ArrayList<String>) topoConf.get("nimbus.seeds")).get(0).equals("localhost")) {
-            this.localMode = true;
-            //  } else {
-            //      this.localMode = false;
-            //      MongoClient mongoClient = new MongoClient(((ArrayList<String>)
-            // topoConf.get("nimbus.seeds")).get(0), 27017);
-            //       mongoCollection =
-            // mongoClient.getDatabase("dsps").getCollection("query_observations",
-            // JSONObject.class);
-            //   }
+            if (globalJobParametersMap.get("-distributedLogging").equals("true")) {
+                this.distributedLogging = true;
+                String mongoUsername = globalJobParametersMap.get("-mongoUsername");
+                String mongoPassword = globalJobParametersMap.get("-mongoPassword");
+                String mongoDatabase = globalJobParametersMap.get("-mongoDatabase");
+                String mongoAddress = globalJobParametersMap.get("-mongoAddress");
+                Integer mongoPort = Integer.valueOf(globalJobParametersMap.get("-mongoPort"));
+                String mongoCollectionObservations =
+                        globalJobParametersMap.get("-mongoCollectionObservations");
+
+                ServerAddress serverAddress =
+                        ServerAddressHelper.createServerAddress(mongoAddress, mongoPort);
+                MongoCredential mongoCredentials =
+                        MongoCredential.createCredential(
+                                mongoUsername, mongoDatabase, mongoPassword.toCharArray());
+                MongoClientOptions mongoOptions = MongoClientOptions.builder().build();
+                MongoClient mongoClient =
+                        new MongoClient(serverAddress, mongoCredentials, mongoOptions);
+                MongoDatabase db = mongoClient.getDatabase(mongoDatabase);
+                MongoCollection<JSONObject> collection =
+                        db.getCollection(mongoCollectionObservations, JSONObject.class);
+            } else {
+                this.distributedLogging = false;
+            }
             this.startTime = System.nanoTime();
             description.put("tupleWidthIn", getTupleSize(input));
             description.put("tupleWidthOut", -1); // not any observation yet
