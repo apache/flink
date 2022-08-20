@@ -92,6 +92,11 @@ public final class FileRecords<T> implements RecordsWithSplitIds<RecordAndPositi
         return finishedSplits;
     }
 
+    @Override
+    public boolean isEmpty() {
+        return recordsForSplit == null;
+    }
+
     // ------------------------------------------------------------------------
 
     public static <T> FileRecords<T> forRecords(

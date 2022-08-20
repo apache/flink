@@ -458,10 +458,12 @@ public class KafkaPartitionSplitReader
         private Iterator<ConsumerRecord<byte[], byte[]>> recordIterator;
         private TopicPartition currentTopicPartition;
         private Long currentSplitStoppingOffset;
+        private final boolean isEmpty;
 
         private KafkaPartitionSplitRecords(
                 ConsumerRecords<byte[], byte[]> consumerRecords, KafkaSourceReaderMetrics metrics) {
             this.consumerRecords = consumerRecords;
+            this.isEmpty = consumerRecords.isEmpty();
             this.splitIterator = consumerRecords.partitions().iterator();
             this.metrics = metrics;
         }
@@ -513,6 +515,11 @@ public class KafkaPartitionSplitReader
         @Override
         public Set<String> finishedSplits() {
             return finishedSplits;
+        }
+
+        @Override
+        public boolean isEmpty() {
+            return this.isEmpty;
         }
     }
 }

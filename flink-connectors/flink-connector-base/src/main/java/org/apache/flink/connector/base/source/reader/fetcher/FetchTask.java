@@ -61,7 +61,7 @@ class FetchTask<E, SplitT extends SourceSplit> implements SplitFetcherTask {
             if (!isWakenUp()) {
                 // The order matters here. We must first put the last records into the queue.
                 // This ensures the handling of the fetched records is atomic to wakeup.
-                if (elementsQueue.put(fetcherIndex, lastRecords)) {
+                if (lastRecords.isEmpty() || elementsQueue.put(fetcherIndex, lastRecords)) {
                     if (!lastRecords.finishedSplits().isEmpty()) {
                         // The callback does not throw InterruptedException.
                         splitFinishedCallback.accept(lastRecords.finishedSplits());
@@ -92,7 +92,7 @@ class FetchTask<E, SplitT extends SourceSplit> implements SplitFetcherTask {
         if (lastRecords == null) {
             // Two possible cases:
             // 1. The splitReader is reading or is about to read the records.
-            // 2. The records has been enqueued and set to null.
+            // 2. The records have been enqueued and set to null.
             // In case 1, we just wakeup the split reader. In case 2, the next run might be skipped.
             // In any case, the records won't be enqueued in the ongoing run().
             splitReader.wakeUp();

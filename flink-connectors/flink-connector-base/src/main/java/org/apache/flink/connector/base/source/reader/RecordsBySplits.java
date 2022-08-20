@@ -44,11 +44,20 @@ public class RecordsBySplits<E> implements RecordsWithSplitIds<E> {
 
     @Nullable private Iterator<E> recordsInCurrentSplit;
 
+    private final boolean isEmpty;
+
     public RecordsBySplits(
             final Map<String, Collection<E>> recordsBySplit, final Set<String> finishedSplits) {
-
         this.splitsIterator = checkNotNull(recordsBySplit, "recordsBySplit").entrySet().iterator();
         this.finishedSplits = checkNotNull(finishedSplits, "finishedSplits");
+        boolean isEmpty = true;
+        for (Map.Entry<String, Collection<E>> entry : recordsBySplit.entrySet()) {
+            if (!entry.getValue().isEmpty()) {
+                isEmpty = false;
+                break;
+            }
+        }
+        this.isEmpty = isEmpty;
     }
 
     @Nullable
@@ -76,6 +85,11 @@ public class RecordsBySplits<E> implements RecordsWithSplitIds<E> {
     @Override
     public Set<String> finishedSplits() {
         return finishedSplits;
+    }
+
+    @Override
+    public boolean isEmpty() {
+        return isEmpty;
     }
 
     // ------------------------------------------------------------------------

@@ -57,4 +57,13 @@ public interface RecordsWithSplitIds<E> {
      * large or otherwise heavy to allocate.
      */
     default void recycle() {}
+
+    /**
+     * This indicates whether this fetch result is empty.
+     *
+     * @return whether this fetch result is empty.
+     */
+    default boolean isEmpty() {
+        return false;
+    }
 }
