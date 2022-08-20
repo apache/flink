@@ -94,7 +94,7 @@ class ExpressionReducer(
       EMPTY_ROW_TYPE
     )
 
-    val function = generatedFunction.newInstance(Thread.currentThread().getContextClassLoader)
+    val function = generatedFunction.newInstance(classLoader)
     val richMapFunction = function match {
       case r: RichMapFunction[GenericRowData, GenericRowData] => r
       case _ =>

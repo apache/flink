@@ -474,6 +474,22 @@ public class FunctionITCase extends StreamingTestBase {
         tEnv().executeSql(dropFunctionDDL);
     }
 
+    @Test
+    public void testExpressionReducerByUsingJar() {
+        String functionDDL =
+                String.format(
+                        "create temporary function lowerUdf as '%s' using jar '%s'",
+                        udfClassName, jarPath);
+        tEnv().executeSql(functionDDL);
+
+        TableResult tableResult = tEnv().executeSql("SELECT lowerUdf('HELLO')");
+
+        List<Row> actualRows = CollectionUtil.iteratorToList(tableResult.collect());
+        assertThat(actualRows).isEqualTo(Arrays.asList(Row.of("hello")));
+
+        tEnv().executeSql("drop temporary function lowerUdf");
+    }
+
     /** Test udf class. */
     public static class TestUDF extends ScalarFunction {
 

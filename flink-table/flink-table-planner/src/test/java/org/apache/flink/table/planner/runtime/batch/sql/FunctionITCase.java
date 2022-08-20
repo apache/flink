@@ -159,6 +159,22 @@ public class FunctionITCase extends BatchTestBase {
                 "drop function lowerUdf");
     }
 
+    @Test
+    public void testExpressionReducerByUsingJar() {
+        String functionDDL =
+                String.format(
+                        "create temporary function lowerUdf as '%s' using jar '%s'",
+                        udfClassName, jarPath);
+        tEnv().executeSql(functionDDL);
+
+        TableResult tableResult = tEnv().executeSql("SELECT lowerUdf('HELLO')");
+
+        List<Row> actualRows = CollectionUtil.iteratorToList(tableResult.collect());
+        assertThat(actualRows).isEqualTo(Arrays.asList(Row.of("hello")));
+
+        tEnv().executeSql("drop temporary function lowerUdf");
+    }
+
     private void testUserDefinedFunctionByUsingJar(String createFunctionDDL, String dropFunctionDDL)
             throws Exception {
         List<Row> sourceData =
