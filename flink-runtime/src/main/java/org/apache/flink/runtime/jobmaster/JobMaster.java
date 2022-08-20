@@ -760,7 +760,9 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId>
                 disconnectTaskManager(
                         taskManagerId,
                         new FlinkException(
-                                "A registered TaskManager re-registered with a new session id. This indicates a restart of the TaskManager. Closing the old connection."));
+                                String.format(
+                                        "A registered TaskManager %s re-registered with a new session id. This indicates a restart of the TaskManager. Closing the old connection.",
+                                        taskManagerId)));
             }
         }
 
