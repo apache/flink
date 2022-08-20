@@ -68,6 +68,14 @@ under the License.
 			<scope>provided</scope>
 		</dependency>
 
+		<!-- SQL Server -->
+		<dependency>
+			<groupId>com.microsoft.sqlserver</groupId>
+			<artifactId>mssql-jdbc</artifactId>
+			<version>10.2.1.jre8</version>
+			<scope>provided</scope>
+		</dependency>
+
 		<!-- Tests -->
 
 		<dependency>
@@ -155,6 +163,14 @@ under the License.
 		<dependency>
 			<groupId>org.testcontainers</groupId>
 			<artifactId>oracle-xe</artifactId>
+			<scope>test</scope>
+		</dependency>
+
+		<!-- MS SQL test -->
+		<dependency>
+			<groupId>org.testcontainers</groupId>
+			<artifactId>mssqlserver</artifactId>
+			<version>1.17.3</version>
 			<scope>test</scope>
 		</dependency>
 
