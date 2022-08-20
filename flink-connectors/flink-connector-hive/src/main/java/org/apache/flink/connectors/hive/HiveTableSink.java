@@ -132,6 +132,7 @@ public class HiveTableSink implements DynamicTableSink, SupportsPartitioning, Su
     private boolean overwrite = false;
     private boolean dynamicGrouping = false;
     private final boolean autoGatherStatistic;
+    private final int gatherStatsThreadNum;
 
     @Nullable private final Integer configuredParallelism;
 
@@ -146,6 +147,7 @@ public class HiveTableSink implements DynamicTableSink, SupportsPartitioning, Su
                 flinkConf.get(HiveOptions.TABLE_EXEC_HIVE_FALLBACK_MAPRED_WRITER),
                 flinkConf.get(HiveOptions.TABLE_EXEC_HIVE_DYNAMIC_GROUPING_ENABLED),
                 flinkConf.get(HiveOptions.TABLE_EXEC_HIVE_SINK_STATISTIC_AUTO_GATHER_ENABLE),
+                flinkConf.get(HiveOptions.TABLE_EXEC_HIVE_SINK_STATISTIC_AUTO_GATHER_THREAD_NUM),
                 jobConf,
                 identifier,
                 table,
@@ -156,7 +158,8 @@ public class HiveTableSink implements DynamicTableSink, SupportsPartitioning, Su
             boolean fallbackMappedReader,
             boolean fallbackMappedWriter,
             boolean dynamicGroupingEnabled,
-            boolean autoUpdateStatistic,
+            boolean autoGatherStatistic,
+            int gatherStatsThreadNum,
             JobConf jobConf,
             ObjectIdentifier identifier,
             CatalogTable table,
@@ -164,7 +167,8 @@ public class HiveTableSink implements DynamicTableSink, SupportsPartitioning, Su
         this.fallbackMappedReader = fallbackMappedReader;
         this.fallbackMappedWriter = fallbackMappedWriter;
         this.dynamicGroupingEnabled = dynamicGroupingEnabled;
-        this.autoGatherStatistic = autoUpdateStatistic;
+        this.autoGatherStatistic = autoGatherStatistic;
+        this.gatherStatsThreadNum = gatherStatsThreadNum;
         this.jobConf = jobConf;
         this.identifier = identifier;
         this.catalogTable = table;
@@ -529,9 +533,10 @@ public class HiveTableSink implements DynamicTableSink, SupportsPartitioning, Su
                 hiveVersion,
                 identifier.getDatabaseName(),
                 identifier.getObjectName(),
-                autoGatherStatistic,
                 org.apache.flink.configuration.Configuration.fromMap(catalogTable.getOptions())
-                        .get(HiveOptions.SINK_PARTITION_COMMIT_SUCCESS_FILE_NAME));
+                        .get(HiveOptions.SINK_PARTITION_COMMIT_SUCCESS_FILE_NAME),
+                autoGatherStatistic,
+                gatherStatsThreadNum);
     }
 
     private HadoopFileSystemFactory fsFactory() {
@@ -643,6 +648,7 @@ public class HiveTableSink implements DynamicTableSink, SupportsPartitioning, Su
                         fallbackMappedWriter,
                         dynamicGroupingEnabled,
                         autoGatherStatistic,
+                        gatherStatsThreadNum,
                         jobConf,
                         identifier,
                         catalogTable,
