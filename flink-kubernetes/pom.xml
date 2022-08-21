@@ -167,6 +167,10 @@ under the License.
 									<pattern>dk.brics.automaton</pattern>
 									<shadedPattern>org.apache.flink.kubernetes.shaded.dk.brics.automaton</shadedPattern>
 								</relocation>
+								<relocation>
+								    <pattern>io.fabric8</pattern>
+								    <shadedPattern>org.apache.flink.kubernetes.shaded.io.fabric8</shadedPattern>
+								</relocation>
 							</relocations>
 						</configuration>
 					</execution>
