@@ -31,20 +31,21 @@ import org.apache.flink.api.java.tuple.Tuple1;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.util.Collector;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
+import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.fail;
 
 /** Tests for {@link CollectionExecutor} with iterations. */
 @SuppressWarnings("serial")
-public class CollectionExecutionIterationTest implements java.io.Serializable {
+class CollectionExecutionIterationTest implements Serializable {
 
     @Test
-    public void testBulkIteration() {
+    void testBulkIteration() {
         try {
             ExecutionEnvironment env = ExecutionEnvironment.createCollectionsEnvironment();
 
@@ -53,13 +54,12 @@ public class CollectionExecutionIterationTest implements java.io.Serializable {
             DataSet<Integer> result =
                     iteration.closeWith(iteration.map(new AddSuperstepNumberMapper()));
 
-            List<Integer> collected = new ArrayList<Integer>();
-            result.output(new LocalCollectionOutputFormat<Integer>(collected));
+            List<Integer> collected = new ArrayList<>();
+            result.output(new LocalCollectionOutputFormat<>(collected));
 
             env.execute();
 
-            assertEquals(1, collected.size());
-            assertEquals(56, collected.get(0).intValue());
+            assertThat(collected).containsExactly(56);
         } catch (Exception e) {
             e.printStackTrace();
             fail(e.getMessage());
@@ -67,7 +67,7 @@ public class CollectionExecutionIterationTest implements java.io.Serializable {
     }
 
     @Test
-    public void testBulkIterationWithTerminationCriterion() {
+    void testBulkIterationWithTerminationCriterion() {
         try {
             ExecutionEnvironment env = ExecutionEnvironment.createCollectionsEnvironment();
 
@@ -76,23 +76,17 @@ public class CollectionExecutionIterationTest implements java.io.Serializable {
             DataSet<Integer> iterationResult = iteration.map(new AddSuperstepNumberMapper());
 
             DataSet<Integer> terminationCriterion =
-                    iterationResult.filter(
-                            new FilterFunction<Integer>() {
-                                public boolean filter(Integer value) {
-                                    return value < 50;
-                                }
-                            });
+                    iterationResult.filter((FilterFunction<Integer>) value -> value < 50);
 
-            List<Integer> collected = new ArrayList<Integer>();
+            List<Integer> collected = new ArrayList<>();
 
             iteration
                     .closeWith(iterationResult, terminationCriterion)
-                    .output(new LocalCollectionOutputFormat<Integer>(collected));
+                    .output(new LocalCollectionOutputFormat<>(collected));
 
             env.execute();
 
-            assertEquals(1, collected.size());
-            assertEquals(56, collected.get(0).intValue());
+            assertThat(collected).containsExactly(56);
         } catch (Exception e) {
             e.printStackTrace();
             fail(e.getMessage());
@@ -100,25 +94,22 @@ public class CollectionExecutionIterationTest implements java.io.Serializable {
     }
 
     @Test
-    public void testDeltaIteration() {
+    void testDeltaIteration() {
         try {
             ExecutionEnvironment env = ExecutionEnvironment.createCollectionsEnvironment();
 
             @SuppressWarnings("unchecked")
             DataSet<Tuple2<Integer, Integer>> solInput =
                     env.fromElements(
-                            new Tuple2<Integer, Integer>(1, 0),
-                            new Tuple2<Integer, Integer>(2, 0),
-                            new Tuple2<Integer, Integer>(3, 0),
-                            new Tuple2<Integer, Integer>(4, 0));
+                            new Tuple2<>(1, 0),
+                            new Tuple2<>(2, 0),
+                            new Tuple2<>(3, 0),
+                            new Tuple2<>(4, 0));
 
             @SuppressWarnings("unchecked")
             DataSet<Tuple1<Integer>> workInput =
                     env.fromElements(
-                            new Tuple1<Integer>(1),
-                            new Tuple1<Integer>(2),
-                            new Tuple1<Integer>(3),
-                            new Tuple1<Integer>(4));
+                            new Tuple1<>(1), new Tuple1<>(2), new Tuple1<>(3), new Tuple1<>(4));
 
             // Perform a delta iteration where we add those values to the workset where
             // the second tuple field is smaller than the first tuple field.
@@ -138,7 +129,6 @@ public class CollectionExecutionIterationTest implements java.io.Serializable {
                                             Tuple2<Integer, Integer>,
                                             Tuple1<Integer>,
                                             Tuple2<Integer, Integer>>() {
-
                                         @Override
                                         public Tuple2<Integer, Integer> join(
                                                 Tuple2<Integer, Integer> first,
@@ -157,22 +147,22 @@ public class CollectionExecutionIterationTest implements java.io.Serializable {
                                         Tuple2<Integer, Integer> in, Collector<Tuple1<Integer>> out)
                                         throws Exception {
                                     if (in.f1 < in.f0) {
-                                        out.collect(new Tuple1<Integer>(in.f0));
+                                        out.collect(new Tuple1<>(in.f0));
                                     }
                                 }
                             });
 
-            List<Tuple2<Integer, Integer>> collected = new ArrayList<Tuple2<Integer, Integer>>();
+            List<Tuple2<Integer, Integer>> collected = new ArrayList<>();
 
             iteration
                     .closeWith(solDelta, nextWorkset)
-                    .output(new LocalCollectionOutputFormat<Tuple2<Integer, Integer>>(collected));
+                    .output(new LocalCollectionOutputFormat<>(collected));
 
             env.execute();
 
             // verify that both tuple fields are now the same
             for (Tuple2<Integer, Integer> t : collected) {
-                assertEquals(t.f0, t.f1);
+                assertThat(t.f1).isEqualTo(t.f0);
             }
         } catch (Exception e) {
             e.printStackTrace();

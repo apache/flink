@@ -32,33 +32,30 @@ import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.memory.DataOutputView;
 
-import org.junit.Assert;
-import org.junit.Before;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
+import org.junit.jupiter.api.BeforeEach;
 
 import java.io.IOException;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 /** Tests for type serialization format. */
-@RunWith(Parameterized.class)
-public class TypeSerializerFormatTest extends SequentialFormatTestBase<Tuple2<Integer, String>> {
+class TypeSerializerFormatTest extends SequentialFormatTestBase<Tuple2<Integer, String>> {
 
-    TypeInformation<Tuple2<Integer, String>> resultType = TypeExtractor.getForObject(getRecord(0));
+    TypeInformation<Tuple2<Integer, String>> resultType;
 
-    private TypeSerializer<Tuple2<Integer, String>> serializer;
+    private final TypeSerializer<Tuple2<Integer, String>> serializer;
 
     private BlockInfo block;
 
-    public TypeSerializerFormatTest(int numberOfTuples, long blockSize, int parallelism) {
-        super(numberOfTuples, blockSize, parallelism);
+    TypeSerializerFormatTest() {
 
         resultType = TypeExtractor.getForObject(getRecord(0));
 
         serializer = resultType.createSerializer(new ExecutionConfig());
     }
 
-    @Before
-    public void setup() {
+    @BeforeEach
+    void setup() {
         block = createInputFormat().createBlockInfo();
     }
 
@@ -67,7 +64,7 @@ public class TypeSerializerFormatTest extends SequentialFormatTestBase<Tuple2<In
         Configuration configuration = new Configuration();
 
         final TypeSerializerInputFormat<Tuple2<Integer, String>> inputFormat =
-                new TypeSerializerInputFormat<Tuple2<Integer, String>>(resultType);
+                new TypeSerializerInputFormat<>(resultType);
         inputFormat.setFilePath(this.tempFile.toURI().toString());
         inputFormat.setBlockSize(this.blockSize);
 
@@ -79,7 +76,7 @@ public class TypeSerializerFormatTest extends SequentialFormatTestBase<Tuple2<In
     protected BinaryOutputFormat<Tuple2<Integer, String>> createOutputFormat(
             String path, Configuration configuration) throws IOException {
         TypeSerializerOutputFormat<Tuple2<Integer, String>> outputFormat =
-                new TypeSerializerOutputFormat<Tuple2<Integer, String>>();
+                new TypeSerializerOutputFormat<>();
 
         outputFormat.setSerializer(serializer);
         outputFormat.setOutputFilePath(new Path(path));
@@ -100,12 +97,12 @@ public class TypeSerializerFormatTest extends SequentialFormatTestBase<Tuple2<In
 
     @Override
     protected Tuple2<Integer, String> getRecord(int index) {
-        return new Tuple2<Integer, String>(index, String.valueOf(index));
+        return new Tuple2<>(index, String.valueOf(index));
     }
 
     @Override
     protected Tuple2<Integer, String> createInstance() {
-        return new Tuple2<Integer, String>();
+        return new Tuple2<>();
     }
 
     @Override
@@ -116,7 +113,7 @@ public class TypeSerializerFormatTest extends SequentialFormatTestBase<Tuple2<In
 
     @Override
     protected void checkEquals(Tuple2<Integer, String> expected, Tuple2<Integer, String> actual) {
-        Assert.assertEquals(expected.f0, actual.f0);
-        Assert.assertEquals(expected.f1, actual.f1);
+        assertThat(actual.f0).isEqualTo(expected.f0);
+        assertThat(actual.f1).isEqualTo(expected.f1);
     }
 }

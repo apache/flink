@@ -28,19 +28,19 @@ import org.apache.flink.api.java.io.DiscardingOutputFormat;
 import org.apache.flink.api.java.operators.IterativeDataSet;
 import org.apache.flink.api.java.tuple.Tuple3;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Simple test for validating the parallelism of a bulk iteration. This test is not as comprehensive
  * as {@link DeltaIterationTranslationTest}.
  */
 @SuppressWarnings("serial")
-public class BulkIterationTranslationTest implements java.io.Serializable {
+class BulkIterationTranslationTest implements java.io.Serializable {
 
     @Test
-    public void testCorrectTranslation() {
+    void testCorrectTranslation() {
         final String jobName = "Test JobName";
 
         final int numIterations = 13;
@@ -65,11 +65,11 @@ public class BulkIterationTranslationTest implements java.io.Serializable {
 
             // test that multiple iteration consumers are supported
             DataSet<Tuple3<Double, Long, String>> identity =
-                    bulkIteration.map(new IdentityMapper<Tuple3<Double, Long, String>>());
+                    bulkIteration.map(new IdentityMapper<>());
 
             DataSet<Tuple3<Double, Long, String>> result = bulkIteration.closeWith(identity);
 
-            result.output(new DiscardingOutputFormat<Tuple3<Double, Long, String>>());
+            result.output(new DiscardingOutputFormat<>());
             result.writeAsText("/dev/null");
         }
 
@@ -80,9 +80,9 @@ public class BulkIterationTranslationTest implements java.io.Serializable {
         BulkIterationBase<?> iteration =
                 (BulkIterationBase<?>) p.getDataSinks().iterator().next().getInput();
 
-        assertEquals(jobName, p.getJobName());
-        assertEquals(defaultParallelism, p.getDefaultParallelism());
-        assertEquals(iterationParallelism, iteration.getParallelism());
+        assertThat(p.getJobName()).isEqualTo(jobName);
+        assertThat(p.getDefaultParallelism()).isEqualTo(defaultParallelism);
+        assertThat(iteration.getParallelism()).isEqualTo(iterationParallelism);
     }
 
     // --------------------------------------------------------------------------------------------

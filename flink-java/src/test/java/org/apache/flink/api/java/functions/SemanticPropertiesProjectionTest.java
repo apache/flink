@@ -29,30 +29,26 @@ import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.io.DiscardingOutputFormat;
 import org.apache.flink.api.java.operators.translation.PlanProjectOperator;
-import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.java.tuple.Tuple4;
 import org.apache.flink.api.java.tuple.Tuple5;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
 import java.util.List;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for semantic properties of projected fields. */
-public class SemanticPropertiesProjectionTest {
+class SemanticPropertiesProjectionTest {
 
-    final List<Tuple5<Integer, Long, String, Long, Integer>> emptyTupleData =
-            new ArrayList<Tuple5<Integer, Long, String, Long, Integer>>();
+    final List<Tuple5<Integer, Long, String, Long, Integer>> emptyTupleData = new ArrayList<>();
 
     final TupleTypeInfo<Tuple5<Integer, Long, String, Long, Integer>> tupleTypeInfo =
-            new TupleTypeInfo<Tuple5<Integer, Long, String, Long, Integer>>(
+            new TupleTypeInfo<>(
                     BasicTypeInfo.INT_TYPE_INFO,
                     BasicTypeInfo.LONG_TYPE_INFO,
                     BasicTypeInfo.STRING_TYPE_INFO,
@@ -60,22 +56,11 @@ public class SemanticPropertiesProjectionTest {
                     BasicTypeInfo.INT_TYPE_INFO);
 
     final List<Tuple4<Integer, Tuple3<String, Integer, Long>, Tuple2<Long, Long>, String>>
-            emptyNestedTupleData =
-                    new ArrayList<
-                            Tuple4<
-                                    Integer,
-                                    Tuple3<String, Integer, Long>,
-                                    Tuple2<Long, Long>,
-                                    String>>();
+            emptyNestedTupleData = new ArrayList<>();
 
     final TupleTypeInfo<Tuple4<Integer, Tuple3<String, Integer, Long>, Tuple2<Long, Long>, String>>
             nestedTupleTypeInfo =
-                    new TupleTypeInfo<
-                            Tuple4<
-                                    Integer,
-                                    Tuple3<String, Integer, Long>,
-                                    Tuple2<Long, Long>,
-                                    String>>(
+                    new TupleTypeInfo<>(
                             BasicTypeInfo.INT_TYPE_INFO,
                             new TupleTypeInfo<Tuple3<String, Integer, Long>>(
                                     BasicTypeInfo.STRING_TYPE_INFO,
@@ -86,12 +71,12 @@ public class SemanticPropertiesProjectionTest {
                             BasicTypeInfo.STRING_TYPE_INFO);
 
     @Test
-    public void testProjectionSemProps1() {
+    void testProjectionSemProps1() {
         ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
         DataSet<Tuple5<Integer, Long, String, Long, Integer>> tupleDs =
                 env.fromCollection(emptyTupleData, tupleTypeInfo);
 
-        tupleDs.project(1, 3, 2, 0, 3).output(new DiscardingOutputFormat<Tuple>());
+        tupleDs.project(1, 3, 2, 0, 3).output(new DiscardingOutputFormat<>());
 
         Plan plan = env.createProgramPlan();
 
@@ -100,25 +85,19 @@ public class SemanticPropertiesProjectionTest {
 
         SingleInputSemanticProperties props = projectOperator.getSemanticProperties();
 
-        assertEquals(1, props.getForwardingTargetFields(0, 0).size());
-        assertEquals(1, props.getForwardingTargetFields(0, 1).size());
-        assertEquals(1, props.getForwardingTargetFields(0, 2).size());
-        assertEquals(2, props.getForwardingTargetFields(0, 3).size());
-
-        assertTrue(props.getForwardingTargetFields(0, 1).contains(0));
-        assertTrue(props.getForwardingTargetFields(0, 3).contains(1));
-        assertTrue(props.getForwardingTargetFields(0, 2).contains(2));
-        assertTrue(props.getForwardingTargetFields(0, 0).contains(3));
-        assertTrue(props.getForwardingTargetFields(0, 3).contains(4));
+        assertThat(props.getForwardingTargetFields(0, 0)).containsExactly(3);
+        assertThat(props.getForwardingTargetFields(0, 1)).containsExactly(0);
+        assertThat(props.getForwardingTargetFields(0, 2)).containsExactly(2);
+        assertThat(props.getForwardingTargetFields(0, 3)).containsExactly(4, 1);
     }
 
     @Test
-    public void testProjectionSemProps2() {
+    void testProjectionSemProps2() {
         ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
         DataSet<Tuple4<Integer, Tuple3<String, Integer, Long>, Tuple2<Long, Long>, String>>
                 tupleDs = env.fromCollection(emptyNestedTupleData, nestedTupleTypeInfo);
 
-        tupleDs.project(2, 3, 1, 2).output(new DiscardingOutputFormat<Tuple>());
+        tupleDs.project(2, 3, 1, 2).output(new DiscardingOutputFormat<>());
 
         Plan plan = env.createProgramPlan();
 
@@ -127,27 +106,17 @@ public class SemanticPropertiesProjectionTest {
 
         SingleInputSemanticProperties props = projectOperator.getSemanticProperties();
 
-        assertNotNull(props.getForwardingTargetFields(0, 0));
-        assertEquals(1, props.getForwardingTargetFields(0, 1).size());
-        assertEquals(1, props.getForwardingTargetFields(0, 2).size());
-        assertEquals(1, props.getForwardingTargetFields(0, 3).size());
-        assertEquals(2, props.getForwardingTargetFields(0, 4).size());
-        assertEquals(2, props.getForwardingTargetFields(0, 5).size());
-        assertEquals(1, props.getForwardingTargetFields(0, 6).size());
-        assertEquals(0, props.getForwardingTargetFields(0, 0).size());
-
-        assertTrue(props.getForwardingTargetFields(0, 4).contains(0));
-        assertTrue(props.getForwardingTargetFields(0, 5).contains(1));
-        assertTrue(props.getForwardingTargetFields(0, 6).contains(2));
-        assertTrue(props.getForwardingTargetFields(0, 1).contains(3));
-        assertTrue(props.getForwardingTargetFields(0, 2).contains(4));
-        assertTrue(props.getForwardingTargetFields(0, 3).contains(5));
-        assertTrue(props.getForwardingTargetFields(0, 4).contains(6));
-        assertTrue(props.getForwardingTargetFields(0, 5).contains(7));
+        assertThat(props.getForwardingTargetFields(0, 0)).isEmpty();
+        assertThat(props.getForwardingTargetFields(0, 1)).containsExactly(3);
+        assertThat(props.getForwardingTargetFields(0, 2)).containsExactly(4);
+        assertThat(props.getForwardingTargetFields(0, 3)).containsExactly(5);
+        assertThat(props.getForwardingTargetFields(0, 4)).containsExactly(0, 6);
+        assertThat(props.getForwardingTargetFields(0, 5)).containsExactly(1, 7);
+        assertThat(props.getForwardingTargetFields(0, 6)).containsExactly(2);
     }
 
     @Test
-    public void testJoinProjectionSemProps1() {
+    void testJoinProjectionSemProps1() {
         ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
         DataSet<Tuple5<Integer, Long, String, Long, Integer>> tupleDs =
                 env.fromCollection(emptyTupleData, tupleTypeInfo);
@@ -157,7 +126,7 @@ public class SemanticPropertiesProjectionTest {
                 .equalTo(0)
                 .projectFirst(2, 3)
                 .projectSecond(1, 4)
-                .output(new DiscardingOutputFormat<Tuple>());
+                .output(new DiscardingOutputFormat<>());
 
         Plan plan = env.createProgramPlan();
 
@@ -167,19 +136,14 @@ public class SemanticPropertiesProjectionTest {
 
         DualInputSemanticProperties props = projectJoinOperator.getSemanticProperties();
 
-        assertEquals(1, props.getForwardingTargetFields(0, 2).size());
-        assertEquals(1, props.getForwardingTargetFields(0, 3).size());
-        assertEquals(1, props.getForwardingTargetFields(1, 1).size());
-        assertEquals(1, props.getForwardingTargetFields(1, 4).size());
-
-        assertTrue(props.getForwardingTargetFields(0, 2).contains(0));
-        assertTrue(props.getForwardingTargetFields(0, 3).contains(1));
-        assertTrue(props.getForwardingTargetFields(1, 1).contains(2));
-        assertTrue(props.getForwardingTargetFields(1, 4).contains(3));
+        assertThat(props.getForwardingTargetFields(0, 2)).containsExactly(0);
+        assertThat(props.getForwardingTargetFields(0, 3)).containsExactly(1);
+        assertThat(props.getForwardingTargetFields(1, 1)).containsExactly(2);
+        assertThat(props.getForwardingTargetFields(1, 4)).containsExactly(3);
     }
 
     @Test
-    public void testJoinProjectionSemProps2() {
+    void testJoinProjectionSemProps2() {
         ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
         DataSet<Tuple4<Integer, Tuple3<String, Integer, Long>, Tuple2<Long, Long>, String>>
                 tupleDs = env.fromCollection(emptyNestedTupleData, nestedTupleTypeInfo);
@@ -189,7 +153,7 @@ public class SemanticPropertiesProjectionTest {
                 .equalTo(0)
                 .projectFirst(2, 0)
                 .projectSecond(1, 3)
-                .output(new DiscardingOutputFormat<Tuple>());
+                .output(new DiscardingOutputFormat<>());
 
         Plan plan = env.createProgramPlan();
 
@@ -199,40 +163,25 @@ public class SemanticPropertiesProjectionTest {
 
         DualInputSemanticProperties props = projectJoinOperator.getSemanticProperties();
 
-        assertEquals(1, props.getForwardingTargetFields(0, 0).size());
-        assertNotNull(props.getForwardingTargetFields(0, 1));
-        assertNotNull(props.getForwardingTargetFields(0, 2));
-        assertNotNull(props.getForwardingTargetFields(0, 3));
-        assertEquals(1, props.getForwardingTargetFields(0, 4).size());
-        assertEquals(1, props.getForwardingTargetFields(0, 5).size());
-        assertNotNull(props.getForwardingTargetFields(0, 6));
-        assertEquals(0, props.getForwardingTargetFields(0, 1).size());
-        assertEquals(0, props.getForwardingTargetFields(0, 2).size());
-        assertEquals(0, props.getForwardingTargetFields(0, 3).size());
-        assertEquals(0, props.getForwardingTargetFields(0, 6).size());
+        assertThat(props.getForwardingTargetFields(0, 0)).containsExactly(2);
+        assertThat(props.getForwardingTargetFields(0, 1)).isEmpty();
+        assertThat(props.getForwardingTargetFields(0, 2)).isEmpty();
+        assertThat(props.getForwardingTargetFields(0, 3)).isEmpty();
+        assertThat(props.getForwardingTargetFields(0, 4)).containsExactly(0);
+        assertThat(props.getForwardingTargetFields(0, 5)).containsExactly(1);
+        assertThat(props.getForwardingTargetFields(0, 6)).isEmpty();
 
-        assertNotNull(props.getForwardingTargetFields(1, 0));
-        assertEquals(1, props.getForwardingTargetFields(1, 1).size());
-        assertEquals(1, props.getForwardingTargetFields(1, 2).size());
-        assertEquals(1, props.getForwardingTargetFields(1, 3).size());
-        assertNotNull(props.getForwardingTargetFields(1, 4));
-        assertNotNull(props.getForwardingTargetFields(1, 5));
-        assertEquals(1, props.getForwardingTargetFields(1, 6).size());
-        assertEquals(0, props.getForwardingTargetFields(1, 0).size());
-        assertEquals(0, props.getForwardingTargetFields(1, 4).size());
-        assertEquals(0, props.getForwardingTargetFields(1, 5).size());
-
-        assertTrue(props.getForwardingTargetFields(0, 4).contains(0));
-        assertTrue(props.getForwardingTargetFields(0, 5).contains(1));
-        assertTrue(props.getForwardingTargetFields(0, 0).contains(2));
-        assertTrue(props.getForwardingTargetFields(1, 1).contains(3));
-        assertTrue(props.getForwardingTargetFields(1, 2).contains(4));
-        assertTrue(props.getForwardingTargetFields(1, 3).contains(5));
-        assertTrue(props.getForwardingTargetFields(1, 6).contains(6));
+        assertThat(props.getForwardingTargetFields(1, 0)).isEmpty();
+        assertThat(props.getForwardingTargetFields(1, 1)).containsExactly(3);
+        assertThat(props.getForwardingTargetFields(1, 2)).containsExactly(4);
+        assertThat(props.getForwardingTargetFields(1, 3)).containsExactly(5);
+        assertThat(props.getForwardingTargetFields(1, 4)).isEmpty();
+        assertThat(props.getForwardingTargetFields(1, 5)).isEmpty();
+        assertThat(props.getForwardingTargetFields(1, 6)).containsExactly(6);
     }
 
     @Test
-    public void testCrossProjectionSemProps1() {
+    void testCrossProjectionSemProps1() {
         ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
         DataSet<Tuple5<Integer, Long, String, Long, Integer>> tupleDs =
                 env.fromCollection(emptyTupleData, tupleTypeInfo);
@@ -240,7 +189,7 @@ public class SemanticPropertiesProjectionTest {
         tupleDs.cross(tupleDs)
                 .projectFirst(2, 3)
                 .projectSecond(1, 4)
-                .output(new DiscardingOutputFormat<Tuple>());
+                .output(new DiscardingOutputFormat<>());
 
         Plan plan = env.createProgramPlan();
 
@@ -250,19 +199,14 @@ public class SemanticPropertiesProjectionTest {
 
         DualInputSemanticProperties props = projectCrossOperator.getSemanticProperties();
 
-        assertEquals(1, props.getForwardingTargetFields(0, 2).size());
-        assertEquals(1, props.getForwardingTargetFields(0, 3).size());
-        assertEquals(1, props.getForwardingTargetFields(1, 1).size());
-        assertEquals(1, props.getForwardingTargetFields(1, 4).size());
-
-        assertTrue(props.getForwardingTargetFields(0, 2).contains(0));
-        assertTrue(props.getForwardingTargetFields(0, 3).contains(1));
-        assertTrue(props.getForwardingTargetFields(1, 1).contains(2));
-        assertTrue(props.getForwardingTargetFields(1, 4).contains(3));
+        assertThat(props.getForwardingTargetFields(0, 2)).containsExactly(0);
+        assertThat(props.getForwardingTargetFields(0, 3)).containsExactly(1);
+        assertThat(props.getForwardingTargetFields(1, 1)).containsExactly(2);
+        assertThat(props.getForwardingTargetFields(1, 4)).containsExactly(3);
     }
 
     @Test
-    public void testCrossProjectionSemProps2() {
+    void testCrossProjectionSemProps2() {
         ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
         DataSet<Tuple4<Integer, Tuple3<String, Integer, Long>, Tuple2<Long, Long>, String>>
                 tupleDs = env.fromCollection(emptyNestedTupleData, nestedTupleTypeInfo);
@@ -270,7 +214,7 @@ public class SemanticPropertiesProjectionTest {
         tupleDs.cross(tupleDs)
                 .projectFirst(2, 0)
                 .projectSecond(1, 3)
-                .output(new DiscardingOutputFormat<Tuple>());
+                .output(new DiscardingOutputFormat<>());
 
         Plan plan = env.createProgramPlan();
 
@@ -280,35 +224,20 @@ public class SemanticPropertiesProjectionTest {
 
         DualInputSemanticProperties props = projectCrossOperator.getSemanticProperties();
 
-        assertEquals(1, props.getForwardingTargetFields(0, 0).size());
-        assertNotNull(props.getForwardingTargetFields(0, 1));
-        assertNotNull(props.getForwardingTargetFields(0, 2));
-        assertNotNull(props.getForwardingTargetFields(0, 3));
-        assertEquals(1, props.getForwardingTargetFields(0, 4).size());
-        assertEquals(1, props.getForwardingTargetFields(0, 5).size());
-        assertNotNull(props.getForwardingTargetFields(0, 6));
-        assertEquals(0, props.getForwardingTargetFields(0, 1).size());
-        assertEquals(0, props.getForwardingTargetFields(0, 2).size());
-        assertEquals(0, props.getForwardingTargetFields(0, 3).size());
-        assertEquals(0, props.getForwardingTargetFields(0, 6).size());
+        assertThat(props.getForwardingTargetFields(0, 0)).containsExactly(2);
+        assertThat(props.getForwardingTargetFields(0, 1)).isEmpty();
+        assertThat(props.getForwardingTargetFields(0, 2)).isEmpty();
+        assertThat(props.getForwardingTargetFields(0, 3)).isEmpty();
+        assertThat(props.getForwardingTargetFields(0, 4)).containsExactly(0);
+        assertThat(props.getForwardingTargetFields(0, 5)).containsExactly(1);
+        assertThat(props.getForwardingTargetFields(0, 6)).isEmpty();
 
-        assertNotNull(props.getForwardingTargetFields(1, 0));
-        assertEquals(1, props.getForwardingTargetFields(1, 1).size());
-        assertEquals(1, props.getForwardingTargetFields(1, 2).size());
-        assertEquals(1, props.getForwardingTargetFields(1, 3).size());
-        assertNotNull(props.getForwardingTargetFields(1, 4));
-        assertNotNull(props.getForwardingTargetFields(1, 5));
-        assertEquals(1, props.getForwardingTargetFields(1, 6).size());
-        assertEquals(0, props.getForwardingTargetFields(1, 0).size());
-        assertEquals(0, props.getForwardingTargetFields(1, 4).size());
-        assertEquals(0, props.getForwardingTargetFields(1, 5).size());
-
-        assertTrue(props.getForwardingTargetFields(0, 4).contains(0));
-        assertTrue(props.getForwardingTargetFields(0, 5).contains(1));
-        assertTrue(props.getForwardingTargetFields(0, 0).contains(2));
-        assertTrue(props.getForwardingTargetFields(1, 1).contains(3));
-        assertTrue(props.getForwardingTargetFields(1, 2).contains(4));
-        assertTrue(props.getForwardingTargetFields(1, 3).contains(5));
-        assertTrue(props.getForwardingTargetFields(1, 6).contains(6));
+        assertThat(props.getForwardingTargetFields(1, 0)).isEmpty();
+        assertThat(props.getForwardingTargetFields(1, 1)).containsExactly(3);
+        assertThat(props.getForwardingTargetFields(1, 2)).containsExactly(4);
+        assertThat(props.getForwardingTargetFields(1, 3)).containsExactly(5);
+        assertThat(props.getForwardingTargetFields(1, 4)).isEmpty();
+        assertThat(props.getForwardingTargetFields(1, 5)).isEmpty();
+        assertThat(props.getForwardingTargetFields(1, 6)).containsExactly(6);
     }
 }

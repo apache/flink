@@ -36,20 +36,19 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.util.Collector;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.Iterator;
 
-import static org.junit.Assert.assertArrayEquals;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.fail;
 
 /** Tests for translation of delta iterations. */
 @SuppressWarnings("serial")
-public class DeltaIterationTranslationTest implements java.io.Serializable {
+class DeltaIterationTranslationTest implements java.io.Serializable {
 
     @Test
-    public void testCorrectTranslation() {
+    void testCorrectTranslation() {
         try {
             final String jobName = "Test JobName";
             final String iterationName = "Test Name";
@@ -72,11 +71,11 @@ public class DeltaIterationTranslationTest implements java.io.Serializable {
 
                 @SuppressWarnings("unchecked")
                 DataSet<Tuple3<Double, Long, String>> initialSolutionSet =
-                        env.fromElements(new Tuple3<Double, Long, String>(3.44, 5L, "abc"));
+                        env.fromElements(new Tuple3<>(3.44, 5L, "abc"));
 
                 @SuppressWarnings("unchecked")
                 DataSet<Tuple2<Double, String>> initialWorkSet =
-                        env.fromElements(new Tuple2<Double, String>(1.23, "abc"));
+                        env.fromElements(new Tuple2<>(1.23, "abc"));
 
                 DeltaIteration<Tuple3<Double, Long, String>, Tuple2<Double, String>> iteration =
                         initialSolutionSet.iterateDelta(
@@ -107,15 +106,15 @@ public class DeltaIterationTranslationTest implements java.io.Serializable {
                                 joined,
                                 joined.map(new NextWorksetMapper()).name(beforeNextWorksetMap));
 
-                result.output(new DiscardingOutputFormat<Tuple3<Double, Long, String>>());
+                result.output(new DiscardingOutputFormat<>());
                 result.writeAsText("/dev/null");
             }
 
             Plan p = env.createProgramPlan(jobName);
 
             // ------------- validate the plan ----------------
-            assertEquals(jobName, p.getJobName());
-            assertEquals(defaultParallelism, p.getDefaultParallelism());
+            assertThat(p.getJobName()).isEqualTo(jobName);
+            assertThat(p.getDefaultParallelism()).isEqualTo(defaultParallelism);
 
             // validate the iteration
             GenericDataSinkBase<?> sink1, sink2;
@@ -128,13 +127,13 @@ public class DeltaIterationTranslationTest implements java.io.Serializable {
             DeltaIterationBase<?, ?> iteration = (DeltaIterationBase<?, ?>) sink1.getInput();
 
             // check that multi consumer translation works for iterations
-            assertEquals(iteration, sink2.getInput());
+            assertThat(sink2.getInput()).isEqualTo(iteration);
 
             // check the basic iteration properties
-            assertEquals(numIterations, iteration.getMaximumNumberOfIterations());
-            assertArrayEquals(iterationKeys, iteration.getSolutionSetKeyFields());
-            assertEquals(iterationParallelism, iteration.getParallelism());
-            assertEquals(iterationName, iteration.getName());
+            assertThat(iteration.getMaximumNumberOfIterations()).isEqualTo(numIterations);
+            assertThat(iteration.getSolutionSetKeyFields()).containsExactly(iterationKeys);
+            assertThat(iteration.getParallelism()).isEqualTo(iterationParallelism);
+            assertThat(iteration.getName()).isEqualTo(iterationName);
 
             MapOperatorBase<?, ?, ?> nextWorksetMapper =
                     (MapOperatorBase<?, ?, ?>) iteration.getNextWorkset();
@@ -145,33 +144,31 @@ public class DeltaIterationTranslationTest implements java.io.Serializable {
             MapOperatorBase<?, ?, ?> worksetMapper =
                     (MapOperatorBase<?, ?, ?>) worksetSelfJoin.getFirstInput();
 
-            assertEquals(
-                    IdentityMapper.class, worksetMapper.getUserCodeWrapper().getUserCodeClass());
-            assertEquals(
-                    NextWorksetMapper.class,
-                    nextWorksetMapper.getUserCodeWrapper().getUserCodeClass());
+            assertThat(worksetMapper.getUserCodeWrapper().getUserCodeClass())
+                    .isEqualTo(IdentityMapper.class);
+            assertThat(nextWorksetMapper.getUserCodeWrapper().getUserCodeClass())
+                    .isEqualTo(NextWorksetMapper.class);
             if (solutionSetJoin.getUserCodeWrapper().getUserCodeObject()
                     instanceof WrappingFunction) {
                 WrappingFunction<?> wf =
                         (WrappingFunction<?>)
                                 solutionSetJoin.getUserCodeWrapper().getUserCodeObject();
-                assertEquals(SolutionWorksetJoin.class, wf.getWrappedFunction().getClass());
+                assertThat(wf.getWrappedFunction().getClass()).isEqualTo(SolutionWorksetJoin.class);
             } else {
-                assertEquals(
-                        SolutionWorksetJoin.class,
-                        solutionSetJoin.getUserCodeWrapper().getUserCodeClass());
+                assertThat(solutionSetJoin.getUserCodeWrapper().getUserCodeClass())
+                        .isEqualTo(SolutionWorksetJoin.class);
             }
 
-            assertEquals(beforeNextWorksetMap, nextWorksetMapper.getName());
+            assertThat(nextWorksetMapper.getName()).isEqualTo(beforeNextWorksetMap);
 
-            assertEquals(
-                    aggregatorName,
-                    iteration
-                            .getAggregators()
-                            .getAllRegisteredAggregators()
-                            .iterator()
-                            .next()
-                            .getName());
+            assertThat(
+                            iteration
+                                    .getAggregators()
+                                    .getAllRegisteredAggregators()
+                                    .iterator()
+                                    .next()
+                                    .getName())
+                    .isEqualTo(aggregatorName);
         } catch (Exception e) {
             System.err.println(e.getMessage());
             e.printStackTrace();
@@ -180,7 +177,7 @@ public class DeltaIterationTranslationTest implements java.io.Serializable {
     }
 
     @Test
-    public void testRejectWhenSolutionSetKeysDontMatchJoin() {
+    void testRejectWhenSolutionSetKeysDontMatchJoin() {
         try {
             ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
@@ -216,7 +213,7 @@ public class DeltaIterationTranslationTest implements java.io.Serializable {
     }
 
     @Test
-    public void testRejectWhenSolutionSetKeysDontMatchCoGroup() {
+    void testRejectWhenSolutionSetKeysDontMatchCoGroup() {
         try {
             ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
