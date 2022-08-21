@@ -21,10 +21,11 @@ package org.apache.flink.api.java.summarize.aggregation;
 import org.apache.flink.api.java.summarize.NumericColumnSummary;
 import org.apache.flink.types.FloatValue;
 
-import org.junit.Assert;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.data.Offset.offset;
 
 /** Tests for {@link ValueSummaryAggregator.FloatValueSummaryAggregator}. */
-public class FloatValueSummaryAggregatorTest extends FloatSummaryAggregatorTest {
+class FloatValueSummaryAggregatorTest extends FloatSummaryAggregatorTest {
 
     /**
      * Helper method for summarizing a list of values.
@@ -50,12 +51,12 @@ public class FloatValueSummaryAggregatorTest extends FloatSummaryAggregatorTest 
             @Override
             protected void compareResults(
                     NumericColumnSummary<Float> result1, NumericColumnSummary<Float> result2) {
-                Assert.assertEquals(result1.getMin(), result2.getMin(), 0.0f);
-                Assert.assertEquals(result1.getMax(), result2.getMax(), 0.0f);
-                Assert.assertEquals(result1.getMean(), result2.getMean(), 1e-10d);
-                Assert.assertEquals(result1.getVariance(), result2.getVariance(), 1e-9d);
-                Assert.assertEquals(
-                        result1.getStandardDeviation(), result2.getStandardDeviation(), 1e-10d);
+                assertThat(result2.getMin()).isCloseTo(result1.getMin(), offset(0.0f));
+                assertThat(result2.getMax()).isCloseTo(result1.getMax(), offset(0.0f));
+                assertThat(result2.getMean()).isCloseTo(result1.getMean(), offset(1e-10d));
+                assertThat(result2.getVariance()).isCloseTo(result1.getVariance(), offset(1e-9d));
+                assertThat(result2.getStandardDeviation())
+                        .isCloseTo(result1.getStandardDeviation(), offset(1e-10d));
             }
         }.summarize(floatValues);
     }

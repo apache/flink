@@ -25,19 +25,18 @@ import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.io.DiscardingOutputFormat;
 import org.apache.flink.configuration.Configuration;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.fail;
 
 /** Tests for {@link CollectionExecutor} with accumulators. */
-public class CollectionExecutionAccumulatorsTest {
+class CollectionExecutionAccumulatorsTest {
 
     private static final String ACCUMULATOR_NAME = "TEST ACC";
 
     @Test
-    public void testAccumulator() {
+    void testAccumulator() {
         try {
             final int numElements = 100;
 
@@ -49,9 +48,9 @@ public class CollectionExecutionAccumulatorsTest {
 
             JobExecutionResult result = env.execute();
 
-            assertTrue(result.getNetRuntime() >= 0);
+            assertThat(result.getNetRuntime()).isGreaterThanOrEqualTo(0);
 
-            assertEquals(numElements, (int) result.getAccumulatorResult(ACCUMULATOR_NAME));
+            assertThat((int) result.getAccumulatorResult(ACCUMULATOR_NAME)).isEqualTo(numElements);
         } catch (Exception e) {
             e.printStackTrace();
             fail(e.getMessage());

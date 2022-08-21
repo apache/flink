@@ -30,24 +30,22 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.util.Collector;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.fail;
 
 /** Tests for translation of co-group sort. */
 @SuppressWarnings({"serial", "unchecked"})
-public class CoGroupSortTranslationTest implements java.io.Serializable {
+class CoGroupSortTranslationTest implements java.io.Serializable {
 
     @Test
-    public void testGroupSortTuples() {
+    void testGroupSortTuples() {
         try {
             ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
-            DataSet<Tuple2<Long, Long>> input1 = env.fromElements(new Tuple2<Long, Long>(0L, 0L));
-            DataSet<Tuple3<Long, Long, Long>> input2 =
-                    env.fromElements(new Tuple3<Long, Long, Long>(0L, 0L, 0L));
+            DataSet<Tuple2<Long, Long>> input1 = env.fromElements(new Tuple2<>(0L, 0L));
+            DataSet<Tuple3<Long, Long, Long>> input2 = env.fromElements(new Tuple3<>(0L, 0L, 0L));
 
             input1.coGroup(input2)
                     .where(1)
@@ -62,9 +60,10 @@ public class CoGroupSortTranslationTest implements java.io.Serializable {
                                 public void coGroup(
                                         Iterable<Tuple2<Long, Long>> first,
                                         Iterable<Tuple3<Long, Long, Long>> second,
-                                        Collector<Long> out) {}
+                                        Collector<Long> out)
+                                        throws Exception {}
                             })
-                    .output(new DiscardingOutputFormat<Long>());
+                    .output(new DiscardingOutputFormat<>());
 
             Plan p = env.createProgramPlan();
 
@@ -72,18 +71,21 @@ public class CoGroupSortTranslationTest implements java.io.Serializable {
             CoGroupOperatorBase<?, ?, ?, ?> coGroup =
                     (CoGroupOperatorBase<?, ?, ?, ?>) sink.getInput();
 
-            assertNotNull(coGroup.getGroupOrderForInputOne());
-            assertNotNull(coGroup.getGroupOrderForInputTwo());
+            assertThat(coGroup.getGroupOrderForInputOne()).isNotNull();
+            assertThat(coGroup.getGroupOrderForInputTwo()).isNotNull();
 
-            assertEquals(1, coGroup.getGroupOrderForInputOne().getNumberOfFields());
-            assertEquals(0, coGroup.getGroupOrderForInputOne().getFieldNumber(0).intValue());
-            assertEquals(Order.DESCENDING, coGroup.getGroupOrderForInputOne().getOrder(0));
+            assertThat(coGroup.getGroupOrderForInputOne().getNumberOfFields()).isEqualTo(1);
+            assertThat(coGroup.getGroupOrderForInputOne().getFieldNumber(0).intValue())
+                    .isEqualTo(0);
+            assertThat(coGroup.getGroupOrderForInputOne().getOrder(0)).isEqualTo(Order.DESCENDING);
 
-            assertEquals(2, coGroup.getGroupOrderForInputTwo().getNumberOfFields());
-            assertEquals(1, coGroup.getGroupOrderForInputTwo().getFieldNumber(0).intValue());
-            assertEquals(0, coGroup.getGroupOrderForInputTwo().getFieldNumber(1).intValue());
-            assertEquals(Order.ASCENDING, coGroup.getGroupOrderForInputTwo().getOrder(0));
-            assertEquals(Order.DESCENDING, coGroup.getGroupOrderForInputTwo().getOrder(1));
+            assertThat(coGroup.getGroupOrderForInputTwo().getNumberOfFields()).isEqualTo(2);
+            assertThat(coGroup.getGroupOrderForInputTwo().getFieldNumber(0).intValue())
+                    .isEqualTo(1);
+            assertThat(coGroup.getGroupOrderForInputTwo().getFieldNumber(1).intValue())
+                    .isEqualTo(0);
+            assertThat(coGroup.getGroupOrderForInputTwo().getOrder(0)).isEqualTo(Order.ASCENDING);
+            assertThat(coGroup.getGroupOrderForInputTwo().getOrder(1)).isEqualTo(Order.DESCENDING);
         } catch (Exception e) {
             e.printStackTrace();
             fail(e.getMessage());
@@ -91,7 +93,7 @@ public class CoGroupSortTranslationTest implements java.io.Serializable {
     }
 
     @Test
-    public void testSortTuplesAndPojos() {
+    void testSortTuplesAndPojos() {
         try {
             ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
@@ -110,7 +112,8 @@ public class CoGroupSortTranslationTest implements java.io.Serializable {
                                 public void coGroup(
                                         Iterable<Tuple2<Long, Long>> first,
                                         Iterable<TestPoJo> second,
-                                        Collector<Long> out) {}
+                                        Collector<Long> out)
+                                        throws Exception {}
                             })
                     .output(new DiscardingOutputFormat<Long>());
 
@@ -120,18 +123,21 @@ public class CoGroupSortTranslationTest implements java.io.Serializable {
             CoGroupOperatorBase<?, ?, ?, ?> coGroup =
                     (CoGroupOperatorBase<?, ?, ?, ?>) sink.getInput();
 
-            assertNotNull(coGroup.getGroupOrderForInputOne());
-            assertNotNull(coGroup.getGroupOrderForInputTwo());
+            assertThat(coGroup.getGroupOrderForInputOne()).isNotNull();
+            assertThat(coGroup.getGroupOrderForInputTwo()).isNotNull();
 
-            assertEquals(1, coGroup.getGroupOrderForInputOne().getNumberOfFields());
-            assertEquals(0, coGroup.getGroupOrderForInputOne().getFieldNumber(0).intValue());
-            assertEquals(Order.DESCENDING, coGroup.getGroupOrderForInputOne().getOrder(0));
+            assertThat(coGroup.getGroupOrderForInputOne().getNumberOfFields()).isEqualTo(1);
+            assertThat(coGroup.getGroupOrderForInputOne().getFieldNumber(0).intValue())
+                    .isEqualTo(0);
+            assertThat(coGroup.getGroupOrderForInputOne().getOrder(0)).isEqualTo(Order.DESCENDING);
 
-            assertEquals(2, coGroup.getGroupOrderForInputTwo().getNumberOfFields());
-            assertEquals(2, coGroup.getGroupOrderForInputTwo().getFieldNumber(0).intValue());
-            assertEquals(0, coGroup.getGroupOrderForInputTwo().getFieldNumber(1).intValue());
-            assertEquals(Order.ASCENDING, coGroup.getGroupOrderForInputTwo().getOrder(0));
-            assertEquals(Order.DESCENDING, coGroup.getGroupOrderForInputTwo().getOrder(1));
+            assertThat(coGroup.getGroupOrderForInputTwo().getNumberOfFields()).isEqualTo(2);
+            assertThat(coGroup.getGroupOrderForInputTwo().getFieldNumber(0).intValue())
+                    .isEqualTo(2);
+            assertThat(coGroup.getGroupOrderForInputTwo().getFieldNumber(1).intValue())
+                    .isEqualTo(0);
+            assertThat(coGroup.getGroupOrderForInputTwo().getOrder(0)).isEqualTo(Order.ASCENDING);
+            assertThat(coGroup.getGroupOrderForInputTwo().getOrder(1)).isEqualTo(Order.DESCENDING);
         } catch (Exception e) {
             e.printStackTrace();
             fail(e.getMessage());

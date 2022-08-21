@@ -28,7 +28,7 @@ import org.apache.flink.core.io.GenericInputSplit;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -42,13 +42,11 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.fail;
 
 /** Tests for {@link CollectionInputFormat}. */
-public class CollectionInputFormatTest {
+class CollectionInputFormatTest {
 
     private static class ElementType {
         private final int id;
@@ -87,11 +85,11 @@ public class CollectionInputFormatTest {
     }
 
     @Test
-    public void testSerializability() {
+    void testSerializability() {
         try (ByteArrayOutputStream buffer = new ByteArrayOutputStream();
                 ObjectOutputStream out = new ObjectOutputStream(buffer)) {
 
-            Collection<ElementType> inputCollection = new ArrayList<ElementType>();
+            Collection<ElementType> inputCollection = new ArrayList<>();
             ElementType element1 = new ElementType(1);
             ElementType element2 = new ElementType(2);
             ElementType element3 = new ElementType(3);
@@ -100,11 +98,10 @@ public class CollectionInputFormatTest {
             inputCollection.add(element3);
 
             @SuppressWarnings("unchecked")
-            TypeInformation<ElementType> info =
-                    (TypeInformation<ElementType>) TypeExtractor.createTypeInfo(ElementType.class);
+            TypeInformation<ElementType> info = TypeExtractor.createTypeInfo(ElementType.class);
 
             CollectionInputFormat<ElementType> inputFormat =
-                    new CollectionInputFormat<ElementType>(
+                    new CollectionInputFormat<>(
                             inputCollection, info.createSerializer(new ExecutionConfig()));
 
             out.writeObject(inputFormat);
@@ -114,8 +111,7 @@ public class CollectionInputFormatTest {
 
             Object serializationResult = in.readObject();
 
-            assertNotNull(serializationResult);
-            assertTrue(serializationResult instanceof CollectionInputFormat<?>);
+            assertThat(serializationResult).isInstanceOf(CollectionInputFormat.class);
 
             @SuppressWarnings("unchecked")
             CollectionInputFormat<ElementType> result =
@@ -129,7 +125,7 @@ public class CollectionInputFormatTest {
                 ElementType expectedElement = inputFormat.nextRecord(null);
                 ElementType actualElement = result.nextRecord(null);
 
-                assertEquals(expectedElement, actualElement);
+                assertThat(actualElement).isEqualTo(expectedElement);
             }
         } catch (Exception e) {
             e.printStackTrace();
@@ -138,7 +134,7 @@ public class CollectionInputFormatTest {
     }
 
     @Test
-    public void testSerializabilityStrings() {
+    void testSerializabilityStrings() {
 
         final String[] data =
                 new String[] {
@@ -182,7 +178,7 @@ public class CollectionInputFormatTest {
         try {
             List<String> inputCollection = Arrays.asList(data);
             CollectionInputFormat<String> inputFormat =
-                    new CollectionInputFormat<String>(
+                    new CollectionInputFormat<>(
                             inputCollection,
                             BasicTypeInfo.STRING_TYPE_INFO.createSerializer(new ExecutionConfig()));
 
@@ -197,7 +193,7 @@ public class CollectionInputFormatTest {
             ObjectInputStream ois = new ObjectInputStream(bais);
             Object result = ois.readObject();
 
-            assertTrue(result instanceof CollectionInputFormat);
+            assertThat(result).isInstanceOf(CollectionInputFormat.class);
 
             int i = 0;
             @SuppressWarnings("unchecked")
@@ -205,10 +201,10 @@ public class CollectionInputFormatTest {
             in.open(new GenericInputSplit(0, 1));
 
             while (!in.reachedEnd()) {
-                assertEquals(data[i++], in.nextRecord(""));
+                assertThat(in.nextRecord("")).isEqualTo(data[i++]);
             }
 
-            assertEquals(data.length, i);
+            assertThat(i).isEqualTo(data.length);
         } catch (Exception e) {
             e.printStackTrace();
             fail(e.getMessage());
@@ -216,12 +212,12 @@ public class CollectionInputFormatTest {
     }
 
     @Test
-    public void testSerializationFailure() {
+    void testSerializationFailure() {
         try (ByteArrayOutputStream buffer = new ByteArrayOutputStream();
                 ObjectOutputStream out = new ObjectOutputStream(buffer)) {
             // a mock serializer that fails when writing
             CollectionInputFormat<ElementType> inFormat =
-                    new CollectionInputFormat<ElementType>(
+                    new CollectionInputFormat<>(
                             Collections.singleton(new ElementType()),
                             new TestSerializer(false, true));
 
@@ -240,12 +236,12 @@ public class CollectionInputFormatTest {
     }
 
     @Test
-    public void testDeserializationFailure() {
+    void testDeserializationFailure() {
         try (ByteArrayOutputStream buffer = new ByteArrayOutputStream();
                 ObjectOutputStream out = new ObjectOutputStream(buffer)) {
             // a mock serializer that fails when writing
             CollectionInputFormat<ElementType> inFormat =
-                    new CollectionInputFormat<ElementType>(
+                    new CollectionInputFormat<>(
                             Collections.singleton(new ElementType()),
                             new TestSerializer(true, false));
 
@@ -259,7 +255,7 @@ public class CollectionInputFormatTest {
                 in.readObject();
                 fail("should throw an exception");
             } catch (Exception e) {
-                assertTrue(e.getCause() instanceof TestException);
+                assertThat(e.getCause()).isInstanceOf(TestException.class);
             }
         } catch (Exception e) {
             e.printStackTrace();
@@ -268,18 +264,18 @@ public class CollectionInputFormatTest {
     }
 
     @Test
-    public void testToStringOnSmallCollection() {
+    void testToStringOnSmallCollection() {
         ArrayList<ElementType> smallList = new ArrayList<>();
         smallList.add(new ElementType(1));
         smallList.add(new ElementType(2));
         CollectionInputFormat<ElementType> inputFormat =
                 new CollectionInputFormat<>(smallList, new TestSerializer(true, false));
 
-        assertEquals("[ElementType{id=1}, ElementType{id=2}]", inputFormat.toString());
+        assertThat(inputFormat).hasToString("[ElementType{id=1}, ElementType{id=2}]");
     }
 
     @Test
-    public void testToStringOnBigCollection() {
+    void testToStringOnBigCollection() {
         ArrayList<ElementType> list = new ArrayList<>();
         for (int i = 0; i < 10; i++) {
             list.add(new ElementType(i));
@@ -287,10 +283,10 @@ public class CollectionInputFormatTest {
         CollectionInputFormat<ElementType> inputFormat =
                 new CollectionInputFormat<>(list, new TestSerializer(true, false));
 
-        assertEquals(
-                "[ElementType{id=0}, ElementType{id=1}, ElementType{id=2}, "
-                        + "ElementType{id=3}, ElementType{id=4}, ElementType{id=5}, ...]",
-                inputFormat.toString());
+        assertThat(inputFormat)
+                .hasToString(
+                        "[ElementType{id=0}, ElementType{id=1}, ElementType{id=2}, "
+                                + "ElementType{id=3}, ElementType{id=4}, ElementType{id=5}, ...]");
     }
 
     private static class TestException extends IOException {

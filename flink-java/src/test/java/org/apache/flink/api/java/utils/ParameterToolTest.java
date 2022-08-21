@@ -18,18 +18,19 @@
 
 package org.apache.flink.api.java.utils;
 
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
-import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.OutputStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Map;
@@ -42,13 +43,16 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.data.Offset.offset;
+
 /** Tests for {@link ParameterTool}. */
-public class ParameterToolTest extends AbstractParameterToolTest {
+class ParameterToolTest extends AbstractParameterToolTest {
 
     // ----- Parser tests -----------------
 
     @Test
-    public void testFromCliArgs() {
+    void testFromCliArgs() {
         ParameterTool parameter =
                 (ParameterTool)
                         createParameterToolFromArgs(
@@ -67,53 +71,52 @@ public class ParameterToolTest extends AbstractParameterToolTest {
                                     "-negativeShort",
                                     "-1024"
                                 });
-        Assert.assertEquals(7, parameter.getNumberOfParameters());
+        assertThat(parameter.getNumberOfParameters()).isEqualTo(7);
         validate(parameter);
-        Assert.assertTrue(parameter.has("withoutValues"));
-        Assert.assertEquals(-0.58, parameter.getFloat("negativeFloat"), 0.1);
-        Assert.assertTrue(parameter.getBoolean("isWorking"));
-        Assert.assertEquals(127, parameter.getByte("maxByte"));
-        Assert.assertEquals(-1024, parameter.getShort("negativeShort"));
+        assertThat(parameter.has("withoutValues")).isTrue();
+        assertThat(parameter.getFloat("negativeFloat")).isCloseTo(-0.58f, offset(0.1f));
+        assertThat(parameter.getBoolean("isWorking")).isTrue();
+        assertThat(parameter.getByte("maxByte")).isEqualTo((byte) 127);
+        assertThat(parameter.getShort("negativeShort")).isEqualTo((short) -1024);
     }
 
     @Test
-    public void testFromPropertiesFile() throws IOException {
-        File propertiesFile = tmp.newFile();
+    void testFromPropertiesFile(@TempDir File propertiesFile) throws IOException {
         Properties props = new Properties();
         props.setProperty("input", "myInput");
         props.setProperty("expectedCount", "15");
-        try (final OutputStream out = new FileOutputStream(propertiesFile)) {
+        Path path = new File(propertiesFile, UUID.randomUUID().toString()).toPath();
+        try (final OutputStream out = Files.newOutputStream(path)) {
             props.store(out, "Test properties");
         }
-        ParameterTool parameter =
-                ParameterTool.fromPropertiesFile(propertiesFile.getAbsolutePath());
-        Assert.assertEquals(2, parameter.getNumberOfParameters());
+        ParameterTool parameter = ParameterTool.fromPropertiesFile(path.toFile());
+        assertThat(parameter.getNumberOfParameters()).isEqualTo(2);
         validate(parameter);
 
-        parameter = ParameterTool.fromPropertiesFile(propertiesFile);
-        Assert.assertEquals(2, parameter.getNumberOfParameters());
+        parameter = ParameterTool.fromPropertiesFile(path.toFile());
+        assertThat(parameter.getNumberOfParameters()).isEqualTo(2);
         validate(parameter);
 
-        try (FileInputStream fis = new FileInputStream(propertiesFile)) {
+        try (FileInputStream fis = new FileInputStream(path.toFile())) {
             parameter = ParameterTool.fromPropertiesFile(fis);
         }
-        Assert.assertEquals(2, parameter.getNumberOfParameters());
+        assertThat(parameter.getNumberOfParameters()).isEqualTo(2);
         validate(parameter);
     }
 
     @Test
-    public void testFromMapOrProperties() {
+    void testFromMapOrProperties() {
         Properties props = new Properties();
         props.setProperty("input", "myInput");
         props.setProperty("expectedCount", "15");
         ParameterTool parameter = ParameterTool.fromMap((Map) props);
-        Assert.assertEquals(2, parameter.getNumberOfParameters());
+        assertThat(parameter.getNumberOfParameters()).isEqualTo(2);
         validate(parameter);
     }
 
     /** This is mainly meant to be used with -D arguments against the JVM. */
     @Test
-    public void testSystemProperties() {
+    void testSystemProperties() {
         System.setProperty("input", "myInput");
         System.setProperty("expectedCount", "15");
         ParameterTool parameter = ParameterTool.fromSystemProperties();
@@ -121,7 +124,7 @@ public class ParameterToolTest extends AbstractParameterToolTest {
     }
 
     @Test
-    public void testMerged() {
+    void testMerged() {
         ParameterTool parameter1 =
                 (ParameterTool) createParameterToolFromArgs(new String[] {"--input", "myInput"});
         System.setProperty("expectedCount", "15");
@@ -132,7 +135,7 @@ public class ParameterToolTest extends AbstractParameterToolTest {
 
     /** Tests that we can concurrently serialize and access the ParameterTool. See FLINK-7943 */
     @Test
-    public void testConcurrentExecutionConfigSerialization()
+    void testConcurrentExecutionConfigSerialization()
             throws ExecutionException, InterruptedException {
 
         final int numInputs = 10;

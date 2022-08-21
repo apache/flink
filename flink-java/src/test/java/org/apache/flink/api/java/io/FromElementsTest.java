@@ -19,23 +19,30 @@ package org.apache.flink.api.java.io;
 
 import org.apache.flink.api.java.ExecutionEnvironment;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for {@link ExecutionEnvironment#fromElements}. */
-public class FromElementsTest {
+class FromElementsTest {
 
     @Test
-    public void fromElementsWithBaseTypeTest1() {
+    void fromElementsWithBaseTypeTest1() {
         ExecutionEnvironment executionEnvironment = ExecutionEnvironment.getExecutionEnvironment();
         executionEnvironment.fromElements(
                 ParentType.class, new SubType(1, "Java"), new ParentType(1, "hello"));
     }
 
-    @Test(expected = IllegalArgumentException.class)
-    public void fromElementsWithBaseTypeTest2() {
+    @Test
+    void fromElementsWithBaseTypeTest2() {
         ExecutionEnvironment executionEnvironment = ExecutionEnvironment.getExecutionEnvironment();
-        executionEnvironment.fromElements(
-                SubType.class, new SubType(1, "Java"), new ParentType(1, "hello"));
+        assertThatThrownBy(
+                        () ->
+                                executionEnvironment.fromElements(
+                                        SubType.class,
+                                        new SubType(1, "Java"),
+                                        new ParentType(1, "hello")))
+                .isInstanceOf(IllegalArgumentException.class);
     }
 
     private static class ParentType {
