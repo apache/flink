@@ -126,6 +126,9 @@ public class TypeExtractor {
 
     private static final Logger LOG = LoggerFactory.getLogger(TypeExtractor.class);
 
+    private static final String GENERIC_TYPE_DOC_HINT =
+            "Please read the Flink documentation on \"Data Types & Serialization\" for details of the effect on performance.";
+
     public static final int[] NO_INDEX = new int[] {};
 
     protected TypeExtractor() {
@@ -2041,8 +2044,8 @@ public class TypeExtractor {
                     "Class "
                             + clazz.getName()
                             + " is not public so it cannot be used as a POJO type "
-                            + "and must be processed as GenericType. Please read the Flink documentation "
-                            + "on \"Data Types & Serialization\" for details of the effect on performance.");
+                            + "and must be processed as GenericType. {}",
+                    GENERIC_TYPE_DOC_HINT);
             return new GenericTypeInfo<>(clazz);
         }
 
@@ -2055,8 +2058,8 @@ public class TypeExtractor {
                     "No fields were detected for "
                             + clazz
                             + " so it cannot be used as a POJO type "
-                            + "and must be processed as GenericType. Please read the Flink documentation "
-                            + "on \"Data Types & Serialization\" for details of the effect on performance.");
+                            + "and must be processed as GenericType. {}",
+                    GENERIC_TYPE_DOC_HINT);
             return new GenericTypeInfo<>(clazz);
         }
 
@@ -2068,8 +2071,8 @@ public class TypeExtractor {
                         "Class "
                                 + clazz
                                 + " cannot be used as a POJO type because not all fields are valid POJO fields, "
-                                + "and must be processed as GenericType. Please read the Flink documentation "
-                                + "on \"Data Types & Serialization\" for details of the effect on performance.");
+                                + "and must be processed as GenericType. {}",
+                        GENERIC_TYPE_DOC_HINT);
                 return null;
             }
             try {
@@ -2115,8 +2118,8 @@ public class TypeExtractor {
                         "Class "
                                 + clazz
                                 + " contains custom serialization methods we do not call, so it cannot be used as a POJO type "
-                                + "and must be processed as GenericType. Please read the Flink documentation "
-                                + "on \"Data Types & Serialization\" for details of the effect on performance.");
+                                + "and must be processed as GenericType. {}",
+                        GENERIC_TYPE_DOC_HINT);
                 return null;
             }
         }
@@ -2136,8 +2139,8 @@ public class TypeExtractor {
                 LOG.info(
                         clazz
                                 + " is missing a default constructor so it cannot be used as a POJO type "
-                                + "and must be processed as GenericType. Please read the Flink documentation "
-                                + "on \"Data Types & Serialization\" for details of the effect on performance.");
+                                + "and must be processed as GenericType. {}",
+                        GENERIC_TYPE_DOC_HINT);
                 return null;
             }
         }
@@ -2146,8 +2149,8 @@ public class TypeExtractor {
                     "The default constructor of "
                             + clazz
                             + " is not Public so it cannot be used as a POJO type "
-                            + "and must be processed as GenericType. Please read the Flink documentation "
-                            + "on \"Data Types & Serialization\" for details of the effect on performance.");
+                            + "and must be processed as GenericType. {}",
+                    GENERIC_TYPE_DOC_HINT);
             return null;
         }
 
