@@ -20,7 +20,6 @@ package org.apache.flink.table.gateway.api.results.serde;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.api.TableException;
-import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.types.logical.ArrayType;
 import org.apache.flink.table.types.logical.BinaryType;
 import org.apache.flink.table.types.logical.CharType;
@@ -29,6 +28,7 @@ import org.apache.flink.table.types.logical.LocalZonedTimestampType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.MapType;
 import org.apache.flink.table.types.logical.MultisetType;
+import org.apache.flink.table.types.logical.NullType;
 import org.apache.flink.table.types.logical.RawType;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.logical.TimeType;
@@ -81,6 +81,7 @@ public final class LogicalTypeJsonSerializer extends StdSerializer<LogicalType> 
     public static final String FIELD_NAME_FIELDS = "fields";
     public static final String FIELD_NAME_FIELD_NAME = "name";
     public static final String FIELD_NAME_FIELD_TYPE = "fieldType";
+    public static final String FIELD_NAME_FILED_DESCRIPTION = "description";
 
     // RAW
     public static final String FIELD_NAME_CLASS = "class";
@@ -105,6 +106,11 @@ public final class LogicalTypeJsonSerializer extends StdSerializer<LogicalType> 
 
         // write common fields shared by all types
         jsonGenerator.writeStringField(FIELD_NAME_TYPE_NAME, logicalType.getTypeRoot().name());
+        // handle the special case: NullType doesn't need to have other fields
+        if (logicalType instanceof NullType) {
+            jsonGenerator.writeEndObject();
+            return;
+        }
         jsonGenerator.writeBooleanField(FIELD_NAME_NULLABLE, logicalType.isNullable());
         // write special fields according to type root
         switch (logicalType.getTypeRoot()) {
@@ -165,7 +171,7 @@ public final class LogicalTypeJsonSerializer extends StdSerializer<LogicalType> 
                 }
                 // fall through
             default:
-                throw new ValidationException(
+                throw new UnsupportedOperationException(
                         String.format(
                                 "Unable to serialize logical type '%s'. Please check the documentation for supported types.",
                                 logicalType.asSummaryString()));
@@ -222,6 +228,10 @@ public final class LogicalTypeJsonSerializer extends StdSerializer<LogicalType> 
             jsonGenerator.writeStringField(FIELD_NAME_FIELD_NAME, rowField.getName());
             jsonGenerator.writeFieldName(FIELD_NAME_FIELD_TYPE);
             serializeInternal(rowField.getType(), jsonGenerator);
+            if (rowField.getDescription().isPresent()) {
+                jsonGenerator.writeStringField(
+                        FIELD_NAME_FILED_DESCRIPTION, rowField.getDescription().get());
+            }
             jsonGenerator.writeEndObject();
         }
         jsonGenerator.writeEndArray();

@@ -20,6 +20,7 @@ package org.apache.flink.table.gateway.api.results.serde;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.api.TableException;
+import org.apache.flink.table.gateway.api.utils.SqlGatewayException;
 import org.apache.flink.table.types.logical.ArrayType;
 import org.apache.flink.table.types.logical.BigIntType;
 import org.apache.flink.table.types.logical.BinaryType;
@@ -62,6 +63,7 @@ import static org.apache.flink.table.gateway.api.results.serde.LogicalTypeJsonSe
 import static org.apache.flink.table.gateway.api.results.serde.LogicalTypeJsonSerializer.FIELD_NAME_FIELDS;
 import static org.apache.flink.table.gateway.api.results.serde.LogicalTypeJsonSerializer.FIELD_NAME_FIELD_NAME;
 import static org.apache.flink.table.gateway.api.results.serde.LogicalTypeJsonSerializer.FIELD_NAME_FIELD_TYPE;
+import static org.apache.flink.table.gateway.api.results.serde.LogicalTypeJsonSerializer.FIELD_NAME_FILED_DESCRIPTION;
 import static org.apache.flink.table.gateway.api.results.serde.LogicalTypeJsonSerializer.FIELD_NAME_KEY_TYPE;
 import static org.apache.flink.table.gateway.api.results.serde.LogicalTypeJsonSerializer.FIELD_NAME_LENGTH;
 import static org.apache.flink.table.gateway.api.results.serde.LogicalTypeJsonSerializer.FIELD_NAME_NULLABLE;
@@ -98,6 +100,10 @@ public final class LogicalTypeJsonDeserializer extends StdDeserializer<LogicalTy
     private LogicalType deserializeInternal(JsonNode logicalTypeNode) {
         LogicalTypeRoot typeRoot =
                 LogicalTypeRoot.valueOf(logicalTypeNode.get(FIELD_NAME_TYPE_NAME).asText());
+        // handle the special case of NullType
+        if (typeRoot.equals(LogicalTypeRoot.NULL)) {
+            return new NullType();
+        }
         boolean isNullable = logicalTypeNode.get(FIELD_NAME_NULLABLE).asBoolean();
         switch (typeRoot) {
             case BOOLEAN:
@@ -116,8 +122,6 @@ public final class LogicalTypeJsonDeserializer extends StdDeserializer<LogicalTy
                 return new DoubleType(isNullable);
             case DATE:
                 return new DateType(isNullable);
-            case NULL:
-                return new NullType();
             case CHAR:
             case VARCHAR:
             case BINARY:
@@ -143,7 +147,10 @@ public final class LogicalTypeJsonDeserializer extends StdDeserializer<LogicalTy
             case RAW:
                 return deserializeRaw(logicalTypeNode).copy(isNullable);
             default:
-                throw new TableException("Unsupported type root: " + typeRoot);
+                throw new UnsupportedOperationException(
+                        String.format(
+                                "Unable to deserialize a logical type of type root '%s'. Please check the documentation for supported types.",
+                                typeRoot.name()));
         }
     }
 
@@ -164,7 +171,14 @@ public final class LogicalTypeJsonDeserializer extends StdDeserializer<LogicalTy
             case VARBINARY:
                 return length == 0 ? VarBinaryType.ofEmptyLiteral() : new VarBinaryType(length);
             default:
-                throw new TableException("Logical type with attribute 'length' expected.");
+                throw new SqlGatewayException(
+                        String.format(
+                                "Cannot convert JSON string '%s' to the logical type '%s', '%s', '%s' or '%s'.",
+                                logicalTypeNode.toPrettyString(),
+                                LogicalTypeRoot.CHAR.name(),
+                                LogicalTypeRoot.VARCHAR.name(),
+                                LogicalTypeRoot.BINARY.name(),
+                                LogicalTypeRoot.VARBINARY.name()));
         }
     }
 
@@ -213,15 +227,19 @@ public final class LogicalTypeJsonDeserializer extends StdDeserializer<LogicalTy
                     String fieldName = fieldNode.get(FIELD_NAME_FIELD_NAME).asText();
                     LogicalType fieldType =
                             deserializeInternal(fieldNode.get(FIELD_NAME_FIELD_TYPE));
-                    fields.add(new RowField(fieldName, fieldType));
+                    String description = null;
+                    if (fieldNode.has(FIELD_NAME_FILED_DESCRIPTION)) {
+                        description = fieldNode.get(FIELD_NAME_FILED_DESCRIPTION).asText();
+                    }
+                    fields.add(new RowField(fieldName, fieldType, description));
                 });
         return new RowType(fields);
     }
 
     private LogicalType deserializeRaw(JsonNode logicalTypeNode) {
         String className = logicalTypeNode.get(FIELD_NAME_CLASS).asText();
-        String specialSerializer = logicalTypeNode.get(FIELD_NAME_SERIALIZER).asText();
+        String serializer = logicalTypeNode.get(FIELD_NAME_SERIALIZER).asText();
         return RawType.restore(
-                LogicalTypeJsonDeserializer.class.getClassLoader(), className, specialSerializer);
+                LogicalTypeJsonDeserializer.class.getClassLoader(), className, serializer);
     }
 }

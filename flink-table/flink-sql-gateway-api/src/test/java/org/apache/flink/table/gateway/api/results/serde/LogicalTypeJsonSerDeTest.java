@@ -19,6 +19,7 @@
 package org.apache.flink.table.gateway.api.results.serde;
 
 import org.apache.flink.api.common.typeutils.base.LocalDateTimeSerializer;
+import org.apache.flink.core.testutils.FlinkAssertions;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.runtime.typeutils.ExternalSerializer;
 import org.apache.flink.table.types.logical.ArrayType;
@@ -27,6 +28,7 @@ import org.apache.flink.table.types.logical.BinaryType;
 import org.apache.flink.table.types.logical.BooleanType;
 import org.apache.flink.table.types.logical.CharType;
 import org.apache.flink.table.types.logical.DateType;
+import org.apache.flink.table.types.logical.DayTimeIntervalType;
 import org.apache.flink.table.types.logical.DecimalType;
 import org.apache.flink.table.types.logical.DoubleType;
 import org.apache.flink.table.types.logical.FloatType;
@@ -40,6 +42,7 @@ import org.apache.flink.table.types.logical.RawType;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.logical.SmallIntType;
 import org.apache.flink.table.types.logical.TimeType;
+import org.apache.flink.table.types.logical.TimestampKind;
 import org.apache.flink.table.types.logical.TimestampType;
 import org.apache.flink.table.types.logical.TinyIntType;
 import org.apache.flink.table.types.logical.VarBinaryType;
@@ -49,6 +52,7 @@ import org.apache.flink.types.Row;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
 
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.parallel.Execution;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
@@ -61,6 +65,7 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.jupiter.api.parallel.ExecutionMode.CONCURRENT;
 
 /** Tests for {@link LogicalType} serialization and deserialization. */
@@ -75,6 +80,36 @@ public class LogicalTypeJsonSerDeTest {
         LogicalType actualType = mapper.readValue(json, LogicalType.class);
 
         assertThat(actualType).isEqualTo(logicalType);
+    }
+
+    @Test
+    public void testSerDeWithUnsupportedType() {
+        ObjectMapper mapper = JsonSerdeUtil.getObjectMapper();
+
+        // test to serialize unsupported LogicalType
+        LogicalType unsupportedType =
+                new DayTimeIntervalType(DayTimeIntervalType.DayTimeResolution.DAY_TO_HOUR);
+        assertThatThrownBy(() -> mapper.writeValueAsString(unsupportedType))
+                .satisfies(
+                        FlinkAssertions.anyCauseMatches(
+                                UnsupportedOperationException.class,
+                                String.format(
+                                        "Unable to serialize logical type '%s'. Please check the documentation for supported types.",
+                                        unsupportedType.asSummaryString())));
+
+        // test to deserialize unsupported JSON string
+        String unsupportedTypeString = "INTERVAL_DAY_TIME";
+        String json =
+                String.format(
+                        "{\"%s\": \"%s\", \"%s\": %s}",
+                        "type", unsupportedTypeString, "nullable", "true");
+        assertThatThrownBy(() -> mapper.readValue(json, LogicalType.class))
+                .satisfies(
+                        FlinkAssertions.anyCauseMatches(
+                                UnsupportedOperationException.class,
+                                String.format(
+                                        "Unable to deserialize a logical type of type root '%s'. Please check the documentation for supported types.",
+                                        unsupportedTypeString)));
     }
 
     // --------------------------------------------------------------------------------------------
@@ -116,6 +151,8 @@ public class LogicalTypeJsonSerDeTest {
                         new LocalZonedTimestampType(),
                         new LocalZonedTimestampType(3),
                         new LocalZonedTimestampType(false, 3),
+                        // LocalZonedTimestampType#eaquals doesn't compare TimestampKind
+                        new LocalZonedTimestampType(false, TimestampKind.PROCTIME, 3),
                         new MapType(new BigIntType(), new IntType(false)),
                         new MapType(CharType.ofEmptyLiteral(), CharType.ofEmptyLiteral()),
                         new MapType(VarCharType.ofEmptyLiteral(), VarCharType.ofEmptyLiteral()),
@@ -149,6 +186,12 @@ public class LogicalTypeJsonSerDeTest {
                                 VarCharType.ofEmptyLiteral(),
                                 BinaryType.ofEmptyLiteral(),
                                 VarBinaryType.ofEmptyLiteral()),
+                        // Row with descriptions
+                        new RowType(
+                                Arrays.asList(
+                                        new RowType.RowField("ID", new BigIntType(), "ID desc"),
+                                        new RowType.RowField(
+                                                "Name", new VarCharType(20), "Name desc"))),
                         // custom RawType
                         new RawType<>(LocalDateTime.class, LocalDateTimeSerializer.INSTANCE),
                         // external RawType
