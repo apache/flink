@@ -272,7 +272,7 @@ LOOKUP('table'='Customers', 'retry-predicate'='lookup_miss', 'retry-strategy'='f
 ##### 进一步说明
 
 ###### 开启缓存对重试的影响
-[FLIP-221]({{< ref "https://cwiki.apache.org/confluence/display/FLINK/FLIP-229%3A+Introduces+Join+Hint+for+Flink+SQL+Batch+Job" >}}) 引入了对查找源表的缓存支持，
+[FLIP-221](https://cwiki.apache.org/confluence/display/FLINK/FLIP-229%3A+Introduces+Join+Hint+for+Flink+SQL+Batch+Job) 引入了对查找源表的缓存支持，
 缓存策略有部分缓存、全部缓存两种，当开启全部缓存时（'lookup.cache'='FULL'），重试无法起作用（因为查找表被完整缓存，重试查找没有任何实际意义）；当开启部分缓存时，当一条数据开始查找处理时，
 先在本地缓存中查找，如果没找到则通过连接器进行外部查找（如果存在，则立即返回），此时查不到的记录和不开启缓存时一样，会触发重试查找，重试结束时的结果即为最终的查找结果（在部分缓存模式下，更新本地缓存）。 
 

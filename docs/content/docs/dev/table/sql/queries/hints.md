@@ -280,7 +280,7 @@ LOOKUP('table'='Customers', 'retry-predicate'='lookup_miss', 'retry-strategy'='f
 ##### Further Notes
 
 ###### Effect Of Enabling Caching On Retries
-[FLIP-221]({{< ref "https://cwiki.apache.org/confluence/display/FLINK/FLIP-229%3A+Introduces+Join+Hint+for+Flink+SQL+Batch+Job" >}}) adds caching support for lookup source,
+[FLIP-221](https://cwiki.apache.org/confluence/display/FLINK/FLIP-229%3A+Introduces+Join+Hint+for+Flink+SQL+Batch+Job) adds caching support for lookup source,
 which has PARTIAL and FULL caching mode(the mode NONE means disable caching). When FULL caching is enabled, there'll
 be no retry at all(because it's meaningless to retry lookup via a full cached mirror of lookup source).
 When PARTIAL caching is enabled, it will lookup from local cache first for a coming record and will
