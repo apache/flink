@@ -19,6 +19,7 @@ import datetime
 import os
 import sys
 import unittest
+import uuid
 
 import pytest
 import pytz
@@ -29,6 +30,10 @@ from pyflink.table.udf import ScalarFunction, udf
 from pyflink.testing import source_sink_utils
 from pyflink.testing.test_case_utils import PyFlinkStreamTableTestCase, \
     PyFlinkBatchTableTestCase
+
+
+def generate_random_table_name():
+    return "Table{0}".format(str(uuid.uuid1()).replace("-", "_"))
 
 
 class UserDefinedFunctionTests(object):
@@ -60,8 +65,9 @@ class UserDefinedFunctionTests(object):
                 assert os.environ['_PYTHON_WORKER_MEMORY_LIMIT'] is not None
             return 1
 
-        sink_table_ddl = """
-            CREATE TABLE Results(a BIGINT, b BIGINT, c BIGINT, d BIGINT, e BIGINT, f BIGINT,
+        sink_table = generate_random_table_name()
+        sink_table_ddl = f"""
+            CREATE TABLE {sink_table}(a BIGINT, b BIGINT, c BIGINT, d BIGINT, e BIGINT, f BIGINT,
              g BIGINT) WITH ('connector'='test-sink')
         """
         self.t_env.execute_sql(sink_table_ddl)
@@ -72,7 +78,7 @@ class UserDefinedFunctionTests(object):
         t.where(add_one(t.b) <= 3).select(
             add_one(t.a), subtract_one(t.b), add(t.a, t.c), add_one_callable(t.a),
             add_one_partial(t.a), check_memory_limit(execution_mode), t.a) \
-            .execute_insert("Results").wait()
+            .execute_insert(sink_table).wait()
         actual = source_sink_utils.results()
         self.assert_equals(actual, ["+I[2, 1, 4, 2, 2, 1, 1]", "+I[4, 0, 12, 4, 4, 1, 3]"])
 
@@ -80,14 +86,15 @@ class UserDefinedFunctionTests(object):
         add_one = udf(lambda i: i + 1, result_type=DataTypes.BIGINT())
         subtract_one = udf(SubtractOne(), result_type=DataTypes.BIGINT())
 
-        sink_table_ddl = """
-                CREATE TABLE Results(a BIGINT, b BIGINT, c INT) WITH ('connector'='test-sink')
+        sink_table = generate_random_table_name()
+        sink_table_ddl = f"""
+                CREATE TABLE {sink_table}(a BIGINT, b BIGINT, c INT) WITH ('connector'='test-sink')
                 """
         self.t_env.execute_sql(sink_table_ddl)
 
         t = self.t_env.from_elements([(1, 2, 1), (2, 5, 2), (3, 1, 3)], ['a', 'b', 'c'])
         t.select(add(add_one(t.a), subtract_one(t.b)), t.c, expr.lit(1)) \
-            .execute_insert("Results").wait()
+            .execute_insert(sink_table).wait()
         actual = source_sink_utils.results()
         self.assert_equals(actual, ["+I[3, 1, 1]", "+I[7, 2, 1]", "+I[4, 3, 1]"])
 
@@ -97,12 +104,13 @@ class UserDefinedFunctionTests(object):
 
         f = udf(lambda i: i, result_type=DataTypes.BIGINT())
 
-        sink_table_ddl = """
-            CREATE TABLE Results(a BIGINT, b STRING, c BIGINT, d StRING)
+        sink_table = generate_random_table_name()
+        sink_table_ddl = f"""
+            CREATE TABLE {sink_table}(a BIGINT, b STRING, c BIGINT, d StRING)
             WITH ('connector'='test-sink')
         """
         self.t_env.execute_sql(sink_table_ddl)
-        t1.join(t2).where(f(t1.a) == t2.c).execute_insert("Results").wait()
+        t1.join(t2).where(f(t1.a) == t2.c).execute_insert(sink_table).wait()
         actual = source_sink_utils.results()
         self.assert_equals(actual, ["+I[2, Hi, 2, Flink]"])
 
@@ -112,12 +120,18 @@ class UserDefinedFunctionTests(object):
 
         f = udf(lambda i: i, result_type=DataTypes.BIGINT())
 
-        sink_table_ddl = """
-        CREATE TABLE Results(a BIGINT, b STRING, c BIGINT, d STRING) WITH ('connector'='test-sink')
+        sink_table = generate_random_table_name()
+        sink_table_ddl = f"""
+            CREATE TABLE {sink_table}(
+                a BIGINT,
+                b STRING,
+                c BIGINT,
+                d STRING
+            ) WITH ('connector'='test-sink')
         """
         self.t_env.execute_sql(sink_table_ddl)
 
-        t1.join(t2).where(f(t1.a) == f(t2.c)).execute_insert("Results").wait()
+        t1.join(t2).where(f(t1.a) == f(t2.c)).execute_insert(sink_table).wait()
         actual = source_sink_utils.results()
         self.assert_equals(actual, ["+I[2, Hi, 2, Flink]"])
 
@@ -180,8 +194,9 @@ class UserDefinedFunctionTests(object):
             "udf_with_all_constant_params", udf(lambda i, j: i + j,
                                                 result_type=DataTypes.BIGINT()))
 
-        sink_table_ddl = """
-                CREATE TABLE Results(a BIGINT, b BIGINT) WITH ('connector'='test-sink')
+        sink_table = generate_random_table_name()
+        sink_table_ddl = f"""
+                CREATE TABLE {sink_table}(a BIGINT, b BIGINT) WITH ('connector'='test-sink')
                 """
         self.t_env.execute_sql(sink_table_ddl)
 
@@ -204,7 +219,7 @@ class UserDefinedFunctionTests(object):
                              "cast ('2014-09-13' as DATE),"
                              "cast ('12:00:00' as TIME),"
                              "cast ('1999-9-10 05:20:10' as TIMESTAMP))"
-                             " from test_table").execute_insert("Results").wait()
+                             " from test_table").execute_insert(sink_table).wait()
         actual = source_sink_utils.results()
         self.assert_equals(actual, ["+I[3, 8]", "+I[3, 9]", "+I[3, 10]"])
 
@@ -213,13 +228,14 @@ class UserDefinedFunctionTests(object):
             "plus", udf(lambda i, j: i + j - 1,
                         result_type=DataTypes.BIGINT()))
 
-        sink_table_ddl = """
-                        CREATE TABLE Results(a BIGINT) WITH ('connector'='test-sink')
+        sink_table = generate_random_table_name()
+        sink_table_ddl = f"""
+                        CREATE TABLE {sink_table}(a BIGINT) WITH ('connector'='test-sink')
                         """
         self.t_env.execute_sql(sink_table_ddl)
 
         t = self.t_env.from_elements([(1, 2, 3), (2, 5, 6), (3, 1, 9)], ['a', 'b', 'c'])
-        t.select(t.a + t.b).execute_insert("Results").wait()
+        t.select(t.a + t.b).execute_insert(sink_table).wait()
         actual = source_sink_utils.results()
         self.assert_equals(actual, ["+I[2]", "+I[6]", "+I[3]"])
 
@@ -232,13 +248,14 @@ class UserDefinedFunctionTests(object):
         else:
             subtract = udf(Subtract(), result_type=DataTypes.BIGINT())
 
-        sink_table_ddl = """
-                        CREATE TABLE Results(a BIGINT, b BIGINT) WITH ('connector'='test-sink')
+        sink_table = generate_random_table_name()
+        sink_table_ddl = f"""
+                        CREATE TABLE {sink_table}(a BIGINT, b BIGINT) WITH ('connector'='test-sink')
                         """
         self.t_env.execute_sql(sink_table_ddl)
 
         t = self.t_env.from_elements([(1, 2), (2, 5), (3, 4)], ['a', 'b'])
-        t.select(t.a, subtract(t.b)).execute_insert("Results").wait()
+        t.select(t.a, subtract(t.b)).execute_insert(sink_table).wait()
         actual = source_sink_utils.results()
         self.assert_equals(actual, ["+I[1, 1]", "+I[2, 4]", "+I[3, 3]"])
 
@@ -246,13 +263,14 @@ class UserDefinedFunctionTests(object):
         one = udf(lambda: 1, result_type=DataTypes.BIGINT(), deterministic=True)
         two = udf(lambda: 2, result_type=DataTypes.BIGINT(), deterministic=False)
 
-        sink_table_ddl = """
-                        CREATE TABLE Results(a BIGINT, b BIGINT) WITH ('connector'='test-sink')
+        sink_table = generate_random_table_name()
+        sink_table_ddl = f"""
+                        CREATE TABLE {sink_table}(a BIGINT, b BIGINT) WITH ('connector'='test-sink')
                         """
         self.t_env.execute_sql(sink_table_ddl)
 
         t = self.t_env.from_elements([(1, 2), (2, 5), (3, 1)], ['a', 'b'])
-        t.select(one(), two()).execute_insert("Results").wait()
+        t.select(one(), two()).execute_insert(sink_table).wait()
         actual = source_sink_utils.results()
         self.assert_equals(actual, ["+I[1, 2]", "+I[1, 2]", "+I[1, 2]"])
 
@@ -365,8 +383,9 @@ class UserDefinedFunctionTests(object):
                 'decimal_param is wrong value %s !' % decimal_param
             return decimal_param
 
-        sink_table_ddl = """
-            CREATE TABLE Results(
+        sink_table = generate_random_table_name()
+        sink_table_ddl = f"""
+            CREATE TABLE {sink_table}(
             a BIGINT, b BIGINT, c TINYINT, d BOOLEAN, e SMALLINT, f INT, g FLOAT, h DOUBLE, i BYTES,
             j STRING, k DATE, l TIME, m TIMESTAMP(3), n ARRAY<BIGINT>, o MAP<BIGINT, STRING>,
             p DECIMAL(38, 18), q DECIMAL(38, 18)) WITH ('connector'='test-sink')
@@ -419,7 +438,7 @@ class UserDefinedFunctionTests(object):
             map_func(t.o),
             decimal_func(t.p),
             decimal_cut_func(t.q)) \
-            .execute_insert("Results").wait()
+            .execute_insert(sink_table).wait()
         actual = source_sink_utils.results()
         # Currently the sink result precision of DataTypes.TIME(precision) only supports 0.
         self.assert_equals(actual,
@@ -573,8 +592,9 @@ class UserDefinedFunctionTests(object):
         self.t_env.create_temporary_system_function(
             "decimal_cut_func", udf(decimal_cut_func, result_type=DataTypes.DECIMAL(38, 18)))
 
-        sink_table_ddl = """
-            CREATE TABLE Results(
+        sink_table = generate_random_table_name()
+        sink_table_ddl = f"""
+            CREATE TABLE {sink_table}(
             a BIGINT, b BIGINT, c TINYINT, d BOOLEAN, e SMALLINT, f INT, g FLOAT, h DOUBLE,
             i BYTES, j STRING, k DATE, l TIME, m TIMESTAMP(3), n ARRAY<BIGINT>,
             o MAP<BIGINT, STRING>, p DECIMAL(38, 18), q DECIMAL(38, 18))
@@ -619,7 +639,7 @@ class UserDefinedFunctionTests(object):
                  call("timestamp_func", t.m), call("array_func", t.n),
                  call("map_func", t.o), call("decimal_func", t.p),
                  call("decimal_cut_func", t.q)) \
-            .execute_insert("Results").wait()
+            .execute_insert(sink_table).wait()
         actual = source_sink_utils.results()
         # Currently the sink result precision of DataTypes.TIME(precision) only supports 0.
         self.assert_equals(actual,
@@ -636,12 +656,13 @@ class UserDefinedFunctionTests(object):
             "add_one_func", udf(lambda i: i + 1, result_type=DataTypes.BIGINT()))
         t_env.create_temporary_function(
             "subtract_one_func", udf(SubtractOne(), result_type=DataTypes.BIGINT()))
-        self.assert_equals(t_env.list_user_defined_functions(),
-                           ['add_one_func', 'subtract_one_func'])
+        self.assertTrue('add_one_func' in t_env.list_user_defined_functions())
+        self.assertTrue('subtract_one_func' in t_env.list_user_defined_functions())
 
         t_env.drop_temporary_system_function("add_one_func")
         t_env.drop_temporary_function("subtract_one_func")
-        self.assert_equals(t_env.list_user_defined_functions(), [])
+        self.assertTrue('add_one_func' not in t_env.list_user_defined_functions())
+        self.assertTrue('subtract_one_func' not in t_env.list_user_defined_functions())
 
 
 # decide whether two floats are equal
@@ -726,8 +747,9 @@ class PyFlinkStreamUserDefinedFunctionTests(UserDefinedFunctionTests,
                 'local_zoned_timestamp_param is wrong value %s !' % local_zoned_timestamp_param
             return local_zoned_timestamp_param
 
-        sink_table_ddl = """
-        CREATE TABLE Results(a TIMESTAMP_LTZ(3)) WITH ('connector'='test-sink')
+        sink_table = generate_random_table_name()
+        sink_table_ddl = f"""
+        CREATE TABLE {sink_table}(a TIMESTAMP_LTZ(3)) WITH ('connector'='test-sink')
         """
         self.t_env.execute_sql(sink_table_ddl)
 
@@ -736,7 +758,7 @@ class PyFlinkStreamUserDefinedFunctionTests(UserDefinedFunctionTests,
             DataTypes.ROW([DataTypes.FIELD("a", DataTypes.TIMESTAMP_WITH_LOCAL_TIME_ZONE(3))]))
 
         t.select(local_zoned_timestamp_func(local_zoned_timestamp_func(t.a))) \
-            .execute_insert("Results") \
+            .execute_insert(sink_table) \
             .wait()
         actual = source_sink_utils.results()
         self.assert_equals(actual, ["+I[1970-01-01T00:00:00.123Z]"])

@@ -29,7 +29,8 @@ from pyflink.common import Row, Configuration
 from pyflink.common.time import Time
 from pyflink.common.typeinfo import Types
 from pyflink.common.watermark_strategy import WatermarkStrategy, TimestampAssigner
-from pyflink.datastream import (TimeCharacteristic, RuntimeContext, SlotSharingGroup)
+from pyflink.datastream import (TimeCharacteristic, RuntimeContext, SlotSharingGroup,
+                                StreamExecutionEnvironment, RuntimeExecutionMode)
 from pyflink.datastream.data_stream import DataStream
 from pyflink.datastream.functions import (AggregateFunction, CoMapFunction, CoFlatMapFunction,
                                           MapFunction, FilterFunction, FlatMapFunction,
@@ -43,7 +44,8 @@ from pyflink.datastream.state import (ValueStateDescriptor, ListStateDescriptor,
 from pyflink.datastream.tests.test_util import DataStreamTestSinkFunction
 from pyflink.java_gateway import get_gateway
 from pyflink.metrics import Counter, Meter, Distribution
-from pyflink.testing.test_case_utils import PyFlinkBatchTestCase, PyFlinkStreamingTestCase
+from pyflink.testing.test_case_utils import (PyFlinkBatchTestCase, PyFlinkStreamingTestCase,
+                                             PyFlinkTestCase)
 from pyflink.util.java_utils import get_j_env_configuration
 
 
@@ -96,50 +98,6 @@ class DataStreamTests(object):
         results = self.test_sink.get_results()
         expected = ["+I[cfgs, 5, 3]",
                     "+I[deeefg, 7, 4]"]
-        self.assert_equals_sorted(expected, results)
-
-    def test_basic_operations_with_callable_function(self):
-        ds = self.env.from_collection([('ab', decimal.Decimal(1)),
-                                       ('bdc', decimal.Decimal(2)),
-                                       ('cfgs', decimal.Decimal(3)),
-                                       ('deeefg', decimal.Decimal(4))],
-                                      type_info=Types.ROW([Types.STRING(), Types.BIG_DEC()]))
-
-        def add_1(value):
-            return Row(value[0], value[1] + 1, value[2])
-
-        def reserve_even(value):
-            if value[1] % 2 == 0:
-                yield value
-
-        (ds.map(lambda i: (i[0], len(i[0]), i[1]))
-           .flat_map(reserve_even)
-           .filter(lambda i: i[1] > 2)
-           .map(add_1)
-           .add_sink(self.test_sink))
-        self.env.execute('test_basic_operations_with_callable_function')
-        results = self.test_sink.get_results(True)
-        expected = ["<Row('cfgs', 5, Decimal('3'))>",
-                    "<Row('deeefg', 7, Decimal('4'))>"]
-        self.assert_equals_sorted(expected, results)
-
-    def test_array_type_info(self):
-        ds = self.env.from_collection([(1, [1.1, None, 1.30], [None, 'hi', 'flink']),
-                                       (2, [None, 2.2, 2.3], ['hello', None, 'flink']),
-                                       (3, [3.1, 3.2, None], ['hello', 'hi', None])],
-                                      type_info=Types.ROW([Types.INT(),
-                                                           Types.BASIC_ARRAY(Types.FLOAT()),
-                                                           Types.OBJECT_ARRAY(Types.STRING())]))
-
-        ds.map(lambda x: x, output_type=Types.ROW([Types.INT(),
-                                                   Types.BASIC_ARRAY(Types.FLOAT()),
-                                                   Types.OBJECT_ARRAY(Types.STRING())]))\
-            .add_sink(self.test_sink)
-        self.env.execute("test basic array type info")
-        results = self.test_sink.get_results()
-        expected = ['+I[1, [1.1, null, 1.3], [null, hi, flink]]',
-                    '+I[2, [null, 2.2, 2.3], [hello, null, flink]]',
-                    '+I[3, [3.1, 3.2, null], [hello, hi, null]]']
         self.assert_equals_sorted(expected, results)
 
     def test_partition_custom(self):
@@ -814,50 +772,6 @@ class ProcessDataStreamTests(DataStreamTests):
         expected = ['2', '2', '3', '3', 'a', 'b', 'c']
         self.assert_equals_sorted(expected, results)
 
-    def test_execute_and_collect(self):
-        test_data = ['pyflink', 'datastream', 'execute', 'collect']
-        ds = self.env.from_collection(test_data)
-
-        expected = test_data[:3]
-        actual = []
-        for result in ds.execute_and_collect(limit=3):
-            actual.append(result)
-        self.assertEqual(expected, actual)
-
-        expected = test_data
-        ds = self.env.from_collection(collection=test_data, type_info=Types.STRING())
-        with ds.execute_and_collect() as results:
-            actual = []
-            for result in results:
-                actual.append(result)
-            self.assertEqual(expected, actual)
-
-        test_data = [(1, None, 1, True, 32767, -2147483648, 1.23, 1.98932,
-                      bytearray(b'flink'), 'pyflink',
-                      datetime.date(2014, 9, 13),
-                      datetime.time(hour=12, minute=0, second=0, microsecond=123000),
-                      datetime.datetime(2018, 3, 11, 3, 0, 0, 123000),
-                      [1, 2, 3],
-                      [['pyflink', 'datastream'], ['execute', 'collect']],
-                      decimal.Decimal('1000000000000000000.05'),
-                      decimal.Decimal('1000000000000000000.0599999999999'
-                                      '9999899999999999')),
-                     (2, None, 2, True, 23878, 652516352, 9.87, 2.98936,
-                      bytearray(b'flink'), 'pyflink',
-                      datetime.date(2015, 10, 14),
-                      datetime.time(hour=11, minute=2, second=2, microsecond=234500),
-                      datetime.datetime(2020, 4, 15, 8, 2, 6, 235000),
-                      [2, 4, 6],
-                      [['pyflink', 'datastream'], ['execute', 'collect']],
-                      decimal.Decimal('2000000000000000000.74'),
-                      decimal.Decimal('2000000000000000000.061111111111111'
-                                      '11111111111111'))]
-        expected = test_data
-        ds = self.env.from_collection(test_data).map(lambda a: a)
-        with ds.execute_and_collect() as results:
-            actual = [result for result in results]
-            self.assert_equals_sorted(expected, actual)
-
     def test_keyed_map(self):
         from pyflink.util.java_utils import get_j_env_configuration
         from pyflink.common import Configuration
@@ -1013,89 +927,28 @@ class ProcessDataStreamTests(DataStreamTests):
         expected = ['+I[d, 1]', '+I[c, 1]', '+I[a, 0]', '+I[b, 0]', '+I[e, 2]']
         self.assert_equals_sorted(expected, results)
 
-    def test_print_without_align_output(self):
-        # No need to align output typeinfo since we have specified the type info of the DataStream.
-        ds = self.env.from_collection([('ab', 1), ('bdc', 2), ('cfgs', 3), ('deeefg', 4)],
-                                      type_info=Types.ROW([Types.STRING(), Types.INT()]))
-        ds.print()
-        plan = eval(str(self.env.get_execution_plan()))
-        self.assertEqual("Sink: Print to Std. Out", plan['nodes'][2]['type'])
-
-    def test_print_with_align_output(self):
-        # need to align output type before print, therefore the plan will contain three nodes
-        ds = self.env.from_collection([('ab', 1), ('bdc', 2), ('cfgs', 3), ('deeefg', 4)])
-        ds.print()
-        plan = eval(str(self.env.get_execution_plan()))
-        self.assertEqual(3, len(plan['nodes']))
-        self.assertEqual("Sink: Print to Std. Out", plan['nodes'][2]['type'])
-
-    def test_primitive_array_type_info(self):
-        ds = self.env.from_collection([(1, [1.1, 1.2, 1.30]), (2, [2.1, 2.2, 2.3]),
-                                      (3, [3.1, 3.2, 3.3])],
+    def test_collection_type_info(self):
+        ds = self.env.from_collection([(1, [1.1, 1.2, 1.30], [None, 'hi', 'flink'],
+                                       datetime.date(2021, 1, 9), datetime.time(12, 0, 0),
+                                        datetime.datetime(2021, 1, 9, 12, 0, 0, 11000),
+                                        [1, 2, 3])],
                                       type_info=Types.ROW([Types.INT(),
-                                                           Types.PRIMITIVE_ARRAY(Types.FLOAT())]))
-
+                                                           Types.PRIMITIVE_ARRAY(Types.FLOAT()),
+                                                           Types.BASIC_ARRAY(Types.STRING()),
+                                                           Types.SQL_DATE(), Types.SQL_TIME(),
+                                                           Types.SQL_TIMESTAMP(),
+                                                           Types.LIST(Types.INT())]))
         ds.map(lambda x: x, output_type=Types.ROW([Types.INT(),
-                                                   Types.PRIMITIVE_ARRAY(Types.FLOAT())]))\
+                                                   Types.PRIMITIVE_ARRAY(Types.FLOAT()),
+                                                   Types.BASIC_ARRAY(Types.STRING()),
+                                                   Types.SQL_DATE(), Types.SQL_TIME(),
+                                                   Types.SQL_TIMESTAMP(),
+                                                   Types.LIST(Types.INT())])) \
             .add_sink(self.test_sink)
-        self.env.execute("test primitive array type info")
+        self.env.execute("test_collection_type_info")
         results = self.test_sink.get_results()
-        expected = ['+I[1, [1.1, 1.2, 1.3]]', '+I[2, [2.1, 2.2, 2.3]]', '+I[3, [3.1, 3.2, 3.3]]']
-        self.assert_equals_sorted(expected, results)
-
-    def test_basic_array_type_info(self):
-        ds = self.env.from_collection([(1, [1.1, None, 1.30], [None, 'hi', 'flink']),
-                                       (2, [None, 2.2, 2.3], ['hello', None, 'flink']),
-                                       (3, [3.1, 3.2, None], ['hello', 'hi', None])],
-                                      type_info=Types.ROW([Types.INT(),
-                                                           Types.BASIC_ARRAY(Types.FLOAT()),
-                                                           Types.BASIC_ARRAY(Types.STRING())]))
-
-        ds.map(lambda x: x, output_type=Types.ROW([Types.INT(),
-                                                   Types.BASIC_ARRAY(Types.FLOAT()),
-                                                   Types.BASIC_ARRAY(Types.STRING())]))\
-            .add_sink(self.test_sink)
-        self.env.execute("test basic array type info")
-        results = self.test_sink.get_results()
-        expected = ['+I[1, [1.1, null, 1.3], [null, hi, flink]]',
-                    '+I[2, [null, 2.2, 2.3], [hello, null, flink]]',
-                    '+I[3, [3.1, 3.2, null], [hello, hi, null]]']
-        self.assert_equals_sorted(expected, results)
-
-    def test_object_array_type_info(self):
-        ds = self.env.from_collection([(1, [1.1, None, 1.30], [None, 'hi', 'flink']),
-                                       (2, [None, 2.2, 2.3], ['hello', None, 'flink']),
-                                      (3, [3.1, 3.2, None], ['hello', 'hi', None])],
-                                      type_info=Types.ROW([Types.INT(),
-                                                           Types.OBJECT_ARRAY(Types.FLOAT()),
-                                                           Types.OBJECT_ARRAY(Types.STRING())]))
-
-        ds.map(lambda x: x, output_type=Types.ROW([Types.INT(),
-                                                   Types.OBJECT_ARRAY(Types.FLOAT()),
-                                                   Types.OBJECT_ARRAY(Types.STRING())]))\
-            .add_sink(self.test_sink)
-        self.env.execute("test basic array type info")
-        results = self.test_sink.get_results()
-        expected = ['+I[1, [1.1, null, 1.3], [null, hi, flink]]',
-                    '+I[2, [null, 2.2, 2.3], [hello, null, flink]]',
-                    '+I[3, [3.1, 3.2, null], [hello, hi, null]]']
-        self.assert_equals_sorted(expected, results)
-
-    def test_sql_timestamp_type_info(self):
-        ds = self.env.from_collection([(datetime.date(2021, 1, 9),
-                                        datetime.time(12, 0, 0),
-                                        datetime.datetime(2021, 1, 9, 12, 0, 0, 11000))],
-                                      type_info=Types.ROW([Types.SQL_DATE(),
-                                                           Types.SQL_TIME(),
-                                                           Types.SQL_TIMESTAMP()]))
-
-        ds.map(lambda x: x, output_type=Types.ROW([Types.SQL_DATE(),
-                                                   Types.SQL_TIME(),
-                                                   Types.SQL_TIMESTAMP()]))\
-            .add_sink(self.test_sink)
-        self.env.execute("test sql timestamp type info")
-        results = self.test_sink.get_results()
-        expected = ['+I[2021-01-09, 12:00:00, 2021-01-09 12:00:00.011]']
+        expected = ["+I[1, [1.1, 1.2, 1.3], [null, hi, flink], 2021-01-09, 12:00:00,"
+                    " 2021-01-09 12:00:00.011, [1, 2, 3]]"]
         self.assert_equals_sorted(expected, results)
 
     def test_process_function(self):
@@ -1156,17 +1009,218 @@ class ProcessDataStreamTests(DataStreamTests):
         side_expected = ['0', '1', '2']
         self.assert_equals_sorted(side_expected, side_sink.get_results())
 
-    def test_java_list_deserialization(self):
-        row_type_info = Types.ROW_NAMED(['list'], [Types.LIST(Types.INT())])
-        ds = self.env.from_collection([Row(list=[1, 2, 3])], type_info=row_type_info)
-        ds.map(lambda e: str(e), Types.STRING()).add_sink(self.test_sink)
-        self.env.execute('test_java_list_deserialization')
-        expected = ['Row(list=[1, 2, 3])']
-        self.assert_equals(self.test_sink.get_results(), expected)
-
 
 class ProcessDataStreamStreamingTests(DataStreamStreamingTests, ProcessDataStreamTests,
                                       PyFlinkStreamingTestCase):
+    def test_keyed_sum(self):
+        self.env.set_parallelism(1)
+        ds = self.env.from_collection(
+            [(1, 1), (1, 2), (1, 3), (2, 5), (2, 1)],
+            type_info=Types.ROW_NAMED(["v1", "v2"], [Types.INT(), Types.INT()])
+        )
+
+        ds.key_by(lambda x: x[0]) \
+            .sum("v2") \
+            .key_by(lambda x: x[0]) \
+            .sum(1) \
+            .map(lambda x: (x[1], x[0]), output_type=Types.TUPLE([Types.INT(), Types.INT()])) \
+            .key_by(lambda x: x[1]) \
+            .sum() \
+            .add_sink(self.test_sink)
+
+        self.env.execute("key_by_sum_test_stream")
+        results = self.test_sink.get_results(False)
+        expected = ['(1,1)', '(5,1)', '(15,1)', '(5,2)', '(16,2)']
+        self.assert_equals_sorted(expected, results)
+
+    def test_keyed_min_by_and_max(self):
+        self.env.set_parallelism(1)
+        ds = self.env.from_collection([('a', 3, 0), ('a', 1, 1), ('b', 5, 0), ('b', 3, 1)],
+                                      type_info=Types.ROW_NAMED(
+                                          ["v1", "v2", "v3"],
+                                          [Types.STRING(), Types.INT(), Types.INT()])
+                                      )
+        # 1th operator min_by: ('a', 3, 0), ('a', 1, 1), ('b', 5, 0), ('b', 3, 1)
+        # 2th operator max_by: ('a', 3, 0), ('a', 3, 0), ('b', 5, 0), ('b', 5, 0)
+        # 3th operator min_by: ('a', 3, 0), ('a', 3, 0), ('a', 3, 0), ('a', 3, 0)
+        # 4th operator max_by: ('a', 'a', 'a', 'a')
+        ds.key_by(lambda x: x[0]) \
+            .min_by("v2") \
+            .map(lambda x: (x[0], x[1], x[2]),
+                 output_type=Types.TUPLE([Types.STRING(), Types.INT(), Types.INT()])) \
+            .key_by(lambda x: x[2]) \
+            .max(1) \
+            .key_by(lambda x: x[2]) \
+            .min() \
+            .map(lambda x: x[0], output_type=Types.STRING()) \
+            .key_by(lambda x: x) \
+            .max_by() \
+            .add_sink(self.test_sink)
+
+        self.env.execute("key_by_min_by_max_by_test_stream")
+        results = self.test_sink.get_results(False)
+        expected = ['a', 'a', 'a', 'a']
+        self.assert_equals_sorted(expected, results)
+
+
+class ProcessDataStreamBatchTests(DataStreamBatchTests, ProcessDataStreamTests,
+                                  PyFlinkBatchTestCase):
+
+    def test_keyed_sum(self):
+        self.env.set_parallelism(1)
+        ds = self.env.from_collection(
+            [(1, 1), (1, 2), (1, 3), (5, 1), (5, 5)],
+            type_info=Types.ROW_NAMED(["v1", "v2"], [Types.INT(), Types.INT()])
+        )
+
+        def flat_map_func1(data):
+            for i in data:
+                yield 12, i
+
+        def flat_map_func2(data):
+            for i in data:
+                yield i
+
+        # First sum operator: Test Row type data and pass in field names.
+        # Second sum operator: Test Row type data and use parameter default value: 0.
+        # Third sum operator: Test Tuple type data and pass in field index number.
+        # Fourthly sum operator: Test Number(int) type data.
+        ds.key_by(lambda x: x[0]) \
+            .sum("v2") \
+            .key_by(lambda x: x[1]) \
+            .sum() \
+            .flat_map(flat_map_func1, output_type=Types.TUPLE([Types.INT(), Types.INT()])) \
+            .key_by(lambda x: x[0]) \
+            .sum(1) \
+            .flat_map(flat_map_func2, output_type=Types.INT()) \
+            .key_by(lambda x: x) \
+            .sum() \
+            .add_sink(self.test_sink)
+
+        self.env.execute("key_by_sum_test_batch")
+        results = self.test_sink.get_results(False)
+        expected = ['24']
+        self.assertEqual(expected, results)
+
+    def test_keyed_min_by_and_max(self):
+        self.env.set_parallelism(1)
+        ds = self.env.from_collection(
+            [(1, '9', 0), (1, '5', 1), (1, '6', 2), (5, '5', 0), (5, '3', 1)],
+            type_info=Types.ROW_NAMED(["v1", "v2", "v3"],
+                                      [Types.INT(), Types.STRING(), Types.INT()])
+        )
+
+        def flat_map_func1(data):
+            for i in data:
+                yield int(i), 1
+
+        def flat_map_func2(data):
+            for i in data:
+                yield i
+
+        ds.key_by(lambda x: x[0]) \
+            .min_by("v2") \
+            .map(lambda x: (x[0], x[1], x[2]),
+                 output_type=Types.TUPLE([Types.INT(), Types.STRING(), Types.INT()])) \
+            .key_by(lambda x: x[2]) \
+            .max(0) \
+            .flat_map(flat_map_func1, output_type=Types.TUPLE([Types.INT(), Types.INT()])) \
+            .key_by(lambda x: [1]) \
+            .min_by() \
+            .flat_map(flat_map_func2, output_type=Types.INT()) \
+            .key_by(lambda x: x) \
+            .max_by() \
+            .add_sink(self.test_sink)
+
+        self.env.execute("key_by_min_by_max_by_test_batch")
+        results = self.test_sink.get_results(False)
+        expected = ['1']
+        self.assert_equals_sorted(expected, results)
+
+
+@pytest.mark.skipif(sys.version_info < (3, 7), reason="requires python3.7")
+class EmbeddedDataStreamStreamTests(DataStreamStreamingTests, PyFlinkStreamingTestCase):
+    def setUp(self):
+        super(EmbeddedDataStreamStreamTests, self).setUp()
+        config = get_j_env_configuration(self.env._j_stream_execution_environment)
+        config.setString("python.execution-mode", "thread")
+
+    def test_metrics(self):
+        ds = self.env.from_collection(
+            [('ab', 'a', decimal.Decimal(1)),
+             ('bdc', 'a', decimal.Decimal(2)),
+             ('cfgs', 'a', decimal.Decimal(3)),
+             ('deeefg', 'a', decimal.Decimal(4))],
+            type_info=Types.TUPLE(
+                [Types.STRING(), Types.STRING(), Types.BIG_DEC()]))
+
+        class MyMapFunction(MapFunction):
+            def __init__(self):
+                self.counter = None  # type: Counter
+                self.counter_value = 0
+                self.meter = None  # type: Meter
+                self.meter_value = 0
+                self.value_to_expose = 0
+                self.distribution = None  # type: Distribution
+
+            def open(self, runtime_context: RuntimeContext):
+                self.counter = runtime_context.get_metrics_group().counter("my_counter")
+                self.meter = runtime_context.get_metrics_group().meter('my_meter', 1)
+                runtime_context.get_metrics_group().gauge("my_gauge", lambda: self.value_to_expose)
+                self.distribution = runtime_context.get_metrics_group().distribution(
+                    "my_distribution")
+
+            def map(self, value):
+                self.counter.inc()
+                self.counter_value += 1
+                assert self.counter.get_count() == self.counter_value
+
+                self.meter.mark_event(1)
+                self.meter_value += 1
+                assert self.meter.get_count() == self.meter_value
+
+                self.value_to_expose += 1
+
+                self.distribution.update(int(value[2]))
+
+                return Row(value[0], len(value[0]), value[2])
+
+        (ds.key_by(lambda value: value[1])
+         .map(MyMapFunction(),
+              output_type=Types.ROW([Types.STRING(), Types.INT(), Types.BIG_DEC()]))
+         .add_sink(self.test_sink))
+        self.env.execute('test_basic_operations')
+        results = self.test_sink.get_results()
+        expected = ['+I[ab, 2, 1]', '+I[bdc, 3, 2]', '+I[cfgs, 4, 3]', '+I[deeefg, 6, 4]']
+        self.assert_equals_sorted(expected, results)
+
+
+@pytest.mark.skipif(sys.version_info < (3, 7), reason="requires python3.7")
+class EmbeddedDataStreamBatchTests(DataStreamBatchTests, PyFlinkBatchTestCase):
+    def setUp(self):
+        super(EmbeddedDataStreamBatchTests, self).setUp()
+        config = get_j_env_configuration(self.env._j_stream_execution_environment)
+        config.setString("python.execution-mode", "thread")
+
+
+class CommonDataStreamTests(PyFlinkTestCase):
+    def setUp(self) -> None:
+        super(CommonDataStreamTests, self).setUp()
+        self.env = StreamExecutionEnvironment.get_execution_environment()
+        self.env.set_parallelism(2)
+        self.env.set_runtime_mode(RuntimeExecutionMode.STREAMING)
+        config = get_j_env_configuration(self.env._j_stream_execution_environment)
+        config.setString("akka.ask.timeout", "20 s")
+        self.test_sink = DataStreamTestSinkFunction()
+
+    def tearDown(self) -> None:
+        self.test_sink.clear()
+
+    def assert_equals_sorted(self, expected, actual):
+        expected.sort()
+        actual.sort()
+        self.assertEqual(expected, actual)
+
     def test_data_stream_name(self):
         ds = self.env.from_collection([(1, 'Hi', 'Hello'), (2, 'Hello', 'Hi')])
         test_name = 'test_name'
@@ -1377,153 +1431,49 @@ class ProcessDataStreamStreamingTests(DataStreamStreamingTests, ProcessDataStrea
         # upstream and downstream operators.
         assert_chainable(j_generated_stream_graph, False, False)
 
-    def test_timestamp_assigner_and_watermark_strategy(self):
-        self.env.set_parallelism(1)
-        self.env.get_config().set_auto_watermark_interval(2000)
-        self.env.set_stream_time_characteristic(TimeCharacteristic.EventTime)
-        data_stream = self.env.from_collection([(1, '1603708211000'),
-                                                (2, '1603708224000'),
-                                                (3, '1603708226000'),
-                                                (4, '1603708289000')],
-                                               type_info=Types.ROW([Types.INT(), Types.STRING()]))
+    def test_execute_and_collect(self):
+        test_data = ['pyflink', 'datastream', 'execute', 'collect']
+        ds = self.env.from_collection(test_data)
 
-        class MyTimestampAssigner(TimestampAssigner):
+        expected = test_data[:3]
+        actual = []
+        for result in ds.execute_and_collect(limit=3):
+            actual.append(result)
+        self.assertEqual(expected, actual)
 
-            def extract_timestamp(self, value, record_timestamp) -> int:
-                return int(value[1])
+        expected = test_data
+        ds = self.env.from_collection(collection=test_data, type_info=Types.STRING())
+        with ds.execute_and_collect() as results:
+            actual = []
+            for result in results:
+                actual.append(result)
+            self.assertEqual(expected, actual)
 
-        class MyProcessFunction(KeyedProcessFunction):
-
-            def __init__(self):
-                self.timer_registered = False
-
-            def open(self, runtime_context: RuntimeContext):
-                self.timer_registered = False
-
-            def process_element(self, value, ctx):
-                if not self.timer_registered:
-                    ctx.timer_service().register_event_time_timer(3)
-                    self.timer_registered = True
-                current_timestamp = ctx.timestamp()
-                current_watermark = ctx.timer_service().current_watermark()
-                current_key = ctx.get_current_key()
-                yield "current key: {}, current timestamp: {}, current watermark: {}, " \
-                      "current_value: {}".format(str(current_key), str(current_timestamp),
-                                                 str(current_watermark), str(value))
-
-            def on_timer(self, timestamp, ctx):
-                yield "on timer: " + str(timestamp)
-
-        watermark_strategy = WatermarkStrategy.for_monotonous_timestamps()\
-            .with_timestamp_assigner(MyTimestampAssigner())
-        data_stream.assign_timestamps_and_watermarks(watermark_strategy)\
-            .key_by(lambda x: x[0], key_type=Types.INT()) \
-            .process(MyProcessFunction(), output_type=Types.STRING()).add_sink(self.test_sink)
-        self.env.execute('test time stamp assigner with keyed process function')
-        results = self.test_sink.get_results()
-        # Because the watermark interval is too long, no watermark was sent before processing these
-        # data. So all current watermarks are Long.MIN_VALUE.
-        expected = ["current key: 1, current timestamp: 1603708211000, current watermark: "
-                    "-9223372036854775808, current_value: Row(f0=1, f1='1603708211000')",
-                    "current key: 2, current timestamp: 1603708224000, current watermark: "
-                    "-9223372036854775808, current_value: Row(f0=2, f1='1603708224000')",
-                    "current key: 3, current timestamp: 1603708226000, current watermark: "
-                    "-9223372036854775808, current_value: Row(f0=3, f1='1603708226000')",
-                    "current key: 4, current timestamp: 1603708289000, current watermark: "
-                    "-9223372036854775808, current_value: Row(f0=4, f1='1603708289000')",
-                    "on timer: 3"]
-        self.assert_equals_sorted(expected, results)
-
-    def test_reduce(self):
-        ds = self.env.from_collection([(1, 'a'), (2, 'a'), (3, 'a'), (4, 'b')],
-                                      type_info=Types.ROW([Types.INT(), Types.STRING()]))
-        ds.key_by(lambda a: a[1]) \
-            .reduce(lambda a, b: Row(a[0] + b[0], b[1])) \
-            .add_sink(self.test_sink)
-        self.env.execute('reduce_function_test')
-        results = self.test_sink.get_results()
-        expected = ["+I[1, a]", "+I[3, a]", "+I[6, a]", "+I[4, b]"]
-        self.assert_equals_sorted(expected, results)
-
-    def test_keyed_sum(self):
-        self.env.set_parallelism(1)
-        ds = self.env.from_collection(
-            [(1, 1), (1, 2), (1, 3), (2, 5), (2, 1)],
-            type_info=Types.ROW_NAMED(["v1", "v2"], [Types.INT(), Types.INT()])
-        )
-
-        ds.key_by(lambda x: x[0]) \
-            .sum("v2") \
-            .key_by(lambda x: x[0]) \
-            .sum(1) \
-            .map(lambda x: (x[1], x[0]), output_type=Types.TUPLE([Types.INT(), Types.INT()])) \
-            .key_by(lambda x: x[1]) \
-            .sum() \
-            .add_sink(self.test_sink)
-
-        self.env.execute("key_by_sum_test_stream")
-        results = self.test_sink.get_results(False)
-        expected = ['(1,1)', '(5,1)', '(15,1)', '(5,2)', '(16,2)']
-        self.assert_equals_sorted(expected, results)
-
-    def test_keyed_min_and_max(self):
-        self.env.set_parallelism(1)
-        ds = self.env.from_collection([('a', 3, 0), ('a', 1, 1), ('b', 5, 1), ('b', 3, 1)],
-                                      type_info=Types.ROW_NAMED(
-                                          ["v1", "v2", "v3"],
-                                          [Types.STRING(), Types.INT(), Types.INT()])
-                                      )
-        # 1th operator min: ('a', 3, 0), ('a', 1, 0), ('b', 5, 1), ('b', 3, 1)
-        # 2th operator max: ('a', 3, 0), ('a', 3, 0), ('b', 5, 1), ('b', 5, 1)
-        # 3th operator max: ('a', 1), ('a', 1), ('b', 1), ('b', 1)
-        # 4th operator min: ('a', 'a', 'b', 'b')
-        ds.key_by(lambda x: x[0]) \
-            .min("v2") \
-            .map(lambda x: (x[0], x[1], x[2]),
-                 output_type=Types.TUPLE([Types.STRING(), Types.INT(), Types.INT()])) \
-            .key_by(lambda x: x[2]) \
-            .max(1) \
-            .map(lambda x: (x[0], 1), output_type=Types.TUPLE([Types.STRING(), Types.INT()])) \
-            .key_by(lambda x: x[1]) \
-            .max() \
-            .map(lambda x: x[0], output_type=Types.STRING()) \
-            .key_by(lambda x: x) \
-            .min() \
-            .add_sink(self.test_sink)
-
-        self.env.execute("key_by_min_max_test_stream")
-        results = self.test_sink.get_results(False)
-        expected = ['a', 'a', 'b', 'b']
-        self.assert_equals_sorted(expected, results)
-
-    def test_keyed_min_by_and_max_by(self):
-        self.env.set_parallelism(1)
-        ds = self.env.from_collection([('a', 3, 0), ('a', 1, 1), ('b', 5, 0), ('b', 3, 1)],
-                                      type_info=Types.ROW_NAMED(
-                                          ["v1", "v2", "v3"],
-                                          [Types.STRING(), Types.INT(), Types.INT()])
-                                      )
-        # 1th operator min_by: ('a', 3, 0), ('a', 1, 1), ('b', 5, 0), ('b', 3, 1)
-        # 2th operator max_by: ('a', 3, 0), ('a', 3, 0), ('b', 5, 0), ('b', 5, 0)
-        # 3th operator min_by: ('a', 3, 0), ('a', 3, 0), ('a', 3, 0), ('a', 3, 0)
-        # 4th operator max_by: ('a', 'a', 'a', 'a')
-        ds.key_by(lambda x: x[0]) \
-            .min_by("v2") \
-            .map(lambda x: (x[0], x[1], x[2]),
-                 output_type=Types.TUPLE([Types.STRING(), Types.INT(), Types.INT()])) \
-            .key_by(lambda x: x[2]) \
-            .max_by(1) \
-            .key_by(lambda x: x[2]) \
-            .min_by() \
-            .map(lambda x: x[0], output_type=Types.STRING()) \
-            .key_by(lambda x: x) \
-            .max_by() \
-            .add_sink(self.test_sink)
-
-        self.env.execute("key_by_min_by_max_by_test_stream")
-        results = self.test_sink.get_results(False)
-        expected = ['a', 'a', 'a', 'a']
-        self.assert_equals_sorted(expected, results)
+        test_data = [(1, None, 1, True, 32767, -2147483648, 1.23, 1.98932,
+                      bytearray(b'flink'), 'pyflink',
+                      datetime.date(2014, 9, 13),
+                      datetime.time(hour=12, minute=0, second=0, microsecond=123000),
+                      datetime.datetime(2018, 3, 11, 3, 0, 0, 123000),
+                      [1, 2, 3],
+                      [['pyflink', 'datastream'], ['execute', 'collect']],
+                      decimal.Decimal('1000000000000000000.05'),
+                      decimal.Decimal('1000000000000000000.0599999999999'
+                                      '9999899999999999')),
+                     (2, None, 2, True, 23878, 652516352, 9.87, 2.98936,
+                      bytearray(b'flink'), 'pyflink',
+                      datetime.date(2015, 10, 14),
+                      datetime.time(hour=11, minute=2, second=2, microsecond=234500),
+                      datetime.datetime(2020, 4, 15, 8, 2, 6, 235000),
+                      [2, 4, 6],
+                      [['pyflink', 'datastream'], ['execute', 'collect']],
+                      decimal.Decimal('2000000000000000000.74'),
+                      decimal.Decimal('2000000000000000000.061111111111111'
+                                      '11111111111111'))]
+        expected = test_data
+        ds = self.env.from_collection(test_data).map(lambda a: a)
+        with ds.execute_and_collect() as results:
+            actual = [result for result in results]
+            self.assert_equals_sorted(expected, actual)
 
     def test_function_with_error(self):
         ds = self.env.from_collection([('a', 0), ('b', 0), ('c', 1), ('d', 1), ('e', 1)],
@@ -1557,232 +1507,6 @@ class ProcessDataStreamStreamingTests(DataStreamStreamingTests, ProcessDataStrea
         results = self.test_sink.get_results(True)
         expected = ['c', 'c', 'b']
         self.assert_equals_sorted(expected, results)
-
-
-class ProcessDataStreamBatchTests(DataStreamBatchTests, ProcessDataStreamTests,
-                                  PyFlinkBatchTestCase):
-
-    def test_timestamp_assigner_and_watermark_strategy(self):
-        self.env.set_parallelism(1)
-        self.env.get_config().set_auto_watermark_interval(2000)
-        self.env.set_stream_time_characteristic(TimeCharacteristic.EventTime)
-        data_stream = self.env.from_collection([(1, '1603708211000'),
-                                                (2, '1603708224000'),
-                                                (3, '1603708226000'),
-                                                (4, '1603708289000')],
-                                               type_info=Types.ROW([Types.INT(), Types.STRING()]))
-
-        class MyTimestampAssigner(TimestampAssigner):
-
-            def extract_timestamp(self, value, record_timestamp) -> int:
-                return int(value[1])
-
-        class MyProcessFunction(KeyedProcessFunction):
-
-            def process_element(self, value, ctx):
-                current_timestamp = ctx.timestamp()
-                current_watermark = ctx.timer_service().current_watermark()
-                current_key = ctx.get_current_key()
-                yield "current key: {}, current timestamp: {}, current watermark: {}, " \
-                      "current_value: {}".format(str(current_key), str(current_timestamp),
-                                                 str(current_watermark), str(value))
-
-            def on_timer(self, timestamp, ctx):
-                pass
-
-        watermark_strategy = WatermarkStrategy.for_monotonous_timestamps() \
-            .with_timestamp_assigner(MyTimestampAssigner())
-        data_stream.assign_timestamps_and_watermarks(watermark_strategy) \
-            .key_by(lambda x: x[0], key_type=Types.INT()) \
-            .process(MyProcessFunction(), output_type=Types.STRING()).add_sink(self.test_sink)
-        self.env.execute('test time stamp assigner with keyed process function')
-        results = self.test_sink.get_results()
-        expected = ["current key: 1, current timestamp: 1603708211000, current watermark: "
-                    "-9223372036854775808, current_value: Row(f0=1, f1='1603708211000')",
-                    "current key: 2, current timestamp: 1603708224000, current watermark: "
-                    "-9223372036854775808, current_value: Row(f0=2, f1='1603708224000')",
-                    "current key: 3, current timestamp: 1603708226000, current watermark: "
-                    "-9223372036854775808, current_value: Row(f0=3, f1='1603708226000')",
-                    "current key: 4, current timestamp: 1603708289000, current watermark: "
-                    "-9223372036854775808, current_value: Row(f0=4, f1='1603708289000')"]
-        self.assert_equals_sorted(expected, results)
-
-    def test_reduce(self):
-        ds = self.env.from_collection([(1, 'a'), (4, 'b'), (2, 'a'), (3, 'b'), (3, 'a')],
-                                      type_info=Types.ROW([Types.INT(), Types.STRING()]))
-        ds.key_by(lambda a: a[1]) \
-          .reduce(lambda a, b: Row(a[0] + b[0], b[1])) \
-          .add_sink(self.test_sink)
-        self.env.execute('reduce_function_test')
-        results = self.test_sink.get_results()
-        expected = ["+I[6, a]", "+I[7, b]"]
-        self.assert_equals_sorted(expected, results)
-
-    def test_keyed_sum(self):
-        self.env.set_parallelism(1)
-        ds = self.env.from_collection(
-            [(1, 1), (1, 2), (1, 3), (5, 1), (5, 5)],
-            type_info=Types.ROW_NAMED(["v1", "v2"], [Types.INT(), Types.INT()])
-        )
-
-        def flat_map_func1(data):
-            for i in data:
-                yield 12, i
-
-        def flat_map_func2(data):
-            for i in data:
-                yield i
-
-        # First sum operator: Test Row type data and pass in field names.
-        # Second sum operator: Test Row type data and use parameter default value: 0.
-        # Third sum operator: Test Tuple type data and pass in field index number.
-        # Fourthly sum operator: Test Number(int) type data.
-        ds.key_by(lambda x: x[0]) \
-            .sum("v2") \
-            .key_by(lambda x: x[1]) \
-            .sum() \
-            .flat_map(flat_map_func1, output_type=Types.TUPLE([Types.INT(), Types.INT()])) \
-            .key_by(lambda x: x[0]) \
-            .sum(1) \
-            .flat_map(flat_map_func2, output_type=Types.INT()) \
-            .key_by(lambda x: x) \
-            .sum() \
-            .add_sink(self.test_sink)
-
-        self.env.execute("key_by_sum_test_batch")
-        results = self.test_sink.get_results(False)
-        expected = ['24']
-        self.assertEqual(expected, results)
-
-    def test_keyed_min_and_max(self):
-        self.env.set_parallelism(1)
-        ds = self.env.from_collection(
-            [(1, '9', 0), (1, '5', 1), (1, '6', 2), (5, '5', 0), (5, '3', 1)],
-            type_info=Types.ROW_NAMED(["v1", "v2", "v3"],
-                                      [Types.INT(), Types.STRING(), Types.INT()])
-        )
-
-        def flat_map_func(data):
-            for i in data:
-                yield int(i)
-
-        ds.key_by(lambda x: x[0]) \
-            .min("v2") \
-            .map(lambda x: (x[0], x[1], x[2]),
-                 output_type=Types.TUPLE([Types.INT(), Types.STRING(), Types.INT()])) \
-            .key_by(lambda x: x[2]) \
-            .max(0) \
-            .flat_map(flat_map_func, output_type=Types.INT()) \
-            .key_by(lambda x: x) \
-            .min() \
-            .key_by(lambda x: x) \
-            .max() \
-            .add_sink(self.test_sink)
-
-        self.env.execute("key_by_min_max_test_batch")
-        results = self.test_sink.get_results(False)
-        expected = ['0', '5']
-        self.assert_equals_sorted(expected, results)
-
-    def test_keyed_min_by_and_max_by(self):
-        self.env.set_parallelism(1)
-        ds = self.env.from_collection(
-            [(1, '9', 0), (1, '5', 1), (1, '6', 2), (5, '5', 0), (5, '3', 1)],
-            type_info=Types.ROW_NAMED(["v1", "v2", "v3"],
-                                      [Types.INT(), Types.STRING(), Types.INT()])
-        )
-
-        def flat_map_func1(data):
-            for i in data:
-                yield int(i), 1
-
-        def flat_map_func2(data):
-            for i in data:
-                yield i
-
-        ds.key_by(lambda x: x[0]) \
-            .min_by("v2") \
-            .map(lambda x: (x[0], x[1], x[2]),
-                 output_type=Types.TUPLE([Types.INT(), Types.STRING(), Types.INT()])) \
-            .key_by(lambda x: x[2]) \
-            .max_by(0) \
-            .flat_map(flat_map_func1, output_type=Types.TUPLE([Types.INT(), Types.INT()])) \
-            .key_by(lambda x: [1]) \
-            .min_by() \
-            .flat_map(flat_map_func2, output_type=Types.INT()) \
-            .key_by(lambda x: x) \
-            .max_by() \
-            .add_sink(self.test_sink)
-
-        self.env.execute("key_by_min_by_max_by_test_batch")
-        results = self.test_sink.get_results(False)
-        expected = ['1']
-        self.assert_equals_sorted(expected, results)
-
-
-@pytest.mark.skipif(sys.version_info < (3, 7), reason="requires python3.7")
-class EmbeddedDataStreamStreamTests(DataStreamStreamingTests, PyFlinkStreamingTestCase):
-    def setUp(self):
-        super(EmbeddedDataStreamStreamTests, self).setUp()
-        config = get_j_env_configuration(self.env._j_stream_execution_environment)
-        config.setString("python.execution-mode", "thread")
-
-    def test_metrics(self):
-        ds = self.env.from_collection(
-            [('ab', 'a', decimal.Decimal(1)),
-             ('bdc', 'a', decimal.Decimal(2)),
-             ('cfgs', 'a', decimal.Decimal(3)),
-             ('deeefg', 'a', decimal.Decimal(4))],
-            type_info=Types.TUPLE(
-                [Types.STRING(), Types.STRING(), Types.BIG_DEC()]))
-
-        class MyMapFunction(MapFunction):
-            def __init__(self):
-                self.counter = None  # type: Counter
-                self.counter_value = 0
-                self.meter = None  # type: Meter
-                self.meter_value = 0
-                self.value_to_expose = 0
-                self.distribution = None  # type: Distribution
-
-            def open(self, runtime_context: RuntimeContext):
-                self.counter = runtime_context.get_metrics_group().counter("my_counter")
-                self.meter = runtime_context.get_metrics_group().meter('my_meter', 1)
-                runtime_context.get_metrics_group().gauge("my_gauge", lambda: self.value_to_expose)
-                self.distribution = runtime_context.get_metrics_group().distribution(
-                    "my_distribution")
-
-            def map(self, value):
-                self.counter.inc()
-                self.counter_value += 1
-                assert self.counter.get_count() == self.counter_value
-
-                self.meter.mark_event(1)
-                self.meter_value += 1
-                assert self.meter.get_count() == self.meter_value
-
-                self.value_to_expose += 1
-
-                self.distribution.update(int(value[2]))
-
-                return Row(value[0], len(value[0]), value[2])
-
-        (ds.key_by(lambda value: value[1])
-         .map(MyMapFunction(),
-              output_type=Types.ROW([Types.STRING(), Types.INT(), Types.BIG_DEC()]))
-         .add_sink(self.test_sink))
-        self.env.execute('test_basic_operations')
-        results = self.test_sink.get_results()
-        expected = ['+I[ab, 2, 1]', '+I[bdc, 3, 2]', '+I[cfgs, 4, 3]', '+I[deeefg, 6, 4]']
-        self.assert_equals_sorted(expected, results)
-
-
-@pytest.mark.skipif(sys.version_info < (3, 7), reason="requires python3.7")
-class EmbeddedDataStreamBatchTests(DataStreamBatchTests, PyFlinkBatchTestCase):
-    def setUp(self):
-        super(EmbeddedDataStreamBatchTests, self).setUp()
-        config = get_j_env_configuration(self.env._j_stream_execution_environment)
-        config.setString("python.execution-mode", "thread")
 
 
 class MyKeySelector(KeySelector):

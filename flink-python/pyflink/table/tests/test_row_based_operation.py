@@ -38,7 +38,7 @@ class RowBasedOperationTests(object):
                  DataTypes.FIELD("c", DataTypes.INT())]))
 
         sink_table_ddl = """
-        CREATE TABLE Results(a BIGINT, b BIGINT) WITH ('connector'='test-sink')
+        CREATE TABLE Results_test_map(a BIGINT, b BIGINT) WITH ('connector'='test-sink')
         """
         self.t_env.execute_sql(sink_table_ddl)
 
@@ -53,7 +53,7 @@ class RowBasedOperationTests(object):
         t.map(func(t.b)).alias("a", "b") \
             .map(func(t.a)) \
             .map(func2) \
-            .execute_insert("Results") \
+            .execute_insert("Results_test_map") \
             .wait()
         actual = source_sink_utils.results()
         self.assert_equals(
@@ -69,7 +69,10 @@ class RowBasedOperationTests(object):
                                                 DataTypes.FIELD("d", DataTypes.INT())]))]))
 
         sink_table_ddl = """
-        CREATE TABLE Results(a BIGINT, b BIGINT) WITH ('connector'='test-sink')
+            CREATE TABLE Results_test_map_with_pandas_udf(
+                a BIGINT,
+                b BIGINT
+            ) WITH ('connector'='test-sink')
         """
         self.t_env.execute_sql(sink_table_ddl)
 
@@ -102,7 +105,8 @@ class RowBasedOperationTests(object):
                               [DataTypes.FIELD("c", DataTypes.BIGINT()),
                                DataTypes.FIELD("d", DataTypes.BIGINT())]))
 
-        t.map(pandas_udf).map(pandas_udf_2).map(general_udf).execute_insert("Results").wait()
+        t.map(pandas_udf).map(pandas_udf_2).map(general_udf).execute_insert(
+            "Results_test_map_with_pandas_udf").wait()
         actual = source_sink_utils.results()
         self.assert_equals(
             actual,
@@ -116,8 +120,9 @@ class RowBasedOperationTests(object):
                  DataTypes.FIELD("b", DataTypes.STRING())]))
 
         sink_table_ddl = """
-        CREATE TABLE Results(a BIGINT, b STRING, c BIGINT, d STRING, e BIGINT, f STRING)
-        WITH ('connector'='test-sink')
+            CREATE TABLE Results_test_flat_map(
+                a BIGINT, b STRING, c BIGINT, d STRING, e BIGINT, f STRING
+            ) WITH ('connector'='test-sink')
         """
         self.t_env.execute_sql(sink_table_ddl)
 
@@ -130,7 +135,7 @@ class RowBasedOperationTests(object):
             .flat_map(split).alias("a", "b") \
             .join_lateral(split.alias("c", "d")) \
             .left_outer_join_lateral(split.alias("e", "f")) \
-            .execute_insert("Results") \
+            .execute_insert("Results_test_flat_map") \
             .wait()
         actual = source_sink_utils.results()
         self.assert_equals(
@@ -149,7 +154,11 @@ class BatchRowBasedOperationITTests(RowBasedOperationTests, PyFlinkBatchTableTes
                  DataTypes.FIELD("c", DataTypes.INT())]))
 
         sink_table_ddl = """
-        CREATE TABLE Results(a TINYINT, b FLOAT, c INT) WITH ('connector'='test-sink')
+            CREATE TABLE Results_test_aggregate_with_pandas_udaf(
+                a TINYINT,
+                b FLOAT,
+                c INT
+            ) WITH ('connector'='test-sink')
         """
         self.t_env.execute_sql(sink_table_ddl)
         pandas_udaf = udaf(lambda pd: (pd.b.mean(), pd.a.max()),
@@ -161,7 +170,7 @@ class BatchRowBasedOperationITTests(RowBasedOperationTests, PyFlinkBatchTableTes
             .group_by(t.a) \
             .aggregate(pandas_udaf) \
             .select(expr.col("*")) \
-            .execute_insert("Results") \
+            .execute_insert("Results_test_aggregate_with_pandas_udaf") \
             .wait()
         actual = source_sink_utils.results()
         self.assert_equals(actual, ["+I[1, 5.0, 1]", "+I[2, 2.0, 2]"])
@@ -175,7 +184,10 @@ class BatchRowBasedOperationITTests(RowBasedOperationTests, PyFlinkBatchTableTes
                  DataTypes.FIELD("c", DataTypes.INT())]))
 
         sink_table_ddl = """
-        CREATE TABLE Results(a FLOAT, b INT) WITH ('connector'='test-sink')
+            CREATE TABLE Results_test_aggregate_with_pandas_udaf_without_keys(
+                a FLOAT,
+                b INT
+            ) WITH ('connector'='test-sink')
         """
         self.t_env.execute_sql(sink_table_ddl)
         pandas_udaf = udaf(lambda pd: Row(pd.b.mean(), pd.b.max()),
@@ -186,7 +198,7 @@ class BatchRowBasedOperationITTests(RowBasedOperationTests, PyFlinkBatchTableTes
         t.select(t.b) \
             .aggregate(pandas_udaf.alias("a", "b")) \
             .select(t.a, t.b) \
-            .execute_insert("Results") \
+            .execute_insert("Results_test_aggregate_with_pandas_udaf_without_keys") \
             .wait()
         actual = source_sink_utils.results()
         self.assert_equals(actual, ["+I[3.8, 8]"])
@@ -211,7 +223,11 @@ class BatchRowBasedOperationITTests(RowBasedOperationTests, PyFlinkBatchTableTes
                  DataTypes.FIELD("rowtime", DataTypes.TIMESTAMP(3))]))
 
         sink_table_ddl = """
-        CREATE TABLE Results(a TIMESTAMP(3), b FLOAT, c INT) WITH ('connector'='test-sink')
+            CREATE TABLE Results_test_window_aggregate_with_pandas_udaf(
+                a TIMESTAMP(3),
+                b FLOAT,
+                c INT
+            ) WITH ('connector'='test-sink')
         """
         self.t_env.execute_sql(sink_table_ddl)
         print(t.get_schema())
@@ -228,7 +244,7 @@ class BatchRowBasedOperationITTests(RowBasedOperationTests, PyFlinkBatchTableTes
             .group_by(expr.col("w")) \
             .aggregate(pandas_udaf.alias("d", "e")) \
             .select(expr.col("w").rowtime, expr.col("d"), expr.col("e")) \
-            .execute_insert("Results") \
+            .execute_insert("Results_test_window_aggregate_with_pandas_udaf") \
             .wait()
 
         actual = source_sink_utils.results()

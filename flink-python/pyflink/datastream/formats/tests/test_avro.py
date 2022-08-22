@@ -30,10 +30,10 @@ from pyflink.datastream.formats.avro import AvroSchema, GenericRecordAvroTypeInf
     AvroBulkWriters, AvroInputFormat
 from pyflink.datastream.tests.test_util import DataStreamTestSinkFunction
 from pyflink.java_gateway import get_gateway
-from pyflink.testing.test_case_utils import PyFlinkStreamingTestCase
+from pyflink.testing.test_case_utils import PyFlinkUTTestCase
 
 
-class FileSourceAvroInputFormatTests(PyFlinkStreamingTestCase):
+class FileSourceAvroInputFormatTests(PyFlinkUTTestCase):
 
     def setUp(self):
         super().setUp()
@@ -98,9 +98,9 @@ class FileSourceAvroInputFormatTests(PyFlinkStreamingTestCase):
         j_file_writer.close()
 
 
-class FileSinkAvroWritersTests(PyFlinkStreamingTestCase):
+class FileSinkAvroWritersTests(PyFlinkUTTestCase):
 
-    def setUp(self):
+    def setUp(self) -> None:
         super().setUp()
         # NOTE: parallelism == 1 is required to keep the order of results
         self.env.set_parallelism(1)
