@@ -600,6 +600,8 @@ public class HiveTableSinkITCase {
         tEnv.registerCatalog(hiveCatalog.getName(), hiveCatalog);
         tEnv.useCatalog(hiveCatalog.getName());
         String wareHouse = hiveCatalog.getHiveConf().getVar(HiveConf.ConfVars.METASTOREWAREHOUSE);
+        // disable auto statistic first
+        tEnv.getConfig().set(HiveOptions.TABLE_EXEC_HIVE_SINK_STATISTIC_AUTO_GATHER_ENABLE, false);
         // test non-partition table
         tEnv.executeSql("create table t1(x int)");
         tEnv.executeSql("create table t2(x int) stored as orc");

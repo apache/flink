@@ -351,7 +351,7 @@ public class HiveTableMetaStoreFactory implements TableMetaStoreFactory {
                 executorService =
                         gatherStatsThreadNum == 1
                                 ? newDirectExecutorService()
-                                : Executors.newFixedThreadPool(3);
+                                : Executors.newFixedThreadPool(gatherStatsThreadNum);
             }
             return executorService.submit(statsGatherTask);
         }
