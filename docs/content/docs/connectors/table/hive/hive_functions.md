@@ -62,12 +62,8 @@ t_env.load_module(name, HiveModule(version))
 ```
 {{< /tab >}}
 {{< tab "YAML" >}}
-```yaml
-modules:
-   - name: core
-     type: core
-   - name: myhive
-     type: hive
+```SQL Client
+LOAD MODULE hive WITH ('hive-version' = '2.3.4')
 ```
 {{< /tab >}}
 {{< /tabs >}}
