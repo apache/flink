@@ -24,14 +24,15 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-# ANALYZE TABLE Statements
+# ANALYZE Statements
 
 {{< label Batch >}}
 
-- `ANALYZE TABLE` statements are used to collect statistics for existing tables, and write statistics back to catalog. 
-- Only existing table is supported, and an exception will be thrown if the table is a view or table not exists.
-- Currently, `ANALYZE TABLE` only supports in batch mode.
-- `ANALYZE TABLE` statements are triggered manually instead of automatically.
+`ANALYZE` statements are used to collect statistics for existing tables and store the result to catalog. Only
+`ANALYZE TABLE` statements are supported now, and need to be triggered manually instead of automatically.
+
+<span class="label label-danger">Attention</span> Currently, `ANALYZE TABLE` only supports in batch mode. Only existing 
+table is supported, and an exception will be thrown if the table is a view or table not exists.
 
 
 ## Run an ANALYZE TABLE statement
@@ -130,7 +131,7 @@ tableEnv.executeSql("ANALYZE TABLE Orders PARTITION(sold_year='2022', sold_month
 tableEnv.executeSql("ANALYZE TABLE Orders PARTITION(sold_year='2022', sold_month='1', sold_day) COMPUTE STATISTICS FOR COLUMNS amount, product");
 
 // Partition table, collect row count and statistics for column `amount` and `product` on all partitions.
-tableEnv.executeSql("ANALYZE TABLE Orders PARTITION(sold_year, sold_month) COMPUTE STATISTICS FOR COLUMNS amount, product");
+tableEnv.executeSql("ANALYZE TABLE Orders PARTITION(sold_year, sold_month, sold_day) COMPUTE STATISTICS FOR COLUMNS amount, product");
 ```
 {{< /tab >}}
 {{< tab "Scala" >}}
@@ -199,7 +200,7 @@ tableEnv.executeSql("ANALYZE TABLE Orders PARTITION(sold_year='2022', sold_month
 tableEnv.executeSql("ANALYZE TABLE Orders PARTITION(sold_year='2022', sold_month='1', sold_day) COMPUTE STATISTICS FOR COLUMNS amount, product");
 
 // Partition table, collect row count and statistics for column `amount` and `product` on all partitions.
-tableEnv.executeSql("ANALYZE TABLE Orders PARTITION(sold_year, sold_month) COMPUTE STATISTICS FOR COLUMNS amount, product");
+tableEnv.executeSql("ANALYZE TABLE Orders PARTITION(sold_year, sold_month, sold_day) COMPUTE STATISTICS FOR COLUMNS amount, product");
 ```
 {{< /tab >}}
 {{< tab "Python" >}}
@@ -268,7 +269,7 @@ table_env.execute_sql("ANALYZE TABLE Orders PARTITION(sold_year='2022', sold_mon
 table_env.execute_sql("ANALYZE TABLE Orders PARTITION(sold_year='2022', sold_month='1', sold_day) COMPUTE STATISTICS FOR COLUMNS amount, product");
 
 # Partition table, collect row count and statistics for column `amount` and `product` on all partitions.
-table_env.execute_sql("ANALYZE TABLE Orders PARTITION(sold_year, sold_month) COMPUTE STATISTICS FOR COLUMNS amount, product");
+table_env.execute_sql("ANALYZE TABLE Orders PARTITION(sold_year, sold_month, sold_day) COMPUTE STATISTICS FOR COLUMNS amount, product");
 ```
 {{< /tab >}}
 {{< tab "SQL CLI" >}}

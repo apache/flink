@@ -26,14 +26,16 @@ under the License.
 
 <a name="analyze-statements"></a>
 
-# ANALYZE TABLE 语句
+# ANALYZE 语句
 
 {{< label Batch >}}
 
-- `ANALYZE TABLE` 用于为存在的表收集表的统计信息，并将该统计信息写为该表的 catalog 中。
-- `ANALYZE TABLE` 语句仅能够使用于存在的表，如果表不存在或者是视图（View）则会报异常。
-- 当前版本，`ANALYZE TABLE`语句只支持在批模式（Batch Mode）下使用。
-- `ANALYZE TABLE`语句只能由由用户手动触发。
+`ANALYZE` 语句被用于为存在的表收集统计信息，并将统计信息写入该表的 catalog 中。 当前版本中，`ANALYZE` 语句只支持 `ANALYZE TABLE`，
+且只能由用户手动触发。
+
+<span class="label label-danger">注意</span> 现在, `ANALYZE TABLE` 只支持批模式（Batch Mode）. 只能用于已存在的表，
+如果表不存在或者是视图（View）则会报错。
+
 
 <a name="run-a-analyze-table-statement"></a>
 
