@@ -2373,6 +2373,15 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
 
   @Test
   def testToTimestamp(): Unit = {
+    testAllApis(
+      "toTimestamp('2017-09-15 00:00:00')",
+      "TO_TIMESTAMP('2017-09-15 00:00:00')",
+      "2017-09-15 00:00:00.000")
+    testAllApis(
+      "toTimestamp('20170915000000', 'yyyyMMddHHmmss')",
+      "TO_TIMESTAMP('20170915000000', 'yyyyMMddHHmmss')",
+      "2017-09-15 00:00:00.000")
+    testAllApis("toTimestamp('abc')","TO_TIMESTAMP('abc')", "NULL")
     testSqlApi("to_timestamp('abc')", "NULL")
     testSqlApi("to_timestamp('2017-09-15 00:00:00')", "2017-09-15 00:00:00.000")
     testSqlApi("to_timestamp('20170915000000', 'yyyyMMddHHmmss')", "2017-09-15 00:00:00.000")

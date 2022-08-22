@@ -322,6 +322,29 @@ public final class Expressions {
     }
 
     /**
+     * Converts date time string with format (by default: ‘yyyy-MM-dd HH:mm:ss’) under the ‘UTC+0’
+     * time zone to {@link DataTypes#TIMESTAMP()}.
+     *
+     * @param dateStr The epoch time with numeric type.
+     * @return The timestamp value with {@link DataTypes#TIMESTAMP()} type.
+     */
+    public static ApiExpression toTimestamp(Object dateStr) {
+        return apiCall(BuiltInFunctionDefinitions.TO_TIMESTAMP, dateStr);
+    }
+
+    /**
+     * Converts date time string with format under the ‘UTC+0’ time zone to {@link
+     * DataTypes#TIMESTAMP()}.
+     *
+     * @param dateStr The date time string.
+     * @param format The format of date time string.
+     * @return The timestamp value with {@link DataTypes#TIMESTAMP()} type.
+     */
+    public static ApiExpression toTimestamp(Object dateStr, Object format) {
+        return apiCall(BuiltInFunctionDefinitions.TO_TIMESTAMP, dateStr, format);
+    }
+
+    /**
      * Determines whether two anchored time intervals overlap. Time point and temporal are
      * transformed into a range defined by two time points (start, end). The function evaluates
      * <code>leftEnd >= rightStart && rightEnd >= leftStart</code>.

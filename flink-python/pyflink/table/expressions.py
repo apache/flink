@@ -286,6 +286,25 @@ def to_timestamp_ltz(numeric_epoch_time, precision) -> Expression:
     """
     return _binary_op("toTimestampLtz", numeric_epoch_time, precision)
 
+def to_timestamp(dataStr) -> Expression:
+    """
+    Converts date time string with format under the ‘UTC+0’ time zone to a TIMESTAMP.
+
+    :param dataStr: The data time with STRING type
+    :param format: The format of dataStr (by default: ‘yyyy-MM-dd HH:mm:ss’)
+    :return: The timestamp value with TIMESTAMP type.
+    """
+    return _binary_op("toTimestamp", dataStr)
+
+def to_timestamp(dataStr, format) -> Expression:
+    """
+    Converts date time string with format under the ‘UTC+0’ time zone to a TIMESTAMP.
+
+    :param dataStr: The data time with STRING type
+    :param format: The format of dataStr (by default: ‘yyyy-MM-dd HH:mm:ss’)
+    :return: The timestamp value with TIMESTAMP type.
+    """
+    return _binary_op("toTimestamp", dataStr, format)
 
 def temporal_overlaps(left_time_point,
                       left_temporal,
