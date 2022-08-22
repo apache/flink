@@ -155,7 +155,7 @@ CREATE TABLE [IF NOT EXISTS] [catalog_name.][db_name.]table_name
   [COMMENT table_comment]
   [PARTITIONED BY (partition_column_name1, partition_column_name2, ...)]
   WITH (key1=val1, key2=val2, ...)
-  [ LIKE source_table [( <like_options> )] ]
+  [ LIKE source_table [( <like_options> )] | AS query_expression ]
    
 <physical_column_definition>:
   column_name column_type [ <column_constraint> ] [COMMENT column_comment]
@@ -512,6 +512,46 @@ If you provide no like options, `INCLUDING ALL OVERWRITING OPTIONS` will be used
 **NOTE** You cannot control the behavior of merging physical columns. Those will be merged as if you applied the `INCLUDING` strategy.
 
 **NOTE** The `source_table` can be a compound identifier. Thus, it can be a table from a different catalog or database: e.g. `my_catalog.my_db.MyTable` specifies table `MyTable` from catalog `MyCatalog` and database `my_db`; `my_db.MyTable` specifies table `MyTable` from current catalog and database `my_db`.
+
+### `AS`
+
+The AS clause is a variation of SQL features (Feature T172, “AS subquery clause in table definition”).
+The clause can be used to create a table based on the given query expression. It will be more user-friendly and reduce the cost for user to manually spell complex table creation statements.
+You can use this clause in stream and batch mode.
+
+Consider the example statement below:
+
+```sql
+CREATE TABLE ctas_hudi
+WITH (
+    'connector' = 'hudi'
+)
+AS
+SELECT id, name, age FROM test WHERE mod(id, 10) = 0;
+```
+
+The resulting table `ctas_hudi` will be equivalent to create the table and insert the data with the following statement:
+```sql
+CREATE TABLE ctas_hudi (
+    id BIGINT,
+    name STRING,
+    age INT
+) WITH (
+     'connector' = 'hudi'
+);
+ 
+INSERT INTO ctas_hudi SELECT id, name, age FROM test WHERE mod(id, 10) = 0;
+```
+
+**Notes:**
+* does not support to create temporary table yet.
+* does not support to specify explicit columns yet.
+* does not support to specify explicit watermark yet.
+* does not support to create partitioned table yet.
+* does not support primary key constraints yet.
+
+**Notes:**
+* The AS clause currently supports only non-atomicity and does not drop the target table when job status is FAILED/CANCELED.
 
 {{< top >}}
 

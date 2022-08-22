@@ -513,6 +513,44 @@ LIKE Orders_in_file (
 
 **注意：** 源表 `source_table` 可以是一个组合 ID。您可以指定不同 catalog 或者 DB 的表作为源表: 例如，`my_catalog.my_db.MyTable` 指定了源表 `MyTable` 来源于名为 `MyCatalog` 的 catalog  和名为 `my_db` 的 DB ，`my_db.MyTable` 指定了源表 `MyTable` 来源于当前 catalog  和名为 `my_db` 的 DB。
 
+### `AS`
+
+AS 子句来源于SQL 特性的变体 (Feature T172, “表定义中的 AS 查询语法”). AS 子句可以用来根据给定的查询语句创建结果表。这将更加方便用户使用，减少用户手动拼写复杂建表语句的成本。 该语法同时支持流模式和批模式。
+
+示例如下:
+
+```sql
+CREATE TABLE ctas_hudi
+WITH (
+    'connector' = 'hudi'
+)
+AS
+SELECT id, name, age FROM test WHERE mod(id, 10) = 0;
+```
+
+结果表 `ctas_hudi` 等效于使用以下语句创建表并写入数据:
+```sql
+CREATE TABLE ctas_hudi (
+    id BIGINT,
+    name STRING,
+    age INT
+) WITH (
+     'connector' = 'hudi'
+);
+ 
+INSERT INTO ctas_hudi SELECT id, name, age FROM test WHERE mod(id, 10) = 0;
+```
+
+**注意:**
+* 暂不支持创建临时结果表。
+* 暂不支持手动指定列信息。
+* 暂不支持 watermark 定义。
+* 暂不支持创建分区表。
+* 暂不支持指定主键约束。
+
+**注意:**
+* AS 子句暂时只支持非原子性写入，当作业状态是 FAILED/CANCELED 时不会删除结果表。
+
 {{< top >}}
 
 ## CREATE CATALOG
