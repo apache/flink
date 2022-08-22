@@ -19,6 +19,7 @@
 package org.apache.flink.table.gateway.api.results.serde;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.table.gateway.api.results.ResultSet;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.util.jackson.JacksonMapperFactory;
 
@@ -41,8 +42,10 @@ public class JsonSerdeUtil {
     static {
         SimpleModule module = new SimpleModule();
         // serializer
+        module.addSerializer(new JsonResultSetSerializer());
         module.addSerializer(new LogicalTypeJsonSerializer());
         // deserializer
+        module.addDeserializer(ResultSet.class, new JsonResultSetDeserializer());
         module.addDeserializer(LogicalType.class, new LogicalTypeJsonDeserializer());
 
         OBJECT_MAPPER_INSTANCE.registerModule(module);

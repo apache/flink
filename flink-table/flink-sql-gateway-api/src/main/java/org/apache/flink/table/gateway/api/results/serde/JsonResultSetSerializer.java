@@ -33,9 +33,9 @@ import org.apache.flink.types.RowKind;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonGenerator;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.JsonNode;
-import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.JsonSerializer;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.SerializerProvider;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ser.std.StdSerializer;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -48,9 +48,15 @@ import static org.apache.flink.table.gateway.api.results.ResultSet.FIELD_NAME_DA
 
 /** Json serializer for {@link ResultSet}. */
 @PublicEvolving
-public class JsonResultSetSerializer extends JsonSerializer<ResultSet> {
+public class JsonResultSetSerializer extends StdSerializer<ResultSet> {
 
-    private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
+    private static final long serialVersionUID = 1L;
+
+    public JsonResultSetSerializer() {
+        super(ResultSet.class);
+    }
+
+    private static final ObjectMapper OBJECT_MAPPER = JsonSerdeUtil.getObjectMapper();
     private static final RowDataToJsonConverters TO_JSON_CONVERTERS =
             new RowDataToJsonConverters(
                     TimestampFormat.ISO_8601, JsonFormatOptions.MapNullKeyMode.LITERAL, "null");
@@ -66,8 +72,7 @@ public class JsonResultSetSerializer extends JsonSerializer<ResultSet> {
         List<ColumnInfo> columnInfos = new ArrayList<>();
         for (Column column : columns) {
             columnInfos.add(
-                    new ColumnInfo(
-                            column.getName(), column.getDataType().getLogicalType().toString()));
+                    new ColumnInfo(column.getName(), column.getDataType().getLogicalType()));
         }
         serializerProvider.defaultSerializeField(
                 FIELD_NAME_COLUMN_INFOS, columnInfos, jsonGenerator);

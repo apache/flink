@@ -39,10 +39,12 @@ import org.apache.flink.table.types.logical.NullType;
 import org.apache.flink.table.types.logical.RawType;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.logical.SmallIntType;
+import org.apache.flink.table.types.logical.TimeType;
 import org.apache.flink.table.types.logical.TimestampType;
 import org.apache.flink.table.types.logical.TinyIntType;
 import org.apache.flink.table.types.logical.VarBinaryType;
 import org.apache.flink.table.types.logical.VarCharType;
+import org.apache.flink.table.types.logical.ZonedTimestampType;
 import org.apache.flink.types.Row;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
@@ -104,9 +106,13 @@ public class LogicalTypeJsonSerDeTest {
                         new VarBinaryType(100),
                         new DecimalType(10),
                         new DecimalType(15, 5),
+                        new TimeType(),
+                        new TimeType(3),
                         new TimestampType(),
                         new TimestampType(3),
                         new TimestampType(false, 3),
+                        new ZonedTimestampType(),
+                        new ZonedTimestampType(3),
                         new LocalZonedTimestampType(),
                         new LocalZonedTimestampType(3),
                         new LocalZonedTimestampType(false, 3),

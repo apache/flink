@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.gateway.api.results.serde;
 
-import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.types.logical.ArrayType;
 import org.apache.flink.table.types.logical.BigIntType;
@@ -40,10 +40,12 @@ import org.apache.flink.table.types.logical.RawType;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.logical.RowType.RowField;
 import org.apache.flink.table.types.logical.SmallIntType;
+import org.apache.flink.table.types.logical.TimeType;
 import org.apache.flink.table.types.logical.TimestampType;
 import org.apache.flink.table.types.logical.TinyIntType;
 import org.apache.flink.table.types.logical.VarBinaryType;
 import org.apache.flink.table.types.logical.VarCharType;
+import org.apache.flink.table.types.logical.ZonedTimestampType;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonParser;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.DeserializationContext;
@@ -74,7 +76,7 @@ import static org.apache.flink.table.gateway.api.results.serde.LogicalTypeJsonSe
  *
  * @see LogicalTypeJsonSerializer for the reverse operation.
  */
-@PublicEvolving
+@Internal
 public final class LogicalTypeJsonDeserializer extends StdDeserializer<LogicalType> {
 
     private static final long serialVersionUID = 1L;
@@ -126,7 +128,9 @@ public final class LogicalTypeJsonDeserializer extends StdDeserializer<LogicalTy
                         isNullable,
                         logicalTypeNode.get(FIELD_NAME_PRECISION).asInt(),
                         logicalTypeNode.get(FIELD_NAME_SCALE).asInt());
+            case TIME_WITHOUT_TIME_ZONE:
             case TIMESTAMP_WITHOUT_TIME_ZONE:
+            case TIMESTAMP_WITH_TIME_ZONE:
             case TIMESTAMP_WITH_LOCAL_TIME_ZONE:
                 return deserializeTimestamp(typeRoot, logicalTypeNode).copy(isNullable);
             case MAP:
@@ -167,8 +171,12 @@ public final class LogicalTypeJsonDeserializer extends StdDeserializer<LogicalTy
     private LogicalType deserializeTimestamp(LogicalTypeRoot typeRoot, JsonNode logicalTypeNode) {
         int precision = logicalTypeNode.get(FIELD_NAME_PRECISION).asInt();
         switch (typeRoot) {
+            case TIME_WITHOUT_TIME_ZONE:
+                return new TimeType(precision);
             case TIMESTAMP_WITHOUT_TIME_ZONE:
                 return new TimestampType(precision);
+            case TIMESTAMP_WITH_TIME_ZONE:
+                return new ZonedTimestampType(precision);
             case TIMESTAMP_WITH_LOCAL_TIME_ZONE:
                 return new LocalZonedTimestampType(precision);
             default:

@@ -18,7 +18,8 @@
 
 package org.apache.flink.table.gateway.api.results.serde;
 
-import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.annotation.Internal;
+import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.types.logical.ArrayType;
 import org.apache.flink.table.types.logical.BinaryType;
@@ -30,9 +31,11 @@ import org.apache.flink.table.types.logical.MapType;
 import org.apache.flink.table.types.logical.MultisetType;
 import org.apache.flink.table.types.logical.RawType;
 import org.apache.flink.table.types.logical.RowType;
+import org.apache.flink.table.types.logical.TimeType;
 import org.apache.flink.table.types.logical.TimestampType;
 import org.apache.flink.table.types.logical.VarBinaryType;
 import org.apache.flink.table.types.logical.VarCharType;
+import org.apache.flink.table.types.logical.ZonedTimestampType;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonGenerator;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.SerializerProvider;
@@ -45,7 +48,7 @@ import java.io.IOException;
  *
  * @see LogicalTypeJsonDeserializer for the reverse operation.
  */
-@PublicEvolving
+@Internal
 public final class LogicalTypeJsonSerializer extends StdSerializer<LogicalType> {
 
     private static final long serialVersionUID = 1L;
@@ -137,14 +140,11 @@ public final class LogicalTypeJsonSerializer extends StdSerializer<LogicalType> 
                 jsonGenerator.writeNumberField(
                         FIELD_NAME_SCALE, ((DecimalType) logicalType).getScale());
                 break;
+            case TIME_WITHOUT_TIME_ZONE:
             case TIMESTAMP_WITHOUT_TIME_ZONE:
-                jsonGenerator.writeNumberField(
-                        FIELD_NAME_PRECISION, ((TimestampType) logicalType).getPrecision());
-                break;
+            case TIMESTAMP_WITH_TIME_ZONE:
             case TIMESTAMP_WITH_LOCAL_TIME_ZONE:
-                jsonGenerator.writeNumberField(
-                        FIELD_NAME_PRECISION,
-                        ((LocalZonedTimestampType) logicalType).getPrecision());
+                serializeTime(logicalType, jsonGenerator);
                 break;
             case MAP:
                 serializeMap((MapType) logicalType, jsonGenerator);
@@ -177,6 +177,30 @@ public final class LogicalTypeJsonSerializer extends StdSerializer<LogicalType> 
     // --------------------------------------------------------------------------------------------
     // Helper methods for some complex types
     // --------------------------------------------------------------------------------------------
+
+    private void serializeTime(LogicalType timeType, JsonGenerator jsonGenerator)
+            throws IOException {
+        switch (timeType.getTypeRoot()) {
+            case TIME_WITHOUT_TIME_ZONE:
+                jsonGenerator.writeNumberField(
+                        FIELD_NAME_PRECISION, ((TimeType) timeType).getPrecision());
+                break;
+            case TIMESTAMP_WITHOUT_TIME_ZONE:
+                jsonGenerator.writeNumberField(
+                        FIELD_NAME_PRECISION, ((TimestampType) timeType).getPrecision());
+                break;
+            case TIMESTAMP_WITH_TIME_ZONE:
+                jsonGenerator.writeNumberField(
+                        FIELD_NAME_PRECISION, ((ZonedTimestampType) timeType).getPrecision());
+                break;
+            case TIMESTAMP_WITH_LOCAL_TIME_ZONE:
+                jsonGenerator.writeNumberField(
+                        FIELD_NAME_PRECISION, ((LocalZonedTimestampType) timeType).getPrecision());
+                break;
+            default:
+                throw new TableException("Time or time stamp type root expected.");
+        }
+    }
 
     private void serializeMap(MapType mapType, JsonGenerator jsonGenerator) throws IOException {
         jsonGenerator.writeFieldName(FIELD_NAME_KEY_TYPE);

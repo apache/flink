@@ -20,14 +20,10 @@ package org.apache.flink.table.gateway.api.results;
 
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.table.types.logical.LogicalType;
-import org.apache.flink.table.types.logical.utils.LogicalTypeParser;
 import org.apache.flink.util.Preconditions;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
-import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonIgnore;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
-
-import javax.annotation.Nullable;
 
 import java.util.Objects;
 
@@ -36,41 +32,31 @@ import java.util.Objects;
 public class ColumnInfo {
 
     private static final String FIELD_NAME_NAME = "name";
-    private static final String FIELD_NAME_TYPE = "type";
+    private static final String FIELD_NAME_TYPE = "logicalType";
 
     @JsonProperty(FIELD_NAME_NAME)
-    private String name;
+    private final String name;
 
     @JsonProperty(FIELD_NAME_TYPE)
-    private String type;
-
-    @JsonIgnore @Nullable private LogicalType logicalType;
+    private final LogicalType logicalType;
 
     @JsonCreator
     public ColumnInfo(
             @JsonProperty(FIELD_NAME_NAME) String name,
-            @JsonProperty(FIELD_NAME_TYPE) String type) {
+            @JsonProperty(FIELD_NAME_TYPE) LogicalType logicalType) {
         this.name = Preconditions.checkNotNull(name, "name must not be null");
-        this.type = Preconditions.checkNotNull(type, "type must not be null");
+        this.logicalType = Preconditions.checkNotNull(logicalType, "logical type must not be null");
     }
 
     public static ColumnInfo create(String name, LogicalType type) {
-        return new ColumnInfo(name, type.toString());
+        return new ColumnInfo(name, type);
     }
 
     public String getName() {
         return name;
     }
 
-    public String getType() {
-        return type;
-    }
-
-    @JsonIgnore
     public LogicalType getLogicalType() {
-        if (logicalType == null) {
-            logicalType = LogicalTypeParser.parse(type);
-        }
         return logicalType;
     }
 
@@ -83,16 +69,17 @@ public class ColumnInfo {
             return false;
         }
         ColumnInfo that = (ColumnInfo) o;
-        return name.equals(that.name) && type.equals(that.type);
+        return name.equals(that.name) && logicalType.equals(that.logicalType);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(name, type);
+        return Objects.hash(name, logicalType);
     }
 
     @Override
     public String toString() {
-        return "ColumnInfo{" + "name='" + name + '\'' + ", type='" + type + '\'' + '}';
+        return String.format(
+                "ColumnInfo{name='%s', logical type='%s'}", name, logicalType.toString());
     }
 }
