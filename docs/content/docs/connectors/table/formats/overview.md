@@ -50,8 +50,7 @@ Flink supports the following formats:
          <td><a href="{{< ref "docs/connectors/table/kafka" >}}">Apache Kafka</a>,
           <a href="{{< ref "docs/connectors/table/upsert-kafka" >}}">Upsert Kafka</a>,
           <a href="{{< ref "docs/connectors/table/kinesis" >}}">Amazon Kinesis Data Streams</a>,
-          <a href="{{< ref "docs/connectors/table/filesystem" >}}">Filesystem</a>,
-          <a href="{{< ref "docs/connectors/table/elasticsearch" >}}">Elasticsearch</a></td>
+          <a href="{{< ref "docs/connectors/table/filesystem" >}}">Filesystem</a>
         </tr>
         <tr>
           <td><a href="{{< ref "docs/connectors/table/formats/avro" >}}">Apache Avro</a></td>
