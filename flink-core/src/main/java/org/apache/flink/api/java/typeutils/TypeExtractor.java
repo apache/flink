@@ -897,6 +897,15 @@ public class TypeExtractor {
             if (subTypesInfo == null) {
                 return analyzePojo(t, new ArrayList<>(typeHierarchy), in1Type, in2Type);
             }
+            for (int i = 0; i < subTypesInfo.length; i++) {
+                if (subTypesInfo[i] instanceof GenericTypeInfo) {
+                    LOG.info(
+                            "Tuple field #{} of type '{}' will be processed as GenericType. {}",
+                            i + 1,
+                            subTypesInfo[i].getTypeClass().getSimpleName(),
+                            GENERIC_TYPE_DOC_HINT);
+                }
+            }
             // return tuple info
             return new TupleTypeInfo(typeToClass(t), subTypesInfo);
 
@@ -2093,6 +2102,13 @@ public class TypeExtractor {
                     typeInfo =
                             createTypeInfoWithTypeHierarchy(
                                     fieldTypeHierarchy, fieldType, in1Type, in2Type);
+                }
+                if (typeInfo instanceof GenericTypeInfo) {
+                    LOG.info(
+                            "Field {}#{} will be processed as GenericType. {}",
+                            clazz.getSimpleName(),
+                            field.getName(),
+                            GENERIC_TYPE_DOC_HINT);
                 }
                 pojoFields.add(new PojoField(field, typeInfo));
             } catch (InvalidTypesException e) {
