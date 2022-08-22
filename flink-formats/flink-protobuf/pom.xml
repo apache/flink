@@ -108,7 +108,7 @@ under the License.
 							<goal>run</goal>
 						</goals>
 						<configuration>
-							<protocVersion>${protoc.version}</protocVersion>
+							<protocArtifact>com.google.protobuf:protoc:${protoc.version}</protocArtifact>
 							<inputDirectories>
 								<include>src/test/proto</include>
 							</inputDirectories>
