@@ -127,7 +127,7 @@ public class TypeExtractor {
     private static final Logger LOG = LoggerFactory.getLogger(TypeExtractor.class);
 
     private static final String GENERIC_TYPE_DOC_HINT =
-            "Please read the Flink documentation on \"Data Types & Serialization\" for details of the effect on performance.";
+            "Please read the Flink documentation on \"Data Types & Serialization\" for details of the effect on performance and schema evolution.";
 
     public static final int[] NO_INDEX = new int[] {};
 
