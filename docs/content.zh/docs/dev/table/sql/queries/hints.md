@@ -112,86 +112,86 @@ value:
 <tr>
 	<th>选项类型</th>
 	<th>选项名称</th>
-	<th>可选</th>
+	<th>必选</th>
 	<th>选项值类型</th>
 	<th>默认值</th>
-	<th>选项说明</th>
+	<th class="text-left">选项说明</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-	<th rowspan="1">table</th>
-	<th>table</th>
-	<th>N</th>
-	<th>string</th>
-	<th>N/A</th>
-	<th>查找源表的表名</th>
+	<td rowspan="1">table</td>
+	<td>table</td>
+	<td>Y</td>
+	<td>string</td>
+	<td>N/A</td>
+	<td>查找源表的表名</td>
 </tr>
 <tr>
-	<th rowspan="4">async</th>
-	<th>async</th>
-	<th>Y</th>
-	<th>boolean</th>
-	<th>N/A</th>
-	<th>值可以是 'true' 或 'false', 以建议优化器选择对应的查找函数。若底层的连接器无法提供建议模式的查找函数，提示就不会生效</th>
+	<td rowspan="4">async</td>
+	<td>async</td>
+	<td>N</td>
+	<td>boolean</td>
+	<td>N/A</td>
+	<td>值可以是 'true' 或 'false', 以建议优化器选择对应的查找函数。若底层的连接器无法提供建议模式的查找函数，提示就不会生效</td>
 </tr>
 <tr>
-	<th>output-mode</th>
-	<th>Y</th>
-	<th>string</th>
-	<th>ordered</th>
-	<th>值可以是 'ordered' 或 'allow_unordered'，'allow_unordered' 代表用户允许不保序的输出, 在优化器判断不影响
+	<td>output-mode</td>
+	<td>N</td>
+	<td>string</td>
+	<td>ordered</td>
+	<td>值可以是 'ordered' 或 'allow_unordered'，'allow_unordered' 代表用户允许不保序的输出, 在优化器判断不影响
         正确性的情况下会转成 `AsyncDataStream.OutputMode.UNORDERED`， 否则转成 `ORDERED`。 这与作业参数
-        `ExecutionConfigOptions#TABLE_EXEC_ASYNC_LOOKUP_OUTPUT_MODE` 是一致的</th>
+        `ExecutionConfigOptions#TABLE_EXEC_ASYNC_LOOKUP_OUTPUT_MODE` 是一致的</td>
 </tr>
 <tr>
-	<th>capacity</th>
-	<th>Y</th>
-	<th>integer</th>
-	<th>100</th>
-	<th>异步查找使用的底层 `AsyncWaitOperator` 算子的缓冲队列大小</th>
+	<td>capacity</td>
+	<td>N</td>
+	<td>integer</td>
+	<td>100</td>
+	<td>异步查找使用的底层 `AsyncWaitOperator` 算子的缓冲队列大小</td>
 </tr>
 <tr>
-	<th>timeout</th>
-	<th>Y</th>
-	<th>duration</th>
-	<th>300s</th>
-	<th>异步查找从第一次调用到最终查找完成的超时时间，可能包含了多次重试，在发生 failover 时会重置</th>
+	<td>timeout</td>
+	<td>N</td>
+	<td>duration</td>
+	<td>300s</td>
+	<td>异步查找从第一次调用到最终查找完成的超时时间，可能包含了多次重试，在发生 failover 时会重置</td>
 </tr>
 <tr>
-	<th rowspan="4">retry</th>
-	<th>retry-predicate</th>
-	<th>Y</th>
-	<th>string</th>
-	<th>N/A</th>
-	<th>可以是 'lookup_miss'，表示在查找结果为空是启用重试</th>
+	<td rowspan="4">retry</td>
+	<td>retry-predicate</td>
+	<td>N</td>
+	<td>string</td>
+	<td>N/A</td>
+	<td>可以是 'lookup_miss'，表示在查找结果为空是启用重试</td>
 </tr>
 <tr>
-	<th>retry-strategy</th>
-	<th>Y</th>
-	<th>string</th>
-	<th>N/A</th>
-	<th>可以是 'fixed_delay'</th>
+	<td>retry-strategy</td>
+	<td>N</td>
+	<td>string</td>
+	<td>N/A</td>
+	<td>可以是 'fixed_delay'</td>
 </tr>
 <tr>
-	<th>fixed-delay</th>
-	<th>Y</th>
-	<th>duration</th>
-	<th>N/A</th>
-	<th>固定延迟策略的延迟时长</th>
+	<td>fixed-delay</td>
+	<td>N</td>
+	<td>duration</td>
+	<td>N/A</td>
+	<td>固定延迟策略的延迟时长</td>
 </tr>
 <tr>
-	<th>max-attempts</th>
-	<th>Y</th>
-	<th>integer</th>
-	<th>N/A</th>
-	<th>固定延迟策略的最大重试次数</th>
+	<td>max-attempts</td>
+	<td>N</td>
+	<td>integer</td>
+	<td>N/A</td>
+	<td>固定延迟策略的最大重试次数</td>
 </tr>
 </tbody>
 </table>
 
 注意：其中 
-- 'table' 是必选项，需要填写目标联接表的表名，注意当前不支持填写表的别名（这将在后续版本中支持）。
+- 'table' 是必选项，需要填写目标联接表的表名（和 FROM 子句引用的表名保持一致），注意当前不支持填写表的别名（这将在后续版本中支持）。
 - 异步查找参数可按需设置一个或多个，未设置的参数按默认值生效。
 - 重试查找参数没有默认值，在需要开启时所有参数都必须设置为有效值。
 
@@ -268,6 +268,13 @@ LOOKUP('table'='Customers', 'async'='false', 'retry-predicate'='lookup_miss', 'r
 ```sql
 LOOKUP('table'='Customers', 'retry-predicate'='lookup_miss', 'retry-strategy'='fixed_delay', 'fixed-delay'='10s','max-attempts'='3')
 ```
+
+##### 进一步说明
+
+###### 开启缓存对重试的影响
+[FLIP-221]({{< ref "https://cwiki.apache.org/confluence/display/FLINK/FLIP-229%3A+Introduces+Join+Hint+for+Flink+SQL+Batch+Job" >}}) 引入了对查找源表的缓存支持，
+缓存策略有部分缓存、全部缓存两种，当开启全部缓存时（'lookup.cache'='FULL'），重试无法起作用（因为查找表被完整缓存，重试查找没有任何实际意义）；当开启部分缓存时，当一条数据开始查找处理时，
+先在本地缓存中查找，如果没找到则通过连接器进行外部查找（如果存在，则立即返回），此时查不到的记录和不开启缓存时一样，会触发重试查找，重试结束时的结果即为最终的查找结果（在部分缓存模式下，更新本地缓存）。 
 
 ###### 关于查找键及 'retry-predicate'='lookup_miss' 重试条件的说明
 对不同的连接器，提供的索引查找能力可能是不同的，例如内置的 HBase 连接器，默认仅提供了基于 `rowkey` 的索引查找能力（未
@@ -349,7 +356,7 @@ ON o.customer_id = c.id AND DATE_FORMAT(o.order_timestamp, 'yyyy-MM-dd HH:mm') =
 ```
 这样当新来的订单流数据未查到 `Customers` 表 12 点的新数据时，就能开启等待重试来查找期望的更新值。
 
-###### 常见问题排查
+##### 常见问题排查
 开启延迟重试查找后，较容易遇到的问题是维表查找节点形成反压，通过 web ui Task Manager 页面的 Thread Dump 功能可以快速确认是否延迟重试引起。
 从异步和同步查找分别来看，thread sleep 调用栈会出现在：
 1. 异步查找：`RetryableAsyncLookupFunctionDelegator`

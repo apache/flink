@@ -114,85 +114,85 @@ The available hint options:
 <tr>
 	<th>option type</th>
 	<th>option name</th>
-	<th>optional</th>
+	<th>required</th>
 	<th>value type</th>
 	<th>default value</th>
-	<th>description</th>
+	<th class="text-left">description</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-	<th rowspan="1">table</th>
-	<th>table</th>
-	<th>N</th>
-	<th>string</th>
-	<th>N/A</th>
-	<th>the table name of the lookup source</th>
+	<td rowspan="1">table</td>
+	<td>table</td>
+	<td>Y</td>
+	<td>string</td>
+	<td>N/A</td>
+	<td>the table name of the lookup source</td>
 </tr>
 <tr>
-	<th rowspan="4">async</th>
-	<th>async</th>
-	<th>Y</th>
-	<th>boolean</th>
-	<th>N/A</th>
-	<th>value can be 'true' or 'false' to suggest the planner choose the corresponding lookup function.
-        If the backend lookup source does not support the suggested lookup mode, it will take no effect.</th>
+	<td rowspan="4">async</td>
+	<td>async</td>
+	<td>N</td>
+	<td>boolean</td>
+	<td>N/A</td>
+	<td>value can be 'true' or 'false' to suggest the planner choose the corresponding lookup function.
+        If the backend lookup source does not support the suggested lookup mode, it will take no effect.</td>
 </tr>
 <tr>
-	<th>output-mode</th>
-	<th>Y</th>
-	<th>string</th>
-	<th>ordered</th>
-	<th>value can be 'ordered' or 'allow_unordered'.<br />'allow_unordered' means if users allow unordered result, it will attempt to use AsyncDataStream.OutputMode.UNORDERED when it does not affect the correctness of the result, otherwise ORDERED will be still used. It is consistent with <br />`ExecutionConfigOptions#TABLE_EXEC_ASYNC_LOOKUP_OUTPUT_MODE`.</th>
+	<td>output-mode</td>
+	<td>N</td>
+	<td>string</td>
+	<td>ordered</td>
+	<td>value can be 'ordered' or 'allow_unordered'.<br />'allow_unordered' means if users allow unordered result, it will attempt to use AsyncDataStream.OutputMode.UNORDERED when it does not affect the correctness of the result, otherwise ORDERED will be still used. It is consistent with <br />`ExecutionConfigOptions#TABLE_EXEC_ASYNC_LOOKUP_OUTPUT_MODE`.</td>
 </tr>
 <tr>
-	<th>capacity</th>
-	<th>Y</th>
-	<th>integer</th>
-	<th>100</th>
-	<th>the buffer capacity for the backend asyncWaitOperator of the lookup join operator.</th>
+	<td>capacity</td>
+	<td>N</td>
+	<td>integer</td>
+	<td>100</td>
+	<td>the buffer capacity for the backend asyncWaitOperator of the lookup join operator.</td>
 </tr>
 <tr>
-	<th>timeout</th>
-	<th>Y</th>
-	<th>duration</th>
-	<th>300s</th>
-	<th>timeout from first invoke to final completion of asynchronous operation, may include multiple retries, and will be reset in case of failover</th>
+	<td>timeout</td>
+	<td>N</td>
+	<td>duration</td>
+	<td>300s</td>
+	<td>timeout from first invoke to final completion of asynchronous operation, may include multiple retries, and will be reset in case of failover</td>
 </tr>
 <tr>
-	<th rowspan="4">retry</th>
-	<th>retry-predicate</th>
-	<th>Y</th>
-	<th>string</th>
-	<th>N/A</th>
-	<th>can be 'lookup_miss' which will enable retry if lookup result is empty.</th>
+	<td rowspan="4">retry</td>
+	<td>retry-predicate</td>
+	<td>N</td>
+	<td>string</td>
+	<td>N/A</td>
+	<td>can be 'lookup_miss' which will enable retry if lookup result is empty.</td>
 </tr>
 <tr>
-	<th>retry-strategy</th>
-	<th>Y</th>
-	<th>string</th>
-	<th>N/A</th>
-	<th>can be 'fixed_delay'</th>
+	<td>retry-strategy</td>
+	<td>N</td>
+	<td>string</td>
+	<td>N/A</td>
+	<td>can be 'fixed_delay'</td>
 </tr>
 <tr>
-	<th>fixed-delay</th>
-	<th>Y</th>
-	<th>duration</th>
-	<th>N/A</th>
-	<th>delay time for the 'fixed_delay' strategy</th>
+	<td>fixed-delay</td>
+	<td>N</td>
+	<td>duration</td>
+	<td>N/A</td>
+	<td>delay time for the 'fixed_delay' strategy</td>
 </tr>
 <tr>
-	<th>max-attempts</th>
-	<th>Y</th>
-	<th>integer</th>
-	<th>N/A</th>
-	<th>max attempt number of the 'fixed_delay' strategy</th>
+	<td>max-attempts</td>
+	<td>N</td>
+	<td>integer</td>
+	<td>N/A</td>
+	<td>max attempt number of the 'fixed_delay' strategy</td>
 </tr>
 </tbody>
 </table>
 
 Note: 
-- 'table' option is required, only table name is supported, alias name is not supported currently(will be supported in later versions).
+- 'table' option is required, only table name is supported(keep consistent with which in the FROM clause), alias name is not supported currently(will be supported in later versions).
 - async options are all optional, will use default value if not configured.
 - there is no default value for retry options, all retry options should be set to valid values when need to enable retry.
 
@@ -248,7 +248,7 @@ are equivalent to:
 ##### 3. Enable Delayed Retry Strategy For Lookup
 Delayed retry for lookup join is intended to solve the problem of delayed updates in external system
 which cause unexpected enrichment with stream data. The hint option 'retry-predicate'='lookup_miss'
-can enable retry on both sync and async lookup, only support fixed delay retry strategy currently.
+can enable retry on both sync and async lookup, only fixed delay retry strategy is supported currently.
 
 Options of fixed delay retry strategy:
 ```gitexclude
@@ -276,6 +276,18 @@ If the lookup source only has one capability, then the 'async' mode option can b
 ```sql
 LOOKUP('table'='Customers', 'retry-predicate'='lookup_miss', 'retry-strategy'='fixed_delay', 'fixed-delay'='10s','max-attempts'='3')
 ```
+
+##### Further Notes
+
+###### Effect Of Enabling Caching On Retries
+[FLIP-221]({{< ref "https://cwiki.apache.org/confluence/display/FLINK/FLIP-229%3A+Introduces+Join+Hint+for+Flink+SQL+Batch+Job" >}}) adds caching support for lookup source,
+which has PARTIAL and FULL caching mode(the mode NONE means disable caching). When FULL caching is enabled, there'll
+be no retry at all(because it's meaningless to retry lookup via a full cached mirror of lookup source).
+When PARTIAL caching is enabled, it will lookup from local cache first for a coming record and will
+do an external lookup via backend connector if cache miss(if cache hit, then return the record immediately),
+and this will trigger a retry when lookup result is empty(same with caching disabled), the final lookup
+result is determined when retry done(in PARTIAL caching mode, it will also update local cache).
+
 
 ###### Note On Lookup Keys And 'retry-predicate'='lookup_miss' Retry Conditions
 For different connectors, the index-lookup capability maybe different, e.g., builtin HBase connector
@@ -375,7 +387,7 @@ ON o.customer_id = c.id AND DATE_FORMAT(o.order_timestamp, 'yyyy-MM-dd HH:mm') =
 then we can enable delayed retry when Order's record can not lookup the new record with '12:00' version in `Customers` table. 
 
 
-###### Trouble Shooting
+##### Trouble Shooting
 When turning on the delayed retry lookup, it is more likely to encounter a backpressure problem in 
 the lookup node, this can be quickly confirmed via the 'Thread Dump' on the 'Task Manager' page of web ui.
 From async and sync lookups respectively, call stack of thread sleep will appear in:
