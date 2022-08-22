@@ -297,28 +297,40 @@ Flink SQL> CREATE TABLE Orders (
 [INFO] Table has been created.
 
 Flink SQL> ANALYZE TABLE Store COMPUTE STATISTICS;
+[INFO] Execute statement succeed.
     
 Flink SQL> ANALYZE TABLE Store COMPUTE STATISTICS FOR ALL COLUMNS;
+[INFO] Execute statement succeed.
 
-Flink SQL> ANALYZE TABLE Store COMPUTE STATISTICS FOR COLUMNS(location);
+Flink SQL> ANALYZE TABLE Store COMPUTE STATISTICS FOR COLUMNS location;
+[INFO] Execute statement succeed.
     
 Flink SQL> ANALYZE TABLE Orders PARTITION(sold_year='2022', sold_month='1', sold_day='10') COMPUTE STATISTICS;
+[INFO] Execute statement succeed.
 
 Flink SQL> ANALYZE TABLE Orders PARTITION(sold_year='2022', sold_month='1', sold_day) COMPUTE STATISTICS;
+[INFO] Execute statement succeed.
 
 Flink SQL> ANALYZE TABLE Orders PARTITION(sold_year, sold_month, sold_day) COMPUTE STATISTICS;
+[INFO] Execute statement succeed.
 
 Flink SQL> ANALYZE TABLE Orders PARTITION(sold_year='2022', sold_month='1', sold_day='10') COMPUTE STATISTICS FOR ALL COLUMNS;
+[INFO] Execute statement succeed.    
 
 Flink SQL> ANALYZE TABLE Orders PARTITION(sold_year='2022', sold_month='1', sold_day) COMPUTE STATISTICS FOR ALL COLUMNS;
+[INFO] Execute statement succeed.
     
 Flink SQL> ANALYZE TABLE Orders PARTITION(sold_year, sold_month, sold_day) COMPUTE STATISTICS FOR ALL COLUMNS;
+[INFO] Execute statement succeed.
     
 Flink SQL> ANALYZE TABLE Orders PARTITION(sold_year='2022', sold_month='1', sold_day='10') COMPUTE STATISTICS FOR COLUMNS amount;
+[INFO] Execute statement succeed.
     
 Flink SQL> ANALYZE TABLE Orders PARTITION (sold_year='2022', sold_month='1', sold_day) COMPUTE STATISTICS FOR COLUMNS amount, product;
+[INFO] Execute statement succeed.
     
 Flink SQL> ANALYZE TABLE Orders PARTITION(sold_year, sold_month, sold_day) COMPUTE STATISTICS FOR COLUMNS amount, product;
+[INFO] Execute statement succeed.
 ```
 {{< /tab >}}
 {{< /tabs >}}
