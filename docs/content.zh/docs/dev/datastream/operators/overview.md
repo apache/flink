@@ -572,6 +572,42 @@ Python 中尚不支持此特性。
 {{< /tab >}}
 {{< /tabs>}}
 
+### Cache
+#### DataStream &rarr; CachedDataStream
+
+把算子的结果缓存起来。目前只支持批执行模式下运行的作业。算子的结果在算子第一次执行的时候会被缓存起来，之后的
+作业中会复用该算子缓存的结果。如果算子的结果丢失了，它会被原来的算子重新计算并缓存。
+
+{{< tabs cache >}}
+{{< tab "Java" >}}
+```java
+DataStream<Integer> dataStream = //...
+CachedDataStream<Integer> cachedDataStream = dataStream.cache();
+cachedDataStream.print(); // Do anything with the cachedDataStream
+...
+env.execute(); // Execute and create cache.
+        
+cachedDataStream.print(); // Consume cached result.
+env.execute();
+```
+{{< /tab >}}
+{{< tab "Scala" >}}
+```scala
+val dataStream : DataStream[Int] = //...
+val cachedDataStream = dataStream.cache()
+cachedDataStream.print() // Do anything with the cachedDataStream
+...
+env.execute() // Execute and create cache.
+
+cachedDataStream.print() // Consume cached result.
+env.execute()
+```
+{{< /tab >}}
+{{< tab "Python" >}}
+Python 中尚不支持此特性。
+{{< /tab >}}
+{{< /tabs>}}
+
 ## 物理分区
 
 Flink 也提供以下方法让用户根据需要在数据转换完成后对数据分区进行更细粒度的配置。

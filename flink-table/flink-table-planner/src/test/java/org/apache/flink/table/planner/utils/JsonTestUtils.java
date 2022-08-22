@@ -19,6 +19,7 @@
 package org.apache.flink.table.planner.utils;
 
 import org.apache.flink.FlinkVersion;
+import org.apache.flink.util.jackson.JacksonMapperFactory;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.JsonNode;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
@@ -29,7 +30,8 @@ import java.io.IOException;
 /** This class contains a collection of generic utilities to deal with JSON in tests. */
 public final class JsonTestUtils {
 
-    private static final ObjectMapper OBJECT_MAPPER_INSTANCE = new ObjectMapper();
+    private static final ObjectMapper OBJECT_MAPPER_INSTANCE =
+            JacksonMapperFactory.createObjectMapper();
 
     private JsonTestUtils() {}
 
@@ -37,8 +39,28 @@ public final class JsonTestUtils {
         return OBJECT_MAPPER_INSTANCE.readTree(JsonTestUtils.class.getResource(path));
     }
 
+    public static JsonNode readFromString(String path) throws IOException {
+        return OBJECT_MAPPER_INSTANCE.readTree(path);
+    }
+
     public static JsonNode setFlinkVersion(JsonNode target, FlinkVersion flinkVersion) {
         return ((ObjectNode) target)
                 .set("flinkVersion", OBJECT_MAPPER_INSTANCE.valueToTree(flinkVersion.toString()));
+    }
+
+    public static JsonNode setExecNodeConfig(
+            JsonNode target, String type, String key, String value) {
+        target.get("nodes")
+                .elements()
+                .forEachRemaining(
+                        n -> {
+                            if (n.get("type").asText().equals(type)) {
+                                final ObjectNode configNode =
+                                        OBJECT_MAPPER_INSTANCE.createObjectNode();
+                                configNode.put(key, value);
+                                ((ObjectNode) n).set("configuration", configNode);
+                            }
+                        });
+        return target;
     }
 }

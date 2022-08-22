@@ -30,6 +30,7 @@ export interface TaskManagerDetail {
   hardware: Hardware;
   metrics: Metrics;
   memoryConfiguration: MemoryConfiguration;
+  blocked?: boolean;
 }
 
 export interface TaskManagerLogItem {
@@ -51,6 +52,7 @@ export interface TaskManagersItem {
   slotsNumber: number;
   freeSlots: number;
   hardware: Hardware;
+  blocked?: boolean;
 }
 
 interface Hardware {

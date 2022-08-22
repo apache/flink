@@ -45,5 +45,5 @@ public interface ClusterController extends AutoCloseableAsync {
      * @param timeout the maximum time to wait.
      * @throws IOException if any IO error happen.
      */
-    void submitSQLJob(SQLJobSubmission job, Duration timeout) throws IOException;
+    void submitSQLJob(SQLJobSubmission job, Duration timeout) throws Exception;
 }

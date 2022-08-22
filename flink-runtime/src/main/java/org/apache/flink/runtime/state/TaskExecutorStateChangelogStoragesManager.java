@@ -22,8 +22,11 @@ import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.metrics.groups.TaskManagerJobMetricGroup;
+import org.apache.flink.runtime.state.changelog.ChangelogStateHandle;
+import org.apache.flink.runtime.state.changelog.ChangelogStateHandleStreamImpl;
 import org.apache.flink.runtime.state.changelog.StateChangelogStorage;
 import org.apache.flink.runtime.state.changelog.StateChangelogStorageLoader;
+import org.apache.flink.runtime.state.changelog.StateChangelogStorageView;
 import org.apache.flink.util.ShutdownHookUtil;
 
 import org.slf4j.Logger;
@@ -55,6 +58,15 @@ public class TaskExecutorStateChangelogStoragesManager {
     @GuardedBy("lock")
     private final Map<JobID, Optional<StateChangelogStorage<?>>> changelogStoragesByJobId;
 
+    /**
+     * This map holds all state changelog storage views of {@link ChangelogStateHandleStreamImpl}
+     * for tasks running on the task manager / executor that own the instance of this. Value type
+     * Optional is for containing the null value.
+     */
+    @GuardedBy("lock")
+    private final Map<JobID, StateChangelogStorageView<ChangelogStateHandleStreamImpl>>
+            changelogStorageViewsByJobId;
+
     @GuardedBy("lock")
     private boolean closed;
 
@@ -65,6 +77,7 @@ public class TaskExecutorStateChangelogStoragesManager {
 
     public TaskExecutorStateChangelogStoragesManager() {
         this.changelogStoragesByJobId = new HashMap<>();
+        this.changelogStorageViewsByJobId = new HashMap<>();
         this.closed = false;
 
         // register a shutdown hook
@@ -76,7 +89,8 @@ public class TaskExecutorStateChangelogStoragesManager {
     public StateChangelogStorage<?> stateChangelogStorageForJob(
             @Nonnull JobID jobId,
             Configuration configuration,
-            TaskManagerJobMetricGroup metricGroup)
+            TaskManagerJobMetricGroup metricGroup,
+            LocalRecoveryConfig localRecoveryConfig)
             throws IOException {
         synchronized (lock) {
             if (closed) {
@@ -90,7 +104,8 @@ public class TaskExecutorStateChangelogStoragesManager {
 
             if (stateChangelogStorage == null) {
                 StateChangelogStorage<?> loaded =
-                        StateChangelogStorageLoader.load(jobId, configuration, metricGroup);
+                        StateChangelogStorageLoader.load(
+                                jobId, configuration, metricGroup, localRecoveryConfig);
                 stateChangelogStorage = Optional.ofNullable(loaded);
                 changelogStoragesByJobId.put(jobId, stateChangelogStorage);
 
@@ -120,7 +135,7 @@ public class TaskExecutorStateChangelogStoragesManager {
         }
     }
 
-    public void releaseStateChangelogStorageForJob(@Nonnull JobID jobId) {
+    private void releaseStateChangelogStorageForJob(@Nonnull JobID jobId) {
         LOG.debug("Releasing state changelog storage under job id {}.", jobId);
         Optional<StateChangelogStorage<?>> cleanupChangelogStorage;
         synchronized (lock) {
@@ -135,28 +150,100 @@ public class TaskExecutorStateChangelogStoragesManager {
         }
     }
 
+    @Nullable
+    StateChangelogStorageView<?> stateChangelogStorageViewForJob(
+            @Nonnull JobID jobID,
+            Configuration configuration,
+            ChangelogStateHandle changelogStateHandle)
+            throws IOException {
+        if (closed) {
+            throw new IllegalStateException(
+                    "TaskExecutorStateChangelogStoragesManager is already closed and cannot "
+                            + "register a new StateChangelogStorageView.");
+        }
+
+        // This implementation assume there is only one production implementation of DSTL
+        // (FsStateChangelogStorage). Maybe we should change the type of
+        // changelogStorageViewsByJobId to map<jobId, map<dstl-identifier, dstl>> when there is
+        // another implementation.
+
+        synchronized (lock) {
+            StateChangelogStorageView<ChangelogStateHandleStreamImpl> storageView =
+                    changelogStorageViewsByJobId.get(jobID);
+
+            if (storageView == null) {
+                StateChangelogStorageView<?> loaded =
+                        StateChangelogStorageLoader.loadFromStateHandle(
+                                configuration, changelogStateHandle);
+                storageView = (StateChangelogStorageView<ChangelogStateHandleStreamImpl>) loaded;
+                changelogStorageViewsByJobId.put(jobID, storageView);
+
+                LOG.debug(
+                        "Registered new state changelog storage view for job {} : {}.",
+                        jobID,
+                        loaded);
+            } else {
+                LOG.debug(
+                        "Found existing state changelog storage view for job {}: {}.",
+                        jobID,
+                        storageView);
+            }
+
+            return storageView;
+        }
+    }
+
+    private void releaseStateChangelogStorageViewForJob(@Nonnull JobID jobID) {
+        LOG.debug("Releasing state changelog storage view under job id {}.", jobID);
+        StateChangelogStorageView<ChangelogStateHandleStreamImpl> cleanupStorageView;
+        synchronized (lock) {
+            if (closed) {
+                return;
+            }
+            cleanupStorageView = changelogStorageViewsByJobId.remove(jobID);
+        }
+
+        if (cleanupStorageView != null) {
+            doRelease(cleanupStorageView);
+        }
+    }
+
+    public void releaseResourcesForJob(@Nonnull JobID jobID) {
+        releaseStateChangelogStorageForJob(jobID);
+        releaseStateChangelogStorageViewForJob(jobID);
+    }
+
     public void shutdown() {
-        HashMap<JobID, Optional<StateChangelogStorage<?>>> toRelease;
+        HashMap<JobID, Optional<StateChangelogStorage<?>>> toReleaseStorage;
+        HashMap<JobID, StateChangelogStorageView<ChangelogStateHandleStreamImpl>>
+                toReleaseStorageView;
         synchronized (lock) {
             if (closed) {
                 return;
             }
             closed = true;
 
-            toRelease = new HashMap<>(changelogStoragesByJobId);
+            toReleaseStorage = new HashMap<>(changelogStoragesByJobId);
+            toReleaseStorageView = new HashMap<>(changelogStorageViewsByJobId);
             changelogStoragesByJobId.clear();
+            changelogStorageViewsByJobId.clear();
         }
 
         ShutdownHookUtil.removeShutdownHook(shutdownHook, getClass().getSimpleName(), LOG);
 
         LOG.info("Shutting down TaskExecutorStateChangelogStoragesManager.");
 
-        for (Map.Entry<JobID, Optional<StateChangelogStorage<?>>> entry : toRelease.entrySet()) {
+        for (Map.Entry<JobID, Optional<StateChangelogStorage<?>>> entry :
+                toReleaseStorage.entrySet()) {
             entry.getValue().ifPresent(this::doRelease);
+        }
+        for (Map.Entry<JobID, StateChangelogStorageView<ChangelogStateHandleStreamImpl>> entry :
+                toReleaseStorageView.entrySet()) {
+            doRelease(entry.getValue());
         }
     }
 
-    private void doRelease(StateChangelogStorage<?> storage) {
+    private void doRelease(StateChangelogStorageView<?> storage) {
         if (storage != null) {
             try {
                 storage.close();

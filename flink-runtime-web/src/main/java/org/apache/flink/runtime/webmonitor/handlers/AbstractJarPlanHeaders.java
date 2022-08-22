@@ -19,13 +19,14 @@
 package org.apache.flink.runtime.webmonitor.handlers;
 
 import org.apache.flink.runtime.rest.messages.JobPlanInfo;
-import org.apache.flink.runtime.rest.messages.MessageHeaders;
+import org.apache.flink.runtime.rest.messages.RuntimeMessageHeaders;
 
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
 
 /** Message headers for {@link JarPlanHandler}. */
 public abstract class AbstractJarPlanHeaders
-        implements MessageHeaders<JarPlanRequestBody, JobPlanInfo, JarPlanMessageParameters> {
+        implements RuntimeMessageHeaders<
+                JarPlanRequestBody, JobPlanInfo, JarPlanMessageParameters> {
 
     @Override
     public Class<JobPlanInfo> getResponseClass() {

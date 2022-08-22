@@ -22,6 +22,7 @@ import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.runtime.io.disk.BatchShuffleReadBufferPool;
 import org.apache.flink.runtime.io.network.buffer.BufferRecycler;
+import org.apache.flink.runtime.io.network.partition.BufferReaderWriterUtil;
 import org.apache.flink.util.FatalExitExceptionHandler;
 import org.apache.flink.util.IOUtils;
 
@@ -32,6 +33,7 @@ import javax.annotation.concurrent.GuardedBy;
 import javax.annotation.concurrent.ThreadSafe;
 
 import java.io.IOException;
+import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
@@ -46,7 +48,8 @@ import java.util.PriorityQueue;
 import java.util.Queue;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.Executor;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -61,7 +64,7 @@ public class HsFileDataManager implements Runnable, BufferRecycler {
     private static final Logger LOG = LoggerFactory.getLogger(HsFileDataManager.class);
 
     /** Executor to run the shuffle data reading task. */
-    private final Executor ioExecutor;
+    private final ScheduledExecutorService ioExecutor;
 
     /** Maximum number of buffers can be allocated by this partition reader. */
     private final int maxRequestedBuffers;
@@ -93,6 +96,8 @@ public class HsFileDataManager implements Runnable, BufferRecycler {
 
     private final HybridShuffleConfiguration hybridShuffleConfiguration;
 
+    private final ByteBuffer headerBuf = BufferReaderWriterUtil.allocatedHeaderBuffer();
+
     /** All readers waiting to read data of different subpartitions. */
     @GuardedBy("lock")
     private final Set<HsSubpartitionFileReader> allReaders = new HashSet<>();
@@ -117,7 +122,7 @@ public class HsFileDataManager implements Runnable, BufferRecycler {
 
     public HsFileDataManager(
             BatchShuffleReadBufferPool bufferPool,
-            Executor ioExecutor,
+            ScheduledExecutorService ioExecutor,
             HsFileDataIndex dataIndex,
             Path dataFilePath,
             HsSubpartitionFileReader.Factory fileReaderFactory,
@@ -160,7 +165,8 @@ public class HsFileDataManager implements Runnable, BufferRecycler {
                             operation,
                             dataIndex,
                             hybridShuffleConfiguration.getMaxBuffersReadAhead(),
-                            this::releaseSubpartitionReader);
+                            this::releaseSubpartitionReader,
+                            headerBuf);
 
             allReaders.add(subpartitionReader);
 
@@ -270,16 +276,16 @@ public class HsFileDataManager implements Runnable, BufferRecycler {
         return new ArrayDeque<>();
     }
 
-    @GuardedBy("lock")
     private void mayTriggerReading() {
-        assert Thread.holdsLock(lock);
-
-        if (!isRunning
-                && !allReaders.isEmpty()
-                && numRequestedBuffers + bufferPool.getNumBuffersPerRequest() <= maxRequestedBuffers
-                && numRequestedBuffers < bufferPool.getAverageBuffersPerRequester()) {
-            isRunning = true;
-            ioExecutor.execute(this);
+        synchronized (lock) {
+            if (!isRunning
+                    && !allReaders.isEmpty()
+                    && numRequestedBuffers + bufferPool.getNumBuffersPerRequest()
+                            <= maxRequestedBuffers
+                    && numRequestedBuffers < bufferPool.getAverageBuffersPerRequester()) {
+                isRunning = true;
+                ioExecutor.execute(this);
+            }
         }
     }
 
@@ -359,8 +365,16 @@ public class HsFileDataManager implements Runnable, BufferRecycler {
         synchronized (lock) {
             numRequestedBuffers += numBuffersRead;
             isRunning = false;
-            mayTriggerReading();
             mayNotifyReleased();
+        }
+        if (numBuffersRead == 0) {
+            // When fileReader has no data to read, for example, most of the data is
+            // consumed from memory. HsFileDataManager will encounter busy-loop
+            // problem, which will lead to a meaningless surge in CPU utilization
+            // and seriously affect performance.
+            ioExecutor.schedule(this::mayTriggerReading, 5, TimeUnit.MILLISECONDS);
+        } else {
+            mayTriggerReading();
         }
     }
 

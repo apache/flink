@@ -117,7 +117,9 @@ import org.apache.flink.table.operations.UnloadModuleOperation;
 import org.apache.flink.table.operations.UseCatalogOperation;
 import org.apache.flink.table.operations.UseDatabaseOperation;
 import org.apache.flink.table.operations.UseModulesOperation;
+import org.apache.flink.table.operations.command.AddJarOperation;
 import org.apache.flink.table.operations.command.ExecutePlanOperation;
+import org.apache.flink.table.operations.command.ShowJarsOperation;
 import org.apache.flink.table.operations.ddl.AddPartitionsOperation;
 import org.apache.flink.table.operations.ddl.AlterCatalogFunctionOperation;
 import org.apache.flink.table.operations.ddl.AlterDatabaseOperation;
@@ -132,6 +134,7 @@ import org.apache.flink.table.operations.ddl.AlterViewAsOperation;
 import org.apache.flink.table.operations.ddl.AlterViewOperation;
 import org.apache.flink.table.operations.ddl.AlterViewPropertiesOperation;
 import org.apache.flink.table.operations.ddl.AlterViewRenameOperation;
+import org.apache.flink.table.operations.ddl.AnalyzeTableOperation;
 import org.apache.flink.table.operations.ddl.CompilePlanOperation;
 import org.apache.flink.table.operations.ddl.CreateCatalogFunctionOperation;
 import org.apache.flink.table.operations.ddl.CreateCatalogOperation;
@@ -149,6 +152,8 @@ import org.apache.flink.table.operations.ddl.DropTempSystemFunctionOperation;
 import org.apache.flink.table.operations.ddl.DropViewOperation;
 import org.apache.flink.table.operations.utils.OperationTreeBuilder;
 import org.apache.flink.table.resource.ResourceManager;
+import org.apache.flink.table.resource.ResourceType;
+import org.apache.flink.table.resource.ResourceUri;
 import org.apache.flink.table.sinks.TableSink;
 import org.apache.flink.table.sources.TableSource;
 import org.apache.flink.table.sources.TableSourceValidation;
@@ -460,6 +465,26 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
     public boolean dropTemporaryFunction(String path) {
         final UnresolvedIdentifier unresolvedIdentifier = getParser().parseIdentifier(path);
         return functionCatalog.dropTemporaryCatalogFunction(unresolvedIdentifier, true);
+    }
+
+    // TODO: Maybe we should expose addJar as tEnv's API later.
+    private TableResultInternal addJar(AddJarOperation addJarOperation) {
+        ResourceUri resourceUri = new ResourceUri(ResourceType.JAR, addJarOperation.getPath());
+        try {
+            resourceManager.registerJarResources(Collections.singletonList(resourceUri));
+            return TableResultImpl.TABLE_RESULT_OK;
+        } catch (IOException e) {
+            throw new TableException(
+                    String.format("Could not register the specified resource [%s].", resourceUri),
+                    e);
+        }
+    }
+
+    // TODO: Maybe we should expose listJars as tEnv's API later.
+    private String[] listJars() {
+        return resourceManager.getResources().keySet().stream()
+                .map(ResourceUri::getUri)
+                .toArray(String[]::new);
     }
 
     @Override
@@ -1132,6 +1157,10 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
             return dropSystemFunction((DropTempSystemFunctionOperation) operation);
         } else if (operation instanceof AlterCatalogFunctionOperation) {
             return alterCatalogFunction((AlterCatalogFunctionOperation) operation);
+        } else if (operation instanceof AddJarOperation) {
+            return addJar((AddJarOperation) operation);
+        } else if (operation instanceof ShowJarsOperation) {
+            return buildShowResult("jars", listJars());
         } else if (operation instanceof CreateCatalogOperation) {
             return createCatalog((CreateCatalogOperation) operation);
         } else if (operation instanceof DropCatalogOperation) {
@@ -1297,7 +1326,11 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
                     List<String> partitionKVs = new ArrayList<>(spec.getPartitionSpec().size());
                     for (Map.Entry<String, String> partitionKV :
                             spec.getPartitionSpec().entrySet()) {
-                        partitionKVs.add(partitionKV.getKey() + "=" + partitionKV.getValue());
+                        String partitionValue =
+                                partitionKV.getValue() == null
+                                        ? showPartitionsOperation.getDefaultPartitionName()
+                                        : partitionKV.getValue();
+                        partitionKVs.add(partitionKV.getKey() + "=" + partitionValue);
                     }
                     partitionNames.add(String.join("/", partitionKVs));
                 }
@@ -1364,6 +1397,15 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
                             true,
                             compileAndExecutePlanOperation.getOperation());
             return (TableResultInternal) compiledPlan.execute();
+        } else if (operation instanceof AnalyzeTableOperation) {
+            if (isStreamingMode) {
+                throw new TableException("ANALYZE TABLE is not supported for streaming mode now");
+            }
+            try {
+                return AnalyzeTableUtil.analyzeTable(this, (AnalyzeTableOperation) operation);
+            } catch (Exception e) {
+                throw new TableException("Failed to execute ANALYZE TABLE command", e);
+            }
         } else if (operation instanceof NopOperation) {
             return TableResultImpl.TABLE_RESULT_OK;
         } else {

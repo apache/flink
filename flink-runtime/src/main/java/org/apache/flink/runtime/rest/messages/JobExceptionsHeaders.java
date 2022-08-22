@@ -27,7 +27,7 @@ import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseSt
 
 /** Message headers for the {@link JobExceptionsHandler}. */
 public class JobExceptionsHeaders
-        implements MessageHeaders<
+        implements RuntimeMessageHeaders<
                 EmptyRequestBody, JobExceptionsInfoWithHistory, JobExceptionsMessageParameters> {
 
     private static final JobExceptionsHeaders INSTANCE = new JobExceptionsHeaders();

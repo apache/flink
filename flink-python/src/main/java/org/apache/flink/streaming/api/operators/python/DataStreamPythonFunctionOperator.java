@@ -22,6 +22,9 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
 import org.apache.flink.streaming.api.functions.python.DataStreamPythonFunctionInfo;
+import org.apache.flink.util.OutputTag;
+
+import java.util.Collection;
 
 /** Interface for Python DataStream operators. */
 @Internal
@@ -35,6 +38,12 @@ public interface DataStreamPythonFunctionOperator<OUT> extends ResultTypeQueryab
 
     /** Returns the underlying {@link DataStreamPythonFunctionInfo}. */
     DataStreamPythonFunctionInfo getPythonFunctionInfo();
+
+    /** Add a collection of {@link OutputTag}s to the operator. */
+    void addSideOutputTags(Collection<OutputTag<?>> outputTags);
+
+    /** Gets the {@link OutputTag}s belongs to the operator. */
+    Collection<OutputTag<?>> getSideOutputTags();
 
     /**
      * Make a copy of the DataStreamPythonFunctionOperator with the given pythonFunctionInfo and

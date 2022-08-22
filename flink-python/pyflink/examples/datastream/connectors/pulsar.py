@@ -21,9 +21,9 @@ import sys
 
 from pyflink.common import SimpleStringSchema, WatermarkStrategy
 from pyflink.datastream import StreamExecutionEnvironment
-from pyflink.datastream.connectors import PulsarSource, PulsarSink, PulsarSerializationSchema, \
-    StartCursor, StopCursor, SubscriptionType, PulsarDeserializationSchema, DeliveryGuarantee, \
-    TopicRoutingMode
+from pyflink.datastream.connectors.pulsar import PulsarSource, PulsarSink,\
+    PulsarSerializationSchema, StartCursor, StopCursor, SubscriptionType, \
+    PulsarDeserializationSchema, DeliveryGuarantee, TopicRoutingMode
 
 if __name__ == '__main__':
     logging.basicConfig(stream=sys.stdout, level=logging.INFO, format="%(message)s")

@@ -39,7 +39,7 @@ import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 import org.apache.flink.runtime.jobgraph.JobType;
-import org.apache.flink.runtime.scheduler.CachedIntermediateDataSetCorruptedException;
+import org.apache.flink.runtime.scheduler.ClusterDatasetCorruptedException;
 import org.apache.flink.runtime.scheduler.strategy.ConsumedPartitionGroup;
 import org.apache.flink.runtime.shuffle.ShuffleDescriptor;
 import org.apache.flink.runtime.shuffle.UnknownShuffleDescriptor;
@@ -133,7 +133,9 @@ public class TaskDeploymentDescriptorFactory {
             IntermediateResult consumedIntermediateResult = resultPartition.getIntermediateResult();
             SubpartitionIndexRange consumedSubpartitionRange =
                     computeConsumedSubpartitionRange(
-                            resultPartition, executionId.getSubtaskIndex());
+                            consumedPartitionGroup.getNumConsumers(),
+                            resultPartition,
+                            executionId.getSubtaskIndex());
 
             IntermediateDataSetID resultId = consumedIntermediateResult.getId();
             ResultPartitionType partitionType = consumedIntermediateResult.getResultType();
@@ -164,8 +166,9 @@ public class TaskDeploymentDescriptorFactory {
     }
 
     public static SubpartitionIndexRange computeConsumedSubpartitionRange(
-            IntermediateResultPartition resultPartition, int consumerSubtaskIndex) {
-        int numConsumers = resultPartition.getConsumerVertexGroup().size();
+            int numConsumers,
+            IntermediateResultPartition resultPartition,
+            int consumerSubtaskIndex) {
         int consumerIndex = consumerSubtaskIndex % numConsumers;
         IntermediateResult consumedIntermediateResult = resultPartition.getIntermediateResult();
         int numSubpartitions = resultPartition.getNumberOfSubpartitions();
@@ -254,7 +257,7 @@ public class TaskDeploymentDescriptorFactory {
     }
 
     public static TaskDeploymentDescriptorFactory fromExecution(Execution execution)
-            throws IOException, CachedIntermediateDataSetCorruptedException {
+            throws IOException, ClusterDatasetCorruptedException {
         final ExecutionVertex executionVertex = execution.getVertex();
         final InternalExecutionGraphAccessor internalExecutionGraphAccessor =
                 executionVertex.getExecutionGraphAccessor();
@@ -263,7 +266,7 @@ public class TaskDeploymentDescriptorFactory {
             clusterPartitionShuffleDescriptors =
                     getClusterPartitionShuffleDescriptors(executionVertex);
         } catch (Throwable e) {
-            throw new CachedIntermediateDataSetCorruptedException(
+            throw new ClusterDatasetCorruptedException(
                     e,
                     executionVertex
                             .getJobVertex()

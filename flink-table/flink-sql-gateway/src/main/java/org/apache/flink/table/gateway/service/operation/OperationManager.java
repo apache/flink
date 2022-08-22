@@ -23,7 +23,6 @@ import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.gateway.api.operation.OperationHandle;
 import org.apache.flink.table.gateway.api.operation.OperationStatus;
-import org.apache.flink.table.gateway.api.operation.OperationType;
 import org.apache.flink.table.gateway.api.results.FetchOrientation;
 import org.apache.flink.table.gateway.api.results.OperationInfo;
 import org.apache.flink.table.gateway.api.results.ResultSet;
@@ -80,17 +79,14 @@ public class OperationManager {
      * the lifecycle of the {@link Operation}, including register resources, fire the execution and
      * so on.
      *
-     * @param operationType The type of the submitted operation.
      * @param executor Worker to execute.
      * @return OperationHandle to fetch the results or check the status.
      */
-    public OperationHandle submitOperation(
-            OperationType operationType, Callable<ResultSet> executor) {
+    public OperationHandle submitOperation(Callable<ResultSet> executor) {
         OperationHandle handle = OperationHandle.create();
         Operation operation =
                 new Operation(
                         handle,
-                        operationType,
                         () -> {
                             ResultSet resultSet = executor.call();
                             return new ResultFetcher(
@@ -106,15 +102,13 @@ public class OperationManager {
      * lifecycle of the {@link Operation}, including register resources, fire the execution and so
      * on.
      *
-     * @param operationType The type of the submitted operation.
      * @param fetcherSupplier offer the fetcher to get the results.
      * @return OperationHandle to fetch the results or check the status.
      */
     public OperationHandle submitOperation(
-            OperationType operationType, Function<OperationHandle, ResultFetcher> fetcherSupplier) {
+            Function<OperationHandle, ResultFetcher> fetcherSupplier) {
         OperationHandle handle = OperationHandle.create();
-        Operation operation =
-                new Operation(handle, operationType, () -> fetcherSupplier.apply(handle));
+        Operation operation = new Operation(handle, () -> fetcherSupplier.apply(handle));
         submitOperationInternal(handle, operation);
         return handle;
     }
@@ -157,7 +151,8 @@ public class OperationManager {
      *
      * @param operationHandle identifies the {@link Operation}.
      */
-    public ResolvedSchema getOperationResultSchema(OperationHandle operationHandle) {
+    public ResolvedSchema getOperationResultSchema(OperationHandle operationHandle)
+            throws Exception {
         return getOperation(operationHandle).getResultSchema();
     }
 
@@ -209,24 +204,16 @@ public class OperationManager {
 
         private final OperationHandle operationHandle;
 
-        private final OperationType operationType;
-        private final boolean hasResults;
         private final AtomicReference<OperationStatus> status;
-
         private final Callable<ResultFetcher> resultSupplier;
 
         private volatile FutureTask<?> invocation;
         private volatile ResultFetcher resultFetcher;
         private volatile SqlExecutionException operationError;
 
-        public Operation(
-                OperationHandle operationHandle,
-                OperationType operationType,
-                Callable<ResultFetcher> resultSupplier) {
+        public Operation(OperationHandle operationHandle, Callable<ResultFetcher> resultSupplier) {
             this.operationHandle = operationHandle;
             this.status = new AtomicReference<>(OperationStatus.INITIALIZED);
-            this.operationType = operationType;
-            this.hasResults = true;
             this.resultSupplier = resultSupplier;
         }
 
@@ -251,6 +238,12 @@ public class OperationManager {
                                 runBefore();
                                 resultFetcher = resultSupplier.call();
                                 runAfter();
+                            } catch (InterruptedException e) {
+                                // User cancel the execution.
+                                LOG.error(
+                                        String.format(
+                                                "Operation %s is interrupted.", operationHandle),
+                                        e);
                             } catch (Throwable t) {
                                 processThrowable(t);
                             }
@@ -313,18 +306,26 @@ public class OperationManager {
             return fetchResultsInternal(() -> resultFetcher.fetchResults(orientation, maxRows));
         }
 
-        public ResolvedSchema getResultSchema() {
-            OperationStatus current = status.get();
-            if (current != OperationStatus.FINISHED || !hasResults) {
-                throw new IllegalStateException(
-                        "The result schema is available when the Operation is in FINISHED state and the Operation indicates it has data.");
+        public ResolvedSchema getResultSchema() throws Exception {
+            synchronized (status) {
+                while (!status.get().isTerminalStatus()) {
+                    status.wait();
+                }
             }
-
+            OperationStatus current = status.get();
+            if (current == OperationStatus.ERROR) {
+                throw operationError;
+            } else if (current != OperationStatus.FINISHED) {
+                throw new IllegalStateException(
+                        String.format(
+                                "The result schema is available when the Operation is in FINISHED state but the current status is %s.",
+                                status));
+            }
             return resultFetcher.getResultSchema();
         }
 
         public OperationInfo getOperationInfo() {
-            return new OperationInfo(status.get(), operationType, operationError);
+            return new OperationInfo(status.get(), operationError);
         }
 
         private ResultSet fetchResultsInternal(Supplier<ResultSet> results) {
@@ -360,6 +361,10 @@ public class OperationManager {
                     throw new SqlGatewayException(message);
                 }
             } while (!status.compareAndSet(currentStatus, toStatus));
+
+            synchronized (status) {
+                status.notifyAll();
+            }
 
             LOG.debug(
                     String.format(

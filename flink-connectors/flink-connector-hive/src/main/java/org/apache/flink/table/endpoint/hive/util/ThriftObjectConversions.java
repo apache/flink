@@ -22,6 +22,7 @@ import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.formats.common.TimestampFormat;
 import org.apache.flink.formats.json.JsonFormatOptions;
 import org.apache.flink.formats.json.RowDataToJsonConverters;
+import org.apache.flink.table.catalog.CatalogBaseTable.TableKind;
 import org.apache.flink.table.catalog.Column;
 import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.catalog.hive.util.HiveTypeUtil;
@@ -29,7 +30,6 @@ import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.gateway.api.SqlGatewayService;
 import org.apache.flink.table.gateway.api.operation.OperationHandle;
 import org.apache.flink.table.gateway.api.operation.OperationStatus;
-import org.apache.flink.table.gateway.api.operation.OperationType;
 import org.apache.flink.table.gateway.api.results.FetchOrientation;
 import org.apache.flink.table.gateway.api.session.SessionHandle;
 import org.apache.flink.table.types.DataType;
@@ -82,13 +82,19 @@ import org.apache.hive.service.rpc.thrift.TTypeEntry;
 import org.apache.hive.service.rpc.thrift.TTypeQualifierValue;
 import org.apache.hive.service.rpc.thrift.TTypeQualifiers;
 
+import javax.annotation.Nullable;
+
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.BitSet;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -103,6 +109,7 @@ public class ThriftObjectConversions {
     private static final RowDataToJsonConverters TO_JSON_CONVERTERS =
             new RowDataToJsonConverters(
                     TimestampFormat.SQL, JsonFormatOptions.MapNullKeyMode.LITERAL, "null");
+    private static final Map<String, TableKind> TABLE_TYPE_MAPPINGS = buildTableTypeMapping();
 
     // --------------------------------------------------------------------------------------------
     // Flink SessionHandle from/to Hive SessionHandle
@@ -135,10 +142,10 @@ public class ThriftObjectConversions {
     public static TOperationHandle toTOperationHandle(
             SessionHandle sessionHandle,
             OperationHandle operationHandle,
-            OperationType operationType) {
+            TOperationType operationType) {
         return new TOperationHandle(
                 toTHandleIdentifier(operationHandle.getIdentifier(), sessionHandle.getIdentifier()),
-                toTOperationType(operationType),
+                operationType,
                 true);
     }
 
@@ -155,18 +162,6 @@ public class ThriftObjectConversions {
     // --------------------------------------------------------------------------------------------
     // Operation related conversions
     // --------------------------------------------------------------------------------------------
-
-    public static TOperationType toTOperationType(OperationType type) {
-        switch (type) {
-            case EXECUTE_STATEMENT:
-                return TOperationType.EXECUTE_STATEMENT;
-            case UNKNOWN:
-                return TOperationType.UNKNOWN;
-            default:
-                throw new IllegalArgumentException(
-                        String.format("Unknown operation type: %s.", type));
-        }
-    }
 
     public static TOperationState toTOperationState(OperationStatus operationStatus) {
         switch (operationStatus) {
@@ -267,6 +262,30 @@ public class ThriftObjectConversions {
         } else {
             return toColumnBasedSet(fieldTypes, fieldGetters, data);
         }
+    }
+
+    // --------------------------------------------------------------------------------------------
+    // Catalog API related conversions
+    // --------------------------------------------------------------------------------------------
+
+    /** Counterpart of the {@code org.apache.hive.service.cli.operation.TableTypeMapping}. */
+    public static Set<TableKind> toFlinkTableKinds(@Nullable List<String> tableTypes) {
+        Set<TableKind> tableKinds = new HashSet<>();
+        if (tableTypes == null || tableTypes.isEmpty()) {
+            tableKinds.addAll(Arrays.asList(TableKind.values()));
+            return tableKinds;
+        }
+
+        for (String tableType : tableTypes) {
+            if (!TABLE_TYPE_MAPPINGS.containsKey(tableType)) {
+                throw new UnsupportedOperationException(
+                        String.format(
+                                "Can not find the mapping from the TableType '%s' to the Flink TableKind. Please remove it from the specified tableTypes.",
+                                tableType));
+            }
+            tableKinds.add(TABLE_TYPE_MAPPINGS.get(tableType));
+        }
+        return tableKinds;
     }
 
     public static TStatus toTStatus(Throwable t) {
@@ -563,6 +582,21 @@ public class ThriftObjectConversions {
                 return node.toString();
             }
         };
+    }
+
+    private static Map<String, TableKind> buildTableTypeMapping() {
+        Map<String, TableKind> mappings = new ConcurrentHashMap<>();
+        // Add {@code org.apache.hive.service.cli.operation.ClassicTableTypeMapping }
+        mappings.put("TABLE", TableKind.TABLE);
+        mappings.put("VIEW", TableKind.VIEW);
+        // Add {@code org.apache.hive.service.cli.operation.HiveTableTypeMapping }
+        // Use literal string instead of org.apache.hadoop.hive.metastore.TableType because hive may
+        // remove some members of this enum class
+        mappings.put("MANAGED_TABLE", TableKind.TABLE);
+        mappings.put("EXTERNAL_TABLE", TableKind.TABLE);
+        mappings.put("INDEX_TABLE", TableKind.TABLE);
+        mappings.put("VIRTUAL_VIEW", TableKind.VIEW);
+        return mappings;
     }
 
     /**

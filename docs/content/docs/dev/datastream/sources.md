@@ -42,8 +42,8 @@ A Data Source has three core components: *Splits*, the *SplitEnumerator*, and th
   - The **SourceReader** requests *Splits* and processes them, for example by reading the file or log partition represented by the *Split*. The *SourceReader* run in parallel on the Task Managers in the `SourceOperators` and produces the parallel stream of events/records.
 
   - The **SplitEnumerator** generates the *Splits* and assigns them to the *SourceReaders*. It runs as a single instance on the Job Manager and is responsible for maintaining the backlog of pending *Splits* and assigning them to the readers in a balanced manner.
-  
-The [Source](https://github.com/apache/flink/blob/master/flink-core/src/main/java/org/apache/flink/api/connector/source/Source.java) class is API entry point that ties the above three components together.
+
+The {{< gh_link file="flink-core/src/main/java/org/apache/flink/api/connector/source/Source.java" name="Source" >}} class is API entry point that ties the above three components together.
 
 {{< img src="/fig/source_components.svg" alt="Illustration of SplitEnumerator and SourceReader interacting" width="70%" >}}
 
@@ -88,19 +88,19 @@ Same as above, except that each Split (Topic Partition) has a defined end offset
 This section describes the major interfaces of the new Source API introduced in FLIP-27, and provides tips to the developers on the Source development. 
 
 ### Source
-The [Source](https://github.com/apache/flink/blob/master/flink-core/src/main/java/org/apache/flink/api/connector/source/Source.java) API is a factory style interface to create the following components.
+The {{< gh_link file="flink-core/src/main/java/org/apache/flink/api/connector/source/Source.java" name="Source" >}} API is a factory style interface to create the following components.
 
   - *Split Enumerator*
   - *Source Reader*
   - *Split Serializer*
   - *Enumerator Checkpoint Serializer*
   
-In addition to that, the Source provides the [boundedness](https://github.com/apache/flink/blob/master/flink-core/src/main/java/org/apache/flink/api/connector/source/Boundedness.java) attribute of the source, so that Flink can choose appropriate mode to run the Flink jobs.
+In addition to that, the Source provides the {{< gh_link file="flink-core/src/main/java/org/apache/flink/api/connector/source/Boundedness.java" name="boundedness" >}} attribute of the source, so that Flink can choose appropriate mode to run the Flink jobs.
 
 The Source implementations should be serializable as the Source instances are serialized and uploaded to the Flink cluster at runtime.
 
 ### SplitEnumerator
-The [SplitEnumerator](https://github.com/apache/flink/blob/master/flink-core/src/main/java/org/apache/flink/api/connector/source/SplitEnumerator.java) is expected to be the "brain" of the Source. Typical implementations of the `SplitEnumerator` do the following:
+The {{< gh_link file="flink-core/src/main/java/org/apache/flink/api/connector/source/SplitEnumerator.java" name="SplitEnumerator" >}} is expected to be the "brain" of the Source. Typical implementations of the `SplitEnumerator` do the following:
 
   - `SourceReader` registration handling
   - `SourceReader` failure handling
@@ -110,7 +110,7 @@ The [SplitEnumerator](https://github.com/apache/flink/blob/master/flink-core/src
   - Split discovery and assignment
     - The `SplitEnumerator` can assign splits to the `SourceReader`s in response to various events, including discovery of new splits, new `SourceReader` registration, `SourceReader` failure, etc.
 
-A `SplitEnumerator` can accomplish the above work with the help of the [SplitEnumeratorContext](https://github.com/apache/flink/blob/master/flink-core/src/main/java/org/apache/flink/api/connector/source/SplitEnumeratorContext.java) which is provided to the `Source` on creation or restore of the `SplitEnumerator`. 
+A `SplitEnumerator` can accomplish the above work with the help of the {{< gh_link file="flink-core/src/main/java/org/apache/flink/api/connector/source/SplitEnumeratorContext.java" name="SplitEnumeratorContext" >}} which is provided to the `Source` on creation or restore of the `SplitEnumerator`. 
 The `SplitEnumeratorContext` allows a `SplitEnumerator` to retrieve necessary information of the readers and perform coordination actions.
 The `Source` implementation is expected to pass the `SplitEnumeratorContext` to the `SplitEnumerator` instance. 
 
@@ -155,7 +155,7 @@ Still not supported in Python API.
 
 ### SourceReader
 
-The [SourceReader](https://github.com/apache/flink/blob/master/flink-core/src/main/java/org/apache/flink/api/connector/source/SourceReader.java) is a component running in the Task Managers to consume the records from the Splits. 
+The {{< gh_link file="flink-core/src/main/java/org/apache/flink/api/connector/source/SourceReader.java" name="SourceReader" >}} is a component running in the Task Managers to consume the records from the Splits. 
 
 The `SourceReader` exposes a pull-based consumption interface. A Flink task keeps calling `pollNext(ReaderOutput)` in a loop to poll records from the `SourceReader`. The return value of the `pollNext(ReaderOutput)` method indicates the status of the source reader.
 
@@ -170,7 +170,7 @@ All the state of a `SourceReader` should be maintained inside the `SourceSplit`s
 
 A `SourceReaderContext` is provided to the `Source` upon a `SourceReader` creation. It is expected that the `Source` will pass the context to the `SourceReader` instance. The `SourceReader` can send `SourceEvent` to its `SplitEnumerator` through the `SourceReaderContext`. A typical design pattern of the `Source` is letting the `SourceReader`s report their local information to the `SplitEnumerator` who has a global view to make decisions.
 
-The `SourceReader` API is a low level API that allows users to deal with the splits manually and have their own threading model to fetch and handover the records. To facilitate the `SourceReader` implementation, Flink has provided a [SourceReaderBase](https://github.com/apache/flink/blob/master/flink-connectors/flink-connector-base/src/main/java/org/apache/flink/connector/base/source/reader/SourceReaderBase.java) class which significantly reduces the amount the work needed to write a `SourceReader`.
+The `SourceReader` API is a low level API that allows users to deal with the splits manually and have their own threading model to fetch and handover the records. To facilitate the `SourceReader` implementation, Flink has provided a {{< gh_link file="flink-connectors/flink-connector-base/src/main/java/org/apache/flink/connector/base/source/reader/SourceReaderBase.java" name="SourceReaderBase" >}} class which significantly reduces the amount the work needed to write a `SourceReader`.
 **It is highly recommended for the connector developers to take advantage of the `SourceReaderBase` instead of writing the `SourceReader`s from scratch**. For more details please check the [Split Reader API](#the-split-reader-api) section.
 
 ### Use the Source
@@ -224,14 +224,14 @@ env.from_source(
 The core SourceReader API is fully asynchronous and requires implementations to manage asynchronous split reading manually.
 However, in practice, most sources perform blocking operations, like blocking *poll()* calls on clients (for example the `KafkaConsumer`), or blocking I/O operations on distributed file systems (HDFS, S3, ...). To make this compatible with the asynchronous Source API, these blocking (synchronous) operations need to happen in separate threads, which hand over the data to the asynchronous part of the reader.
 
-The [SplitReader](https://github.com/apache/flink/blob/master/flink-connectors/flink-connector-base/src/main/java/org/apache/flink/connector/base/source/reader/splitreader/SplitReader.java) is the high-level API for simple synchronous reading/polling-based source implementations, like file reading, Kafka, etc.
+The {{< gh_link file="flink-connectors/flink-connector-base/src/main/java/org/apache/flink/connector/base/source/reader/splitreader/SplitReader.java" name="SplitReader" >}} is the high-level API for simple synchronous reading/polling-based source implementations, like file reading, Kafka, etc.
 
 The core is the `SourceReaderBase` class, which takes a `SplitReader` and creates fetcher threads running the SplitReader, supporting different consumption threading models.
 
 ### SplitReader
 
 The `SplitReader` API only has three methods:
-  - A blocking fetch method to return a [RecordsWithSplitIds](https://github.com/apache/flink/blob/master/flink-connectors/flink-connector-base/src/main/java/org/apache/flink/connector/base/source/reader/RecordsWithSplitIds.java)
+  - A blocking fetch method to return a {{< gh_link file="flink-connectors/flink-connector-base/src/main/java/org/apache/flink/connector/base/source/reader/RecordsWithSplitIds.java" name="RecordsWithSplitIds" >}}
   - A non-blocking method to handle split changes.
   - A non-blocking wake up method to wake up the blocking fetch operation.
 
@@ -247,12 +247,12 @@ It is quite common that a `SourceReader` implementation does the following:
   - Maintain the per split watermark for watermark alignment.
   - Maintain the state of each split for checkpoint.
   
-In order to reduce the work of writing a new `SourceReader`, Flink provides a [SourceReaderBase](https://github.com/apache/flink/blob/master/flink-connectors/flink-connector-base/src/main/java/org/apache/flink/connector/base/source/reader/SourceReaderBase.java) class to serve as a base implementation of the `SourceReader`. 
-`SourceReaderBase` has all the above work done out of the box. To write a new `SourceReader`, one can just let the `SourceReader` implementation inherit from the `SourceReaderBase`, fill in a few methods and implement a high level [SplitReader](https://github.com/apache/flink/blob/master/flink-connectors/flink-connector-base/src/main/java/org/apache/flink/connector/base/source/reader/splitreader/SplitReader.java).
+In order to reduce the work of writing a new `SourceReader`, Flink provides a {{< gh_link file="flink-connectors/flink-connector-base/src/main/java/org/apache/flink/connector/base/source/reader/SourceReaderBase.java" name="SourceReaderBase" >}} class to serve as a base implementation of the `SourceReader`. 
+`SourceReaderBase` has all the above work done out of the box. To write a new `SourceReader`, one can just let the `SourceReader` implementation inherit from the `SourceReaderBase`, fill in a few methods and implement a high level {{< gh_link file="flink-connectors/flink-connector-base/src/main/java/org/apache/flink/connector/base/source/reader/splitreader/SplitReader.java" name="SplitReader" >}}.
 
 ### SplitFetcherManager
 
-The `SourceReaderBase` supports a few threading models out of the box, depending on the behavior of the [SplitFetcherManager](https://github.com/apache/flink/blob/master/flink-connectors/flink-connector-base/src/main/java/org/apache/flink/connector/base/source/reader/fetcher/SplitFetcherManager.java) it works with.
+The `SourceReaderBase` supports a few threading models out of the box, depending on the behavior of the {{< gh_link file="flink-connectors/flink-connector-base/src/main/java/org/apache/flink/connector/base/source/reader/fetcher/SplitFetcherManager.java" name="SplitFetcherManager" >}} it works with.
 The `SplitFetcherManager` helps create and maintain a pool of `SplitFetcher`s each fetching with a `SplitReader`. It also determines how to assign splits to each split fetcher.
 
 As an example, as illustrated below, a `SplitFetcherManager` may have a fixed number of threads, each fetching from some splits assigned to the `SourceReader`.
@@ -369,12 +369,12 @@ The `SourceReader` implementations can also implement their own threading model 
 *Event Time* assignment and *Watermark Generation* happen as part of the data sources. The event streams leaving the Source Readers have event timestamps and (during streaming execution) contain watermarks. See [Timely Stream Processing]({{< ref "docs/concepts/time" >}}) for an introduction to Event Time and Watermarks.
 
 {{< hint warning >}}
-Applications based on the legacy [SourceFunction](https://github.com/apache/flink/blob/master/flink-streaming-java/src/main/java/org/apache/flink/streaming/api/functions/source/SourceFunction.java) typically generate timestamps and watermarks in a separate later step via `stream.assignTimestampsAndWatermarks(WatermarkStrategy)`. This function should not be used with the new sources, because timestamps will be already assigned, and it will override the previous split-aware watermarks.
+Applications based on the legacy {{< gh_link file="flink-streaming-java/src/main/java/org/apache/flink/streaming/api/functions/source/SourceFunction.java" name="SourceFunction" >}} typically generate timestamps and watermarks in a separate later step via `stream.assignTimestampsAndWatermarks(WatermarkStrategy)`. This function should not be used with the new sources, because timestamps will be already assigned, and it will override the previous split-aware watermarks.
 {{< /hint >}}
 
 #### API
 
-The `WatermarkStrategy` is passed to the Source during creation in the DataStream API and creates both the [TimestampAssigner](https://github.com/apache/flink/blob/master/flink-core/src/main/java/org/apache/flink/api/common/eventtime/TimestampAssigner.java) and [WatermarkGenerator](https://github.com/apache/flink/blob/master/flink-core/src/main/java/org/apache/flink/api/common/eventtime/WatermarkGenerator.java).
+The `WatermarkStrategy` is passed to the Source during creation in the DataStream API and creates both the {{< gh_link file="flink-core/src/main/java/org/apache/flink/api/common/eventtime/TimestampAssigner.java" name="TimestampAssigner" >}} and {{< gh_link file="flink-core/src/main/java/org/apache/flink/api/common/eventtime/WatermarkGenerator.java" name="WatermarkGenerator" >}}.
 
 {{< tabs "bde5ff60-4e61-4633-a6dc-50524acb7b36" >}}
 {{< tab "Java" >}}
@@ -424,4 +424,4 @@ The data source API supports running watermark generators individually *per spli
 
 When implementing a source connector using the *Split Reader API*, this is automatically handled. All implementations based on the Split Reader API have split-aware watermarks out-of-the-box.
 
-For an implementation of the lower level `SourceReader` API to use split-aware watermark generation, the implementation must output events from different splits to different outputs: the *Split-local SourceOutputs*. Split-local outputs can be created and released on the main [ReaderOutput](https://github.com/apache/flink/blob/master/flink-core/src/main/java/org/apache/flink/api/connector/source/ReaderOutput.java) via the `createOutputForSplit(splitId)` and `releaseOutputForSplit(splitId)` methods. Please refer to the JavaDocs of the class and methods for details.
+For an implementation of the lower level `SourceReader` API to use split-aware watermark generation, the implementation must output events from different splits to different outputs: the *Split-local SourceOutputs*. Split-local outputs can be created and released on the main {{< gh_link file="flink-core/src/main/java/org/apache/flink/api/connector/source/ReaderOutput.java" name="ReaderOutput" >}} via the `createOutputForSplit(splitId)` and `releaseOutputForSplit(splitId)` methods. Please refer to the JavaDocs of the class and methods for details.

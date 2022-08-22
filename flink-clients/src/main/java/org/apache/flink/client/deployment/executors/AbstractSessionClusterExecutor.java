@@ -27,13 +27,17 @@ import org.apache.flink.client.deployment.ClusterDescriptor;
 import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.client.program.ClusterClientProvider;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.core.execution.CacheSupportedPipelineExecutor;
 import org.apache.flink.core.execution.JobClient;
 import org.apache.flink.core.execution.PipelineExecutor;
+import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.util.AbstractID;
 import org.apache.flink.util.function.FunctionUtils;
 
 import javax.annotation.Nonnull;
 
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -50,7 +54,7 @@ import static org.apache.flink.util.Preconditions.checkState;
 @Internal
 public class AbstractSessionClusterExecutor<
                 ClusterID, ClientFactory extends ClusterClientFactory<ClusterID>>
-        implements PipelineExecutor {
+        implements CacheSupportedPipelineExecutor {
 
     private final ClientFactory clusterClientFactory;
 
@@ -93,6 +97,44 @@ public class AbstractSessionClusterExecutor<
                                                     jobID,
                                                     userCodeClassloader))
                     .whenCompleteAsync((ignored1, ignored2) -> clusterClient.close());
+        }
+    }
+
+    @Override
+    public CompletableFuture<Set<AbstractID>> listCompletedClusterDatasetIds(
+            Configuration configuration, ClassLoader userCodeClassloader) throws Exception {
+
+        try (final ClusterDescriptor<ClusterID> clusterDescriptor =
+                clusterClientFactory.createClusterDescriptor(configuration)) {
+            final ClusterID clusterID = clusterClientFactory.getClusterId(configuration);
+            checkState(clusterID != null);
+
+            final ClusterClientProvider<ClusterID> clusterClientProvider =
+                    clusterDescriptor.retrieve(clusterID);
+
+            final ClusterClient<ClusterID> clusterClient = clusterClientProvider.getClusterClient();
+            return clusterClient.listCompletedClusterDatasetIds();
+        }
+    }
+
+    @Override
+    public CompletableFuture<Void> invalidateClusterDataset(
+            AbstractID clusterDatasetId,
+            Configuration configuration,
+            ClassLoader userCodeClassloader)
+            throws Exception {
+        try (final ClusterDescriptor<ClusterID> clusterDescriptor =
+                clusterClientFactory.createClusterDescriptor(configuration)) {
+            final ClusterID clusterID = clusterClientFactory.getClusterId(configuration);
+            checkState(clusterID != null);
+
+            final ClusterClientProvider<ClusterID> clusterClientProvider =
+                    clusterDescriptor.retrieve(clusterID);
+
+            final ClusterClient<ClusterID> clusterClient = clusterClientProvider.getClusterClient();
+            return clusterClient
+                    .invalidateClusterDataset(new IntermediateDataSetID(clusterDatasetId))
+                    .thenCompose(acknowledge -> null);
         }
     }
 }

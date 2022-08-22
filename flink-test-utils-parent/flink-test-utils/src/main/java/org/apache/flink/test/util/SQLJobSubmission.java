@@ -21,18 +21,32 @@ package org.apache.flink.test.util;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.function.Consumer;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /** Programmatic definition of a SQL job-submission. */
 public class SQLJobSubmission {
 
+    private final ClientMode clientMode;
     private final List<String> sqlLines;
     private final List<String> jars;
+    private final Consumer<Map<String, String>> envProcessor;
 
-    private SQLJobSubmission(List<String> sqlLines, List<String> jars) {
+    private SQLJobSubmission(
+            ClientMode clientMode,
+            List<String> sqlLines,
+            List<String> jars,
+            Consumer<Map<String, String>> envProcessor) {
+        this.clientMode = clientMode;
         this.sqlLines = checkNotNull(sqlLines);
         this.jars = checkNotNull(jars);
+        this.envProcessor = envProcessor;
+    }
+
+    public ClientMode getClientMode() {
+        return clientMode;
     }
 
     public List<String> getJars() {
@@ -43,13 +57,25 @@ public class SQLJobSubmission {
         return this.sqlLines;
     }
 
+    public Consumer<Map<String, String>> getEnvProcessor() {
+        return envProcessor;
+    }
+
     /** Builder for the {@link SQLJobSubmission}. */
     public static class SQLJobSubmissionBuilder {
+        private ClientMode clientMode = ClientMode.SQL_CLIENT;
         private final List<String> sqlLines;
         private final List<String> jars = new ArrayList<>();
 
+        private Consumer<Map<String, String>> envProcessor = map -> {};
+
         public SQLJobSubmissionBuilder(List<String> sqlLines) {
             this.sqlLines = sqlLines;
+        }
+
+        public SQLJobSubmissionBuilder setClientMode(ClientMode clientMode) {
+            this.clientMode = clientMode;
+            return this;
         }
 
         public SQLJobSubmissionBuilder addJar(Path jarFile) {
@@ -69,8 +95,20 @@ public class SQLJobSubmission {
             return this;
         }
 
-        public SQLJobSubmission build() {
-            return new SQLJobSubmission(sqlLines, jars);
+        public SQLJobSubmissionBuilder setEnvProcessor(Consumer<Map<String, String>> envProcessor) {
+            this.envProcessor = envProcessor;
+            return this;
         }
+
+        public SQLJobSubmission build() {
+            return new SQLJobSubmission(clientMode, sqlLines, jars, envProcessor);
+        }
+    }
+
+    /** Use which client to submit job. */
+    public enum ClientMode {
+        SQL_CLIENT,
+
+        HIVE_JDBC
     }
 }

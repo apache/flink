@@ -87,7 +87,6 @@ import java.util.concurrent.Executor;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
-import java.util.function.Consumer;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
@@ -878,20 +877,12 @@ public class CheckpointCoordinatorTestingUtils {
 
     static final class MockOperatorCheckpointCoordinatorContextBuilder {
         private BiConsumer<Long, CompletableFuture<byte[]>> onCallingCheckpointCoordinator = null;
-        private Consumer<Long> onCallingAfterSourceBarrierInjection = null;
         private Runnable onCallingAbortCurrentTriggering = null;
         private OperatorID operatorID = null;
 
         public MockOperatorCheckpointCoordinatorContextBuilder setOnCallingCheckpointCoordinator(
                 BiConsumer<Long, CompletableFuture<byte[]>> onCallingCheckpointCoordinator) {
             this.onCallingCheckpointCoordinator = onCallingCheckpointCoordinator;
-            return this;
-        }
-
-        public MockOperatorCheckpointCoordinatorContextBuilder
-                setOnCallingAfterSourceBarrierInjection(
-                        Consumer<Long> onCallingAfterSourceBarrierInjection) {
-            this.onCallingAfterSourceBarrierInjection = onCallingAfterSourceBarrierInjection;
             return this;
         }
 
@@ -909,10 +900,7 @@ public class CheckpointCoordinatorTestingUtils {
 
         public MockOperatorCoordinatorCheckpointContext build() {
             return new MockOperatorCoordinatorCheckpointContext(
-                    onCallingCheckpointCoordinator,
-                    onCallingAfterSourceBarrierInjection,
-                    onCallingAbortCurrentTriggering,
-                    operatorID);
+                    onCallingCheckpointCoordinator, onCallingAbortCurrentTriggering, operatorID);
         }
     }
 
@@ -925,7 +913,6 @@ public class CheckpointCoordinatorTestingUtils {
     public static final class MockOperatorCoordinatorCheckpointContext
             implements OperatorCoordinatorCheckpointContext {
         private final BiConsumer<Long, CompletableFuture<byte[]>> onCallingCheckpointCoordinator;
-        private final Consumer<Long> onCallingAfterSourceBarrierInjection;
         private final Runnable onCallingAbortCurrentTriggering;
         private final OperatorID operatorID;
         private final List<Long> completedCheckpoints;
@@ -933,11 +920,9 @@ public class CheckpointCoordinatorTestingUtils {
 
         private MockOperatorCoordinatorCheckpointContext(
                 BiConsumer<Long, CompletableFuture<byte[]>> onCallingCheckpointCoordinator,
-                Consumer<Long> onCallingAfterSourceBarrierInjection,
                 Runnable onCallingAbortCurrentTriggering,
                 OperatorID operatorID) {
             this.onCallingCheckpointCoordinator = onCallingCheckpointCoordinator;
-            this.onCallingAfterSourceBarrierInjection = onCallingAfterSourceBarrierInjection;
             this.onCallingAbortCurrentTriggering = onCallingAbortCurrentTriggering;
             this.operatorID = operatorID;
             this.completedCheckpoints = new ArrayList<>();
@@ -949,13 +934,6 @@ public class CheckpointCoordinatorTestingUtils {
                 throws Exception {
             if (onCallingCheckpointCoordinator != null) {
                 onCallingCheckpointCoordinator.accept(checkpointId, result);
-            }
-        }
-
-        @Override
-        public void afterSourceBarrierInjection(long checkpointId) {
-            if (onCallingAfterSourceBarrierInjection != null) {
-                onCallingAfterSourceBarrierInjection.accept(checkpointId);
             }
         }
 

@@ -24,12 +24,12 @@ import org.apache.flink.runtime.scheduler.SchedulerOperations;
 import org.apache.flink.runtime.scheduler.SchedulingTopologyListener;
 import org.apache.flink.util.IterableUtils;
 
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -85,11 +85,9 @@ public class VertexwiseSchedulingStrategy
 
             Set<ExecutionVertexID> consumerVertices =
                     IterableUtils.toStream(executionVertex.getProducedResults())
-                            .map(SchedulingResultPartition::getConsumerVertexGroup)
-                            .filter(Optional::isPresent)
-                            .flatMap(
-                                    consumerVertexGroup ->
-                                            IterableUtils.toStream(consumerVertexGroup.get()))
+                            .map(SchedulingResultPartition::getConsumerVertexGroups)
+                            .flatMap(Collection::stream)
+                            .flatMap(IterableUtils::toStream)
                             .collect(Collectors.toSet());
 
             maybeScheduleVertices(consumerVertices);

@@ -18,8 +18,8 @@
 package org.apache.flink.table.planner.plan.rules
 
 import org.apache.flink.table.planner.plan.nodes.logical._
-import org.apache.flink.table.planner.plan.rules.logical.{RemoveUnreachableCoalesceArgumentsRule, _}
-import org.apache.flink.table.planner.plan.rules.physical.{batch, FlinkExpandConversionRule}
+import org.apache.flink.table.planner.plan.rules.logical._
+import org.apache.flink.table.planner.plan.rules.physical.FlinkExpandConversionRule
 import org.apache.flink.table.planner.plan.rules.physical.batch._
 
 import org.apache.calcite.rel.core.RelFactories
@@ -116,6 +116,8 @@ object FlinkBatchRuleSets {
         ConvertToNotInOrInRule.INSTANCE,
         // optimize limit 0
         FlinkLimit0RemoveRule.INSTANCE,
+        // fix: FLINK-28986 nested filter pattern causes unnest rule mismatch
+        CoreRules.FILTER_MERGE,
         // unnest rule
         LogicalUnnestRule.INSTANCE,
         // Wrap arguments for JSON aggregate functions
@@ -125,9 +127,9 @@ object FlinkBatchRuleSets {
   /** RuleSet about filter */
   private val FILTER_RULES: RuleSet = RuleSets.ofList(
     // push a filter into a join
-    CoreRules.FILTER_INTO_JOIN,
+    FlinkFilterJoinRule.FILTER_INTO_JOIN,
     // push filter into the children of a join
-    CoreRules.JOIN_CONDITION_PUSH,
+    FlinkFilterJoinRule.JOIN_CONDITION_PUSH,
     // push filter through an aggregation
     CoreRules.FILTER_AGGREGATE_TRANSPOSE,
     // push a filter past a project
@@ -214,7 +216,7 @@ object FlinkBatchRuleSets {
 
   val JOIN_REORDER_PREPARE_RULES: RuleSet = RuleSets.ofList(
     // merge join to MultiJoin
-    CoreRules.JOIN_TO_MULTI_JOIN,
+    FlinkJoinToMultiJoinRule.INSTANCE,
     // merge project to MultiJoin
     CoreRules.PROJECT_MULTI_JOIN_MERGE,
     // merge filter to MultiJoin
@@ -430,13 +432,18 @@ object FlinkBatchRuleSets {
 
   /** RuleSet to optimize plans after batch exec execution. */
   val PHYSICAL_REWRITE: RuleSet = RuleSets.ofList(
-    EnforceLocalHashAggRule.INSTANCE,
-    EnforceLocalSortAggRule.INSTANCE,
-    PushLocalHashAggIntoScanRule.INSTANCE,
-    PushLocalHashAggWithCalcIntoScanRule.INSTANCE,
-    PushLocalSortAggIntoScanRule.INSTANCE,
-    PushLocalSortAggWithSortIntoScanRule.INSTANCE,
-    PushLocalSortAggWithCalcIntoScanRule.INSTANCE,
-    PushLocalSortAggWithSortAndCalcIntoScanRule.INSTANCE
+    (RuleSets
+      .ofList(
+        EnforceLocalHashAggRule.INSTANCE,
+        EnforceLocalSortAggRule.INSTANCE,
+        PushLocalHashAggIntoScanRule.INSTANCE,
+        PushLocalHashAggWithCalcIntoScanRule.INSTANCE,
+        PushLocalSortAggIntoScanRule.INSTANCE,
+        PushLocalSortAggWithSortIntoScanRule.INSTANCE,
+        PushLocalSortAggWithCalcIntoScanRule.INSTANCE,
+        PushLocalSortAggWithSortAndCalcIntoScanRule.INSTANCE
+      )
+      .asScala ++
+      DynamicPartitionPruningRule.DYNAMIC_PARTITION_PRUNING_RULES.asScala).asJava
   )
 }

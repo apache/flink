@@ -39,6 +39,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import static org.apache.flink.runtime.io.network.partition.hybrid.HybridShuffleTestUtils.createTestingOutputMetrics;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link HsMemoryDataManager}. */
@@ -193,28 +194,24 @@ class HsMemoryDataManagerTest {
 
     private HsMemoryDataManager createMemoryDataManager(HsSpillingStrategy spillStrategy)
             throws Exception {
-        NetworkBufferPool networkBufferPool = new NetworkBufferPool(NUM_BUFFERS, bufferSize);
-        BufferPool bufferPool = networkBufferPool.createBufferPool(poolSize, poolSize);
-        return new HsMemoryDataManager(
-                NUM_SUBPARTITIONS,
-                bufferSize,
-                bufferPool,
-                spillStrategy,
-                new HsFileDataIndexImpl(NUM_SUBPARTITIONS),
-                dataFilePath);
+        return createMemoryDataManager(spillStrategy, new HsFileDataIndexImpl(NUM_SUBPARTITIONS));
     }
 
     private HsMemoryDataManager createMemoryDataManager(
             HsSpillingStrategy spillStrategy, HsFileDataIndex fileDataIndex) throws Exception {
         NetworkBufferPool networkBufferPool = new NetworkBufferPool(NUM_BUFFERS, bufferSize);
         BufferPool bufferPool = networkBufferPool.createBufferPool(poolSize, poolSize);
-        return new HsMemoryDataManager(
-                NUM_SUBPARTITIONS,
-                bufferSize,
-                bufferPool,
-                spillStrategy,
-                fileDataIndex,
-                dataFilePath);
+        HsMemoryDataManager memoryDataManager =
+                new HsMemoryDataManager(
+                        NUM_SUBPARTITIONS,
+                        bufferSize,
+                        bufferPool,
+                        spillStrategy,
+                        fileDataIndex,
+                        dataFilePath,
+                        null);
+        memoryDataManager.setOutputMetrics(createTestingOutputMetrics());
+        return memoryDataManager;
     }
 
     private static ByteBuffer createRecord(int value) {

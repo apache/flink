@@ -36,7 +36,7 @@ public interface ExecNodeTranslator<T> {
      *
      * <p>NOTE: This method should return same translate result if called multiple times.
      *
-     * @param planner The {@link Planner} of the translated Table.
+     * @param planner The {@link Planner} of the translated graph.
      */
     Transformation<T> translateToPlan(Planner planner);
 }

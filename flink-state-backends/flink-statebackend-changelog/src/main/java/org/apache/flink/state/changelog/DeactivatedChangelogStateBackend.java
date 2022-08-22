@@ -66,8 +66,11 @@ public class DeactivatedChangelogStateBackend extends AbstractChangelogStateBack
         // So we need to rebound the checkpoint id to the real checkpoint id here.
         stateBackendHandles = reboundCheckpoint(stateBackendHandles);
         ChangelogStateFactory changelogStateFactory = new ChangelogStateFactory();
+
         return ChangelogBackendRestoreOperation.restore(
+                env.getTaskManagerInfo().getConfiguration(),
                 env.getUserCodeClassLoader().asClassLoader(),
+                env.getTaskStateManager(),
                 stateBackendHandles,
                 baseBackendBuilder,
                 (baseBackend, baseState) ->

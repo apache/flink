@@ -20,6 +20,7 @@ package org.apache.flink.table.catalog.stats;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Objects;
 
 /** Column statistics value of string type. */
 public class CatalogColumnStatisticsDataString extends CatalogColumnStatisticsDataBase {
@@ -67,5 +68,39 @@ public class CatalogColumnStatisticsDataString extends CatalogColumnStatisticsDa
     public CatalogColumnStatisticsDataString copy() {
         return new CatalogColumnStatisticsDataString(
                 maxLength, avgLength, ndv, getNullCount(), new HashMap<>(getProperties()));
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
+        CatalogColumnStatisticsDataString that = (CatalogColumnStatisticsDataString) o;
+        return Objects.equals(maxLength, that.maxLength)
+                && Objects.equals(avgLength, that.avgLength)
+                && Objects.equals(ndv, that.ndv)
+                && Objects.equals(getNullCount(), that.getNullCount());
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(maxLength, avgLength, ndv, getNullCount());
+    }
+
+    @Override
+    public String toString() {
+        return "CatalogColumnStatisticsDataString{"
+                + "maxLength="
+                + maxLength
+                + ", avgLength="
+                + avgLength
+                + ", ndv="
+                + ndv
+                + ", nullCount="
+                + getNullCount()
+                + '}';
     }
 }

@@ -220,7 +220,7 @@ public class MetadataV3SerializerTest {
 
         CheckpointMetadata metadata =
                 new CheckpointMetadata(checkpointId, operatorStates, masterStates);
-        MetadataV3Serializer.serialize(metadata, out);
+        MetadataV3Serializer.INSTANCE.serialize(metadata, out);
         out.close();
 
         // The relative pointer resolution in MetadataV2V3SerializerBase currently runs the same

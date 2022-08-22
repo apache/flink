@@ -34,6 +34,8 @@ Pulsar Source 当前支持 Pulsar 2.8.1 之后的版本，但是 Pulsar Source �
 
 {{< artifact flink-connector-pulsar >}}
 
+{{< py_download_link "pulsar" >}}
+
 Flink 的流连接器并不会放到发行文件里面一同发布，阅读[此文档]({{< ref "docs/dev/configuration/overview" >}})，了解如何将连接器添加到集群实例内。
 
 ## Pulsar Source
@@ -320,6 +322,7 @@ Pulsar Source 使用 `setStartCursor(StartCursor)` 方法给定开始消费的�
   ```
   {{< /tab >}}
   {{< /tabs >}}
+
 - 与前者不同的是，给定的消息可以跳过，再进行消费。
   {{< tabs "pulsar-starting-position-from-message-id-bool" >}}
   {{< tab "Java" >}}
@@ -333,7 +336,8 @@ Pulsar Source 使用 `setStartCursor(StartCursor)` 方法给定开始消费的�
   ```
   {{< /tab >}}
   {{< /tabs >}}
-- 从给定的消息时间开始消费。
+
+- 从给定的消息发布时间开始消费，这个方法因为名称容易导致误解现在已经不建议使用。你可以使用方法 `StartCursor.fromPublishTime(long)`。
   {{< tabs "pulsar-starting-position-message-time" >}}
   {{< tab "Java" >}}
   ```java
@@ -346,6 +350,11 @@ Pulsar Source 使用 `setStartCursor(StartCursor)` 方法给定开始消费的�
   ```
   {{< /tab >}}
   {{< /tabs >}}
+
+- 从给定的消息发布时间开始消费。
+  ```java
+  StartCursor.fromPublishTime(long);
+  ```
 
 {{< hint info >}}
 每条消息都有一个固定的序列号，这个序列号在 Pulsar 上有序排列，其包含了 ledger、entry、partition 等原始信息，用于在 Pulsar 底层存储上查找到具体的消息。
@@ -402,6 +411,7 @@ Pulsar Source 默认情况下使用流的方式消费数据。除非任务失败
   ```
   {{< /tab >}}
   {{< /tabs >}}
+
 - 停止于某条消息之后，结果里包含此消息。
   {{< tabs "pulsar-boundedness-after-message-id" >}}
   {{< tab "Java" >}}
@@ -415,7 +425,18 @@ Pulsar Source 默认情况下使用流的方式消费数据。除非任务失败
   ```
   {{< /tab >}}
   {{< /tabs >}}
-- 停止于某个给定的消息发布时间戳，比如 `Message<byte[]>.getPublishTime()`。
+
+- 停止于某个给定的消息事件时间戳，比如 `Message<byte[]>.getEventTime()`，消费结果里不包含此时间戳的消息。
+  ```java
+  StopCursor.atEventTime(long);
+  ```
+
+- 停止于某个给定的消息事件时间戳，比如 `Message<byte[]>.getEventTime()`，消费结果里包含此时间戳的消息。
+  ```java
+  StopCursor.afterEventTime(long);
+  ```
+
+- 停止于某个给定的消息发布时间戳，比如 `Message<byte[]>.getPublishTime()`，消费结果里不包含此时间戳的消息。
   {{< tabs "pulsar-boundedness-publish-time" >}}
   {{< tab "Java" >}}
   ```java
@@ -429,9 +450,10 @@ Pulsar Source 默认情况下使用流的方式消费数据。除非任务失败
   {{< /tab >}}
   {{< /tabs >}}
 
-  {{< hint warning >}}
-  StopCursor.atEventTime(long) 目前已经处于弃用状态。
-  {{< /hint >}}
+- 停止于某个给定的消息发布时间戳，比如 `Message<byte[]>.getPublishTime()`，消费结果里包含此时间戳的消息。
+  ```java
+  StopCursor.afterPublishTime(long);
+  ```
 
 ### Source 配置项
 

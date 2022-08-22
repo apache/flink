@@ -1558,25 +1558,18 @@ COALESCE(TRY_CAST('non-number' AS INT), 0) --- 结果返回数字 0 的 INT 格�
 在下一个版本，这个参数会被移除。
 {{< /hint >}}
 
-Data Type Extraction
+数据类型提取
 --------------------
 
 {{< tabs "extraction" >}}
 {{< tab "Java/Scala" >}}
-At many locations in the API, Flink tries to automatically extract data type from class information using
-reflection to avoid repetitive manual schema work. However, extracting a data type reflectively is not always
-successful because logical information might be missing. Therefore, it might be necessary to add additional
-information close to a class or field declaration for supporting the extraction logic.
+在 API 中的很多地方，Flink 都尝试利用反射机制从类信息中自动提取数据类型，以避免重复地手动定义 schema。但是，通过反射提取数据类型并不总是有效的，因为有可能会缺失逻辑信息。因此，可能需要在类或字段声明的附近添加额外信息以支持提取逻辑。
 
-The following table lists classes that can be implicitly mapped to a data type without requiring further information.
+下表列出了无需更多信息即可隐式映射到数据类型的类。
 
-If you intend to implement classes in Scala, *it is recommended to use boxed types* (e.g. `java.lang.Integer`)
-instead of Scala's primitives. Scala's primitives (e.g. `Int` or `Double`) are compiled to JVM primitives (e.g.
-`int`/`double`) and result in `NOT NULL` semantics as shown in the table below. Furthermore, Scala primitives that
-are used in generics (e.g. `java.util.Map[Int, Double]`) are erased during compilation and lead to class
-information similar to `java.util.Map[java.lang.Object, java.lang.Object]`.
+如果你打算在 Scala 中实现类，*建议使用包装类型*（例如 `java.lang.Integer`）而不是 Scala 的基本类型。如下表所示，Scala 的基本类型（例如 `Int` 或 `Double`）会被编译为 JVM 基本类型（例如 `int`/`double`）并产生 `NOT NULL` 语义。此外，在泛型中使用的 Scala 基本类型（例如 `java.util.Map[Int, Double]`）在编译期间会被擦除，导致类信息类似于 `java.util.Map[java.lang.Object, java.lang.Object]`。
 
-| Class                       | Data Type                           |
+| 类                          | 数据类型                             |
 |:----------------------------|:------------------------------------|
 | `java.lang.String`          | `STRING`                            |
 | `java.lang.Boolean`         | `BOOLEAN`                           |
@@ -1606,16 +1599,13 @@ information similar to `java.util.Map[java.lang.Object, java.lang.Object]`.
 | `byte[]`                    | `BYTES`                             |
 | `T[]`                       | `ARRAY<T>`                          |
 | `java.util.Map<K, V>`       | `MAP<K, V>`                         |
-| structured type `T`         | anonymous structured type `T`       |
+| 结构化类型       `T`         | 匿名结构化类型 `T`                    |
 
-Other JVM bridging classes mentioned in this document require a `@DataTypeHint` annotation.
+本文档中提到的其他 JVM 桥接类需要 `@DataTypeHint` 注释。
 
-_Data type hints_ can parameterize or replace the default extraction logic of individual function parameters
-and return types, structured classes, or fields of structured classes. An implementer can choose to what
-extent the default extraction logic should be modified by declaring a `@DataTypeHint` annotation.
+_数据类型 hints_ 可以参数化或替换单个函数参数和返回类型、结构化类或结构化类的字段的默认提取逻辑。实现者可以通过声明 `@DataTypeHint` 注解来选择默认提取逻辑的修改程度。
 
-The `@DataTypeHint` annotation provides a set of optional hint parameters. Some of those parameters are shown in the
-following example. More information can be found in the documentation of the annotation class.
+`@DataTypeHint` 注解提供了一组可选的 hint 参数。其中一些参数如以下示例所示。更多信息可以在注解类的文档中找到。
 {{< /tab >}}
 {{< tab "Python" >}}
 {{< /tab >}}
@@ -1628,21 +1618,19 @@ import org.apache.flink.table.annotation.DataTypeHint;
 
 class User {
 
-    // defines an INT data type with a default conversion class `java.lang.Integer`
+    // 使用默认转换类 `java.lang.Integer` 定义 INT 数据类型
     public @DataTypeHint("INT") Object o;
 
-    // defines a TIMESTAMP data type of millisecond precision with an explicit conversion class
+    // 使用显式转换类定义毫秒精度的 TIMESTAMP 数据类型
     public @DataTypeHint(value = "TIMESTAMP(3)", bridgedTo = java.sql.Timestamp.class) Object o;
 
-    // enrich the extraction with forcing using a RAW type
+    // 通过强制使用 RAW 类型来丰富提取
     public @DataTypeHint("RAW") Class<?> modelClass;
 
-    // defines that all occurrences of java.math.BigDecimal (also in nested fields) will be
-    // extracted as DECIMAL(12, 2)
+    // 定义所有出现的 java.math.BigDecimal（包含嵌套字段）都将被提取为 DECIMAL(12, 2)
     public @DataTypeHint(defaultDecimalPrecision = 12, defaultDecimalScale = 2) AccountStatement stmt;
 
-    // defines that whenever a type cannot be mapped to a data type, instead of throwing
-    // an exception, always treat it as a RAW type
+    // 定义当类型不能映射到数据类型时，总是将其视为 RAW 类型，而不是抛出异常
     public @DataTypeHint(allowRawGlobally = HintFlag.TRUE) ComplexModel model;
 }
 ```
@@ -1653,25 +1641,23 @@ import org.apache.flink.table.annotation.DataTypeHint
 
 class User {
 
-    // defines an INT data type with a default conversion class `java.lang.Integer`
+    // 使用默认转换类 `java.lang.Integer` 定义 INT 数据类型
     @DataTypeHint("INT")
     var o: AnyRef
 
-    // defines a TIMESTAMP data type of millisecond precision with an explicit conversion class
+    // 使用显式转换类定义毫秒精度的 TIMESTAMP 数据类型
     @DataTypeHint(value = "TIMESTAMP(3)", bridgedTo = java.sql.Timestamp.class)
     var o: AnyRef
 
-    // enrich the extraction with forcing using a RAW type
+    // 通过强制使用 RAW 类型来丰富提取
     @DataTypeHint("RAW")
     var modelClass: Class[_]
 
-    // defines that all occurrences of java.math.BigDecimal (also in nested fields) will be
-    // extracted as DECIMAL(12, 2)
+    // 定义所有出现的 java.math.BigDecimal（包含嵌套字段）都将被提取为 DECIMAL(12, 2)
     @DataTypeHint(defaultDecimalPrecision = 12, defaultDecimalScale = 2)
     var stmt: AccountStatement
 
-    // defines that whenever a type cannot be mapped to a data type, instead of throwing
-    // an exception, always treat it as a RAW type
+    // 定义当类型不能映射到数据类型时，总是将其视为 RAW 类型，而不是抛出异常
     @DataTypeHint(allowRawGlobally = HintFlag.TRUE)
     var model: ComplexModel
 }
@@ -1679,7 +1665,7 @@ class User {
 {{< /tab >}}
 {{< tab "Python" >}}
 ```python
-Not supported.
+不支持。
 ```
 {{< /tab >}}
 {{< /tabs >}}

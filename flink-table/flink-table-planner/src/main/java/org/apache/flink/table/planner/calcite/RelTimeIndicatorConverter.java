@@ -307,7 +307,8 @@ public final class RelTimeIndicatorConverter extends RelHomogeneousShuttle {
                                             }
                                         }
                                     });
-            return FlinkLogicalJoin.create(newLeft, newRight, newCondition, join.getJoinType());
+            return FlinkLogicalJoin.create(
+                    newLeft, newRight, newCondition, join.getHints(), join.getJoinType());
         }
     }
 

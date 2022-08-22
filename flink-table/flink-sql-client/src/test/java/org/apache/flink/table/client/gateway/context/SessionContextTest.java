@@ -21,6 +21,9 @@ package org.apache.flink.table.client.gateway.context;
 import org.apache.flink.client.cli.DefaultCLI;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ReadableConfig;
+import org.apache.flink.table.api.TableEnvironment;
+import org.apache.flink.types.Row;
+import org.apache.flink.util.CollectionUtil;
 import org.apache.flink.util.UserClassLoaderJarTestUtils;
 
 import org.junit.Before;
@@ -33,6 +36,7 @@ import java.io.File;
 import java.io.IOException;
 import java.net.URL;
 import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
@@ -144,28 +148,6 @@ public class SessionContextTest {
     }
 
     @Test
-    public void testAddJarWithFullPath() throws IOException {
-        validateAddJar(udfJar.getPath());
-    }
-
-    @Test
-    public void testAddJarWithRelativePath() throws IOException {
-        validateAddJar(
-                new File(".").getCanonicalFile().toPath().relativize(udfJar.toPath()).toString());
-    }
-
-    @Test
-    public void testAddIllegalJar() {
-        validateAddJarWithException("/path/to/illegal.jar", "JAR file does not exist");
-    }
-
-    @Test
-    public void testAddRemoteJar() {
-        validateAddJarWithException(
-                "hdfs://remote:10080/remote.jar", "SQL Client only supports to add local jars.");
-    }
-
-    @Test
     public void testRemoveJarWithFullPath() {
         validateRemoveJar(udfJar.getPath());
     }
@@ -178,7 +160,8 @@ public class SessionContextTest {
 
     @Test
     public void testRemoveIllegalJar() {
-        validateRemoveJarWithException("/path/to/illegal.jar", "JAR file does not exist");
+        validateRemoveJarWithException(
+                "/path/to/illegal.jar", "Failed to unregister the jar resource");
     }
 
     @Test
@@ -187,7 +170,7 @@ public class SessionContextTest {
         innerConfig.set(JARS, Collections.singletonList("hdfs://remote:10080/remote.jar"));
 
         validateRemoveJarWithException(
-                "hdfs://remote:10080/remote.jar", "SQL Client only supports to remove local jars.");
+                "hdfs://remote:10080/remote.jar", "Failed to unregister the jar resource");
     }
 
     // --------------------------------------------------------------------------------------------
@@ -217,32 +200,21 @@ public class SessionContextTest {
         return sessionContext.getExecutionContext().getTableEnvironment().getConfig();
     }
 
-    private void validateAddJar(String jarPath) {
-        sessionContext.addJar(jarPath);
-        assertThat(sessionContext.listJars()).containsExactly(udfJar.getPath());
-        // reset to the default
-        sessionContext.reset();
-        assertThat(sessionContext.listJars()).containsExactly(udfJar.getPath());
-    }
-
     private void validateRemoveJar(String jarPath) {
-        sessionContext.addJar(jarPath);
-        assertThat(sessionContext.listJars()).containsExactly(udfJar.getPath());
+        TableEnvironment tableEnvironment =
+                sessionContext.getExecutionContext().getTableEnvironment();
+        tableEnvironment.executeSql(String.format("ADD JAR '%s'", jarPath));
+
+        List<Row> jars =
+                CollectionUtil.iteratorToList(tableEnvironment.executeSql("SHOW JARS").collect());
+        assertThat(jars).containsExactly(Row.of(udfJar.getPath()));
 
         sessionContext.removeJar(jarPath);
-        assertThat(sessionContext.listJars()).isEmpty();
-    }
 
-    private void validateAddJarWithException(String jarPath, String errorMessages) {
-        Set<URL> originDependencies = sessionContext.getDependencies();
-        try {
-            sessionContext.addJar(jarPath);
-            fail("Should fail.");
-        } catch (Exception e) {
-            assertThat(e).satisfies(matching(containsMessage(errorMessages)));
-            // Keep dependencies as same as before if fail to add jar
-            assertThat(sessionContext.getDependencies()).isEqualTo(originDependencies);
-        }
+        assertThat(
+                        CollectionUtil.iteratorToList(
+                                tableEnvironment.executeSql("SHOW JARS").collect()))
+                .isEmpty();
     }
 
     private void validateRemoveJarWithException(String jarPath, String errorMessages) {

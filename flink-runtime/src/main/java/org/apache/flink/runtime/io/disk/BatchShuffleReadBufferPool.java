@@ -257,9 +257,12 @@ public class BatchShuffleReadBufferPool {
                 return;
             }
 
+            boolean shouldNotify =
+                    buffers.size() < numBuffersPerRequest
+                            && buffers.size() + segments.size() >= numBuffersPerRequest;
             buffers.addAll(segments);
             lastBufferOperationTimestamp = System.nanoTime();
-            if (buffers.size() >= numBuffersPerRequest) {
+            if (shouldNotify) {
                 buffers.notifyAll();
             }
         }

@@ -15,14 +15,12 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 ################################################################################
-
 from enum import Enum
-
 from typing import List
 
-__all__ = ['Row', 'RowKind']
-
 from pyflink.java_gateway import get_gateway
+
+__all__ = ['Row', 'RowKind']
 
 
 class RowKind(Enum):
@@ -283,30 +281,3 @@ class Row(object):
 
     def __len__(self):
         return len(self._values)
-
-
-def to_java_data_structure(value):
-    jvm = get_gateway().jvm
-    if isinstance(value, (int, float, str)):
-        return value
-    elif isinstance(value, (list, tuple)):
-        j_list = jvm.java.util.ArrayList()
-        for item in value:
-            j_list.add(to_java_data_structure(item))
-        return j_list
-    elif isinstance(value, map):
-        j_map = jvm.java.util.HashMap()
-        for k, v in value:
-            j_map.put(to_java_data_structure(k), to_java_data_structure(v))
-        return j_map
-    elif isinstance(value, Row):
-        j_row = jvm.org.apache.flink.types.Row(value.get_row_kind().to_j_row_kind(), len(value))
-        if hasattr(value, '_fields'):
-            for field_name, value in zip(value._fields, value._values):
-                j_row.setField(field_name, to_java_data_structure(value))
-        else:
-            for idx, value in enumerate(value._values):
-                j_row.setField(idx, to_java_data_structure(value))
-        return j_row
-    else:
-        raise TypeError('value must be a vanilla Python object')

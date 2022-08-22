@@ -18,8 +18,10 @@
 
 export interface Overview {
   taskmanagers: number;
+  'taskmanagers-blocked'?: number; // only exist if non-zero
   'slots-total': number;
   'slots-available': number;
+  'slots-free-and-blocked'?: number; // only exist if non-zero
   'jobs-running': number;
   'jobs-finished': number;
   'jobs-cancelled': number;

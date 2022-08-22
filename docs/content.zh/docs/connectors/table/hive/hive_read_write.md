@@ -150,6 +150,41 @@ Flink 允许你灵活的配置并发推断策略。你可以在 `TableConfig` �
   </tbody>
 </table>
 
+### 读 Hive 表时调整数据分片（Split） 大小
+读 Hive 表时, 数据文件将会被切分为若干个分片（split）, 每一个分片是要读取的数据的一部分。
+分片是 Flink 进行任务分配和数据并行读取的基本粒度。
+用户可以通过下面的参数来调整每个分片的大小来做一定的读性能调优。
+
+<table class="table table-bordered">
+  <thead>
+    <tr>
+        <th class="text-left" style="width: 20%">Key</th>
+        <th class="text-left" style="width: 15%">Default</th>
+        <th class="text-left" style="width: 10%">Type</th>
+        <th class="text-left" style="width: 55%">Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+        <td><h5>table.exec.hive.split-max-size</h5></td>
+        <td style="word-wrap: break-word;">128mb</td>
+        <td>MemorySize</td>
+        <td>读 Hive 表时，每个分片最大可以包含的字节数 (默认是 128MB) 
+    </tr>
+    <tr>
+        <td><h5>table.exec.hive.file-open-cost</h5></td>
+        <td style="word-wrap: break-word;">4mb</td>
+        <td>MemorySize</td>
+        <td> 打开一个文件预估的开销，以字节为单位，默认是 4MB。
+             如果这个值比较大，Flink 则将会倾向于将 Hive 表切分为更少的分片，这在 Hive 表中包含大量小文件的时候很有用。
+             反之，Flink 将会倾向于将 Hive 表切分为更多的分片，这有利于提升数据读取的并行度。
+        </td>
+    </tr>
+  </tbody>
+</table>
+
+**注意：** 目前上述参数仅适用于 ORC 格式的 Hive 表。
+
 ### 加载分区切片
 
 Flink 使用多个线程并发将 Hive 分区切分成多个 split 进行读取。你可以使用 `table.exec.hive.load-partition-splits.thread-num` 去配置线程数。默认值是3，你配置的值应该大于0。
@@ -447,6 +482,32 @@ SELECT * FROM hive_table WHERE dt='2020-05-20' and hr='12';
   </tbody>
 </table>
 
+### 动态分区的写入
+不同于静态分区的写入总是需要用户指定分区列的值，动态分区允许用户在写入数据的时候不指定分区列的值。
+比如，有这样一个分区表：
+```sql
+CREATE TABLE fact_tz(x int) PARTITIONED BY (day STRING, hour STRING);
+```
+用户可以使用如下的 SQL 语句向该分区表写入数据：
+```sql
+INSERT INTO TABLE fact_tz PARTITION (day, hour) select 1, '2022-8-8', '14';
+```
+在该 SQL 语句中，用户没有指定分区列的值，这就是一个典型的动态分区写入的例子。
+
+默认情况下, 如果是动态分区的写入, 在实际写入目标表之前，Flink 将额外对数据按照动态分区列进行排序。
+这就意味着 sink 节点收到的数据都是按分区排序的，即首先收到一个分区的数据，然后收到另一个分区的数据，不同分区的数据不会混在一起。
+这样 Hive sink 节点就可以一次只维护一个分区的 writer，否则，Hive sink 需要维护收到的数据对应的所有分区的 writer，如果分区的 writer 过多的话，则可能会导致内存溢出（OutOfMemory）异常。
+
+为了避免额外的排序，你可以将作业的配置项 `table.exec.hive.sink.sort-by-dynamic-partition.enable`（默认是 `true`）设置为 `false`。
+但是这种配置下，如之前所述，如果单个 sink 节点收到的动态分区数过多的话，则有可能会出现内存溢出的异常。 
+
+如果数据倾斜不严重的话，你可以在 SQL 语句中添加 `DISTRIBUTED BY <partition_field>` 将相同分区的数据分布到到相同的 sink 节点上来缓解单个 sink 节点的分区 writer 过多的问题。
+
+此外，你也可以在 SQL 语句中添加 `DISTRIBUTED BY <partition_field>` 来达到将 `table.exec.hive.sink.sort-by-dynamic-partition.enable` 设置为 `false` 的效果。
+
+**注意：**
+- 该配置项 `table.exec.hive.sink.sort-by-dynamic-partition.enable` 只在批模式下生效。
+- 目前，只有在 Flink 批模式下使用了 [Hive 方言]({{< ref "docs/connectors/table/hive/hive_dialect" >}})，才可以使用 `DISTRIBUTED BY` and `SORTED BY`。
 
 ## 格式
 

@@ -27,6 +27,7 @@ import org.apache.flink.connector.file.table.FileSystemConnectorOptions;
 import org.apache.flink.connector.file.table.FileSystemOutputFormat;
 import org.apache.flink.connector.file.table.FileSystemTableSink;
 import org.apache.flink.connector.file.table.FileSystemTableSink.TableBucketAssigner;
+import org.apache.flink.connector.file.table.PartitionCommitPolicyFactory;
 import org.apache.flink.connector.file.table.TableMetaStoreFactory;
 import org.apache.flink.connector.file.table.stream.PartitionCommitInfo;
 import org.apache.flink.connector.file.table.stream.StreamingSink;
@@ -122,6 +123,7 @@ public class HiveTableSink implements DynamicTableSink, SupportsPartitioning, Su
     private final TableSchema tableSchema;
     private final String hiveVersion;
     private final HiveShim hiveShim;
+    private final boolean dynamicGroupingEnabled;
 
     private LinkedHashMap<String, String> staticPartitionSpec = new LinkedHashMap<>();
     private boolean overwrite = false;
@@ -138,6 +140,7 @@ public class HiveTableSink implements DynamicTableSink, SupportsPartitioning, Su
         this(
                 flinkConf.get(HiveOptions.TABLE_EXEC_HIVE_FALLBACK_MAPRED_READER),
                 flinkConf.get(HiveOptions.TABLE_EXEC_HIVE_FALLBACK_MAPRED_WRITER),
+                flinkConf.get(HiveOptions.TABLE_EXEC_HIVE_DYNAMIC_GROUPING_ENABLED),
                 jobConf,
                 identifier,
                 table,
@@ -147,12 +150,14 @@ public class HiveTableSink implements DynamicTableSink, SupportsPartitioning, Su
     private HiveTableSink(
             boolean fallbackMappedReader,
             boolean fallbackMappedWriter,
+            boolean dynamicGroupingEnabled,
             JobConf jobConf,
             ObjectIdentifier identifier,
             CatalogTable table,
             @Nullable Integer configuredParallelism) {
         this.fallbackMappedReader = fallbackMappedReader;
         this.fallbackMappedWriter = fallbackMappedWriter;
+        this.dynamicGroupingEnabled = dynamicGroupingEnabled;
         this.jobConf = jobConf;
         this.identifier = identifier;
         this.catalogTable = table;
@@ -318,6 +323,9 @@ public class HiveTableSink implements DynamicTableSink, SupportsPartitioning, Su
             boolean isToLocal,
             final int parallelism)
             throws IOException {
+        org.apache.flink.configuration.Configuration conf =
+                new org.apache.flink.configuration.Configuration();
+        catalogTable.getOptions().forEach(conf::setString);
         FileSystemOutputFormat.Builder<Row> builder = new FileSystemOutputFormat.Builder<>();
         builder.setPartitionComputer(
                 new HiveRowPartitionComputer(
@@ -337,8 +345,15 @@ public class HiveTableSink implements DynamicTableSink, SupportsPartitioning, Su
         builder.setTempPath(
                 new org.apache.flink.core.fs.Path(toStagingDir(stagingParentDir, jobConf)));
         builder.setOutputFileConfig(fileNaming);
+        builder.setIdentifier(identifier);
+        builder.setPartitionCommitPolicyFactory(
+                new PartitionCommitPolicyFactory(
+                        conf.get(HiveOptions.SINK_PARTITION_COMMIT_POLICY_KIND),
+                        conf.get(HiveOptions.SINK_PARTITION_COMMIT_POLICY_CLASS),
+                        conf.get(HiveOptions.SINK_PARTITION_COMMIT_SUCCESS_FILE_NAME)));
         return dataStream
                 .map((MapFunction<RowData, Row>) value -> (Row) converter.toExternal(value))
+                .setParallelism(parallelism)
                 .writeUsingOutputFormat(builder.build())
                 .setParallelism(parallelism);
     }
@@ -526,8 +541,12 @@ public class HiveTableSink implements DynamicTableSink, SupportsPartitioning, Su
 
     @Override
     public boolean requiresPartitionGrouping(boolean supportsGrouping) {
-        this.dynamicGrouping = supportsGrouping;
-        return supportsGrouping;
+        if (supportsGrouping && dynamicGroupingEnabled) {
+            this.dynamicGrouping = true;
+            return true;
+        } else {
+            return false;
+        }
     }
 
     // get a staging dir
@@ -580,6 +599,7 @@ public class HiveTableSink implements DynamicTableSink, SupportsPartitioning, Su
                 new HiveTableSink(
                         fallbackMappedReader,
                         fallbackMappedWriter,
+                        dynamicGroupingEnabled,
                         jobConf,
                         identifier,
                         catalogTable,

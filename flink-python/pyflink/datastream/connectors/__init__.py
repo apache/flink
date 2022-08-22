@@ -16,89 +16,64 @@
 # limitations under the License.
 ################################################################################
 from pyflink.datastream.connectors.base import Sink, Source, DeliveryGuarantee
-from pyflink.datastream.connectors.elasticsearch import (Elasticsearch6SinkBuilder,
-                                                         Elasticsearch7SinkBuilder)
-from pyflink.datastream.connectors.file_system import (FileEnumeratorProvider, FileSink, FileSource,
-                                                       BucketAssigner, FileSourceBuilder,
-                                                       FileSplitAssignerProvider, OutputFileConfig,
-                                                       RollingPolicy,
-                                                       StreamFormat, StreamingFileSink, BulkFormat)
-from pyflink.datastream.connectors.jdbc import JdbcSink, JdbcConnectionOptions, JdbcExecutionOptions
-from pyflink.datastream.connectors.kafka import (
-    FlinkKafkaConsumer,
-    FlinkKafkaProducer,
-    Semantic,
-    KafkaSource,
-    KafkaSourceBuilder,
-    KafkaTopicPartition,
-    KafkaOffsetsInitializer,
-    KafkaOffsetResetStrategy,
-    KafkaSink,
-    KafkaSinkBuilder,
-    KafkaRecordSerializationSchema,
-    KafkaRecordSerializationSchemaBuilder,
-    KafkaTopicSelector,
-)
-from pyflink.datastream.connectors.number_seq import NumberSequenceSource
-from pyflink.datastream.connectors.pulsar import PulsarDeserializationSchema, PulsarSource, \
-    PulsarSourceBuilder, SubscriptionType, StartCursor, StopCursor, PulsarSerializationSchema, \
-    PulsarSink, PulsarSinkBuilder, MessageDelayer, TopicRoutingMode
-from pyflink.datastream.connectors.rabbitmq import RMQConnectionConfig, RMQSource, RMQSink
-from pyflink.datastream.connectors.kinesis import (FlinkKinesisConsumer, KinesisStreamsSink,
-                                                   KinesisFirehoseSink)
-from pyflink.datastream.connectors.cassandra import CassandraSink
 
 
 __all__ = [
     'Sink',
     'Source',
-    'DeliveryGuarantee',
-    'FileEnumeratorProvider',
-    'FileSink',
-    'FileSource',
-    'BucketAssigner',
-    'FileSourceBuilder',
-    'FileSplitAssignerProvider',
-    'FlinkKafkaConsumer',
-    'FlinkKafkaProducer',
-    'Semantic',
-    'KafkaSource',
-    'KafkaSourceBuilder',
-    'KafkaTopicPartition',
-    'KafkaOffsetsInitializer',
-    'KafkaOffsetResetStrategy',
-    'KafkaSink',
-    'KafkaSinkBuilder',
-    'KafkaRecordSerializationSchema',
-    'KafkaRecordSerializationSchemaBuilder',
-    'KafkaTopicSelector',
-    'JdbcSink',
-    'JdbcConnectionOptions',
-    'JdbcExecutionOptions',
-    'NumberSequenceSource',
-    'OutputFileConfig',
-    'PulsarDeserializationSchema',
-    'PulsarSource',
-    'PulsarSourceBuilder',
-    'SubscriptionType',
-    'PulsarSerializationSchema',
-    'PulsarSink',
-    'PulsarSinkBuilder',
-    'MessageDelayer',
-    'TopicRoutingMode',
-    'RMQConnectionConfig',
-    'RMQSource',
-    'RMQSink',
-    'RollingPolicy',
-    'StartCursor',
-    'StopCursor',
-    'BulkFormat',
-    'StreamFormat',
-    'StreamingFileSink',
-    'FlinkKinesisConsumer',
-    'KinesisStreamsSink',
-    'KinesisFirehoseSink',
-    'Elasticsearch6SinkBuilder',
-    'Elasticsearch7SinkBuilder',
-    'CassandraSink'
+    'DeliveryGuarantee'
 ]
+
+
+def _install():
+    from pyflink.datastream import connectors
+
+    # number_seq
+    from pyflink.datastream.connectors import number_seq
+    setattr(connectors, 'NumberSequenceSource', number_seq.NumberSequenceSource)
+
+    # jdbc
+    from pyflink.datastream.connectors import jdbc
+    setattr(connectors, 'JdbcSink', jdbc.JdbcSink)
+    setattr(connectors, 'JdbcConnectionOptions', jdbc.JdbcConnectionOptions)
+    setattr(connectors, 'JdbcExecutionOptions', jdbc.JdbcExecutionOptions)
+
+    # kafka
+    from pyflink.datastream.connectors import kafka
+    setattr(connectors, 'KafkaSource', kafka.KafkaSource)
+    setattr(connectors, 'FlinkKafkaConsumer', kafka.FlinkKafkaConsumer)
+    setattr(connectors, 'FlinkKafkaProducer', kafka.FlinkKafkaProducer)
+    setattr(connectors, 'Semantic', kafka.Semantic)
+
+    # pulsar
+    from pyflink.datastream.connectors import pulsar
+    setattr(connectors, 'PulsarSource', pulsar.PulsarSource)
+    setattr(connectors, 'PulsarSourceBuilder', pulsar.PulsarSourceBuilder)
+    setattr(connectors, 'PulsarDeserializationSchema', pulsar.PulsarDeserializationSchema)
+    setattr(connectors, 'SubscriptionType', pulsar.SubscriptionType)
+    setattr(connectors, 'StartCursor', pulsar.StartCursor)
+    setattr(connectors, 'StopCursor', pulsar.StopCursor)
+
+    # rabbitmq
+    from pyflink.datastream.connectors import rabbitmq
+    setattr(connectors, 'RMQSource', rabbitmq.RMQSource)
+    setattr(connectors, 'RMQSink', rabbitmq.RMQSink)
+    setattr(connectors, 'RMQConnectionConfig', rabbitmq.RMQConnectionConfig)
+
+    # filesystem
+    from pyflink.datastream.connectors import file_system
+    setattr(connectors, 'BucketAssigner', file_system.BucketAssigner)
+    setattr(connectors, 'FileEnumeratorProvider', file_system.FileEnumeratorProvider)
+    setattr(connectors, 'FileSink', file_system.FileSink)
+    setattr(connectors, 'FileSplitAssignerProvider', file_system.FileSplitAssignerProvider)
+    setattr(connectors, 'FileSource', file_system.FileSource)
+    setattr(connectors, 'FileSourceBuilder', file_system.FileSourceBuilder)
+    setattr(connectors, 'OutputFileConfig', file_system.OutputFileConfig)
+    setattr(connectors, 'RollingPolicy', file_system.RollingPolicy)
+    setattr(connectors, 'StreamFormat', file_system.StreamFormat)
+    setattr(connectors, 'StreamingFileSink', file_system.StreamingFileSink)
+
+
+# for backward compatibility
+_install()
+del _install

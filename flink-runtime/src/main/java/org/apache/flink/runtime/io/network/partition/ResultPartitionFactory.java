@@ -40,7 +40,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.IOException;
-import java.util.concurrent.ExecutorService;
+import java.util.concurrent.ScheduledExecutorService;
 
 /** Factory for {@link ResultPartition} to use in {@link NettyShuffleEnvironment}. */
 public class ResultPartitionFactory {
@@ -55,7 +55,7 @@ public class ResultPartitionFactory {
 
     private final BatchShuffleReadBufferPool batchShuffleReadBufferPool;
 
-    private final ExecutorService batchShuffleReadIOExecutor;
+    private final ScheduledExecutorService batchShuffleReadIOExecutor;
 
     private final BoundedBlockingSubpartitionType blockingSubpartitionType;
 
@@ -65,7 +65,7 @@ public class ResultPartitionFactory {
 
     private final int networkBufferSize;
 
-    private final boolean blockingShuffleCompressionEnabled;
+    private final boolean batchShuffleCompressionEnabled;
 
     private final String compressionCodec;
 
@@ -84,12 +84,12 @@ public class ResultPartitionFactory {
             FileChannelManager channelManager,
             BufferPoolFactory bufferPoolFactory,
             BatchShuffleReadBufferPool batchShuffleReadBufferPool,
-            ExecutorService batchShuffleReadIOExecutor,
+            ScheduledExecutorService batchShuffleReadIOExecutor,
             BoundedBlockingSubpartitionType blockingSubpartitionType,
             int configuredNetworkBuffersPerChannel,
             int floatingNetworkBuffersPerGate,
             int networkBufferSize,
-            boolean blockingShuffleCompressionEnabled,
+            boolean batchShuffleCompressionEnabled,
             String compressionCodec,
             int maxBuffersPerChannel,
             int sortShuffleMinBuffers,
@@ -106,7 +106,7 @@ public class ResultPartitionFactory {
         this.batchShuffleReadIOExecutor = batchShuffleReadIOExecutor;
         this.blockingSubpartitionType = blockingSubpartitionType;
         this.networkBufferSize = networkBufferSize;
-        this.blockingShuffleCompressionEnabled = blockingShuffleCompressionEnabled;
+        this.batchShuffleCompressionEnabled = batchShuffleCompressionEnabled;
         this.compressionCodec = compressionCodec;
         this.maxBuffersPerChannel = maxBuffersPerChannel;
         this.sortShuffleMinBuffers = sortShuffleMinBuffers;
@@ -139,8 +139,7 @@ public class ResultPartitionFactory {
             int maxParallelism,
             SupplierWithException<BufferPool, IOException> bufferPoolFactory) {
         BufferCompressor bufferCompressor = null;
-        if (type.isBlockingOrBlockingPersistentResultPartition()
-                && blockingShuffleCompressionEnabled) {
+        if (type.supportCompression() && batchShuffleCompressionEnabled) {
             bufferCompressor = new BufferCompressor(networkBufferSize, compressionCodec);
         }
 
@@ -215,7 +214,8 @@ public class ResultPartitionFactory {
 
                 partition = blockingPartition;
             }
-        } else if (type == ResultPartitionType.HYBRID) {
+        } else if (type == ResultPartitionType.HYBRID_FULL
+                || type == ResultPartitionType.HYBRID_SELECTIVE) {
             partition =
                     new HsResultPartition(
                             taskNameWithSubtaskAndId,
@@ -232,6 +232,12 @@ public class ResultPartitionFactory {
                             HybridShuffleConfiguration.builder(
                                             numberOfSubpartitions,
                                             batchShuffleReadBufferPool.getNumBuffersPerRequest())
+                                    .setSpillingStrategyType(
+                                            type == ResultPartitionType.HYBRID_FULL
+                                                    ? HybridShuffleConfiguration
+                                                            .SpillingStrategyType.FULL
+                                                    : HybridShuffleConfiguration
+                                                            .SpillingStrategyType.SELECTIVE)
                                     .build(),
                             bufferCompressor,
                             bufferPoolFactory);

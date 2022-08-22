@@ -27,6 +27,7 @@ import org.apache.flink.connectors.hive.read.HiveContinuousPartitionContext;
 import org.apache.flink.table.catalog.ObjectPath;
 
 import org.apache.hadoop.hive.metastore.api.Partition;
+import org.apache.hadoop.hive.metastore.api.SerDeInfo;
 import org.apache.hadoop.hive.metastore.api.StorageDescriptor;
 import org.apache.hadoop.mapred.JobConf;
 import org.apache.http.util.Asserts;
@@ -88,6 +89,7 @@ public class PartitionMonitorTest {
             List<String> partitionValues, Integer createTime) {
         StorageDescriptor sd = new StorageDescriptor();
         sd.setLocation("/tmp/test");
+        sd.setSerdeInfo(new SerDeInfo());
         Partition partition =
                 new Partition(
                         partitionValues, "testDb", "testTable", createTime, createTime, sd, null);
@@ -180,10 +182,9 @@ public class PartitionMonitorTest {
                         0L,
                         seenPartitionsSinceOffset,
                         tablePath,
-                        configuration.get(
-                                HiveOptions.TABLE_EXEC_HIVE_LOAD_PARTITION_SPLITS_THREAD_NUM),
                         jobConf,
                         continuousPartitionFetcher,
-                        fetcherContext);
+                        fetcherContext,
+                        1);
     }
 }

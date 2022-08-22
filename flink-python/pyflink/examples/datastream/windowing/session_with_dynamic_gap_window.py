@@ -20,7 +20,7 @@ import sys
 import argparse
 from typing import Iterable
 
-from pyflink.datastream.connectors import FileSink, OutputFileConfig, RollingPolicy
+from pyflink.datastream.connectors.file_system import FileSink, OutputFileConfig, RollingPolicy
 
 from pyflink.common import Types, WatermarkStrategy, Encoder
 from pyflink.common.watermark_strategy import TimestampAssigner

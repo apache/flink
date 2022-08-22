@@ -105,6 +105,20 @@ class AggFunctionFactory(
           throw new TableException("CUME_DIST Function is not supported in stream mode.")
         }
 
+      case a: SqlRankFunction if a.getKind == SqlKind.PERCENT_RANK =>
+        if (isBounded) {
+          createPercentRankAggFunction(argTypes)
+        } else {
+          throw new TableException("PERCENT_RANK Function is not supported in stream mode.")
+        }
+
+      case _: SqlNtileAggFunction =>
+        if (isBounded) {
+          createNTILEAggFUnction(argTypes)
+        } else {
+          throw new TableException("NTILE Function is not supported in stream mode.")
+        }
+
       case func: SqlLeadLagAggFunction =>
         if (isBounded) {
           createBatchLeadLagAggFunction(argTypes, index)
@@ -521,6 +535,15 @@ class AggFunctionFactory(
   private def createDenseRankAggFunction(argTypes: Array[LogicalType]): UserDefinedFunction = {
     val argTypes = orderKeyIndexes.map(inputRowType.getChildren.get(_))
     new DenseRankAggFunction(argTypes)
+  }
+
+  private def createPercentRankAggFunction(argTypes: Array[LogicalType]): UserDefinedFunction = {
+    val argTypes = orderKeyIndexes.map(inputRowType.getChildren.get(_))
+    new PercentRankAggFunction(argTypes)
+  }
+
+  private def createNTILEAggFUnction(argTypes: Array[LogicalType]): UserDefinedFunction = {
+    new NTILEAggFunction
   }
 
   private def createFirstValueAggFunction(

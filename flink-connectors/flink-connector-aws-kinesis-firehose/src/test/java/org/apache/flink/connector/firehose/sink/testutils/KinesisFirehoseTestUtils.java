@@ -20,6 +20,7 @@ package org.apache.flink.connector.firehose.sink.testutils;
 import org.apache.flink.connector.aws.testutils.AWSServicesTestUtils;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.util.jackson.JacksonMapperFactory;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonProcessingException;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
@@ -39,7 +40,7 @@ import java.util.List;
  */
 public class KinesisFirehoseTestUtils {
 
-    private static final ObjectMapper MAPPER = new ObjectMapper();
+    private static final ObjectMapper MAPPER = JacksonMapperFactory.createObjectMapper();
 
     public static FirehoseClient createFirehoseClient(String endpoint, SdkHttpClient httpClient) {
         return AWSServicesTestUtils.createAwsSyncClient(
@@ -68,11 +69,10 @@ public class KinesisFirehoseTestUtils {
 
     public static DataStream<String> getSampleDataGenerator(
             StreamExecutionEnvironment env, int endValue) {
-        ObjectMapper mapper = new ObjectMapper();
         return env.fromSequence(1, endValue)
                 .map(Object::toString)
                 .returns(String.class)
-                .map(data -> mapper.writeValueAsString(ImmutableMap.of("data", data)));
+                .map(data -> MAPPER.writeValueAsString(ImmutableMap.of("data", data)));
     }
 
     public static List<String> getSampleData(int endValue) throws JsonProcessingException {

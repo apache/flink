@@ -21,11 +21,14 @@ from pyflink.common import Duration
 from pyflink.java_gateway import get_gateway
 
 
-__all__ = ['ConsistencyLevel',
-           'MapperOptions',
-           'ClusterBuilder',
-           'CassandraCommitter',
-           'CassandraFailureHandler']
+__all__ = [
+    'CassandraSink',
+    'ConsistencyLevel',
+    'MapperOptions',
+    'ClusterBuilder',
+    'CassandraCommitter',
+    'CassandraFailureHandler'
+]
 
 # ---- Classes introduced to construct the MapperOptions ----
 
@@ -152,7 +155,7 @@ class CassandraCommitter(object):
         CheckpointCommitter that saves information about completed checkpoints within a separate
         table in a cassandra database.
 
-        Entries are in the form |operator_id | subtask_id | last_completed_checkpoint|
+        Entries are in the form: | operator_id | subtask_id | last_completed_checkpoint |
         """
         JCassandraCommitter = get_gateway().jvm.org.apache.flink.streaming.connectors.\
             cassandra.CassandraCommitter

@@ -1408,6 +1408,9 @@
         "checkpoints_after_tasks_finish" : {
           "type" : "boolean"
         },
+        "state_changelog_enabled" : {
+          "type" : "boolean"
+        },
         "changelog_periodic_materialization_interval" : {
           "type" : "integer"
         },

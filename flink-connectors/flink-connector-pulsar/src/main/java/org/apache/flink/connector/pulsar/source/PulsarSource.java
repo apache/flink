@@ -32,7 +32,8 @@ import org.apache.flink.connector.pulsar.source.config.SourceConfiguration;
 import org.apache.flink.connector.pulsar.source.enumerator.PulsarSourceEnumState;
 import org.apache.flink.connector.pulsar.source.enumerator.PulsarSourceEnumStateSerializer;
 import org.apache.flink.connector.pulsar.source.enumerator.PulsarSourceEnumerator;
-import org.apache.flink.connector.pulsar.source.enumerator.SplitsAssignmentState;
+import org.apache.flink.connector.pulsar.source.enumerator.assigner.SplitAssigner;
+import org.apache.flink.connector.pulsar.source.enumerator.assigner.SplitAssignerFactory;
 import org.apache.flink.connector.pulsar.source.enumerator.cursor.StartCursor;
 import org.apache.flink.connector.pulsar.source.enumerator.cursor.StopCursor;
 import org.apache.flink.connector.pulsar.source.enumerator.subscriber.PulsarSubscriber;
@@ -142,15 +143,14 @@ public final class PulsarSource<OUT>
     @Override
     public SplitEnumerator<PulsarPartitionSplit, PulsarSourceEnumState> createEnumerator(
             SplitEnumeratorContext<PulsarPartitionSplit> enumContext) {
-        SplitsAssignmentState assignmentState =
-                new SplitsAssignmentState(stopCursor, sourceConfiguration);
+        SplitAssigner splitAssigner = SplitAssignerFactory.create(stopCursor, sourceConfiguration);
         return new PulsarSourceEnumerator(
                 subscriber,
                 startCursor,
                 rangeGenerator,
                 sourceConfiguration,
                 enumContext,
-                assignmentState);
+                splitAssigner);
     }
 
     @Internal
@@ -158,15 +158,15 @@ public final class PulsarSource<OUT>
     public SplitEnumerator<PulsarPartitionSplit, PulsarSourceEnumState> restoreEnumerator(
             SplitEnumeratorContext<PulsarPartitionSplit> enumContext,
             PulsarSourceEnumState checkpoint) {
-        SplitsAssignmentState assignmentState =
-                new SplitsAssignmentState(stopCursor, sourceConfiguration, checkpoint);
+        SplitAssigner splitAssigner =
+                SplitAssignerFactory.create(stopCursor, sourceConfiguration, checkpoint);
         return new PulsarSourceEnumerator(
                 subscriber,
                 startCursor,
                 rangeGenerator,
                 sourceConfiguration,
                 enumContext,
-                assignmentState);
+                splitAssigner);
     }
 
     @Internal

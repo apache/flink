@@ -65,7 +65,7 @@ export interface JobVertexAggregated {
   'status-duration': JobVertexStatusDuration<AggregatedStatistics>;
 }
 
-export interface JobVertexSubTask {
+export interface JobVertexSubTaskData {
   attempt: number;
   duration: number;
   'end-time': number;
@@ -76,6 +76,10 @@ export interface JobVertexSubTask {
   metrics: JobVertexMetricStatistics<number> & JobVertexMetricFlags;
   'taskmanager-id': string;
   'status-duration': JobVertexStatusDuration<number>;
+}
+
+export interface JobVertexSubTask extends JobVertexSubTaskData {
+  'other-concurrent-attempts'?: JobVertexSubTaskData[];
 }
 
 export interface JobVertexSubTaskDetail {

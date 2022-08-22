@@ -591,8 +591,8 @@ public class TaskManagerOptions {
                     .withDescription(
                             String.format(
                                     "Size of memory used by blocking shuffle for shuffle data read "
-                                            + "(currently only used by sort-shuffle). Notes: "
-                                            + "1) The memory is cut from '%s' so must be smaller than"
+                                            + "(currently only used by sort-shuffle and hybrid shuffle)."
+                                            + " Notes: 1) The memory is cut from '%s' so must be smaller than"
                                             + " that, which means you may also need to increase '%s' "
                                             + "after you increase this config value; 2) This memory"
                                             + " size can influence the shuffle performance and you "

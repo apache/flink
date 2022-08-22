@@ -48,6 +48,7 @@ import org.apache.flink.runtime.memory.MemoryManagerBuilder;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.query.KvStateRegistry;
 import org.apache.flink.runtime.shuffle.ShuffleEnvironment;
+import org.apache.flink.runtime.state.TaskExecutorStateChangelogStoragesManager;
 import org.apache.flink.runtime.state.TaskLocalStateStore;
 import org.apache.flink.runtime.state.TaskLocalStateStoreImpl;
 import org.apache.flink.runtime.state.TaskStateManager;
@@ -219,6 +220,7 @@ public class JvmExitOnFatalErrorTest extends TestLogger {
                                 executionAttemptID,
                                 localStateStore,
                                 changelogStorage,
+                                new TaskExecutorStateChangelogStoragesManager(),
                                 null,
                                 mock(CheckpointResponder.class));
 

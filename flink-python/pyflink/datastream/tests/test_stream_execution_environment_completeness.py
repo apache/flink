@@ -50,7 +50,8 @@ class StreamExecutionEnvironmentCompletenessTests(PythonAPICompletenessTestCase,
                 'setNumberOfExecutionRetries', 'executeAsync', 'registerJobListener',
                 'clearJobListeners', 'getJobListeners', 'fromSequence', 'getConfiguration',
                 'generateStreamGraph', 'getTransformations', 'areExplicitEnvironmentsAllowed',
-                'registerCollectIterator'}
+                'registerCollectIterator', 'listCompletedClusterDatasets',
+                'invalidateClusterDataset', 'registerCacheTransformation', 'close'}
 
 
 if __name__ == '__main__':

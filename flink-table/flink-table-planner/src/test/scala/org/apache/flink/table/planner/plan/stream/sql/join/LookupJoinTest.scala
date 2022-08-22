@@ -17,12 +17,12 @@
  */
 package org.apache.flink.table.planner.plan.stream.sql.join
 
-import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.scala._
 import org.apache.flink.core.testutils.FlinkMatchers.containsMessage
 import org.apache.flink.streaming.api.datastream.DataStream
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
 import org.apache.flink.table.api._
+import org.apache.flink.table.api.config.{ExecutionConfigOptions, OptimizerConfigOptions}
 import org.apache.flink.table.api.internal.TableEnvironmentInternal
 import org.apache.flink.table.data.RowData
 import org.apache.flink.table.descriptors.ConnectorDescriptorValidator.CONNECTOR_TYPE
@@ -30,7 +30,8 @@ import org.apache.flink.table.descriptors.DescriptorProperties
 import org.apache.flink.table.factories.TableSourceFactory
 import org.apache.flink.table.functions.{AsyncTableFunction, TableFunction, UserDefinedFunction}
 import org.apache.flink.table.planner.plan.utils._
-import org.apache.flink.table.planner.utils.TableTestBase
+import org.apache.flink.table.planner.utils.{TableTestBase, TestingTableEnvironment}
+import org.apache.flink.table.planner.utils.TableTestUtil.{readFromResource, replaceNodeIdInOperator, replaceStageId, replaceStreamNodeId}
 import org.apache.flink.table.sources._
 import org.apache.flink.table.types.DataType
 import org.apache.flink.table.utils.EncodingUtils
@@ -41,7 +42,7 @@ import _root_.java.util
 import _root_.java.util.{ArrayList => JArrayList, Collection => JCollection, HashMap => JHashMap, List => JList, Map => JMap}
 import _root_.scala.collection.JavaConversions._
 import org.junit.{Assume, Before, Test}
-import org.junit.Assert.{assertThat, assertTrue, fail}
+import org.junit.Assert.{assertEquals, assertThat, assertTrue, fail}
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
 
@@ -68,6 +69,7 @@ class LookupJoinTest(legacyTableSource: Boolean) extends TableTestBase with Seri
 
     if (legacyTableSource) {
       TestTemporalTable.createTemporaryTable(util.tableEnv, "LookupTable")
+      TestTemporalTable.createTemporaryTable(util.tableEnv, "AsyncLookupTable", async = true)
     } else {
       util.addTable("""
                       |CREATE TABLE LookupTable (
@@ -76,6 +78,16 @@ class LookupJoinTest(legacyTableSource: Boolean) extends TableTestBase with Seri
                       |  `age` INT
                       |) WITH (
                       |  'connector' = 'values'
+                      |)
+                      |""".stripMargin)
+      util.addTable("""
+                      |CREATE TABLE AsyncLookupTable (
+                      |  `id` INT,
+                      |  `name` STRING,
+                      |  `age` INT
+                      |) WITH (
+                      |  'connector' = 'values',
+                      |  'async' = 'true'
                       |)
                       |""".stripMargin)
 
@@ -91,6 +103,18 @@ class LookupJoinTest(legacyTableSource: Boolean) extends TableTestBase with Seri
                       |)
                       |""".stripMargin)
     }
+    util.addTable("""
+                    |CREATE TABLE Sink1 (
+                    |  a int,
+                    |  name varchar,
+                    |  age int
+                    |) with (
+                    |  'connector' = 'values',
+                    |  'sink-insert-only' = 'false'
+                    |)""".stripMargin)
+    // for json plan test
+    util.tableEnv.getConfig
+      .set(ExecutionConfigOptions.TABLE_EXEC_RESOURCE_DEFAULT_PARALLELISM, Int.box(4))
   }
 
   @Test
@@ -169,6 +193,7 @@ class LookupJoinTest(legacyTableSource: Boolean) extends TableTestBase with Seri
     }
     util.addDataStream[(Int, String, Long, Timestamp)]("T", 'a, 'b, 'c, 'ts, 'proctime.proctime)
     createLookupTable("LookupTable1", new InvalidTableFunctionResultType)
+
     expectExceptionThrown(
       "SELECT * FROM T JOIN LookupTable1 " +
         "FOR SYSTEM_TIME AS OF T.proctime AS D ON T.a = D.id AND T.b = D.name AND T.ts = D.ts",
@@ -544,6 +569,331 @@ class LookupJoinTest(legacyTableSource: Boolean) extends TableTestBase with Seri
     util.verifyExecPlan(sql)
   }
 
+  @Test
+  def testAggAndAllConstantLookupKeyWithTryResolveMode(): Unit = {
+    // expect lookup join using single parallelism due to all constant lookup key
+    util.tableEnv.getConfig.set(
+      OptimizerConfigOptions.TABLE_OPTIMIZER_NONDETERMINISTIC_UPDATE_STRATEGY,
+      OptimizerConfigOptions.NonDeterministicUpdateStrategy.TRY_RESOLVE)
+
+    val sql =
+      """
+        |INSERT INTO Sink1
+        |SELECT T.a, D.name, D.age
+        |FROM (SELECT max(a) a, count(c) c, PROCTIME() proctime FROM MyTable GROUP BY b) T
+        | LEFT JOIN LookupTable FOR SYSTEM_TIME AS OF T.proctime AS D
+        |  ON D.id = 100
+      """.stripMargin
+    val actual = util.tableEnv.explainSql(sql, ExplainDetail.JSON_EXECUTION_PLAN)
+    val expected = if (legacyTableSource) {
+      readFromResource(
+        "explain/stream/join/lookup/testAggAndAllConstantLookupKeyWithTryResolveMode.out")
+    } else {
+      readFromResource(
+        "explain/stream/join/lookup/testAggAndAllConstantLookupKeyWithTryResolveMode_newSource.out")
+    }
+    assertEquals(
+      replaceNodeIdInOperator(replaceStreamNodeId(replaceStageId(expected))),
+      replaceNodeIdInOperator(replaceStreamNodeId(replaceStageId(actual))))
+  }
+
+  @Test
+  def testInvalidJoinHint(): Unit = {
+    // lost required hint option 'table'
+    expectExceptionThrown(
+      """
+        |SELECT /*+ LOOKUP('tableName'='LookupTable') */ *
+        |FROM MyTable AS T
+        |JOIN LookupTable FOR SYSTEM_TIME AS OF T.proctime AS D
+        | ON T.a = D.id
+        |""".stripMargin,
+      "Invalid LOOKUP hint: incomplete required option(s): [Key: 'table' , default: null (fallback keys: [])]",
+      classOf[AssertionError]
+    )
+
+    // invalid async option value
+    expectExceptionThrown(
+      """
+        |SELECT /*+ LOOKUP('table'='LookupTable', 'async'='yes') */ *
+        |FROM MyTable AS T
+        |JOIN LookupTable FOR SYSTEM_TIME AS OF T.proctime AS D
+        | ON T.a = D.id
+        |""".stripMargin,
+      "Invalid LOOKUP hint options: Could not parse value 'yes' for key 'async'",
+      classOf[AssertionError]
+    )
+
+    // invalid async output-mode option value
+    expectExceptionThrown(
+      """
+        |SELECT /*+ LOOKUP('table'='LookupTable', 'async'='true', 'output-mode'='allow-unordered') */ *
+        |FROM MyTable AS T
+        |JOIN LookupTable FOR SYSTEM_TIME AS OF T.proctime AS D
+        | ON T.a = D.id
+        |""".stripMargin,
+      "Invalid LOOKUP hint options: Could not parse value 'allow-unordered' for key 'output-mode'",
+      classOf[AssertionError]
+    )
+
+    // invalid async timeout option value
+    expectExceptionThrown(
+      """
+        |SELECT /*+ LOOKUP('table'='LookupTable', 'async'='true', 'timeout'='300 si') */ *
+        |FROM MyTable AS T
+        |JOIN LookupTable FOR SYSTEM_TIME AS OF T.proctime AS D
+        | ON T.a = D.id
+        |""".stripMargin,
+      "Invalid LOOKUP hint options: Could not parse value '300 si' for key 'timeout'",
+      classOf[AssertionError]
+    )
+
+    // invalid retry-strategy option value
+    expectExceptionThrown(
+      """
+        |SELECT /*+ LOOKUP('table'='LookupTable', 'retry-strategy'='fixed-delay') */ *
+        |FROM MyTable AS T
+        |JOIN LookupTable FOR SYSTEM_TIME AS OF T.proctime AS D
+        | ON T.a = D.id
+        |""".stripMargin,
+      "Invalid LOOKUP hint options: Could not parse value 'fixed-delay' for key 'retry-strategy'",
+      classOf[AssertionError]
+    )
+
+    // invalid retry fixed-delay option value
+    expectExceptionThrown(
+      """
+        |SELECT /*+ LOOKUP('table'='LookupTable', 'fixed-delay'='100 nano sec') */ *
+        |FROM MyTable AS T
+        |JOIN LookupTable FOR SYSTEM_TIME AS OF T.proctime AS D
+        | ON T.a = D.id
+        |""".stripMargin,
+      "Invalid LOOKUP hint options: Could not parse value '100 nano sec' for key 'fixed-delay'",
+      classOf[AssertionError]
+    )
+
+    // invalid retry max-attempts option value
+    expectExceptionThrown(
+      """
+        |SELECT /*+ LOOKUP('table'='LookupTable', 'max-attempts'='100.0') */ *
+        |FROM MyTable AS T
+        |JOIN LookupTable FOR SYSTEM_TIME AS OF T.proctime AS D
+        | ON T.a = D.id
+        |""".stripMargin,
+      "Invalid LOOKUP hint options: Could not parse value '100.0' for key 'max-attempts'",
+      classOf[AssertionError]
+    )
+
+    // incomplete retry hint options
+    expectExceptionThrown(
+      """
+        |SELECT /*+ LOOKUP('table'='LookupTable', 'max-attempts'='100') */ *
+        |FROM MyTable AS T
+        |JOIN LookupTable FOR SYSTEM_TIME AS OF T.proctime AS D
+        | ON T.a = D.id
+        |""".stripMargin,
+      "Invalid LOOKUP hint: retry options can be both null or all not null",
+      classOf[AssertionError]
+    )
+
+    // invalid retry option value
+    expectExceptionThrown(
+      """
+        |SELECT /*+ LOOKUP('table'='LookupTable', 'retry-predicate'='exception', 'retry-strategy'='fixed_delay', 'fixed-delay'='10s', 'max-attempts'='-3') */ *
+        |FROM MyTable AS T
+        |JOIN LookupTable FOR SYSTEM_TIME AS OF T.proctime AS D
+        | ON T.a = D.id
+        |""".stripMargin,
+      "Invalid LOOKUP hint option: unsupported retry-predicate 'exception', only 'lookup_miss' is supported currently",
+      classOf[AssertionError]
+    )
+    expectExceptionThrown(
+      """
+        |SELECT /*+ LOOKUP('table'='LookupTable', 'retry-predicate'='lookup_miss', 'retry-strategy'='fixed_delay', 'fixed-delay'='10s', 'max-attempts'='-3') */ *
+        |FROM MyTable AS T
+        |JOIN LookupTable FOR SYSTEM_TIME AS OF T.proctime AS D
+        | ON T.a = D.id
+        |""".stripMargin,
+      "Invalid LOOKUP hint option: max-attempts value should be positive integer but was -3",
+      classOf[AssertionError]
+    )
+    expectExceptionThrown(
+      """
+        |SELECT /*+ LOOKUP('table'='LookupTable', 'retry-predicate'='lookup_miss', 'retry-strategy'='fixed_delay', 'fixed-delay'='-10s', 'max-attempts'='3') */ *
+        |FROM MyTable AS T
+        |JOIN LookupTable FOR SYSTEM_TIME AS OF T.proctime AS D
+        | ON T.a = D.id
+        |""".stripMargin,
+      "Invalid LOOKUP hint options: Could not parse value '-10s' for key 'fixed-delay'",
+      classOf[AssertionError]
+    )
+    expectExceptionThrown(
+      """
+        |SELECT /*+ LOOKUP('table'='LookupTable', 'retry-predicate'='lookup-miss', 'retry-strategy'='fixed_delay', 'fixed-delay'='10s', 'max-attempts'='3') */ *
+        |FROM MyTable AS T
+        |JOIN LookupTable FOR SYSTEM_TIME AS OF T.proctime AS D
+        | ON T.a = D.id
+        |""".stripMargin,
+      "Invalid LOOKUP hint option: unsupported retry-predicate 'lookup-miss', only 'lookup_miss' is supported currently",
+      classOf[AssertionError]
+    )
+    expectExceptionThrown(
+      """
+        |SELECT /*+ LOOKUP('table'='LookupTable', 'retry-predicate'='lookup_miss', 'retry-strategy'='fixed-delay', 'fixed-delay'='10s', 'max-attempts'='3') */ *
+        |FROM MyTable AS T
+        |JOIN LookupTable FOR SYSTEM_TIME AS OF T.proctime AS D
+        | ON T.a = D.id
+        |""".stripMargin,
+      "Invalid LOOKUP hint options: Could not parse value 'fixed-delay' for key 'retry-strategy'",
+      classOf[AssertionError]
+    )
+  }
+
+  @Test
+  def testJoinHintWithTableAlias(): Unit = {
+    // TODO to be supported in FLINK-28850 (to make LogicalSnapshot Hintable)
+    thrown.expectMessage(
+      "The options of following hints cannot match the name of input tables or views")
+    thrown.expect(classOf[ValidationException])
+    val sql = "SELECT /*+ LOOKUP('table'='D') */ * FROM MyTable AS T JOIN LookupTable " +
+      "FOR SYSTEM_TIME AS OF T.proctime AS D ON T.a = D.id"
+    util.verifyExecPlan(sql)
+  }
+
+  @Test
+  def testJoinHintWithTableNameOnly(): Unit = {
+    val sql = "SELECT /*+ LOOKUP('table'='LookupTable') */ * FROM MyTable AS T JOIN LookupTable " +
+      "FOR SYSTEM_TIME AS OF T.proctime AS D ON T.a = D.id"
+    util.verifyExecPlan(sql)
+  }
+
+  @Test
+  def testJoinSyncTableWithAsyncHint(): Unit = {
+    val sql =
+      "SELECT /*+ LOOKUP('table'='LookupTable', 'async'='true') */ * FROM MyTable AS T JOIN LookupTable " +
+        "FOR SYSTEM_TIME AS OF T.proctime AS D ON T.a = D.id"
+    util.verifyExecPlan(sql)
+  }
+
+  @Test
+  def testJoinAsyncTableWithAsyncHint(): Unit = {
+    val sql =
+      "SELECT /*+ LOOKUP('table'='AsyncLookupTable', 'async'='true') */ * " +
+        "FROM MyTable AS T JOIN AsyncLookupTable " +
+        "FOR SYSTEM_TIME AS OF T.proctime AS D ON T.a = D.id"
+    util.verifyExecPlan(sql)
+  }
+
+  @Test
+  def testJoinAsyncTableWithSyncHint(): Unit = {
+    val sql =
+      "SELECT /*+ LOOKUP('table'='AsyncLookupTable', 'async'='false') */ * " +
+        "FROM MyTable AS T JOIN AsyncLookupTable " +
+        "FOR SYSTEM_TIME AS OF T.proctime AS D ON T.a = D.id"
+    util.verifyExecPlan(sql)
+  }
+
+  @Test
+  def testAggAndLeftJoinAllowUnordered(): Unit = {
+    util.tableEnv.getConfig.set(
+      ExecutionConfigOptions.TABLE_EXEC_ASYNC_LOOKUP_OUTPUT_MODE,
+      ExecutionConfigOptions.AsyncOutputMode.ALLOW_UNORDERED)
+
+    val stmt = util.tableEnv.asInstanceOf[TestingTableEnvironment].createStatementSet()
+    stmt.addInsertSql(
+      """
+        |INSERT INTO Sink1
+        |SELECT T.a, D.name, D.age
+        |FROM (SELECT max(a) a, count(c) c, PROCTIME() proctime FROM MyTable GROUP BY b) T
+        |LEFT JOIN AsyncLookupTable
+        |FOR SYSTEM_TIME AS OF T.proctime AS D ON T.a = D.id
+        |""".stripMargin)
+
+    util.verifyExplain(stmt, ExplainDetail.JSON_EXECUTION_PLAN)
+  }
+
+  def testAggAndLeftJoinWithTryResolveMode(): Unit = {
+    thrown.expectMessage("Required sync lookup function by planner, but table")
+    thrown.expect(classOf[TableException])
+
+    util.tableEnv.getConfig.set(
+      OptimizerConfigOptions.TABLE_OPTIMIZER_NONDETERMINISTIC_UPDATE_STRATEGY,
+      OptimizerConfigOptions.NonDeterministicUpdateStrategy.TRY_RESOLVE)
+
+    val stmt = util.tableEnv.asInstanceOf[TestingTableEnvironment].createStatementSet()
+    stmt.addInsertSql(
+      """
+        |INSERT INTO Sink1
+        |SELECT T.a, D.name, D.age
+        |FROM (SELECT max(a) a, count(c) c, PROCTIME() proctime FROM MyTable GROUP BY b) T
+        |LEFT JOIN AsyncLookupTable
+        |FOR SYSTEM_TIME AS OF T.proctime AS D ON T.a = D.id
+        |""".stripMargin)
+
+    util.verifyExplain(stmt, ExplainDetail.JSON_EXECUTION_PLAN)
+  }
+
+  @Test
+  def testAsyncJoinWithDefaultParams(): Unit = {
+    val stmt = util.tableEnv.asInstanceOf[TestingTableEnvironment].createStatementSet()
+    stmt.addInsertSql("""
+                        |INSERT INTO Sink1
+                        |SELECT T.a, D.name, D.age
+                        |FROM MyTable T
+                        |JOIN AsyncLookupTable
+                        |FOR SYSTEM_TIME AS OF T.proctime AS D ON T.a = D.id
+                        |""".stripMargin)
+
+    util.verifyExplain(stmt, ExplainDetail.JSON_EXECUTION_PLAN)
+  }
+
+  @Test
+  def testJoinWithAsyncHint(): Unit = {
+    val stmt = util.tableEnv.asInstanceOf[TestingTableEnvironment].createStatementSet()
+    stmt.addInsertSql(
+      """
+        |INSERT INTO Sink1
+        |SELECT /*+ LOOKUP('table'='AsyncLookupTable', 'output-mode'='allow_unordered', 'time-out'='600s', 'capacity'='300') */
+        | T.a, D.name, D.age
+        |FROM MyTable T
+        |JOIN AsyncLookupTable
+        |FOR SYSTEM_TIME AS OF T.proctime AS D ON T.a = D.id
+        |""".stripMargin)
+
+    util.verifyExplain(stmt, ExplainDetail.JSON_EXECUTION_PLAN)
+  }
+
+  @Test
+  def testJoinWithRetryHint(): Unit = {
+    val stmt = util.tableEnv.asInstanceOf[TestingTableEnvironment].createStatementSet()
+    stmt.addInsertSql(
+      """
+        |INSERT INTO Sink1
+        |SELECT /*+ LOOKUP('table'='LookupTable', 'retry-predicate'='lookup_miss', 'retry-strategy'='fixed_delay', 'fixed-delay'='10s', 'max-attempts'='3') */
+        | T.a, D.name, D.age
+        |FROM MyTable T
+        |JOIN LookupTable
+        |FOR SYSTEM_TIME AS OF T.proctime AS D ON T.a = D.id
+        |""".stripMargin)
+
+    util.verifyExplain(stmt, ExplainDetail.JSON_EXECUTION_PLAN)
+  }
+
+  @Test
+  def testJoinWithAsyncAndRetryHint(): Unit = {
+    val stmt = util.tableEnv.asInstanceOf[TestingTableEnvironment].createStatementSet()
+    stmt.addInsertSql(
+      """
+        |INSERT INTO Sink1
+        |SELECT /*+ LOOKUP('table'='AsyncLookupTable', 'output-mode'='allow_unordered', 'time-out'='600s', 'capacity'='300', 'retry-predicate'='lookup_miss', 'retry-strategy'='fixed_delay', 'fixed-delay'='10s', 'max-attempts'='3') */
+        | T.a, D.name, D.age
+        |FROM MyTable T
+        |JOIN AsyncLookupTable
+        |FOR SYSTEM_TIME AS OF T.proctime AS D ON T.a = D.id
+        |""".stripMargin)
+
+    util.verifyExplain(stmt, ExplainDetail.JSON_EXECUTION_PLAN)
+  }
+
   // ==========================================================================================
 
   private def createLookupTable(tableName: String, lookupFunction: UserDefinedFunction): Unit = {
@@ -595,12 +945,15 @@ object LookupJoinTest {
   }
 }
 
-class TestTemporalTable(bounded: Boolean = false)
+class TestTemporalTable(
+    bounded: Boolean = false,
+    val keys: Array[String] = Array.empty[String],
+    async: Boolean = false)
   extends LookupableTableSource[RowData]
   with StreamTableSource[RowData] {
 
-  val fieldNames: Array[String] = Array("id", "name", "age")
-  val fieldTypes: Array[TypeInformation[_]] = Array(Types.INT, Types.STRING, Types.INT)
+  val fieldNames = Array("id", "name", "age")
+  val fieldTypes = Array(DataTypes.INT(), DataTypes.STRING(), DataTypes.INT())
 
   override def getLookupFunction(lookupKeys: Array[String]): TableFunction[RowData] = {
     new TableFunctionWithRowDataVarArg()
@@ -616,28 +969,42 @@ class TestTemporalTable(bounded: Boolean = false)
         "this method should never be called.")
   }
 
-  override def isAsyncEnabled: Boolean = false
+  override def isAsyncEnabled: Boolean = async
 
   override def isBounded: Boolean = this.bounded
 
-  override def getProducedDataType: DataType = TestTemporalTable.tableSchema.toRowDataType
+  override def getProducedDataType: DataType = buildTableSchema.toRowDataType
 
-  override def getTableSchema: TableSchema = TestTemporalTable.tableSchema
+  override def getTableSchema: TableSchema = buildTableSchema
+
+  private def buildTableSchema(): TableSchema = {
+    val pkSet = keys.toSet
+    val builder = TableSchema.builder
+    assert(fieldNames.length == fieldTypes.length)
+    fieldNames.zipWithIndex.foreach {
+      case (name, index) =>
+        if (pkSet.contains(name)) {
+          // pk field requires not null
+          builder.field(name, fieldTypes(index).notNull())
+        } else {
+          builder.field(name, fieldTypes(index))
+        }
+    }
+    if (keys.nonEmpty) {
+      builder.primaryKey(keys: _*)
+    }
+    builder.build()
+  }
 }
 
 object TestTemporalTable {
-  lazy val tableSchema = TableSchema
-    .builder()
-    .field("id", DataTypes.INT())
-    .field("name", DataTypes.STRING())
-    .field("age", DataTypes.INT())
-    .build()
 
   def createTemporaryTable(
       tEnv: TableEnvironment,
       tableName: String,
-      isBounded: Boolean = false): Unit = {
-    val source = new TestTemporalTable(isBounded)
+      isBounded: Boolean = false,
+      async: Boolean = false): Unit = {
+    val source = new TestTemporalTable(isBounded, async = async)
     tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSourceInternal(tableName, source)
   }
 }

@@ -39,10 +39,10 @@ public interface BlockCompressor {
      * @param dst The target to write compressed data
      * @param dstOff The start offset to write the compressed data
      * @return Length of compressed data
-     * @throws InsufficientBufferException if the target does not have sufficient space
+     * @throws BufferCompressionException if exception thrown when compressing
      */
     int compress(ByteBuffer src, int srcOff, int srcLen, ByteBuffer dst, int dstOff)
-            throws InsufficientBufferException;
+            throws BufferCompressionException;
 
     /**
      * Compress data read from src, and write the compressed data to dst.
@@ -53,8 +53,8 @@ public interface BlockCompressor {
      * @param dst The target to write compressed data
      * @param dstOff The start offset to write the compressed data
      * @return Length of compressed data
-     * @throws InsufficientBufferException if the target does not have sufficient space
+     * @throws BufferCompressionException if exception thrown when compressing
      */
     int compress(byte[] src, int srcOff, int srcLen, byte[] dst, int dstOff)
-            throws InsufficientBufferException;
+            throws BufferCompressionException;
 }

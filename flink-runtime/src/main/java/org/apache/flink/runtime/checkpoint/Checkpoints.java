@@ -24,11 +24,10 @@ import org.apache.flink.runtime.OperatorIDPair;
 import org.apache.flink.runtime.checkpoint.metadata.CheckpointMetadata;
 import org.apache.flink.runtime.checkpoint.metadata.MetadataSerializer;
 import org.apache.flink.runtime.checkpoint.metadata.MetadataSerializers;
-import org.apache.flink.runtime.checkpoint.metadata.MetadataV3Serializer;
+import org.apache.flink.runtime.checkpoint.metadata.MetadataV4Serializer;
 import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.OperatorID;
-import org.apache.flink.runtime.jobgraph.RestoreMode;
 import org.apache.flink.runtime.state.CheckpointStorage;
 import org.apache.flink.runtime.state.CheckpointStorageLoader;
 import org.apache.flink.runtime.state.CompletedCheckpointStorageLocation;
@@ -85,12 +84,20 @@ public class Checkpoints {
 
     public static void storeCheckpointMetadata(
             CheckpointMetadata checkpointMetadata, DataOutputStream out) throws IOException {
+        storeCheckpointMetadata(checkpointMetadata, out, MetadataV4Serializer.INSTANCE);
+    }
+
+    public static void storeCheckpointMetadata(
+            CheckpointMetadata checkpointMetadata,
+            DataOutputStream out,
+            MetadataSerializer serializer)
+            throws IOException {
 
         // write generic header
         out.writeInt(HEADER_MAGIC_NUMBER);
 
-        out.writeInt(MetadataV3Serializer.VERSION);
-        MetadataV3Serializer.serialize(checkpointMetadata, out);
+        out.writeInt(serializer.getVersion());
+        serializer.serialize(checkpointMetadata, out);
     }
 
     // ------------------------------------------------------------------------
@@ -124,8 +131,7 @@ public class Checkpoints {
             CompletedCheckpointStorageLocation location,
             ClassLoader classLoader,
             boolean allowNonRestoredState,
-            CheckpointProperties checkpointProperties,
-            RestoreMode restoreMode)
+            CheckpointProperties checkpointProperties)
             throws IOException {
 
         checkNotNull(jobId, "jobId");
@@ -213,10 +219,9 @@ public class Checkpoints {
                 operatorStates,
                 checkpointMetadata.getMasterStates(),
                 checkpointProperties,
-                restoreMode == RestoreMode.CLAIM
-                        ? new ClaimModeCompletedStorageLocation(location)
-                        : location,
-                null);
+                location,
+                null,
+                checkpointMetadata.getCheckpointProperties());
     }
 
     private static void throwNonRestoredStateException(
@@ -374,37 +379,4 @@ public class Checkpoints {
 
     /** This class contains only static utility methods and is not meant to be instantiated. */
     private Checkpoints() {}
-
-    private static class ClaimModeCompletedStorageLocation
-            implements CompletedCheckpointStorageLocation {
-
-        private final CompletedCheckpointStorageLocation wrapped;
-
-        private ClaimModeCompletedStorageLocation(CompletedCheckpointStorageLocation location) {
-            wrapped = location;
-        }
-
-        @Override
-        public String getExternalPointer() {
-            return wrapped.getExternalPointer();
-        }
-
-        @Override
-        public StreamStateHandle getMetadataHandle() {
-            return wrapped.getMetadataHandle();
-        }
-
-        @Override
-        public void disposeStorageLocation() throws IOException {
-            try {
-                wrapped.disposeStorageLocation();
-            } catch (Exception ex) {
-                LOG.debug(
-                        "We could not delete the storage location: {} in CLAIM restore mode. It is"
-                                + " most probably because of shared files still being used by newer"
-                                + " checkpoints",
-                        wrapped);
-            }
-        }
-    }
 }

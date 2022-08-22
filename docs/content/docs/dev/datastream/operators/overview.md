@@ -575,6 +575,44 @@ This feature is not yet supported in Python
 {{< /tab >}}
 {{< /tabs>}}
 
+### Cache
+#### DataStream &rarr; CachedDataStream
+
+Cache the intermediate result of the transformation. Currently, only jobs that run with batch 
+execution mode are supported. The cache intermediate result is generated lazily at the first time 
+the intermediate result is computed so that the result can be reused by later jobs. If the cache is 
+lost, it will be recomputed using the original transformations.
+
+{{< tabs cache >}}
+{{< tab "Java" >}}
+```java
+DataStream<Integer> dataStream = //...
+CachedDataStream<Integer> cachedDataStream = dataStream.cache();
+cachedDataStream.print(); // Do anything with the cachedDataStream
+...
+env.execute(); // Execute and create cache.
+        
+cachedDataStream.print(); // Consume cached result.
+env.execute();
+```
+{{< /tab >}}
+{{< tab "Scala" >}}
+```scala
+val dataStream : DataStream[Int] = //...
+val cachedDataStream = dataStream.cache()
+cachedDataStream.print() // Do anything with the cachedDataStream
+...
+env.execute() // Execute and create cache.
+
+cachedDataStream.print() // Consume cached result.
+env.execute()
+```
+{{< /tab >}}
+{{< tab "Python" >}}
+This feature is not yet supported in Python
+{{< /tab >}}
+{{< /tabs>}}
+
 ## Physical Partitioning
 
 Flink also gives low-level control (if desired) on the exact stream partitioning after a transformation, via the following functions.

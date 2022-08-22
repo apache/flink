@@ -39,6 +39,7 @@ import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.function.Consumer;
 
+import static org.apache.flink.connector.testutils.formats.SchemaTestUtils.open;
 import static org.apache.flink.core.testutils.FlinkAssertions.anyCauseMatches;
 import static org.apache.flink.table.api.DataTypes.ARRAY;
 import static org.apache.flink.table.api.DataTypes.BIGINT;
@@ -463,6 +464,7 @@ public class CsvRowDataSerDeSchemaTest {
                 InstantiationUtil.deserializeObject(
                         InstantiationUtil.serializeObject(serSchemaBuilder.build()),
                         CsvRowDeSerializationSchemaTest.class.getClassLoader());
+        open(schema);
         return schema.serialize(row);
     }
 
@@ -475,6 +477,7 @@ public class CsvRowDataSerDeSchemaTest {
                 InstantiationUtil.deserializeObject(
                         InstantiationUtil.serializeObject(deserSchemaBuilder.build()),
                         CsvRowDeSerializationSchemaTest.class.getClassLoader());
+        open(schema);
         return schema.deserialize(csv != null ? csv.getBytes() : null);
     }
 

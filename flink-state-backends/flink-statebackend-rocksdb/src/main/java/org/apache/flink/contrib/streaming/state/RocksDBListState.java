@@ -62,7 +62,7 @@ class RocksDBListState<K, N, V> extends AbstractRocksDBState<K, N, List<V>>
         implements InternalListState<K, N, V> {
 
     /** Serializer for the values. */
-    private final TypeSerializer<V> elementSerializer;
+    private TypeSerializer<V> elementSerializer;
 
     private final ListDelimitedSerializer listSerializer;
 
@@ -242,6 +242,14 @@ class RocksDBListState<K, N, V> extends AbstractRocksDBState<K, N, List<V>>
         }
     }
 
+    @Override
+    protected RocksDBListState<K, N, V> setValueSerializer(
+            TypeSerializer<List<V>> valueSerializer) {
+        super.setValueSerializer(valueSerializer);
+        this.elementSerializer = ((ListSerializer<V>) valueSerializer).getElementSerializer();
+        return this;
+    }
+
     @SuppressWarnings("unchecked")
     static <E, K, N, SV, S extends State, IS extends S> IS create(
             StateDescriptor<S, SV> stateDesc,
@@ -255,6 +263,20 @@ class RocksDBListState<K, N, V> extends AbstractRocksDBState<K, N, List<V>>
                         (TypeSerializer<List<E>>) registerResult.f1.getStateSerializer(),
                         (List<E>) stateDesc.getDefaultValue(),
                         backend);
+    }
+
+    @SuppressWarnings("unchecked")
+    static <E, K, N, SV, S extends State, IS extends S> IS update(
+            StateDescriptor<S, SV> stateDesc,
+            Tuple2<ColumnFamilyHandle, RegisteredKeyValueStateBackendMetaInfo<N, SV>>
+                    registerResult,
+            IS existingState) {
+        return (IS)
+                ((RocksDBListState<K, N, E>) existingState)
+                        .setNamespaceSerializer(registerResult.f1.getNamespaceSerializer())
+                        .setValueSerializer(
+                                (TypeSerializer<List<E>>) registerResult.f1.getStateSerializer())
+                        .setDefaultValue((List<E>) stateDesc.getDefaultValue());
     }
 
     static class StateSnapshotTransformerWrapper<T> implements StateSnapshotTransformer<byte[]> {

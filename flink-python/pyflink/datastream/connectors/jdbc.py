@@ -21,6 +21,13 @@ from pyflink.java_gateway import get_gateway
 from pyflink.util.java_utils import to_jarray
 
 
+__all__ = [
+    'JdbcSink',
+    'JdbcConnectionOptions',
+    'JdbcExecutionOptions'
+]
+
+
 class JdbcSink(SinkFunction):
 
     def __init__(self, j_jdbc_sink):

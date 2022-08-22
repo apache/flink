@@ -27,7 +27,7 @@ import org.apache.flink.runtime.memory.MemoryManagerBuilder;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.binary.BinaryRowData;
 import org.apache.flink.table.data.writer.BinaryRowWriter;
-import org.apache.flink.table.runtime.operators.join.Int2HashJoinOperatorTest.MyProjection;
+import org.apache.flink.table.runtime.operators.join.Int2HashJoinOperatorTestBase.MyProjection;
 import org.apache.flink.table.runtime.operators.sort.IntRecordComparator;
 import org.apache.flink.table.runtime.typeutils.BinaryRowDataSerializer;
 import org.apache.flink.table.runtime.util.LazyMemorySegmentPool;

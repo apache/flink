@@ -104,7 +104,7 @@ public class EmbeddedPythonKeyedProcessOperator<K, IN, OUT>
                 inBatchExecutionMode(getKeyedStateBackend()),
                 config.get(PYTHON_METRIC_ENABLED),
                 config.get(PYTHON_PROFILE_ENABLED),
-                false,
+                hasSideOutput,
                 config.get(STATE_CACHE_SIZE),
                 config.get(MAP_STATE_READ_CACHE_SIZE),
                 config.get(MAP_STATE_WRITE_CACHE_SIZE));

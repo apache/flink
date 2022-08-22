@@ -26,9 +26,9 @@ under the License.
 
 {{< label Batch >}} {{< label Streaming >}}
 
-The `ORDER BY` clause causes the result rows to be sorted according to the specified expression(s). If two rows are equal according to the leftmost expression, they are compared according to the next expression and so on. If they are equal according to all specified expressions, they are returned in an implementation-dependent order.
+`ORDER BY` 子句使结果行根据指定的表达式进行排序。 如果两行根据最左边的表达式相等，则根据下一个表达式进行比较，依此类推。 如果根据所有指定的表达式它们相等，则它们以与实现相关的顺序返回。
 
-When running in streaming mode, the primary sort order of a table must be ascending on a [time attribute]({{< ref "docs/dev/table/concepts/time_attributes" >}}). All subsequent orders can be freely chosen. But there is no this limitation in batch mode.
+在流模式下运行时，表的主要排序顺序必须按[时间属性]({{< ref "docs/dev/table/concepts/time_attributes" >}})升序。 所有后续的 orders 都可以自由选择。 但是批处理模式没有这个限制。
 
 ```sql
 SELECT *

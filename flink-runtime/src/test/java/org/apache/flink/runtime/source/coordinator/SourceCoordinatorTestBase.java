@@ -204,7 +204,8 @@ abstract class SourceCoordinatorTestBase {
                 mockSource,
                 getNewSourceCoordinatorContext(),
                 new CoordinatorStoreImpl(),
-                watermarkAlignmentParams);
+                watermarkAlignmentParams,
+                null);
     }
 
     Source<Integer, MockSourceSplit, Set<MockSourceSplit>> createMockSource() {

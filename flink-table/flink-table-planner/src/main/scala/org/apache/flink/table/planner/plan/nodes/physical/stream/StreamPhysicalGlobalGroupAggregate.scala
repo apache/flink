@@ -40,14 +40,14 @@ class StreamPhysicalGlobalGroupAggregate(
     traitSet: RelTraitSet,
     inputRel: RelNode,
     outputRowType: RelDataType,
-    val grouping: Array[Int],
-    val aggCalls: Seq[AggregateCall],
+    grouping: Array[Int],
+    aggCalls: Seq[AggregateCall],
     val aggCallNeedRetractions: Array[Boolean],
     val localAggInputRowType: RelDataType,
     val needRetraction: Boolean,
     val partialFinalType: PartialFinalType,
     indexOfCountStar: Option[Int] = Option.empty)
-  extends StreamPhysicalGroupAggregateBase(cluster, traitSet, inputRel) {
+  extends StreamPhysicalGroupAggregateBase(cluster, traitSet, inputRel, grouping, aggCalls) {
 
   // if the indexOfCountStar is valid, the needRetraction should be true
   require(indexOfCountStar.isEmpty || indexOfCountStar.get >= 0 && needRetraction)

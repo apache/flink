@@ -104,6 +104,15 @@ under the License.
 									<shadedPattern>org.apache.flink.hive.shaded.com.google</shadedPattern>
 								</relocation>
 							</relocations>
+							<!-- Table planner also contains calcite dependency. Exclude to prevent class conflicts. -->
+							<filters>
+								<filter>
+									<artifact>org.apache.hive:hive-exec</artifact>
+									<excludes>
+										<exclude>org/apache/calcite/**</exclude>
+									</excludes>
+								</filter>
+							</filters>
 						</configuration>
 					</execution>
 				</executions>

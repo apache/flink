@@ -891,6 +891,13 @@ under the License.
 			<scope>test</scope>
 		</dependency>
 
+		<dependency>
+			<groupId>org.apache.hadoop</groupId>
+			<artifactId>hadoop-hdfs</artifactId>
+			<version>${hivemetastore.hadoop.version}</version>
+			<scope>test</scope>
+		</dependency>
+
 		<!-- ArchUit test dependencies -->
 
 		<dependency>

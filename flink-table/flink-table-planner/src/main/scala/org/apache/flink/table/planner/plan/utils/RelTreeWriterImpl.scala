@@ -17,10 +17,14 @@
  */
 package org.apache.flink.table.planner.plan.utils
 
+import org.apache.flink.table.planner.hint.FlinkHints
+import org.apache.flink.table.planner.plan.metadata.FlinkRelMetadataQuery
 import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalRel
 
 import org.apache.calcite.rel.RelNode
+import org.apache.calcite.rel.core.{Join, TableScan}
 import org.apache.calcite.rel.externalize.RelWriterImpl
+import org.apache.calcite.rel.hint.Hintable
 import org.apache.calcite.sql.SqlExplainLevel
 import org.apache.calcite.util.Pair
 
@@ -36,7 +40,10 @@ class RelTreeWriterImpl(
     withIdPrefix: Boolean = false,
     withChangelogTraits: Boolean = false,
     withRowType: Boolean = false,
-    withTreeStyle: Boolean = true)
+    withTreeStyle: Boolean = true,
+    withUpsertKey: Boolean = false,
+    withJoinHint: Boolean = true,
+    withQueryBlockAlias: Boolean = false)
   extends RelWriterImpl(pw, explainLevel, withIdPrefix) {
 
   var lastChildren: Seq[Boolean] = Nil
@@ -83,6 +90,51 @@ class RelTreeWriterImpl(
         printValues.add(
           Pair.of("changelogMode", ChangelogPlanUtils.stringifyChangelogMode(changelogMode)))
       case _ => // ignore
+    }
+
+    if (withUpsertKey) rel match {
+      case streamRel: StreamPhysicalRel =>
+        val fmq = FlinkRelMetadataQuery.reuseOrCreate(rel.getCluster.getMetadataQuery)
+        val upsertKeys = fmq.getUpsertKeys(streamRel)
+        if (null != upsertKeys && !upsertKeys.isEmpty) {
+          val fieldNames = streamRel.getRowType.getFieldNames
+          printValues.add(
+            Pair.of(
+              "upsertKeys",
+              upsertKeys
+                .map(bitset => bitset.toArray.map(fieldNames).mkString("[", ", ", "]"))
+                .mkString(", ")))
+        }
+      case _ => // ignore
+    }
+
+    if (withJoinHint) {
+      rel match {
+        case join: Join =>
+          val joinHints = FlinkHints.getAllJoinHints(join.getHints)
+          if (joinHints.nonEmpty) {
+            printValues.add(Pair.of("joinHints", RelExplainUtil.hintsToString(joinHints)))
+          }
+        case _ => // ignore
+      }
+    }
+
+    if (withQueryBlockAlias) {
+      rel match {
+        case node: Hintable =>
+          node match {
+            case _: TableScan =>
+            // We don't need to pint hints about TableScan because TableScan will always
+            // print hints if exist. See more in such as LogicalTableScan#explainTerms
+            case _ =>
+              val queryBlockAliasHints = FlinkHints.getQueryBlockAliasHints(node.getHints)
+              if (queryBlockAliasHints.nonEmpty) {
+                printValues.add(
+                  Pair.of("hints", RelExplainUtil.hintsToString(queryBlockAliasHints)))
+              }
+          }
+        case _ => // ignore
+      }
     }
 
     if (!printValues.isEmpty) {

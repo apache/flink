@@ -42,7 +42,7 @@ class LegacyInternalTimerServiceImpl(InternalTimerService[N]):
     def __init__(self, keyed_state_backend):
         self._keyed_state_backend = keyed_state_backend
         self._current_watermark = None
-        self.timers = collections.OrderedDict()
+        self._timers = collections.OrderedDict()
 
     def current_processing_time(self):
         return int(time.time() * 1000)
@@ -56,23 +56,23 @@ class LegacyInternalTimerServiceImpl(InternalTimerService[N]):
     def register_processing_time_timer(self, namespace: N, t: int):
         current_key = self._keyed_state_backend.get_current_key()
         timer = (TimerOperandType.REGISTER_PROC_TIMER, InternalTimerImpl(t, current_key, namespace))
-        self.timers[timer] = None
+        self._timers[timer] = None
 
     def register_event_time_timer(self, namespace: N, t: int):
         current_key = self._keyed_state_backend.get_current_key()
         timer = (TimerOperandType.REGISTER_EVENT_TIMER,
                  InternalTimerImpl(t, current_key, namespace))
-        self.timers[timer] = None
+        self._timers[timer] = None
 
     def delete_processing_time_timer(self, namespace: N, t: int):
         current_key = self._keyed_state_backend.get_current_key()
         timer = (TimerOperandType.DELETE_PROC_TIMER, InternalTimerImpl(t, current_key, namespace))
-        self.timers[timer] = None
+        self._timers[timer] = None
 
     def delete_event_time_timer(self, namespace: N, t: int):
         current_key = self._keyed_state_backend.get_current_key()
         timer = (TimerOperandType.DELETE_EVENT_TIMER, InternalTimerImpl(t, current_key, namespace))
-        self.timers[timer] = None
+        self._timers[timer] = None
 
 
 class InternalTimerServiceImpl(InternalTimerService[N]):
@@ -87,7 +87,6 @@ class InternalTimerServiceImpl(InternalTimerService[N]):
         self._output_stream = None
 
         from apache_beam.transforms.window import GlobalWindow
-
         self._global_window = GlobalWindow()
 
     def add_timer_info(self, timer_info):

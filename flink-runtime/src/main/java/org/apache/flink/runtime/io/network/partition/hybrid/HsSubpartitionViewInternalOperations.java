@@ -27,6 +27,13 @@ public interface HsSubpartitionViewInternalOperations {
     /** Callback for new data become available. */
     void notifyDataAvailable();
 
-    /** Get the latest consuming offset of the subpartition. */
-    int getConsumingOffset();
+    /**
+     * Get the latest consuming offset of the subpartition.
+     *
+     * @param withLock If true, read the consuming offset outside the guarding of lock. This is
+     *     sometimes desired to avoid lock contention, if the caller does not depend on any other
+     *     states to change atomically with the consuming offset.
+     * @return latest consuming offset.
+     */
+    int getConsumingOffset(boolean withLock);
 }

@@ -19,10 +19,9 @@
 package org.apache.flink.connector.jdbc.table;
 
 import org.apache.flink.connector.jdbc.JdbcTestFixture;
-import org.apache.flink.test.util.AbstractTestBase;
 
-import org.junit.After;
-import org.junit.Before;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 
 import java.sql.Connection;
 import java.sql.DriverManager;
@@ -32,12 +31,12 @@ import java.sql.Statement;
 import static org.apache.flink.connector.jdbc.JdbcTestFixture.DERBY_EBOOKSHOP_DB;
 
 /** Base class for JDBC lookup test. */
-public class JdbcLookupTestBase extends AbstractTestBase {
+public class JdbcLookupTestBase {
 
     public static final String DB_URL = "jdbc:derby:memory:lookup";
     public static final String LOOKUP_TABLE = "lookup_table";
 
-    @Before
+    @BeforeEach
     public void before() throws ClassNotFoundException, SQLException {
         System.setProperty(
                 "derby.stream.error.field", JdbcTestFixture.class.getCanonicalName() + ".DEV_NULL");
@@ -103,7 +102,7 @@ public class JdbcLookupTestBase extends AbstractTestBase {
         }
     }
 
-    @After
+    @AfterEach
     public void clearOutputTable() throws Exception {
         Class.forName(DERBY_EBOOKSHOP_DB.getDriverClass());
         try (Connection conn = DriverManager.getConnection(DB_URL);

@@ -44,6 +44,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
 
+import static org.apache.flink.connector.testutils.formats.SchemaTestUtils.open;
 import static org.apache.flink.table.api.DataTypes.FIELD;
 import static org.apache.flink.table.api.DataTypes.FLOAT;
 import static org.apache.flink.table.api.DataTypes.INT;
@@ -87,6 +88,7 @@ class OggJsonSerDeSchemaTest {
                         InternalTypeInfo.of(PHYSICAL_DATA_TYPE.getLogicalType()),
                         false,
                         TimestampFormat.ISO_8601);
+        open(deserializationSchema);
         SimpleCollector collector = new SimpleCollector();
         deserializationSchema.deserialize(null, collector);
         deserializationSchema.deserialize(new byte[] {}, collector);
@@ -112,6 +114,7 @@ class OggJsonSerDeSchemaTest {
                         InternalTypeInfo.of(producedDataTypes.getLogicalType()),
                         false,
                         TimestampFormat.ISO_8601);
+        open(deserializationSchema);
 
         final SimpleCollector collector = new SimpleCollector();
         deserializationSchema.deserialize(firstLine.getBytes(StandardCharsets.UTF_8), collector);
@@ -144,6 +147,7 @@ class OggJsonSerDeSchemaTest {
                         InternalTypeInfo.of(PHYSICAL_DATA_TYPE.getLogicalType()),
                         false,
                         TimestampFormat.ISO_8601);
+        open(deserializationSchema);
 
         SimpleCollector collector = new SimpleCollector();
         for (String line : lines) {
@@ -214,7 +218,7 @@ class OggJsonSerDeSchemaTest {
                         "null",
                         true);
 
-        serializationSchema.open(null);
+        open(serializationSchema);
         actual = new ArrayList<>();
         for (RowData rowData : collector.list) {
             actual.add(new String(serializationSchema.serialize(rowData), StandardCharsets.UTF_8));

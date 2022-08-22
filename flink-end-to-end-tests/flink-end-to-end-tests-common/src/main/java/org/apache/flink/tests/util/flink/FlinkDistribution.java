@@ -28,6 +28,8 @@ import org.apache.flink.test.util.SQLJobSubmission;
 import org.apache.flink.tests.util.AutoClosableProcess;
 import org.apache.flink.tests.util.TestUtils;
 import org.apache.flink.util.ExceptionUtils;
+import org.apache.flink.util.function.FutureTaskWithException;
+import org.apache.flink.util.jackson.JacksonMapperFactory;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.JsonNode;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
@@ -45,14 +47,20 @@ import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.net.InetAddress;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.Statement;
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
@@ -64,13 +72,14 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 /** A wrapper around a Flink distribution. */
-final class FlinkDistribution {
+public final class FlinkDistribution {
 
     private static final Logger LOG = LoggerFactory.getLogger(FlinkDistribution.class);
 
-    private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
+    private static final ObjectMapper OBJECT_MAPPER = JacksonMapperFactory.createObjectMapper();
 
     private static final Pattern ROOT_LOGGER_PATTERN = Pattern.compile("(rootLogger.level =).*");
+    private static final String HIVE_DRIVER = "org.apache.hive.jdbc.HiveDriver";
 
     private final Path opt;
     private final Path lib;
@@ -81,7 +90,7 @@ final class FlinkDistribution {
 
     private final Configuration defaultConfig;
 
-    FlinkDistribution(Path distributionDir) {
+    public FlinkDistribution(Path distributionDir) {
         bin = distributionDir.resolve("bin");
         opt = distributionDir.resolve("opt");
         lib = distributionDir.resolve("lib");
@@ -96,14 +105,47 @@ final class FlinkDistribution {
 
     public void startJobManager() throws IOException {
         LOG.info("Starting Flink JobManager.");
-        AutoClosableProcess.runBlocking(
-                bin.resolve("jobmanager.sh").toAbsolutePath().toString(), "start");
+        internalCallJobManagerScript("start");
+    }
+
+    public void callJobManagerScript(String... args) throws IOException {
+        LOG.info("Calling Flink JobManager script with {}.", Arrays.toString(args));
+        internalCallJobManagerScript(args);
+    }
+
+    private void internalCallJobManagerScript(String... args) throws IOException {
+        List<String> arguments = new ArrayList<>();
+        arguments.add(bin.resolve("jobmanager.sh").toAbsolutePath().toString());
+        arguments.addAll(Arrays.asList(args));
+        AutoClosableProcess.create(arguments.toArray(new String[0]))
+                // ignore the variable, we assume we log to the distribution directory
+                // and we copy the logs over in case of failure
+                .setEnv(env -> env.remove("FLINK_LOG_DIR"))
+                .runBlocking();
     }
 
     public void startTaskManager() throws IOException {
         LOG.info("Starting Flink TaskManager.");
+        AutoClosableProcess.create(
+                        bin.resolve("taskmanager.sh").toAbsolutePath().toString(), "start")
+                // ignore the variable, we assume we log to the distribution directory
+                // and we copy the logs over in case of failure
+                .setEnv(env -> env.remove("FLINK_LOG_DIR"))
+                .runBlocking();
+    }
+
+    public void startSqlGateway() throws IOException {
+        LOG.info("Starting Flink SQL Gateway.");
+        AutoClosableProcess.create(
+                        bin.resolve("sql-gateway.sh").toAbsolutePath().toString(), "start")
+                .setStdoutProcessor(LOG::info)
+                .runBlocking();
+    }
+
+    public void stopSqlGateway() throws IOException {
+        LOG.info("Stopping Flink SQL Gateway.");
         AutoClosableProcess.runBlocking(
-                bin.resolve("taskmanager.sh").toAbsolutePath().toString(), "start");
+                bin.resolve("sql-gateway.sh").toAbsolutePath().toString(), "stop");
     }
 
     public void setRootLogLevel(Level logLevel) throws IOException {
@@ -209,18 +251,57 @@ final class FlinkDistribution {
         }
     }
 
-    public void submitSQLJob(SQLJobSubmission job, Duration timeout) throws IOException {
+    public void submitSQLJob(SQLJobSubmission job, Duration timeout) throws Exception {
         final List<String> commands = new ArrayList<>();
-        commands.add(bin.resolve("sql-client.sh").toAbsolutePath().toString());
-        for (String jar : job.getJars()) {
-            commands.add("--jar");
-            commands.add(jar);
-        }
 
-        AutoClosableProcess.create(commands.toArray(new String[0]))
-                .setStdInputs(job.getSqlLines().toArray(new String[0]))
-                .setStdoutProcessor(LOG::info) // logging the SQL statements and error message
-                .runBlocking(timeout);
+        if (job.getClientMode() == SQLJobSubmission.ClientMode.SQL_CLIENT) {
+            commands.add(bin.resolve("sql-client.sh").toAbsolutePath().toString());
+            for (String jar : job.getJars()) {
+                commands.add("--jar");
+                commands.add(jar);
+            }
+
+            AutoClosableProcess.create(commands.toArray(new String[0]))
+                    .setStdInputs(job.getSqlLines().toArray(new String[0]))
+                    .setStdoutProcessor(LOG::info) // logging the SQL statements and error message
+                    .setEnv(job.getEnvProcessor())
+                    .runBlocking(timeout);
+        } else if (job.getClientMode() == SQLJobSubmission.ClientMode.HIVE_JDBC) {
+            FutureTaskWithException<Void> future =
+                    new FutureTaskWithException<>(
+                            () -> {
+                                // register HiveDriver to the DriverManager
+                                Class.forName(HIVE_DRIVER);
+                                Map<String, String> configMap =
+                                        GlobalConfiguration.loadConfiguration(
+                                                        conf.toAbsolutePath().toString())
+                                                .toMap();
+                                String host =
+                                        configMap.getOrDefault(
+                                                "sql-gateway.endpoint.hiveserver2.host",
+                                                InetAddress.getByName("localhost")
+                                                        .getHostAddress());
+                                String port =
+                                        configMap.getOrDefault(
+                                                "sql-gateway.endpoint.hiveserver2.thrift.port",
+                                                "10000");
+                                try (Connection connection =
+                                                DriverManager.getConnection(
+                                                        String.format(
+                                                                "jdbc:hive2://%s:%s/default;auth=noSasl;",
+                                                                host, port));
+                                        Statement statement = connection.createStatement()) {
+                                    for (String jar : job.getJars()) {
+                                        statement.execute(String.format("ADD JAR '%s'", jar));
+                                    }
+                                    for (String sql : job.getSqlLines()) {
+                                        statement.execute(sql);
+                                    }
+                                }
+                            });
+            new Thread(future).start();
+            future.get(timeout.toMillis(), TimeUnit.MILLISECONDS);
+        }
     }
 
     public void performJarAddition(JarAddition addition) throws IOException {
@@ -311,9 +392,9 @@ final class FlinkDistribution {
         Files.write(conf.resolve("workers"), taskExecutorHosts);
     }
 
-    public Stream<String> searchAllLogs(Pattern pattern, Function<Matcher, String> matchProcessor)
+    public <T> Stream<T> searchAllLogs(Pattern pattern, Function<Matcher, T> matchProcessor)
             throws IOException {
-        final List<String> matches = new ArrayList<>(2);
+        final List<T> matches = new ArrayList<>(2);
 
         try (Stream<Path> logFilesStream = Files.list(log)) {
             final Iterator<Path> logFiles = logFilesStream.iterator();

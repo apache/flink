@@ -184,8 +184,8 @@ row_type = DataTypes.ROW([
     DataTypes.FIELD('f99', DataTypes.VARCHAR()),
 ])
 source = FileSource.for_bulk_file_format(ParquetColumnarRowInputFormat(
-    hadoop_config=Configuration(),
     row_type=row_type,
+    hadoop_config=Configuration(),
     batch_size=500,
     is_utc_timestamp=False,
     is_case_sensitive=True,
@@ -289,7 +289,7 @@ stream = env.from_source(source, WatermarkStrategy.no_watermarks(), "file-source
 你可以使用 `avro-tools.jar` 手动生成代码，也可以直接使用 Avro Maven 插件对配置的源目录中的任何 .avsc 文件执行代码生成。
 请参考 [Avro Getting Started](https://avro.apache.org/docs/1.10.0/gettingstartedjava.html) 获取更多信息。
 
-此示例使用了样例 schema [testdata.avsc](https://github.com/apache/flink/blob/master/flink-formats/flink-parquet/src/test/resources/avro/testdata.avsc)：
+此示例使用了样例 schema {{< gh_link file="flink-formats/flink-parquet/src/test/resources/avro/testdata.avsc" name="testdata.avsc" >}}：
 
 ```json lines
 [
@@ -338,7 +338,7 @@ final DataStream<GenericRecord> stream =
 在这种场景中，Avro 会使用 Java 反射为这些 POJO 类生成 schema 和协议。
 请参考 [Avro reflect](https://avro.apache.org/docs/1.10.0/api/java/index.html) 文档获取更多关于 Java 类型到 Avro schemas 映射的详细信息。
 
-本例使用了一个简单的 Java POJO 类 [Datum](https://github.com/apache/flink/blob/master/flink-formats/flink-parquet/src/test/java/org/apache/flink/formats/parquet/avro/Datum.java)：
+本例使用了一个简单的 Java POJO 类 {{< gh_link file="flink-formats/flink-parquet/src/test/java/org/apache/flink/formats/parquet/avro/Datum.java" name="Datum" >}}：
 
 ```java
 public class Datum implements Serializable {

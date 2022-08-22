@@ -15,18 +15,25 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 ################################################################################
-from abc import ABC, abstractmethod
-
 import pickle
+from abc import ABC, abstractmethod
 from typing import TypeVar, List, Tuple
+
+from pemja import findClass
 
 from pyflink.common import Row, RowKind, TypeInformation
 from pyflink.common.typeinfo import (PickledBytesTypeInfo, PrimitiveArrayTypeInfo,
                                      BasicArrayTypeInfo, ObjectArrayTypeInfo, RowTypeInfo,
                                      TupleTypeInfo, MapTypeInfo, ListTypeInfo)
+from pyflink.datastream import TimeWindow, CountWindow, GlobalWindow
 
 IN = TypeVar('IN')
 OUT = TypeVar('OUT')
+
+# Java Window
+JTimeWindow = findClass('org.apache.flink.table.runtime.operators.window.TimeWindow')
+JCountWindow = findClass('org.apache.flink.table.runtime.operators.window.CountWindow')
+JGlobalWindow = findClass('org.apache.flink.streaming.api.windowing.windows.GlobalWindow')
 
 
 class DataConverter(ABC):
@@ -88,18 +95,19 @@ class RowDataConverter(DataConverter):
 
     def __init__(self, field_data_converters: List[DataConverter], field_names: List[str]):
         self._field_data_converters = field_data_converters
-        self._reuse_row = Row()
-        self._reuse_row.set_field_names(field_names)
+        self._field_names = field_names
 
     def to_internal(self, value) -> IN:
         if value is None:
             return None
 
-        self._reuse_row._values = [self._field_data_converters[i].to_internal(item)
-                                   for i, item in enumerate(value[1])]
-        self._reuse_row.set_row_kind(RowKind(value[0]))
+        row = Row()
+        row._values = [self._field_data_converters[i].to_internal(item)
+                       for i, item in enumerate(value[1])]
+        row.set_field_names(self._field_names)
+        row.set_row_kind(RowKind(value[0]))
 
-        return self._reuse_row
+        return row
 
     def to_external(self, value: Row) -> OUT:
         if value is None:
@@ -178,6 +186,32 @@ class DictDataConverter(DataConverter):
 
         return {self._key_converter.to_external(k): self._value_converter.to_external(v)
                 for k, v in value.items()}
+
+
+class TimeWindowConverter(DataConverter):
+    def to_internal(self, value) -> TimeWindow:
+        return TimeWindow(value.getStart(), value.getEnd())
+
+    def to_external(self, value: TimeWindow) -> OUT:
+        return JTimeWindow(value.start, value.end)
+
+
+class CountWindowConverter(DataConverter):
+
+    def to_internal(self, value) -> CountWindow:
+        return CountWindow(value.getId())
+
+    def to_external(self, value: CountWindow) -> OUT:
+        return JCountWindow(value.id)
+
+
+class GlobalWindowConverter(DataConverter):
+
+    def to_internal(self, value) -> IN:
+        return GlobalWindow()
+
+    def to_external(self, value) -> OUT:
+        return JGlobalWindow.get()
 
 
 def from_type_info_proto(type_info):

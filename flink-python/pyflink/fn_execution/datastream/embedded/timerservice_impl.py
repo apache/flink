@@ -16,26 +16,55 @@
 # limitations under the License.
 ################################################################################
 from pyflink.datastream import TimerService
+from pyflink.fn_execution.datastream.timerservice import InternalTimerService, N
 
 
 class TimerServiceImpl(TimerService):
-    def __init__(self, timer_service):
-        self._timer_service = timer_service
+    def __init__(self, j_timer_service):
+        self._j_timer_service = j_timer_service
 
     def current_processing_time(self):
-        return self._timer_service.currentProcessingTime()
+        return self._j_timer_service.currentProcessingTime()
 
     def current_watermark(self):
-        return self._timer_service.currentWatermark()
+        return self._j_timer_service.currentWatermark()
 
     def register_processing_time_timer(self, timestamp: int):
-        self._timer_service.registerProcessingTimeTimer(timestamp)
+        self._j_timer_service.registerProcessingTimeTimer(timestamp)
 
     def register_event_time_timer(self, timestamp: int):
-        self._timer_service.registerEventTimeTimer(timestamp)
+        self._j_timer_service.registerEventTimeTimer(timestamp)
 
     def delete_processing_time_timer(self, timestamp: int):
-        self._timer_service.deleteProcessingTimeTimer(timestamp)
+        self._j_timer_service.deleteProcessingTimeTimer(timestamp)
 
     def delete_event_time_timer(self, timestamp: int):
-        self._timer_service.deleteEventTimeTimer(timestamp)
+        self._j_timer_service.deleteEventTimeTimer(timestamp)
+
+
+class InternalTimerServiceImpl(InternalTimerService[N]):
+    def __init__(self, j_timer_service, window_converter):
+        self._j_timer_service = j_timer_service
+        self._window_converter = window_converter
+
+    def current_processing_time(self):
+        return self._j_timer_service.currentProcessingTime()
+
+    def current_watermark(self):
+        return self._j_timer_service.currentWatermark()
+
+    def register_processing_time_timer(self, namespace: N, timestamp: int):
+        window = self._window_converter.to_external(namespace)
+        self._j_timer_service.registerProcessingTimeTimer(window, timestamp)
+
+    def register_event_time_timer(self, namespace: N, timestamp: int):
+        window = self._window_converter.to_external(namespace)
+        self._j_timer_service.registerEventTimeTimer(window, timestamp)
+
+    def delete_event_time_timer(self, namespace: N, timestamp: int):
+        window = self._window_converter.to_external(namespace)
+        self._j_timer_service.deleteEventTimeTimer(window, timestamp)
+
+    def delete_processing_time_timer(self, namespace: N, timestamp: int):
+        window = self._window_converter.to_external(namespace)
+        self._j_timer_service.deleteProcessingTimeTimer(window, timestamp)

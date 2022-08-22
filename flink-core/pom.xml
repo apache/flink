@@ -51,6 +51,11 @@ under the License.
 			<artifactId>flink-shaded-asm-9</artifactId>
 		</dependency>
 
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-shaded-jackson</artifactId>
+		</dependency>
+
 		<!-- standard utilities -->
 		<dependency>
 			<groupId>org.apache.commons</groupId>
@@ -111,12 +116,6 @@ under the License.
 		<dependency>
 			<groupId>org.joda</groupId>
 			<artifactId>joda-convert</artifactId>
-			<scope>test</scope>
-		</dependency>
-
-		<dependency>
-			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-shaded-jackson</artifactId>
 			<scope>test</scope>
 		</dependency>
 

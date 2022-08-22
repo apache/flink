@@ -51,7 +51,7 @@ import static org.apache.flink.util.Preconditions.checkState;
  */
 public class HsSubpartitionFileReaderImpl implements HsSubpartitionFileReader {
 
-    private final ByteBuffer headerBuf = BufferReaderWriterUtil.allocatedHeaderBuffer();
+    private final ByteBuffer headerBuf;
 
     private final int subpartitionId;
 
@@ -75,10 +75,12 @@ public class HsSubpartitionFileReaderImpl implements HsSubpartitionFileReader {
             HsSubpartitionViewInternalOperations operations,
             HsFileDataIndex dataIndex,
             int maxBufferReadAhead,
-            Consumer<HsSubpartitionFileReader> fileReaderReleaser) {
+            Consumer<HsSubpartitionFileReader> fileReaderReleaser,
+            ByteBuffer headerBuf) {
         this.subpartitionId = subpartitionId;
         this.dataFileChannel = dataFileChannel;
         this.operations = operations;
+        this.headerBuf = headerBuf;
         this.bufferIndexManager = new BufferIndexManager(maxBufferReadAhead);
         this.cachedRegionManager = new CachedRegionManager(subpartitionId, dataIndex);
         this.fileReaderReleaser = fileReaderReleaser;
@@ -184,7 +186,9 @@ public class HsSubpartitionFileReaderImpl implements HsSubpartitionFileReader {
     /** Refresh downstream consumption progress for another round scheduling of reading. */
     @Override
     public void prepareForScheduling() {
-        bufferIndexManager.updateLastConsumed(operations.getConsumingOffset());
+        // Access the consuming offset with lock, to prevent loading any buffer released from the
+        // memory data manager that is already consumed.
+        bufferIndexManager.updateLastConsumed(operations.getConsumingOffset(true));
     }
 
     /** Provides priority calculation logic for io scheduler. */
@@ -478,14 +482,16 @@ public class HsSubpartitionFileReaderImpl implements HsSubpartitionFileReader {
                 HsSubpartitionViewInternalOperations operation,
                 HsFileDataIndex dataIndex,
                 int maxBuffersReadAhead,
-                Consumer<HsSubpartitionFileReader> fileReaderReleaser) {
+                Consumer<HsSubpartitionFileReader> fileReaderReleaser,
+                ByteBuffer headerBuffer) {
             return new HsSubpartitionFileReaderImpl(
                     subpartitionId,
                     dataFileChannel,
                     operation,
                     dataIndex,
                     maxBuffersReadAhead,
-                    fileReaderReleaser);
+                    fileReaderReleaser,
+                    headerBuffer);
         }
     }
 }

@@ -210,7 +210,7 @@ abstract class JoinReorderTestBase extends TableTestBase {
          |   LEFT OUTER JOIN T4 ON a1 = a4
          |   JOIN T5 ON a4 = a5
          """.stripMargin
-    // T1, T2, T3 can reorder
+    // T1, T2, T3 T4 T5 can reorder.
     util.verifyExecPlan(sql)
   }
 
@@ -251,7 +251,7 @@ abstract class JoinReorderTestBase extends TableTestBase {
          |   LEFT OUTER JOIN T4 ON a1 = a4
          |   LEFT OUTER JOIN T5 ON a4 = a5
          """.stripMargin
-    // can not reorder
+    // can reorder. Left outer join will be converted to one multi set by FlinkJoinToMultiJoinRule.
     util.verifyExecPlan(sql)
   }
 
@@ -278,6 +278,90 @@ abstract class JoinReorderTestBase extends TableTestBase {
          |   FULL OUTER JOIN T3 ON a1 = a3
          |   FULL OUTER JOIN T4 ON a1 = a4
          |   FULL OUTER JOIN T5 ON a4 = a5
+         """.stripMargin
+    // can not reorder
+    util.verifyExecPlan(sql)
+  }
+
+  @Test
+  def testInnerJoinLeftOuterJoinInnerJoinLeftOuterJoin(): Unit = {
+    val sql =
+      s"""
+         |SELECT * FROM T1
+         |   JOIN T2 ON a1 = a2
+         |   LEFT OUTER JOIN T3 ON a1 = a3
+         |   JOIN T4 ON a1 = a4
+         |   LEFT OUTER JOIN T5 ON a4 = a5
+         """.stripMargin
+    // T1, T2, T3, T4, T5 can reorder.
+    util.verifyExecPlan(sql)
+  }
+
+  @Test
+  def testLeftOuterJoinInnerJoinLeftOuterJoinInnerJoin(): Unit = {
+    val sql =
+      s"""
+         |SELECT * FROM T1
+         |   LEFT OUTER JOIN T2 ON a1 = a2
+         |   JOIN T3 ON a1 = a3
+         |   LEFT OUTER JOIN T4 ON a1 = a4
+         |   JOIN T5 ON a4 = a5
+         """.stripMargin
+    // T1, T2, T3, T4, T5 can reorder.
+    util.verifyExecPlan(sql)
+  }
+
+  @Test
+  def testInnerJoinRightOuterJoinInnerJoinRightOuterJoin(): Unit = {
+    val sql =
+      s"""
+         |SELECT * FROM T1
+         |   JOIN T2 ON a1 = a2
+         |   RIGHT OUTER JOIN T3 ON a1 = a3
+         |   JOIN T4 ON a1 = a4
+         |   RIGHT OUTER JOIN T5 ON a4 = a5
+         """.stripMargin
+    // T1 and T2 can not reorder, but MJ(T1, T2), T3, T4 can reorder.
+    util.verifyExecPlan(sql)
+  }
+
+  @Test
+  def testRightOuterJoinInnerJoinRightOuterJoinInnerJoin(): Unit = {
+    val sql =
+      s"""
+         |SELECT * FROM T1
+         |   RIGHT OUTER JOIN T2 ON a1 = a2
+         |   JOIN T3 ON a1 = a3
+         |   RIGHT OUTER JOIN T4 ON a1 = a4
+         |   JOIN T5 ON a4 = a5
+         """.stripMargin
+    // T1, T2, T3 can reorder, and MJ(T1, T2, T3), T4, T5 can reorder.
+    util.verifyExecPlan(sql)
+  }
+
+  @Test
+  def testInnerJoinSemiJoin(): Unit = {
+    val sql =
+      s"""
+         |SELECT * FROM T1
+         |   JOIN T2 ON a1 = a2
+         |   JOIN T3 ON a2 = a3
+         |   JOIN T4 ON a1 = a4
+         |   WHERE a1 IN (SELECT a5 FROM T5)
+         """.stripMargin
+    // can not reorder. Semi join will support join order in future.
+    util.verifyExecPlan(sql)
+  }
+
+  @Test
+  def testInnerJoinAntiJoin(): Unit = {
+    val sql =
+      s"""
+         |SELECT * FROM T1
+         |   JOIN T2 ON a1 = a2
+         |   JOIN T3 ON a2 = a3
+         |   JOIN T4 ON a1 = a4
+         |   WHERE NOT EXISTS (SELECT a5 FROM T5 WHERE a1 = a5)
          """.stripMargin
     // can not reorder
     util.verifyExecPlan(sql)

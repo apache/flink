@@ -86,6 +86,7 @@ import org.apache.flink.runtime.state.StateHandleID;
 import org.apache.flink.runtime.state.StateInitializationContext;
 import org.apache.flink.runtime.state.StatePartitionStreamProvider;
 import org.apache.flink.runtime.state.StreamStateHandle;
+import org.apache.flink.runtime.state.TaskExecutorStateChangelogStoragesManager;
 import org.apache.flink.runtime.state.TaskLocalStateStoreImpl;
 import org.apache.flink.runtime.state.TaskStateManager;
 import org.apache.flink.runtime.state.TaskStateManagerImpl;
@@ -789,6 +790,7 @@ public class StreamTaskTest extends TestLogger {
                         createExecutionAttemptId(),
                         mock(TaskLocalStateStoreImpl.class),
                         new InMemoryStateChangelogStorage(),
+                        new TaskExecutorStateChangelogStoragesManager(),
                         null,
                         checkpointResponder);
 
@@ -982,6 +984,7 @@ public class StreamTaskTest extends TestLogger {
                         createExecutionAttemptId(),
                         mock(TaskLocalStateStoreImpl.class),
                         new InMemoryStateChangelogStorage(),
+                        new TaskExecutorStateChangelogStoragesManager(),
                         null,
                         checkpointResponder);
 

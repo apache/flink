@@ -64,9 +64,9 @@ import org.apache.flink.table.types.logical.ZonedTimestampType;
 import org.apache.flink.table.types.utils.DataTypeFactoryMock;
 import org.apache.flink.table.utils.CatalogManagerMocks;
 import org.apache.flink.types.Row;
+import org.apache.flink.util.jackson.JacksonMapperFactory;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.JsonNode;
-import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.parallel.Execution;
@@ -139,8 +139,8 @@ public class LogicalTypeJsonSerdeTest {
         // maximum plan content
         tableConfig.set(TableConfigOptions.PLAN_COMPILE_CATALOG_OBJECTS, ALL);
         final String maximumJson = toJson(serdeContext, STRUCTURED_TYPE);
-        final ObjectMapper mapper = new ObjectMapper();
-        final JsonNode maximumJsonNode = mapper.readTree(maximumJson);
+        final JsonNode maximumJsonNode =
+                JacksonMapperFactory.createObjectMapper().readTree(maximumJson);
         assertThat(maximumJsonNode.get(LogicalTypeJsonSerializer.FIELD_NAME_ATTRIBUTES))
                 .isNotNull();
         assertThat(maximumJsonNode.get(LogicalTypeJsonSerializer.FIELD_NAME_DESCRIPTION).asText())

@@ -190,17 +190,23 @@ class ExpressionReducer(
               case _ =>
                 val reducedValue = reduced.getField(reducedIdx)
                 // RexBuilder handle double literal incorrectly, convert it into BigDecimal manually
-                val value =
-                  if (
-                    reducedValue != null &&
-                    unreduced.getType.getSqlTypeName == SqlTypeName.DOUBLE
-                  ) {
-                    new java.math.BigDecimal(reducedValue.asInstanceOf[Number].doubleValue())
+                if (
+                  reducedValue != null &&
+                  unreduced.getType.getSqlTypeName == SqlTypeName.DOUBLE
+                ) {
+                  val doubleVal = reducedValue.asInstanceOf[Number].doubleValue()
+                  if (doubleVal.isInfinity || doubleVal.isNaN) {
+                    reducedValues.add(unreduced)
                   } else {
-                    reducedValue
+                    reducedValues.add(
+                      maySkipNullLiteralReduce(
+                        rexBuilder,
+                        new java.math.BigDecimal(doubleVal),
+                        unreduced))
                   }
-
-                reducedValues.add(maySkipNullLiteralReduce(rexBuilder, value, unreduced))
+                } else {
+                  reducedValues.add(maySkipNullLiteralReduce(rexBuilder, reducedValue, unreduced))
+                }
                 reducedIdx += 1
             }
         }

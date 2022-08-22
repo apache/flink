@@ -26,10 +26,13 @@ import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.streaming.api.functions.sink.filesystem.OutputFileConfig;
 import org.apache.flink.table.api.TableException;
+import org.apache.flink.table.catalog.ObjectIdentifier;
 
 import java.io.IOException;
 import java.io.Serializable;
+import java.util.Collections;
 import java.util.LinkedHashMap;
+import java.util.List;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -54,6 +57,8 @@ public class FileSystemOutputFormat<T> implements OutputFormat<T>, FinalizeOnMas
     private final PartitionComputer<T> computer;
     private final OutputFormatFactory<T> formatFactory;
     private final OutputFileConfig outputFileConfig;
+    private final ObjectIdentifier identifier;
+    private final PartitionCommitPolicyFactory partitionCommitPolicyFactory;
 
     private transient PartitionWriter<T> writer;
     private transient Configuration parameters;
@@ -69,7 +74,9 @@ public class FileSystemOutputFormat<T> implements OutputFormat<T>, FinalizeOnMas
             LinkedHashMap<String, String> staticPartitions,
             OutputFormatFactory<T> formatFactory,
             PartitionComputer<T> computer,
-            OutputFileConfig outputFileConfig) {
+            OutputFileConfig outputFileConfig,
+            ObjectIdentifier identifier,
+            PartitionCommitPolicyFactory partitionCommitPolicyFactory) {
         this.fsFactory = fsFactory;
         this.msFactory = msFactory;
         this.overwrite = overwrite;
@@ -81,11 +88,27 @@ public class FileSystemOutputFormat<T> implements OutputFormat<T>, FinalizeOnMas
         this.formatFactory = formatFactory;
         this.computer = computer;
         this.outputFileConfig = outputFileConfig;
+        this.identifier = identifier;
+        this.partitionCommitPolicyFactory = partitionCommitPolicyFactory;
     }
 
     @Override
     public void finalizeGlobal(int parallelism) {
         try {
+            List<PartitionCommitPolicy> policies = Collections.emptyList();
+            if (partitionCommitPolicyFactory != null) {
+                policies =
+                        partitionCommitPolicyFactory.createPolicyChain(
+                                Thread.currentThread().getContextClassLoader(),
+                                () -> {
+                                    try {
+                                        return fsFactory.create(tmpPath.toUri());
+                                    } catch (IOException e) {
+                                        throw new RuntimeException(e);
+                                    }
+                                });
+            }
+
             FileSystemCommitter committer =
                     new FileSystemCommitter(
                             fsFactory,
@@ -93,7 +116,10 @@ public class FileSystemOutputFormat<T> implements OutputFormat<T>, FinalizeOnMas
                             overwrite,
                             tmpPath,
                             partitionColumns.length,
-                            isToLocal);
+                            isToLocal,
+                            identifier,
+                            staticPartitions,
+                            policies);
             committer.commitPartitions();
         } catch (Exception e) {
             throw new TableException("Exception in finalizeGlobal", e);
@@ -164,6 +190,9 @@ public class FileSystemOutputFormat<T> implements OutputFormat<T>, FinalizeOnMas
 
         private OutputFileConfig outputFileConfig = new OutputFileConfig("", "");
 
+        private ObjectIdentifier identifier;
+        private PartitionCommitPolicyFactory partitionCommitPolicyFactory;
+
         public Builder<T> setPartitionColumns(String[] partitionColumns) {
             this.partitionColumns = partitionColumns;
             return this;
@@ -219,6 +248,17 @@ public class FileSystemOutputFormat<T> implements OutputFormat<T>, FinalizeOnMas
             return this;
         }
 
+        public Builder<T> setIdentifier(ObjectIdentifier identifier) {
+            this.identifier = identifier;
+            return this;
+        }
+
+        public Builder<T> setPartitionCommitPolicyFactory(
+                PartitionCommitPolicyFactory partitionCommitPolicyFactory) {
+            this.partitionCommitPolicyFactory = partitionCommitPolicyFactory;
+            return this;
+        }
+
         public FileSystemOutputFormat<T> build() {
             checkNotNull(partitionColumns, "partitionColumns should not be null");
             checkNotNull(formatFactory, "formatFactory should not be null");
@@ -237,7 +277,9 @@ public class FileSystemOutputFormat<T> implements OutputFormat<T>, FinalizeOnMas
                     staticPartitions,
                     formatFactory,
                     computer,
-                    outputFileConfig);
+                    outputFileConfig,
+                    identifier,
+                    partitionCommitPolicyFactory);
         }
     }
 }

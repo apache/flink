@@ -20,6 +20,13 @@ from pyflink.datastream.functions import SinkFunction, SourceFunction
 from pyflink.java_gateway import get_gateway
 
 
+__all__ = [
+    'RMQConnectionConfig',
+    'RMQSource',
+    'RMQSink'
+]
+
+
 class RMQConnectionConfig(object):
     """
     Connection Configuration for RMQ.

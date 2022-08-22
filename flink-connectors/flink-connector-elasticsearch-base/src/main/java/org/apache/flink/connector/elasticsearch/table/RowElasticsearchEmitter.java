@@ -22,8 +22,13 @@ import org.apache.flink.api.common.serialization.SerializationSchema;
 import org.apache.flink.api.connector.sink2.SinkWriter;
 import org.apache.flink.connector.elasticsearch.sink.ElasticsearchEmitter;
 import org.apache.flink.connector.elasticsearch.sink.RequestIndexer;
+import org.apache.flink.metrics.MetricGroup;
+import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.data.RowData;
+import org.apache.flink.util.FlinkRuntimeException;
+import org.apache.flink.util.SimpleUserCodeClassLoader;
+import org.apache.flink.util.UserCodeClassLoader;
 
 import org.elasticsearch.action.ActionRequest;
 import org.elasticsearch.action.delete.DeleteRequest;
@@ -61,6 +66,23 @@ class RowElasticsearchEmitter implements ElasticsearchEmitter<RowData> {
 
     @Override
     public void open() {
+        try {
+            serializationSchema.open(
+                    new SerializationSchema.InitializationContext() {
+                        @Override
+                        public MetricGroup getMetricGroup() {
+                            return new UnregisteredMetricsGroup();
+                        }
+
+                        @Override
+                        public UserCodeClassLoader getUserCodeClassLoader() {
+                            return SimpleUserCodeClassLoader.create(
+                                    RowElasticsearchEmitter.class.getClassLoader());
+                        }
+                    });
+        } catch (Exception e) {
+            throw new FlinkRuntimeException("Failed to initialize serialization schema.", e);
+        }
         indexGenerator.open();
     }
 

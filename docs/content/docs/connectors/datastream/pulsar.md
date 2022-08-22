@@ -34,6 +34,8 @@ Details on Pulsar compatibility can be found in [PIP-72](https://github.com/apac
 
 {{< artifact flink-connector-pulsar >}}
 
+{{< py_download_link "pulsar" >}}
+
 Flink's streaming connectors are not part of the binary distribution.
 See how to link with them for cluster execution [here]({{< ref "docs/dev/configuration/overview" >}}).
 
@@ -354,6 +356,7 @@ The Pulsar connector consumes from the latest available message if the message I
   ```
   {{< /tab >}}
   {{< /tabs >}}
+
 - Start from a specified message between the earliest and the latest.
 The Pulsar connector consumes from the latest available message if the message ID doesn't exist.
 
@@ -371,7 +374,10 @@ The Pulsar connector consumes from the latest available message if the message I
   {{< /tab >}}
   {{< /tabs >}}
 
-- Start from the specified message time by `Message<byte[]>.getPublishTime()`.
+- Start from the specified message publish time by `Message<byte[]>.getPublishTime()`.
+This method is deprecated because the name is totally wrong which may cause confuse.
+You can use `StartCursor.fromPublishTime(long)` instead.
+
   {{< tabs "pulsar-starting-position-message-time" >}}
   {{< tab "Java" >}}
   ```java
@@ -384,6 +390,11 @@ The Pulsar connector consumes from the latest available message if the message I
   ```
   {{< /tab >}}
   {{< /tabs >}}
+
+- Start from the specified message publish time by `Message<byte[]>.getPublishTime()`.
+  ```java
+  StartCursor.fromPublishTime(long);
+  ```
 
 {{< hint info >}}
 Each Pulsar message belongs to an ordered sequence on its topic.
@@ -418,7 +429,7 @@ Built-in stop cursors include:
   {{< /tab >}}
   {{< /tabs >}}
 
-- Stop at the latest available message when the  Pulsar source starts consuming messages.
+- Stop at the latest available message when the Pulsar source starts consuming messages.
   {{< tabs "pulsar-boundedness-latest" >}}
   {{< tab "Java" >}}
   ```java
@@ -445,6 +456,7 @@ Built-in stop cursors include:
   ```
   {{< /tab >}}
   {{< /tabs >}}
+
 - Stop but include the given message in the consuming result.
   {{< tabs "pulsar-boundedness-after-message-id" >}}
   {{< tab "Java" >}}
@@ -459,7 +471,20 @@ Built-in stop cursors include:
   {{< /tab >}}
   {{< /tabs >}}
 
-- Stop at the specified message time by `Message<byte[]>.getPublishTime()`.
+- Stop at the specified event time by `Message<byte[]>.getEventTime()`. The message with the
+given event time won't be included in the consuming result.
+  ```java
+  StopCursor.atEventTime(long);
+  ```
+
+- Stop after the specified event time by `Message<byte[]>.getEventTime()`. The message with the
+given event time will be included in the consuming result.
+  ```java
+  StopCursor.afterEventTime(long);
+  ```
+
+- Stop at the specified publish time by `Message<byte[]>.getPublishTime()`. The message with the
+given publish time won't be included in the consuming result.
   {{< tabs "pulsar-boundedness-publish-time" >}}
   {{< tab "Java" >}}
   ```java
@@ -473,9 +498,11 @@ Built-in stop cursors include:
   {{< /tab >}}
   {{< /tabs >}}
 
-  {{< hint warning >}}
-  StopCursor.atEventTime(long) is now deprecated.
-  {{< /hint >}}
+- Stop after the specified publish time by `Message<byte[]>.getPublishTime()`. The message with the
+given publish time will be included in the consuming result.
+  ```java
+  StopCursor.afterPublishTime(long);
+  ```
 
 ### Source Configurable Options
 

@@ -1576,12 +1576,11 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
       "NULL"
     )
 
-    // invalid log
-    val infiniteOrNaNException = "Infinite or NaN"
+    // test Infinite or NaN
     // Infinity
-    testExpectedSqlException("LOG(1, 100)", infiniteOrNaNException, classOf[NumberFormatException])
+    testSqlApi("LOG(1, 100)", "Infinity")
     // NaN
-    testExpectedSqlException("LOG(-1)", infiniteOrNaNException, classOf[NumberFormatException])
+    testSqlApi("LOG(-1)", "NaN")
   }
 
   @Test

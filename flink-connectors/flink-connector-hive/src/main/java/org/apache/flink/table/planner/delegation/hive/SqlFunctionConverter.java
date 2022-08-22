@@ -97,8 +97,7 @@ public class SqlFunctionConverter extends RexShuttle {
             if (convertedOp instanceof FlinkSqlTimestampFunction) {
                 // flink's current_timestamp has different type from hive's, convert it to a literal
                 Timestamp currentTS =
-                        ((HiveParser.HiveParserSessionState) SessionState.get())
-                                .getHiveParserCurrentTS();
+                        ((HiveSessionState) SessionState.get()).getHiveParserCurrentTS();
                 HiveShim hiveShim = HiveParserUtils.getSessionHiveShim();
                 try {
                     return HiveParserRexNodeConverter.convertConstant(

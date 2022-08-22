@@ -21,6 +21,10 @@ package org.apache.flink.runtime.rest.messages;
 import org.apache.flink.runtime.rest.HttpMethodWrapper;
 import org.apache.flink.runtime.rest.handler.RestHandlerSpecification;
 import org.apache.flink.runtime.rest.handler.job.JobCancellationHandler;
+import org.apache.flink.runtime.rest.versioning.RuntimeRestAPIVersion;
+
+import java.util.Collection;
+import java.util.Collections;
 
 /**
  * {@link RestHandlerSpecification} for the {@link JobCancellationHandler} which is registered for
@@ -54,5 +58,10 @@ public class YarnCancelJobTerminationHeaders implements RestHandlerSpecification
 
     public static YarnCancelJobTerminationHeaders getInstance() {
         return INSTANCE;
+    }
+
+    @Override
+    public Collection<RuntimeRestAPIVersion> getSupportedAPIVersions() {
+        return Collections.singleton(RuntimeRestAPIVersion.V1);
     }
 }

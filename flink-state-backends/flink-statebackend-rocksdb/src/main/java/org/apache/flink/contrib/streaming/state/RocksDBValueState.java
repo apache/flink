@@ -124,4 +124,17 @@ class RocksDBValueState<K, N, V> extends AbstractRocksDBState<K, N, V>
                         stateDesc.getDefaultValue(),
                         backend);
     }
+
+    @SuppressWarnings("unchecked")
+    static <K, N, SV, S extends State, IS extends S> IS update(
+            StateDescriptor<S, SV> stateDesc,
+            Tuple2<ColumnFamilyHandle, RegisteredKeyValueStateBackendMetaInfo<N, SV>>
+                    registerResult,
+            IS existingState) {
+        return (IS)
+                ((RocksDBValueState<K, N, SV>) existingState)
+                        .setNamespaceSerializer(registerResult.f1.getNamespaceSerializer())
+                        .setValueSerializer(registerResult.f1.getStateSerializer())
+                        .setDefaultValue(stateDesc.getDefaultValue());
+    }
 }

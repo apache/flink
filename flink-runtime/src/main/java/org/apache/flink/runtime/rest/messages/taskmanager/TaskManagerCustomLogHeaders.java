@@ -22,11 +22,11 @@ import org.apache.flink.runtime.rest.HttpMethodWrapper;
 import org.apache.flink.runtime.rest.handler.taskmanager.TaskManagerCustomLogHandler;
 import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
 import org.apache.flink.runtime.rest.messages.LogFileNamePathParameter;
-import org.apache.flink.runtime.rest.messages.UntypedResponseMessageHeaders;
+import org.apache.flink.runtime.rest.messages.RuntimeUntypedResponseMessageHeaders;
 
 /** Headers for the {@link TaskManagerCustomLogHandler}. */
 public class TaskManagerCustomLogHeaders
-        implements UntypedResponseMessageHeaders<
+        implements RuntimeUntypedResponseMessageHeaders<
                 EmptyRequestBody, TaskManagerFileMessageParameters> {
 
     private static final TaskManagerCustomLogHeaders INSTANCE = new TaskManagerCustomLogHeaders();

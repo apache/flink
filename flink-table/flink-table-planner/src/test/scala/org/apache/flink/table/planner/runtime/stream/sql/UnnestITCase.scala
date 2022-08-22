@@ -313,4 +313,35 @@ class UnnestITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mo
     assertEquals(expected.sorted, sink.getAppendResults.sorted)
   }
 
+  @Test
+  def testUnnestWithNestedFilter(): Unit = {
+    val data = List(
+      (1, Array((12, "45.6"), (12, "45.612"))),
+      (2, Array((13, "41.6"), (14, "45.2136"))),
+      (3, Array((18, "42.6")))
+    )
+    val t = env.fromCollection(data).toTable(tEnv, 'a, 'b)
+    tEnv.registerTable("MyTable", t)
+
+    val sqlQuery =
+      """
+        |SELECT * FROM (
+        |   SELECT a, b1, b2 FROM
+        |       (SELECT a, b FROM MyTable) T
+        |       CROSS JOIN
+        |       UNNEST(T.b) as S(b1, b2)
+        |       WHERE S.b1 >= 12
+        |   ) tmp
+        |WHERE b2 <> '42.6'
+    """.stripMargin
+
+    val result = tEnv.sqlQuery(sqlQuery).toAppendStream[Row]
+    val sink = new TestingAppendSink
+    result.addSink(sink)
+    env.execute()
+
+    val expected = List("1,12,45.612", "1,12,45.6", "2,13,41.6", "2,14,45.2136")
+    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+  }
+
 }

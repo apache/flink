@@ -22,6 +22,7 @@ import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.execution.SavepointFormatType;
+import org.apache.flink.runtime.checkpoint.FinishedTaskStateProvider.PartialFinishingNotSupportedByStateException;
 import org.apache.flink.runtime.checkpoint.hooks.MasterHooks;
 import org.apache.flink.runtime.executiongraph.Execution;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
@@ -717,8 +718,6 @@ public class CheckpointCoordinator {
                                 return null;
                             });
 
-            coordinatorsToCheckpoint.forEach(
-                    (ctx) -> ctx.afterSourceBarrierInjection(checkpoint.getCheckpointID()));
             // It is possible that the tasks has finished
             // checkpointing at this point.
             // So we need to complete this pending checkpoint.
@@ -1367,18 +1366,21 @@ public class CheckpointCoordinator {
         } catch (Exception e1) {
             // abort the current pending checkpoint if we fails to finalize the pending
             // checkpoint.
+            final CheckpointFailureReason failureReason =
+                    e1 instanceof PartialFinishingNotSupportedByStateException
+                            ? CheckpointFailureReason.CHECKPOINT_DECLINED_TASK_CLOSING
+                            : CheckpointFailureReason.FINALIZE_CHECKPOINT_FAILURE;
+
             if (!pendingCheckpoint.isDisposed()) {
                 abortPendingCheckpoint(
-                        pendingCheckpoint,
-                        new CheckpointException(
-                                CheckpointFailureReason.FINALIZE_CHECKPOINT_FAILURE, e1));
+                        pendingCheckpoint, new CheckpointException(failureReason, e1));
             }
 
             throw new CheckpointException(
                     "Could not finalize the pending checkpoint "
                             + pendingCheckpoint.getCheckpointID()
                             + '.',
-                    CheckpointFailureReason.FINALIZE_CHECKPOINT_FAILURE,
+                    failureReason,
                     e1);
         }
     }
@@ -1799,8 +1801,7 @@ public class CheckpointCoordinator {
                         checkpointLocation,
                         userClassLoader,
                         allowNonRestored,
-                        checkpointProperties,
-                        restoreSettings.getRestoreMode());
+                        checkpointProperties);
 
         // register shared state - even before adding the checkpoint to the store
         // because the latter might trigger subsumption so the ref counts must be up-to-date

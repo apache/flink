@@ -57,7 +57,6 @@ import org.apache.flink.table.types.DataType;
 import org.apache.flink.util.Preconditions;
 
 import org.apache.calcite.plan.RelOptCluster;
-import org.apache.calcite.plan.RelOptUtil;
 import org.apache.calcite.plan.RelTraitSet;
 import org.apache.calcite.plan.ViewExpanders;
 import org.apache.calcite.rel.RelCollation;
@@ -113,6 +112,7 @@ import org.apache.hadoop.hive.ql.exec.FunctionRegistry;
 import org.apache.hadoop.hive.ql.lib.Node;
 import org.apache.hadoop.hive.ql.metadata.Table;
 import org.apache.hadoop.hive.ql.metadata.VirtualColumn;
+import org.apache.hadoop.hive.ql.optimizer.calcite.HiveRelOptUtil;
 import org.apache.hadoop.hive.ql.parse.ColumnAccessInfo;
 import org.apache.hadoop.hive.ql.parse.JoinType;
 import org.apache.hadoop.hive.ql.parse.SemanticException;
@@ -570,25 +570,18 @@ public class HiveParserCalcitePlanner {
             List<RexNode> rightJoinKeys = new ArrayList<>();
 
             RexNode nonEquiConds =
-                    RelOptUtil.splitJoinCondition(
+                    HiveRelOptUtil.splitHiveJoinCondition(
                             sysFieldList,
-                            leftRel,
-                            rightRel,
+                            Arrays.asList(leftRel, rightRel),
                             joinCondRex,
-                            leftJoinKeys,
-                            rightJoinKeys,
+                            Arrays.asList(leftJoinKeys, rightJoinKeys),
                             null,
                             null);
-
-            if (!nonEquiConds.isAlwaysTrue()) {
-                throw new SemanticException(
-                        "Non equality condition not supported in Semi-Join" + nonEquiConds);
-            }
 
             RelNode[] inputRels = new RelNode[] {leftRel, rightRel};
             final List<Integer> leftKeys = new ArrayList<>();
             final List<Integer> rightKeys = new ArrayList<>();
-            joinCondRex =
+            RexNode remainingEquiCond =
                     HiveParserUtils.projectNonColumnEquiConditions(
                             RelFactories.DEFAULT_PROJECT_FACTORY,
                             inputRels,
@@ -597,6 +590,22 @@ public class HiveParserCalcitePlanner {
                             0,
                             leftKeys,
                             rightKeys);
+            // Adjust right input fields in nonEquiConds if previous call modified the input
+            if (inputRels[0] != leftRel) {
+                nonEquiConds =
+                        RexUtil.shift(
+                                nonEquiConds,
+                                leftRel.getRowType().getFieldCount(),
+                                inputRels[0].getRowType().getFieldCount()
+                                        - leftRel.getRowType().getFieldCount());
+            }
+            joinCondRex =
+                    remainingEquiCond != null
+                            ? RexUtil.composeConjunction(
+                                    cluster.getRexBuilder(),
+                                    Arrays.asList(remainingEquiCond, nonEquiConds),
+                                    false)
+                            : nonEquiConds;
             topRel =
                     LogicalJoin.create(
                             inputRels[0],
@@ -1766,11 +1775,8 @@ public class HiveParserCalcitePlanner {
             RelCollation canonizedCollation = traitSet.canonize(RelCollations.EMPTY);
             sortRel = LogicalSort.create(srcRel, canonizedCollation, offsetRex, fetchRex);
 
-            HiveParserRowResolver outputRR = new HiveParserRowResolver();
-            if (!HiveParserRowResolver.add(outputRR, relToRowResolver.get(srcRel))) {
-                throw new SemanticException(
-                        "Duplicates detected when adding columns to RR: see previous message");
-            }
+            HiveParserRowResolver inputRR = relToRowResolver.get(srcRel);
+            HiveParserRowResolver outputRR = inputRR.duplicate();
             Map<String, Integer> hiveColNameCalcitePosMap = buildHiveToCalciteColumnMap(outputRR);
             relToRowResolver.put(sortRel, outputRR);
             relToHiveColNameCalcitePosMap.put(sortRel, hiveColNameCalcitePosMap);
@@ -2050,6 +2056,7 @@ public class HiveParserCalcitePlanner {
         Integer pos = 0;
         // TODO: will this also fix windowing? try
         HiveParserRowResolver inputRR = relToRowResolver.get(srcRel), starRR = inputRR;
+        inputRR.setCheckForAmbiguity(true);
         if (starSrcRel != null) {
             starRR = relToRowResolver.get(starSrcRel);
         }
@@ -2328,7 +2335,6 @@ public class HiveParserCalcitePlanner {
                     colInfo.setSkewedCol(
                             exprDesc instanceof ExprNodeColumnDesc
                                     && ((ExprNodeColumnDesc) exprDesc).isSkewedCol());
-                    // Hive errors out in case of duplication. We allow it and see what happens.
                     outRR.put(tabAlias, colAlias, colInfo);
 
                     if (exprDesc instanceof ExprNodeColumnDesc) {
@@ -2423,6 +2429,17 @@ public class HiveParserCalcitePlanner {
             relToHiveColNameCalcitePosMap.put(
                     res, buildHiveToCalciteColumnMap(groupByOutputRowResolver));
             relToRowResolver.put(res, groupByOutputRowResolver);
+        }
+
+        inputRR.setCheckForAmbiguity(false);
+        if (selForWindow != null && res instanceof Project) {
+            // if exist windowing expression, trim the project node with window
+            res =
+                    HiveParserProjectWindowTrimmer.trimProjectWindow(
+                            (Project) res,
+                            (Project) selForWindow,
+                            relToRowResolver,
+                            relToHiveColNameCalcitePosMap);
         }
 
         return res;
@@ -2554,7 +2571,7 @@ public class HiveParserCalcitePlanner {
 
         SqlOperator calciteOp =
                 HiveParserSqlFunctionConverter.getCalciteFn(
-                        genericUDTFName, argTypes, retType, false);
+                        genericUDTFName, argTypes, retType, false, funcConverter);
 
         RexNode rexNode = cluster.getRexBuilder().makeCall(calciteOp, operands);
 
@@ -2828,8 +2845,7 @@ public class HiveParserCalcitePlanner {
         }
 
         // 9. In case this HiveParserQB corresponds to subquery then modify its RR to point to
-        // subquery alias
-        // TODO: cleanup this
+        // subquery alias.
         if (qb.getParseInfo().getAlias() != null) {
             HiveParserRowResolver rr = relToRowResolver.get(res);
             HiveParserRowResolver newRR = new HiveParserRowResolver();
@@ -2843,7 +2859,7 @@ public class HiveParserCalcitePlanner {
                 }
                 ColumnInfo newColInfo = new ColumnInfo(colInfo);
                 newColInfo.setTabAlias(alias);
-                newRR.put(alias, tmp[1], newColInfo);
+                newRR.putWithCheck(alias, tmp[1], colInfo.getInternalName(), newColInfo);
             }
             relToRowResolver.put(res, newRR);
             relToHiveColNameCalcitePosMap.put(res, buildHiveToCalciteColumnMap(newRR));

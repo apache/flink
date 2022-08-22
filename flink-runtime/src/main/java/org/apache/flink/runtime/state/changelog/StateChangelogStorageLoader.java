@@ -23,6 +23,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.StateChangelogOptions;
 import org.apache.flink.core.plugin.PluginManager;
 import org.apache.flink.runtime.metrics.groups.TaskManagerJobMetricGroup;
+import org.apache.flink.runtime.state.LocalRecoveryConfig;
 import org.apache.flink.util.FlinkRuntimeException;
 
 import org.slf4j.Logger;
@@ -87,7 +88,10 @@ public class StateChangelogStorageLoader {
 
     @Nullable
     public static StateChangelogStorage<?> load(
-            JobID jobID, Configuration configuration, TaskManagerJobMetricGroup metricGroup)
+            JobID jobID,
+            Configuration configuration,
+            TaskManagerJobMetricGroup metricGroup,
+            LocalRecoveryConfig localRecoveryConfig)
             throws IOException {
         final String identifier =
                 configuration
@@ -100,13 +104,14 @@ public class StateChangelogStorageLoader {
             return null;
         } else {
             LOG.info("Creating a changelog storage with name '{}'.", identifier);
-            return factory.createStorage(jobID, configuration, metricGroup);
+            return factory.createStorage(jobID, configuration, metricGroup, localRecoveryConfig);
         }
     }
 
     @Nonnull
     public static StateChangelogStorageView<?> loadFromStateHandle(
-            ChangelogStateHandle changelogStateHandle) throws IOException {
+            Configuration configuration, ChangelogStateHandle changelogStateHandle)
+            throws IOException {
         StateChangelogStorageFactory factory =
                 STATE_CHANGELOG_STORAGE_FACTORIES.get(changelogStateHandle.getStorageIdentifier());
         if (factory == null) {
@@ -120,7 +125,7 @@ public class StateChangelogStorageLoader {
                     "Creating a changelog storage with name '{}' to restore from '{}'.",
                     changelogStateHandle.getStorageIdentifier(),
                     changelogStateHandle.getClass().getSimpleName());
-            return factory.createStorageView();
+            return factory.createStorageView(configuration);
         }
     }
 }

@@ -1738,7 +1738,10 @@ public class HiveParserDDLSemanticAnalyzer {
         if (partSpec != null && !partSpec.isEmpty()) {
             spec = new CatalogPartitionSpec(new HashMap<>(partSpec));
         }
-        return new ShowPartitionsOperation(tableIdentifier, spec);
+        return new ShowPartitionsOperation(
+                tableIdentifier,
+                spec,
+                HiveConf.getVar(conf, HiveConf.ConfVars.DEFAULTPARTITIONNAME));
     }
 
     private Operation convertShowDatabases() {

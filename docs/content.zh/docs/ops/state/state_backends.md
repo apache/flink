@@ -166,7 +166,7 @@ env.set_state_backend(HashMapStateBackend())
 在 `flink-conf.yaml` 可以通过键 `state.backend` 设置默认的 State Backend。
 
 可选值包括 *jobmanager* (HashMapStateBackend), *rocksdb* (EmbeddedRocksDBStateBackend)，
-或使用实现了 state backend 工厂 [StateBackendFactory](https://github.com/apache/flink/blob/master/flink-runtime/src/main/java/org/apache/flink/runtime/state/StateBackendFactory.java) 的类的全限定类名，
+或使用实现了 state backend 工厂 {{< gh_link file="flink-runtime/src/main/java/org/apache/flink/runtime/state/StateBackendFactory.java" name="StateBackendFactory" >}} 的类的全限定类名，
 例如： EmbeddedRocksDBStateBackend 对应为 `org.apache.flink.contrib.streaming.state.EmbeddedRocksDBStateBackendFactory`。
 
 `state.checkpoints.dir` 选项指定了所有 State Backend 写 CheckPoint 数据和写元数据文件的目录。
@@ -406,7 +406,6 @@ dstl.dfs.base-path: s3://<bucket-name> # 类似于 state.checkpoints.dir
 请将如下配置保持默认值 （参见[限制](#limitations)）:
 ```yaml
 execution.checkpointing.max-concurrent-checkpoints: 1
-state.backend.local-recovery: false
 ```
 
 有关其他配置选项，请参阅[配置]({{< ref "docs/deployment/config#state-changelog-options" >}})部分。
@@ -455,17 +454,17 @@ env.enable_changelog_statebackend(true)
 
 **关闭 Changelog**
 
-仅支持从 [savepoints]({{< ref "docs/ops/state/savepoints#resuming-from-savepoints" >}}) 恢复。从 [checkpoints]({{<  ref "docs/ops/state/checkpoints#resuming-from-a-retained-checkpoint" >}}) 恢复计划在未来版本中支持。
-
-当前不支持**状态迁移**（包括改变 TTL）。
+支持从 savepoint 或 checkpoint 恢复：
+- 给定一个开启 Changelog 的作业
+- 创建一个 [savepoint]({{< ref "docs/ops/state/savepoints#resuming-from-savepoints" >}}) 或一个 [checkpoint]({{< ref "docs/ops/state/checkpoints#resuming-from-a-retained-checkpoint" >}})
+- 更改配置（关闭 Changelog）
+- 从创建的 snapshot 恢复
 
 <a name="limitations"></a>
 
 ### 限制
 - 最多同时创建一个 checkpoint
-- 本地恢复暂不支持
 - 到 Flink 1.15 为止, 只有 `filesystem` changelog 实现可用
-- 尚不支持状态迁移（包括修改 TTL）
 - 尚不支持 [NO_CLAIM]({{< ref "docs/deployment/config#execution-savepoint-restore-mode" >}}) 模式
 
 {{< top >}}

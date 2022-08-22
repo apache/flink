@@ -46,8 +46,8 @@ import org.slf4j.LoggerFactory;
 import java.io.File;
 import java.util.Arrays;
 import java.util.concurrent.Executor;
-import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.runtime.io.network.metrics.NettyShuffleMetricFactory.registerShuffleMetrics;
@@ -182,8 +182,8 @@ public class NettyShuffleServiceFactory
         // we create a separated IO executor pool here for batch shuffle instead of reusing the
         // TaskManager IO executor pool directly to avoid the potential side effects of execution
         // contention, for example, too long IO or waiting time leading to starvation or timeout
-        ExecutorService batchShuffleReadIOExecutor =
-                Executors.newFixedThreadPool(
+        ScheduledExecutorService batchShuffleReadIOExecutor =
+                Executors.newScheduledThreadPool(
                         Math.max(
                                 1,
                                 Math.min(
@@ -204,7 +204,7 @@ public class NettyShuffleServiceFactory
                         config.networkBuffersPerChannel(),
                         config.floatingNetworkBuffersPerGate(),
                         config.networkBufferSize(),
-                        config.isBlockingShuffleCompressionEnabled(),
+                        config.isBatchShuffleCompressionEnabled(),
                         config.getCompressionCodec(),
                         config.getMaxBuffersPerChannel(),
                         config.sortShuffleMinBuffers(),

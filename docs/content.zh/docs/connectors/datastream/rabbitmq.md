@@ -40,6 +40,8 @@ Flink 自身既没有复用 "RabbitMQ AMQP Java Client" 的代码，也没有将
 
 {{< artifact flink-connector-rabbitmq >}}
 
+{{< py_download_link "rabbitmq" >}}
+
 注意连接器现在没有包含在二进制发行版中。集群执行的相关信息请参考 [这里]({{< ref "docs/dev/configuration/overview" >}}).
 
 ### 安装 RabbitMQ

@@ -62,6 +62,12 @@ parquet:
     category: format
     sql_url: https://repo.maven.apache.org/maven2/org/apache/flink/flink-sql-parquet/$version/flink-sql-parquet-$version.jar
 
+protobuf:
+  name: Protobuf
+  maven: flink-protobuf
+  category: format
+  sql_url: https://repo.maven.apache.org/maven2/org/apache/flink/flink-sql-protobuf/$version/flink-sql-protobuf-$version.jar
+
 debezium-avro-confluent:
     name: Debezium
     maven: flink-avro-confluent-registry
@@ -166,3 +172,20 @@ kinesis:
     maven: flink-connector-kinesis
     sql_url: https://repo.maven.apache.org/maven2/org/apache/flink/flink-sql-connector-kinesis/$version/flink-sql-connector-kinesis-$version.jar
 
+aws-kinesis-firehose:
+  name: AWS Kinesis Firehose
+  category: connector
+  maven: flink-connector-kinesis-firehose
+  sql_url: https://repo.maven.apache.org/maven2/org/apache/flink/flink-sql-connector-aws-kinesis-firehose/$version/flink-sql-connector-aws-kinesis-firehose-$version.jar
+
+pulsar:
+    name: Pulsar
+    category: connector
+    maven: flink-connector-pulsar
+    sql_url: https://repo.maven.apache.org/maven2/org/apache/flink/flink-sql-connector-pulsar/$version/flink-sql-connector-pulsar-$version.jar
+
+rabbitmq:
+    name: RabbitMQ
+    category: connector
+    maven: flink-connector-rabbitmq
+    sql_url: https://repo.maven.apache.org/maven2/org/apache/flink/flink-sql-connector-rabbitmq/$version/flink-sql-connector-rabbitmq-$version.jar

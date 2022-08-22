@@ -28,14 +28,12 @@ import org.apache.flink.optimizer.DataStatistics;
 import org.apache.flink.optimizer.Optimizer;
 import org.apache.flink.optimizer.costs.DefaultCostEstimator;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
-import org.apache.flink.util.TestLogger;
 
 import org.apache.commons.cli.CommandLine;
-import org.junit.AfterClass;
-import org.junit.Assert;
-import org.junit.Before;
-import org.junit.BeforeClass;
-import org.junit.Test;
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import java.io.FileNotFoundException;
 import java.net.URL;
@@ -45,66 +43,57 @@ import static org.apache.flink.client.cli.CliFrontendTestUtils.TEST_JAR_CLASSLOA
 import static org.apache.flink.client.cli.CliFrontendTestUtils.TEST_JAR_MAIN_CLASS;
 import static org.apache.flink.client.cli.CliFrontendTestUtils.getNonJarFilePath;
 import static org.apache.flink.client.cli.CliFrontendTestUtils.getTestJarPath;
-import static org.junit.Assert.assertArrayEquals;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.fail;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.when;
 
 /** Tests for the RUN command with {@link PackagedProgram PackagedPrograms}. */
-public class CliFrontendPackageProgramTest extends TestLogger {
+class CliFrontendPackageProgramTest {
 
     private CliFrontend frontend;
 
-    @BeforeClass
-    public static void init() {
+    @BeforeAll
+    static void init() {
         CliFrontendTestUtils.pipeSystemOutToNull();
     }
 
-    @AfterClass
-    public static void shutdown() {
+    @AfterAll
+    static void shutdown() {
         CliFrontendTestUtils.restoreSystemOut();
     }
 
-    @Before
-    public void setup() throws Exception {
+    @BeforeEach
+    void setup() {
         final Configuration configuration = new Configuration();
         frontend = new CliFrontend(configuration, Collections.singletonList(new DefaultCLI()));
     }
 
     @Test
-    public void testNonExistingJarFile() throws Exception {
+    void testNonExistingJarFile() {
         ProgramOptions programOptions = mock(ProgramOptions.class);
         when(programOptions.getJarFilePath()).thenReturn("/some/none/existing/path");
 
-        try {
-            frontend.buildProgram(programOptions);
-            fail("should throw an exception");
-        } catch (FileNotFoundException e) {
-            // that's what we want
-        }
+        assertThatThrownBy(() -> frontend.buildProgram(programOptions))
+                .isInstanceOf(FileNotFoundException.class);
     }
 
     @Test
-    public void testFileNotJarFile() throws Exception {
+    void testFileNotJarFile() {
         ProgramOptions programOptions = mock(ProgramOptions.class);
         when(programOptions.getJarFilePath()).thenReturn(getNonJarFilePath());
         when(programOptions.getProgramArgs()).thenReturn(new String[0]);
         when(programOptions.getSavepointRestoreSettings())
                 .thenReturn(SavepointRestoreSettings.none());
 
-        try {
-            frontend.buildProgram(programOptions);
-            fail("should throw an exception");
-        } catch (ProgramInvocationException e) {
-            // that's what we want
-        }
+        assertThatThrownBy(() -> frontend.buildProgram(programOptions))
+                .isInstanceOf(ProgramInvocationException.class);
     }
 
     @Test
-    public void testVariantWithExplicitJarAndArgumentsOption() throws Exception {
+    void testVariantWithExplicitJarAndArgumentsOption() throws Exception {
         String[] arguments = {
             "--classpath",
             "file:///tmp/foo",
@@ -125,18 +114,18 @@ public class CliFrontendPackageProgramTest extends TestLogger {
                 CliFrontendParser.parse(CliFrontendParser.RUN_OPTIONS, arguments, true);
         ProgramOptions programOptions = ProgramOptions.create(commandLine);
 
-        assertEquals(getTestJarPath(), programOptions.getJarFilePath());
-        assertArrayEquals(classpath, programOptions.getClasspaths().toArray());
-        assertArrayEquals(reducedArguments, programOptions.getProgramArgs());
+        assertThat(programOptions.getJarFilePath()).isEqualTo(getTestJarPath());
+        assertThat(programOptions.getClasspaths().toArray()).isEqualTo(classpath);
+        assertThat(programOptions.getProgramArgs()).isEqualTo(reducedArguments);
 
         PackagedProgram prog = frontend.buildProgram(programOptions);
 
-        Assert.assertArrayEquals(reducedArguments, prog.getArguments());
-        Assert.assertEquals(TEST_JAR_MAIN_CLASS, prog.getMainClassName());
+        assertThat(prog.getArguments()).isEqualTo(reducedArguments);
+        assertThat(prog.getMainClassName()).isEqualTo(TEST_JAR_MAIN_CLASS);
     }
 
     @Test
-    public void testVariantWithExplicitJarAndNoArgumentsOption() throws Exception {
+    void testVariantWithExplicitJarAndNoArgumentsOption() throws Exception {
         String[] arguments = {
             "--classpath",
             "file:///tmp/foo",
@@ -156,18 +145,18 @@ public class CliFrontendPackageProgramTest extends TestLogger {
                 CliFrontendParser.parse(CliFrontendParser.RUN_OPTIONS, arguments, true);
         ProgramOptions programOptions = ProgramOptions.create(commandLine);
 
-        assertEquals(getTestJarPath(), programOptions.getJarFilePath());
-        assertArrayEquals(classpath, programOptions.getClasspaths().toArray());
-        assertArrayEquals(reducedArguments, programOptions.getProgramArgs());
+        assertThat(programOptions.getJarFilePath()).isEqualTo(getTestJarPath());
+        assertThat(programOptions.getClasspaths().toArray()).isEqualTo(classpath);
+        assertThat(programOptions.getProgramArgs()).isEqualTo(reducedArguments);
 
         PackagedProgram prog = frontend.buildProgram(programOptions);
 
-        Assert.assertArrayEquals(reducedArguments, prog.getArguments());
-        Assert.assertEquals(TEST_JAR_MAIN_CLASS, prog.getMainClassName());
+        assertThat(prog.getArguments()).isEqualTo(reducedArguments);
+        assertThat(prog.getMainClassName()).isEqualTo(TEST_JAR_MAIN_CLASS);
     }
 
     @Test
-    public void testValidVariantWithNoJarAndNoArgumentsOption() throws Exception {
+    void testValidVariantWithNoJarAndNoArgumentsOption() throws Exception {
         String[] arguments = {
             "--classpath",
             "file:///tmp/foo",
@@ -186,23 +175,23 @@ public class CliFrontendPackageProgramTest extends TestLogger {
                 CliFrontendParser.parse(CliFrontendParser.RUN_OPTIONS, arguments, true);
         ProgramOptions programOptions = ProgramOptions.create(commandLine);
 
-        assertEquals(getTestJarPath(), programOptions.getJarFilePath());
-        assertArrayEquals(classpath, programOptions.getClasspaths().toArray());
-        assertArrayEquals(reducedArguments, programOptions.getProgramArgs());
+        assertThat(programOptions.getJarFilePath()).isEqualTo(getTestJarPath());
+        assertThat(programOptions.getClasspaths().toArray()).isEqualTo(classpath);
+        assertThat(programOptions.getProgramArgs()).isEqualTo(reducedArguments);
 
         PackagedProgram prog = frontend.buildProgram(programOptions);
 
-        Assert.assertArrayEquals(reducedArguments, prog.getArguments());
-        Assert.assertEquals(TEST_JAR_MAIN_CLASS, prog.getMainClassName());
-    }
-
-    @Test(expected = CliArgsException.class)
-    public void testNoJarNoArgumentsAtAll() throws Exception {
-        frontend.run(new String[0]);
+        assertThat(prog.getArguments()).isEqualTo(reducedArguments);
+        assertThat(prog.getMainClassName()).isEqualTo(TEST_JAR_MAIN_CLASS);
     }
 
     @Test
-    public void testNonExistingFileWithArguments() throws Exception {
+    void testNoJarNoArgumentsAtAll() {
+        assertThatThrownBy(() -> frontend.run(new String[0])).isInstanceOf(CliArgsException.class);
+    }
+
+    @Test
+    void testNonExistingFileWithArguments() throws Exception {
         String[] arguments = {
             "--classpath",
             "file:///tmp/foo",
@@ -221,28 +210,24 @@ public class CliFrontendPackageProgramTest extends TestLogger {
                 CliFrontendParser.parse(CliFrontendParser.RUN_OPTIONS, arguments, true);
         ProgramOptions programOptions = ProgramOptions.create(commandLine);
 
-        assertEquals(arguments[4], programOptions.getJarFilePath());
-        assertArrayEquals(classpath, programOptions.getClasspaths().toArray());
-        assertArrayEquals(reducedArguments, programOptions.getProgramArgs());
+        assertThat(programOptions.getJarFilePath()).isEqualTo(arguments[4]);
+        assertThat(programOptions.getClasspaths().toArray()).isEqualTo(classpath);
+        assertThat(programOptions.getProgramArgs()).isEqualTo(reducedArguments);
 
-        try {
-            frontend.buildProgram(programOptions);
-            fail("Should fail with an exception");
-        } catch (FileNotFoundException e) {
-            // that's what we want
-        }
+        assertThatThrownBy(() -> frontend.buildProgram(programOptions))
+                .isInstanceOf(FileNotFoundException.class);
     }
 
     @Test
-    public void testNonExistingFileWithoutArguments() throws Exception {
+    void testNonExistingFileWithoutArguments() throws Exception {
         String[] arguments = {"/some/none/existing/path"};
 
         CommandLine commandLine =
                 CliFrontendParser.parse(CliFrontendParser.RUN_OPTIONS, arguments, true);
         ProgramOptions programOptions = ProgramOptions.create(commandLine);
 
-        assertEquals(arguments[0], programOptions.getJarFilePath());
-        assertArrayEquals(new String[0], programOptions.getProgramArgs());
+        assertThat(programOptions.getJarFilePath()).isEqualTo(arguments[0]);
+        assertThat(programOptions.getProgramArgs()).isEqualTo(new String[0]);
 
         try {
             frontend.buildProgram(programOptions);
@@ -286,7 +271,7 @@ public class CliFrontendPackageProgramTest extends TestLogger {
      * </ul>
      */
     @Test
-    public void testPlanWithExternalClass() throws Exception {
+    void testPlanWithExternalClass() throws Exception {
         final boolean[] callme = {
             false
         }; // create a final object reference, to be able to change its val later
@@ -311,10 +296,11 @@ public class CliFrontendPackageProgramTest extends TestLogger {
                     CliFrontendParser.parse(CliFrontendParser.RUN_OPTIONS, arguments, true);
             ProgramOptions programOptions = ProgramOptions.create(commandLine);
 
-            assertEquals(getTestJarPath(), programOptions.getJarFilePath());
-            assertArrayEquals(classpath, programOptions.getClasspaths().toArray());
-            assertEquals(TEST_JAR_CLASSLOADERTEST_CLASS, programOptions.getEntryPointClassName());
-            assertArrayEquals(reducedArguments, programOptions.getProgramArgs());
+            assertThat(programOptions.getJarFilePath()).isEqualTo(getTestJarPath());
+            assertThat(programOptions.getClasspaths().toArray()).isEqualTo(classpath);
+            assertThat(programOptions.getEntryPointClassName())
+                    .isEqualTo(TEST_JAR_CLASSLOADERTEST_CLASS);
+            assertThat(programOptions.getProgramArgs()).isEqualTo(reducedArguments);
 
             PackagedProgram prog = spy(frontend.buildProgram(programOptions));
 
@@ -332,8 +318,8 @@ public class CliFrontendPackageProgramTest extends TestLogger {
                     };
             when(prog.getUserCodeClassLoader()).thenReturn(testClassLoader);
 
-            assertEquals(TEST_JAR_CLASSLOADERTEST_CLASS, prog.getMainClassName());
-            assertArrayEquals(reducedArguments, prog.getArguments());
+            assertThat(prog.getMainClassName()).isEqualTo(TEST_JAR_CLASSLOADERTEST_CLASS);
+            assertThat(prog.getArguments()).isEqualTo(reducedArguments);
 
             Configuration c = new Configuration();
             Optimizer compiler = new Optimizer(new DataStatistics(), new DefaultCostEstimator(), c);
@@ -347,7 +333,9 @@ public class CliFrontendPackageProgramTest extends TestLogger {
                 e.printStackTrace();
                 fail("Program didn't throw ClassNotFoundException");
             }
-            assertTrue("Classloader was not called", callme[0]);
+            if (!callme[0]) {
+                fail("Classloader was not called");
+            }
         }
     }
 }

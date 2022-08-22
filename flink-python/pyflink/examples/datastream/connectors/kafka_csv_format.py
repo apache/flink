@@ -18,9 +18,11 @@
 import logging
 import sys
 
-from pyflink.common import Types, JsonRowDeserializationSchema, CsvRowSerializationSchema
+from pyflink.common import Types
 from pyflink.datastream import StreamExecutionEnvironment
-from pyflink.datastream.connectors import FlinkKafkaProducer, FlinkKafkaConsumer
+from pyflink.datastream.connectors.kafka import FlinkKafkaProducer, FlinkKafkaConsumer
+from pyflink.datastream.formats.csv import CsvRowSerializationSchema
+from pyflink.datastream.formats.json import JsonRowDeserializationSchema
 
 
 # Make sure that the Kafka cluster is started and the topic 'test_csv_topic' is

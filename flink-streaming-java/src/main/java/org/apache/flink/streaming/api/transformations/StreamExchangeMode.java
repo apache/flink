@@ -38,8 +38,17 @@ public enum StreamExchangeMode {
 
     /**
      * The consumer can start consuming data anytime as long as the producer has started producing.
+     *
+     * <p>This exchange mode can be consumed repeatedly.
      */
-    HYBRID,
+    HYBRID_FULL,
+
+    /**
+     * The consumer can start consuming data anytime as long as the producer has started producing.
+     *
+     * <p>This exchange mode can not be consumed repeatedly.
+     */
+    HYBRID_SELECTIVE,
 
     /**
      * The exchange mode is undefined. It leaves it up to the framework to decide the exchange mode.

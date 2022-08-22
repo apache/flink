@@ -42,8 +42,5 @@ test_module "datastream"
 # test fn_execution module
 test_module "fn_execution"
 
-# test metrics module
-test_module "metrics"
-
 # test table module
 test_module "table"

@@ -58,6 +58,7 @@ import org.apache.flink.runtime.state.changelog.SequenceNumber;
 import org.apache.flink.runtime.state.changelog.StateChangelogWriter;
 import org.apache.flink.runtime.state.heap.HeapPriorityQueueElement;
 import org.apache.flink.runtime.state.internal.InternalKvState;
+import org.apache.flink.runtime.state.metainfo.StateMetaInfoSnapshot;
 import org.apache.flink.runtime.state.metainfo.StateMetaInfoSnapshot.BackendStateType;
 import org.apache.flink.runtime.state.metrics.LatencyTrackingStateFactory;
 import org.apache.flink.runtime.state.ttl.TtlStateFactory;
@@ -93,6 +94,7 @@ import java.util.stream.Stream;
 
 import static java.util.Collections.emptyList;
 import static java.util.Collections.singletonList;
+import static org.apache.flink.runtime.state.StateSnapshotTransformer.StateSnapshotTransformFactory.noTransform;
 import static org.apache.flink.state.changelog.PeriodicMaterializationManager.MaterializationRunnable;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -209,7 +211,6 @@ public class ChangelogKeyedStateBackend<K>
                 new ChangelogStateFactory());
     }
 
-    @SuppressWarnings("rawtypes")
     public ChangelogKeyedStateBackend(
             AbstractKeyedStateBackend<K> keyedStateBackend,
             String subtaskName,
@@ -416,22 +417,34 @@ public class ChangelogKeyedStateBackend<K>
 
     private SnapshotResult<ChangelogStateBackendHandle> buildSnapshotResult(
             long checkpointId,
-            ChangelogStateHandle delta,
+            SnapshotResult<? extends ChangelogStateHandle> delta,
             ChangelogSnapshotState changelogStateBackendStateCopy) {
 
         // collections don't change once started and handles are immutable
         List<ChangelogStateHandle> prevDeltaCopy =
                 new ArrayList<>(changelogStateBackendStateCopy.getRestoredNonMaterialized());
         long persistedSizeOfThisCheckpoint = 0L;
-        if (delta != null && delta.getStateSize() > 0) {
-            prevDeltaCopy.add(delta);
-            persistedSizeOfThisCheckpoint += delta.getCheckpointedSize();
+        if (delta != null
+                && delta.getJobManagerOwnedSnapshot() != null
+                && delta.getJobManagerOwnedSnapshot().getStateSize() > 0) {
+            prevDeltaCopy.add(delta.getJobManagerOwnedSnapshot());
+            persistedSizeOfThisCheckpoint +=
+                    delta.getJobManagerOwnedSnapshot().getCheckpointedSize();
         }
 
         if (prevDeltaCopy.isEmpty()
                 && changelogStateBackendStateCopy.getMaterializedSnapshot().isEmpty()) {
             return SnapshotResult.empty();
-        } else if (!changelogStateBackendStateCopy.getLocalMaterializedSnapshot().isEmpty()) {
+        } else if (!changelogStateBackendStateCopy.getLocalMaterializedSnapshot().isEmpty()
+                || delta.getTaskLocalSnapshot() != null) {
+            List<ChangelogStateHandle> localDeltaCopy =
+                    new ArrayList<>(
+                            changelogStateBackendStateCopy.getLocalRestoredNonMaterialized());
+            if (delta != null
+                    && delta.getTaskLocalSnapshot() != null
+                    && delta.getTaskLocalSnapshot().getStateSize() > 0) {
+                localDeltaCopy.add(delta.getTaskLocalSnapshot());
+            }
             ChangelogStateBackendHandleImpl jmHandle =
                     new ChangelogStateBackendHandleImpl(
                             changelogStateBackendStateCopy.getMaterializedSnapshot(),
@@ -444,7 +457,7 @@ public class ChangelogKeyedStateBackend<K>
                     jmHandle,
                     new ChangelogStateBackendLocalHandle(
                             changelogStateBackendStateCopy.getLocalMaterializedSnapshot(),
-                            prevDeltaCopy,
+                            localDeltaCopy,
                             jmHandle));
         } else {
             return SnapshotResult.of(
@@ -465,28 +478,52 @@ public class ChangelogKeyedStateBackend<K>
             KeyGroupedInternalPriorityQueue<T> create(
                     @Nonnull String stateName,
                     @Nonnull TypeSerializer<T> byteOrderedElementSerializer) {
+        KeyGroupedInternalPriorityQueue<T> internalPriorityQueue =
+                keyedStateBackend.create(stateName, byteOrderedElementSerializer);
         ChangelogKeyGroupedPriorityQueue<T> queue =
                 (ChangelogKeyGroupedPriorityQueue<T>)
                         changelogStateFactory.getExistingState(
                                 stateName, BackendStateType.PRIORITY_QUEUE);
         if (queue == null) {
-            PriorityQueueStateChangeLoggerImpl<K, T> priorityQueueStateChangeLogger =
-                    new PriorityQueueStateChangeLoggerImpl<>(
-                            byteOrderedElementSerializer,
-                            keyedStateBackend.getKeyContext(),
-                            stateChangelogWriter,
-                            new RegisteredPriorityQueueStateBackendMetaInfo<>(
-                                    stateName, byteOrderedElementSerializer),
-                            ++lastCreatedStateId);
-            closer.register(priorityQueueStateChangeLogger);
             queue =
                     changelogStateFactory.create(
                             stateName,
-                            keyedStateBackend.create(stateName, byteOrderedElementSerializer),
-                            priorityQueueStateChangeLogger,
+                            internalPriorityQueue,
+                            getPqStateChangeLogger(stateName, byteOrderedElementSerializer),
                             byteOrderedElementSerializer);
+        } else {
+            updateChangelogState(
+                    queue, internalPriorityQueue, stateName, byteOrderedElementSerializer);
         }
         return queue;
+    }
+
+    private <T> void updateChangelogState(
+            ChangelogKeyGroupedPriorityQueue<T> queue,
+            KeyGroupedInternalPriorityQueue<T> priorityQueue,
+            String stateName,
+            TypeSerializer<T> byteOrderedElementSerializer) {
+        RegisteredPriorityQueueStateBackendMetaInfo<T> pqMetaInfo =
+                new RegisteredPriorityQueueStateBackendMetaInfo<>(
+                        stateName, byteOrderedElementSerializer);
+        PriorityQueueStateChangeLoggerImpl<K, T> stateChangeLogger =
+                (PriorityQueueStateChangeLoggerImpl<K, T>) queue.getStateChangeLogger();
+        stateChangeLogger.setMetaInfo(pqMetaInfo);
+        queue.setDelegatedState(priorityQueue);
+    }
+
+    private <T> StateChangeLogger<T, Void> getPqStateChangeLogger(
+            String stateName, TypeSerializer<T> byteOrderedElementSerializer) {
+        PriorityQueueStateChangeLoggerImpl<K, T> priorityQueueStateChangeLogger =
+                new PriorityQueueStateChangeLoggerImpl<>(
+                        byteOrderedElementSerializer,
+                        keyedStateBackend.getKeyContext(),
+                        stateChangelogWriter,
+                        new RegisteredPriorityQueueStateBackendMetaInfo<>(
+                                stateName, byteOrderedElementSerializer),
+                        ++lastCreatedStateId);
+        closer.register(priorityQueueStateChangeLogger);
+        return priorityQueueStateChangeLogger;
     }
 
     @VisibleForTesting
@@ -515,7 +552,7 @@ public class ChangelogKeyedStateBackend<K>
             // newer upload instead of the previous one. This newer upload could then be re-used
             // while in fact JM has discarded its results.
             // This might change if the log ownership changes (the method won't likely be needed).
-            stateChangelogWriter.confirm(lastUploadedFrom, lastUploadedTo);
+            stateChangelogWriter.confirm(lastUploadedFrom, lastUploadedTo, checkpointId);
         }
         Long materializationID = materializationIdByCheckpointId.remove(checkpointId);
         if (materializationID != null) {
@@ -534,7 +571,7 @@ public class ChangelogKeyedStateBackend<K>
             // change if it is not relevant anymore. Otherwise, it could DISCARD a newer upload
             // instead of the previous one. Rely on truncation for the cleanup in this case.
             // This might change if the log ownership changes (the method won't likely be needed).
-            stateChangelogWriter.reset(lastUploadedFrom, lastUploadedTo);
+            stateChangelogWriter.reset(lastUploadedFrom, lastUploadedTo, checkpointId);
         }
         // TODO: Consider notifying nested state backend about checkpoint abortion (FLINK-25850)
     }
@@ -552,10 +589,6 @@ public class ChangelogKeyedStateBackend<K>
                         + "This operation cannot use partitioned state.");
 
         InternalKvState<K, ?, ?> kvState = keyValueStatesByName.get(stateDescriptor.getName());
-        // todo: support state migration (in FLINK-23143)
-        //     This method is currently called both on recovery and on user access.
-        //     So keyValueStatesByName may contain an entry for user-requested state which will
-        //     prevent state migration (in contrast to other backends).
         if (kvState == null) {
             if (!stateDescriptor.isSerializerInitialized()) {
                 stateDescriptor.initializeSerializerUnlessSet(executionConfig);
@@ -576,25 +609,75 @@ public class ChangelogKeyedStateBackend<K>
     @Nonnull
     @Override
     @SuppressWarnings("unchecked")
-    public <N, SV, SEV, S extends State, IS extends S> IS createInternalState(
+    public <N, SV, SEV, S extends State, IS extends S> IS createOrUpdateInternalState(
             @Nonnull TypeSerializer<N> namespaceSerializer,
             @Nonnull StateDescriptor<S, SV> stateDesc,
             @Nonnull
                     StateSnapshotTransformer.StateSnapshotTransformFactory<SEV>
                             snapshotTransformFactory)
             throws Exception {
+        InternalKvState<K, N, SV> state =
+                keyedStateBackend.createOrUpdateInternalState(
+                        namespaceSerializer, stateDesc, snapshotTransformFactory);
+        ChangelogState changelogState =
+                changelogStateFactory.getExistingState(
+                        stateDesc.getName(), BackendStateType.KEY_VALUE);
+        if (changelogState == null) {
+            changelogState =
+                    changelogStateFactory.create(
+                            stateDesc,
+                            state,
+                            getKvStateChangeLogger(state, stateDesc, snapshotTransformFactory),
+                            keyedStateBackend /* pass the nested backend as key context so that it get key updates on recovery*/);
+        } else {
+            updateChangelogState(changelogState, state, stateDesc, snapshotTransformFactory);
+        }
+
+        return (IS) changelogState;
+    }
+
+    @SuppressWarnings("unchecked")
+    private <SV, SEV, S extends State, IS extends InternalKvState<K, N, SV>, N>
+            void updateChangelogState(
+                    ChangelogState changelogState,
+                    InternalKvState<K, N, SV> state,
+                    StateDescriptor<S, SV> stateDesc,
+                    StateSnapshotTransformer.StateSnapshotTransformFactory<SEV>
+                            snapshotTransformFactory) {
         RegisteredKeyValueStateBackendMetaInfo<N, SV> meta =
                 new RegisteredKeyValueStateBackendMetaInfo<>(
                         stateDesc.getType(),
                         stateDesc.getName(),
-                        namespaceSerializer,
-                        stateDesc.getSerializer(),
+                        state.getNamespaceSerializer(),
+                        state.getValueSerializer(),
                         (StateSnapshotTransformer.StateSnapshotTransformFactory<SV>)
                                 snapshotTransformFactory);
 
-        InternalKvState<K, N, SV> state =
-                keyedStateBackend.createInternalState(
-                        namespaceSerializer, stateDesc, snapshotTransformFactory);
+        AbstractChangelogState<K, N, SV, IS> kvChangelogState =
+                (AbstractChangelogState<K, N, SV, IS>) changelogState;
+        kvChangelogState.setDelegatedState(state);
+        KvStateChangeLoggerImpl<K, SV, N> stateChangeLogger =
+                (KvStateChangeLoggerImpl<K, SV, N>) kvChangelogState.getStateChangeLogger();
+        stateChangeLogger
+                .setMetaInfo(meta)
+                .setStateTtlConfig(stateDesc.getTtlConfig())
+                .setDefaultValue(stateDesc.getDefaultValue());
+    }
+
+    @SuppressWarnings("unchecked")
+    private <SV, SEV, S extends State, N> KvStateChangeLogger<SV, N> getKvStateChangeLogger(
+            InternalKvState<K, N, SV> state,
+            StateDescriptor<S, SV> stateDesc,
+            StateSnapshotTransformer.StateSnapshotTransformFactory<SEV> snapshotTransformFactory) {
+        RegisteredKeyValueStateBackendMetaInfo<N, SV> meta =
+                new RegisteredKeyValueStateBackendMetaInfo<>(
+                        stateDesc.getType(),
+                        stateDesc.getName(),
+                        state.getNamespaceSerializer(),
+                        state.getValueSerializer(),
+                        (StateSnapshotTransformer.StateSnapshotTransformFactory<SV>)
+                                snapshotTransformFactory);
+
         KvStateChangeLoggerImpl<K, SV, N> kvStateChangeLogger =
                 new KvStateChangeLoggerImpl<>(
                         state.getKeySerializer(),
@@ -607,13 +690,7 @@ public class ChangelogKeyedStateBackend<K>
                         stateDesc.getDefaultValue(),
                         ++lastCreatedStateId);
         closer.register(kvStateChangeLogger);
-        ChangelogState changelogState =
-                changelogStateFactory.create(
-                        stateDesc,
-                        state,
-                        kvStateChangeLogger,
-                        keyedStateBackend /* pass the nested backend as key context so that it get key updates on recovery*/);
-        return (IS) changelogState;
+        return kvStateChangeLogger;
     }
 
     public void registerCloseable(@Nullable Closeable closeable) {
@@ -782,21 +859,57 @@ public class ChangelogKeyedStateBackend<K>
             }
 
             @Override
+            @SuppressWarnings("unchecked")
             public <N, S extends State, V> S createKeyedState(
                     TypeSerializer<N> namespaceSerializer, StateDescriptor<S, V> stateDescriptor)
                     throws Exception {
-                return ChangelogKeyedStateBackend.this.getOrCreateKeyedState(
-                        namespaceSerializer, stateDescriptor);
+                InternalKvState<K, N, V> kvState =
+                        keyedStateBackend.createOrUpdateInternalState(
+                                namespaceSerializer, stateDescriptor, noTransform(), true);
+                ChangelogState changelogState =
+                        changelogStateFactory.getExistingState(
+                                stateDescriptor.getName(),
+                                StateMetaInfoSnapshot.BackendStateType.KEY_VALUE);
+                if (changelogState == null) {
+                    changelogState =
+                            changelogStateFactory.create(
+                                    stateDescriptor,
+                                    kvState,
+                                    getKvStateChangeLogger(kvState, stateDescriptor, noTransform()),
+                                    keyedStateBackend /* pass the nested backend as key context so that it get key updates on recovery*/);
+                } else {
+                    updateChangelogState(changelogState, kvState, stateDescriptor, noTransform());
+                }
+                functionDelegationHelper.addOrUpdate(stateDescriptor);
+                return (S) changelogState;
             }
 
             @Nonnull
             @Override
+            @SuppressWarnings("unchecked")
             public <T extends HeapPriorityQueueElement & PriorityComparable<? super T> & Keyed<?>>
                     KeyGroupedInternalPriorityQueue<T> createPqState(
                             @Nonnull String stateName,
                             @Nonnull TypeSerializer<T> byteOrderedElementSerializer) {
-                return ChangelogKeyedStateBackend.this.create(
-                        stateName, byteOrderedElementSerializer);
+                KeyGroupedInternalPriorityQueue<T> internalPriorityQueue =
+                        keyedStateBackend.create(stateName, byteOrderedElementSerializer, true);
+                ChangelogKeyGroupedPriorityQueue<T> queue =
+                        (ChangelogKeyGroupedPriorityQueue<T>)
+                                changelogStateFactory.getExistingState(
+                                        stateName,
+                                        StateMetaInfoSnapshot.BackendStateType.PRIORITY_QUEUE);
+                if (queue == null) {
+                    queue =
+                            changelogStateFactory.create(
+                                    stateName,
+                                    internalPriorityQueue,
+                                    getPqStateChangeLogger(stateName, byteOrderedElementSerializer),
+                                    byteOrderedElementSerializer);
+                } else {
+                    updateChangelogState(
+                            queue, internalPriorityQueue, stateName, byteOrderedElementSerializer);
+                }
+                return queue;
             }
 
             @Override

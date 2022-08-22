@@ -158,7 +158,7 @@ Since RocksDB is part of the default Flink distribution, you do not need this de
 A default state backend can be configured in the `flink-conf.yaml`, using the configuration key `state.backend`.
 
 Possible values for the config entry are *hashmap* (HashMapStateBackend), *rocksdb* (EmbeddedRocksDBStateBackend), or the fully qualified class
-name of the class that implements the state backend factory [StateBackendFactory](https://github.com/apache/flink/blob/master/flink-runtime/src/main/java/org/apache/flink/runtime/state/StateBackendFactory.java),
+name of the class that implements the state backend factory {{< gh_link file="flink-runtime/src/main/java/org/apache/flink/runtime/state/StateBackendFactory.java" name="StateBackendFactory" >}},
 such as `org.apache.flink.contrib.streaming.state.EmbeddedRocksDBStateBackendFactory` for EmbeddedRocksDBStateBackend.
 
 The `state.checkpoints.dir` option defines the directory to which all backends write checkpoint data and meta data files.
@@ -407,7 +407,6 @@ dstl.dfs.base-path: s3://<bucket-name> # similar to state.checkpoints.dir
 Please keep the following defaults (see [limitations](#limitations)):
 ```yaml
 execution.checkpointing.max-concurrent-checkpoints: 1
-state.backend.local-recovery: false
 ```
 
 Please refer to the [configuration section]({{< ref "docs/deployment/config#state-changelog-options" >}}) for other options.
@@ -452,17 +451,15 @@ Resuming from both savepoints and checkpoints is supported:
 
 **Disabling Changelog**
 
-Resuming only from [savepoints]({{< ref "docs/ops/state/savepoints#resuming-from-savepoints" >}})
-is supported. Resuming from [checkpoints]({{<  ref "docs/ops/state/checkpoints#resuming-from-a-retained-checkpoint" >}})
-is planned in the future versions.
-
-**State migration** (including changing TTL) is currently not supported
+Resuming from both savepoints and checkpoints is supported:
+- given an existing changelog job
+- take either a [savepoint]({{< ref "docs/ops/state/savepoints#resuming-from-savepoints" >}}) or a [checkpoint]({{< ref "docs/ops/state/checkpoints#resuming-from-a-retained-checkpoint" >}})
+- alter configuration (disable Changelog)
+- resume from the taken snapshot
 
 ### Limitations
  - At most one concurrent checkpoint
- - Local recovery not supported
  - As of Flink 1.15, only `filesystem` changelog implementation is available
- - State migration (including changing TTL) is currently not supported
 - [NO_CLAIM]({{< ref "docs/deployment/config#execution-savepoint-restore-mode" >}}) mode not supported
 
 ## Migrating from Legacy Backends

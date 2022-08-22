@@ -40,3 +40,4 @@ flink-end-to-end-tests-common-kafka
 flink-end-to-end-tests-pulsar
 flink-end-to-end-tests-elasticsearch7
 flink-end-to-end-tests-elasticsearch6
+flink-sql-gateway-test

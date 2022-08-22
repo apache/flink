@@ -1108,6 +1108,50 @@ abstract class AggregateITCaseBase(testName: String) extends BatchTestBase {
     )
   }
 
+  @Test
+  def testGroupByArrayType(): Unit = {
+    checkResult(
+      "SELECT sum(a) FROM (" +
+        "VALUES (1, array[1, 2]), (2, array[1, 2]), (5, array[3, 4])) T(a, b) GROUP BY b",
+      Seq(
+        row(3),
+        row(5)
+      )
+    )
+  }
+
+  @Test
+  def testDistinctArrayType(): Unit = {
+    val sql =
+      s"""
+         |SELECT DISTINCT b FROM (
+         |VALUES (2, array[1, 2]), (2, array[2, 3]), (2, array[1, 2]), (5, array[3, 4])) T(a, b)
+         |""".stripMargin
+    checkResult(
+      sql,
+      Seq(
+        row("[1, 2]"),
+        row("[2, 3]"),
+        row("[3, 4]")
+      ))
+  }
+
+  @Test
+  def testCountDistinctArrayType(): Unit = {
+    val sql =
+      s"""
+         |SELECT a, COUNT(DISTINCT b) FROM (
+         |VALUES (2, array[1, 2]), (2, array[2, 3]), (2, array[1, 2]), (5, array[3, 4])) T(a, b)
+         |GROUP BY a
+         |""".stripMargin
+    checkResult(
+      sql,
+      Seq(
+        row(2, 2),
+        row(5, 1)
+      ))
+  }
+
   // TODO support csv
 //  @Test
 //  def testMultiGroupBys(): Unit = {

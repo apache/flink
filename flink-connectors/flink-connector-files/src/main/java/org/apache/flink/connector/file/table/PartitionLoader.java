@@ -22,13 +22,17 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.core.fs.FileStatus;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
+import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.util.FileUtils;
 import org.apache.flink.util.Preconditions;
 
 import java.io.Closeable;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
+import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 import static org.apache.flink.table.utils.PartitionPathUtils.generatePartitionPath;
@@ -52,17 +56,23 @@ public class PartitionLoader implements Closeable {
     private final TableMetaStoreFactory.TableMetaStore metaStore;
     // whether it's to load files to local file system
     private final boolean isToLocal;
+    private final ObjectIdentifier identifier;
+    private final List<PartitionCommitPolicy> policies;
 
     public PartitionLoader(
             boolean overwrite,
             FileSystem sourceFs,
             TableMetaStoreFactory factory,
-            boolean isToLocal)
+            boolean isToLocal,
+            ObjectIdentifier identifier,
+            List<PartitionCommitPolicy> policies)
             throws Exception {
         this.overwrite = overwrite;
         this.fs = sourceFs;
         this.metaStore = factory.createTableMetaStore();
         this.isToLocal = isToLocal;
+        this.identifier = identifier;
+        this.policies = policies;
     }
 
     /** Load a single partition. */
@@ -77,13 +87,41 @@ public class PartitionLoader implements Closeable {
                                         generatePartitionPath(partSpec)));
 
         overwriteAndMoveFiles(srcDirs, path);
-        metaStore.createOrAlterPartition(partSpec, path);
+        commitPartition(partSpec, path);
     }
 
     /** Load a non-partition files to output path. */
     public void loadNonPartition(List<Path> srcDirs) throws Exception {
         Path tableLocation = metaStore.getLocationPath();
         overwriteAndMoveFiles(srcDirs, tableLocation);
+        commitPartition(new LinkedHashMap<>(), tableLocation);
+    }
+
+    /**
+     * The flink job does not write data to the partition, but the corresponding partition needs to
+     * be created or updated.
+     *
+     * <p>The partition does not exist, create it.
+     *
+     * <p>The partition exists:
+     *
+     * <pre>
+     *      if overwrite is true, delete the path, then create it;
+     *      if overwrite is false, do nothing;
+     * </pre>
+     */
+    public void loadEmptyPartition(LinkedHashMap<String, String> partSpec) throws Exception {
+        Optional<Path> pathFromMeta = metaStore.getPartition(partSpec);
+        if (pathFromMeta.isPresent() && !overwrite) {
+            commitPartition(partSpec, pathFromMeta.get());
+            return;
+        }
+        Path path = new Path(metaStore.getLocationPath(), generatePartitionPath(partSpec));
+        if (pathFromMeta.isPresent()) {
+            fs.delete(pathFromMeta.get(), true);
+            fs.mkdirs(path);
+        }
+        commitPartition(partSpec, path);
     }
 
     private void overwriteAndMoveFiles(List<Path> srcDirs, Path destDir) throws Exception {
@@ -128,8 +166,78 @@ public class PartitionLoader implements Closeable {
         }
     }
 
+    /**
+     * Reuse of PartitionCommitPolicy mechanisms. The default in Batch mode is metastore and
+     * success-file.
+     */
+    private void commitPartition(LinkedHashMap<String, String> partitionSpec, Path path)
+            throws Exception {
+        PartitionCommitPolicy.Context context = new CommitPolicyContextImpl(partitionSpec, path);
+        for (PartitionCommitPolicy policy : policies) {
+            if (policy instanceof MetastoreCommitPolicy) {
+                if (partitionSpec.isEmpty()) {
+                    // Non partition table skip commit meta data.
+                    continue;
+                }
+                ((MetastoreCommitPolicy) policy).setMetastore(metaStore);
+            }
+            policy.commit(context);
+        }
+    }
+
     @Override
     public void close() throws IOException {
         metaStore.close();
+    }
+
+    private class CommitPolicyContextImpl implements PartitionCommitPolicy.Context {
+
+        private final Path partitionPath;
+        private final LinkedHashMap<String, String> partitionSpec;
+
+        private CommitPolicyContextImpl(
+                LinkedHashMap<String, String> partitionSpec, Path partitionPath) {
+            this.partitionSpec = partitionSpec;
+            this.partitionPath = partitionPath;
+        }
+
+        @Override
+        public String catalogName() {
+            return identifier.getCatalogName();
+        }
+
+        @Override
+        public String databaseName() {
+            return identifier.getDatabaseName();
+        }
+
+        @Override
+        public String tableName() {
+            return identifier.getObjectName();
+        }
+
+        @Override
+        public List<String> partitionKeys() {
+            List<String> partitionKeys = new LinkedList<>();
+            for (Map.Entry<String, String> entry : partitionSpec.entrySet()) {
+                partitionKeys.add(entry.getKey());
+            }
+            return partitionKeys;
+        }
+
+        @Override
+        public List<String> partitionValues() {
+            return new ArrayList<>(partitionSpec.values());
+        }
+
+        @Override
+        public Path partitionPath() {
+            return this.partitionPath;
+        }
+
+        @Override
+        public LinkedHashMap<String, String> partitionSpec() {
+            return partitionSpec;
+        }
     }
 }

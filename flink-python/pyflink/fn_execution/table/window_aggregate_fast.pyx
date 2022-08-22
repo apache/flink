@@ -470,9 +470,9 @@ cdef class GroupWindowAggFunctionBase:
         cdef list timers
         cdef object timer
         timers = []
-        for timer in self._internal_timer_service.timers.keys():
+        for timer in self._internal_timer_service._timers.keys():
             timers.append(timer)
-        self._internal_timer_service.timers.clear()
+        self._internal_timer_service._timers.clear()
         return timers
 
     cpdef void close(self):

@@ -42,6 +42,7 @@ import org.apache.flink.util.CollectionUtil;
 
 import org.apache.flink.shaded.guava30.com.google.common.collect.Lists;
 
+import org.apache.hadoop.hive.conf.HiveConf;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -439,6 +440,153 @@ public class HiveTableSinkITCase {
     @Test
     public void testCustomPartitionCommitPolicy() throws Exception {
         testStreamingWriteWithCustomPartitionCommitPolicy(TestCustomCommitPolicy.class.getName());
+    }
+
+    @Test
+    public void testWritingNoDataToPartition() throws Exception {
+        TableEnvironment tEnv = HiveTestUtils.createTableEnvInBatchMode(SqlDialect.HIVE);
+        tEnv.registerCatalog(hiveCatalog.getName(), hiveCatalog);
+        tEnv.useCatalog(hiveCatalog.getName());
+        tEnv.executeSql("CREATE TABLE src_table (name string) PARTITIONED BY (`dt` string)");
+        tEnv.executeSql("CREATE TABLE target_table (name string) PARTITIONED BY (`dt` string)");
+
+        // insert into partition
+        tEnv.executeSql(
+                        "INSERT INTO target_table partition (dt='2022-07-27') SELECT name FROM src_table where dt = '2022-07-27'")
+                .await();
+        List<Row> partitions =
+                CollectionUtil.iteratorToList(
+                        tEnv.executeSql("show partitions target_table").collect());
+        assertThat(partitions).hasSize(1);
+        assertThat(partitions.toString()).contains("dt=2022-07-27");
+
+        // insert overwrite partition
+        tEnv.executeSql(
+                        "INSERT OVERWRITE target_table partition (dt='2022-07-28') SELECT name FROM src_table where dt = '2022-07-28'")
+                .await();
+        partitions =
+                CollectionUtil.iteratorToList(
+                        tEnv.executeSql("show partitions target_table").collect());
+        assertThat(partitions).hasSize(2);
+        assertThat(partitions.toString()).contains("dt=2022-07-28");
+
+        // insert into a partition with data
+        tEnv.executeSql("INSERT INTO target_table partition (dt='2022-07-29') VALUES ('zm')")
+                .await();
+
+        assertBatch("target_table", Arrays.asList("+I[zm, 2022-07-29]"));
+        tEnv.executeSql(
+                        "INSERT INTO target_table partition (dt='2022-07-29') SELECT name FROM src_table where dt = '2022-07-29'")
+                .await();
+        partitions =
+                CollectionUtil.iteratorToList(
+                        tEnv.executeSql("show partitions target_table").collect());
+        assertThat(partitions).hasSize(3);
+        assertThat(partitions.toString()).contains("dt=2022-07-29");
+        assertBatch("target_table", Arrays.asList("+I[zm, 2022-07-29]"));
+
+        // insert overwrite a partition with data
+        tEnv.executeSql(
+                        "INSERT OVERWRITE target_table partition (dt='2022-07-29') SELECT name FROM src_table where dt = '2022-07-29'")
+                .await();
+        partitions =
+                CollectionUtil.iteratorToList(
+                        tEnv.executeSql("show partitions target_table").collect());
+        assertThat(partitions).hasSize(3);
+        assertThat(partitions.toString()).contains("dt=2022-07-29");
+        assertBatch("target_table", Arrays.asList());
+
+        // test for dynamic partition
+        tEnv.executeSql(
+                "create table partition_table(`name` string) partitioned by (`p_date` string, `p_hour` string)");
+        tEnv.executeSql("create table test_src_table(`name` string, `hour` string, age int)");
+        tEnv.executeSql(
+                        "insert overwrite table partition_table partition(`p_date`='20220816', `p_hour`)"
+                                + " select `name`, `hour` from test_src_table")
+                .await();
+        partitions =
+                CollectionUtil.iteratorToList(
+                        tEnv.executeSql("show partitions partition_table").collect());
+        assertThat(partitions).hasSize(0);
+    }
+
+    @Test
+    public void testSortByDynamicPartitionEnableConfigurationInBatchMode() {
+        final TableEnvironment tEnv = HiveTestUtils.createTableEnvInBatchMode();
+        tEnv.registerCatalog(hiveCatalog.getName(), hiveCatalog);
+        tEnv.useCatalog(hiveCatalog.getName());
+        try {
+            // sort by dynamic partition columns is enabled by default
+            tEnv.executeSql(
+                    String.format(
+                            "create table dynamic_partition_t(a int, b int, d string)"
+                                    + " partitioned by (d) with ('connector' = 'hive', '%s' = 'metastore')",
+                            SINK_PARTITION_COMMIT_POLICY_KIND.key()));
+            String actual = tEnv.explainSql("insert into dynamic_partition_t select 1, 1, 'd'");
+            assertThat(actual)
+                    .isEqualTo(readFromResource("/explain/testDynamicPartitionSortEnabled.out"));
+
+            // disable sorting
+            tEnv.getConfig().set(HiveOptions.TABLE_EXEC_HIVE_DYNAMIC_GROUPING_ENABLED, false);
+            actual = tEnv.explainSql("insert into dynamic_partition_t select 1, 1, 'd'");
+            assertThat(actual)
+                    .isEqualTo(readFromResource("/explain/testDynamicPartitionSortDisabled.out"));
+        } finally {
+            tEnv.executeSql("drop table dynamic_partition_t");
+        }
+    }
+
+    @Test
+    public void testWriteSuccessFile() throws Exception {
+        TableEnvironment tEnv = HiveTestUtils.createTableEnvInBatchMode(SqlDialect.HIVE);
+        tEnv.registerCatalog(hiveCatalog.getName(), hiveCatalog);
+        tEnv.useCatalog(hiveCatalog.getName());
+
+        String successFileName = tEnv.getConfig().get(SINK_PARTITION_COMMIT_SUCCESS_FILE_NAME);
+        String warehouse =
+                hiveCatalog.getHiveConf().get(HiveConf.ConfVars.METASTOREWAREHOUSE.varname);
+
+        tEnv.executeSql("CREATE TABLE zm_test_non_partition_table (name string)");
+        tEnv.executeSql(
+                "CREATE TABLE zm_test_partition_table (name string) PARTITIONED BY (`dt` string)");
+
+        // test partition table
+        String partitionTablePath = warehouse + "/zm_test_partition_table";
+
+        tEnv.executeSql(
+                        "INSERT INTO zm_test_partition_table partition (dt='2022-07-27') values ('zm')")
+                .await();
+        assertThat(new File(partitionTablePath, "dt=2022-07-27/" + successFileName)).exists();
+
+        // test non-partition table
+        String nonPartitionTablePath = warehouse + "/zm_test_non_partition_table";
+        tEnv.executeSql("INSERT INTO zm_test_non_partition_table values ('zm')").await();
+        assertThat(new File(nonPartitionTablePath, successFileName)).exists();
+
+        // test only metastore policy
+        tEnv.executeSql(
+                "CREATE TABLE zm_test_partition_table_only_meta (name string) "
+                        + "PARTITIONED BY (`dt` string) "
+                        + "TBLPROPERTIES ('sink.partition-commit.policy.kind' = 'metastore')");
+        String onlyMetaTablePath = warehouse + "/zm_test_partition_table_only_meta";
+
+        tEnv.executeSql(
+                        "INSERT INTO zm_test_partition_table_only_meta partition (dt='2022-08-15') values ('zm')")
+                .await();
+        assertThat(new File(onlyMetaTablePath, "dt=2022-08-15/" + successFileName)).doesNotExist();
+
+        // test change success file name
+        tEnv.executeSql(
+                "CREATE TABLE zm_test_partition_table_success_file (name string) "
+                        + "PARTITIONED BY (`dt` string) "
+                        + "TBLPROPERTIES ('sink.partition-commit.success-file.name' = '_ZM')");
+        String changeFileNameTablePath = warehouse + "/zm_test_partition_table_success_file";
+        tEnv.executeSql(
+                        "INSERT INTO zm_test_partition_table_success_file partition (dt='2022-08-15') values ('zm')")
+                .await();
+        assertThat(new File(changeFileNameTablePath, "dt=2022-08-15/" + successFileName))
+                .doesNotExist();
+        assertThat(new File(changeFileNameTablePath, "dt=2022-08-15/_ZM")).exists();
     }
 
     private static List<String> fetchRows(Iterator<Row> iter, int size) {

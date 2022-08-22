@@ -408,8 +408,8 @@ class GroupWindowAggFunctionBase(Generic[K, W]):
         return result
 
     def get_timers(self):
-        yield from self._internal_timer_service.timers.keys()
-        self._internal_timer_service.timers.clear()
+        yield from self._internal_timer_service._timers.keys()
+        self._internal_timer_service._timers.clear()
 
     def to_utc_timestamp_mills(self, epoch_mills):
         if self._shift_timezone == "UTC":

@@ -29,7 +29,7 @@ under the License.
 	<name>Flink : FileSystems : OSS FS</name>
 
 	<properties>
-		<fs.oss.sdk.version>3.4.1</fs.oss.sdk.version>
+		<fs.oss.sdk.version>3.13.2</fs.oss.sdk.version>
 	</properties>
 
 	<dependencies>
@@ -73,6 +73,21 @@ under the License.
 			<groupId>com.aliyun.oss</groupId>
 			<artifactId>aliyun-sdk-oss</artifactId>
 			<version>${fs.oss.sdk.version}</version>
+			<exclusions>
+				<exclusion>
+					<groupId>javax.xml.bind</groupId>
+					<artifactId>jaxb-api</artifactId>
+				</exclusion>
+			</exclusions>
+		</dependency>
+
+		<dependency>
+			<!-- Hadoop requires jaxb-api for javax.xml.bind.JAXBException -->
+			<groupId>javax.xml.bind</groupId>
+			<artifactId>jaxb-api</artifactId>
+			<version>${jaxb.api.version}</version>
+			<!-- packaged as an optional dependency that is only accessible on Java 11+ -->
+			<scope>provided</scope>
 		</dependency>
 
 		<dependency>

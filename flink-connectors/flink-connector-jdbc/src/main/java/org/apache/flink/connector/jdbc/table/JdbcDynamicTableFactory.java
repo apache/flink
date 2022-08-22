@@ -27,10 +27,12 @@ import org.apache.flink.connector.jdbc.dialect.JdbcDialect;
 import org.apache.flink.connector.jdbc.dialect.JdbcDialectLoader;
 import org.apache.flink.connector.jdbc.internal.options.JdbcConnectorOptions;
 import org.apache.flink.connector.jdbc.internal.options.JdbcDmlOptions;
-import org.apache.flink.connector.jdbc.internal.options.JdbcLookupOptions;
 import org.apache.flink.connector.jdbc.internal.options.JdbcReadOptions;
 import org.apache.flink.table.connector.sink.DynamicTableSink;
 import org.apache.flink.table.connector.source.DynamicTableSource;
+import org.apache.flink.table.connector.source.lookup.LookupOptions;
+import org.apache.flink.table.connector.source.lookup.cache.DefaultLookupCache;
+import org.apache.flink.table.connector.source.lookup.cache.LookupCache;
 import org.apache.flink.table.factories.DynamicTableSinkFactory;
 import org.apache.flink.table.factories.DynamicTableSourceFactory;
 import org.apache.flink.table.factories.FactoryUtil;
@@ -38,6 +40,9 @@ import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.util.Preconditions;
 
+import javax.annotation.Nullable;
+
+import java.time.Duration;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Optional;
@@ -108,7 +113,8 @@ public class JdbcDynamicTableFactory implements DynamicTableSourceFactory, Dynam
         return new JdbcDynamicTableSource(
                 getJdbcOptions(helper.getOptions()),
                 getJdbcReadOptions(helper.getOptions()),
-                getJdbcLookupOptions(helper.getOptions()),
+                helper.getOptions().get(LookupOptions.MAX_RETRIES),
+                getLookupCache(config),
                 context.getPhysicalRowDataType());
     }
 
@@ -149,14 +155,6 @@ public class JdbcDynamicTableFactory implements DynamicTableSourceFactory, Dynam
         return builder.build();
     }
 
-    private JdbcLookupOptions getJdbcLookupOptions(ReadableConfig readableConfig) {
-        return new JdbcLookupOptions(
-                readableConfig.get(LOOKUP_CACHE_MAX_ROWS),
-                readableConfig.get(LOOKUP_CACHE_TTL).toMillis(),
-                readableConfig.get(LOOKUP_MAX_RETRIES),
-                readableConfig.get(LOOKUP_CACHE_MISSING_KEY));
-    }
-
     private JdbcExecutionOptions getJdbcExecutionOptions(ReadableConfig config) {
         final JdbcExecutionOptions.Builder builder = new JdbcExecutionOptions.Builder();
         builder.withBatchSize(config.get(SINK_BUFFER_FLUSH_MAX_ROWS));
@@ -179,6 +177,27 @@ public class JdbcDynamicTableFactory implements DynamicTableSourceFactory, Dynam
                 .withFieldNames(DataType.getFieldNames(dataType).toArray(new String[0]))
                 .withKeyFields(keyFields.length > 0 ? keyFields : null)
                 .build();
+    }
+
+    @Nullable
+    private LookupCache getLookupCache(ReadableConfig tableOptions) {
+        LookupCache cache = null;
+        // Legacy cache options
+        if (tableOptions.get(LOOKUP_CACHE_MAX_ROWS) > 0
+                && tableOptions.get(LOOKUP_CACHE_TTL).compareTo(Duration.ZERO) > 0) {
+            cache =
+                    DefaultLookupCache.newBuilder()
+                            .maximumSize(tableOptions.get(LOOKUP_CACHE_MAX_ROWS))
+                            .expireAfterWrite(tableOptions.get(LOOKUP_CACHE_TTL))
+                            .cacheMissingKey(tableOptions.get(LOOKUP_CACHE_MISSING_KEY))
+                            .build();
+        }
+        if (tableOptions
+                .get(LookupOptions.CACHE_TYPE)
+                .equals(LookupOptions.LookupCacheType.PARTIAL)) {
+            cache = DefaultLookupCache.fromConfig(tableOptions);
+        }
+        return cache;
     }
 
     @Override
@@ -215,6 +234,12 @@ public class JdbcDynamicTableFactory implements DynamicTableSourceFactory, Dynam
         optionalOptions.add(SINK_MAX_RETRIES);
         optionalOptions.add(SINK_PARALLELISM);
         optionalOptions.add(MAX_RETRY_TIMEOUT);
+        optionalOptions.add(LookupOptions.CACHE_TYPE);
+        optionalOptions.add(LookupOptions.PARTIAL_CACHE_EXPIRE_AFTER_ACCESS);
+        optionalOptions.add(LookupOptions.PARTIAL_CACHE_EXPIRE_AFTER_WRITE);
+        optionalOptions.add(LookupOptions.PARTIAL_CACHE_MAX_ROWS);
+        optionalOptions.add(LookupOptions.PARTIAL_CACHE_CACHE_MISSING_KEY);
+        optionalOptions.add(LookupOptions.MAX_RETRIES);
         return optionalOptions;
     }
 
@@ -231,11 +256,7 @@ public class JdbcDynamicTableFactory implements DynamicTableSourceFactory, Dynam
                         SINK_MAX_RETRIES,
                         MAX_RETRY_TIMEOUT,
                         SCAN_FETCH_SIZE,
-                        SCAN_AUTO_COMMIT,
-                        LOOKUP_CACHE_MAX_ROWS,
-                        LOOKUP_CACHE_TTL,
-                        LOOKUP_MAX_RETRIES,
-                        LOOKUP_CACHE_MISSING_KEY)
+                        SCAN_AUTO_COMMIT)
                 .collect(Collectors.toSet());
     }
 

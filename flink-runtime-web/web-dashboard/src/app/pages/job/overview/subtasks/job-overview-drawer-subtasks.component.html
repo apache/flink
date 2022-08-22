@@ -27,37 +27,60 @@
       nzSize="small"
       [nzLoading]="isLoading"
       [nzData]="listOfTask"
-      [nzScroll]="{ x: '2170px', y: 'calc(100% - 36px)' }"
+      [nzScroll]="{ x: '2210px', y: 'calc(100% - 36px)' }"
       [nzFrontPagination]="false"
       [nzShowPagination]="false"
-      [nzVirtualItemSize]="virtualItemSize"
-      [nzVirtualMinBufferPx]="300"
-      [nzVirtualMaxBufferPx]="300"
+      [nzVirtualItemSize]="36"
+      [nzVirtualMinBufferPx]="720"
+      [nzVirtualMaxBufferPx]="720"
       [nzVirtualForTrackBy]="trackBySubtask"
     >
       <thead>
         <tr>
-          <th nzWidth="80px" nzLeft>ID</th>
-          <th [nzSortFn]="sortReadBytesFn" nzWidth="140px">Bytes Received</th>
-          <th [nzSortFn]="sortReadRecordsFn" nzWidth="150px">Records Received</th>
-          <th [nzSortFn]="sortWriteBytesFn" nzWidth="120px">Bytes Sent</th>
-          <th [nzSortFn]="sortWriteRecordsFn" nzWidth="120px">Records Sent</th>
-          <th [nzSortFn]="sortAttemptFn" nzWidth="100px">Attempt</th>
-          <th [nzSortFn]="sortHostFn" nzWidth="200px">Host</th>
-          <th [nzSortFn]="sortStartTimeFn" nzWidth="150px">Start Time</th>
-          <th [nzSortFn]="sortDurationFn" nzWidth="150px">Duration</th>
-          <th [nzSortFn]="sortEndTimeFn" nzWidth="150px">End Time</th>
+          <th nzWidth="120px" nzLeft>ID</th>
+          <th [nzSortFn]="sortReadBytesFn" (nzSortOrderChange)="collapseAll()" nzWidth="140px">
+            Bytes Received
+          </th>
+          <th [nzSortFn]="sortReadRecordsFn" (nzSortOrderChange)="collapseAll()" nzWidth="150px">
+            Records Received
+          </th>
+          <th [nzSortFn]="sortWriteBytesFn" (nzSortOrderChange)="collapseAll()" nzWidth="120px">
+            Bytes Sent
+          </th>
+          <th [nzSortFn]="sortWriteRecordsFn" (nzSortOrderChange)="collapseAll()" nzWidth="120px">
+            Records Sent
+          </th>
+          <th [nzSortFn]="sortAttemptFn" (nzSortOrderChange)="collapseAll()" nzWidth="100px">
+            Attempt
+          </th>
+          <th [nzSortFn]="sortHostFn" (nzSortOrderChange)="collapseAll()" nzWidth="200px">Host</th>
+          <th [nzSortFn]="sortStartTimeFn" (nzSortOrderChange)="collapseAll()" nzWidth="150px">
+            Start Time
+          </th>
+          <th [nzSortFn]="sortDurationFn" (nzSortOrderChange)="collapseAll()" nzWidth="150px">
+            Duration
+          </th>
+          <th [nzSortFn]="sortEndTimeFn" (nzSortOrderChange)="collapseAll()" nzWidth="150px">
+            End Time
+          </th>
           <th nzWidth="320px">Accumulated Time (Backpressured/Idle/Busy)</th>
           <th nzWidth="320px">Status Durations</th>
-          <th [nzSortFn]="sortStatusFn" nzWidth="120px" nzRight>Status</th>
+          <th [nzSortFn]="sortStatusFn" (nzSortOrderChange)="collapseAll()" nzWidth="120px" nzRight>
+            Status
+          </th>
           <th nzWidth="50px" nzRight>More</th>
         </tr>
       </thead>
       <tbody>
         <ng-template nz-virtual-scroll let-data>
-          <ng-container *ngIf="narrowLogData(data) as subtask">
+          <ng-container *ngIf="narrowType(data) as subtask">
             <tr>
-              <td nzLeft>
+              <td
+                nzLeft
+                [nzShowExpand]="subtask['other-concurrent-attempts']?.length > 0"
+                [nzExpand]="expandSet.has(subtask['subtask'])"
+                (nzExpandChange)="onExpandChange(subtask, $event)"
+              >
                 {{ subtask['subtask'] }}
               </td>
               <td>
@@ -115,6 +138,69 @@
                 ></flink-dynamic-host>
               </td>
             </tr>
+            <ng-container *ngIf="expandSet.has(subtask['subtask'])">
+              <ng-container
+                *ngFor="
+                  let attempt of subtask['other-concurrent-attempts'];
+                  trackBy: trackBySubtaskAttempt
+                "
+              >
+                <tr>
+                  <td nzLeft [nzIndentSize]="8">{{ subtask['subtask'] }}</td>
+                  <td>
+                    <span *ngIf="attempt['metrics']['read-bytes-complete']; else loadingTemplate">
+                      {{ attempt['metrics']['read-bytes'] | humanizeBytes }}
+                    </span>
+                  </td>
+                  <td>
+                    <span *ngIf="attempt['metrics']['read-records-complete']; else loadingTemplate">
+                      {{ attempt['metrics']['read-records'] | number: '1.0-0' }}
+                    </span>
+                  </td>
+                  <td>
+                    <span *ngIf="attempt['metrics']['write-bytes-complete']; else loadingTemplate">
+                      {{ attempt['metrics']['write-bytes'] | humanizeBytes }}
+                    </span>
+                  </td>
+                  <td>
+                    <span
+                      *ngIf="attempt['metrics']['write-records-complete']; else loadingTemplate"
+                    >
+                      {{ attempt['metrics']['write-records'] | number: '1.0-0' }}
+                    </span>
+                  </td>
+                  <td>{{ attempt.attempt + 1 }}</td>
+                  <td>{{ attempt.host }}</td>
+                  <td>{{ attempt['start_time'] | humanizeDate: 'yyyy-MM-dd HH:mm:ss' }}</td>
+                  <td>{{ attempt.duration | humanizeDuration }}</td>
+                  <td>{{ attempt['end-time'] | humanizeDate: 'yyyy-MM-dd HH:mm:ss' }}</td>
+                  <td>
+                    {{ attempt['metrics']['accumulated-backpressured-time'] | humanizeDuration }}
+                    /
+                    {{ attempt['metrics']['accumulated-idle-time'] | humanizeDuration }}
+                    /
+                    {{ attempt['metrics']['accumulated-busy-time'] | humanizeDuration }}
+                  </td>
+                  <td>
+                    <ng-container *ngIf="!attempt['status-duration']; else badges">-</ng-container>
+                    <ng-template #badges>
+                      <flink-dynamic-host
+                        *ngFor="let duration of convertStatusDuration(attempt['status-duration'])"
+                        [data]="duration"
+                        [component]="durationBadgeComponent"
+                      ></flink-dynamic-host>
+                    </ng-template>
+                  </td>
+                  <td nzRight>
+                    <flink-dynamic-host
+                      [data]="{ state: attempt['status'] }"
+                      [component]="stateBadgeComponent"
+                    ></flink-dynamic-host>
+                  </td>
+                  <td nzRight></td>
+                </tr>
+              </ng-container>
+            </ng-container>
           </ng-container>
         </ng-template>
       </tbody>
@@ -123,5 +209,5 @@
 </nz-tabset>
 
 <ng-template #loadingTemplate>
-  <i nz-icon nzType="loading"></i>
+  <span class="text-secondary">loading...</span>
 </ng-template>

@@ -120,6 +120,10 @@ public class SessionContext {
         return endpointVersion;
     }
 
+    public SessionState getSessionState() {
+        return sessionState;
+    }
+
     public void set(String key, String value) {
         try {
             // Test whether the key value will influence the creation of the Executor.
@@ -231,7 +235,8 @@ public class SessionContext {
 
         final ModuleManager moduleManager = new ModuleManager();
 
-        final EnvironmentSettings settings = EnvironmentSettings.fromConfiguration(configuration);
+        final EnvironmentSettings settings =
+                EnvironmentSettings.newInstance().withConfiguration(configuration).build();
 
         CatalogManager catalogManager =
                 CatalogManager.newBuilder()

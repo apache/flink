@@ -830,11 +830,9 @@ class DataStream(object):
         """
         ds = self
 
-        from pyflink.datastream.connectors.base import SupportPreprocessing
-        if isinstance(sink, SupportPreprocessing):
-            preprocessing_sink = cast(SupportPreprocessing, sink)
-            if preprocessing_sink.need_preprocessing():
-                ds = preprocessing_sink.get_preprocessing().apply(self)
+        from pyflink.datastream.connectors.base import SupportsPreprocessing
+        if isinstance(sink, SupportsPreprocessing) and sink.get_transformer() is not None:
+            ds = sink.get_transformer().apply(self)
 
         return DataStreamSink(ds._j_data_stream.sinkTo(sink.get_java_function()))
 
@@ -2638,7 +2636,8 @@ class BroadcastConnectedStream(object):
             jvm.String, [i.get_name() for i in self.broadcast_state_descriptors]
         )
         j_state_descriptors = JPythonConfigUtil.convertStateNamesToStateDescriptors(j_state_names)
-        j_conf = jvm.org.apache.flink.configuration.Configuration()
+        j_conf = get_j_env_configuration(
+            self.broadcast_stream.input_stream._j_data_stream.getExecutionEnvironment())
         j_data_stream_python_function_info = _create_j_data_stream_python_function_info(
             func, func_type
         )
@@ -2740,7 +2739,12 @@ def _get_one_input_stream_operator(data_stream: DataStream,
         else:
             j_namespace_serializer = \
                 gateway.jvm.org.apache.flink.streaming.api.utils.ByteArrayWrapperSerializer()
-        j_python_function_operator = gateway.jvm.ExternalPythonKeyedProcessOperator(
+        if python_execution_mode == 'thread':
+            JDataStreamPythonWindowFunctionOperator = gateway.jvm.EmbeddedPythonWindowOperator
+        else:
+            JDataStreamPythonWindowFunctionOperator = gateway.jvm.ExternalPythonKeyedProcessOperator
+
+        j_python_function_operator = JDataStreamPythonWindowFunctionOperator(
             j_conf,
             j_data_stream_python_function_info,
             j_input_types,
@@ -2785,13 +2789,22 @@ def _get_two_input_stream_operator(connected_streams: ConnectedStreams,
 
     j_data_stream_python_function_info = _create_j_data_stream_python_function_info(func, func_type)
     j_output_type_info = output_type_info.get_java_type_info()
-    j_conf = gateway.jvm.org.apache.flink.configuration.Configuration()
+    j_conf = get_j_env_configuration(
+        connected_streams.stream1._j_data_stream.getExecutionEnvironment())
+    python_execution_mode = (
+        j_conf.getString(gateway.jvm.org.apache.flink.python.PythonOptions.PYTHON_EXECUTION_MODE))
 
     from pyflink.fn_execution.flink_fn_execution_pb2 import UserDefinedDataStreamFunction
     if func_type == UserDefinedDataStreamFunction.CO_PROCESS:  # type: ignore
-        JTwoInputPythonFunctionOperator = gateway.jvm.ExternalPythonCoProcessOperator
+        if python_execution_mode == 'thread':
+            JTwoInputPythonFunctionOperator = gateway.jvm.EmbeddedPythonCoProcessOperator
+        else:
+            JTwoInputPythonFunctionOperator = gateway.jvm.ExternalPythonCoProcessOperator
     elif func_type == UserDefinedDataStreamFunction.KEYED_CO_PROCESS:  # type: ignore
-        JTwoInputPythonFunctionOperator = gateway.jvm.ExternalPythonKeyedCoProcessOperator
+        if python_execution_mode == 'thread':
+            JTwoInputPythonFunctionOperator = gateway.jvm.EmbeddedPythonKeyedCoProcessOperator
+        else:
+            JTwoInputPythonFunctionOperator = gateway.jvm.ExternalPythonKeyedCoProcessOperator
     else:
         raise TypeError("Unsupported function type: %s" % func_type)
 

@@ -33,6 +33,7 @@ import org.apache.flink.runtime.io.network.partition.hybrid.HsSpillingInfoProvid
 import org.apache.flink.util.function.SupplierWithException;
 import org.apache.flink.util.function.ThrowingRunnable;
 
+import javax.annotation.Nullable;
 import javax.annotation.concurrent.GuardedBy;
 
 import java.nio.ByteBuffer;
@@ -82,6 +83,8 @@ public class HsSubpartitionMemoryDataManager implements HsDataView {
 
     /** DO NOT USE DIRECTLY. Use {@link #runWithLock} or {@link #callWithLock} instead. */
     private final Object subpartitionLock = new Object();
+
+    @Nullable private HsOutputMetrics outputMetrics;
 
     HsSubpartitionMemoryDataManager(
             int targetChannel,
@@ -149,7 +152,10 @@ public class HsSubpartitionMemoryDataManager implements HsDataView {
         return bufferAndNextDataType.map(
                 tuple ->
                         new BufferAndBacklog(
-                                tuple.f0.getBuffer(), getBacklog(), tuple.f1, toConsumeIndex));
+                                tuple.f0.getBuffer().readOnlySlice(),
+                                getBacklog(),
+                                tuple.f1,
+                                toConsumeIndex));
     }
 
     @SuppressWarnings("FieldAccessNotGuarded")
@@ -260,10 +266,16 @@ public class HsSubpartitionMemoryDataManager implements HsDataView {
                                 (indexAndChannel) -> {
                                     int bufferIndex = indexAndChannel.getBufferIndex();
                                     HsBufferContext bufferContext =
-                                            checkNotNull(bufferIndexToContexts.get(bufferIndex));
-                                    checkAndMarkBufferReadable(bufferContext);
-                                    releaseBuffer(bufferIndex);
+                                            bufferIndexToContexts.get(bufferIndex);
+                                    if (bufferContext != null) {
+                                        checkAndMarkBufferReadable(bufferContext);
+                                        releaseBuffer(bufferIndex);
+                                    }
                                 }));
+    }
+
+    public void setOutputMetrics(HsOutputMetrics outputMetrics) {
+        this.outputMetrics = checkNotNull(outputMetrics);
     }
 
     // ------------------------------------------------------------------------
@@ -368,6 +380,7 @@ public class HsSubpartitionMemoryDataManager implements HsDataView {
                                     bufferContext.getBufferIndexAndChannel().getBufferIndex(),
                                     bufferContext);
                             trimHeadingReleasedBuffers(unConsumedBuffers);
+                            updateStatistics(bufferContext.getBuffer());
                             return unConsumedBuffers.size() <= 1;
                         });
         if (needNotify) {
@@ -470,6 +483,11 @@ public class HsSubpartitionMemoryDataManager implements HsDataView {
                 break;
         }
         return match;
+    }
+
+    private void updateStatistics(Buffer buffer) {
+        checkNotNull(outputMetrics).getNumBuffersOut().inc();
+        checkNotNull(outputMetrics).getNumBytesOut().inc(buffer.readableBytes());
     }
 
     private <E extends Exception> void runWithLock(ThrowingRunnable<E> runnable) throws E {

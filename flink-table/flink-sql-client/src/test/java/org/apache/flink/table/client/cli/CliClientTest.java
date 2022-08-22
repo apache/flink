@@ -25,6 +25,7 @@ import org.apache.flink.runtime.testutils.CommonTestUtils;
 import org.apache.flink.streaming.environment.TestingJobClient;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.ResultKind;
+import org.apache.flink.table.api.SqlDialect;
 import org.apache.flink.table.api.internal.TableResultInternal;
 import org.apache.flink.table.catalog.Column;
 import org.apache.flink.table.catalog.ResolvedSchema;
@@ -82,6 +83,9 @@ public class CliClientTest extends TestLogger {
             "INSERT INTO MyTable SELECT * FROM MyOtherTable";
     private static final String INSERT_OVERWRITE_STATEMENT =
             "INSERT OVERWRITE MyTable SELECT * FROM MyOtherTable";
+    private static final String ORIGIN_HIVE_SQL = "SELECT pos\t FROM source_table;\n";
+    private static final String HIVE_SQL_WITHOUT_COMPLETER = "SELECT pos FROM source_table;";
+    private static final String HIVE_SQL_WITH_COMPLETER = "SELECT POSITION  FROM source_table;";
 
     @Test
     public void testUpdateSubmission() throws Exception {
@@ -106,6 +110,29 @@ public class CliClientTest extends TestLogger {
                         Arrays.asList(
                                 INSERT_INTO_STATEMENT, "", INSERT_OVERWRITE_STATEMENT, "\n")));
         assertThat(executor.receivedStatement).contains(INSERT_OVERWRITE_STATEMENT);
+    }
+
+    @Test
+    public void testExecuteSqlFileWithoutSqlCompleter() throws Exception {
+        MockExecutor executor = new MockExecutor(new SqlParserHelper(SqlDialect.HIVE));
+        executeSqlFromContent(executor, ORIGIN_HIVE_SQL);
+        assertThat(executor.receivedStatement).contains(HIVE_SQL_WITHOUT_COMPLETER);
+    }
+
+    @Test
+    public void testExecuteSqlInteractiveWithSqlCompleter() throws Exception {
+        final MockExecutor mockExecutor = new MockExecutor(new SqlParserHelper(SqlDialect.HIVE));
+        String sessionId = mockExecutor.openSession("test-session");
+
+        InputStream inputStream = new ByteArrayInputStream(ORIGIN_HIVE_SQL.getBytes());
+        OutputStream outputStream = new ByteArrayOutputStream(256);
+        try (Terminal terminal = new DumbTerminal(inputStream, outputStream);
+                CliClient client =
+                        new CliClient(
+                                () -> terminal, sessionId, mockExecutor, historyTempFile(), null)) {
+            client.executeInInteractiveMode();
+            assertThat(mockExecutor.receivedStatement).contains(HIVE_SQL_WITH_COMPLETER);
+        }
     }
 
     @Test
@@ -403,7 +430,15 @@ public class CliClientTest extends TestLogger {
         public String receivedStatement;
         public int receivedPosition;
         private final Map<String, SessionContext> sessionMap = new HashMap<>();
-        private final SqlParserHelper helper = new SqlParserHelper();
+        private final SqlParserHelper helper;
+
+        public MockExecutor() {
+            this.helper = new SqlParserHelper();
+        }
+
+        public MockExecutor(SqlParserHelper helper) {
+            this.helper = helper;
+        }
 
         @Override
         public void start() throws SqlExecutionException {}
@@ -557,17 +592,7 @@ public class CliClientTest extends TestLogger {
         }
 
         @Override
-        public void addJar(String sessionId, String jarUrl) {
-            throw new UnsupportedOperationException("Not implemented.");
-        }
-
-        @Override
         public void removeJar(String sessionId, String jarUrl) {
-            throw new UnsupportedOperationException("Not implemented.");
-        }
-
-        @Override
-        public List<String> listJars(String sessionId) {
             throw new UnsupportedOperationException("Not implemented.");
         }
     }

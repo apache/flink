@@ -23,13 +23,17 @@ from pyflink.datastream.functions import SourceFunction
 from pyflink.datastream.connectors import Sink
 from pyflink.java_gateway import get_gateway
 
-__all__ = ['KinesisShardAssigner',
-           'KinesisDeserializationSchema',
-           'WatermarkTracker',
-           'PartitionKeyGenerator',
-           'FlinkKinesisConsumer',
-           'KinesisStreamsSink',
-           'KinesisFirehoseSink']
+__all__ = [
+    'KinesisShardAssigner',
+    'KinesisDeserializationSchema',
+    'WatermarkTracker',
+    'PartitionKeyGenerator',
+    'FlinkKinesisConsumer',
+    'KinesisStreamsSink',
+    'KinesisStreamsSinkBuilder',
+    'KinesisFirehoseSink',
+    'KinesisFirehoseSinkBuilder'
+]
 
 
 # ---- KinesisSource ----
@@ -258,6 +262,7 @@ class KinesisStreamsSinkBuilder(object):
 
     Example:
     ::
+
         >>> from pyflink.common.serialization import SimpleStringSchema
         >>> sink_properties = {"aws.region": "eu-west-1"}
         >>> sink = KinesisStreamsSink.builder() \\
@@ -269,13 +274,13 @@ class KinesisStreamsSinkBuilder(object):
 
     If the following parameters are not set in this builder, the following defaults will be used:
 
-    - maxBatchSize will be 500
-    - maxInFlightRequests will be 50
-    - maxBufferedRequests will be 10000
-    - maxBatchSizeInBytes will be 5 MB i.e. 5 * 1024 * 1024
-    - maxTimeInBufferMS will be 5000ms
-    - maxRecordSizeInBytes will be 1 MB i.e. 1 * 1024 * 1024
-    - failOnError will be false
+        - maxBatchSize will be 500
+        - maxInFlightRequests will be 50
+        - maxBufferedRequests will be 10000
+        - maxBatchSizeInBytes will be 5 MB i.e. 5 * 1024 * 1024
+        - maxTimeInBufferMS will be 5000ms
+        - maxRecordSizeInBytes will be 1 MB i.e. 1 * 1024 * 1024
+        - failOnError will be false
     """
 
     def __init__(self):

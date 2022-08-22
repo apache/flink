@@ -90,7 +90,7 @@ public class ManualExactlyOnceTest {
                                 .build());
         flink.before();
 
-        final int flinkPort = flink.getRestAddres().getPort();
+        final int flinkPort = flink.getRestAddress().getPort();
 
         try {
             final AtomicReference<Throwable> producerError = new AtomicReference<>();

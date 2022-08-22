@@ -24,10 +24,10 @@ import org.apache.flink.core.fs.FileInputSplit;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.formats.csv.CsvRowDeserializationSchema.RuntimeConverter;
 import org.apache.flink.types.Row;
+import org.apache.flink.util.jackson.JacksonMapperFactory;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.JsonNode;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.MappingIterator;
-import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.dataformat.csv.CsvMapper;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.dataformat.csv.CsvSchema;
 
 import java.io.IOException;
@@ -90,7 +90,7 @@ public class RowCsvInputFormat extends AbstractCsvInputFormat<Row> {
         super.open(split);
         prepareConverter();
         this.iterator =
-                new CsvMapper()
+                JacksonMapperFactory.createCsvMapper()
                         .readerFor(JsonNode.class)
                         .with(csvSchema)
                         .readValues(csvInputStream);

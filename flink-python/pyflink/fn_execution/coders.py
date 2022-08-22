@@ -622,6 +622,24 @@ class AvroCoder(FieldCoder):
         return coder_impl.AvroCoderImpl(self._schema_string)
 
 
+class LocalDateCoder(FieldCoder):
+
+    def get_impl(self):
+        return coder_impl.LocalDateCoderImpl()
+
+
+class LocalTimeCoder(FieldCoder):
+
+    def get_impl(self):
+        return coder_impl.LocalTimeCoderImpl()
+
+
+class LocalDateTimeCoder(FieldCoder):
+
+    def get_impl(self):
+        return coder_impl.LocalDateTimeCoderImpl()
+
+
 def from_proto(field_type):
     """
     Creates the corresponding :class:`Coder` given the protocol representation of the field type.
@@ -693,7 +711,10 @@ def from_type_info_proto(type_info):
         type_info_name.SQL_TIME: TimeCoder(),
         type_info_name.SQL_TIMESTAMP: TimestampCoder(3),
         type_info_name.PICKLED_BYTES: CloudPickleCoder(),
-        type_info_name.INSTANT: InstantCoder()
+        type_info_name.INSTANT: InstantCoder(),
+        type_info_name.LOCAL_DATE: LocalDateCoder(),
+        type_info_name.LOCAL_TIME: LocalTimeCoder(),
+        type_info_name.LOCAL_DATETIME: LocalDateTimeCoder(),
     }
 
     field_type_name = type_info.type_name
@@ -704,13 +725,17 @@ def from_type_info_proto(type_info):
             return RowCoder(
                 [from_type_info_proto(f.field_type) for f in type_info.row_type_info.fields],
                 [f.field_name for f in type_info.row_type_info.fields])
-        elif field_type_name == type_info_name.PRIMITIVE_ARRAY:
+        elif field_type_name in (
+            type_info_name.PRIMITIVE_ARRAY,
+            type_info_name.LIST,
+        ):
             if type_info.collection_element_type.type_name == type_info_name.BYTE:
                 return BinaryCoder()
             return PrimitiveArrayCoder(from_type_info_proto(type_info.collection_element_type))
-        elif field_type_name in (type_info_name.BASIC_ARRAY,
-                                 type_info_name.OBJECT_ARRAY,
-                                 type_info_name.LIST):
+        elif field_type_name in (
+            type_info_name.BASIC_ARRAY,
+            type_info_name.OBJECT_ARRAY,
+        ):
             return GenericArrayCoder(from_type_info_proto(type_info.collection_element_type))
         elif field_type_name == type_info_name.TUPLE:
             return TupleCoder([from_type_info_proto(field_type)
@@ -720,6 +745,10 @@ def from_type_info_proto(type_info):
                             from_type_info_proto(type_info.map_type_info.value_type))
         elif field_type_name == type_info_name.AVRO:
             return AvroCoder(type_info.avro_type_info.schema)
+        elif field_type_name == type_info_name.LOCAL_ZONED_TIMESTAMP:
+            return LocalZonedTimestampCoder(
+                3, timezone=pytz.timezone(os.environ['TABLE_LOCAL_TIME_ZONE'])
+            )
         else:
             raise ValueError("Unsupported type_info %s." % type_info)
 

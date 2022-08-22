@@ -37,10 +37,10 @@ Sink(table=[test-catalog.db1.test_table], fields=[EXPR$0, EXPR$1])
     "type" : "Map",
     "pact" : "Operator",
     "contents" : "Map",
-    "parallelism" : 1,
+    "parallelism" : 8,
     "predecessors" : [ {
       "id" : ,
-      "ship_strategy" : "FORWARD",
+      "ship_strategy" : "REBALANCE",
       "side" : "second"
     } ]
   }, {
@@ -51,7 +51,7 @@ Sink(table=[test-catalog.db1.test_table], fields=[EXPR$0, EXPR$1])
     "parallelism" : 8,
     "predecessors" : [ {
       "id" : ,
-      "ship_strategy" : "REBALANCE",
+      "ship_strategy" : "FORWARD",
       "side" : "second"
     } ]
   } ]

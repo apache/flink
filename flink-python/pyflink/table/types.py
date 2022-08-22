@@ -1250,7 +1250,7 @@ class RowType(DataType):
                     for n, f, c in zip(self.names, self.fields, self._need_conversion))
             elif isinstance(obj, Row) and hasattr(obj, "_fields"):
                 return (obj.get_row_kind().value,) + tuple(
-                    f.to_sql_type(obj.get(n)) if c else obj.get(n)
+                    f.to_sql_type(obj[n]) if c else obj[n]
                     for n, f, c in zip(self.names, self.fields, self._need_conversion))
             elif isinstance(obj, Row):
                 return (obj.get_row_kind().value, ) + tuple(
@@ -1931,6 +1931,12 @@ def _to_java_data_type(data_type: DataType):
     else:
         j_data_type = j_data_type.notNull()
 
+    if data_type._conversion_cls:
+        j_data_type = j_data_type.bridgedTo(
+            gateway.jvm.org.apache.flink.api.python.shaded.py4j.reflection.ReflectionUtil
+            .classForName(data_type._conversion_cls)
+        )
+
     return j_data_type
 
 
@@ -2581,7 +2587,8 @@ class DataTypes(object):
         This is a shortcut for ``DataTypes.TIMESTAMP_WITH_LOCAL_TIME_ZONE(precision, nullable)``.
 
         :param precision: int, the number of digits of fractional seconds.
-                          It must have a value between 0 and 9 (both inclusive). (default: 6)
+                          It must have a value between 0 and 9 (both inclusive). (default: 6, only
+                          supports 3 when bridged to DataStream)
         :param nullable: boolean, whether the type can be null (None) or not.
 
         .. seealso:: :func:`~DataTypes.TIMESTAMP_WITH_LOCAL_TIME_ZONE(precision, nullable)`

@@ -21,6 +21,7 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.metrics.groups.TaskManagerJobMetricGroup;
+import org.apache.flink.runtime.state.LocalRecoveryConfig;
 import org.apache.flink.runtime.state.changelog.StateChangelogStorage;
 import org.apache.flink.runtime.state.changelog.StateChangelogStorageFactory;
 import org.apache.flink.runtime.state.changelog.StateChangelogStorageView;
@@ -47,14 +48,18 @@ public class FsStateChangelogStorageFactory implements StateChangelogStorageFact
 
     @Override
     public StateChangelogStorage<?> createStorage(
-            JobID jobID, Configuration configuration, TaskManagerJobMetricGroup metricGroup)
+            JobID jobID,
+            Configuration configuration,
+            TaskManagerJobMetricGroup metricGroup,
+            LocalRecoveryConfig localRecoveryConfig)
             throws IOException {
-        return new FsStateChangelogStorage(jobID, configuration, metricGroup);
+        return new FsStateChangelogStorage(jobID, configuration, metricGroup, localRecoveryConfig);
     }
 
     @Override
-    public StateChangelogStorageView<?> createStorageView() {
-        return new FsStateChangelogStorageForRecovery();
+    public StateChangelogStorageView<?> createStorageView(Configuration configuration) {
+        return new FsStateChangelogStorageForRecovery(
+                new ChangelogStreamHandleReaderWithCache(configuration));
     }
 
     public static void configure(

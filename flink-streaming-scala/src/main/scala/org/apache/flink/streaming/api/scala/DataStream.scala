@@ -1282,4 +1282,12 @@ class DataStream[T](stream: JavaStream[T]) {
       throw new UnsupportedOperationException("Only supported for operators.")
       this
   }
+
+  @PublicEvolving
+  def cache(): CachedDataStream[T] = stream match {
+    case stream: SingleOutputStreamOperator[T] => new CachedDataStream(stream.cache())
+    case stream: SideOutputDataStream[T] => new CachedDataStream(stream.cache())
+    case _ =>
+      throw new UnsupportedOperationException("Operator " + stream + " cannot cache")
+  }
 }

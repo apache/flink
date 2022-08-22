@@ -16,11 +16,16 @@
 # limitations under the License.
 
 ADD JAR '$VAR_UDF_JAR_PATH';
-[INFO] The specified jar is added into session classloader.
+[INFO] Execute statement succeed.
 !info
 
 SHOW JARS;
-$VAR_UDF_JAR_PATH
++-$VAR_UDF_JAR_PATH_DASH-----+
+| $VAR_UDF_JAR_PATH_SPACEjars |
++-$VAR_UDF_JAR_PATH_DASH-----+
+| $VAR_UDF_JAR_PATH |
++-$VAR_UDF_JAR_PATH_DASH-----+
+1 row in set
 !ok
 
 # this also tests user classloader because the LowerUDF is in user jar
@@ -233,7 +238,12 @@ Received a total of 2 rows
 !ok
 
 SHOW JARS;
-$VAR_UDF_JAR_PATH
++-$VAR_UDF_JAR_PATH_DASH-----+
+| $VAR_UDF_JAR_PATH_SPACEjars |
++-$VAR_UDF_JAR_PATH_DASH-----+
+| $VAR_UDF_JAR_PATH |
++-$VAR_UDF_JAR_PATH_DASH-----+
+1 row in set
 !ok
 
 # ==========================================================================

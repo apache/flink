@@ -38,6 +38,7 @@ import org.apache.hadoop.hive.metastore.api.UnknownDBException;
 import org.apache.hadoop.hive.ql.exec.FileSinkOperator;
 import org.apache.hadoop.hive.ql.exec.FunctionInfo;
 import org.apache.hadoop.hive.ql.io.HiveOutputFormat;
+import org.apache.hadoop.hive.ql.metadata.Hive;
 import org.apache.hadoop.hive.ql.udf.generic.SimpleGenericUDAFParameterInfo;
 import org.apache.hadoop.hive.serde2.objectinspector.ObjectInspector;
 import org.apache.hadoop.hive.serde2.objectinspector.PrimitiveObjectInspector;
@@ -52,6 +53,7 @@ import java.io.Serializable;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Properties;
 import java.util.Set;
@@ -241,4 +243,15 @@ public interface HiveShim extends Serializable {
     }
 
     void registerTemporaryFunction(String funcName, Class funcClass);
+
+    void loadPartition(
+            Hive hive,
+            Path loadPath,
+            String tableName,
+            Map<String, String> partSpec,
+            boolean isSkewedStoreAsSubdir,
+            boolean replace,
+            boolean isSrcLocal);
+
+    void loadTable(Hive hive, Path loadPath, String tableName, boolean replace, boolean isSrcLocal);
 }

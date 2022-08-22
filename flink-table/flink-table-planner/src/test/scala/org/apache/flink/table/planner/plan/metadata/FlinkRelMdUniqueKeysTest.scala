@@ -343,6 +343,21 @@ class FlinkRelMdUniqueKeysTest extends FlinkRelMdHandlerTestBase {
   }
 
   @Test
+  def testGetUniqueKeysOnLookupJoinWithPk(): Unit = {
+    Array(batchLookupJoinWithPk, streamLookupJoinWithPk).foreach {
+      join =>
+        assertEquals(uniqueKeys(Array(7), Array(0, 7), Array(0)), mq.getUniqueKeys(join).toSet)
+    }
+  }
+
+  @Test
+  def testGetUniqueKeysOnLookupJoinNotContainsPk(): Unit = {
+    Array(batchLookupJoinNotContainsPk, streamLookupJoinNotContainsPk).foreach {
+      join => assertEquals(uniqueKeys(), mq.getUniqueKeys(join).toSet)
+    }
+  }
+
+  @Test
   def testGetUniqueKeysOnSetOp(): Unit = {
     Array(logicalUnionAll, logicalIntersectAll, logicalMinusAll).foreach {
       setOp => assertEquals(uniqueKeys(), mq.getUniqueKeys(setOp).toSet)

@@ -18,6 +18,10 @@
 from pyflink.datastream.connectors import Source
 from pyflink.java_gateway import get_gateway
 
+__all__ = [
+    'NumberSequenceSource'
+]
+
 
 class NumberSequenceSource(Source):
     """
@@ -33,7 +37,7 @@ class NumberSequenceSource(Source):
     because, despite the fact that the produced stream is bounded, the end bound is pretty far away.
     """
 
-    def __init__(self, start, end):
+    def __init__(self, start: int, end: int):
         """
         Creates a new NumberSequenceSource that produces parallel sequences covering the
         range start to end (both boundaries are inclusive).

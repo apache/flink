@@ -19,10 +19,8 @@
 package org.apache.flink.connector.hbase1;
 
 import org.apache.flink.api.common.typeinfo.Types;
-import org.apache.flink.connector.hbase.options.HBaseLookupOptions;
 import org.apache.flink.connector.hbase.options.HBaseWriteOptions;
 import org.apache.flink.connector.hbase.source.HBaseRowDataLookupFunction;
-import org.apache.flink.connector.hbase.util.HBaseConfigurationUtil;
 import org.apache.flink.connector.hbase.util.HBaseTableSchema;
 import org.apache.flink.connector.hbase1.sink.HBaseDynamicTableSink;
 import org.apache.flink.connector.hbase1.source.HBaseDynamicTableSource;
@@ -32,8 +30,9 @@ import org.apache.flink.table.connector.sink.DynamicTableSink;
 import org.apache.flink.table.connector.sink.SinkFunctionProvider;
 import org.apache.flink.table.connector.source.DynamicTableSource;
 import org.apache.flink.table.connector.source.LookupTableSource;
-import org.apache.flink.table.connector.source.TableFunctionProvider;
-import org.apache.flink.table.functions.TableFunction;
+import org.apache.flink.table.connector.source.lookup.LookupFunctionProvider;
+import org.apache.flink.table.connector.source.lookup.cache.DefaultLookupCache;
+import org.apache.flink.table.functions.LookupFunction;
 import org.apache.flink.table.runtime.connector.sink.SinkRuntimeProviderContext;
 import org.apache.flink.table.runtime.connector.source.LookupRuntimeProviderContext;
 import org.apache.flink.table.types.DataType;
@@ -45,10 +44,12 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 
+import java.time.Duration;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 
+import static org.apache.flink.connector.hbase.util.HBaseConfigurationUtil.getHBaseConfiguration;
 import static org.apache.flink.table.api.DataTypes.BIGINT;
 import static org.apache.flink.table.api.DataTypes.BOOLEAN;
 import static org.apache.flink.table.api.DataTypes.DATE;
@@ -62,6 +63,7 @@ import static org.apache.flink.table.api.DataTypes.TIME;
 import static org.apache.flink.table.api.DataTypes.TIMESTAMP;
 import static org.apache.flink.table.factories.utils.FactoryMocks.createTableSink;
 import static org.apache.flink.table.factories.utils.FactoryMocks.createTableSource;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
@@ -111,10 +113,10 @@ public class HBaseDynamicTableFactoryTest {
         int[][] lookupKey = {{2}};
         LookupTableSource.LookupRuntimeProvider lookupProvider =
                 hbaseSource.getLookupRuntimeProvider(new LookupRuntimeProviderContext(lookupKey));
-        assertTrue(lookupProvider instanceof TableFunctionProvider);
+        assertTrue(lookupProvider instanceof LookupFunctionProvider);
 
-        TableFunction tableFunction =
-                ((TableFunctionProvider) lookupProvider).createTableFunction();
+        LookupFunction tableFunction =
+                ((LookupFunctionProvider) lookupProvider).createLookupFunction();
         assertTrue(tableFunction instanceof HBaseRowDataLookupFunction);
         assertEquals(
                 "testHBastTable", ((HBaseRowDataLookupFunction) tableFunction).getHTableName());
@@ -139,6 +141,32 @@ public class HBaseDynamicTableFactoryTest {
         assertArrayEquals(
                 new DataType[] {DECIMAL(10, 3), TIMESTAMP(3), DATE(), TIME()},
                 hbaseSchema.getQualifierDataTypes("f4"));
+    }
+
+    @Test
+    public void testLookupOptions() {
+        ResolvedSchema schema = ResolvedSchema.of(Column.physical(ROWKEY, STRING()));
+        Map<String, String> options = getAllOptions();
+        options.put("lookup.cache", "PARTIAL");
+        options.put("lookup.partial-cache.expire-after-access", "15213s");
+        options.put("lookup.partial-cache.expire-after-write", "18213s");
+        options.put("lookup.partial-cache.max-rows", "10000");
+        options.put("lookup.partial-cache.cache-missing-key", "false");
+        options.put("lookup.max-retries", "15513");
+
+        DynamicTableSource source = createTableSource(schema, options);
+        HBaseDynamicTableSource hbaseSource = (HBaseDynamicTableSource) source;
+        assertThat(((HBaseDynamicTableSource) source).getMaxRetryTimes()).isEqualTo(15513);
+        assertThat(hbaseSource.getCache()).isInstanceOf(DefaultLookupCache.class);
+        DefaultLookupCache cache = (DefaultLookupCache) hbaseSource.getCache();
+        assertThat(cache)
+                .isEqualTo(
+                        DefaultLookupCache.newBuilder()
+                                .expireAfterAccess(Duration.ofSeconds(15213))
+                                .expireAfterWrite(Duration.ofSeconds(18213))
+                                .maximumSize(10000)
+                                .cacheMissingKey(false)
+                                .build());
     }
 
     @Test
@@ -184,8 +212,7 @@ public class HBaseDynamicTableFactoryTest {
                 hbaseSchema.getQualifierDataTypes("f4"));
 
         // verify hadoop Configuration
-        org.apache.hadoop.conf.Configuration expectedConfiguration =
-                HBaseConfigurationUtil.getHBaseConfiguration();
+        org.apache.hadoop.conf.Configuration expectedConfiguration = getHBaseConfiguration();
         expectedConfiguration.set(HConstants.ZOOKEEPER_QUORUM, "localhost:2181");
         expectedConfiguration.set(HConstants.ZOOKEEPER_ZNODE_PARENT, "/flink");
         expectedConfiguration.set("hbase.security.authentication", "kerberos");
@@ -243,27 +270,6 @@ public class HBaseDynamicTableFactoryTest {
                 (SinkFunctionProvider)
                         hbaseSink.getSinkRuntimeProvider(new SinkRuntimeProviderContext(false));
         assertEquals(2, (long) provider.getParallelism().get());
-    }
-
-    @Test
-    public void testLookupOptions() {
-        Map<String, String> options = getAllOptions();
-        options.put("lookup.cache.max-rows", "1000");
-        options.put("lookup.cache.ttl", "10s");
-        options.put("lookup.max-retries", "10");
-        ResolvedSchema schema =
-                ResolvedSchema.of(
-                        Column.physical(ROWKEY, STRING()),
-                        Column.physical(FAMILY1, ROW(FIELD(COL1, DOUBLE()), FIELD(COL2, INT()))));
-        DynamicTableSource source = createTableSource(schema, options);
-        HBaseLookupOptions actual = ((HBaseDynamicTableSource) source).getLookupOptions();
-        HBaseLookupOptions expected =
-                HBaseLookupOptions.builder()
-                        .setCacheMaxSize(1000)
-                        .setCacheExpireMs(10_000)
-                        .setMaxRetryTimes(10)
-                        .build();
-        assertEquals(expected, actual);
     }
 
     @Test

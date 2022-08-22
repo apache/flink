@@ -27,13 +27,13 @@ import org.apache.flink.runtime.shuffle.PartitionDescriptorBuilder;
 import org.apache.flink.runtime.util.EnvironmentInformation;
 import org.apache.flink.runtime.util.NettyShuffleDescriptorBuilder;
 import org.apache.flink.util.TestLogger;
-import org.apache.flink.util.concurrent.Executors;
 
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
 import java.util.Arrays;
+import java.util.concurrent.Executors;
 
 import static org.hamcrest.CoreMatchers.instanceOf;
 import static org.hamcrest.MatcherAssert.assertThat;
@@ -84,8 +84,15 @@ public class ResultPartitionFactoryTest extends TestLogger {
     }
 
     @Test
-    public void testHybridResultPartitionCreated() {
-        ResultPartition resultPartition = createResultPartition(ResultPartitionType.HYBRID);
+    public void testHybridFullResultPartitionCreated() {
+        ResultPartition resultPartition = createResultPartition(ResultPartitionType.HYBRID_FULL);
+        assertTrue(resultPartition instanceof HsResultPartition);
+    }
+
+    @Test
+    public void testHybridSelectiveResultPartitionCreated() {
+        ResultPartition resultPartition =
+                createResultPartition(ResultPartitionType.HYBRID_SELECTIVE);
         assertTrue(resultPartition instanceof HsResultPartition);
     }
 
@@ -109,8 +116,19 @@ public class ResultPartitionFactoryTest extends TestLogger {
     }
 
     @Test
-    public void testNoReleaseOnConsumptionForHybridPartition() {
-        final ResultPartition resultPartition = createResultPartition(ResultPartitionType.HYBRID);
+    public void testNoReleaseOnConsumptionForHybridFullPartition() {
+        final ResultPartition resultPartition =
+                createResultPartition(ResultPartitionType.HYBRID_FULL);
+
+        resultPartition.onConsumedSubpartition(0);
+
+        assertFalse(resultPartition.isReleased());
+    }
+
+    @Test
+    public void testNoReleaseOnConsumptionForHybridSelectivePartition() {
+        final ResultPartition resultPartition =
+                createResultPartition(ResultPartitionType.HYBRID_SELECTIVE);
 
         resultPartition.onConsumedSubpartition(0);
 
@@ -131,7 +149,7 @@ public class ResultPartitionFactoryTest extends TestLogger {
                         fileChannelManager,
                         new NetworkBufferPool(1, SEGMENT_SIZE),
                         new BatchShuffleReadBufferPool(10 * SEGMENT_SIZE, SEGMENT_SIZE),
-                        Executors.newDirectExecutorService(),
+                        Executors.newSingleThreadScheduledExecutor(),
                         BoundedBlockingSubpartitionType.AUTO,
                         1,
                         1,

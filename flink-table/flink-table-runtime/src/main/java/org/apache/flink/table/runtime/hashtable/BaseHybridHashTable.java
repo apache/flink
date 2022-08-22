@@ -264,15 +264,19 @@ public abstract class BaseHybridHashTable implements MemorySegmentPool {
             this.buildSpillRetBufferNumbers--;
 
             // grab as many more buffers as are available directly
-            MemorySegment currBuff;
-            while (this.buildSpillRetBufferNumbers > 0
-                    && (currBuff = this.buildSpillReturnBuffers.poll()) != null) {
-                returnPage(currBuff);
-                this.buildSpillRetBufferNumbers--;
-            }
+            returnSpillBuffers();
             return toReturn;
         } else {
             return null;
+        }
+    }
+
+    private void returnSpillBuffers() {
+        MemorySegment currBuff;
+        while (this.buildSpillRetBufferNumbers > 0
+                && (currBuff = this.buildSpillReturnBuffers.poll()) != null) {
+            returnPage(currBuff);
+            this.buildSpillRetBufferNumbers--;
         }
     }
 
@@ -387,6 +391,17 @@ public abstract class BaseHybridHashTable implements MemorySegmentPool {
             return;
         }
 
+        // clear the current build side channel, if there exist one
+        if (this.currentSpilledBuildSide != null) {
+            try {
+                this.currentSpilledBuildSide.getChannel().closeAndDelete();
+            } catch (Throwable t) {
+                LOG.warn(
+                        "Could not close and delete the temp file for the current spilled partition build side.",
+                        t);
+            }
+        }
+
         // clear the current probe side channel, if there is one
         if (this.currentSpilledProbeSide != null) {
             try {
@@ -426,6 +441,19 @@ public abstract class BaseHybridHashTable implements MemorySegmentPool {
     /** Free the memory not used. */
     public void freeCurrent() {
         internalPool.cleanCache();
+    }
+
+    /**
+     * Due to adaptive hash join is introduced, the cached memory segments should be released to
+     * {@link MemoryManager} before switch to sort merge join. Otherwise, open sort merge join
+     * operator maybe fail because of insufficient memory.
+     *
+     * <p>Note: this method should only be invoked for sort merge join.
+     */
+    public void releaseMemoryCacheForSMJ() {
+        // return build spill buffer memory first
+        returnSpillBuffers();
+        freeCurrent();
     }
 
     LazyMemorySegmentPool getInternalPool() {

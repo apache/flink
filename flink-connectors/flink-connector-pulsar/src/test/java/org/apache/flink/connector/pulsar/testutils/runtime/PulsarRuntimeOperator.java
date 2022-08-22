@@ -31,13 +31,14 @@ import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.admin.PulsarAdminException.NotFoundException;
 import org.apache.pulsar.client.api.Consumer;
+import org.apache.pulsar.client.api.ConsumerBuilder;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
+import org.apache.pulsar.client.api.ProducerBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
-import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.client.api.TypedMessageBuilder;
 import org.apache.pulsar.client.api.transaction.TransactionCoordinatorClient;
 import org.apache.pulsar.client.api.transaction.TxnID;
@@ -49,10 +50,8 @@ import java.io.Closeable;
 import java.io.IOException;
 import java.time.Duration;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
-import java.util.Map;
 import java.util.Random;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
@@ -62,9 +61,7 @@ import java.util.stream.Stream;
 import static java.util.Collections.emptyList;
 import static java.util.Collections.singletonList;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
-import static java.util.function.Function.identity;
 import static java.util.stream.Collectors.toList;
-import static java.util.stream.Collectors.toMap;
 import static org.apache.commons.lang3.RandomStringUtils.randomAlphanumeric;
 import static org.apache.flink.connector.base.DeliveryGuarantee.EXACTLY_ONCE;
 import static org.apache.flink.connector.pulsar.common.config.PulsarOptions.PULSAR_ADMIN_URL;
@@ -79,8 +76,10 @@ import static org.apache.flink.connector.pulsar.sink.PulsarSinkOptions.PULSAR_WR
 import static org.apache.flink.connector.pulsar.source.enumerator.topic.TopicNameUtils.topicName;
 import static org.apache.flink.connector.pulsar.source.enumerator.topic.TopicNameUtils.topicNameWithPartition;
 import static org.apache.flink.util.Preconditions.checkArgument;
+import static org.apache.pulsar.client.api.SubscriptionInitialPosition.Earliest;
 import static org.apache.pulsar.client.api.SubscriptionMode.Durable;
 import static org.apache.pulsar.client.api.SubscriptionType.Exclusive;
+import static org.apache.pulsar.common.partition.PartitionedTopicMetadata.NON_PARTITIONED;
 
 /**
  * A pulsar cluster operator used for operating pulsar instance. It's serializable for using in
@@ -178,7 +177,7 @@ public class PulsarRuntimeOperator implements Closeable {
      */
     public void createTopic(String topic, int numberOfPartitions) {
         checkArgument(numberOfPartitions >= 0);
-        if (numberOfPartitions <= 0) {
+        if (numberOfPartitions == 0) {
             createNonPartitionedTopic(topic);
         } else {
             createPartitionedTopic(topic, numberOfPartitions);
@@ -196,7 +195,7 @@ public class PulsarRuntimeOperator implements Closeable {
                 sneakyAdmin(() -> admin().topics().getPartitionedTopicMetadata(topic));
         checkArgument(
                 metadata.partitions < newPartitionsNum,
-                "The new partition size which should exceed previous size.");
+                "The new partition size which should greater than previous size.");
 
         sneakyAdmin(() -> admin().topics().updatePartitionedTopic(topic, newPartitionsNum));
     }
@@ -220,9 +219,11 @@ public class PulsarRuntimeOperator implements Closeable {
             return;
         }
 
+        // Close all the available consumers and producers.
         removeConsumers(topic);
         removeProducers(topic);
-        if (metadata.partitions <= 0) {
+
+        if (metadata.partitions == NON_PARTITIONED) {
             sneakyAdmin(() -> admin().topics().delete(topicName));
         } else {
             sneakyAdmin(() -> admin().topics().deletePartitionedTopic(topicName));
@@ -243,22 +244,6 @@ public class PulsarRuntimeOperator implements Closeable {
         } catch (InterruptedException | ExecutionException e) {
             throw new IllegalStateException(e);
         }
-    }
-
-    /**
-     * Query a list of topics. Convert the topic metadata into a list of topic partitions. Return a
-     * mapping for topic and its partitions.
-     */
-    public Map<String, List<TopicPartition>> topicsInfo(String... topics) {
-        return topicsInfo(Arrays.asList(topics));
-    }
-
-    /**
-     * Query a list of topics. Convert the topic metadata into a list of topic partitions. Return a
-     * mapping for topic and its partitions.
-     */
-    public Map<String, List<TopicPartition>> topicsInfo(Collection<String> topics) {
-        return topics.stream().collect(toMap(identity(), this::topicInfo));
     }
 
     /**
@@ -518,12 +503,13 @@ public class PulsarRuntimeOperator implements Closeable {
                 topicProducers.computeIfAbsent(
                         index,
                         i -> {
-                            try {
-                                return client().newProducer(schema).topic(topic).create();
-                            } catch (PulsarClientException e) {
-                                sneakyThrow(e);
-                                return null;
-                            }
+                            ProducerBuilder<T> builder =
+                                    client().newProducer(schema)
+                                            .topic(topic)
+                                            .enableBatching(false)
+                                            .enableMultiSchema(true);
+
+                            return sneakyClient(builder::create);
                         });
     }
 
@@ -540,19 +526,15 @@ public class PulsarRuntimeOperator implements Closeable {
                 topicConsumers.computeIfAbsent(
                         index,
                         i -> {
-                            try {
-                                return client().newConsumer(schema)
-                                        .topic(topic)
-                                        .subscriptionName(SUBSCRIPTION_NAME)
-                                        .subscriptionMode(Durable)
-                                        .subscriptionType(Exclusive)
-                                        .subscriptionInitialPosition(
-                                                SubscriptionInitialPosition.Earliest)
-                                        .subscribe();
-                            } catch (PulsarClientException e) {
-                                sneakyThrow(e);
-                                return null;
-                            }
+                            ConsumerBuilder<T> builder =
+                                    client().newConsumer(schema)
+                                            .topic(topic)
+                                            .subscriptionName(SUBSCRIPTION_NAME)
+                                            .subscriptionMode(Durable)
+                                            .subscriptionType(Exclusive)
+                                            .subscriptionInitialPosition(Earliest);
+
+                            return sneakyClient(builder::subscribe);
                         });
     }
 
@@ -561,11 +543,7 @@ public class PulsarRuntimeOperator implements Closeable {
         ConcurrentHashMap<Integer, Producer<?>> integerProducers = producers.remove(topicName);
         if (integerProducers != null) {
             for (Producer<?> producer : integerProducers.values()) {
-                try {
-                    producer.close();
-                } catch (PulsarClientException e) {
-                    sneakyThrow(e);
-                }
+                sneakyClient(producer::close);
             }
         }
     }
@@ -575,11 +553,7 @@ public class PulsarRuntimeOperator implements Closeable {
         ConcurrentHashMap<Integer, Consumer<?>> integerConsumers = consumers.remove(topicName);
         if (integerConsumers != null) {
             for (Consumer<?> consumer : integerConsumers.values()) {
-                try {
-                    consumer.close();
-                } catch (PulsarClientException e) {
-                    sneakyThrow(e);
-                }
+                sneakyClient(consumer::close);
             }
         }
     }

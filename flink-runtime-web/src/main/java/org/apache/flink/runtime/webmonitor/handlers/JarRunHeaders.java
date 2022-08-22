@@ -20,12 +20,14 @@ package org.apache.flink.runtime.webmonitor.handlers;
 
 import org.apache.flink.runtime.rest.HttpMethodWrapper;
 import org.apache.flink.runtime.rest.messages.MessageHeaders;
+import org.apache.flink.runtime.rest.messages.RuntimeMessageHeaders;
 
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
 
 /** {@link MessageHeaders} for {@link JarRunHandler}. */
 public class JarRunHeaders
-        implements MessageHeaders<JarRunRequestBody, JarRunResponseBody, JarRunMessageParameters> {
+        implements RuntimeMessageHeaders<
+                JarRunRequestBody, JarRunResponseBody, JarRunMessageParameters> {
 
     private static final JarRunHeaders INSTANCE = new JarRunHeaders();
 

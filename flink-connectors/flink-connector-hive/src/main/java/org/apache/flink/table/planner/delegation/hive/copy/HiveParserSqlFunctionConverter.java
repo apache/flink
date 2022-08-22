@@ -19,6 +19,7 @@
 package org.apache.flink.table.planner.delegation.hive.copy;
 
 import org.apache.flink.table.planner.delegation.hive.HiveParserIN;
+import org.apache.flink.table.planner.delegation.hive.SqlFunctionConverter;
 import org.apache.flink.table.planner.delegation.hive.parse.HiveASTParser;
 
 import org.apache.calcite.rel.type.RelDataType;
@@ -31,6 +32,7 @@ import org.apache.calcite.sql.SqlOperator;
 import org.apache.calcite.sql.fun.SqlMonotonicBinaryOperator;
 import org.apache.calcite.sql.fun.SqlStdOperatorTable;
 import org.apache.calcite.sql.parser.SqlParserPos;
+import org.apache.calcite.sql.type.FamilyOperandTypeChecker;
 import org.apache.calcite.sql.type.InferTypes;
 import org.apache.calcite.sql.type.OperandTypes;
 import org.apache.calcite.sql.type.ReturnTypes;
@@ -55,8 +57,10 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 /**
@@ -82,7 +86,8 @@ public class HiveParserSqlFunctionConverter {
             String funcTextName,
             GenericUDF hiveUDF,
             List<RelDataType> calciteArgTypes,
-            RelDataType retType)
+            RelDataType retType,
+            SqlFunctionConverter functionConverter)
             throws SemanticException {
         // handle overloaded methods first
         if (hiveUDF instanceof GenericUDFOPNegative) {
@@ -100,7 +105,11 @@ public class HiveParserSqlFunctionConverter {
             name = FunctionRegistry.getNormalizedFunctionName(funcTextName);
         }
         return getCalciteFn(
-                name, calciteArgTypes, retType, FunctionRegistry.isDeterministic(hiveUDF));
+                name,
+                calciteArgTypes,
+                retType,
+                FunctionRegistry.isDeterministic(hiveUDF),
+                functionConverter);
     }
 
     // TODO: this is not valid. Function names for built-in UDFs are specified in
@@ -385,7 +394,8 @@ public class HiveParserSqlFunctionConverter {
             String hiveUdfName,
             List<RelDataType> calciteArgTypes,
             RelDataType calciteRetType,
-            boolean deterministic) {
+            boolean deterministic,
+            SqlFunctionConverter functionConverter) {
         SqlOperator calciteOp;
         CalciteUDFInfo uInf = getUDFInfo(hiveUdfName, calciteArgTypes, calciteRetType);
         switch (hiveUdfName) {
@@ -415,22 +425,71 @@ public class HiveParserSqlFunctionConverter {
                                 OperandTypes.PLUS_OPERATOR);
                 break;
             default:
-                calciteOp = HIVE_TO_CALCITE.get(hiveUdfName);
-                if (null == calciteOp) {
-                    calciteOp =
-                            new CalciteSqlFn(
-                                    uInf.udfName,
-                                    uInf.identifier,
-                                    SqlKind.OTHER_FUNCTION,
-                                    uInf.returnTypeInference,
-                                    uInf.operandTypeInference,
-                                    uInf.operandTypeChecker,
-                                    SqlFunctionCategory.USER_DEFINED_FUNCTION,
-                                    deterministic);
+                // some functions should be handled as Hive UDF for
+                // the Hive specific logic
+                if (shouldHandledAsHiveUDF(uInf) && canHandledAsHiveUDF(uInf, functionConverter)) {
+                    calciteOp = asCalciteSqlFn(uInf, deterministic);
+                } else {
+                    calciteOp = HIVE_TO_CALCITE.get(hiveUdfName);
+                    if (null == calciteOp) {
+                        calciteOp = asCalciteSqlFn(uInf, deterministic);
+                    }
                 }
                 break;
         }
         return calciteOp;
+    }
+
+    private static CalciteSqlFn asCalciteSqlFn(CalciteUDFInfo uInf, boolean deterministic) {
+        return new CalciteSqlFn(
+                uInf.udfName,
+                uInf.identifier,
+                SqlKind.OTHER_FUNCTION,
+                uInf.returnTypeInference,
+                uInf.operandTypeInference,
+                uInf.operandTypeChecker,
+                SqlFunctionCategory.USER_DEFINED_FUNCTION,
+                deterministic);
+    }
+
+    private static boolean shouldHandledAsHiveUDF(CalciteUDFInfo calciteUDFInfo) {
+        String udfName = calciteUDFInfo.udfName;
+        if (isCompareFunction(udfName)) {
+            // for hive, boolean type can be comparable to other numeric/string types,
+            // but it's not supported in Flink, so it should be handled as hive udf to
+            // be consistent with Hive.
+            Set<SqlTypeFamily> operandTypes = new HashSet<>();
+            operandTypes.add(
+                    ((FamilyOperandTypeChecker) calciteUDFInfo.operandTypeChecker)
+                            .getOperandSqlTypeFamily(0));
+            operandTypes.add(
+                    ((FamilyOperandTypeChecker) calciteUDFInfo.operandTypeChecker)
+                            .getOperandSqlTypeFamily(1));
+            return operandTypes.contains(SqlTypeFamily.BOOLEAN)
+                    && (operandTypes.contains(SqlTypeFamily.NUMERIC)
+                            || operandTypes.contains(SqlTypeFamily.CHARACTER));
+        }
+        return false;
+    }
+
+    private static boolean canHandledAsHiveUDF(
+            CalciteUDFInfo udfInfo, SqlFunctionConverter functionConverter) {
+        // if we can find the overloaded operator, the function can be handled as Hive's UDF.
+        // otherwise, it can't be handled as Hive's UDF which can happen when hive module is not
+        // loaded.
+        return functionConverter.hasOverloadedOp(
+                asCalciteSqlFn(udfInfo, false), SqlFunctionCategory.USER_DEFINED_FUNCTION);
+    }
+
+    private static boolean isCompareFunction(String udfName) {
+        return udfName.equals(">")
+                || udfName.equals(">=")
+                || udfName.equals("<")
+                || udfName.equals("<=")
+                || udfName.equals("=")
+                || udfName.equals("<>")
+                || udfName.equals("!=")
+                || udfName.equals("<=>");
     }
 
     public static SqlAggFunction getCalciteAggFn(

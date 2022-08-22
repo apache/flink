@@ -453,17 +453,17 @@ temporal:
     table: TEMPORAL.extract(TIMEINTERVALUNIT)
     description: Returns a long value extracted from the timeintervalunit part of temporal. E.g., EXTRACT(DAY FROM DATE '2006-06-05') returns 5.
   - sql: YEAR(date)
-    description: Returns the year from SQL date date. Equivalent to EXTRACT(YEAR FROM date). E.g., YEAR(DATE '1994-09-27') returns 1994.
+    description: Returns the year from SQL date. Equivalent to EXTRACT(YEAR FROM date). E.g., YEAR(DATE '1994-09-27') returns 1994.
   - sql: QUARTER(date)
-    description: Returns the quarter of a year (an integer between 1 and 4) from SQL date date. Equivalent to EXTRACT(QUARTER FROM date). E.g., QUARTER(DATE '1994-09-27') returns 3.
+    description: Returns the quarter of a year (an integer between 1 and 4) from SQL date. Equivalent to EXTRACT(QUARTER FROM date). E.g., QUARTER(DATE '1994-09-27') returns 3.
   - sql: MONTH(date)
-    description: Returns the month of a year (an integer between 1 and 12) from SQL date date. Equivalent to EXTRACT(MONTH FROM date). E.g., MONTH(DATE '1994-09-27') returns 9.
+    description: Returns the month of a year (an integer between 1 and 12) from SQL date. Equivalent to EXTRACT(MONTH FROM date). E.g., MONTH(DATE '1994-09-27') returns 9.
   - sql: WEEK(date)
-    description: Returns the week of a year (an integer between 1 and 53) from SQL date date. Equivalent to EXTRACT(WEEK FROM date). E.g., WEEK(DATE '1994-09-27') returns 39.
+    description: Returns the week of a year (an integer between 1 and 53) from SQL date. Equivalent to EXTRACT(WEEK FROM date). E.g., WEEK(DATE '1994-09-27') returns 39.
   - sql: DAYOFYEAR(date)
-    description:  Returns the day of a year (an integer between 1 and 366) from SQL date date. Equivalent to EXTRACT(DOY FROM date). E.g., DAYOFYEAR(DATE '1994-09-27') returns 270.
+    description:  Returns the day of a year (an integer between 1 and 366) from SQL date. Equivalent to EXTRACT(DOY FROM date). E.g., DAYOFYEAR(DATE '1994-09-27') returns 270.
   - sql: DAYOFMONTH
-    description: Returns the day of a month (an integer between 1 and 31) from SQL date date. Equivalent to EXTRACT(DAY FROM date). E.g., DAYOFWEEK(DATE '1994-09-27') returns 3.
+    description: Returns the day of a month (an integer between 1 and 31) from SQL date. Equivalent to EXTRACT(DAY FROM date). E.g., DAYOFMONTH(DATE '1994-09-27') returns 27.
   - sql: HOUR(timestamp)
     description: Returns the hour of a day (an integer between 0 and 23) from SQL timestamp timestamp. Equivalent to EXTRACT(HOUR FROM timestamp). E.g., MINUTE(TIMESTAMP '1994-09-27 13:14:15') returns 14.
   - sql: MINUTE(timestamp)
@@ -1007,6 +1007,13 @@ aggregate:
     description: Concatenates the values of string expressions and places separator values between them. The separator is not added at the end of string. The default value of separator is ','.
   - sql: CUME_DIST()
     description: Return the cumulative distribution of a value in a group of values. The result is the number of rows preceding or equal to the current row in the ordering of the partition divided by the number of rows in the window partition.
+  - sql: PERCENT_RANK()
+    description: Return the percentage ranking of a value in a group of values. The result is the rank value minus one, divided by the number of rows in the parition minus one. If the partition only contains one row, the function will return 0.
+  - sql: NTILE(n)
+    description: |
+      Divides the rows for each window partition into `n` buckets ranging from 1 to at most `n`.
+      If the number of rows in the window partition doesn't divide evenly into the number of buckets, then the remainder values are distributed one per bucket, starting with the first bucket.
+      For example, with 6 rows and 4 buckets, the bucket values would be as follows: 1 1 2 2 3 4
 
 catalog:
   - sql: CURRENT_DATABASE()

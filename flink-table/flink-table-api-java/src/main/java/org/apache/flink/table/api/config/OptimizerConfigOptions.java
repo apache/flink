@@ -21,6 +21,7 @@ package org.apache.flink.table.api.config;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.annotation.docs.Documentation;
 import org.apache.flink.configuration.ConfigOption;
+import org.apache.flink.configuration.description.Description;
 
 import static org.apache.flink.configuration.ConfigOptions.key;
 
@@ -142,4 +143,62 @@ public class OptimizerConfigOptions {
                     .withDescription(
                             "When it is true, the optimizer will merge the operators with pipelined shuffling "
                                     + "into a multiple input operator to reduce shuffling and improve performance. Default value is true.");
+
+    @Documentation.TableOption(execMode = Documentation.ExecMode.BATCH_STREAMING)
+    public static final ConfigOption<Boolean> TABLE_OPTIMIZER_DYNAMIC_FILTERING_ENABLED =
+            key("table.optimizer.dynamic-filtering.enabled")
+                    .booleanType()
+                    .defaultValue(true)
+                    .withDescription(
+                            "When it is true, the optimizer will try to push dynamic filtering into scan table source,"
+                                    + " the irrelevant partitions or input data will be filtered to reduce scan I/O in runtime.");
+
+    @Documentation.TableOption(execMode = Documentation.ExecMode.STREAMING)
+    public static final ConfigOption<NonDeterministicUpdateStrategy>
+            TABLE_OPTIMIZER_NONDETERMINISTIC_UPDATE_STRATEGY =
+                    key("table.optimizer.non-deterministic-update.strategy")
+                            .enumType(NonDeterministicUpdateStrategy.class)
+                            .defaultValue(NonDeterministicUpdateStrategy.IGNORE)
+                            .withDescription(
+                                    Description.builder()
+                                            .text(
+                                                    "When it is `TRY_RESOLVE`, the optimizer tries to resolve the correctness issue caused by "
+                                                            + "'Non-Deterministic Updates' (NDU) in a changelog pipeline. Changelog may contain kinds"
+                                                            + " of message types: Insert (I), Delete (D), Update_Before (UB), Update_After (UA)."
+                                                            + " There's no NDU problem in an insert only changelog pipeline. For updates, there are"
+                                                            + "  three main NDU problems:")
+                                            .linebreak()
+                                            .text(
+                                                    "1. Non-deterministic functions, include scalar, table, aggregate functions, both builtin and custom ones.")
+                                            .linebreak()
+                                            .text("2. LookupJoin on an evolving source")
+                                            .linebreak()
+                                            .text(
+                                                    "3. Cdc-source carries metadata fields which are system columns, not belongs to the entity data itself.")
+                                            .linebreak()
+                                            .linebreak()
+                                            .text(
+                                                    "For the first step, the optimizer automatically enables the materialization for No.2(LookupJoin) if needed,"
+                                                            + " and gives the detailed error message for No.1(Non-deterministic functions) and"
+                                                            + " No.3(Cdc-source with metadata) which is relatively easier to solve by changing the SQL.")
+                                            .linebreak()
+                                            .text(
+                                                    "Default value is `IGNORE`, the optimizer does no changes.")
+                                            .build());
+
+    /** Strategy for handling non-deterministic updates. */
+    @PublicEvolving
+    public enum NonDeterministicUpdateStrategy {
+
+        /**
+         * Try to resolve by planner automatically if exists non-deterministic updates, will raise
+         * an error when cannot resolve.
+         */
+        TRY_RESOLVE,
+
+        /**
+         * Do nothing if exists non-deterministic updates, the risk of wrong result still exists.
+         */
+        IGNORE
+    }
 }

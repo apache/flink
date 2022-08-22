@@ -78,8 +78,8 @@ import org.apache.flink.runtime.taskmanager.DispatcherThreadFactory;
 import org.apache.flink.runtime.taskmanager.Task;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.environment.ExecutionCheckpointingOptions;
+import org.apache.flink.streaming.api.graph.NonChainedOutput;
 import org.apache.flink.streaming.api.graph.StreamConfig;
-import org.apache.flink.streaming.api.graph.StreamEdge;
 import org.apache.flink.streaming.api.operators.InternalTimeServiceManager;
 import org.apache.flink.streaming.api.operators.InternalTimeServiceManagerImpl;
 import org.apache.flink.streaming.api.operators.StreamOperator;
@@ -1593,26 +1593,26 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
                     StreamConfig configuration, Environment environment) {
         List<RecordWriter<SerializationDelegate<StreamRecord<OUT>>>> recordWriters =
                 new ArrayList<>();
-        List<StreamEdge> outEdgesInOrder =
-                configuration.getOutEdgesInOrder(
+        List<NonChainedOutput> outputsInOrder =
+                configuration.getVertexNonChainedOutputs(
                         environment.getUserCodeClassLoader().asClassLoader());
 
-        for (int i = 0; i < outEdgesInOrder.size(); i++) {
-            StreamEdge edge = outEdgesInOrder.get(i);
+        int index = 0;
+        for (NonChainedOutput streamOutput : outputsInOrder) {
             recordWriters.add(
                     createRecordWriter(
-                            edge,
-                            i,
+                            streamOutput,
+                            index++,
                             environment,
                             environment.getTaskInfo().getTaskNameWithSubtasks(),
-                            edge.getBufferTimeout()));
+                            streamOutput.getBufferTimeout()));
         }
         return recordWriters;
     }
 
     @SuppressWarnings("unchecked")
     private static <OUT> RecordWriter<SerializationDelegate<StreamRecord<OUT>>> createRecordWriter(
-            StreamEdge edge,
+            NonChainedOutput streamOutput,
             int outputIndex,
             Environment environment,
             String taskNameWithSubtask,
@@ -1625,7 +1625,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
         try {
             outputPartitioner =
                     InstantiationUtil.clone(
-                            (StreamPartitioner<OUT>) edge.getPartitioner(),
+                            (StreamPartitioner<OUT>) streamOutput.getPartitioner(),
                             environment.getUserCodeClassLoader().asClassLoader());
         } catch (Exception e) {
             ExceptionUtils.rethrow(e);

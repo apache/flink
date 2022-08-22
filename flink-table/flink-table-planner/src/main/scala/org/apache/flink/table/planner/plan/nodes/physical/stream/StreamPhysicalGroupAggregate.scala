@@ -44,10 +44,10 @@ class StreamPhysicalGroupAggregate(
     traitSet: RelTraitSet,
     inputRel: RelNode,
     outputRowType: RelDataType,
-    val grouping: Array[Int],
-    val aggCalls: Seq[AggregateCall],
+    grouping: Array[Int],
+    aggCalls: Seq[AggregateCall],
     var partialFinalType: PartialFinalType = PartialFinalType.NONE)
-  extends StreamPhysicalGroupAggregateBase(cluster, traitSet, inputRel) {
+  extends StreamPhysicalGroupAggregateBase(cluster, traitSet, inputRel, grouping, aggCalls) {
 
   private val aggInfoList =
     AggregateUtil.deriveAggregateInfoList(this, grouping.length, aggCalls)

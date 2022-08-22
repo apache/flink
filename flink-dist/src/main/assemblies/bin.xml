@@ -172,6 +172,13 @@ under the License.
 			<fileMode>0755</fileMode>
 		</fileSet>
 
+		<!-- copy SQL gateway -->
+		<fileSet>
+			<directory>../flink-table/flink-sql-gateway/bin/</directory>
+			<outputDirectory>bin</outputDirectory>
+			<fileMode>0755</fileMode>
+		</fileSet>
+
 		<!-- copy yarn start scripts -->
 		<fileSet>
 			<directory>src/main/flink-bin/yarn-bin</directory>

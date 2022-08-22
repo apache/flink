@@ -18,7 +18,12 @@
 package org.apache.flink.streaming.runtime.translators.python;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.python.PythonOptions;
 import org.apache.flink.streaming.api.operators.SimpleOperatorFactory;
+import org.apache.flink.streaming.api.operators.StreamOperator;
+import org.apache.flink.streaming.api.operators.python.embedded.EmbeddedPythonBatchCoBroadcastProcessOperator;
+import org.apache.flink.streaming.api.operators.python.embedded.EmbeddedPythonCoProcessOperator;
 import org.apache.flink.streaming.api.operators.python.process.ExternalPythonBatchCoBroadcastProcessOperator;
 import org.apache.flink.streaming.api.operators.python.process.ExternalPythonCoProcessOperator;
 import org.apache.flink.streaming.api.transformations.python.PythonBroadcastStateTransformation;
@@ -29,8 +34,10 @@ import java.util.Collection;
 
 /**
  * A {@link org.apache.flink.streaming.api.graph.TransformationTranslator} that translates {@link
- * PythonBroadcastStateTransformation} into {@link ExternalPythonCoProcessOperator} or {@link
- * ExternalPythonBatchCoBroadcastProcessOperator}.
+ * PythonBroadcastStateTransformation} into {@link ExternalPythonCoProcessOperator}/{@link
+ * EmbeddedPythonCoProcessOperator} in streaming mode or {@link
+ * ExternalPythonBatchCoBroadcastProcessOperator}/{@link
+ * EmbeddedPythonBatchCoBroadcastProcessOperator} in batch mode.
  */
 @Internal
 public class PythonBroadcastStateTransformationTranslator<IN1, IN2, OUT>
@@ -43,13 +50,27 @@ public class PythonBroadcastStateTransformationTranslator<IN1, IN2, OUT>
         Preconditions.checkNotNull(transformation);
         Preconditions.checkNotNull(context);
 
-        ExternalPythonBatchCoBroadcastProcessOperator operator =
-                new ExternalPythonBatchCoBroadcastProcessOperator(
-                        transformation.getConfiguration(),
-                        transformation.getDataStreamPythonFunctionInfo(),
-                        transformation.getRegularInput().getOutputType(),
-                        transformation.getBroadcastInput().getOutputType(),
-                        transformation.getOutputType());
+        Configuration config = transformation.getConfiguration();
+
+        StreamOperator<OUT> operator;
+
+        if (config.get(PythonOptions.PYTHON_EXECUTION_MODE).equals("thread")) {
+            operator =
+                    new EmbeddedPythonBatchCoBroadcastProcessOperator<>(
+                            transformation.getConfiguration(),
+                            transformation.getDataStreamPythonFunctionInfo(),
+                            transformation.getRegularInput().getOutputType(),
+                            transformation.getBroadcastInput().getOutputType(),
+                            transformation.getOutputType());
+        } else {
+            operator =
+                    new ExternalPythonBatchCoBroadcastProcessOperator<>(
+                            transformation.getConfiguration(),
+                            transformation.getDataStreamPythonFunctionInfo(),
+                            transformation.getRegularInput().getOutputType(),
+                            transformation.getBroadcastInput().getOutputType(),
+                            transformation.getOutputType());
+        }
 
         return translateInternal(
                 transformation,
@@ -68,13 +89,28 @@ public class PythonBroadcastStateTransformationTranslator<IN1, IN2, OUT>
         Preconditions.checkNotNull(transformation);
         Preconditions.checkNotNull(context);
 
-        ExternalPythonCoProcessOperator<IN1, IN2, OUT> operator =
-                new ExternalPythonCoProcessOperator<>(
-                        transformation.getConfiguration(),
-                        transformation.getDataStreamPythonFunctionInfo(),
-                        transformation.getRegularInput().getOutputType(),
-                        transformation.getBroadcastInput().getOutputType(),
-                        transformation.getOutputType());
+        Configuration config = transformation.getConfiguration();
+
+        StreamOperator<OUT> operator;
+
+        if (config.get(PythonOptions.PYTHON_EXECUTION_MODE).equals("thread")) {
+            operator =
+                    new EmbeddedPythonCoProcessOperator<>(
+                            transformation.getConfiguration(),
+                            transformation.getDataStreamPythonFunctionInfo(),
+                            transformation.getRegularInput().getOutputType(),
+                            transformation.getBroadcastInput().getOutputType(),
+                            transformation.getOutputType());
+        } else {
+
+            operator =
+                    new ExternalPythonCoProcessOperator<>(
+                            transformation.getConfiguration(),
+                            transformation.getDataStreamPythonFunctionInfo(),
+                            transformation.getRegularInput().getOutputType(),
+                            transformation.getBroadcastInput().getOutputType(),
+                            transformation.getOutputType());
+        }
 
         return translateInternal(
                 transformation,

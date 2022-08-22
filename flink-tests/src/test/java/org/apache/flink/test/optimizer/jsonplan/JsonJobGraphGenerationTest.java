@@ -32,6 +32,7 @@ import org.apache.flink.optimizer.plan.OptimizedPlan;
 import org.apache.flink.optimizer.plantranslate.JobGraphGenerator;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.jsonplan.JsonPlanGenerator;
+import org.apache.flink.util.jackson.JacksonMapperFactory;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonFactory;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonParser;
@@ -245,6 +246,8 @@ public class JsonJobGraphGenerationTest {
 
     private static class GenericValidator implements JsonValidator {
 
+        private static final ObjectMapper OBJECT_MAPPER = JacksonMapperFactory.createObjectMapper();
+
         private final int expectedParallelism;
         private final int numNodes;
 
@@ -258,8 +261,7 @@ public class JsonJobGraphGenerationTest {
             final Map<String, JsonNode> idToNode = new HashMap<>();
 
             // validate the produced JSON
-            ObjectMapper m = new ObjectMapper();
-            JsonNode rootNode = m.readTree(json);
+            JsonNode rootNode = OBJECT_MAPPER.readTree(json);
 
             JsonNode idField = rootNode.get("jid");
             JsonNode nameField = rootNode.get("name");

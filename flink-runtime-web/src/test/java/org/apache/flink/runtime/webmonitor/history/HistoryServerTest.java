@@ -37,6 +37,7 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.DiscardingSink;
 import org.apache.flink.test.util.MiniClusterWithClientResource;
 import org.apache.flink.util.FlinkException;
+import org.apache.flink.util.jackson.JacksonMapperFactory;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonFactory;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonGenerator;
@@ -78,7 +79,8 @@ class HistoryServerTest {
                     .enable(JsonGenerator.Feature.AUTO_CLOSE_TARGET)
                     .disable(JsonGenerator.Feature.AUTO_CLOSE_JSON_CONTENT);
     private static final ObjectMapper OBJECT_MAPPER =
-            new ObjectMapper().enable(DeserializationFeature.FAIL_ON_MISSING_CREATOR_PROPERTIES);
+            JacksonMapperFactory.createObjectMapper()
+                    .enable(DeserializationFeature.FAIL_ON_MISSING_CREATOR_PROPERTIES);
 
     private MiniClusterWithClientResource cluster;
     private File jmDirectory;

@@ -28,11 +28,12 @@ import org.apache.flink.test.util.SQLJobSubmission;
 import org.apache.flink.tests.util.TestUtils;
 import org.apache.flink.util.DockerImageVersions;
 import org.apache.flink.util.TestLogger;
+import org.apache.flink.util.jackson.JacksonMapperFactory;
 
 import org.apache.flink.shaded.guava30.com.google.common.collect.ImmutableList;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonProcessingException;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import org.hamcrest.Matchers;
 import org.junit.After;
 import org.junit.AfterClass;
@@ -66,6 +67,8 @@ public class KinesisTableApiITCase extends TestLogger {
     private static final String ORDERS_STREAM = "orders";
     private static final String LARGE_ORDERS_STREAM = "large_orders";
     private static final String INTER_CONTAINER_KINESALITE_ALIAS = "kinesalite";
+
+    private static final ObjectMapper OBJECT_MAPPER = JacksonMapperFactory.createObjectMapper();
 
     private final Path sqlConnectorKinesisJar = TestUtils.getResource(".*kinesis.jar");
     private static final Network network = Network.newNetwork();
@@ -166,7 +169,7 @@ public class KinesisTableApiITCase extends TestLogger {
 
     private <T> String toJson(final T object) {
         try {
-            return new ObjectMapper().writeValueAsString(object);
+            return OBJECT_MAPPER.writeValueAsString(object);
         } catch (JsonProcessingException e) {
             throw new RuntimeException("Test Failure.", e);
         }
@@ -174,7 +177,7 @@ public class KinesisTableApiITCase extends TestLogger {
 
     private <T> T fromJson(final String json, final Class<T> type) {
         try {
-            return new ObjectMapper().readValue(json, type);
+            return OBJECT_MAPPER.readValue(json, type);
         } catch (JsonProcessingException e) {
             throw new RuntimeException("Test Failure.", e);
         }

@@ -24,6 +24,7 @@ import org.apache.flink.core.testutils.MultiShotLatch;
 import org.apache.flink.streaming.api.operators.StreamSink;
 import org.apache.flink.streaming.connectors.elasticsearch.util.NoOpFailureHandler;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+import org.apache.flink.streaming.util.MockStreamingRuntimeContext;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 
 import org.elasticsearch.action.ActionRequest;
@@ -425,7 +426,8 @@ public class ElasticsearchSinkBaseTest {
                 new DummyElasticsearchSink<>(
                         new HashMap<>(), sinkFunction, new DummyRetryFailureHandler());
 
-        sink.open(mock(Configuration.class));
+        sink.setRuntimeContext(new MockStreamingRuntimeContext(false, 1, 0));
+        sink.open(new Configuration());
         sink.close();
 
         assertThat(sinkFunction.openCalled).isTrue();

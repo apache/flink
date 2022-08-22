@@ -52,12 +52,15 @@ import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
 import org.apache.flink.runtime.resourcemanager.utils.TestingResourceManagerGateway;
 import org.apache.flink.runtime.rpc.RpcUtils;
 import org.apache.flink.runtime.rpc.TestingRpcServiceResource;
+import org.apache.flink.runtime.state.TaskExecutorLocalStateStoresManager;
 import org.apache.flink.runtime.taskexecutor.slot.TaskSlotUtils;
 import org.apache.flink.runtime.util.TestingFatalErrorHandlerResource;
 import org.apache.flink.testutils.TestFileUtils;
 import org.apache.flink.testutils.TestingUtils;
 import org.apache.flink.testutils.executor.TestExecutorResource;
+import org.apache.flink.util.Reference;
 import org.apache.flink.util.TestLogger;
+import org.apache.flink.util.concurrent.Executors;
 import org.apache.flink.util.concurrent.FutureUtils;
 
 import org.junit.After;
@@ -65,7 +68,9 @@ import org.junit.Before;
 import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
 
+import java.io.File;
 import java.io.IOException;
 import java.net.InetAddress;
 import java.util.Collections;
@@ -108,6 +113,8 @@ public class TaskExecutorExecutionDeploymentReconciliationTest extends TestLogge
     public final TestingFatalErrorHandlerResource testingFatalErrorHandlerResource =
             new TestingFatalErrorHandlerResource();
 
+    @Rule public final TemporaryFolder tmp = new TemporaryFolder();
+
     @Before
     public void setup() {
         haServices.setResourceManagerLeaderRetriever(resourceManagerLeaderRetriever);
@@ -136,13 +143,18 @@ public class TaskExecutorExecutionDeploymentReconciliationTest extends TestLogge
         final CompletableFuture<SlotReport> initialSlotReportFuture = new CompletableFuture<>();
         final TestingResourceManagerGateway testingResourceManagerGateway =
                 setupResourceManagerGateway(initialSlotReportFuture);
-
+        final TaskExecutorLocalStateStoresManager localStateStoresManager =
+                new TaskExecutorLocalStateStoresManager(
+                        false,
+                        Reference.owned(new File[] {tmp.newFolder()}),
+                        Executors.directExecutor());
         final TaskManagerServices taskManagerServices =
                 new TaskManagerServicesBuilder()
                         .setTaskSlotTable(
                                 TaskSlotUtils.createTaskSlotTable(
                                         1, timeout, EXECUTOR_RESOURCE.getExecutor()))
                         .setShuffleEnvironment(new NettyShuffleEnvironmentBuilder().build())
+                        .setTaskStateManager(localStateStoresManager)
                         .build();
 
         final TestingTaskExecutor taskExecutor = createTestingTaskExecutor(taskManagerServices);

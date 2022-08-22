@@ -22,6 +22,7 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.jackson.JacksonMapperFactory;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonParser;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.JsonNode;
@@ -97,7 +98,7 @@ public final class JsonRowSchemaConverter {
     @SuppressWarnings("unchecked")
     public static <T> TypeInformation<T> convert(String jsonSchema) {
         Preconditions.checkNotNull(jsonSchema, "JSON schema");
-        final ObjectMapper mapper = new ObjectMapper();
+        final ObjectMapper mapper = JacksonMapperFactory.createObjectMapper();
         mapper.getFactory()
                 .enable(JsonParser.Feature.ALLOW_COMMENTS)
                 .enable(JsonParser.Feature.ALLOW_UNQUOTED_FIELD_NAMES)

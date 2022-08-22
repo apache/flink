@@ -73,7 +73,7 @@ checkpoints.
 | Self-contained and relocatable    | ✓                   | ✓                | x                  | x                    |
 | Schema evolution                  | ✓                   | !                | !                  | !                    |
 | Arbitrary job upgrade             | ✓                   | ✓                | ✓                  | x                    |
-| Non-arbitrary job upgrade         | ✓                   | ✓                | ✓                  | x                    |
+| Non-arbitrary job upgrade         | ✓                   | ✓                | ✓                  | ✓                    |
 | Flink minor version upgrade       | ✓                   | ✓                | ✓                  | x                    |
 | Flink bug/patch version upgrade   | ✓                   | ✓                | ✓                  | ✓                    |
 | Rescaling                         | ✓                   | ✓                | ✓                  | ✓                    |

@@ -21,11 +21,17 @@ package org.apache.flink.streaming.api.operators.python.embedded;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.fnexecution.v1.FlinkFnApi;
 import org.apache.flink.runtime.state.KeyedStateBackend;
 import org.apache.flink.streaming.api.functions.python.DataStreamPythonFunctionInfo;
+import org.apache.flink.streaming.api.operators.TimestampedCollector;
 import org.apache.flink.streaming.api.operators.python.DataStreamPythonFunctionOperator;
+import org.apache.flink.streaming.api.utils.PythonTypeUtils;
+import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+import org.apache.flink.util.OutputTag;
 import org.apache.flink.util.Preconditions;
 
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -44,11 +50,21 @@ public abstract class AbstractEmbeddedDataStreamPythonFunctionOperator<OUT>
     /** The serialized python function to be executed. */
     private final DataStreamPythonFunctionInfo pythonFunctionInfo;
 
+    private final Map<String, OutputTag<?>> sideOutputTags;
+
     /** The TypeInformation of output data. */
     protected final TypeInformation<OUT> outputTypeInfo;
 
     /** The number of partitions for the partition custom function. */
     private Integer numPartitions;
+
+    transient PythonTypeUtils.DataConverter<OUT, Object> outputDataConverter;
+
+    protected transient TimestampedCollector<OUT> collector;
+
+    protected transient boolean hasSideOutput;
+
+    protected transient SideOutputContext sideOutputContext;
 
     public AbstractEmbeddedDataStreamPythonFunctionOperator(
             Configuration config,
@@ -57,6 +73,24 @@ public abstract class AbstractEmbeddedDataStreamPythonFunctionOperator<OUT>
         super(config);
         this.pythonFunctionInfo = Preconditions.checkNotNull(pythonFunctionInfo);
         this.outputTypeInfo = Preconditions.checkNotNull(outputTypeInfo);
+        this.sideOutputTags = new HashMap<>();
+    }
+
+    @Override
+    public void open() throws Exception {
+        hasSideOutput = !sideOutputTags.isEmpty();
+
+        if (hasSideOutput) {
+            sideOutputContext = new SideOutputContext();
+            sideOutputContext.open();
+        }
+
+        super.open();
+
+        outputDataConverter =
+                PythonTypeUtils.TypeInfoToDataConverter.typeInfoDataConverter(outputTypeInfo);
+
+        collector = new TimestampedCollector<>(output);
     }
 
     @Override
@@ -74,6 +108,18 @@ public abstract class AbstractEmbeddedDataStreamPythonFunctionOperator<OUT>
         return pythonFunctionInfo;
     }
 
+    @Override
+    public void addSideOutputTags(Collection<OutputTag<?>> outputTags) {
+        for (OutputTag<?> outputTag : outputTags) {
+            sideOutputTags.put(outputTag.getId(), outputTag);
+        }
+    }
+
+    @Override
+    public Collection<OutputTag<?>> getSideOutputTags() {
+        return sideOutputTags.values();
+    }
+
     public Map<String, String> getJobParameters() {
         Map<String, String> jobParameters = new HashMap<>();
         if (numPartitions != null) {
@@ -87,5 +133,46 @@ public abstract class AbstractEmbeddedDataStreamPythonFunctionOperator<OUT>
                     String.valueOf(inBatchExecutionMode(keyedStateBackend)));
         }
         return jobParameters;
+    }
+
+    private class SideOutputContext {
+
+        private Map<String, byte[]> sideOutputTypeInfoPayloads = new HashMap<>();
+
+        private Map<String, PythonTypeUtils.DataConverter<Object, Object>>
+                sideOutputDataConverters = new HashMap<>();
+
+        @SuppressWarnings("unchecked")
+        public void open() {
+            for (Map.Entry<String, OutputTag<?>> entry : sideOutputTags.entrySet()) {
+                sideOutputTypeInfoPayloads.put(
+                        entry.getKey(), getSideOutputTypeInfoPayload(entry.getValue()));
+
+                sideOutputDataConverters.put(
+                        entry.getKey(),
+                        PythonTypeUtils.TypeInfoToDataConverter.typeInfoDataConverter(
+                                (TypeInformation) entry.getValue().getTypeInfo()));
+            }
+        }
+
+        @SuppressWarnings("unchecked")
+        public void collectSideOutputById(String id, Object record) {
+            OutputTag<?> outputTag = sideOutputTags.get(id);
+            PythonTypeUtils.DataConverter<Object, Object> sideOutputDataConverter =
+                    sideOutputDataConverters.get(id);
+            collector.collect(
+                    outputTag, new StreamRecord(sideOutputDataConverter.toInternal(record)));
+        }
+
+        public Map<String, byte[]> getAllSideOutputTypeInfoPayloads() {
+            return sideOutputTypeInfoPayloads;
+        }
+
+        private byte[] getSideOutputTypeInfoPayload(OutputTag<?> outputTag) {
+            FlinkFnApi.TypeInfo outputTypeInfo =
+                    PythonTypeUtils.TypeInfoToProtoConverter.toTypeInfoProto(
+                            outputTag.getTypeInfo(), getRuntimeContext().getUserCodeClassLoader());
+            return outputTypeInfo.toByteArray();
+        }
     }
 }

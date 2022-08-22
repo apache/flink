@@ -23,6 +23,7 @@ import org.apache.flink.api.common.RuntimeExecutionMode;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.table.api.SqlDialect;
 import org.apache.flink.table.catalog.Catalog;
+import org.apache.flink.table.catalog.CatalogBaseTable.TableKind;
 import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.catalog.hive.HiveCatalog;
 import org.apache.flink.table.catalog.hive.client.HiveShimLoader;
@@ -31,7 +32,7 @@ import org.apache.flink.table.gateway.api.endpoint.EndpointVersion;
 import org.apache.flink.table.gateway.api.endpoint.SqlGatewayEndpoint;
 import org.apache.flink.table.gateway.api.operation.OperationHandle;
 import org.apache.flink.table.gateway.api.operation.OperationStatus;
-import org.apache.flink.table.gateway.api.operation.OperationType;
+import org.apache.flink.table.gateway.api.results.GatewayInfo;
 import org.apache.flink.table.gateway.api.results.OperationInfo;
 import org.apache.flink.table.gateway.api.results.ResultSet;
 import org.apache.flink.table.gateway.api.session.SessionEnvironment;
@@ -68,6 +69,7 @@ import org.apache.hive.service.rpc.thrift.TGetFunctionsReq;
 import org.apache.hive.service.rpc.thrift.TGetFunctionsResp;
 import org.apache.hive.service.rpc.thrift.TGetInfoReq;
 import org.apache.hive.service.rpc.thrift.TGetInfoResp;
+import org.apache.hive.service.rpc.thrift.TGetInfoValue;
 import org.apache.hive.service.rpc.thrift.TGetOperationStatusReq;
 import org.apache.hive.service.rpc.thrift.TGetOperationStatusResp;
 import org.apache.hive.service.rpc.thrift.TGetPrimaryKeysReq;
@@ -87,6 +89,7 @@ import org.apache.hive.service.rpc.thrift.TGetTypeInfoResp;
 import org.apache.hive.service.rpc.thrift.TOpenSessionReq;
 import org.apache.hive.service.rpc.thrift.TOpenSessionResp;
 import org.apache.hive.service.rpc.thrift.TOperationHandle;
+import org.apache.hive.service.rpc.thrift.TOperationType;
 import org.apache.hive.service.rpc.thrift.TProtocolVersion;
 import org.apache.hive.service.rpc.thrift.TRenewDelegationTokenReq;
 import org.apache.hive.service.rpc.thrift.TRenewDelegationTokenResp;
@@ -112,6 +115,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
@@ -121,7 +125,16 @@ import static org.apache.flink.table.api.config.TableConfigOptions.TABLE_SQL_DIA
 import static org.apache.flink.table.endpoint.hive.HiveServer2EndpointVersion.HIVE_CLI_SERVICE_PROTOCOL_V10;
 import static org.apache.flink.table.endpoint.hive.util.HiveJdbcParameterUtils.getUsedDefaultDatabase;
 import static org.apache.flink.table.endpoint.hive.util.HiveJdbcParameterUtils.validateAndNormalize;
+import static org.apache.flink.table.endpoint.hive.util.OperationExecutorFactory.createGetCatalogsExecutor;
+import static org.apache.flink.table.endpoint.hive.util.OperationExecutorFactory.createGetColumnsExecutor;
+import static org.apache.flink.table.endpoint.hive.util.OperationExecutorFactory.createGetFunctionsExecutor;
+import static org.apache.flink.table.endpoint.hive.util.OperationExecutorFactory.createGetPrimaryKeys;
+import static org.apache.flink.table.endpoint.hive.util.OperationExecutorFactory.createGetSchemasExecutor;
+import static org.apache.flink.table.endpoint.hive.util.OperationExecutorFactory.createGetTableTypesExecutor;
+import static org.apache.flink.table.endpoint.hive.util.OperationExecutorFactory.createGetTablesExecutor;
+import static org.apache.flink.table.endpoint.hive.util.OperationExecutorFactory.createGetTypeInfoExecutor;
 import static org.apache.flink.table.endpoint.hive.util.ThriftObjectConversions.toFetchOrientation;
+import static org.apache.flink.table.endpoint.hive.util.ThriftObjectConversions.toFlinkTableKinds;
 import static org.apache.flink.table.endpoint.hive.util.ThriftObjectConversions.toOperationHandle;
 import static org.apache.flink.table.endpoint.hive.util.ThriftObjectConversions.toSessionHandle;
 import static org.apache.flink.table.endpoint.hive.util.ThriftObjectConversions.toTOperationHandle;
@@ -130,6 +143,7 @@ import static org.apache.flink.table.endpoint.hive.util.ThriftObjectConversions.
 import static org.apache.flink.table.endpoint.hive.util.ThriftObjectConversions.toTSessionHandle;
 import static org.apache.flink.table.endpoint.hive.util.ThriftObjectConversions.toTStatus;
 import static org.apache.flink.table.endpoint.hive.util.ThriftObjectConversions.toTTableSchema;
+import static org.apache.flink.table.gateway.api.results.ResultSet.ResultType.EOS;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
@@ -318,9 +332,9 @@ public class HiveServer2Endpoint implements TCLIService.Iface, SqlGatewayEndpoin
             resp.setServerProtocolVersion(sessionVersion.getVersion());
             resp.setSessionHandle(toTSessionHandle(sessionHandle));
             resp.setConfiguration(service.getSessionConfig(sessionHandle));
-        } catch (Exception e) {
-            LOG.error("Failed to OpenSession.", e);
-            resp.setStatus(toTStatus(e));
+        } catch (Throwable t) {
+            LOG.error("Failed to OpenSession.", t);
+            resp.setStatus(toTStatus(t));
         }
         return resp;
     }
@@ -341,7 +355,31 @@ public class HiveServer2Endpoint implements TCLIService.Iface, SqlGatewayEndpoin
 
     @Override
     public TGetInfoResp GetInfo(TGetInfoReq tGetInfoReq) throws TException {
-        throw new UnsupportedOperationException(ERROR_MESSAGE);
+        TGetInfoResp resp = new TGetInfoResp();
+        try {
+            GatewayInfo info = service.getGatewayInfo();
+            TGetInfoValue tInfoValue;
+            switch (tGetInfoReq.getInfoType()) {
+                case CLI_SERVER_NAME:
+                case CLI_DBMS_NAME:
+                    tInfoValue = TGetInfoValue.stringValue(info.getProductName());
+                    break;
+                case CLI_DBMS_VER:
+                    tInfoValue = TGetInfoValue.stringValue(info.getVersion().toString());
+                    break;
+                default:
+                    throw new UnsupportedOperationException(
+                            String.format(
+                                    "Unrecognized TGetInfoType value: %s.",
+                                    tGetInfoReq.getInfoType()));
+            }
+            resp.setStatus(OK_STATUS);
+            resp.setInfoValue(tInfoValue);
+        } catch (Throwable t) {
+            LOG.error("Failed to GetInfo.", t);
+            resp.setStatus(toTStatus(t));
+        }
+        return resp;
     }
 
     @Override
@@ -375,7 +413,7 @@ public class HiveServer2Endpoint implements TCLIService.Iface, SqlGatewayEndpoin
 
             resp.setOperationHandle(
                     toTOperationHandle(
-                            sessionHandle, operationHandle, OperationType.EXECUTE_STATEMENT));
+                            sessionHandle, operationHandle, TOperationType.EXECUTE_STATEMENT));
         } catch (Throwable t) {
             LOG.error("Failed to ExecuteStatement.", t);
             resp.setStatus(toTStatus(t));
@@ -385,43 +423,188 @@ public class HiveServer2Endpoint implements TCLIService.Iface, SqlGatewayEndpoin
 
     @Override
     public TGetTypeInfoResp GetTypeInfo(TGetTypeInfoReq tGetTypeInfoReq) throws TException {
-        throw new UnsupportedOperationException(ERROR_MESSAGE);
+        TGetTypeInfoResp resp = new TGetTypeInfoResp();
+        try {
+            SessionHandle sessionHandle = toSessionHandle(tGetTypeInfoReq.getSessionHandle());
+            OperationHandle operationHandle =
+                    service.submitOperation(sessionHandle, createGetTypeInfoExecutor());
+            resp.setStatus(OK_STATUS);
+            resp.setOperationHandle(
+                    toTOperationHandle(
+                            sessionHandle, operationHandle, TOperationType.GET_TYPE_INFO));
+        } catch (Throwable t) {
+            LOG.error("Failed to GetTypeInfo.", t);
+            resp.setStatus(toTStatus(t));
+        }
+        return resp;
     }
 
     @Override
     public TGetCatalogsResp GetCatalogs(TGetCatalogsReq tGetCatalogsReq) throws TException {
-        throw new UnsupportedOperationException(ERROR_MESSAGE);
+        TGetCatalogsResp resp = new TGetCatalogsResp();
+        try {
+            SessionHandle sessionHandle = toSessionHandle(tGetCatalogsReq.getSessionHandle());
+            OperationHandle operationHandle =
+                    service.submitOperation(
+                            sessionHandle, createGetCatalogsExecutor(service, sessionHandle));
+            resp.setStatus(OK_STATUS);
+            resp.setOperationHandle(
+                    toTOperationHandle(
+                            sessionHandle, operationHandle, TOperationType.GET_CATALOGS));
+        } catch (Throwable t) {
+            LOG.error("Failed to GetCatalogs.", t);
+            resp.setStatus(toTStatus(t));
+        }
+        return resp;
     }
 
     @Override
     public TGetSchemasResp GetSchemas(TGetSchemasReq tGetSchemasReq) throws TException {
-        throw new UnsupportedOperationException(ERROR_MESSAGE);
+        TGetSchemasResp resp = new TGetSchemasResp();
+        try {
+            SessionHandle sessionHandle = toSessionHandle(tGetSchemasReq.getSessionHandle());
+            OperationHandle operationHandle =
+                    service.submitOperation(
+                            sessionHandle,
+                            createGetSchemasExecutor(
+                                    service,
+                                    sessionHandle,
+                                    tGetSchemasReq.getCatalogName(),
+                                    tGetSchemasReq.getSchemaName()));
+
+            resp.setStatus(OK_STATUS);
+            resp.setOperationHandle(
+                    toTOperationHandle(sessionHandle, operationHandle, TOperationType.GET_SCHEMAS));
+        } catch (Throwable t) {
+            LOG.error("Failed to GetSchemas.", t);
+            resp.setStatus(toTStatus(t));
+        }
+        return resp;
     }
 
     @Override
     public TGetTablesResp GetTables(TGetTablesReq tGetTablesReq) throws TException {
-        throw new UnsupportedOperationException(ERROR_MESSAGE);
+        TGetTablesResp resp = new TGetTablesResp();
+        try {
+            SessionHandle sessionHandle = toSessionHandle(tGetTablesReq.getSessionHandle());
+            Set<TableKind> tableKinds = toFlinkTableKinds(tGetTablesReq.getTableTypes());
+
+            OperationHandle operationHandle =
+                    service.submitOperation(
+                            sessionHandle,
+                            createGetTablesExecutor(
+                                    service,
+                                    sessionHandle,
+                                    tGetTablesReq.getCatalogName(),
+                                    tGetTablesReq.getSchemaName(),
+                                    tGetTablesReq.getTableName(),
+                                    tableKinds));
+
+            resp.setStatus(OK_STATUS);
+            resp.setOperationHandle(
+                    toTOperationHandle(sessionHandle, operationHandle, TOperationType.GET_TABLES));
+        } catch (Throwable t) {
+            LOG.error("Failed to GetTables.", t);
+            resp.setStatus(toTStatus(t));
+        }
+        return resp;
     }
 
     @Override
     public TGetTableTypesResp GetTableTypes(TGetTableTypesReq tGetTableTypesReq) throws TException {
-        throw new UnsupportedOperationException(ERROR_MESSAGE);
+        TGetTableTypesResp resp = new TGetTableTypesResp();
+        try {
+            SessionHandle sessionHandle = toSessionHandle(tGetTableTypesReq.getSessionHandle());
+            OperationHandle operationHandle =
+                    service.submitOperation(sessionHandle, createGetTableTypesExecutor());
+
+            resp.setStatus(OK_STATUS);
+            resp.setOperationHandle(
+                    toTOperationHandle(sessionHandle, operationHandle, TOperationType.GET_TABLES));
+        } catch (Throwable t) {
+            LOG.error("Failed to GetTableTypes.", t);
+            resp.setStatus(toTStatus(t));
+        }
+        return resp;
     }
 
     @Override
     public TGetColumnsResp GetColumns(TGetColumnsReq tGetColumnsReq) throws TException {
-        throw new UnsupportedOperationException(ERROR_MESSAGE);
+        TGetColumnsResp resp = new TGetColumnsResp();
+        try {
+            SessionHandle sessionHandle = toSessionHandle(tGetColumnsReq.getSessionHandle());
+            OperationHandle operationHandle =
+                    service.submitOperation(
+                            sessionHandle,
+                            createGetColumnsExecutor(
+                                    service,
+                                    sessionHandle,
+                                    tGetColumnsReq.getCatalogName(),
+                                    tGetColumnsReq.getSchemaName(),
+                                    tGetColumnsReq.getTableName(),
+                                    tGetColumnsReq.getColumnName()));
+
+            resp.setStatus(OK_STATUS);
+            resp.setOperationHandle(
+                    toTOperationHandle(sessionHandle, operationHandle, TOperationType.GET_COLUMNS));
+        } catch (Throwable t) {
+            LOG.error("Failed to GetColumns.", t);
+            resp.setStatus(toTStatus(t));
+        }
+        return resp;
     }
 
     @Override
     public TGetFunctionsResp GetFunctions(TGetFunctionsReq tGetFunctionsReq) throws TException {
-        throw new UnsupportedOperationException(ERROR_MESSAGE);
+        TGetFunctionsResp resp = new TGetFunctionsResp();
+        try {
+            SessionHandle sessionHandle = toSessionHandle(tGetFunctionsReq.getSessionHandle());
+            OperationHandle operationHandle =
+                    service.submitOperation(
+                            sessionHandle,
+                            createGetFunctionsExecutor(
+                                    service,
+                                    sessionHandle,
+                                    tGetFunctionsReq.getCatalogName(),
+                                    tGetFunctionsReq.getSchemaName(),
+                                    tGetFunctionsReq.getFunctionName()));
+            resp.setStatus(OK_STATUS);
+            resp.setOperationHandle(
+                    toTOperationHandle(
+                            sessionHandle, operationHandle, TOperationType.GET_FUNCTIONS));
+        } catch (Throwable t) {
+            LOG.error("Failed to GetFunctions.", t);
+            resp.setStatus(toTStatus(t));
+        }
+        return resp;
     }
 
     @Override
     public TGetPrimaryKeysResp GetPrimaryKeys(TGetPrimaryKeysReq tGetPrimaryKeysReq)
             throws TException {
-        throw new UnsupportedOperationException(ERROR_MESSAGE);
+        TGetPrimaryKeysResp resp = new TGetPrimaryKeysResp();
+        try {
+            SessionHandle sessionHandle = toSessionHandle(tGetPrimaryKeysReq.getSessionHandle());
+            OperationHandle operationHandle =
+                    service.submitOperation(
+                            sessionHandle,
+                            createGetPrimaryKeys(
+                                    service,
+                                    sessionHandle,
+                                    tGetPrimaryKeysReq.getCatalogName(),
+                                    tGetPrimaryKeysReq.getSchemaName(),
+                                    tGetPrimaryKeysReq.getTableName()));
+
+            resp.setStatus(OK_STATUS);
+            resp.setOperationHandle(
+                    toTOperationHandle(
+                            // hive's implementation use "GET_FUNCTIONS" here
+                            sessionHandle, operationHandle, TOperationType.GET_FUNCTIONS));
+        } catch (Throwable t) {
+            LOG.error("Failed to GetPrimaryKeys.", t);
+            resp.setStatus(toTStatus(t));
+        }
+        return resp;
     }
 
     @Override
@@ -458,13 +641,33 @@ public class HiveServer2Endpoint implements TCLIService.Iface, SqlGatewayEndpoin
     @Override
     public TCancelOperationResp CancelOperation(TCancelOperationReq tCancelOperationReq)
             throws TException {
-        throw new UnsupportedOperationException(ERROR_MESSAGE);
+        TCancelOperationResp resp = new TCancelOperationResp();
+        try {
+            TOperationHandle operationHandle = tCancelOperationReq.getOperationHandle();
+            service.cancelOperation(
+                    toSessionHandle(operationHandle), toOperationHandle(operationHandle));
+            resp.setStatus(OK_STATUS);
+        } catch (Throwable t) {
+            LOG.error("Failed to CancelOperation.", t);
+            resp.setStatus(toTStatus(t));
+        }
+        return resp;
     }
 
     @Override
     public TCloseOperationResp CloseOperation(TCloseOperationReq tCloseOperationReq)
             throws TException {
-        throw new UnsupportedOperationException(ERROR_MESSAGE);
+        TCloseOperationResp resp = new TCloseOperationResp();
+        try {
+            TOperationHandle operationHandle = tCloseOperationReq.getOperationHandle();
+            service.closeOperation(
+                    toSessionHandle(operationHandle), toOperationHandle(operationHandle));
+            resp.setStatus(OK_STATUS);
+        } catch (Throwable t) {
+            LOG.error("Failed to CloseOperation.", t);
+            resp.setStatus(toTStatus(t));
+        }
+        return resp;
     }
 
     @Override
@@ -518,7 +721,7 @@ public class HiveServer2Endpoint implements TCLIService.Iface, SqlGatewayEndpoin
                             toFetchOrientation(tFetchResultsReq.getFetchType()),
                             maxRows);
             resp.setStatus(OK_STATUS);
-            resp.setHasMoreRows(resultSet.getResultType() != ResultSet.ResultType.EOS);
+            resp.setHasMoreRows(resultSet.getResultType() != EOS);
             EndpointVersion sessionEndpointVersion =
                     service.getSessionEndpointVersion(sessionHandle);
 

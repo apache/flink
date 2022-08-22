@@ -18,10 +18,12 @@
 
 package org.apache.flink.streaming.connectors.kafka.internals.metrics;
 
+import org.apache.flink.metrics.Gauge;
 import org.apache.flink.util.TestLoggerExtension;
 
 import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.apache.kafka.clients.producer.KafkaProducer;
+import org.apache.kafka.common.Metric;
 import org.apache.kafka.common.serialization.ByteArrayDeserializer;
 import org.apache.kafka.common.serialization.ByteArraySerializer;
 import org.junit.jupiter.api.Test;
@@ -37,6 +39,8 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Properties;
 import java.util.UUID;
+import java.util.function.Function;
+import java.util.stream.Stream;
 
 import static org.apache.flink.connector.kafka.testutils.KafkaUtil.createKafkaContainer;
 import static org.apache.flink.util.DockerImageVersions.KAFKA;
@@ -57,21 +61,26 @@ class KafkaMetricMutableWrapperTest {
                     .withNetworkAliases(INTER_CONTAINER_KAFKA_ALIAS);
 
     @Test
+    void testOnlyMeasurableMetricsAreRegisteredWithMutableWrapper() {
+        testOnlyMeasurableMetricsAreRegistered(KafkaMetricMutableWrapper::new);
+    }
+
+    @Test
     void testOnlyMeasurableMetricsAreRegistered() {
-        final Collection<KafkaMetricMutableWrapper> metricWrappers = new ArrayList<>();
+        testOnlyMeasurableMetricsAreRegistered(KafkaMetricWrapper::new);
+    }
+
+    private static void testOnlyMeasurableMetricsAreRegistered(
+            Function<Metric, Gauge<Double>> wrapperFactory) {
+        final Collection<Gauge<Double>> metricWrappers = new ArrayList<>();
         final KafkaConsumer<?, ?> consumer = new KafkaConsumer<>(getKafkaClientConfiguration());
         final KafkaProducer<?, ?> producer = new KafkaProducer<>(getKafkaClientConfiguration());
-        consumer.metrics()
-                .forEach(
-                        (name, metric) ->
-                                metricWrappers.add(new KafkaMetricMutableWrapper(metric)));
-        producer.metrics()
-                .forEach(
-                        (name, metric) ->
-                                metricWrappers.add(new KafkaMetricMutableWrapper(metric)));
+        Stream.concat(consumer.metrics().values().stream(), producer.metrics().values().stream())
+                .map(wrapperFactory::apply)
+                .forEach(metricWrappers::add);
 
         // Ensure that all values are accessible and return valid double values
-        metricWrappers.forEach(KafkaMetricMutableWrapper::getValue);
+        metricWrappers.forEach(Gauge::getValue);
     }
 
     private static Properties getKafkaClientConfiguration() {

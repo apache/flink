@@ -24,7 +24,11 @@ import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
 import org.apache.flink.table.planner.plan.nodes.exec.TestingBatchExecNode;
+import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecDynamicFilteringDataCollector;
 import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecExchange;
+import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecTableSourceScan;
+import org.apache.flink.table.planner.plan.nodes.exec.spec.DynamicTableSourceSpec;
+import org.apache.flink.table.types.logical.IntType;
 import org.apache.flink.table.types.logical.RowType;
 
 import org.junit.Test;
@@ -146,5 +150,55 @@ public class InputPriorityConflictResolverTest {
                 };
         checkExchange.accept(input0);
         checkExchange.accept(input1);
+    }
+
+    @Test
+    public void testWithDynamicFilteringPlan() {
+        // no conflicts for dpp pattern
+        // 2 --------------------------------------(P1)--- 1 --(P0)--> 0
+        //   \                                            /
+        //   DynamicFilteringDataCollector               /
+        //     \                                        /
+        //    DynamicFilteringTableSourceScan --(P0) --/
+        TestingBatchExecNode[] nodes = new TestingBatchExecNode[3];
+        for (int i = 0; i < nodes.length; i++) {
+            nodes[i] = new TestingBatchExecNode("TestingBatchExecNode" + i);
+        }
+
+        BatchExecTableSourceScan scan =
+                new BatchExecTableSourceScan(
+                        new Configuration(),
+                        new DynamicTableSourceSpec(null, null),
+                        InputProperty.DEFAULT,
+                        RowType.of(new IntType(), new IntType(), new IntType()),
+                        "DynamicFilteringTableSourceScan");
+        BatchExecDynamicFilteringDataCollector collector =
+                new BatchExecDynamicFilteringDataCollector(
+                        Collections.singletonList(1),
+                        new Configuration(),
+                        InputProperty.DEFAULT,
+                        RowType.of(new IntType()),
+                        "DynamicFilteringDataCollector");
+
+        nodes[0].addInput(nodes[1], InputProperty.builder().priority(0).build());
+        nodes[1].addInput(nodes[2], InputProperty.builder().priority(1).build());
+        nodes[1].addInput(scan, InputProperty.builder().priority(0).build());
+        ExecEdge collect2Scan = ExecEdge.builder().source(collector).target(scan).build();
+        scan.setInputEdges(Collections.singletonList(collect2Scan));
+        ExecEdge toCollector = ExecEdge.builder().source(nodes[2]).target(collector).build();
+        collector.setInputEdges(Collections.singletonList(toCollector));
+
+        InputPriorityConflictResolver resolver =
+                new InputPriorityConflictResolver(
+                        Collections.singletonList(nodes[1]),
+                        InputProperty.DamBehavior.END_INPUT,
+                        StreamExchangeMode.BATCH,
+                        new Configuration());
+        resolver.detectAndResolve();
+
+        ExecNode<?> input0 = nodes[1].getInputNodes().get(0);
+        ExecNode<?> input1 = nodes[1].getInputNodes().get(1);
+        assertThat(input0).isSameAs(nodes[2]);
+        assertThat(input1).isSameAs(scan);
     }
 }

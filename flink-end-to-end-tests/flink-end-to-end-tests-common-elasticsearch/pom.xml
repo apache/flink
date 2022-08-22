@@ -67,6 +67,11 @@ under the License.
 			<artifactId>assertj-core</artifactId>
 			<scope>compile</scope>
 		</dependency>
+		<dependency>
+			<groupId>org.junit.jupiter</groupId>
+			<artifactId>junit-jupiter</artifactId>
+			<scope>compile</scope>
+		</dependency>
 	</dependencies>
 
 	<!-- This is needed because Elasticsearch bundles two different versions of this component. -->

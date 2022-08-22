@@ -93,7 +93,9 @@ public class TestingSchedulingExecutionVertex implements SchedulingExecutionVert
     void addConsumedPartition(TestingSchedulingResultPartition consumedPartition) {
         final ConsumedPartitionGroup consumedPartitionGroup =
                 ConsumedPartitionGroup.fromSinglePartition(
-                        consumedPartition.getId(), consumedPartition.getResultType());
+                        consumedPartition.getNumConsumers(),
+                        consumedPartition.getId(),
+                        consumedPartition.getResultType());
 
         consumedPartition.registerConsumedPartitionGroup(consumedPartitionGroup);
         if (consumedPartition.getState() == ResultPartitionState.CONSUMABLE) {
@@ -155,7 +157,8 @@ public class TestingSchedulingExecutionVertex implements SchedulingExecutionVert
                     partitionIds.add(partitionId);
                 }
                 this.consumedPartitionGroups.add(
-                        ConsumedPartitionGroup.fromMultiplePartitions(partitionIds, resultType));
+                        ConsumedPartitionGroup.fromMultiplePartitions(
+                                partitionGroup.getNumConsumers(), partitionIds, resultType));
             }
             return this;
         }

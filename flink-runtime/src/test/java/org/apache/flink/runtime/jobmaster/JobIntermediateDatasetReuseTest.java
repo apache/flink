@@ -32,21 +32,16 @@ import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.minicluster.TestingMiniCluster;
 import org.apache.flink.runtime.minicluster.TestingMiniClusterConfiguration;
-import org.apache.flink.runtime.scheduler.CachedIntermediateDataSetCorruptedException;
+import org.apache.flink.runtime.scheduler.ClusterDatasetCorruptedException;
 import org.apache.flink.types.IntValue;
 
-import org.junit.Test;
+import org.assertj.core.api.Assertions;
+import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Consumer;
-
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertTrue;
 
 /** Integration tests for reusing persisted intermediate dataset */
 public class JobIntermediateDatasetReuseTest {
@@ -56,12 +51,14 @@ public class JobIntermediateDatasetReuseTest {
 
     @Test
     public void testClusterPartitionReuse() throws Exception {
-        internalTestClusterPartitionReuse(1, 1, jobResult -> assertTrue(jobResult.isSuccess()));
+        internalTestClusterPartitionReuse(
+                1, 1, jobResult -> Assertions.assertThat(jobResult.isSuccess()).isTrue());
     }
 
     @Test
     public void testClusterPartitionReuseMultipleParallelism() throws Exception {
-        internalTestClusterPartitionReuse(64, 64, jobResult -> assertTrue(jobResult.isSuccess()));
+        internalTestClusterPartitionReuse(
+                64, 64, jobResult -> Assertions.assertThat(jobResult.isSuccess()).isTrue());
     }
 
     @Test
@@ -71,8 +68,9 @@ public class JobIntermediateDatasetReuseTest {
                 1,
                 2,
                 jobResult -> {
-                    assertFalse(jobResult.isSuccess());
-                    assertNotNull(getCachedIntermediateDataSetCorruptedException(jobResult));
+                    Assertions.assertThat(jobResult.isSuccess()).isFalse();
+                    Assertions.assertThat(getClusterDatasetCorruptedException(jobResult))
+                            .isNotNull();
                 });
     }
 
@@ -83,8 +81,9 @@ public class JobIntermediateDatasetReuseTest {
                 2,
                 1,
                 jobResult -> {
-                    assertFalse(jobResult.isSuccess());
-                    assertNotNull(getCachedIntermediateDataSetCorruptedException(jobResult));
+                    Assertions.assertThat(jobResult.isSuccess()).isFalse();
+                    Assertions.assertThat(getClusterDatasetCorruptedException(jobResult))
+                            .isNotNull();
                 });
     }
 
@@ -107,7 +106,7 @@ public class JobIntermediateDatasetReuseTest {
             CompletableFuture<JobResult> jobResultFuture =
                     miniCluster.requestJobResult(firstJobGraph.getJobID());
             JobResult jobResult = jobResultFuture.get();
-            assertTrue(jobResult.isSuccess());
+            Assertions.assertThat(jobResult.isSuccess()).isTrue();
 
             final JobGraph secondJobGraph =
                     createSecondJobGraph(consumerParallelism, intermediateDataSetID);
@@ -133,7 +132,7 @@ public class JobIntermediateDatasetReuseTest {
             CompletableFuture<JobResult> jobResultFuture =
                     miniCluster.requestJobResult(firstJobGraph.getJobID());
             JobResult jobResult = jobResultFuture.get();
-            assertTrue(jobResult.isSuccess());
+            Assertions.assertThat(jobResult.isSuccess()).isTrue();
 
             miniCluster.terminateTaskManager(0);
             miniCluster.startTaskManager();
@@ -145,38 +144,38 @@ public class JobIntermediateDatasetReuseTest {
             miniCluster.submitJob(secondJobGraph).get();
             jobResultFuture = miniCluster.requestJobResult(secondJobGraph.getJobID());
             jobResult = jobResultFuture.get();
-            assertFalse(jobResult.isSuccess());
-            final CachedIntermediateDataSetCorruptedException exception =
-                    getCachedIntermediateDataSetCorruptedException(jobResult);
-            assertNotNull(exception);
-            assertEquals(
-                    intermediateDataSetID, exception.getCorruptedIntermediateDataSetID().get(0));
+            Assertions.assertThat(jobResult.isSuccess()).isFalse();
+            final ClusterDatasetCorruptedException exception =
+                    getClusterDatasetCorruptedException(jobResult);
+            Assertions.assertThat(exception).isNotNull();
+            Assertions.assertThat(exception.getCorruptedClusterDatasetIds().get(0))
+                    .isEqualTo(intermediateDataSetID);
 
             firstJobGraph.setJobID(new JobID());
             miniCluster.submitJob(firstJobGraph).get();
             jobResultFuture = miniCluster.requestJobResult(firstJobGraph.getJobID());
             jobResult = jobResultFuture.get();
-            assertTrue(jobResult.isSuccess());
+            Assertions.assertThat(jobResult.isSuccess()).isTrue();
 
             secondJobGraph.setJobID(new JobID());
             miniCluster.submitJob(secondJobGraph).get();
             jobResultFuture = miniCluster.requestJobResult(secondJobGraph.getJobID());
             jobResult = jobResultFuture.get();
-            assertTrue(jobResult.isSuccess());
+            Assertions.assertThat(jobResult.isSuccess()).isTrue();
         }
     }
 
-    private CachedIntermediateDataSetCorruptedException
-            getCachedIntermediateDataSetCorruptedException(JobResult jobResult) {
-        assertTrue(jobResult.getSerializedThrowable().isPresent());
+    private ClusterDatasetCorruptedException getClusterDatasetCorruptedException(
+            JobResult jobResult) {
+        Assertions.assertThat(jobResult.getSerializedThrowable().isPresent()).isTrue();
         Throwable throwable =
                 jobResult
                         .getSerializedThrowable()
                         .get()
                         .deserializeError(Thread.currentThread().getContextClassLoader());
         while (throwable != null) {
-            if (throwable instanceof CachedIntermediateDataSetCorruptedException) {
-                return (CachedIntermediateDataSetCorruptedException) throwable;
+            if (throwable instanceof ClusterDatasetCorruptedException) {
+                return (ClusterDatasetCorruptedException) throwable;
             }
             throwable = throwable.getCause();
         }
@@ -207,7 +206,8 @@ public class JobIntermediateDatasetReuseTest {
                 sender,
                 DistributionPattern.POINTWISE,
                 ResultPartitionType.BLOCKING_PERSISTENT,
-                intermediateDataSetID);
+                intermediateDataSetID,
+                false);
 
         return new JobGraph(null, "First Job", sender, receiver);
     }
@@ -261,10 +261,10 @@ public class JobIntermediateDatasetReuseTest {
             for (int i = index; i < index + 100; ++i) {
                 final int value = reader.next().getValue();
                 LOG.debug("Receiver({}) received {}", index, value);
-                assertEquals(i, value);
+                Assertions.assertThat(value).isEqualTo(i);
             }
 
-            assertNull(reader.next());
+            Assertions.assertThat(reader.next()).isNull();
         }
     }
 }

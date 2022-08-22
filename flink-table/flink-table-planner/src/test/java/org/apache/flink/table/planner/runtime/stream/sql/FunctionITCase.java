@@ -20,6 +20,7 @@ package org.apache.flink.table.planner.runtime.stream.sql;
 
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.java.typeutils.runtime.kryo.KryoSerializer;
+import org.apache.flink.core.fs.Path;
 import org.apache.flink.table.annotation.DataTypeHint;
 import org.apache.flink.table.annotation.FunctionHint;
 import org.apache.flink.table.annotation.HintFlag;
@@ -549,6 +550,7 @@ public class FunctionITCase extends StreamingTestBase {
 
         tEnv().executeSql("drop table t1");
         tEnv().executeSql("drop table t2");
+
         // delete the function
         tEnv().executeSql(dropFunctionDDL);
     }
@@ -1223,6 +1225,23 @@ public class FunctionITCase extends StreamingTestBase {
         tEnv().executeSql("CREATE FUNCTION BoolEcho AS '" + BoolEcho.class.getName() + "'");
         CollectionUtil.iteratorToList(
                 tEnv().executeSql("SELECT BoolEcho(x=1 and y is null) FROM SourceTable").collect());
+    }
+
+    @Test
+    public void testUsingAddJar() throws Exception {
+        tEnv().executeSql(String.format("ADD JAR '%s'", jarPath));
+
+        TableResult tableResult = tEnv().executeSql("SHOW JARS");
+        assertThat(
+                        CollectionUtil.iteratorToList(tableResult.collect())
+                                .equals(
+                                        Collections.singletonList(
+                                                Row.of(new Path(jarPath).getPath()))))
+                .isTrue();
+
+        testUserDefinedFunctionByUsingJar(
+                String.format("create function lowerUdf as '%s' LANGUAGE JAVA", udfClassName),
+                "drop function lowerUdf");
     }
 
     // --------------------------------------------------------------------------------------------

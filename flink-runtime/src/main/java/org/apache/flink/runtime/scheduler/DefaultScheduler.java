@@ -239,8 +239,7 @@ public class DefaultScheduler extends SchedulerBase implements SchedulerOperatio
                 execution.getFailureInfo().get().getException().deserializeError(userCodeLoader);
         handleTaskFailure(
                 execution,
-                maybeTranslateToCachedIntermediateDataSetException(
-                        error, execution.getVertex().getID()));
+                maybeTranslateToClusterDatasetException(error, execution.getVertex().getID()));
     }
 
     protected void handleTaskFailure(
@@ -257,7 +256,7 @@ public class DefaultScheduler extends SchedulerBase implements SchedulerOperatio
         return executionFailureHandler.getFailureHandlingResult(failedExecution, error, timestamp);
     }
 
-    private Throwable maybeTranslateToCachedIntermediateDataSetException(
+    private Throwable maybeTranslateToClusterDatasetException(
             @Nullable Throwable cause, ExecutionVertexID failedVertex) {
         if (!(cause instanceof PartitionException)) {
             return cause;
@@ -275,7 +274,7 @@ public class DefaultScheduler extends SchedulerBase implements SchedulerOperatio
             return cause;
         }
 
-        return new CachedIntermediateDataSetCorruptedException(
+        return new ClusterDatasetCorruptedException(
                 cause, Collections.singletonList(failedPartitionId.getIntermediateDataSetID()));
     }
 

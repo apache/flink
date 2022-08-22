@@ -80,6 +80,10 @@ public final class FilterPushDownSpec extends SourceAbilitySpecBase {
         return allPredicatesRetained;
     }
 
+    public List<RexNode> getPredicates() {
+        return predicates;
+    }
+
     @Override
     public void apply(DynamicTableSource tableSource, SourceAbilityContext context) {
         SupportsFilterPushDown.Result result = apply(predicates, tableSource, context);

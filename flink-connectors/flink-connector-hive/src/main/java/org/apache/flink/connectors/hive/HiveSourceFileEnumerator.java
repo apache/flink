@@ -24,7 +24,9 @@ import org.apache.flink.connectors.hive.read.HiveSourceSplit;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.util.Preconditions;
 
+import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.hadoop.hive.metastore.api.StorageDescriptor;
 import org.apache.hadoop.mapred.FileSplit;
 import org.apache.hadoop.mapred.InputSplit;
@@ -44,25 +46,45 @@ public class HiveSourceFileEnumerator implements FileEnumerator {
     // For non-partition hive table, partitions only contains one partition which partitionValues is
     // empty.
     private final List<HiveTablePartition> partitions;
-    private final int threadNum;
     private final JobConf jobConf;
 
-    public HiveSourceFileEnumerator(
-            List<HiveTablePartition> partitions, int threadNum, JobConf jobConf) {
+    public HiveSourceFileEnumerator(List<HiveTablePartition> partitions, JobConf jobConf) {
         this.partitions = partitions;
-        this.threadNum = threadNum;
         this.jobConf = jobConf;
     }
 
     @Override
     public Collection<FileSourceSplit> enumerateSplits(Path[] paths, int minDesiredSplits)
             throws IOException {
-        return new ArrayList<>(createInputSplits(minDesiredSplits, partitions, threadNum, jobConf));
+        return new ArrayList<>(createInputSplits(minDesiredSplits, partitions, jobConf, false));
     }
 
     public static List<HiveSourceSplit> createInputSplits(
-            int minNumSplits, List<HiveTablePartition> partitions, int threadNum, JobConf jobConf)
+            int minNumSplits,
+            List<HiveTablePartition> partitions,
+            JobConf jobConf,
+            boolean isForParallelismInfer)
             throws IOException {
+        if (isForParallelismInfer) {
+            // it's for parallelism inference, we will try to use the configuration
+            // "table.exec.hive.infer-source-parallelism.max" as the min split num
+            // to split the Hive files to improve the parallelism
+            setSplitMaxSize(
+                    partitions,
+                    jobConf,
+                    Integer.parseInt(
+                            jobConf.get(
+                                    HiveOptions.TABLE_EXEC_HIVE_INFER_SOURCE_PARALLELISM_MAX
+                                            .key())));
+
+        } else {
+            setSplitMaxSize(partitions, jobConf, minNumSplits);
+        }
+        int threadNum = getThreadNumToSplitHiveFile(jobConf);
+        Preconditions.checkArgument(
+                threadNum >= 1,
+                HiveOptions.TABLE_EXEC_HIVE_LOAD_PARTITION_SPLITS_THREAD_NUM.key()
+                        + " cannot be less than 1");
         List<HiveSourceSplit> hiveSplits = new ArrayList<>();
         try (MRSplitsGetter splitsGetter = new MRSplitsGetter(threadNum)) {
             for (HiveTablePartitionSplits partitionSplits :
@@ -76,8 +98,66 @@ public class HiveSourceFileEnumerator implements FileEnumerator {
                 }
             }
         }
-
         return hiveSplits;
+    }
+
+    private static boolean supportSetSplitMaxSize(List<HiveTablePartition> partitions) {
+        // now, the configuration 'HiveConf.ConfVars.MAPREDMAXSPLITSIZE' we set only
+        // works for orc format
+        for (HiveTablePartition partition : partitions) {
+            String serializationLib =
+                    partition.getStorageDescriptor().getSerdeInfo().getSerializationLib();
+            if (!"orc".equalsIgnoreCase(serializationLib)) {
+                return false;
+            }
+        }
+        return !partitions.isEmpty();
+    }
+
+    private static void setSplitMaxSize(
+            List<HiveTablePartition> partitions, JobConf jobConf, int minNumSplits)
+            throws IOException {
+        if (!supportSetSplitMaxSize(partitions)) {
+            return;
+        }
+        // if minNumSplits <= 0, we set it to 1 manually
+        minNumSplits = minNumSplits <= 0 ? 1 : minNumSplits;
+        long defaultMaxSplitBytes = getSplitMaxSize(jobConf);
+        long openCost = getFileOpenCost(jobConf);
+        long totalByteWithOpenCost = calculateFilesSizeWithOpenCost(partitions, jobConf, openCost);
+        long maxSplitBytes =
+                calculateMaxSplitBytes(
+                        totalByteWithOpenCost, minNumSplits, defaultMaxSplitBytes, openCost);
+        jobConf.set(HiveConf.ConfVars.MAPREDMAXSPLITSIZE.varname, String.valueOf(maxSplitBytes));
+    }
+
+    private static long calculateMaxSplitBytes(
+            long totalBytesWithWeight,
+            int minNumSplits,
+            long defaultMaxSplitBytes,
+            long openCostInBytes) {
+        long bytesPerSplit = totalBytesWithWeight / minNumSplits;
+        return Math.min(defaultMaxSplitBytes, Math.max(openCostInBytes, bytesPerSplit));
+    }
+
+    private static long calculateFilesSizeWithOpenCost(
+            List<HiveTablePartition> partitions, JobConf jobConf, long openCost)
+            throws IOException {
+        long totalBytesWithWeight = 0;
+        for (HiveTablePartition partition : partitions) {
+            StorageDescriptor sd = partition.getStorageDescriptor();
+            org.apache.hadoop.fs.Path inputPath = new org.apache.hadoop.fs.Path(sd.getLocation());
+            FileSystem fs = inputPath.getFileSystem(jobConf);
+            // it's possible a partition exists in metastore but the data has been removed
+            if (!fs.exists(inputPath)) {
+                continue;
+            }
+            for (FileStatus fileStatus : fs.listStatus(inputPath)) {
+                long fileByte = fileStatus.getLen();
+                totalBytesWithWeight += (fileByte + openCost);
+            }
+        }
+        return totalBytesWithWeight;
     }
 
     public static int getNumFiles(List<HiveTablePartition> partitions, JobConf jobConf)
@@ -96,25 +176,40 @@ public class HiveSourceFileEnumerator implements FileEnumerator {
         return numFiles;
     }
 
+    private static long getSplitMaxSize(JobConf jobConf) {
+        return jobConf.getLong(
+                HiveOptions.TABLE_EXEC_HIVE_SPLIT_MAX_BYTES.key(),
+                HiveOptions.TABLE_EXEC_HIVE_SPLIT_MAX_BYTES.defaultValue().getBytes());
+    }
+
+    private static long getFileOpenCost(JobConf jobConf) {
+        return jobConf.getLong(
+                HiveOptions.TABLE_EXEC_HIVE_FILE_OPEN_COST.key(),
+                HiveOptions.TABLE_EXEC_HIVE_FILE_OPEN_COST.defaultValue().getBytes());
+    }
+
+    private static int getThreadNumToSplitHiveFile(JobConf jobConf) {
+        return jobConf.getInt(
+                HiveOptions.TABLE_EXEC_HIVE_LOAD_PARTITION_SPLITS_THREAD_NUM.key(),
+                HiveOptions.TABLE_EXEC_HIVE_LOAD_PARTITION_SPLITS_THREAD_NUM.defaultValue());
+    }
+
     /** A factory to create {@link HiveSourceFileEnumerator}. */
     public static class Provider implements FileEnumerator.Provider {
 
         private static final long serialVersionUID = 1L;
 
         private final List<HiveTablePartition> partitions;
-        private final int threadNum;
         private final JobConfWrapper jobConfWrapper;
 
-        public Provider(
-                List<HiveTablePartition> partitions, int threadNum, JobConfWrapper jobConfWrapper) {
+        public Provider(List<HiveTablePartition> partitions, JobConfWrapper jobConfWrapper) {
             this.partitions = partitions;
-            this.threadNum = threadNum;
             this.jobConfWrapper = jobConfWrapper;
         }
 
         @Override
         public FileEnumerator create() {
-            return new HiveSourceFileEnumerator(partitions, threadNum, jobConfWrapper.conf());
+            return new HiveSourceFileEnumerator(partitions, jobConfWrapper.conf());
         }
     }
 }

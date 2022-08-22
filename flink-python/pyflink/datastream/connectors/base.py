@@ -17,7 +17,7 @@
 ################################################################################
 from abc import ABC, abstractmethod
 from enum import Enum
-from typing import Union
+from typing import Union, Optional
 
 from py4j.java_gateway import JavaObject
 
@@ -53,24 +53,6 @@ class Sink(JavaFunctionWrapper):
         super(Sink, self).__init__(sink)
 
 
-class TransformAppender(ABC):
-
-    @abstractmethod
-    def apply(self, ds):
-        pass
-
-
-class SupportPreprocessing(ABC):
-
-    @abstractmethod
-    def need_preprocessing(self) -> bool:
-        pass
-
-    @abstractmethod
-    def get_preprocessing(self) -> 'TransformAppender':
-        pass
-
-
 class DeliveryGuarantee(Enum):
     """
     DeliverGuarantees that can be chosen. In general your pipeline can only offer the lowest
@@ -101,3 +83,17 @@ class DeliveryGuarantee(Enum):
         JDeliveryGuarantee = get_gateway().jvm \
             .org.apache.flink.connector.base.DeliveryGuarantee
         return getattr(JDeliveryGuarantee, self.name)
+
+
+class StreamTransformer(ABC):
+
+    @abstractmethod
+    def apply(self, ds):
+        pass
+
+
+class SupportsPreprocessing(ABC):
+
+    @abstractmethod
+    def get_transformer(self) -> Optional[StreamTransformer]:
+        pass

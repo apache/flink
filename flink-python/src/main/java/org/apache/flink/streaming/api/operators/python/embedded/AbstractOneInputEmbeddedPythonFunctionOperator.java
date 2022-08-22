@@ -26,7 +26,6 @@ import org.apache.flink.python.util.ProtoUtils;
 import org.apache.flink.streaming.api.functions.python.DataStreamPythonFunctionInfo;
 import org.apache.flink.streaming.api.operators.BoundedOneInput;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
-import org.apache.flink.streaming.api.operators.TimestampedCollector;
 import org.apache.flink.streaming.api.utils.PythonTypeUtils;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.util.Preconditions;
@@ -53,10 +52,6 @@ public abstract class AbstractOneInputEmbeddedPythonFunctionOperator<IN, OUT>
 
     private transient PythonTypeUtils.DataConverter<IN, Object> inputDataConverter;
 
-    transient PythonTypeUtils.DataConverter<OUT, Object> outputDataConverter;
-
-    protected transient TimestampedCollector<OUT> collector;
-
     protected transient long timestamp;
 
     public AbstractOneInputEmbeddedPythonFunctionOperator(
@@ -74,11 +69,6 @@ public abstract class AbstractOneInputEmbeddedPythonFunctionOperator<IN, OUT>
 
         inputDataConverter =
                 PythonTypeUtils.TypeInfoToDataConverter.typeInfoDataConverter(inputTypeInfo);
-
-        outputDataConverter =
-                PythonTypeUtils.TypeInfoToDataConverter.typeInfoDataConverter(outputTypeInfo);
-
-        collector = new TimestampedCollector<>(output);
     }
 
     @Override
@@ -125,6 +115,9 @@ public abstract class AbstractOneInputEmbeddedPythonFunctionOperator<IN, OUT>
         interpreter.set("function_context", getFunctionContext());
         interpreter.set("timer_context", getTimerContext());
         interpreter.set("job_parameters", getJobParameters());
+        interpreter.set("keyed_state_backend", getKeyedStateBackend());
+        interpreter.set("operator_state_backend", getOperatorStateBackend());
+        interpreter.set("side_output_context", sideOutputContext);
 
         interpreter.exec(
                 "from pyflink.fn_execution.embedded.operation_utils import create_one_input_user_defined_data_stream_function_from_protos");
@@ -137,7 +130,10 @@ public abstract class AbstractOneInputEmbeddedPythonFunctionOperator<IN, OUT>
                         + "runtime_context,"
                         + "function_context,"
                         + "timer_context,"
-                        + "job_parameters)");
+                        + "side_output_context,"
+                        + "job_parameters,"
+                        + "keyed_state_backend,"
+                        + "operator_state_backend)");
 
         interpreter.invokeMethod("operation", "open");
     }

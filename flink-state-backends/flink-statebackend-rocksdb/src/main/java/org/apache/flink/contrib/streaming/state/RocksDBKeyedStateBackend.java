@@ -120,31 +120,59 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
      */
     public static final String MERGE_OPERATOR_NAME = "stringappendtest";
 
-    private static final Map<StateDescriptor.Type, StateFactory> STATE_FACTORIES =
+    private static final Map<StateDescriptor.Type, StateCreateFactory> STATE_CREATE_FACTORIES =
             Stream.of(
                             Tuple2.of(
                                     StateDescriptor.Type.VALUE,
-                                    (StateFactory) RocksDBValueState::create),
+                                    (StateCreateFactory) RocksDBValueState::create),
                             Tuple2.of(
                                     StateDescriptor.Type.LIST,
-                                    (StateFactory) RocksDBListState::create),
+                                    (StateCreateFactory) RocksDBListState::create),
                             Tuple2.of(
                                     StateDescriptor.Type.MAP,
-                                    (StateFactory) RocksDBMapState::create),
+                                    (StateCreateFactory) RocksDBMapState::create),
                             Tuple2.of(
                                     StateDescriptor.Type.AGGREGATING,
-                                    (StateFactory) RocksDBAggregatingState::create),
+                                    (StateCreateFactory) RocksDBAggregatingState::create),
                             Tuple2.of(
                                     StateDescriptor.Type.REDUCING,
-                                    (StateFactory) RocksDBReducingState::create))
+                                    (StateCreateFactory) RocksDBReducingState::create))
                     .collect(Collectors.toMap(t -> t.f0, t -> t.f1));
 
-    private interface StateFactory {
+    private static final Map<StateDescriptor.Type, StateUpdateFactory> STATE_UPDATE_FACTORIES =
+            Stream.of(
+                            Tuple2.of(
+                                    StateDescriptor.Type.VALUE,
+                                    (StateUpdateFactory) RocksDBValueState::update),
+                            Tuple2.of(
+                                    StateDescriptor.Type.LIST,
+                                    (StateUpdateFactory) RocksDBListState::update),
+                            Tuple2.of(
+                                    StateDescriptor.Type.MAP,
+                                    (StateUpdateFactory) RocksDBMapState::update),
+                            Tuple2.of(
+                                    StateDescriptor.Type.AGGREGATING,
+                                    (StateUpdateFactory) RocksDBAggregatingState::update),
+                            Tuple2.of(
+                                    StateDescriptor.Type.REDUCING,
+                                    (StateUpdateFactory) RocksDBReducingState::update))
+                    .collect(Collectors.toMap(t -> t.f0, t -> t.f1));
+
+    private interface StateCreateFactory {
         <K, N, SV, S extends State, IS extends S> IS createState(
                 StateDescriptor<S, SV> stateDesc,
                 Tuple2<ColumnFamilyHandle, RegisteredKeyValueStateBackendMetaInfo<N, SV>>
                         registerResult,
                 RocksDBKeyedStateBackend<K> backend)
+                throws Exception;
+    }
+
+    private interface StateUpdateFactory {
+        <K, N, SV, S extends State, IS extends S> IS updateState(
+                StateDescriptor<S, SV> stateDesc,
+                Tuple2<ColumnFamilyHandle, RegisteredKeyValueStateBackendMetaInfo<N, SV>>
+                        registerResult,
+                IS existingState)
                 throws Exception;
     }
 
@@ -174,6 +202,9 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 
     /** The max memory size for one batch in {@link RocksDBWriteBatchWrapper}. */
     private final long writeBatchSize;
+
+    /** Map of created k/v states. */
+    private final Map<String, State> createdKVStates;
 
     /**
      * Information about the k/v states, maintained in the order as we create them. This is used to
@@ -277,6 +308,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 
         this.keyGroupPrefixBytes = keyGroupPrefixBytes;
         this.kvStateInformation = kvStateInformation;
+        this.createdKVStates = new HashMap<>();
 
         this.writeOptions = optionsContainer.getWriteOptions();
         this.readOptions = optionsContainer.getReadOptions();
@@ -469,11 +501,21 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
             KeyGroupedInternalPriorityQueue<T> create(
                     @Nonnull String stateName,
                     @Nonnull TypeSerializer<T> byteOrderedElementSerializer) {
+        return create(stateName, byteOrderedElementSerializer, false);
+    }
+
+    @Override
+    public <T extends HeapPriorityQueueElement & PriorityComparable<? super T> & Keyed<?>>
+            KeyGroupedInternalPriorityQueue<T> create(
+                    @Nonnull String stateName,
+                    @Nonnull TypeSerializer<T> byteOrderedElementSerializer,
+                    boolean allowFutureMetadataUpdates) {
         if (this.heapPriorityQueuesManager != null) {
             return this.heapPriorityQueuesManager.createOrUpdate(
-                    stateName, byteOrderedElementSerializer);
+                    stateName, byteOrderedElementSerializer, allowFutureMetadataUpdates);
         } else {
-            return priorityQueueFactory.create(stateName, byteOrderedElementSerializer);
+            return priorityQueueFactory.create(
+                    stateName, byteOrderedElementSerializer, allowFutureMetadataUpdates);
         }
     }
 
@@ -606,7 +648,8 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
                     tryRegisterKvStateInformation(
                             StateDescriptor<S, SV> stateDesc,
                             TypeSerializer<N> namespaceSerializer,
-                            @Nonnull StateSnapshotTransformFactory<SEV> snapshotTransformFactory)
+                            @Nonnull StateSnapshotTransformFactory<SEV> snapshotTransformFactory,
+                            boolean allowFutureMetadataUpdates)
                             throws Exception {
 
         RocksDbKvStateInfo oldStateInfo = kvStateInformation.get(stateDesc.getName());
@@ -627,6 +670,11 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
                             namespaceSerializer,
                             stateSerializer);
 
+            newMetaInfo =
+                    allowFutureMetadataUpdates
+                            ? newMetaInfo.withSerializerUpgradesAllowed()
+                            : newMetaInfo;
+
             newRocksStateInfo =
                     new RocksDbKvStateInfo(oldStateInfo.columnFamilyHandle, newMetaInfo);
             kvStateInformation.put(stateDesc.getName(), newRocksStateInfo);
@@ -638,6 +686,11 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
                             namespaceSerializer,
                             stateSerializer,
                             StateSnapshotTransformFactory.noTransform());
+
+            newMetaInfo =
+                    allowFutureMetadataUpdates
+                            ? newMetaInfo.withSerializerUpgradesAllowed()
+                            : newMetaInfo;
 
             newRocksStateInfo =
                     RocksDBOperationUtils.createStateInfo(
@@ -657,8 +710,6 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
                 wrapStateSnapshotTransformFactory(
                         stateDesc, snapshotTransformFactory, newMetaInfo.getStateSerializer());
         newMetaInfo.updateSnapshotTransformFactory(wrappedSnapshotTransformFactory);
-
-        ttlCompactFiltersManager.configCompactFilter(stateDesc, newMetaInfo.getStateSerializer());
 
         return Tuple2.of(newRocksStateInfo.columnFamilyHandle, newMetaInfo);
     }
@@ -754,16 +805,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
         // we need to get an actual state instance because migration is different
         // for different state types. For example, ListState needs to deal with
         // individual elements
-        StateFactory stateFactory = STATE_FACTORIES.get(stateDesc.getType());
-        if (stateFactory == null) {
-            String message =
-                    String.format(
-                            "State %s is not supported by %s",
-                            stateDesc.getClass(), this.getClass());
-            throw new FlinkRuntimeException(message);
-        }
-        State state =
-                stateFactory.createState(stateDesc, stateMetaInfo, RocksDBKeyedStateBackend.this);
+        State state = createState(stateDesc, stateMetaInfo);
         if (!(state instanceof AbstractRocksDBState)) {
             throw new FlinkRuntimeException(
                     "State should be an AbstractRocksDBState but is " + state);
@@ -820,23 +862,69 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 
     @Override
     @Nonnull
-    public <N, SV, SEV, S extends State, IS extends S> IS createInternalState(
+    public <N, SV, SEV, S extends State, IS extends S> IS createOrUpdateInternalState(
             @Nonnull TypeSerializer<N> namespaceSerializer,
             @Nonnull StateDescriptor<S, SV> stateDesc,
             @Nonnull StateSnapshotTransformFactory<SEV> snapshotTransformFactory)
             throws Exception {
-        StateFactory stateFactory = STATE_FACTORIES.get(stateDesc.getType());
-        if (stateFactory == null) {
-            String message =
-                    String.format(
-                            "State %s is not supported by %s",
-                            stateDesc.getClass(), this.getClass());
-            throw new FlinkRuntimeException(message);
-        }
+        return createOrUpdateInternalState(
+                namespaceSerializer, stateDesc, snapshotTransformFactory, false);
+    }
+
+    @Nonnull
+    @Override
+    public <N, SV, SEV, S extends State, IS extends S> IS createOrUpdateInternalState(
+            @Nonnull TypeSerializer<N> namespaceSerializer,
+            @Nonnull StateDescriptor<S, SV> stateDesc,
+            @Nonnull StateSnapshotTransformFactory<SEV> snapshotTransformFactory,
+            boolean allowFutureMetadataUpdates)
+            throws Exception {
         Tuple2<ColumnFamilyHandle, RegisteredKeyValueStateBackendMetaInfo<N, SV>> registerResult =
                 tryRegisterKvStateInformation(
-                        stateDesc, namespaceSerializer, snapshotTransformFactory);
-        return stateFactory.createState(stateDesc, registerResult, RocksDBKeyedStateBackend.this);
+                        stateDesc,
+                        namespaceSerializer,
+                        snapshotTransformFactory,
+                        allowFutureMetadataUpdates);
+        if (!allowFutureMetadataUpdates) {
+            // Config compact filter only when no future metadata updates
+            ttlCompactFiltersManager.configCompactFilter(
+                    stateDesc, registerResult.f1.getStateSerializer());
+        }
+
+        return createState(stateDesc, registerResult);
+    }
+
+    private <N, SV, S extends State, IS extends S> IS createState(
+            StateDescriptor<S, SV> stateDesc,
+            Tuple2<ColumnFamilyHandle, RegisteredKeyValueStateBackendMetaInfo<N, SV>>
+                    registerResult)
+            throws Exception {
+        @SuppressWarnings("unchecked")
+        IS createdState = (IS) createdKVStates.get(stateDesc.getName());
+        if (createdState == null) {
+            StateCreateFactory stateCreateFactory = STATE_CREATE_FACTORIES.get(stateDesc.getType());
+            if (stateCreateFactory == null) {
+                throw new FlinkRuntimeException(stateNotSupportedMessage(stateDesc));
+            }
+            createdState =
+                    stateCreateFactory.createState(
+                            stateDesc, registerResult, RocksDBKeyedStateBackend.this);
+        } else {
+            StateUpdateFactory stateUpdateFactory = STATE_UPDATE_FACTORIES.get(stateDesc.getType());
+            if (stateUpdateFactory == null) {
+                throw new FlinkRuntimeException(stateNotSupportedMessage(stateDesc));
+            }
+            createdState = stateUpdateFactory.updateState(stateDesc, registerResult, createdState);
+        }
+
+        createdKVStates.put(stateDesc.getName(), createdState);
+        return createdState;
+    }
+
+    private <S extends State, SV> String stateNotSupportedMessage(
+            StateDescriptor<S, SV> stateDesc) {
+        return String.format(
+                "State %s is not supported by %s", stateDesc.getClass(), this.getClass());
     }
 
     /** Only visible for testing, DO NOT USE. */

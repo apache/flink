@@ -39,11 +39,12 @@ import org.apache.flink.runtime.rest.messages.job.JobSubmitHeaders;
 import org.apache.flink.runtime.rest.messages.json.SerializedThrowableSerializer;
 import org.apache.flink.runtime.rest.util.DocumentingDispatcherRestEndpoint;
 import org.apache.flink.runtime.rest.util.DocumentingRestEndpoint;
-import org.apache.flink.runtime.rest.versioning.RestAPIVersion;
+import org.apache.flink.runtime.rest.versioning.RuntimeRestAPIVersion;
 import org.apache.flink.runtime.util.EnvironmentInformation;
 import org.apache.flink.runtime.webmonitor.handlers.JarUploadHeaders;
 import org.apache.flink.util.ConfigurationException;
 import org.apache.flink.util.SerializedThrowable;
+import org.apache.flink.util.jackson.JacksonMapperFactory;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.SerializationFeature;
@@ -100,7 +101,8 @@ public class OpenApiSpecGenerator {
     static {
         ModelResolver.enumsAsRef = true;
         final ObjectMapper mapper =
-                new ObjectMapper().configure(SerializationFeature.ORDER_MAP_ENTRIES_BY_KEYS, true);
+                JacksonMapperFactory.createObjectMapper()
+                        .configure(SerializationFeature.ORDER_MAP_ENTRIES_BY_KEYS, true);
         modelConverterContext =
                 new ModelConverterContextImpl(Collections.singletonList(new ModelResolver(mapper)));
     }
@@ -114,8 +116,8 @@ public class OpenApiSpecGenerator {
     public static void main(String[] args) throws IOException, ConfigurationException {
         String outputDirectory = args[0];
 
-        for (final RestAPIVersion apiVersion : RestAPIVersion.values()) {
-            if (apiVersion == RestAPIVersion.V0) {
+        for (final RuntimeRestAPIVersion apiVersion : RuntimeRestAPIVersion.values()) {
+            if (apiVersion == RuntimeRestAPIVersion.V0) {
                 // this version exists only for testing purposes
                 continue;
             }
@@ -130,7 +132,7 @@ public class OpenApiSpecGenerator {
 
     @VisibleForTesting
     static void createDocumentationFile(
-            DocumentingRestEndpoint restEndpoint, RestAPIVersion apiVersion, Path outputFile)
+            DocumentingRestEndpoint restEndpoint, RuntimeRestAPIVersion apiVersion, Path outputFile)
             throws IOException {
         final OpenAPI openApi = new OpenAPI();
 
@@ -167,7 +169,7 @@ public class OpenApiSpecGenerator {
         return spec.getClass().getAnnotation(Documentation.ExcludeFromDocumentation.class) == null;
     }
 
-    private static void setInfo(final OpenAPI openApi, final RestAPIVersion apiVersion) {
+    private static void setInfo(final OpenAPI openApi, final RuntimeRestAPIVersion apiVersion) {
         openApi.info(
                 new Info()
                         .title("Flink JobManager REST API")

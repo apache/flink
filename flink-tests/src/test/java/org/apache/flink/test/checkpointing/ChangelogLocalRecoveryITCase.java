@@ -31,8 +31,8 @@ import org.apache.flink.runtime.state.hashmap.HashMapStateBackend;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.streaming.api.environment.CheckpointConfig;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.test.checkpointing.ChangelogPeriodicMaterializationTestBase.CollectionSink;
-import org.apache.flink.test.checkpointing.ChangelogPeriodicMaterializationTestBase.CountFunction;
+import org.apache.flink.test.checkpointing.ChangelogRecoveryITCaseBase.CollectionSink;
+import org.apache.flink.test.checkpointing.ChangelogRecoveryITCaseBase.CountFunction;
 import org.apache.flink.test.util.InfiniteIntegerSource;
 import org.apache.flink.test.util.MiniClusterWithClientResource;
 import org.apache.flink.util.TestLogger;
@@ -60,7 +60,7 @@ import static org.apache.flink.configuration.ClusterOptions.PROCESS_WORKING_DIR_
 import static org.apache.flink.configuration.ClusterOptions.TASK_MANAGER_PROCESS_WORKING_DIR_BASE;
 import static org.apache.flink.runtime.testutils.CommonTestUtils.waitForAllTaskRunning;
 import static org.apache.flink.runtime.testutils.CommonTestUtils.waitUntilCondition;
-import static org.apache.flink.test.checkpointing.ChangelogPeriodicMaterializationTestBase.getAllStateHandleId;
+import static org.apache.flink.test.checkpointing.ChangelogRecoveryITCaseBase.getAllStateHandleId;
 
 /**
  * Local recovery IT case for changelog. It never fails because local recovery is nice but not
@@ -150,11 +150,9 @@ public class ChangelogLocalRecoveryITCase extends TestLogger {
                 () ->
                         miniCluster
                                 .getExecutionGraph(firstJobGraph.getJobID())
-                                .get(10000, TimeUnit.SECONDS),
+                                .get(500, TimeUnit.SECONDS),
                 false);
-
-        waitForAllTaskRunning(miniCluster, firstJobGraph.getJobID(), false);
-        miniCluster.triggerCheckpoint(firstJobGraph.getJobID()).get();
+        miniCluster.triggerCheckpoint(firstJobGraph.getJobID());
     }
 
     private StreamExecutionEnvironment getEnv(

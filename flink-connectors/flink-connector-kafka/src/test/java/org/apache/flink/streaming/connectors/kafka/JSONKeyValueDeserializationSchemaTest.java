@@ -17,7 +17,9 @@
 
 package org.apache.flink.streaming.connectors.kafka;
 
+import org.apache.flink.connector.testutils.formats.DummyInitializationContext;
 import org.apache.flink.streaming.util.serialization.JSONKeyValueDeserializationSchema;
+import org.apache.flink.util.jackson.JacksonMapperFactory;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.node.ObjectNode;
@@ -30,18 +32,20 @@ import static org.assertj.core.api.Assertions.assertThat;
 /** Tests for the{@link JSONKeyValueDeserializationSchema}. */
 public class JSONKeyValueDeserializationSchemaTest {
 
+    private static final ObjectMapper OBJECT_MAPPER = JacksonMapperFactory.createObjectMapper();
+
     @Test
     public void testDeserializeWithoutMetadata() throws Exception {
-        ObjectMapper mapper = new ObjectMapper();
-        ObjectNode initialKey = mapper.createObjectNode();
+        ObjectNode initialKey = OBJECT_MAPPER.createObjectNode();
         initialKey.put("index", 4);
-        byte[] serializedKey = mapper.writeValueAsBytes(initialKey);
+        byte[] serializedKey = OBJECT_MAPPER.writeValueAsBytes(initialKey);
 
-        ObjectNode initialValue = mapper.createObjectNode();
+        ObjectNode initialValue = OBJECT_MAPPER.createObjectNode();
         initialValue.put("word", "world");
-        byte[] serializedValue = mapper.writeValueAsBytes(initialValue);
+        byte[] serializedValue = OBJECT_MAPPER.writeValueAsBytes(initialValue);
 
         JSONKeyValueDeserializationSchema schema = new JSONKeyValueDeserializationSchema(false);
+        schema.open(new DummyInitializationContext());
         ObjectNode deserializedValue =
                 schema.deserialize(newConsumerRecord(serializedKey, serializedValue));
 
@@ -52,14 +56,14 @@ public class JSONKeyValueDeserializationSchemaTest {
 
     @Test
     public void testDeserializeWithoutKey() throws Exception {
-        ObjectMapper mapper = new ObjectMapper();
         byte[] serializedKey = null;
 
-        ObjectNode initialValue = mapper.createObjectNode();
+        ObjectNode initialValue = OBJECT_MAPPER.createObjectNode();
         initialValue.put("word", "world");
-        byte[] serializedValue = mapper.writeValueAsBytes(initialValue);
+        byte[] serializedValue = OBJECT_MAPPER.writeValueAsBytes(initialValue);
 
         JSONKeyValueDeserializationSchema schema = new JSONKeyValueDeserializationSchema(false);
+        schema.open(new DummyInitializationContext());
         ObjectNode deserializedValue =
                 schema.deserialize(newConsumerRecord(serializedKey, serializedValue));
 
@@ -85,14 +89,14 @@ public class JSONKeyValueDeserializationSchemaTest {
 
     @Test
     public void testDeserializeWithoutValue() throws Exception {
-        ObjectMapper mapper = new ObjectMapper();
-        ObjectNode initialKey = mapper.createObjectNode();
+        ObjectNode initialKey = OBJECT_MAPPER.createObjectNode();
         initialKey.put("index", 4);
-        byte[] serializedKey = mapper.writeValueAsBytes(initialKey);
+        byte[] serializedKey = OBJECT_MAPPER.writeValueAsBytes(initialKey);
 
         byte[] serializedValue = null;
 
         JSONKeyValueDeserializationSchema schema = new JSONKeyValueDeserializationSchema(false);
+        schema.open(new DummyInitializationContext());
         ObjectNode deserializedValue =
                 schema.deserialize(newConsumerRecord(serializedKey, serializedValue));
 
@@ -103,16 +107,16 @@ public class JSONKeyValueDeserializationSchemaTest {
 
     @Test
     public void testDeserializeWithMetadata() throws Exception {
-        ObjectMapper mapper = new ObjectMapper();
-        ObjectNode initialKey = mapper.createObjectNode();
+        ObjectNode initialKey = OBJECT_MAPPER.createObjectNode();
         initialKey.put("index", 4);
-        byte[] serializedKey = mapper.writeValueAsBytes(initialKey);
+        byte[] serializedKey = OBJECT_MAPPER.writeValueAsBytes(initialKey);
 
-        ObjectNode initialValue = mapper.createObjectNode();
+        ObjectNode initialValue = OBJECT_MAPPER.createObjectNode();
         initialValue.put("word", "world");
-        byte[] serializedValue = mapper.writeValueAsBytes(initialValue);
+        byte[] serializedValue = OBJECT_MAPPER.writeValueAsBytes(initialValue);
 
         JSONKeyValueDeserializationSchema schema = new JSONKeyValueDeserializationSchema(true);
+        schema.open(new DummyInitializationContext());
         final ConsumerRecord<byte[], byte[]> consumerRecord =
                 newConsumerRecord("topic#1", 3, 4L, serializedKey, serializedValue);
         ObjectNode deserializedValue = schema.deserialize(consumerRecord);

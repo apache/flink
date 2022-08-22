@@ -75,6 +75,9 @@ import static org.hamcrest.MatcherAssert.assertThat;
 public class SavepointFormatITCase extends TestLogger {
     private static final Logger LOG = LoggerFactory.getLogger(SavepointFormatITCase.class);
 
+    private static final String STATE_BACKEND_ROCKSDB = "ROCKSDB";
+    private static final String STATE_BACKEND_HEAP = "HEAP";
+
     @TempDir Path checkpointsDir;
     @TempDir Path originalSavepointDir;
     @TempDir Path renamedSavepointDir;
@@ -122,7 +125,7 @@ public class SavepointFormatITCase extends TestLogger {
 
     private void validateNativeNonChangelogState(
             KeyedStateHandle state, StateBackendConfig backendConfig) {
-        if (backendConfig.isIncremental()) {
+        if (STATE_BACKEND_ROCKSDB.equals(backendConfig.getName())) {
             assertThat(state, instanceOf(IncrementalRemoteKeyedStateHandle.class));
         } else {
             assertThat(state, instanceOf(KeyGroupsStateHandle.class));
@@ -174,7 +177,7 @@ public class SavepointFormatITCase extends TestLogger {
         return new StateBackendConfig(changelogEnabled, incremental /* ignored for now */) {
             @Override
             public String getName() {
-                return "HEAP";
+                return STATE_BACKEND_HEAP;
             }
 
             @Override
@@ -201,7 +204,7 @@ public class SavepointFormatITCase extends TestLogger {
         return new StateBackendConfig(changelogEnabled, incremental) {
             @Override
             public String getName() {
-                return "ROCKSDB";
+                return STATE_BACKEND_ROCKSDB;
             }
 
             @Override

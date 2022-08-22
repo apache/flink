@@ -18,16 +18,20 @@
 
 package org.apache.flink.table.planner.runtime.batch.sql;
 
+import org.apache.flink.core.fs.Path;
 import org.apache.flink.table.api.Table;
+import org.apache.flink.table.api.TableResult;
 import org.apache.flink.table.planner.factories.utils.TestCollectionTableFactory;
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase;
 import org.apache.flink.types.Row;
+import org.apache.flink.util.CollectionUtil;
 import org.apache.flink.util.UserClassLoaderJarTestUtils;
 
 import org.junit.Before;
 import org.junit.Test;
 
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.Random;
 import java.util.UUID;
@@ -142,6 +146,19 @@ public class FunctionITCase extends BatchTestBase {
         testUserDefinedFunctionByUsingJar(functionDDL, dropFunctionDDL);
     }
 
+    @Test
+    public void testUsingAddJar() throws Exception {
+        tEnv().executeSql(String.format("ADD JAR '%s'", jarPath));
+
+        TableResult tableResult = tEnv().executeSql("SHOW JARS");
+        assertThat(CollectionUtil.iteratorToList(tableResult.collect()))
+                .isEqualTo(Collections.singletonList(Row.of(new Path(jarPath).getPath())));
+
+        testUserDefinedFunctionByUsingJar(
+                String.format("create function lowerUdf as '%s' LANGUAGE JAVA", udfClassName),
+                "drop function lowerUdf");
+    }
+
     private void testUserDefinedFunctionByUsingJar(String createFunctionDDL, String dropFunctionDDL)
             throws Exception {
         List<Row> sourceData =
@@ -178,6 +195,7 @@ public class FunctionITCase extends BatchTestBase {
 
         tEnv().executeSql("drop table t1");
         tEnv().executeSql("drop table t2");
+
         // delete the function
         tEnv().executeSql(dropFunctionDDL);
     }

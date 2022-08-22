@@ -35,6 +35,7 @@ import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionManager;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.io.network.partition.ResultSubpartitionView;
+import org.apache.flink.runtime.metrics.groups.TaskIOMetricGroup;
 import org.apache.flink.util.function.SupplierWithException;
 
 import javax.annotation.Nullable;
@@ -43,7 +44,7 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.file.Path;
-import java.util.concurrent.Executor;
+import java.util.concurrent.ScheduledExecutorService;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
@@ -78,7 +79,7 @@ public class HsResultPartition extends ResultPartition {
             int numSubpartitions,
             int numTargetKeyGroups,
             BatchShuffleReadBufferPool readBufferPool,
-            Executor readIOExecutor,
+            ScheduledExecutorService readIOExecutor,
             ResultPartitionManager partitionManager,
             String dataFileBashPath,
             int networkBufferSize,
@@ -123,11 +124,20 @@ public class HsResultPartition extends ResultPartition {
                         bufferPool,
                         getSpillingStrategy(hybridShuffleConfiguration),
                         dataIndex,
-                        dataFilePath);
+                        dataFilePath,
+                        bufferCompressor);
+    }
+
+    @Override
+    public void setMetricGroup(TaskIOMetricGroup metrics) {
+        super.setMetricGroup(metrics);
+        checkNotNull(memoryDataManager)
+                .setOutputMetrics(new HsOutputMetrics(numBytesOut, numBuffersOut));
     }
 
     @Override
     public void emitRecord(ByteBuffer record, int targetSubpartition) throws IOException {
+        numBytesProduced.inc(record.remaining());
         emit(record, targetSubpartition, Buffer.DataType.DATA_BUFFER);
     }
 
@@ -148,6 +158,7 @@ public class HsResultPartition extends ResultPartition {
     }
 
     private void broadcast(ByteBuffer record, Buffer.DataType dataType) throws IOException {
+        numBytesProduced.inc(record.remaining());
         for (int i = 0; i < numSubpartitions; i++) {
             emit(record.duplicate(), i, dataType);
         }

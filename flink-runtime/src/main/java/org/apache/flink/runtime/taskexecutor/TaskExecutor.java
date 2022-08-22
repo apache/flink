@@ -700,7 +700,10 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
             try {
                 changelogStorage =
                         changelogStoragesManager.stateChangelogStorageForJob(
-                                jobId, taskManagerConfiguration.getConfiguration(), jobGroup);
+                                jobId,
+                                taskManagerConfiguration.getConfiguration(),
+                                jobGroup,
+                                localStateStore.getLocalRecoveryConfig());
             } catch (IOException e) {
                 throw new TaskSubmissionException(e);
             }
@@ -713,6 +716,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
                             tdd.getExecutionAttemptId(),
                             localStateStore,
                             changelogStorage,
+                            changelogStoragesManager,
                             taskRestore,
                             checkpointResponder);
 
@@ -1808,7 +1812,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
                             closeJob(job, cause);
                         });
         taskManagerMetricGroup.removeJobMetricsGroup(jobId);
-        changelogStoragesManager.releaseStateChangelogStorageForJob(jobId);
+        changelogStoragesManager.releaseResourcesForJob(jobId);
         currentSlotOfferPerJob.remove(jobId);
     }
 

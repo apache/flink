@@ -92,7 +92,7 @@ public class MiniClusterResource extends ExternalResource {
         return restClusterClientConfig;
     }
 
-    public URI getRestAddres() {
+    public URI getRestAddress() {
         return miniCluster.getRestAddress().join();
     }
 

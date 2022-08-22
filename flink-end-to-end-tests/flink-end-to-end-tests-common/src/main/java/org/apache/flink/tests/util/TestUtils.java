@@ -20,6 +20,7 @@ package org.apache.flink.tests.util;
 
 import org.apache.flink.test.parameters.ParameterProperty;
 
+import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.nio.file.FileAlreadyExistsException;
@@ -31,6 +32,7 @@ import java.nio.file.Paths;
 import java.nio.file.SimpleFileVisitor;
 import java.nio.file.StandardCopyOption;
 import java.nio.file.attribute.BasicFileAttributes;
+import java.util.ArrayList;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.regex.Pattern;
@@ -131,5 +133,19 @@ public enum TestUtils {
                 });
 
         return destination;
+    }
+
+    /** Read the all files with the specified path. */
+    public static List<String> readCsvResultFiles(Path path) throws IOException {
+        File filePath = path.toFile();
+        // list all the non-hidden files
+        File[] csvFiles = filePath.listFiles((dir, name) -> !name.startsWith("."));
+        List<String> result = new ArrayList<>();
+        if (csvFiles != null) {
+            for (File file : csvFiles) {
+                result.addAll(Files.readAllLines(file.toPath()));
+            }
+        }
+        return result;
     }
 }

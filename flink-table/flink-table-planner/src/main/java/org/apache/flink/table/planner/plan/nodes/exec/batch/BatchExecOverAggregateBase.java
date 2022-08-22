@@ -115,6 +115,9 @@ public abstract class BatchExecOverAggregateBase extends ExecNodeBase<RowData>
     /** Infer the over window mode based on given group info. */
     protected OverWindowMode inferGroupMode(GroupSpec group) {
         AggregateCall aggCall = group.getAggCalls().get(0);
+        if (aggCall.getAggregation().getKind() == NTILE) {
+            return OverWindowMode.INSENSITIVE;
+        }
         if (aggCall.getAggregation().allowsFraming()) {
             if (group.isRows()) {
                 return OverWindowMode.ROW;
@@ -147,7 +150,7 @@ public abstract class BatchExecOverAggregateBase extends ExecNodeBase<RowData>
         OFFSET,
         /**
          * The INSENSITIVE mode does not care the window framing without LEAD/LAG agg function, for
-         * example RANK/DENSE_RANK/PERCENT_RANK/ROW_NUMBER.
+         * example RANK/DENSE_RANK/PERCENT_RANK/ROW_NUMBER/NTILE.
          */
         INSENSITIVE
     }
