@@ -30,6 +30,7 @@ import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferCompressor;
 import org.apache.flink.runtime.io.network.buffer.BufferPool;
 import org.apache.flink.runtime.io.network.partition.BufferAvailabilityListener;
+import org.apache.flink.runtime.io.network.partition.PartitionNotFoundException;
 import org.apache.flink.runtime.io.network.partition.ResultPartition;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionManager;
@@ -43,6 +44,7 @@ import javax.annotation.Nullable;
 import java.io.File;
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.concurrent.ScheduledExecutorService;
 
@@ -175,6 +177,14 @@ public class HsResultPartition extends ResultPartition {
             int subpartitionId, BufferAvailabilityListener availabilityListener)
             throws IOException {
         checkState(!isReleased(), "ResultPartition already released.");
+
+        // If data file is not readable, throw PartitionNotFoundException to mark this result
+        // partition failed. Otherwise, the partition data is not regenerated, so failover can not
+        // recover the job.
+        if (!Files.isReadable(dataFilePath)) {
+            throw new PartitionNotFoundException(getPartitionId());
+        }
+
         HsSubpartitionView subpartitionView = new HsSubpartitionView(availabilityListener);
         HsDataView diskDataView =
                 fileDataManager.registerNewSubpartition(subpartitionId, subpartitionView);

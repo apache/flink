@@ -35,6 +35,7 @@ import org.apache.flink.runtime.io.network.buffer.NetworkBuffer;
 import org.apache.flink.runtime.io.network.buffer.NetworkBufferPool;
 import org.apache.flink.runtime.io.network.partition.BufferAvailabilityListener;
 import org.apache.flink.runtime.io.network.partition.NoOpBufferAvailablityListener;
+import org.apache.flink.runtime.io.network.partition.PartitionNotFoundException;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionManager;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
@@ -43,6 +44,7 @@ import org.apache.flink.runtime.io.network.partition.ResultSubpartitionView;
 import org.apache.flink.runtime.io.network.partition.hybrid.HybridShuffleConfiguration.SpillingStrategyType;
 import org.apache.flink.runtime.metrics.groups.TaskIOMetricGroup;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
+import org.apache.flink.util.IOUtils;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -266,6 +268,19 @@ class HsResultPartitionTest {
                                 resultPartition.createSubpartitionView(
                                         0, new NoOpBufferAvailablityListener()))
                 .isInstanceOf(IllegalStateException.class);
+    }
+
+    @Test
+    void testCreateSubpartitionViewLostData() throws Exception {
+        final int numBuffers = 10;
+        BufferPool bufferPool = globalPool.createBufferPool(numBuffers, numBuffers);
+        HsResultPartition resultPartition = createHsResultPartition(2, bufferPool);
+        IOUtils.deleteFilesRecursively(tempDataPath);
+        assertThatThrownBy(
+                        () ->
+                                resultPartition.createSubpartitionView(
+                                        0, new NoOpBufferAvailablityListener()))
+                .isInstanceOf(PartitionNotFoundException.class);
     }
 
     @Test
