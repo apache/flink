@@ -16,13 +16,19 @@
 # limitations under the License.
 ################################################################################
 from pyflink.common import SimpleStringSchema, Types
+from pyflink.datastream import StreamExecutionEnvironment, RuntimeExecutionMode
 from pyflink.datastream.connectors.kinesis import PartitionKeyGenerator, FlinkKinesisConsumer, \
     KinesisStreamsSink, KinesisFirehoseSink
-from pyflink.testing.test_case_utils import PyFlinkStreamingTestCase
+from pyflink.testing.test_case_utils import PyFlinkTestCase
 from pyflink.util.java_utils import get_field_value
 
 
-class FlinkKinesisTest(PyFlinkStreamingTestCase):
+class FlinkKinesisTest(PyFlinkTestCase):
+
+    def setUp(self) -> None:
+        self.env = StreamExecutionEnvironment.get_execution_environment()
+        self.env.set_parallelism(2)
+        self.env.set_runtime_mode(RuntimeExecutionMode.STREAMING)
 
     def test_kinesis_source(self):
         consumer_config = {

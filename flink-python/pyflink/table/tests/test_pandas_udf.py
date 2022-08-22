@@ -46,14 +46,19 @@ class PandasUDFITTests(object):
         subtract_one = udf(SubtractOne(), DataTypes.BIGINT(), DataTypes.BIGINT())
 
         sink_table_ddl = """
-        CREATE TABLE Results(a BIGINT, b BIGINT, c BIGINT, d BIGINT) WITH ('connector'='test-sink')
+        CREATE TABLE Results_test_basic_functionality(
+            a BIGINT,
+            b BIGINT,
+            c BIGINT,
+            d BIGINT
+        ) WITH ('connector'='test-sink')
         """
         self.t_env.execute_sql(sink_table_ddl)
 
         t = self.t_env.from_elements([(1, 2, 3), (2, 5, 6), (3, 1, 9)], ['a', 'b', 'c'])
         t.where(add_one(t.b) <= 3) \
             .select(t.a, t.b + 1, add(t.a + 1, subtract_one(t.c)) + 2, add(add_one(t.a), 1)) \
-            .execute_insert("Results") \
+            .execute_insert("Results_test_basic_functionality") \
             .wait()
         actual = source_sink_utils.results()
         self.assert_equals(actual, ["+I[1, 3, 6, 3]", "+I[3, 2, 14, 5]"])
@@ -209,7 +214,7 @@ class PandasUDFITTests(object):
             return row_param
 
         sink_table_ddl = """
-        CREATE TABLE Results(
+        CREATE TABLE Results_test_all_data_types(
         a TINYINT, b SMALLINT, c INT, d BIGINT, e BOOLEAN, f BOOLEAN, g FLOAT, h DOUBLE, i STRING,
         j StRING, k BYTES, l DECIMAL(38, 18), m DECIMAL(38, 18), n DATE, o TIME, p TIMESTAMP(3),
         q ARRAY<STRING>, r ARRAY<TIMESTAMP(3)>, s ARRAY<INT>, t ARRAY<STRING>,
@@ -269,7 +274,7 @@ class PandasUDFITTests(object):
             array_int_func(t.s),
             nested_array_func(t.t),
             row_func(t.u)) \
-            .execute_insert("Results").wait()
+            .execute_insert("Results_test_all_data_types").wait()
         actual = source_sink_utils.results()
         self.assert_equals(
             actual,
@@ -322,7 +327,7 @@ class PandasUDFITTests(object):
             return local_zoned_timestamp_param
 
         sink_table_ddl = """
-        CREATE TABLE Results(a TIMESTAMP_LTZ(3)) WITH ('connector'='test-sink')
+        CREATE TABLE Results_test_data_types(a TIMESTAMP_LTZ(3)) WITH ('connector'='test-sink')
         """
         self.t_env.execute_sql(sink_table_ddl)
 
@@ -331,7 +336,7 @@ class PandasUDFITTests(object):
             DataTypes.ROW([DataTypes.FIELD("a", DataTypes.TIMESTAMP_WITH_LOCAL_TIME_ZONE(3))]))
 
         t.select(local_zoned_timestamp_func(local_zoned_timestamp_func(t.a))) \
-            .execute_insert("Results").wait()
+            .execute_insert("Results_test_data_types").wait()
         actual = source_sink_utils.results()
         self.assert_equals(actual, ["+I[1970-01-02T00:00:00.123Z]"])
 

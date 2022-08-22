@@ -136,13 +136,13 @@ class StreamTableCalcTests(PyFlinkStreamTableTestCase):
                      field_names,
                      field_types)))
         sink_table_ddl = """
-            CREATE TABLE Results(a BIGINT, b STRING, c FLOAT)
+            CREATE TABLE Results_test_from_element_expression(a BIGINT, b STRING, c FLOAT)
             WITH ('connector'='test-sink')
         """
         self.t_env.execute_sql(sink_table_ddl)
 
         t = t_env.from_elements([row(1, 'abc', 2.0), row(2, 'def', 3.0)], schema)
-        t.execute_insert("Results").wait()
+        t.execute_insert("Results_test_from_element_expression").wait()
         actual = source_sink_utils.results()
 
         expected = ['+I[1, abc, 2.0]', '+I[2, def, 3.0]']

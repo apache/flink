@@ -15,11 +15,15 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 ################################################################################
-from pyflink.table import expressions as expr
-from pyflink.testing.test_case_utils import PyFlinkStreamTableTestCase
+from pyflink.table import expressions as expr, TableEnvironment, EnvironmentSettings
+from pyflink.testing.test_case_utils import PyFlinkTestCase
 
 
-class CorrelateTests(PyFlinkStreamTableTestCase):
+class CorrelateTests(PyFlinkTestCase):
+
+    def setUp(self) -> None:
+        super(CorrelateTests, self).setUp()
+        self.t_env = TableEnvironment.create(EnvironmentSettings.in_streaming_mode())
 
     def test_join_lateral(self):
         t_env = self.t_env

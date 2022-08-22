@@ -36,8 +36,7 @@ from pyflink.datastream.execution_mode import RuntimeExecutionMode
 from pyflink.datastream.stream_execution_environment import StreamExecutionEnvironment
 from pyflink.find_flink_home import _find_flink_home, _find_flink_source_root
 from pyflink.java_gateway import get_gateway
-from pyflink.table.environment_settings import EnvironmentSettings
-from pyflink.table.table_environment import TableEnvironment
+from pyflink.table.table_environment import StreamTableEnvironment
 from pyflink.util.java_utils import add_jars_to_context_class_loader, to_jarray
 
 if os.getenv("VERBOSE"):
@@ -115,54 +114,84 @@ class PyFlinkTestCase(unittest.TestCase):
         return py_list
 
 
-class PyFlinkStreamTableTestCase(PyFlinkTestCase):
+class PyFlinkSharedMiniClusterTestCase(PyFlinkTestCase):
+
+    @classmethod
+    def setUpClass(cls):
+        super(PyFlinkSharedMiniClusterTestCase, cls).setUpClass()
+        gateway = get_gateway()
+        MiniClusterResourceConfiguration = (
+            gateway.jvm.org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration
+            .Builder()
+            .setNumberTaskManagers(8)
+            .setNumberSlotsPerTaskManager(1)
+            .setRpcServiceSharing(
+                get_gateway().jvm.org.apache.flink.runtime.minicluster.RpcServiceSharing.DEDICATED)
+            .withHaLeadershipControl()
+            .build())
+        cls.resource = (
+            get_gateway().jvm.org.apache.flink.streaming.runtime.testutils.
+            MiniClusterWithClientResource(MiniClusterResourceConfiguration))
+        cls.resource.before()
+
+        cls.env = StreamExecutionEnvironment(cls.resource.getTestStreamEnvironment())
+
+    @classmethod
+    def tearDownClass(cls):
+        super(PyFlinkSharedMiniClusterTestCase, cls).tearDownClass()
+        cls.resource.after()
+
+
+class PyFlinkStreamTableTestCase(PyFlinkSharedMiniClusterTestCase):
     """
     Base class for table stream tests.
     """
 
-    def setUp(self):
-        super(PyFlinkStreamTableTestCase, self).setUp()
-        self.t_env = TableEnvironment.create(EnvironmentSettings.in_streaming_mode())
-        self.t_env.get_config().set("parallelism.default", "2")
-        self.t_env.get_config().set(
-            "python.fn-execution.bundle.size", "1")
+    @classmethod
+    def setUpClass(cls):
+        super(PyFlinkStreamTableTestCase, cls).setUpClass()
+        cls.env.set_runtime_mode(RuntimeExecutionMode.STREAMING)
+        cls.env.set_parallelism(2)
+        cls.t_env = StreamTableEnvironment.create(cls.env)
+        cls.t_env.get_config().set("python.fn-execution.bundle.size", "1")
 
 
-class PyFlinkBatchTableTestCase(PyFlinkTestCase):
+class PyFlinkBatchTableTestCase(PyFlinkSharedMiniClusterTestCase):
     """
     Base class for table batch tests.
     """
 
-    def setUp(self):
-        super(PyFlinkBatchTableTestCase, self).setUp()
-        self.t_env = TableEnvironment.create(EnvironmentSettings.in_batch_mode())
-        self.t_env.get_config().set("parallelism.default", "2")
-        self.t_env.get_config().set(
-            "python.fn-execution.bundle.size", "1")
+    @classmethod
+    def setUpClass(cls):
+        super(PyFlinkBatchTableTestCase, cls).setUpClass()
+        cls.env.set_runtime_mode(RuntimeExecutionMode.BATCH)
+        cls.env.set_parallelism(2)
+        cls.t_env = StreamTableEnvironment.create(cls.env)
+        cls.t_env.get_config().set("python.fn-execution.bundle.size", "1")
 
 
-class PyFlinkStreamingTestCase(PyFlinkTestCase):
+class PyFlinkStreamingTestCase(PyFlinkSharedMiniClusterTestCase):
     """
     Base class for streaming tests.
     """
 
-    def setUp(self):
-        super(PyFlinkStreamingTestCase, self).setUp()
-        self.env = StreamExecutionEnvironment.get_execution_environment()
-        self.env.set_parallelism(2)
-        self.env.set_runtime_mode(RuntimeExecutionMode.STREAMING)
+    @classmethod
+    def setUpClass(cls):
+        super(PyFlinkStreamingTestCase, cls).setUpClass()
+        cls.env.set_parallelism(2)
+        cls.env.set_runtime_mode(RuntimeExecutionMode.STREAMING)
 
 
-class PyFlinkBatchTestCase(PyFlinkTestCase):
+class PyFlinkBatchTestCase(PyFlinkSharedMiniClusterTestCase):
     """
     Base class for batch tests.
     """
 
-    def setUp(self):
-        super(PyFlinkBatchTestCase, self).setUp()
-        self.env = StreamExecutionEnvironment.get_execution_environment()
-        self.env.set_parallelism(2)
-        self.env.set_runtime_mode(RuntimeExecutionMode.BATCH)
+    @classmethod
+    def setUpClass(cls):
+        super(PyFlinkBatchTestCase, cls).setUpClass()
+        cls.env.set_parallelism(2)
+        cls.env.set_runtime_mode(RuntimeExecutionMode.BATCH)
 
 
 class PythonAPICompletenessTestCase(object):
