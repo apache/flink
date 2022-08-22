@@ -95,16 +95,29 @@ Flink 完全支持 Avro 状态类型的升级，只要数据结构的修改是�
 
 一个例外是如果新的 Avro 数据 schema 生成的类无法被重定位或者使用了不同的命名空间，在作业恢复时状态数据会被认为是不兼容的。
 
-{{< hint warning >}}
-Schema evolution of keys is not supported.
-{{< /hint >}}
+## Schema Migration Limitations
 
-Example: RocksDB state backend relies on binary objects identity, rather than `hashCode` method implementation. Any changes to the keys object structure could lead to non deterministic behaviour.
+Flink's schema migration has some limitations that are required to ensure correctness. For users that need to work
+around these limitations, and understand them to be safe in their specific use-case, consider using
+a [custom serializer]({{< ref "docs/dev/datastream/fault-tolerance/serialization/custom_serialization" >}}) or the
+[state processor api]({{< ref "docs/libs/state_processor_api" >}}).
 
-{{< hint warning >}}
-**Kryo** cannot be used for schema evolution.
-{{< /hint >}}
+### Schema evolution of keys is not supported.
+
+The structure of a key cannot be migrated as this may lead to non-deterministic behavior.
+For example, if a POJO is used as a key and one field is dropped then there may suddenly be
+multiple separate keys that are now identical. Flink has no way to merge the corresponding values.
+
+Additionally, the RocksDB state backend relies on binary object identity, rather than the `hashCode` method. Any change to the keys' object structure can lead to non-deterministic behavior.
+
+### **Kryo** cannot be used for schema evolution.
 
 When Kryo is used, there is no possibility for the framework to verify if any incompatible changes have been made.
+
+{{< hint warning >}}
+This means that if a data-structure containing a given type is serialized via Kryo, then that contained type can **not** undergo schema evolution.
+
+For example, if a POJO contains a `List<SomeOtherPojo>`, then the `List` _and_ its contents are serialized via Kryo and schema evolution is **not** supported for `SomeOtherPojo`.
+{{< /hint >}}
 
 {{< top >}}
