@@ -125,7 +125,8 @@ def is_local_deployment(j_configuration):
     jvm = get_gateway().jvm
     JDeploymentOptions = jvm.org.apache.flink.configuration.DeploymentOptions
     return j_configuration.containsKey(JDeploymentOptions.TARGET.key()) \
-        and j_configuration.getString(JDeploymentOptions.TARGET.key(), None) == "local"
+        and j_configuration.getString(JDeploymentOptions.TARGET.key(), None) in \
+        ("local", "minicluster")
 
 
 def add_jars_to_context_class_loader(jar_urls):

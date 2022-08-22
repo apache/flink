@@ -27,8 +27,7 @@ from pyflink.table import DataTypes, TableEnvironment, EnvironmentSettings
 from pyflink.table import expressions as expr
 from pyflink.table.udf import udf
 from pyflink.testing import source_sink_utils
-from pyflink.testing.test_case_utils import (PyFlinkStreamTableTestCase,
-                                             PyFlinkBatchTableTestCase)
+from pyflink.testing.test_case_utils import (PyFlinkTestCase)
 
 
 class DependencyTests(object):
@@ -97,25 +96,34 @@ class DependencyTests(object):
 
 
 @pytest.mark.skipif(sys.version_info < (3, 7), reason="requires python3.7")
-class EmbeddedThreadDependencyTests(DependencyTests, PyFlinkStreamTableTestCase):
+class EmbeddedThreadDependencyTests(DependencyTests, PyFlinkTestCase):
     def setUp(self):
         super(EmbeddedThreadDependencyTests, self).setUp()
+        self.t_env = TableEnvironment.create(EnvironmentSettings.in_streaming_mode())
+        self.t_env.get_config().set("parallelism.default", "2")
+        self.t_env.get_config().set("python.fn-execution.bundle.size", "1")
         self.t_env.get_config().set("python.execution-mode", "thread")
 
 
-class BatchDependencyTests(DependencyTests, PyFlinkBatchTableTestCase):
+class BatchDependencyTests(DependencyTests, PyFlinkTestCase):
 
-    pass
+    def setUp(self) -> None:
+        super(BatchDependencyTests, self).setUp()
+        self.t_env = TableEnvironment.create(EnvironmentSettings.in_batch_mode())
+        self.t_env.get_config().set("parallelism.default", "2")
+        self.t_env.get_config().set("python.fn-execution.bundle.size", "1")
 
 
-class StreamDependencyTests(DependencyTests, PyFlinkStreamTableTestCase):
+class StreamDependencyTests(DependencyTests, PyFlinkTestCase):
 
     def setUp(self):
         super(StreamDependencyTests, self).setUp()
         origin_execution_mode = os.environ['_python_worker_execution_mode']
         os.environ['_python_worker_execution_mode'] = "loopback"
         try:
-            self.st_env = TableEnvironment.create(EnvironmentSettings.in_streaming_mode())
+            self.t_env = TableEnvironment.create(EnvironmentSettings.in_streaming_mode())
+            self.t_env.get_config().set("parallelism.default", "2")
+            self.t_env.get_config().set("python.fn-execution.bundle.size", "1")
         finally:
             if origin_execution_mode is not None:
                 os.environ['_python_worker_execution_mode'] = origin_execution_mode
@@ -124,22 +132,22 @@ class StreamDependencyTests(DependencyTests, PyFlinkStreamTableTestCase):
         requirements_txt_path = os.path.join(self.tempdir, str(uuid.uuid4()))
         with open(requirements_txt_path, 'w') as f:
             f.write("cloudpickle==2.1.0")
-        self.st_env.set_python_requirements(requirements_txt_path)
+        self.t_env.set_python_requirements(requirements_txt_path)
 
         def check_requirements(i):
             import cloudpickle  # noqa # pylint: disable=unused-import
             assert '_PYTHON_REQUIREMENTS_INSTALL_DIR' in os.environ
             return i
 
-        self.st_env.create_temporary_system_function(
+        self.t_env.create_temporary_system_function(
             "check_requirements",
             udf(check_requirements, DataTypes.BIGINT(), DataTypes.BIGINT()))
         sink_table_ddl = """
                 CREATE TABLE Results(a BIGINT, b BIGINT) WITH ('connector'='test-sink')
                 """
-        self.st_env.execute_sql(sink_table_ddl)
+        self.t_env.execute_sql(sink_table_ddl)
 
-        t = self.st_env.from_elements([(1, 2), (2, 5), (3, 1)], ['a', 'b'])
+        t = self.t_env.from_elements([(1, 2), (2, 5), (3, 1)], ['a', 'b'])
         t.select(expr.call('check_requirements', t.a), t.a).execute_insert("Results").wait()
 
         actual = source_sink_utils.results()
@@ -173,20 +181,20 @@ class StreamDependencyTests(DependencyTests, PyFlinkStreamTableTestCase):
                 "7or3/88i0H/tfBFW7s/s/avRInQH06ieEy7tDrQeYHUdRN7wP+n/vf62LOH/pld7f9xz7a5Pfufedy0oP"
                 "86iJI8KxStAq6yLC4JWdbbVbWRikR2z1ZGytk5vauW3QdnBFE6XqwmykazCesAAAAAAAAAAAAAAAAAAAA"
                 "AAAAAAAAAAAAAAOBw/AJw5CHBAFAAAA=="))
-        self.st_env.set_python_requirements(requirements_txt_path, requirements_dir_path)
+        self.t_env.set_python_requirements(requirements_txt_path, requirements_dir_path)
 
         def add_one(i):
             from python_package1 import plus
             return plus(i, 1)
 
-        self.st_env.create_temporary_system_function(
+        self.t_env.create_temporary_system_function(
             "add_one",
             udf(add_one, DataTypes.BIGINT(), DataTypes.BIGINT()))
         sink_table_ddl = """
         CREATE TABLE Results(a BIGINT, b BIGINT) WITH ('connector'='test-sink')
         """
-        self.st_env.execute_sql(sink_table_ddl)
-        t = self.st_env.from_elements([(1, 2), (2, 5), (3, 1)], ['a', 'b'])
+        self.t_env.execute_sql(sink_table_ddl)
+        t = self.t_env.from_elements([(1, 2), (2, 5), (3, 1)], ['a', 'b'])
         t.select(expr.call('add_one', t.a), t.a).execute_insert("Results").wait()
 
         actual = source_sink_utils.results()
@@ -194,14 +202,14 @@ class StreamDependencyTests(DependencyTests, PyFlinkStreamTableTestCase):
 
     def test_set_environment(self):
         python_exec_link_path = sys.executable
-        self.st_env.get_config().set_python_executable(python_exec_link_path)
+        self.t_env.get_config().set_python_executable(python_exec_link_path)
 
         def check_python_exec(i):
             import os
             assert os.environ["python"] == python_exec_link_path
             return i
 
-        self.st_env.create_temporary_system_function(
+        self.t_env.create_temporary_system_function(
             "check_python_exec",
             udf(check_python_exec, DataTypes.BIGINT(), DataTypes.BIGINT()))
 
@@ -210,7 +218,7 @@ class StreamDependencyTests(DependencyTests, PyFlinkStreamTableTestCase):
             get_gateway()
             return i
 
-        self.st_env.create_temporary_system_function(
+        self.t_env.create_temporary_system_function(
             "check_pyflink_gateway_disabled",
             udf(check_pyflink_gateway_disabled, DataTypes.BIGINT(),
                 DataTypes.BIGINT()))
@@ -218,8 +226,8 @@ class StreamDependencyTests(DependencyTests, PyFlinkStreamTableTestCase):
         sink_table_ddl = """
         CREATE TABLE Results(a BIGINT, b BIGINT) WITH ('connector'='test-sink')
         """
-        self.st_env.execute_sql(sink_table_ddl)
-        t = self.st_env.from_elements([(1, 2), (2, 5), (3, 1)], ['a', 'b'])
+        self.t_env.execute_sql(sink_table_ddl)
+        t = self.t_env.from_elements([(1, 2), (2, 5), (3, 1)], ['a', 'b'])
         t.select(
             expr.call('check_python_exec', t.a),
             expr.call('check_pyflink_gateway_disabled', t.a)) \
