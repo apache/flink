@@ -1831,7 +1831,7 @@ public final class BuiltInFunctionDefinitions {
                                             logical(LogicalTypeFamily.CHARACTER_STRING),
                                             symbol(JsonType.class))))
                     .outputTypeStrategy(explicit(DataTypes.BOOLEAN().notNull()))
-                    .runtimeDeferred()
+                    .runtimeProvided()
                     .build();
 
     public static final BuiltInFunctionDefinition JSON_EXISTS =
@@ -1852,7 +1852,7 @@ public final class BuiltInFunctionDefinitions {
                                                     LITERAL),
                                             symbol(JsonExistsOnError.class))))
                     .outputTypeStrategy(explicit(DataTypes.BOOLEAN().nullable()))
-                    .runtimeDeferred()
+                    .runtimeProvided()
                     .build();
 
     public static final BuiltInFunctionDefinition JSON_VALUE =
@@ -1869,7 +1869,7 @@ public final class BuiltInFunctionDefinitions {
                                     symbol(JsonValueOnEmptyOrError.class),
                                     ANY))
                     .outputTypeStrategy(forceNullable(argument(2)))
-                    .runtimeDeferred()
+                    .runtimeProvided()
                     .build();
 
     public static final BuiltInFunctionDefinition JSON_QUERY =
@@ -1884,7 +1884,7 @@ public final class BuiltInFunctionDefinitions {
                                     symbol(JsonQueryOnEmptyOrError.class),
                                     symbol(JsonQueryOnEmptyOrError.class)))
                     .outputTypeStrategy(explicit(DataTypes.STRING().nullable()))
-                    .runtimeDeferred()
+                    .runtimeProvided()
                     .build();
 
     public static final BuiltInFunctionDefinition JSON_STRING =
@@ -1902,7 +1902,7 @@ public final class BuiltInFunctionDefinitions {
                     .kind(SCALAR)
                     .inputTypeStrategy(SpecificInputTypeStrategies.JSON_OBJECT)
                     .outputTypeStrategy(explicit(DataTypes.STRING().notNull()))
-                    .runtimeDeferred()
+                    .runtimeProvided()
                     .build();
 
     public static final BuiltInFunctionDefinition JSON_OBJECTAGG_NULL_ON_NULL =
@@ -1912,7 +1912,7 @@ public final class BuiltInFunctionDefinitions {
                     .inputTypeStrategy(
                             sequence(logical(LogicalTypeFamily.CHARACTER_STRING), JSON_ARGUMENT))
                     .outputTypeStrategy(explicit(DataTypes.STRING().notNull()))
-                    .runtimeDeferred()
+                    .runtimeProvided()
                     .build();
 
     public static final BuiltInFunctionDefinition JSON_OBJECTAGG_ABSENT_ON_NULL =
@@ -1922,7 +1922,7 @@ public final class BuiltInFunctionDefinitions {
                     .inputTypeStrategy(
                             sequence(logical(LogicalTypeFamily.CHARACTER_STRING), JSON_ARGUMENT))
                     .outputTypeStrategy(explicit(DataTypes.STRING().notNull()))
-                    .runtimeDeferred()
+                    .runtimeProvided()
                     .build();
 
     public static final BuiltInFunctionDefinition JSON_ARRAY =
@@ -1934,7 +1934,7 @@ public final class BuiltInFunctionDefinitions {
                                     symbol(JsonOnNull.class),
                                     SpecificInputTypeStrategies.JSON_ARGUMENT))
                     .outputTypeStrategy(explicit(DataTypes.STRING().notNull()))
-                    .runtimeDeferred()
+                    .runtimeProvided()
                     .build();
 
     public static final BuiltInFunctionDefinition JSON_ARRAYAGG_NULL_ON_NULL =
@@ -1943,7 +1943,7 @@ public final class BuiltInFunctionDefinitions {
                     .kind(AGGREGATE)
                     .inputTypeStrategy(sequence(JSON_ARGUMENT))
                     .outputTypeStrategy(explicit(DataTypes.STRING().notNull()))
-                    .runtimeDeferred()
+                    .runtimeProvided()
                     .build();
 
     public static final BuiltInFunctionDefinition JSON_ARRAYAGG_ABSENT_ON_NULL =
@@ -1952,7 +1952,7 @@ public final class BuiltInFunctionDefinitions {
                     .kind(AGGREGATE)
                     .inputTypeStrategy(sequence(JSON_ARGUMENT))
                     .outputTypeStrategy(explicit(DataTypes.STRING().notNull()))
-                    .runtimeDeferred()
+                    .runtimeProvided()
                     .build();
 
     // --------------------------------------------------------------------------------------------

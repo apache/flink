@@ -308,16 +308,6 @@ public final class BuiltInFunctionDefinition implements SpecializedFunction {
         }
 
         /**
-         * Specifies that this {@link BuiltInFunctionDefinition} will be mapped to a Calcite
-         * function.
-         */
-        public Builder runtimeDeferred() {
-            // This method is just a marker method for clarity. It is equivalent to calling
-            // neither {@link #runtimeProvided} nor {@link #runtimeClass}.
-            return this;
-        }
-
-        /**
          * Specifies that this {@link BuiltInFunctionDefinition} is meant for internal purposes only
          * and should not be exposed when listing functions.
          */
