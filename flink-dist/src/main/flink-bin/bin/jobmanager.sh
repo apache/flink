@@ -18,7 +18,7 @@
 ################################################################################
 
 # Start/stop a Flink JobManager.
-USAGE="Usage: jobmanager.sh ((start|start-foreground) [host] [webui-port] [args])|stop|stop-all"
+USAGE="Usage: jobmanager.sh ((start|start-foreground) [args])|stop|stop-all"
 
 STARTSTOP=$1
 
@@ -26,11 +26,11 @@ if [ -z $2 ] || [[ $2 == "-D" ]]; then
     # start [-D ...]
     args=("${@:2}")
 elif [ -z $3 ] || [[ $3 == "-D" ]]; then
-    # start <host> [-D ...]
+    # legacy path: start <host> [-D ...]
     HOST=$2
     args=("${@:3}")
 else
-    # start <host> <port> [-D ...]
+    # legacy path: start <host> <port> [-D ...]
     HOST=$2
     WEBUIPORT=$3
     args=("${@:4}")
