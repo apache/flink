@@ -97,6 +97,7 @@ The LOOKUP hint allows users to suggest the Flink optimizer to:
 2. configure the async parameters
 3. enable delayed retry strategy for lookup
 
+##### Syntax
 ```sql
 SELECT /*+ LOOKUP(key=value[, key=value]*) */
 
@@ -107,7 +108,7 @@ value:
     stringLiteral
 ```
 
-The available hint options:
+#### LOOKUP Hint Options:
 
 <table class="table table-bordered">
 <thead>
@@ -196,7 +197,7 @@ Note:
 - async options are all optional, will use default value if not configured.
 - there is no default value for retry options, all retry options should be set to valid values when need to enable retry.
 
-##### 1. Use Sync And Async Lookup Function
+#### 1. Use Sync And Async Lookup Function
 If the connector has both capabilities of async and sync lookup, users can give the option value 'async'='false'
 to suggest the planner to use the sync lookup or 'async'='true' to use the async lookup:
 
@@ -210,10 +211,10 @@ LOOKUP('table'='Customers', 'async'='true')
 ```
 Note: the optimizer prefers async lookup if no 'async' option is specified, it will always use sync lookup when:
 1. the connector only implements the sync lookup
-2. user enables 'TRY_RESOLVE' mode of 'table.optimizer.non-deterministic-update.strategy' and the 
+2. user enables 'TRY_RESOLVE' mode of ['table.optimizer.non-deterministic-update.strategy']({{ < ref "docs/dev/table/config" > }}#table-optimizer-non-deterministic-update-strategy) and the 
 optimizer has checked there's correctness issue caused by non-deterministic update.
 
-##### 2. Configure The Async Parameters
+#### 2. Configure The Async Parameters
 Users can configure the async parameters via async options on async lookup mode.
 
 Example:
@@ -245,7 +246,7 @@ are equivalent to:
 2. LOOKUP('table'='Customers', 'async'='true', 'output-mode'='ordered', 'capacity'='100', 'timeout'='300s')
 ```
 
-##### 3. Enable Delayed Retry Strategy For Lookup
+#### 3. Enable Delayed Retry Strategy For Lookup
 Delayed retry for lookup join is intended to solve the problem of delayed updates in external system
 which cause unexpected enrichment with stream data. The hint option 'retry-predicate'='lookup_miss'
 can enable retry on both sync and async lookup, only fixed delay retry strategy is supported currently.
@@ -277,19 +278,19 @@ If the lookup source only has one capability, then the 'async' mode option can b
 LOOKUP('table'='Customers', 'retry-predicate'='lookup_miss', 'retry-strategy'='fixed_delay', 'fixed-delay'='10s','max-attempts'='3')
 ```
 
-##### Further Notes
+#### Further Notes
 
-###### Effect Of Enabling Caching On Retries
-[FLIP-221](https://cwiki.apache.org/confluence/display/FLINK/FLIP-229%3A+Introduces+Join+Hint+for+Flink+SQL+Batch+Job) adds caching support for lookup source,
+#### Effect Of Enabling Caching On Retries
+[FLIP-221](https://cwiki.apache.org/confluence/display/FLINK/FLIP-221%3A+Abstraction+for+lookup+source+cache+and+metric) adds caching support for lookup source,
 which has PARTIAL and FULL caching mode(the mode NONE means disable caching). When FULL caching is enabled, there'll
 be no retry at all(because it's meaningless to retry lookup via a full cached mirror of lookup source).
 When PARTIAL caching is enabled, it will lookup from local cache first for a coming record and will
 do an external lookup via backend connector if cache miss(if cache hit, then return the record immediately),
 and this will trigger a retry when lookup result is empty(same with caching disabled), the final lookup
-result is determined when retry done(in PARTIAL caching mode, it will also update local cache).
+result is determined when retry completed(in PARTIAL caching mode, it will also update local cache).
 
 
-###### Note On Lookup Keys And 'retry-predicate'='lookup_miss' Retry Conditions
+#### Note On Lookup Keys And 'retry-predicate'='lookup_miss' Retry Conditions
 For different connectors, the index-lookup capability maybe different, e.g., builtin HBase connector
 can lookup on rowkey only (without secondary index), while builtin JDBC connector can provide more
 powerful index-lookup capabilities on arbitrary columns, this is determined by the different physical
@@ -387,7 +388,7 @@ ON o.customer_id = c.id AND DATE_FORMAT(o.order_timestamp, 'yyyy-MM-dd HH:mm') =
 then we can enable delayed retry when Order's record can not lookup the new record with '12:00' version in `Customers` table. 
 
 
-##### Trouble Shooting
+#### Trouble Shooting
 When turning on the delayed retry lookup, it is more likely to encounter a backpressure problem in 
 the lookup node, this can be quickly confirmed via the 'Thread Dump' on the 'Task Manager' page of web ui.
 From async and sync lookups respectively, call stack of thread sleep will appear in:

@@ -105,7 +105,7 @@ value:
     stringLiteral
 ```
 
-可用的提示选项说明：
+#### LOOKUP 提示选项：
 
 <table class="table table-bordered">
 <thead>
@@ -195,7 +195,7 @@ value:
 - 异步查找参数可按需设置一个或多个，未设置的参数按默认值生效。
 - 重试查找参数没有默认值，在需要开启时所有参数都必须设置为有效值。
 
-##### 1. 使用同步或异步的查找函数
+#### 1. 使用同步或异步的查找函数
 如果连接器同时具备同步和异步查找能力，用户通过给出提示选项值 'async'='false' 来建议优化器选择同步查找, 或 'async'='true' 来建议选择异步查找。
 
 示例：
@@ -208,9 +208,9 @@ LOOKUP('table'='Customers', 'async'='true')
 ```
 注意：当没有指定 'async' 选项值时，优化器优先选择异步查找，在以下两种情况下优化器会选择同步查找：
 1. 当连接器仅实现了同步查找时
-2. 用户在参数 'table.optimizer.non-deterministic-update.strategy' 上启用了 'TRY_RESOLVE' 模式，并且优化器推断用户查询中存在非确定性更新的潜在风险时
+2. 用户在参数 ['table.optimizer.non-deterministic-update.strategy']({{ < ref "docs/dev/table/config" > }}#table-optimizer-non-deterministic-update-strategy) 上启用了 'TRY_RESOLVE' 模式，并且优化器推断用户查询中存在非确定性更新的潜在风险时
 
-##### 2. 配置异步查找相关参数
+#### 2. 配置异步查找相关参数
 在异步查找模式下，用户可通过提示选项直接配置异步查找相关参数
 
 示例：
@@ -218,7 +218,7 @@ LOOKUP('table'='Customers', 'async'='true')
 -- 设置异步查找参数 'output-mode', 'capacity', 'timeout', 可按需设置单个或多个参数
 LOOKUP('table'='Customers', 'async'='true', 'output-mode'='allow_unordered', 'capacity'='100', 'timeout'='180s')
 ```
-注意：联接提示上的异步查找参数和[作业级别配置参数]]({{< ref "docs/dev/table/config" >}}#execution-options)的
+注意：联接提示上的异步查找参数和[作业级别配置参数]({{< ref "docs/dev/table/config" >}}#execution-options)的
 含义是一致的，没有设置的参数值由默认值生效，另一个区别是联接提示作用的范围更小，仅限于当前联接操作中对应联接提示选项设置的表名（未被联接提示作用的其他联接查询不受影响）。
 
 例如：作业级别异步查找参数设置为
@@ -240,7 +240,7 @@ table.exec.async-lookup.timeout: 180s
 2. LOOKUP('table'='Customers', 'async'='true', 'output-mode'='ordered', 'capacity'='100', 'timeout'='300s')
 ```
 
-##### 3. 启用延迟重试查找策略
+#### 3. 启用延迟重试查找策略
 延迟重试查找希望解决流场景中经常遇到的维表数据更新延迟而不能被流数据正确关联的问题。通过提示选项 'retry-predicate'='lookup_miss'
 可设置查找结果为空的重试条件，同时设置重试策略参数来开启重试查找功能（同步或异步查找均可），当前仅支持固定延迟重试策略。
 
@@ -269,14 +269,14 @@ LOOKUP('table'='Customers', 'async'='false', 'retry-predicate'='lookup_miss', 'r
 LOOKUP('table'='Customers', 'retry-predicate'='lookup_miss', 'retry-strategy'='fixed_delay', 'fixed-delay'='10s','max-attempts'='3')
 ```
 
-##### 进一步说明
+#### 进一步说明
 
-###### 开启缓存对重试的影响
-[FLIP-221](https://cwiki.apache.org/confluence/display/FLINK/FLIP-229%3A+Introduces+Join+Hint+for+Flink+SQL+Batch+Job) 引入了对查找源表的缓存支持，
+#### 开启缓存对重试的影响
+[FLIP-221](https://cwiki.apache.org/confluence/display/FLINK/FLIP-221%3A+Abstraction+for+lookup+source+cache+and+metric) 引入了对查找源表的缓存支持，
 缓存策略有部分缓存、全部缓存两种，当开启全部缓存时（'lookup.cache'='FULL'），重试无法起作用（因为查找表被完整缓存，重试查找没有任何实际意义）；当开启部分缓存时，当一条数据开始查找处理时，
 先在本地缓存中查找，如果没找到则通过连接器进行外部查找（如果存在，则立即返回），此时查不到的记录和不开启缓存时一样，会触发重试查找，重试结束时的结果即为最终的查找结果（在部分缓存模式下，更新本地缓存）。 
 
-###### 关于查找键及 'retry-predicate'='lookup_miss' 重试条件的说明
+#### 关于查找键及 'retry-predicate'='lookup_miss' 重试条件的说明
 对不同的连接器，提供的索引查找能力可能是不同的，例如内置的 HBase 连接器，默认仅提供了基于 `rowkey` 的索引查找能力（未
 启用二级索引），而对于内置的 JDBC 连接器，默认情况下任何字段都可以被用作索引查找，这是物理存储的特性不同所决定的。
 查找键即这里提到的作为索引查找的字段或字段组合，以 [`lookup join`]({{< ref "docs/dev/table/sql/queries/joins" >}}#lookup-join)
@@ -356,7 +356,7 @@ ON o.customer_id = c.id AND DATE_FORMAT(o.order_timestamp, 'yyyy-MM-dd HH:mm') =
 ```
 这样当新来的订单流数据未查到 `Customers` 表 12 点的新数据时，就能开启等待重试来查找期望的更新值。
 
-##### 常见问题排查
+#### 常见问题排查
 开启延迟重试查找后，较容易遇到的问题是维表查找节点形成反压，通过 web ui Task Manager 页面的 Thread Dump 功能可以快速确认是否延迟重试引起。
 从异步和同步查找分别来看，thread sleep 调用栈会出现在：
 1. 异步查找：`RetryableAsyncLookupFunctionDelegator`
