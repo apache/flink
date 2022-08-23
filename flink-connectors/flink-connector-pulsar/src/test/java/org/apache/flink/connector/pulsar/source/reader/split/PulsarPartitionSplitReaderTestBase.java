@@ -32,9 +32,8 @@ import org.apache.flink.connector.pulsar.testutils.PulsarTestSuiteBase;
 import org.apache.flink.connector.pulsar.testutils.extension.TestOrderlinessExtension;
 import org.apache.flink.util.TestLoggerExtension;
 
-import org.apache.pulsar.client.api.Consumer;
+import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.MessageId;
-import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.junit.jupiter.api.TestTemplate;
@@ -61,7 +60,6 @@ import static java.time.Duration.ofSeconds;
 import static java.util.Collections.singletonList;
 import static org.apache.commons.lang3.RandomStringUtils.randomAlphabetic;
 import static org.apache.flink.connector.pulsar.common.utils.PulsarExceptionUtils.sneakyAdmin;
-import static org.apache.flink.connector.pulsar.common.utils.PulsarExceptionUtils.sneakyThrow;
 import static org.apache.flink.connector.pulsar.source.PulsarSourceOptions.PULSAR_ENABLE_AUTO_ACKNOWLEDGE_MESSAGE;
 import static org.apache.flink.connector.pulsar.source.PulsarSourceOptions.PULSAR_MAX_FETCH_RECORDS;
 import static org.apache.flink.connector.pulsar.source.PulsarSourceOptions.PULSAR_MAX_FETCH_TIME;
@@ -134,14 +132,31 @@ abstract class PulsarPartitionSplitReaderTestBase extends PulsarTestSuiteBase {
                 new PulsarPartitionSplit(partition, StopCursor.never(), null, null);
         SplitsAddition<PulsarPartitionSplit> addition = new SplitsAddition<>(singletonList(split));
 
-        // create consumer and seek before split changes
-        try (Consumer<byte[]> consumer = reader.createPulsarConsumer(partition)) {
-            // inclusive messageId
-            consumer.seek(startPosition);
-        } catch (PulsarClientException e) {
-            sneakyThrow(e);
+        // Create the subscription and set the start position for this reader.
+        // Remember not to use Consumer.seek(startPosition)
+        SourceConfiguration sourceConfiguration = reader.sourceConfiguration;
+        PulsarAdmin pulsarAdmin = reader.pulsarAdmin;
+        String subscriptionName = sourceConfiguration.getSubscriptionName();
+        List<String> subscriptions =
+                sneakyAdmin(() -> pulsarAdmin.topics().getSubscriptions(topicName));
+        if (!subscriptions.contains(subscriptionName)) {
+            // If this subscription is not available. Just create it.
+            sneakyAdmin(
+                    () ->
+                            pulsarAdmin
+                                    .topics()
+                                    .createSubscription(
+                                            topicName, subscriptionName, startPosition));
+        } else {
+            // Reset the subscription if this is existed.
+            sneakyAdmin(
+                    () ->
+                            pulsarAdmin
+                                    .topics()
+                                    .resetCursor(topicName, subscriptionName, startPosition));
         }
 
+        // Accept the split and start consuming.
         reader.handleSplitsChanges(addition);
     }
 
@@ -198,7 +213,7 @@ abstract class PulsarPartitionSplitReaderTestBase extends PulsarTestSuiteBase {
         String topicName = randomAlphabetic(10);
 
         // Add a split
-        seekStartPositionAndHandleSplit(splitReader, topicName, 0);
+        handleSplit(splitReader, topicName, 0, MessageId.latest);
 
         // Poll once with a null message
         PulsarMessage<String> message1 = fetchedMessage(splitReader);
@@ -222,7 +237,7 @@ abstract class PulsarPartitionSplitReaderTestBase extends PulsarTestSuiteBase {
     void consumeMessageCreatedAfterHandleSplitChangesAndFetch(
             PulsarPartitionSplitReaderBase<String> splitReader) {
         String topicName = randomAlphabetic(10);
-        seekStartPositionAndHandleSplit(splitReader, topicName, 0);
+        handleSplit(splitReader, topicName, 0, MessageId.latest);
         operator().sendMessage(topicNameWithPartition(topicName, 0), STRING, randomAlphabetic(10));
         fetchedMessages(splitReader, 1, true);
     }
