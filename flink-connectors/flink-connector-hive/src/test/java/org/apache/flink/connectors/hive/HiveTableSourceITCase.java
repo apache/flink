@@ -1005,7 +1005,7 @@ public class HiveTableSourceITCase extends BatchAbstractTestBase {
                         .setParallelism(3); // to parallel tasks
 
         tEnv.createTemporaryView("my_table", stream);
-        executeAndAssert(tEnv, expectedRows);
+        assertResults(executeAndGetResult(tEnv), expectedRows);
     }
 
     private static List<Row> generateRows() {
@@ -1051,7 +1051,7 @@ public class HiveTableSourceITCase extends BatchAbstractTestBase {
         return expectedRows;
     }
 
-    private static void executeAndAssert(StreamTableEnvironment tEnv, List<Row> expectedRows)
+    private static CloseableIterator<Row> executeAndGetResult(StreamTableEnvironment tEnv)
             throws Exception {
         tEnv.getConfig().setSqlDialect(SqlDialect.HIVE);
         tEnv.executeSql(
@@ -1071,7 +1071,7 @@ public class HiveTableSourceITCase extends BatchAbstractTestBase {
                 "insert into sink_table /*+ OPTIONS('sink.parallelism' = '3') */"
                         + " select * from my_table";
         tEnv.executeSql(sql).await();
-        assertResults(tEnv.executeSql("select * from sink_table").collect(), expectedRows);
+        return tEnv.executeSql("select * from sink_table").collect();
     }
 
     private static void assertResults(CloseableIterator<Row> iterator, List<Row> expectedRows)
