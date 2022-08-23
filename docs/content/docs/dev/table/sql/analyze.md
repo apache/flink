@@ -26,8 +26,6 @@ under the License.
 
 # ANALYZE Statements
 
-{{< label Batch >}}
-
 `ANALYZE` statements are used to collect statistics for existing tables and store the result to catalog. Only
 `ANALYZE TABLE` statements are supported now, and need to be triggered manually instead of automatically.
 

@@ -28,12 +28,10 @@ under the License.
 
 # ANALYZE 语句
 
-{{< label Batch >}}
-
-`ANALYZE` 语句被用于为存在的表收集统计信息，并将统计信息写入该表的 catalog 中。 当前版本中，`ANALYZE` 语句只支持 `ANALYZE TABLE`，
+`ANALYZE` 语句被用于为存在的表收集统计信息，并将统计信息写入该表的 catalog 中。当前版本中，`ANALYZE` 语句只支持 `ANALYZE TABLE`，
 且只能由用户手动触发。
 
-<span class="label label-danger">注意</span> 现在, `ANALYZE TABLE` 只支持批模式（Batch Mode）. 只能用于已存在的表，
+<span class="label label-danger">注意</span> 现在, `ANALYZE TABLE` 只支持批模式（Batch Mode），且只能用于已存在的表，
 如果表不存在或者是视图（View）则会报错。
 
 
