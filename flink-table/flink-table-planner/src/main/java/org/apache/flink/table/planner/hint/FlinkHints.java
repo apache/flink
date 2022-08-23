@@ -24,9 +24,11 @@ import org.apache.flink.table.planner.plan.schema.FlinkPreparingTableBase;
 
 import org.apache.calcite.plan.RelOptTable;
 import org.apache.calcite.rel.RelNode;
+import org.apache.calcite.rel.RelShuttleImpl;
 import org.apache.calcite.rel.hint.Hintable;
 import org.apache.calcite.rel.hint.RelHint;
 import org.apache.calcite.rel.logical.LogicalFilter;
+import org.apache.calcite.rel.logical.LogicalJoin;
 import org.apache.calcite.rel.logical.LogicalProject;
 import org.apache.calcite.rel.logical.LogicalSnapshot;
 import org.apache.commons.lang3.StringUtils;
@@ -34,8 +36,10 @@ import org.apache.commons.lang3.StringUtils;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
 
 /** Utility class for Flink hints. */
@@ -177,5 +181,41 @@ public abstract class FlinkHints {
         return allHints.stream()
                 .filter(hint -> hint.hintName.equals(FlinkHints.HINT_ALIAS))
                 .collect(Collectors.toList());
+    }
+
+    public static RelNode capitalizeJoinHints(RelNode root) {
+        return root.accept(new CapitalizeJoinHintShuttle());
+    }
+
+    private static class CapitalizeJoinHintShuttle extends RelShuttleImpl {
+
+        @Override
+        public RelNode visit(LogicalJoin join) {
+            List<RelHint> hints = join.getHints();
+            AtomicBoolean changed = new AtomicBoolean(false);
+            List<RelHint> hintsWithCapitalJoinHints =
+                    hints.stream()
+                            .map(
+                                    hint -> {
+                                        String capitalHintName =
+                                                hint.hintName.toUpperCase(Locale.ROOT);
+                                        if (JoinStrategy.isJoinStrategy(capitalHintName)) {
+                                            changed.set(true);
+                                            return RelHint.builder(capitalHintName)
+                                                    .hintOptions(hint.listOptions)
+                                                    .inheritPath(hint.inheritPath)
+                                                    .build();
+                                        } else {
+                                            return hint;
+                                        }
+                                    })
+                            .collect(Collectors.toList());
+
+            if (changed.get()) {
+                return super.visit(join.withHints(hintsWithCapitalJoinHints));
+            } else {
+                return super.visit(join);
+            }
+        }
     }
 }

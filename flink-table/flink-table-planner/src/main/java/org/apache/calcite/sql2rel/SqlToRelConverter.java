@@ -603,6 +603,9 @@ public class SqlToRelConverter {
 
         // ----- FLINK MODIFICATION BEGIN -----
 
+        // replace all join hints with upper case
+        result = FlinkHints.capitalizeJoinHints(result);
+
         // clear join hints which are propagated into wrong query block
         // The hint QueryBlockAlias will be added when building a RelNode tree before. It is used to
         // distinguish the query block in the SQL.
