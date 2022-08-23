@@ -212,7 +212,8 @@ public class HiveTableMetaStoreFactory implements TableMetaStoreFactory {
         private Map<String, String> gatherStats(Path path, boolean isForAlterPartition)
                 throws Exception {
             Map<String, String> statistic = new HashMap<>();
-            Optional<Map<String, String>> stats = gatherFullStats(path);
+            FileSystem fileSystem = fileSystemFactory.create(path.toUri());
+            Optional<Map<String, String>> stats = gatherFullStats(fileSystem, path);
             if (stats.isPresent()) {
                 return stats.get();
             } else {
@@ -247,15 +248,20 @@ public class HiveTableMetaStoreFactory implements TableMetaStoreFactory {
             }
         }
 
-        private Optional<Map<String, String>> gatherFullStats(Path path) throws Exception {
+        private Optional<Map<String, String>> gatherFullStats(FileSystem fileSystem, Path path)
+                throws Exception {
             Map<String, String> statistic = new HashMap<>();
+            if (!fileSystem.exists(path)) {
+                // will happen when insert into a static partition without data, each stat is zero
+                HiveStatsUtil.updateStats(new CatalogTableStatistics(0, 0, 0, 0), statistic);
+                return Optional.of(statistic);
+            }
             InputFormat<?, ?> inputFormat =
                     ReflectionUtil.newInstance(getInputFormatClz(sd.getInputFormat()), conf.conf());
             if (inputFormat instanceof OrcInputFormat
                     || inputFormat instanceof MapredParquetInputFormat) {
                 List<Future<CatalogTableStatistics>> statsFutureList = new ArrayList<>();
-                for (FileStatus fileStatus :
-                        listDataFileRecursively(fileSystemFactory.create(path.toUri()), path)) {
+                for (FileStatus fileStatus : listDataFileRecursively(fileSystem, path)) {
                     InputSplit dummySplit =
                             new FileSplit(
                                     toHadoopPath(fileStatus.getPath()),
