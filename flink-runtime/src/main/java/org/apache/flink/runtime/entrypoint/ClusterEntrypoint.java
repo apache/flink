@@ -700,12 +700,18 @@ public abstract class ClusterEntrypoint implements AutoCloseableAsync, FatalErro
         final int restPort = entrypointClusterConfiguration.getRestPort();
 
         if (restPort >= 0) {
+            LOG.warn(
+                    "The 'webui-port' parameter of 'jobmanager.sh' has been deprecated. Please use '-D {}=<port> instead.",
+                    RestOptions.PORT);
             configuration.setInteger(RestOptions.PORT, restPort);
         }
 
         final String hostname = entrypointClusterConfiguration.getHostname();
 
         if (hostname != null) {
+            LOG.warn(
+                    "The 'host' parameter of 'jobmanager.sh' has been deprecated. Please use '-D {}=<host> instead.",
+                    JobManagerOptions.ADDRESS);
             configuration.setString(JobManagerOptions.ADDRESS, hostname);
         }
 

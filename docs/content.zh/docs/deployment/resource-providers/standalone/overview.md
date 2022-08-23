@@ -157,7 +157,7 @@ bin/start-cluster.sh
 #### 添加 JobManager
 
 ```bash
-bin/jobmanager.sh ((start|start-foreground) [host] [webui-port])|stop|stop-all
+bin/jobmanager.sh ((start|start-foreground) [args] [webui-port])|stop|stop-all
 ```
 
 <a name="adding-a-taskmanager"></a>
