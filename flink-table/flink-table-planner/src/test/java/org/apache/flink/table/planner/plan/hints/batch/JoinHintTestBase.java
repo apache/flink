@@ -708,6 +708,13 @@ public abstract class JoinHintTestBase extends TableTestBase {
         verifyRelPlanByCustom(String.format(sql, getTestSingleJoinHint()));
     }
 
+    @Test
+    public void testJoinHintWithoutCaseSensitive() {
+        String sql = "select /*+ %s(T1) */* from T1 join T2 on T1.a1 = T2.a2";
+
+        verifyRelPlanByCustom(String.format(sql, buildCaseSensitiveStr(getTestSingleJoinHint())));
+    }
+
     protected String buildAstPlanWithQueryBlockAlias(List<RelNode> relNodes) {
         StringBuilder astBuilder = new StringBuilder();
         relNodes.forEach(
@@ -724,5 +731,20 @@ public abstract class JoinHintTestBase extends TableTestBase {
                                                 false,
                                                 true)));
         return astBuilder.toString();
+    }
+
+    private String buildCaseSensitiveStr(String str) {
+        char[] chars = str.toCharArray();
+
+        for (int i = 0; i < chars.length; i++) {
+            boolean needCapitalize = i % 2 == 0;
+            if (needCapitalize) {
+                chars[i] = Character.toUpperCase(chars[i]);
+            } else {
+                chars[i] = Character.toLowerCase(chars[i]);
+            }
+        }
+
+        return new String(chars);
     }
 }
