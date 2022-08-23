@@ -26,18 +26,14 @@ import org.apache.flink.table.planner.plan.utils.WindowUtil.{convertToWindowingS
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall, RelTraitSet}
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.convert.ConverterRule
+import org.apache.calcite.rel.convert.ConverterRule.Config
 import org.apache.calcite.rex.RexCall
 
 /**
  * Rule to convert a [[FlinkLogicalTableFunctionScan]] with window table function call into a
  * [[StreamPhysicalWindowTableFunction]].
  */
-class StreamPhysicalWindowTableFunctionRule
-  extends ConverterRule(
-    classOf[FlinkLogicalTableFunctionScan],
-    FlinkConventions.LOGICAL,
-    FlinkConventions.STREAM_PHYSICAL,
-    "StreamPhysicalWindowTableFunctionRule") {
+class StreamPhysicalWindowTableFunctionRule(config: Config) extends ConverterRule(config) {
 
   override def matches(call: RelOptRuleCall): Boolean = {
     val scan: FlinkLogicalTableFunctionScan = call.rel(0)
@@ -64,5 +60,10 @@ class StreamPhysicalWindowTableFunctionRule
 }
 
 object StreamPhysicalWindowTableFunctionRule {
-  val INSTANCE = new StreamPhysicalWindowTableFunctionRule
+  val INSTANCE = new StreamPhysicalWindowTableFunctionRule(
+    Config.INSTANCE.withConversion(
+      classOf[FlinkLogicalTableFunctionScan],
+      FlinkConventions.LOGICAL,
+      FlinkConventions.STREAM_PHYSICAL,
+      "StreamPhysicalWindowTableFunctionRule"))
 }

@@ -24,14 +24,10 @@ import org.apache.flink.table.planner.plan.nodes.physical.batch.BatchPhysicalVal
 import org.apache.calcite.plan.{RelOptRule, RelTraitSet}
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.convert.ConverterRule
+import org.apache.calcite.rel.convert.ConverterRule.Config
 
 /** Rule that converts [[FlinkLogicalValues]] to [[BatchPhysicalValues]]. */
-class BatchPhysicalValuesRule
-  extends ConverterRule(
-    classOf[FlinkLogicalValues],
-    FlinkConventions.LOGICAL,
-    FlinkConventions.BATCH_PHYSICAL,
-    "BatchPhysicalValuesRule") {
+class BatchPhysicalValuesRule(config: Config) extends ConverterRule(config) {
 
   def convert(rel: RelNode): RelNode = {
     val values: FlinkLogicalValues = rel.asInstanceOf[FlinkLogicalValues]
@@ -42,5 +38,10 @@ class BatchPhysicalValuesRule
 }
 
 object BatchPhysicalValuesRule {
-  val INSTANCE: RelOptRule = new BatchPhysicalValuesRule
+  val INSTANCE: RelOptRule = new BatchPhysicalValuesRule(
+    Config.INSTANCE.withConversion(
+      classOf[FlinkLogicalValues],
+      FlinkConventions.LOGICAL,
+      FlinkConventions.BATCH_PHYSICAL,
+      "BatchPhysicalValuesRule"))
 }
