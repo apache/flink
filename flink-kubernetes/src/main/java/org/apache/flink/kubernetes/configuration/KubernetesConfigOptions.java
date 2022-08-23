@@ -450,6 +450,13 @@ public class KubernetesConfigOptions {
                                     + "'. If not explicitly configured, config option '"
                                     + KUBERNETES_POD_TEMPLATE_FILE_KEY
                                     + "' will be used.");
+    public static final ConfigOption<List<String>> BUILD_IN_DECORATORS_EXCLUDE =
+            key("kubernetes.decorators.exclude")
+                    .stringType()
+                    .asList()
+                    .noDefaultValue()
+                    .withDescription(
+                            "Specify the excluded build-in decorators class name for jobmanager and taskmanager. ");
 
     /**
      * This option is here only for documentation generation, it is the fallback key of

@@ -110,4 +110,7 @@ public interface KubernetesParameters {
      * container(s).
      */
     List<Map<String, String>> getEnvironmentsFromSecrets();
+
+    /** Get the excluded build-in decorators class names. */
+    List<String> getKubernetesDecoratorExclude();
 }

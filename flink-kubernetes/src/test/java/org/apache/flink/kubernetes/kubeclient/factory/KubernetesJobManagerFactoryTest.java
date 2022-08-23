@@ -52,6 +52,8 @@ import io.fabric8.kubernetes.api.model.apps.DeploymentSpec;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Base64;
 import java.util.Collections;
 import java.util.HashMap;
@@ -467,5 +469,36 @@ class KubernetesJobManagerFactoryTest extends KubernetesJobManagerTestBase {
                         flinkPod, kubernetesJobManagerParameters);
         assertThat(kubernetesJobManagerSpecification.getDeployment().getSpec().getReplicas())
                 .isEqualTo(JOBMANAGER_REPLICAS);
+    }
+
+    @Test
+    void testExcludePartOfDecorators() throws IOException {
+        ArrayList<String> testExcludes =
+                new ArrayList<>(
+                        Arrays.asList(
+                                InternalServiceDecorator.class.getName(),
+                                FlinkConfMountDecorator.class.getName()));
+        flinkConfig.set(KubernetesConfigOptions.BUILD_IN_DECORATORS_EXCLUDE, testExcludes);
+        kubernetesJobManagerSpecification =
+                KubernetesJobManagerFactory.buildKubernetesJobManagerSpecification(
+                        flinkPod, kubernetesJobManagerParameters);
+        final List<HasMetadata> resultAdditionalResources =
+                kubernetesJobManagerSpecification.getAccompanyingResources();
+        // resource size reduce to 2 from 5
+        assertThat(resultAdditionalResources).hasSize(3);
+
+        // service size reduce to 1 from 2
+        final List<HasMetadata> resultServices =
+                resultAdditionalResources.stream()
+                        .filter(x -> x instanceof Service)
+                        .collect(Collectors.toList());
+        assertThat(resultServices).hasSize(1);
+
+        // configmap size reduce to 1 from 2
+        final List<HasMetadata> resultConfigMaps =
+                resultAdditionalResources.stream()
+                        .filter(x -> x instanceof ConfigMap)
+                        .collect(Collectors.toList());
+        assertThat(resultConfigMaps).hasSize(1);
     }
 }

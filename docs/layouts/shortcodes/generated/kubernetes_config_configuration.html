@@ -63,6 +63,12 @@
             <td>The desired context from your Kubernetes config file used to configure the Kubernetes client for interacting with the cluster. This could be helpful if one has multiple contexts configured and wants to administrate different Flink clusters on different Kubernetes clusters/contexts.</td>
         </tr>
         <tr>
+            <td><h5>kubernetes.decorators.exclude</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>List&lt;String&gt;</td>
+            <td>Specify the excluded build-in decorators class name for jobmanager and taskmanager.</td>
+        </tr>
+        <tr>
             <td><h5>kubernetes.entry.path</h5></td>
             <td style="word-wrap: break-word;">"/docker-entrypoint.sh"</td>
             <td>String</td>

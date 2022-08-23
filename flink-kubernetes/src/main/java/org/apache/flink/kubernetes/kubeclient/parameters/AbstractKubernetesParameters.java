@@ -206,4 +206,10 @@ public abstract class AbstractKubernetesParameters implements KubernetesParamete
     public boolean isHostNetworkEnabled() {
         return flinkConfig.getBoolean(KubernetesConfigOptions.KUBERNETES_HOSTNETWORK_ENABLED);
     }
+
+    public List<String> getKubernetesDecoratorExclude() {
+        return flinkConfig
+                .getOptional(KubernetesConfigOptions.BUILD_IN_DECORATORS_EXCLUDE)
+                .orElse(Collections.emptyList());
+    }
 }

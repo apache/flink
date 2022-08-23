@@ -20,14 +20,20 @@ package org.apache.flink.kubernetes.kubeclient.factory;
 
 import org.apache.flink.configuration.SecurityOptions;
 import org.apache.flink.kubernetes.KubernetesTestUtils;
+import org.apache.flink.kubernetes.configuration.KubernetesConfigOptions;
 import org.apache.flink.kubernetes.kubeclient.FlinkPod;
 import org.apache.flink.kubernetes.kubeclient.KubernetesTaskManagerTestBase;
+import org.apache.flink.kubernetes.kubeclient.decorators.FlinkConfMountDecorator;
+import org.apache.flink.kubernetes.kubeclient.decorators.HadoopConfMountDecorator;
 import org.apache.flink.kubernetes.utils.Constants;
 
 import io.fabric8.kubernetes.api.model.Container;
 import io.fabric8.kubernetes.api.model.Pod;
 import org.junit.jupiter.api.Test;
 
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 import static org.apache.flink.kubernetes.utils.Constants.CONFIG_FILE_LOG4J_NAME;
@@ -97,5 +103,31 @@ class KubernetesTaskManagerFactoryTest extends KubernetesTaskManagerTestBase {
         // The args list is [bash, -c, 'java -classpath $FLINK_CLASSPATH ...'].
         assertThat(resultMainContainer.getArgs()).hasSize(3);
         assertThat(resultMainContainer.getVolumeMounts()).hasSize(4);
+    }
+
+    @Test
+    void testExcludePartOfDecorators() throws IOException {
+        FlinkPod flinkPod = new FlinkPod.Builder().build();
+        ArrayList<String> testExcludes =
+                new ArrayList<>(
+                        Arrays.asList(
+                                HadoopConfMountDecorator.class.getName(),
+                                FlinkConfMountDecorator.class.getName()));
+        flinkConfig.set(KubernetesConfigOptions.BUILD_IN_DECORATORS_EXCLUDE, testExcludes);
+        Pod internalResource =
+                KubernetesTaskManagerFactory.buildTaskManagerKubernetesPod(
+                                flinkPod, kubernetesTaskManagerParameters)
+                        .getInternalResource();
+        final List<Container> resultContainers = internalResource.getSpec().getContainers();
+
+        // volume size reduce to 2 from 4
+        assertThat(internalResource.getSpec().getVolumes()).hasSize(2);
+
+        assertThat(resultContainers).hasSize(1);
+        final Container resultMainContainer = resultContainers.get(0);
+        // env size reduce to 4 from 5
+        assertThat(resultMainContainer.getEnv()).hasSize(4);
+        // volumemount size reduce to 2 from 4
+        assertThat(resultMainContainer.getVolumeMounts()).hasSize(2);
     }
 }
