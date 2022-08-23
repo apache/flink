@@ -1302,22 +1302,13 @@ public final class TestValuesTableFactory
         }
 
         @Override
-        public List<String> applyDynamicFiltering(List<String> candidateFilterFields) {
-            if (dynamicFilteringFields != null && dynamicFilteringFields.size() != 0) {
-                checkArgument(!candidateFilterFields.isEmpty());
-                acceptedPartitionFilterFields = new ArrayList<>();
-                for (String field : candidateFilterFields) {
-                    if (dynamicFilteringFields.contains(field)) {
-                        acceptedPartitionFilterFields.add(field);
-                    }
-                }
+        public List<String> listAcceptedFilterFields() {
+            return new ArrayList<>(dynamicFilteringFields);
+        }
 
-                return new ArrayList<>(acceptedPartitionFilterFields);
-            } else {
-                throw new UnsupportedOperationException(
-                        "Should adding dynamic filtering fields by adding factor"
-                                + " in with like: 'dynamic-filtering-fields' = 'a;b'.");
-            }
+        @Override
+        public void applyDynamicFiltering(List<String> candidateFilterFields) {
+            acceptedPartitionFilterFields = candidateFilterFields;
         }
     }
 
