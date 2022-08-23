@@ -319,7 +319,7 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 
     @Override
     public void processElement(StreamRecord<IN> element) throws Exception {
-        this.streamMonitor.reportInput(element.getValue());
+        this.streamMonitor.reportInput(element.getValue(), getExecutionConfig());
         final Collection<W> elementWindows =
                 windowAssigner.assignWindows(
                         element.getValue(), element.getTimestamp(), windowAssignerContext);

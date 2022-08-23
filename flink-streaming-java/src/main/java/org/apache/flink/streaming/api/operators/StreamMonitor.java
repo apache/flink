@@ -106,8 +106,7 @@ public class StreamMonitor implements Serializable {
                 MongoClient mongoClient =
                         new MongoClient(serverAddress, mongoCredentials, mongoOptions);
                 MongoDatabase db = mongoClient.getDatabase(mongoDatabase);
-                MongoCollection<JSONObject> collection =
-                        db.getCollection(mongoCollectionObservations, JSONObject.class);
+                mongoCollection = db.getCollection(mongoCollectionObservations, JSONObject.class);
             } else {
                 this.distributedLogging = false;
             }
@@ -173,13 +172,12 @@ public class StreamMonitor implements Serializable {
                 JSONObject json = new JSONObject();
                 json.putAll(description);
 
-                // Log data characteristics either locally ore in database
-                // if (this.description.get("id") != null && this.localMode) {
-                logger.info(json.toJSONString());
-                //                } else if (this.description.get("id") != null && !this.localMode)
-                // {
-                //                    mongoCollection.insertOne(json);
-                //                }
+                // Log data characteristics either locally or in database
+                if (this.description.get("id") != null && this.distributedLogging) {
+                    mongoCollection.insertOne(json);
+                } else if (this.description.get("id") != null && !this.distributedLogging) {
+                    logger.info(json.toJSONString());
+                }
                 observationMade = true;
             }
         }
