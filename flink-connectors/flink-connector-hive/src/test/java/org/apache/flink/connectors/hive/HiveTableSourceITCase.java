@@ -973,7 +973,6 @@ public class HiveTableSourceITCase extends BatchAbstractTestBase {
 
     @Test(timeout = 120000)
     public void testReadParquetWithNullableComplexType() throws Exception {
-        List<Row> expectedRows;
         final String catalogName = "hive";
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(3);
@@ -984,7 +983,7 @@ public class HiveTableSourceITCase extends BatchAbstractTestBase {
         tEnv.useCatalog(catalogName);
 
         List<Row> rows = generateRows();
-        expectedRows = generateExpectedRows(rows);
+        List<Row> expectedRows = generateExpectedRows(rows);
         DataStream<Row> stream =
                 env.addSource(
                                 new FiniteTestSource<>(rows),
@@ -1006,7 +1005,7 @@ public class HiveTableSourceITCase extends BatchAbstractTestBase {
                         .setParallelism(3); // to parallel tasks
 
         tEnv.createTemporaryView("my_table", stream);
-        insertToSinkAndCompare(tEnv, expectedRows);
+        executeAndAssert(tEnv, expectedRows);
     }
 
     private static List<Row> generateRows() {
@@ -1033,13 +1032,12 @@ public class HiveTableSourceITCase extends BatchAbstractTestBase {
     }
 
     private static List<Row> generateExpectedRows(List<Row> rows) {
-        List<Row> sortedRows, expectedRows;
-        sortedRows = new ArrayList<>();
+        List<Row> sortedRows = new ArrayList<>();
         sortedRows.addAll(rows);
         sortedRows.addAll(rows);
         sortedRows.sort(Comparator.comparingInt(o -> (Integer) o.getField(0)));
 
-        expectedRows = new ArrayList<>();
+        List<Row> expectedRows = new ArrayList<>();
         for (int i = 0; i < sortedRows.size(); i++) {
             Row rowExpect = Row.copy(sortedRows.get(i));
             Row nestedRow = (Row) rowExpect.getField(2);
@@ -1053,7 +1051,7 @@ public class HiveTableSourceITCase extends BatchAbstractTestBase {
         return expectedRows;
     }
 
-    private static void insertToSinkAndCompare(StreamTableEnvironment tEnv, List<Row> expectedRows)
+    private static void executeAndAssert(StreamTableEnvironment tEnv, List<Row> expectedRows)
             throws Exception {
         tEnv.getConfig().setSqlDialect(SqlDialect.HIVE);
         tEnv.executeSql(
@@ -1073,17 +1071,15 @@ public class HiveTableSourceITCase extends BatchAbstractTestBase {
                 "insert into sink_table /*+ OPTIONS('sink.parallelism' = '3') */"
                         + " select * from my_table";
         tEnv.executeSql(sql).await();
-        assertIterator(tEnv.executeSql("select * from sink_table").collect(), expectedRows);
+        assertResults(tEnv.executeSql("select * from sink_table").collect(), expectedRows);
     }
 
-    private static void assertIterator(CloseableIterator<Row> iterator, List<Row> expectedRows)
+    private static void assertResults(CloseableIterator<Row> iterator, List<Row> expectedRows)
             throws Exception {
         List<Row> result = CollectionUtil.iteratorToList(iterator);
         iterator.close();
         result.sort(Comparator.comparingInt(o -> (Integer) o.getField(0)));
-        for (int i = 0; i < result.size(); i++) {
-            assertThat(result.get(i)).isEqualTo(expectedRows.get(i));
-        }
+        assertThat(result).isEqualTo(expectedRows);
     }
 
     private static TableEnvironment createTableEnv() {
