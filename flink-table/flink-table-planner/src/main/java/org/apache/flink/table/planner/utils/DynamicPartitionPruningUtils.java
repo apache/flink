@@ -202,6 +202,27 @@ public class DynamicPartitionPruningUtils {
         }
     }
 
+    public static List<String> getSuitableDynamicFilteringFieldsInFactSide(
+            DynamicTableSource tableSource, List<String> candidateFields) {
+        List<String> acceptedFilterFields =
+                ((SupportsDynamicFiltering) tableSource).listAcceptedFilterFields();
+        if (acceptedFilterFields == null || acceptedFilterFields.isEmpty()) {
+            return new ArrayList<>();
+        }
+
+        List<String> suitableFields = new ArrayList<>();
+        // If candidateField not in acceptedFilterFields means dpp rule will not be matched,
+        // because we can not prune any partitions according to non-accepted filter fields
+        // provided by partition table source.
+        for (String candidateField : candidateFields) {
+            if (acceptedFilterFields.contains(candidateField)) {
+                suitableFields.add(candidateField);
+            }
+        }
+
+        return suitableFields;
+    }
+
     /**
      * Visit dim side to judge whether dim side has filter condition and whether dim side's source
      * table scan is non partitioned scan.

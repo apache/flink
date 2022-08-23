@@ -40,6 +40,7 @@ import org.apache.flink.orc.util.OrcFormatStatisticsReportUtil;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.ObjectPath;
@@ -76,7 +77,6 @@ import javax.annotation.Nullable;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -86,8 +86,6 @@ import static org.apache.flink.connector.file.table.FileSystemConnectorOptions.P
 import static org.apache.flink.connectors.hive.HiveOptions.STREAMING_SOURCE_CONSUME_START_OFFSET;
 import static org.apache.flink.connectors.hive.HiveOptions.STREAMING_SOURCE_ENABLE;
 import static org.apache.flink.connectors.hive.util.HivePartitionUtils.getAllPartitions;
-import static org.apache.flink.util.Preconditions.checkArgument;
-import static org.apache.flink.util.Preconditions.checkState;
 
 /** A TableSource implementation to read data from Hive tables. */
 public class HiveTableSource
@@ -252,47 +250,33 @@ public class HiveTableSource
     }
 
     @Override
-    public List<String> applyDynamicFiltering(List<String> candidateFilterFields) {
-        if (catalogTable.getPartitionKeys() != null
-                && catalogTable.getPartitionKeys().size() != 0) {
-            checkArgument(
-                    !candidateFilterFields.isEmpty(),
-                    "At least one field should be provided for dynamic filtering");
-
-            // only accept partition fields of supported types to do dynamic partition pruning
-            List<String> dynamicFilterPartitionKeys = new ArrayList<>();
-            for (String field : candidateFilterFields) {
-                if (catalogTable.getPartitionKeys().contains(field)
-                        && HiveSourceDynamicFileEnumerator.SUPPORTED_TYPES.contains(
-                                catalogTable
-                                        .getSchema()
-                                        .getFieldDataType(field)
-                                        .map(DataType::getLogicalType)
-                                        .map(LogicalType::getTypeRoot)
-                                        .orElse(null))) {
-                    dynamicFilterPartitionKeys.add(field);
-                }
+    public List<String> listAcceptedFilterFields() {
+        List<String> acceptedFilterFields = new ArrayList<>();
+        for (String partitionKey : catalogTable.getPartitionKeys()) {
+            // Only partition keys with supported types can be returned as accepted filter fields.
+            if (HiveSourceDynamicFileEnumerator.SUPPORTED_TYPES.contains(
+                    catalogTable
+                            .getSchema()
+                            .getFieldDataType(partitionKey)
+                            .map(DataType::getLogicalType)
+                            .map(LogicalType::getTypeRoot)
+                            .orElse(null))) {
+                acceptedFilterFields.add(partitionKey);
             }
-            if (dynamicFilterPartitionKeys.isEmpty()) {
-                LOG.warn(
-                        "No dynamic filter field is accepted,"
-                                + " only partition fields can use for dynamic filtering.");
-            }
+        }
 
-            // sort before check to ensure the lists have same elements in same order
-            dynamicFilterPartitionKeys.sort(String::compareTo);
-            checkState(
-                    this.dynamicFilterPartitionKeys == null
-                            || this.dynamicFilterPartitionKeys.equals(dynamicFilterPartitionKeys),
-                    "Dynamic filtering is applied twice but with different keys: %s != %s",
-                    this.dynamicFilterPartitionKeys,
-                    dynamicFilterPartitionKeys);
+        return acceptedFilterFields;
+    }
 
-            this.dynamicFilterPartitionKeys = dynamicFilterPartitionKeys;
-            return dynamicFilterPartitionKeys;
+    @Override
+    public void applyDynamicFiltering(List<String> candidateFilterFields) {
+        if (catalogTable.isPartitioned()) {
+            dynamicFilterPartitionKeys = candidateFilterFields;
         } else {
-            LOG.warn("No dynamic filter field is accepted since the table is non-partitioned.");
-            return Collections.emptyList();
+            throw new TableException(
+                    String.format(
+                            "Hive source table : %s is not a partition table, but try to apply dynamic filtering.",
+                            catalogTable));
         }
     }
 

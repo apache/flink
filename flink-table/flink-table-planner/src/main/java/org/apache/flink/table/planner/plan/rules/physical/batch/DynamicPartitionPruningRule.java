@@ -18,7 +18,6 @@
 
 package org.apache.flink.table.planner.plan.rules.physical.batch;
 
-import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.config.OptimizerConfigOptions;
 import org.apache.flink.table.connector.source.DynamicTableSource;
 import org.apache.flink.table.connector.source.abilities.SupportsDynamicFiltering;
@@ -139,29 +138,19 @@ public abstract class DynamicPartitionPruningRule extends RelRule<RelRule.Config
                             .collect(Collectors.toList());
         }
 
-        List<String> acceptedFields =
-                ((SupportsDynamicFiltering) tableSource).applyDynamicFiltering(candidateFields);
-
-        if (acceptedFields == null) {
-            return new ArrayList<>();
-        }
-
-        for (String field : acceptedFields) {
-            if (!candidateFields.contains(field)) {
-                throw new TableException(
-                        String.format(
-                                "Field: %s does not exist in the given fields: %s, "
-                                        + "please verify the applyDynamicFiltering method in connector: %s",
-                                field, candidateFields, tableSource.asSummaryString()));
-            }
-        }
+        List<String> acceptedFilterFields =
+                DynamicPartitionPruningUtils.getSuitableDynamicFilteringFieldsInFactSide(
+                        tableSource, candidateFields);
+        // Apply suitable accepted filter fields to source.
+        ((SupportsDynamicFiltering) tableSource).applyDynamicFiltering(acceptedFilterFields);
 
         if (factCalc == null) {
-            return acceptedFields.stream()
+            return acceptedFilterFields.stream()
                     .map(f -> factScan.getRowType().getFieldNames().indexOf(f))
                     .collect(Collectors.toList());
         } else {
-            return getAcceptedFieldsIndicesInCalc(acceptedFields, factJoinKeys, factCalc, factScan);
+            return getAcceptedFieldsIndicesInCalc(
+                    acceptedFilterFields, factJoinKeys, factCalc, factScan);
         }
     }
 
@@ -202,10 +191,6 @@ public abstract class DynamicPartitionPruningRule extends RelRule<RelRule.Config
 
         List<Integer> acceptedFieldIndices =
                 getAcceptedFieldIndices(factJoinKeys, factCalc, factScan, tableSource);
-
-        if (acceptedFieldIndices.isEmpty()) {
-            return null;
-        }
 
         List<Integer> dynamicFilteringFieldIndices = new ArrayList<>();
         for (int i = 0; i < joinInfo.leftKeys.size(); ++i) {
@@ -293,9 +278,6 @@ public abstract class DynamicPartitionPruningRule extends RelRule<RelRule.Config
 
             final BatchPhysicalDynamicFilteringTableSourceScan newFactScan =
                     createDynamicFilteringTableSourceScan(factScan, dimSide, join, null, false);
-            if (newFactScan == null) {
-                return;
-            }
             final Join newJoin = join.copy(join.getTraitSet(), Arrays.asList(dimSide, newFactScan));
             call.transformTo(newJoin);
         }
@@ -348,9 +330,6 @@ public abstract class DynamicPartitionPruningRule extends RelRule<RelRule.Config
 
             final BatchPhysicalDynamicFilteringTableSourceScan newFactScan =
                     createDynamicFilteringTableSourceScan(factScan, dimSide, join, null, true);
-            if (newFactScan == null) {
-                return;
-            }
             final Join newJoin = join.copy(join.getTraitSet(), Arrays.asList(newFactScan, dimSide));
             call.transformTo(newJoin);
         }
@@ -409,9 +388,6 @@ public abstract class DynamicPartitionPruningRule extends RelRule<RelRule.Config
 
             final BatchPhysicalDynamicFilteringTableSourceScan newFactScan =
                     createDynamicFilteringTableSourceScan(factScan, dimSide, join, null, false);
-            if (newFactScan == null) {
-                return;
-            }
             final BatchPhysicalExchange newExchange =
                     (BatchPhysicalExchange)
                             exchange.copy(
@@ -474,9 +450,6 @@ public abstract class DynamicPartitionPruningRule extends RelRule<RelRule.Config
 
             final BatchPhysicalDynamicFilteringTableSourceScan newFactScan =
                     createDynamicFilteringTableSourceScan(factScan, dimSide, join, null, true);
-            if (newFactScan == null) {
-                return;
-            }
             final BatchPhysicalExchange newExchange =
                     (BatchPhysicalExchange)
                             exchange.copy(
@@ -601,9 +574,6 @@ public abstract class DynamicPartitionPruningRule extends RelRule<RelRule.Config
 
             final BatchPhysicalDynamicFilteringTableSourceScan newFactScan =
                     createDynamicFilteringTableSourceScan(factScan, dimSide, join, factCalc, true);
-            if (newFactScan == null) {
-                return;
-            }
             final BatchPhysicalCalc newCalc =
                     (BatchPhysicalCalc)
                             factCalc.copy(
@@ -677,9 +647,6 @@ public abstract class DynamicPartitionPruningRule extends RelRule<RelRule.Config
 
             final BatchPhysicalDynamicFilteringTableSourceScan newFactScan =
                     createDynamicFilteringTableSourceScan(factScan, dimSide, join, factCalc, false);
-            if (newFactScan == null) {
-                return;
-            }
             final BatchPhysicalCalc newCalc =
                     (BatchPhysicalCalc)
                             factCalc.copy(
@@ -757,9 +724,6 @@ public abstract class DynamicPartitionPruningRule extends RelRule<RelRule.Config
 
             final BatchPhysicalDynamicFilteringTableSourceScan newFactScan =
                     createDynamicFilteringTableSourceScan(factScan, dimSide, join, factCalc, true);
-            if (newFactScan == null) {
-                return;
-            }
             final BatchPhysicalCalc newCalc =
                     (BatchPhysicalCalc)
                             factCalc.copy(
