@@ -22,6 +22,7 @@ import org.apache.flink.table.planner.plan.nodes.FlinkConventions
 import org.apache.calcite.plan._
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.convert.ConverterRule
+import org.apache.calcite.rel.convert.ConverterRule.Config
 import org.apache.calcite.rel.core.{Minus, SetOp}
 import org.apache.calcite.rel.logical.LogicalMinus
 import org.apache.calcite.rel.metadata.RelMetadataQuery
@@ -59,12 +60,7 @@ class FlinkLogicalMinus(
 
 }
 
-private class FlinkLogicalMinusConverter
-  extends ConverterRule(
-    classOf[LogicalMinus],
-    Convention.NONE,
-    FlinkConventions.LOGICAL,
-    "FlinkLogicalMinusConverter") {
+private class FlinkLogicalMinusConverter(config: Config) extends ConverterRule(config) {
 
   override def convert(rel: RelNode): RelNode = {
     val minus = rel.asInstanceOf[LogicalMinus]
@@ -76,7 +72,12 @@ private class FlinkLogicalMinusConverter
 }
 
 object FlinkLogicalMinus {
-  val CONVERTER: ConverterRule = new FlinkLogicalMinusConverter()
+  val CONVERTER: ConverterRule = new FlinkLogicalMinusConverter(
+    Config.INSTANCE.withConversion(
+      classOf[LogicalMinus],
+      Convention.NONE,
+      FlinkConventions.LOGICAL,
+      "FlinkLogicalMinusConverter"))
 
   def create(inputs: JList[RelNode], all: Boolean): FlinkLogicalMinus = {
     val cluster = inputs.get(0).getCluster

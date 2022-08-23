@@ -27,15 +27,11 @@ import org.apache.flink.table.runtime.connector.source.ScanRuntimeProviderContex
 import org.apache.calcite.plan.RelOptRuleCall
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.convert.ConverterRule
+import org.apache.calcite.rel.convert.ConverterRule.Config
 import org.apache.calcite.rel.core.TableScan
 
 /** Rule that converts [[FlinkLogicalTableSourceScan]] to [[BatchPhysicalTableSourceScan]]. */
-class BatchPhysicalTableSourceScanRule
-  extends ConverterRule(
-    classOf[FlinkLogicalTableSourceScan],
-    FlinkConventions.LOGICAL,
-    FlinkConventions.BATCH_PHYSICAL,
-    "BatchPhysicalTableSourceScanRule") {
+class BatchPhysicalTableSourceScanRule(config: Config) extends ConverterRule(config) {
 
   /** Rule must only match if TableScan targets a bounded [[ScanTableSource]] */
   override def matches(call: RelOptRuleCall): Boolean = {
@@ -65,5 +61,10 @@ class BatchPhysicalTableSourceScanRule
 }
 
 object BatchPhysicalTableSourceScanRule {
-  val INSTANCE = new BatchPhysicalTableSourceScanRule
+  val INSTANCE: ConverterRule = new BatchPhysicalTableSourceScanRule(
+    Config.INSTANCE.withConversion(
+      classOf[FlinkLogicalTableSourceScan],
+      FlinkConventions.LOGICAL,
+      FlinkConventions.BATCH_PHYSICAL,
+      "BatchPhysicalTableSourceScanRule"))
 }

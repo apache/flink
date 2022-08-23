@@ -26,18 +26,15 @@ import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall}
 import org.apache.calcite.plan.volcano.RelSubset
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.convert.ConverterRule
+import org.apache.calcite.rel.convert.ConverterRule.Config
 import org.apache.calcite.rel.core._
 
 /**
  * Rule that converts [[FlinkLogicalJoin]] to [[BatchPhysicalNestedLoopJoin]] if one of join input
  * sides returns at most a single row.
  */
-class BatchPhysicalSingleRowJoinRule
-  extends ConverterRule(
-    classOf[FlinkLogicalJoin],
-    FlinkConventions.LOGICAL,
-    FlinkConventions.BATCH_PHYSICAL,
-    "BatchPhysicalSingleRowJoinRule")
+class BatchPhysicalSingleRowJoinRule(config: Config)
+  extends ConverterRule(config)
   with BatchPhysicalJoinRuleBase
   with BatchPhysicalNestedLoopJoinRuleBase {
 
@@ -85,5 +82,10 @@ class BatchPhysicalSingleRowJoinRule
 }
 
 object BatchPhysicalSingleRowJoinRule {
-  val INSTANCE: RelOptRule = new BatchPhysicalSingleRowJoinRule
+  val INSTANCE: RelOptRule = new BatchPhysicalSingleRowJoinRule(
+    Config.INSTANCE.withConversion(
+      classOf[FlinkLogicalJoin],
+      FlinkConventions.LOGICAL,
+      FlinkConventions.BATCH_PHYSICAL,
+      "BatchPhysicalSingleRowJoinRule"))
 }
