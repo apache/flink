@@ -123,6 +123,13 @@ Such implementations may find that the `callAsync()` method in the `SplitEnumera
 class MySplitEnumerator implements SplitEnumerator<MySplit, MyCheckpoint> {
     private final long DISCOVER_INTERVAL = 60_000L;
 
+    private final SplitEnumeratorContext<MySplit> enumContext            ;
+
+    /** The Source creates instances of SplitEnumerator and provides the context. */
+    MySplitEnumerator(SplitEnumeratorContext<MySplit> enumContext) {
+        this.enumContext = enumContext;
+    }
+
     /**
      * A method to discover the splits.
      */
