@@ -124,7 +124,7 @@ import static org.apache.flink.table.api.config.TableConfigOptions.TABLE_DML_SYN
 import static org.apache.flink.table.api.config.TableConfigOptions.TABLE_SQL_DIALECT;
 import static org.apache.flink.table.endpoint.hive.HiveServer2EndpointVersion.HIVE_CLI_SERVICE_PROTOCOL_V10;
 import static org.apache.flink.table.endpoint.hive.util.HiveJdbcParameterUtils.getUsedDefaultDatabase;
-import static org.apache.flink.table.endpoint.hive.util.HiveJdbcParameterUtils.validateAndNormalize;
+import static org.apache.flink.table.endpoint.hive.util.HiveJdbcParameterUtils.setVariables;
 import static org.apache.flink.table.endpoint.hive.util.OperationExecutorFactory.createGetCatalogsExecutor;
 import static org.apache.flink.table.endpoint.hive.util.OperationExecutorFactory.createGetColumnsExecutor;
 import static org.apache.flink.table.endpoint.hive.util.OperationExecutorFactory.createGetFunctionsExecutor;
@@ -304,10 +304,10 @@ public class HiveServer2Endpoint implements TCLIService.Iface, SqlGatewayEndpoin
             sessionConfig.put(TABLE_SQL_DIALECT.key(), SqlDialect.HIVE.name());
             sessionConfig.put(RUNTIME_MODE.key(), RuntimeExecutionMode.BATCH.name());
             sessionConfig.put(TABLE_DML_SYNC.key(), "true");
-            sessionConfig.putAll(validateAndNormalize(originSessionConf));
-
             HiveConf conf = HiveCatalog.createHiveConf(hiveConfPath, null);
-            sessionConfig.forEach(conf::set);
+            // set variables to HiveConf or Session's conf
+            setVariables(conf, sessionConfig, originSessionConf);
+
             Catalog hiveCatalog =
                     new HiveCatalog(
                             catalogName,
@@ -401,6 +401,19 @@ public class HiveServer2Endpoint implements TCLIService.Iface, SqlGatewayEndpoin
                     tExecuteStatementReq.isSetConfOverlay()
                             ? tExecuteStatementReq.getConfOverlay()
                             : Collections.emptyMap();
+            String loggingOperationEnableVar =
+                    HiveConf.ConfVars.HIVE_SERVER2_LOGGING_OPERATION_ENABLED.varname;
+            if (Boolean.parseBoolean(
+                    executionConfig.getOrDefault(
+                            loggingOperationEnableVar,
+                            HiveConf.ConfVars.HIVE_SERVER2_LOGGING_OPERATION_ENABLED
+                                    .defaultStrVal))) {
+                throw new IllegalArgumentException(
+                        String.format(
+                                "SqlGateway doesn't support logging for operation. Please disable"
+                                        + " it by setting %s to false.",
+                                loggingOperationEnableVar));
+            }
             long timeout = tExecuteStatementReq.getQueryTimeout();
 
             OperationHandle operationHandle =

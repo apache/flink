@@ -125,7 +125,9 @@ public class HiveServer2EndpointITCase extends TestLogger {
         configs.put(MAX_LENGTH_GENERATED_CODE.key(), "-1");
         // simulate to set config using hive jdbc
         configs.put("set:hiveconf:key", "value");
-        // TODO: set hivevar when FLINK-28096 is fixed
+        configs.put("set:system:ks", "vs");
+        configs.put("set:key1", "value1");
+        configs.put("set:hivevar:key2", "${hiveconf:common-key}");
         openSessionReq.setConfiguration(configs);
         TOpenSessionResp openSessionResp = client.OpenSession(openSessionReq);
         SessionHandle sessionHandle =
@@ -140,7 +142,8 @@ public class HiveServer2EndpointITCase extends TestLogger {
                         new AbstractMap.SimpleEntry<>(TABLE_DML_SYNC.key(), "true"),
                         new AbstractMap.SimpleEntry<>(RUNTIME_MODE.key(), BATCH.name()),
                         new AbstractMap.SimpleEntry<>(MAX_LENGTH_GENERATED_CODE.key(), "-1"),
-                        new AbstractMap.SimpleEntry<>("key", "value"));
+                        new AbstractMap.SimpleEntry<>("key1", "value1"),
+                        new AbstractMap.SimpleEntry<>("key2", "common-val"));
     }
 
     @Test

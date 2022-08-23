@@ -78,6 +78,13 @@ public class HiveSetProcessor {
                         String.format("'SET %s=%s' FAILED.", varname, varvalue), e);
             }
         } else {
+            // here is a little of different from Hive's behavior,
+            // if there's no prefix, we also put it to passed hiveVariables for flink
+            // may use it as its own configurations.
+            // Otherwise, there's no way to set Flink's configuration using Hive's set command.
+            hiveVariables.put(
+                    varname,
+                    new VariableSubstitution(() -> hiveVariables).substitute(hiveConf, varvalue));
             setConf(hiveConf, hiveVariables, varname, varname, varvalue);
         }
     }
