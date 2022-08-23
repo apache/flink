@@ -369,14 +369,14 @@ class FlinkRelMdRowCount private extends MetadataHandler[BuiltInMetadata.RowCoun
       } else {
         leftRowCount * selectivityOfNonEquiPred
       }
-      return outputRowCount
+      return outputRowCount * dynamicPartitionPruningFactor
     }
 
     // if joinCondition has no ndv stats and no uniqueKeys stats,
     // rowCount = (leftRowCount + rightRowCount) * join condition selectivity
     val crossJoin = copyJoinWithNewCondition(join, rexBuilder.makeLiteral(true))
     val selectivity = fmq.getSelectivity(crossJoin, condition)
-    (leftRowCount + rightRowCount) * selectivity
+    (leftRowCount + rightRowCount) * selectivity * dynamicPartitionPruningFactor
   }
 
   private def copyJoinWithNewCondition(join: Join, newCondition: RexNode): Join = {
