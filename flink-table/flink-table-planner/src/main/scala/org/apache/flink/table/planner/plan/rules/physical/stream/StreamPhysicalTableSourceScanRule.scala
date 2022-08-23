@@ -30,6 +30,7 @@ import org.apache.flink.table.planner.utils.ShortcutUtils
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall, RelTraitSet}
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.convert.ConverterRule
+import org.apache.calcite.rel.convert.ConverterRule.Config
 import org.apache.calcite.rel.core.TableScan
 
 /**
@@ -38,12 +39,7 @@ import org.apache.calcite.rel.core.TableScan
  * <p>Depends whether this is a scan source, this rule will also generate
  * [[StreamPhysicalChangelogNormalize]] to materialize the upsert stream.
  */
-class StreamPhysicalTableSourceScanRule
-  extends ConverterRule(
-    classOf[FlinkLogicalTableSourceScan],
-    FlinkConventions.LOGICAL,
-    FlinkConventions.STREAM_PHYSICAL,
-    "StreamPhysicalTableSourceScanRule") {
+class StreamPhysicalTableSourceScanRule(config: Config) extends ConverterRule(config) {
 
   /** Rule must only match if TableScan targets a [[ScanTableSource]] */
   override def matches(call: RelOptRuleCall): Boolean = {
@@ -99,5 +95,10 @@ class StreamPhysicalTableSourceScanRule
 }
 
 object StreamPhysicalTableSourceScanRule {
-  val INSTANCE = new StreamPhysicalTableSourceScanRule
+  val INSTANCE = new StreamPhysicalTableSourceScanRule(
+    Config.INSTANCE.withConversion(
+      classOf[FlinkLogicalTableSourceScan],
+      FlinkConventions.LOGICAL,
+      FlinkConventions.STREAM_PHYSICAL,
+      "StreamPhysicalTableSourceScanRule"))
 }
