@@ -498,6 +498,20 @@ public class KubernetesConfigOptions {
                             "Whether to enable HostNetwork mode. "
                                     + "The HostNetwork allows the pod could use the node network namespace instead of the individual pod network namespace. Please note that the JobManager service account should have the permission to update Kubernetes service.");
 
+    public static final ConfigOption<Map<String, String>> KUBERNETES_USER_JAR_ARTIFACT_HTTP_HEADER =
+            ConfigOptions.key("kubernetes.user.artifacts.http.header")
+                    .mapType()
+                    .noDefaultValue()
+                    .withDescription(
+                            "Custom HTTP header for HttpArtifactFetcher. The header will be applied when getting the application job artifacts. "
+                                    + "Expected format: headerKey1:headerValue1,headerKey2:headerValue2.");
+
+    public static final ConfigOption<String> KUBERNETES_USER_ARTIFACTS_BASE_DIR =
+            ConfigOptions.key("kubernetes.user.artifacts.base.dir")
+                    .stringType()
+                    .defaultValue("/opt/flink/artifacts")
+                    .withDescription("The base dir to put the application job artifacts.");
+
     private static String getDefaultFlinkImage() {
         // The default container image that ties to the exact needed versions of both Flink and
         // Scala.

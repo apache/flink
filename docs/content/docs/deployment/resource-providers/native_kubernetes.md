@@ -101,14 +101,33 @@ COPY /path/of/my-flink-job.jar $FLINK_HOME/usrlib/my-flink-job.jar
 After creating and publishing the Docker image under `custom-image-name`, you can start an Application cluster with the following command:
 
 ```bash
+# Local Schema
 $ ./bin/flink run-application \
     --target kubernetes-application \
     -Dkubernetes.cluster-id=my-first-application-cluster \
     -Dkubernetes.container.image=custom-image-name \
     local:///opt/flink/usrlib/my-flink-job.jar
-```
 
-<span class="label label-info">Note</span> `local` is the only supported scheme in Application Mode.
+# FileSystem
+$ ./bin/flink run-application \
+    --target kubernetes-application \
+    -Dkubernetes.cluster-id=my-first-application-cluster \
+    -Dkubernetes.container.image=custom-image-name \
+    s3://my-bucket/my-flink-job.jar
+
+# Http/Https Schema
+$ ./bin/flink run-application \
+    --target kubernetes-application \
+    -Dkubernetes.cluster-id=my-first-application-cluster \
+    -Dkubernetes.container.image=custom-image-name \
+    http://ip:port/my-flink-job.jar
+```
+{{< hint info >}}
+ Now, The jar package supports reading from the [flink filesystem]({{< ref "docs/deployment/filesystems/overview" >}}#docker-hub-flink-images) or Http/Https in Application Mode.  
+The jar package will be downloaded from filesystem to
+[kubernetes.user.artifacts.base.dir]({{< ref "docs/deployment/config" >}}#kubernetes-user-artifacts-base-dir)/[kubernetes.namespace]({{< ref "docs/deployment/config" >}}#kubernetes-namespace)/[kubernetes.cluster-id]({{< ref "docs/deployment/config" >}}#kubernetes-cluster-id) path in image.
+{{< /hint >}}
+ <span class="label label-info">Note</span> `local` schema is also supported .
 
 The `kubernetes.cluster-id` option specifies the cluster name and must be unique.
 If you do not specify this option, then Flink will generate a random name.
