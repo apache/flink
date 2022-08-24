@@ -605,15 +605,59 @@ the method must return `false`. By default, `isDeterministic()` returns `true`.
 Furthermore, the `isDeterministic()` method might also influence the runtime behavior. A runtime
 implementation might be called at two different stages:
 
-**During planning (i.e. pre-flight phase)**: If a function is called with constant expressions
+**1. During planning (i.e. pre-flight phase)**: If a function is called with constant expressions
 or constant expressions can be derived from the given statement, a function is pre-evaluated
 for constant expression reduction and might not be executed on the cluster anymore. Unless
 `isDeterministic()` is used to disable constant expression reduction in this case. For example,
 the following calls to `ABS` are executed during planning: `SELECT ABS(-1) FROM t` and
 `SELECT ABS(field) FROM t WHERE field = -1`; whereas `SELECT ABS(field) FROM t` is not.
 
-**During runtime (i.e. cluster execution)**: If a function is called with non-constant expressions
+**2. During runtime (i.e. cluster execution)**: If a function is called with non-constant expressions
 or `isDeterministic()` returns `false`.
+
+#### System (Built-in) Function Determinism
+The determinism of system (built-in) functions are immutable. There exists two kinds of functions which are not deterministic:
+dynamic function and non-deterministic function, according to Apache Calcite's `SqlOperator` definition:
+```java
+  /**
+   * Returns whether a call to this operator is guaranteed to always return
+   * the same result given the same operands; true is assumed by default.
+   */
+  public boolean isDeterministic() {
+    return true;
+  }
+
+  /**
+   * Returns whether it is unsafe to cache query plans referencing this
+   * operator; false is assumed by default.
+   */
+  public boolean isDynamicFunction() {
+    return false;
+  }
+```
+`isDeterministic` indicates the determinism of a function, will be evaluated per record during runtime if returns `false`.
+`isDynamicFunction` implies the function can only be evaluated at query-start if returns `true`,
+it will be only pre-evaluated during planning for batch mode, while for streaming mode, it is equivalent to a non-deterministic
+function because of the query is continuously being executed logically(the abstraction of [continuous query over the dynamic tables]({{< ref "docs/dev/table/concepts/dynamic_tables" >}}#dynamic-tables-amp-continuous-queries)),
+so the dynamic functions are also re-evaluated for each query execution.
+
+The following system functions are always non-deterministic(evaluated per record during runtime both in batch and streaming mode):
+- UUID
+- RAND
+- RAND_INTEGER
+- CURRENT_DATABASE
+- UNIX_TIMESTAMP
+- CURRENT_ROW_TIMESTAMP
+ 
+The following system temporal functions are dynamic, which will be pre-evaluated during planning(query-start) for batch mode and evaluated per record for streaming mode:
+- CURRENT_DATE
+- CURRENT_TIME
+- CURRENT_TIMESTAMP
+- NOW
+- LOCALTIME
+- LOCALTIMESTAMP
+
+Note: `isDynamicFunction` is only applicable for system functions.
 
 ### Runtime Integration
 

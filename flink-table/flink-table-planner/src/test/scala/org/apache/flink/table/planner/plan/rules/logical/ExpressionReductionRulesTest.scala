@@ -60,6 +60,12 @@ class ExpressionReductionRulesTest extends TableTestBase {
     util.addFunction("MyUdf", Func1)
     util.verifyExecPlan("SELECT PyUdf(), MyUdf(1) FROM MyTable")
   }
+
+  @Test
+  def testExpressionReductionWithRand(): Unit = {
+    util.verifyExecPlan(
+      "SELECT RAND(), RAND(), RAND(1), RAND(1), RAND_INTEGER(3), RAND_INTEGER(3) FROM MyTable")
+  }
 }
 
 @SerialVersionUID(1L)
