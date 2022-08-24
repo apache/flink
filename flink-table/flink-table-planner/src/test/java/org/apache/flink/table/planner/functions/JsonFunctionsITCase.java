@@ -251,7 +251,20 @@ class JsonFunctionsITCase extends BuiltInFunctionTestBase {
                                         42),
                         "JSON_VALUE(f0, 'strict $.invalid' RETURNING INTEGER NULL ON EMPTY DEFAULT 42 ON ERROR)",
                         42,
-                        INT());
+                        INT())
+
+                // path contains blank characters.
+                .testResult(
+                        $("f0").jsonValue(
+                                        "strict $.['contains blank']",
+                                        STRING(),
+                                        JsonValueOnEmptyOrError.NULL,
+                                        null,
+                                        JsonValueOnEmptyOrError.DEFAULT,
+                                        "wrong"),
+                        "JSON_VALUE(f0, 'strict $.[''contains blank'']' NULL ON EMPTY DEFAULT 'wrong' ON ERROR)",
+                        "right",
+                        STRING());
     }
 
     private static List<TestSetSpec> isJsonSpec() {
