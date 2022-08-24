@@ -39,6 +39,7 @@ import org.apache.calcite.sql.type.OperandTypes;
 import org.apache.calcite.sql.type.ReturnTypes;
 import org.apache.calcite.sql.type.SqlOperandCountRanges;
 import org.apache.calcite.sql.type.SqlReturnTypeInference;
+import org.apache.calcite.sql.type.SqlSingleOperandTypeChecker;
 import org.apache.calcite.sql.type.SqlTypeFamily;
 import org.apache.calcite.sql.type.SqlTypeName;
 import org.apache.calcite.sql.type.SqlTypeTransforms;
@@ -578,6 +579,11 @@ public class FlinkSqlOperatorTable extends ReflectiveSqlOperatorTable {
                     "CURRENT_ROW_TIMESTAMP", SqlTypeName.TIMESTAMP_WITH_LOCAL_TIME_ZONE, 3) {
 
                 @Override
+                public boolean isDeterministic() {
+                    return false;
+                }
+
+                @Override
                 public SqlSyntax getSyntax() {
                     return SqlSyntax.FUNCTION;
                 }
@@ -876,6 +882,42 @@ public class FlinkSqlOperatorTable extends ReflectiveSqlOperatorTable {
 
     public static final SqlFunction TRY_CAST = new SqlTryCastFunction();
 
+    public static final SqlFunction RAND =
+            new SqlFunction(
+                    "RAND",
+                    SqlKind.OTHER_FUNCTION,
+                    ReturnTypes.DOUBLE,
+                    null,
+                    OperandTypes.or(
+                            new SqlSingleOperandTypeChecker[] {
+                                OperandTypes.NILADIC, OperandTypes.NUMERIC
+                            }),
+                    SqlFunctionCategory.NUMERIC) {
+
+                @Override
+                public boolean isDeterministic() {
+                    return false;
+                }
+            };
+
+    public static final SqlFunction RAND_INTEGER =
+            new SqlFunction(
+                    "RAND_INTEGER",
+                    SqlKind.OTHER_FUNCTION,
+                    ReturnTypes.INTEGER,
+                    null,
+                    OperandTypes.or(
+                            new SqlSingleOperandTypeChecker[] {
+                                OperandTypes.NUMERIC, OperandTypes.NUMERIC_NUMERIC
+                            }),
+                    SqlFunctionCategory.NUMERIC) {
+
+                @Override
+                public boolean isDeterministic() {
+                    return false;
+                }
+            };
+
     /** <code>AUXILIARY_GROUP</code> aggregate function. Only be used in internally. */
     public static final SqlAggFunction AUXILIARY_GROUP = new SqlAuxiliaryGroupAggFunction();
 
@@ -1108,8 +1150,6 @@ public class FlinkSqlOperatorTable extends ReflectiveSqlOperatorTable {
     public static final SqlFunction RADIANS = SqlStdOperatorTable.RADIANS;
     public static final SqlFunction SIGN = SqlStdOperatorTable.SIGN;
     public static final SqlFunction PI = SqlStdOperatorTable.PI;
-    public static final SqlFunction RAND = SqlStdOperatorTable.RAND;
-    public static final SqlFunction RAND_INTEGER = SqlStdOperatorTable.RAND_INTEGER;
 
     // TIME FUNCTIONS
     public static final SqlFunction YEAR = SqlStdOperatorTable.YEAR;

@@ -585,6 +585,59 @@ public static class LiteralFunction extends ScalarFunction {
 For more examples of custom type inference, see also the `flink-examples-table` module with
 {{< gh_link file="flink-examples/flink-examples-table/src/main/java/org/apache/flink/table/examples/java/functions/AdvancedFunctionsExample.java" name="advanced function implementation" >}}.
 
+### 确定性
+
+每个用户自定义函数类都可以通过重写 `isDeterministic()` 方法来声明它是否产生确定性的结果。如果该函数不是纯粹函数式的（如`random()`, `date()`, 或`now()`），该方法必须返回 `false`。默认情况下，`isDeterministic()` 返回 `true`。
+
+此外，重写 `isDeterministic()` 方法也可能影响运行时行为。运行时实现可能会在两个不同的阶段被调用：
+
+1. **在生成执行计划期间**：如果一个函数是通过常量表达式调用的或者常量表达式可以从给定的语句中推导出来，那么一个函数就会被预计算以减少常量表达式，并且可能不再在集群上执行。
+除非 `isDeterministic()` 被重写为 `false` 用来在这种情况下禁用常量表达式简化。比如说，以下对 `ABS` 的调用在生成执行计划期间被执行：`SELECT ABS(-1) FROM t` 和 `SELECT ABS(field) FROM t WHERE field = -1`，而 `SELECT ABS(field) FROM t` 则不执行。
+
+2. **在运行时（即在集群执行）**：如果一个函数被调用时带有非常量表达式或 `isDeterministic()` 返回 `false`。
+
+#### 内置函数的确定性
+系统（内置）函数的确定性是不可改变的。存在两种不具有确定性的函数：动态函数和非确定性函数，根据 Apache Calcite `SqlOperator` 的定义：
+```java
+  /**
+   * Returns whether a call to this operator is guaranteed to always return
+   * the same result given the same operands; true is assumed by default.
+   */
+  public boolean isDeterministic() {
+    return true;
+  }
+
+  /**
+   * Returns whether it is unsafe to cache query plans referencing this
+   * operator; false is assumed by default.
+   */
+  public boolean isDynamicFunction() {
+    return false;
+  }
+```
+
+`isDeterministic` 表示函数的确定性，声明返回 `false` 时将在运行时对每个记录进行计算。
+`isDynamicFunction` 声明返回 `true` 时意味着该函数只能在查询开始时被计算，对于批处理模式，它只在生成执行计划期间被执行，
+而对于流模式，它等效于一个非确定性的函数，这是因为查询在逻辑上是连续执行的（流模式对[动态表的连续查询抽象]({{< ref "docs/dev/table/concepts/dynamic_tables" >}}#dynamic-tables-amp-continuous-queries)），所以动态函数在每次查询执行时也会被重新计算（当前实现下等效于每条记录计算）。
+
+以下内置函数总是非确定性的（批和流模式下，都在运行时对每条记录进行计算）
+- UUID
+- RAND
+- RAND_INTEGER
+- CURRENT_DATABASE
+- UNIX_TIMESTAMP
+- CURRENT_ROW_TIMESTAMP
+
+以下内置时间函数是动态的，批处理模式下，将在生成执行计划期间被执行（查询开始），对于流模式，将在运行时对每条记录进行计算
+- CURRENT_DATE
+- CURRENT_TIME
+- CURRENT_TIMESTAMP
+- NOW
+- LOCALTIME
+- LOCALTIMESTAMP
+
+注意：`isDynamicFunction` 仅适用于内置函数
+
 ### 运行时集成
 -------------------
 
