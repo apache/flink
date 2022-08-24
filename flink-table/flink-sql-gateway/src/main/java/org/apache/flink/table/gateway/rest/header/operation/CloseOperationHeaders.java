@@ -30,7 +30,7 @@ public class CloseOperationHeaders extends AbstactOperationHeaders {
     private static final String URL =
             "/sessions/:"
                     + SessionHandleIdPathParameter.KEY
-                    + "/:"
+                    + "/operations/:"
                     + OperationHandleIdPathParameter.KEY
                     + "/close";
 
