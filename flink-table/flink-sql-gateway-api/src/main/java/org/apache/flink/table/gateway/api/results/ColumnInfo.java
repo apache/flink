@@ -19,11 +19,15 @@
 package org.apache.flink.table.gateway.api.results;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.table.gateway.api.results.serde.LogicalTypeJsonDeserializer;
+import org.apache.flink.table.gateway.api.results.serde.LogicalTypeJsonSerializer;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.util.Preconditions;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.annotation.JsonSerialize;
 
 import java.util.Objects;
 
@@ -38,6 +42,8 @@ public class ColumnInfo {
     private final String name;
 
     @JsonProperty(FIELD_NAME_TYPE)
+    @JsonSerialize(using = LogicalTypeJsonSerializer.class)
+    @JsonDeserialize(using = LogicalTypeJsonDeserializer.class)
     private final LogicalType logicalType;
 
     @JsonCreator

@@ -24,10 +24,6 @@ import org.apache.flink.configuration.ExecutionOptions;
 import org.apache.flink.core.testutils.CommonTestUtils;
 import org.apache.flink.runtime.rest.RestClient;
 import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
-import org.apache.flink.runtime.rest.messages.MessageHeaders;
-import org.apache.flink.runtime.rest.messages.MessageParameters;
-import org.apache.flink.runtime.rest.messages.RequestBody;
-import org.apache.flink.runtime.rest.messages.ResponseBody;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.gateway.AbstractSqlGatewayStatementITCase;
 import org.apache.flink.table.gateway.api.operation.OperationHandle;
@@ -35,6 +31,7 @@ import org.apache.flink.table.gateway.api.results.ResultSet;
 import org.apache.flink.table.gateway.api.session.SessionEnvironment;
 import org.apache.flink.table.gateway.api.session.SessionHandle;
 import org.apache.flink.table.gateway.api.utils.MockedEndpointVersion;
+import org.apache.flink.table.gateway.api.utils.SqlGatewayException;
 import org.apache.flink.table.gateway.rest.handler.AbstractSqlGatewayRestHandler;
 import org.apache.flink.table.gateway.rest.header.statement.ExecuteStatementHeaders;
 import org.apache.flink.table.gateway.rest.header.statement.FetchResultsHeaders;
@@ -43,17 +40,17 @@ import org.apache.flink.table.gateway.rest.message.statement.ExecuteStatementReq
 import org.apache.flink.table.gateway.rest.message.statement.ExecuteStatementResponseBody;
 import org.apache.flink.table.gateway.rest.message.statement.FetchResultsResponseBody;
 import org.apache.flink.table.gateway.rest.message.statement.FetchResultsTokenParameters;
+import org.apache.flink.table.gateway.rest.util.SqlGatewayRestEndpointExtension;
 import org.apache.flink.table.planner.functions.casting.RowDataToStringConverterImpl;
 import org.apache.flink.table.utils.DateTimeUtils;
+import org.apache.flink.util.ConfigurationException;
 import org.apache.flink.util.concurrent.ExecutorThreadFactory;
 
-import org.jetbrains.annotations.Nullable;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Order;
+import org.junit.jupiter.api.extension.RegisterExtension;
 import org.junit.jupiter.api.io.TempDir;
 
-import java.io.IOException;
-import java.net.InetAddress;
-import java.net.InetSocketAddress;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.util.Arrays;
@@ -64,9 +61,6 @@ import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executors;
 
-import static org.apache.flink.table.gateway.rest.util.RestConfigUtils.getBaseConfig;
-import static org.apache.flink.table.gateway.rest.util.RestConfigUtils.getFlinkConfig;
-import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -75,12 +69,14 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
  * Test basic logic of handlers inherited from {@link AbstractSqlGatewayRestHandler} in statement
  * related cases.
  */
-class StatementCaseITTest extends AbstractSqlGatewayStatementITCase {
+class SqlGatewayRestEndpointStatementITCase extends AbstractSqlGatewayStatementITCase {
 
-    @Nullable private static RestClient restClient;
-    private static final String targetAddress;
-    private static final int port;
+    @RegisterExtension
+    @Order(3)
+    private static final SqlGatewayRestEndpointExtension SQL_GATEWAY_REST_ENDPOINT_EXTENSION =
+            new SqlGatewayRestEndpointExtension(SQL_GATEWAY_SERVICE_EXTENSION::getService);
 
+    private static final RestClient restClient = getTestRestClient();
     private static final ExecuteStatementHeaders executeStatementHeaders =
             ExecuteStatementHeaders.getInstance();
     private static SessionMessageParameters sessionMessageParameters;
@@ -90,27 +86,6 @@ class StatementCaseITTest extends AbstractSqlGatewayStatementITCase {
 
     private static final String PATTERN1 = "Caused by: ";
     private static final String PATTERN2 = "\tat ";
-
-    static {
-        String address = InetAddress.getLoopbackAddress().getHostAddress();
-        Configuration config = getBaseConfig(getFlinkConfig(address, address, "0"));
-        @Nullable SqlGatewayRestEndpoint sqlGatewayRestEndpoint = null;
-        try {
-            sqlGatewayRestEndpoint =
-                    new SqlGatewayRestEndpoint(config, SQL_GATEWAY_SERVICE_EXTENSION.getService());
-            sqlGatewayRestEndpoint.start();
-            restClient =
-                    new RestClient(
-                            new Configuration(),
-                            Executors.newFixedThreadPool(
-                                    1, new ExecutorThreadFactory("rest-client-thread-pool")));
-        } catch (Exception ignored) {
-        }
-        checkNotNull(sqlGatewayRestEndpoint);
-        InetSocketAddress serverAddress = checkNotNull(sqlGatewayRestEndpoint.getServerAddress());
-        targetAddress = serverAddress.getHostName();
-        port = serverAddress.getPort();
-    }
 
     private final SessionEnvironment defaultSessionEnvironment =
             SessionEnvironment.newBuilder()
@@ -132,7 +107,9 @@ class StatementCaseITTest extends AbstractSqlGatewayStatementITCase {
         ExecuteStatementRequestBody executeStatementRequestBody =
                 new ExecuteStatementRequestBody(statement, 0L, new HashMap<>());
         CompletableFuture<ExecuteStatementResponseBody> response =
-                sendRequest(
+                restClient.sendRequest(
+                        SQL_GATEWAY_REST_ENDPOINT_EXTENSION.getTargetAddress(),
+                        SQL_GATEWAY_REST_ENDPOINT_EXTENSION.getTargetPort(),
                         executeStatementHeaders,
                         sessionMessageParameters,
                         executeStatementRequestBody);
@@ -177,7 +154,7 @@ class StatementCaseITTest extends AbstractSqlGatewayStatementITCase {
                 new RowDataToStringConverterImpl(
                         resultSet.getResultSchema().toPhysicalRowDataType(),
                         DateTimeUtils.UTC_ZONE.toZoneId(),
-                        StatementCaseITTest.class.getClassLoader(),
+                        SqlGatewayRestEndpointStatementITCase.class.getClassLoader(),
                         false),
                 new RowDataIterator(sessionHandle, operationHandle));
     }
@@ -188,7 +165,9 @@ class StatementCaseITTest extends AbstractSqlGatewayStatementITCase {
         FetchResultsTokenParameters fetchResultsTokenParameters =
                 new FetchResultsTokenParameters(sessionHandle, operationHandle, token);
         CompletableFuture<FetchResultsResponseBody> response =
-                sendRequest(
+                restClient.sendRequest(
+                        SQL_GATEWAY_REST_ENDPOINT_EXTENSION.getTargetAddress(),
+                        SQL_GATEWAY_REST_ENDPOINT_EXTENSION.getTargetPort(),
                         fetchResultsHeaders,
                         fetchResultsTokenParameters,
                         EmptyRequestBody.getInstance());
@@ -209,16 +188,15 @@ class StatementCaseITTest extends AbstractSqlGatewayStatementITCase {
                 .equals(RuntimeExecutionMode.STREAMING);
     }
 
-    <
-                    M extends MessageHeaders<R, P, U>,
-                    U extends MessageParameters,
-                    R extends RequestBody,
-                    P extends ResponseBody>
-            CompletableFuture<P> sendRequest(M messageHeaders, U messageParameters, R request)
-                    throws IOException {
-        checkNotNull(restClient);
-        return restClient.sendRequest(
-                targetAddress, port, messageHeaders, messageParameters, request);
+    private static RestClient getTestRestClient() {
+        try {
+            return new RestClient(
+                    new Configuration(),
+                    Executors.newFixedThreadPool(
+                            1, new ExecutorThreadFactory("rest-client-thread-pool")));
+        } catch (ConfigurationException e) {
+            throw new SqlGatewayException("Cannot get rest client.", e);
+        }
     }
 
     private class RowDataIterator implements Iterator<RowData> {
@@ -255,7 +233,7 @@ class StatementCaseITTest extends AbstractSqlGatewayStatementITCase {
 
         private void fetch() throws Exception {
             FetchResultsResponseBody fetchResultsResponseBody =
-                    StatementCaseITTest.this.fetchResults(sessionHandle, operationHandle, token);
+                    fetchResults(sessionHandle, operationHandle, token);
             String nextResultUri = fetchResultsResponseBody.getNextResultUri();
             ResultSet resultSet = fetchResultsResponseBody.getResults();
             token = parseTokenFromUri(nextResultUri);

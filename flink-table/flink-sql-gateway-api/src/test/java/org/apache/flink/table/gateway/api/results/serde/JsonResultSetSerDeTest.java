@@ -143,7 +143,7 @@ class JsonResultSetSerializationTest {
         ResultSet testResultSet =
                 new ResultSet(ResultSet.ResultType.PAYLOAD, 0L, testResolvedSchema, rowDataList);
         // Test serialization & deserialization
-        ObjectMapper objectMapper = JsonSerdeUtil.getObjectMapper();
+        ObjectMapper objectMapper = new ObjectMapper();
         String result = objectMapper.writeValueAsString(testResultSet);
         ResultSet resultSet = objectMapper.readValue(result, ResultSet.class);
         List<RowData> deRowDataList = resultSet.getData();

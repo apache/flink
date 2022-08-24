@@ -56,7 +56,7 @@ public class JsonResultSetSerializer extends StdSerializer<ResultSet> {
         super(ResultSet.class);
     }
 
-    private static final ObjectMapper OBJECT_MAPPER = JsonSerdeUtil.getObjectMapper();
+    private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
     private static final RowDataToJsonConverters TO_JSON_CONVERTERS =
             new RowDataToJsonConverters(
                     TimestampFormat.ISO_8601, JsonFormatOptions.MapNullKeyMode.LITERAL, "null");

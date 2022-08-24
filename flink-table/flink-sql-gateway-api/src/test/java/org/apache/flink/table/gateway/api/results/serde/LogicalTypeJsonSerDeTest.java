@@ -51,6 +51,7 @@ import org.apache.flink.table.types.logical.ZonedTimestampType;
 import org.apache.flink.types.Row;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.module.SimpleModule;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.parallel.Execution;
@@ -72,10 +73,24 @@ import static org.junit.jupiter.api.parallel.ExecutionMode.CONCURRENT;
 @Execution(CONCURRENT)
 public class LogicalTypeJsonSerDeTest {
 
+    private final ObjectMapper mapper = getObjectMapper();
+
+    // final constants for testing unsupported case
+    private final LogicalType unsupportedType =
+            new DayTimeIntervalType(DayTimeIntervalType.DayTimeResolution.DAY_TO_HOUR);
+    private final String serializerExceptionMessageFormat =
+            "Unable to serialize logical type '%s'. Please check the documentation for supported types.";
+    private final String unsupportedTypeString = "INTERVAL_DAY_TIME";
+    private final String json =
+            String.format(
+                    "{\"%s\": \"%s\", \"%s\": %s}",
+                    "type", unsupportedTypeString, "nullable", "true");
+    private final String deserializerExceptionMessageFormat =
+            "Unable to deserialize a logical type of type root '%s'. Please check the documentation for supported types.";
+
     @ParameterizedTest
     @MethodSource("generateTestData")
     public void testLogicalTypeJsonSerDe(LogicalType logicalType) throws IOException {
-        ObjectMapper mapper = JsonSerdeUtil.getObjectMapper();
         String json = mapper.writeValueAsString(logicalType);
         LogicalType actualType = mapper.readValue(json, LogicalType.class);
 
@@ -84,31 +99,22 @@ public class LogicalTypeJsonSerDeTest {
 
     @Test
     public void testSerDeWithUnsupportedType() {
-        ObjectMapper mapper = JsonSerdeUtil.getObjectMapper();
-
         // test to serialize unsupported LogicalType
-        LogicalType unsupportedType =
-                new DayTimeIntervalType(DayTimeIntervalType.DayTimeResolution.DAY_TO_HOUR);
         assertThatThrownBy(() -> mapper.writeValueAsString(unsupportedType))
                 .satisfies(
                         FlinkAssertions.anyCauseMatches(
                                 UnsupportedOperationException.class,
                                 String.format(
-                                        "Unable to serialize logical type '%s'. Please check the documentation for supported types.",
+                                        serializerExceptionMessageFormat,
                                         unsupportedType.asSummaryString())));
 
         // test to deserialize unsupported JSON string
-        String unsupportedTypeString = "INTERVAL_DAY_TIME";
-        String json =
-                String.format(
-                        "{\"%s\": \"%s\", \"%s\": %s}",
-                        "type", unsupportedTypeString, "nullable", "true");
         assertThatThrownBy(() -> mapper.readValue(json, LogicalType.class))
                 .satisfies(
                         FlinkAssertions.anyCauseMatches(
                                 UnsupportedOperationException.class,
                                 String.format(
-                                        "Unable to deserialize a logical type of type root '%s'. Please check the documentation for supported types.",
+                                        deserializerExceptionMessageFormat,
                                         unsupportedTypeString)));
     }
 
@@ -210,5 +216,18 @@ public class LogicalTypeJsonSerDeTest {
         testTypes.add(new NullType());
 
         return testTypes;
+    }
+
+    /**
+     * LogicalType isn't annotated with Jackson annotations, so it's necessary to register the
+     * customer serializer and deserializer when testing LogicalType Serde alone.
+     */
+    private ObjectMapper getObjectMapper() {
+        ObjectMapper mapper = new ObjectMapper();
+        SimpleModule module = new SimpleModule();
+        module.addSerializer(new LogicalTypeJsonSerializer());
+        module.addDeserializer(LogicalType.class, new LogicalTypeJsonDeserializer());
+        mapper.registerModule(module);
+        return mapper;
     }
 }
