@@ -177,7 +177,7 @@ public class ChangelogRecoveryCachingITCase extends TestLogger {
         conf.set(LOCAL_RECOVERY, false); // force download
         // tune changelog
         conf.set(PREEMPTIVE_PERSIST_THRESHOLD, MemorySize.ofMebiBytes(10));
-        conf.set(PERIODIC_MATERIALIZATION_INTERVAL, Duration.ofDays(365));
+        conf.set(PERIODIC_MATERIALIZATION_INTERVAL, Duration.ofDays(-1));
 
         conf.set(ENABLE_UNALIGNED, true); // speedup
         conf.set(ALIGNED_CHECKPOINT_TIMEOUT, Duration.ZERO); // prevent randomization
