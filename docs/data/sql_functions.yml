@@ -707,6 +707,9 @@ json:
       `NULL ON EMPTY` or `NULL ON ERROR`, respectively. The default value may be a literal or an
       expression. If the default value itself raises an error, it falls through to the error
       behavior for `ON EMPTY`, and raises an error for `ON ERROR`.
+      
+      For path contains blank characters, should use '[]', which is the grammar of json-path.
+      And path is literal, the character `'` already exists. So you should also use sql escape characters `'`.
 
       ```
       -- "true"
@@ -726,6 +729,9 @@ json:
       -- 0.998D
       JSON_VALUE('{"a.b": [0.998,0.996]}','$.["a.b"][0]' 
           RETURNING DOUBLE)
+      
+      -- "right"
+      JSON_VALUE('{"contains blank": "right"}', 'strict $.[''contains blank'']' NULL ON EMPTY DEFAULT 'wrong' ON ERROR)
       ```
   - sql: JSON_QUERY(jsonValue, path [ { WITHOUT | WITH CONDITIONAL | WITH UNCONDITIONAL } [ ARRAY ] WRAPPER ] [ { NULL | EMPTY ARRAY | EMPTY OBJECT | ERROR } ON EMPTY ] [ { NULL | EMPTY ARRAY | EMPTY OBJECT | ERROR } ON ERROR ])
     table: STRING.jsonQuery(path [, JsonQueryWrapper [, JsonQueryOnEmptyOrError, JsonQueryOnEmptyOrError ] ])
