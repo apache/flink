@@ -24,6 +24,7 @@ import org.apache.flink.table.catalog.Catalog;
 import org.apache.flink.table.catalog.CatalogPartitionImpl;
 import org.apache.flink.table.catalog.CatalogPartitionSpec;
 import org.apache.flink.table.catalog.ObjectPath;
+import org.apache.flink.table.catalog.exceptions.TableNotExistException;
 import org.apache.flink.table.catalog.stats.CatalogColumnStatistics;
 import org.apache.flink.table.catalog.stats.CatalogColumnStatisticsDataBase;
 import org.apache.flink.table.catalog.stats.CatalogColumnStatisticsDataBoolean;
@@ -354,6 +355,36 @@ public class AnalyzeTableITCase extends BatchTestBase {
     }
 
     @Test
+    public void testNonPartitionTableAnalyzePartialColumnsWithSomeColumnsHaveColumnStats()
+            throws TableNotExistException {
+        // If some columns have table column stats, analyze table for partial columns will merge
+        // these exist columns stats instead of covering it.
+        // Adding column stats to partial columns.
+        tEnv.executeSql("analyze table NonPartitionTable compute statistics for columns f, a, d");
+        ObjectPath path = new ObjectPath(tEnv.getCurrentDatabase(), "NonPartitionTable");
+        assertThat(tEnv.getCatalog(tEnv.getCurrentCatalog()).get().getTableStatistics(path))
+                .isEqualTo(new CatalogTableStatistics(5L, -1, -1L, -1L));
+        Map<String, CatalogColumnStatisticsDataBase> columnStatisticsData = new HashMap<>();
+        columnStatisticsData.put("a", new CatalogColumnStatisticsDataBoolean(2L, 2L, 1L));
+        columnStatisticsData.put("f", new CatalogColumnStatisticsDataDouble(-1.123d, 3.4d, 4L, 1L));
+        columnStatisticsData.put(
+                "d",
+                new CatalogColumnStatisticsDataLong(
+                        (long) Integer.MIN_VALUE, (long) Integer.MAX_VALUE, 4L, 1L));
+        assertThat(tEnv.getCatalog(tEnv.getCurrentCatalog()).get().getTableColumnStatistics(path))
+                .isEqualTo(new CatalogColumnStatistics(columnStatisticsData));
+
+        // Analyze different column sets.
+        tEnv.executeSql("analyze table NonPartitionTable compute statistics for columns d, e");
+        assertThat(tEnv.getCatalog(tEnv.getCurrentCatalog()).get().getTableStatistics(path))
+                .isEqualTo(new CatalogTableStatistics(5L, -1, -1L, -1L));
+        columnStatisticsData.put(
+                "e", new CatalogColumnStatisticsDataLong(Long.MIN_VALUE, Long.MAX_VALUE, 4L, 1L));
+        assertThat(tEnv.getCatalog(tEnv.getCurrentCatalog()).get().getTableColumnStatistics(path))
+                .isEqualTo(new CatalogColumnStatistics(columnStatisticsData));
+    }
+
+    @Test
     public void testPartitionTableWithoutPartition() {
         assertThatThrownBy(() -> tEnv.executeSql("analyze table PartitionTable compute statistics"))
                 .isInstanceOf(ValidationException.class)
@@ -535,6 +566,67 @@ public class AnalyzeTableITCase extends BatchTestBase {
         assertPartitionStatistics(path, "e=2,a=5", 2L);
         assertPartitionStatistics(path, "e=3,a=3", -1L);
         assertPartitionStatistics(path, "e=3,a=5", -1L);
+    }
+
+    @Test
+    public void testPartitionTableAnalyzePartialColumnsWithSomeColumnsHaveColumnStats()
+            throws Exception {
+        // If some columns have table column stats, analyze table for partial columns will merge
+        // these exist columns stats instead of covering it.
+        // Adding column stats to partial columns.
+        tEnv.executeSql(
+                "analyze table PartitionTable partition(e=2, a=5) compute statistics for columns a, b, c");
+        ObjectPath path = new ObjectPath(tEnv.getCurrentDatabase(), "PartitionTable");
+        assertThat(tEnv.getCatalog(tEnv.getCurrentCatalog()).get().getTableStatistics(path))
+                .isEqualTo(new CatalogTableStatistics(-1L, -1, -1L, -1L));
+        Map<String, CatalogColumnStatisticsDataBase> columnStatisticsData = new HashMap<>();
+        columnStatisticsData.put("a", new CatalogColumnStatisticsDataLong(5L, 5L, 1L, 0L));
+        columnStatisticsData.put("b", new CatalogColumnStatisticsDataLong(14L, 15L, 2L, 0L));
+        columnStatisticsData.put("c", new CatalogColumnStatisticsDataLong(13L, 14L, 2L, 0L));
+        assertPartitionStatistics(
+                path, "e=2,a=5", 2L, new CatalogColumnStatistics(columnStatisticsData));
+
+        tEnv.executeSql(
+                "analyze table PartitionTable partition(e=2, a=5) compute statistics for columns c, d");
+        assertThat(tEnv.getCatalog(tEnv.getCurrentCatalog()).get().getTableStatistics(path))
+                .isEqualTo(new CatalogTableStatistics(-1L, -1, -1L, -1L));
+        columnStatisticsData.put("d", new CatalogColumnStatisticsDataString(3L, 3.0, 2L, 0L));
+        assertPartitionStatistics(
+                path, "e=2,a=5", 2L, new CatalogColumnStatistics(columnStatisticsData));
+    }
+
+    @Test
+    public void testPartitionTableAnalyzePartialPartitionWithSomePartitionHaveColumnStats()
+            throws Exception {
+        // For different partitions, their column stats are isolated and should not affect each
+        // other.
+        // Adding column stats to one partition.
+        tEnv.executeSql(
+                "analyze table PartitionTable partition(e=2, a=5) compute statistics for columns a, b, c");
+        ObjectPath path = new ObjectPath(tEnv.getCurrentDatabase(), "PartitionTable");
+        assertThat(tEnv.getCatalog(tEnv.getCurrentCatalog()).get().getTableStatistics(path))
+                .isEqualTo(new CatalogTableStatistics(-1L, -1, -1L, -1L));
+        Map<String, CatalogColumnStatisticsDataBase> columnStatisticsData1 = new HashMap<>();
+        columnStatisticsData1.put("a", new CatalogColumnStatisticsDataLong(5L, 5L, 1L, 0L));
+        columnStatisticsData1.put("b", new CatalogColumnStatisticsDataLong(14L, 15L, 2L, 0L));
+        columnStatisticsData1.put("c", new CatalogColumnStatisticsDataLong(13L, 14L, 2L, 0L));
+        assertPartitionStatistics(
+                path, "e=2,a=5", 2L, new CatalogColumnStatistics(columnStatisticsData1));
+
+        // Adding column stats to another partition.
+        tEnv.executeSql(
+                "analyze table PartitionTable partition(e=2, a=4) compute statistics for columns a, d");
+        assertThat(tEnv.getCatalog(tEnv.getCurrentCatalog()).get().getTableStatistics(path))
+                .isEqualTo(new CatalogTableStatistics(-1L, -1, -1L, -1L));
+        // origin analyze partition.
+        assertPartitionStatistics(
+                path, "e=2,a=5", 2L, new CatalogColumnStatistics(columnStatisticsData1));
+        Map<String, CatalogColumnStatisticsDataBase> columnStatisticsData2 = new HashMap<>();
+        columnStatisticsData2.put("a", new CatalogColumnStatisticsDataLong(4L, 4L, 1L, 0L));
+        columnStatisticsData2.put("d", new CatalogColumnStatisticsDataString(3L, 3.0, 2L, 0L));
+        // new analyze partition.
+        assertPartitionStatistics(
+                path, "e=2,a=4", 2L, new CatalogColumnStatistics(columnStatisticsData2));
     }
 
     private void assertPartitionStatistics(ObjectPath path, String partitionSpec, long rowCount)
