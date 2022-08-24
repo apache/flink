@@ -85,10 +85,15 @@ public class AnalyzeTableUtil {
                         executeSqlAndGenerateStatistics(tableEnv, columns, statSql);
                 CatalogTableStatistics tableStat = result.f0;
                 catalog.alterPartitionStatistics(objectPath, partitionSpec, tableStat, false);
-                CatalogColumnStatistics columnStat = result.f1;
-                if (columnStat != null) {
+                CatalogColumnStatistics newColumnStat = result.f1;
+                if (newColumnStat != null) {
+                    CatalogColumnStatistics oldColumnStat =
+                            catalog.getPartitionColumnStatistics(objectPath, partitionSpec);
+                    // merge stats
+                    CatalogColumnStatistics mergedColumnStatistics =
+                            mergeColumnStatistics(oldColumnStat.copy(), newColumnStat);
                     catalog.alterPartitionColumnStatistics(
-                            objectPath, partitionSpec, columnStat, false);
+                            objectPath, partitionSpec, mergedColumnStatistics, false);
                 }
             }
         } else {
@@ -97,12 +102,26 @@ public class AnalyzeTableUtil {
                     executeSqlAndGenerateStatistics(tableEnv, columns, statSql);
             CatalogTableStatistics tableStat = result.f0;
             catalog.alterTableStatistics(objectPath, tableStat, false);
-            CatalogColumnStatistics columnStat = result.f1;
-            if (columnStat != null) {
-                catalog.alterTableColumnStatistics(objectPath, columnStat, false);
+            CatalogColumnStatistics newColumnStat = result.f1;
+            if (newColumnStat != null) {
+                CatalogColumnStatistics oldColumnStat =
+                        catalog.getTableColumnStatistics(objectPath);
+                // merge stats.
+                CatalogColumnStatistics mergedColumnStatistics =
+                        mergeColumnStatistics(oldColumnStat.copy(), newColumnStat);
+                catalog.alterTableColumnStatistics(objectPath, mergedColumnStatistics, false);
             }
         }
         return TableResultImpl.TABLE_RESULT_OK;
+    }
+
+    private static CatalogColumnStatistics mergeColumnStatistics(
+            CatalogColumnStatistics oldColumnStatistics,
+            CatalogColumnStatistics newColumnStatistics) {
+        oldColumnStatistics
+                .getColumnStatisticsData()
+                .putAll(newColumnStatistics.getColumnStatisticsData());
+        return oldColumnStatistics;
     }
 
     private static Tuple2<CatalogTableStatistics, CatalogColumnStatistics>
