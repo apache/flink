@@ -138,8 +138,7 @@ public class TestStreamEnvironment extends StreamExecutionEnvironment {
                             Duration.ofMillis(500),
                             Duration.ofSeconds(1),
                             Duration.ofSeconds(5),
-                            Duration.ofSeconds(
-                                    Long.MAX_VALUE / 1000 /* max allowed by Duration.toMillis */));
+                            Duration.ofSeconds(-1));
                     miniCluster.overrideRestoreModeForChangelogStateBackend();
                 }
             }
