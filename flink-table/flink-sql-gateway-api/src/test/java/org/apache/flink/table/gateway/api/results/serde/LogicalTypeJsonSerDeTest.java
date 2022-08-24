@@ -73,20 +73,7 @@ import static org.junit.jupiter.api.parallel.ExecutionMode.CONCURRENT;
 @Execution(CONCURRENT)
 public class LogicalTypeJsonSerDeTest {
 
-    private final ObjectMapper mapper = getObjectMapper();
-
-    // final constants for testing unsupported case
-    private final LogicalType unsupportedType =
-            new DayTimeIntervalType(DayTimeIntervalType.DayTimeResolution.DAY_TO_HOUR);
-    private final String serializerExceptionMessageFormat =
-            "Unable to serialize logical type '%s'. Please check the documentation for supported types.";
-    private final String unsupportedTypeString = "INTERVAL_DAY_TIME";
-    private final String json =
-            String.format(
-                    "{\"%s\": \"%s\", \"%s\": %s}",
-                    "type", unsupportedTypeString, "nullable", "true");
-    private final String deserializerExceptionMessageFormat =
-            "Unable to deserialize a logical type of type root '%s'. Please check the documentation for supported types.";
+    private final ObjectMapper mapper = buildObjectMapper();
 
     @ParameterizedTest
     @MethodSource("generateTestData")
@@ -98,24 +85,42 @@ public class LogicalTypeJsonSerDeTest {
     }
 
     @Test
-    public void testSerDeWithUnsupportedType() {
-        // test to serialize unsupported LogicalType
+    public void testSerializeUnsupportedType() {
+        LogicalType unsupportedType =
+                new DayTimeIntervalType(DayTimeIntervalType.DayTimeResolution.DAY_TO_HOUR);
         assertThatThrownBy(() -> mapper.writeValueAsString(unsupportedType))
                 .satisfies(
                         FlinkAssertions.anyCauseMatches(
                                 UnsupportedOperationException.class,
                                 String.format(
-                                        serializerExceptionMessageFormat,
+                                        "Unable to serialize logical type '%s'. Please check the documentation for supported types.",
                                         unsupportedType.asSummaryString())));
+    }
 
-        // test to deserialize unsupported JSON string
+    @Test
+    public void testDeserializeUnsupportedType() {
+        String unsupportedTypeString = "INTERVAL_DAY_TIME";
+        String json =
+                String.format(
+                        "{\"%s\": \"%s\", \"%s\": %s}",
+                        "type", unsupportedTypeString, "nullable", "true");
         assertThatThrownBy(() -> mapper.readValue(json, LogicalType.class))
                 .satisfies(
                         FlinkAssertions.anyCauseMatches(
                                 UnsupportedOperationException.class,
                                 String.format(
-                                        deserializerExceptionMessageFormat,
+                                        "Unable to deserialize a logical type of type root '%s'. Please check the documentation for supported types.",
                                         unsupportedTypeString)));
+    }
+
+    @Test
+    public void testDeserializeUnsupportedJson() {
+        String json = String.format("{\"%s\": \"%s\"}", "unknown", "whatever");
+        assertThatThrownBy(() -> mapper.readValue(json, LogicalType.class))
+                .satisfies(
+                        FlinkAssertions.anyCauseMatches(
+                                UnsupportedOperationException.class,
+                                "Cannot parse this Json String"));
     }
 
     // --------------------------------------------------------------------------------------------
@@ -157,7 +162,6 @@ public class LogicalTypeJsonSerDeTest {
                         new LocalZonedTimestampType(),
                         new LocalZonedTimestampType(3),
                         new LocalZonedTimestampType(false, 3),
-                        // LocalZonedTimestampType#eaquals doesn't compare TimestampKind
                         new LocalZonedTimestampType(false, TimestampKind.PROCTIME, 3),
                         new MapType(new BigIntType(), new IntType(false)),
                         new MapType(CharType.ofEmptyLiteral(), CharType.ofEmptyLiteral()),
@@ -218,11 +222,7 @@ public class LogicalTypeJsonSerDeTest {
         return testTypes;
     }
 
-    /**
-     * LogicalType isn't annotated with Jackson annotations, so it's necessary to register the
-     * customer serializer and deserializer when testing LogicalType Serde alone.
-     */
-    private ObjectMapper getObjectMapper() {
+    private ObjectMapper buildObjectMapper() {
         ObjectMapper mapper = new ObjectMapper();
         SimpleModule module = new SimpleModule();
         module.addSerializer(new LogicalTypeJsonSerializer());

@@ -36,10 +36,9 @@ import static org.apache.flink.table.gateway.rest.util.RestConfigUtils.getBaseCo
 import static org.apache.flink.table.gateway.rest.util.RestConfigUtils.getFlinkConfig;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
-/** A simple {@link Extension} to be used by tests that require a {@link SqlGatewayRestEndpoint}. */
+/** A simple {@link Extension} that manages the lifecycle of the {@link SqlGatewayRestEndpoint}. */
 public class SqlGatewayRestEndpointExtension implements BeforeAllCallback, AfterAllCallback {
 
-    // to supply service needed when starting the rest end point
     private final Supplier<SqlGatewayService> serviceSupplier;
 
     private SqlGatewayRestEndpoint sqlGatewayRestEndpoint;

@@ -90,7 +90,13 @@ public final class LogicalTypeJsonDeserializer extends StdDeserializer<LogicalTy
     @Override
     public LogicalType deserialize(JsonParser jsonParser, DeserializationContext ctx)
             throws IOException {
-        return deserializeInternal(jsonParser.readValueAsTree());
+        JsonNode logicalTypeNode = jsonParser.readValueAsTree();
+        if (logicalTypeNode.has(FIELD_NAME_TYPE_NAME)) {
+            return deserializeInternal(logicalTypeNode);
+        }
+        throw new UnsupportedOperationException(
+                String.format(
+                        "Cannot parse this Json String:\n%s", logicalTypeNode.toPrettyString()));
     }
 
     /**
@@ -100,7 +106,7 @@ public final class LogicalTypeJsonDeserializer extends StdDeserializer<LogicalTy
     private LogicalType deserializeInternal(JsonNode logicalTypeNode) {
         LogicalTypeRoot typeRoot =
                 LogicalTypeRoot.valueOf(logicalTypeNode.get(FIELD_NAME_TYPE_NAME).asText());
-        // handle the special case of NullType
+        // the NullType's Json doesn't have other field, so return in advance
         if (typeRoot.equals(LogicalTypeRoot.NULL)) {
             return new NullType();
         }
