@@ -39,6 +39,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
 
 /** Utility class for Flink hints. */
@@ -191,6 +192,7 @@ public abstract class FlinkHints {
         @Override
         public RelNode visit(LogicalJoin join) {
             List<RelHint> hints = join.getHints();
+            AtomicBoolean changed = new AtomicBoolean(false);
             List<RelHint> hintsWithCapitalJoinHints =
                     hints.stream()
                             .map(
@@ -198,6 +200,7 @@ public abstract class FlinkHints {
                                         String capitalHintName =
                                                 hint.hintName.toUpperCase(Locale.ROOT);
                                         if (JoinStrategy.isJoinStrategy(capitalHintName)) {
+                                            changed.set(true);
                                             return RelHint.builder(capitalHintName)
                                                     .hintOptions(hint.listOptions)
                                                     .inheritPath(hint.inheritPath)
@@ -208,7 +211,11 @@ public abstract class FlinkHints {
                                     })
                             .collect(Collectors.toList());
 
-            return join.withHints(hintsWithCapitalJoinHints);
+            if (changed.get()) {
+                return super.visit(join.withHints(hintsWithCapitalJoinHints));
+            } else {
+                return super.visit(join);
+            }
         }
     }
 }
