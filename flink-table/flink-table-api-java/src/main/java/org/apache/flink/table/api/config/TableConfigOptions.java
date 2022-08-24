@@ -180,8 +180,8 @@ public class TableConfigOptions {
 
     @Documentation.TableOption(execMode = Documentation.ExecMode.BATCH_STREAMING)
     @Documentation.OverrideDefault("System.getProperty(\"java.io.tmpdir\")")
-    public static final ConfigOption<String> RESOURCE_DOWNLOAD_DIR =
-            key("table.resource.download.dir")
+    public static final ConfigOption<String> RESOURCES_DOWNLOAD_DIR =
+            key("table.resources.download-dir")
                     .stringType()
                     .defaultValue(System.getProperty("java.io.tmpdir"))
                     .withDescription(

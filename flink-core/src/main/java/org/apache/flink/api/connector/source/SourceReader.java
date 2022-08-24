@@ -53,12 +53,12 @@ public interface SourceReader<T, SplitT extends SourceSplit>
     void start();
 
     /**
-     * Poll the next available record into the {@link SourceOutput}.
+     * Poll the next available record into the {@link ReaderOutput}.
      *
      * <p>The implementation must make sure this method is non-blocking.
      *
-     * <p>Although the implementation can emit multiple records into the given SourceOutput, it is
-     * recommended not doing so. Instead, emit one record into the SourceOutput and return a {@link
+     * <p>Although the implementation can emit multiple records into the given ReaderOutput, it is
+     * recommended not doing so. Instead, emit one record into the ReaderOutput and return a {@link
      * InputStatus#MORE_AVAILABLE} to let the caller thread know there are more records available.
      *
      * @return The InputStatus of the SourceReader after the method invocation.
@@ -76,10 +76,10 @@ public interface SourceReader<T, SplitT extends SourceSplit>
      * Returns a future that signals that data is available from the reader.
      *
      * <p>Once the future completes, the runtime will keep calling the {@link
-     * #pollNext(ReaderOutput)} method until that methods returns a status other than {@link
-     * InputStatus#MORE_AVAILABLE}. After that the, the runtime will again call this method to
-     * obtain the next future. Once that completes, it will again call {@link
-     * #pollNext(ReaderOutput)} and so on.
+     * #pollNext(ReaderOutput)} method until that method returns a status other than {@link
+     * InputStatus#MORE_AVAILABLE}. After that, the runtime will again call this method to obtain
+     * the next future. Once that completes, it will again call {@link #pollNext(ReaderOutput)} and
+     * so on.
      *
      * <p>The contract is the following: If the reader has data available, then all futures
      * previously returned by this method must eventually complete. Otherwise the source might stall

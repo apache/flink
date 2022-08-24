@@ -609,7 +609,16 @@ env.execute()
 ```
 {{< /tab >}}
 {{< tab "Python" >}}
-This feature is not yet supported in Python
+```python
+data_stream = ... # DataStream
+cached_data_stream = data_stream.cache()
+cached_data_stream.print()
+# ...
+env.execute() # Execute and create cache.
+
+cached_data_stream.print() # Consume cached result.
+env.execute()
+```
 {{< /tab >}}
 {{< /tabs>}}
 

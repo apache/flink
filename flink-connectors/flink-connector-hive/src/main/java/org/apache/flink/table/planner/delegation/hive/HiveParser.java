@@ -390,8 +390,20 @@ public class HiveParser extends ParserImpl {
 
     private boolean isMultiDestQuery(HiveParserASTNode astNode) {
         // Hive's multi dest insert will always be [FROM, INSERT+]
-        // so, if it's children count is more than 2, it should be a multi-dest query
-        return astNode.getChildCount() > 2;
+        // so, if it's children count is more than 2, and the first one
+        // is FROM, others are INSERT nodes, it should be multi dest query
+        if (astNode.getChildCount() > 2) {
+            if (astNode.getChild(0).getType() == HiveASTParser.TOK_FROM) {
+                // the others should be insert tokens
+                for (int i = 1; i < astNode.getChildCount(); i++) {
+                    if (astNode.getChild(i).getType() != HiveASTParser.TOK_INSERT) {
+                        return false;
+                    }
+                }
+                return true;
+            }
+        }
+        return false;
     }
 
     private Operation processMultiDestQuery(

@@ -155,33 +155,5 @@ public class ConfigUtils {
         return options;
     }
 
-    /**
-     * Merge a {@link Collection} of values of type {@code T} and option {@link ConfigOption} value
-     * of type {@link List} of type {@code T} from current {@link Configuration}, then put it to
-     * {@link Configuration}.
-     *
-     * @param configuration the configuration object to get the value out and write
-     * @param key the {@link ConfigOption option} to serve as the key for the list in the
-     *     configuration
-     * @param values the collection of values to merge as value for the {@code key}
-     * @param decodeMapper the decode transformation function.
-     * @param encodeMapper the encode transformation function.
-     */
-    public static <T, E extends Throwable> void mergeCollectionsToConfig(
-            final Configuration configuration,
-            final ConfigOption<List<T>> key,
-            final Collection<T> values,
-            final FunctionWithException<T, T, E> decodeMapper,
-            final Function<T, T> encodeMapper)
-            throws E {
-        // decode option value from current configuration
-        Set<T> valueInConfig =
-                new HashSet<>(decodeListFromConfig(configuration, key, decodeMapper));
-        // merge provided option value
-        valueInConfig.addAll(values);
-        // encode the merged value to current WritableConfig
-        encodeCollectionToConfig(configuration, key, valueInConfig, encodeMapper);
-    }
-
     private ConfigUtils() {}
 }

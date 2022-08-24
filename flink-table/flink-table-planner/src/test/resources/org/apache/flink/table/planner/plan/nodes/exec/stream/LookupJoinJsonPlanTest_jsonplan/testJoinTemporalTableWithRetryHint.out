@@ -258,6 +258,13 @@
     },
     "projectionOnTemporalTable" : null,
     "filterOnTemporalTable" : null,
+    "lookupKeyContainsPrimaryKey" : false,
+    "retryOptions" : {
+      "retry-predicate" : "lookup_miss",
+      "retry-strategy" : "FIXED_DELAY",
+      "fixed-delay" : 10000,
+      "max-attempts" : 3
+    },
     "inputChangelogMode" : [ "INSERT" ],
     "inputProperties" : [ {
       "requiredDistribution" : {
@@ -303,17 +310,7 @@
         "fieldType" : "INT"
       } ]
     },
-    "lookupKeyContainsPrimaryKey" : false,
-    "joinHint" : {
-      "output-mode" : "ORDERED",
-      "capacity" : 100,
-      "timeout" : 180000,
-      "retry-predicate" : "lookup_miss",
-      "retry-strategy" : "FIXED_DELAY",
-      "fixed-delay" : 10000,
-      "max-attempts" : 3
-    },
-    "description" : "LookupJoin(table=[default_catalog.default_database.LookupTable], joinType=[InnerJoin], async=[false], lookup=[id=a], select=[a, b, c, proctime, rowtime, id, name, age])"
+    "description" : "LookupJoin(table=[default_catalog.default_database.LookupTable], joinType=[InnerJoin], lookup=[id=a], select=[a, b, c, proctime, rowtime, id, name, age], retry=[lookup_miss, FIXED_DELAY, 10000ms, 3])"
   }, {
     "id" : 5,
     "type" : "stream-exec-calc_1",

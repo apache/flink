@@ -152,7 +152,10 @@ public class HsSubpartitionMemoryDataManager implements HsDataView {
         return bufferAndNextDataType.map(
                 tuple ->
                         new BufferAndBacklog(
-                                tuple.f0.getBuffer(), getBacklog(), tuple.f1, toConsumeIndex));
+                                tuple.f0.getBuffer().readOnlySlice(),
+                                getBacklog(),
+                                tuple.f1,
+                                toConsumeIndex));
     }
 
     @SuppressWarnings("FieldAccessNotGuarded")
@@ -263,9 +266,11 @@ public class HsSubpartitionMemoryDataManager implements HsDataView {
                                 (indexAndChannel) -> {
                                     int bufferIndex = indexAndChannel.getBufferIndex();
                                     HsBufferContext bufferContext =
-                                            checkNotNull(bufferIndexToContexts.get(bufferIndex));
-                                    checkAndMarkBufferReadable(bufferContext);
-                                    releaseBuffer(bufferIndex);
+                                            bufferIndexToContexts.get(bufferIndex);
+                                    if (bufferContext != null) {
+                                        checkAndMarkBufferReadable(bufferContext);
+                                        releaseBuffer(bufferIndex);
+                                    }
                                 }));
     }
 

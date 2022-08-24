@@ -240,27 +240,6 @@ public class StreamExecutionEnvironmentComplexConfigurationTest {
         assertThat(env.getStateBackend(), instanceOf(MemoryStateBackend.class));
     }
 
-    @Test
-    public void testMergePipelineJarsWithConfiguration() {
-        Configuration configuration = new Configuration();
-        configuration.set(PipelineOptions.JARS, Arrays.asList("/tmp/test1.jar", "/tmp/test2.jar"));
-        StreamExecutionEnvironment envFromConfiguration =
-                StreamExecutionEnvironment.getExecutionEnvironment(configuration);
-
-        // user configuration with different jars
-        Configuration userConfiguration = new Configuration();
-        userConfiguration.set(
-                PipelineOptions.JARS, Arrays.asList("/tmp/test2.jar", "/tmp/test3.jar"));
-
-        // test pipeline.jars merge
-        envFromConfiguration.configure(
-                userConfiguration, Thread.currentThread().getContextClassLoader());
-
-        assertEquals(
-                envFromConfiguration.getConfiguration().get(PipelineOptions.JARS),
-                Arrays.asList("/tmp/test1.jar", "/tmp/test2.jar", "/tmp/test3.jar"));
-    }
-
     /** JobSubmitted counter listener for unit test. */
     public static class BasicJobSubmittedCounter implements JobListener {
         private int count = 0;

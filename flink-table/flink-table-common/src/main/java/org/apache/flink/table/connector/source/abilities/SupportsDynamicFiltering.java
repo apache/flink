@@ -60,9 +60,19 @@ import java.util.List;
 public interface SupportsDynamicFiltering {
 
     /**
-     * Applies the candidate filter fields into the table source, and return the accepted fields.
-     * The data corresponding the filter fields will be provided in runtime, which can be used to
-     * filter the partitions or the input data.
+     * Return the filter fields this partition table source supported. This method is can tell the
+     * planner which fields can be used as dynamic filtering fields, the planner will pick some
+     * fields from the returned fields based on the query, and create dynamic filtering operator.
      */
-    List<String> applyDynamicFiltering(List<String> candidateFilterFields);
+    List<String> listAcceptedFilterFields();
+
+    /**
+     * Applies the candidate filter fields into the table source. The data corresponding the filter
+     * fields will be provided in runtime, which can be used to filter the partitions or the input
+     * data.
+     *
+     * <p>NOTE: the candidate filter fields are always from the result of {@link
+     * #listAcceptedFilterFields()}.
+     */
+    void applyDynamicFiltering(List<String> candidateFilterFields);
 }

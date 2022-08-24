@@ -52,7 +52,6 @@ import org.apache.flink.api.java.typeutils.PojoTypeInfo;
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.configuration.ConfigOption;
-import org.apache.flink.configuration.ConfigUtils;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.configuration.DeploymentOptions;
@@ -62,7 +61,6 @@ import org.apache.flink.configuration.PipelineOptions;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.configuration.StateChangelogOptions;
-import org.apache.flink.configuration.UnmodifiableConfiguration;
 import org.apache.flink.core.execution.CacheSupportedPipelineExecutor;
 import org.apache.flink.core.execution.DefaultExecutorServiceLoader;
 import org.apache.flink.core.execution.DetachedJobExecutionResult;
@@ -1041,18 +1039,9 @@ public class StreamExecutionEnvironment implements AutoCloseable {
                                                 .ENABLE_CHECKPOINTS_AFTER_TASKS_FINISH,
                                         flag));
 
-        // merge PipelineOptions.JARS, user maybe set this option in high level such as table
-        // module, so here need to merge the jars from both configuration object
         configuration
                 .getOptional(PipelineOptions.JARS)
-                .ifPresent(
-                        jars ->
-                                ConfigUtils.mergeCollectionsToConfig(
-                                        this.configuration,
-                                        PipelineOptions.JARS,
-                                        Collections.unmodifiableCollection(jars),
-                                        String::toString,
-                                        String::toString));
+                .ifPresent(jars -> this.configuration.set(PipelineOptions.JARS, jars));
 
         config.configure(configuration, classLoader);
         checkpointCfg.configure(configuration);
@@ -2351,7 +2340,22 @@ public class StreamExecutionEnvironment implements AutoCloseable {
      */
     @Internal
     public ReadableConfig getConfiguration() {
-        return new UnmodifiableConfiguration(configuration);
+        // Note to implementers:
+        // In theory, you can cast the return value of this method to Configuration and perform
+        // mutations. In practice, this could cause side effects. A better approach is to implement
+        // the ReadableConfig interface and create a layered configuration.
+        // For example:
+        //   TableConfig implements ReadableConfig {
+        //     underlyingLayer ReadableConfig
+        //     thisConfigLayer Configuration
+        //
+        //     get(configOption) {
+        //        return thisConfigLayer
+        //          .getOptional(configOption)
+        //          .orElseGet(underlyingLayer.get(configOption))
+        //     }
+        //   }
+        return configuration;
     }
 
     // --------------------------------------------------------------------------------------------

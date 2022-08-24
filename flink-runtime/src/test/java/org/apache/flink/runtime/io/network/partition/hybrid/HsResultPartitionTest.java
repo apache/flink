@@ -59,8 +59,8 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Queue;
 import java.util.Random;
-import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.BiConsumer;
 
@@ -85,7 +85,7 @@ class HsResultPartitionTest {
 
     private BatchShuffleReadBufferPool readBufferPool;
 
-    private ExecutorService readIOExecutor;
+    private ScheduledExecutorService readIOExecutor;
 
     private TaskIOMetricGroup taskIOMetricGroup;
 
@@ -97,7 +97,7 @@ class HsResultPartitionTest {
                 new FileChannelManagerImpl(new String[] {tempDataPath.toString()}, "testing");
         globalPool = new NetworkBufferPool(totalBuffers, bufferSize);
         readBufferPool = new BatchShuffleReadBufferPool(totalBytes, bufferSize);
-        readIOExecutor = Executors.newFixedThreadPool(numThreads);
+        readIOExecutor = Executors.newScheduledThreadPool(numThreads);
     }
 
     @AfterEach

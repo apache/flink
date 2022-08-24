@@ -19,8 +19,8 @@
 package org.apache.flink.util;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.CoreOptions;
+import org.apache.flink.configuration.ReadableConfig;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -61,15 +61,13 @@ public class FlinkUserCodeClassLoaders {
     }
 
     public static MutableURLClassLoader create(
-            final URL[] urls, final ClassLoader parent, final Configuration configuration) {
+            final URL[] urls, final ClassLoader parent, final ReadableConfig config) {
         final String[] alwaysParentFirstLoaderPatterns =
-                CoreOptions.getParentFirstLoaderPatterns(configuration);
-        final String classLoaderResolveOrder =
-                configuration.getString(CoreOptions.CLASSLOADER_RESOLVE_ORDER);
+                CoreOptions.getParentFirstLoaderPatterns(config);
+        final String classLoaderResolveOrder = config.get(CoreOptions.CLASSLOADER_RESOLVE_ORDER);
         final FlinkUserCodeClassLoaders.ResolveOrder resolveOrder =
                 FlinkUserCodeClassLoaders.ResolveOrder.fromString(classLoaderResolveOrder);
-        final boolean checkClassloaderLeak =
-                configuration.getBoolean(CoreOptions.CHECK_LEAKED_CLASSLOADER);
+        final boolean checkClassloaderLeak = config.get(CoreOptions.CHECK_LEAKED_CLASSLOADER);
         return create(
                 resolveOrder,
                 urls,

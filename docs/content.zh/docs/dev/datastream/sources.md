@@ -45,7 +45,7 @@ under the License.
 
   - **分片枚举器（SplitEnumerator）** 会生成*分片*并将它们分配给 *SourceReader*。该组件在 JobManager 上以单并行度运行，负责对未分配的*分片*进行维护，并以均衡的方式将其分配给 reader。
 
-[Source](https://github.com/apache/flink/blob/master/flink-core/src/main/java/org/apache/flink/api/connector/source/Source.java) 类作为API入口，将上述三个组件结合在了一起。
+{{< gh_link file="flink-core/src/main/java/org/apache/flink/api/connector/source/Source.java" name="Source" >}} 类作为API入口，将上述三个组件结合在了一起。
 
 {{< img src="/fig/source_components.svg" alt="Illustration of SplitEnumerator and SourceReader interacting" width="70%" >}}
 
@@ -95,14 +95,14 @@ Source 将具有 Kafka Topic（亦或者一系列 Topics 或者通过正则表�
 
 ### Source
 
-[Source](https://github.com/apache/flink/blob/master/flink-core/src/main/java/org/apache/flink/api/connector/source/Source.java) API 是一个工厂模式的接口，用于创建以下组件。
+{{< gh_link file="flink-core/src/main/java/org/apache/flink/api/connector/source/Source.java" name="Source" >}} API 是一个工厂模式的接口，用于创建以下组件。
 
   - *Split Enumerator*
   - *Source Reader*
   - *Split Serializer*
   - *Enumerator Checkpoint Serializer*
 
-除此之外，Source 还提供了 [Boundedness](https://github.com/apache/flink/blob/master/flink-core/src/main/java/org/apache/flink/api/connector/source/Boundedness.java) 的特性，从而使得 Flink 可以选择合适的模式来运行 Flink 任务。
+除此之外，Source 还提供了 {{< gh_link file="flink-core/src/main/java/org/apache/flink/api/connector/source/Boundedness.java" name="Boundedness" >}} 的特性，从而使得 Flink 可以选择合适的模式来运行 Flink 任务。
 
 Source 实现应该是可序列化的，因为 Source 实例会在运行时被序列化并上传到 Flink 集群。
 
@@ -119,7 +119,7 @@ SplitEnumerator 被认为是整个 Source 的“大脑”。SplitEnumerator 的�
   - 分片的发现以及分配
     - `SplitEnumerator` 可以将分片分配到 `SourceReader` 从而响应各种事件，包括发现新的分片，新 `SourceReader` 的注册，`SourceReader` 的失败处理等
 
-`SplitEnumerator` 可以在 [SplitEnumeratorContext](https://github.com/apache/flink/blob/master/flink-core/src/main/java/org/apache/flink/api/connector/source/SplitEnumeratorContext.java) 的帮助下完成所有上述工作，其会在 `SplitEnumerator` 的创建或者恢复的时候提供给 `Source`。
+`SplitEnumerator` 可以在 {{< gh_link file="flink-core/src/main/java/org/apache/flink/api/connector/source/SplitEnumeratorContext.java" name="SplitEnumeratorContext" >}} 的帮助下完成所有上述工作，其会在 `SplitEnumerator` 的创建或者恢复的时候提供给 `Source`。
 `SplitEnumeratorContext` 允许 `SplitEnumerator` 检索到 reader 的必要信息并执行协调操作。
 而在 `Source` 的实现中会将 `SplitEnumeratorContext` 传递给 `SplitEnumerator` 实例。
 
@@ -129,7 +129,7 @@ SplitEnumerator 被认为是整个 Source 的“大脑”。SplitEnumerator 的�
 {{< tabs "066b6695-5bc3-4d7a-9032-ff6b1d15c3b1" >}}
 {{< tab "Java" >}}
 ```java
-class MySplitEnumerator implements SplitEnumerator<MySplit> {
+class MySplitEnumerator implements SplitEnumerator<MySplit, MyCheckpoint> {
     private final long DISCOVER_INTERVAL = 60_000L;
 
     /**
@@ -141,9 +141,9 @@ class MySplitEnumerator implements SplitEnumerator<MySplit> {
     public void start() {
         ...
         enumContext.callAsync(this::discoverSplits, splits -> {
-            Map<Integer, List<MockSourceSplit>> assignments = new HashMap<>();
+            Map<Integer, List<MySplit>> assignments = new HashMap<>();
             int parallelism = enumContext.currentParallelism();
-            for (MockSourceSplit split : splits) {
+            for (MySplit split : splits) {
                 int owner = split.splitId().hashCode() % parallelism;
                 assignments.computeIfAbsent(owner, new ArrayList<>()).add(split);
             }
@@ -166,7 +166,7 @@ Python API 中尚不支持该特性。
 
 ### SourceReader
 
-[SourceReader](https://github.com/apache/flink/blob/master/flink-core/src/main/java/org/apache/flink/api/connector/source/SourceReader.java) 是一个运行在Task Manager上的组件，用于处理来自分片的记录。
+{{< gh_link file="flink-core/src/main/java/org/apache/flink/api/connector/source/SourceReader.java" name="SourceReader" >}} 是一个运行在Task Manager上的组件，用于处理来自分片的记录。
 
 `SourceReader` 提供了一个拉动式（pull-based）处理接口。Flink 任务会在循环中不断调用 `pollNext(ReaderOutput)` 轮询来自 `SourceReader` 的记录。`pollNext(ReaderOutput)` 方法的返回值指示 SourceReader 的状态。
 
@@ -180,7 +180,7 @@ Python API 中尚不支持该特性。
 
 在创建 `SourceReader` 时，相应的 `SourceReaderContext` 会提供给 `Source`，而 `Source` 则会将相应的上下文传递给 `SourceReader` 实例。`SourceReader` 可以通过 `SourceReaderContext` 将 `SourceEvent` 传递给相应的 `SplitEnumerator` 。`Source` 的一个典型设计模式是让 `SourceReader` 发送它们的本地信息给 `SplitEnumerator`，后者则会全局性地做出决定。
 
-`SourceReader` API 是一个底层（low-level) API，允许用户自行处理分片，并使用自己的线程模型来获取和移交记录。为了帮助实现 `SourceReader`，Flink 提供了 [SourceReaderBase](https://github.com/apache/flink/blob/master/flink-connectors/flink-connector-base/src/main/java/org/apache/flink/connector/base/source/reader/SourceReaderBase.java) 类，可以显著减少编写 `SourceReader` 所需要的工作量。
+`SourceReader` API 是一个底层（low-level) API，允许用户自行处理分片，并使用自己的线程模型来获取和移交记录。为了帮助实现 `SourceReader`，Flink 提供了 {{< gh_link file="flink-connectors/flink-connector-base/src/main/java/org/apache/flink/connector/base/source/reader/SourceReaderBase.java" name="SourceReaderBase" >}} 类，可以显著减少编写 `SourceReader` 所需要的工作量。
 
 **强烈建议连接器开发人员充分利用 `SourceReaderBase` 而不是从头开始编写 `SourceReader`**。更多详细信息，请阅读 [SplitReader API](#the-split-reader-api) 部分。
 
@@ -239,7 +239,7 @@ env.from_source(
 核心的 SourceReader API 是完全异步的，
 但实际上，大多数 Sources 都会使用阻塞的操作，例如客户端（如 `KafkaConsumer`）的 *poll()* 阻塞调用，或者分布式文件系统（HDFS, S3等）的阻塞I/O操作。为了使其与异步 Source API 兼容，这些阻塞（同步）操作需要在单独的线程中进行，并在之后将数据提交给 reader 的异步线程。
 
-[SplitReader](https://github.com/apache/flink/blob/master/flink-connectors/flink-connector-base/src/main/java/org/apache/flink/connector/base/source/reader/splitreader/SplitReader.java) 是基于同步读取/轮询的 Source 的高级（high-level）API，例如 file source 和 Kafka source 的实现等。
+{{< gh_link file="flink-connectors/flink-connector-base/src/main/java/org/apache/flink/connector/base/source/reader/splitreader/SplitReader.java" name="SplitReader" >}} 是基于同步读取/轮询的 Source 的高级（high-level）API，例如 file source 和 Kafka source 的实现等。
 
 核心是上面提到的 `SourceReaderBase` 类，其使用 `SplitReader` 并创建提取器（fetcher）线程来运行 SplitReader，该实现支持不同的线程处理模型。
 
@@ -248,7 +248,7 @@ env.from_source(
 ### SplitReader
 
 `SplitReader` API 只有以下三个方法：
-  - 阻塞式的提取 `fetch()` 方法，返回值为 [RecordsWithSplitIds](https://github.com/apache/flink/blob/master/flink-connectors/flink-connector-base/src/main/java/org/apache/flink/connector/base/source/reader/RecordsWithSplitIds.java)。
+  - 阻塞式的提取 `fetch()` 方法，返回值为 {{< gh_link file="flink-connectors/flink-connector-base/src/main/java/org/apache/flink/connector/base/source/reader/RecordsWithSplitIds.java" name="RecordsWithSplitIds" >}}。
   - 非阻塞式处理分片变动 `handleSplitsChanges()` 方法。
   - 非阻塞式的唤醒 `wakeUp()` 方法，用于唤醒阻塞中的提取操作。
 
@@ -265,14 +265,14 @@ env.from_source(
   - 维护每个分片的水印（watermark）以保证水印对齐。
   - 维护每个分片的状态以进行 Checkpoint。
 
-为了减少开发新的 `SourceReader` 所需的工作，Flink 提供了 [SourceReaderBase](https://github.com/apache/flink/blob/master/flink-connectors/flink-connector-base/src/main/java/org/apache/flink/connector/base/source/reader/SourceReaderBase.java) 类作为 `SourceReader` 的基本实现。
-`SourceReaderBase` 已经实现了上述需求。要重新编写新的 `SourceReader`，只需要让 `SourceReader` 继承 `SourceReaderBase`，而后完善一些方法并实现 [SplitReader](https://github.com/apache/flink/blob/master/flink-connectors/flink-connector-base/src/main/java/org/apache/flink/connector/base/source/reader/splitreader/SplitReader.java)。
+为了减少开发新的 `SourceReader` 所需的工作，Flink 提供了 {{< gh_link file="flink-connectors/flink-connector-base/src/main/java/org/apache/flink/connector/base/source/reader/SourceReaderBase.java" name="SourceReaderBase" >}} 类作为 `SourceReader` 的基本实现。
+`SourceReaderBase` 已经实现了上述需求。要重新编写新的 `SourceReader`，只需要让 `SourceReader` 继承 `SourceReaderBase`，而后完善一些方法并实现 {{< gh_link file="flink-connectors/flink-connector-base/src/main/java/org/apache/flink/connector/base/source/reader/splitreader/SplitReader.java" name="SplitReader" >}}。
 
 <a name="SplitFetcherManager"></a>
 
 ### SplitFetcherManager
 
-`SourceReaderBase` 支持几个开箱即用（out-of-the-box）的线程模型，取决于 [SplitFetcherManager](https://github.com/apache/flink/blob/master/flink-connectors/flink-connector-base/src/main/java/org/apache/flink/connector/base/source/reader/fetcher/SplitFetcherManager.java) 的行为模式。
+`SourceReaderBase` 支持几个开箱即用（out-of-the-box）的线程模型，取决于 {{< gh_link file="flink-connectors/flink-connector-base/src/main/java/org/apache/flink/connector/base/source/reader/fetcher/SplitFetcherManager.java" name="SplitFetcherManager" >}} 的行为模式。
 `SplitFetcherManager` 创建和维护一个分片提取器（`SplitFetchers`）池，同时每个分片提取器使用一个 `SplitReader` 进行提取。它还决定如何分配分片给分片提取器。
 
 例如，如下所示，一个 `SplitFetcherManager` 可能有固定数量的线程，每个线程对分配给 `SourceReader` 的一些分片进行抓取。
@@ -294,10 +294,9 @@ public class FixedSizeSplitFetcherManager<E, SplitT extends SourceSplit>
 
     public FixedSizeSplitFetcherManager(
             int numFetchers,
-            FutureNotifier futureNotifier,
             FutureCompletingBlockingQueue<RecordsWithSplitIds<E>> elementsQueue,
             Supplier<SplitReader<E, SplitT>> splitReaderSupplier) {
-        super(futureNotifier, elementsQueue, splitReaderSupplier);
+        super(elementsQueue, splitReaderSupplier);
         this.numFetchers = numFetchers;
         // 创建 numFetchers 个分片提取器.
         for (int i = 0; i < numFetchers; i++) {
@@ -339,18 +338,15 @@ public class FixedFetcherSizeSourceReader<E, T, SplitT extends SourceSplit, Spli
         extends SourceReaderBase<E, T, SplitT, SplitStateT> {
 
     public FixedFetcherSizeSourceReader(
-            FutureNotifier futureNotifier,
             FutureCompletingBlockingQueue<RecordsWithSplitIds<E>> elementsQueue,
             Supplier<SplitReader<E, SplitT>> splitFetcherSupplier,
             RecordEmitter<E, T, SplitStateT> recordEmitter,
             Configuration config,
             SourceReaderContext context) {
         super(
-                futureNotifier,
                 elementsQueue,
                 new FixedSizeSplitFetcherManager<>(
                         config.getInteger(SourceConfig.NUM_FETCHERS),
-                        futureNotifier,
                         elementsQueue,
                         splitFetcherSupplier),
                 recordEmitter,
@@ -359,7 +355,7 @@ public class FixedFetcherSizeSourceReader<E, T, SplitT extends SourceSplit, Spli
     }
 
     @Override
-    protected void onSplitFinished(Collection<String> finishedSplitIds) {
+    protected void onSplitFinished(Map<String, SplitStateT> finishedSplitIds) {
         // 在回调过程中对完成的分片进行处理。
     }
 
@@ -391,12 +387,12 @@ Python API 中尚不支持该特性。
 Source 的实现需要完成一部分*事件时间*分配和*水印生成*的工作。离开 SourceReader 的事件流需要具有事件时间戳，并且（在流执行期间）包含水印。有关事件时间和水印的介绍，请参见[及时流处理]({{< ref "docs/concepts/time" >}})。
 
 {{< hint warning >}}
-旧版 [SourceFunction](https://github.com/apache/flink/blob/master/flink-streaming-java/src/main/java/org/apache/flink/streaming/api/functions/source/SourceFunction.java) 的应用通常在之后的单独的一步中通过 `stream.assignTimestampsAndWatermarks(WatermarkStrategy)` 生成时间戳和水印。这个函数不应该与新的 Sources 一起使用，因为此时时间戳应该已经被分配了，而且该函数会覆盖掉之前的分片（split-aware）水印。
+旧版 {{< gh_link file="flink-streaming-java/src/main/java/org/apache/flink/streaming/api/functions/source/SourceFunction.java" name="SourceFunction" >}} 的应用通常在之后的单独的一步中通过 `stream.assignTimestampsAndWatermarks(WatermarkStrategy)` 生成时间戳和水印。这个函数不应该与新的 Sources 一起使用，因为此时时间戳应该已经被分配了，而且该函数会覆盖掉之前的分片（split-aware）水印。
 {{< /hint >}}
 
 #### API
 
-在 DataStream API 创建期间， `WatermarkStrategy` 会被传递给 Source，并同时创建 [TimestampAssigner](https://github.com/apache/flink/blob/master/flink-core/src/main/java/org/apache/flink/api/common/eventtime/TimestampAssigner.java) 和 [WatermarkGenerator](https://github.com/apache/flink/blob/master/flink-core/src/main/java/org/apache/flink/api/common/eventtime/WatermarkGenerator.java)。
+在 DataStream API 创建期间， `WatermarkStrategy` 会被传递给 Source，并同时创建 {{< gh_link file="flink-core/src/main/java/org/apache/flink/api/common/eventtime/TimestampAssigner.java" name="TimestampAssigner" >}} 和 {{< gh_link file="flink-core/src/main/java/org/apache/flink/api/common/eventtime/WatermarkGenerator.java" name="WatermarkGenerator" >}}。
 
 {{< tabs "bde5ff60-4e62-4643-a6dc-50524acb7b34" >}}
 {{< tab "Java" >}}
@@ -450,4 +446,4 @@ environment.from_source(
 
 使用 *SplitReader API* 实现源连接器时，将自动进行处理。所有基于 SplitReader API 的实现都具有开箱即用（out-of-the-box）的分片水印。
 
-为了保证更底层的 `SourceReader` API 可以使用每个分片的水印生成，必须将不同分片的事件输送到不同的输出（outputs）中：*局部分片（Split-local） SourceOutputs*。通过 `createOutputForSplit(splitId)` 和 `releaseOutputForSplit(splitId)` 方法，可以在总 [ReaderOutput](https://github.com/apache/flink/blob/master/flink-core/src/main/java/org/apache/flink/api/connector/source/ReaderOutput.java) 上创建并发布局部分片输出。有关详细信息，请参阅该类和方法的 Java 文档。
+为了保证更底层的 `SourceReader` API 可以使用每个分片的水印生成，必须将不同分片的事件输送到不同的输出（outputs）中：*局部分片（Split-local） SourceOutputs*。通过 `createOutputForSplit(splitId)` 和 `releaseOutputForSplit(splitId)` 方法，可以在总 {{< gh_link file="flink-core/src/main/java/org/apache/flink/api/connector/source/ReaderOutput.java" name="ReaderOutput" >}} 上创建并发布局部分片输出。有关详细信息，请参阅该类和方法的 Java 文档。

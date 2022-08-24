@@ -1053,3 +1053,12 @@ class StreamExecutionEnvironment(object):
         Returns whether Unaligned Checkpoints are force-enabled.
         """
         return self._j_stream_execution_environment.isForceUnalignedCheckpoints()
+
+    def close(self):
+        """
+        Close and clean up the execution environment. All the cached intermediate results will be
+        released physically.
+
+        .. versionadded:: 1.16.0
+        """
+        self._j_stream_execution_environment.close()

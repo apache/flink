@@ -319,6 +319,7 @@ object LongHashJoinGenerator {
     ctx.addReusableMember(s"""
                              |private void fallbackSMJProcessPartition() throws Exception {
                              |  if(!table.getPartitionsPendingForSMJ().isEmpty()) {
+                             |    table.releaseMemoryCacheForSMJ();
                              |    LOG.info(
                              |    "Fallback to sort merge join to process spilled partitions.");
                              |    initialSortMergeJoinFunction();
@@ -353,6 +354,7 @@ object LongHashJoinGenerator {
     ctx.addReusableMember(s"""
                              |private void initialSortMergeJoinFunction() throws Exception {
                              |  sortMergeJoinFunction.open(
+                             |    true,
                              |    this.getContainingTask(),
                              |    this.getOperatorConfig(),
                              |    new $collector<$ROW_DATA>(output),

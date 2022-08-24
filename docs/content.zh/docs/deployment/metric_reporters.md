@@ -261,30 +261,32 @@ metrics.reporter.stsd.interval: 60 SECONDS
 
 使用 Datadog 时，Flink 运行指标中的任何变量，例如 `<host>`、`<job_name>`、 `<tm_id>`、 `<subtask_index>`、`<task_name>`、 `<operator_name>`，都会被当作 `host:localhost`、`job_name:myjobname` 这样的 tag 发送。
 
-<span class="label label-info">注意</span> 按照 Datedog 的 Histograms 命名约定，Histograms 类的运行指标会作为一系列 gauges 显示（`<metric_name>.<aggregation>`）。
-默认情况下 `min` 即最小值被发送到 Datedog，`sum` 不会被发送。
+<span class="label label-danger">Note</span> For legacy reasons the reporter uses _both_ the metric identifier _and_ tags. This redundancy can be avoided by enabling `useLogicalIdentifier`.
+
+<span class="label label-info">注意</span> 按照 Datadog 的 Histograms 命名约定，Histograms 类的运行指标会作为一系列 gauges 显示（`<metric_name>.<aggregation>`）。
+默认情况下 `min` 即最小值被发送到 Datadog，`sum` 不会被发送。
 与 Datadog 提供的 Histograms 相比，Histograms 类的运行指标不会按照指定的发送间隔进行聚合计算。
 
 参数:
 
 - `apikey` - Datadog 的 API KEY。
-- `tags` - （可选的）发送到 Datadog 时将会转换为指标的全局 tag。tag 间只能以逗号分隔。
 - `proxyHost` - （可选的）发送到 Datadog 时使用的代理主机。
 - `proxyPort` - （可选的）发送到 Datadog 时使用的代理端口，默认为 8080。
 - `dataCenter` - （可选的）要连接的数据中心（`EU`/`US`），默认为 `US`。
 - `maxMetricsPerRequest` - （可选的）每次请求携带的最大运行指标个数，默认为 2000。
+- `useLogicalIdentifier` -> (optional) Whether the reporter uses a logical metric identifier, defaults to `false`.
 
 配置示例:
 
 ```yaml
 metrics.reporter.dghttp.factory.class: org.apache.flink.metrics.datadog.DatadogHttpReporterFactory
 metrics.reporter.dghttp.apikey: xxx
-metrics.reporter.dghttp.tags: myflinkapp,prod
 metrics.reporter.dghttp.proxyHost: my.web.proxy.com
 metrics.reporter.dghttp.proxyPort: 8080
 metrics.reporter.dghttp.dataCenter: US
 metrics.reporter.dghttp.maxMetricsPerRequest: 2000
 metrics.reporter.dghttp.interval: 60 SECONDS
+metrics.reporter.dghttp.useLogicalIdentifier: true
 ```
 
 <a name="slf4j"></a>

@@ -44,7 +44,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.fail;
 
 /**
- * Contains the compatibility checks that are applied by the {@link RestAPIStabilityTest}. New
+ * Contains the compatibility checks that are applied by the {@link RestAPIStabilityTestUtils}. New
  * checks must be added to the {@link CompatibilityRoutines#ROUTINES} collection.
  */
 enum CompatibilityRoutines {

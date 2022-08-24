@@ -171,7 +171,14 @@ public class DynamicPartitionPruningUtils {
                     joinKeys.stream()
                             .map(i -> scan.getRowType().getFieldNames().get(i))
                             .collect(Collectors.toList());
-            factSideFactors.isSuitableFactScanSource = !candidateFields.isEmpty();
+            if (candidateFields.isEmpty()) {
+                factSideFactors.isSuitableFactScanSource = false;
+                return;
+            }
+
+            factSideFactors.isSuitableFactScanSource =
+                    !getSuitableDynamicFilteringFieldsInFactSide(tableSource, candidateFields)
+                            .isEmpty();
         } else if (rel instanceof HepRelVertex) {
             visitFactSide(((HepRelVertex) rel).getCurrentRel(), factSideFactors, joinKeys);
         } else if (rel instanceof Exchange || rel instanceof Filter) {
@@ -200,6 +207,27 @@ public class DynamicPartitionPruningUtils {
 
             visitFactSide(rel.getInput(0), factSideFactors, inputJoinKeys);
         }
+    }
+
+    public static List<String> getSuitableDynamicFilteringFieldsInFactSide(
+            DynamicTableSource tableSource, List<String> candidateFields) {
+        List<String> acceptedFilterFields =
+                ((SupportsDynamicFiltering) tableSource).listAcceptedFilterFields();
+        if (acceptedFilterFields == null || acceptedFilterFields.isEmpty()) {
+            return new ArrayList<>();
+        }
+
+        List<String> suitableFields = new ArrayList<>();
+        // If candidateField not in acceptedFilterFields means dpp rule will not be matched,
+        // because we can not prune any partitions according to non-accepted filter fields
+        // provided by partition table source.
+        for (String candidateField : candidateFields) {
+            if (acceptedFilterFields.contains(candidateField)) {
+                suitableFields.add(candidateField);
+            }
+        }
+
+        return suitableFields;
     }
 
     /**

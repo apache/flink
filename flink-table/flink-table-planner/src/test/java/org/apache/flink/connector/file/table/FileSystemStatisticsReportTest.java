@@ -22,9 +22,15 @@ import org.apache.flink.table.api.config.OptimizerConfigOptions;
 import org.apache.flink.table.catalog.CatalogPartitionImpl;
 import org.apache.flink.table.catalog.CatalogPartitionSpec;
 import org.apache.flink.table.catalog.ObjectPath;
+import org.apache.flink.table.catalog.stats.CatalogColumnStatistics;
+import org.apache.flink.table.catalog.stats.CatalogColumnStatisticsDataBase;
+import org.apache.flink.table.catalog.stats.CatalogColumnStatisticsDataLong;
+import org.apache.flink.table.catalog.stats.CatalogColumnStatisticsDataString;
 import org.apache.flink.table.catalog.stats.CatalogTableStatistics;
+import org.apache.flink.table.plan.stats.ColumnStats;
 import org.apache.flink.table.plan.stats.TableStats;
 import org.apache.flink.table.planner.plan.stats.FlinkStatistic;
+import org.apache.flink.table.planner.utils.CatalogTableStatisticsConverter;
 import org.apache.flink.table.planner.utils.StatisticsReportTestBase;
 
 import org.junit.jupiter.api.BeforeEach;
@@ -38,6 +44,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -67,6 +74,7 @@ public class FileSystemStatisticsReportTest extends StatisticsReportTestBase {
         partitionDataPath.mkdirs();
         writeData(new File(partitionDataPath, "b=1"), Arrays.asList("1,1,hi", "2,1,hello"));
         writeData(new File(partitionDataPath, "b=2"), Collections.singletonList("3,2,hello world"));
+        writeData(new File(partitionDataPath, "b=3"), Collections.singletonList("4,3,hello"));
         String ddl2 =
                 String.format(
                         "CREATE TABLE PartTable (\n"
@@ -91,6 +99,13 @@ public class FileSystemStatisticsReportTest extends StatisticsReportTestBase {
                 .createPartition(
                         new ObjectPath(tEnv.getCurrentDatabase(), "PartTable"),
                         new CatalogPartitionSpec(Collections.singletonMap("b", "2")),
+                        new CatalogPartitionImpl(new HashMap<>(), ""),
+                        false);
+        tEnv.getCatalog(tEnv.getCurrentCatalog())
+                .orElseThrow(Exception::new)
+                .createPartition(
+                        new ObjectPath(tEnv.getCurrentDatabase(), "PartTable"),
+                        new CatalogPartitionSpec(Collections.singletonMap("b", "3")),
                         new CatalogPartitionImpl(new HashMap<>(), ""),
                         false);
 
@@ -224,9 +239,40 @@ public class FileSystemStatisticsReportTest extends StatisticsReportTestBase {
                         new CatalogPartitionSpec(Collections.singletonMap("b", "2")),
                         new CatalogTableStatistics(3L, 1, 100L, 100L),
                         false);
+        tEnv.getCatalog(tEnv.getCurrentCatalog())
+                .orElseThrow(Exception::new)
+                .alterPartitionStatistics(
+                        new ObjectPath(tEnv.getCurrentDatabase(), "PartTable"),
+                        new CatalogPartitionSpec(Collections.singletonMap("b", "3")),
+                        new CatalogTableStatistics(3L, 1, 100L, 100L),
+                        false);
 
         FlinkStatistic statistic = getStatisticsFromOptimizedPlan("select * from PartTable");
-        assertThat(statistic.getTableStats()).isEqualTo(new TableStats(9));
+        assertThat(statistic.getTableStats()).isEqualTo(new TableStats(12));
+    }
+
+    @Test
+    public void tesNoPartitionPushDownAndCatalogStatisticsPartialExist() throws Exception {
+        tEnv.getCatalog(tEnv.getCurrentCatalog())
+                .orElseThrow(Exception::new)
+                .alterPartitionStatistics(
+                        new ObjectPath(tEnv.getCurrentDatabase(), "PartTable"),
+                        new CatalogPartitionSpec(Collections.singletonMap("b", "1")),
+                        new CatalogTableStatistics(6L, 1, 100L, 100L),
+                        false);
+        tEnv.getCatalog(tEnv.getCurrentCatalog())
+                .orElseThrow(Exception::new)
+                .alterPartitionStatistics(
+                        new ObjectPath(tEnv.getCurrentDatabase(), "PartTable"),
+                        new CatalogPartitionSpec(Collections.singletonMap("b", "2")),
+                        new CatalogTableStatistics(3L, 1, 100L, 100L),
+                        false);
+        // For partition table 'PartTable', partition 'b=3' have no catalog statistics, so get
+        // partition table stats from catalog will return TableStats.UNKNOWN. So we will recompute
+        // stats from source.
+        FlinkStatistic statistic = getStatisticsFromOptimizedPlan("select * from PartTable");
+        // there are four rows in file system.
+        assertThat(statistic.getTableStats()).isEqualTo(new TableStats(4));
     }
 
     @Test
@@ -259,6 +305,59 @@ public class FileSystemStatisticsReportTest extends StatisticsReportTestBase {
         FlinkStatistic statistic =
                 getStatisticsFromOptimizedPlan("select * from PartTable where b = 1");
         assertThat(statistic.getTableStats()).isEqualTo(new TableStats(6));
+    }
+
+    @Test
+    public void testPartitionPushDownAndCatalogColumnStatisticsExist() throws Exception {
+        // The purpose of this test case is to test the correctness of stats after partition push
+        // down, and recompute partition table and column stats. For partition table, merged Ndv for
+        // columns which are partition keys using sum instead of max (other columns using max).
+        tEnv.getCatalog(tEnv.getCurrentCatalog())
+                .orElseThrow(Exception::new)
+                .alterPartitionStatistics(
+                        new ObjectPath(tEnv.getCurrentDatabase(), "PartTable"),
+                        new CatalogPartitionSpec(Collections.singletonMap("b", "1")),
+                        new CatalogTableStatistics(6L, 1, 100L, 100L),
+                        false);
+        tEnv.getCatalog(tEnv.getCurrentCatalog())
+                .orElseThrow(Exception::new)
+                .alterPartitionStatistics(
+                        new ObjectPath(tEnv.getCurrentDatabase(), "PartTable"),
+                        new CatalogPartitionSpec(Collections.singletonMap("b", "2")),
+                        new CatalogTableStatistics(3L, 1, 100L, 100L),
+                        false);
+        tEnv.getCatalog(tEnv.getCurrentCatalog())
+                .orElseThrow(Exception::new)
+                .alterPartitionStatistics(
+                        new ObjectPath(tEnv.getCurrentDatabase(), "PartTable"),
+                        new CatalogPartitionSpec(Collections.singletonMap("b", "3")),
+                        new CatalogTableStatistics(3L, 1, 100L, 100L),
+                        false);
+        tEnv.getCatalog(tEnv.getCurrentCatalog())
+                .orElseThrow(Exception::new)
+                .alterPartitionColumnStatistics(
+                        new ObjectPath(tEnv.getCurrentDatabase(), "PartTable"),
+                        new CatalogPartitionSpec(Collections.singletonMap("b", "1")),
+                        createSinglePartitionColumnStats(),
+                        false);
+        tEnv.getCatalog(tEnv.getCurrentCatalog())
+                .orElseThrow(Exception::new)
+                .alterPartitionColumnStatistics(
+                        new ObjectPath(tEnv.getCurrentDatabase(), "PartTable"),
+                        new CatalogPartitionSpec(Collections.singletonMap("b", "2")),
+                        createSinglePartitionColumnStats(),
+                        false);
+        tEnv.getCatalog(tEnv.getCurrentCatalog())
+                .orElseThrow(Exception::new)
+                .alterPartitionColumnStatistics(
+                        new ObjectPath(tEnv.getCurrentDatabase(), "PartTable"),
+                        new CatalogPartitionSpec(Collections.singletonMap("b", "3")),
+                        createSinglePartitionColumnStats(),
+                        false);
+        FlinkStatistic statistic =
+                getStatisticsFromOptimizedPlan("select * from PartTable where b < 3");
+        assertThat(statistic.getTableStats())
+                .isEqualTo(new TableStats(9, createMergedPartitionColumnStats()));
     }
 
     @Test
@@ -315,5 +414,32 @@ public class FileSystemStatisticsReportTest extends StatisticsReportTestBase {
         FlinkStatistic statistic =
                 getStatisticsFromOptimizedPlan("select * from emptyTable limit 1");
         assertThat(statistic.getTableStats()).isEqualTo(new TableStats(1));
+    }
+
+    private CatalogColumnStatistics createSinglePartitionColumnStats() {
+        Map<String, CatalogColumnStatisticsDataBase> colStatsMap = new HashMap<>();
+        CatalogColumnStatisticsDataLong longColStats =
+                new CatalogColumnStatisticsDataLong(1L, 10L, 5L, 5L);
+        colStatsMap.put("a", longColStats);
+        colStatsMap.put("b", longColStats);
+        CatalogColumnStatisticsDataString stringColStats =
+                new CatalogColumnStatisticsDataString(10L, 10D, 5L, 5L);
+        colStatsMap.put("c", stringColStats);
+        return new CatalogColumnStatistics(colStatsMap);
+    }
+
+    private Map<String, ColumnStats> createMergedPartitionColumnStats() {
+        Map<String, CatalogColumnStatisticsDataBase> colStatsMap = new HashMap<>();
+        CatalogColumnStatisticsDataLong longColStats =
+                new CatalogColumnStatisticsDataLong(1L, 10L, 5L, 10L);
+        colStatsMap.put("a", longColStats);
+        // Merged Ndv for columns which are partition keys using sum instead of max.
+        CatalogColumnStatisticsDataLong longColStats2 =
+                new CatalogColumnStatisticsDataLong(1L, 10L, 10L, 10L);
+        colStatsMap.put("b", longColStats2);
+        CatalogColumnStatisticsDataString stringColStats =
+                new CatalogColumnStatisticsDataString(10L, 10D, 5L, 10L);
+        colStatsMap.put("c", stringColStats);
+        return CatalogTableStatisticsConverter.convertToColumnStatsMap(colStatsMap);
     }
 }

@@ -19,10 +19,8 @@
 package org.apache.flink.runtime.rest.compatibility;
 
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.runtime.rest.util.DocumentingDispatcherRestEndpoint;
 import org.apache.flink.runtime.rest.util.DocumentingRestEndpoint;
-import org.apache.flink.runtime.rest.versioning.RuntimeRestAPIVersion;
-import org.apache.flink.util.ConfigurationException;
+import org.apache.flink.runtime.rest.versioning.RestAPIVersion;
 import org.apache.flink.util.jackson.JacksonMapperFactory;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonProcessingException;
@@ -33,70 +31,51 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMap
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.node.ObjectNode;
 
 import org.junit.jupiter.api.Assertions;
-import org.junit.jupiter.api.extension.ExtensionContext;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.Arguments;
-import org.junit.jupiter.params.provider.ArgumentsProvider;
-import org.junit.jupiter.params.provider.ArgumentsSource;
 
 import java.io.File;
 import java.io.IOException;
 import java.net.URL;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
-/** Stability test and snapshot generator for the REST API. */
-final class RestAPIStabilityTest {
-
-    private static final String REGENERATE_SNAPSHOT_PROPERTY = "generate-rest-snapshot";
-
-    private static final String SNAPSHOT_RESOURCE_PATTERN = "rest_api_%s.snapshot";
+/** The util of stability test and snapshot generator for the REST API. */
+public final class RestAPIStabilityTestUtils {
 
     private static final ObjectMapper OBJECT_MAPPER = JacksonMapperFactory.createObjectMapper();
 
-    private static class StableRestApiVersionProvider implements ArgumentsProvider {
-
-        @Override
-        public Stream<? extends Arguments> provideArguments(ExtensionContext context)
-                throws Exception {
-            return Arrays.stream(RuntimeRestAPIVersion.values())
-                    .filter(RuntimeRestAPIVersion::isStableVersion)
-                    .map(Arguments::of);
-        }
-    }
-
-    @ParameterizedTest
-    @ArgumentsSource(StableRestApiVersionProvider.class)
-    void testDispatcherRestAPIStability(RuntimeRestAPIVersion apiVersion)
-            throws IOException, ConfigurationException {
+    public static void testStability(
+            String snapshotFileName,
+            String snapshotRegenerateProperty,
+            RestAPIVersion apiVersion,
+            DocumentingRestEndpoint documentingRestEndpoint)
+            throws IOException {
         final String versionedSnapshotFileName =
-                String.format(SNAPSHOT_RESOURCE_PATTERN, apiVersion.getURLVersionPrefix());
+                String.format(snapshotFileName, apiVersion.getURLVersionPrefix());
 
-        final RestAPISnapshot currentSnapshot =
-                createSnapshot(new DocumentingDispatcherRestEndpoint(), apiVersion);
+        final RestAPISnapshot currentSnapshot = createSnapshot(documentingRestEndpoint, apiVersion);
 
-        if (System.getProperty(REGENERATE_SNAPSHOT_PROPERTY) != null) {
+        if (System.getProperty(snapshotRegenerateProperty) != null) {
             writeSnapshot(versionedSnapshotFileName, currentSnapshot);
         }
 
         final URL resource =
-                RestAPIStabilityTest.class.getClassLoader().getResource(versionedSnapshotFileName);
+                RestAPIStabilityTestUtils.class
+                        .getClassLoader()
+                        .getResource(versionedSnapshotFileName);
         if (resource == null) {
             Assertions.fail(
                     "Snapshot file does not exist. If you added a new version, re-run this test with"
                             + " -D"
-                            + REGENERATE_SNAPSHOT_PROPERTY
+                            + snapshotFileName
                             + " being set.");
         }
         final RestAPISnapshot previousSnapshot =
                 OBJECT_MAPPER.readValue(resource, RestAPISnapshot.class);
 
-        assertCompatible(previousSnapshot, currentSnapshot);
+        assertCompatible(snapshotRegenerateProperty, previousSnapshot, currentSnapshot);
     }
 
     private static void writeSnapshot(
@@ -113,8 +92,8 @@ final class RestAPIStabilityTest {
                         + " was updated, please remember to commit the snapshot.");
     }
 
-    private RestAPISnapshot createSnapshot(
-            final DocumentingRestEndpoint restEndpoint, RuntimeRestAPIVersion apiVersion) {
+    private static RestAPISnapshot createSnapshot(
+            final DocumentingRestEndpoint restEndpoint, RestAPIVersion apiVersion) {
         final List<JsonNode> calls =
                 restEndpoint.getSpecs().stream()
                         // we only compare compatibility within the given version
@@ -138,7 +117,10 @@ final class RestAPIStabilityTest {
         return new RestAPISnapshot(calls);
     }
 
-    private static void assertCompatible(final RestAPISnapshot old, final RestAPISnapshot cur) {
+    private static void assertCompatible(
+            final String snapshotRegenerateProperty,
+            final RestAPISnapshot old,
+            final RestAPISnapshot cur) {
         for (final JsonNode oldCall : old.calls) {
             final List<Tuple2<JsonNode, CompatibilityCheckResult>> compatibilityCheckResults =
                     cur.calls.stream()
@@ -162,9 +144,9 @@ final class RestAPIStabilityTest {
                                     result.f1.getBackwardCompatibility()
                                             == Compatibility.IDENTICAL)) {
                 Assertions.fail(
-                        "The API was modified in a compatible way, but the snapshot was not updated. "
+                        "The Rest API was modified in a compatible way, but the snapshot was not updated. "
                                 + "To update the snapshot, re-run this test with -D"
-                                + REGENERATE_SNAPSHOT_PROPERTY
+                                + snapshotRegenerateProperty
                                 + " being set. If you see this message in a CI pipeline, rerun the test locally and commit the generated changes.");
             }
         }
@@ -185,9 +167,9 @@ final class RestAPIStabilityTest {
                                     result.f1.getBackwardCompatibility()
                                             == Compatibility.IDENTICAL)) {
                 Assertions.fail(
-                        "The API was modified in a compatible way, but the snapshot was not updated. "
+                        "API was modified in a compatible way, but the snapshot was not updated. "
                                 + "To update the snapshot, re-run this test with -D"
-                                + REGENERATE_SNAPSHOT_PROPERTY
+                                + snapshotRegenerateProperty
                                 + " being set.");
             }
         }

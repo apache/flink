@@ -311,12 +311,9 @@ class AsyncLookupJoinITCase(
   @Test
   def testAggAndAsyncLeftJoinWithTryResolveMode(): Unit = {
     // will require a sync lookup function because input has update on TRY_RESOLVE mode
-    // only legacy source can provide both sync and async functions
-    if (!legacyTableSource) {
-      thrown.expectMessage(
-        "Required sync lookup function by planner, but table [default_catalog, default_database, user_table]does not offer a valid lookup function")
-      thrown.expect(classOf[TableException])
-    }
+    // there's no test sources that have both sync and async lookup functions
+    thrown.expectMessage("Required sync lookup function by planner")
+    thrown.expect(classOf[TableException])
     tEnv.getConfig.set(
       OptimizerConfigOptions.TABLE_OPTIMIZER_NONDETERMINISTIC_UPDATE_STRATEGY,
       OptimizerConfigOptions.NonDeterministicUpdateStrategy.TRY_RESOLVE)

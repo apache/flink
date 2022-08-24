@@ -495,6 +495,19 @@ public class HiveTableSinkITCase {
         assertThat(partitions).hasSize(3);
         assertThat(partitions.toString()).contains("dt=2022-07-29");
         assertBatch("target_table", Arrays.asList());
+
+        // test for dynamic partition
+        tEnv.executeSql(
+                "create table partition_table(`name` string) partitioned by (`p_date` string, `p_hour` string)");
+        tEnv.executeSql("create table test_src_table(`name` string, `hour` string, age int)");
+        tEnv.executeSql(
+                        "insert overwrite table partition_table partition(`p_date`='20220816', `p_hour`)"
+                                + " select `name`, `hour` from test_src_table")
+                .await();
+        partitions =
+                CollectionUtil.iteratorToList(
+                        tEnv.executeSql("show partitions partition_table").collect());
+        assertThat(partitions).hasSize(0);
     }
 
     @Test

@@ -57,7 +57,6 @@ import org.apache.flink.shaded.guava30.com.google.common.collect.Sets;
 
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
-import java.lang.reflect.InvocationTargetException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -74,29 +73,8 @@ public class PythonConfigUtil {
     public static final String STREAM_PARTITION_CUSTOM_MAP_OPERATOR_NAME =
             "_partition_custom_map_operator";
 
-    /**
-     * Get the private field {@link StreamExecutionEnvironment#configuration} by reflection
-     * recursively. It allows modification to the configuration compared with {@link
-     * StreamExecutionEnvironment#getConfiguration()}.
-     */
-    public static Configuration getEnvironmentConfig(StreamExecutionEnvironment env)
-            throws InvocationTargetException, IllegalAccessException, NoSuchFieldException {
-        Field configurationField = null;
-        for (Class<?> clz = env.getClass(); clz != Object.class; clz = clz.getSuperclass()) {
-            try {
-                configurationField = clz.getDeclaredField("configuration");
-                break;
-            } catch (NoSuchFieldException e) {
-                // ignore
-            }
-        }
-
-        if (configurationField == null) {
-            throw new NoSuchFieldException("Field 'configuration' not found.");
-        }
-
-        configurationField.setAccessible(true);
-        return (Configuration) configurationField.get(env);
+    public static Configuration getEnvironmentConfig(StreamExecutionEnvironment env) {
+        return (Configuration) env.getConfiguration();
     }
 
     public static void configPythonOperator(StreamExecutionEnvironment env) throws Exception {

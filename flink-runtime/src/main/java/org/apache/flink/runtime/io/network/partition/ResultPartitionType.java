@@ -91,14 +91,16 @@ public enum ResultPartitionType {
      *
      * <p>Hybrid partitions can be consumed any time, whether fully produced or not.
      *
-     * <p>HYBRID_FULL partitions is re-consumable, so double calculation can be avoided during
+     * <p>HYBRID_FULL partitions can be consumed repeatedly, but it does not support concurrent
+     * consumption. So re-consumable is false, but double calculation can be avoided during
      * failover.
      */
-    HYBRID_FULL(true, false, false, ConsumingConstraint.CAN_BE_PIPELINED, ReleaseBy.SCHEDULER),
+    // TODO support re-consumable for HYBRID_FULL resultPartitionType.
+    HYBRID_FULL(false, false, false, ConsumingConstraint.CAN_BE_PIPELINED, ReleaseBy.SCHEDULER),
 
     /**
-     * HYBRID_SELECTIVE partitions are similar to {@link #HYBRID_FULL} partitions, but it is not
-     * re-consumable.
+     * HYBRID_SELECTIVE partitions are similar to {@link #HYBRID_FULL} partitions, but it cannot be
+     * consumed repeatedly.
      */
     HYBRID_SELECTIVE(
             false, false, false, ConsumingConstraint.CAN_BE_PIPELINED, ReleaseBy.SCHEDULER);

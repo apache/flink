@@ -392,9 +392,18 @@ You can use `StartCursor.fromPublishTime(long)` instead.
   {{< /tabs >}}
 
 - Start from the specified message publish time by `Message<byte[]>.getPublishTime()`.
+  {{< tabs "pulsar-starting-position-publish-time" >}}
+  {{< tab "Java" >}}
   ```java
   StartCursor.fromPublishTime(long);
   ```
+  {{< /tab >}}
+  {{< tab "Python" >}}
+  ```python
+  StartCursor.from_publish_time(int)
+  ```
+  {{< /tab >}}
+  {{< /tabs >}}
 
 {{< hint info >}}
 Each Pulsar message belongs to an ordered sequence on its topic.
@@ -473,19 +482,37 @@ Built-in stop cursors include:
 
 - Stop at the specified event time by `Message<byte[]>.getEventTime()`. The message with the
 given event time won't be included in the consuming result.
+  {{< tabs "pulsar-boundedness-at-event-time" >}} 
+  {{< tab "Java" >}}
   ```java
   StopCursor.atEventTime(long);
   ```
+  {{< /tab >}}
+  {{< tab "Python" >}}
+  ```python
+  StopCursor.at_event_time(int)
+  ```
+  {{< /tab >}}
+  {{< /tabs >}}
 
 - Stop after the specified event time by `Message<byte[]>.getEventTime()`. The message with the
 given event time will be included in the consuming result.
+  {{< tabs "pulsar-boundedness-after-event-time" >}}
+  {{< tab "Java" >}}
   ```java
   StopCursor.afterEventTime(long);
   ```
+  {{< /tab >}}
+  {{< tab "Python" >}}
+  ```python
+  StopCursor.after_event_time(int)
+  ```
+  {{< /tab >}}
+  {{< /tabs >}}
 
 - Stop at the specified publish time by `Message<byte[]>.getPublishTime()`. The message with the
 given publish time won't be included in the consuming result.
-  {{< tabs "pulsar-boundedness-publish-time" >}}
+  {{< tabs "pulsar-boundedness-at-publish-time" >}}
   {{< tab "Java" >}}
   ```java
   StopCursor.atPublishTime(long);
@@ -500,9 +527,18 @@ given publish time won't be included in the consuming result.
 
 - Stop after the specified publish time by `Message<byte[]>.getPublishTime()`. The message with the
 given publish time will be included in the consuming result.
+  {{< tabs "pulsar-boundedness-after-publish-time" >}}
+  {{< tab "Java" >}}
   ```java
   StopCursor.afterPublishTime(long);
   ```
+  {{< /tab >}}
+  {{< tab "Python" >}}
+  ```python
+  StopCursor.after_publish_time(int)
+  ```
+  {{< /tab >}}
+  {{< /tabs >}}
 
 ### Source Configurable Options
 
