@@ -91,7 +91,7 @@ public class AnalyzeTableUtil {
                             catalog.getPartitionColumnStatistics(objectPath, partitionSpec);
                     // merge stats
                     CatalogColumnStatistics mergedColumnStatistics =
-                            mergeColumnStatistics(oldColumnStat.copy(), newColumnStat);
+                            mergeColumnStatistics(oldColumnStat, newColumnStat);
                     catalog.alterPartitionColumnStatistics(
                             objectPath, partitionSpec, mergedColumnStatistics, false);
                 }
@@ -108,7 +108,7 @@ public class AnalyzeTableUtil {
                         catalog.getTableColumnStatistics(objectPath);
                 // merge stats.
                 CatalogColumnStatistics mergedColumnStatistics =
-                        mergeColumnStatistics(oldColumnStat.copy(), newColumnStat);
+                        mergeColumnStatistics(oldColumnStat, newColumnStat);
                 catalog.alterTableColumnStatistics(objectPath, mergedColumnStatistics, false);
             }
         }
@@ -118,10 +118,11 @@ public class AnalyzeTableUtil {
     private static CatalogColumnStatistics mergeColumnStatistics(
             CatalogColumnStatistics oldColumnStatistics,
             CatalogColumnStatistics newColumnStatistics) {
-        oldColumnStatistics
+        CatalogColumnStatistics columnStatistics = oldColumnStatistics.copy();
+        columnStatistics
                 .getColumnStatisticsData()
                 .putAll(newColumnStatistics.getColumnStatisticsData());
-        return oldColumnStatistics;
+        return columnStatistics;
     }
 
     private static Tuple2<CatalogTableStatistics, CatalogColumnStatistics>
