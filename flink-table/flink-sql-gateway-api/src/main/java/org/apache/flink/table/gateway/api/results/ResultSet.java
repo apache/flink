@@ -22,11 +22,6 @@ import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.table.api.TableResult;
 import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.data.RowData;
-import org.apache.flink.table.gateway.api.results.serde.JsonResultSetDeserializer;
-import org.apache.flink.table.gateway.api.results.serde.JsonResultSetSerializer;
-
-import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.annotation.JsonDeserialize;
-import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.annotation.JsonSerialize;
 
 import javax.annotation.Nullable;
 
@@ -38,8 +33,6 @@ import java.util.stream.Collectors;
 
 /** The collection of the results. */
 @PublicEvolving
-@JsonSerialize(using = JsonResultSetSerializer.class)
-@JsonDeserialize(using = JsonResultSetDeserializer.class)
 public class ResultSet implements Serializable {
 
     private static final long serialVersionUID = 1L;

@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.gateway.api.results.serde;
+package org.apache.flink.table.gateway.rest.util;
 
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.formats.common.TimestampFormat;
