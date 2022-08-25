@@ -34,7 +34,6 @@ import java.io.IOException;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.BitSet;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -211,9 +210,15 @@ public class PartitionPathUtils {
         if (statuses == null) {
             return null;
         }
-        return Arrays.stream(statuses)
-                .filter(fileStatus -> !isHiddenFile(fileStatus))
-                .toArray(FileStatus[]::new);
+        List<FileStatus> ret = new ArrayList<>();
+        for (FileStatus part : statuses) {
+            // ignore hidden file
+            if (isHiddenFile(part)) {
+                continue;
+            }
+            ret.add(part);
+        }
+        return ret.toArray(new FileStatus[0]);
     }
 
     /**
@@ -224,7 +229,7 @@ public class PartitionPathUtils {
      * @return all partition specs to its path.
      */
     public static List<Tuple2<LinkedHashMap<String, String>, Path>> searchPartSpecAndPaths(
-            FileSystem fs, Path path, int partitionNumber) {
+            FileSystem fs, Path path, int partitionNumber) throws IOException {
         FileStatus[] generatedParts = getFileStatusRecurse(path, partitionNumber, fs);
         List<Tuple2<LinkedHashMap<String, String>, Path>> ret = new ArrayList<>();
         for (FileStatus part : generatedParts) {
@@ -347,8 +352,13 @@ public class PartitionPathUtils {
         }
     }
 
-    private static boolean isHiddenFile(FileStatus fileStatus) {
-        String name = fileStatus.getPath().getName();
-        return name.startsWith("_") || name.startsWith(".");
+    private static boolean isHiddenFile(FileStatus tmpFileStatus) throws IOException {
+        String name = tmpFileStatus.getPath().getName();
+        boolean isHiddenFile = name.startsWith("_") || name.startsWith(".");
+        if (tmpFileStatus.getPath().getParent() != null && !isHiddenFile) {
+            FileSystem fs = tmpFileStatus.getPath().getFileSystem();
+            return isHiddenFile(fs.getFileStatus(tmpFileStatus.getPath().getParent()));
+        }
+        return isHiddenFile;
     }
 }

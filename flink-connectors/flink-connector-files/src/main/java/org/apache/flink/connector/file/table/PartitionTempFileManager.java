@@ -121,7 +121,7 @@ public class PartitionTempFileManager {
 
     /** Collect all partitioned paths, aggregate according to partition spec. */
     static Map<LinkedHashMap<String, String>, List<Path>> collectPartSpecToPaths(
-            FileSystem fs, List<Path> taskPaths, int partColSize) {
+            FileSystem fs, List<Path> taskPaths, int partColSize) throws IOException {
         Map<LinkedHashMap<String, String>, List<Path>> specToPaths = new HashMap<>();
         for (Path taskPath : taskPaths) {
             searchPartSpecAndPaths(fs, taskPath, partColSize)
