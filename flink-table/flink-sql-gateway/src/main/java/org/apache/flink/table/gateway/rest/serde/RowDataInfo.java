@@ -16,9 +16,9 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.gateway.api.results;
+package org.apache.flink.table.gateway.rest.serde;
 
-import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.util.Preconditions;
 
@@ -29,7 +29,7 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.JsonNode;
 import java.util.List;
 
 /** A RowDataInfo info represents a {@link RowData}. */
-@PublicEvolving
+@Internal
 public class RowDataInfo {
 
     private static final String FIELD_NAME_KIND = "kind";

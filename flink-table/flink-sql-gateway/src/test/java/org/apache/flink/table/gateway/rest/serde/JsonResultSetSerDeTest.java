@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.gateway.api.results.serde;
+package org.apache.flink.table.gateway.rest.serde;
 
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.catalog.ResolvedSchema;
@@ -29,6 +29,7 @@ import org.apache.flink.types.Row;
 import org.apache.flink.types.RowKind;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.module.SimpleModule;
 
 import org.junit.jupiter.api.Test;
 
@@ -72,7 +73,7 @@ import static org.apache.flink.table.api.DataTypes.TINYINT;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link JsonResultSetSerializer} and {@link JsonResultSetDeserializer}. */
-class JsonResultSetSerializationTest {
+class JsonResultSetSerDeTest {
 
     private static final byte tinyint = 'c';
     private static final short smallint = 128;
@@ -137,13 +138,17 @@ class JsonResultSetSerializationTest {
     void seDeResultSet(List<Row> rowList, List<DataTypes.Field> fields) throws IOException {
         List<RowData> rowDataList =
                 rowList.stream()
-                        .map(JsonResultSetSerializationTest::convertToInternal)
+                        .map(JsonResultSetSerDeTest::convertToInternal)
                         .collect(Collectors.toList());
         ResolvedSchema testResolvedSchema = getTestResolvedSchema(fields);
         ResultSet testResultSet =
                 new ResultSet(ResultSet.ResultType.PAYLOAD, 0L, testResolvedSchema, rowDataList);
         // Test serialization & deserialization
         ObjectMapper objectMapper = new ObjectMapper();
+        SimpleModule resultSetModule = new SimpleModule();
+        resultSetModule.addSerializer(ResultSet.class, new JsonResultSetSerializer());
+        resultSetModule.addDeserializer(ResultSet.class, new JsonResultSetDeserializer());
+        objectMapper.registerModule(resultSetModule);
         String result = objectMapper.writeValueAsString(testResultSet);
         ResultSet resultSet = objectMapper.readValue(result, ResultSet.class);
         List<RowData> deRowDataList = resultSet.getData();
@@ -254,13 +259,15 @@ class JsonResultSetSerializationTest {
         }
     }
 
+    @SuppressWarnings("unchecked")
     private static Row convertToExternal(RowData rowData, DataType dataType) {
         return (Row) DataFormatConverters.getConverterForDataType(dataType).toExternal(rowData);
     }
 
+    @SuppressWarnings("unchecked")
     private static GenericRowData convertToInternal(Row row) {
-        DataFormatConverters.DataFormatConverter converter =
+        DataFormatConverters.DataFormatConverter<GenericRowData, Row> converter =
                 DataFormatConverters.getConverterForDataType(ROW(getFields()));
-        return (GenericRowData) converter.toInternal(row);
+        return converter.toInternal(row);
     }
 }
