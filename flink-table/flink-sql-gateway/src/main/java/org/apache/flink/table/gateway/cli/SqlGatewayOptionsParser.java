@@ -58,7 +58,7 @@ public class SqlGatewayOptionsParser {
             CommandLine line = parser.parse(getSqlGatewayOptions(), args, true);
             return new SqlGatewayOptions(
                     line.hasOption(SqlGatewayOptionsParser.OPTION_HELP.getOpt()),
-                    line.getOptionProperties(DYNAMIC_PROPERTY_OPTION));
+                    line.getOptionProperties(DYNAMIC_PROPERTY_OPTION.getOpt()));
         } catch (ParseException e) {
             throw new SqlGatewayException(e.getMessage());
         }

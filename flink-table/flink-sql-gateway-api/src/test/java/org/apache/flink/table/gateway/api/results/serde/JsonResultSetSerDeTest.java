@@ -16,27 +16,23 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.gateway.api.results;
+package org.apache.flink.table.gateway.api.results.serde;
 
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.util.DataFormatConverters;
+import org.apache.flink.table.gateway.api.results.ResultSet;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.types.Row;
 import org.apache.flink.types.RowKind;
 
-import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonFactory;
-import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonGenerator;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
-import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.SerializerProvider;
 
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
-import java.io.StringWriter;
-import java.io.Writer;
 import java.math.BigDecimal;
 import java.sql.Timestamp;
 import java.time.Instant;
@@ -102,7 +98,7 @@ class JsonResultSetSerializationTest {
     private static final Map<String, Map<String, Integer>> nestedMap = new HashMap<>();
     private static final Map<String, Integer> innerMap = new HashMap<>();
 
-    {
+    static {
         map.put("element", 123L);
         multiSet.put("element", 2);
         innerMap.put("key", 234);
@@ -146,16 +142,10 @@ class JsonResultSetSerializationTest {
         ResolvedSchema testResolvedSchema = getTestResolvedSchema(fields);
         ResultSet testResultSet =
                 new ResultSet(ResultSet.ResultType.PAYLOAD, 0L, testResolvedSchema, rowDataList);
-        // Test serialization
-        Writer jsonWriter = new StringWriter();
-        JsonGenerator jsonGenerator = new JsonFactory().createGenerator(jsonWriter);
-        SerializerProvider serializerProvider = new ObjectMapper().getSerializerProviderInstance();
-        new JsonResultSetSerializer().serialize(testResultSet, jsonGenerator, serializerProvider);
-        jsonGenerator.flush();
-        String result = jsonWriter.toString();
-        // Test deserialization
-        ObjectMapper mapper = new ObjectMapper();
-        ResultSet resultSet = mapper.readValue(result, ResultSet.class);
+        // Test serialization & deserialization
+        ObjectMapper objectMapper = new ObjectMapper();
+        String result = objectMapper.writeValueAsString(testResultSet);
+        ResultSet resultSet = objectMapper.readValue(result, ResultSet.class);
         List<RowData> deRowDataList = resultSet.getData();
         for (int i = 0; i < deRowDataList.size(); ++i) {
             assertThat(convertToExternal(deRowDataList.get(i), ROW(getFields())))

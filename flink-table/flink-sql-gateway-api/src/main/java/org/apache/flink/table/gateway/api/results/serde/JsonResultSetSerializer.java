@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.gateway.api.results;
+package org.apache.flink.table.gateway.api.results.serde;
 
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.formats.common.TimestampFormat;
@@ -24,15 +24,18 @@ import org.apache.flink.formats.json.JsonFormatOptions;
 import org.apache.flink.formats.json.RowDataToJsonConverters;
 import org.apache.flink.table.catalog.Column;
 import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.gateway.api.results.ColumnInfo;
+import org.apache.flink.table.gateway.api.results.ResultSet;
+import org.apache.flink.table.gateway.api.results.RowDataInfo;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.types.RowKind;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonGenerator;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.JsonNode;
-import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.JsonSerializer;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.SerializerProvider;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ser.std.StdSerializer;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -45,7 +48,13 @@ import static org.apache.flink.table.gateway.api.results.ResultSet.FIELD_NAME_DA
 
 /** Json serializer for {@link ResultSet}. */
 @PublicEvolving
-public class JsonResultSetSerializer extends JsonSerializer<ResultSet> {
+public class JsonResultSetSerializer extends StdSerializer<ResultSet> {
+
+    private static final long serialVersionUID = 1L;
+
+    public JsonResultSetSerializer() {
+        super(ResultSet.class);
+    }
 
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
     private static final RowDataToJsonConverters TO_JSON_CONVERTERS =
@@ -63,8 +72,7 @@ public class JsonResultSetSerializer extends JsonSerializer<ResultSet> {
         List<ColumnInfo> columnInfos = new ArrayList<>();
         for (Column column : columns) {
             columnInfos.add(
-                    new ColumnInfo(
-                            column.getName(), column.getDataType().getLogicalType().toString()));
+                    new ColumnInfo(column.getName(), column.getDataType().getLogicalType()));
         }
         serializerProvider.defaultSerializeField(
                 FIELD_NAME_COLUMN_INFOS, columnInfos, jsonGenerator);

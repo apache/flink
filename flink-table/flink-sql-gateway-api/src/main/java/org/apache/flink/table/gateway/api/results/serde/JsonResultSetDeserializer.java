@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.gateway.api.results;
+package org.apache.flink.table.gateway.api.results.serde;
 
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.formats.common.TimestampFormat;
@@ -26,6 +26,9 @@ import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.binary.BinaryStringData;
+import org.apache.flink.table.gateway.api.results.ColumnInfo;
+import org.apache.flink.table.gateway.api.results.ResultSet;
+import org.apache.flink.table.gateway.api.results.RowDataInfo;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.utils.DataTypeUtils;
@@ -33,8 +36,8 @@ import org.apache.flink.types.RowKind;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonParser;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.DeserializationContext;
-import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.JsonDeserializer;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.JsonNode;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.deser.std.StdDeserializer;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -47,7 +50,13 @@ import static org.apache.flink.table.gateway.api.results.ResultSet.FIELD_NAME_DA
 
 /** Json deserializer for {@link ResultSet}. */
 @PublicEvolving
-public class JsonResultSetDeserializer extends JsonDeserializer<ResultSet> {
+public class JsonResultSetDeserializer extends StdDeserializer<ResultSet> {
+
+    private static final long serialVersionUID = 1L;
+
+    public JsonResultSetDeserializer() {
+        super(ResultSet.class);
+    }
 
     private static final JsonToRowDataConverters TO_ROWDATA_CONVERTERS =
             new JsonToRowDataConverters(false, false, TimestampFormat.ISO_8601);
@@ -60,9 +69,10 @@ public class JsonResultSetDeserializer extends JsonDeserializer<ResultSet> {
         List<RowData> data = new ArrayList<>();
 
         // Deserialize column infos
-        JsonParser columnParser = node.get(FIELD_NAME_COLUMN_INFOS).traverse();
-        columnParser.nextToken();
-        ColumnInfo[] columnInfos = ctx.readValue(columnParser, ColumnInfo[].class);
+        ColumnInfo[] columnInfos =
+                jsonParser
+                        .getCodec()
+                        .treeToValue(node.get(FIELD_NAME_COLUMN_INFOS), ColumnInfo[].class);
         List<Column> columns = new ArrayList<>();
         for (ColumnInfo columnInfo : columnInfos) {
             LogicalType logicalType = columnInfo.getLogicalType();
