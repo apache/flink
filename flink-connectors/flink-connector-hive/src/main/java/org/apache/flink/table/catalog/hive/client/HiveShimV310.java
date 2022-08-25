@@ -363,7 +363,7 @@ public class HiveShimV310 extends HiveShimV239 {
                             boolean.class,
                             boolean.class,
                             boolean.class,
-                            long.class,
+                            Long.class,
                             int.class,
                             boolean.class);
             loadTableMethod.invoke(
@@ -401,12 +401,13 @@ public class HiveShimV310 extends HiveShimV239 {
                             Path.class,
                             org.apache.hadoop.hive.ql.metadata.Table.class,
                             Map.class,
+                            clazzLoadFileType,
                             boolean.class,
                             boolean.class,
                             boolean.class,
                             boolean.class,
                             boolean.class,
-                            long.class,
+                            Long.class,
                             int.class,
                             boolean.class);
             org.apache.hadoop.hive.ql.metadata.Table table = hive.getTable(tableName);
