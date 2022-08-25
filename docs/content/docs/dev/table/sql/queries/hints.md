@@ -88,7 +88,7 @@ insert into kafka_table1 /*+ OPTIONS('sink.partitioner'='round-robin') */ select
 
 ### Join Hints
 
-#### LOOKUP Hint
+#### LOOKUP
 
 {{< label Streaming >}}
 
@@ -97,7 +97,7 @@ The LOOKUP hint allows users to suggest the Flink optimizer to:
 2. configure the async parameters
 3. enable delayed retry strategy for lookup
 
-##### Syntax
+#### Syntax
 ```sql
 SELECT /*+ LOOKUP(key=value[, key=value]*) */
 
@@ -211,7 +211,7 @@ LOOKUP('table'='Customers', 'async'='true')
 ```
 Note: the optimizer prefers async lookup if no 'async' option is specified, it will always use sync lookup when:
 1. the connector only implements the sync lookup
-2. user enables 'TRY_RESOLVE' mode of ['table.optimizer.non-deterministic-update.strategy']({{ < ref "docs/dev/table/config" > }}#table-optimizer-non-deterministic-update-strategy) and the 
+2. user enables 'TRY_RESOLVE' mode of ['table.optimizer.non-deterministic-update.strategy']({{< ref "docs/dev/table/config" >}}#table-optimizer-non-deterministic-update-strategy) and the
 optimizer has checked there's correctness issue caused by non-deterministic update.
 
 #### 2. Configure The Async Parameters

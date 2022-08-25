@@ -83,7 +83,7 @@ insert into kafka_table1 /*+ OPTIONS('sink.partitioner'='round-robin') */ select
 
 ### 联接提示
 
-#### 联接提示 - LOOKUP
+#### LOOKUP
 
 {{< label Streaming >}}
 
@@ -92,7 +92,7 @@ LOOKUP 联接提示允许用户建议 Flink 优化器:
 2. 配置异步查找相关参数
 3. 启用延迟重试查找策略
 
-##### 语法
+#### 语法
 ```sql
 SELECT /*+ LOOKUP(hint_options) */
 
@@ -208,7 +208,7 @@ LOOKUP('table'='Customers', 'async'='true')
 ```
 注意：当没有指定 'async' 选项值时，优化器优先选择异步查找，在以下两种情况下优化器会选择同步查找：
 1. 当连接器仅实现了同步查找时
-2. 用户在参数 ['table.optimizer.non-deterministic-update.strategy']({{ < ref "docs/dev/table/config" > }}#table-optimizer-non-deterministic-update-strategy) 上启用了 'TRY_RESOLVE' 模式，并且优化器推断用户查询中存在非确定性更新的潜在风险时
+2. 用户在参数 ['table.optimizer.non-deterministic-update.strategy']({{< ref "docs/dev/table/config" >}}#table-optimizer-non-deterministic-update-strategy) 上启用了 'TRY_RESOLVE' 模式，并且优化器推断用户查询中存在非确定性更新的潜在风险时
 
 #### 2. 配置异步查找相关参数
 在异步查找模式下，用户可通过提示选项直接配置异步查找相关参数
@@ -273,7 +273,7 @@ LOOKUP('table'='Customers', 'retry-predicate'='lookup_miss', 'retry-strategy'='f
 
 #### 开启缓存对重试的影响
 [FLIP-221](https://cwiki.apache.org/confluence/display/FLINK/FLIP-221%3A+Abstraction+for+lookup+source+cache+and+metric) 引入了对查找源表的缓存支持，
-缓存策略有部分缓存、全部缓存两种，当开启全部缓存时（'lookup.cache'='FULL'），重试无法起作用（因为查找表被完整缓存，重试查找没有任何实际意义）；当开启部分缓存时，当一条数据开始查找处理时，
+缓存策略有部分缓存、全部缓存两种，开启全部缓存时（'lookup.cache'='FULL'），重试无法起作用（因为查找表被完整缓存，重试查找没有任何实际意义）；开启部分缓存时，当一条数据开始查找处理时，
 先在本地缓存中查找，如果没找到则通过连接器进行外部查找（如果存在，则立即返回），此时查不到的记录和不开启缓存时一样，会触发重试查找，重试结束时的结果即为最终的查找结果（在部分缓存模式下，更新本地缓存）。 
 
 #### 关于查找键及 'retry-predicate'='lookup_miss' 重试条件的说明
