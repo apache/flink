@@ -20,10 +20,26 @@ package org.apache.flink.table.gateway.rest.util;
 
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.configuration.ConfigOption;
+import org.apache.flink.table.gateway.rest.SqlGatewayRestEndpoint;
 
 import static org.apache.flink.configuration.ConfigOptions.key;
 
-/** Options to configure {@link org.apache.flink.table.gateway.rest.SqlGatewayRestEndpoint}. */
+/**
+ * Options to configure {@link SqlGatewayRestEndpoint}.
+ *
+ * <p>By default, the user must select a local address to set ADDRESS, then the server will bind the
+ * address to all the local IPV4 address (0.0.0.0) and bind the port to BIND_PORT(fallback to the
+ * default value of PORT).
+ *
+ * <p>1. If user specifies BIND_ADDRESS, then the server will bind to BIND_ADDRESS and suggest the
+ * user that the current client should connect to this BIND_ADDRESS rather than ADDRESS in the log.
+ *
+ * <p>2. If user specifies PORT, then the server will bind the port to BIND_PORT(fallback to the
+ * value of PORT).
+ *
+ * <p>3. If user specifies BIND_PORT, then the server will ignore PORT and directly bind the port to
+ * the value of BIND_PORT.
+ */
 @PublicEvolving
 public class SqlGatewayRestOptions {
 

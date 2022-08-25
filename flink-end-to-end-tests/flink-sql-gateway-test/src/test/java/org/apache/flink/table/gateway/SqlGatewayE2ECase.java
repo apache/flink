@@ -109,7 +109,7 @@ public class SqlGatewayE2ECase extends TestLogger {
     }
 
     private void executeStatement(SQLJobSubmission.ClientMode mode) throws Exception {
-        File result = FOLDER.newFolder("csv");
+        File result = FOLDER.newFolder(mode.name() + ".csv");
         try (GatewayController gateway = flinkResource.startSqlGateway();
                 ClusterController ignore = flinkResource.startCluster(1)) {
             gateway.submitSQLJob(
