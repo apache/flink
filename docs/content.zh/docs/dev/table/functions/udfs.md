@@ -597,7 +597,7 @@ For more examples of custom type inference, see also the `flink-examples-table` 
 2. **在运行时（即在集群执行）**：如果一个函数被调用时带有非常量表达式或 `isDeterministic()` 返回 `false`。
 
 #### 内置函数的确定性
-系统（内置）函数的确定性是不可改变的。存在两种不具有确定性的函数：动态函数和非确定性函数，根据 Apache Calcite `SqlOperator' 的定义：
+系统（内置）函数的确定性是不可改变的。存在两种不具有确定性的函数：动态函数和非确定性函数，根据 Apache Calcite `SqlOperator` 的定义：
 ```java
   /**
    * Returns whether a call to this operator is guaranteed to always return
