@@ -462,6 +462,7 @@ public final class FlinkDistribution {
         private final String host;
         private final String port;
         private final String sessionHandle;
+        private final OkHttpClient client = new OkHttpClient();
 
         public TestSqlGatewayRestClient(Configuration configuration) throws Exception {
             Map<String, String> configMap = configuration.toMap();
@@ -521,7 +522,6 @@ public final class FlinkDistribution {
         }
 
         private String sendRequest(Request request) throws Exception {
-            final OkHttpClient client = new OkHttpClient();
             String responseString;
             try (Response response = client.newCall(request).execute()) {
                 if (!response.isSuccessful()) {

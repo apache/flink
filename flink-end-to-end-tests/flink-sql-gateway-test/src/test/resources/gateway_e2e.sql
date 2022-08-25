@@ -16,6 +16,8 @@
 
 SET table.sql-dialect=default;
 
+SET table.dml-sync=true;
+
 CREATE TABLE CsvTable (
   val INT
 ) WITH (

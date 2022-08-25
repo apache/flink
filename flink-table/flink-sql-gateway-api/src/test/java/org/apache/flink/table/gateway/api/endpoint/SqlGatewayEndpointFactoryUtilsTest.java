@@ -70,7 +70,7 @@ public class SqlGatewayEndpointFactoryUtilsTest {
         config.remove("sql-gateway.endpoint.type");
         validateException(
                 config,
-                "Endpoint options do not contain an option key 'sql-gateway.endpoint.type' for discovering an endpoint.");
+                "Could not find any factory for identifier 'rest' that implements 'org.apache.flink.table.gateway.api.endpoint.SqlGatewayEndpointFactory' in the classpath.");
     }
 
     @Test
