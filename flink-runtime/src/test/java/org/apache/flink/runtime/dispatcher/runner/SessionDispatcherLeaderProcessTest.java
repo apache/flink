@@ -361,7 +361,7 @@ public class SessionDispatcherLeaderProcessTest {
         terminationFuture.completeExceptionally(expectedFailure);
 
         final Throwable error = fatalErrorHandler.getErrorFuture().join();
-        assertThat(error).getRootCause().isEqualTo(expectedFailure);
+        assertThat(error).rootCause().isEqualTo(expectedFailure);
 
         fatalErrorHandler.clearError();
     }
