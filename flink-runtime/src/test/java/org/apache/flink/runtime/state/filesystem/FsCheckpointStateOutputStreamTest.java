@@ -19,9 +19,11 @@
 package org.apache.flink.runtime.state.filesystem;
 
 import org.apache.flink.configuration.ConfigConstants;
+import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.core.fs.FSDataOutputStream;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
+import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.state.CheckpointStateOutputStream;
 import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.state.filesystem.FsCheckpointStreamFactory.FsCheckpointStateOutputStream;
@@ -44,6 +46,8 @@ import java.net.URI;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Random;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executors;
 import java.util.function.Supplier;
 
 import static org.junit.Assert.assertArrayEquals;
@@ -56,6 +60,7 @@ import static org.junit.Assume.assumeTrue;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.anyBoolean;
 import static org.mockito.Matchers.eq;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
@@ -413,6 +418,65 @@ public class FsCheckpointStateOutputStreamTest {
         // the directory must still exist as a proper directory
         assertTrue(directory.exists());
         assertTrue(directory.isDirectory());
+    }
+
+    /**
+     * FLINK-28984. This test checks that the inner stream should be cleaned up when
+     * CloseableRegistry closed before creating a new stream.
+     */
+    @Test
+    public void testCleanupWhenCloseableRegistryClosedBeforeCreatingStream() throws Exception {
+        OneShotLatch createStreamLatch = new OneShotLatch();
+        OneShotLatch startFlushLatch = new OneShotLatch();
+        FileSystem fs = mock(FileSystem.class);
+        FSDataOutputStream fsdos = mock(FSDataOutputStream.class);
+
+        doAnswer(
+                        invocation -> {
+                            startFlushLatch.trigger();
+
+                            // make sure that closeableRegistry close before creating stream
+                            // completed.
+                            createStreamLatch.await();
+                            return fsdos;
+                        })
+                .when(fs)
+                .create(any(Path.class), any(FileSystem.WriteMode.class));
+
+        FsCheckpointStateOutputStream outputStream =
+                spy(
+                        new FsCheckpointStateOutputStream(
+                                Path.fromLocalFile(tempDir.newFolder()),
+                                fs,
+                                1024,
+                                1,
+                                relativePaths));
+        CompletableFuture<Void> flushFuture;
+        try (CloseableRegistry closeableRegistry = new CloseableRegistry()) {
+            closeableRegistry.registerCloseable(outputStream);
+            flushFuture =
+                    CompletableFuture.runAsync(
+                            () -> {
+                                try {
+                                    // trigger creating a stream
+                                    outputStream.flushToFile();
+                                } catch (IOException ignored) {
+                                    // there should catch a expected exception, ignore it.
+                                }
+                            },
+                            Executors.newSingleThreadExecutor());
+            assertFalse(outputStream.isClosed());
+            // make sure that flush method was called and closed is not true.
+            startFlushLatch.await();
+        }
+        assertTrue(outputStream.isClosed());
+        verify(outputStream).close();
+        verify(outputStream).cleanUp();
+        createStreamLatch.trigger();
+        // flush completed.
+        flushFuture.get();
+        // clean up a deprecated stream
+        verify(outputStream, times(2)).cleanUp();
     }
 
     // ------------------------------------------------------------------------

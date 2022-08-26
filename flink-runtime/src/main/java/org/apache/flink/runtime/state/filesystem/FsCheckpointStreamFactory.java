@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.state.filesystem;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.core.fs.DuplicatingFileSystem;
 import org.apache.flink.core.fs.EntropyInjector;
 import org.apache.flink.core.fs.FSDataOutputStream;
@@ -355,20 +356,25 @@ public class FsCheckpointStreamFactory implements CheckpointStreamFactory {
                 // that the stream is closed
                 pos = writeBuffer.length;
 
-                if (outStream != null) {
+                cleanUp();
+            }
+        }
+
+        @VisibleForTesting
+        protected void cleanUp() {
+            if (outStream != null) {
+                try {
+                    outStream.close();
+                } catch (Throwable throwable) {
+                    LOG.warn("Could not close the state stream for {}.", statePath, throwable);
+                } finally {
                     try {
-                        outStream.close();
-                    } catch (Throwable throwable) {
-                        LOG.warn("Could not close the state stream for {}.", statePath, throwable);
-                    } finally {
-                        try {
-                            fs.delete(statePath, false);
-                        } catch (Exception e) {
-                            LOG.warn(
-                                    "Cannot delete closed and discarded state stream for {}.",
-                                    statePath,
-                                    e);
-                        }
+                        fs.delete(statePath, false);
+                    } catch (Exception e) {
+                        LOG.warn(
+                                "Cannot delete closed and discarded state stream for {}.",
+                                statePath,
+                                e);
                     }
                 }
             }
@@ -454,6 +460,14 @@ public class FsCheckpointStreamFactory implements CheckpointStreamFactory {
                                     fs, createStatePath(), WriteMode.NO_OVERWRITE);
                     this.outStream = streamAndPath.stream();
                     this.statePath = streamAndPath.path();
+                    if (closed) {
+                        cleanUp();
+                        LOG.info(
+                                "Closing this stream becaue it is closed! {}",
+                                streamAndPath.path());
+                        latestException = new IOException("closed");
+                        break;
+                    }
                     return;
                 } catch (Exception e) {
                     latestException = e;
