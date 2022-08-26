@@ -18,7 +18,10 @@
 package org.apache.flink.table.planner.plan.rules.logical;
 
 import org.apache.flink.table.api.TableException;
+import org.apache.flink.table.planner.calcite.FlinkRelBuilder;
+import org.apache.flink.table.planner.calcite.FlinkRelFactories;
 import org.apache.flink.table.planner.plan.utils.AggregateUtil;
+import org.apache.flink.table.planner.plan.utils.ExpandUtil;
 import org.apache.flink.util.Preconditions;
 
 import org.apache.calcite.linq4j.Ord;
@@ -51,6 +54,7 @@ import org.apache.calcite.util.Util;
 
 import java.math.BigDecimal;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
@@ -60,6 +64,11 @@ import java.util.Map;
 import java.util.Set;
 import java.util.SortedSet;
 import java.util.TreeSet;
+import java.util.stream.Collectors;
+
+import scala.Function2;
+import scala.Tuple2;
+import scala.collection.JavaConverters;
 
 /**
  * This rules is copied from Calcite's {@link
@@ -67,7 +76,9 @@ import java.util.TreeSet;
  * exception if an aggregate contains both approximate distinct aggregate call and accurate distinct
  * aggregate call. - Excludes non-simple aggregate(e.g. CUBE, ROLLUP). - Fix bug: Some aggregate
  * functions (e.g. COUNT) has a non-null result even without any input. - Fix bug: Add filter
- * argument into rewritten aggregateCall if its filter argument is not -1.
+ * argument into rewritten aggregateCall if its filter argument is not -1. - Construct the expand
+ * note by itself avoid the limit on the number of grouping sets (<64) in {@link
+ * org.apache.flink.table.planner.plan.rules.logical.DecomposeGroupingSetsRule}
  */
 
 /**
@@ -81,6 +92,102 @@ import java.util.TreeSet;
  * <p>If there are multiple arguments (e.g. {@code COUNT(DISTINCT x), COUNT(DISTINCT y)}) the rule
  * creates separate {@code Aggregate}s and combines using a {@link
  * org.apache.calcite.rel.core.Join}.
+ *
+ * <p>CHECKSTYLE.OFF: JavadocParagraph
+ *
+ * <pre>
+ * Examples:
+ *
+ * MyTable: a: INT, b: BIGINT, c: VARCHAR(32), d: VARCHAR(32)
+ *
+ * Original records:
+ * | a | b | c  | d  |
+ * |:-:|:-:|:--:|:--:|
+ * | 1 | 1 | c1 | d1 |
+ * | 1 | 2 | c1 | d2 |
+ * | 2 | 1 | c1 | d1 |
+ *
+ * Example1 (expand for DISTINCT aggregates):
+ *
+ * SQL: SELECT a, SUM(DISTINCT b) as t1, COUNT(DISTINCT c) as t2, COUNT(d) as t3 FROM MyTable GROUP
+ * BY a
+ *
+ * Logical plan:
+ * {{{
+ * LogicalAggregate(group=[{0}], t1=[SUM(DISTINCT $1)], t2=[COUNT(DISTINCT $2)], t3=[COUNT($3)])
+ * +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+ * }}}
+ *
+ * Logical plan after this rule applied:
+ * {{{
+ * LogicalCalc(expr#0..3=[{inputs}], expr#4=[IS NOT NULL($t3)], ...)
+ *  LogicalAggregate(group=[{0}], t1=[SUM($1) FILTER $4], t2=[COUNT($2) FILTER $5],
+ *    t3=[MIN($3) FILTER $6])
+ *   LogicalCalc(select=[a, b, c, t3, =($e, 0) AS $g_0, =($e, 1) AS $g_1, =($e, 2) AS $g_2])
+ *    LogicalAggregate(group=[{0, 1, 2, 4}], groups=[[]], t3=[COUNT($3)])
+ *     LogicalExpand(projects=[{a, b, null AS c, d, 0 AS $e},
+ *       {a, null AS b, c, d, 1 AS $e}, {a, null AS b, null AS c, d, 2 AS $e}])
+ *      LogicalTableSourceScan(table=[[builtin, default, MyTable]], fields=[a, b, c, d])
+ * }}}
+ *
+ * '$e = 0' is equivalent to 'group by a, b' '$e = 1' is equivalent to 'group by a, c' '$e = 2' is
+ * equivalent to 'group by a'
+ *
+ * Expanded records:
+ * \+-----+-----+-----+-----+-----+
+ * \| a | b | c | d | $e |
+ * \+-----+-----+-----+-----+-----+ ---+---
+ * \| 1 | 1 | null| d1 | 0 | |
+ * \+-----+-----+-----+-----+-----+ |
+ * \| 1 | null| c1 | d1 | 1 | records expanded by record1
+ * \+-----+-----+-----+-----+-----+ |
+ * \| 1 | null| null| d1 | 2 | |
+ * \+-----+-----+-----+-----+-----+ ---+---
+ * \| 1 | 2 | null| d2 | 0 | |
+ * \+-----+-----+-----+-----+-----+ |
+ * \| 1 | null| c1 | d2 | 1 | records expanded by record2
+ * \+-----+-----+-----+-----+-----+ |
+ * \| 1 | null| null| d2 | 2 | |
+ * \+-----+-----+-----+-----+-----+ ---+---
+ * \| 2 | 1 | null| d1 | 0 | |
+ * \+-----+-----+-----+-----+-----+ |
+ * \| 2 | null| c1 | d1 | 1 | records expanded by record3
+ * \+-----+-----+-----+-----+-----+ |
+ * \| 2 | null| null| d1 | 2 | |
+ * \+-----+-----+-----+-----+-----+ ---+---
+ *
+ * Example2 (Some fields are both in DISTINCT aggregates and non-DISTINCT aggregates):
+ *
+ * SQL: SELECT MAX(a) as t1, COUNT(DISTINCT a) as t2, count(DISTINCT d) as t3 FROM MyTable
+ *
+ * Field `a` is both in DISTINCT aggregate and `MAX` aggregate, so, `a` should be outputted as two
+ * individual fields, one is for `MAX` aggregate, another is for DISTINCT aggregate.
+ *
+ * Expanded records:
+ * \+-----+-----+-----+-----+
+ * \| a | d | $e | a_0 |
+ * \+-----+-----+-----+-----+ ---+---
+ * \| 1 | null| 0 | 1 | |
+ * \+-----+-----+-----+-----+ |
+ * \| null| d1 | 1 | 1 | records expanded by record1
+ * \+-----+-----+-----+-----+ |
+ * \| null| null| 2 | 1 | |
+ * \+-----+-----+-----+-----+ ---+---
+ * \| 1 | null| 0 | 1 | |
+ * \+-----+-----+-----+-----+ |
+ * \| null| d2 | 1 | 1 | records expanded by record2
+ * \+-----+-----+-----+-----+ |
+ * \| null| null| 2 | 1 | |
+ * \+-----+-----+-----+-----+ ---+---
+ * \| 2 | null| 0 | 2 | |
+ * \+-----+-----+-----+-----+ |
+ * \| null| d1 | 1 | 2 | records expanded by record3
+ * \+-----+-----+-----+-----+ |
+ * \| null| null| 2 | 2 | |
+ * \+-----+-----+-----+-----+ ---+---
+ * </pre>
+ *
+ * <p>CHECKSTYLE.ON: JavadocParagraph
  */
 public final class FlinkAggregateExpandDistinctAggregatesRule extends RelOptRule {
     // ~ Static fields/initializers ---------------------------------------------
@@ -88,31 +195,31 @@ public final class FlinkAggregateExpandDistinctAggregatesRule extends RelOptRule
     /** The default instance of the rule; operates only on logical expressions. */
     public static final FlinkAggregateExpandDistinctAggregatesRule INSTANCE =
             new FlinkAggregateExpandDistinctAggregatesRule(
-                    LogicalAggregate.class, true, RelFactories.LOGICAL_BUILDER);
+                    LogicalAggregate.class, true, FlinkRelFactories.FLINK_REL_BUILDER());
 
     /** Instance of the rule that operates only on logical expressions and generates a join. */
     public static final FlinkAggregateExpandDistinctAggregatesRule JOIN =
             new FlinkAggregateExpandDistinctAggregatesRule(
                     LogicalAggregate.class, false, RelFactories.LOGICAL_BUILDER);
 
-    public final boolean useGroupingSets;
+    public final boolean useExpand;
 
     // ~ Constructors -----------------------------------------------------------
 
     public FlinkAggregateExpandDistinctAggregatesRule(
             Class<? extends Aggregate> clazz,
-            boolean useGroupingSets,
+            boolean useExpand,
             RelBuilderFactory relBuilderFactory) {
         super(operand(clazz, any()), relBuilderFactory, null);
-        this.useGroupingSets = useGroupingSets;
+        this.useExpand = useExpand;
     }
 
     @Deprecated // to be removed before 2.0
     public FlinkAggregateExpandDistinctAggregatesRule(
             Class<? extends LogicalAggregate> clazz,
-            boolean useGroupingSets,
+            boolean useExpand,
             RelFactories.JoinFactory joinFactory) {
-        this(clazz, useGroupingSets, RelBuilder.proto(Contexts.of(joinFactory)));
+        this(clazz, useExpand, RelBuilder.proto(Contexts.of(joinFactory)));
     }
 
     @Deprecated // to be removed before 2.0
@@ -200,8 +307,8 @@ public final class FlinkAggregateExpandDistinctAggregatesRule extends RelOptRule
             return;
         }
 
-        if (useGroupingSets) {
-            rewriteUsingGroupingSets(call, aggregate);
+        if (useExpand) {
+            rewriteUsingExpand(call, aggregate);
             return;
         }
 
@@ -436,7 +543,7 @@ public final class FlinkAggregateExpandDistinctAggregatesRule extends RelOptRule
         return relBuilder;
     }
 
-    private void rewriteUsingGroupingSets(RelOptRuleCall call, Aggregate aggregate) {
+    private void rewriteUsingExpand(RelOptRuleCall call, Aggregate aggregate) {
         final Set<ImmutableBitSet> groupSetTreeSet = new TreeSet<>(ImmutableBitSet.ORDERING);
         final Map<ImmutableBitSet, Integer> groupSetToDistinctAggCallFilterArg = new HashMap<>();
         for (AggregateCall aggCall : aggregate.getAggCallList()) {
@@ -470,39 +577,82 @@ public final class FlinkAggregateExpandDistinctAggregatesRule extends RelOptRule
             }
         }
 
+        // 1. generate expand node
         final RelBuilder relBuilder = call.builder();
         relBuilder.push(aggregate.getInput());
         final int groupCount = fullGroupSet.cardinality();
 
         final Map<ImmutableBitSet, Integer> filters = new LinkedHashMap<>();
         final int z = groupCount + distinctAggCalls.size();
-        distinctAggCalls.add(
-                AggregateCall.create(
-                        SqlStdOperatorTable.GROUPING,
-                        false,
-                        false,
-                        false,
-                        ImmutableIntList.copyOf(fullGroupSet),
-                        -1,
-                        RelCollations.EMPTY,
-                        groupSets.size(),
-                        relBuilder.peek(),
-                        null,
-                        "$g"));
         for (Ord<ImmutableBitSet> groupSet : Ord.zip(groupSets)) {
             filters.put(groupSet.e, z + groupSet.i);
         }
 
-        relBuilder.aggregate(relBuilder.groupKey(fullGroupSet, groupSets), distinctAggCalls);
-        final RelNode distinct = relBuilder.peek();
+        Function2<ImmutableBitSet, ImmutableBitSet, Object> expandIdGenerator =
+                ExpandUtil.genExpandIdByIndex(groupSets);
+        boolean needExpand = groupSets.size() > 1;
+        Map<Integer, Integer> duplicateFieldMap;
+        int expandIdIdxInExpand;
+        if (needExpand) {
+            Tuple2<scala.collection.immutable.Map<Integer, Integer>, Integer>
+                    fieldMappingAndExpandIdx =
+                            ExpandUtil.buildExpandNode(
+                                    (FlinkRelBuilder) relBuilder,
+                                    JavaConverters.asScalaBuffer(distinctAggCalls).toSeq(),
+                                    fullGroupSet,
+                                    groupSets,
+                                    expandIdGenerator);
+            duplicateFieldMap = JavaConverters.mapAsJavaMap(fieldMappingAndExpandIdx._1);
+            expandIdIdxInExpand = fieldMappingAndExpandIdx._2;
+        } else {
+            duplicateFieldMap = new HashMap<>();
+            expandIdIdxInExpand = -1;
+        }
 
+        // 2. generate aggregate node to reduce repeat data and calculate non-distinct agg calls.
+        // new groupSet contains original groupSet and expand_id('$e') field
+        ImmutableBitSet fullGroupSetWithExpandId =
+                needExpand
+                        ? fullGroupSet.union(ImmutableBitSet.of(expandIdIdxInExpand))
+                        : fullGroupSet;
+        int newGroupCount = fullGroupSetWithExpandId.cardinality();
+
+        // replace non-distinct call args with the duplicateFieldMap
+        List<AggregateCall> newAggCalls = new ArrayList<>();
+        for (AggregateCall aggCall : distinctAggCalls) {
+            List<Integer> newArgList =
+                    aggCall.getArgList().stream()
+                            .map(a -> duplicateFieldMap.getOrDefault(a, a))
+                            .collect(Collectors.toList());
+            int newFilterArg = duplicateFieldMap.getOrDefault(aggCall.filterArg, aggCall.filterArg);
+            newAggCalls.add(
+                    aggCall.adaptTo(
+                            relBuilder.peek(),
+                            newArgList,
+                            newFilterArg,
+                            aggregate.getGroupCount(),
+                            newGroupCount));
+        }
+
+        // create simple aggregate
+        relBuilder.aggregate(
+                relBuilder.groupKey(
+                        fullGroupSetWithExpandId,
+                        Collections.singletonList(fullGroupSetWithExpandId)),
+                newAggCalls);
+
+        // 3. generate calc node to calculate the new filter args
         // GROUPING returns an integer (0 or 1). Add a project to convert those
         // values to BOOLEAN.
         if (!filters.isEmpty()) {
             final List<RexNode> nodes = new ArrayList<>(relBuilder.fields());
-            final RexNode nodeZ = nodes.remove(nodes.size() - 1);
+            final RexNode nodeZ =
+                    needExpand
+                            ? nodes.remove(newGroupCount - 1)
+                            : relBuilder.literal(
+                                    expandIdGenerator.apply(fullGroupSet, fullGroupSet));
             for (Map.Entry<ImmutableBitSet, Integer> entry : filters.entrySet()) {
-                final long v = groupValue(fullGroupSet, entry.getKey());
+                final long v = (Long) expandIdGenerator.apply(fullGroupSet, entry.getKey());
                 // Get and remap the filterArg of the distinct aggregate call.
                 int distinctAggCallFilterArg =
                         remap(
@@ -526,7 +676,9 @@ public final class FlinkAggregateExpandDistinctAggregatesRule extends RelOptRule
             }
             relBuilder.project(nodes);
         }
+        final RelNode calc = relBuilder.peek();
 
+        // 4. generate the agg node to calculate the distinct agg calls
         int aggCallIdx = 0;
         int x = groupCount;
         final List<AggregateCall> newCalls = new ArrayList<>();
@@ -567,18 +719,18 @@ public final class FlinkAggregateExpandDistinctAggregatesRule extends RelOptRule
                             newFilterArg,
                             RelCollations.EMPTY,
                             aggregate.getGroupCount(),
-                            distinct,
+                            calc,
                             null,
                             aggCall.name);
             newCalls.add(newCall);
             aggCallIdx++;
         }
 
-        relBuilder.aggregate(
+        RelBuilder.GroupKey groupKey =
                 relBuilder.groupKey(
                         remap(fullGroupSet, aggregate.getGroupSet()),
-                        remap(fullGroupSet, aggregate.getGroupSets())),
-                newCalls);
+                        remap(fullGroupSet, aggregate.getGroupSets()));
+        relBuilder.aggregate(groupKey, newCalls);
         if (!needDefaultValueAggCalls.isEmpty() && aggregate.getGroupCount() == 0) {
             final Aggregate newAgg = (Aggregate) relBuilder.peek();
             final List<RexNode> nodes = new ArrayList<>();
@@ -611,19 +763,6 @@ public final class FlinkAggregateExpandDistinctAggregatesRule extends RelOptRule
 
         relBuilder.convert(aggregate.getRowType(), true);
         call.transformTo(relBuilder.build());
-    }
-
-    private static long groupValue(ImmutableBitSet fullGroupSet, ImmutableBitSet groupSet) {
-        long v = 0;
-        long x = 1L << (fullGroupSet.cardinality() - 1);
-        assert fullGroupSet.contains(groupSet);
-        for (int i : fullGroupSet) {
-            if (!groupSet.get(i)) {
-                v |= x;
-            }
-            x >>= 1;
-        }
-        return v;
     }
 
     private static ImmutableBitSet remap(ImmutableBitSet groupSet, ImmutableBitSet bitSet) {

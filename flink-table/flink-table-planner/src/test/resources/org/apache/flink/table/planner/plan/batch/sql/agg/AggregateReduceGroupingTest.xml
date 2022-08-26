@@ -689,10 +689,10 @@ LogicalAggregate(group=[{0, 1}], EXPR$2=[COUNT(DISTINCT $2)], EXPR$3=[SUM(DISTIN
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-HashAggregate(isMerge=[false], groupBy=[a1], auxGrouping=[d1], select=[a1, d1, COUNT(c1) FILTER $g_4 AS EXPR$2, SUM(b1) FILTER $g_2 AS EXPR$3])
+HashAggregate(isMerge=[false], groupBy=[a1], auxGrouping=[d1], select=[a1, d1, COUNT(c1) FILTER $g_1 AS EXPR$2, SUM(b1) FILTER $g_0 AS EXPR$3])
 +- Exchange(distribution=[hash[a1]])
-   +- Calc(select=[a1, b1, c1, d1, (CASE(($e = 2), 2, 4) = 2) AS $g_2, (CASE(($e = 2), 2, 4) = 4) AS $g_4])
-      +- Expand(projects=[{a1, b1, null AS c1, d1, 2 AS $e}, {a1, null AS b1, c1, d1, 4 AS $e}])
+   +- Calc(select=[a1, b1, c1, d1, ($e = 0) AS $g_0, ($e = 1) AS $g_1])
+      +- Expand(projects=[{a1, b1, null AS c1, d1, 0 AS $e}, {a1, null AS b1, c1, d1, 1 AS $e}])
          +- LegacyTableSourceScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a1, b1, c1, d1)]]], fields=[a1, b1, c1, d1])
 ]]>
     </Resource>
@@ -728,10 +728,10 @@ LogicalAggregate(group=[{0, 1}], EXPR$2=[COUNT(DISTINCT $2)], EXPR$3=[MAX($3)], 
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-HashAggregate(isMerge=[false], groupBy=[a1], auxGrouping=[d1], select=[a1, d1, COUNT(c1) FILTER $g_0 AS EXPR$2, MIN(EXPR$3) FILTER $g_2 AS EXPR$3, MIN(EXPR$4) FILTER $g_2 AS EXPR$4])
+HashAggregate(isMerge=[false], groupBy=[a1], auxGrouping=[d1], select=[a1, d1, COUNT(c1) FILTER $g_0 AS EXPR$2, MIN(EXPR$3) FILTER $g_1 AS EXPR$3, MIN(EXPR$4) FILTER $g_1 AS EXPR$4])
 +- Exchange(distribution=[hash[a1]])
-   +- Calc(select=[a1, c1, d1, b1 AS EXPR$3, b1 AS EXPR$4, (CASE(($e = 0), 0, 2) = 0) AS $g_0, (CASE(($e = 0), 0, 2) = 2) AS $g_2])
-      +- Expand(projects=[{a1, b1, c1, d1, 0 AS $e}, {a1, b1, null AS c1, d1, 2 AS $e}])
+   +- Calc(select=[a1, c1, d1, b1 AS EXPR$3, b1 AS EXPR$4, ($e = 0) AS $g_0, ($e = 1) AS $g_1])
+      +- Expand(projects=[{a1, b1, c1, d1, 0 AS $e}, {a1, b1, null AS c1, d1, 1 AS $e}])
          +- LegacyTableSourceScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a1, b1, c1, d1)]]], fields=[a1, b1, c1, d1])
 ]]>
     </Resource>
@@ -895,7 +895,7 @@ LogicalAggregate(group=[{0}], EXPR$1=[COUNT(DISTINCT $1)], EXPR$2=[SUM($1)])
       <![CDATA[
 HashAggregate(isMerge=[false], groupBy=[a1], select=[a1, COUNT(b1) FILTER $g_0 AS EXPR$1, MIN(EXPR$2) FILTER $g_1 AS EXPR$2])
 +- Exchange(distribution=[hash[a1]])
-   +- Calc(select=[a1, b1, b1_0 AS EXPR$2, (CASE(($e = 0), 0, 1) = 0) AS $g_0, (CASE(($e = 0), 0, 1) = 1) AS $g_1])
+   +- Calc(select=[a1, b1, b1_0 AS EXPR$2, ($e = 0) AS $g_0, ($e = 1) AS $g_1])
       +- Expand(projects=[{a1, b1, c1, d1, 0 AS $e, b1 AS b1_0}, {a1, null AS b1, c1, d1, 1 AS $e, b1 AS b1_0}])
          +- LegacyTableSourceScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a1, b1, c1, d1)]]], fields=[a1, b1, c1, d1])
 ]]>
@@ -914,10 +914,10 @@ LogicalAggregate(group=[{0, 1}], EXPR$2=[COUNT(DISTINCT $2)], EXPR$3=[SUM($2)])
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-HashAggregate(isMerge=[false], groupBy=[a1], auxGrouping=[c1], select=[a1, c1, COUNT(b1) FILTER $g_0 AS EXPR$2, MIN(EXPR$3) FILTER $g_2 AS EXPR$3])
+HashAggregate(isMerge=[false], groupBy=[a1], auxGrouping=[c1], select=[a1, c1, COUNT(b1) FILTER $g_0 AS EXPR$2, MIN(EXPR$3) FILTER $g_1 AS EXPR$3])
 +- Exchange(distribution=[hash[a1]])
-   +- Calc(select=[a1, b1, c1, b1_0 AS EXPR$3, (CASE(($e = 0), 0, 2) = 0) AS $g_0, (CASE(($e = 0), 0, 2) = 2) AS $g_2])
-      +- Expand(projects=[{a1, b1, c1, d1, 0 AS $e, b1 AS b1_0}, {a1, null AS b1, c1, d1, 2 AS $e, b1 AS b1_0}])
+   +- Calc(select=[a1, b1, c1, b1_0 AS EXPR$3, ($e = 0) AS $g_0, ($e = 1) AS $g_1])
+      +- Expand(projects=[{a1, b1, c1, d1, 0 AS $e, b1 AS b1_0}, {a1, null AS b1, c1, d1, 1 AS $e, b1 AS b1_0}])
          +- LegacyTableSourceScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a1, b1, c1, d1)]]], fields=[a1, b1, c1, d1])
 ]]>
     </Resource>
@@ -937,7 +937,7 @@ LogicalAggregate(group=[{0}], EXPR$1=[COUNT(DISTINCT $1)], EXPR$2=[SUM($2)])
       <![CDATA[
 HashAggregate(isMerge=[false], groupBy=[a1], select=[a1, COUNT(c1) FILTER $g_0 AS EXPR$1, MIN(EXPR$2) FILTER $g_1 AS EXPR$2])
 +- Exchange(distribution=[hash[a1]])
-   +- Calc(select=[a1, c1, b1 AS EXPR$2, (CASE(($e = 0), 0, 1) = 0) AS $g_0, (CASE(($e = 0), 0, 1) = 1) AS $g_1])
+   +- Calc(select=[a1, c1, b1 AS EXPR$2, ($e = 0) AS $g_0, ($e = 1) AS $g_1])
       +- Expand(projects=[{a1, b1, c1, d1, 0 AS $e}, {a1, b1, null AS c1, d1, 1 AS $e}])
          +- LegacyTableSourceScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a1, b1, c1, d1)]]], fields=[a1, b1, c1, d1])
 ]]>
@@ -956,10 +956,10 @@ LogicalAggregate(group=[{0, 1}], EXPR$2=[COUNT(DISTINCT $2)], EXPR$3=[SUM($3)])
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-HashAggregate(isMerge=[false], groupBy=[a1], auxGrouping=[d1], select=[a1, d1, COUNT(c1) FILTER $g_0 AS EXPR$2, MIN(EXPR$3) FILTER $g_2 AS EXPR$3])
+HashAggregate(isMerge=[false], groupBy=[a1], auxGrouping=[d1], select=[a1, d1, COUNT(c1) FILTER $g_0 AS EXPR$2, MIN(EXPR$3) FILTER $g_1 AS EXPR$3])
 +- Exchange(distribution=[hash[a1]])
-   +- Calc(select=[a1, c1, d1, b1 AS EXPR$3, (CASE(($e = 0), 0, 2) = 0) AS $g_0, (CASE(($e = 0), 0, 2) = 2) AS $g_2])
-      +- Expand(projects=[{a1, b1, c1, d1, 0 AS $e}, {a1, b1, null AS c1, d1, 2 AS $e}])
+   +- Calc(select=[a1, c1, d1, b1 AS EXPR$3, ($e = 0) AS $g_0, ($e = 1) AS $g_1])
+      +- Expand(projects=[{a1, b1, c1, d1, 0 AS $e}, {a1, b1, null AS c1, d1, 1 AS $e}])
          +- LegacyTableSourceScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a1, b1, c1, d1)]]], fields=[a1, b1, c1, d1])
 ]]>
     </Resource>

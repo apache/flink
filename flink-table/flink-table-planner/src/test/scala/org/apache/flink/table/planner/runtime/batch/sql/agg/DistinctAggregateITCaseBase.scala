@@ -350,4 +350,24 @@ abstract class DistinctAggregateITCaseBase extends BatchTestBase {
       Seq(row(3, 3, 5, 2, 12))
     )
   }
+
+  @Test
+  def testTooManyDistinctAggOnDifferentColumn(): Unit = {
+    val paramExprs = (0 until 65).map(i => s"a + $i").toArray
+    val distinctList = paramExprs.map(f => s"COUNT(DISTINCT $f)").mkString(", ")
+    checkResult(
+      "SELECT e, " + distinctList + "FROM Table5 GROUP BY e",
+      Seq(
+        row(1, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4,
+          4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4,
+          4, 4, 4, 4, 4, 4, 4),
+        row(2, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4,
+          4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4,
+          4, 4, 4, 4, 4, 4, 4),
+        row(3, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2,
+          2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2,
+          2, 2, 2, 2, 2, 2, 2)
+      )
+    )
+  }
 }

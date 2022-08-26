@@ -31,12 +31,12 @@ LogicalAggregate(group=[{0}], EXPR$1=[MAX($1)], EXPR$2=[MAX($1) FILTER $2], EXPR
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-HashAggregate(isMerge=[false], groupBy=[d], select=[d, MIN(EXPR$1) FILTER $g_15 AS EXPR$1, MIN(EXPR$2) FILTER $g_15 AS EXPR$2, COUNT(c) FILTER $g_7 AS EXPR$3, COUNT(c) FILTER $g_3 AS EXPR$4, COUNT(b) FILTER $g_12 AS EXPR$5])
-+- Calc(select=[d, c, b, EXPR$1, EXPR$2, AND(=(CASE(=($e, 3), 3, =($e, 7), 7, =($e, 12), 12, 15), 3), IS TRUE($f4)) AS $g_3, =(CASE(=($e, 3), 3, =($e, 7), 7, =($e, 12), 12, 15), 7) AS $g_7, AND(=(CASE(=($e, 3), 3, =($e, 7), 7, =($e, 12), 12, 15), 12), IS TRUE($f6)) AS $g_12, =(CASE(=($e, 3), 3, =($e, 7), 7, =($e, 12), 12, 15), 15) AS $g_15])
+HashAggregate(isMerge=[false], groupBy=[d], select=[d, MIN(EXPR$1) FILTER $g_3 AS EXPR$1, MIN(EXPR$2) FILTER $g_3 AS EXPR$2, COUNT(c) FILTER $g_1 AS EXPR$3, COUNT(c) FILTER $g_0 AS EXPR$4, COUNT(b) FILTER $g_2 AS EXPR$5])
++- Calc(select=[d, c, b, EXPR$1, EXPR$2, AND(=($e, 0), IS TRUE($f4)) AS $g_0, =($e, 1) AS $g_1, AND(=($e, 2), IS TRUE($f6)) AS $g_2, =($e, 3) AS $g_3])
    +- HashAggregate(isMerge=[true], groupBy=[d, c, $f4, b, $f6, $e], select=[d, c, $f4, b, $f6, $e, Final_MAX(max$0) AS EXPR$1, Final_MAX(max$1) AS EXPR$2])
       +- Exchange(distribution=[hash[d]])
          +- LocalHashAggregate(groupBy=[d, c, $f4, b, $f6, $e], select=[d, c, $f4, b, $f6, $e, Partial_MAX(e) AS max$0, Partial_MAX(e) FILTER $f2 AS max$1])
-            +- Expand(projects=[{d, e, $f2, c, $f4, null AS b, null AS $f6, 3 AS $e}, {d, e, $f2, c, null AS $f4, null AS b, null AS $f6, 7 AS $e}, {d, e, $f2, null AS c, null AS $f4, b, $f6, 12 AS $e}, {d, e, $f2, null AS c, null AS $f4, null AS b, null AS $f6, 15 AS $e}])
+            +- Expand(projects=[{d, e, $f2, c, $f4, null AS b, null AS $f6, 0 AS $e}, {d, e, $f2, c, null AS $f4, null AS b, null AS $f6, 1 AS $e}, {d, e, $f2, null AS c, null AS $f4, b, $f6, 2 AS $e}, {d, e, $f2, null AS c, null AS $f4, null AS b, null AS $f6, 3 AS $e}])
                +- Calc(select=[d, e, IS TRUE(<(a, 10)) AS $f2, c, IS TRUE(>(a, 5)) AS $f4, b, IS TRUE(>(b, 3)) AS $f6])
                   +- LegacyTableSourceScan(table=[[default_catalog, default_database, z, source: [TestTableSource(a, b, c, d, e)]]], fields=[a, b, c, d, e])
 ]]>

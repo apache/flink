@@ -632,8 +632,8 @@ LogicalAggregate(group=[{0, 1}], EXPR$2=[COUNT(DISTINCT $2)], EXPR$3=[SUM(DISTIN
     <Resource name="optimized rel plan">
       <![CDATA[
 FlinkLogicalAggregate(group=[{0}], d1=[AUXILIARY_GROUP($3)], EXPR$2=[COUNT($2) FILTER $5], EXPR$3=[SUM($1) FILTER $4])
-+- FlinkLogicalCalc(select=[a1, b1, c1, d1, =(CASE(=($e, 2), 2, 4), 2) AS $g_2, =(CASE(=($e, 2), 2, 4), 4) AS $g_4])
-   +- FlinkLogicalExpand(projects=[{a1, b1, null AS c1, d1, 2 AS $e}, {a1, null AS b1, c1, d1, 4 AS $e}])
++- FlinkLogicalCalc(select=[a1, b1, c1, d1, =($e, 0) AS $g_0, =($e, 1) AS $g_1])
+   +- FlinkLogicalExpand(projects=[{a1, b1, null AS c1, d1, 0 AS $e}, {a1, null AS b1, c1, d1, 1 AS $e}])
       +- FlinkLogicalLegacyTableSourceScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a1, b1, c1, d1)]]], fields=[a1, b1, c1, d1])
 ]]>
     </Resource>
@@ -652,7 +652,7 @@ LogicalAggregate(group=[{0}], EXPR$1=[SUM(DISTINCT $1)], EXPR$2=[MAX($1)], EXPR$
     <Resource name="optimized rel plan">
       <![CDATA[
 FlinkLogicalAggregate(group=[{0}], EXPR$1=[SUM($1) FILTER $4], EXPR$2=[MIN($2) FILTER $5], EXPR$3=[MIN($3) FILTER $5])
-+- FlinkLogicalCalc(select=[a1, b1, EXPR$2, EXPR$3, =(CASE(=($e, 0), 0, 1), 0) AS $g_0, =(CASE(=($e, 0), 0, 1), 1) AS $g_1])
++- FlinkLogicalCalc(select=[a1, b1, EXPR$2, EXPR$3, =($e, 0) AS $g_0, =($e, 1) AS $g_1])
    +- FlinkLogicalAggregate(group=[{0, 1, 3}], EXPR$2=[MAX($4)], EXPR$3=[MIN($2)])
       +- FlinkLogicalExpand(projects=[{a1, b1, c1, 0 AS $e, b1 AS b1_0}, {a1, null AS b1, c1, 1 AS $e, b1 AS b1_0}])
          +- FlinkLogicalCalc(select=[a1, b1, c1])
@@ -674,9 +674,9 @@ LogicalAggregate(group=[{0, 1}], EXPR$2=[COUNT(DISTINCT $2)], EXPR$3=[MAX($3)], 
     <Resource name="optimized rel plan">
       <![CDATA[
 FlinkLogicalAggregate(group=[{0}], d1=[AUXILIARY_GROUP($2)], EXPR$2=[COUNT($1) FILTER $5], EXPR$3=[MIN($3) FILTER $6], EXPR$4=[MIN($4) FILTER $6])
-+- FlinkLogicalCalc(select=[a1, c1, d1, EXPR$3, EXPR$4, =(CASE(=($e, 0), 0, 2), 0) AS $g_0, =(CASE(=($e, 0), 0, 2), 2) AS $g_2])
++- FlinkLogicalCalc(select=[a1, c1, d1, EXPR$3, EXPR$4, =($e, 0) AS $g_0, =($e, 1) AS $g_1])
    +- FlinkLogicalAggregate(group=[{0, 2, 4}], d1=[AUXILIARY_GROUP($3)], EXPR$3=[MAX($1)], EXPR$4=[SUM($1)])
-      +- FlinkLogicalExpand(projects=[{a1, b1, c1, d1, 0 AS $e}, {a1, b1, null AS c1, d1, 2 AS $e}])
+      +- FlinkLogicalExpand(projects=[{a1, b1, c1, d1, 0 AS $e}, {a1, b1, null AS c1, d1, 1 AS $e}])
          +- FlinkLogicalLegacyTableSourceScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a1, b1, c1, d1)]]], fields=[a1, b1, c1, d1])
 ]]>
     </Resource>
@@ -832,7 +832,7 @@ LogicalAggregate(group=[{0}], EXPR$1=[COUNT(DISTINCT $1)], EXPR$2=[SUM($1)])
     <Resource name="optimized rel plan">
       <![CDATA[
 FlinkLogicalAggregate(group=[{0}], EXPR$1=[COUNT($1) FILTER $3], EXPR$2=[MIN($2) FILTER $4])
-+- FlinkLogicalCalc(select=[a1, b1, EXPR$2, =(CASE(=($e, 0), 0, 1), 0) AS $g_0, =(CASE(=($e, 0), 0, 1), 1) AS $g_1])
++- FlinkLogicalCalc(select=[a1, b1, EXPR$2, =($e, 0) AS $g_0, =($e, 1) AS $g_1])
    +- FlinkLogicalAggregate(group=[{0, 1, 2}], EXPR$2=[SUM($3)])
       +- FlinkLogicalExpand(projects=[{a1, b1, 0 AS $e, b1 AS b1_0}, {a1, null AS b1, 1 AS $e, b1 AS b1_0}])
          +- FlinkLogicalCalc(select=[a1, b1])
@@ -853,8 +853,8 @@ LogicalAggregate(group=[{0, 1}], EXPR$2=[COUNT(DISTINCT $2)], EXPR$3=[SUM($2)])
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-FlinkLogicalAggregate(group=[{0}], c1=[AUXILIARY_GROUP($1)], EXPR$2=[COUNT($2) FILTER $4], EXPR$3=[MIN($3) FILTER $5])
-+- FlinkLogicalCalc(select=[a1, c1, b1, EXPR$3, =(CASE(=($e, 0), 0, 1), 0) AS $g_0, =(CASE(=($e, 0), 0, 1), 1) AS $g_1])
+FlinkLogicalAggregate(group=[{0}], c1=[MIN($2) FILTER $5], EXPR$2=[COUNT($1) FILTER $4], EXPR$3=[MIN($3) FILTER $5])
++- FlinkLogicalCalc(select=[a1, b1, c1, EXPR$3, =($e, 0) AS $g_0, =($e, 1) AS $g_1])
    +- FlinkLogicalAggregate(group=[{0, 2, 3}], c1=[AUXILIARY_GROUP($1)], EXPR$3=[SUM($4)])
       +- FlinkLogicalExpand(projects=[{a1, c1, b1, 0 AS $e, b1 AS b1_0}, {a1, c1, null AS b1, 1 AS $e, b1 AS b1_0}])
          +- FlinkLogicalCalc(select=[a1, c1, b1])
@@ -876,7 +876,7 @@ LogicalAggregate(group=[{0}], EXPR$1=[COUNT(DISTINCT $1)], EXPR$2=[SUM($2)])
     <Resource name="optimized rel plan">
       <![CDATA[
 FlinkLogicalAggregate(group=[{0}], EXPR$1=[COUNT($1) FILTER $3], EXPR$2=[MIN($2) FILTER $4])
-+- FlinkLogicalCalc(select=[a1, c1, EXPR$2, =(CASE(=($e, 0), 0, 1), 0) AS $g_0, =(CASE(=($e, 0), 0, 1), 1) AS $g_1])
++- FlinkLogicalCalc(select=[a1, c1, EXPR$2, =($e, 0) AS $g_0, =($e, 1) AS $g_1])
    +- FlinkLogicalAggregate(group=[{0, 1, 3}], EXPR$2=[SUM($2)])
       +- FlinkLogicalExpand(projects=[{a1, c1, b1, 0 AS $e}, {a1, null AS c1, b1, 1 AS $e}])
          +- FlinkLogicalCalc(select=[a1, c1, b1])
@@ -898,9 +898,9 @@ LogicalAggregate(group=[{0, 1}], EXPR$2=[COUNT(DISTINCT $2)], EXPR$3=[SUM($3)])
     <Resource name="optimized rel plan">
       <![CDATA[
 FlinkLogicalAggregate(group=[{0}], d1=[AUXILIARY_GROUP($2)], EXPR$2=[COUNT($1) FILTER $4], EXPR$3=[MIN($3) FILTER $5])
-+- FlinkLogicalCalc(select=[a1, c1, d1, EXPR$3, =(CASE(=($e, 0), 0, 2), 0) AS $g_0, =(CASE(=($e, 0), 0, 2), 2) AS $g_2])
++- FlinkLogicalCalc(select=[a1, c1, d1, EXPR$3, =($e, 0) AS $g_0, =($e, 1) AS $g_1])
    +- FlinkLogicalAggregate(group=[{0, 2, 4}], d1=[AUXILIARY_GROUP($3)], EXPR$3=[SUM($1)])
-      +- FlinkLogicalExpand(projects=[{a1, b1, c1, d1, 0 AS $e}, {a1, b1, null AS c1, d1, 2 AS $e}])
+      +- FlinkLogicalExpand(projects=[{a1, b1, c1, d1, 0 AS $e}, {a1, b1, null AS c1, d1, 1 AS $e}])
          +- FlinkLogicalLegacyTableSourceScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a1, b1, c1, d1)]]], fields=[a1, b1, c1, d1])
 ]]>
     </Resource>

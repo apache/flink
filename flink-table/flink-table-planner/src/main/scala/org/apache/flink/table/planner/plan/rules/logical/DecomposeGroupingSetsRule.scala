@@ -41,93 +41,14 @@ import scala.collection.JavaConversions._
  * non-distinct group). This will put quite a bit of memory pressure of the used aggregate and
  * exchange operators.
  *
- * This rule will be used for the plan with grouping sets or the plan with distinct aggregations
- * after [[FlinkAggregateExpandDistinctAggregatesRule]] applied.
+ * This rule will be used for the plan with grouping sets.
  *
  * `FlinkAggregateExpandDistinctAggregatesRule` rewrites an aggregate query with distinct
  * aggregations into an expanded double aggregation. The first aggregate has grouping sets in which
  * the regular aggregation expressions and every distinct clause are aggregated in a separate group.
  * The results are then combined in a second aggregate.
  *
- * Examples:
- *
- * MyTable: a: INT, b: BIGINT, c: VARCHAR(32), d: VARCHAR(32)
- *
- * Original records:
- * | a | b | c  | d  |
- * |:-:|:-:|:--:|:--:|
- * | 1 | 1 | c1 | d1 |
- * | 1 | 2 | c1 | d2 |
- * | 2 | 1 | c1 | d1 |
- *
- * Example1 (expand for DISTINCT aggregates):
- *
- * SQL: SELECT a, SUM(DISTINCT b) as t1, COUNT(DISTINCT c) as t2, COUNT(d) as t3 FROM MyTable GROUP
- * BY a
- *
- * Logical plan:
- * {{{
- * LogicalAggregate(group=[{0}], t1=[SUM(DISTINCT $1)], t2=[COUNT(DISTINCT $2)], t3=[COUNT($3)])
- *  LogicalTableScan(table=[[builtin, default, MyTable]])
- * }}}
- *
- * Logical plan after `FlinkAggregateExpandDistinctAggregatesRule` applied:
- * {{{
- * LogicalProject(a=[$0], t1=[$1], t2=[$2], t3=[CAST($3):BIGINT NOT NULL])
- *  LogicalProject(a=[$0], t1=[$1], t2=[$2], $f3=[CASE(IS NOT NULL($3), $3, 0)])
- *   LogicalAggregate(group=[{0}], t1=[SUM($1) FILTER $4], t2=[COUNT($2) FILTER $5],
- *     t3=[MIN($3) FILTER $6])
- *    LogicalProject(a=[$0], b=[$1], c=[$2], t3=[$3], $g_1=[=($4, 1)], $g_2=[=($4, 2)],
- *      $g_3=[=($4, 3)])
- *     LogicalAggregate(group=[{0, 1, 2}], groups=[[{0, 1}, {0, 2}, {0}]], t3=[COUNT($3)],
- *       $g=[GROUPING($0, $1, $2)])
- *      LogicalTableScan(table=[[builtin, default, MyTable]])
- * }}}
- *
- * Logical plan after this rule applied:
- * {{{
- * LogicalCalc(expr#0..3=[{inputs}], expr#4=[IS NOT NULL($t3)], ...)
- *  LogicalAggregate(group=[{0}], t1=[SUM($1) FILTER $4], t2=[COUNT($2) FILTER $5],
- *    t3=[MIN($3) FILTER $6])
- *   LogicalCalc(expr#0..4=[{inputs}], ... expr#10=[CASE($t6, $t5, $t8, $t7, $t9)],
- *      expr#11=[1], expr#12=[=($t10, $t11)], ... $g_1=[$t12], ...)
- *    LogicalAggregate(group=[{0, 1, 2, 4}], groups=[[]], t3=[COUNT($3)])
- *     LogicalExpand(projects=[{a=[$0], b=[$1], c=[null], d=[$3], $e=[1]},
- *       {a=[$0], b=[null], c=[$2], d=[$3], $e=[2]}, {a=[$0], b=[null], c=[null], d=[$3], $e=[3]}])
- *      LogicalTableSourceScan(table=[[builtin, default, MyTable]], fields=[a, b, c, d])
- * }}}
- *
- * '$e = 1' is equivalent to 'group by a, b' '$e = 2' is equivalent to 'group by a, c' '$e = 3' is
- * equivalent to 'group by a'
- *
- * Expanded records: \+-----+-----+-----+-----+-----+ \| a | b | c | d | $e |
- * \+-----+-----+-----+-----+-----+ ---+--- \| 1 | 1 | null| d1 | 1 | |
- * \+-----+-----+-----+-----+-----+ | \| 1 | null| c1 | d1 | 2 | records expanded by record1
- * \+-----+-----+-----+-----+-----+ | \| 1 | null| null| d1 | 3 | | \+-----+-----+-----+-----+-----+
- * ---+--- \| 1 | 2 | null| d2 | 1 | | \+-----+-----+-----+-----+-----+ | \| 1 | null| c1 | d2 | 2 |
- * records expanded by record2 \+-----+-----+-----+-----+-----+ | \| 1 | null| null| d2 | 3 | |
- * \+-----+-----+-----+-----+-----+ ---+--- \| 2 | 1 | null| d1 | 1 | |
- * \+-----+-----+-----+-----+-----+ | \| 2 | null| c1 | d1 | 2 | records expanded by record3
- * \+-----+-----+-----+-----+-----+ | \| 2 | null| null| d1 | 3 | | \+-----+-----+-----+-----+-----+
- * ---+---
- *
- * Example2 (Some fields are both in DISTINCT aggregates and non-DISTINCT aggregates):
- *
- * SQL: SELECT MAX(a) as t1, COUNT(DISTINCT a) as t2, count(DISTINCT d) as t3 FROM MyTable
- *
- * Field `a` is both in DISTINCT aggregate and `MAX` aggregate, so, `a` should be outputted as two
- * individual fields, one is for `MAX` aggregate, another is for DISTINCT aggregate.
- *
- * Expanded records: \+-----+-----+-----+-----+ \| a | d | $e | a_0 | \+-----+-----+-----+-----+
- * ---+--- \| 1 | null| 1 | 1 | | \+-----+-----+-----+-----+ | \| null| d1 | 2 | 1 | records
- * expanded by record1 \+-----+-----+-----+-----+ | \| null| null| 3 | 1 | |
- * \+-----+-----+-----+-----+ ---+--- \| 1 | null| 1 | 1 | | \+-----+-----+-----+-----+ | \| null|
- * d2 | 2 | 1 | records expanded by record2 \+-----+-----+-----+-----+ | \| null| null| 3 | 1 | |
- * \+-----+-----+-----+-----+ ---+--- \| 2 | null| 1 | 2 | | \+-----+-----+-----+-----+ | \| null|
- * d1 | 2 | 2 | records expanded by record3 \+-----+-----+-----+-----+ | \| null| null| 3 | 2 | |
- * \+-----+-----+-----+-----+ ---+---
- *
- * Example3 (expand for CUBE/ROLLUP/GROUPING SETS):
+ * Example (expand for CUBE/ROLLUP/GROUPING SETS):
  *
  * SQL: SELECT a, c, SUM(b) as b FROM MyTable GROUP BY GROUPING SETS (a, c)
  *

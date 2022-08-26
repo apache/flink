@@ -29,6 +29,7 @@ import java.math.BigDecimal
 import java.util
 
 import scala.collection.JavaConversions._
+import scala.collection.mutable
 
 object ExpandUtil {
 
@@ -40,7 +41,9 @@ object ExpandUtil {
       relBuilder: FlinkRelBuilder,
       aggCalls: Seq[AggregateCall],
       groupSet: ImmutableBitSet,
-      groupSets: ImmutableList[ImmutableBitSet]): (Map[Integer, Integer], Integer) = {
+      groupSets: ImmutableList[ImmutableBitSet],
+      expandIdGenerator: (ImmutableBitSet, ImmutableBitSet) => Long = genExpandId)
+      : (Map[Integer, Integer], Integer) = {
     // find fields which are both in grouping and 'regular' aggCalls (excluding GROUPING aggCalls)
     // e.g.: select max(a) from table group by grouping sets (a, b)
     // field `a` should be outputted as two individual fields,
@@ -84,7 +87,8 @@ object ExpandUtil {
       inputType,
       groupSet,
       groupSets,
-      duplicateFieldIndexes)
+      duplicateFieldIndexes,
+      expandIdGenerator)
 
     relBuilder.expand(expandProjects, expandIdIdxInExpand)
 
@@ -168,7 +172,9 @@ object ExpandUtil {
       inputType: RelDataType,
       groupSet: ImmutableBitSet,
       groupSets: ImmutableList[ImmutableBitSet],
-      duplicateFieldIndexes: Array[Integer]): util.List[util.List[RexNode]] = {
+      duplicateFieldIndexes: Array[Integer],
+      expandIdGenerator: (ImmutableBitSet, ImmutableBitSet) => Long = genExpandId)
+      : util.List[util.List[RexNode]] = {
 
     val fullGroupList = groupSet.toArray
     require(!groupSets.isEmpty && fullGroupList.nonEmpty)
@@ -192,7 +198,7 @@ object ExpandUtil {
         }
 
         // output for expand_id('$e') field
-        val expandId = genExpandId(groupSet, subGroupSet)
+        val expandId = expandIdGenerator.apply(groupSet, subGroupSet)
         val expandIdField = rexBuilder.makeBigintLiteral(BigDecimal.valueOf(expandId))
         projects.add(expandIdField)
 
@@ -221,5 +227,14 @@ object ExpandUtil {
       x >>= 1
     }
     v
+  }
+
+  def genExpandIdByIndex(
+      allGroupSets: util.List[ImmutableBitSet]): (ImmutableBitSet, ImmutableBitSet) => Long = {
+    val mapping = new mutable.HashMap[ImmutableBitSet, Long]()
+    for (i <- 0 until allGroupSets.size()) {
+      mapping.put(allGroupSets.get(i), i)
+    }
+    (fullGroupSet, groupSet) => mapping.getOrDefault(groupSet, -1)
   }
 }

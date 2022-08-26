@@ -192,9 +192,8 @@ abstract class DistinctAggregateTestBase(withExecPlan: Boolean) extends TableTes
     verifyPlan(sqlQuery)
   }
 
-  @Test(expected = classOf[RuntimeException])
+  @Test
   def testTooManyDistinctAggOnDifferentColumn(): Unit = {
-    // max group count must be less than 64
     val fieldNames = (0 until 64).map(i => s"f$i").toArray
     val fieldTypes: Array[TypeInformation[_]] = Array.fill(fieldNames.length)(Types.INT)
     util.addTableSource("MyTable64", fieldTypes, fieldNames)
