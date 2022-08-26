@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.gateway.rest;
+package org.apache.flink.table.gateway.rest.serde;
 
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.catalog.ResolvedSchema;
@@ -24,8 +24,6 @@ import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.util.DataFormatConverters;
 import org.apache.flink.table.gateway.api.results.ResultSet;
-import org.apache.flink.table.gateway.rest.util.JsonResultSetDeserializer;
-import org.apache.flink.table.gateway.rest.util.JsonResultSetSerializer;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.types.Row;
 import org.apache.flink.types.RowKind;
@@ -261,13 +259,15 @@ class JsonResultSetSerDeTest {
         }
     }
 
+    @SuppressWarnings("unchecked")
     private static Row convertToExternal(RowData rowData, DataType dataType) {
         return (Row) DataFormatConverters.getConverterForDataType(dataType).toExternal(rowData);
     }
 
+    @SuppressWarnings("unchecked")
     private static GenericRowData convertToInternal(Row row) {
-        DataFormatConverters.DataFormatConverter converter =
+        DataFormatConverters.DataFormatConverter<GenericRowData, Row> converter =
                 DataFormatConverters.getConverterForDataType(ROW(getFields()));
-        return (GenericRowData) converter.toInternal(row);
+        return converter.toInternal(row);
     }
 }

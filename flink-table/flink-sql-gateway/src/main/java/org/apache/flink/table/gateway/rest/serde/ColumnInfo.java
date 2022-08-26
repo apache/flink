@@ -16,11 +16,9 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.gateway.api.results;
+package org.apache.flink.table.gateway.rest.serde;
 
-import org.apache.flink.annotation.PublicEvolving;
-import org.apache.flink.table.gateway.api.results.serde.LogicalTypeJsonDeserializer;
-import org.apache.flink.table.gateway.api.results.serde.LogicalTypeJsonSerializer;
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.util.Preconditions;
 
@@ -29,14 +27,17 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonPro
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.annotation.JsonSerialize;
 
+import javax.annotation.Nullable;
+
 import java.util.Objects;
 
 /** A column info represents a table column's structure with column name, column type. */
-@PublicEvolving
+@Internal
 public class ColumnInfo {
 
     private static final String FIELD_NAME_NAME = "name";
     private static final String FIELD_NAME_TYPE = "logicalType";
+    private static final String FIELD_NAME_COMMENT = "comment";
 
     @JsonProperty(FIELD_NAME_NAME)
     private final String name;
@@ -46,16 +47,21 @@ public class ColumnInfo {
     @JsonDeserialize(using = LogicalTypeJsonDeserializer.class)
     private final LogicalType logicalType;
 
+    @JsonProperty(FIELD_NAME_COMMENT)
+    private @Nullable final String comment;
+
     @JsonCreator
     public ColumnInfo(
             @JsonProperty(FIELD_NAME_NAME) String name,
-            @JsonProperty(FIELD_NAME_TYPE) LogicalType logicalType) {
+            @JsonProperty(FIELD_NAME_TYPE) LogicalType logicalType,
+            @JsonProperty(FIELD_NAME_COMMENT) String comment) {
         this.name = Preconditions.checkNotNull(name, "name must not be null");
         this.logicalType = Preconditions.checkNotNull(logicalType, "logical type must not be null");
+        this.comment = comment;
     }
 
-    public static ColumnInfo create(String name, LogicalType type) {
-        return new ColumnInfo(name, type);
+    public static ColumnInfo create(String name, LogicalType type, @Nullable String comment) {
+        return new ColumnInfo(name, type, comment);
     }
 
     public String getName() {
@@ -66,26 +72,40 @@ public class ColumnInfo {
         return logicalType;
     }
 
+    public @Nullable String getComment() {
+        return comment;
+    }
+
     @Override
     public boolean equals(Object o) {
         if (this == o) {
             return true;
         }
-        if (o == null || getClass() != o.getClass()) {
+        if (!(o instanceof ColumnInfo)) {
             return false;
         }
         ColumnInfo that = (ColumnInfo) o;
-        return name.equals(that.name) && logicalType.equals(that.logicalType);
+        return Objects.equals(name, that.name)
+                && Objects.equals(logicalType, that.logicalType)
+                && Objects.equals(comment, that.comment);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(name, logicalType);
+        return Objects.hash(name, logicalType, comment);
     }
 
     @Override
     public String toString() {
-        return String.format(
-                "ColumnInfo{name='%s', logical type='%s'}", name, logicalType.toString());
+        return "ColumnInfo{"
+                + "name='"
+                + name
+                + '\''
+                + ", logicalType="
+                + logicalType
+                + ", comment='"
+                + comment
+                + '\''
+                + '}';
     }
 }

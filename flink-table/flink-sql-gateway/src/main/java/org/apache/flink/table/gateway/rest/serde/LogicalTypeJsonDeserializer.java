@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.gateway.api.results.serde;
+package org.apache.flink.table.gateway.rest.serde;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.api.TableException;
@@ -58,20 +58,20 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
-import static org.apache.flink.table.gateway.api.results.serde.LogicalTypeJsonSerializer.FIELD_NAME_CLASS;
-import static org.apache.flink.table.gateway.api.results.serde.LogicalTypeJsonSerializer.FIELD_NAME_ELEMENT_TYPE;
-import static org.apache.flink.table.gateway.api.results.serde.LogicalTypeJsonSerializer.FIELD_NAME_FIELDS;
-import static org.apache.flink.table.gateway.api.results.serde.LogicalTypeJsonSerializer.FIELD_NAME_FIELD_NAME;
-import static org.apache.flink.table.gateway.api.results.serde.LogicalTypeJsonSerializer.FIELD_NAME_FIELD_TYPE;
-import static org.apache.flink.table.gateway.api.results.serde.LogicalTypeJsonSerializer.FIELD_NAME_FILED_DESCRIPTION;
-import static org.apache.flink.table.gateway.api.results.serde.LogicalTypeJsonSerializer.FIELD_NAME_KEY_TYPE;
-import static org.apache.flink.table.gateway.api.results.serde.LogicalTypeJsonSerializer.FIELD_NAME_LENGTH;
-import static org.apache.flink.table.gateway.api.results.serde.LogicalTypeJsonSerializer.FIELD_NAME_NULLABLE;
-import static org.apache.flink.table.gateway.api.results.serde.LogicalTypeJsonSerializer.FIELD_NAME_PRECISION;
-import static org.apache.flink.table.gateway.api.results.serde.LogicalTypeJsonSerializer.FIELD_NAME_SCALE;
-import static org.apache.flink.table.gateway.api.results.serde.LogicalTypeJsonSerializer.FIELD_NAME_SERIALIZER;
-import static org.apache.flink.table.gateway.api.results.serde.LogicalTypeJsonSerializer.FIELD_NAME_TYPE_NAME;
-import static org.apache.flink.table.gateway.api.results.serde.LogicalTypeJsonSerializer.FIELD_NAME_VALUE_TYPE;
+import static org.apache.flink.table.gateway.rest.serde.LogicalTypeJsonSerializer.FIELD_NAME_CLASS;
+import static org.apache.flink.table.gateway.rest.serde.LogicalTypeJsonSerializer.FIELD_NAME_ELEMENT_TYPE;
+import static org.apache.flink.table.gateway.rest.serde.LogicalTypeJsonSerializer.FIELD_NAME_FIELDS;
+import static org.apache.flink.table.gateway.rest.serde.LogicalTypeJsonSerializer.FIELD_NAME_FIELD_NAME;
+import static org.apache.flink.table.gateway.rest.serde.LogicalTypeJsonSerializer.FIELD_NAME_FIELD_TYPE;
+import static org.apache.flink.table.gateway.rest.serde.LogicalTypeJsonSerializer.FIELD_NAME_FILED_DESCRIPTION;
+import static org.apache.flink.table.gateway.rest.serde.LogicalTypeJsonSerializer.FIELD_NAME_KEY_TYPE;
+import static org.apache.flink.table.gateway.rest.serde.LogicalTypeJsonSerializer.FIELD_NAME_LENGTH;
+import static org.apache.flink.table.gateway.rest.serde.LogicalTypeJsonSerializer.FIELD_NAME_NULLABLE;
+import static org.apache.flink.table.gateway.rest.serde.LogicalTypeJsonSerializer.FIELD_NAME_PRECISION;
+import static org.apache.flink.table.gateway.rest.serde.LogicalTypeJsonSerializer.FIELD_NAME_SCALE;
+import static org.apache.flink.table.gateway.rest.serde.LogicalTypeJsonSerializer.FIELD_NAME_SERIALIZER;
+import static org.apache.flink.table.gateway.rest.serde.LogicalTypeJsonSerializer.FIELD_NAME_TYPE_NAME;
+import static org.apache.flink.table.gateway.rest.serde.LogicalTypeJsonSerializer.FIELD_NAME_VALUE_TYPE;
 
 /**
  * JSON deserializer for {@link LogicalType}.

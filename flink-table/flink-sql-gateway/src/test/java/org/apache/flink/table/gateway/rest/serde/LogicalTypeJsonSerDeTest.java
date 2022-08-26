@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.gateway.api.results.serde;
+package org.apache.flink.table.gateway.rest.serde;
 
 import org.apache.flink.api.common.typeutils.base.LocalDateTimeSerializer;
 import org.apache.flink.core.testutils.FlinkAssertions;

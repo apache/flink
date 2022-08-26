@@ -20,8 +20,8 @@ package org.apache.flink.table.gateway.rest.message.statement;
 
 import org.apache.flink.runtime.rest.messages.ResponseBody;
 import org.apache.flink.table.gateway.api.results.ResultSet;
-import org.apache.flink.table.gateway.rest.util.JsonResultSetDeserializer;
-import org.apache.flink.table.gateway.rest.util.JsonResultSetSerializer;
+import org.apache.flink.table.gateway.rest.serde.JsonResultSetDeserializer;
+import org.apache.flink.table.gateway.rest.serde.JsonResultSetSerializer;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.annotation.JsonDeserialize;

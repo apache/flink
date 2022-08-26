@@ -16,17 +16,15 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.gateway.rest.util;
+package org.apache.flink.table.gateway.rest.serde;
 
-import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.formats.common.TimestampFormat;
 import org.apache.flink.formats.json.JsonFormatOptions;
 import org.apache.flink.formats.json.RowDataToJsonConverters;
 import org.apache.flink.table.catalog.Column;
 import org.apache.flink.table.data.RowData;
-import org.apache.flink.table.gateway.api.results.ColumnInfo;
 import org.apache.flink.table.gateway.api.results.ResultSet;
-import org.apache.flink.table.gateway.api.results.RowDataInfo;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.types.RowKind;
@@ -47,7 +45,7 @@ import static org.apache.flink.table.gateway.api.results.ResultSet.FIELD_NAME_CO
 import static org.apache.flink.table.gateway.api.results.ResultSet.FIELD_NAME_DATA;
 
 /** Json serializer for {@link ResultSet}. */
-@PublicEvolving
+@Internal
 public class JsonResultSetSerializer extends StdSerializer<ResultSet> {
 
     private static final long serialVersionUID = 1L;
@@ -72,7 +70,10 @@ public class JsonResultSetSerializer extends StdSerializer<ResultSet> {
         List<ColumnInfo> columnInfos = new ArrayList<>();
         for (Column column : columns) {
             columnInfos.add(
-                    new ColumnInfo(column.getName(), column.getDataType().getLogicalType()));
+                    new ColumnInfo(
+                            column.getName(),
+                            column.getDataType().getLogicalType(),
+                            column.getComment().orElse(null)));
         }
         serializerProvider.defaultSerializeField(
                 FIELD_NAME_COLUMN_INFOS, columnInfos, jsonGenerator);
