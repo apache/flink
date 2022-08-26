@@ -95,6 +95,7 @@ public class PartitionLoader implements Closeable {
         Path tableLocation = metaStore.getLocationPath();
         overwriteAndMoveFiles(srcDirs, tableLocation);
         commitPartition(new LinkedHashMap<>(), tableLocation);
+        metaStore.finishWritingTable(tableLocation);
     }
 
     /**

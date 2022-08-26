@@ -60,6 +60,9 @@ public class HiveTableSourceStatisticsReportTest extends StatisticsReportTestBas
         hiveCatalog = HiveTestUtils.createHiveCatalog();
         hiveCatalog.open();
 
+        // we disable auto gather statistic in this test to avoid skipping
+        // method HiveTableSource#reportStatistics
+        tEnv.getConfig().set(HiveOptions.TABLE_EXEC_HIVE_SINK_STATISTIC_AUTO_GATHER_ENABLE, false);
         tEnv.getConfig().setSqlDialect(SqlDialect.HIVE);
         tEnv.registerCatalog(catalogName, hiveCatalog);
         tEnv.useCatalog(catalogName);

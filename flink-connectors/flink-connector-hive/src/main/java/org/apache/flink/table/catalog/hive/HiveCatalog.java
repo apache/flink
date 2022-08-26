@@ -87,7 +87,6 @@ import org.apache.flink.util.Preconditions;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hive.common.FileUtils;
-import org.apache.hadoop.hive.common.StatsSetupConst;
 import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.hadoop.hive.metastore.TableType;
 import org.apache.hadoop.hive.metastore.api.AlreadyExistsException;
@@ -139,8 +138,6 @@ import static org.apache.flink.sql.parser.hive.ddl.SqlCreateHiveTable.NOT_NULL_C
 import static org.apache.flink.sql.parser.hive.ddl.SqlCreateHiveTable.NOT_NULL_CONSTRAINT_TRAITS;
 import static org.apache.flink.sql.parser.hive.ddl.SqlCreateHiveTable.PK_CONSTRAINT_TRAIT;
 import static org.apache.flink.table.catalog.CatalogPropertiesUtil.FLINK_PROPERTY_PREFIX;
-import static org.apache.flink.table.catalog.hive.util.HiveStatsUtil.parsePositiveIntStat;
-import static org.apache.flink.table.catalog.hive.util.HiveStatsUtil.parsePositiveLongStat;
 import static org.apache.flink.table.catalog.hive.util.HiveTableUtil.getHadoopConfiguration;
 import static org.apache.flink.table.descriptors.ConnectorDescriptorValidator.CONNECTOR_TYPE;
 import static org.apache.flink.table.factories.FactoryUtil.CONNECTOR;
@@ -1498,8 +1495,8 @@ public class HiveCatalog extends AbstractCatalog {
                         "Alter table stats is not supported in Hive version " + hiveVersion);
             }
             // Set table stats
-            if (statsChanged(tableStatistics, hiveTable.getParameters())) {
-                updateStats(tableStatistics, hiveTable.getParameters());
+            if (HiveStatsUtil.statsChanged(tableStatistics, hiveTable.getParameters())) {
+                HiveStatsUtil.updateStats(tableStatistics, hiveTable.getParameters());
                 client.alter_table(
                         tablePath.getDatabaseName(), tablePath.getObjectName(), hiveTable);
             }
@@ -1546,39 +1543,6 @@ public class HiveCatalog extends AbstractCatalog {
         }
     }
 
-    /**
-     * Determine if statistics need to be updated or not.
-     *
-     * @param newTableStats new catalog table statistics.
-     * @param parameters original hive table statistics parameters.
-     * @return whether need to update stats.
-     */
-    private boolean statsChanged(
-            CatalogTableStatistics newTableStats, Map<String, String> parameters) {
-        return newTableStats.getRowCount()
-                        != parsePositiveLongStat(parameters, StatsSetupConst.ROW_COUNT)
-                || newTableStats.getTotalSize()
-                        != parsePositiveLongStat(parameters, StatsSetupConst.TOTAL_SIZE)
-                || newTableStats.getFileCount()
-                        != parsePositiveIntStat(parameters, StatsSetupConst.NUM_FILES)
-                || newTableStats.getRawDataSize()
-                        != parsePositiveLongStat(parameters, StatsSetupConst.NUM_FILES);
-    }
-
-    /**
-     * Update original table statistics parameters.
-     *
-     * @param newTableStats new catalog table statistics.
-     * @param parameters original hive table statistics parameters.
-     */
-    private void updateStats(CatalogTableStatistics newTableStats, Map<String, String> parameters) {
-        parameters.put(StatsSetupConst.ROW_COUNT, String.valueOf(newTableStats.getRowCount()));
-        parameters.put(StatsSetupConst.TOTAL_SIZE, String.valueOf(newTableStats.getTotalSize()));
-        parameters.put(StatsSetupConst.NUM_FILES, String.valueOf(newTableStats.getFileCount()));
-        parameters.put(
-                StatsSetupConst.RAW_DATA_SIZE, String.valueOf(newTableStats.getRawDataSize()));
-    }
-
     @Override
     public void alterPartitionStatistics(
             ObjectPath tablePath,
@@ -1589,8 +1553,8 @@ public class HiveCatalog extends AbstractCatalog {
         try {
             Partition hivePartition = getHivePartition(tablePath, partitionSpec);
             // Set table stats
-            if (statsChanged(partitionStatistics, hivePartition.getParameters())) {
-                updateStats(partitionStatistics, hivePartition.getParameters());
+            if (HiveStatsUtil.statsChanged(partitionStatistics, hivePartition.getParameters())) {
+                HiveStatsUtil.updateStats(partitionStatistics, hivePartition.getParameters());
                 client.alter_partition(
                         tablePath.getDatabaseName(), tablePath.getObjectName(), hivePartition);
             }

@@ -62,5 +62,11 @@ public interface TableMetaStoreFactory extends Serializable {
          */
         void createOrAlterPartition(LinkedHashMap<String, String> partitionSpec, Path partitionPath)
                 throws Exception;
+
+        /**
+         * After data has been inserted into table, some follow-up works related to metastore may
+         * need be done like report statistic to metastore.
+         */
+        default void finishWritingTable(Path tablePath) throws Exception {}
     }
 }
