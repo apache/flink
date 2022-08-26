@@ -331,6 +331,18 @@ public class KubernetesConfigOptions {
                             "The user-specified annotations that are set to the TaskManager pod. The value could be "
                                     + "in the form of a1:v1,a2:v2");
 
+    public static final ConfigOption<String> KUBERNETES_JOBMANAGER_ENTRYPOINT_ARGS =
+            key("kubernetes.jobmanager.entrypoint.args")
+                    .stringType()
+                    .defaultValue("")
+                    .withDescription("Extra arguments used when starting the job manager.");
+
+    public static final ConfigOption<String> KUBERNETES_TASKMANAGER_ENTRYPOINT_ARGS =
+            key("kubernetes.taskmanager.entrypoint.args")
+                    .stringType()
+                    .defaultValue("")
+                    .withDescription("Extra arguments used when starting the task manager.");
+
     public static final ConfigOption<List<Map<String, String>>> JOB_MANAGER_TOLERATIONS =
             key("kubernetes.jobmanager.tolerations")
                     .mapType()

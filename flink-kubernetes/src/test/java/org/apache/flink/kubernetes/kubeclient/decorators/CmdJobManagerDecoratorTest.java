@@ -78,7 +78,11 @@ class CmdJobManagerDecoratorTest extends KubernetesJobManagerTestBase {
                 .containsExactlyInAnyOrder(entryCommand);
         List<String> flinkCommands =
                 KubernetesUtils.getStartCommandWithBashWrapper(
-                        Constants.KUBERNETES_JOB_MANAGER_SCRIPT_PATH + " " + target);
+                        Constants.KUBERNETES_JOB_MANAGER_SCRIPT_PATH
+                                + " "
+                                + target
+                                + " "
+                                + ENTRYPOINT_ARGS);
         assertThat(resultFlinkPod.getMainContainer().getArgs())
                 .containsExactlyElementsOf(flinkCommands);
     }
