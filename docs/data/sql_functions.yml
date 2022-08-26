@@ -708,8 +708,10 @@ json:
       expression. If the default value itself raises an error, it falls through to the error
       behavior for `ON EMPTY`, and raises an error for `ON ERROR`.
       
-      For path contains blank characters, should use '[]', which is the grammar of json-path.
-      And path is literal, the character `'` already exists. So you should also use sql escape characters `'`.
+      For path contains special characters such as spaces, you can use `['property']` or `["property"]` 
+      to select the specified property in a parent object. Be sure to put single or double quotes around the property name.
+      When using JSON_VALUE in SQL, the path is a character parameter which is already single quoted, 
+      so you have to escape the single quotes around property name, such as `JSON_VALUE('{"a b": "true"}', '$.[''a b'']')`.
 
       ```
       -- "true"
