@@ -30,6 +30,7 @@ import org.apache.flink.table.functions.FunctionContext;
 import org.apache.flink.table.functions.hive.conversion.HiveInspectors;
 import org.apache.flink.table.functions.hive.conversion.HiveObjectConversion;
 import org.apache.flink.table.functions.hive.conversion.IdentityConversion;
+import org.apache.flink.table.functions.hive.util.HiveFunctionUtil;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.inference.CallContext;
 import org.apache.flink.table.types.inference.TypeInference;
@@ -69,6 +70,7 @@ public class HiveGenericUDAF
     private transient GenericUDAFEvaluator partialEvaluator;
     private transient GenericUDAFEvaluator finalEvaluator;
     private transient ObjectInspector finalResultObjectInspector;
+    private transient boolean isArgsSingleArray;
     private transient HiveObjectConversion[] conversions;
     private transient boolean allIdentityConverter;
     private transient boolean initialized;
@@ -109,6 +111,7 @@ public class HiveGenericUDAF
                         GenericUDAFEvaluator.Mode.FINAL,
                         new ObjectInspector[] {partialResultObjectInspector});
 
+        isArgsSingleArray = HiveFunctionUtil.isSingleBoxedArray(arguments);
         conversions = new HiveObjectConversion[inputInspectors.length];
         for (int i = 0; i < inputInspectors.length; i++) {
             conversions[i] =
@@ -182,6 +185,14 @@ public class HiveGenericUDAF
 
     public void accumulate(GenericUDAFEvaluator.AggregationBuffer acc, Object... inputs)
             throws HiveException {
+        // When the parameter of the function is (Integer, Array[Double]), Flink calls
+        // udf.accumulate(AggregationBuffer, Integer, Array[Double]), which is not a problem.
+        // But when the parameter is a single array, Flink calls udf.accumulate(AggregationBuffer,
+        // Array[Double]), at this point java's var-args will cast Array[Double] to Array[Object]
+        // and let it be Object... args, So we need wrap it.
+        if (isArgsSingleArray) {
+            inputs = new Object[] {inputs};
+        }
         if (!allIdentityConverter) {
             for (int i = 0; i < inputs.length; i++) {
                 inputs[i] = conversions[i].toHiveObject(inputs[i]);

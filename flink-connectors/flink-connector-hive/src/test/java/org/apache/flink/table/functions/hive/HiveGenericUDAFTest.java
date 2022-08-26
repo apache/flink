@@ -24,6 +24,8 @@ import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.inference.utils.CallContextMock;
 import org.apache.flink.types.Row;
 
+import org.apache.hadoop.hive.ql.udf.generic.GenericUDAFCollectList;
+import org.apache.hadoop.hive.ql.udf.generic.GenericUDAFCollectSet;
 import org.apache.hadoop.hive.ql.udf.generic.GenericUDAFContextNGrams;
 import org.apache.hadoop.hive.ql.udf.generic.GenericUDAFCount;
 import org.apache.hadoop.hive.ql.udf.generic.GenericUDAFEvaluator;
@@ -40,6 +42,7 @@ import java.util.Optional;
 import java.util.stream.Collectors;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 
 /** Test for {@link HiveGenericUDAF}. */
 public class HiveGenericUDAFTest {
@@ -137,6 +140,39 @@ public class HiveGenericUDAFTest {
 
         udaf.merge(acc, Collections.emptyList());
         assertThat(Arrays.toString((Row[]) udaf.getValue(acc))).isEqualTo("[+I[[think], 1.0]]");
+    }
+
+    @Test
+    public void testUDAFWithSingleArrayAsParameter() throws Exception {
+        Object[] constantArgs = new Object[] {null};
+
+        DataType[] argTypes = new DataType[] {DataTypes.ARRAY(DataTypes.INT().notNull())};
+
+        // test CollectList
+        HiveGenericUDAF udf =
+                init(GenericUDAFCollectList.class, constantArgs, argTypes, false, false);
+        GenericUDAFEvaluator.AggregationBuffer acc = udf.createAccumulator();
+
+        udf.accumulate(acc, new Integer[] {1, 2});
+        udf.accumulate(acc, new Integer[] {2, 3});
+
+        udf.merge(acc, Collections.emptyList());
+
+        Integer[][] expectedResult = new Integer[][] {new Integer[] {1, 2}, new Integer[] {2, 3}};
+        assertArrayEquals(expectedResult, (Integer[][]) udf.getValue(acc));
+
+        // test CollectSet
+        udf = init(GenericUDAFCollectSet.class, constantArgs, argTypes, false, false);
+        acc = udf.createAccumulator();
+
+        udf.accumulate(acc, new Integer[] {1, 2});
+        udf.accumulate(acc, new Integer[] {2, 3});
+        udf.accumulate(acc, new Integer[] {1, 2});
+
+        udf.merge(acc, Collections.emptySet());
+
+        expectedResult = new Integer[][] {new Integer[] {1, 2}, new Integer[] {2, 3}};
+        assertArrayEquals(expectedResult, (Integer[][]) udf.getValue(acc));
     }
 
     private static HiveGenericUDAF init(
