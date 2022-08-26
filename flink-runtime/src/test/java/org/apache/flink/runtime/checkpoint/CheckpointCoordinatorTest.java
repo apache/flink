@@ -118,6 +118,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
+import java.util.stream.Collectors;
 
 import static java.util.Collections.singletonMap;
 import static org.apache.flink.runtime.checkpoint.CheckpointFailureReason.CHECKPOINT_ASYNC_EXCEPTION;
@@ -1050,9 +1051,13 @@ public class CheckpointCoordinatorTest extends TestLogger {
             List<CheckpointCoordinatorTestingUtils.TriggeredCheckpoint> triggeredCheckpoints =
                     gateway.getTriggeredCheckpoints(
                             vertex.getCurrentExecutionAttempt().getAttemptId());
-            assertEquals(2, triggeredCheckpoints.size());
-            assertEquals(checkpoint1Id, triggeredCheckpoints.get(0).checkpointId);
-            assertEquals(checkpoint2Id, triggeredCheckpoints.get(1).checkpointId);
+            List<Long> triggeredCheckPointIds =
+                    triggeredCheckpoints.stream()
+                            .map(p -> p.checkpointId)
+                            .collect(Collectors.toList());
+            assertEquals(2, triggeredCheckPointIds.size());
+            assertTrue(triggeredCheckPointIds.contains(checkpoint1Id));
+            assertTrue(triggeredCheckPointIds.contains(checkpoint2Id));
         }
 
         // decline checkpoint from one of the tasks, this should cancel the checkpoint
