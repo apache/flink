@@ -22,7 +22,7 @@ import org.apache.flink.table.planner.plan.metadata.FlinkRelMetadataQuery
 import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalRel
 
 import org.apache.calcite.rel.RelNode
-import org.apache.calcite.rel.core.{Join, TableScan}
+import org.apache.calcite.rel.core.{Correlate, Join, TableScan}
 import org.apache.calcite.rel.externalize.RelWriterImpl
 import org.apache.calcite.rel.hint.Hintable
 import org.apache.calcite.sql.SqlExplainLevel
@@ -110,8 +110,8 @@ class RelTreeWriterImpl(
 
     if (withJoinHint) {
       rel match {
-        case join: Join =>
-          val joinHints = FlinkHints.getAllJoinHints(join.getHints)
+        case _: Join | _: Correlate =>
+          val joinHints = FlinkHints.getAllJoinHints(rel.asInstanceOf[Hintable].getHints)
           if (joinHints.nonEmpty) {
             printValues.add(Pair.of("joinHints", RelExplainUtil.hintsToString(joinHints)))
           }
