@@ -1029,7 +1029,7 @@ public class CheckpointCoordinatorTest extends TestLogger {
                 checkpointCoordinator.getPendingCheckpoints().get(checkpoint2Id);
 
         assertNotNull(checkpoint1);
-        assertEquals(checkpoint1Id, checkpoint1.getCheckpointId());
+        assertEquals(checkpoint1Id, checkpoint1.getCheckpointID());
         assertEquals(graph.getJobID(), checkpoint1.getJobId());
         assertEquals(2, checkpoint1.getNumberOfNonAcknowledgedTasks());
         assertEquals(0, checkpoint1.getNumberOfAcknowledgedTasks());
@@ -1038,7 +1038,7 @@ public class CheckpointCoordinatorTest extends TestLogger {
         assertFalse(checkpoint1.areTasksFullyAcknowledged());
 
         assertNotNull(checkpoint2);
-        assertEquals(checkpoint2Id, checkpoint2.getCheckpointId());
+        assertEquals(checkpoint2Id, checkpoint2.getCheckpointID());
         assertEquals(graph.getJobID(), checkpoint2.getJobId());
         assertEquals(2, checkpoint2.getNumberOfNonAcknowledgedTasks());
         assertEquals(0, checkpoint2.getNumberOfAcknowledgedTasks());
