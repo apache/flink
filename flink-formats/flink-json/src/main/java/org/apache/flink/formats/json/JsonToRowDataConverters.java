@@ -40,6 +40,7 @@ import org.apache.flink.table.types.logical.utils.LogicalTypeUtils;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.JsonNode;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.node.ArrayNode;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.node.JsonNodeType;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.node.ObjectNode;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.node.TextNode;
 
@@ -218,6 +219,18 @@ public class JsonToRowDataConverters implements Serializable {
     }
 
     private TimestampData convertToTimestamp(JsonNode jsonNode) {
+
+        if (jsonNode.getNodeType() == JsonNodeType.NUMBER) {
+            int length = jsonNode.asText().length();
+            long value = jsonNode.asLong();
+            if (length == 13) {
+                return TimestampData.fromEpochMillis(value);
+            } else if (length == 16) {
+                return TimestampData.fromEpochMillis(value / 1000, (int) (value % 1000 * 1000));
+            } else if (length == 19) {
+                return TimestampData.fromEpochMillis(value / 1000_000, (int) (value % 1000_000));
+            }
+        }
         TemporalAccessor parsedTimestamp;
         switch (timestampFormat) {
             case SQL:
