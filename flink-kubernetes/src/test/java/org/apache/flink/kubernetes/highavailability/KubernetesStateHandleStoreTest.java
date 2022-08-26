@@ -1208,7 +1208,8 @@ class KubernetesStateHandleStoreTest extends KubernetesHighAvailabilityTestBase 
                                                                 + "kubernetes client operation");
                                             }
                                             return true;
-                                        }),
+                                        },
+                                        Executors.newDirectExecutorService()),
                         KubernetesConfigOptions.KUBERNETES_TRANSACTIONAL_OPERATION_MAX_RETRIES
                                 .defaultValue(),
                         t ->
@@ -1216,6 +1217,7 @@ class KubernetesStateHandleStoreTest extends KubernetesHighAvailabilityTestBase 
                                         .isPresent(),
                         Executors.newDirectExecutorService());
         assertThat(callbackInvocationCount.get()).isEqualTo(2);
+        assertThat(result).isCompleted();
         return result;
     }
 }
