@@ -297,6 +297,11 @@ public class SourceOperator<OUT, SplitT extends SourceSplit> extends AbstractStr
                             }
                         };
                     }
+
+                    @Override
+                    public int currentParallelism() {
+                        return getRuntimeContext().getNumberOfParallelSubtasks();
+                    }
                 };
 
         sourceReader = readerFactory.apply(context);

@@ -225,6 +225,11 @@ class FileSourceHeavyThroughputTest {
         public UserCodeClassLoader getUserCodeClassLoader() {
             return SimpleUserCodeClassLoader.create(getClass().getClassLoader());
         }
+
+        @Override
+        public int currentParallelism() {
+            return 1;
+        }
     }
 
     private static final class NoOpReaderOutput<E> implements ReaderOutput<E> {
