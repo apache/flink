@@ -19,7 +19,6 @@
 package org.apache.flink.table.endpoint.hive;
 
 import org.apache.flink.FlinkVersion;
-import org.apache.flink.core.testutils.FlinkAssertions;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.SqlDialect;
 import org.apache.flink.table.api.config.TableConfigOptions;
@@ -46,6 +45,8 @@ import org.apache.flink.util.function.ThrowingConsumer;
 
 import org.apache.hadoop.hive.common.auth.HiveAuthUtils;
 import org.apache.hadoop.hive.serde2.thrift.Type;
+import org.apache.hive.jdbc.HiveConnection;
+import org.apache.hive.jdbc.HiveStatement;
 import org.apache.hive.service.rpc.thrift.TCLIService;
 import org.apache.hive.service.rpc.thrift.TCancelOperationReq;
 import org.apache.hive.service.rpc.thrift.TCancelOperationResp;
@@ -83,6 +84,7 @@ import java.util.stream.Collectors;
 
 import static org.apache.flink.api.common.RuntimeExecutionMode.BATCH;
 import static org.apache.flink.configuration.ExecutionOptions.RUNTIME_MODE;
+import static org.apache.flink.core.testutils.FlinkAssertions.anyCauseMatches;
 import static org.apache.flink.table.api.config.TableConfigOptions.MAX_LENGTH_GENERATED_CODE;
 import static org.apache.flink.table.api.config.TableConfigOptions.TABLE_DML_SYNC;
 import static org.apache.flink.table.endpoint.hive.util.ThriftObjectConversions.toTOperationHandle;
@@ -163,6 +165,47 @@ public class HiveServer2EndpointITCase extends TestLogger {
     }
 
     @Test
+    public void testGetUnsupportedException() throws Exception {
+        try (HiveConnection connection = (HiveConnection) ENDPOINT_EXTENSION.getConnection();
+                HiveStatement statement = (HiveStatement) connection.createStatement()) {
+            assertThatThrownBy(() -> connection.renewDelegationToken("TokenMessage"))
+                    .satisfies(
+                            anyCauseMatches(
+                                    "The HiveServer2 Endpoint currently doesn't support to RenewDelegationToken."));
+            assertThatThrownBy(() -> connection.cancelDelegationToken("TokenMessage"))
+                    .satisfies(
+                            anyCauseMatches(
+                                    "The HiveServer2 Endpoint currently doesn't support to CancelDelegationToken."));
+            assertThatThrownBy(() -> connection.getDelegationToken("Flink", "TokenMessage"))
+                    .satisfies(
+                            anyCauseMatches(
+                                    "The HiveServer2 Endpoint currently doesn't support to GetDelegationToken."));
+            assertThatThrownBy(
+                            () ->
+                                    connection
+                                            .getMetaData()
+                                            .getCrossReference(
+                                                    "hive",
+                                                    "schema",
+                                                    "table",
+                                                    "default_catalog",
+                                                    "default_database",
+                                                    "table"))
+                    .satisfies(
+                            anyCauseMatches(
+                                    "The HiveServer2 Endpoint currently doesn't support to GetCrossReference."));
+            assertThatThrownBy(
+                            () -> {
+                                statement.execute("SHOW TABLES");
+                                statement.getQueryLog();
+                            })
+                    .satisfies(
+                            anyCauseMatches(
+                                    "The HiveServer2 endpoint currently doesn't support to fetch logs."));
+        }
+    }
+
+    @Test
     public void testCancelOperation() throws Exception {
         runOperationRequest(
                 tOperationHandle -> {
@@ -201,7 +244,7 @@ public class HiveServer2EndpointITCase extends TestLogger {
                                                         .getOperationInfo(
                                                                 sessionHandle, operationHandle))
                                 .satisfies(
-                                        FlinkAssertions.anyCauseMatches(
+                                        anyCauseMatches(
                                                 SqlGatewayException.class,
                                                 String.format(
                                                         "Can not find the submitted operation in the OperationManager with the %s",

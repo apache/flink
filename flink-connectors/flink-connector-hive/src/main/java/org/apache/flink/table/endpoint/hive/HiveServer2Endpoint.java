@@ -155,8 +155,8 @@ public class HiveServer2Endpoint implements TCLIService.Iface, SqlGatewayEndpoin
     private static final Logger LOG = LoggerFactory.getLogger(HiveServer2Endpoint.class);
     private static final HiveServer2EndpointVersion SERVER_VERSION = HIVE_CLI_SERVICE_PROTOCOL_V10;
     private static final TStatus OK_STATUS = new TStatus(TStatusCode.SUCCESS_STATUS);
-    private static final String ERROR_MESSAGE =
-            "The HiveServer2 Endpoint currently doesn't support this API.";
+    private static final String UNSUPPORTED_ERROR_MESSAGE =
+            "The HiveServer2 Endpoint currently doesn't support to %s.";
 
     // --------------------------------------------------------------------------------------------
     // Server attributes
@@ -401,19 +401,6 @@ public class HiveServer2Endpoint implements TCLIService.Iface, SqlGatewayEndpoin
                     tExecuteStatementReq.isSetConfOverlay()
                             ? tExecuteStatementReq.getConfOverlay()
                             : Collections.emptyMap();
-            String loggingOperationEnableVar =
-                    HiveConf.ConfVars.HIVE_SERVER2_LOGGING_OPERATION_ENABLED.varname;
-            if (Boolean.parseBoolean(
-                    executionConfig.getOrDefault(
-                            loggingOperationEnableVar,
-                            HiveConf.ConfVars.HIVE_SERVER2_LOGGING_OPERATION_ENABLED
-                                    .defaultStrVal))) {
-                throw new IllegalArgumentException(
-                        String.format(
-                                "SqlGateway doesn't support logging for operation. Please disable"
-                                        + " it by setting %s to false.",
-                                loggingOperationEnableVar));
-            }
             long timeout = tExecuteStatementReq.getQueryTimeout();
 
             OperationHandle operationHandle =
@@ -623,7 +610,7 @@ public class HiveServer2Endpoint implements TCLIService.Iface, SqlGatewayEndpoin
     @Override
     public TGetCrossReferenceResp GetCrossReference(TGetCrossReferenceReq tGetCrossReferenceReq)
             throws TException {
-        throw new UnsupportedOperationException(ERROR_MESSAGE);
+        return new TGetCrossReferenceResp(buildErrorStatus("GetCrossReference"));
     }
 
     @Override
@@ -706,6 +693,14 @@ public class HiveServer2Endpoint implements TCLIService.Iface, SqlGatewayEndpoin
 
     @Override
     public TFetchResultsResp FetchResults(TFetchResultsReq tFetchResultsReq) throws TException {
+        if (tFetchResultsReq.getFetchType() != 0) {
+            // Don't log the annoying messages because Hive beeline will fetch the logs until
+            // operation is terminated.
+            return new TFetchResultsResp(
+                    toTStatus(
+                            new UnsupportedOperationException(
+                                    "The HiveServer2 endpoint currently doesn't support to fetch logs.")));
+        }
         TFetchResultsResp resp = new TFetchResultsResp();
         try {
             SessionHandle sessionHandle = toSessionHandle(tFetchResultsReq.getOperationHandle());
@@ -761,30 +756,32 @@ public class HiveServer2Endpoint implements TCLIService.Iface, SqlGatewayEndpoin
     @Override
     public TGetDelegationTokenResp GetDelegationToken(TGetDelegationTokenReq tGetDelegationTokenReq)
             throws TException {
-        throw new UnsupportedOperationException(ERROR_MESSAGE);
+        return new TGetDelegationTokenResp(buildErrorStatus("GetDelegationToken"));
     }
 
     @Override
     public TCancelDelegationTokenResp CancelDelegationToken(
             TCancelDelegationTokenReq tCancelDelegationTokenReq) throws TException {
-        throw new UnsupportedOperationException(ERROR_MESSAGE);
+        return new TCancelDelegationTokenResp(buildErrorStatus("CancelDelegationToken"));
     }
 
     @Override
     public TRenewDelegationTokenResp RenewDelegationToken(
             TRenewDelegationTokenReq tRenewDelegationTokenReq) throws TException {
-        throw new UnsupportedOperationException(ERROR_MESSAGE);
+        return new TRenewDelegationTokenResp(buildErrorStatus("RenewDelegationToken"));
     }
 
     // CHECKSTYLE.OFF: MethodName
     /** To be compatible with Hive3, add a default implementation. */
     public TGetQueryIdResp GetQueryId(TGetQueryIdReq tGetQueryIdReq) throws TException {
-        throw new UnsupportedOperationException(ERROR_MESSAGE);
+        throw new TException(
+                new UnsupportedOperationException(
+                        String.format(UNSUPPORTED_ERROR_MESSAGE, "GetQueryId")));
     }
 
     /** To be compatible with Hive3, add a default implementation. */
     public TSetClientInfoResp SetClientInfo(TSetClientInfoReq tSetClientInfoReq) throws TException {
-        throw new UnsupportedOperationException(ERROR_MESSAGE);
+        return new TSetClientInfoResp(buildErrorStatus("SetClientInfo"));
     }
     // CHECKSTYLE.ON: MethodName
 
@@ -891,5 +888,11 @@ public class HiveServer2Endpoint implements TCLIService.Iface, SqlGatewayEndpoin
             }
             return root.getClass().getName() + ": " + root.getMessage();
         }
+    }
+
+    private TStatus buildErrorStatus(String methodName) {
+        return toTStatus(
+                new UnsupportedOperationException(
+                        String.format(UNSUPPORTED_ERROR_MESSAGE, methodName)));
     }
 }
