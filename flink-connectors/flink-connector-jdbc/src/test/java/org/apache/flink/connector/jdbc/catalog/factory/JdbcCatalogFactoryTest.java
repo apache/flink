@@ -71,6 +71,7 @@ public class JdbcCatalogFactoryTest {
 
         catalog =
                 new JdbcCatalog(
+                        Thread.currentThread().getContextClassLoader(),
                         TEST_CATALOG_NAME,
                         PostgresCatalog.DEFAULT_DATABASE,
                         TEST_USERNAME,

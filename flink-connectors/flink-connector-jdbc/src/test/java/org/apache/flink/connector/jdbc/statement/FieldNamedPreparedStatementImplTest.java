@@ -34,7 +34,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 /** Tests for {@link FieldNamedPreparedStatementImpl}. */
 public class FieldNamedPreparedStatementImplTest {
 
-    private final JdbcDialect dialect = JdbcDialectLoader.load("jdbc:mysql://localhost:3306/test");
+    private final JdbcDialect dialect =
+            JdbcDialectLoader.load("jdbc:mysql://localhost:3306/test", getClass().getClassLoader());
     private final String[] fieldNames =
             new String[] {"id", "name", "email", "ts", "field1", "field_2", "__field_3__"};
     private final String[] keyFields = new String[] {"id", "__field_3__"};
