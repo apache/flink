@@ -159,6 +159,60 @@
       "type" : "any"
     }
   }, {
+    "url" : "/sessions/:session_handle/operations/:operation_handle/cancel",
+    "method" : "POST",
+    "status-code" : "200 OK",
+    "file-upload" : false,
+    "path-parameters" : {
+      "pathParameters" : [ {
+        "key" : "session_handle"
+      }, {
+        "key" : "operation_handle"
+      } ]
+    },
+    "query-parameters" : {
+      "queryParameters" : [ ]
+    },
+    "request" : {
+      "type" : "any"
+    },
+    "response" : {
+      "type" : "object",
+      "id" : "urn:jsonschema:org:apache:flink:table:gateway:rest:message:operation:OperationStatusResponseBody",
+      "properties" : {
+        "status" : {
+          "type" : "string"
+        }
+      }
+    }
+  }, {
+    "url" : "/sessions/:session_handle/operations/:operation_handle/close",
+    "method" : "DELETE",
+    "status-code" : "200 OK",
+    "file-upload" : false,
+    "path-parameters" : {
+      "pathParameters" : [ {
+        "key" : "session_handle"
+      }, {
+        "key" : "operation_handle"
+      } ]
+    },
+    "query-parameters" : {
+      "queryParameters" : [ ]
+    },
+    "request" : {
+      "type" : "any"
+    },
+    "response" : {
+      "type" : "object",
+      "id" : "urn:jsonschema:org:apache:flink:table:gateway:rest:message:operation:OperationStatusResponseBody",
+      "properties" : {
+        "status" : {
+          "type" : "string"
+        }
+      }
+    }
+  }, {
     "url" : "/sessions/:session_handle/operations/:operation_handle/result/:token",
     "method" : "GET",
     "status-code" : "200 OK",
@@ -189,6 +243,33 @@
           "type" : "string"
         },
         "nextResultUri" : {
+          "type" : "string"
+        }
+      }
+    }
+  }, {
+    "url" : "/sessions/:session_handle/operations/:operation_handle/status",
+    "method" : "GET",
+    "status-code" : "200 OK",
+    "file-upload" : false,
+    "path-parameters" : {
+      "pathParameters" : [ {
+        "key" : "session_handle"
+      }, {
+        "key" : "operation_handle"
+      } ]
+    },
+    "query-parameters" : {
+      "queryParameters" : [ ]
+    },
+    "request" : {
+      "type" : "any"
+    },
+    "response" : {
+      "type" : "object",
+      "id" : "urn:jsonschema:org:apache:flink:table:gateway:rest:message:operation:OperationStatusResponseBody",
+      "properties" : {
+        "status" : {
           "type" : "string"
         }
       }
@@ -229,87 +310,6 @@
       "id" : "urn:jsonschema:org:apache:flink:table:gateway:rest:message:statement:ExecuteStatementResponseBody",
       "properties" : {
         "operationHandle" : {
-          "type" : "string"
-        }
-      }
-    }
-  }, {
-    "url" : "/sessions/:session_handle/:operation_handle/cancel",
-    "method" : "PUT",
-    "status-code" : "200 OK",
-    "file-upload" : false,
-    "path-parameters" : {
-      "pathParameters" : [ {
-        "key" : "session_handle"
-      }, {
-        "key" : "operation_handle"
-      } ]
-    },
-    "query-parameters" : {
-      "queryParameters" : [ ]
-    },
-    "request" : {
-      "type" : "any"
-    },
-    "response" : {
-      "type" : "object",
-      "id" : "urn:jsonschema:org:apache:flink:table:gateway:rest:message:operation:OperationStatusResponseBody",
-      "properties" : {
-        "status" : {
-          "type" : "string"
-        }
-      }
-    }
-  }, {
-    "url" : "/sessions/:session_handle/:operation_handle/close",
-    "method" : "DELETE",
-    "status-code" : "200 OK",
-    "file-upload" : false,
-    "path-parameters" : {
-      "pathParameters" : [ {
-        "key" : "session_handle"
-      }, {
-        "key" : "operation_handle"
-      } ]
-    },
-    "query-parameters" : {
-      "queryParameters" : [ ]
-    },
-    "request" : {
-      "type" : "any"
-    },
-    "response" : {
-      "type" : "object",
-      "id" : "urn:jsonschema:org:apache:flink:table:gateway:rest:message:operation:OperationStatusResponseBody",
-      "properties" : {
-        "status" : {
-          "type" : "string"
-        }
-      }
-    }
-  }, {
-    "url" : "/sessions/:session_handle/:operation_handle/status",
-    "method" : "GET",
-    "status-code" : "200 OK",
-    "file-upload" : false,
-    "path-parameters" : {
-      "pathParameters" : [ {
-        "key" : "session_handle"
-      }, {
-        "key" : "operation_handle"
-      } ]
-    },
-    "query-parameters" : {
-      "queryParameters" : [ ]
-    },
-    "request" : {
-      "type" : "any"
-    },
-    "response" : {
-      "type" : "object",
-      "id" : "urn:jsonschema:org:apache:flink:table:gateway:rest:message:operation:OperationStatusResponseBody",
-      "properties" : {
-        "status" : {
           "type" : "string"
         }
       }
