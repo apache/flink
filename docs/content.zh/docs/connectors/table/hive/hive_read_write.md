@@ -183,7 +183,12 @@ Flink 允许你灵活的配置并发推断策略。你可以在 `TableConfig` �
   </tbody>
 </table>
 
-**注意：** 目前上述参数仅适用于 ORC 格式的 Hive 表。
+{{< hint warning >}}
+**注意：**
+- 为了调整数据分片的大小， Flink 首先将计算得到所有分区下的所有文件的大小。
+  但是这在分区数量很多的情况下会比较耗时，你可以配置作业参数 `table.exec.hive.calculate-partition-size.thread-num`（默认为3）为一个更大的值使用更多的线程来进行加速。
+- 目前上述参数仅适用于 ORC 格式的 Hive 表。
+{{< /hint >}}
 
 ### 加载分区切片
 
