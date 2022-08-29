@@ -372,7 +372,7 @@ public abstract class JoinHintTestBase extends TableTestBase {
     }
 
     @Test
-    public void testJoinHintWithoutAffectingJoinInView() {
+    public void testJoinHintWithoutAffectingJoinInView1() {
         // the join in V2 will use the planner's default join strategy,
         // and the join between T1 and V2 will use BROADCAST
         util.tableEnv()
@@ -384,11 +384,51 @@ public abstract class JoinHintTestBase extends TableTestBase {
     }
 
     @Test
-    public void testJoinHintWithoutAffectingJoinInSubQuery() {
+    public void testJoinHintWithoutAffectingJoinInView2() {
+        // the join in V2 will use the planner's default join strategy,
+        // and the join between T1 and V2 will use BROADCAST
+        util.tableEnv()
+                .executeSql("create view V2 as select T1.* from T1 join T2 on T1.a1 = T2.a2");
+
+        String sql = "select /*+ %s(T1)*/* from V2";
+
+        verifyRelPlanByCustom(String.format(sql, getTestSingleJoinHint()));
+    }
+
+    @Test
+    public void testJoinHintWithoutAffectingJoinInView3() {
+        // the join in V2 will use the planner's default join strategy,
+        // and the join between T1 and V2 will use BROADCAST
+        util.tableEnv()
+                .executeSql(
+                        "create view V2 as select T1.* from T1 join T2 on T1.a1 = T2.a2 where T1.b1 = 'abc'");
+
+        String sql = "select /*+ %s(T1)*/* from V2";
+
+        verifyRelPlanByCustom(String.format(sql, getTestSingleJoinHint()));
+    }
+
+    @Test
+    public void testJoinHintWithoutAffectingJoinInSubQuery1() {
         // the join in sub-query will use the planner's default join strategy,
         // and the join outside will use BROADCAST
         String sql =
                 "select /*+ %s(T1)*/T1.* from T1 join (select T1.* from T1 join T2 on T1.a1 = T2.a2) V2 on T1.a1 = V2.a1";
+
+        verifyRelPlanByCustom(String.format(sql, getTestSingleJoinHint()));
+    }
+
+    @Test
+    public void testJoinHintWithoutAffectingJoinInSubQuery2() {
+        String sql = "select /*+ %s(T1)*/* from (select T1.* from T1 join T2 on T1.a1 = T2.a2)";
+
+        verifyRelPlanByCustom(String.format(sql, getTestSingleJoinHint()));
+    }
+
+    @Test
+    public void testJoinHintWithoutAffectingJoinInSubQuery3() {
+        String sql =
+                "select /*+ %s(T1)*/* from (select T1.* from T1 join T2 on T1.a1 = T2.a2 where T1.b1 = 'abc')";
 
         verifyRelPlanByCustom(String.format(sql, getTestSingleJoinHint()));
     }

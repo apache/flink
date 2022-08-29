@@ -835,7 +835,7 @@ NestedLoopJoin(joinType=[InnerJoin], where=[>(a1, a2)], select=[a1, b1, a2, b2],
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testJoinHintWithoutAffectingJoinInSubQuery">
+  <TestCase name="testJoinHintWithoutAffectingJoinInSubQuery1">
     <Resource name="sql">
       <![CDATA[select /*+ NEST_LOOP(T1)*/T1.* from T1 join (select T1.* from T1 join T2 on T1.a1 = T2.a2) V2 on T1.a1 = V2.a1]]>
     </Resource>
@@ -865,7 +865,78 @@ Calc(select=[a1, b1])
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testJoinHintWithoutAffectingJoinInView">
+  <TestCase name="testJoinHintWithoutAffectingJoinInSubQuery2">
+    <Resource name="sql">
+      <![CDATA[select /*+ NEST_LOOP(T1)*/* from (select T1.* from T1 join T2 on T1.a1 = T2.a2)]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a1=[$0], b1=[$1])
++- LogicalProject(a1=[$0], b1=[$1], hints=[[[ALIAS options:[EXPR$0]]]])
+   +- LogicalJoin(condition=[=($0, $2)], joinType=[inner], hints=[[[ALIAS inheritPath:[0] options:[EXPR$0]]]])
+      :- LogicalTableScan(table=[[default_catalog, default_database, T1]], hints=[[[ALIAS inheritPath:[] options:[T1]]]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, T2]], hints=[[[ALIAS inheritPath:[] options:[T2]]]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Calc(select=[a1, b1])
++- HashJoin(joinType=[InnerJoin], where=[=(a1, a2)], select=[a1, b1, a2], build=[right])
+   :- Exchange(distribution=[hash[a1]])
+   :  +- TableSourceScan(table=[[default_catalog, default_database, T1]], fields=[a1, b1])
+   +- Exchange(distribution=[hash[a2]])
+      +- TableSourceScan(table=[[default_catalog, default_database, T2, project=[a2], metadata=[]]], fields=[a2])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testJoinHintWithoutAffectingJoinInSubQuery3">
+    <Resource name="sql">
+      <![CDATA[select /*+ NEST_LOOP(T1)*/* from (select T1.* from T1 join T2 on T1.a1 = T2.a2 where T1.b1 = 'abc')]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a1=[$0], b1=[$1])
++- LogicalProject(a1=[$0], b1=[$1], hints=[[[ALIAS options:[EXPR$0]]]])
+   +- LogicalFilter(condition=[=($1, _UTF-16LE'abc')])
+      +- LogicalJoin(condition=[=($0, $2)], joinType=[inner], hints=[[[ALIAS inheritPath:[0, 0] options:[EXPR$0]]]])
+         :- LogicalTableScan(table=[[default_catalog, default_database, T1]], hints=[[[ALIAS inheritPath:[] options:[T1]]]])
+         +- LogicalTableScan(table=[[default_catalog, default_database, T2]], hints=[[[ALIAS inheritPath:[] options:[T2]]]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Calc(select=[a1, CAST('abc' AS VARCHAR(2147483647)) AS b1])
++- HashJoin(joinType=[InnerJoin], where=[=(a1, a2)], select=[a1, a2], build=[left])
+   :- Exchange(distribution=[hash[a1]])
+   :  +- Calc(select=[a1], where=[=(b1, 'abc')])
+   :     +- TableSourceScan(table=[[default_catalog, default_database, T1, filter=[]]], fields=[a1, b1])
+   +- Exchange(distribution=[hash[a2]])
+      +- TableSourceScan(table=[[default_catalog, default_database, T2, project=[a2], metadata=[]]], fields=[a2])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testJoinHintWithoutJoinPred">
+    <Resource name="sql">
+      <![CDATA[select /*+ NEST_LOOP(T1) */* from T1, T2]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a1=[$0], b1=[$1], a2=[$2], b2=[$3])
++- LogicalJoin(condition=[true], joinType=[inner], joinHints=[[[NEST_LOOP inheritPath:[0] options:[T1]]]])
+   :- LogicalTableScan(table=[[default_catalog, default_database, T1]], hints=[[[ALIAS inheritPath:[] options:[T1]]]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, T2]], hints=[[[ALIAS inheritPath:[] options:[T2]]]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+NestedLoopJoin(joinType=[InnerJoin], where=[true], select=[a1, b1, a2, b2], build=[left])
+:- Exchange(distribution=[broadcast])
+:  +- TableSourceScan(table=[[default_catalog, default_database, T1]], fields=[a1, b1])
++- TableSourceScan(table=[[default_catalog, default_database, T2]], fields=[a2, b2])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testJoinHintWithoutAffectingJoinInView1">
     <Resource name="sql">
       <![CDATA[select /*+ NEST_LOOP(T1)*/T1.* from T1 join V2 on T1.a1 = V2.a1]]>
     </Resource>
@@ -895,6 +966,56 @@ Calc(select=[a1, b1])
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testJoinHintWithoutAffectingJoinInView2">
+    <Resource name="sql">
+      <![CDATA[select /*+ NEST_LOOP(T1)*/* from V2]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a1=[$0], b1=[$1])
++- LogicalProject(a1=[$0], b1=[$1], hints=[[[ALIAS options:[V2]]]])
+   +- LogicalJoin(condition=[=($0, $2)], joinType=[inner], hints=[[[ALIAS inheritPath:[0] options:[V2]]]])
+      :- LogicalTableScan(table=[[default_catalog, default_database, T1]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, T2]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Calc(select=[a1, b1])
++- HashJoin(joinType=[InnerJoin], where=[=(a1, a2)], select=[a1, b1, a2], build=[right])
+   :- Exchange(distribution=[hash[a1]])
+   :  +- TableSourceScan(table=[[default_catalog, default_database, T1]], fields=[a1, b1])
+   +- Exchange(distribution=[hash[a2]])
+      +- TableSourceScan(table=[[default_catalog, default_database, T2, project=[a2], metadata=[]]], fields=[a2])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testJoinHintWithoutAffectingJoinInView3">
+    <Resource name="sql">
+      <![CDATA[select /*+ NEST_LOOP(T1)*/* from V2]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a1=[$0], b1=[$1])
++- LogicalProject(a1=[$0], b1=[$1], hints=[[[ALIAS options:[V2]]]])
+   +- LogicalFilter(condition=[=($1, _UTF-16LE'abc')])
+      +- LogicalJoin(condition=[=($0, $2)], joinType=[inner], hints=[[[ALIAS inheritPath:[0, 0] options:[V2]]]])
+         :- LogicalTableScan(table=[[default_catalog, default_database, T1]])
+         +- LogicalTableScan(table=[[default_catalog, default_database, T2]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Calc(select=[a1, CAST('abc' AS VARCHAR(2147483647)) AS b1])
++- HashJoin(joinType=[InnerJoin], where=[=(a1, a2)], select=[a1, a2], build=[left])
+   :- Exchange(distribution=[hash[a1]])
+   :  +- Calc(select=[a1], where=[=(b1, 'abc')])
+   :     +- TableSourceScan(table=[[default_catalog, default_database, T1, filter=[]]], fields=[a1, b1])
+   +- Exchange(distribution=[hash[a2]])
+      +- TableSourceScan(table=[[default_catalog, default_database, T2, project=[a2], metadata=[]]], fields=[a2])
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testJoinHintWithoutCaseSensitive">
     <Resource name="sql">
       <![CDATA[select /*+ NeSt_lOoP(T1) */* from T1 join T2 on T1.a1 = T2.a2]]>
@@ -910,27 +1031,6 @@ LogicalProject(a1=[$0], b1=[$1], a2=[$2], b2=[$3])
     <Resource name="optimized rel plan">
       <![CDATA[
 NestedLoopJoin(joinType=[InnerJoin], where=[=(a1, a2)], select=[a1, b1, a2, b2], build=[left])
-:- Exchange(distribution=[broadcast])
-:  +- TableSourceScan(table=[[default_catalog, default_database, T1]], fields=[a1, b1])
-+- TableSourceScan(table=[[default_catalog, default_database, T2]], fields=[a2, b2])
-]]>
-    </Resource>
-  </TestCase>
-  <TestCase name="testJoinHintWithoutJoinPred">
-    <Resource name="sql">
-      <![CDATA[select /*+ NEST_LOOP(T1) */* from T1, T2]]>
-    </Resource>
-    <Resource name="ast">
-      <![CDATA[
-LogicalProject(a1=[$0], b1=[$1], a2=[$2], b2=[$3])
-+- LogicalJoin(condition=[true], joinType=[inner], joinHints=[[[NEST_LOOP inheritPath:[0] options:[T1]]]])
-   :- LogicalTableScan(table=[[default_catalog, default_database, T1]], hints=[[[ALIAS inheritPath:[] options:[T1]]]])
-   +- LogicalTableScan(table=[[default_catalog, default_database, T2]], hints=[[[ALIAS inheritPath:[] options:[T2]]]])
-]]>
-    </Resource>
-    <Resource name="optimized rel plan">
-      <![CDATA[
-NestedLoopJoin(joinType=[InnerJoin], where=[true], select=[a1, b1, a2, b2], build=[left])
 :- Exchange(distribution=[broadcast])
 :  +- TableSourceScan(table=[[default_catalog, default_database, T1]], fields=[a1, b1])
 +- TableSourceScan(table=[[default_catalog, default_database, T2]], fields=[a2, b2])
