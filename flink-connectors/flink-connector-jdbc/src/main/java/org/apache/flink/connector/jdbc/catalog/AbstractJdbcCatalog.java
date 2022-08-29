@@ -51,6 +51,7 @@ import org.apache.flink.table.factories.Factory;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.StringUtils;
+import org.apache.flink.util.TemporaryClassLoaderContext;
 
 import org.apache.commons.compress.utils.Lists;
 import org.slf4j.Logger;
@@ -79,18 +80,21 @@ import static org.apache.flink.connector.jdbc.table.JdbcConnectorOptions.USERNAM
 import static org.apache.flink.connector.jdbc.table.JdbcDynamicTableFactory.IDENTIFIER;
 import static org.apache.flink.table.factories.FactoryUtil.CONNECTOR;
 import static org.apache.flink.util.Preconditions.checkArgument;
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /** Abstract catalog for any JDBC catalogs. */
 public abstract class AbstractJdbcCatalog extends AbstractCatalog {
 
     private static final Logger LOG = LoggerFactory.getLogger(AbstractJdbcCatalog.class);
 
+    protected final ClassLoader userClassLoader;
     protected final String username;
     protected final String pwd;
     protected final String baseUrl;
     protected final String defaultUrl;
 
     public AbstractJdbcCatalog(
+            ClassLoader userClassLoader,
             String catalogName,
             String defaultDatabase,
             String username,
@@ -98,12 +102,14 @@ public abstract class AbstractJdbcCatalog extends AbstractCatalog {
             String baseUrl) {
         super(catalogName, defaultDatabase);
 
+        checkNotNull(userClassLoader);
         checkArgument(!StringUtils.isNullOrWhitespaceOnly(username));
         checkArgument(!StringUtils.isNullOrWhitespaceOnly(pwd));
         checkArgument(!StringUtils.isNullOrWhitespaceOnly(baseUrl));
 
         JdbcCatalogUtils.validateJdbcUrl(baseUrl);
 
+        this.userClassLoader = userClassLoader;
         this.username = username;
         this.pwd = pwd;
         this.baseUrl = baseUrl.endsWith("/") ? baseUrl : baseUrl + "/";
@@ -112,14 +118,17 @@ public abstract class AbstractJdbcCatalog extends AbstractCatalog {
 
     @Override
     public void open() throws CatalogException {
-        // test connection, fail early if we cannot connect to database
-        try (Connection conn = DriverManager.getConnection(defaultUrl, username, pwd)) {
-        } catch (SQLException e) {
-            throw new ValidationException(
-                    String.format("Failed connecting to %s via JDBC.", defaultUrl), e);
+        // load the Driver use userClassLoader explicitly, see FLINK-15635 for more detail
+        try (TemporaryClassLoaderContext ignored =
+                TemporaryClassLoaderContext.of(userClassLoader)) {
+            // test connection, fail early if we cannot connect to database
+            try (Connection conn = DriverManager.getConnection(defaultUrl, username, pwd)) {
+            } catch (SQLException e) {
+                throw new ValidationException(
+                        String.format("Failed connecting to %s via JDBC.", defaultUrl), e);
+            }
+            LOG.info("Catalog {} established connection to {}", getName(), defaultUrl);
         }
-
-        LOG.info("Catalog {} established connection to {}", getName(), defaultUrl);
     }
 
     @Override
