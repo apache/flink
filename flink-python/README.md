@@ -39,7 +39,7 @@ python pyflink/gen_protos.py
 ```
 
 PyFlink depends on the following libraries to execute the above script:
-1. grpcio-tools (>=1.3.5,<=1.14.2)
+1. grpcio-tools (>=1.29.0,<=1.46.3)
 2. setuptools (>=37.0.0)
 3. pip (>=20.3)
 
