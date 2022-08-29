@@ -197,7 +197,8 @@ public class StreamExecPythonOverAggregate extends ExecNodeBase<RowData>
         }
         long precedingOffset = -1 * (long) boundValue;
         Configuration pythonConfig =
-                CommonPythonUtil.extractPythonConfiguration(planner.getExecEnv(), config);
+                CommonPythonUtil.extractPythonConfiguration(
+                        planner.getExecEnv(), config, planner.getFlinkContext().getClassLoader());
         OneInputTransformation<RowData, RowData> transform =
                 createPythonOneInputTransformation(
                         inputTransform,
@@ -213,7 +214,8 @@ public class StreamExecPythonOverAggregate extends ExecNodeBase<RowData>
                         config,
                         planner.getFlinkContext().getClassLoader());
 
-        if (CommonPythonUtil.isPythonWorkerUsingManagedMemory(pythonConfig)) {
+        if (CommonPythonUtil.isPythonWorkerUsingManagedMemory(
+                pythonConfig, planner.getFlinkContext().getClassLoader())) {
             transform.declareManagedMemoryUseCaseAtSlotScope(ManagedMemoryUseCase.PYTHON);
         }
 
@@ -306,7 +308,7 @@ public class StreamExecPythonOverAggregate extends ExecNodeBase<RowData>
                 className =
                         ARROW_PYTHON_OVER_WINDOW_ROWS_PROC_TIME_AGGREGATE_FUNCTION_OPERATOR_NAME;
             }
-            Class<?> clazz = CommonPythonUtil.loadClass(className);
+            Class<?> clazz = CommonPythonUtil.loadClass(className, classLoader);
 
             try {
                 Constructor<?> ctor =
@@ -349,7 +351,7 @@ public class StreamExecPythonOverAggregate extends ExecNodeBase<RowData>
                 className =
                         ARROW_PYTHON_OVER_WINDOW_RANGE_PROC_TIME_AGGREGATE_FUNCTION_OPERATOR_NAME;
             }
-            Class<?> clazz = CommonPythonUtil.loadClass(className);
+            Class<?> clazz = CommonPythonUtil.loadClass(className, classLoader);
             try {
                 Constructor<?> ctor =
                         clazz.getConstructor(

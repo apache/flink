@@ -473,7 +473,7 @@ abstract class PlannerBase(
     tableConfig.set(TABLE_QUERY_CURRENT_DATABASE, currentDatabase)
 
     // We pass only the configuration to avoid reconfiguration with the rootConfiguration
-    getExecEnv.configure(tableConfig.getConfiguration, Thread.currentThread().getContextClassLoader)
+    getExecEnv.configure(tableConfig.getConfiguration, classLoader)
 
     // Use config parallelism to override env parallelism.
     val defaultParallelism =
