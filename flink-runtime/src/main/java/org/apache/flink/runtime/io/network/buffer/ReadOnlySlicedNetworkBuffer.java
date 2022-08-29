@@ -56,11 +56,13 @@ public final class ReadOnlySlicedNetworkBuffer extends ReadOnlyByteBuf implement
      * @param buffer the buffer to derive from
      * @param index the index to start from
      * @param length the length of the slice
+     * @param isCompressed is the buffer compressed
      */
-    ReadOnlySlicedNetworkBuffer(NetworkBuffer buffer, int index, int length) {
+    ReadOnlySlicedNetworkBuffer(NetworkBuffer buffer, int index, int length, boolean isCompressed) {
         super(new SlicedByteBuf(buffer, index, length));
         this.memorySegmentOffset = buffer.getMemorySegmentOffset() + index;
         this.dataType = buffer.getDataType();
+        this.isCompressed = isCompressed;
     }
 
     /**
@@ -143,9 +145,9 @@ public final class ReadOnlySlicedNetworkBuffer extends ReadOnlyByteBuf implement
     public ReadOnlySlicedNetworkBuffer readOnlySlice(int index, int length) {
         checkState(
                 !isCompressed || index + length == writerIndex(),
-                "Unable to slice a partial compressed buffer.");
+                "Unable to partially slice a compressed buffer.");
         return new ReadOnlySlicedNetworkBuffer(
-                super.unwrap(), index, length, memorySegmentOffset, false);
+                super.unwrap(), index, length, memorySegmentOffset, isCompressed);
     }
 
     @Override

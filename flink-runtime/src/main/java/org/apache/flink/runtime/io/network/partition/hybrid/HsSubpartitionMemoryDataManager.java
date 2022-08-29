@@ -157,7 +157,7 @@ public class HsSubpartitionMemoryDataManager implements HsDataView {
         return bufferAndNextDataType.map(
                 tuple ->
                         new BufferAndBacklog(
-                                getSliceBuffer(tuple.f0.getBuffer()),
+                                tuple.f0.getBuffer().readOnlySlice(),
                                 getBacklog(),
                                 tuple.f1,
                                 toConsumeIndex));
@@ -364,7 +364,6 @@ public class HsSubpartitionMemoryDataManager implements HsDataView {
         Buffer buffer = bufferConsumer.build();
         currentWritingBuffer.close();
         bufferConsumer.close();
-        // TODO support buffer compression
         HsBufferContext bufferContext =
                 new HsBufferContext(
                         compressBuffersIfPossible(buffer), finishedBufferIndex, targetChannel);
@@ -504,14 +503,6 @@ public class HsSubpartitionMemoryDataManager implements HsDataView {
                 break;
         }
         return match;
-    }
-
-    private Buffer getSliceBuffer(Buffer buffer) {
-        Buffer slice = buffer.readOnlySlice();
-        if (buffer.isCompressed()) {
-            slice.setCompressed(true);
-        }
-        return slice;
     }
 
     private void updateStatistics(Buffer buffer) {

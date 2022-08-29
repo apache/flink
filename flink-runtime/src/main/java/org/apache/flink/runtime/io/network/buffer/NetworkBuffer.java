@@ -175,8 +175,8 @@ public class NetworkBuffer extends AbstractReferenceCountedByteBuf implements Bu
     public ReadOnlySlicedNetworkBuffer readOnlySlice(int index, int length) {
         checkState(
                 !isCompressed || index + length != writerIndex(),
-                "Unable to slice a partial compressed buffer.");
-        return new ReadOnlySlicedNetworkBuffer(this, index, length);
+                "Unable to partially slice a compressed buffer.");
+        return new ReadOnlySlicedNetworkBuffer(this, index, length, isCompressed);
     }
 
     @Override
