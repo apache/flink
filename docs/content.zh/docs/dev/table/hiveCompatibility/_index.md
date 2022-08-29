@@ -1,7 +1,7 @@
 ---
-title: Hive Compatibility
+title: Hive 兼容性
 bookCollapseSection: true
-weight: 94
+weight: 34
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
