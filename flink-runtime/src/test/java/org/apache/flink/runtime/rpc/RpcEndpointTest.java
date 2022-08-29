@@ -321,11 +321,11 @@ public class RpcEndpointTest {
     @Test
     public void testCancelScheduledRunnable() throws Exception {
         testCancelScheduledTask(
-                (mainThreadExecutor, longCompletableFuture) -> {
+                (mainThreadExecutor, future) -> {
                     final Duration delayDuration = Duration.ofMillis(2);
                     return mainThreadExecutor.schedule(
                             () -> {
-                                longCompletableFuture.complete(delayDuration.toMillis());
+                                future.complete(null);
                             },
                             delayDuration.toMillis(),
                             TimeUnit.MILLISECONDS);
@@ -359,11 +359,11 @@ public class RpcEndpointTest {
     @Test
     public void testCancelScheduledCallable() {
         testCancelScheduledTask(
-                (mainThreadExecutor, longCompletableFuture) -> {
+                (mainThreadExecutor, future) -> {
                     final Duration delayDuration = Duration.ofMillis(2);
                     return mainThreadExecutor.schedule(
                             () -> {
-                                longCompletableFuture.complete(delayDuration.toMillis());
+                                future.complete(null);
                                 return null;
                             },
                             delayDuration.toMillis(),
@@ -410,7 +410,7 @@ public class RpcEndpointTest {
     }
 
     private static void testCancelScheduledTask(
-            BiFunction<RpcEndpoint.MainThreadExecutor, CompletableFuture<Long>, ScheduledFuture<?>>
+            BiFunction<RpcEndpoint.MainThreadExecutor, CompletableFuture<Void>, ScheduledFuture<?>>
                     scheduler) {
         final MainThreadExecutable mainThreadExecutable =
                 new TestMainThreadExecutable(Runnable::run);
@@ -421,15 +421,14 @@ public class RpcEndpointTest {
         final RpcEndpoint.MainThreadExecutor mainThreadExecutor =
                 new RpcEndpoint.MainThreadExecutor(
                         mainThreadExecutable, () -> {}, manuallyTriggeredScheduledExecutorService);
-        final CompletableFuture<Long> actualDelayMsFuture = new CompletableFuture<>();
+        final CompletableFuture<Void> actionFuture = new CompletableFuture<>();
 
-        ScheduledFuture<?> scheduledFuture =
-                scheduler.apply(mainThreadExecutor, actualDelayMsFuture);
+        ScheduledFuture<?> scheduledFuture = scheduler.apply(mainThreadExecutor, actionFuture);
         scheduledFuture.cancel(true);
         manuallyTriggeredScheduledExecutorService.triggerAllNonPeriodicTasks();
 
         assertTrue(scheduledFuture.isCancelled());
-        assertFalse(actualDelayMsFuture.isDone());
+        assertFalse(actionFuture.isDone());
         mainThreadExecutor.close();
     }
 
