@@ -142,8 +142,8 @@ public class CheckpointingOptions {
      * This option configures local recovery for this state backend. By default, local recovery is
      * deactivated.
      *
-     * <p>Local recovery currently only covers keyed state backends. Currently, MemoryStateBackend
-     * and HashMapStateBackend do not support local recovery and ignore this option.
+     * <p>Local recovery currently only covers keyed state backends (including both the
+     * EmbeddedRocksDBStateBackend and the HashMapStateBackend).
      */
     @Documentation.Section(Documentation.Sections.COMMON_STATE_BACKENDS)
     public static final ConfigOption<Boolean> LOCAL_RECOVERY =
@@ -152,8 +152,8 @@ public class CheckpointingOptions {
                     .defaultValue(false)
                     .withDescription(
                             "This option configures local recovery for this state backend. By default, local recovery is "
-                                    + "deactivated. Local recovery currently only covers keyed state backends. Currently, the MemoryStateBackend "
-                                    + "does not support local recovery and ignores this option.");
+                                    + "deactivated. Local recovery currently only covers keyed state backends "
+                                    + "(including both the EmbeddedRocksDBStateBackend and the HashMapStateBackend).");
 
     /**
      * The config parameter defining the root directories for storing file-based state for local
@@ -172,9 +172,8 @@ public class CheckpointingOptions {
                                     .text(
                                             "The config parameter defining the root directories for storing file-based "
                                                     + "state for local recovery. Local recovery currently only covers keyed "
-                                                    + "state backends. Currently, MemoryStateBackend does not support local "
-                                                    + "recovery and ignores this option. If not configured it will default "
-                                                    + "to <WORKING_DIR>/localState. The <WORKING_DIR> can be configured via %s",
+                                                    + "state backends. If not configured it will default to <WORKING_DIR>/localState. "
+                                                    + "The <WORKING_DIR> can be configured via %s",
                                             TextElement.code(
                                                     ClusterOptions
                                                             .TASK_MANAGER_PROCESS_WORKING_DIR_BASE
