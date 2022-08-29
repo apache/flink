@@ -25,6 +25,7 @@ import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalMatch;
 import org.apache.flink.table.planner.plan.trait.FlinkRelDistribution;
 import org.apache.flink.table.planner.plan.utils.MatchUtil.AggregationPatternVariableFinder;
 import org.apache.flink.table.planner.plan.utils.RexDefaultVisitor;
+import org.apache.flink.table.planner.utils.ShortcutUtils;
 
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelOptRule;
@@ -87,7 +88,7 @@ public abstract class CommonPhysicalMatchRule extends ConverterRule {
             Class.forName(
                     "org.apache.flink.cep.pattern.Pattern",
                     false,
-                    Thread.currentThread().getContextClassLoader());
+                    ShortcutUtils.unwrapContext(rel).getClassLoader());
         } catch (ClassNotFoundException e) {
             throw new TableException(
                     "MATCH RECOGNIZE clause requires flink-cep dependency to be present on the classpath.",

@@ -102,7 +102,8 @@ public abstract class CommonExecPythonCorrelate extends ExecNodeBase<RowData>
         final Transformation<RowData> inputTransform =
                 (Transformation<RowData>) inputEdge.translateToPlan(planner);
         final Configuration pythonConfig =
-                CommonPythonUtil.extractPythonConfiguration(planner.getExecEnv(), config);
+                CommonPythonUtil.extractPythonConfiguration(
+                        planner.getExecEnv(), config, planner.getFlinkContext().getClassLoader());
         final ExecNodeConfig pythonNodeConfig =
                 ExecNodeConfig.ofNodeConfig(pythonConfig, config.isCompiled());
         final OneInputTransformation<RowData, RowData> transform =
@@ -111,7 +112,8 @@ public abstract class CommonExecPythonCorrelate extends ExecNodeBase<RowData>
                         pythonNodeConfig,
                         planner.getFlinkContext().getClassLoader(),
                         pythonConfig);
-        if (CommonPythonUtil.isPythonWorkerUsingManagedMemory(pythonConfig)) {
+        if (CommonPythonUtil.isPythonWorkerUsingManagedMemory(
+                pythonConfig, planner.getFlinkContext().getClassLoader())) {
             transform.declareManagedMemoryUseCaseAtSlotScope(ManagedMemoryUseCase.PYTHON);
         }
         return transform;
@@ -122,7 +124,8 @@ public abstract class CommonExecPythonCorrelate extends ExecNodeBase<RowData>
             ExecNodeConfig pythonNodeConfig,
             ClassLoader classLoader,
             Configuration pythonConfig) {
-        Tuple2<int[], PythonFunctionInfo> extractResult = extractPythonTableFunctionInfo();
+        Tuple2<int[], PythonFunctionInfo> extractResult =
+                extractPythonTableFunctionInfo(classLoader);
         int[] pythonUdtfInputOffsets = extractResult.f0;
         PythonFunctionInfo pythonFunctionInfo = extractResult.f1;
         InternalTypeInfo<RowData> pythonOperatorInputRowType =
@@ -146,10 +149,11 @@ public abstract class CommonExecPythonCorrelate extends ExecNodeBase<RowData>
                 inputTransform.getParallelism());
     }
 
-    private Tuple2<int[], PythonFunctionInfo> extractPythonTableFunctionInfo() {
+    private Tuple2<int[], PythonFunctionInfo> extractPythonTableFunctionInfo(
+            ClassLoader classLoader) {
         LinkedHashMap<RexNode, Integer> inputNodes = new LinkedHashMap<>();
         PythonFunctionInfo pythonTableFunctionInfo =
-                CommonPythonUtil.createPythonFunctionInfo(invocation, inputNodes);
+                CommonPythonUtil.createPythonFunctionInfo(invocation, inputNodes, classLoader);
         int[] udtfInputOffsets =
                 inputNodes.keySet().stream()
                         .filter(x -> x instanceof RexInputRef)
@@ -168,7 +172,8 @@ public abstract class CommonExecPythonCorrelate extends ExecNodeBase<RowData>
             InternalTypeInfo<RowData> outputRowType,
             PythonFunctionInfo pythonFunctionInfo,
             int[] udtfInputOffsets) {
-        boolean isInProcessMode = CommonPythonUtil.isPythonWorkerInProcessMode(pythonConfig);
+        boolean isInProcessMode =
+                CommonPythonUtil.isPythonWorkerInProcessMode(pythonConfig, classLoader);
 
         final RowType inputType = inputRowType.toRowType();
         final RowType outputType = outputRowType.toRowType();
@@ -180,7 +185,9 @@ public abstract class CommonExecPythonCorrelate extends ExecNodeBase<RowData>
 
         try {
             if (isInProcessMode) {
-                Class clazz = CommonPythonUtil.loadClass(PYTHON_TABLE_FUNCTION_OPERATOR_NAME);
+                Class clazz =
+                        CommonPythonUtil.loadClass(
+                                PYTHON_TABLE_FUNCTION_OPERATOR_NAME, classLoader);
                 Constructor ctor =
                         clazz.getConstructor(
                                 Configuration.class,
@@ -206,7 +213,8 @@ public abstract class CommonExecPythonCorrelate extends ExecNodeBase<RowData>
                                         udtfInputOffsets));
             } else {
                 Class clazz =
-                        CommonPythonUtil.loadClass(EMBEDDED_PYTHON_TABLE_FUNCTION_OPERATOR_NAME);
+                        CommonPythonUtil.loadClass(
+                                EMBEDDED_PYTHON_TABLE_FUNCTION_OPERATOR_NAME, classLoader);
                 Constructor ctor =
                         clazz.getConstructor(
                                 Configuration.class,
