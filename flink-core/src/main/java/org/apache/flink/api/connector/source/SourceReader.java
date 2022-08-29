@@ -77,7 +77,7 @@ public interface SourceReader<T, SplitT extends SourceSplit>
      *
      * <p>Once the future completes, the runtime will keep calling the {@link
      * #pollNext(ReaderOutput)} method until that methods returns a status other than {@link
-     * InputStatus#MORE_AVAILABLE}. After that the, the runtime will again call this method to
+     * InputStatus#MORE_AVAILABLE}. After that the runtime will again call this method to
      * obtain the next future. Once that completes, it will again call {@link
      * #pollNext(ReaderOutput)} and so on.
      *
