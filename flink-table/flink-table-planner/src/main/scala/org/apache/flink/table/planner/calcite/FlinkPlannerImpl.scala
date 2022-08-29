@@ -199,10 +199,8 @@ class FlinkPlannerImpl(
       val sqlToRelConverter: SqlToRelConverter = if (checkContainJoinHintShuttle.containsJoinHint) {
         val converter = createSqlToRelConverter(
           sqlValidator,
-          // disable project merge
-          // if the project can merge, when the join hints exist, the join hints
-          // can be attached into the current project which maybe has a query block hint
-          // when parsing 'select', and cause join hints propagating into the query block
+          // disable project merge during sql to rel phase to prevent
+          // incorrect propagation of join hints into child query block
           sqlToRelConverterConfig.addRelBuilderConfigTransform(c => c.withBloat(-1))
         )
         // TODO currently, it is a relatively hacked way to tell converter
