@@ -41,13 +41,13 @@ public final class JdbcDialectLoader {
      * Loads the unique JDBC Dialect that can handle the given database url.
      *
      * @param url A database URL.
+     * @param classLoader the classloader used to load the factory
      * @throws IllegalStateException if the loader cannot find exactly one dialect that can
      *     unambiguously process the given database URL.
      * @return The loaded dialect.
      */
-    public static JdbcDialect load(String url) {
-        ClassLoader cl = Thread.currentThread().getContextClassLoader();
-        List<JdbcDialectFactory> foundFactories = discoverFactories(cl);
+    public static JdbcDialect load(String url, ClassLoader classLoader) {
+        List<JdbcDialectFactory> foundFactories = discoverFactories(classLoader);
 
         if (foundFactories.isEmpty()) {
             throw new IllegalStateException(

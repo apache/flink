@@ -87,9 +87,10 @@ public class JdbcDynamicTableFactory implements DynamicTableSourceFactory, Dynam
         final ReadableConfig config = helper.getOptions();
 
         helper.validate();
-        validateConfigOptions(config);
-        validateDataTypeWithJdbcDialect(context.getPhysicalRowDataType(), config.get(URL));
-        JdbcConnectorOptions jdbcOptions = getJdbcOptions(config);
+        validateConfigOptions(config, context.getClassLoader());
+        validateDataTypeWithJdbcDialect(
+                context.getPhysicalRowDataType(), config.get(URL), context.getClassLoader());
+        JdbcConnectorOptions jdbcOptions = getJdbcOptions(config, context.getClassLoader());
 
         return new JdbcDynamicTableSink(
                 jdbcOptions,
@@ -108,28 +109,32 @@ public class JdbcDynamicTableFactory implements DynamicTableSourceFactory, Dynam
         final ReadableConfig config = helper.getOptions();
 
         helper.validate();
-        validateConfigOptions(config);
-        validateDataTypeWithJdbcDialect(context.getPhysicalRowDataType(), config.get(URL));
+        validateConfigOptions(config, context.getClassLoader());
+        validateDataTypeWithJdbcDialect(
+                context.getPhysicalRowDataType(), config.get(URL), context.getClassLoader());
         return new JdbcDynamicTableSource(
-                getJdbcOptions(helper.getOptions()),
+                getJdbcOptions(helper.getOptions(), context.getClassLoader()),
                 getJdbcReadOptions(helper.getOptions()),
                 helper.getOptions().get(LookupOptions.MAX_RETRIES),
                 getLookupCache(config),
                 context.getPhysicalRowDataType());
     }
 
-    private static void validateDataTypeWithJdbcDialect(DataType dataType, String url) {
-        final JdbcDialect dialect = JdbcDialectLoader.load(url);
+    private static void validateDataTypeWithJdbcDialect(
+            DataType dataType, String url, ClassLoader classLoader) {
+        final JdbcDialect dialect = JdbcDialectLoader.load(url, classLoader);
         dialect.validate((RowType) dataType.getLogicalType());
     }
 
-    private JdbcConnectorOptions getJdbcOptions(ReadableConfig readableConfig) {
+    private JdbcConnectorOptions getJdbcOptions(
+            ReadableConfig readableConfig, ClassLoader classLoader) {
         final String url = readableConfig.get(URL);
         final JdbcConnectorOptions.Builder builder =
                 JdbcConnectorOptions.builder()
+                        .setClassLoader(classLoader)
                         .setDBUrl(url)
                         .setTableName(readableConfig.get(TABLE_NAME))
-                        .setDialect(JdbcDialectLoader.load(url))
+                        .setDialect(JdbcDialectLoader.load(url, classLoader))
                         .setParallelism(readableConfig.getOptional(SINK_PARALLELISM).orElse(null))
                         .setConnectionCheckTimeoutSeconds(
                                 (int) readableConfig.get(MAX_RETRY_TIMEOUT).getSeconds());
@@ -260,9 +265,9 @@ public class JdbcDynamicTableFactory implements DynamicTableSourceFactory, Dynam
                 .collect(Collectors.toSet());
     }
 
-    private void validateConfigOptions(ReadableConfig config) {
+    private void validateConfigOptions(ReadableConfig config, ClassLoader classLoader) {
         String jdbcUrl = config.get(URL);
-        JdbcDialectLoader.load(jdbcUrl);
+        JdbcDialectLoader.load(jdbcUrl, classLoader);
 
         checkAllOrNone(config, new ConfigOption[] {USERNAME, PASSWORD});
 

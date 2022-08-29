@@ -41,16 +41,17 @@ public class JdbcCatalog extends AbstractJdbcCatalog {
     private final AbstractJdbcCatalog internal;
 
     public JdbcCatalog(
+            ClassLoader userClassLoader,
             String catalogName,
             String defaultDatabase,
             String username,
             String pwd,
             String baseUrl) {
-        super(catalogName, defaultDatabase, username, pwd, baseUrl);
+        super(userClassLoader, catalogName, defaultDatabase, username, pwd, baseUrl);
 
         internal =
                 JdbcCatalogUtils.createCatalog(
-                        catalogName, defaultDatabase, username, pwd, baseUrl);
+                        userClassLoader, catalogName, defaultDatabase, username, pwd, baseUrl);
     }
 
     // ------ databases -----
