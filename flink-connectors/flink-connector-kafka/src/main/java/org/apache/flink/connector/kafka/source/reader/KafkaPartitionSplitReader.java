@@ -359,16 +359,23 @@ public class KafkaPartitionSplitReader
             SplitsChange<KafkaPartitionSplit> splitsChange) {
         if (LOG.isDebugEnabled()) {
             StringJoiner splitsInfo = new StringJoiner(",");
+            Set<TopicPartition> assignedPartitions = consumer.assignment();
             for (KafkaPartitionSplit split : splitsChange.splits()) {
-                long startingOffset =
-                        retryOnWakeup(
-                                () -> consumer.position(split.getTopicPartition()),
-                                "logging starting position");
-                long stoppingOffset = getStoppingOffset(split.getTopicPartition());
-                splitsInfo.add(
-                        String.format(
-                                "[%s, start:%d, stop: %d]",
-                                split.getTopicPartition(), startingOffset, stoppingOffset));
+                if (assignedPartitions.contains(split.getTopicPartition())) {
+                    long startingOffset =
+                            retryOnWakeup(
+                                    () -> consumer.position(split.getTopicPartition()),
+                                    "logging starting position");
+                    long stoppingOffset = getStoppingOffset(split.getTopicPartition());
+                    splitsInfo.add(
+                            String.format(
+                                    "[%s, start:%d, stop: %d]",
+                                    split.getTopicPartition(), startingOffset, stoppingOffset));
+                } else {
+                    splitsInfo.add(
+                            String.format(
+                                    "[%s, finished and unassigned.]", split.getTopicPartition()));
+                }
             }
             LOG.debug("SplitsChange handling result: {}", splitsInfo);
         }
