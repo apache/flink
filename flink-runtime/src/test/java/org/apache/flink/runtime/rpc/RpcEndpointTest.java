@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.rpc;
 
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.core.testutils.ManuallyTriggeredScheduledExecutorService;
 import org.apache.flink.util.TestLoggerExtension;
 
 import org.junit.jupiter.api.AfterAll;
@@ -44,7 +45,6 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
-import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 /** Tests for the RpcEndpoint, its self gateways and MainThreadExecutor scheduling command. */
 @ExtendWith(TestLoggerExtension.class)
@@ -412,20 +412,22 @@ public class RpcEndpointTest {
     private static void testCancelScheduledTask(
             BiFunction<RpcEndpoint.MainThreadExecutor, CompletableFuture<Long>, ScheduledFuture<?>>
                     scheduler) {
-        final String endpointId = "foobar";
-
         final MainThreadExecutable mainThreadExecutable =
                 new TestMainThreadExecutable(Runnable::run);
 
+        final ManuallyTriggeredScheduledExecutorService manuallyTriggeredScheduledExecutorService =
+                new ManuallyTriggeredScheduledExecutorService();
+
         final RpcEndpoint.MainThreadExecutor mainThreadExecutor =
-                new RpcEndpoint.MainThreadExecutor(mainThreadExecutable, () -> {}, endpointId);
+                new RpcEndpoint.MainThreadExecutor(
+                        mainThreadExecutable, () -> {}, manuallyTriggeredScheduledExecutorService);
         final CompletableFuture<Long> actualDelayMsFuture = new CompletableFuture<>();
 
         ScheduledFuture<?> scheduledFuture =
                 scheduler.apply(mainThreadExecutor, actualDelayMsFuture);
         scheduledFuture.cancel(true);
+        manuallyTriggeredScheduledExecutorService.triggerAllNonPeriodicTasks();
 
-        assumeTrue(!actualDelayMsFuture.isDone(), "The command is done and no need to cancel it.");
         assertTrue(scheduledFuture.isCancelled());
         assertFalse(actualDelayMsFuture.isDone());
         mainThreadExecutor.close();
