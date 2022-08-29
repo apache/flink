@@ -198,8 +198,13 @@ Users can do some performance tuning by tuning the split's size with the follow 
     </tr>
   </tbody>
 </table>
-
-**NOTE**: Currently, these two configurations only works for the Hive table stored as ORC format.
+{{< hint warning >}}
+**NOTE**:
+- To tune the split's size, Flink will first get all files' size for all partitions.
+  If there are too many partitions, it maybe time-consuming,
+  then you can configure the job configuration `table.exec.hive.calculate-partition-size.thread-num` (3 by default) to a bigger value to enable more threads to speed up the process.
+- Currently, these configurations for tuning split size only works for the Hive table stored as ORC format.
+{{< /hint >}}
 
 ### Load Partition Splits
 
