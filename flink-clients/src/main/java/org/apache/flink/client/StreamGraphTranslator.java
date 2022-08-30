@@ -40,6 +40,12 @@ public class StreamGraphTranslator implements FlinkPipelineTranslator {
 
     private static final Logger LOG = LoggerFactory.getLogger(StreamGraphTranslator.class);
 
+    private final ClassLoader userClassloader;
+
+    public StreamGraphTranslator(ClassLoader userClassloader) {
+        this.userClassloader = userClassloader;
+    }
+
     @Override
     public JobGraph translateToJobGraph(
             Pipeline pipeline, Configuration optimizerConfiguration, int defaultParallelism) {
@@ -47,7 +53,7 @@ public class StreamGraphTranslator implements FlinkPipelineTranslator {
                 pipeline instanceof StreamGraph, "Given pipeline is not a DataStream StreamGraph.");
 
         StreamGraph streamGraph = (StreamGraph) pipeline;
-        return streamGraph.getJobGraph(null);
+        return streamGraph.getJobGraph(userClassloader, null);
     }
 
     @Override

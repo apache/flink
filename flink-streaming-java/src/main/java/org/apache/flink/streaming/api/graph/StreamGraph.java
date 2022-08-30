@@ -1007,13 +1007,14 @@ public class StreamGraph implements Pipeline {
     }
 
     /** Gets the assembled {@link JobGraph} with a random {@link JobID}. */
+    @VisibleForTesting
     public JobGraph getJobGraph() {
-        return getJobGraph(null);
+        return getJobGraph(Thread.currentThread().getContextClassLoader(), null);
     }
 
     /** Gets the assembled {@link JobGraph} with a specified {@link JobID}. */
-    public JobGraph getJobGraph(@Nullable JobID jobID) {
-        return StreamingJobGraphGenerator.createJobGraph(this, jobID);
+    public JobGraph getJobGraph(ClassLoader userClassLoader, @Nullable JobID jobID) {
+        return StreamingJobGraphGenerator.createJobGraph(userClassLoader, this, jobID);
     }
 
     public String getStreamingPlanAsJSON() {

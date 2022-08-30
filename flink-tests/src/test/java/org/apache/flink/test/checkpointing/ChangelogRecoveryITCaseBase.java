@@ -206,7 +206,7 @@ public abstract class ChangelogRecoveryITCaseBase extends TestLogger {
                                     Collector<Integer> out) {}
                         })
                 .addSink(new DiscardingSink<>());
-        return env.getStreamGraph().getJobGraph(jobId);
+        return env.getStreamGraph().getJobGraph(env.getClass().getClassLoader(), jobId);
     }
 
     protected void waitAndAssert(JobGraph jobGraph) throws Exception {
