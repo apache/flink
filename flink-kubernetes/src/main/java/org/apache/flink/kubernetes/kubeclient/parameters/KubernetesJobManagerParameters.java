@@ -200,4 +200,8 @@ public class KubernetesJobManagerParameters extends AbstractKubernetesParameters
         }
         return replicas;
     }
+
+    public String getEntrypointArgs() {
+        return flinkConfig.getString(KubernetesConfigOptions.KUBERNETES_JOBMANAGER_ENTRYPOINT_ARGS);
+    }
 }

@@ -117,6 +117,12 @@
             <td>The limit factor of cpu used by job manager. The resources limit cpu will be set to cpu * limit-factor.</td>
         </tr>
         <tr>
+            <td><h5>kubernetes.jobmanager.entrypoint.args</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>String</td>
+            <td>Extra arguments used when starting the job manager.</td>
+        </tr>
+        <tr>
             <td><h5>kubernetes.jobmanager.labels</h5></td>
             <td style="word-wrap: break-word;">(none)</td>
             <td>Map</td>
@@ -229,6 +235,12 @@
             <td style="word-wrap: break-word;">1.0</td>
             <td>Double</td>
             <td>The limit factor of cpu used by task manager. The resources limit cpu will be set to cpu * limit-factor.</td>
+        </tr>
+        <tr>
+            <td><h5>kubernetes.taskmanager.entrypoint.args</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>String</td>
+            <td>Extra arguments used when starting the task manager.</td>
         </tr>
         <tr>
             <td><h5>kubernetes.taskmanager.labels</h5></td>

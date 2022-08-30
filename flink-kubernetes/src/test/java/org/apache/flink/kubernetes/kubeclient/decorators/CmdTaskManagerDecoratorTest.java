@@ -70,7 +70,9 @@ class CmdTaskManagerDecoratorTest extends KubernetesTaskManagerTestBase {
                                 + " "
                                 + DYNAMIC_PROPERTIES
                                 + " "
-                                + mainClassArgs);
+                                + mainClassArgs
+                                + " "
+                                + ENTRYPOINT_ARGS);
         assertThat(resultFlinkPod.getMainContainer().getArgs())
                 .containsExactlyElementsOf(flinkCommands);
     }
