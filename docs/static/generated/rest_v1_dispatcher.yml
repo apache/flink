@@ -1803,6 +1803,10 @@ components:
           additionalProperties:
             type: integer
             format: int64
+        other-concurrent-attempts:
+          type: array
+          items:
+            $ref: '#/components/schemas/SubtaskExecutionAttemptDetailsInfo'
     JobResult:
       type: object
       properties:
@@ -2051,6 +2055,12 @@ components:
           type: integer
           format: int32
         slots-available:
+          type: integer
+          format: int32
+        taskmanagers-blocked:
+          type: integer
+          format: int32
+        slots-free-and-blocked:
           type: integer
           format: int32
         jobs-running:
@@ -2660,6 +2670,8 @@ components:
           $ref: '#/components/schemas/HardwareDescription'
         memoryConfiguration:
           $ref: '#/components/schemas/TaskExecutorMemoryConfiguration'
+        blocked:
+          type: boolean
         allocatedSlots:
           type: array
           items:
@@ -2753,6 +2765,13 @@ components:
         numTasks:
           type: integer
           format: int32
+        currentExecutionAttempts:
+          type: object
+          additionalProperties:
+            type: object
+            additionalProperties:
+              type: integer
+              format: int32
     ThreadInfo:
       type: object
       properties:
@@ -2996,6 +3015,8 @@ components:
           $ref: '#/components/schemas/HardwareDescription'
         memoryConfiguration:
           $ref: '#/components/schemas/TaskExecutorMemoryConfiguration'
+        blocked:
+          type: boolean
     ApplicationStatus:
       type: string
       enum:
@@ -3068,6 +3089,9 @@ components:
         subtask:
           type: integer
           format: int32
+        attempt-number:
+          type: integer
+          format: int32
         backpressure-level:
           $ref: '#/components/schemas/VertexBackPressureLevel'
         ratio:
@@ -3079,3 +3103,7 @@ components:
         busyRatio:
           type: number
           format: double
+        other-concurrent-attempts:
+          type: array
+          items:
+            $ref: '#/components/schemas/SubtaskBackPressureInfo'
