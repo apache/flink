@@ -1,6 +1,6 @@
 # Apache Flink
 
-Apache Flink is an open source stream processing framework with powerful stream- and batch-processing capabilities. doc
+Apache Flink is an open source stream processing framework with powerful stream- and batch-processing capabilities.
 
 Learn more about Flink at [https://flink.apache.org/](https://flink.apache.org/)
 
@@ -73,7 +73,9 @@ Prerequisites for building Flink:
 * Java 8 or 11 (Java 9 or 10 may work)
 
 ```
-git clone https://github.com/apache/flink.git
+git clone https://github.com/apache/flink.git 
+#fatal: unable to connect to github.com
+#take => git config --global url."https://".insteadOf git://
 cd flink
 ./mvnw clean package -DskipTests # this will take up to 10 minutes
 ```
