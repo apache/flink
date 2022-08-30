@@ -278,7 +278,7 @@ public class RescaleCheckpointManuallyITCase extends TestLogger {
 
         result.addSink(new CollectionSink<>());
 
-        return env.getStreamGraph().getJobGraph(jobID.get());
+        return env.getStreamGraph().getJobGraph(env.getClass().getClassLoader(), jobID.get());
     }
 
     private static class NotifyingDefiniteKeySource extends RichParallelSourceFunction<Integer> {

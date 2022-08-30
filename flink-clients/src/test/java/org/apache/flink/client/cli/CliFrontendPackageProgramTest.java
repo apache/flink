@@ -326,7 +326,8 @@ class CliFrontendPackageProgramTest {
 
             // we expect this to fail with a "ClassNotFoundException"
             Pipeline pipeline = PackagedProgramUtils.getPipelineFromProgram(prog, c, 666, true);
-            FlinkPipelineTranslationUtil.translateToJSONExecutionPlan(pipeline);
+            FlinkPipelineTranslationUtil.translateToJSONExecutionPlan(
+                    prog.getUserCodeClassLoader(), pipeline);
             fail("Should have failed with a ClassNotFoundException");
         } catch (ProgramInvocationException e) {
             if (!(e.getCause() instanceof ClassNotFoundException)) {
