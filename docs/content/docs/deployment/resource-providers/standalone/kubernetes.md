@@ -529,13 +529,7 @@ spec:
       - name: jobmanager
         image: apache/flink:{{< stable >}}{{< version >}}-scala{{< scala_version >}}{{< /stable >}}{{< unstable >}}latest{{< /unstable >}}
         env:
-        - name: POD_IP
-          valueFrom:
-            fieldRef:
-              apiVersion: v1
-              fieldPath: status.podIP
-        # The following args overwrite the value of jobmanager.rpc.address configured in the configuration config map to POD_IP.
-        args: ["jobmanager", "$(POD_IP)"]
+        args: ["jobmanager"]
         ports:
         - containerPort: 6123
           name: rpc
