@@ -66,8 +66,8 @@ public class CoBroadcastWithNonKeyedOperatorTest {
             testHarness.processElement1(new StreamRecord<>("9", 15L));
 
             Queue<Object> expectedBr = new ConcurrentLinkedQueue<>();
-            expectedBr.add(new StreamRecord<>("9:key.6->6", 15L));
             expectedBr.add(new StreamRecord<>("9:key.5->5", 15L));
+            expectedBr.add(new StreamRecord<>("9:key.6->6", 15L));
             expectedBr.add(new StreamRecord<>("9:5->value.5", 15L));
             expectedBr.add(new StreamRecord<>("9:6->value.6", 15L));
 

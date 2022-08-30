@@ -28,8 +28,8 @@ import org.apache.flink.util.Preconditions;
 
 import java.io.IOException;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.Iterator;
+import java.util.LinkedHashMap;
 import java.util.Map;
 
 /**
@@ -50,7 +50,7 @@ public class HeapBroadcastState<K, V> implements BackendWritableBroadcastState<K
     private MapSerializer<K, V> internalMapCopySerializer;
 
     HeapBroadcastState(RegisteredBroadcastStateBackendMetaInfo<K, V> stateMetaInfo) {
-        this(stateMetaInfo, new HashMap<>());
+        this(stateMetaInfo, new LinkedHashMap<>());
     }
 
     private HeapBroadcastState(
