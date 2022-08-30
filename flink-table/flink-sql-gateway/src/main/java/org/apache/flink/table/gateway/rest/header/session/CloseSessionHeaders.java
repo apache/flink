@@ -76,4 +76,9 @@ public class CloseSessionHeaders
     public static CloseSessionHeaders getInstance() {
         return INSTANCE;
     }
+
+    @Override
+    public String operationId() {
+        return "closeSession";
+    }
 }

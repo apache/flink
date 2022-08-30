@@ -74,4 +74,9 @@ public class GetApiVersionHeaders
     public static GetApiVersionHeaders getInstance() {
         return INSTANCE;
     }
+
+    @Override
+    public String operationId() {
+        return "getApiVersion";
+    }
 }

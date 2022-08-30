@@ -52,4 +52,9 @@ public class CloseOperationHeaders extends AbstactOperationHeaders {
     public static CloseOperationHeaders getInstance() {
         return INSTANCE;
     }
+
+    @Override
+    public String operationId() {
+        return "closeOperation";
+    }
 }

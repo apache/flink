@@ -76,4 +76,9 @@ public class TriggerSessionHeartbeatHeaders
     public static TriggerSessionHeartbeatHeaders getInstance() {
         return INSTANCE;
     }
+
+    @Override
+    public String operationId() {
+        return "triggerSession";
+    }
 }

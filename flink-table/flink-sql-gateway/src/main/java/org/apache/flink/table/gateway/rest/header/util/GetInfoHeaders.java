@@ -74,4 +74,9 @@ public class GetInfoHeaders
     public static GetInfoHeaders getInstance() {
         return INSTANCE;
     }
+
+    @Override
+    public String operationId() {
+        return "getInfo";
+    }
 }

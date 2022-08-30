@@ -114,6 +114,8 @@ public class ConfigOptionsDocGenerator {
                         "flink-libraries/flink-cep", "org.apache.flink.cep.configuration"),
                 new OptionsClassLocation(
                         "flink-dstl/flink-dstl-dfs", "org.apache.flink.changelog.fs"),
+                new OptionsClassLocation(
+                        "flink-table/flink-sql-gateway", "org.apache.flink.table.gateway.rest.util")
             };
 
     static final Set<String> EXCLUSIONS =

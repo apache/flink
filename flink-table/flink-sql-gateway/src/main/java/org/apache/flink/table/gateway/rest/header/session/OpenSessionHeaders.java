@@ -75,4 +75,9 @@ public class OpenSessionHeaders
     public static OpenSessionHeaders getInstance() {
         return INSTANCE;
     }
+
+    @Override
+    public String operationId() {
+        return "openSession";
+    }
 }

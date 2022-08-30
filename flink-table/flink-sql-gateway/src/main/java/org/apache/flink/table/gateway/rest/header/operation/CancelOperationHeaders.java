@@ -52,4 +52,9 @@ public class CancelOperationHeaders extends AbstactOperationHeaders {
     public static CancelOperationHeaders getInstance() {
         return INSTANCE;
     }
+
+    @Override
+    public String operationId() {
+        return "cancelOperation";
+    }
 }
