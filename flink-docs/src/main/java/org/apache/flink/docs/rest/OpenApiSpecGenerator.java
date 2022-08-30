@@ -37,12 +37,10 @@ import org.apache.flink.runtime.rest.messages.MessageQueryParameter;
 import org.apache.flink.runtime.rest.messages.TriggerId;
 import org.apache.flink.runtime.rest.messages.job.JobSubmitHeaders;
 import org.apache.flink.runtime.rest.messages.json.SerializedThrowableSerializer;
-import org.apache.flink.runtime.rest.util.DocumentingDispatcherRestEndpoint;
 import org.apache.flink.runtime.rest.util.DocumentingRestEndpoint;
-import org.apache.flink.runtime.rest.versioning.RuntimeRestAPIVersion;
+import org.apache.flink.runtime.rest.versioning.RestAPIVersion;
 import org.apache.flink.runtime.util.EnvironmentInformation;
 import org.apache.flink.runtime.webmonitor.handlers.JarUploadHeaders;
-import org.apache.flink.util.ConfigurationException;
 import org.apache.flink.util.SerializedThrowable;
 import org.apache.flink.util.jackson.JacksonMapperFactory;
 
@@ -77,7 +75,6 @@ import java.lang.reflect.Type;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -107,32 +104,9 @@ public class OpenApiSpecGenerator {
                 new ModelConverterContextImpl(Collections.singletonList(new ModelResolver(mapper)));
     }
 
-    /**
-     * Generates the REST API OpenAPI spec.
-     *
-     * @param args args[0] contains the directory into which the generated files are placed
-     * @throws IOException if any file operation failed
-     */
-    public static void main(String[] args) throws IOException, ConfigurationException {
-        String outputDirectory = args[0];
-
-        for (final RuntimeRestAPIVersion apiVersion : RuntimeRestAPIVersion.values()) {
-            if (apiVersion == RuntimeRestAPIVersion.V0) {
-                // this version exists only for testing purposes
-                continue;
-            }
-            createDocumentationFile(
-                    new DocumentingDispatcherRestEndpoint(),
-                    apiVersion,
-                    Paths.get(
-                            outputDirectory,
-                            "rest_" + apiVersion.getURLVersionPrefix() + "_dispatcher.yml"));
-        }
-    }
-
     @VisibleForTesting
     static void createDocumentationFile(
-            DocumentingRestEndpoint restEndpoint, RuntimeRestAPIVersion apiVersion, Path outputFile)
+            DocumentingRestEndpoint restEndpoint, RestAPIVersion apiVersion, Path outputFile)
             throws IOException {
         final OpenAPI openApi = new OpenAPI();
 
@@ -169,7 +143,7 @@ public class OpenApiSpecGenerator {
         return spec.getClass().getAnnotation(Documentation.ExcludeFromDocumentation.class) == null;
     }
 
-    private static void setInfo(final OpenAPI openApi, final RuntimeRestAPIVersion apiVersion) {
+    private static void setInfo(final OpenAPI openApi, final RestAPIVersion apiVersion) {
         openApi.info(
                 new Info()
                         .title("Flink JobManager REST API")
@@ -453,6 +427,8 @@ public class OpenApiSpecGenerator {
                 return PathItem.HttpMethod.DELETE;
             case PATCH:
                 return PathItem.HttpMethod.PATCH;
+            case PUT:
+                return PathItem.HttpMethod.PUT;
         }
         throw new IllegalArgumentException("not supported");
     }

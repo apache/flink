@@ -76,4 +76,9 @@ public class GetSessionConfigHeaders
     public static GetSessionConfigHeaders getInstance() {
         return INSTANCE;
     }
+
+    @Override
+    public String operationId() {
+        return "getSessionConfig";
+    }
 }

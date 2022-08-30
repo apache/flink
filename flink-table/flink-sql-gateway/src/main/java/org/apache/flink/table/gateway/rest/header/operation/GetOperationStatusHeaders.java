@@ -52,4 +52,9 @@ public class GetOperationStatusHeaders extends AbstactOperationHeaders {
     public static GetOperationStatusHeaders getInstance() {
         return INSTANCE;
     }
+
+    @Override
+    public String operationId() {
+        return "getOperationStatus";
+    }
 }

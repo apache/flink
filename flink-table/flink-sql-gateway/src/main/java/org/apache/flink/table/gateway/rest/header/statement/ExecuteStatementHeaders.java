@@ -77,4 +77,9 @@ public class ExecuteStatementHeaders
     public static ExecuteStatementHeaders getInstance() {
         return INSTANCE;
     }
+
+    @Override
+    public String operationId() {
+        return "executeStatement";
+    }
 }

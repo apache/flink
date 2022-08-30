@@ -97,4 +97,9 @@ public class FetchResultsHeaders
     public FetchResultsTokenParameters getUnresolvedMessageParameters() {
         return new FetchResultsTokenParameters();
     }
+
+    @Override
+    public String operationId() {
+        return "fetchResults";
+    }
 }

@@ -28,10 +28,8 @@ import org.apache.flink.runtime.rest.messages.EmptyResponseBody;
 import org.apache.flink.runtime.rest.messages.MessageHeaders;
 import org.apache.flink.runtime.rest.messages.MessagePathParameter;
 import org.apache.flink.runtime.rest.messages.MessageQueryParameter;
-import org.apache.flink.runtime.rest.util.DocumentingDispatcherRestEndpoint;
 import org.apache.flink.runtime.rest.util.DocumentingRestEndpoint;
-import org.apache.flink.runtime.rest.versioning.RuntimeRestAPIVersion;
-import org.apache.flink.util.ConfigurationException;
+import org.apache.flink.runtime.rest.versioning.RestAPIVersion;
 import org.apache.flink.util.jackson.JacksonMapperFactory;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonProcessingException;
@@ -52,7 +50,6 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
@@ -106,32 +103,9 @@ public class RestAPIDocGenerator {
         schemaGen = new JsonSchemaGenerator(mapper);
     }
 
-    /**
-     * Generates the REST API documentation.
-     *
-     * @param args args[0] contains the directory into which the generated files are placed
-     * @throws IOException if any file operation failed
-     */
-    public static void main(String[] args) throws IOException, ConfigurationException {
-        String outputDirectory = args[0];
-
-        for (final RuntimeRestAPIVersion apiVersion : RuntimeRestAPIVersion.values()) {
-            if (apiVersion == RuntimeRestAPIVersion.V0) {
-                // this version exists only for testing purposes
-                continue;
-            }
-            createHtmlFile(
-                    new DocumentingDispatcherRestEndpoint(),
-                    apiVersion,
-                    Paths.get(
-                            outputDirectory,
-                            "rest_" + apiVersion.getURLVersionPrefix() + "_dispatcher.html"));
-        }
-    }
-
     @VisibleForTesting
     static void createHtmlFile(
-            DocumentingRestEndpoint restEndpoint, RuntimeRestAPIVersion apiVersion, Path outputFile)
+            DocumentingRestEndpoint restEndpoint, RestAPIVersion apiVersion, Path outputFile)
             throws IOException {
         StringBuilder html = new StringBuilder();
 
