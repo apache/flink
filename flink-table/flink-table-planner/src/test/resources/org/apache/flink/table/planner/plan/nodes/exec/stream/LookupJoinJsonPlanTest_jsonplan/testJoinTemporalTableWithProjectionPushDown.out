@@ -222,40 +222,40 @@
     "joinCondition" : null,
     "temporalTable" : {
       "lookupTableSource" : {
-        "identifier" : {
-          "catalogName" : "default_catalog",
-          "databaseName" : "default_database",
-          "tableName" : "LookupTable"
+        "table" : {
+          "identifier" : "`default_catalog`.`default_database`.`LookupTable`",
+          "resolvedTable" : {
+            "schema" : {
+              "columns" : [ {
+                "name" : "id",
+                "dataType" : "INT"
+              }, {
+                "name" : "name",
+                "dataType" : "VARCHAR(2147483647)"
+              }, {
+                "name" : "age",
+                "dataType" : "INT"
+              } ],
+              "watermarkSpecs" : [ ]
+            },
+            "partitionKeys" : [ ],
+            "options" : {
+              "connector" : "values",
+              "bounded" : "false"
+            }
+          }
         },
-        "catalogTable" : {
-          "schema.2.data-type" : "INT",
-          "connector" : "values",
-          "schema.0.data-type" : "INT",
-          "schema.2.name" : "age",
-          "schema.1.name" : "name",
-          "bounded" : "false",
-          "schema.0.name" : "id",
-          "schema.1.data-type" : "VARCHAR(2147483647)"
-        }
-      },
-      "outputType" : {
-        "structKind" : "FULLY_QUALIFIED",
-        "nullable" : false,
-        "fields" : [ {
-          "typeName" : "INTEGER",
-          "nullable" : true,
-          "fieldName" : "id"
+        "abilities" : [ {
+          "type" : "ProjectPushDown",
+          "projectedFields" : [ [ 0 ] ],
+          "producedType" : "ROW<`id` INT> NOT NULL"
         }, {
-          "typeName" : "VARCHAR",
-          "nullable" : true,
-          "precision" : 2147483647,
-          "fieldName" : "name"
-        }, {
-          "typeName" : "INTEGER",
-          "nullable" : true,
-          "fieldName" : "age"
+          "type" : "ReadingMetadata",
+          "metadataKeys" : [ ],
+          "producedType" : "ROW<`id` INT> NOT NULL"
         } ]
-      }
+      },
+      "outputType" : "ROW<`id` INT> NOT NULL"
     },
     "lookupKeys" : {
       "0" : {
@@ -263,14 +263,7 @@
         "index" : 0
       }
     },
-    "projectionOnTemporalTable" : [ {
-      "kind" : "INPUT_REF",
-      "inputIndex" : 0,
-      "type" : {
-        "typeName" : "INTEGER",
-        "nullable" : true
-      }
-    } ],
+    "projectionOnTemporalTable" : null,
     "filterOnTemporalTable" : null,
     "id" : 4,
     "inputProperties" : [ {
