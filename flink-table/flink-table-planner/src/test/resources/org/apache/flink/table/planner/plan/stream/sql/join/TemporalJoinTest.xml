@@ -177,7 +177,7 @@ Calc(select=[currency, currency0, rate1])
    +- Exchange(distribution=[hash[currency]])
       +- Calc(select=[currency, rate1, rowtime], where=[(rate < 100)])
          +- WatermarkAssigner(rowtime=[rowtime], watermark=[rowtime])
-            +- Calc(select=[currency, rate, (rate + 1) AS rate1, PROCTIME() AS proctime, rowtime])
+            +- Calc(select=[currency, rate, (rate + 1) AS rate1, rowtime])
                +- TableSourceScan(table=[[default_catalog, default_database, RatesBinlogWithComputedColumn]], fields=[currency, rate, rowtime])
 ]]>
     </Resource>
@@ -462,7 +462,7 @@ Calc(select=[currency, currency0, rate1])
    :           +- TableSourceScan(table=[[default_catalog, default_database, Orders]], fields=[amount, currency, rowtime])
    +- Exchange(distribution=[hash[currency]])
       +- Calc(select=[currency, (rate + 1) AS rate1], where=[(rate < 100)])
-         +- TableSourceScan(table=[[default_catalog, default_database, RatesBinlogWithoutWatermark, filter=[]]], fields=[currency, rate, rowtime])
+         +- TableSourceScan(table=[[default_catalog, default_database, RatesBinlogWithoutWatermark, project=[currency, rate], metadata=[], filter=[]]], fields=[currency, rate])
 ]]>
     </Resource>
   </TestCase>
@@ -496,7 +496,7 @@ Calc(select=[currency, currency0, rate1])
    +- Exchange(distribution=[hash[currency]])
       +- Calc(select=[currency, rate1], where=[(rate < 100)])
          +- WatermarkAssigner(rowtime=[rowtime], watermark=[rowtime])
-            +- Calc(select=[currency, rate, (rate + 1) AS rate1, PROCTIME() AS proctime, rowtime])
+            +- Calc(select=[currency, rate, (rate + 1) AS rate1, rowtime])
                +- TableSourceScan(table=[[default_catalog, default_database, RatesBinlogWithComputedColumn]], fields=[currency, rate, rowtime])
 ]]>
     </Resource>

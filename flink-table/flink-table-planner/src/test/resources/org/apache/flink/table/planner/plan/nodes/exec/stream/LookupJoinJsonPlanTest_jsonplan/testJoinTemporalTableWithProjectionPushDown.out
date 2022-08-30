@@ -236,7 +236,28 @@
           "bounded" : "false",
           "schema.0.name" : "id",
           "schema.1.data-type" : "VARCHAR(2147483647)"
-        }
+        },
+        "sourceAbilitySpecs" : [ {
+          "type" : "ProjectPushDown",
+          "projectedFields" : [ [ 0 ] ],
+          "producedType" : {
+            "type" : "ROW",
+            "nullable" : false,
+            "fields" : [ {
+              "id" : "INT"
+            } ]
+          }
+        }, {
+          "type" : "ReadingMetadata",
+          "metadataKeys" : [ ],
+          "producedType" : {
+            "type" : "ROW",
+            "nullable" : false,
+            "fields" : [ {
+              "id" : "INT"
+            } ]
+          }
+        } ]
       },
       "outputType" : {
         "structKind" : "FULLY_QUALIFIED",
@@ -245,15 +266,6 @@
           "typeName" : "INTEGER",
           "nullable" : true,
           "fieldName" : "id"
-        }, {
-          "typeName" : "VARCHAR",
-          "nullable" : true,
-          "precision" : 2147483647,
-          "fieldName" : "name"
-        }, {
-          "typeName" : "INTEGER",
-          "nullable" : true,
-          "fieldName" : "age"
         } ]
       }
     },
@@ -263,14 +275,7 @@
         "index" : 0
       }
     },
-    "projectionOnTemporalTable" : [ {
-      "kind" : "INPUT_REF",
-      "inputIndex" : 0,
-      "type" : {
-        "typeName" : "INTEGER",
-        "nullable" : true
-      }
-    } ],
+    "projectionOnTemporalTable" : null,
     "filterOnTemporalTable" : null,
     "id" : 4,
     "inputProperties" : [ {
