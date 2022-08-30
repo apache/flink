@@ -788,7 +788,7 @@ public class HiveDialectQueryITCase {
                                                     timestamp))
                                     .collect());
             assertThat(results.toString())
-                    .isEqualTo(String.format("[+I[%s]]", expectTimeStampDecimal.toFormatString(8)));
+                    .isEqualTo(String.format("[+I[%s]]", expectTimeStampDecimal));
 
             // test insert timestamp type to decimal type directly
             tableEnv.executeSql("create table t1 (c1 DECIMAL(38,6))");
