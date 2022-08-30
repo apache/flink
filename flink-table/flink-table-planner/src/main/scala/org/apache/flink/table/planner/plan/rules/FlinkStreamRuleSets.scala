@@ -236,6 +236,9 @@ object FlinkStreamRuleSets {
     PushFilterIntoLegacyTableSourceScanRule.INSTANCE,
     PushLimitIntoTableSourceScanRule.INSTANCE,
 
+    // transpose project and snapshot for scan optimization
+    ProjectSnapshotTransposeRule.INSTANCE,
+
     // reorder the project and watermark assigner
     ProjectWatermarkAssignerTransposeRule.INSTANCE,
 
