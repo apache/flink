@@ -472,6 +472,7 @@ public final class TestValuesTableFactory
                 }
             } else {
                 return new TestValuesScanLookupTableSource(
+                        context.getCatalogTable().getResolvedSchema().toPhysicalRowDataType(),
                         producedDataType,
                         changelogMode,
                         isBounded,
@@ -1047,7 +1048,7 @@ public final class TestValuesTableFactory
             return result;
         }
 
-        private Row projectRow(Row row) {
+        protected Row projectRow(Row row) {
             if (projectedPhysicalFields == null) {
                 return row;
             }
@@ -1370,7 +1371,10 @@ public final class TestValuesTableFactory
         private final @Nullable String lookupFunctionClass;
         private final boolean isAsync;
 
+        private final DataType originType;
+
         private TestValuesScanLookupTableSource(
+                DataType originType,
                 DataType producedDataType,
                 ChangelogMode changelogMode,
                 boolean bounded,
@@ -1404,6 +1408,7 @@ public final class TestValuesTableFactory
                     allPartitions,
                     readableMetadata,
                     projectedMetadataFields);
+            this.originType = originType;
             this.lookupFunctionClass = lookupFunctionClass;
             this.isAsync = isAsync;
         }
@@ -1446,20 +1451,24 @@ public final class TestValuesTableFactory
                     data = data.subList(numElementToSkip, data.size());
                 }
             }
-
+            if (nestedProjectionSupported) {
+                throw new UnsupportedOperationException(
+                        "nestedProjectionSupported is unsupported for lookup source currently.");
+            }
             data.forEach(
                     record -> {
+                        Row projected = projectRow(record);
                         Row key =
                                 Row.of(
                                         Arrays.stream(lookupIndices)
-                                                .mapToObj(record::getField)
+                                                .mapToObj(projected::getField)
                                                 .toArray());
                         List<Row> list = mapping.get(key);
                         if (list != null) {
-                            list.add(record);
+                            list.add(projected);
                         } else {
                             list = new ArrayList<>();
-                            list.add(record);
+                            list.add(projected);
                             mapping.put(key, list);
                         }
                     });
@@ -1473,6 +1482,7 @@ public final class TestValuesTableFactory
         @Override
         public DynamicTableSource copy() {
             return new TestValuesScanLookupTableSource(
+                    originType,
                     producedDataType,
                     changelogMode,
                     bounded,
