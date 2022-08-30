@@ -4151,6 +4151,13 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=@pa
               }
             }
           },
+          "other-concurrent-attempts" : {
+            "type" : "array",
+            "items" : {
+              "type" : "object",
+              "$ref" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:job:SubtaskExecutionAttemptDetailsInfo"
+            }
+          },
           "start-time" : {
             "type" : "integer"
           },
@@ -4350,6 +4357,9 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=@pa
         "type" : "object",
         "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:JobVertexBackPressureInfo:SubtaskBackPressureInfo",
         "properties" : {
+          "attempt-number" : {
+            "type" : "integer"
+          },
           "backpressure-level" : {
             "type" : "string",
             "enum" : [ "ok", "low", "high" ]
@@ -4359,6 +4369,13 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=@pa
           },
           "idleRatio" : {
             "type" : "number"
+          },
+          "other-concurrent-attempts" : {
+            "type" : "array",
+            "items" : {
+              "type" : "object",
+              "$ref" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:JobVertexBackPressureInfo:SubtaskBackPressureInfo"
+            }
           },
           "ratio" : {
             "type" : "number"
@@ -4851,6 +4868,13 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=@pa
         }
       }
     },
+    "other-concurrent-attempts" : {
+      "type" : "array",
+      "items" : {
+        "type" : "object",
+        "$ref" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:job:SubtaskExecutionAttemptDetailsInfo"
+      }
+    },
     "start-time" : {
       "type" : "integer"
     },
@@ -4992,6 +5016,13 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=@pa
         "write-records-complete" : {
           "type" : "boolean"
         }
+      }
+    },
+    "other-concurrent-attempts" : {
+      "type" : "array",
+      "items" : {
+        "type" : "object",
+        "$ref" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:job:SubtaskExecutionAttemptDetailsInfo"
       }
     },
     "start-time" : {
@@ -5607,10 +5638,16 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=@pa
     "slots-available" : {
       "type" : "integer"
     },
+    "slots-free-and-blocked" : {
+      "type" : "integer"
+    },
     "slots-total" : {
       "type" : "integer"
     },
     "taskmanagers" : {
+      "type" : "integer"
+    },
+    "taskmanagers-blocked" : {
       "type" : "integer"
     }
   }
@@ -5831,6 +5868,9 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=@pa
         "type" : "object",
         "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:taskmanager:TaskManagerInfo",
         "properties" : {
+          "blocked" : {
+            "type" : "boolean"
+          },
           "dataPort" : {
             "type" : "integer"
           },
@@ -6088,6 +6128,9 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=@pa
           }
         }
       }
+    },
+    "blocked" : {
+      "type" : "boolean"
     },
     "dataPort" : {
       "type" : "integer"
