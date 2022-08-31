@@ -39,6 +39,8 @@ public class ProjectSnapshotTransposeRule extends RelRule<ProjectSnapshotTranspo
     @Override
     public boolean matches(RelOptRuleCall call) {
         LogicalProject project = call.rel(0);
+        // Don't push a project which contains over into a snapshot, snapshot on window aggregate is
+        // unsupported for now.
         return project.getProjects().stream().noneMatch(RexOver::containsOver);
     }
 
