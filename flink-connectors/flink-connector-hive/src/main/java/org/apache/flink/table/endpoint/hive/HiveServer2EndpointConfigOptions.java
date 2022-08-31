@@ -48,7 +48,7 @@ public class HiveServer2EndpointConfigOptions {
             ConfigOptions.key("thrift.port")
                     .intType()
                     .defaultValue(10000)
-                    .withDescription("The port of the HiveServer2 endpoint");
+                    .withDescription("The port of the HiveServer2 endpoint.");
 
     public static final ConfigOption<Integer> THRIFT_WORKER_THREADS_MIN =
             ConfigOptions.key("thrift.worker.threads.min")
