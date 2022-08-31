@@ -36,15 +36,20 @@ public class RowColumnReader implements ColumnReader<WritableColumnVector> {
     public void readToVector(int readNumber, WritableColumnVector vector) throws IOException {
         HeapRowVector rowVector = (HeapRowVector) vector;
         WritableColumnVector[] vectors = rowVector.getFields();
+        // row vector null array
+        boolean[] isNulls = new boolean[readNumber];
         for (int i = 0; i < vectors.length; i++) {
             fieldReaders.get(i).readToVector(readNumber, vectors[i]);
 
             for (int j = 0; j < readNumber; j++) {
-                boolean isNull =
-                        (i == 0)
-                                ? vectors[i].isNullAt(j)
-                                : rowVector.isNullAt(j) && vectors[i].isNullAt(j);
-                if (isNull) {
+                if (i == 0) {
+                    isNulls[j] = vectors[i].isNullAt(j);
+                } else {
+                    isNulls[j] = isNulls[j] && vectors[i].isNullAt(j);
+                }
+                if (i == vectors.length - 1 && isNulls[j]) {
+                    // rowColumnVector[j] is null only when all fields[j] of rowColumnVector[j] is
+                    // null
                     rowVector.setNullAt(j);
                 }
             }
