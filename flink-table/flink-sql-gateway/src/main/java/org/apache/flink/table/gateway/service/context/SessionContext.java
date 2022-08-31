@@ -38,11 +38,12 @@ import org.apache.flink.table.delegation.Planner;
 import org.apache.flink.table.factories.FactoryUtil;
 import org.apache.flink.table.factories.PlannerFactoryUtil;
 import org.apache.flink.table.gateway.api.endpoint.EndpointVersion;
+import org.apache.flink.table.gateway.api.session.SessionEnvironment;
 import org.apache.flink.table.gateway.api.session.SessionHandle;
+import org.apache.flink.table.gateway.api.utils.SqlGatewayException;
 import org.apache.flink.table.gateway.service.operation.OperationExecutor;
 import org.apache.flink.table.gateway.service.operation.OperationManager;
 import org.apache.flink.table.gateway.service.utils.SqlExecutionException;
-import org.apache.flink.table.module.Module;
 import org.apache.flink.table.module.ModuleManager;
 import org.apache.flink.table.resource.ResourceManager;
 import org.apache.flink.util.FlinkUserCodeClassLoaders;
@@ -159,26 +160,6 @@ public class SessionContext {
     // Method to execute commands
     // --------------------------------------------------------------------------------------------
 
-    public void registerCatalog(String catalogName, Catalog catalog) {
-        sessionState.catalogManager.registerCatalog(catalogName, catalog);
-    }
-
-    public void registerModuleAtHead(String moduleName, Module module) {
-        Deque<String> moduleNames = new ArrayDeque<>(sessionState.moduleManager.listModules());
-        moduleNames.addFirst(moduleName);
-
-        sessionState.moduleManager.loadModule(moduleName, module);
-        sessionState.moduleManager.useModules(moduleNames.toArray(new String[0]));
-    }
-
-    public void setCurrentCatalog(String catalog) {
-        sessionState.catalogManager.setCurrentCatalog(catalog);
-    }
-
-    public void setCurrentDatabase(String database) {
-        sessionState.catalogManager.setCurrentDatabase(database);
-    }
-
     public OperationExecutor createOperationExecutor(Configuration executionConfig) {
         return new OperationExecutor(this, executionConfig);
     }
@@ -207,17 +188,16 @@ public class SessionContext {
     public static SessionContext create(
             DefaultContext defaultContext,
             SessionHandle sessionId,
-            EndpointVersion endpointVersion,
-            Configuration sessionConf,
+            SessionEnvironment environment,
             ExecutorService operationExecutorService) {
         // --------------------------------------------------------------------------------------------------------------
         // Init config
         // --------------------------------------------------------------------------------------------------------------
 
         Configuration configuration = defaultContext.getFlinkConfig().clone();
-        configuration.addAll(sessionConf);
+        configuration.addAll(Configuration.fromMap(environment.getSessionConfig()));
         // every session configure the specific local resource download directory
-        setResourceDownloadTmpDir(sessionConf, sessionId);
+        setResourceDownloadTmpDir(configuration, sessionId);
 
         // --------------------------------------------------------------------------------------------------------------
         // Init classloader
@@ -233,22 +213,10 @@ public class SessionContext {
 
         final ResourceManager resourceManager = new ResourceManager(configuration, userClassLoader);
 
-        final ModuleManager moduleManager = new ModuleManager();
+        final ModuleManager moduleManager = buildModuleManager(environment);
 
-        final EnvironmentSettings settings =
-                EnvironmentSettings.newInstance().withConfiguration(configuration).build();
-
-        CatalogManager catalogManager =
-                CatalogManager.newBuilder()
-                        // Currently, the classloader is only used by DataTypeFactory.
-                        .classLoader(userClassLoader)
-                        .config(configuration)
-                        .defaultCatalog(
-                                settings.getBuiltInCatalogName(),
-                                new GenericInMemoryCatalog(
-                                        settings.getBuiltInCatalogName(),
-                                        settings.getBuiltInDatabaseName()))
-                        .build();
+        final CatalogManager catalogManager =
+                buildCatalogManager(configuration, userClassLoader, environment);
 
         final FunctionCatalog functionCatalog =
                 new FunctionCatalog(configuration, resourceManager, catalogManager, moduleManager);
@@ -258,7 +226,7 @@ public class SessionContext {
         return new SessionContext(
                 defaultContext,
                 sessionId,
-                endpointVersion,
+                environment.getSessionEndpointVersion(),
                 configuration,
                 userClassLoader,
                 sessionState,
@@ -361,6 +329,74 @@ public class SessionContext {
         // override resource download temp directory
         configuration.set(
                 TableConfigOptions.RESOURCES_DOWNLOAD_DIR, path.toAbsolutePath().toString());
+    }
+
+    private static ModuleManager buildModuleManager(SessionEnvironment environment) {
+        final ModuleManager moduleManager = new ModuleManager();
+
+        environment
+                .getRegisteredModules()
+                .forEach(
+                        (moduleName, module) -> {
+                            Deque<String> moduleNames =
+                                    new ArrayDeque<>(moduleManager.listModules());
+                            moduleNames.addFirst(moduleName);
+
+                            moduleManager.loadModule(moduleName, module);
+                            moduleManager.useModules(moduleNames.toArray(new String[0]));
+                        });
+
+        return moduleManager;
+    }
+
+    private static CatalogManager buildCatalogManager(
+            Configuration configuration,
+            URLClassLoader userClassLoader,
+            SessionEnvironment environment) {
+        CatalogManager.Builder builder =
+                CatalogManager.newBuilder()
+                        // Currently, the classloader is only used by DataTypeFactory.
+                        .classLoader(userClassLoader)
+                        .config(configuration);
+
+        // init default catalog
+        String defaultCatalogName;
+        Catalog defaultCatalog;
+        if (environment.getDefaultCatalog().isPresent()) {
+            defaultCatalogName = environment.getDefaultCatalog().get();
+            defaultCatalog = environment.getRegisteredCatalogs().get(defaultCatalogName);
+        } else {
+            EnvironmentSettings settings =
+                    EnvironmentSettings.newInstance().withConfiguration(configuration).build();
+            defaultCatalogName = settings.getBuiltInCatalogName();
+
+            if (environment.getRegisteredCatalogs().containsKey(defaultCatalogName)) {
+                throw new SqlGatewayException(
+                        String.format(
+                                "The name of the registered catalog is conflicts with the built-in default catalog name: %s.",
+                                defaultCatalogName));
+            }
+
+            defaultCatalog =
+                    new GenericInMemoryCatalog(
+                            defaultCatalogName, settings.getBuiltInDatabaseName());
+        }
+        defaultCatalog.open();
+
+        CatalogManager catalogManager =
+                builder.defaultCatalog(defaultCatalogName, defaultCatalog).build();
+
+        // filter the default catalog out to avoid repeated registration
+        environment
+                .getRegisteredCatalogs()
+                .forEach(
+                        (catalogName, catalog) -> {
+                            if (!catalogName.equals(defaultCatalogName)) {
+                                catalogManager.registerCatalog(catalogName, catalog);
+                            }
+                        });
+
+        return catalogManager;
     }
 
     // --------------------------------------------------------------------------------------------
