@@ -58,7 +58,7 @@ public class AsyncSinkBaseITCase {
                 .sinkTo(new ArrayListAsyncSink(1, 1, 2, 10, 1000, 10));
         assertThatThrownBy(() -> env.execute("Integration Test: AsyncSinkBaseITCase"))
                 .isInstanceOf(JobExecutionException.class)
-                .getRootCause()
+                .rootCause()
                 .hasMessageContaining(
                         "Intentional error on persisting 1_000_000 to ArrayListDestination");
     }

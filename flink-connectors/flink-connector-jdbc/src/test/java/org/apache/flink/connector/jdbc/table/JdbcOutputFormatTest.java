@@ -181,7 +181,7 @@ public class JdbcOutputFormatTest extends JdbcDataTestBase {
                             outputFormat.writeRecord(row);
                             outputFormat.close();
                         })
-                .getRootCause()
+                .rootCause()
                 .isInstanceOf(ClassCastException.class);
     }
 
@@ -221,7 +221,7 @@ public class JdbcOutputFormatTest extends JdbcDataTestBase {
                             outputFormat.writeRecord(row);
                             outputFormat.close();
                         })
-                .getRootCause()
+                .rootCause()
                 .isInstanceOf(ClassCastException.class);
     }
 
