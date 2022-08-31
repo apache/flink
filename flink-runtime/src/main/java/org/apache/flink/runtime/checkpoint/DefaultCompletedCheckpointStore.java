@@ -150,9 +150,9 @@ public class DefaultCompletedCheckpointStore<R extends ResourceVersion<R>>
         unregisterUnusedState(completedCheckpoints);
 
         if (subsume.isPresent()) {
-            LOG.debug("Added {} to {} without any older checkpoint to subsume.", checkpoint, path);
-        } else {
             LOG.debug("Added {} to {} and subsume {}.", checkpoint, path, subsume);
+        } else {
+            LOG.debug("Added {} to {} without any older checkpoint to subsume.", checkpoint, path);
         }
         return subsume.orElse(null);
     }
