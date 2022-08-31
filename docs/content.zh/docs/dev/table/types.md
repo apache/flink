@@ -154,35 +154,35 @@ Python Table API, 的数据类型详见： `pyflink.table.types.DataTypes`.
 {{< /tab >}}
 {{< /tabs >}}
 
-默认 `Planner` 支持下列SQL数据类型：
+默认 `Planner` 支持下列 SQL 数据类型：
 
-| 数据类型             | 备注                   |
-|:-----------------|:---------------------|
-| `CHAR`           |                      |
-| `VARCHAR`        |                      |
-| `STRING`         |                      |
-| `BOOLEAN`        |                      |
-| `BINARY`         |                      |
-| `VARBINARY`      |                      |
-| `BYTES`          |                      |
-| `DECIMAL`        | 支持固定精度和比例            |
-| `TINYINT`        |                      |
-| `SMALLINT`       |                      |
-| `INTEGER`        |                      |
-| `BIGINT`         |                      |
-| `FLOAT`          |                      |
-| `DOUBLE`         |                      |
-| `DATE`           |                      |
-| `TIME`           | 仅支到0.的精度             |
-| `TIMESTAMP`      |                      |
-| `TIMESTAMP_LTZ`  |                      |
-| `INTERVAL`       | 仅支持MONTH 到 SECOND(3） |
-| `ARRAY`          |                      |
-| `MULTISET`       |                      |
-| `MAP`            |                      |
-| `ROW`            |                      |
-| `RAW`            |                      |
-| Structured types | 目前只暴露在UDF函数中         |
+| 数据类型             | 备注                     |
+|:-----------------|:-----------------------|
+| `CHAR`           |                        |
+| `VARCHAR`        |                        |
+| `STRING`         |                        |
+| `BOOLEAN`        |                        |
+| `BINARY`         |                        |
+| `VARBINARY`      |                        |
+| `BYTES`          |                        |
+| `DECIMAL`        | 支持固定精度和比例。             |
+| `TINYINT`        |                        |
+| `SMALLINT`       |                        |
+| `INTEGER`        |                        |
+| `BIGINT`         |                        |
+| `FLOAT`          |                        |
+| `DOUBLE`         |                        |
+| `DATE`           |                        |
+| `TIME`           | 仅支持到0.的精度。             |
+| `TIMESTAMP`      |                        |
+| `TIMESTAMP_LTZ`  |                        |
+| `INTERVAL`       | 仅支持 MONTH 到 SECOND(3）。 |
+| `ARRAY`          |                        |
+| `MULTISET`       |                        |
+| `MAP`            |                        |
+| `ROW`            |                        |
+| `RAW`            |                        |
+| Structured types | 目前只暴露在 UDF 函数中。        |
 
 ### 字符串
 
@@ -205,21 +205,21 @@ DataTypes.CHAR(n)
 
 **JVM Types桥接**
 
-| Java Type                                | 输入 | 输入 | 备注          |
-|:-----------------------------------------|:-----:|:------:|:------------|
-| `java.lang.String`                       |   X   |   X    | *默认*   |
-| `byte[]`                                 |   X   |   X    | 假定 UTF-8 编码 |
-| `org.apache.flink.table.data.StringData` |   X   |   X    | 内部数据结构      |
+| Java Type                                | 输入 | 输入 | 备注           |
+|:-----------------------------------------|:-----:|:------:|:-------------|
+| `java.lang.String`                       |   X   |   X    | *默认*         |
+| `byte[]`                                 |   X   |   X    | 假定 UTF-8 编码。 |
+| `org.apache.flink.table.data.StringData` |   X   |   X    | 内部数据结构。      |
 
 {{< /tab >}}
 {{< tab "Python" >}}
 ```python
-Not supported.。
+Not supported 。
 ```
 {{< /tab >}}
 {{< /tabs >}}
 
-可以使用 `CHAR(n)` 声明该类型，其中n表示其长度，n 的取值范围为[`1`,`2,147,483,647`] 如果没有指定`n` 的值，n 等于 1 
+可以使用 `CHAR(n)` 声明该类型，其中n表示其长度，`n` 的取值范围为 `1` 到 `2,147,483,647` (包括两数在内) ，如果没有指定`n` 的值，n 等于 1。 
 
 
 #### `VARCHAR` / `STRING`
@@ -245,11 +245,11 @@ DataTypes.STRING()
 
 **JVM Types桥接**
 
-| Java Type                                | 输入 | 输入 | 备注          |
-|:-----------------------------------------|:-----:|:------:|:------------|
-| `java.lang.String`                       |   X   |   X    | *默认*        |
-| `byte[]`                                 |   X   |   X    | 假定 UTF-8 编码 |
-| `org.apache.flink.table.data.StringData` |   X   |   X    | 内部数据结构      |
+| Java Type                                | 输入 | 输入 | 备注           |
+|:-----------------------------------------|:-----:|:------:|:-------------|
+| `java.lang.String`                       |   X   |   X    | *默认*         |
+| `byte[]`                                 |   X   |   X    | 假定 UTF-8 编码。 |
+| `org.apache.flink.table.data.StringData` |   X   |   X    | 内部数据结构。      |
 
 {{< /tab >}}
 {{< tab "Python" >}}
@@ -259,11 +259,11 @@ DataTypes.VARCHAR(n)
 DataTypes.STRING()
 ```
 
-<span class="label label-danger">请注意</span> 目前，`DataTypes.VARCHAR(n)` 中指定的最大指 `n` 当前必须为 `2,147,483,647`。
+<span class="label label-danger">请注意</span> 目前，`DataTypes.VARCHAR(n)` 中指定的最大值 `n` 当前必须为 `2,147,483,647`。
 {{< /tab >}}
 {{< /tabs >}}
 
-可以使用 `VARCHAR(n)` 声明该类型，其中 `n` 表示其最大值。`n` 的取值范围为[ `1` , `2,147,483,647` ] ，如果没有指定 `n` 的值，n 等于 1。
+可以使用 `VARCHAR(n)` 声明该类型，其中 `n` 表示其最大值。`n` 的取值范围为 `1` 到 `2,147,483,647` (包括两数在内) ，如果没有指定 `n` 的值，n 等于 1。
 
 `STRING` 等价于 `VARCHAR(2147483647)`。
 
@@ -300,12 +300,12 @@ Not supported.
 {{< /tab >}}
 {{< /tabs >}}
 
-可以使用 `BINARY(n)` 声明该类型，其中 `n` 表示字节数。 `n` 的取值范围为 [`1` , `2,147,483,647` ] 如果没有指定 `n` 的值， n 等于 1。
+可以使用 `BINARY(n)` 声明该类型，其中 `n` 表示字节数。 `n` 的取值范围为 `1` 到 `2,147,483,647` (包括两数在内) ，如果没有指定 `n` 的值， n 等于 1。
 
 
 #### `VARBINARY` / `BYTES`
 
-可变长度的二进制字符串的数据类型（可以理解为是一种字节序列）
+可变长度的二进制字符串的数据类型（可以理解为是一种字节序列）。
 
 **声明**
 
@@ -343,7 +343,7 @@ DataTypes.BYTES()
 {{< /tab >}}
 {{< /tabs >}}
 
-可以使用 `VARBINARY(n)` 声明该类型，其中 `n` 表示字节数的最大值。 `n` 的取值范围为 [`1`,`2,147,483,647`], 如果没有指定 `n` 的值， n 等于 1 。
+可以使用 `VARBINARY(n)` 声明该类型，其中 `n` 表示字节数的最大值。 `n` 的取值范围为 `1` 到 `2,147,483,647` (包括两数在内) ，如果没有指定 `n` 的值， n 等于 1 。
 
 
 `BYTES` 等价于 `VARBINARY(2147483647)`。
@@ -390,19 +390,19 @@ DataTypes.DECIMAL(p, s)
 DataTypes.DECIMAL(p, s)
 ```
 
-<span class="label label-danger">请注意</span> 当前， `DataTypes.DECIMAL(p, s)`中指定的`precision`和`scale`当前必须分别为`38`和`18`。
+<span class="label label-danger">请注意</span> 当前， `DataTypes.DECIMAL(p, s)` 中指定的 `precision` 和 `scale` 当前必须分别为`38`和`18`。
 {{< /tab >}}
 {{< /tabs >}}
 
 可以使用`DECIMAL(p, s)` 声明类型，其中`p` 是该数字中整数部分的位数(*precision*) ， `s` 是该数字小数点右边的位数（*scale*）。
-`p` 的取值范围是[`1`,`38`] , `s`的取值范围是[`0` , `p`] 。 `p` 的默认值为 10。 `s` 的默认值为 0。
+`p` 的取值范围是`1`到`38`(包括两数在内) , `s`的取值范围是`0`到 `p` (包括两值在内) 。 `p` 的默认值为 10。 `s` 的默认值为 0。
 
 
 `NUMERIC(p, s)` 等价于 `DEC(p, s)` 。
 
 #### `TINYINT`
 
-单字节的有符号整数类型，存储 `-128` ~ `127` 的整数。
+单字节的有符号整数类型，存储 `-128` 到 `127` 的整数。
 
 **声明**
 
@@ -433,7 +433,7 @@ DataTypes.TINYINT()
 {{< /tabs >}}
 
 #### `SMALLINT`
-2字节的有符号整数类型，存储`-32,768` ~ `32,767` 的整数。
+2字节的有符号整数类型，存储`-32,768` 到 `32,767` 的整数。
 
 **声明**
 
@@ -464,7 +464,7 @@ DataTypes.SMALLINT()
 {{< /tabs >}}
 
 #### `INT`
-4字节的有符号整数类型，存储 `-2,147,483,648` ~ `2,147,483,647` 的整数。
+4字节的有符号整数类型，存储 `-2,147,483,648` 到 `2,147,483,647` 的整数。
 
 **声明**
 
@@ -500,7 +500,7 @@ DataTypes.INT()
 
 #### `BIGINT`
 
-8字节的有符号整数类型，存储 `-9,223,372,036,854,775,808` ~ `9,223,372,036,854,775,807`的整数 。
+8字节的有符号整数类型，存储 `-9,223,372,036,854,775,808` 到 `9,223,372,036,854,775,807`的整数 。
 
 **声明**
 
@@ -623,12 +623,12 @@ DataTypes.DATE()
 
 **JVM Types桥接**
 
-| Java Type            | 输入 | 输出 | 备注                                      |
-|:---------------------|:-----:|:------:|:---------------------------------------------|
-|`java.time.LocalDate` | X     | X      | *默认*                                    |
-|`java.sql.Date`       | X     | X      |                                              |
-|`java.lang.Integer`   | X     | X      | 描述自纪元以来的天数。   |
-|`int`                 | X     | (X)    | 描述自纪元以来的天数。<br>仅当类型不可为空时才输出。 |
+| Java Type            | 输入 | 输出 | 备注                              |
+|:---------------------|:-----:|:------:|:--------------------------------|
+|`java.time.LocalDate` | X     | X      | *默认*                            |
+|`java.sql.Date`       | X     | X      |                                 |
+|`java.lang.Integer`   | X     | X      | 描述自基准时间点以来的天数。                  |
+|`int`                 | X     | (X)    | 描述自基准时间点以来的天数。<br>仅当类型不可为空时才输出。 |
 
 {{< /tab >}}
 {{< tab "Python" >}}
@@ -640,12 +640,12 @@ DataTypes.DATE()
 
 #### `TIME`
 
-无时区的时间类型，包括 `小时:分钟:秒[.fractional]`，精度可达纳秒，取值范围为` 00:00:00.000000000` 到 `23:59:59.999999999`。
+无时区的时间类型，包括 `小时:分钟:秒[.小数秒]`，精度可达纳秒，取值范围为` 00:00:00.000000000` 到 `23:59:59.999999999`。
 
 
 {{< tabs "time" >}}
 {{< tab "SQL/Java/Scala" >}}
-与SQL标准相比，不支持leap秒（23:59:60和23:59:61），因为语义更接近java.time.LocalTime。没有提供带时区的时间。
+与SQL标准相比，不支持闰秒（23:59:60和23:59:61），因为语义更接近java.time.LocalTime。没有提供带时区的时间。
 
 {{< /tab >}}
 {{< tab "Python" >}}
@@ -686,15 +686,15 @@ DataTypes.TIME(p)
 DataTypes.TIME(p)
 ```
 
-<span class="label label-danger">请注意</span> 当前，`DataTypes.TIME(p)` 中指定的 `precision` 必须为 `0`。
+<span class="label label-danger">请注意</span> 当前，`DataTypes.TIME(p)` 中指定的 `精度` 必须为 `0`。
 {{< /tab >}}
 {{< /tabs >}}
 
-可以使用 `TIME(p)` 声明该类型，其中 `p` 是小数秒的位数（精度）。 p 的取值范围为[`0`,`9`]。 如果未指定精度，则 p 等于 0。
+可以使用 `TIME(p)` 声明该类型，其中 `p` 是小数秒的位数（精度）。 p 的取值范围为`0`到`9`(包括两数在内)。 如果未指定精度，则 p 等于 0。
 
 #### `TIMESTAMP`
 
-有时区的时间类型，由 `年-月-日 小时:分钟:秒[.fractional]`组成，具有高达纳秒的精度，范围从`0000-01-01 00:00:00.000000000`到 `9999-12-31 23:59:59.999999999`。
+有时区的时间类型，由 `年-月-日 小时:分钟:秒[.小数秒]`组成，可达到纳秒级别的精度，范围从`0000-01-01 00:00:00.000000000`到 `9999-12-31 23:59:59.999999999`。
 
 {{< tabs "timestamps" >}}
 {{< tab "SQL/Java/Scala" >}}
@@ -707,7 +707,7 @@ DataTypes.TIME(p)
 
 与 SQL 标准相比，不支持闰秒（`23:59:60` 和 `23:59:61`）。
 
-不支持从和到“BIGINT”的转换，因为这意味着时区。 但是，这种类型是无时区限制。 如果您有这样的需求，请使用 `TIMESTAMP_LTZ`。
+不支持“BIGINT”转为其他类型或其他类型转为“BIGINT”，因为这意味着时区。 但是，这种类型是无时区限制。 如果您有这样的需求，请使用 `TIMESTAMP_LTZ`。
 
 {{< /tab >}}
 {{< /tabs >}}
@@ -743,17 +743,17 @@ DataTypes.TIMESTAMP(p)
 DataTypes.TIMESTAMP(p)
 ```
 
-<span class="label label-danger">请注意</span> 当前，`DataTypes.TIMESTAMP(p)` 中指定的 `precision` 必须为 `3`。
+<span class="label label-danger">请注意</span> 当前，`DataTypes.TIMESTAMP(p)` 中指定的 `精度` 必须为 `3`。
 {{< /tab >}}
 {{< /tabs >}}
 
-可以使用 `TIMESTAMP(p)` 声明该类型，其中 `p` 是小数秒的位数（*精度*）。 `p` 的取值范围为[`0`,`9`]。如果没有指定精度，p 等于 6。
+可以使用 `TIMESTAMP(p)` 声明该类型，其中 `p` 是小数秒的位数（*精度*）。 `p` 的取值范围为`0`到`9`(包括两数在内)。如果没有指定精度，p 等于 6。
 
 `TIMESTAMP(p) WITHOUT TIME ZONE` 是这种类型的同义词。
 
 #### `TIMESTAMP WITH TIME ZONE`
 
-包含时区的时间戳的数据类型，格式为 `年-月-日 时：分：秒[.fractional]`，精度可达纳秒，取值范围为 `0000-01-01 00:00:00.000000000 +14:59` 至 `9999 -12-31 23:59:59.999999999 -14:59`。
+包含时区的时间戳的数据类型，格式为 `年-月-日 时：分：秒[.小数秒]`，精度可达纳秒，取值范围为 `0000-01-01 00:00:00.000000000 +14:59` 至 `9999 -12-31 23:59:59.999999999 -14:59`。
 
 {{< tabs "timestamps" >}}
 {{< tab "SQL/Java/Scala" >}}
@@ -764,7 +764,7 @@ DataTypes.TIMESTAMP(p)
 {{< /tab >}}
 {{< /tabs >}}
 
-与 `TIMESTAMP_LTZ` 相比，时区偏移信息物理存储在每个数据中。 它单独用于每次计算、可视化或与外部系统的通信。
+与 `TIMESTAMP_LTZ` 相比，时区偏移信息物理存储在每条数据中，便于每一次计算、数据显示、与外部系统进行通信。
 
 
 **声明**
@@ -783,10 +783,10 @@ DataTypes.TIMESTAMP_WITH_TIME_ZONE(p)
 
 **JVM Types桥接**
 
-| Java Type                 | 输入 | 输出 | 备注      |
-|:--------------------------|:-----:|:------:|:--------|
-|`java.time.OffsetDateTime` | X     | X      | *默认*    |
-|`java.time.ZonedDateTime`  | X     |        | 忽略时区ID. |
+| Java Type                 | 输入 | 输出 | 备注        |
+|:--------------------------|:-----:|:------:|:----------|
+|`java.time.OffsetDateTime` | X     | X      | *默认*      |
+|`java.time.ZonedDateTime`  | X     |        | 忽略时区 ID 。 |
 
 {{< /tab >}}
 {{< tab "Python" >}}
@@ -803,25 +803,25 @@ Not supported.
 {{< /tab >}}
 {{< /tabs >}}
 
-可以使用 `TIMESTAMP(p) WITH TIME ZONE` 声明该类型，其中 `p` 是小数秒的位数（*精度*）。 `p` 取值范围为[`0`,`9`]。如果不指定精度，p 等于 6。
+可以使用 `TIMESTAMP(p) WITH TIME ZONE` 声明该类型，其中 `p` 是小数秒的位数（*precision*）。 `p` 取值范围为`0`到`9`(包括两数在内)。如果不指定精度，p 等于 6。
 
 #### `TIMESTAMP_LTZ`
 
-时间戳的数据类型 *带有本地*时区，格式为`年-月-日 时:分:秒[.fractional] zone` ，精度高达纳秒，值范围从 `0000-01-01 00:00:00.000000000 +14:59` 到 `9999-12-31 23:59:59.999999999 -14:59`。
+带有*本地*时区的时间戳数据类型 ，其格式为 年-月-日 时:分:秒[.小数秒] zone，格式为`年-月-日 时:分:秒[.小数秒] zone` ，精度高达纳秒，值范围从 `0000-01-01 00:00:00.000000000 +14:59` 到 `9999-12-31 23:59:59.999999999 -14:59`。
 
 {{< tabs "timestamps" >}}
 {{< tab "SQL/Java/Scala" >}}
 
 不支持闰秒（`23:59:60` 和 `23:59:61`），其语义更接近 `java.time.OffsetDateTime`。
 
-与`TIMESTAMP WITH TIME ZONE`相比，时区偏移信息没有物理存储在每个数据中。 相反，该类型在 UTC 时区假定为 `java.time.Instant`的语义处于 Table生态系统的边缘。
-每个数据都在配置的本地时区中解释 当前会话用于计算和可视化。
+与`TIMESTAMP WITH TIME ZONE`相比，时区偏移信息没有物理存储在每个数据中。 相反，该类型在 UTC 时区假定为 `java.time.Instant`的语义处于 Table 生态系统的边缘。
+每个数据都会配置成当前会话中配置的本地时区，以进行计算和可视化。
 
 {{< /tab >}}
 {{< tab "Python" >}}
 
 不支持闰秒（`23:59:60` 和 `23:59:61`）。
-与`TIMESTAMP WITH TIME ZONE`相比，时区偏移信息没有物理存储 在每个数据中。每个数据都在当前会话中配置的本地时区进行解释，以进行计算和可视化。
+与`TIMESTAMP WITH TIME ZONE`相比，时区偏移信息没有物理存储在每条数据中。每个数据都在当前会话中配置的本地时区进行解释，以进行计算和可视化。
 
 {{< /tab >}}
 {{< /tabs >}}
@@ -851,11 +851,11 @@ DataTypes.TIMESTAMP_WITH_LOCAL_TIME_ZONE(p)
 | Java Type          | 输入 | 输出 | 备注                                           |
 |:-------------------|:-----:|:------:|:--------------------------------------------------|
 |`java.time.Instant` | X     | X      | *默认*                                         |
-|`java.lang.Integer` | X     | X      | 描述自纪元以来的秒数。      |
-|`int`               | X     | (X)    | 描述自纪元以来的秒数。<br>仅当类型不可为空时才输出。 |
-|`java.lang.Long`    | X     | X      | 描述自纪元以来的毫秒数。 |
-|`long`              | X     | (X)    | 描述自纪元以来的毫秒数。<br>仅当类型不可为空时才输出。 |
-|`java.sql.Timestamp`| X     | X      | 描述自纪元以来的毫秒数。 |
+|`java.lang.Integer` | X     | X      | 描述自基准时间点以来的秒数。      |
+|`int`               | X     | (X)    | 描述自基准时间点以来的秒数。<br>仅当类型不可为空时才输出。 |
+|`java.lang.Long`    | X     | X      | 描述自基准时间点以来的毫秒数。 |
+|`long`              | X     | (X)    | 描述自基准时间点以来的毫秒数。<br>仅当类型不可为空时才输出。 |
+|`java.sql.Timestamp`| X     | X      | 描述自基准时间点以来的毫秒数。 |
 |`org.apache.flink.table.data.TimestampData` | X     | X      | 内部数据结构。 |
 
 {{< /tab >}}
@@ -865,11 +865,11 @@ DataTypes.TIMESTAMP_LTZ(p)
 DataTypes.TIMESTAMP_WITH_LOCAL_TIME_ZONE(p)
 ```
 
-<span class="label label-danger">请注意</span> 当前，`DataTypes.TIMESTAMP_LTZ(p)` 中指定的 `precision` 必须为 `3`。
+<span class="label label-danger">请注意</span> 当前，`DataTypes.TIMESTAMP_LTZ(p)` 中指定的 `精度` 必须为 `3`。
 {{< /tab >}}
 {{< /tabs >}}
 
-可以使用 `TIMESTAMP_LTZ(p)` 声明该类型，其中 `p` 是小数秒的位数（精度）。 `p` 取值范围为[`0`,`9`]。如果未指定精度，则 p 等于 6。
+可以使用 `TIMESTAMP_LTZ(p)` 声明该类型，其中 `p` 是小数秒的位数（精度）。 `p` 取值范围为`0`到`9`(包括两数在内)。如果未指定精度，则 p 等于 6。
 
 `TIMESTAMP(p) WITH LOCAL TIME ZONE` 是这种类型的同义词。
 
@@ -923,7 +923,7 @@ DataTypes.INTERVAL(DataTypes.MONTH())
 {{< /tabs >}}
 
 
-可以使用上述组合声明类型，其中 `p` 是年份的位数（年份精度）。 `p`取值范围为[`1` ,`4`]。 如果未指定年份精度，则 p 等于 2。
+可以使用上述组合声明类型，其中 `p` 是年份的位数（年份精度）。 `p`取值范围为`1`到`4`(包括两数在内)。 如果未指定年份精度，则 p 等于 2。
 
 #### `INTERVAL DAY TO SECOND`
 
@@ -1008,7 +1008,7 @@ DataTypes.INTERVAL(DataTypes.SECOND(p2))
 
 
 可以使用上述组合声明类型，其中 `p1` 是天数 (*日精度*）和`p2`是小数秒的位数（*小数精度*）。
-`p1` 的取值范围为[`1` , `6`]。 `p2` 的值取值范围为[`0`,`9`]。
+`p1` 的取值范围为`1`到`6`(包括两数在内)。 `p2` 的值取值范围为`0`到`9`(包括两数在内)。
 如果没有指定`p1`的值， `p1` 默认等于`2`。 如果没有指定`p2`的值，默认等于 `6`。
 
 ### 结构型数据类型
@@ -1050,7 +1050,7 @@ DataTypes.ARRAY(t)
 {{< /tabs >}}
 
 
-可以使用 `ARRAY<t>` 声明类型，其中 `t` 是包含的数据类型元素。
+可以使用 `ARRAY<t>` 声明类型，`t` 是其中元素的数据类型。。
 `t ARRAY` 是更接近 SQL 标准的同义词。 例如，`INT ARRAY` 是相当于`ARRAY<INT>`。
 
 #### `MAP`
