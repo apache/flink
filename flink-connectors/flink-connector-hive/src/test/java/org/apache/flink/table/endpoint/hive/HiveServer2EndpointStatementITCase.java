@@ -155,6 +155,10 @@ public class HiveServer2EndpointStatementITCase extends AbstractSqlGatewayStatem
         for (String sql :
                 Arrays.asList(
                         "RESET",
+                        "CREATE CATALOG `default_catalog` \n"
+                                + "WITH (\n"
+                                + "'type' = 'generic_in_memory',\n"
+                                + "'default-database' = 'default_database')",
                         "USE CATALOG `default_catalog`",
                         "DROP CATALOG hive",
                         "UNLOAD MODULE hive")) {

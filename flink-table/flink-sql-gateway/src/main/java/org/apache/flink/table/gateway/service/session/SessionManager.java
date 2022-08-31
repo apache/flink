@@ -19,7 +19,6 @@
 package org.apache.flink.table.gateway.service.session;
 
 import org.apache.flink.annotation.VisibleForTesting;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.table.gateway.api.session.SessionEnvironment;
 import org.apache.flink.table.gateway.api.session.SessionHandle;
@@ -149,16 +148,7 @@ public class SessionManager {
 
         SessionContext sessionContext =
                 SessionContext.create(
-                        defaultContext,
-                        sessionId,
-                        environment.getSessionEndpointVersion(),
-                        Configuration.fromMap(environment.getSessionConfig()),
-                        operationExecutorService);
-
-        environment.getRegisteredCatalogs().forEach(sessionContext::registerCatalog);
-        environment.getRegisteredModules().forEach(sessionContext::registerModuleAtHead);
-        environment.getDefaultCatalog().ifPresent(sessionContext::setCurrentCatalog);
-        environment.getDefaultDatabase().ifPresent(sessionContext::setCurrentDatabase);
+                        defaultContext, sessionId, environment, operationExecutorService);
 
         session = new Session(sessionContext);
         sessions.put(sessionId, session);
