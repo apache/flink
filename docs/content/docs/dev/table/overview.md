@@ -59,5 +59,6 @@ Where to go next?
 * [SQL]({{< ref "docs/dev/table/sql/overview" >}}): Supported operations and syntax for SQL.
 * [Built-in Functions]({{< ref "docs/dev/table/functions/systemFunctions" >}}): Supported functions in Table API and SQL.
 * [SQL Client]({{< ref "docs/dev/table/sqlClient" >}}): Play around with Flink SQL and submit a table program to a cluster without programming knowledge.
+* [SQL Gateway]({{< ref "docs/dev/table/sql-gateway/overview" >}}): A service that enables the multiple clients to execute SQL from the remote in concurrency.
 
 {{< top >}}
