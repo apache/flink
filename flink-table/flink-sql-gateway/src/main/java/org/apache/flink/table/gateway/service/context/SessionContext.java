@@ -38,6 +38,7 @@ import org.apache.flink.table.delegation.Planner;
 import org.apache.flink.table.factories.FactoryUtil;
 import org.apache.flink.table.factories.PlannerFactoryUtil;
 import org.apache.flink.table.gateway.api.endpoint.EndpointVersion;
+import org.apache.flink.table.gateway.api.session.SessionEnvironment;
 import org.apache.flink.table.gateway.api.session.SessionHandle;
 import org.apache.flink.table.gateway.service.operation.OperationExecutor;
 import org.apache.flink.table.gateway.service.operation.OperationManager;
@@ -207,13 +208,13 @@ public class SessionContext {
     public static SessionContext create(
             DefaultContext defaultContext,
             SessionHandle sessionId,
-            EndpointVersion endpointVersion,
-            Configuration sessionConf,
+            SessionEnvironment environment,
             ExecutorService operationExecutorService) {
         // --------------------------------------------------------------------------------------------------------------
         // Init config
         // --------------------------------------------------------------------------------------------------------------
 
+        Configuration sessionConf = Configuration.fromMap(environment.getSessionConfig());
         Configuration configuration = defaultContext.getFlinkConfig().clone();
         configuration.addAll(sessionConf);
         // every session configure the specific local resource download directory
@@ -235,39 +236,78 @@ public class SessionContext {
 
         final ModuleManager moduleManager = new ModuleManager();
 
-        final EnvironmentSettings settings =
-                EnvironmentSettings.newInstance().withConfiguration(configuration).build();
-
-        CatalogManager catalogManager =
-                CatalogManager.newBuilder()
-                        // Currently, the classloader is only used by DataTypeFactory.
-                        .classLoader(userClassLoader)
-                        .config(configuration)
-                        .defaultCatalog(
-                                settings.getBuiltInCatalogName(),
-                                new GenericInMemoryCatalog(
-                                        settings.getBuiltInCatalogName(),
-                                        settings.getBuiltInDatabaseName()))
-                        .build();
+        final CatalogManager catalogManager =
+                buildCatalogManager(configuration, userClassLoader, environment);
 
         final FunctionCatalog functionCatalog =
                 new FunctionCatalog(configuration, resourceManager, catalogManager, moduleManager);
         SessionState sessionState =
                 new SessionState(catalogManager, moduleManager, resourceManager, functionCatalog);
 
-        return new SessionContext(
-                defaultContext,
-                sessionId,
-                endpointVersion,
-                configuration,
-                userClassLoader,
-                sessionState,
-                new OperationManager(operationExecutorService));
+        // --------------------------------------------------------------------------------------------------------------
+        // Build session context and return
+        // --------------------------------------------------------------------------------------------------------------
+
+        SessionContext sessionContext =
+                new SessionContext(
+                        defaultContext,
+                        sessionId,
+                        environment.getSessionEndpointVersion(),
+                        configuration,
+                        userClassLoader,
+                        sessionState,
+                        new OperationManager(operationExecutorService));
+
+        // filter the default catalog out to avoid exception caused by repeated registration
+        String currentCatalog = sessionContext.sessionState.catalogManager.getCurrentCatalog();
+        environment
+                .getRegisteredCatalogs()
+                .forEach(
+                        (catalogName, catalog) -> {
+                            if (!catalogName.equals(currentCatalog)) {
+                                sessionContext.registerCatalog(catalogName, catalog);
+                            }
+                        });
+
+        environment.getRegisteredModules().forEach(sessionContext::registerModuleAtHead);
+
+        return sessionContext;
     }
 
     // ------------------------------------------------------------------------------------------------------------------
     // Helpers
     // ------------------------------------------------------------------------------------------------------------------
+
+    private static CatalogManager buildCatalogManager(
+            Configuration configuration,
+            URLClassLoader userClassLoader,
+            SessionEnvironment environment) {
+        CatalogManager.Builder builder =
+                CatalogManager.newBuilder()
+                        // Currently, the classloader is only used by DataTypeFactory.
+                        .classLoader(userClassLoader)
+                        .config(configuration);
+
+        // init default catalog
+        String defaultCatalogName;
+        Catalog defaultCatalog;
+        if (environment.getDefaultCatalog().isPresent()) {
+            defaultCatalogName = environment.getDefaultCatalog().get();
+            defaultCatalog = environment.getRegisteredCatalogs().get(defaultCatalogName);
+        } else {
+            EnvironmentSettings settings =
+                    EnvironmentSettings.newInstance().withConfiguration(configuration).build();
+            defaultCatalogName = settings.getBuiltInCatalogName();
+            defaultCatalog =
+                    new GenericInMemoryCatalog(
+                            defaultCatalogName, settings.getBuiltInDatabaseName());
+        }
+        defaultCatalog.open();
+
+        return builder.defaultCatalog(defaultCatalogName, defaultCatalog)
+                .currentDatabase(environment.getDefaultDatabase().orElse(null))
+                .build();
+    }
 
     public TableEnvironmentInternal createTableEnvironment() {
         // checks the value of RUNTIME_MODE

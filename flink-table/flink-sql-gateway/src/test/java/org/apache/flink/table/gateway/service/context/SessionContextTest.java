@@ -21,6 +21,7 @@ package org.apache.flink.table.gateway.service.context;
 import org.apache.flink.client.cli.DefaultCLI;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ReadableConfig;
+import org.apache.flink.table.gateway.api.session.SessionEnvironment;
 import org.apache.flink.table.gateway.api.session.SessionHandle;
 import org.apache.flink.table.gateway.api.utils.MockedEndpointVersion;
 import org.apache.flink.table.gateway.api.utils.ThreadUtils;
@@ -30,6 +31,8 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.concurrent.ExecutorService;
 
 import static org.apache.flink.configuration.PipelineOptions.MAX_PARALLELISM;
@@ -129,17 +132,20 @@ class SessionContextTest {
     // --------------------------------------------------------------------------------------------
 
     private SessionContext createSessionContext() {
-        Configuration flinkConfig = new Configuration();
-        flinkConfig.set(OBJECT_REUSE, true);
-        flinkConfig.set(MAX_PARALLELISM, 16);
+        Map<String, String> flinkConfig = new HashMap<>();
+        flinkConfig.put(OBJECT_REUSE.key(), "true");
+        flinkConfig.put(MAX_PARALLELISM.key(), "16");
         DefaultContext defaultContext =
-                new DefaultContext(flinkConfig, Collections.singletonList(new DefaultCLI()));
+                new DefaultContext(
+                        Configuration.fromMap(flinkConfig),
+                        Collections.singletonList(new DefaultCLI()));
+        SessionEnvironment environment =
+                SessionEnvironment.newBuilder()
+                        .setSessionEndpointVersion(MockedEndpointVersion.V1)
+                        .addSessionConfig(flinkConfig)
+                        .build();
         return SessionContext.create(
-                defaultContext,
-                SessionHandle.create(),
-                MockedEndpointVersion.V1,
-                flinkConfig,
-                EXECUTOR_SERVICE);
+                defaultContext, SessionHandle.create(), environment, EXECUTOR_SERVICE);
     }
 
     private ReadableConfig getConfiguration() {
