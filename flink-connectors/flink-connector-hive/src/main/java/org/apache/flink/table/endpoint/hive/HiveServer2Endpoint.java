@@ -311,7 +311,7 @@ public class HiveServer2Endpoint implements TCLIService.Iface, SqlGatewayEndpoin
             Catalog hiveCatalog =
                     new HiveCatalog(
                             catalogName,
-                            defaultDatabase,
+                            getUsedDefaultDatabase(originSessionConf).orElse(defaultDatabase),
                             conf,
                             HiveShimLoader.getHiveVersion(),
                             allowEmbedded);
@@ -323,8 +323,6 @@ public class HiveServer2Endpoint implements TCLIService.Iface, SqlGatewayEndpoin
                                     .registerCatalog(catalogName, hiveCatalog)
                                     .registerModuleAtHead(moduleName, hiveModule)
                                     .setDefaultCatalog(catalogName)
-                                    .setDefaultDatabase(
-                                            getUsedDefaultDatabase(originSessionConf).orElse(null))
                                     .addSessionConfig(sessionConfig)
                                     .build());
             // response

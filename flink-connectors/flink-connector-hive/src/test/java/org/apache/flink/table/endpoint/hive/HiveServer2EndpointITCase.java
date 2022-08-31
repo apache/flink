@@ -61,6 +61,7 @@ import org.apache.hive.service.rpc.thrift.TOperationType;
 import org.apache.hive.service.rpc.thrift.TStatusCode;
 import org.apache.thrift.protocol.TBinaryProtocol;
 import org.apache.thrift.transport.TTransport;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Order;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
@@ -107,6 +108,11 @@ public class HiveServer2EndpointITCase extends TestLogger {
     @Order(3)
     public static final HiveServer2EndpointExtension ENDPOINT_EXTENSION =
             new HiveServer2EndpointExtension(SQL_GATEWAY_SERVICE_EXTENSION::getService);
+
+    @BeforeAll
+    public static void setup() throws Exception {
+        initializeEnvironment();
+    }
 
     @Test
     public void testOpenCloseJdbcConnection() throws Exception {
@@ -256,21 +262,19 @@ public class HiveServer2EndpointITCase extends TestLogger {
         runGetObjectTest(
                 connection -> connection.getMetaData().getCatalogs(),
                 ResolvedSchema.of(Column.physical("TABLE_CAT", DataTypes.STRING())),
-                Arrays.asList(
-                        Collections.singletonList("default_catalog"),
-                        Collections.singletonList("hive")));
+                Collections.singletonList(Collections.singletonList("hive")));
     }
 
     @Test
     public void testGetSchemas() throws Exception {
         runGetObjectTest(
-                connection -> connection.getMetaData().getSchemas("default_catalog", null),
+                connection -> connection.getMetaData().getSchemas("hive", null),
                 getExpectedGetSchemasOperationSchema(),
                 Arrays.asList(
-                        Arrays.asList("db_diff", "default_catalog"),
-                        Arrays.asList("db_test1", "default_catalog"),
-                        Arrays.asList("db_test2", "default_catalog"),
-                        Arrays.asList("default_database", "default_catalog")));
+                        Arrays.asList("db_diff", "hive"),
+                        Arrays.asList("db_test1", "hive"),
+                        Arrays.asList("db_test2", "hive"),
+                        Arrays.asList("default", "hive")));
     }
 
     @Test
@@ -279,8 +283,7 @@ public class HiveServer2EndpointITCase extends TestLogger {
                 connection -> connection.getMetaData().getSchemas(null, "db\\_test%"),
                 getExpectedGetSchemasOperationSchema(),
                 Arrays.asList(
-                        Arrays.asList("db_test1", "default_catalog"),
-                        Arrays.asList("db_test2", "default_catalog")));
+                        Arrays.asList("db_test1", "hive"), Arrays.asList("db_test2", "hive")));
     }
 
     @Test
@@ -296,16 +299,16 @@ public class HiveServer2EndpointITCase extends TestLogger {
                                         new String[] {"MANAGED_TABLE", "VIRTUAL_VIEW"}),
                 getExpectedGetTablesOperationSchema(),
                 Arrays.asList(
-                        Arrays.asList("default_catalog", "db_diff", "tbl_1", "TABLE"),
-                        Arrays.asList("default_catalog", "db_test1", "tbl_1", "TABLE"),
-                        Arrays.asList("default_catalog", "db_test1", "tbl_2", "TABLE"),
-                        Arrays.asList("default_catalog", "db_test2", "diff_1", "TABLE"),
-                        Arrays.asList("default_catalog", "db_test2", "tbl_1", "TABLE"),
-                        Arrays.asList("default_catalog", "db_diff", "tbl_2", "VIEW"),
-                        Arrays.asList("default_catalog", "db_test1", "tbl_3", "VIEW"),
-                        Arrays.asList("default_catalog", "db_test1", "tbl_4", "VIEW"),
-                        Arrays.asList("default_catalog", "db_test2", "diff_2", "VIEW"),
-                        Arrays.asList("default_catalog", "db_test2", "tbl_2", "VIEW")));
+                        Arrays.asList("hive", "db_diff", "tbl_1", "TABLE"),
+                        Arrays.asList("hive", "db_test1", "tbl_1", "TABLE"),
+                        Arrays.asList("hive", "db_test1", "tbl_2", "TABLE"),
+                        Arrays.asList("hive", "db_test2", "diff_1", "TABLE"),
+                        Arrays.asList("hive", "db_test2", "tbl_1", "TABLE"),
+                        Arrays.asList("hive", "db_diff", "tbl_2", "VIEW"),
+                        Arrays.asList("hive", "db_test1", "tbl_3", "VIEW"),
+                        Arrays.asList("hive", "db_test1", "tbl_4", "VIEW"),
+                        Arrays.asList("hive", "db_test2", "diff_2", "VIEW"),
+                        Arrays.asList("hive", "db_test2", "tbl_2", "VIEW")));
     }
 
     @Test
@@ -315,15 +318,15 @@ public class HiveServer2EndpointITCase extends TestLogger {
                         connection
                                 .getMetaData()
                                 .getTables(
-                                        "default_catalog",
+                                        "hive",
                                         "db\\_test_",
                                         "tbl%",
                                         new String[] {"VIRTUAL_VIEW"}),
                 getExpectedGetTablesOperationSchema(),
                 Arrays.asList(
-                        Arrays.asList("default_catalog", "db_test1", "tbl_3", "VIEW"),
-                        Arrays.asList("default_catalog", "db_test1", "tbl_4", "VIEW"),
-                        Arrays.asList("default_catalog", "db_test2", "tbl_2", "VIEW")));
+                        Arrays.asList("hive", "db_test1", "tbl_3", "VIEW"),
+                        Arrays.asList("hive", "db_test1", "tbl_4", "VIEW"),
+                        Arrays.asList("hive", "db_test2", "tbl_2", "VIEW")));
     }
 
     @Test
@@ -356,67 +359,64 @@ public class HiveServer2EndpointITCase extends TestLogger {
                                 .isEqualTo(
                                         Arrays.asList(
                                                 Arrays.asList(
-                                                        "default_catalog",
-                                                        "db_diff",
-                                                        "tbl_2",
-                                                        "EXPR$0",
+                                                        "hive", "db_diff", "tbl_2", "EXPR$0",
                                                         "INT"),
                                                 Arrays.asList(
-                                                        "default_catalog",
+                                                        "hive",
                                                         "db_test1",
                                                         "tbl_1",
                                                         "user",
                                                         "BIGINT"),
                                                 Arrays.asList(
-                                                        "default_catalog",
+                                                        "hive",
                                                         "db_test1",
                                                         "tbl_1",
                                                         "product",
                                                         "STRING"),
                                                 Arrays.asList(
-                                                        "default_catalog",
+                                                        "hive",
                                                         "db_test1",
                                                         "tbl_1",
                                                         "amount",
                                                         "INT"),
                                                 Arrays.asList(
-                                                        "default_catalog",
+                                                        "hive",
                                                         "db_test1",
                                                         "tbl_2",
                                                         "user",
                                                         "STRING"),
                                                 Arrays.asList(
-                                                        "default_catalog",
+                                                        "hive",
                                                         "db_test1",
                                                         "tbl_2",
                                                         "id",
                                                         "BIGINT"),
                                                 Arrays.asList(
-                                                        "default_catalog",
+                                                        "hive",
                                                         "db_test1",
                                                         "tbl_2",
                                                         "timestamp",
                                                         "TIMESTAMP"),
                                                 Arrays.asList(
-                                                        "default_catalog",
+                                                        "hive",
                                                         "db_test1",
                                                         "tbl_3",
                                                         "EXPR$0",
                                                         "INT"),
                                                 Arrays.asList(
-                                                        "default_catalog",
+                                                        "hive",
                                                         "db_test1",
                                                         "tbl_4",
                                                         "EXPR$0",
                                                         "INT"),
                                                 Arrays.asList(
-                                                        "default_catalog",
+                                                        "hive",
                                                         "db_test2",
                                                         "diff_2",
                                                         "EXPR$0",
                                                         "INT"),
                                                 Arrays.asList(
-                                                        "default_catalog",
+                                                        "hive",
                                                         "db_test2",
                                                         "tbl_2",
                                                         "EXPR$0",
@@ -429,11 +429,11 @@ public class HiveServer2EndpointITCase extends TestLogger {
                 connection ->
                         connection
                                 .getMetaData()
-                                .getColumns("default_catalog", "db\\_test_", "tbl\\_1", "user"),
+                                .getColumns("hive", "db\\_test_", "tbl\\_1", "user"),
                 getExpectedGetColumnsOperationSchema(),
                 Collections.singletonList(
                         Arrays.asList(
-                                "default_catalog",
+                                "hive",
                                 "db_test1",
                                 "tbl_1",
                                 "user",
@@ -454,9 +454,9 @@ public class HiveServer2EndpointITCase extends TestLogger {
                 connection -> connection.getMetaData().getPrimaryKeys(null, null, null),
                 getExpectedGetPrimaryKeysOperationSchema(),
                 Arrays.asList(
-                        Arrays.asList("default_catalog", "db_test1", "tbl_1", "user", 1, "pk"),
-                        Arrays.asList("default_catalog", "db_test1", "tbl_2", "user", 1, "pk"),
-                        Arrays.asList("default_catalog", "db_test1", "tbl_2", "id", 2, "pk")));
+                        Arrays.asList("hive", "db_test1", "tbl_1", "user", 1, "pk"),
+                        Arrays.asList("hive", "db_test1", "tbl_2", "user", 1, "pk"),
+                        Arrays.asList("hive", "db_test1", "tbl_2", "id", 2, "pk")));
     }
 
     @Test
@@ -465,8 +465,8 @@ public class HiveServer2EndpointITCase extends TestLogger {
                 connection -> connection.getMetaData().getPrimaryKeys(null, null, "tbl_2"),
                 getExpectedGetPrimaryKeysOperationSchema(),
                 Arrays.asList(
-                        Arrays.asList("default_catalog", "db_test1", "tbl_2", "user", 1, "pk"),
-                        Arrays.asList("default_catalog", "db_test1", "tbl_2", "id", 2, "pk")));
+                        Arrays.asList("hive", "db_test1", "tbl_2", "user", 1, "pk"),
+                        Arrays.asList("hive", "db_test1", "tbl_2", "id", 2, "pk")));
     }
 
     @Test
@@ -541,14 +541,14 @@ public class HiveServer2EndpointITCase extends TestLogger {
                     try (Statement statement = connection.createStatement()) {
                         statement.execute(
                                 String.format(
-                                        "CREATE FUNCTION `default_catalog`.`db_test2`.`my_abs` as '%s'",
+                                        "CREATE FUNCTION `hive`.`db_test2`.`my_abs` as '%s'",
                                         JavaFunc0.class.getName()));
                         statement.execute(
                                 String.format(
-                                        "CREATE FUNCTION `default_catalog`.`db_diff`.`your_abs` as '%s'",
+                                        "CREATE FUNCTION `hive`.`db_diff`.`your_abs` as '%s'",
                                         JavaFunc0.class.getName()));
                     }
-                    return connection.getMetaData().getFunctions("default_catalog", "db.*", "my.*");
+                    return connection.getMetaData().getFunctions("hive", "db.*", "my.*");
                 },
                 ResolvedSchema.of(
                         Column.physical("FUNCTION_CAT", DataTypes.STRING()),
@@ -559,12 +559,7 @@ public class HiveServer2EndpointITCase extends TestLogger {
                         Column.physical("SPECIFIC_NAME", DataTypes.STRING())),
                 Collections.singletonList(
                         Arrays.asList(
-                                "default_catalog",
-                                "db_test2",
-                                "my_abs",
-                                "",
-                                0,
-                                JavaFunc0.class.getName())));
+                                "hive", "db_test2", "my_abs", "", 0, JavaFunc0.class.getName())));
     }
 
     @Test
@@ -579,13 +574,12 @@ public class HiveServer2EndpointITCase extends TestLogger {
 
     // --------------------------------------------------------------------------------------------
 
-    private Connection getInitializedConnection() throws Exception {
-        Connection connection = ENDPOINT_EXTENSION.getConnection();
-        try (Statement statement = connection.createStatement()) {
+    private static void initializeEnvironment() throws Exception {
+        try (Connection connection = ENDPOINT_EXTENSION.getConnection();
+                Statement statement = connection.createStatement()) {
             statement.execute("SET table.sql-dialect=default");
-            statement.execute("USE CATALOG `default_catalog`");
 
-            // default_catalog: db_test1 | db_test2 | db_diff | default
+            // hive: db_test1 | db_test2 | db_diff | default
             //     db_test1: temporary table tbl_1, table tbl_2, temporary view tbl_3, view tbl_4
             //     db_test2: table tbl_1, table diff_1, view tbl_2, view diff_2
             //     db_diff:  table tbl_1, view tbl_2
@@ -595,7 +589,7 @@ public class HiveServer2EndpointITCase extends TestLogger {
             statement.execute("CREATE DATABASE db_diff");
 
             statement.execute(
-                    "CREATE TEMPORARY TABLE db_test1.tbl_1(\n"
+                    "CREATE TABLE db_test1.tbl_1(\n"
                             + "`user` BIGINT CONSTRAINT `pk` PRIMARY KEY COMMENT 'user id.',\n"
                             + "`product` STRING NOT NULL,\n"
                             + "`amount`  INT) COMMENT 'temporary table tbl_1'");
@@ -606,7 +600,7 @@ public class HiveServer2EndpointITCase extends TestLogger {
                             + "`timestamp` TIMESTAMP,"
                             + "CONSTRAINT `pk` PRIMARY KEY(`user`, `id`) NOT ENFORCED) COMMENT 'table tbl_2'");
             statement.execute(
-                    "CREATE TEMPORARY VIEW db_test1.tbl_3 COMMENT 'temporary view tbl_3' AS SELECT 1");
+                    "CREATE VIEW db_test1.tbl_3 COMMENT 'temporary view tbl_3' AS SELECT 1");
             statement.execute("CREATE VIEW db_test1.tbl_4 COMMENT 'view tbl_4' AS SELECT 1");
 
             statement.execute("CREATE TABLE db_test2.tbl_1 COMMENT 'table tbl_1'");
@@ -617,7 +611,6 @@ public class HiveServer2EndpointITCase extends TestLogger {
             statement.execute("CREATE TABLE db_diff.tbl_1 COMMENT 'table tbl_1'");
             statement.execute("CREATE VIEW db_diff.tbl_2 COMMENT 'view tbl_2' AS SELECT 1");
         }
-        return connection;
     }
 
     private void runGetObjectTest(
@@ -636,7 +629,7 @@ public class HiveServer2EndpointITCase extends TestLogger {
             ResolvedSchema expectedSchema,
             Consumer<List<List<Object>>> validator)
             throws Exception {
-        try (Connection connection = getInitializedConnection();
+        try (Connection connection = ENDPOINT_EXTENSION.getConnection();
                 java.sql.ResultSet result = resultSetSupplier.apply(connection)) {
             assertSchemaEquals(expectedSchema, result.getMetaData());
             validator.accept(collectAndCompact(result, expectedSchema.getColumnCount()));

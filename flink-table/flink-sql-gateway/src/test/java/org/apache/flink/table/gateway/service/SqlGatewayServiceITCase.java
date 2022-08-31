@@ -24,7 +24,6 @@ import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.internal.TableEnvironmentInternal;
 import org.apache.flink.table.catalog.CatalogBaseTable.TableKind;
-import org.apache.flink.table.catalog.CatalogDatabaseImpl;
 import org.apache.flink.table.catalog.Column;
 import org.apache.flink.table.catalog.GenericInMemoryCatalog;
 import org.apache.flink.table.catalog.ObjectIdentifier;
@@ -138,16 +137,14 @@ public class SqlGatewayServiceITCase extends AbstractTestBase {
         String catalogName = "default";
         String databaseName = "testDb";
         String moduleName = "testModule";
-        GenericInMemoryCatalog defaultCatalog = new GenericInMemoryCatalog(catalogName);
-        defaultCatalog.createDatabase(
-                databaseName, new CatalogDatabaseImpl(Collections.emptyMap(), null), true);
+        GenericInMemoryCatalog defaultCatalog =
+                new GenericInMemoryCatalog(catalogName, databaseName);
         SessionEnvironment environment =
                 SessionEnvironment.newBuilder()
                         .setSessionEndpointVersion(MockedEndpointVersion.V1)
                         .registerCatalog(catalogName, defaultCatalog)
                         .registerModuleAtHead(moduleName, new TestModule())
                         .setDefaultCatalog(catalogName)
-                        .setDefaultDatabase(databaseName)
                         .build();
 
         SessionHandle sessionHandle = service.openSession(environment);

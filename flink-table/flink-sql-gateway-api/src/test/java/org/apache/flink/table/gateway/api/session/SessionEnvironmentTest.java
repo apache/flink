@@ -45,7 +45,6 @@ public class SessionEnvironmentTest {
                         new HashMap<>(),
                         new HashMap<>(),
                         "default",
-                        "default_db",
                         configMap);
 
         SessionEnvironment actualEnvironment =
@@ -54,7 +53,6 @@ public class SessionEnvironmentTest {
                         .setSessionEndpointVersion(MockedEndpointVersion.V1)
                         .addSessionConfig(configMap)
                         .setDefaultCatalog("default")
-                        .setDefaultDatabase("default_db")
                         .build();
         assertEquals(expectedEnvironment, actualEnvironment);
     }
