@@ -157,7 +157,7 @@ under the License.
 
 			<!-- activate API compatibility checks -->
 			<plugin>
-				<groupId>com.github.siom79.japicmp</groupId>
+				<groupId>io.github.zentol.japicmp</groupId>
 				<artifactId>japicmp-maven-plugin</artifactId>
 			</plugin>
 
