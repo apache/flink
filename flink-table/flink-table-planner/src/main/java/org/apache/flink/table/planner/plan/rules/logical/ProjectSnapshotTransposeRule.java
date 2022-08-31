@@ -24,7 +24,6 @@ import org.apache.calcite.plan.RelRule;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.logical.LogicalProject;
 import org.apache.calcite.rel.logical.LogicalSnapshot;
-import org.apache.calcite.rex.RexOver;
 
 /** Transpose {@link LogicalProject} past into {@link LogicalSnapshot}. */
 public class ProjectSnapshotTransposeRule extends RelRule<ProjectSnapshotTransposeRule.Config> {
@@ -41,7 +40,7 @@ public class ProjectSnapshotTransposeRule extends RelRule<ProjectSnapshotTranspo
         LogicalProject project = call.rel(0);
         // Don't push a project which contains over into a snapshot, snapshot on window aggregate is
         // unsupported for now.
-        return project.getProjects().stream().noneMatch(RexOver::containsOver);
+        return !project.containsOver();
     }
 
     @Override
