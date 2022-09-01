@@ -20,6 +20,7 @@ package org.apache.flink.runtime.rest.handler.legacy.metrics;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.runtime.messages.webmonitor.JobDetails;
+import org.apache.flink.runtime.messages.webmonitor.JobDetails.CurrentAttempts;
 import org.apache.flink.runtime.metrics.dump.MetricDump;
 import org.apache.flink.runtime.metrics.dump.QueryScopeInfo;
 
@@ -29,6 +30,7 @@ import org.slf4j.LoggerFactory;
 import javax.annotation.concurrent.ThreadSafe;
 
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -63,7 +65,7 @@ public class MetricStore {
      * CurrentExecutionAttemptNumber. When a metric of an execution attempt is added, the metric can
      * also be added to the SubtaskMetricStore when it is of the representing execution.
      */
-    private final Map<String, Map<String, Map<Integer, Integer>>> currentExecutionAttempts =
+    private final Map<String, Map<String, Map<Integer, Integer>>> representativeAttempts =
             new ConcurrentHashMap<>();
 
     /**
@@ -82,18 +84,39 @@ public class MetricStore {
      */
     synchronized void retainJobs(List<String> activeJobs) {
         jobs.keySet().retainAll(activeJobs);
-        currentExecutionAttempts.keySet().retainAll(activeJobs);
+        representativeAttempts.keySet().retainAll(activeJobs);
     }
 
     public synchronized void updateCurrentExecutionAttempts(Collection<JobDetails> jobs) {
-        jobs.forEach(
-                job ->
-                        currentExecutionAttempts.put(
-                                job.getJobId().toString(), job.getCurrentExecutionAttempts()));
+        for (JobDetails job : jobs) {
+            String jobId = job.getJobId().toString();
+            Map<String, Map<Integer, CurrentAttempts>> currentAttempts =
+                    job.getCurrentExecutionAttempts();
+            Map<String, Map<Integer, Integer>> jobRepresentativeAttempts =
+                    representativeAttempts.compute(
+                            jobId, (k, overwritten) -> new HashMap<>(currentAttempts.size()));
+            currentAttempts.forEach(
+                    (vertexId, subtaskAttempts) -> {
+                        Map<Integer, Integer> vertexAttempts =
+                                jobRepresentativeAttempts.compute(
+                                        vertexId, (k, overwritten) -> new HashMap<>());
+                        TaskMetricStore taskMetricStore = getTaskMetricStore(jobId, vertexId);
+                        subtaskAttempts.forEach(
+                                (subtaskIndex, attempts) -> {
+                                    // Updates representative attempts
+                                    vertexAttempts.put(
+                                            subtaskIndex, attempts.getRepresentativeAttempt());
+                                    // Retains current attempt metrics to avoid memory leak
+                                    taskMetricStore
+                                            .getSubtaskMetricStore(subtaskIndex)
+                                            .retainAttempts(attempts.getCurrentAttempts());
+                                });
+                    });
+        }
     }
 
-    public Map<String, Map<String, Map<Integer, Integer>>> getCurrentExecutionAttempts() {
-        return currentExecutionAttempts;
+    public Map<String, Map<String, Map<Integer, Integer>>> getRepresentativeAttempts() {
+        return representativeAttempts;
     }
 
     /**
@@ -341,7 +364,7 @@ public class MetricStore {
     // which means there should be only one execution
     private boolean isRepresentativeAttempt(
             String jobID, String vertexID, int subtaskIndex, int attemptNumber) {
-        return Optional.of(currentExecutionAttempts)
+        return Optional.of(representativeAttempts)
                         .map(m -> m.get(jobID))
                         .map(m -> m.get(vertexID))
                         .map(m -> m.get(subtaskIndex))
@@ -505,6 +528,14 @@ public class MetricStore {
 
         public Map<Integer, ComponentMetricStore> getAllAttemptsMetricStores() {
             return unmodifiableMap(attempts);
+        }
+
+        void retainAttempts(Set<Integer> currentAttempts) {
+            int latestAttempt = currentAttempts.stream().mapToInt(i -> i).max().orElse(0);
+            attempts.keySet()
+                    .removeIf(
+                            attempt ->
+                                    attempt < latestAttempt && !currentAttempts.contains(attempt));
         }
 
         private static SubtaskMetricStore unmodifiable(SubtaskMetricStore source) {
