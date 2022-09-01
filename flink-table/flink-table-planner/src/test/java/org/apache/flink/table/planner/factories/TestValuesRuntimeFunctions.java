@@ -44,6 +44,10 @@ import org.apache.flink.table.data.TimestampData;
 import org.apache.flink.table.functions.AsyncLookupFunction;
 import org.apache.flink.table.functions.FunctionContext;
 import org.apache.flink.table.functions.LookupFunction;
+import org.apache.flink.table.runtime.generated.GeneratedProjection;
+import org.apache.flink.table.runtime.generated.Projection;
+import org.apache.flink.table.runtime.typeutils.InternalSerializers;
+import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.test.util.SuccessException;
 import org.apache.flink.types.Row;
 import org.apache.flink.types.RowKind;
@@ -60,6 +64,7 @@ import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Random;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
@@ -558,23 +563,41 @@ final class TestValuesRuntimeFunctions {
         private static final long serialVersionUID = 1L;
         private final List<Row> data;
         private final int[] lookupIndices;
+
+        private final RowType producedRowType;
+
         private final LookupTableSource.DataStructureConverter converter;
+        private final GeneratedProjection generatedProjection;
+        private final boolean projectable;
         private transient Map<RowData, List<RowData>> indexedData;
         private transient boolean isOpenCalled = false;
+        private transient Projection<RowData, GenericRowData> projection;
+        private transient TypeSerializer<RowData> rowSerializer;
 
         protected TestValuesLookupFunction(
                 List<Row> data,
                 int[] lookupIndices,
-                LookupTableSource.DataStructureConverter converter) {
+                RowType producedRowType,
+                LookupTableSource.DataStructureConverter converter,
+                Optional<GeneratedProjection> generatedProjection) {
             this.data = data;
             this.lookupIndices = lookupIndices;
+            this.producedRowType = producedRowType;
             this.converter = converter;
+            this.projectable = generatedProjection.isPresent();
+            this.generatedProjection = generatedProjection.orElse(null);
         }
 
         @Override
         public void open(FunctionContext context) throws Exception {
             RESOURCE_COUNTER.incrementAndGet();
             isOpenCalled = true;
+            if (projectable) {
+                projection =
+                        generatedProjection.newInstance(
+                                Thread.currentThread().getContextClassLoader());
+            }
+            rowSerializer = InternalSerializers.create(producedRowType);
             indexDataByKey();
         }
 
@@ -601,6 +624,9 @@ final class TestValuesRuntimeFunctions {
             data.forEach(
                     record -> {
                         GenericRowData rowData = (GenericRowData) converter.toInternal(record);
+                        if (projectable) {
+                            rowData = projection.apply(rowData);
+                        }
                         checkNotNull(
                                 rowData, "Cannot convert record to internal GenericRowData type");
                         RowData key =
@@ -608,12 +634,13 @@ final class TestValuesRuntimeFunctions {
                                         Arrays.stream(lookupIndices)
                                                 .mapToObj(rowData::getField)
                                                 .toArray());
+                        RowData copiedRow = rowSerializer.copy(rowData);
                         List<RowData> list = indexedData.get(key);
                         if (list != null) {
-                            list.add(rowData);
+                            list.add(copiedRow);
                         } else {
                             list = new ArrayList<>();
-                            list.add(rowData);
+                            list.add(copiedRow);
                             indexedData.put(key, list);
                         }
                     });
@@ -629,25 +656,42 @@ final class TestValuesRuntimeFunctions {
         private static final long serialVersionUID = 1L;
         private final List<Row> data;
         private final int[] lookupIndices;
+        private final RowType producedRowType;
         private final LookupTableSource.DataStructureConverter converter;
+
+        private final GeneratedProjection generatedProjection;
+        private final boolean projectable;
         private final Random random;
         private transient boolean isOpenCalled = false;
         private transient ExecutorService executor;
         private transient Map<RowData, List<RowData>> indexedData;
+        private transient Projection<RowData, GenericRowData> projection;
+        private transient TypeSerializer<RowData> rowSerializer;
 
         protected AsyncTestValueLookupFunction(
                 List<Row> data,
                 int[] lookupIndices,
-                LookupTableSource.DataStructureConverter converter) {
+                RowType producedRowType,
+                LookupTableSource.DataStructureConverter converter,
+                Optional<GeneratedProjection> generatedProjection) {
             this.data = data;
             this.lookupIndices = lookupIndices;
+            this.producedRowType = producedRowType;
             this.converter = converter;
+            this.projectable = generatedProjection.isPresent();
+            this.generatedProjection = generatedProjection.orElse(null);
             this.random = new Random();
         }
 
         @Override
         public void open(FunctionContext context) throws Exception {
             RESOURCE_COUNTER.incrementAndGet();
+            if (projectable) {
+                projection =
+                        generatedProjection.newInstance(
+                                Thread.currentThread().getContextClassLoader());
+            }
+            rowSerializer = InternalSerializers.create(producedRowType);
             isOpenCalled = true;
             // generate unordered result for async lookup
             executor = Executors.newFixedThreadPool(2);
@@ -689,6 +733,9 @@ final class TestValuesRuntimeFunctions {
             data.forEach(
                     record -> {
                         GenericRowData rowData = (GenericRowData) converter.toInternal(record);
+                        if (projectable) {
+                            rowData = projection.apply(rowData);
+                        }
                         checkNotNull(
                                 rowData, "Cannot convert record to internal GenericRowData type");
                         RowData key =
@@ -696,12 +743,13 @@ final class TestValuesRuntimeFunctions {
                                         Arrays.stream(lookupIndices)
                                                 .mapToObj(rowData::getField)
                                                 .toArray());
+                        RowData copiedRow = rowSerializer.copy(rowData);
                         List<RowData> list = indexedData.get(key);
                         if (list != null) {
-                            list.add(rowData);
+                            list.add(copiedRow);
                         } else {
                             list = new ArrayList<>();
-                            list.add(rowData);
+                            list.add(copiedRow);
                             indexedData.put(key, list);
                         }
                     });
@@ -725,9 +773,11 @@ final class TestValuesRuntimeFunctions {
         protected TestNoLookupUntilNthAccessLookupFunction(
                 List<Row> data,
                 int[] lookupIndices,
+                RowType producedRowType,
                 LookupTableSource.DataStructureConverter converter,
+                Optional<GeneratedProjection> generatedProjection,
                 int lookupThreshold) {
-            super(data, lookupIndices, converter);
+            super(data, lookupIndices, producedRowType, converter, generatedProjection);
             this.lookupThreshold = lookupThreshold;
         }
 
@@ -771,9 +821,11 @@ final class TestValuesRuntimeFunctions {
         public TestNoLookupUntilNthAccessAsyncLookupFunction(
                 List<Row> data,
                 int[] lookupIndices,
+                RowType producedRowType,
                 LookupTableSource.DataStructureConverter converter,
+                Optional<GeneratedProjection> generatedProjection,
                 int lookupThreshold) {
-            super(data, lookupIndices, converter);
+            super(data, lookupIndices, producedRowType, converter, generatedProjection);
             this.lookupThreshold = lookupThreshold;
         }
 

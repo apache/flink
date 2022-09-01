@@ -237,7 +237,8 @@ object FlinkBatchRuleSets {
     PushProjectIntoLegacyTableSourceScanRule.INSTANCE,
     PushFilterIntoTableSourceScanRule.INSTANCE,
     PushFilterIntoLegacyTableSourceScanRule.INSTANCE,
-
+    // transpose project and snapshot for scan optimization
+    ProjectSnapshotTransposeRule.INSTANCE,
     // reorder sort and projection
     CoreRules.SORT_PROJECT_TRANSPOSE,
     // remove unnecessary sort rule

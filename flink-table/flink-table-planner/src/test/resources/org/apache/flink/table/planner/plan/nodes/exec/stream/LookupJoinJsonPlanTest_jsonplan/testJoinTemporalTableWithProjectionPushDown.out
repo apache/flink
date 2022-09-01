@@ -246,9 +246,18 @@
               "bounded" : "false"
             }
           }
-        }
+        },
+        "abilities" : [ {
+          "type" : "ProjectPushDown",
+          "projectedFields" : [ [ 0 ] ],
+          "producedType" : "ROW<`id` INT> NOT NULL"
+        }, {
+          "type" : "ReadingMetadata",
+          "metadataKeys" : [ ],
+          "producedType" : "ROW<`id` INT> NOT NULL"
+        } ]
       },
-      "outputType" : "ROW<`id` INT, `name` VARCHAR(2147483647), `age` INT> NOT NULL"
+      "outputType" : "ROW<`id` INT> NOT NULL"
     },
     "lookupKeys" : {
       "0" : {
@@ -256,11 +265,7 @@
         "index" : 0
       }
     },
-    "projectionOnTemporalTable" : [ {
-      "kind" : "INPUT_REF",
-      "inputIndex" : 0,
-      "type" : "INT"
-    } ],
+    "projectionOnTemporalTable" : null,
     "filterOnTemporalTable" : null,
     "lookupKeyContainsPrimaryKey" : false,
     "inputChangelogMode" : [ "INSERT" ],

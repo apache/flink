@@ -27,6 +27,7 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.io.CollectionInputFormat;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ConfigOptions;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.connector.source.DynamicFilteringValuesSource;
 import org.apache.flink.connector.source.ValuesSource;
 import org.apache.flink.streaming.api.datastream.DataStream;
@@ -78,6 +79,7 @@ import org.apache.flink.table.connector.source.lookup.cache.DefaultLookupCache;
 import org.apache.flink.table.connector.source.lookup.cache.LookupCache;
 import org.apache.flink.table.connector.source.lookup.cache.trigger.CacheReloadTrigger;
 import org.apache.flink.table.connector.source.lookup.cache.trigger.PeriodicCacheReloadTrigger;
+import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.util.DataFormatConverters;
 import org.apache.flink.table.expressions.AggregateExpression;
@@ -91,6 +93,8 @@ import org.apache.flink.table.functions.AsyncTableFunction;
 import org.apache.flink.table.functions.FunctionDefinition;
 import org.apache.flink.table.functions.LookupFunction;
 import org.apache.flink.table.functions.TableFunction;
+import org.apache.flink.table.planner.codegen.CodeGeneratorContext;
+import org.apache.flink.table.planner.codegen.ProjectionCodeGenerator;
 import org.apache.flink.table.planner.factories.TestValuesRuntimeFunctions.AppendingOutputFormat;
 import org.apache.flink.table.planner.factories.TestValuesRuntimeFunctions.AppendingSinkFunction;
 import org.apache.flink.table.planner.factories.TestValuesRuntimeFunctions.AsyncTestValueLookupFunction;
@@ -109,9 +113,11 @@ import org.apache.flink.table.planner.runtime.utils.FailingCollectionSource;
 import org.apache.flink.table.planner.utils.FilterUtils;
 import org.apache.flink.table.planner.utils.JavaScalaConversionUtil;
 import org.apache.flink.table.runtime.functions.table.fullcache.FullCacheTestInputFormat;
+import org.apache.flink.table.runtime.generated.GeneratedProjection;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.BigIntType;
 import org.apache.flink.table.types.logical.LogicalType;
+import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.logical.utils.LogicalTypeParser;
 import org.apache.flink.table.types.utils.DataTypeUtils;
 import org.apache.flink.table.types.utils.TypeConversions;
@@ -533,6 +539,7 @@ public final class TestValuesTableFactory
                 }
             } else {
                 return new TestValuesScanLookupTableSource(
+                        context.getCatalogTable().getResolvedSchema().toPhysicalRowDataType(),
                         producedDataType,
                         changelogMode,
                         isBounded,
@@ -1503,7 +1510,10 @@ public final class TestValuesTableFactory
         private final boolean isAsync;
         private final int lookupThreshold;
 
+        private final DataType originType;
+
         private TestValuesScanLookupTableSource(
+                DataType originType,
                 DataType producedDataType,
                 ChangelogMode changelogMode,
                 boolean bounded,
@@ -1542,6 +1552,7 @@ public final class TestValuesTableFactory
                     allPartitions,
                     readableMetadata,
                     projectedMetadataFields);
+            this.originType = originType;
             this.lookupFunctionClass = lookupFunctionClass;
             this.isAsync = isAsync;
             this.cache = cache;
@@ -1590,11 +1601,30 @@ public final class TestValuesTableFactory
                     data = data.subList(numElementToSkip, data.size());
                 }
             }
-            DataStructureConverter converter =
-                    context.createDataStructureConverter(producedDataType);
+            if (nestedProjectionSupported) {
+                throw new UnsupportedOperationException(
+                        "nestedProjectionSupported is unsupported for lookup source currently.");
+            }
+            DataStructureConverter converter = context.createDataStructureConverter(originType);
+            RowType originRowType =
+                    RowType.of(
+                            originType.getLogicalType().getChildren().toArray(new LogicalType[0]));
+            RowType producedRowType =
+                    RowType.of(
+                            producedDataType
+                                    .getLogicalType()
+                                    .getChildren()
+                                    .toArray(new LogicalType[0]));
+            Optional<GeneratedProjection> generatedProjection =
+                    genProjection(originRowType, producedRowType);
             if (isAsync) {
                 AsyncTestValueLookupFunction asyncLookupFunction =
-                        getTestValuesAsyncLookupFunction(data, lookupIndices, converter);
+                        getTestValuesAsyncLookupFunction(
+                                data,
+                                lookupIndices,
+                                producedRowType,
+                                converter,
+                                generatedProjection);
                 if (cache == null) {
                     return AsyncLookupFunctionProvider.of(asyncLookupFunction);
                 } else {
@@ -1603,15 +1633,20 @@ public final class TestValuesTableFactory
                 }
             } else {
                 TestValuesLookupFunction lookupFunction =
-                        getTestValuesLookupFunction(data, lookupIndices, converter);
+                        getTestValuesLookupFunction(
+                                data,
+                                lookupIndices,
+                                producedRowType,
+                                converter,
+                                generatedProjection);
                 if (cache != null) {
                     return PartialCachingLookupProvider.of(lookupFunction, cache);
                 } else if (reloadTrigger != null) {
                     DataFormatConverters.RowConverter rowConverter =
                             new DataFormatConverters.RowConverter(
-                                    producedDataType.getChildren().toArray(new DataType[] {}));
+                                    originType.getChildren().toArray(new DataType[] {}));
                     FullCacheTestInputFormat inputFormat =
-                            new FullCacheTestInputFormat(data, rowConverter);
+                            new FullCacheTestInputFormat(data, generatedProjection, rowConverter);
                     return FullCachingLookupProvider.of(
                             InputFormatProvider.of(inputFormat), reloadTrigger);
                 } else {
@@ -1620,27 +1655,71 @@ public final class TestValuesTableFactory
             }
         }
 
+        /** Does not support nested projection. */
+        private Optional<GeneratedProjection> genProjection(
+                RowType originRowType, RowType producedRowType) {
+            if (null == projectedPhysicalFields) {
+                return Optional.empty();
+            }
+            CodeGeneratorContext context =
+                    new CodeGeneratorContext(
+                            new Configuration(), Thread.currentThread().getContextClassLoader());
+            int[] mapping =
+                    Arrays.stream(projectedPhysicalFields)
+                            .mapToInt(levelOne -> levelOne[0])
+                            .toArray();
+            return Optional.of(
+                    ProjectionCodeGenerator.generateProjection(
+                            context,
+                            "InternalProjection",
+                            originRowType,
+                            producedRowType,
+                            mapping,
+                            GenericRowData.class));
+        }
+
         private AsyncTestValueLookupFunction getTestValuesAsyncLookupFunction(
-                List<Row> data, int[] lookupIndices, DataStructureConverter converter) {
+                List<Row> data,
+                int[] lookupIndices,
+                RowType producedRowType,
+                DataStructureConverter converter,
+                Optional<GeneratedProjection> projection) {
             if (lookupThreshold > 0) {
                 return new TestNoLookupUntilNthAccessAsyncLookupFunction(
-                        data, lookupIndices, converter, lookupThreshold);
+                        data,
+                        lookupIndices,
+                        producedRowType,
+                        converter,
+                        projection,
+                        lookupThreshold);
             }
-            return new AsyncTestValueLookupFunction(data, lookupIndices, converter);
+            return new AsyncTestValueLookupFunction(
+                    data, lookupIndices, producedRowType, converter, projection);
         }
 
         private TestValuesLookupFunction getTestValuesLookupFunction(
-                List<Row> data, int[] lookupIndices, DataStructureConverter converter) {
+                List<Row> data,
+                int[] lookupIndices,
+                RowType producedRowType,
+                DataStructureConverter converter,
+                Optional<GeneratedProjection> generatedProjection) {
             if (lookupThreshold > 0) {
                 return new TestNoLookupUntilNthAccessLookupFunction(
-                        data, lookupIndices, converter, lookupThreshold);
+                        data,
+                        lookupIndices,
+                        producedRowType,
+                        converter,
+                        generatedProjection,
+                        lookupThreshold);
             }
-            return new TestValuesLookupFunction(data, lookupIndices, converter);
+            return new TestValuesLookupFunction(
+                    data, lookupIndices, producedRowType, converter, generatedProjection);
         }
 
         @Override
         public DynamicTableSource copy() {
             return new TestValuesScanLookupTableSource(
+                    originType,
                     producedDataType,
                     changelogMode,
                     bounded,
