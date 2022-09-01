@@ -43,10 +43,10 @@ Apache Flink 致力于自动分配的默认资源合理且都能满足所有应�
 
 - 批处理作业，其中不同 stage 的tasks 所需的资源差异明显。
 
-在[<a name="how-it-improves-resource-efficiency">如何提高资源利用率</a>](#how-it-improves-resource-efficiency)部分将会对细粒度资源管理为什么在以上使用场景中可以提高资源利用率作深入的讨论。
+在[如何提高资源利用率](#how-it-improves-resource-efficiency)部分将会对细粒度资源管理为什么在以上使用场景中可以提高资源利用率作深入的讨论。
 
 
-## 工作原理
+## <a name="how-it-works">工作原理</a>
 
 如[Flink架构]({{< ref "docs/concepts/flink-architecture" >}}#anatomy-of-a-flink-cluster)中描述,
 在一个 TaskManager 中,执行 task 时使用的资源被分割成许多个 slots。
@@ -233,7 +233,7 @@ env.register_slot_sharing_group(ssg_with_resource)
 
 {{< hint warning >}}
 **提示:** 可以指定或者不指定资源配置构造 SlotSharingGroup。
-对于指定资源配置，必须明确地将 **CPU cores*** 和 **Task Heap Memory**设置成正数值，其它设置则是可选的。
+对于指定资源配置，必须明确地将 **CPU cores**和 **Task Heap Memory**设置成正数值，其它设置则是可选的。
 {{< /hint >}}
 
 ## 局限
