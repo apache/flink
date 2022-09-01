@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.runtime.functions.table.fullcache;
+package org.apache.flink.table.runtime.functions.table.fullcache.inputformat;
 
 import org.apache.flink.api.common.io.DefaultInputSplitAssigner;
 import org.apache.flink.api.common.io.InputFormat;
@@ -37,7 +37,6 @@ import java.util.Collection;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.function.Consumer;
 import java.util.stream.IntStream;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -55,7 +54,6 @@ public class FullCacheTestInputFormat
     private final GeneratedProjection generatedProjection;
     private final boolean projectable;
     private final int deltaNumSplits;
-    private final transient Consumer<Collection<RowData>> secondLoadDataChange;
 
     private transient ConcurrentLinkedQueue<RowData> queue;
     private transient Projection<RowData, GenericRowData> projection;
@@ -70,15 +68,13 @@ public class FullCacheTestInputFormat
             Collection<Row> dataRows,
             Optional<GeneratedProjection> generatedProjection,
             DataFormatConverters.RowConverter rowConverter,
-            int deltaNumSplits,
-            Consumer<Collection<RowData>> secondLoadDataChange) {
+            int deltaNumSplits) {
         // for unit tests
         this.dataRows = dataRows;
         this.projectable = generatedProjection.isPresent();
         this.generatedProjection = generatedProjection.orElse(null);
         this.rowConverter = rowConverter;
         this.deltaNumSplits = deltaNumSplits;
-        this.secondLoadDataChange = secondLoadDataChange;
     }
 
     public FullCacheTestInputFormat(
@@ -91,7 +87,6 @@ public class FullCacheTestInputFormat
         this.generatedProjection = generatedProjection.orElse(null);
         this.rowConverter = rowConverter;
         this.deltaNumSplits = 0;
-        this.secondLoadDataChange = null;
     }
 
     @Override
@@ -104,9 +99,6 @@ public class FullCacheTestInputFormat
         dataRows.forEach(row -> queue.add(rowConverter.toInternal(row)));
         // divide data evenly between InputFormat copies
         loadCounter++;
-        if (loadCounter == 2 && secondLoadDataChange != null) {
-            secondLoadDataChange.accept(queue);
-        }
         maxReadRecords = (int) Math.ceil((double) queue.size() / numSplits);
         return splits;
     }

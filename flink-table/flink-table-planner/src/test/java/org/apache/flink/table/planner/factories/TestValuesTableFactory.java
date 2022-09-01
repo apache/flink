@@ -112,7 +112,7 @@ import org.apache.flink.table.planner.functions.aggfunctions.SumAggFunction;
 import org.apache.flink.table.planner.runtime.utils.FailingCollectionSource;
 import org.apache.flink.table.planner.utils.FilterUtils;
 import org.apache.flink.table.planner.utils.JavaScalaConversionUtil;
-import org.apache.flink.table.runtime.functions.table.fullcache.FullCacheTestInputFormat;
+import org.apache.flink.table.runtime.functions.table.fullcache.inputformat.FullCacheTestInputFormat;
 import org.apache.flink.table.runtime.generated.GeneratedProjection;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.BigIntType;

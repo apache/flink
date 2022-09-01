@@ -20,8 +20,6 @@ package org.apache.flink.table.connector.source.lookup.cache;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.testutils.CommonTestUtils;
-import org.apache.flink.metrics.Counter;
-import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.groups.CacheMetricGroup;
 import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
 import org.apache.flink.table.connector.source.lookup.LookupOptions;
@@ -370,52 +368,5 @@ class DefaultLookupCacheTest {
                             runnable.run();
                         }),
                 executor);
-    }
-
-    // -------------------------- Helper classes ------------------------
-    private static class InterceptingCacheMetricGroup extends UnregisteredMetricsGroup
-            implements CacheMetricGroup {
-        private Counter hitCounter;
-        private Counter missCounter;
-        private Counter loadCounter;
-        private Counter numLoadFailuresCounter;
-        private Gauge<Long> latestLoadTimeGauge;
-        private Gauge<Long> numCachedRecordsGauge;
-        private Gauge<Long> numCachedBytesGauge;
-
-        @Override
-        public void hitCounter(Counter hitCounter) {
-            this.hitCounter = hitCounter;
-        }
-
-        @Override
-        public void missCounter(Counter missCounter) {
-            this.missCounter = missCounter;
-        }
-
-        @Override
-        public void loadCounter(Counter loadCounter) {
-            this.loadCounter = loadCounter;
-        }
-
-        @Override
-        public void numLoadFailuresCounter(Counter numLoadFailuresCounter) {
-            this.numLoadFailuresCounter = numLoadFailuresCounter;
-        }
-
-        @Override
-        public void latestLoadTimeGauge(Gauge<Long> latestLoadTimeGauge) {
-            this.latestLoadTimeGauge = latestLoadTimeGauge;
-        }
-
-        @Override
-        public void numCachedRecordsGauge(Gauge<Long> numCachedRecordsGauge) {
-            this.numCachedRecordsGauge = numCachedRecordsGauge;
-        }
-
-        @Override
-        public void numCachedBytesGauge(Gauge<Long> numCachedBytesGauge) {
-            this.numCachedBytesGauge = numCachedBytesGauge;
-        }
     }
 }

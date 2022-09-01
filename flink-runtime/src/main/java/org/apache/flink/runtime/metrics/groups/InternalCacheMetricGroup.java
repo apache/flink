@@ -40,6 +40,8 @@ import static org.apache.flink.runtime.metrics.MetricNames.NUM_LOAD_FAILURES;
 public class InternalCacheMetricGroup extends ProxyMetricGroup<MetricGroup>
         implements CacheMetricGroup {
 
+    public static final long UNINITIALIZED = -1;
+
     /**
      * Creates a subgroup with the specified subgroup name under the parent group. Metrics will be
      * registered under the new created subgroup.
