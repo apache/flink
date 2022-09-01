@@ -283,7 +283,7 @@ and [YARN]({{< ref "docs/deployment/resource-providers/yarn" >}})。值得注意
 
 因为 TaskManagers 的规格组合是预定义的。
 
-- 集群中可能会存在资源碎片。例如，两个 slots 请求 3GB 堆内存，然而 TaskManager 总共的堆内存是 4GB,Flink 会启动两个 TaskManagers，每个 TaskManager 会有1G的堆内存被浪费。未来，可能会有一种资源分配策略，可以根据 job 的 slot 请求分配异构 TaskManagers，从而缓解资源碎片。
+- 集群中可能会存在资源碎片。例如，两个 slots 请求 3GB 堆内存，然而 TaskManager 总共的堆内存是 4GB，Flink 会启动两个 TaskManagers，每个 TaskManager 会有1G的堆内存被浪费。未来，可能会有一种资源分配策略，可以根据 job 的 slot 请求分配异构 TaskManagers，从而缓解资源碎片。
 
 - 确保配置的 Slot 共享组的资源组成不能大于 TaskManager 的总资源。否则，job 会失败，并抛出异常。
 
