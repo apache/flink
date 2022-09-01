@@ -143,9 +143,9 @@ public interface SourceReader<T, SplitT extends SourceSplit>
     /**
      * Pauses or resumes reading of individual source splits.
      *
-     * <p>Note that no other methods can be called in parallel, so it's fine to non-atomically
-     * update subscriptions. This method is simply providing connectors with more expressive APIs
-     * the opportunity to update all subscriptions at once.
+     * <p>Note that no other methods can be called in parallel, so updating subscriptions can be
+     * done atomically. This method is simply providing connectors with more expressive APIs the
+     * opportunity to update all subscriptions at once.
      *
      * <p>This is currently used to align the watermarks of splits, if watermark alignment is used
      * and the source reads from more than one split.
@@ -161,6 +161,12 @@ public interface SourceReader<T, SplitT extends SourceSplit>
     default void pauseOrResumeSplits(
             Collection<String> splitsToPause, Collection<String> splitsToResume) {
         throw new UnsupportedOperationException(
-                "This source reader does not support pause or resume splits.");
+                "This source reader does not support pausing or resuming splits which can lead to unaligned splits.\n"
+                        + "Unaligned splits are splits where the output watermarks of the splits have diverged more than the allowed limit.\n"
+                        + "It is highly discouraged to use unaligned source splits, as this leads to unpredictable\n"
+                        + "watermark alignment if there is more than a single split per reader. It is recommended to implement pausing splits\n"
+                        + "for this source. At your own risk, you can allow unaligned source splits by setting the\n"
+                        + "configuration parameter `pipeline.watermark-alignment.allow-unaligned-source-splits' to true.\n"
+                        + "Beware that this configuration parameter will be dropped in a future Flink release.");
     }
 }

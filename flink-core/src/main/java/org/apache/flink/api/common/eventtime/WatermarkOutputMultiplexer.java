@@ -51,8 +51,9 @@ public class WatermarkOutputMultiplexer {
     /** A callback for propagating changes to split based watermarks. */
     @FunctionalInterface
     @Internal
-    public interface SplitWatermarkUpdateListener {
-        void updateWatermark(long watermark);
+    public interface WatermarkUpdateListener {
+        /** Called when the watermark increases. */
+        void onWatermarkUpdate(long watermark);
     }
 
     /**
@@ -84,7 +85,7 @@ public class WatermarkOutputMultiplexer {
      * an output ID that can be used to get a deferred or immediate {@link WatermarkOutput} for that
      * output.
      */
-    public void registerNewOutput(String id, SplitWatermarkUpdateListener onWatermarkUpdate) {
+    public void registerNewOutput(String id, WatermarkUpdateListener onWatermarkUpdate) {
         final PartialWatermark outputState = new PartialWatermark(onWatermarkUpdate);
 
         final PartialWatermark previouslyRegistered =

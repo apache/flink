@@ -283,7 +283,7 @@ public class PipelineOptions {
                             "Whether name of vertex includes topological index or not. "
                                     + "When it is true, the name will have a prefix of index of the vertex, like '[vertex-0]Source: source'. It is false by default");
 
-    @PublicEvolving
+    /** Will be removed in future Flink releases. */
     public static final ConfigOption<Boolean> ALLOW_UNALIGNED_SOURCE_SPLITS =
             key("pipeline.watermark-alignment.allow-unaligned-source-splits")
                     .booleanType()

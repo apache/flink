@@ -90,8 +90,12 @@ public interface SplitReader<E, SplitT extends SourceSplit> {
     default void pauseOrResumeSplits(
             Collection<SplitT> splitsToPause, Collection<SplitT> splitsToResume) {
         throw new UnsupportedOperationException(
-                "This split reader does not support pause or resume. (To use watermark alignment "
-                        + "and allow unaligned source splits set configuration parameter "
-                        + "'pipeline.watermark-alignment.allow-unaligned-source-splits' to true.)");
+                "This split reader does not support pausing or resuming splits which can lead to unaligned splits.\n"
+                        + "Unaligned splits are splits where the output watermarks of the splits have diverged more than the allowed limit.\n"
+                        + "It is highly discouraged to use unaligned source splits, as this leads to unpredictable\n"
+                        + "watermark alignment if there is more than a single split per reader. It is recommended to implement pausing splits\n"
+                        + "for this source. At your own risk, you can allow unaligned source splits by setting the\n"
+                        + "configuration parameter `pipeline.watermark-alignment.allow-unaligned-source-splits' to true.\n"
+                        + "Beware that this configuration parameter will be dropped in a future Flink release.");
     }
 }

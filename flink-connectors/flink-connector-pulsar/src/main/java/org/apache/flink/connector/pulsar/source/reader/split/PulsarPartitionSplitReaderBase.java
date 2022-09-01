@@ -160,7 +160,7 @@ abstract class PulsarPartitionSplitReaderBase<OUT>
 
         List<PulsarPartitionSplit> newSplits = splitsChanges.splits();
         Preconditions.checkArgument(
-                newSplits.size() == 1, "This pulsar split reader only support one split.");
+                newSplits.size() == 1, "This pulsar split reader only supports one split.");
         this.registeredSplit = newSplits.get(0);
 
         // Open stop cursor.
@@ -182,9 +182,10 @@ abstract class PulsarPartitionSplitReaderBase<OUT>
     public void pauseOrResumeSplits(
             Collection<PulsarPartitionSplit> splitsToPause,
             Collection<PulsarPartitionSplit> splitsToResume) {
-        if (splitsToPause.size() > 1 || splitsToResume.size() > 1) {
-            throw new IllegalStateException("This pulsar split reader only support one split.");
-        }
+        // This shouldn't happen but just in case...
+        Preconditions.checkState(
+                splitsToPause.size() + splitsToResume.size() <= 1,
+                "This pulsar split reader only supports one split.");
 
         if (!splitsToPause.isEmpty()) {
             pulsarConsumer.pause();
