@@ -253,11 +253,11 @@ env.register_slot_sharing_group(ssg_with_resource)
 
 ## 深入讨论
 
-### <a name="resource-allocation-strategy">如何提高资源使用率</a>  
+### <a name="how-it-improves-resource-efficiency">如何提高资源使用率</a>  
 
 这部分，我们对细粒度资源管理如何提高资源利用率作深入讨论，这会有助于你理解它对我们的 jobs 是否有益。
 之前的 Flink 采用的一种粗粒度资源管理的方式，tasks 被提前定义部署，通常被分配相同的 slots 而没有每个 slot 包含多少资源的概念。
-对于许多jobs，使用粗粒度的资源管理并简单地把所有的tasks放入一个 [Slot共享组]({{< ref "docs/dev/datastream/operators/overview" >}}#set-slot-sharing-group)中运行，就资源利用率而言，也能运行得很好。
+对于许多jobs，使用粗粒度的资源管理并简单地把所有的tasks放入一个 [Slot 共享组]({{< ref "docs/dev/datastream/operators/overview" >}}#set-slot-sharing-group)中运行，就资源利用率而言，也能运行得很好。
 
 - 对于许多有相同并行度的 tasks 的流作业而言，每个 slot 会包含[整个 pipeline](https://flink.apache.org/2020/12/15/pipelined-region-sheduling.html#pipelined-regions)。理想情况条件下，所有的 pipelines 应该使用大致相同的资源，这可以容易被满足通过调节相同 slot 的资源。
 
@@ -271,7 +271,7 @@ env.register_slot_sharing_group(ssg_with_resource)
 
 试图以相同的 slots 执行所有的tasks,这样会造成非最优的资源利用率。相同 slot 的资源能够满足最高的资源需求，这对于其他资源需求将是浪费的。当涉及到像 GPU 这样昂贵的外部资源时，这样的浪费将是难以承受的。细粒度资源管理运用不同资源的 slots 提高了资源利用率在种使用场景中。
 
-### 资源分配策略 
+### <a name="resource-allocation-strategy">资源分配策略</a> 
 
 本节讨论的是 Flink 作业运行时的 Slot 分区机制和资源分配策略,包括在 YARN 和 Kubernetes 中运行 Flink 作业时,Flink 如何选择 TaskManager 来切分成 Slots 和如何分配 TaskManager 的。({{< ref "docs/deployment/resource-providers/native_kubernetes" >}})
 and [YARN]({{< ref "docs/deployment/resource-providers/yarn" >}})。值得注意的是,Flink运行时的资源分配策略是可插拔的以及我们在细粒度资源管理中的第一步引入它的默认实现。不久的将来,会有不同的策略供用户针对不同的使用场景选择使用。
