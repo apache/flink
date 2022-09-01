@@ -64,7 +64,7 @@ Flink之前的资源申请只包含必须指定的 slots,但没有精细化的�
 如上所示，TaskManager 的总资源是 1Core 和 4GB 内存，task 的 slot 数设置为2，*Slot 2* 被创建，并申请 0.5 Core和 2GB 的内存而没有指定资源配置。
 在分配 Slot 1和 Slot 2后，在 TaskManager 留下 0.25 Core 和 1GB 的内存作为未使用资源。
 
-详情请参考[资源分配策略](#resource-allocation-strategy)。
+详情请参考[<a name="resource-allocation-strategy">资源分配策略 </a>](#resource-allocation-strategy)。
 
 
 ## 用法
