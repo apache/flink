@@ -271,7 +271,7 @@ env.register_slot_sharing_group(ssg_with_resource)
 
 试图以相同的 slots 执行所有的tasks,这样会造成非最优的资源利用率。相同 slot 的资源能够满足最高的资源需求，这对于其他资源需求将是浪费的。当涉及到像 GPU 这样昂贵的外部资源时，这样的浪费将是难以承受的。细粒度资源管理运用不同资源的 slots 提高了资源利用率在种使用场景中。
 
-### 资源分配策略 (#resource-allocation-strategy)
+### 资源分配策略 
 
 本节讨论的是 Flink 作业运行时的 Slot 分区机制和资源分配策略,包括在 YARN 和 Kubernetes 中运行 Flink 作业时,Flink 如何选择 TaskManager 来切分成 Slots 和如何分配 TaskManager 的。({{< ref "docs/deployment/resource-providers/native_kubernetes" >}})
 and [YARN]({{< ref "docs/deployment/resource-providers/yarn" >}})。值得注意的是,Flink运行时的资源分配策略是可插拔的以及我们在细粒度资源管理中的第一步引入它的默认实现。不久的将来,会有不同的策略供用户针对不同的使用场景选择使用。
@@ -281,7 +281,7 @@ and [YARN]({{< ref "docs/deployment/resource-providers/yarn" >}})。值得注意
 
 在当前的资源分配策略中，Flink 会遍历所有被注册的 TaskMangers 并选择第一个有充足资源的 TaskManager 来满足 Slot 资源请求。当没有 TaskManager 有足够的资源时，Flink将会从 [Native Kubernetes]({{< ref "docs/deployment/resource-providers/native_kubernetes" >}})或者 [YARN]({{< ref "docs/deployment/resource-providers/yarn" >}})分配一个新的 TaskManager。在当前的策略中，Flink 会根据 [用户配置]({{< ref "docs/deployment/memory/mem_setup_tm" >}}#set-up-taskmanager-memory)分配相同的TaskManagers，
 
-因为TaskManagers的规格组合是预定义的。
+因为 TaskManagers 的规格组合是预定义的。
 
 - 集群中可能会存在资源碎片。例如，两个 slots 请求 3GB 堆内存，然而 TaskManager 总共的堆内存是 4GB,Flink 会启动两个 TaskManagers，每个 TaskManager 会有1G的堆内存被浪费。未来，可能会有一种资源分配策略，可以根据 job 的 slot 请求分配异构 TaskManagers，从而缓解资源碎片。
 
