@@ -18,6 +18,7 @@
 
 package org.apache.flink.connector.base.source.reader.fetcher;
 
+import org.apache.flink.api.connector.source.SourceReader;
 import org.apache.flink.api.connector.source.SourceSplit;
 import org.apache.flink.api.connector.source.mocks.MockSourceSplit;
 import org.apache.flink.configuration.Configuration;
@@ -57,8 +58,6 @@ public class SplitFetcherPauseResumeSplitReaderTest {
     /**
      * Tests if pause or resume shows expected behavior which requires creation and execution of
      * {@link SplitFetcher} tasks.
-     *
-     * @throws Exception on error.
      */
     @ParameterizedTest(name = "Individual reader per split: {0}")
     @ValueSource(booleans = {false, true})
@@ -85,27 +84,24 @@ public class SplitFetcherPauseResumeSplitReaderTest {
         TestingReaderOutput output = new TestingReaderOutput<>();
         testHarness.runUntilRecordsEmitted(output, 10, 2);
         Set<Integer> recordSet = new HashSet<>(output.getEmittedRecords());
-        assertThat(recordSet).containsExactlyInAnyOrder(new Integer[] {0, 1});
+        assertThat(recordSet).containsExactlyInAnyOrder(0, 1);
 
         testHarness.pauseOrResumeSplits(Collections.singleton("0"), Collections.emptyList());
 
         testHarness.runUntilRecordsEmitted(output, 10, 5);
         Set<Integer> recordSet2 = new HashSet<>(output.getEmittedRecords());
-        assertThat(recordSet2).containsExactlyInAnyOrder(new Integer[] {0, 1, 3, 5, 7});
+        assertThat(recordSet2).containsExactlyInAnyOrder(0, 1, 3, 5, 7);
 
         testHarness.pauseOrResumeSplits(Collections.emptyList(), Collections.singleton("0"));
 
         testHarness.runUntilAllRecordsEmitted(output, 10);
         Set<Integer> recordSet3 = new HashSet<>(output.getEmittedRecords());
-        assertThat(recordSet3)
-                .containsExactlyInAnyOrder(new Integer[] {0, 1, 2, 3, 4, 5, 6, 7, 8, 9});
+        assertThat(recordSet3).containsExactlyInAnyOrder(0, 1, 2, 3, 4, 5, 6, 7, 8, 9);
     }
 
     /**
      * Tests if pause or resume shows expected behavior in case of {@link SplitReader} that does not
      * support split or resume for scenarios (1) allowed and (2) not allowed.
-     *
-     * @throws Exception on error.
      */
     @ParameterizedTest(name = "Allow unaligned source splits: {0}")
     @ValueSource(booleans = {true, false})
@@ -136,21 +132,20 @@ public class SplitFetcherPauseResumeSplitReaderTest {
         TestingReaderOutput output = new TestingReaderOutput<>();
         testHarness.runUntilRecordsEmitted(output, 10, 2);
         Set<Integer> recordSet = new HashSet<>(output.getEmittedRecords());
-        assertThat(recordSet).containsExactlyInAnyOrder(new Integer[] {0, 1});
+        assertThat(recordSet).containsExactlyInAnyOrder(0, 1);
 
         testHarness.pauseOrResumeSplits(Collections.singleton("1"), Collections.emptyList());
 
         testHarness.runUntilRecordsEmitted(output, 10, 5);
         Set<Integer> recordSet2 = new HashSet<>(output.getEmittedRecords());
-        assertThat(recordSet2).containsExactlyInAnyOrder(new Integer[] {0, 1, 2, 4, 6});
+        assertThat(recordSet2).containsExactlyInAnyOrder(0, 1, 2, 4, 6);
 
         testHarness.pauseOrResumeSplits(Collections.singleton("0"), Collections.singleton("1"));
 
         if (allowUnalignedSourceSplits) {
             testHarness.runUntilAllRecordsEmitted(output, 10);
             Set<Integer> recordSet3 = new HashSet<>(output.getEmittedRecords());
-            assertThat(recordSet3)
-                    .containsExactlyInAnyOrder(new Integer[] {0, 1, 2, 3, 4, 5, 6, 7, 8, 9});
+            assertThat(recordSet3).containsExactlyInAnyOrder(0, 1, 2, 3, 4, 5, 6, 7, 8, 9);
         } else {
             assertThatThrownBy(() -> testHarness.runUntilAllRecordsEmitted(output, 10))
                     .isInstanceOf(RuntimeException.class)

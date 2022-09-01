@@ -95,10 +95,10 @@ final class CombinedWatermarkStatus {
     static class PartialWatermark {
         private long watermark = Long.MIN_VALUE;
         private boolean idle = false;
-        private final WatermarkOutputMultiplexer.SplitWatermarkUpdateListener onWatermarkUpdate;
+        private final WatermarkOutputMultiplexer.WatermarkUpdateListener onWatermarkUpdate;
 
         public PartialWatermark(
-                WatermarkOutputMultiplexer.SplitWatermarkUpdateListener onWatermarkUpdate) {
+                WatermarkOutputMultiplexer.WatermarkUpdateListener onWatermarkUpdate) {
             this.onWatermarkUpdate = onWatermarkUpdate;
         }
 
@@ -121,7 +121,7 @@ final class CombinedWatermarkStatus {
             this.idle = false;
             final boolean updated = watermark > this.watermark;
             if (updated) {
-                this.onWatermarkUpdate.updateWatermark(watermark);
+                this.onWatermarkUpdate.onWatermarkUpdate(watermark);
                 this.watermark = Math.max(watermark, this.watermark);
             }
             return updated;

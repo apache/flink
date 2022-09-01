@@ -156,7 +156,6 @@ public abstract class SourceReaderBase<E, T, SplitT extends SourceSplit, SplitSt
                 // rather than emitting nothing and waiting for the caller to call us again.
                 return pollNext(output);
             }
-            // else fall through the loop
         }
     }
 

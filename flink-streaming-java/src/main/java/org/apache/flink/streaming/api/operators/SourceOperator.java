@@ -166,7 +166,7 @@ public class SourceOperator<OUT, SplitT extends SourceSplit> extends AbstractStr
 
     private final List<SplitT> outputPendingSplits = new ArrayList<>();
 
-    private int numSplits = 0;
+    private int numSplits;
     private final Map<String, Long> splitCurrentWatermarks = new HashMap<>();
     private final Set<String> currentlyPausedSplits = new HashSet<>();
 
@@ -189,7 +189,6 @@ public class SourceOperator<OUT, SplitT extends SourceSplit> extends AbstractStr
     private @Nullable LatencyMarkerEmitter<OUT> latencyMarkerEmitter;
 
     private final boolean allowUnalignedSourceSplits;
-    private boolean sourceReaderSupportsPauseOrResumeSplits = true;
 
     public SourceOperator(
             FunctionWithException<SourceReaderContext, SourceReader<OUT, SplitT>, Exception>
@@ -539,6 +538,7 @@ public class SourceOperator<OUT, SplitT extends SourceSplit> extends AbstractStr
         if (event instanceof WatermarkAlignmentEvent) {
             updateMaxDesiredWatermark((WatermarkAlignmentEvent) event);
             checkWatermarkAlignment();
+            checkSplitWatermarkAlignment();
         } else if (event instanceof AddSplitEvent) {
             handleAddSplitsEvent(((AddSplitEvent<SplitT>) event));
         } else if (event instanceof SourceEventWrapper) {
@@ -577,7 +577,6 @@ public class SourceOperator<OUT, SplitT extends SourceSplit> extends AbstractStr
 
     private void updateMaxDesiredWatermark(WatermarkAlignmentEvent event) {
         currentMaxDesiredWatermark = event.getMaxWatermark();
-        checkSplitWatermarkAlignment();
         sourceMetricGroup.updateMaxDesiredWatermark(currentMaxDesiredWatermark);
     }
 
@@ -590,7 +589,9 @@ public class SourceOperator<OUT, SplitT extends SourceSplit> extends AbstractStr
     @Override
     public void updateCurrentSplitWatermark(String splitId, long watermark) {
         splitCurrentWatermarks.put(splitId, watermark);
-        if (currentMaxDesiredWatermark < watermark && !currentlyPausedSplits.contains(splitId)) {
+        if (numSplits > 1
+                && watermark > currentMaxDesiredWatermark
+                && !currentlyPausedSplits.contains(splitId)) {
             pauseOrResumeSplits(Collections.singletonList(splitId), Collections.emptyList());
             currentlyPausedSplits.add(splitId);
         }
@@ -604,7 +605,9 @@ public class SourceOperator<OUT, SplitT extends SourceSplit> extends AbstractStr
      */
     private void checkSplitWatermarkAlignment() {
         if (numSplits <= 1) {
-            return; // If there is only a single split, we do not pause the split but the source.
+            // A single split can't overtake any other splits assigned to this operator instance.
+            // It is sufficient for the source to stop processing.
+            return;
         }
         Collection<String> splitsToPause = new ArrayList<>();
         Collection<String> splitsToResume = new ArrayList<>();
@@ -626,14 +629,11 @@ public class SourceOperator<OUT, SplitT extends SourceSplit> extends AbstractStr
 
     private void pauseOrResumeSplits(
             Collection<String> splitsToPause, Collection<String> splitsToResume) {
-        if (!allowUnalignedSourceSplits || sourceReaderSupportsPauseOrResumeSplits) {
-            try {
-                sourceReader.pauseOrResumeSplits(splitsToPause, splitsToResume);
-            } catch (UnsupportedOperationException e) {
-                sourceReaderSupportsPauseOrResumeSplits = false;
-                if (!allowUnalignedSourceSplits) {
-                    throw new UnsupportedOperationException("", e);
-                }
+        try {
+            sourceReader.pauseOrResumeSplits(splitsToPause, splitsToResume);
+        } catch (UnsupportedOperationException e) {
+            if (!allowUnalignedSourceSplits) {
+                throw e;
             }
         }
     }

@@ -42,7 +42,7 @@ import org.apache.flink.streaming.runtime.tasks.TestProcessingTimeService;
 import org.apache.flink.streaming.util.MockOutput;
 import org.apache.flink.streaming.util.MockStreamConfig;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
 import java.util.ArrayList;
@@ -100,21 +100,32 @@ public class SourceOperatorSplitWatermarkAlignmentTest {
         final MockSourceSplit split1 = new MockSourceSplit(0, 0, 10);
         final MockSourceSplit split2 = new MockSourceSplit(1, 10, 20);
         split1.addRecord(5);
-        split1.addRecord(6);
         split1.addRecord(11);
+        split2.addRecord(3);
+        split2.addRecord(12);
+
         operator.handleOperatorEvent(
                 new AddSplitEvent<>(
                         Arrays.asList(split1, split2), new MockSourceSplitSerializer()));
         final CollectingDataOutput<Integer> dataOutput = new CollectingDataOutput<>();
 
-        operator.emitNext(dataOutput); // 5
+        operator.emitNext(dataOutput); // split 1 emits 5
+
         operator.handleOperatorEvent(
                 new WatermarkAlignmentEvent(4)); // pause by coordinator message
         assertThat(sourceReader.pausedSplits).containsExactly("0");
+
         operator.handleOperatorEvent(new WatermarkAlignmentEvent(5));
         assertThat(sourceReader.pausedSplits).isEmpty();
-        operator.emitNext(dataOutput); // 6, pause by increasing watermark
+
+        operator.emitNext(dataOutput); // split 1 emits 11
+        operator.emitNext(dataOutput); // split 2 emits 3
+
         assertThat(sourceReader.pausedSplits).containsExactly("0");
+
+        operator.emitNext(dataOutput); // split 2 emits 6
+
+        assertThat(sourceReader.pausedSplits).containsExactly("0", "1");
     }
 
     private Environment getTestingEnvironment() {

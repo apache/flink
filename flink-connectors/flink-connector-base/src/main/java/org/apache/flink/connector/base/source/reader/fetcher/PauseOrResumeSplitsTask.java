@@ -31,7 +31,7 @@ import java.util.Collection;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
- * Changes the paused splits of a n{@link SplitReader}. The task is used by default in {@link
+ * Changes the paused splits of a {@link SplitReader}. The task is used by default in {@link
  * SplitFetcherManager} and assumes that a {@link SplitFetcher} has multiple splits. For {@code
  * SplitFetchers} with single splits, it's instead recommended to subclass {@link
  * SplitFetcherManager} and pause the whole {@code SplitFetcher}.
@@ -63,7 +63,7 @@ class PauseOrResumeSplitsTask<SplitT extends SourceSplit> implements SplitFetche
             splitReader.pauseOrResumeSplits(splitsToPause, splitsToResume);
         } catch (UnsupportedOperationException e) {
             if (!allowUnalignedSourceSplits) {
-                throw new UnsupportedOperationException("", e);
+                throw e;
             }
         }
         return true;

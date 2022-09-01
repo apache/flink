@@ -257,7 +257,7 @@ public class SplitFetcherTest {
     }
 
     @Test
-    public void testCloseAfterPause() {
+    public void testCloseAfterPause() throws InterruptedException {
         final FutureCompletingBlockingQueue<RecordsWithSplitIds<Object>> queue =
                 new FutureCompletingBlockingQueue<>();
         final SplitFetcher<Object, TestingSourceSplit> fetcher =
@@ -268,9 +268,11 @@ public class SplitFetcherTest {
 
         fetcher.pause();
 
-        new Thread(fetcher::shutdown).start();
+        Thread fetcherThread = new Thread(fetcher::shutdown);
+        fetcherThread.start();
+        fetcherThread.join();
 
-        fetcher.runOnce();
+        assertThat(fetcher.runOnce()).isFalse();
     }
 
     // ------------------------------------------------------------------------
