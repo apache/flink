@@ -64,7 +64,7 @@ Flink之前的资源申请只包含必须指定的 slots,但没有精细化的�
 如上所示，TaskManager 的总资源是 1Core 和 4GB 内存，task 的 slot 数设置为2，*Slot 2* 被创建，并申请 0.5 Core和 2GB 的内存而没有指定资源配置。
 在分配 Slot 1和 Slot 2后，在 TaskManager 留下 0.25 Core 和 1GB 的内存作为未使用资源。
 
-详情请参考<a name="resource-allocation-strategy">[资源分配策略]</a> (#resource-allocation-strategy)。
+详情请参考[资源分配策略](#resource-allocation-strategy)。
 
 
 ## 用法
@@ -233,7 +233,7 @@ env.register_slot_sharing_group(ssg_with_resource)
 
 {{< hint warning >}}
 **提示:** 可以指定或者不指定资源配置构造 SlotSharingGroup。
-对于指定资源配置，必须明确地将 **CPU cores*** 和 **Task Heap Memory** 设置成正数值，其它设置则是可选的。
+对于指定资源配置，必须明确地将 **CPU cores*** 和 **Task Heap Memory**设置成正数值，其它设置则是可选的。
 {{< /hint >}}
 
 ## 局限
@@ -253,7 +253,7 @@ env.register_slot_sharing_group(ssg_with_resource)
 
 ## 深入讨论
 
-### 如何提高资源使用率
+### <a name="resource-allocation-strategy">如何提高资源使用率</a>  
 
 这部分，我们对细粒度资源管理如何提高资源利用率作深入讨论，这会有助于你理解它对我们的 jobs 是否有益。
 之前的 Flink 采用的一种粗粒度资源管理的方式，tasks 被提前定义部署，通常被分配相同的 slots 而没有每个 slot 包含多少资源的概念。
