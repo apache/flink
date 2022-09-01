@@ -93,6 +93,9 @@ public class JobManagerWatermarkTrackerTest {
         public void run(SourceContext<Integer> ctx) {
             Assert.assertEquals(998, tracker.updateWatermark(998));
             Assert.assertEquals(999, tracker.updateWatermark(999));
+            Assert.assertEquals(999, tracker.getWatermark());
+            Assert.assertEquals(1000, tracker.updateWatermark(1000));
+            Assert.assertEquals(1000, tracker.getWatermark());
         }
 
         @Override

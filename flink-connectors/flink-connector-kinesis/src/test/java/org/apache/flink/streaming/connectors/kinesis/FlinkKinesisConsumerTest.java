@@ -1256,6 +1256,11 @@ public class FlinkKinesisConsumerTest extends TestLogger {
             return localWatermark;
         }
 
+        @Override
+        public long getWatermark() {
+            return WATERMARK.get();
+        }
+
         static void assertGlobalWatermark(long expected) {
             Assert.assertEquals(expected, WATERMARK.get());
         }

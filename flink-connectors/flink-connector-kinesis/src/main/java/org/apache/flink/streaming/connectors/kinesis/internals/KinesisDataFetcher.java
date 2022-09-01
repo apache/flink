@@ -142,6 +142,9 @@ public class KinesisDataFetcher<T> {
     /** The metric group that all metrics should be registered to. */
     private final MetricGroup consumerMetricGroup;
 
+    /** The metric group for the individual subtask. */
+    private final MetricGroup shardMetricsGroup;
+
     // ------------------------------------------------------------------------
     //  Subtask-specific settings
     // ------------------------------------------------------------------------
@@ -415,7 +418,9 @@ public class KinesisDataFetcher<T> {
                 runtimeContext
                         .getMetricGroup()
                         .addGroup(KinesisConsumerMetricConstants.KINESIS_CONSUMER_METRICS_GROUP);
-
+        this.shardMetricsGroup =
+                consumerMetricGroup.addGroup(
+                        "subtaskId", String.valueOf(indexOfThisConsumerSubtask));
         this.error = checkNotNull(error);
         this.subscribedShardsState = checkNotNull(subscribedShardsState);
         this.subscribedStreamsToLastDiscoveredShardIds =
@@ -626,7 +631,19 @@ public class KinesisDataFetcher<T> {
                     watermarkTracker.setUpdateTimeoutMillis(
                             watermarkSyncMillis * 3); // synchronization latency
                     watermarkTracker.open(runtimeContext);
-                    new WatermarkSyncCallback(timerService, watermarkSyncMillis).start();
+                    boolean updateGlobalWatermarkForIdleSubtask =
+                            Boolean.parseBoolean(
+                                    getConsumerConfiguration()
+                                            .getProperty(
+                                                    ConsumerConfigConstants.WATERMARK_SYNC_GLOBAL,
+                                                    Boolean.toString(
+                                                            ConsumerConfigConstants
+                                                                    .DEFAULT_WATERMARK_SYNC_GLOBAL)));
+                    new WatermarkSyncCallback(
+                                    timerService,
+                                    watermarkSyncMillis,
+                                    updateGlobalWatermarkForIdleSubtask)
+                            .start();
                     // emit records ahead of watermark to offset synchronization latency
                     long lookaheadMillis =
                             Long.parseLong(
@@ -1172,6 +1189,14 @@ public class KinesisDataFetcher<T> {
             }
         }
 
+        LOG.debug(
+                "WatermarkEmitter subtask: {}, last watermark: {}, potential watermark: {}"
+                        + ", potential next watermark: {}",
+                indexOfThisConsumerSubtask,
+                lastWatermark,
+                potentialWatermark,
+                potentialNextWatermark);
+
         // advance watermark if possible (watermarks can only be ascending)
         if (potentialWatermark == Long.MAX_VALUE) {
             if (shardWatermarks.isEmpty() || shardIdleIntervalMillis > 0) {
@@ -1193,6 +1218,7 @@ public class KinesisDataFetcher<T> {
                 isIdle = false;
             }
             nextWatermark = potentialNextWatermark;
+            shardMetricsGroup.gauge("isIdle", () -> isIdle ? 1 : 0);
         }
     }
 
@@ -1239,17 +1265,20 @@ public class KinesisDataFetcher<T> {
 
         private final ProcessingTimeService timerService;
         private final long interval;
+        private final boolean updateGlobalWatermarkForIdleSubtask;
         private long lastGlobalWatermark = Long.MIN_VALUE;
         private long propagatedLocalWatermark = Long.MIN_VALUE;
         private int stalledWatermarkIntervalCount = 0;
         private long lastLogged;
 
-        WatermarkSyncCallback(ProcessingTimeService timerService, long interval) {
+        WatermarkSyncCallback(
+                ProcessingTimeService timerService,
+                long interval,
+                boolean updateGlobalWatermarkForIdleSubtask) {
             this.timerService = checkNotNull(timerService);
             this.interval = interval;
-            MetricGroup shardMetricsGroup =
-                    consumerMetricGroup.addGroup(
-                            "subtaskId", String.valueOf(indexOfThisConsumerSubtask));
+            this.updateGlobalWatermarkForIdleSubtask = updateGlobalWatermarkForIdleSubtask;
+
             shardMetricsGroup.gauge("localWatermark", () -> nextWatermark);
             shardMetricsGroup.gauge("globalWatermark", () -> lastGlobalWatermark);
         }
@@ -1263,11 +1292,13 @@ public class KinesisDataFetcher<T> {
         public void onProcessingTime(long timestamp) {
             if (nextWatermark != Long.MIN_VALUE) {
                 long globalWatermark = lastGlobalWatermark;
-                // TODO: refresh watermark while idle
                 if (!(isIdle && nextWatermark == propagatedLocalWatermark)) {
                     globalWatermark = watermarkTracker.updateWatermark(nextWatermark);
                     propagatedLocalWatermark = nextWatermark;
                 } else {
+                    if (updateGlobalWatermarkForIdleSubtask) {
+                        globalWatermark = watermarkTracker.getWatermark();
+                    }
                     LOG.info(
                             "WatermarkSyncCallback subtask: {} is idle",
                             indexOfThisConsumerSubtask);
@@ -1277,12 +1308,14 @@ public class KinesisDataFetcher<T> {
                     lastLogged = System.currentTimeMillis();
                     LOG.info(
                             "WatermarkSyncCallback subtask: {} local watermark: {}"
-                                    + ", global watermark: {}, delta: {} timeouts: {}, emitter: {}",
+                                    + ", global watermark: {}, delta: {} timeouts: {}, idle: {}"
+                                    + ", emitter: {}",
                             indexOfThisConsumerSubtask,
                             nextWatermark,
                             globalWatermark,
                             nextWatermark - globalWatermark,
                             watermarkTracker.getUpdateTimeoutCount(),
+                            isIdle,
                             recordEmitter.printInfo());
 
                     // Following is for debugging non-reproducible issue with stalled watermark

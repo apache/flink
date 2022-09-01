@@ -25,6 +25,7 @@ import org.junit.Test;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 
 /** Test for {@link WatermarkTracker}. */
 public class WatermarkTrackerTest {
@@ -45,6 +46,15 @@ public class WatermarkTrackerTest {
 
         @Override
         public long updateWatermark(final long localWatermark) {
+            return updateWatermark(Optional.of(localWatermark));
+        }
+
+        @Override
+        public long getWatermark() {
+            return updateWatermark(Optional.empty());
+        }
+
+        private long updateWatermark(Optional<Long> localWatermark) {
             refreshWatermarkSnapshot(this.watermarks);
 
             long currentTime = getCurrentTime();
@@ -54,8 +64,11 @@ public class WatermarkTrackerTest {
             if (ws == null) {
                 watermarks.put(subtaskId, ws = new WatermarkState());
             }
-            ws.lastUpdated = currentTime;
-            ws.watermark = Math.max(ws.watermark, localWatermark);
+            // empty if getting without updating
+            if (localWatermark.isPresent()) {
+                ws.lastUpdated = currentTime;
+                ws.watermark = Math.max(ws.watermark, localWatermark.get());
+            }
             saveWatermark(subtaskId, ws);
 
             long globalWatermark = ws.watermark;

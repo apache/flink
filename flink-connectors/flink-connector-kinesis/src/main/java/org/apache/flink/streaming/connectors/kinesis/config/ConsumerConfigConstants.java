@@ -303,6 +303,9 @@ public class ConsumerConfigConstants extends AWSConfigConstants {
     /** The maximum delta allowed for the reader to advance ahead of the shared global watermark. */
     public static final String WATERMARK_LOOKAHEAD_MILLIS = "flink.watermark.lookahead.millis";
 
+    /** Feature flag to update global watermark when idle. */
+    public static final String WATERMARK_SYNC_GLOBAL = "flink.watermark.sync.global";
+
     /**
      * The maximum number of records that will be buffered before suspending consumption of a shard.
      */
@@ -402,6 +405,8 @@ public class ConsumerConfigConstants extends AWSConfigConstants {
     public static final long DEFAULT_SHARD_IDLE_INTERVAL_MILLIS = -1;
 
     public static final long DEFAULT_WATERMARK_SYNC_MILLIS = 30_000;
+
+    public static final boolean DEFAULT_WATERMARK_SYNC_GLOBAL = false;
 
     public static final int DEFAULT_EFO_HTTP_CLIENT_MAX_CONURRENCY = 10_000;
 
