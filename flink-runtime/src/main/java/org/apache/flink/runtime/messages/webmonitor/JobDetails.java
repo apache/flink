@@ -22,6 +22,7 @@ import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.runtime.execution.ExecutionState;
+import org.apache.flink.runtime.executiongraph.AccessExecution;
 import org.apache.flink.runtime.executiongraph.AccessExecutionGraph;
 import org.apache.flink.runtime.executiongraph.AccessExecutionJobVertex;
 import org.apache.flink.runtime.executiongraph.AccessExecutionVertex;
@@ -40,8 +41,11 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ser.std.S
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -60,8 +64,6 @@ public class JobDetails implements Serializable {
     private static final String FIELD_NAME_STATUS = "state";
     private static final String FIELD_NAME_LAST_MODIFICATION = "last-modification";
     private static final String FIELD_NAME_TOTAL_NUMBER_TASKS = "total";
-    private static final String FIELD_NAME_CURRENT_EXECUTION_ATTEMPTS =
-            "current-execution-attempts";
 
     private final JobID jobId;
 
@@ -84,10 +86,12 @@ public class JobDetails implements Serializable {
     /**
      * The map holds the attempt number of the current execution attempt in the Execution, which is
      * considered as the representing execution for the subtask of the vertex. The keys and values
-     * are JobVertexID -> SubtaskIndex -> CurrentExecutionAttemptNumber. It is used to accumulate
-     * the metrics of a subtask in MetricFetcher.
+     * are JobVertexID -> SubtaskIndex -> CurrenAttempts info.
+     *
+     * <p>The field is excluded from the json. Any usage from the web UI and the history server is
+     * not allowed.
      */
-    private final Map<String, Map<Integer, Integer>> currentExecutionAttempts;
+    private final Map<String, Map<Integer, CurrentAttempts>> currentExecutionAttempts;
 
     @VisibleForTesting
     public JobDetails(
@@ -123,7 +127,7 @@ public class JobDetails implements Serializable {
             long lastUpdateTime,
             int[] tasksPerState,
             int numTasks,
-            Map<String, Map<Integer, Integer>> currentExecutionAttempts) {
+            Map<String, Map<Integer, CurrentAttempts>> currentExecutionAttempts) {
         this.jobId = checkNotNull(jobId);
         this.jobName = checkNotNull(jobName);
         this.startTime = startTime;
@@ -150,22 +154,25 @@ public class JobDetails implements Serializable {
         int[] countsPerStatus = new int[ExecutionState.values().length];
         long lastChanged = 0;
         int numTotalTasks = 0;
-        Map<String, Map<Integer, Integer>> currentExecutionAttempts = new HashMap<>();
+        Map<String, Map<Integer, CurrentAttempts>> currentExecutionAttempts = new HashMap<>();
 
         for (AccessExecutionJobVertex ejv : job.getVerticesTopologically()) {
             AccessExecutionVertex[] taskVertices = ejv.getTaskVertices();
             numTotalTasks += taskVertices.length;
-            Map<Integer, Integer> vertexAttempts = new HashMap<>();
+            Map<Integer, CurrentAttempts> vertexAttempts = new HashMap<>();
 
             for (AccessExecutionVertex taskVertex : taskVertices) {
-                if (taskVertex.getCurrentExecutions().size() > 1) {
-                    vertexAttempts.put(
-                            taskVertex.getParallelSubtaskIndex(),
-                            taskVertex.getCurrentExecutionAttempt().getAttemptNumber());
-                }
                 ExecutionState state = taskVertex.getExecutionState();
                 countsPerStatus[state.ordinal()]++;
                 lastChanged = Math.max(lastChanged, taskVertex.getStateTimestamp(state));
+
+                vertexAttempts.put(
+                        taskVertex.getParallelSubtaskIndex(),
+                        new CurrentAttempts(
+                                taskVertex.getCurrentExecutionAttempt().getAttemptNumber(),
+                                taskVertex.getCurrentExecutions().stream()
+                                        .map(AccessExecution::getAttemptNumber)
+                                        .collect(Collectors.toSet())));
             }
 
             if (!vertexAttempts.isEmpty()) {
@@ -226,7 +233,7 @@ public class JobDetails implements Serializable {
         return tasksPerState;
     }
 
-    public Map<String, Map<Integer, Integer>> getCurrentExecutionAttempts() {
+    public Map<String, Map<Integer, CurrentAttempts>> getCurrentExecutionAttempts() {
         return currentExecutionAttempts;
     }
     // ------------------------------------------------------------------------
@@ -326,20 +333,6 @@ public class JobDetails implements Serializable {
 
             jsonGenerator.writeEndObject();
 
-            if (!jobDetails.currentExecutionAttempts.isEmpty()) {
-                jsonGenerator.writeObjectFieldStart(FIELD_NAME_CURRENT_EXECUTION_ATTEMPTS);
-                for (Map.Entry<String, Map<Integer, Integer>> vertex :
-                        jobDetails.currentExecutionAttempts.entrySet()) {
-                    jsonGenerator.writeObjectFieldStart(vertex.getKey());
-                    for (Map.Entry<Integer, Integer> attempt : vertex.getValue().entrySet()) {
-                        jsonGenerator.writeNumberField(
-                                String.valueOf(attempt.getKey()), attempt.getValue());
-                    }
-                    jsonGenerator.writeEndObject();
-                }
-                jsonGenerator.writeEndObject();
-            }
-
             jsonGenerator.writeEndObject();
         }
     }
@@ -379,28 +372,6 @@ public class JobDetails implements Serializable {
                         jsonNode == null ? 0 : jsonNode.intValue();
             }
 
-            Map<String, Map<Integer, Integer>> attempts = new HashMap<>();
-            JsonNode attemptsNode = rootNode.get(FIELD_NAME_CURRENT_EXECUTION_ATTEMPTS);
-            if (attemptsNode != null) {
-                attemptsNode
-                        .fields()
-                        .forEachRemaining(
-                                vertex -> {
-                                    String vertexId = vertex.getKey();
-                                    Map<Integer, Integer> vertexAttempts =
-                                            attempts.computeIfAbsent(
-                                                    vertexId, k -> new HashMap<>());
-                                    vertex.getValue()
-                                            .fields()
-                                            .forEachRemaining(
-                                                    attempt ->
-                                                            vertexAttempts.put(
-                                                                    Integer.parseInt(
-                                                                            attempt.getKey()),
-                                                                    attempt.getValue().intValue()));
-                                });
-            }
-
             return new JobDetails(
                     jobId,
                     jobName,
@@ -411,7 +382,30 @@ public class JobDetails implements Serializable {
                     lastUpdateTime,
                     numVerticesPerExecutionState,
                     numTasks,
-                    attempts);
+                    new HashMap<>());
+        }
+    }
+
+    /**
+     * The CurrentAttempts holds the attempt number of the current representative execution attempt,
+     * and the attempt numbers of all the running attempts.
+     */
+    public static final class CurrentAttempts implements Serializable {
+        private final int representativeAttempt;
+
+        private final Set<Integer> currentAttempts;
+
+        public CurrentAttempts(int representativeAttempt, Set<Integer> currentAttempts) {
+            this.representativeAttempt = representativeAttempt;
+            this.currentAttempts = Collections.unmodifiableSet(currentAttempts);
+        }
+
+        public int getRepresentativeAttempt() {
+            return representativeAttempt;
+        }
+
+        public Set<Integer> getCurrentAttempts() {
+            return currentAttempts;
         }
     }
 }
