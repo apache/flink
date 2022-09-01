@@ -64,7 +64,7 @@ Flink之前的资源申请只包含必须指定的 slots,但没有精细化的�
 如上所示，TaskManager 的总资源是 1Core 和 4GB 内存，task 的 slot 数设置为2，*Slot 2* 被创建，并申请 0.5 Core和 2GB 的内存而没有指定资源配置。
 在分配 Slot 1和 Slot 2后，在 TaskManager 留下 0.25 Core 和 1GB 的内存作为未使用资源。
 
-详情请参考[<a name="资源分配策略">资源分配策略</a>](#resource-allocation-strategy)。
+详情请参考[资源分配策略](#resource-allocation-strategy)。
 
 
 ## 用法
@@ -173,7 +173,7 @@ env.register_slot_sharing_group(ssg_a) # 注册共享组的资源
 
 在构造 SlotSharingGroup 时，可以为 Slot 共享组设置以下资源:
 
-- **CPU核数**. 定义作业所需要的CPU核数， 该设置务必是明确配置的正值。
+- **CPU核数** 定义作业所需要的CPU核数， 该设置务必是明确配置的正值。
 - **[Task堆内存]({{< ref "docs/deployment/memory/mem_setup_tm" >}}#task-operator-heap-memory)** 定义作业所需要的堆内存，该设置务必是明确配置的正值。
 - **[堆外内存]({{< ref "docs/deployment/memory/mem_setup_tm" >}}#configure-off-heap-memory-direct-or-native)** 定义作业所需要的堆外内存，该设置可设置为0。
 - **[管理内存]({{< ref "docs/deployment/memory/mem_setup_tm" >}}#managed-memory)** 定义作业所需要的管理内存，可设置为0。
@@ -273,7 +273,7 @@ env.register_slot_sharing_group(ssg_with_resource)
 
 ### 资源分配策略
 
-本节讨论的是 Flink 作业运行时的 Slot 分区机制和资源分配策略,包括在 YARN 和 Kubernetes 中运行 Flink 作业时,Flink 如何选择 TaskManager 来切分成 Slots 和如何分配 TaskManager 的.({{< ref "docs/deployment/resource-providers/native_kubernetes" >}})
+本节讨论的是 Flink 作业运行时的 Slot 分区机制和资源分配策略,包括在 YARN 和 Kubernetes 中运行 Flink 作业时,Flink 如何选择 TaskManager 来切分成 Slots 和如何分配 TaskManager 的。({{< ref "docs/deployment/resource-providers/native_kubernetes" >}})
 and [YARN]({{< ref "docs/deployment/resource-providers/yarn" >}})。值得注意的是,Flink运行时的资源分配策略是可插拔的以及我们在细粒度资源管理中的第一步引入它的默认实现。不久的将来,会有不同的策略供用户针对不同的使用场景选择使用。
 {{< img src="/fig/resource_alloc.png" class="center" >}}
 
