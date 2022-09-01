@@ -200,4 +200,8 @@ public class KubernetesJobManagerParameters extends AbstractKubernetesParameters
         }
         return replicas;
     }
+
+    public String getUserArtifactsBaseDir() {
+        return flinkConfig.getString(KubernetesConfigOptions.KUBERNETES_USER_ARTIFACTS_BASE_DIR);
+    }
 }

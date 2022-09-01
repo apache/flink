@@ -111,4 +111,6 @@ public class Constants {
     public static final String KUBERNETES_TASK_MANAGER_SCRIPT_PATH = "kubernetes-taskmanager.sh";
 
     public static final String ENV_TM_JVM_MEM_OPTS = "FLINK_TM_JVM_MEM_OPTS";
+
+    public static final String USER_ARTIFACTS_VOLUME = "user-artifacts-volume";
 }

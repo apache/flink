@@ -23,6 +23,7 @@ import org.apache.flink.kubernetes.configuration.KubernetesConfigOptions;
 import org.apache.flink.util.FlinkRuntimeException;
 
 import org.apache.commons.io.FileUtils;
+import org.apache.commons.io.FilenameUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -48,16 +49,24 @@ public class ArtifactUtils {
 
     public static File fetch(String jarURI, Configuration flinkConfiguration, String targetDirStr)
             throws Exception {
-        File targetDir = new File(targetDirStr);
-        createIfNotExists(targetDir);
         URI uri = PackagedProgramUtils.resolveURI(jarURI);
         if ("local".equals(uri.getScheme()) && uri.isAbsolute()) {
             return new File(uri.getPath());
-        } else if ("http".equals(uri.getScheme()) || "https".equals(uri.getScheme())) {
-            return HttpArtifactFetcher.INSTANCE.fetch(jarURI, flinkConfiguration, targetDir);
         } else {
-            return FileSystemBasedArtifactFetcher.INSTANCE.fetch(
-                    jarURI, flinkConfiguration, targetDir);
+            File targetDir = new File(targetDirStr);
+            File targetFile = new File(targetDir, FilenameUtils.getName(uri.getPath()));
+            // user artifacts will be kept if enable emptyDir
+            if (!targetFile.exists()) {
+                createIfNotExists(targetDir);
+                if ("http".equals(uri.getScheme()) || "https".equals(uri.getScheme())) {
+                    return HttpArtifactFetcher.INSTANCE.fetch(
+                            jarURI, flinkConfiguration, targetDir);
+                } else {
+                    return FileSystemBasedArtifactFetcher.INSTANCE.fetch(
+                            jarURI, flinkConfiguration, targetDir);
+                }
+            }
+            return targetFile;
         }
     }
 

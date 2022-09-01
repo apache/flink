@@ -127,7 +127,7 @@ $ ./bin/flink run-application \
 The jar package will be downloaded from filesystem to
 [kubernetes.user.artifacts.base.dir]({{< ref "docs/deployment/config" >}}#kubernetes-user-artifacts-base-dir)/[kubernetes.namespace]({{< ref "docs/deployment/config" >}}#kubernetes-namespace)/[kubernetes.cluster-id]({{< ref "docs/deployment/config" >}}#kubernetes-cluster-id) path in image.
 {{< /hint >}}
- <span class="label label-info">Note</span> `local` schema is also supported .
+ <span class="label label-info">Note</span> `local` schema is still supported. If you use `local` schema,  the jar must be provided in the image or download by a init container like [Example]({{< ref "docs/deployment/resource-providers/native_kubernetes" >}}#example-of-pod-template).
 
 The `kubernetes.cluster-id` option specifies the cluster name and must be unique.
 If you do not specify this option, then Flink will generate a random name.

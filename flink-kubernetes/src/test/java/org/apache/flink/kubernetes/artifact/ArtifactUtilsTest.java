@@ -99,7 +99,7 @@ public class ArtifactUtilsTest {
                             new Configuration()
                                     .set(
                                             KubernetesConfigOptions
-                                                    .KUBERNETES_USER_JAR_ARTIFACT_HTTP_HEADER,
+                                                    .KUBERNETES_USER_ARTIFACT_HTTP_HEADER,
                                             new HashMap<String, String>() {
                                                 {
                                                     put("k1", "v1");

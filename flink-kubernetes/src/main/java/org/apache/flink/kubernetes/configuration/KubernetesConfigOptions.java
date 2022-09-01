@@ -498,7 +498,7 @@ public class KubernetesConfigOptions {
                             "Whether to enable HostNetwork mode. "
                                     + "The HostNetwork allows the pod could use the node network namespace instead of the individual pod network namespace. Please note that the JobManager service account should have the permission to update Kubernetes service.");
 
-    public static final ConfigOption<Map<String, String>> KUBERNETES_USER_JAR_ARTIFACT_HTTP_HEADER =
+    public static final ConfigOption<Map<String, String>> KUBERNETES_USER_ARTIFACT_HTTP_HEADER =
             ConfigOptions.key("kubernetes.user.artifacts.http.header")
                     .mapType()
                     .noDefaultValue()
@@ -511,6 +511,17 @@ public class KubernetesConfigOptions {
                     .stringType()
                     .defaultValue("/opt/flink/artifacts")
                     .withDescription("The base dir to put the application job artifacts.");
+
+    public static final ConfigOption<Boolean> KUBERNETES_USER_ARTIFACTS_EMPTYDIR_ENABLE =
+            ConfigOptions.key("kubernetes.user.artifacts.emptyDir.enable")
+                    .booleanType()
+                    .defaultValue(true)
+                    .withDescription(
+                            Description.builder()
+                                    .text(
+                                            "Whether to enable create mount an empty dir for %s to keep user artifacts if container restart.",
+                                            code(KUBERNETES_USER_ARTIFACTS_BASE_DIR.key()))
+                                    .build());
 
     private static String getDefaultFlinkImage() {
         // The default container image that ties to the exact needed versions of both Flink and
