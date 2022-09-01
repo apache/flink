@@ -58,6 +58,18 @@ public class JobManagerWatermarkTracker extends WatermarkTracker {
         WatermarkUpdate update = new WatermarkUpdate();
         update.id = getSubtaskId();
         update.watermark = localWatermark;
+        return updateWatermark(update);
+    }
+
+    @Override
+    public long getWatermark() {
+        WatermarkUpdate update = new WatermarkUpdate();
+        update.id = getSubtaskId();
+        update.updateLocalWatermark = false;
+        return updateWatermark(update);
+    }
+
+    public long updateWatermark(WatermarkUpdate update) {
         try {
             byte[] resultBytes =
                     aggregateManager.updateGlobalAggregate(
@@ -92,6 +104,7 @@ public class JobManagerWatermarkTracker extends WatermarkTracker {
     protected static class WatermarkUpdate implements Serializable {
         protected long watermark = Long.MIN_VALUE;
         protected String id;
+        protected boolean updateLocalWatermark = true;
     }
 
     /** Watermark aggregation result. */
@@ -128,6 +141,11 @@ public class JobManagerWatermarkTracker extends WatermarkTracker {
                                 valueBytes, this.getClass().getClassLoader());
             } catch (Exception e) {
                 throw new RuntimeException(e);
+            }
+            // no op to get global watermark without updating it
+            if (!value.updateLocalWatermark) {
+                addCount--;
+                return accumulator;
             }
             WatermarkState ws = accumulator.get(value.id);
             if (ws == null) {
