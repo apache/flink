@@ -23,7 +23,7 @@ import org.apache.flink.table.planner.runtime.stream.FsStreamingSinkITCaseBase;
 import java.util.ArrayList;
 import java.util.List;
 
-/** ITCase to test csv format for {@link CsvFileSystemFormatFactory} for streaming sink. */
+/** ITCase to test csv format for {@link CsvFileFormatFactory} for streaming sink. */
 public class CsvFilesystemStreamSinkITCase extends FsStreamingSinkITCaseBase {
     @Override
     public String[] additionalProperties() {
