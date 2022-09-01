@@ -39,6 +39,7 @@ import java.io.IOException;
 import java.util.Collection;
 import java.util.Collections;
 
+import static org.apache.flink.runtime.metrics.groups.InternalCacheMetricGroup.UNINITIALIZED;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
@@ -54,7 +55,6 @@ public class CachingLookupFunction extends LookupFunction {
 
     // Constants
     public static final String LOOKUP_CACHE_METRIC_GROUP_NAME = "cache";
-    private static final long UNINITIALIZED = -1;
 
     // The actual user-provided lookup function
     @Nullable private final LookupFunction delegate;
@@ -101,11 +101,12 @@ public class CachingLookupFunction extends LookupFunction {
         cacheMetricGroup =
                 new InternalCacheMetricGroup(
                         context.getMetricGroup(), LOOKUP_CACHE_METRIC_GROUP_NAME);
-        loadCounter = new SimpleCounter();
-        cacheMetricGroup.loadCounter(loadCounter);
-        numLoadFailuresCounter = new SimpleCounter();
-        cacheMetricGroup.numLoadFailuresCounter(numLoadFailuresCounter);
-
+        if (!(cache instanceof LookupFullCache)) {
+            loadCounter = new SimpleCounter();
+            cacheMetricGroup.loadCounter(loadCounter);
+            numLoadFailuresCounter = new SimpleCounter();
+            cacheMetricGroup.numLoadFailuresCounter(numLoadFailuresCounter);
+        }
         // Initialize cache and the delegating function
         cache.open(cacheMetricGroup);
         if (cache instanceof LookupFullCache) {

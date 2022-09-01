@@ -37,6 +37,8 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.locks.ReentrantLock;
 
+import static org.apache.flink.runtime.metrics.groups.InternalCacheMetricGroup.UNINITIALIZED;
+
 /**
  * Abstract task that loads data in Full cache from source provided by {@link ScanRuntimeProvider}.
  */
@@ -53,23 +55,31 @@ public abstract class CacheLoader extends AbstractRichFunction implements Runnab
     // Cache metrics
     private transient Counter loadCounter;
     private transient Counter loadFailuresCounter;
-    private transient volatile long latestLoadTimeMs;
+    private transient volatile long latestLoadTimeMs = UNINITIALIZED;
 
     protected abstract void reloadCache() throws Exception;
 
     @Override
     public void open(Configuration parameters) throws Exception {
         firstLoadLatch = new CountDownLatch(1);
-        loadCounter = new ThreadSafeSimpleCounter();
-        loadFailuresCounter = new ThreadSafeSimpleCounter();
     }
 
     public void open(CacheMetricGroup cacheMetricGroup) {
+        if (loadCounter == null) {
+            loadCounter = new ThreadSafeSimpleCounter();
+        }
+        if (loadFailuresCounter == null) {
+            loadFailuresCounter = new ThreadSafeSimpleCounter();
+        }
+        if (cache == null) {
+            cache = new ConcurrentHashMap<>();
+        }
         // Register metrics
         cacheMetricGroup.loadCounter(loadCounter);
         cacheMetricGroup.numLoadFailuresCounter(loadFailuresCounter);
         cacheMetricGroup.numCachedRecordsGauge(() -> (long) cache.size());
         cacheMetricGroup.latestLoadTimeGauge(() -> latestLoadTimeMs);
+        // TODO support metric numCachedBytesGauge
     }
 
     public ConcurrentHashMap<RowData, Collection<RowData>> getCache() {
@@ -111,6 +121,8 @@ public abstract class CacheLoader extends AbstractRichFunction implements Runnab
 
     @Override
     public void close() throws Exception {
-        cache.clear();
+        if (cache != null) {
+            cache.clear();
+        }
     }
 }
