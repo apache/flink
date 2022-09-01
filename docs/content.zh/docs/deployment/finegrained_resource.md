@@ -245,7 +245,7 @@ env.register_slot_sharing_group(ssg_with_resource)
 - **与Flink Web UI有限的集成** 在细粒度的资源管理中,Slots会有不同的资源规格.目前Web UI页面只显示 slot 数量而不显示具体详情。
 - **与批作业有限的集成** 目前，细粒度资源管理需要在所有边缘都被阻塞的情况下执行批处理工作负载。为了达到该实现，需要将配置 [fine-grained.shuffle-mode.all-blocking]({{< ref "docs/deployment/config" >}}#fine-grained-shuffle-mode-all-blocking)设置为 true。注意这样可能会影响性能。详情请见[FLINK-20865](https://issues.apache.org/jira/browse/FLINK-20865)。
 - **不建议使用混合资源需求** 不建议仅为工作的某些部分指定资源需求，而未指定其余部分的需求。目前，任何资源的插槽都可以满足未指定的要求。它获取的实际资源可能在不同的作业执行或故障切换中不一致。
-- **Slot分配结果可能不是最优** 正因为Slot需求包含资源的多维度方面,所以,Slot分配实际上是一个多维度问题,这是一个NP难题. 因些,在一些使用场景中,默认的 [资源分配策略](#resource-allocation-strategy)可能不会使得Slot分配达到最优,而且还会导致资源碎片或者资源分配失败.
+- **Slot分配结果可能不是最优** 正因为Slot需求包含资源的多维度方面,所以,Slot分配实际上是一个多维度问题,这是一个NP难题. 因些,在一些使用场景中,默认的[资源分配策略](#resource-allocation-strategy)可能不会使得Slot分配达到最优,而且还会导致资源碎片或者资源分配失败.
 
 ## 注意
 - **设置 Slot 共享组可能改变性能** 为可链式操作的算子设置不同的 slot 共享组可能会导致链式操作 [operator chains]({{< ref "docs/dev/datastream/operators/overview" >}}#task-chaining-and-resource-groups)产生割裂,从而改变性能.
@@ -271,7 +271,7 @@ env.register_slot_sharing_group(ssg_with_resource)
 
 试图以相同的 slots 执行所有的tasks,这样会造成非最优的资源利用率。相同 slot 的资源能够满足最高的资源需求，这对于其他资源需求将是浪费的。当涉及到像 GPU 这样昂贵的外部资源时，这样的浪费将是难以承受的。细粒度资源管理运用不同资源的 slots 提高了资源利用率在种使用场景中。
 
-### 资源分配策略
+### 资源分配策略 (#resource-allocation-strategy)
 
 本节讨论的是 Flink 作业运行时的 Slot 分区机制和资源分配策略,包括在 YARN 和 Kubernetes 中运行 Flink 作业时,Flink 如何选择 TaskManager 来切分成 Slots 和如何分配 TaskManager 的。({{< ref "docs/deployment/resource-providers/native_kubernetes" >}})
 and [YARN]({{< ref "docs/deployment/resource-providers/yarn" >}})。值得注意的是,Flink运行时的资源分配策略是可插拔的以及我们在细粒度资源管理中的第一步引入它的默认实现。不久的将来,会有不同的策略供用户针对不同的使用场景选择使用。
