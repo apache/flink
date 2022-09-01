@@ -75,7 +75,8 @@ public final class KubernetesApplicationClusterEntrypoint extends ApplicationClu
         try {
             PluginManager pluginManager =
                     PluginUtils.createPluginManagerFromRootFolder(configuration);
-            LOG.info("Install default filesystem for fetching user artifacts in Kubernetes Application Mode.");
+            LOG.info(
+                    "Install default filesystem for fetching user artifacts in Kubernetes Application Mode.");
             FileSystem.initialize(configuration, pluginManager);
             SecurityContext securityContext = installSecurityContext(configuration);
             program = securityContext.runSecured(() -> getPackagedProgram(configuration));
