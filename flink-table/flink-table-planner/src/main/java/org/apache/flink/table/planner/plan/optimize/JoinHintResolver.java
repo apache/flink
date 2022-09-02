@@ -105,7 +105,6 @@ public class JoinHintResolver extends RelShuttleImpl {
                 assert null != lookupTable;
                 if (rightName.isPresent() && matchIdentifier(lookupTable, rightName.get())) {
                     validHints.add(trimInheritPath(hint));
-                    updateInfoForOptionCheck(hint.hintName, leftName);
                     newHints.add(hint);
                 }
             } else if (JoinStrategy.isJoinStrategy(hint.hintName)) {
@@ -224,10 +223,18 @@ public class JoinHintResolver extends RelShuttleImpl {
             String errorMsg =
                     invalidHints.stream()
                             .map(
-                                    hint ->
-                                            hint.hintName
+                                    hint -> {
+                                        String hintName = hint.hintName;
+                                        if (JoinStrategy.isLookupHint(hintName)) {
+                                            // lookup join
+                                            return hint.hintName;
+                                        } else {
+                                            // join hint
+                                            return hint.hintName
                                                     + ":"
-                                                    + StringUtils.join(hint.listOptions, ", "))
+                                                    + StringUtils.join(hint.listOptions, ", ");
+                                        }
+                                    })
                             .collect(Collectors.joining("\n", "\n", ""));
             throw new ValidationException(String.format(errorPattern, errorMsg));
         }
