@@ -16,12 +16,6 @@
   ~ limitations under the License.
   -->
 <nz-tabset [nzTabBarGutter]="16" [nzSize]="'small'">
-  <nz-tab nzTitle="Aggregated Metrics">
-    <flink-table-aggregated-metrics
-      [isLoading]="isLoading"
-      [aggregated]="aggregated"
-    ></flink-table-aggregated-metrics>
-  </nz-tab>
   <nz-tab nzTitle="Subtask Metrics">
     <nz-table
       nzSize="small"
@@ -205,6 +199,12 @@
         </ng-template>
       </tbody>
     </nz-table>
+  </nz-tab>
+  <nz-tab nzTitle="Aggregated Metrics">
+    <flink-table-aggregated-metrics
+      [isLoading]="isLoading"
+      [aggregated]="aggregated"
+    ></flink-table-aggregated-metrics>
   </nz-tab>
 </nz-tabset>
 
