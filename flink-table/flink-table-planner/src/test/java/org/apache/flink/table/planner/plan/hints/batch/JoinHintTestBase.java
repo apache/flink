@@ -189,8 +189,8 @@ public abstract class JoinHintTestBase extends TableTestBase {
         thrown().expect(ValidationException.class);
         thrown().expectMessage(
                         String.format(
-                                "The options of following hints cannot match the name of input tables or views: \n%s:%s",
-                                getTestSingleJoinHint(), "T99"));
+                                "The options of following hints cannot match the name of input tables or views: \n`%s` in `%s`",
+                                "T99", getTestSingleJoinHint()));
         String sql = "select /*+ %s(T99) */* from T1 join T2 on T1.a1 = T2.a2";
 
         verifyRelPlanByCustom(String.format(sql, getTestSingleJoinHint()));
@@ -201,8 +201,8 @@ public abstract class JoinHintTestBase extends TableTestBase {
         thrown().expect(ValidationException.class);
         thrown().expectMessage(
                         String.format(
-                                "The options of following hints cannot match the name of input tables or views: \n%s:%s",
-                                getTestSingleJoinHint(), "T99"));
+                                "The options of following hints cannot match the name of input tables or views: \n`%s` in `%s`",
+                                "T99", getTestSingleJoinHint()));
         String sql = "select /*+ %s(T1, T99) */* from T1 join T2 on T1.a1 = T2.a2";
 
         verifyRelPlanByCustom(String.format(sql, getTestSingleJoinHint()));
@@ -213,8 +213,8 @@ public abstract class JoinHintTestBase extends TableTestBase {
         thrown().expect(ValidationException.class);
         thrown().expectMessage(
                         String.format(
-                                "The options of following hints cannot match the name of input tables or views: \n%s:%s",
-                                getTestSingleJoinHint(), "T99"));
+                                "The options of following hints cannot match the name of input tables or views: \n`%s` in `%s`",
+                                "T99", getTestSingleJoinHint()));
         String sql = "select /*+ %s(T1, T99, T2) */* from T1 join T2 on T1.a1 = T2.a2";
 
         verifyRelPlanByCustom(String.format(sql, getTestSingleJoinHint()));
@@ -225,8 +225,8 @@ public abstract class JoinHintTestBase extends TableTestBase {
         thrown().expect(ValidationException.class);
         thrown().expectMessage(
                         String.format(
-                                "The options of following hints cannot match the name of input tables or views: \n%s:%s",
-                                getTestSingleJoinHint(), "T98, T99"));
+                                "The options of following hints cannot match the name of input tables or views: \n`%s` in `%s`",
+                                "T98, T99", getTestSingleJoinHint()));
         String sql = "select /*+ %s(T1, T99, T98) */* from T1 join T2 on T1.a1 = T2.a2";
 
         verifyRelPlanByCustom(String.format(sql, getTestSingleJoinHint()));
@@ -244,9 +244,8 @@ public abstract class JoinHintTestBase extends TableTestBase {
         thrown().expect(ValidationException.class);
         thrown().expectMessage(
                         String.format(
-                                "The options of following hints cannot match the name of input tables or views: \n"
-                                        + "%s:V99",
-                                getTestSingleJoinHint()));
+                                "The options of following hints cannot match the name of input tables or views: \n`%s` in `%s`",
+                                "V99", getTestSingleJoinHint()));
         String sql = "select /*+ %s(V99) */* from T1 join V4 on T1.a1 = V4.a4";
 
         verifyRelPlanByCustom(String.format(sql, getTestSingleJoinHint()));

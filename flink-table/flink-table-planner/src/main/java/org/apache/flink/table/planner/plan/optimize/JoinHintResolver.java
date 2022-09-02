@@ -206,8 +206,7 @@ public class JoinHintResolver extends RelShuttleImpl {
             errorMsgSb.append("\n");
             errorMsgSb.append(
                     String.format(
-                            "%s:%s",
-                            hintName,
+                            "`%s` in `%s`",
                             optionCheckedStatus.keySet().stream()
                                     .filter(
                                             op -> {
@@ -217,7 +216,8 @@ public class JoinHintResolver extends RelShuttleImpl {
                                                 }
                                                 return checked;
                                             })
-                                    .collect(Collectors.joining(", "))));
+                                    .collect(Collectors.joining(", ")),
+                            hintName));
         }
         if (containsInvalidOptions.get()) {
             throw new ValidationException(String.format(errorPattern, errorMsgSb));
@@ -238,7 +238,7 @@ public class JoinHintResolver extends RelShuttleImpl {
                                         } else {
                                             // join hint
                                             return hint.hintName
-                                                    + ":"
+                                                    + " :"
                                                     + StringUtils.join(hint.listOptions, ", ");
                                         }
                                     })
