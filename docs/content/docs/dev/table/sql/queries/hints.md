@@ -252,17 +252,6 @@ The LOOKUP hint allows users to suggest the Flink optimizer to:
 2. configure the async parameters
 3. enable delayed retry strategy for lookup
 
-#### Syntax
-```sql
-SELECT /*+ LOOKUP(key=value[, key=value]*) */
-
-key:
-    stringLiteral
-
-value:
-    stringLiteral
-```
-
 #### LOOKUP Hint Options:
 
 <table class="table table-bordered">

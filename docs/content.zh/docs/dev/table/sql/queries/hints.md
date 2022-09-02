@@ -81,7 +81,7 @@ insert into kafka_table1 /*+ OPTIONS('sink.partitioner'='round-robin') */ select
 
 ## 查询提示
 
-查询提示（`Query Hints`）用于在指定查询块中为优化器修改执行计划提供建议，该修改只能在当前查询提示所在的查询块中生效（`Query block`, [什么是查询块](#什么是查询块)）。
+查询提示（`Query Hints`）用于为优化器修改执行计划提供建议，该修改只能在当前查询提示所在的查询块中生效（`Query block`, [什么是查询块](#什么是查询块)）。
 目前，Flink 查询提示只支持联接提示（`Join Hints`）。
 
 ### 语法
@@ -243,19 +243,6 @@ LOOKUP 联接提示允许用户建议 Flink 优化器:
 1. 使用同步或异步的查找函数
 2. 配置异步查找相关参数
 3. 启用延迟重试查找策略
-
-#### 语法
-```sql
-SELECT /*+ LOOKUP(hint_options) */
-
-hint_options: key=value[, key=value]*
-
-key:
-    stringLiteral
-
-value:
-    stringLiteral
-```
 
 #### LOOKUP 提示选项：
 
