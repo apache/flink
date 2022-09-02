@@ -62,17 +62,17 @@ class StreamingWithStateTestBase(state: StateBackendMode) extends StreamingTestB
     super.before()
     // set state backend
     baseCheckpointPath = tempFolder.newFolder().getAbsoluteFile
-    state match {
-      case HEAP_BACKEND =>
-        val conf = new Configuration()
-        env.setStateBackend(
-          new MemoryStateBackend("file://" + baseCheckpointPath, null).configure(conf, classLoader))
-      case ROCKSDB_BACKEND =>
-        val conf = new Configuration()
-        conf.setBoolean(CheckpointingOptions.INCREMENTAL_CHECKPOINTS, true)
-        env.setStateBackend(
-          new RocksDBStateBackend("file://" + baseCheckpointPath).configure(conf, classLoader))
-    }
+//    state match {
+//      case HEAP_BACKEND =>
+//        val conf = new Configuration()
+//        env.setStateBackend(
+//          new MemoryStateBackend("file://" + baseCheckpointPath, null).configure(conf, classLoader))
+//      case ROCKSDB_BACKEND =>
+//        val conf = new Configuration()
+//        conf.setBoolean(CheckpointingOptions.INCREMENTAL_CHECKPOINTS, true)
+//        env.setStateBackend(
+//          new RocksDBStateBackend("file://" + baseCheckpointPath).configure(conf, classLoader))
+//    }
     this.tEnv = StreamTableEnvironment.create(env, TableTestUtil.STREAM_SETTING)
     FailingCollectionSource.failedBefore = true
   }

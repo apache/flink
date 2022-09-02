@@ -108,6 +108,7 @@ import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.LEFT;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.LESS_THAN;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.LESS_THAN_OR_EQUAL;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.LIKE;
+import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.LIST_AGG;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.LN;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.LOCATE;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.LOG;
@@ -469,6 +470,12 @@ public abstract class BaseExpressions<InType, OutType> {
     /** Returns the last value of field across all input values. */
     public OutType lastValue() {
         return toApiSpecificExpression(unresolvedCall(LAST_VALUE, toExpr()));
+    }
+
+    /** Concatenates the values of string expressions and places separator values between them.
+        The separator is not added at the end of string. The default value of separator is ‘,’. */
+    public OutType listAgg(String separator) {
+        return toApiSpecificExpression(unresolvedCall(LIST_AGG, toExpr(), valueLiteral(separator)));
     }
 
     /** Returns the population standard deviation of an expression (the square root of varPop()). */

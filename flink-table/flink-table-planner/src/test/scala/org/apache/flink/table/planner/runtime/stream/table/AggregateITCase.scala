@@ -260,6 +260,30 @@ class AggregateITCase(mode: StateBackendMode) extends StreamingWithStateTestBase
   }
 
   @Test
+  def testListAggWithExpression():Unit = {
+    val data = new mutable.MutableList[(Int, String)]
+    data.+=((1, "A"))
+    data.+=((1, "B"))
+    data.+=((2, "B"))
+    data.+=((2, "C"))
+    data.+=((2, "C"))
+
+    val t = failingDataSource(data)
+      .toTable(tEnv, 'a, 'b)
+      .groupBy('a)
+      .select('a, 'b.listAgg("-"), call("list_Agg", col("b"), "~"))
+
+    val sink = new TestingRetractSink()
+    t.toRetractStream[Row].addSink(sink).setParallelism(1)
+    env.execute()
+
+    val expected = mutable.MutableList(
+      s"1,A-B,A~B",
+      s"2,B-C-C,B~C~C")
+    assertEquals(expected.sorted, sink.getRetractResults.sorted)
+  }
+
+  @Test
   def testCollect(): Unit = {
     val t = failingDataSource(tupleData3)
       .toTable(tEnv, 'a, 'b, 'c)

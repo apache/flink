@@ -1101,6 +1101,7 @@ aggregate:
     table: FIELD.lastValue
     description: 返回一组有序值中的最后一个值。
   - sql: LISTAGG(expression [, separator])
+    table: FIELD.listagg
     description: 连接字符串表达式的值并在它们之间放置分隔符值。字符串末尾不添加分隔符时则分隔符的默认值为“,”。
   - sql: CUME_DIST()
     description: 返回值在一组值的累积分布。结果是小于或等于当前行的值的行数除以窗口分区的总行数。
