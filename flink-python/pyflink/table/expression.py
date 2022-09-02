@@ -802,6 +802,16 @@ class Expression(Generic[T]):
         """
         return _unary_op("lastValue")(self)
 
+    def list_agg(self, separator: Union[str, 'Expression[str]'] = None) -> 'Expression[str]':
+        """
+        Concatenates the values of string expressions and places separator values between them.
+        The separator is not added at the end of string. The default value of separator is ‘,’.
+        """
+        if separator is None:
+            return _unary_op("listAgg")(self)
+        else:
+            return _binary_op("listAgg")(self, separator)
+
     @property
     def stddev_pop(self) -> 'Expression':
         return _unary_op("stddevPop")(self)

@@ -424,6 +424,14 @@ public final class BuiltInFunctionDefinitions {
                     .outputTypeStrategy(TypeStrategies.aggArg0(t -> t, true))
                     .build();
 
+    public static final BuiltInFunctionDefinition LISTAGG =
+            BuiltInFunctionDefinition.newBuilder()
+                    .name("listAgg")
+                    .kind(AGGREGATE)
+                    .inputTypeStrategy(sequence(ANY, logical(LogicalTypeFamily.CHARACTER_STRING)))
+                    .outputTypeStrategy(explicit(STRING().nullable()))
+                    .build();
+
     public static final BuiltInFunctionDefinition SUM =
             BuiltInFunctionDefinition.newBuilder()
                     .name("sum")

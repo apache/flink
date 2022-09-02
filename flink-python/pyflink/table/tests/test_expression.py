@@ -107,6 +107,7 @@ class PyFlinkBatchExpressionTests(PyFlinkTestCase):
         self.assertEqual('avg(a)', str(expr1.avg))
         self.assertEqual('first_value(a)', str(expr1.first_value))
         self.assertEqual('last_value(a)', str(expr1.last_value))
+        self.assertEqual("listAgg(a, ',')", str(expr1.list_agg(",")))
         self.assertEqual('stddevPop(a)', str(expr1.stddev_pop))
         self.assertEqual('stddevSamp(a)', str(expr1.stddev_samp))
         self.assertEqual('varPop(a)', str(expr1.var_pop))
