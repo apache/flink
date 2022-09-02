@@ -347,10 +347,12 @@ value:
 </tbody>
 </table>
 
+{{< hint info >}}
 Note: 
 - 'table' option is required, only table name is supported(keep consistent with which in the FROM clause), alias name is not supported currently(will be supported in later versions).
 - async options are all optional, will use default value if not configured.
 - there is no default value for retry options, all retry options should be set to valid values when need to enable retry.
+{{< /hint >}}
 
 #### 1. Use Sync And Async Lookup Function
 If the connector has both capabilities of async and sync lookup, users can give the option value 'async'='false'
@@ -364,10 +366,12 @@ LOOKUP('table'='Customers', 'async'='false')
 -- suggest the optimizer to use async lookup
 LOOKUP('table'='Customers', 'async'='true')
 ```
+{{< hint info >}}
 Note: the optimizer prefers async lookup if no 'async' option is specified, it will always use sync lookup when:
 1. the connector only implements the sync lookup
 2. user enables 'TRY_RESOLVE' mode of ['table.optimizer.non-deterministic-update.strategy']({{< ref "docs/dev/table/config" >}}#table-optimizer-non-deterministic-update-strategy) and the
 optimizer has checked there's correctness issue caused by non-deterministic update.
+{{< /hint >}}
 
 #### 2. Configure The Async Parameters
 Users can configure the async parameters via async options on async lookup mode.
@@ -377,10 +381,12 @@ Example:
 -- configure the async parameters: 'output-mode', 'capacity', 'timeout', can set single one or multi params
 LOOKUP('table'='Customers', 'async'='true', 'output-mode'='allow_unordered', 'capacity'='100', 'timeout'='180s')
 ```
+{{< hint info >}}
 Note: the async options are consistent with the async options in [job level Execution Options]({{< ref "docs/dev/table/config" >}}#execution-options),
 will use job level configuration if not set. Another difference is that the scope of the LOOKUP hint
 is smaller, limited to the table name corresponding to the hint option set in the current lookup
 operation (other lookup operations will not be affected by the LOOKUP hint).
+{{< /hint >}}
 
 e.g., if the job level configuration is:
 ```gitexclude
@@ -550,6 +556,7 @@ From async and sync lookups respectively, call stack of thread sleep will appear
 1. async lookup：`RetryableAsyncLookupFunctionDelegator`
 2. sync lookup：`RetryableLookupFunctionDelegator`
 
+{{< hint info >}}
 Note:
 - async lookup with retry is not capable for fixed delayed processing for all input data (should use other 
 lighter ways to solve, e.g., pending source consumption or use sync lookup with retry)
@@ -558,6 +565,7 @@ next record does not begin until the current record has completed.
 - in async lookup, if 'output-mode' is 'ORDERED' mode, the probability of backpressure caused by delayed
 retry maybe higher than 'UNORDERED' mode, in which case increasing async 'capacity' may not be effective
 in reducing backpressure, and it may be necessary to consider reducing the delay duration.
+{{< /hint >}}
 
 ### Conflict Cases In Join Hints
 
@@ -565,7 +573,10 @@ If the `Join Hints` conflicts occur, Flink will choose the most matching one.
 - Conflict in one same Join Hint strategy, Flink will choose the first matching table for a join.
 - Conflict in different Join Hints strategies, Flink will choose the first matching hint for a join.
 
-##### Examples
+{{< hint info >}}
+Note: all join hints supported only in batch will not take effect in streaming mode.
+{{< /hint >}}
+#### Examples
 
 ```sql
 CREATE TABLE t1 (id BIGINT, name STRING, age INT) WITH (...);

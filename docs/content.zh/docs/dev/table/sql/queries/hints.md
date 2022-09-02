@@ -29,7 +29,7 @@ under the License.
 {{< label Batch >}} {{< label Streaming >}}
 
 
-SQL 提示（SQL Hints）是和 SQL 语句一起使用来改变执行计划的。本章介绍如何使用 SQL 提示增强各种方法。
+SQL 提示（SQL Hints）是和 SQL 语句一起使用来改变执行计划的。本章介绍如何使用 SQL 提示来实现各种干预。
 
 SQL 提示一般可以用于以下：
 
@@ -81,11 +81,11 @@ insert into kafka_table1 /*+ OPTIONS('sink.partitioner'='round-robin') */ select
 
 ## 查询提示
 
-查询提示（`Query Hints`）用于在指定查询模块中为优化器修改执行计划提供建议，该修改只能在当前查询提示所在的查询模块中生效（`Query block`, [什么是查询模块](#什么是查询模块)）。
+查询提示（`Query Hints`）用于在指定查询块中为优化器修改执行计划提供建议，该修改只能在当前查询提示所在的查询块中生效（`Query block`, [什么是查询块](#什么是查询块)）。
 目前，Flink 查询提示只支持联接提示（`Join Hints`）。
 
 ### 语法
-Flink 中的查询提示语法与 Apache Calcite 的查询提示语法一致：
+Flink 中的查询提示语法与 Apache Calcite 的语法一致：
 ```sql
 # Query hints:
 SELECT /*+ hint [, hint ] */ ...
@@ -116,7 +116,7 @@ hintOption:
 {{< hint info >}}
 注意：
 - 联接提示中定义的表必须存在，否则，将会报表不存在的错误。
-- Flink 联接提示在一个查询模块（Query Block）中只支持定义一个提示块，如果定义了多个提示块，类似 `/*+ BROADCAST(t1) */ /*+ SHUFFLE_HASH(t1) */`，则在 SQL 解析时会报错。
+- Flink 联接提示在一个查询块（Query Block）中只支持定义一个提示块，如果定义了多个提示块，类似 `/*+ BROADCAST(t1) */ /*+ SHUFFLE_HASH(t1) */`，则在 SQL 解析时会报错。
 - 在同一个提示块中，Flink 支持在一个联接提示中定义多个表如：`/*+ BROADCAST(t1, t2, ..., tn) */` 或者定义多个联接提示如：`/*+ BROADCAST(t1), BROADCAST(t2), ..., BROADCAST(tn) */`。
 - 对于上述的在一个联接提示中定义多个表或定义多个联接提示的例子，联接提示可能产生冲突。如果冲突产生，Flink 会选择最匹配的表或者联接策略。（详见： [联接提示使用中的冲突](#联接提示使用中的冲突)）
   {{< /hint >}}
@@ -342,10 +342,12 @@ value:
 </tbody>
 </table>
 
+{{< hint info >}}
 注意：其中 
 - 'table' 是必选项，需要填写目标联接表的表名（和 FROM 子句引用的表名保持一致），注意当前不支持填写表的别名（这将在后续版本中支持）。
 - 异步查找参数可按需设置一个或多个，未设置的参数按默认值生效。
 - 重试查找参数没有默认值，在需要开启时所有参数都必须设置为有效值。
+{{< /hint >}}
 
 #### 1. 使用同步或异步的查找函数
 如果连接器同时具备同步和异步查找能力，用户通过给出提示选项值 'async'='false' 来建议优化器选择同步查找, 或 'async'='true' 来建议选择异步查找。
@@ -358,9 +360,11 @@ LOOKUP('table'='Customers', 'async'='false')
 -- 建议优化器选择异步查找
 LOOKUP('table'='Customers', 'async'='true')
 ```
+{{< hint info >}}
 注意：当没有指定 'async' 选项值时，优化器优先选择异步查找，在以下两种情况下优化器会选择同步查找：
 1. 当连接器仅实现了同步查找时
 2. 用户在参数 ['table.optimizer.non-deterministic-update.strategy']({{< ref "docs/dev/table/config" >}}#table-optimizer-non-deterministic-update-strategy) 上启用了 'TRY_RESOLVE' 模式，并且优化器推断用户查询中存在非确定性更新的潜在风险时
+{{< /hint >}}
 
 #### 2. 配置异步查找相关参数
 在异步查找模式下，用户可通过提示选项直接配置异步查找相关参数
@@ -370,7 +374,9 @@ LOOKUP('table'='Customers', 'async'='true')
 -- 设置异步查找参数 'output-mode', 'capacity', 'timeout', 可按需设置单个或多个参数
 LOOKUP('table'='Customers', 'async'='true', 'output-mode'='allow_unordered', 'capacity'='100', 'timeout'='180s')
 ```
+{{< hint info >}}
 注意：联接提示上的异步查找参数和[作业级别配置参数]({{< ref "docs/dev/table/config" >}}#execution-options)的含义是一致的，没有设置的参数值由默认值生效，另一个区别是联接提示作用的范围更小，仅限于当前联接操作中对应联接提示选项设置的表名（未被联接提示作用的其他联接查询不受影响）。
+{{< /hint >}}
 
 例如：作业级别异步查找参数设置为
 ```gitexclude
@@ -511,18 +517,23 @@ ON o.customer_id = c.id AND DATE_FORMAT(o.order_timestamp, 'yyyy-MM-dd HH:mm') =
 1. 异步查找：`RetryableAsyncLookupFunctionDelegator`
 2. 同步查找：`RetryableLookupFunctionDelegator`
 
+{{< hint info >}}
 注意：
 - 异步查找时，如果所有流数据需要等待一定时长再去查找维表，我们建议尝试其他更轻量的方式（比如源表延迟一定时间消费）。
 - 同步查找中的延迟等待重试执行是完全同步的，即在当前数据没有完成重试前，不会开始下一条数据的处理。
 - 异步查找中，如果 'output-mode' 最终为 'ORDERED'，那延迟重试造成反压的概率相对 'UNORDERED' 更高，这种情况下调大 'capacity' 不一定能有效减轻反压，可能需要考虑减小延迟等待的时长。
+{{< /hint >}}
 
-#### 联接提示使用中的冲突
+### 联接提示使用中的冲突
 
 当联接提示产生冲突时，Flink 会选择最匹配的执行方式。
 - 同一种联接提示间产生冲突时，Flink 会为联接选择第一个最匹配的表。
 - 不同联接提示间产生冲突时，Flink 会为联接选择第一个最匹配的联接提示。
 
-##### 示例
+{{< hint info >}}
+注意：只支持在批模式下使用的联接提示，在流模式中都不会生效。
+{{< /hint >}}
+#### 示例
 
 ```sql
 CREATE TABLE t1 (id BIGINT, name STRING, age INT) WITH (...);
@@ -555,26 +566,26 @@ SELECT /*+ BROADCAST(t1) SHUFFLE_HASH(t1) */ * FROM t1 FULL OUTER JOIN t2 ON t1.
 SELECT /*+ BROADCAST(t1) SHUFFLE_HASH(t1) */ * FROM t1 FULL OUTER JOIN t2 ON t1.id > t2.id;
 ```
 
-### 什么是查询模块？
+### 什么是查询块？
 
-查询模块（`query block`）是 SQL 语句的一个基础组成部分。例如，SQL 语句中任何的内联视图或者子查询（sub-query）都可以被当作外部查询的查询模块。
+查询块（`query block`）是 SQL 语句的一个基础组成部分。例如，SQL 语句中任何的内联视图或者子查询（sub-query）都可以被当作外部查询的查询块。
 
 #### 示例
 
 一个 SQL 语句可以由多个子查询组成，子查询可以是一个 `SELECT`，`INSERT` 或者 `DELETE`。子查询中又可以在 `FROM` 子句，`WHERE` 子句或者
 在 `UNION`/`UNION ALL` 的子 `SELECT` 语句中包含其他的子查询。
 
-对于不同类型的子查询，他们可以由多个查询模块组成，例如：
+对于不同类型的子查询，他们可以由多个查询块组成，例如：
 
-下面的查询语句由两个查询模块组成：一个是 `WHERE` 子句中的 `SELECT`，另一个是外层的 `SELECT`。
+下面的查询语句由两个查询块组成：一个是 `WHERE` 子句中的 `SELECT`，另一个是外层的 `SELECT`。
 
 {{< img src="/fig/hint/hint_query_block_where.png" alt="hint where query block" >}}
 
-下面的查询语句是一个 `UNION` 查询，其由两个查询模块组成：一个 `UNION` 前的 `SELECT`， 另一个是 `UNION` 后的 `SELECT`。
+下面的查询语句是一个 `UNION` 查询，其由两个查询块组成：一个 `UNION` 前的 `SELECT`， 另一个是 `UNION` 后的 `SELECT`。
 
 {{< img src="/fig/hint/hint_query_block_union.png" alt="hint union query block" >}}
 
-下面的查询语句包含 视图（View），其包含两个查询模块：一个是外层的 `SELECT`，另一个是视图。
+下面的查询语句包含 视图（View），其包含两个查询块：一个是外层的 `SELECT`，另一个是视图。
 
 {{< img src="/fig/hint/hint_query_block_view.png" alt="hint view query block" >}}
 
