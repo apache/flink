@@ -618,7 +618,7 @@ For more examples of custom type inference, see also the `flink-examples-table` 
 
 `isDeterministic` 表示函数的确定性，声明返回 `false` 时将在运行时对每个记录进行计算。
 `isDynamicFunction` 声明返回 `true` 时意味着该函数只能在查询开始时被计算，对于批处理模式，它只在生成执行计划期间被执行，
-而对于流模式，它等效于一个非确定性的函数，这是因为查询在逻辑上是连续执行的（流模式对[动态表的连续查询抽象]({{< ref "docs/dev/table/concepts/dynamic_tables" >}}#dynamic-tables-amp-continuous-queries)），所以动态函数在每次查询执行时也会被重新计算。
+而对于流模式，它等效于一个非确定性的函数，这是因为查询在逻辑上是连续执行的（流模式对[动态表的连续查询抽象]({{< ref "docs/dev/table/concepts/dynamic_tables" >}}#dynamic-tables-amp-continuous-queries)），所以动态函数在每次查询执行时也会被重新计算（当前实现下等效于每条记录计算）。
 
 以下内置函数总是非确定性的（批和流模式下，都在运行时对每条记录进行计算）
 - UUID

@@ -639,7 +639,7 @@ dynamic function and non-deterministic function, according to Apache Calcite's `
 `isDynamicFunction` implies the function can only be evaluated at query-start if returns `true`,
 it will be only pre-evaluated during planning for batch mode, while for streaming mode, it is equivalent to a non-deterministic
 function because of the query is continuously being executed logically(the abstraction of [continuous query over the dynamic tables]({{< ref "docs/dev/table/concepts/dynamic_tables" >}}#dynamic-tables-amp-continuous-queries)),
-so the dynamic functions are also re-evaluated for each query execution.
+so the dynamic functions are also re-evaluated for each query execution(equivalent to per record in current implementation).
 
 The following system functions are always non-deterministic(evaluated per record during runtime both in batch and streaming mode):
 - UUID
