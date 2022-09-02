@@ -751,7 +751,9 @@ class LookupJoinTest(legacyTableSource: Boolean) extends TableTestBase with Seri
   @Test
   def testJoinHintWithTableAlias(): Unit = {
     // TODO to be supported in FLINK-28850 (to make LogicalSnapshot Hintable)
-    thrown.expectMessage("The options of following hints is invalid: \nLOOKUP")
+    thrown.expectMessage(
+      "The options of following hints cannot match the name of input tables or" +
+        " views: \nLOOKUP:D")
     thrown.expect(classOf[ValidationException])
     val sql = "SELECT /*+ LOOKUP('table'='D') */ * FROM MyTable AS T JOIN LookupTable " +
       "FOR SYSTEM_TIME AS OF T.proctime AS D ON T.a = D.id"

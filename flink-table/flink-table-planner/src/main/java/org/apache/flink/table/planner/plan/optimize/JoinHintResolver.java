@@ -34,6 +34,7 @@ import org.apache.calcite.rel.logical.LogicalJoin;
 import org.apache.commons.lang3.StringUtils;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -102,15 +103,21 @@ public class JoinHintResolver extends RelShuttleImpl {
                 Configuration conf = Configuration.fromMap(hint.kvOptions);
                 // hint option checker has done the validation
                 String lookupTable = conf.get(LOOKUP_TABLE);
+
+                // add options about this hint for finally checking
+                initOptionInfoAboutJoinHintsForCheck(
+                        hint.hintName, Collections.singletonList(lookupTable));
+
                 assert null != lookupTable;
                 if (rightName.isPresent() && matchIdentifier(lookupTable, rightName.get())) {
                     validHints.add(trimInheritPath(hint));
+                    updateInfoForOptionCheck(hint.hintName, rightName);
                     newHints.add(hint);
                 }
             } else if (JoinStrategy.isJoinStrategy(hint.hintName)) {
                 allHints.add(trimInheritPath(hint));
                 // add options about this hint for finally checking
-                initOptionInfoAboutJoinHintsForCheck(hint);
+                initOptionInfoAboutJoinHintsForCheck(hint.hintName, hint.listOptions);
 
                 // the declared table name or query block name is replaced by
                 // JoinStrategy#LEFT_INPUT or JoinStrategy#RIGHT_INPUT
@@ -303,25 +310,23 @@ public class JoinHintResolver extends RelShuttleImpl {
         return true;
     }
 
-    private void initOptionInfoAboutJoinHintsForCheck(RelHint hint) {
-        String hintName = hint.hintName;
-        List<String> options = hint.listOptions;
+    private void initOptionInfoAboutJoinHintsForCheck(String hintName, List<String> definedTables) {
         if (allOptionsInJoinHints.containsKey(hintName)) {
             Map<String, Boolean> optionCheckedStatus = allOptionsInJoinHints.get(hintName);
-            options.forEach(
-                    option -> {
-                        if (!optionCheckedStatus.containsKey(option)) {
+            definedTables.forEach(
+                    table -> {
+                        if (!optionCheckedStatus.containsKey(table)) {
                             // all options are not checked when init
-                            optionCheckedStatus.put(option, false);
+                            optionCheckedStatus.put(table, false);
                         }
                     });
         } else {
             allOptionsInJoinHints.put(
                     hintName,
-                    new HashSet<>(options)
+                    new HashSet<>(definedTables)
                             .stream()
                                     // all options are not checked when init
-                                    .collect(Collectors.toMap(option -> option, option -> false)));
+                                    .collect(Collectors.toMap(table -> table, table -> false)));
         }
     }
 
