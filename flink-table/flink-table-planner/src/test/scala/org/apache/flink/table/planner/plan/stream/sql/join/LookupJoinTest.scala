@@ -767,6 +767,36 @@ class LookupJoinTest(legacyTableSource: Boolean) extends TableTestBase with Seri
   }
 
   @Test
+  def testMultipleJoinHintsWithSameTableName(): Unit = {
+    // only the first hint will take effect
+    val sql =
+      """
+        |SELECT /*+ LOOKUP('table'='AsyncLookupTable', 'output-mode'='allow_unordered'), 
+        |           LOOKUP('table'='AsyncLookupTable', 'output-mode'='ordered') */ * 
+        |FROM MyTable AS T 
+        |JOIN AsyncLookupTable FOR SYSTEM_TIME AS OF T.proctime AS D 
+        | ON T.a = D.id
+      """.stripMargin
+    util.verifyExecPlan(sql)
+  }
+
+  @Test
+  def testMultipleJoinHintsWithDifferentTableName(): Unit = {
+    // both hints on corresponding tables will take effect
+    val sql =
+      """
+        |SELECT /*+ LOOKUP('table'='AsyncLookupTable', 'output-mode'='allow_unordered'), 
+        |           LOOKUP('table'='LookupTable', 'retry-predicate'='lookup_miss', 'retry-strategy'='fixed_delay', 'fixed-delay'='10s', 'max-attempts'='3') */ * 
+        |FROM MyTable AS T 
+        |JOIN AsyncLookupTable FOR SYSTEM_TIME AS OF T.proctime AS D 
+        |  ON T.a = D.id
+        |JOIN LookupTable FOR SYSTEM_TIME AS OF T.proctime AS D1 
+        |  ON T.a = D1.id
+      """.stripMargin
+    util.verifyExecPlan(sql)
+  }
+
+  @Test
   def testJoinSyncTableWithAsyncHint(): Unit = {
     val sql =
       "SELECT /*+ LOOKUP('table'='LookupTable', 'async'='true') */ * FROM MyTable AS T JOIN LookupTable " +
