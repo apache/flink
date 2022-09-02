@@ -1,9 +1,9 @@
 ---
-title: "Temporal Table Function"
-weight: 1002
+title: "时态表函数"
+weight: 5
 type: docs
 aliases:
-  - /zh/dev/table/streaming/legacy.html
+  - /zh/dev/table/streaming/temporal_table_function.html
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
@@ -24,23 +24,17 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-# Temporal Table Function
+# 时态表函数
 
-A Temporal table function provides access to the version of a temporal table at a specific point in time.
-In order to access the data in a temporal table, one must pass a [time attribute]({{<ref "docs/dev/table/concepts/time_attributes">}}) that determines the version of the table that will be returned.
-Flink uses the SQL syntax of [table functions]({{<ref "docs/dev/table/functions/udfs" >}}#table-functions) to provide a way to express it.
+时态表函数提供了访问特定时间点对应版本的时态表数据。为了能够访问时态表的数据，必须要指定一个 [时间属性]({{<ref "docs/dev/table/concepts/time_attributes">}})用于确定时态表的版本。Flink 使用 [表值函数]({{<ref "docs/dev/table/functions/udfs" >}}#表值函数) 的 SQL 语法来使用时态表函数。
 
-Unlike a versioned table, temporal table functions can only be defined on top of append-only streams 
-&mdash; it does not support changelog inputs.
-Additionally, a temporal table function cannot be defined in pure SQL DDL. 
- 
-## Defining a Temporal Table Function
+和时态表不同的是时态表函数不支持 changelog 类型的输入流，只能在 append-only 流之前定义。除此之外，时态表函数不能够完全使用 SQL DDL 定义。
 
-Temporal table functions can be defined on top of append-only streams using the [Table API]({{< ref "docs/dev/table/tableApi" >}}).
-The table is registered with one or more key columns, and a time attribute used for versioning.
+## 定义时态表函数
 
-Suppose we have an append-only table of currency rates that we would like to 
-register as a temporal table function.
+时态表函数可以使用 [Table API]({{< ref "docs/dev/table/tableApi" >}}) 在 append-only 流之前定义，需要提供一个或者多个键列和一个用于确定版本的时间属性字段。
+
+假定已经有了一个 append-only 类型的时态表 `currency_rates`，后面将使用这张表来注册一个时态表函数。
 
 ```sql
 SELECT * FROM currency_rates;
@@ -54,8 +48,7 @@ update_time   currency   rate
 11:49:00      Pounds     108
 ```
 
-Using the Table API, we can register this stream using `currency` for the key and `update_time` as 
-the versioning time attribute.
+使用 Table API 的方式，将 `currency` 作为键，`update_time` 作为版本控制的时间属性字段。
 
 {{< tabs "066b6695-5bc3-4d7a-9033-ff6b1d14b3a1" >}}
 {{< tab "Java" >}}
@@ -83,13 +76,12 @@ Still not supported in Python Table API.
 {{< /tab >}}
 {{< /tabs >}}
 
-## Temporal Table Function Join
+## 时态表函数的 Join 
 
-Once defined, a temporal table function is used as a standard [table function]({{< ref "docs/dev/table/functions/udfs" >}}#table-functions).
-Append-only tables (left input/probe side) can join with a temporal table (right input/build side),
-i.e., a table that changes over time and tracks its changes, to retrieve the value for a key as it was at a particular point in time.
+在定义之后，时态表函数就可以像标准的 [表值函数]({{<ref "docs/dev/table/functions/udfs" >}}#表值函数) 一样使用。
+Append-only 表（left input/probe side）能够和一张时态表（right input/build side） Join，也就是说，一张表随着时间变化数据也在变化，但是它能够通过键获取到之前特定时间对应的值，通过这种方法来追踪数据的变化。
 
-Consider an append-only table `orders` that tracks customers' orders in different currencies.
+Append-only 表 `orders` 记录着消费者不同币种的订单。 
 
 ```sql
 SELECT * FROM orders;
@@ -103,7 +95,7 @@ order_time amount currency
 11:04        5    USD
 ```
 
-Given these tables, we would like to convert orders to a common currency &mdash; USD.
+通过上面的表，将订单的货币都统一成 USD。
 
 {{< tabs "7ec4efc6-41ae-42c1-a261-4a94dd3b44e0" >}}
 {{< tab "SQL" >}}
