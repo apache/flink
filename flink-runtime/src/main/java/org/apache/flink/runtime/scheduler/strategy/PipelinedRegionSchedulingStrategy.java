@@ -161,10 +161,15 @@ public class PipelinedRegionSchedulingStrategy implements SchedulingStrategy {
         }
     }
 
-    private Set<SchedulingPipelinedRegion> getDownstreamRegionsOfVertex(
+    private Set<SchedulingPipelinedRegion> getBlockingDownstreamRegionsOfVertex(
             SchedulingExecutionVertex executionVertex) {
         return IterableUtils.toStream(executionVertex.getProducedResults())
+                .filter(partition -> !partition.getResultType().canBePipelinedConsumed())
                 .flatMap(partition -> partition.getConsumedPartitionGroups().stream())
+                .filter(
+                        group ->
+                                crossRegionConsumedPartitionGroups.contains(group)
+                                        || group.areAllPartitionsFinished())
                 .flatMap(
                         partitionGroup ->
                                 partitionGroupConsumerRegions
@@ -208,7 +213,8 @@ public class PipelinedRegionSchedulingStrategy implements SchedulingStrategy {
             final ExecutionVertexID executionVertexId, final ExecutionState executionState) {
         if (executionState == ExecutionState.FINISHED) {
             maybeScheduleRegions(
-                    getDownstreamRegionsOfVertex(schedulingTopology.getVertex(executionVertexId)));
+                    getBlockingDownstreamRegionsOfVertex(
+                            schedulingTopology.getVertex(executionVertexId)));
         }
     }
 
