@@ -125,7 +125,7 @@ hintOption:
 
 {{< label Batch >}}
 
-`BROADCAST` 将推荐联接时使用 `BroadCast join` 策略。如果该联接提示生效，不管是否设置了 `table.optimizer.join.broadcast-threshold`，
+`BROADCAST` 推荐联接使用 `BroadCast` 策略。如果该联接提示生效，不管是否设置了 `table.optimizer.join.broadcast-threshold`，
 指定了联接提示的联接端（join side）都会被广播到下游。所以当该联接端是小表时，更推荐使用 `BROADCAST`。
 
 {{< hint info >}}
@@ -158,7 +158,7 @@ SELECT /*+ BROADCAST(t1) */ * FROM t1 FULL OUTER JOIN t2 ON t1.id = t2.id;
 
 {{< label Batch >}}
 
-`SHUFFLE_HASH` 将推荐联接时使用 `Shuffle Hash join`。如果该联接提示生效，指定了联接提示的联接端将会被作为联接的 build 端。
+`SHUFFLE_HASH` 推荐联接使用 `Shuffle Hash` 策略。如果该联接提示生效，指定了联接提示的联接端将会被作为联接的 build 端。
 该提示在被指定的表较小（相较于 `BROADCAST`，小表的数据量更大）时，表现得更好。
 
 {{< hint info >}}
@@ -187,7 +187,7 @@ SELECT /*+ SHUFFLE_HASH(t1) */ * FROM t1 join t2 ON t1.id > t2.id;
 
 {{< label Batch >}}
 
-`SHUFFLE_MERGE` 将推荐联接时使用 `Sort Merge join`。该联接提示适用于联接两端的表数据量都非常大，或者联接两端的表都有序的场景。
+`SHUFFLE_MERGE` 推荐联接使用 `Sort Merge` 策略。该联接提示适用于联接两端的表数据量都非常大，或者联接两端的表都有序的场景。
 
 {{< hint info >}}
 注意：SHUFFLE_MERGE 只支持等值的联接条件。
@@ -215,7 +215,7 @@ SELECT /*+ SHUFFLE_MERGE(t1) */ * FROM t1 join t2 ON t1.id > t2.id;
 
 {{< label Batch >}}
 
-`NEST_LOOP` 将推荐联接时使用 `Nested Loop join`。如无特殊的场景需求，不推荐使用该类型的联接提示。
+`NEST_LOOP` 推荐联接使用 `Nested Loop` 策略。如无特殊的场景需求，不推荐使用该类型的联接提示。
 
 {{< hint info >}}
 注意：NEST_LOOP 同时支持等值的和非等值的联接条件。
@@ -530,9 +530,6 @@ ON o.customer_id = c.id AND DATE_FORMAT(o.order_timestamp, 'yyyy-MM-dd HH:mm') =
 - 同一种联接提示间产生冲突时，Flink 会为联接选择第一个最匹配的表。
 - 不同联接提示间产生冲突时，Flink 会为联接选择第一个最匹配的联接提示。
 
-{{< hint info >}}
-注意：只支持在批模式下使用的联接提示，在流模式中都不会生效。
-{{< /hint >}}
 #### 示例
 
 ```sql

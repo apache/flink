@@ -573,9 +573,6 @@ If the `Join Hints` conflicts occur, Flink will choose the most matching one.
 - Conflict in one same Join Hint strategy, Flink will choose the first matching table for a join.
 - Conflict in different Join Hints strategies, Flink will choose the first matching hint for a join.
 
-{{< hint info >}}
-Note: all join hints supported only in batch will not take effect in streaming mode.
-{{< /hint >}}
 #### Examples
 
 ```sql
