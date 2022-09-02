@@ -29,7 +29,7 @@ pytz>=2018.3
 numpy>=1.21.4,<1.22.0; python_version >= '3.7'
 numpy>=1.14.3,<1.20; python_version < '3.7'
 fastavro>=1.1.0,<1.4.8
-grpcio>=1.29.0,<1.47
+grpcio>=1.29.0,<=1.46.3
 grpcio-tools>=1.29.0,<=1.46.3
 pemja==0.2.4; python_version >= '3.7' and platform_system != 'Windows'
 httplib2>=0.19.0,<=0.20.4
