@@ -24,21 +24,19 @@ from avro.datafile import DataFileReader
 from avro.io import DatumReader
 from py4j.java_gateway import JavaObject, java_import
 
-from pyflink.datastream import MapFunction, StreamExecutionEnvironment, RuntimeExecutionMode
+from pyflink.datastream import MapFunction
 from pyflink.datastream.connectors.file_system import FileSink
 from pyflink.datastream.formats.avro import AvroSchema, GenericRecordAvroTypeInfo, \
     AvroBulkWriters, AvroInputFormat
 from pyflink.datastream.tests.test_util import DataStreamTestSinkFunction
 from pyflink.java_gateway import get_gateway
-from pyflink.testing.test_case_utils import PyFlinkTestCase
+from pyflink.testing.test_case_utils import PyFlinkUTTestCase
 
 
-class FileSourceAvroInputFormatTests(PyFlinkTestCase):
+class FileSourceAvroInputFormatTests(PyFlinkUTTestCase):
 
     def setUp(self):
-        self.env = StreamExecutionEnvironment.get_execution_environment()
-        self.env.set_parallelism(2)
-        self.env.set_runtime_mode(RuntimeExecutionMode.STREAMING)
+        super().setUp()
         self.test_sink = DataStreamTestSinkFunction()
         self.avro_file_name = tempfile.mktemp(suffix='.avro', dir=self.tempdir)
         _import_avro_classes()
@@ -100,12 +98,12 @@ class FileSourceAvroInputFormatTests(PyFlinkTestCase):
         j_file_writer.close()
 
 
-class FileSinkAvroWritersTests(PyFlinkTestCase):
+class FileSinkAvroWritersTests(PyFlinkUTTestCase):
 
     def setUp(self) -> None:
-        self.env = StreamExecutionEnvironment.get_execution_environment()
+        super().setUp()
+        # NOTE: parallelism == 1 is required to keep the order of results
         self.env.set_parallelism(1)
-        self.env.set_runtime_mode(RuntimeExecutionMode.STREAMING)
         self.avro_dir_name = tempfile.mkdtemp(dir=self.tempdir)
 
     def test_avro_basic_write(self):

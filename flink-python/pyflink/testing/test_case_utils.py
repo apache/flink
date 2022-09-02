@@ -114,11 +114,11 @@ class PyFlinkTestCase(unittest.TestCase):
         return py_list
 
 
-class PyFlinkSharedMiniClusterTestCase(PyFlinkTestCase):
+class PyFlinkITTestCase(PyFlinkTestCase):
 
     @classmethod
     def setUpClass(cls):
-        super(PyFlinkSharedMiniClusterTestCase, cls).setUpClass()
+        super(PyFlinkITTestCase, cls).setUpClass()
         gateway = get_gateway()
         MiniClusterResourceConfiguration = (
             gateway.jvm.org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration
@@ -130,19 +130,30 @@ class PyFlinkSharedMiniClusterTestCase(PyFlinkTestCase):
             .withHaLeadershipControl()
             .build())
         cls.resource = (
-            get_gateway().jvm.org.apache.flink.streaming.runtime.testutils.
+            get_gateway().jvm.org.apache.flink.test.util.
             MiniClusterWithClientResource(MiniClusterResourceConfiguration))
         cls.resource.before()
 
-        cls.env = StreamExecutionEnvironment(cls.resource.getTestStreamEnvironment())
+        cls.env = StreamExecutionEnvironment(
+            get_gateway().jvm.org.apache.flink.streaming.util.TestStreamEnvironment(
+                cls.resource.getMiniCluster(), 2))
 
     @classmethod
     def tearDownClass(cls):
-        super(PyFlinkSharedMiniClusterTestCase, cls).tearDownClass()
+        super(PyFlinkITTestCase, cls).tearDownClass()
         cls.resource.after()
 
 
-class PyFlinkStreamTableTestCase(PyFlinkSharedMiniClusterTestCase):
+class PyFlinkUTTestCase(PyFlinkTestCase):
+    def setUp(self) -> None:
+        self.env = StreamExecutionEnvironment.get_execution_environment()
+        self.env.set_runtime_mode(RuntimeExecutionMode.STREAMING)
+        self.env.set_parallelism(2)
+        self.t_env = StreamTableEnvironment.create(self.env)
+        self.t_env.get_config().set("python.fn-execution.bundle.size", "1")
+
+
+class PyFlinkStreamTableTestCase(PyFlinkITTestCase):
     """
     Base class for table stream tests.
     """
@@ -156,7 +167,7 @@ class PyFlinkStreamTableTestCase(PyFlinkSharedMiniClusterTestCase):
         cls.t_env.get_config().set("python.fn-execution.bundle.size", "1")
 
 
-class PyFlinkBatchTableTestCase(PyFlinkSharedMiniClusterTestCase):
+class PyFlinkBatchTableTestCase(PyFlinkITTestCase):
     """
     Base class for table batch tests.
     """
@@ -170,7 +181,7 @@ class PyFlinkBatchTableTestCase(PyFlinkSharedMiniClusterTestCase):
         cls.t_env.get_config().set("python.fn-execution.bundle.size", "1")
 
 
-class PyFlinkStreamingTestCase(PyFlinkSharedMiniClusterTestCase):
+class PyFlinkStreamingTestCase(PyFlinkITTestCase):
     """
     Base class for streaming tests.
     """
@@ -182,7 +193,7 @@ class PyFlinkStreamingTestCase(PyFlinkSharedMiniClusterTestCase):
         cls.env.set_runtime_mode(RuntimeExecutionMode.STREAMING)
 
 
-class PyFlinkBatchTestCase(PyFlinkSharedMiniClusterTestCase):
+class PyFlinkBatchTestCase(PyFlinkITTestCase):
     """
     Base class for batch tests.
     """

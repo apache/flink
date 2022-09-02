@@ -33,7 +33,7 @@ from pyflink.datastream.tests.test_util import DataStreamTestSinkFunction
 from pyflink.datastream.window import TimeWindowSerializer
 from pyflink.java_gateway import get_gateway
 from pyflink.table import (DataTypes, StreamTableEnvironment, EnvironmentSettings, Module,
-                           ResultKind, ModuleEntry, TableEnvironment)
+                           ResultKind, ModuleEntry)
 from pyflink.table.catalog import ObjectPath, CatalogBaseTable
 from pyflink.table.explain_detail import ExplainDetail
 from pyflink.table.expressions import col, source_watermark
@@ -41,15 +41,12 @@ from pyflink.table.table_descriptor import TableDescriptor
 from pyflink.table.types import RowType, Row, UserDefinedType
 from pyflink.table.udf import udf
 from pyflink.testing import source_sink_utils
-from pyflink.testing.test_case_utils import (PyFlinkStreamTableTestCase, PyFlinkTestCase,
+from pyflink.testing.test_case_utils import (PyFlinkStreamTableTestCase, PyFlinkUTTestCase,
                                              _load_specific_flink_module_jars)
 from pyflink.util.java_utils import get_j_env_configuration
 
 
-class TableEnvironmentTest(PyFlinkTestCase):
-
-    def setUp(self) -> None:
-        self.t_env = TableEnvironment.create(EnvironmentSettings.in_streaming_mode())
+class TableEnvironmentTest(PyFlinkUTTestCase):
 
     def test_set_sys_executable_for_local_mode(self):
         jvm = get_gateway().jvm
@@ -314,7 +311,7 @@ class TableEnvironmentTest(PyFlinkTestCase):
             self.t_env.use_modules, 'core', 'dummy')
 
 
-class DataStreamConversionTestCases(PyFlinkTestCase):
+class DataStreamConversionTestCases(PyFlinkUTTestCase):
 
     def setUp(self) -> None:
         from pyflink.datastream import StreamExecutionEnvironment
