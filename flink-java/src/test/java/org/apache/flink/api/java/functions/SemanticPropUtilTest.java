@@ -1060,12 +1060,12 @@ class SemanticPropUtilTest {
         SemanticPropUtil.getSemanticPropsSingleFromString(
                 sp, null, nonForwardedFields, null, nestedPojoType, nestedPojoType);
 
-        assertThat(sp.getForwardingTargetFields(0, 0).size()).isEqualTo(0);
-        assertThat(sp.getForwardingTargetFields(0, 1).size()).isEqualTo(0);
-        assertThat(sp.getForwardingTargetFields(0, 2).size()).isEqualTo(0);
-        assertThat(sp.getForwardingTargetFields(0, 3).size()).isEqualTo(0);
-        assertThat(sp.getForwardingTargetFields(0, 4).size()).isEqualTo(0);
-        assertThat(sp.getForwardingTargetFields(0, 5).contains(5)).isTrue();
+        assertThat(sp.getForwardingTargetFields(0, 0).size()).isZero();
+        assertThat(sp.getForwardingTargetFields(0, 1).size()).isZero();
+        assertThat(sp.getForwardingTargetFields(0, 2).size()).isZero();
+        assertThat(sp.getForwardingTargetFields(0, 3).size()).isZero();
+        assertThat(sp.getForwardingTargetFields(0, 4).size()).isZero();
+        assertThat(sp.getForwardingTargetFields(0, 5)).contains(5);
 
         nonForwardedFields[0] = "pojo1.int2; string1";
         sp = new SingleInputSemanticProperties();

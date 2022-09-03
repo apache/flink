@@ -255,7 +255,7 @@ class CollectionInputFormatTest {
                 in.readObject();
                 fail("should throw an exception");
             } catch (Exception e) {
-                assertThat(e.getCause()).isInstanceOf(TestException.class);
+                assertThat(e).hasCauseInstanceOf(TestException.class);
             }
         } catch (Exception e) {
             e.printStackTrace();

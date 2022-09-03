@@ -74,16 +74,13 @@ class CoGroupSortTranslationTest implements java.io.Serializable {
             assertThat(coGroup.getGroupOrderForInputOne()).isNotNull();
             assertThat(coGroup.getGroupOrderForInputTwo()).isNotNull();
 
-            assertThat(coGroup.getGroupOrderForInputOne().getNumberOfFields()).isEqualTo(1);
-            assertThat(coGroup.getGroupOrderForInputOne().getFieldNumber(0).intValue())
-                    .isEqualTo(0);
+            assertThat(coGroup.getGroupOrderForInputOne().getNumberOfFields()).isOne();
+            assertThat(coGroup.getGroupOrderForInputOne().getFieldNumber(0).intValue()).isZero();
             assertThat(coGroup.getGroupOrderForInputOne().getOrder(0)).isEqualTo(Order.DESCENDING);
 
             assertThat(coGroup.getGroupOrderForInputTwo().getNumberOfFields()).isEqualTo(2);
-            assertThat(coGroup.getGroupOrderForInputTwo().getFieldNumber(0).intValue())
-                    .isEqualTo(1);
-            assertThat(coGroup.getGroupOrderForInputTwo().getFieldNumber(1).intValue())
-                    .isEqualTo(0);
+            assertThat(coGroup.getGroupOrderForInputTwo().getFieldNumber(0).intValue()).isOne();
+            assertThat(coGroup.getGroupOrderForInputTwo().getFieldNumber(1).intValue()).isZero();
             assertThat(coGroup.getGroupOrderForInputTwo().getOrder(0)).isEqualTo(Order.ASCENDING);
             assertThat(coGroup.getGroupOrderForInputTwo().getOrder(1)).isEqualTo(Order.DESCENDING);
         } catch (Exception e) {
@@ -126,16 +123,14 @@ class CoGroupSortTranslationTest implements java.io.Serializable {
             assertThat(coGroup.getGroupOrderForInputOne()).isNotNull();
             assertThat(coGroup.getGroupOrderForInputTwo()).isNotNull();
 
-            assertThat(coGroup.getGroupOrderForInputOne().getNumberOfFields()).isEqualTo(1);
-            assertThat(coGroup.getGroupOrderForInputOne().getFieldNumber(0).intValue())
-                    .isEqualTo(0);
+            assertThat(coGroup.getGroupOrderForInputOne().getNumberOfFields()).isOne();
+            assertThat(coGroup.getGroupOrderForInputOne().getFieldNumber(0).intValue()).isZero();
             assertThat(coGroup.getGroupOrderForInputOne().getOrder(0)).isEqualTo(Order.DESCENDING);
 
             assertThat(coGroup.getGroupOrderForInputTwo().getNumberOfFields()).isEqualTo(2);
             assertThat(coGroup.getGroupOrderForInputTwo().getFieldNumber(0).intValue())
                     .isEqualTo(2);
-            assertThat(coGroup.getGroupOrderForInputTwo().getFieldNumber(1).intValue())
-                    .isEqualTo(0);
+            assertThat(coGroup.getGroupOrderForInputTwo().getFieldNumber(1).intValue()).isZero();
             assertThat(coGroup.getGroupOrderForInputTwo().getOrder(0)).isEqualTo(Order.ASCENDING);
             assertThat(coGroup.getGroupOrderForInputTwo().getOrder(1)).isEqualTo(Order.DESCENDING);
         } catch (Exception e) {

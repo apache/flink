@@ -20,9 +20,6 @@ package org.apache.flink.api.java.utils;
 
 import org.junit.jupiter.api.Test;
 
-import java.util.Arrays;
-import java.util.Collections;
-
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.data.Offset.offset;
@@ -75,14 +72,13 @@ class MultipleParameterToolTest extends AbstractParameterToolTest {
                         createParameterToolFromArgs(
                                 new String[] {"--multi", "v1", "--multi", "v2", "--multi2", "vv1"});
         assertThat(parameter.getUnrequestedParameters())
-                .isEqualTo(createHashSet("multi", "multi2"));
+                .containsExactlyInAnyOrder("multi", "multi2");
 
-        assertThat(parameter.getMultiParameter("multi")).isEqualTo(Arrays.asList("v1", "v2"));
-        assertThat(parameter.getUnrequestedParameters()).isEqualTo(createHashSet("multi2"));
+        assertThat(parameter.getMultiParameter("multi")).containsExactly("v1", "v2");
+        assertThat(parameter.getUnrequestedParameters()).containsExactlyInAnyOrder("multi2");
 
-        assertThat(parameter.getMultiParameterRequired("multi2"))
-                .isEqualTo(Collections.singletonList("vv1"));
-        assertThat(parameter.getUnrequestedParameters()).isEqualTo(Collections.emptySet());
+        assertThat(parameter.getMultiParameterRequired("multi2")).containsExactly("vv1");
+        assertThat(parameter.getUnrequestedParameters()).isEmpty();
     }
 
     @Test
@@ -108,7 +104,7 @@ class MultipleParameterToolTest extends AbstractParameterToolTest {
                                 });
         MultipleParameterTool parameter = parameter1.mergeWith(parameter2);
         validate(parameter);
-        assertThat(parameter.getMultiParameter("merge")).isEqualTo(Arrays.asList("v1", "v2", "v3"));
+        assertThat(parameter.getMultiParameter("merge")).containsExactly("v1", "v2", "v3");
     }
 
     @Override

@@ -120,8 +120,8 @@ class ReduceOperatorTest implements Serializable {
                         public void open(Configuration parameters) throws Exception {
                             opened.set(true);
                             RuntimeContext ctx = getRuntimeContext();
-                            assertThat(ctx.getIndexOfThisSubtask()).isEqualTo(0);
-                            assertThat(ctx.getNumberOfParallelSubtasks()).isEqualTo(1);
+                            assertThat(ctx.getIndexOfThisSubtask()).isZero();
+                            assertThat(ctx.getNumberOfParallelSubtasks()).isOne();
                             assertThat(ctx.getTaskName()).isEqualTo(taskName);
                         }
 

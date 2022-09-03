@@ -32,6 +32,7 @@ import org.junit.jupiter.api.Test;
 import java.util.ArrayList;
 import java.util.List;
 
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.fail;
 
 /** Tests for {@link DataSet#aggregate(Aggregations, int)}. */
@@ -62,32 +63,17 @@ class AggregateOperatorTest {
                 env.fromCollection(emptyTupleData, tupleTypeInfo);
 
         // should work
-        try {
-            tupleDs.aggregate(Aggregations.SUM, 1);
-        } catch (Exception e) {
-            fail(e.getMessage());
-        }
+        tupleDs.aggregate(Aggregations.SUM, 1);
 
         // should not work: index out of bounds
-        try {
-            tupleDs.aggregate(Aggregations.SUM, 10);
-            fail("");
-        } catch (IllegalArgumentException iae) {
-            // we're good here
-        } catch (Exception e) {
-            fail(e.getMessage());
-        }
+        assertThatThrownBy(() -> tupleDs.aggregate(Aggregations.SUM, 10))
+                .isInstanceOf(IllegalArgumentException.class);
 
         // should not work: not applied to tuple dataset
         DataSet<Long> longDs = env.fromCollection(emptyLongData, BasicTypeInfo.LONG_TYPE_INFO);
-        try {
-            longDs.aggregate(Aggregations.MIN, 1);
-            fail("");
-        } catch (InvalidProgramException uoe) {
-            // we're good here
-        } catch (Exception e) {
-            fail(e.getMessage());
-        }
+
+        assertThatThrownBy(() -> longDs.aggregate(Aggregations.MIN, 1))
+                .isInstanceOf(InvalidProgramException.class);
     }
 
     @Test
@@ -104,12 +90,8 @@ class AggregateOperatorTest {
             tupleDs.aggregate(Aggregations.MIN, 2).aggregate(Aggregations.SUM, 1);
 
             // should not work: average on string
-            try {
-                tupleDs.aggregate(Aggregations.SUM, 2);
-                fail("");
-            } catch (UnsupportedAggregationTypeException iae) {
-                // we're good here
-            }
+            assertThatThrownBy(() -> tupleDs.aggregate(Aggregations.SUM, 2))
+                    .isInstanceOf(UnsupportedAggregationTypeException.class);
         } catch (Exception e) {
             System.err.println(e.getMessage());
             e.printStackTrace();

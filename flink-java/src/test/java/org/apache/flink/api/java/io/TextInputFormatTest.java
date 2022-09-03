@@ -38,7 +38,6 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
-import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -146,8 +145,7 @@ class TextInputFormatTest {
         String content = first + lineBreaker + second + lineBreaker;
 
         // create input file
-        File tempFile =
-                File.createTempFile("TextInputFormatTest", UUID.randomUUID().toString(), tmpFile);
+        File tempFile = File.createTempFile("TextInputFormatTest", "tmp", tmpFile);
         tempFile.setWritable(true);
 
         try (OutputStreamWriter wrt = new OutputStreamWriter(new FileOutputStream(tempFile))) {

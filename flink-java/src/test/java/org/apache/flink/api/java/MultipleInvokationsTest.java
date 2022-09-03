@@ -47,8 +47,7 @@ class MultipleInvokationsTest {
 
                 assertThat(p.getDataSinks()).hasSize(2);
                 for (GenericDataSinkBase<?> sink : p.getDataSinks()) {
-                    assertThat(sink.getName().equals("print1") || sink.getName().equals("output1"))
-                            .isTrue();
+                    assertThat(sink.getName()).isIn("print1", "output1");
                     assertThat(sink.getInput().getName()).isEqualTo("source1");
                 }
             }

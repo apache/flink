@@ -43,7 +43,6 @@ import org.apache.flink.types.Value;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
-import java.util.Arrays;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -87,119 +86,83 @@ class CSVReaderTest {
     void testIncludeFieldsDense() {
         CsvReader reader = getCsvReader();
         reader.includeFields(true, true, true);
-        assertThat(Arrays.equals(new boolean[] {true, true, true}, reader.includedMask)).isTrue();
+        assertThat(reader.includedMask).containsExactly(true, true, true);
 
         reader = getCsvReader();
         reader.includeFields("ttt");
-        assertThat(Arrays.equals(new boolean[] {true, true, true}, reader.includedMask)).isTrue();
+        assertThat(reader.includedMask).containsExactly(true, true, true);
 
         reader = getCsvReader();
         reader.includeFields("TTT");
-        assertThat(Arrays.equals(new boolean[] {true, true, true}, reader.includedMask)).isTrue();
+        assertThat(reader.includedMask).containsExactly(true, true, true);
 
         reader = getCsvReader();
         reader.includeFields("111");
-        assertThat(Arrays.equals(new boolean[] {true, true, true}, reader.includedMask)).isTrue();
+        assertThat(reader.includedMask).containsExactly(true, true, true);
 
         reader = getCsvReader();
         reader.includeFields(0x7L);
-        assertThat(Arrays.equals(new boolean[] {true, true, true}, reader.includedMask)).isTrue();
+        assertThat(reader.includedMask).containsExactly(true, true, true);
     }
 
     @Test
     void testIncludeFieldsSparse() {
         CsvReader reader = getCsvReader();
         reader.includeFields(false, true, true, false, false, true, false, false);
-        assertThat(
-                        Arrays.equals(
-                                new boolean[] {false, true, true, false, false, true},
-                                reader.includedMask))
-                .isTrue();
+        assertThat(reader.includedMask).containsExactly(false, true, true, false, false, true);
 
         reader = getCsvReader();
         reader.includeFields("fttfftff");
-        assertThat(
-                        Arrays.equals(
-                                new boolean[] {false, true, true, false, false, true},
-                                reader.includedMask))
-                .isTrue();
+        assertThat(reader.includedMask).containsExactly(false, true, true, false, false, true);
 
         reader = getCsvReader();
         reader.includeFields("FTTFFTFF");
-        assertThat(
-                        Arrays.equals(
-                                new boolean[] {false, true, true, false, false, true},
-                                reader.includedMask))
-                .isTrue();
+        assertThat(reader.includedMask).containsExactly(false, true, true, false, false, true);
 
         reader = getCsvReader();
         reader.includeFields("01100100");
-        assertThat(
-                        Arrays.equals(
-                                new boolean[] {false, true, true, false, false, true},
-                                reader.includedMask))
-                .isTrue();
+        assertThat(reader.includedMask).containsExactly(false, true, true, false, false, true);
 
         reader = getCsvReader();
         reader.includeFields("0t1f0TFF");
-        assertThat(
-                        Arrays.equals(
-                                new boolean[] {false, true, true, false, false, true},
-                                reader.includedMask))
-                .isTrue();
+        assertThat(reader.includedMask).containsExactly(false, true, true, false, false, true);
 
         reader = getCsvReader();
         reader.includeFields(0x26L);
-        assertThat(
-                        Arrays.equals(
-                                new boolean[] {false, true, true, false, false, true},
-                                reader.includedMask))
-                .isTrue();
+        assertThat(reader.includedMask).containsExactly(false, true, true, false, false, true);
     }
 
     @Test
     void testIllegalCharInStringMask() {
         CsvReader reader = getCsvReader();
-
-        try {
-            reader.includeFields("1t0Tfht");
-            fail("Reader accepted an invalid mask string");
-        } catch (IllegalArgumentException e) {
-            // expected
-        }
+        assertThatThrownBy(() -> reader.includeFields("1t0Tfht"))
+                .withFailMessage("Reader accepted an invalid mask string")
+                .isInstanceOf(IllegalArgumentException.class);
     }
 
     @Test
     void testIncludeFieldsErrorWhenExcludingAll() {
         CsvReader reader = getCsvReader();
 
-        try {
-            reader.includeFields(false, false, false, false, false, false);
-            fail("The reader accepted a fields configuration that excludes all fields.");
-        } catch (IllegalArgumentException e) {
-            // all good
-        }
+        assertThatThrownBy(() -> reader.includeFields(false, false, false, false, false, false))
+                .withFailMessage(
+                        "The reader accepted a fields configuration that excludes all fields.")
+                .isInstanceOf(IllegalArgumentException.class);
 
-        try {
-            reader.includeFields(0);
-            fail("The reader accepted a fields configuration that excludes all fields.");
-        } catch (IllegalArgumentException e) {
-            // all good
-        }
+        assertThatThrownBy(() -> reader.includeFields(0))
+                .withFailMessage(
+                        "The reader accepted a fields configuration that excludes all fields.")
+                .isInstanceOf(IllegalArgumentException.class);
 
-        try {
-            reader.includeFields("ffffffffffffff");
-            fail("The reader accepted a fields configuration that excludes all fields.");
-        } catch (IllegalArgumentException e) {
-            // all good
-        }
+        assertThatThrownBy(() -> reader.includeFields("ffffffffffffff"))
+                .withFailMessage(
+                        "The reader accepted a fields configuration that excludes all fields.")
+                .isInstanceOf(IllegalArgumentException.class);
 
-        try {
-            reader.includeFields("00000000000000000");
-            fail("The reader accepted a fields configuration that excludes all fields.");
-        } catch (IllegalArgumentException e) {
-            // all good
-        }
+        assertThatThrownBy(() -> reader.includeFields("00000000000000000"))
+                .withFailMessage(
+                        "The reader accepted a fields configuration that excludes all fields.")
+                .isInstanceOf(IllegalArgumentException.class);
     }
 
     @Test
@@ -286,12 +249,9 @@ class CSVReaderTest {
     void testUnsupportedPartialitem() {
         CsvReader reader = getCsvReader();
 
-        try {
-            reader.tupleType(PartialItem.class);
-            fail("tupleType() accepted an underspecified generic class.");
-        } catch (Exception e) {
-            // okay.
-        }
+        assertThatThrownBy(() -> reader.tupleType(PartialItem.class))
+                .withFailMessage("tupleType() accepted an underspecified generic class.")
+                .isInstanceOf(Exception.class);
     }
 
     @Test

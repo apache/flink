@@ -65,7 +65,7 @@ class ShortSummaryAggregatorTest {
     void testSum() throws Exception {
         assertThat(summarize(0, 100).getSum().shortValue()).isEqualTo((short) 100);
         assertThat(summarize(1, 2, 3, 4, 5).getSum().shortValue()).isEqualTo((short) 15);
-        assertThat(summarize(-100, 0, 100, null).getSum().shortValue()).isEqualTo((short) 0);
+        assertThat(summarize(-100, 0, 100, null).getSum().shortValue()).isZero();
         assertThat(summarize(-10, 100, null).getSum().shortValue()).isEqualTo((short) 90);
         assertThat(summarize().getSum()).isNull();
     }
@@ -74,8 +74,7 @@ class ShortSummaryAggregatorTest {
     void testMax() {
         assertThat(summarize(-1000, 0, 1, 50, 999, 1001).getMax().shortValue())
                 .isEqualTo((short) 1001);
-        assertThat(summarize((int) Short.MIN_VALUE, -1000, 0).getMax().shortValue())
-                .isEqualTo((short) 0);
+        assertThat(summarize((int) Short.MIN_VALUE, -1000, 0).getMax().shortValue()).isZero();
         assertThat(summarize(1, 8, 7, 6, 9, 10, 2, 3, 5, 0, 11, -2, 3).getMax().shortValue())
                 .isEqualTo((short) 11);
         assertThat(

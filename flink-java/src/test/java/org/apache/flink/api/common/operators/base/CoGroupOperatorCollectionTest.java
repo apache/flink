@@ -117,8 +117,9 @@ class CoGroupOperatorCollectionTest implements Serializable {
                                                 .add("barfoo", 1)
                                                 .build()));
 
-                assertThat(new HashSet<>(resultSafe)).isEqualTo(expected);
-                assertThat(new HashSet<>(resultRegular)).isEqualTo(expected);
+                assertThat(new HashSet<>(resultSafe)).containsExactlyInAnyOrderElementsOf(expected);
+                assertThat(new HashSet<>(resultRegular))
+                        .containsExactlyInAnyOrderElementsOf(expected);
             }
 
             {
@@ -163,7 +164,7 @@ class CoGroupOperatorCollectionTest implements Serializable {
             RuntimeContext ctx = getRuntimeContext();
             assertThat(ctx.getTaskName()).isEqualTo("Test UDF");
             assertThat(ctx.getNumberOfParallelSubtasks()).isEqualTo(4);
-            assertThat(ctx.getIndexOfThisSubtask()).isEqualTo(0);
+            assertThat(ctx.getIndexOfThisSubtask()).isZero();
         }
 
         @Override

@@ -125,11 +125,8 @@ class ReduceTranslationTests implements java.io.Serializable {
             assertThat(reducer.getOperatorInfo().getOutputType()).isEqualTo(initialData.getType());
 
             // parallelism was not configured on the operator
-            assertThat(
-                            reducer.getParallelism() == parallelism
-                                    || reducer.getParallelism()
-                                            == ExecutionConfig.PARALLELISM_DEFAULT)
-                    .isTrue();
+            assertThat(reducer.getParallelism())
+                    .isIn(parallelism, ExecutionConfig.PARALLELISM_DEFAULT);
 
             // check keys
             assertThat(reducer.getKeyColumns(0)).containsExactly(2);
@@ -179,7 +176,7 @@ class ReduceTranslationTests implements java.io.Serializable {
             MapOperatorBase<?, ?, ?> keyExtractor = (MapOperatorBase<?, ?, ?>) reducer.getInput();
 
             // check the parallelisms
-            assertThat(keyExtractor.getParallelism()).isEqualTo(1);
+            assertThat(keyExtractor.getParallelism()).isOne();
             assertThat(reducer.getParallelism()).isEqualTo(4);
             assertThat(keyProjector.getParallelism()).isEqualTo(4);
 

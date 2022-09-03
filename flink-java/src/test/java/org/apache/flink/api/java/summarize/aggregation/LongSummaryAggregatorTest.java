@@ -65,7 +65,7 @@ class LongSummaryAggregatorTest {
     void testSum() throws Exception {
         assertThat(summarize(0L, 100L).getSum().longValue()).isEqualTo(100L);
         assertThat(summarize(1L, 2L, 3L, 4L, 5L).getSum().longValue()).isEqualTo(15L);
-        assertThat(summarize(-100L, 0L, 100L, null).getSum().longValue()).isEqualTo(0L);
+        assertThat(summarize(-100L, 0L, 100L, null).getSum().longValue()).isZero();
         assertThat(summarize(-10L, 100L, null).getSum().longValue()).isEqualTo(90L);
         assertThat(summarize().getSum()).isNull();
     }

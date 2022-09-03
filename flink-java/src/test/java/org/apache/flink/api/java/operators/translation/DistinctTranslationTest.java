@@ -73,7 +73,7 @@ class DistinctTranslationTest {
             assertThat(reducer.getKeyColumns(0)).containsExactly(0, 1, 2);
 
             // parallelism was not configured on the operator
-            assertThat(reducer.getParallelism() == 1 || reducer.getParallelism() == -1).isTrue();
+            assertThat(reducer.getParallelism()).isIn(-1, 1);
 
             assertThat(reducer.getInput()).isInstanceOf(GenericDataSourceBase.class);
         } catch (Exception e) {
@@ -108,7 +108,7 @@ class DistinctTranslationTest {
             assertThat(reducer.getKeyColumns(0)).containsExactly(0);
 
             // parallelism was not configured on the operator
-            assertThat(reducer.getParallelism() == 1 || reducer.getParallelism() == -1).isTrue();
+            assertThat(reducer.getParallelism()).isIn(-1, 1);
 
             assertThat(reducer.getInput()).isInstanceOf(GenericDataSourceBase.class);
         } catch (Exception e) {
@@ -143,7 +143,7 @@ class DistinctTranslationTest {
             assertThat(reducer.getKeyColumns(0)).containsExactly(1, 2);
 
             // parallelism was not configured on the operator
-            assertThat(reducer.getParallelism() == 1 || reducer.getParallelism() == -1).isTrue();
+            assertThat(reducer.getParallelism()).isIn(-1, 1);
 
             assertThat(reducer.getInput()).isInstanceOf(GenericDataSourceBase.class);
         } catch (Exception e) {
@@ -178,7 +178,7 @@ class DistinctTranslationTest {
             MapOperatorBase<?, ?, ?> keyExtractor = (MapOperatorBase<?, ?, ?>) reducer.getInput();
 
             // check the parallelisms
-            assertThat(keyExtractor.getParallelism()).isEqualTo(1);
+            assertThat(keyExtractor.getParallelism()).isOne();
             assertThat(reducer.getParallelism()).isEqualTo(4);
 
             // check types
@@ -234,7 +234,7 @@ class DistinctTranslationTest {
             assertThat(reducer.getKeyColumns(0)).containsExactly(0);
 
             // parallelism was not configured on the operator
-            assertThat(reducer.getParallelism() == 1 || reducer.getParallelism() == -1).isTrue();
+            assertThat(reducer.getParallelism()).isIn(-1, 1);
 
             assertThat(reducer.getInput()).isInstanceOf(GenericDataSourceBase.class);
         } catch (Exception e) {

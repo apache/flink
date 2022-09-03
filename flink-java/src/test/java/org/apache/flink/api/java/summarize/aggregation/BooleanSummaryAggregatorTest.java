@@ -43,28 +43,28 @@ class BooleanSummaryAggregatorTest {
         BooleanColumnSummary summary = summarize(null, null, null, null);
         assertThat(summary.getTotalCount()).isEqualTo(4);
         assertThat(summary.getNullCount()).isEqualTo(4);
-        assertThat(summary.getNonNullCount()).isEqualTo(0);
-        assertThat(summary.getTrueCount()).isEqualTo(0);
-        assertThat(summary.getFalseCount()).isEqualTo(0);
+        assertThat(summary.getNonNullCount()).isZero();
+        assertThat(summary.getTrueCount()).isZero();
+        assertThat(summary.getFalseCount()).isZero();
     }
 
     @Test
     void testAllTrue() {
         BooleanColumnSummary summary = summarize(true, true, true, true, true, true);
         assertThat(summary.getTotalCount()).isEqualTo(6);
-        assertThat(summary.getNullCount()).isEqualTo(0);
+        assertThat(summary.getNullCount()).isZero();
         assertThat(summary.getNonNullCount()).isEqualTo(6);
         assertThat(summary.getTrueCount()).isEqualTo(6);
-        assertThat(summary.getFalseCount()).isEqualTo(0);
+        assertThat(summary.getFalseCount()).isZero();
     }
 
     @Test
     void testAllFalse() {
         BooleanColumnSummary summary = summarize(false, false, false);
         assertThat(summary.getTotalCount()).isEqualTo(3);
-        assertThat(summary.getNullCount()).isEqualTo(0);
+        assertThat(summary.getNullCount()).isZero();
         assertThat(summary.getNonNullCount()).isEqualTo(3);
-        assertThat(summary.getTrueCount()).isEqualTo(0);
+        assertThat(summary.getTrueCount()).isZero();
         assertThat(summary.getFalseCount()).isEqualTo(3);
     }
 

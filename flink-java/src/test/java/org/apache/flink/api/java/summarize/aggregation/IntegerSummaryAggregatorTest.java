@@ -65,7 +65,7 @@ class IntegerSummaryAggregatorTest {
     void testSum() throws Exception {
         assertThat(summarize(0, 100).getSum().intValue()).isEqualTo(100);
         assertThat(summarize(1, 2, 3, 4, 5).getSum().intValue()).isEqualTo(15);
-        assertThat(summarize(-100, 0, 100, null).getSum().intValue()).isEqualTo(0);
+        assertThat(summarize(-100, 0, 100, null).getSum().intValue()).isZero();
         assertThat(summarize(-10, 100, null).getSum().intValue()).isEqualTo(90);
         assertThat(summarize().getSum()).isNull();
     }
@@ -73,7 +73,7 @@ class IntegerSummaryAggregatorTest {
     @Test
     void testMax() {
         assertThat(summarize(-1000, 0, 1, 50, 999, 1001).getMax().intValue()).isEqualTo(1001);
-        assertThat(summarize(Integer.MIN_VALUE, -1000, 0).getMax().intValue()).isEqualTo(0);
+        assertThat(summarize(Integer.MIN_VALUE, -1000, 0).getMax().intValue()).isZero();
         assertThat(summarize(1, 8, 7, 6, 9, 10, 2, 3, 5, 0, 11, -2, 3).getMax().intValue())
                 .isEqualTo(11);
         assertThat(

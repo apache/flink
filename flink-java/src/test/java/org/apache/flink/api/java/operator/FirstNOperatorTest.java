@@ -31,7 +31,7 @@ import org.junit.jupiter.api.Test;
 import java.util.ArrayList;
 import java.util.List;
 
-import static org.assertj.core.api.Assertions.fail;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for {@link DataSet#first(int)}. */
 class FirstNOperatorTest {
@@ -57,36 +57,16 @@ class FirstNOperatorTest {
                 env.fromCollection(emptyTupleData, tupleTypeInfo);
 
         // should work
-        try {
-            tupleDs.first(1);
-        } catch (Exception e) {
-            fail(e.getMessage());
-        }
+        tupleDs.first(1);
 
         // should work
-        try {
-            tupleDs.first(10);
-        } catch (Exception e) {
-            fail(e.getMessage());
-        }
+        tupleDs.first(10);
 
         // should not work n == 0
-        try {
-            tupleDs.first(0);
-        } catch (InvalidProgramException ipe) {
-            // we're good here
-        } catch (Exception e) {
-            fail(e.getMessage());
-        }
+        assertThatThrownBy(() -> tupleDs.first(0)).isInstanceOf(InvalidProgramException.class);
 
         // should not work n == -1
-        try {
-            tupleDs.first(-1);
-        } catch (InvalidProgramException ipe) {
-            // we're good here
-        } catch (Exception e) {
-            fail(e.getMessage());
-        }
+        assertThatThrownBy(() -> tupleDs.first(-1)).isInstanceOf(InvalidProgramException.class);
     }
 
     @Test
@@ -97,36 +77,18 @@ class FirstNOperatorTest {
                 env.fromCollection(emptyTupleData, tupleTypeInfo);
 
         // should work
-        try {
-            tupleDs.groupBy(2).first(1);
-        } catch (Exception e) {
-            fail(e.getMessage());
-        }
+        tupleDs.groupBy(2).first(1);
 
         // should work
-        try {
-            tupleDs.groupBy(1, 3).first(10);
-        } catch (Exception e) {
-            fail(e.getMessage());
-        }
+        tupleDs.groupBy(1, 3).first(10);
 
         // should not work n == 0
-        try {
-            tupleDs.groupBy(0).first(0);
-        } catch (InvalidProgramException ipe) {
-            // we're good here
-        } catch (Exception e) {
-            fail(e.getMessage());
-        }
+        assertThatThrownBy(() -> tupleDs.groupBy(0).first(0))
+                .isInstanceOf(InvalidProgramException.class);
 
         // should not work n == -1
-        try {
-            tupleDs.groupBy(2).first(-1);
-        } catch (InvalidProgramException ipe) {
-            // we're good here
-        } catch (Exception e) {
-            fail(e.getMessage());
-        }
+        assertThatThrownBy(() -> tupleDs.groupBy(2).first(-1))
+                .isInstanceOf(InvalidProgramException.class);
     }
 
     @Test
@@ -137,35 +99,17 @@ class FirstNOperatorTest {
                 env.fromCollection(emptyTupleData, tupleTypeInfo);
 
         // should work
-        try {
-            tupleDs.groupBy(2).sortGroup(4, Order.ASCENDING).first(1);
-        } catch (Exception e) {
-            fail(e.getMessage());
-        }
+        tupleDs.groupBy(2).sortGroup(4, Order.ASCENDING).first(1);
 
         // should work
-        try {
-            tupleDs.groupBy(1, 3).sortGroup(4, Order.ASCENDING).first(10);
-        } catch (Exception e) {
-            fail(e.getMessage());
-        }
+        tupleDs.groupBy(1, 3).sortGroup(4, Order.ASCENDING).first(10);
 
         // should not work n == 0
-        try {
-            tupleDs.groupBy(0).sortGroup(4, Order.ASCENDING).first(0);
-        } catch (InvalidProgramException ipe) {
-            // we're good here
-        } catch (Exception e) {
-            fail(e.getMessage());
-        }
+        assertThatThrownBy(() -> tupleDs.groupBy(0).sortGroup(4, Order.ASCENDING).first(0))
+                .isInstanceOf(InvalidProgramException.class);
 
         // should not work n == -1
-        try {
-            tupleDs.groupBy(2).sortGroup(4, Order.ASCENDING).first(-1);
-        } catch (InvalidProgramException ipe) {
-            // we're good here
-        } catch (Exception e) {
-            fail(e.getMessage());
-        }
+        assertThatThrownBy(() -> tupleDs.groupBy(2).sortGroup(4, Order.ASCENDING).first(-1))
+                .isInstanceOf(InvalidProgramException.class);
     }
 }

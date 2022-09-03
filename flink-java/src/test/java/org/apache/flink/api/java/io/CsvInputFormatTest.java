@@ -145,7 +145,7 @@ class CsvInputFormatTest {
 
                     if (recordCounter == 1) {
                         assertThat(result.f0).isEqualTo("this is");
-                        assertThat(result.f1).isEqualTo(Integer.valueOf(1));
+                        assertThat(result.f1).isOne();
                         assertThat(result.f2).isEqualTo(new Double(2.0));
                         assertThat((long) format.getCurrentState()).isEqualTo(15);
                     } else if (recordCounter == 2) {
@@ -225,7 +225,7 @@ class CsvInputFormatTest {
             Tuple3<String, Integer, Double> result = new Tuple3<>();
             result = format.nextRecord(result);
             assertThat(result.f0).isEqualTo("this is");
-            assertThat(result.f1).isEqualTo(Integer.valueOf(1));
+            assertThat(result.f1).isOne();
             assertThat(result.f2).isEqualTo(new Double(2.0));
             assertThat((long) format.getCurrentState()).isEqualTo(65);
 
@@ -276,7 +276,7 @@ class CsvInputFormatTest {
 
             result = format.nextRecord(result);
             assertThat(result.f0).isEqualTo("this is");
-            assertThat(result.f1).isEqualTo(Integer.valueOf(1));
+            assertThat(result.f1).isOne();
             assertThat(result.f2).isEqualTo(new Double(2.0));
 
             result = format.nextRecord(result);
@@ -320,7 +320,7 @@ class CsvInputFormatTest {
 
             result = format.nextRecord(result);
             assertThat(result.f0).isEqualTo("this is");
-            assertThat(result.f1).isEqualTo(Integer.valueOf(1));
+            assertThat(result.f1).isOne();
             assertThat(result.f2).isEqualTo(new Double(2.0));
 
             result = format.nextRecord(result);

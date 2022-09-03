@@ -38,7 +38,6 @@ import java.util.Collections;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.assertj.core.api.Assertions.fail;
 
 /** Tests for {@link DataSet#maxBy(int...)}. */
 class MaxByOperatorTest {
@@ -64,11 +63,7 @@ class MaxByOperatorTest {
                 env.fromCollection(emptyTupleData, tupleTypeInfo);
 
         // should work
-        try {
-            tupleDs.maxBy(4, 0, 1, 2, 3);
-        } catch (Exception e) {
-            fail(null);
-        }
+        tupleDs.maxBy(4, 0, 1, 2, 3);
     }
 
     private final List<CustomType> customTypeData = new ArrayList<>();
@@ -143,11 +138,7 @@ class MaxByOperatorTest {
                 env.fromCollection(emptyTupleData, tupleTypeInfo).groupBy(0);
 
         // should work
-        try {
-            groupDs.maxBy(4, 0, 1, 2, 3);
-        } catch (Exception e) {
-            fail(e.getMessage());
-        }
+        groupDs.maxBy(4, 0, 1, 2, 3);
     }
 
     /**
@@ -233,12 +224,12 @@ class MaxByOperatorTest {
     void testMaxByRowTypeInfoKeyFieldsForUnsortedGrouping() {
         final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
-        TypeInformation[] types = new TypeInformation[] {Types.INT, Types.INT};
+        TypeInformation<?>[] types = new TypeInformation[] {Types.INT, Types.INT};
 
         String[] fieldNames = new String[] {"id", "value"};
         RowTypeInfo rowTypeInfo = new RowTypeInfo(types, fieldNames);
 
-        UnsortedGrouping groupDs =
+        UnsortedGrouping<?> groupDs =
                 env.fromCollection(Collections.singleton(new Row(2)), rowTypeInfo).groupBy(0);
 
         assertThatThrownBy(() -> groupDs.maxBy(1)).isInstanceOf(InvalidProgramException.class);

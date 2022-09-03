@@ -144,8 +144,8 @@ class InnerJoinOperatorBaseTest implements Serializable {
                                     UnregisteredMetricsGroup.createOperatorMetricGroup()),
                             executionConfig);
 
-            assertThat(new HashSet<>(resultSafe)).isEqualTo(expected);
-            assertThat(new HashSet<>(resultRegular)).isEqualTo(expected);
+            assertThat(resultSafe).containsExactlyInAnyOrderElementsOf(expected);
+            assertThat(resultRegular).containsExactlyInAnyOrderElementsOf(expected);
         } catch (Exception e) {
             e.printStackTrace();
             fail(e.getMessage());

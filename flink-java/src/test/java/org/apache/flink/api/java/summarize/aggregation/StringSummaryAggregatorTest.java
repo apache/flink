@@ -36,7 +36,7 @@ class StringSummaryAggregatorTest {
         assertThat(summary.getNullCount()).isEqualTo(3);
         assertThat(summary.getNonNullCount()).isEqualTo(7);
         assertThat(summary.getEmptyCount()).isEqualTo(2);
-        assertThat(summary.getMinLength().intValue()).isEqualTo(0);
+        assertThat(summary.getMinLength().intValue()).isZero();
         assertThat(summary.getMaxLength().intValue()).isEqualTo(6);
         assertThat(summary.getMeanLength().doubleValue()).isCloseTo(2.142857, offset(0.001));
     }
@@ -46,8 +46,8 @@ class StringSummaryAggregatorTest {
         StringColumnSummary summary = summarize(null, null, null, null);
         assertThat(summary.getTotalCount()).isEqualTo(4);
         assertThat(summary.getNullCount()).isEqualTo(4);
-        assertThat(summary.getNonNullCount()).isEqualTo(0);
-        assertThat(summary.getEmptyCount()).isEqualTo(0);
+        assertThat(summary.getNonNullCount()).isZero();
+        assertThat(summary.getEmptyCount()).isZero();
         assertThat(summary.getMinLength()).isNull();
         assertThat(summary.getMaxLength()).isNull();
         assertThat(summary.getMeanLength()).isNull();
@@ -57,9 +57,9 @@ class StringSummaryAggregatorTest {
     void testAllWithValues() {
         StringColumnSummary summary = summarize("cat", "hat", "dog", "frog");
         assertThat(summary.getTotalCount()).isEqualTo(4);
-        assertThat(summary.getNullCount()).isEqualTo(0);
+        assertThat(summary.getNullCount()).isZero();
         assertThat(summary.getNonNullCount()).isEqualTo(4);
-        assertThat(summary.getEmptyCount()).isEqualTo(0);
+        assertThat(summary.getEmptyCount()).isZero();
         assertThat(summary.getMinLength().intValue()).isEqualTo(3);
         assertThat(summary.getMaxLength().intValue()).isEqualTo(4);
         assertThat(summary.getMeanLength().doubleValue()).isCloseTo(3.25, offset(0.0));
