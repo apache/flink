@@ -19,6 +19,7 @@
 package org.apache.flink.streaming.api.operators;
 
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.java.operators.translation.WrappingFunction;
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.streaming.runtime.operators.windowing.WindowOperator;
 
@@ -47,7 +48,7 @@ import java.util.Objects;
  * defined length It starts when the first tuple arrives. At the end, the data characteristics are
  * written into the logs per operator.
  */
-public class StreamMonitor implements Serializable {
+public class StreamMonitor<T> implements Serializable {
 
     private static final long serialVersionUID = 1L;
 
@@ -60,15 +61,16 @@ public class StreamMonitor implements Serializable {
     private final long duration = 30_000_000_000L; // 30 seconds, starting after first call
     private boolean localMode;
     private boolean distributedLogging;
-    private final AbstractUdfStreamOperator operator;
+    private final T operator;
     private final ArrayList<Double> joinSelectivities;
     private final ArrayList<Integer> windowLengths;
     private final Logger logger;
     private MongoCollection<JSONObject> mongoCollection;
+    private boolean disableStreamMonitor;
 
-    public StreamMonitor(HashMap<String, Object> description, AbstractUdfStreamOperator operator) {
+    public StreamMonitor(HashMap<String, Object> description, T operator) {
         this.description = Objects.requireNonNullElseGet(description, HashMap::new);
-
+        this.disableStreamMonitor = false;
         this.logger = LoggerFactory.getLogger("observation");
         this.description.put("tupleWidthIn", -1);
         this.description.put("tupleWidthOut", -1);
@@ -77,12 +79,17 @@ public class StreamMonitor implements Serializable {
         this.operator = operator;
         this.joinSelectivities = new ArrayList<>();
         this.windowLengths = new ArrayList<>();
-        if (this.operator instanceof StreamFilter || this.operator instanceof WindowOperator) {
+        if (this.operator instanceof StreamFilter
+                || this.operator instanceof WindowOperator
+                || this.operator instanceof WrappingFunction) {
             this.description.put("realSelectivity", 0.0);
         }
     }
 
     public <T> void reportInput(T input, ExecutionConfig config) {
+        if (this.disableStreamMonitor) {
+            return;
+        }
         if (!initialized) {
             initialized = true;
             Map<String, String> globalJobParametersMap = config.getGlobalJobParameters().toMap();
@@ -119,18 +126,27 @@ public class StreamMonitor implements Serializable {
     }
 
     public <T> void reportOutput(T output) {
+        if (this.disableStreamMonitor) {
+            return;
+        }
         description.put("tupleWidthOut", getTupleSize(output));
         this.outputCounter++;
         checkIfObservationEnd();
     }
 
-    //    public void reportJoinSelectivity(int size1, int size2, int joinPartners) {
-    //        if (size1 != 0 && size2 != 0) {
-    //            this.joinSelectivities.add((double) joinPartners / (double) (size1 * size2));
-    //        }
-    //    }
+    public void reportJoinSelectivity(int size1, int size2, int joinPartners) {
+        if (this.disableStreamMonitor) {
+            return;
+        }
+        if (size1 != 0 && size2 != 0) {
+            this.joinSelectivities.add((double) joinPartners / (double) (size1 * size2));
+        }
+    }
 
     public <T> void reportWindowLength(T state) {
+        if (this.disableStreamMonitor) {
+            return;
+        }
         int length;
         if (state instanceof Long || state instanceof Double || state instanceof Integer) {
             length = 1;
@@ -145,18 +161,25 @@ public class StreamMonitor implements Serializable {
     }
 
     private void checkIfObservationEnd() {
+        if (this.disableStreamMonitor) {
+            return;
+        }
         if (!observationMade) {
             long elapsedTime = System.nanoTime() - this.startTime;
             if (elapsedTime > duration) {
+                observationMade = true;
                 description.put(
                         "outputRate", ((double) this.outputCounter * 1e9 / (double) elapsedTime));
                 description.put(
                         "inputRate", ((double) this.inputCounter * 1e9 / (double) elapsedTime));
-                //                if (this.processor instanceof JoinProcessor) {
-                //                    Double average =
-                // this.joinSelectivities.stream().mapToDouble(val -> val).average().orElse(0.0);
-                //                    description.put("realSelectivity", average);
-                //                } else if (this.processor instanceof FilterProcessor) {
+                if (this.operator instanceof WrappingFunction) {
+                    Double average =
+                            this.joinSelectivities.stream()
+                                    .mapToDouble(val -> val)
+                                    .average()
+                                    .orElse(0.0);
+                    description.put("realSelectivity", average);
+                }
                 if (this.operator instanceof StreamFilter) {
                     description.put(
                             "realSelectivity",
@@ -178,7 +201,6 @@ public class StreamMonitor implements Serializable {
                 } else if (this.description.get("id") != null && !this.distributedLogging) {
                     logger.info(json.toJSONString());
                 }
-                observationMade = true;
             }
         }
     }

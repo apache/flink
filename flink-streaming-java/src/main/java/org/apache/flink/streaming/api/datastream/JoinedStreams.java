@@ -20,20 +20,26 @@ package org.apache.flink.streaming.api.datastream;
 import org.apache.flink.annotation.Public;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.functions.CoGroupFunction;
 import org.apache.flink.api.common.functions.FlatJoinFunction;
 import org.apache.flink.api.common.functions.JoinFunction;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.operators.translation.WrappingFunction;
+import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.streaming.api.datastream.CoGroupedStreams.TaggedUnion;
+import org.apache.flink.streaming.api.operators.StreamMonitor;
 import org.apache.flink.streaming.api.windowing.assigners.WindowAssigner;
 import org.apache.flink.streaming.api.windowing.evictors.Evictor;
 import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.streaming.api.windowing.triggers.Trigger;
 import org.apache.flink.streaming.api.windowing.windows.Window;
 import org.apache.flink.util.Collector;
+
+import java.util.ArrayList;
+import java.util.HashMap;
 
 import static java.util.Objects.requireNonNull;
 
@@ -313,9 +319,14 @@ public class JoinedStreams<T1, T2> {
          *
          * <p>Note: This method's return type does not support setting an operator-specific
          * parallelism. Due to binary backwards compatibility, this cannot be altered. Use the
-         * {@link #with(JoinFunction)} method to set an operator-specific parallelism.
+         * {@link #with(JoinFunction, HashMap)} method to set an operator-specific parallelism.
          */
         public <T> DataStream<T> apply(JoinFunction<T1, T2, T> function) {
+            return apply(function, ((HashMap<String, Object>) null));
+        }
+
+        public <T> DataStream<T> apply(
+                JoinFunction<T1, T2, T> function, HashMap<String, Object> description) {
             TypeInformation<T> resultType =
                     TypeExtractor.getBinaryOperatorReturnType(
                             function,
@@ -329,24 +340,25 @@ public class JoinedStreams<T1, T2> {
                             "Join",
                             false);
 
-            return apply(function, resultType);
+            return apply(function, resultType, description);
         }
 
         /**
          * Completes the join operation with the user function that is executed for each combination
          * of elements with the same key in a window.
          *
-         * <p><b>Note:</b> This is a temporary workaround while the {@link #apply(JoinFunction)}
-         * method has the wrong return type and hence does not allow one to set an operator-specific
-         * parallelism
+         * <p><b>Note:</b> This is a temporary workaround while the {@link #apply(JoinFunction,
+         * HashMap)} method has the wrong return type and hence does not allow one to set an
+         * operator-specific parallelism
          *
-         * @deprecated This method will be removed once the {@link #apply(JoinFunction)} method is
-         *     fixed in the next major version of Flink (2.0).
+         * @deprecated This method will be removed once the {@link #apply(JoinFunction, HashMap)}
+         *     method is fixed in the next major version of Flink (2.0).
          */
         @PublicEvolving
         @Deprecated
-        public <T> SingleOutputStreamOperator<T> with(JoinFunction<T1, T2, T> function) {
-            return (SingleOutputStreamOperator<T>) apply(function);
+        public <T> SingleOutputStreamOperator<T> with(
+                JoinFunction<T1, T2, T> function, HashMap<String, Object> description) {
+            return (SingleOutputStreamOperator<T>) apply(function, description);
         }
 
         /**
@@ -355,7 +367,7 @@ public class JoinedStreams<T1, T2> {
          *
          * <p>Note: This method's return type does not support setting an operator-specific
          * parallelism. Due to binary backwards compatibility, this cannot be altered. Use the
-         * {@link #with(JoinFunction, TypeInformation)}, method to set an operator-specific
+         * {@link #with(JoinFunction, TypeInformation, HashMap)}, method to set an operator-specific
          * parallelism.
          */
         public <T> DataStream<T> apply(
@@ -381,8 +393,8 @@ public class JoinedStreams<T1, T2> {
          * of elements with the same key in a window.
          *
          * <p><b>Note:</b> This is a temporary workaround while the {@link #apply(JoinFunction,
-         * TypeInformation)} method has the wrong return type and hence does not allow one to set an
-         * operator-specific parallelism
+         * TypeInformation, HashMap)} method has the wrong return type and hence does not allow one
+         * to set an operator-specific parallelism
          *
          * @deprecated This method will be replaced by {@link #apply(FlatJoinFunction,
          *     TypeInformation)} in Flink 2.0. So use the {@link #apply(FlatJoinFunction,
@@ -443,11 +455,18 @@ public class JoinedStreams<T1, T2> {
          *
          * <p>Note: This method's return type does not support setting an operator-specific
          * parallelism. Due to binary backwards compatibility, this cannot be altered. Use the
-         * {@link #with(JoinFunction, TypeInformation)}, method to set an operator-specific
+         * {@link #with(JoinFunction, TypeInformation, HashMap)}, method to set an operator-specific
          * parallelism.
          */
         public <T> DataStream<T> apply(
                 JoinFunction<T1, T2, T> function, TypeInformation<T> resultType) {
+            return apply(function, resultType, null);
+        }
+
+        public <T> DataStream<T> apply(
+                JoinFunction<T1, T2, T> function,
+                TypeInformation<T> resultType,
+                HashMap<String, Object> description) {
             // clean the closure
             function = input1.getExecutionEnvironment().clean(function);
 
@@ -460,7 +479,8 @@ public class JoinedStreams<T1, T2> {
                             .evictor(evictor)
                             .allowedLateness(allowedLateness);
 
-            return coGroupedWindowedStream.apply(new JoinCoGroupFunction<>(function), resultType);
+            return coGroupedWindowedStream.apply(
+                    new JoinCoGroupFunction<>(function, description), resultType);
         }
 
         /**
@@ -472,13 +492,15 @@ public class JoinedStreams<T1, T2> {
          * operator-specific parallelism
          *
          * @deprecated This method will be removed once the {@link #apply(JoinFunction,
-         *     TypeInformation)} method is fixed in the next major version of Flink (2.0).
+         *     TypeInformation, HashMap)} method is fixed in the next major version of Flink (2.0).
          */
         @PublicEvolving
         @Deprecated
         public <T> SingleOutputStreamOperator<T> with(
-                JoinFunction<T1, T2, T> function, TypeInformation<T> resultType) {
-            return (SingleOutputStreamOperator<T>) apply(function, resultType);
+                JoinFunction<T1, T2, T> function,
+                TypeInformation<T> resultType,
+                HashMap<String, Object> description) {
+            return (SingleOutputStreamOperator<T>) apply(function, resultType, description);
         }
 
         @VisibleForTesting
@@ -501,19 +523,35 @@ public class JoinedStreams<T1, T2> {
             extends WrappingFunction<JoinFunction<T1, T2, T>>
             implements CoGroupFunction<T1, T2, T> {
         private static final long serialVersionUID = 1L;
+        private final StreamMonitor<JoinCoGroupFunction<T1, T2, T>> streamMonitor;
+        ExecutionConfig executionConfig;
 
-        public JoinCoGroupFunction(JoinFunction<T1, T2, T> wrappedFunction) {
+        public JoinCoGroupFunction(
+                JoinFunction<T1, T2, T> wrappedFunction, HashMap<String, Object> description) {
             super(wrappedFunction);
+            streamMonitor = new StreamMonitor<>(description, this);
         }
 
         @Override
         public void coGroup(Iterable<T1> first, Iterable<T2> second, Collector<T> out)
                 throws Exception {
+            if (this.executionConfig == null) {
+                this.executionConfig = getRuntimeContext().getExecutionConfig();
+            }
+            int firstSize = ((ArrayList<Tuple>) first).size();
+            int secondSize = ((ArrayList<Tuple>) second).size();
+            int joinPartners = 0;
             for (T1 val1 : first) {
+                streamMonitor.reportInput(val1, this.executionConfig);
                 for (T2 val2 : second) {
-                    out.collect(wrappedFunction.join(val1, val2));
+                    streamMonitor.reportInput(val2, this.executionConfig);
+                    T output = wrappedFunction.join(val1, val2);
+                    streamMonitor.reportOutput(output);
+                    joinPartners++;
+                    out.collect(output);
                 }
             }
+            streamMonitor.reportJoinSelectivity(firstSize, secondSize, joinPartners);
         }
     }
 
