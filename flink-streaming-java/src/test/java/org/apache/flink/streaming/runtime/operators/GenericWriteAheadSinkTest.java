@@ -124,11 +124,11 @@ class GenericWriteAheadSinkTest
         assertThat(sink.values).containsExactlyInAnyOrderElementsOf(list);
     }
 
-    @Test
     /**
      * Verifies that exceptions thrown by a committer do not fail a job and lead to an abort of
      * notify() and later retry of the affected checkpoints.
      */
+    @Test
     void testCommitterException() throws Exception {
 
         ListSink2 sink = new ListSink2();
