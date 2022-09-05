@@ -52,14 +52,12 @@ public class HiveScriptTransformOutReadThread extends Thread {
     private final HiveShim hiveShim;
     private final StructObjectInspector outputStructObjectInspector;
     private final List<? extends StructField> structFields;
-    private final Writable reusedWritableObject;
 
     public HiveScriptTransformOutReadThread(
             RecordReader recordReader,
             LogicalType outputType,
             AbstractSerDe outSerDe,
             StructObjectInspector structObjectInspector,
-            Writable reusedWritableObject,
             StreamRecordCollector<RowData> collector) {
         this.recordReader = recordReader;
         this.outSerDe = outSerDe;
@@ -71,7 +69,6 @@ public class HiveScriptTransformOutReadThread extends Thread {
         }
         this.hiveShim = HiveShimLoader.loadHiveShim(HiveShimLoader.getHiveVersion());
         this.outputStructObjectInspector = structObjectInspector;
-        this.reusedWritableObject = reusedWritableObject;
         this.structFields = outputStructObjectInspector.getAllStructFieldRefs();
         this.collector = collector;
         setDaemon(true);
@@ -81,6 +78,7 @@ public class HiveScriptTransformOutReadThread extends Thread {
     @Override
     public void run() {
         try {
+            Writable reusedWritableObject = recordReader.createRow();
             while (true) {
                 long bytes = recordReader.next(reusedWritableObject);
                 if (bytes <= 0) {

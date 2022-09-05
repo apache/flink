@@ -302,15 +302,12 @@ public class HiveScriptTransformOperator extends TableStreamOperator<RowData>
     private void initScriptOutPutReadThread() throws Exception {
         StructObjectInspector outputStructObjectInspector =
                 (StructObjectInspector) outputSerDe.getObjectInspector();
-        Writable reusedWritableObject =
-                outputSerDe.getSerializedClass().getConstructor().newInstance();
         outReadThread =
                 new HiveScriptTransformOutReadThread(
                         recordReader,
                         outputType,
                         outputSerDe,
                         outputStructObjectInspector,
-                        reusedWritableObject,
                         collector);
         outReadThread.start();
     }
