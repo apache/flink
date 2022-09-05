@@ -80,7 +80,7 @@ public class HiveServer2EndpointFactory implements SqlGatewayEndpointFactory {
 
     @Override
     public Set<ConfigOption<?>> requiredOptions() {
-        return Collections.emptySet();
+        return Collections.singleton(CATALOG_HIVE_CONF_DIR);
     }
 
     @Override
@@ -95,7 +95,6 @@ public class HiveServer2EndpointFactory implements SqlGatewayEndpointFactory {
                         THRIFT_WORKER_THREADS_MAX,
                         THRIFT_WORKER_KEEPALIVE_TIME,
                         CATALOG_NAME,
-                        CATALOG_HIVE_CONF_DIR,
                         CATALOG_DEFAULT_DATABASE,
                         MODULE_NAME));
     }
