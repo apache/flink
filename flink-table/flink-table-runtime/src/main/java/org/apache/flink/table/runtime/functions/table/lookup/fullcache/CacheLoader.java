@@ -57,6 +57,8 @@ public abstract class CacheLoader extends AbstractRichFunction implements Runnab
     private transient Counter loadFailuresCounter;
     private transient volatile long latestLoadTimeMs = UNINITIALIZED;
 
+    protected volatile boolean isStopped;
+
     protected abstract void reloadCache() throws Exception;
 
     @Override
@@ -92,6 +94,9 @@ public abstract class CacheLoader extends AbstractRichFunction implements Runnab
 
     @Override
     public void run() {
+        if (isStopped) {
+            return;
+        }
         // 2 reloads can't be executed simultaneously
         reloadLock.lock();
         try {
@@ -112,6 +117,7 @@ public abstract class CacheLoader extends AbstractRichFunction implements Runnab
             }
         } catch (Exception e) {
             loadFailuresCounter.inc();
+            isStopped = true;
             throw new RuntimeException("Failed to reload lookup 'FULL' cache.", e);
         } finally {
             reloadLock.unlock();
@@ -121,8 +127,16 @@ public abstract class CacheLoader extends AbstractRichFunction implements Runnab
 
     @Override
     public void close() throws Exception {
-        if (cache != null) {
-            cache.clear();
+        isStopped = true;
+        // if reload is in progress, we will wait until it is over
+        // current reload should already be interrupted, so block won't take much time
+        reloadLock.lock();
+        try {
+            if (cache != null) {
+                cache.clear();
+            }
+        } finally {
+            reloadLock.unlock();
         }
     }
 }

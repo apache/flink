@@ -32,7 +32,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
@@ -53,8 +52,6 @@ public class InputFormatCacheLoader extends CacheLoader {
 
     private transient volatile List<InputSplitCacheLoadTask> cacheLoadTasks;
     private transient Configuration parameters;
-
-    private volatile boolean isStopped;
 
     public InputFormatCacheLoader(
             InputFormat<RowData, ?> initialInputFormat,
@@ -86,39 +83,44 @@ public class InputFormatCacheLoader extends CacheLoader {
                 Arrays.stream(inputSplits)
                         .map(split -> createCacheLoadTask(split, newCache))
                         .collect(Collectors.toList());
-
-        // run first task and start numTasks - 1 threads to run remaining tasks
+        if (isStopped) {
+            // check for cases when #close was called during reload before creating cacheLoadTasks
+            return;
+        }
+        // run first task or create numSplits threads to run all tasks
         ExecutorService cacheLoadTaskService = null;
-        List<Future<?>> futures = null;
-        if (numSplits > 1) {
-            futures = new ArrayList<>();
-            int numThreads = getConcurrencyLevel(numSplits) - 1;
-            cacheLoadTaskService = Executors.newFixedThreadPool(numThreads);
-            for (int i = 1; i < numSplits; i++) {
-                Future<?> future = cacheLoadTaskService.submit(cacheLoadTasks.get(i));
-                futures.add(future);
+        try {
+            if (numSplits > 1) {
+                int numThreads = getConcurrencyLevel(numSplits);
+                cacheLoadTaskService = Executors.newFixedThreadPool(numThreads);
+                ExecutorService finalCacheLoadTaskService = cacheLoadTaskService;
+                List<Future<?>> futures =
+                        cacheLoadTasks.stream()
+                                .map(finalCacheLoadTaskService::submit)
+                                .collect(Collectors.toList());
+                for (Future<?> future : futures) {
+                    future.get(); // if any exception occurs it will be thrown here
+                }
+            } else {
+                cacheLoadTasks.get(0).run();
+            }
+        } catch (InterruptedException ignored) { // we use interrupt to close reload thread
+        } finally {
+            if (cacheLoadTaskService != null) {
+                cacheLoadTaskService.shutdownNow();
             }
         }
-        cacheLoadTasks.get(0).run();
-        if (cacheLoadTaskService != null) {
-            for (Future<?> future : futures) {
-                future.get(); // if any exception occurs it will be thrown here
-            }
-            cacheLoadTaskService.shutdownNow();
-        }
-        if (!isStopped) {
-            // reassigning cache field is safe, because it's volatile
-            cache = newCache;
-        }
+        cache = newCache; // reassigning cache field is safe, because it's volatile
     }
 
     @Override
     public void close() throws Exception {
-        super.close();
+        // firstly stop current reload in case when custom reloadTrigger didn't interrupt it
         isStopped = true;
         if (cacheLoadTasks != null) {
             cacheLoadTasks.forEach(InputSplitCacheLoadTask::stopRunning);
         }
+        super.close();
     }
 
     private InputSplitCacheLoadTask createCacheLoadTask(

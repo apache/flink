@@ -45,8 +45,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 public class FullCacheTestInputFormat
         extends RichInputFormat<RowData, FullCacheTestInputFormat.QueueInputSplit> {
 
+    public static final AtomicInteger OPEN_CLOSED_COUNTER = new AtomicInteger(0);
     private static final int DEFAULT_NUM_SPLITS = 2;
-    private static final AtomicInteger OPEN_CLOSED_COUNTER = new AtomicInteger(0);
 
     // RowData is not serializable, so we store Rows
     private final Collection<Row> dataRows;
@@ -162,10 +162,6 @@ public class FullCacheTestInputFormat
     @Override
     public void closeInputFormat() {
         OPEN_CLOSED_COUNTER.decrementAndGet();
-    }
-
-    public boolean isClosed() {
-        return OPEN_CLOSED_COUNTER.get() == 0;
     }
 
     /** {@link InputSplit} that provides queue to {@link InputFormat}. */

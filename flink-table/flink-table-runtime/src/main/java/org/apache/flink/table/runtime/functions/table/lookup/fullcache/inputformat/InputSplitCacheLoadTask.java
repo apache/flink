@@ -23,7 +23,7 @@ import org.apache.flink.api.common.io.RichInputFormat;
 import org.apache.flink.core.io.InputSplit;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.binary.BinaryRowData;
-import org.apache.flink.table.runtime.keyselector.RowDataKeySelector;
+import org.apache.flink.table.runtime.keyselector.GenericRowDataKeySelector;
 import org.apache.flink.table.runtime.typeutils.RowDataSerializer;
 import org.apache.flink.types.RowKind;
 
@@ -39,7 +39,7 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 public class InputSplitCacheLoadTask implements Runnable {
 
     private final ConcurrentHashMap<RowData, Collection<RowData>> cache;
-    private final RowDataKeySelector keySelector;
+    private final GenericRowDataKeySelector keySelector;
     private final RowDataSerializer cacheEntriesSerializer;
     private final InputFormat<RowData, InputSplit> inputFormat;
     private final InputSplit inputSplit;
@@ -48,7 +48,7 @@ public class InputSplitCacheLoadTask implements Runnable {
 
     public InputSplitCacheLoadTask(
             ConcurrentHashMap<RowData, Collection<RowData>> cache,
-            RowDataKeySelector keySelector,
+            GenericRowDataKeySelector keySelector,
             RowDataSerializer cacheEntriesSerializer,
             InputFormat<RowData, InputSplit> inputFormat,
             InputSplit inputSplit) {
@@ -57,6 +57,7 @@ public class InputSplitCacheLoadTask implements Runnable {
         this.inputFormat = inputFormat;
         this.cacheEntriesSerializer = cacheEntriesSerializer;
         this.inputSplit = inputSplit;
+        keySelector.open();
     }
 
     @Override
@@ -67,7 +68,7 @@ public class InputSplitCacheLoadTask implements Runnable {
             }
             inputFormat.open(inputSplit);
             RowData nextElement = new BinaryRowData(cacheEntriesSerializer.getArity());
-            while (isRunning && !inputFormat.reachedEnd()) {
+            while (isRunning && !inputFormat.reachedEnd() && !Thread.interrupted()) {
                 nextElement = inputFormat.nextRecord(nextElement);
                 if (nextElement != null) {
                     if (nextElement.getRowKind() != RowKind.INSERT) {
