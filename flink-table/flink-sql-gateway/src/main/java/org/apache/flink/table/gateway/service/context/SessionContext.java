@@ -160,26 +160,6 @@ public class SessionContext {
     // Method to execute commands
     // --------------------------------------------------------------------------------------------
 
-    public void registerCatalog(String catalogName, Catalog catalog) {
-        sessionState.catalogManager.registerCatalog(catalogName, catalog);
-    }
-
-    public void registerModuleAtHead(String moduleName, Module module) {
-        Deque<String> moduleNames = new ArrayDeque<>(sessionState.moduleManager.listModules());
-        moduleNames.addFirst(moduleName);
-
-        sessionState.moduleManager.loadModule(moduleName, module);
-        sessionState.moduleManager.useModules(moduleNames.toArray(new String[0]));
-    }
-
-    public void setCurrentCatalog(String catalog) {
-        sessionState.catalogManager.setCurrentCatalog(catalog);
-    }
-
-    public void setCurrentDatabase(String database) {
-        sessionState.catalogManager.setCurrentDatabase(database);
-    }
-
     public OperationExecutor createOperationExecutor(Configuration executionConfig) {
         return new OperationExecutor(this, executionConfig);
     }
@@ -214,11 +194,10 @@ public class SessionContext {
         // Init config
         // --------------------------------------------------------------------------------------------------------------
 
-        Configuration sessionConf = Configuration.fromMap(environment.getSessionConfig());
         Configuration configuration = defaultContext.getFlinkConfig().clone();
-        configuration.addAll(sessionConf);
+        configuration.addAll(Configuration.fromMap(environment.getSessionConfig()));
         // every session configure the specific local resource download directory
-        setResourceDownloadTmpDir(sessionConf, sessionId);
+        setResourceDownloadTmpDir(configuration, sessionId);
 
         // --------------------------------------------------------------------------------------------------------------
         // Init classloader
@@ -243,35 +222,16 @@ public class SessionContext {
                 new FunctionCatalog(configuration, resourceManager, catalogManager, moduleManager);
         SessionState sessionState =
                 new SessionState(catalogManager, moduleManager, resourceManager, functionCatalog);
+        environment.getRegisteredModules().forEach(sessionState::registerModuleAtHead);
 
-        // --------------------------------------------------------------------------------------------------------------
-        // Build session context and return
-        // --------------------------------------------------------------------------------------------------------------
-
-        SessionContext sessionContext =
-                new SessionContext(
-                        defaultContext,
-                        sessionId,
-                        environment.getSessionEndpointVersion(),
-                        configuration,
-                        userClassLoader,
-                        sessionState,
-                        new OperationManager(operationExecutorService));
-
-        // filter the default catalog out to avoid exception caused by repeated registration
-        String currentCatalog = sessionContext.sessionState.catalogManager.getCurrentCatalog();
-        environment
-                .getRegisteredCatalogs()
-                .forEach(
-                        (catalogName, catalog) -> {
-                            if (!catalogName.equals(currentCatalog)) {
-                                sessionContext.registerCatalog(catalogName, catalog);
-                            }
-                        });
-
-        environment.getRegisteredModules().forEach(sessionContext::registerModuleAtHead);
-
-        return sessionContext;
+        return new SessionContext(
+                defaultContext,
+                sessionId,
+                environment.getSessionEndpointVersion(),
+                configuration,
+                userClassLoader,
+                sessionState,
+                new OperationManager(operationExecutorService));
     }
 
     // ------------------------------------------------------------------------------------------------------------------
@@ -304,9 +264,20 @@ public class SessionContext {
         }
         defaultCatalog.open();
 
-        return builder.defaultCatalog(defaultCatalogName, defaultCatalog)
-                .currentDatabase(environment.getDefaultDatabase().orElse(null))
-                .build();
+        CatalogManager catalogManager =
+                builder.defaultCatalog(defaultCatalogName, defaultCatalog).build();
+
+        // filter the default catalog out to avoid repeated registration
+        environment
+                .getRegisteredCatalogs()
+                .forEach(
+                        (catalogName, catalog) -> {
+                            if (!catalogName.equals(defaultCatalogName)) {
+                                catalogManager.registerCatalog(catalogName, catalog);
+                            }
+                        });
+
+        return catalogManager;
     }
 
     public TableEnvironmentInternal createTableEnvironment() {
@@ -424,6 +395,14 @@ public class SessionContext {
             this.moduleManager = moduleManager;
             this.resourceManager = resourceManager;
             this.functionCatalog = functionCatalog;
+        }
+
+        private void registerModuleAtHead(String moduleName, Module module) {
+            Deque<String> moduleNames = new ArrayDeque<>(moduleManager.listModules());
+            moduleNames.addFirst(moduleName);
+
+            moduleManager.loadModule(moduleName, module);
+            moduleManager.useModules(moduleNames.toArray(new String[0]));
         }
     }
 }

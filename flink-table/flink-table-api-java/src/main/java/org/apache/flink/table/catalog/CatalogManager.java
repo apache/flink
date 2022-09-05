@@ -89,7 +89,6 @@ public final class CatalogManager {
     private CatalogManager(
             String defaultCatalogName,
             Catalog defaultCatalog,
-            @Nullable String currentDatabaseName,
             DataTypeFactory typeFactory,
             ManagedTableListener managedTableListener) {
         checkArgument(
@@ -100,10 +99,7 @@ public final class CatalogManager {
         catalogs = new LinkedHashMap<>();
         catalogs.put(defaultCatalogName, defaultCatalog);
         currentCatalogName = defaultCatalogName;
-        this.currentDatabaseName =
-                currentDatabaseName == null
-                        ? defaultCatalog.getDefaultDatabase()
-                        : currentDatabaseName;
+        currentDatabaseName = defaultCatalog.getDefaultDatabase();
 
         temporaryTables = new HashMap<>();
         // right now the default catalog is always the built-in one
@@ -128,8 +124,6 @@ public final class CatalogManager {
 
         private @Nullable Catalog defaultCatalog;
 
-        private @Nullable String currentDatabaseName;
-
         private @Nullable ExecutionConfig executionConfig;
 
         private @Nullable DataTypeFactory dataTypeFactory;
@@ -150,11 +144,6 @@ public final class CatalogManager {
             return this;
         }
 
-        public Builder currentDatabase(String currentDatabaseName) {
-            this.currentDatabaseName = currentDatabaseName;
-            return this;
-        }
-
         public Builder executionConfig(ExecutionConfig executionConfig) {
             this.executionConfig = executionConfig;
             return this;
@@ -171,7 +160,6 @@ public final class CatalogManager {
             return new CatalogManager(
                     defaultCatalogName,
                     defaultCatalog,
-                    currentDatabaseName,
                     dataTypeFactory != null
                             ? dataTypeFactory
                             : new DataTypeFactoryImpl(classLoader, config, executionConfig),
