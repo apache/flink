@@ -141,11 +141,10 @@ public class PulsarUnorderedSourceReader<OUT> extends PulsarSourceReaderBase<OUT
     public List<PulsarPartitionSplit> snapshotState(long checkpointId) {
         LOG.debug("Trigger the new transaction for downstream readers.");
         List<PulsarPartitionSplit> splits =
-                ((PulsarUnorderedFetcherManager<OUT>) splitFetcherManager)
-                        .snapshotState(checkpointId);
+                ((PulsarUnorderedFetcherManager<OUT>) splitFetcherManager).snapshotState();
 
         if (coordinatorClient != null) {
-            // Snapshot the transaction status and commit it after checkpoint finished.
+            // Snapshot the transaction status and commit it after checkpoint finishing.
             List<TxnID> txnIDs =
                     transactionsToCommit.computeIfAbsent(checkpointId, id -> new ArrayList<>());
             for (PulsarPartitionSplit split : splits) {
