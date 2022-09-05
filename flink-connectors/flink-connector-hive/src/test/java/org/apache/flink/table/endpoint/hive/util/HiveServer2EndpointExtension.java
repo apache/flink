@@ -29,6 +29,7 @@ import org.junit.jupiter.api.extension.BeforeAllCallback;
 import org.junit.jupiter.api.extension.ExtensionContext;
 
 import java.net.InetAddress;
+import java.net.InetSocketAddress;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.util.function.Supplier;
@@ -70,8 +71,7 @@ public class HiveServer2EndpointExtension implements BeforeAllCallback, AfterAll
         endpoint =
                 new HiveServer2Endpoint(
                         serviceSupplier.get(),
-                        InetAddress.getLocalHost(),
-                        port.getPort(),
+                        new InetSocketAddress(port.getPort()),
                         checkNotNull(endpointConfig.get(THRIFT_MAX_MESSAGE_SIZE)),
                         (int) endpointConfig.get(THRIFT_LOGIN_TIMEOUT).toMillis(),
                         (int) endpointConfig.get(THRIFT_LOGIN_BEBACKOFF_SLOT_LENGTH).toMillis(),
