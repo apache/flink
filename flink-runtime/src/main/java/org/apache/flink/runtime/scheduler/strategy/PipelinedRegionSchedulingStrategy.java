@@ -248,6 +248,11 @@ public class PipelinedRegionSchedulingStrategy implements SchedulingStrategy {
                         .getOrDefault(currentRegion, Collections.emptySet())
                         .forEach(
                                 (producedPartitionGroup) -> {
+                                    if (!producedPartitionGroup
+                                            .getResultPartitionType()
+                                            .canBePipelinedConsumed()) {
+                                        return;
+                                    }
                                     // If this group has been visited, there is no need
                                     // to repeat the determination.
                                     if (visitedConsumedPartitionGroups.contains(
