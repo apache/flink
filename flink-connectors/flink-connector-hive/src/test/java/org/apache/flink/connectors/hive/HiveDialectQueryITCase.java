@@ -182,7 +182,8 @@ public class HiveDialectQueryITCase {
                                 "select a, one from binary_t lateral view explode(ab) abs as one where a > 0",
                                 "select /*+ mapjoin(dest) */ foo.x from foo join dest on foo.x = dest.x union"
                                         + " all select /*+ mapjoin(dest) */ foo.x from foo join dest on foo.y = dest.y",
-                                "with cte as (select * from src) select * from cte"));
+                                "with cte as (select * from src) select * from cte",
+                                "select 1 / 0"));
         if (HiveVersionTestUtil.HIVE_230_OR_LATER) {
             toRun.add(
                     "select weekofyear(current_timestamp()), dayofweek(current_timestamp()) from src limit 1");
