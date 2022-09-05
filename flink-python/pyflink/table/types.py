@@ -1400,7 +1400,7 @@ _type_mappings = {
 # ISO/IEC 9899:201x specification, chapter 5.2.4.2.1 Sizes of integer types <limits.h>.
 # Reference for python array typecode, see:
 # https://docs.python.org/2/library/array.html
-# https://docs.python.org/3.6/library/array.html
+# https://docs.python.org/3.7/library/array.html
 # Reference for JVM's supported integral types:
 # http://docs.oracle.com/javase/specs/jvms/se8/html/jvms-2.html#jvms-2.3.1
 

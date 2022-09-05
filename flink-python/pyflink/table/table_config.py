@@ -321,7 +321,7 @@ class TableConfig(object):
         .. note::
 
             Please make sure the uploaded python environment matches the platform that the cluster
-            is running on and that the python version must be 3.6 or higher.
+            is running on and that the python version must be 3.7 or higher.
 
         .. note::
 
