@@ -136,7 +136,7 @@ public class PulsarUnorderedPartitionSplitReader<OUT> extends PulsarPartitionSpl
         }
     }
 
-    public Optional<PulsarPartitionSplitState> snapshotState(long checkpointId) {
+    public Optional<PulsarPartitionSplitState> snapshotState() {
         if (registeredSplit == null) {
             return Optional.empty();
         }
