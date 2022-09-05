@@ -28,7 +28,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
 
-import java.net.InetAddress;
+import java.net.InetSocketAddress;
 import java.time.Duration;
 import java.util.Arrays;
 import java.util.Collections;
@@ -82,8 +82,7 @@ class HiveServer2EndpointFactoryTest {
                         Collections.singletonList(
                                 new HiveServer2Endpoint(
                                         service,
-                                        InetAddress.getByName("localhost"),
-                                        port,
+                                        new InetSocketAddress("localhost", port),
                                         maxMessageSize,
                                         (int) loginTimeout.toMillis(),
                                         (int) backOffSlotLength.toMillis(),
