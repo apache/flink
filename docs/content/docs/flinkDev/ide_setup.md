@@ -76,10 +76,13 @@ accurately.
    Select the most suitable JDK version. NOTE: A good rule of thumb is to select
    the JDK version matching the active Maven profile.
 6. Continue by clicking "Next" until the import is finished.
-7. Open the "Maven" tab (or right-click on the imported project and find "Maven") and run
+7. Set up maven home path to maven-wrapper. 
+   Go to "File" → "Settings" → "Build,Execution,Deployment" → "Build Tools" → "Maven".
+   For "Maven home path" select "Use maven-wrapper".
+8. Open the "Maven" tab (or right-click on the imported project and find "Maven") and run
    "Generate Sources and Update Folders". Alternatively, you can run
-   `mvn clean package -DskipTests`.
-8. Build the Project ("Build" → "Build Project").
+   `./mvnw clean package -DskipTests`.
+9. Build the Project ("Build" → "Build Project").
 
 ### Copyright Profile
 
