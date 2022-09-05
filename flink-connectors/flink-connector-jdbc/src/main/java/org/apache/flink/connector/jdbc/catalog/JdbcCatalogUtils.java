@@ -20,8 +20,8 @@ package org.apache.flink.connector.jdbc.catalog;
 
 import org.apache.flink.connector.jdbc.dialect.JdbcDialect;
 import org.apache.flink.connector.jdbc.dialect.JdbcDialectLoader;
-import org.apache.flink.connector.jdbc.dialect.mysql.MySqlDialect;
-import org.apache.flink.connector.jdbc.dialect.psql.PostgresDialect;
+
+import java.lang.reflect.InvocationTargetException;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 
@@ -45,12 +45,20 @@ public class JdbcCatalogUtils {
             String pwd,
             String baseUrl) {
         JdbcDialect dialect = JdbcDialectLoader.load(baseUrl);
-
-        if (dialect instanceof PostgresDialect) {
-            return new PostgresCatalog(catalogName, defaultDatabase, username, pwd, baseUrl);
-        } else if (dialect instanceof MySqlDialect) {
-            return new MySqlCatalog(catalogName, defaultDatabase, username, pwd, baseUrl);
-        } else {
+        try {
+            return (AbstractJdbcCatalog)
+                    dialect.catalogClass()
+                            .getConstructor(
+                                    String.class,
+                                    String.class,
+                                    String.class,
+                                    String.class,
+                                    String.class)
+                            .newInstance(catalogName, defaultDatabase, username, pwd, baseUrl);
+        } catch (InstantiationException
+                | IllegalAccessException
+                | InvocationTargetException
+                | NoSuchMethodException e) {
             throw new UnsupportedOperationException(
                     String.format("Catalog for '%s' is not supported yet.", dialect));
         }

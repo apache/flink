@@ -19,9 +19,11 @@
 package org.apache.flink.connector.jdbc.dialect.mysql;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.connector.jdbc.catalog.MySqlCatalog;
 import org.apache.flink.connector.jdbc.converter.JdbcRowConverter;
 import org.apache.flink.connector.jdbc.dialect.AbstractDialect;
 import org.apache.flink.connector.jdbc.internal.converter.MySQLRowConverter;
+import org.apache.flink.table.catalog.Catalog;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
 import org.apache.flink.table.types.logical.RowType;
 
@@ -89,6 +91,11 @@ public class MySqlDialect extends AbstractDialect {
                 getInsertIntoStatement(tableName, fieldNames)
                         + " ON DUPLICATE KEY UPDATE "
                         + updateClause);
+    }
+
+    @Override
+    public Class<? extends Catalog> catalogClass() {
+        return MySqlCatalog.class;
     }
 
     @Override
