@@ -30,8 +30,10 @@ import org.apache.flink.util.SerializedValue;
 import org.apache.flink.util.concurrent.FutureUtils;
 
 import java.io.IOException;
-import java.util.ArrayList;
+import java.util.LinkedList;
 import java.util.List;
+import java.util.TreeMap;
+import java.util.TreeSet;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
 
@@ -39,9 +41,12 @@ import java.util.concurrent.CompletableFuture;
  * Implementation of the {@link OperatorCoordinator.SubtaskGateway} interface that access to
  * subtasks for status and event sending via {@link SubtaskAccess}.
  *
- * <p>Instances of this class can be temporarily closed, blocking events from going through,
- * buffering them, and releasing them later. It is used for "alignment" of operator event streams
- * with checkpoint barrier injection, similar to how the input channels are aligned during a common
+ * <p>Instances of this class can be closed, blocking events from going through, buffering them, and
+ * releasing them later. If the instance is closed for a specific checkpoint, events arrived after
+ * that would be blocked temporarily, and released after the checkpoint finishes. If an event is
+ * blocked & buffered when there are multiple ongoing checkpoints, the event would be released after
+ * all these checkpoints finish. It is used for "alignment" of operator event streams with
+ * checkpoint barrier injection, similar to how the input channels are aligned during a common
  * checkpoint.
  *
  * <p>The methods on the critical communication path, including closing/reopening the gateway and
@@ -63,13 +68,13 @@ class SubtaskGatewayImpl implements OperatorCoordinator.SubtaskGateway {
 
     private final IncompleteFuturesTracker incompleteFuturesTracker;
 
-    private final List<BlockedEvent> blockedEvents;
+    private final TreeMap<Long, List<BlockedEvent>> blockedEventsMap;
 
-    private long currentCheckpointId;
+    /** The ids of the checkpoints that have been marked but not unmarked yet. */
+    private final TreeSet<Long> currentMarkedCheckpointIds;
 
-    private long lastCheckpointId;
-
-    private boolean isClosed;
+    /** The id of the latest checkpoint that has ever been marked. */
+    private long latestAttemptedCheckpointId;
 
     SubtaskGatewayImpl(
             SubtaskAccess subtaskAccess,
@@ -78,10 +83,9 @@ class SubtaskGatewayImpl implements OperatorCoordinator.SubtaskGateway {
         this.subtaskAccess = subtaskAccess;
         this.mainThreadExecutor = mainThreadExecutor;
         this.incompleteFuturesTracker = incompleteFuturesTracker;
-        this.blockedEvents = new ArrayList<>();
-        this.currentCheckpointId = NO_CHECKPOINT;
-        this.lastCheckpointId = Long.MIN_VALUE;
-        this.isClosed = false;
+        this.blockedEventsMap = new TreeMap<>();
+        this.currentMarkedCheckpointIds = new TreeSet<>();
+        this.latestAttemptedCheckpointId = NO_CHECKPOINT;
     }
 
     @Override
@@ -134,8 +138,8 @@ class SubtaskGatewayImpl implements OperatorCoordinator.SubtaskGateway {
             CompletableFuture<Acknowledge> result) {
         checkRunsInMainThread();
 
-        if (isClosed) {
-            blockedEvents.add(new BlockedEvent(sendAction, result));
+        if (!blockedEventsMap.isEmpty()) {
+            blockedEventsMap.lastEntry().getValue().add(new BlockedEvent(sendAction, result));
         } else {
             callSendAction(sendAction, result);
         }
@@ -180,21 +184,14 @@ class SubtaskGatewayImpl implements OperatorCoordinator.SubtaskGateway {
     void markForCheckpoint(long checkpointId) {
         checkRunsInMainThread();
 
-        if (currentCheckpointId != NO_CHECKPOINT && currentCheckpointId != checkpointId) {
-            throw new IllegalStateException(
-                    String.format(
-                            "Cannot mark for checkpoint %d, already marked for checkpoint %d",
-                            checkpointId, currentCheckpointId));
-        }
-
-        if (checkpointId > lastCheckpointId) {
-            currentCheckpointId = checkpointId;
-            lastCheckpointId = checkpointId;
+        if (checkpointId > latestAttemptedCheckpointId) {
+            currentMarkedCheckpointIds.add(checkpointId);
+            latestAttemptedCheckpointId = checkpointId;
         } else {
             throw new IllegalStateException(
                     String.format(
                             "Regressing checkpoint IDs. Previous checkpointId = %d, new checkpointId = %d",
-                            lastCheckpointId, checkpointId));
+                            latestAttemptedCheckpointId, checkpointId));
         }
     }
 
@@ -207,8 +204,8 @@ class SubtaskGatewayImpl implements OperatorCoordinator.SubtaskGateway {
     boolean tryCloseGateway(long checkpointId) {
         checkRunsInMainThread();
 
-        if (checkpointId == currentCheckpointId) {
-            isClosed = true;
+        if (currentMarkedCheckpointIds.contains(checkpointId)) {
+            blockedEventsMap.putIfAbsent(checkpointId, new LinkedList<>());
             return true;
         }
 
@@ -221,38 +218,56 @@ class SubtaskGatewayImpl implements OperatorCoordinator.SubtaskGateway {
         // Gateways should always be marked and closed for a specific checkpoint before it can be
         // reopened for that checkpoint. If a gateway is to be opened for an unforeseen checkpoint,
         // exceptions should be thrown.
-        if (lastCheckpointId < checkpointId) {
+        if (latestAttemptedCheckpointId < checkpointId) {
             throw new IllegalStateException(
                     String.format(
-                            "Gateway closed for different checkpoint: closed for = %d, expected = %d",
-                            currentCheckpointId, checkpointId));
+                            "Trying to open gateway for unseen checkpoint: "
+                                    + "latest known checkpoint = %d, incoming checkpoint = %d",
+                            latestAttemptedCheckpointId, checkpointId));
         }
 
         // The message to open gateway with a specific checkpoint id might arrive after the
         // checkpoint has been aborted, or even after a new checkpoint has started. In these cases
         // this message should be ignored.
-        if (currentCheckpointId == NO_CHECKPOINT || checkpointId < lastCheckpointId) {
+        if (!currentMarkedCheckpointIds.contains(checkpointId)) {
             return;
         }
 
-        openGatewayAndUnmarkCheckpoint();
+        if (blockedEventsMap.containsKey(checkpointId)) {
+            if (blockedEventsMap.firstKey() == checkpointId) {
+                for (BlockedEvent blockedEvent : blockedEventsMap.firstEntry().getValue()) {
+                    callSendAction(blockedEvent.sendAction, blockedEvent.future);
+                }
+            } else {
+                blockedEventsMap
+                        .floorEntry(checkpointId - 1)
+                        .getValue()
+                        .addAll(blockedEventsMap.get(checkpointId));
+            }
+            blockedEventsMap.remove(checkpointId);
+        }
+
+        currentMarkedCheckpointIds.remove(checkpointId);
     }
 
     /** Opens the gateway, releasing all buffered events. */
-    void openGatewayAndUnmarkCheckpoint() {
+    void openGatewayAndUnmarkAllCheckpoint() {
         checkRunsInMainThread();
 
-        currentCheckpointId = NO_CHECKPOINT;
-        if (!isClosed) {
-            return;
+        for (List<BlockedEvent> blockedEvents : blockedEventsMap.values()) {
+            for (BlockedEvent blockedEvent : blockedEvents) {
+                callSendAction(blockedEvent.sendAction, blockedEvent.future);
+            }
         }
 
-        for (BlockedEvent blockedEvent : blockedEvents) {
-            callSendAction(blockedEvent.sendAction, blockedEvent.future);
-        }
-        blockedEvents.clear();
+        blockedEventsMap.clear();
+        currentMarkedCheckpointIds.clear();
+    }
 
-        isClosed = false;
+    void openGatewayAndUnmarkLastCheckpointIfAny() {
+        if (!currentMarkedCheckpointIds.isEmpty()) {
+            openGatewayAndUnmarkCheckpoint(currentMarkedCheckpointIds.last());
+        }
     }
 
     private void checkRunsInMainThread() {

@@ -133,7 +133,7 @@ public class OperatorCoordinatorHolderTest extends TestLogger {
     }
 
     @Test
-    public void sourceBarrierInjectionReleasesBlockedEvents() throws Exception {
+    public void acknowledgeCheckpointEventReleasesBlockedEvents() throws Exception {
         final EventReceivingTasks tasks = EventReceivingTasks.createForRunningTasks();
         final OperatorCoordinatorHolder holder =
                 createCoordinatorHolder(tasks, TestingOperatorCoordinator::new);
@@ -183,19 +183,23 @@ public class OperatorCoordinatorHolderTest extends TestLogger {
     }
 
     @Test
-    public void triggeringFailsIfOtherTriggeringInProgress() throws Exception {
+    public void triggerConcurrentCheckpoints() throws Exception {
         final EventReceivingTasks tasks = EventReceivingTasks.createForRunningTasks();
         final OperatorCoordinatorHolder holder =
                 createCoordinatorHolder(tasks, TestingOperatorCoordinator::new);
 
-        holder.checkpointCoordinator(11L, new CompletableFuture<>());
+        triggerAndCompleteCheckpoint(holder, 1111L);
+        getCoordinator(holder).getSubtaskGateway(0).sendEvent(new TestOperatorEvent(1337));
+        triggerAndCompleteCheckpoint(holder, 1112L);
+        getCoordinator(holder).getSubtaskGateway(0).sendEvent(new TestOperatorEvent(1338));
+        assertThat(tasks.getSentEventsForSubtask(0)).isEmpty();
 
-        final CompletableFuture<byte[]> future = new CompletableFuture<>();
-        holder.checkpointCoordinator(12L, future);
+        holder.handleEventFromOperator(0, 0, new AcknowledgeCheckpointEvent(1111L));
+        assertThat(tasks.getSentEventsForSubtask(0)).containsExactly(new TestOperatorEvent(1337));
 
-        assertThat(future).isCompletedExceptionally();
-        assertThat(globalFailure).isNotNull();
-        globalFailure = null;
+        holder.handleEventFromOperator(0, 0, new AcknowledgeCheckpointEvent(1112L));
+        assertThat(tasks.getSentEventsForSubtask(0))
+                .containsExactly(new TestOperatorEvent(1337), new TestOperatorEvent(1338));
     }
 
     @Test
