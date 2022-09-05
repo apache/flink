@@ -588,6 +588,15 @@ public class HiveDialectQueryITCase {
                                     defaultPartitionName,
                                     defaultPartitionName,
                                     defaultPartitionName));
+
+            // test use binary record reader
+            result =
+                    CollectionUtil.iteratorToList(
+                            tableEnv.executeSql(
+                                            "select transform(key) using 'cat' as (tkey)"
+                                                    + " RECORDREADER 'org.apache.hadoop.hive.ql.exec.BinaryRecordReader' from src")
+                                    .collect());
+            assertThat(result.toString()).isEqualTo("[+I[1\n2\n3\n]]");
         } finally {
             tableEnv.executeSql("drop table dest1");
             tableEnv.executeSql("drop table destp1");
