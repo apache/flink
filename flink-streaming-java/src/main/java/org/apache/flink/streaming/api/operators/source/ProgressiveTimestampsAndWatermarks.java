@@ -20,6 +20,7 @@ package org.apache.flink.streaming.api.operators.source;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.eventtime.TimestampAssigner;
+import org.apache.flink.api.common.eventtime.Watermark;
 import org.apache.flink.api.common.eventtime.WatermarkGenerator;
 import org.apache.flink.api.common.eventtime.WatermarkGeneratorSupplier;
 import org.apache.flink.api.common.eventtime.WatermarkOutput;
@@ -100,13 +101,15 @@ public class ProgressiveTimestampsAndWatermarks<T> implements TimestampsAndWater
                 "already created a main output");
 
         final WatermarkOutput watermarkOutput = new WatermarkToDataOutput(output, watermarkEmitted);
+        IdlenessManager idlenessManager = new IdlenessManager(watermarkOutput);
+
         final WatermarkGenerator<T> watermarkGenerator =
                 watermarksFactory.createWatermarkGenerator(watermarksContext);
 
         currentPerSplitOutputs =
                 new SplitLocalOutputs<>(
                         output,
-                        watermarkOutput,
+                        idlenessManager.getSplitLocalOutput(),
                         timestampAssigner,
                         watermarksFactory,
                         watermarksContext);
@@ -114,7 +117,7 @@ public class ProgressiveTimestampsAndWatermarks<T> implements TimestampsAndWater
         currentMainOutput =
                 new StreamingReaderOutput<>(
                         output,
-                        watermarkOutput,
+                        idlenessManager.getMainOutput(),
                         timestampAssigner,
                         watermarkGenerator,
                         currentPerSplitOutputs);
@@ -258,6 +261,69 @@ public class ProgressiveTimestampsAndWatermarks<T> implements TimestampsAndWater
                 output.emitPeriodicWatermark();
             }
             watermarkMultiplexer.onPeriodicEmit();
+        }
+    }
+
+    /**
+     * A helper class for managing idleness status of the underlying output.
+     *
+     * <p>This class tracks the idleness status of main and split-local output, and only marks the
+     * underlying output as idle if both main and per-split output are idle.
+     *
+     * <p>The reason of adding this manager is that the implementation of source reader might only
+     * use one of main or split-local output for emitting records and watermarks, and we could avoid
+     * watermark generator on the vacant output keep marking the underlying output as idle.
+     */
+    private static class IdlenessManager {
+        private final WatermarkOutput underlyingOutput;
+        private final IdlenessAwareWatermarkOutput splitLocalOutput;
+        private final IdlenessAwareWatermarkOutput mainOutput;
+
+        IdlenessManager(WatermarkOutput underlyingOutput) {
+            this.underlyingOutput = underlyingOutput;
+            this.splitLocalOutput = new IdlenessAwareWatermarkOutput(underlyingOutput);
+            this.mainOutput = new IdlenessAwareWatermarkOutput(underlyingOutput);
+        }
+
+        IdlenessAwareWatermarkOutput getSplitLocalOutput() {
+            return splitLocalOutput;
+        }
+
+        IdlenessAwareWatermarkOutput getMainOutput() {
+            return mainOutput;
+        }
+
+        void maybeMarkUnderlyingOutputAsIdle() {
+            if (splitLocalOutput.isIdle && mainOutput.isIdle) {
+                underlyingOutput.markIdle();
+            }
+        }
+
+        private class IdlenessAwareWatermarkOutput implements WatermarkOutput {
+            private final WatermarkOutput underlyingOutput;
+            private boolean isIdle = true;
+
+            private IdlenessAwareWatermarkOutput(WatermarkOutput underlyingOutput) {
+                this.underlyingOutput = underlyingOutput;
+            }
+
+            @Override
+            public void emitWatermark(Watermark watermark) {
+                underlyingOutput.emitWatermark(watermark);
+                isIdle = false;
+            }
+
+            @Override
+            public void markIdle() {
+                isIdle = true;
+                maybeMarkUnderlyingOutputAsIdle();
+            }
+
+            @Override
+            public void markActive() {
+                isIdle = false;
+                underlyingOutput.markActive();
+            }
         }
     }
 }
