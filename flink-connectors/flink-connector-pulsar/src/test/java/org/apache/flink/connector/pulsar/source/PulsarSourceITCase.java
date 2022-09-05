@@ -30,11 +30,17 @@ import org.apache.flink.connector.testframe.junit.annotations.TestExternalSystem
 import org.apache.flink.connector.testframe.junit.annotations.TestSemantics;
 import org.apache.flink.connector.testframe.testsuites.SourceTestSuiteBase;
 import org.apache.flink.streaming.api.CheckpointingMode;
+import org.apache.flink.testutils.junit.FailsOnJava11;
 
-/** Unite test class for {@link PulsarSource}. */
-@SuppressWarnings("unused")
+import org.apache.pulsar.client.api.SubscriptionType;
+import org.junit.experimental.categories.Category;
+
+/**
+ * Unit test class for {@link PulsarSource}. Used for {@link SubscriptionType#Exclusive}
+ * subscription.
+ */
+@Category(value = {FailsOnJava11.class})
 class PulsarSourceITCase extends SourceTestSuiteBase<String> {
-
     // Defines test environment on Flink MiniCluster
     @TestEnv MiniClusterTestEnvironment flink = new MiniClusterTestEnvironment();
 
@@ -46,7 +52,7 @@ class PulsarSourceITCase extends SourceTestSuiteBase<String> {
     CheckpointingMode[] semantics = new CheckpointingMode[] {CheckpointingMode.EXACTLY_ONCE};
 
     // Defines an external context Factories,
-    // so test cases will be invoked using this external contexts.
+    // so test cases will be invoked using these external contexts.
     @TestContext
     PulsarTestContextFactory<String, SingleTopicConsumingContext> singleTopic =
             new PulsarTestContextFactory<>(pulsar, SingleTopicConsumingContext::new);

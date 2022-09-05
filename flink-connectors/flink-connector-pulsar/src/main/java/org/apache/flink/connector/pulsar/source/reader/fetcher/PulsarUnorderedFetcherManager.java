@@ -53,19 +53,19 @@ public class PulsarUnorderedFetcherManager<T> extends PulsarFetcherManagerBase<T
         super(elementsQueue, splitReaderSupplier);
     }
 
-    public List<PulsarPartitionSplit> snapshotState(long checkpointId) {
+    public List<PulsarPartitionSplit> snapshotState() {
         return fetchers.values().stream()
                 .map(SplitFetcher::getSplitReader)
-                .map(splitReader -> snapshotReader(checkpointId, splitReader))
+                .map(this::snapshotReader)
                 .filter(Optional::isPresent)
                 .map(Optional::get)
                 .collect(toCollection(() -> new ArrayList<>(fetchers.size())));
     }
 
     private Optional<PulsarPartitionSplit> snapshotReader(
-            long checkpointId, SplitReader<PulsarMessage<T>, PulsarPartitionSplit> splitReader) {
+            SplitReader<PulsarMessage<T>, PulsarPartitionSplit> splitReader) {
         return ((PulsarUnorderedPartitionSplitReader<T>) splitReader)
-                .snapshotState(checkpointId)
+                .snapshotState()
                 .map(PulsarPartitionSplitState::toPulsarPartitionSplit);
     }
 }
