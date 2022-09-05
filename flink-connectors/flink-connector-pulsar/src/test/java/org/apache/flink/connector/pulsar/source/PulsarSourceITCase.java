@@ -28,9 +28,16 @@ import org.apache.flink.connectors.test.common.junit.annotations.ExternalContext
 import org.apache.flink.connectors.test.common.junit.annotations.ExternalSystem;
 import org.apache.flink.connectors.test.common.junit.annotations.TestEnv;
 import org.apache.flink.connectors.test.common.testsuites.SourceTestSuiteBase;
+import org.apache.flink.testutils.junit.FailsOnJava11;
 
-/** Unite test class for {@link PulsarSource}. */
-@SuppressWarnings("unused")
+import org.apache.pulsar.client.api.SubscriptionType;
+import org.junit.experimental.categories.Category;
+
+/**
+ * Unit test class for {@link PulsarSource}. Used for {@link SubscriptionType#Exclusive}
+ * subscription.
+ */
+@Category(value = {FailsOnJava11.class})
 class PulsarSourceITCase extends SourceTestSuiteBase<String> {
 
     // Defines test environment on Flink MiniCluster
@@ -39,8 +46,8 @@ class PulsarSourceITCase extends SourceTestSuiteBase<String> {
     // Defines pulsar running environment
     @ExternalSystem PulsarTestEnvironment pulsar = new PulsarTestEnvironment(PulsarRuntime.mock());
 
-    // Defines a external context Factories,
-    // so test cases will be invoked using this external contexts.
+    // Defines an external context Factories,
+    // so test cases will be invoked using these external contexts.
     @ExternalContextFactory
     PulsarTestContextFactory<String, SingleTopicConsumingContext> singleTopic =
             new PulsarTestContextFactory<>(pulsar, SingleTopicConsumingContext::new);
