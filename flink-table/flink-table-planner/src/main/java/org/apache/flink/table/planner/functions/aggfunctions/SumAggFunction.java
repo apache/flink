@@ -65,10 +65,7 @@ public abstract class SumAggFunction extends DeclarativeAggregateFunction {
             /* sum = */ ifThenElse(
                     isNull(operand(0)),
                     sum,
-                    ifThenElse(
-                            isNull(operand(0)),
-                            sum,
-                            ifThenElse(isNull(sum), operand(0), adjustedPlus(sum, operand(0)))))
+                    ifThenElse(isNull(sum), operand(0), adjustedPlus(sum, operand(0))))
         };
     }
 
