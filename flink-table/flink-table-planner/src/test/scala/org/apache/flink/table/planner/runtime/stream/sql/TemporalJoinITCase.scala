@@ -596,16 +596,85 @@ class TemporalJoinITCase(state: StateBackendMode) extends StreamingWithStateTest
 
   @Test
   def testEventTimeTemporalJoinWithNonEqualCondition(): Unit = {
+
+    // test data for Event-Time temporal table join
+    val rowTimeOrderData = List(
+      changelogRow("+I", 1L, "Euro", "no1", 12L, "2020-08-15T00:01:00"),
+      changelogRow("+I", 2L, "US Dollar", "no1", 1L, "2020-08-15T00:02:00"),
+      changelogRow("+I", 3L, "RMB", "no1", 40L, "2020-08-15T00:03:00"),
+      changelogRow("+I", 4L, "Euro", "no1", 14L, "2020-08-16T00:04:00"),
+      changelogRow("-U", 2L, "US Dollar", "no1", 1L, "2020-08-15T00:03:00"),
+      changelogRow("+U", 2L, "US Dollar", "no1", 18L, "2020-08-16T00:03:00"),
+      changelogRow("+I", 5L, "US Dollar", "no1", 1L, "2020-08-16T00:03:15"),
+      changelogRow("+I", 6L, "US Dollar", "no1", 1L, "2020-08-16T00:04:00"),
+      changelogRow("+I", 7L, "RMB", "no1", 40L, "2020-08-16T00:03:00"),
+      changelogRow("+I", 8L, "RMB", "no1", 40L, "2020-08-16T00:04:00"),
+      changelogRow("-D", 8L, "RMB", "no1", 40L, "2020-08-16T00:04:00")
+    )
+
+    val rowTimeCurrencyDataUsingBeforeTime = List(
+      changelogRow("+I", "Euro", "no1", 114L, "2020-08-15T00:00:01"),
+      changelogRow("+I", "US Dollar", "no1", 122L, "2020-08-15T00:00:02"),
+      changelogRow("+I", "Yen", "no1", 1L, "2020-08-15T00:00:03"),
+      changelogRow("+I", "RMB", "no1", 702L, "2020-08-15T00:00:04"),
+      changelogRow("-U", "Euro", "no1", 114L, "2020-08-15T00:00:01"),
+      changelogRow("+U", "Euro", "no1", 118L, "2020-08-16T00:01:00"),
+      changelogRow("-D", "RMB", "no1", 708L, "2020-08-16T00:00:04"),
+      changelogRow("-U", "US Dollar", "no1", 122L, "2020-08-15T00:00:02"),
+      changelogRow("+U", "US Dollar", "no1", 116L, "2020-08-16T00:03:00"),
+      changelogRow("-U", "US Dollar", "no1", 116L, "2020-08-16T00:03:00"),
+      changelogRow("+U", "US Dollar", "no1", 106L, "2020-08-16T00:03:10"),
+      changelogRow("-U", "US Dollar", "no1", 106L, "2020-08-16T00:03:10"),
+      changelogRow("+U", "US Dollar", "no1", 118L, "2020-08-16T00:03:20")
+    )
+    val rowTimeOrderDataId = registerData(rowTimeOrderData)
+    tEnv.executeSql(s"""
+                       |CREATE TABLE orders_rowtime_1 (
+                       |  order_id BIGINT,
+                       |  currency STRING,
+                       |  currency_no STRING,
+                       |  amount BIGINT,
+                       |  order_time TIMESTAMP(3),
+                       |  WATERMARK FOR order_time AS order_time,
+                       |  PRIMARY KEY (order_id) NOT ENFORCED
+                       |) WITH (
+                       |  'connector' = 'values',
+                       |  'changelog-mode' = 'I,UA,UB,D',
+                       |  'data-id' = '$rowTimeOrderDataId'
+                       |)
+                       |""".stripMargin)
+
+    val currencyDataUsingBeforeTimeId = registerData(rowTimeCurrencyDataUsingBeforeTime)
+    tEnv.executeSql(
+      s"""
+         |CREATE TABLE currency_using_update_before_time_1 (
+         |  currency STRING,
+         |  currency_no STRING,
+         |  rate  BIGINT,
+         |  currency_time TIMESTAMP(3),
+         |  WATERMARK FOR currency_time AS currency_time - interval '10' DAY,
+         |  PRIMARY KEY(currency, currency_no) NOT ENFORCED
+         |) WITH (
+         |  'connector' = 'values',
+         |  'changelog-mode' = 'I,UA,UB,D',
+         |  'data-id' = '$currencyDataUsingBeforeTimeId'
+         |)
+         |""".stripMargin
+    )
+
     val sql = "INSERT INTO rowtime_default_sink " +
       " SELECT o.order_id, o.currency, o.amount, o.order_time, r.rate, r.currency_time " +
-      " FROM orders_rowtime AS o JOIN versioned_currency_with_multi_key " +
+      " FROM orders_rowtime_1 AS o JOIN currency_using_update_before_time_1 " +
       " FOR SYSTEM_TIME AS OF o.order_time as r " +
       " ON o.currency = r.currency and o.currency_no = r.currency_no " +
-      " and o.order_id < 5 and r.rate > 114"
+      " and o.order_id < 7 and r.rate > 114"
     tEnv.executeSql(sql).await()
     val expected = List(
+      "2,US Dollar,18,2020-08-16T00:03,116,2020-08-16T00:03",
       "3,RMB,40,2020-08-15T00:03,702,2020-08-15T00:00:04",
-      "4,Euro,14,2020-08-16T00:04,118,2020-08-16T00:01")
+      "4,Euro,14,2020-08-16T00:04,118,2020-08-16T00:01",
+      "6,US Dollar,1,2020-08-16T00:04,118,2020-08-16T00:03:20"
+    )
     assertEquals(expected.sorted, getResults("rowtime_default_sink").sorted)
   }
 

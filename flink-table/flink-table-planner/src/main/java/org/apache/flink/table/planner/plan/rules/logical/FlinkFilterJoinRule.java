@@ -19,6 +19,7 @@
 package org.apache.flink.table.planner.plan.rules.logical;
 
 import org.apache.flink.table.api.TableException;
+import org.apache.flink.table.planner.plan.utils.TemporalJoinUtil;
 
 import org.apache.calcite.plan.RelOptRuleCall;
 import org.apache.calcite.plan.RelOptUtil;
@@ -128,7 +129,9 @@ public abstract class FlinkFilterJoinRule<C extends FlinkFilterJoinRule.Config> 
                 joinType,
                 true,
                 !joinType.generatesNullsOnLeft(),
-                !joinType.generatesNullsOnRight(),
+                !joinType.generatesNullsOnRight()
+                        && !TemporalJoinUtil.containsInitialTemporalJoinCondition(
+                                join.getCondition()),
                 joinFilters,
                 leftFilters,
                 rightFilters)) {
@@ -169,7 +172,9 @@ public abstract class FlinkFilterJoinRule<C extends FlinkFilterJoinRule.Config> 
                         joinType,
                         false,
                         !joinType.generatesNullsOnRight(),
-                        !joinType.generatesNullsOnLeft(),
+                        !joinType.generatesNullsOnLeft()
+                                && !TemporalJoinUtil.containsInitialTemporalJoinCondition(
+                                        join.getCondition()),
                         joinFilters,
                         leftFilters,
                         rightFilters)) {

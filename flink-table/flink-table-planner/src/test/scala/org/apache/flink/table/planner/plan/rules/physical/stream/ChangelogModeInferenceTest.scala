@@ -189,6 +189,17 @@ class ChangelogModeInferenceTest extends TableTestBase {
   }
 
   @Test
+  def testTemporalJoinWithNonEqualCondition(): Unit = {
+    val sql =
+      """
+        |SELECT * FROM Orders AS o
+        | JOIN ratesChangelogStream FOR SYSTEM_TIME AS OF o.rowtime AS r
+        | ON o.currency = r.currency and o.amount > 5 and r.rate > 100
+      """.stripMargin
+    util.verifyRelPlan(sql, ExplainDetail.CHANGELOG_MODE)
+  }
+
+  @Test
   def testGroupByWithUnion(): Unit = {
     util.addTable("""
                     |CREATE TABLE MyTable2 (
