@@ -38,7 +38,7 @@ public class HiveServer2EndpointConfigOptions {
     public static final ConfigOption<String> THRIFT_HOST =
             ConfigOptions.key("thrift.host")
                     .stringType()
-                    .defaultValue("localhost")
+                    .noDefaultValue()
                     .withDescription(
                             "The server address of HiveServer2 host to be used for communication."
                                     + "Default is empty, which means the to bind to the localhost. "
