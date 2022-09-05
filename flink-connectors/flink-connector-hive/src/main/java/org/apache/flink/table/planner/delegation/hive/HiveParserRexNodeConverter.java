@@ -594,6 +594,7 @@ public class HiveParserRexNodeConverter {
         // process the function
         RelDataType retType =
                 HiveParserTypeConverter.convert(func.getTypeInfo(), cluster.getTypeFactory());
+
         SqlOperator calciteOp =
                 HiveParserSqlFunctionConverter.getCalciteOperator(
                         func.getFuncText(), func.getGenericUDF(), argTypes, retType, funcConverter);
