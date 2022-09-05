@@ -86,7 +86,6 @@ public class PulsarEmbeddedRuntime implements PulsarRuntime {
         try {
             if (operator != null) {
                 operator.close();
-                this.operator = null;
             }
             if (pulsarService != null) {
                 pulsarService.close();

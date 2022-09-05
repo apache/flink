@@ -24,8 +24,17 @@ import java.util.Iterator;
  * Entry point for assertion methods for {@link CollectIteratorAssert}. Each method in this class is
  * a static factory.
  */
-public class CollectIteratorAssertions {
+public final class CollectIteratorAssertions {
+
+    private CollectIteratorAssertions() {
+        // no constructor.
+    }
+
     public static <T> CollectIteratorAssert<T> assertThat(Iterator<T> actual) {
         return new CollectIteratorAssert<>(actual);
+    }
+
+    public static <T> UnorderedCollectIteratorAssert<T> assertUnordered(Iterator<T> actual) {
+        return new UnorderedCollectIteratorAssert<>(actual);
     }
 }
