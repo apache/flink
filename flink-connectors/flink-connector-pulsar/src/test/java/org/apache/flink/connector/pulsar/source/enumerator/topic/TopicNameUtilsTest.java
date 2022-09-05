@@ -20,8 +20,13 @@ package org.apache.flink.connector.pulsar.source.enumerator.topic;
 
 import org.junit.jupiter.api.Test;
 
+import java.util.Arrays;
+import java.util.List;
+
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** Unit tests for {@link TopicNameUtils}. */
 class TopicNameUtilsTest {
@@ -67,5 +72,25 @@ class TopicNameUtilsTest {
 
         String name4 = TopicNameUtils.topicNameWithPartition(topicNameWithoutCluster, 8);
         assertEquals(name4, topicNameWithoutCluster + "-partition-8");
+    }
+
+    @Test
+    void mergeTheTopicNamesIntoOneSet() {
+        List<String> topics =
+                Arrays.asList("short-topic-partition-8", "short-topic", "long-topic-partition-1");
+        List<String> results = TopicNameUtils.distinctTopics(topics);
+
+        assertThat(results)
+                .containsExactlyInAnyOrder(
+                        "persistent://public/default/short-topic",
+                        "persistent://public/default/long-topic-partition-1");
+    }
+
+    @Test
+    void internalTopicAssertion() {
+        boolean internal =
+                TopicNameUtils.isInternal(
+                        "persistent://public/default/topic__transaction_pending_ack");
+        assertTrue(internal);
     }
 }
