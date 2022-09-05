@@ -23,7 +23,7 @@ import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.filesystem.HadoopPathBasedBulkFormatBuilder;
 import org.apache.flink.streaming.api.functions.sink.filesystem.TestStreamingFileSinkFactory;
-import org.apache.flink.streaming.api.functions.sink.filesystem.bucketassigners.DateTimeBucketAssigner;
+import org.apache.flink.streaming.api.functions.sink.filesystem.bucketassigners.BasePathBucketAssigner;
 import org.apache.flink.streaming.util.FiniteTestSource;
 import org.apache.flink.test.util.AbstractTestBase;
 
@@ -81,16 +81,18 @@ public class HadoopPathBasedPartFileWriterTest extends AbstractTestBase {
         env.setParallelism(1);
         env.enableCheckpointing(100);
 
+        // FiniteTestSource will generate two elements with a checkpoint trigger in between the two
+        // elements
         DataStream<String> stream =
                 env.addSource(new FiniteTestSource<>(data), TypeInformation.of(String.class));
         Configuration configuration = new Configuration();
-
+        // Elements from source are going to be assigned to one bucket
         HadoopPathBasedBulkFormatBuilder<String, String, ?> builder =
                 new HadoopPathBasedBulkFormatBuilder<>(
                         basePath,
                         new TestHadoopPathBasedBulkWriterFactory(),
                         configuration,
-                        new DateTimeBucketAssigner<>());
+                        new BasePathBucketAssigner<>());
         TestStreamingFileSinkFactory<String> streamingFileSinkFactory =
                 new TestStreamingFileSinkFactory<>();
         stream.addSink(streamingFileSinkFactory.createSink(builder, 1000));
@@ -104,11 +106,7 @@ public class HadoopPathBasedPartFileWriterTest extends AbstractTestBase {
     private void validateResult(List<String> expected, Configuration config, Path basePath)
             throws IOException {
         FileSystem fileSystem = FileSystem.get(basePath.toUri(), config);
-        FileStatus[] buckets = fileSystem.listStatus(basePath);
-        assertNotNull(buckets);
-        assertEquals(1, buckets.length);
-
-        FileStatus[] partFiles = fileSystem.listStatus(buckets[0].getPath());
+        FileStatus[] partFiles = fileSystem.listStatus(basePath);
         assertNotNull(partFiles);
         assertEquals(2, partFiles.length);
 
