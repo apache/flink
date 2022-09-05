@@ -62,7 +62,7 @@ public class LookupFullCacheTest {
             assertThat(result).isEqualTo(newResult);
         }
         assertThat(reloadTrigger.isClosed()).isTrue();
-        assertThat(cacheLoader.isClosed()).isTrue();
+        assertThat(cacheLoader.isStopped()).isTrue();
     }
 
     @Test
@@ -79,7 +79,7 @@ public class LookupFullCacheTest {
             assertThat(result).isEqualTo(newResult);
         }
         assertThat(reloadTrigger.isClosed()).isTrue();
-        assertThat(cacheLoader.isClosed()).isTrue();
+        assertThat(cacheLoader.isStopped()).isTrue();
     }
 
     @Test
@@ -96,7 +96,7 @@ public class LookupFullCacheTest {
             assertThat(result.size()).isEqualTo(0);
         }
         assertThat(reloadTrigger.isClosed()).isTrue();
-        assertThat(cacheLoader.isClosed()).isTrue();
+        assertThat(cacheLoader.isStopped()).isTrue();
     }
 
     @Test
@@ -109,10 +109,14 @@ public class LookupFullCacheTest {
                         });
         try (LookupFullCache fullCache = createAndLoadCache(cacheLoader)) {
             reloadTrigger.trigger();
+            assertThat(cacheLoader.isStopped()).isTrue();
+            assertThat(cacheLoader.getNumLoads()).isEqualTo(2);
             assertThatThrownBy(() -> fullCache.getIfPresent(row(1))).hasRootCause(exception);
+            reloadTrigger.trigger();
+            assertThat(cacheLoader.getNumLoads()).isEqualTo(2); // no reload after fail
         }
         assertThat(reloadTrigger.isClosed()).isTrue();
-        assertThat(cacheLoader.isClosed()).isTrue();
+        assertThat(cacheLoader.isStopped()).isTrue();
     }
 
     @Test

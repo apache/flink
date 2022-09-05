@@ -109,7 +109,7 @@ public class LookupFullCache implements LookupCache {
 
     @Override
     public void close() throws Exception {
+        reloadTrigger.close(); // firstly try to interrupt reload thread
         cacheLoader.close();
-        reloadTrigger.close();
     }
 }

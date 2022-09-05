@@ -44,12 +44,16 @@ public class GenericRowDataKeySelector implements RowDataKeySelector {
         this.keySerializer = keySerializer;
     }
 
+    public void open() {
+        ClassLoader cl = Thread.currentThread().getContextClassLoader();
+        //noinspection unchecked
+        projection = generatedProjection.newInstance(cl);
+    }
+
     @Override
     public RowData getKey(RowData value) throws Exception {
         if (projection == null) {
-            ClassLoader cl = Thread.currentThread().getContextClassLoader();
-            //noinspection unchecked
-            projection = generatedProjection.newInstance(cl);
+            open();
         }
         return keySerializer.copy(projection.apply(value));
     }
