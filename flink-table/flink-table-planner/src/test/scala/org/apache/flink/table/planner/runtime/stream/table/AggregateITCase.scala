@@ -271,7 +271,7 @@ class AggregateITCase(mode: StateBackendMode) extends StreamingWithStateTestBase
     val t = failingDataSource(data)
       .toTable(tEnv, 'a, 'b)
       .groupBy('a)
-      .select('a, 'b.listAgg("-"), call("list_Agg", col("b"), "~"))
+      .select('a, 'b.listAgg("-"), call("listAgg", col("b"), "~"))
 
     val sink = new TestingRetractSink()
     t.toRetractStream[Row].addSink(sink).setParallelism(1)

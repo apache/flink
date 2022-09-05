@@ -424,9 +424,9 @@ public final class BuiltInFunctionDefinitions {
                     .outputTypeStrategy(TypeStrategies.aggArg0(t -> t, true))
                     .build();
 
-    public static final BuiltInFunctionDefinition LIST_AGG =
+    public static final BuiltInFunctionDefinition LISTAGG =
             BuiltInFunctionDefinition.newBuilder()
-                    .name("list_agg")
+                    .name("listAgg")
                     .kind(AGGREGATE)
                     .inputTypeStrategy(
                             sequence(
