@@ -46,6 +46,8 @@ import java.util.SortedMap;
 import java.util.TreeMap;
 import java.util.function.Supplier;
 
+import static java.util.stream.Collectors.toList;
+
 /**
  * The source reader for pulsar subscription Shared and Key_Shared, which consumes the unordered
  * messages.
@@ -159,19 +161,19 @@ public class PulsarUnorderedSourceReader<OUT> extends PulsarSourceReaderBase<OUT
         LOG.debug("Committing transactions for checkpoint {}", checkpointId);
 
         if (coordinatorClient != null) {
-            for (Map.Entry<Long, List<TxnID>> entry : transactionsToCommit.entrySet()) {
-                Long currentCheckpointId = entry.getKey();
-                if (currentCheckpointId > checkpointId) {
-                    continue;
-                }
+            List<Long> checkpointIds =
+                    transactionsToCommit.keySet().stream()
+                            .filter(id -> id <= checkpointId)
+                            .collect(toList());
 
-                List<TxnID> transactions = entry.getValue();
-                for (TxnID transaction : transactions) {
-                    coordinatorClient.commit(transaction);
-                    transactionsOfFinishedSplits.remove(transaction);
+            for (Long id : checkpointIds) {
+                List<TxnID> transactions = transactionsToCommit.remove(id);
+                if (transactions != null) {
+                    for (TxnID transaction : transactions) {
+                        coordinatorClient.commit(transaction);
+                        transactionsOfFinishedSplits.remove(transaction);
+                    }
                 }
-
-                transactionsToCommit.remove(currentCheckpointId);
             }
         }
     }
