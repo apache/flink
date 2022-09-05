@@ -299,8 +299,7 @@ public class PulsarRuntimeOperator implements Closeable {
      */
     public <T> List<MessageId> sendMessages(
             String topic, Schema<T> schema, String key, Collection<T> messages) {
-        Producer<T> producer = createProducer(topic, schema);
-        try {
+        try (Producer<T> producer = createProducer(topic, schema)) {
             List<MessageId> messageIds = new ArrayList<>(messages.size());
 
             for (T message : messages) {
@@ -311,20 +310,11 @@ public class PulsarRuntimeOperator implements Closeable {
                 MessageId messageId = builder.send();
                 messageIds.add(messageId);
             }
-
+            producer.flush();
             return messageIds;
         } catch (PulsarClientException e) {
             sneakyThrow(e);
             return emptyList();
-        } finally {
-            try {
-                // Waiting for all the pending messages be sent to the Pulsar.
-                producer.flush();
-                // Directly close without the flush will drop all the pending messages.
-                producer.close();
-            } catch (PulsarClientException e) {
-                // Just ignore the exception here.
-            }
         }
     }
 

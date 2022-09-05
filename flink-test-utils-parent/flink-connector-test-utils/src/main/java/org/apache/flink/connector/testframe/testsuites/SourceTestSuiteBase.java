@@ -64,17 +64,16 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 
+import static java.util.Collections.singletonList;
+import static java.util.concurrent.CompletableFuture.runAsync;
 import static org.apache.flink.connector.testframe.utils.ConnectorTestConstants.DEFAULT_COLLECT_DATA_TIMEOUT;
 import static org.apache.flink.connector.testframe.utils.MetricQuerier.getJobDetails;
 import static org.apache.flink.runtime.testutils.CommonTestUtils.terminateJob;
@@ -153,11 +152,11 @@ public abstract class SourceTestSuiteBase<T> {
         try (CollectResultIterator<T> resultIterator = iteratorBuilder.build(jobClient)) {
             // Check test result
             LOG.info("Checking test results");
-            checkResultWithSemantic(resultIterator, Arrays.asList(testRecords), semantic, null);
+            checkResultWithSemantic(resultIterator, singletonList(testRecords), semantic, null);
         }
 
         // Step 5: Clean up
-        waitForJobStatus(jobClient, Collections.singletonList(JobStatus.FINISHED));
+        waitForJobStatus(jobClient, singletonList(JobStatus.FINISHED));
     }
 
     /**
@@ -341,7 +340,7 @@ public abstract class SourceTestSuiteBase<T> {
                         .stopWithSavepoint(
                                 true, testEnv.getCheckpointUri(), SavepointFormatType.CANONICAL)
                         .get(30, TimeUnit.SECONDS);
-        waitForJobStatus(jobClient, Collections.singletonList(JobStatus.FINISHED));
+        waitForJobStatus(jobClient, singletonList(JobStatus.FINISHED));
 
         // Step 5: Generate new test data
         final List<List<T>> newTestRecordCollections = new ArrayList<>();
@@ -372,7 +371,7 @@ public abstract class SourceTestSuiteBase<T> {
 
         final JobClient restartJobClient = restartEnv.executeAsync("Restart Test");
 
-        waitForJobStatus(restartJobClient, Collections.singletonList(JobStatus.RUNNING));
+        waitForJobStatus(restartJobClient, singletonList(JobStatus.RUNNING));
 
         try {
             iterator.setJobClient(restartJobClient);
@@ -526,7 +525,7 @@ public abstract class SourceTestSuiteBase<T> {
         }
 
         // Step 5: Clean up
-        waitForJobStatus(jobClient, Collections.singletonList(JobStatus.FINISHED));
+        waitForJobStatus(jobClient, singletonList(JobStatus.FINISHED));
     }
 
     /**
@@ -589,7 +588,7 @@ public abstract class SourceTestSuiteBase<T> {
         LOG.info("Checking records before killing TaskManagers");
         checkResultWithSemantic(
                 iterator,
-                Arrays.asList(testRecordsBeforeFailure),
+                singletonList(testRecordsBeforeFailure),
                 semantic,
                 testRecordsBeforeFailure.size());
 
@@ -598,7 +597,7 @@ public abstract class SourceTestSuiteBase<T> {
         controller.triggerTaskManagerFailover(jobClient, () -> {});
 
         LOG.info("Waiting for job recovering from failure");
-        waitForJobStatus(jobClient, Collections.singletonList(JobStatus.RUNNING));
+        waitForJobStatus(jobClient, singletonList(JobStatus.RUNNING));
 
         // Step 6: Write test data again to external system
         List<T> testRecordsAfterFailure =
@@ -614,13 +613,13 @@ public abstract class SourceTestSuiteBase<T> {
         LOG.info("Checking records after job failover");
         checkResultWithSemantic(
                 iterator,
-                Arrays.asList(testRecordsAfterFailure),
+                singletonList(testRecordsAfterFailure),
                 semantic,
                 testRecordsAfterFailure.size());
 
         // Step 8: Clean up
         terminateJob(jobClient);
-        waitForJobStatus(jobClient, Collections.singletonList(JobStatus.CANCELED));
+        waitForJobStatus(jobClient, singletonList(JobStatus.CANCELED));
         iterator.close();
     }
 
@@ -727,21 +726,19 @@ public abstract class SourceTestSuiteBase<T> {
      * @param semantic the supported semantic, see {@link CheckpointingMode}
      * @param limit expected number of the data to read from the job
      */
-    private void checkResultWithSemantic(
+    protected void checkResultWithSemantic(
             CloseableIterator<T> resultIterator,
             List<List<T>> testData,
             CheckpointingMode semantic,
             Integer limit) {
         if (limit != null) {
-            assertThat(
-                            CompletableFuture.supplyAsync(
-                                    () -> {
-                                        CollectIteratorAssertions.assertThat(resultIterator)
-                                                .withNumRecordsLimit(limit)
-                                                .matchesRecordsFromSource(testData, semantic);
-                                        return true;
-                                    }))
-                    .succeedsWithin(DEFAULT_COLLECT_DATA_TIMEOUT);
+            Runnable runnable =
+                    () ->
+                            CollectIteratorAssertions.assertThat(resultIterator)
+                                    .withNumRecordsLimit(limit)
+                                    .matchesRecordsFromSource(testData, semantic);
+
+            assertThat(runAsync(runnable)).succeedsWithin(DEFAULT_COLLECT_DATA_TIMEOUT);
         } else {
             CollectIteratorAssertions.assertThat(resultIterator)
                     .matchesRecordsFromSource(testData, semantic);
@@ -768,7 +765,7 @@ public abstract class SourceTestSuiteBase<T> {
 
     private void killJob(JobClient jobClient) throws Exception {
         terminateJob(jobClient);
-        waitForJobStatus(jobClient, Collections.singletonList(JobStatus.CANCELED));
+        waitForJobStatus(jobClient, singletonList(JobStatus.CANCELED));
     }
 
     /** Builder class for constructing {@link CollectResultIterator} of collect sink. */
