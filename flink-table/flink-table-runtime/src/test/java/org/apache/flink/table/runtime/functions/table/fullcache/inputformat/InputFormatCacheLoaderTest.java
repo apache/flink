@@ -35,7 +35,10 @@ import org.apache.flink.table.runtime.typeutils.RowDataSerializer;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.types.Row;
+import org.apache.flink.util.function.ThrowingRunnable;
 
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
@@ -45,21 +48,36 @@ import java.util.Collection;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import static org.apache.flink.runtime.metrics.groups.InternalCacheMetricGroup.UNINITIALIZED;
 import static org.apache.flink.table.runtime.util.StreamRecordUtils.row;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatNoException;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Unit test for {@link InputFormatCacheLoader}. */
 class InputFormatCacheLoaderTest {
 
+    @BeforeEach
+    void resetCounter() {
+        FullCacheTestInputFormat.OPEN_CLOSED_COUNTER.set(0);
+    }
+
+    @AfterEach
+    void checkCounter() {
+        assertThat(FullCacheTestInputFormat.OPEN_CLOSED_COUNTER).hasValue(0);
+    }
+
     @ParameterizedTest
     @MethodSource("deltaNumSplits")
     void testReadWithDifferentSplits(int deltaNumSplits) throws Exception {
-        InputFormatCacheLoader cacheLoader = createCacheLoader(deltaNumSplits, null);
+        InputFormatCacheLoader cacheLoader = createCacheLoader(deltaNumSplits);
         cacheLoader.open(UnregisteredMetricsGroup.createCacheMetricGroup());
         cacheLoader.run();
         ConcurrentHashMap<RowData, Collection<RowData>> cache = cacheLoader.getCache();
@@ -72,7 +90,7 @@ class InputFormatCacheLoaderTest {
 
     @Test
     void testCacheMetrics() throws Exception {
-        InputFormatCacheLoader cacheLoader = createCacheLoader(0, null);
+        InputFormatCacheLoader cacheLoader = createCacheLoader(0);
         InterceptingCacheMetricGroup metricGroup = new InterceptingCacheMetricGroup();
         cacheLoader.open(metricGroup);
         // These metrics are registered
@@ -99,13 +117,52 @@ class InputFormatCacheLoaderTest {
     }
 
     @Test
-    void testExceptionHandling() throws Exception {
+    void testExceptionDuringReload() throws Exception {
         RuntimeException exception = new RuntimeException("Load failed.");
-        InputFormatCacheLoader cacheLoader = createCacheLoader(0, exception);
+        Runnable reloadAction =
+                () -> {
+                    throw exception;
+                };
+        InputFormatCacheLoader cacheLoader = createCacheLoader(0, reloadAction);
         InterceptingCacheMetricGroup metricGroup = new InterceptingCacheMetricGroup();
         cacheLoader.open(metricGroup);
         assertThatThrownBy(cacheLoader::run).hasRootCause(exception);
         assertThat(metricGroup.numLoadFailuresCounter.getCount()).isEqualTo(1);
+    }
+
+    @Test
+    void testCloseAndInterruptDuringReload() throws Exception {
+        AtomicInteger sleepCounter = new AtomicInteger(0);
+        int totalSleepCount = TestCacheLoader.DATA.size() + 1; // equals to number of all rows
+        Runnable reloadAction =
+                ThrowingRunnable.unchecked(
+                        () -> {
+                            sleepCounter.incrementAndGet();
+                            Thread.sleep(1000);
+                        });
+        InputFormatCacheLoader cacheLoader = createCacheLoader(0, reloadAction);
+        InterceptingCacheMetricGroup metricGroup = new InterceptingCacheMetricGroup();
+        cacheLoader.open(metricGroup);
+
+        // check interruption
+        ExecutorService executorService = Executors.newSingleThreadExecutor();
+        Future<?> future = executorService.submit(cacheLoader);
+        executorService.shutdownNow(); // internally interrupts a thread
+        assertThatNoException().isThrownBy(future::get); // wait for the end
+        // check that we didn't process all elements, but reacted on interruption
+        assertThat(sleepCounter).hasValueLessThan(totalSleepCount);
+        assertThat(metricGroup.numLoadFailuresCounter.getCount()).isEqualTo(0);
+
+        sleepCounter.set(0);
+
+        // check closing
+        executorService = Executors.newSingleThreadExecutor();
+        future = executorService.submit(cacheLoader);
+        cacheLoader.close();
+        assertThatNoException().isThrownBy(future::get); // wait for the end
+        // check that we didn't process all elements, but reacted on closing
+        assertThat(sleepCounter).hasValueLessThan(totalSleepCount);
+        assertThat(metricGroup.numLoadFailuresCounter.getCount()).isEqualTo(0);
     }
 
     static Stream<Arguments> deltaNumSplits() {
@@ -121,8 +178,12 @@ class InputFormatCacheLoaderTest {
                         assertThat(rows).containsExactlyInAnyOrderElementsOf(actual.get(key)));
     }
 
-    private InputFormatCacheLoader createCacheLoader(
-            int deltaNumSplits, RuntimeException testException) throws Exception {
+    private InputFormatCacheLoader createCacheLoader(int deltaNumSplits) throws Exception {
+        return createCacheLoader(deltaNumSplits, () -> {});
+    }
+
+    private InputFormatCacheLoader createCacheLoader(int deltaNumSplits, Runnable reloadAction)
+            throws Exception {
         DataType rightRowDataType =
                 DataTypes.ROW(
                         DataTypes.FIELD("f0", DataTypes.INT()),
@@ -150,10 +211,10 @@ class InputFormatCacheLoaderTest {
                 new GeneratedProjection("", "", new Object[0]) {
                     @Override
                     public Projection newInstance(ClassLoader classLoader) {
-                        if (testException != null) {
-                            throw testException;
-                        }
-                        return row -> row(row.getInt(0));
+                        return row -> {
+                            reloadAction.run();
+                            return row(row.getInt(0));
+                        };
                     }
                 };
         GenericRowDataKeySelector keySelector =
