@@ -816,6 +816,28 @@ public class HiveDialectQueryITCase {
         }
     }
 
+    @Test
+    public void testCount() throws Exception {
+        tableEnv.executeSql("create table abcd (a int, b int, c int, d int)");
+        tableEnv.executeSql(
+                        "insert into abcd values (null,35,23,6), (10, 100, 23, 5), (10, 35, 23, 5)")
+                .await();
+        try {
+            List<Row> results =
+                    CollectionUtil.iteratorToList(
+                            tableEnv.executeSql(
+                                            "select count(1), count(*), count(a),"
+                                                    + " count(distinct a,b), count(distinct b,d), count(distinct b, c) from abcd")
+                                    .collect());
+            assertThat(results.toString()).isEqualTo("[+I[3, 3, 2, 2, 3, 2]]");
+            assertThatThrownBy(() -> tableEnv.executeSql(" select count(a,b) from abcd"))
+                    .hasRootCauseInstanceOf(UDFArgumentException.class)
+                    .hasRootCauseMessage("DISTINCT keyword must be specified");
+        } finally {
+            tableEnv.executeSql("drop table abcd");
+        }
+    }
+
     private void runQFile(File qfile) throws Exception {
         QTest qTest = extractQTest(qfile);
         for (int i = 0; i < qTest.statements.size(); i++) {
