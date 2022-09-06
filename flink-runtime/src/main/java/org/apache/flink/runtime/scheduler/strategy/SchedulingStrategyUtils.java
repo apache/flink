@@ -20,7 +20,6 @@ package org.apache.flink.runtime.scheduler.strategy;
 
 import org.apache.flink.util.IterableUtils;
 
-import java.util.Collections;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
@@ -45,15 +44,13 @@ class SchedulingStrategyUtils {
      * @param regions to be sorted in topological order.
      * @return regions in topological order, the set must preserve this order.
      */
-    static Set<SchedulingPipelinedRegion> sortPipelinedRegionsInTopologicalOrder(
+    static LinkedHashSet<SchedulingPipelinedRegion> sortPipelinedRegionsInTopologicalOrder(
             final SchedulingTopology topology, final Set<SchedulingPipelinedRegion> regions) {
 
         // Avoid the O(V) (V is the number of vertices in the topology) sorting
         // complexity if the given set of regions is small enough
-        if (regions.size() == 0) {
-            return Collections.emptySet();
-        } else if (regions.size() == 1) {
-            return Collections.singleton(regions.iterator().next());
+        if (regions.size() <= 1) {
+            return new LinkedHashSet<>(regions);
         }
 
         return IterableUtils.toStream(topology.getVertices())

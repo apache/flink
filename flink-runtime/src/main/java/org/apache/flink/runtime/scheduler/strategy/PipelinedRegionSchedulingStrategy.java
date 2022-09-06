@@ -223,11 +223,10 @@ public class PipelinedRegionSchedulingStrategy implements SchedulingStrategy {
     public void onPartitionConsumable(final IntermediateResultPartitionID resultPartitionId) {}
 
     private void maybeScheduleRegions(final Set<SchedulingPipelinedRegion> regions) {
-        // all regions that need to be tried to be marked as schedulable.
-        Set<SchedulingPipelinedRegion> nextRegions =
+        final Set<SchedulingPipelinedRegion> regionsToSchedule = new LinkedHashSet<>();
+        LinkedHashSet<SchedulingPipelinedRegion> nextRegions =
                 SchedulingStrategyUtils.sortPipelinedRegionsInTopologicalOrder(
                         schedulingTopology, regions);
-        Set<SchedulingPipelinedRegion> regionsToSchedule = new LinkedHashSet<>();
         while (!nextRegions.isEmpty()) {
             nextRegions = addSchedulableAndGetNextRegions(nextRegions, regionsToSchedule);
         }
@@ -235,10 +234,10 @@ public class PipelinedRegionSchedulingStrategy implements SchedulingStrategy {
         regionsToSchedule.forEach(this::scheduleRegion);
     }
 
-    private Set<SchedulingPipelinedRegion> addSchedulableAndGetNextRegions(
+    private LinkedHashSet<SchedulingPipelinedRegion> addSchedulableAndGetNextRegions(
             Set<SchedulingPipelinedRegion> currentRegions,
             Set<SchedulingPipelinedRegion> regionsToSchedule) {
-        Set<SchedulingPipelinedRegion> nextRegions = new LinkedHashSet<>();
+        LinkedHashSet<SchedulingPipelinedRegion> nextRegions = new LinkedHashSet<>();
         // cache consumedPartitionGroup's consumable status to avoid compute repeatedly.
         final Map<ConsumedPartitionGroup, Boolean> consumableStatusCache = new HashMap<>();
         final Set<ConsumedPartitionGroup> visitedConsumedPartitionGroups = new HashSet<>();
