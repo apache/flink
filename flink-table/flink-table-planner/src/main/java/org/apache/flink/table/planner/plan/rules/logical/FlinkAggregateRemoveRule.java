@@ -73,9 +73,7 @@ public class FlinkAggregateRemoveRule extends RelOptRule {
     public boolean matches(RelOptRuleCall call) {
         final Aggregate aggregate = call.rel(0);
         final RelNode input = call.rel(1);
-        if (aggregate.getGroupCount() == 0
-                || aggregate.indicator
-                || aggregate.getGroupType() != Aggregate.Group.SIMPLE) {
+        if (aggregate.getGroupCount() == 0 || aggregate.getGroupType() != Aggregate.Group.SIMPLE) {
             return false;
         }
         for (AggregateCall aggCall : aggregate.getAggCallList()) {

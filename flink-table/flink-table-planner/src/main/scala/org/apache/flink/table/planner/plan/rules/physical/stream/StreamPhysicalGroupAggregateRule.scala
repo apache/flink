@@ -41,7 +41,7 @@ class StreamPhysicalGroupAggregateRule(config: Config) extends ConverterRule(con
     val agg: FlinkLogicalAggregate = call.rel(0)
 
     // check if we have grouping sets
-    if (agg.getGroupType != Group.SIMPLE || agg.indicator) {
+    if (agg.getGroupType != Group.SIMPLE) {
       throw new TableException("GROUPING SETS are currently not supported.")
     }
 

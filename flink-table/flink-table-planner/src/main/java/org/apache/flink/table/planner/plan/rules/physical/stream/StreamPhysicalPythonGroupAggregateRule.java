@@ -62,7 +62,7 @@ public class StreamPhysicalPythonGroupAggregateRule extends ConverterRule {
         FlinkLogicalAggregate agg = call.rel(0);
 
         // check if we have grouping sets
-        if (agg.getGroupType() != Aggregate.Group.SIMPLE || agg.indicator) {
+        if (agg.getGroupType() != Aggregate.Group.SIMPLE) {
             throw new TableException("GROUPING SETS are currently not supported.");
         }
 
