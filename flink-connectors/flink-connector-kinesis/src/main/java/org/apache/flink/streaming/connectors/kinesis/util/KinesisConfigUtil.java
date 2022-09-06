@@ -18,7 +18,9 @@
 package org.apache.flink.streaming.connectors.kinesis.util;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.connector.aws.util.AWSAsyncSinkUtil;
 import org.apache.flink.connector.aws.util.AWSGeneralUtil;
+import org.apache.flink.connector.kinesis.sink.KinesisStreamsConfigConstants;
 import org.apache.flink.streaming.connectors.kinesis.FlinkKinesisConsumer;
 import org.apache.flink.streaming.connectors.kinesis.FlinkKinesisProducer;
 import org.apache.flink.streaming.connectors.kinesis.config.AWSConfigConstants;
@@ -535,6 +537,17 @@ public class KinesisConfigUtil {
         } catch (ParseException exception) {
             return new Date((long) (Double.parseDouble(timestamp) * 1000));
         }
+    }
+
+    public static Properties getV2ConsumerAsyncClientProperties(final Properties configProps) {
+        Properties asyncClientProperties = new Properties();
+        asyncClientProperties.putAll(configProps);
+        asyncClientProperties.setProperty(
+                KinesisStreamsConfigConstants.KINESIS_CLIENT_USER_AGENT_PREFIX,
+                AWSAsyncSinkUtil.formatFlinkUserAgentPrefix(
+                        KinesisStreamsConfigConstants.BASE_KINESIS_USER_AGENT_PREFIX_FORMAT));
+
+        return asyncClientProperties;
     }
 
     private static void validateOptionalPositiveLongProperty(
