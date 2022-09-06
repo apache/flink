@@ -741,7 +741,8 @@ public class CassandraConnectorITCase
     @Test
     public void testCassandraBatchTupleFormat() throws Exception {
         OutputFormat<Tuple3<String, Integer, Integer>> sink =
-                new CassandraTupleOutputFormat<>(injectTableName(INSERT_DATA_QUERY), builderForWriting);
+                new CassandraTupleOutputFormat<>(
+                        injectTableName(INSERT_DATA_QUERY), builderForWriting);
         try {
             sink.configure(new Configuration());
             sink.open(0, 1);
