@@ -397,6 +397,7 @@ services:
       - |
         FLINK_PROPERTIES=
         jobmanager.rpc.address: jobmanager
+        rest.address: jobmanager
 ```
 * In order to start the SQL Client run
   ```sh
