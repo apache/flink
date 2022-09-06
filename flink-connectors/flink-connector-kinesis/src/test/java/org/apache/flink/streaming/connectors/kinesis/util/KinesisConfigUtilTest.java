@@ -41,6 +41,7 @@ import static org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfi
 import static org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants.EFO_HTTP_CLIENT_MAX_CONCURRENCY;
 import static org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants.STREAM_INITIAL_TIMESTAMP;
 import static org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants.STREAM_TIMESTAMP_DATE_FORMAT;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
 
@@ -1013,5 +1014,16 @@ public class KinesisConfigUtilTest {
                 "unparsableDouble");
 
         KinesisConfigUtil.validateConsumerConfiguration(testConfig);
+    }
+
+    @Test
+    public void testGetV2ConsumerAsyncClientProperties() {
+        Properties properties = new Properties();
+        properties.setProperty("retained", "property");
+
+        assertThat(KinesisConfigUtil.getV2ConsumerAsyncClientProperties(properties))
+                .containsEntry("retained", "property")
+                .containsKey("aws.kinesis.client.user-agent-prefix")
+                .hasSize(2);
     }
 }
