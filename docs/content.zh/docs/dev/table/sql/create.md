@@ -157,7 +157,7 @@ CREATE TABLE [IF NOT EXISTS] [catalog_name.][db_name.]table_name
   [COMMENT table_comment]
   [PARTITIONED BY (partition_column_name1, partition_column_name2, ...)]
   WITH (key1=val1, key2=val2, ...)
-  [ LIKE source_table [( <like_options> )] ]
+  [ LIKE source_table [( <like_options> )] | AS select_query ]
    
 <physical_column_definition>:
   column_name column_type [ <column_constraint> ] [COMMENT column_comment]
@@ -185,6 +185,9 @@ CREATE TABLE [IF NOT EXISTS] [catalog_name.][db_name.]table_name
    { INCLUDING | EXCLUDING } { ALL | CONSTRAINTS | PARTITIONS }
  | { INCLUDING | EXCLUDING | OVERWRITING } { GENERATED | OPTIONS | WATERMARKS } 
 }[, ...]
+
+<select_query>:
+使用来自SELECT语句的数据填充表。
 
 ```
 
@@ -515,41 +518,45 @@ LIKE Orders_in_file (
 
 ### `AS`
 
-AS 子句来源于SQL 特性的变体 (Feature T172, “表定义中的 AS 查询语法”). AS 子句可以用来根据给定的查询语句创建结果表。这将更加方便用户使用，减少用户手动拼写复杂建表语句的成本。 该语法同时支持流模式和批模式。
+表也可以通过一个创建表即选择（CTAS）语句中的查询结果来创建和填充。 CTAS是用一条命令创建和插入数据到一个表中的最简单和最快的方法。
+
+CTAS有两个部分，SELECT部分可以是Flink SQL支持的任何[SELECT语句]({{< ref "docs/dev/table/sql/queries/overview/" >}})。
+CREATE部分从SELECT部分获取结果列信息，并创建具有其他表属性（如连接器和URL）的目标表。 与CREATE TABLE类似，CTAS要求必须在WITH子句中指定相应连接器的必要选项。
 
 示例如下:
 
 ```sql
-CREATE TABLE ctas_hudi
+CREATE TABLE my_ctas_table
 WITH (
-    'connector' = 'hudi'
+    'connector' = 'jdbc',
+    'url' = 'jdbc:mysql://mysqlhost:3306/customerdb'
 )
 AS
 SELECT id, name, age FROM test WHERE mod(id, 10) = 0;
 ```
 
-结果表 `ctas_hudi` 等效于使用以下语句创建表并写入数据:
+结果表 `my_ctas_table` 等效于使用以下语句创建表并写入数据:
 ```sql
-CREATE TABLE ctas_hudi (
+CREATE TABLE my_ctas_table (
     id BIGINT,
     name STRING,
     age INT
 ) WITH (
-     'connector' = 'hudi'
+    'connector' = 'jdbc',
+    'url' = 'jdbc:mysql://mysqlhost:3306/customerdb'
 );
  
-INSERT INTO ctas_hudi SELECT id, name, age FROM test WHERE mod(id, 10) = 0;
+INSERT INTO my_ctas_table SELECT id, name, age FROM test WHERE mod(id, 10) = 0;
 ```
 
-**注意:**
+**注意** CTAS有以下约束：
 * 暂不支持创建临时结果表。
 * 暂不支持手动指定列信息。
 * 暂不支持 watermark 定义。
 * 暂不支持创建分区表。
 * 暂不支持指定主键约束。
 
-**注意:**
-* AS 子句暂时只支持非原子性写入，当作业状态是 FAILED/CANCELED 时不会删除结果表。
+**注意** CTAS子句目前是非原子性的，当作业的最终状态为FAILED/CANCELED时，它不会删除目标表。
 
 {{< top >}}
 

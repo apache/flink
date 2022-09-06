@@ -155,7 +155,7 @@ CREATE TABLE [IF NOT EXISTS] [catalog_name.][db_name.]table_name
   [COMMENT table_comment]
   [PARTITIONED BY (partition_column_name1, partition_column_name2, ...)]
   WITH (key1=val1, key2=val2, ...)
-  [ LIKE source_table [( <like_options> )] | AS query_expression ]
+  [ LIKE source_table [( <like_options> )] | AS select_query ]
    
 <physical_column_definition>:
   column_name column_type [ <column_constraint> ] [COMMENT column_comment]
@@ -183,6 +183,9 @@ CREATE TABLE [IF NOT EXISTS] [catalog_name.][db_name.]table_name
    { INCLUDING | EXCLUDING } { ALL | CONSTRAINTS | PARTITIONS }
  | { INCLUDING | EXCLUDING | OVERWRITING } { GENERATED | OPTIONS | WATERMARKS } 
 }[, ...]
+
+<select_query>:
+The table is populated using the data from the select statement.
 
 ```
 
@@ -515,43 +518,47 @@ If you provide no like options, `INCLUDING ALL OVERWRITING OPTIONS` will be used
 
 ### `AS`
 
-The AS clause is a variation of SQL features (Feature T172, “AS subquery clause in table definition”).
-The clause can be used to create a table based on the given query expression. It will be more user-friendly and reduce the cost for user to manually spell complex table creation statements.
-You can use this clause in stream and batch mode.
+Tables can also be created and populated by the results of a query in one create-table-as-select (CTAS) statement. 
+CTAS is the simplest and fastest way to create and insert data into a table with a single command.
+
+There are two parts in CTAS, the SELECT part can be any [SELECT statement]({{< ref "docs/dev/table/sql/queries/overview/" >}}) supported by Flink SQL. 
+The CREATE part of the CTAS takes the resulting schema from the SELECT part and creates the target table with other table properties such as the connector and URL. 
+Similar to CREATE TABLE, CTAS requires the required options of the corresponding connector must be specified in WITH clause.
 
 Consider the example statement below:
 
 ```sql
-CREATE TABLE ctas_hudi
+CREATE TABLE my_ctas_table
 WITH (
-    'connector' = 'hudi'
+    'connector' = 'jdbc',
+    'url' = 'jdbc:mysql://mysqlhost:3306/customerdb'
 )
 AS
 SELECT id, name, age FROM test WHERE mod(id, 10) = 0;
 ```
 
-The resulting table `ctas_hudi` will be equivalent to create the table and insert the data with the following statement:
+The resulting table `my_ctas_table` will be equivalent to create the table and insert the data with the following statement:
 ```sql
-CREATE TABLE ctas_hudi (
+CREATE TABLE my_ctas_table (
     id BIGINT,
     name STRING,
     age INT
 ) WITH (
-     'connector' = 'hudi'
+    'connector' = 'jdbc',
+    'url' = 'jdbc:mysql://mysqlhost:3306/customerdb'
 );
  
-INSERT INTO ctas_hudi SELECT id, name, age FROM test WHERE mod(id, 10) = 0;
+INSERT INTO my_ctas_table SELECT id, name, age FROM test WHERE mod(id, 10) = 0;
 ```
 
-**Notes:**
-* does not support to create temporary table yet.
-* does not support to specify explicit columns yet.
-* does not support to specify explicit watermark yet.
-* does not support to create partitioned table yet.
-* does not support primary key constraints yet.
+**Note** CTAS has these restrictions:
+* Does not support creating a temporary table yet.
+* Does not support specifying explicit columns yet.
+* Does not support specifying explicit watermark yet.
+* Does not support creating partitioned table yet.
+* Does not support specifying primary key constraints yet.
 
-**Notes:**
-* The AS clause currently supports only non-atomicity and does not drop the target table when job status is FAILED/CANCELED.
+**Note** The CTAS clause is currently non-atomicity and does not drop the target table when the job's final status is FAILED/CANCELED.
 
 {{< top >}}
 
