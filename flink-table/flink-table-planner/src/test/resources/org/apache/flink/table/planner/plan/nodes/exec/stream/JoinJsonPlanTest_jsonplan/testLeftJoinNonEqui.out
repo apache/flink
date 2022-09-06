@@ -130,8 +130,6 @@
         "type" : "BOOLEAN"
       }
     },
-    "leftUniqueKeys" : [ ],
-    "rightUniqueKeys" : [ ],
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "UNKNOWN"

@@ -246,8 +246,8 @@
       "filterNulls" : [ true ],
       "nonEquiCondition" : null
     },
-    "leftUniqueKeys" : [ [ 1 ] ],
-    "rightUniqueKeys" : [ [ 1 ] ],
+    "leftUpsertKeys" : [ [ 1 ] ],
+    "rightUpsertKeys" : [ [ 1 ] ],
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "UNKNOWN"

@@ -81,8 +81,7 @@ abstract class CommonPhysicalJoin(
       .item("select", getRowType.getFieldNames.mkString(", "))
   }
 
-  def getUniqueKeys(input: RelNode, keys: Array[Int]): List[Array[Int]] = {
-    // TODO update method name in FLINK-28787
+  def getUpsertKeys(input: RelNode, keys: Array[Int]): List[Array[Int]] = {
     val upsertKeys = FlinkRelMetadataQuery
       .reuseOrCreate(cluster.getMetadataQuery)
       .getUpsertKeysInKeyGroupRange(input, keys)
