@@ -39,6 +39,7 @@ import org.apache.flink.util.TemporaryClassLoaderContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.IOException;
 import java.net.URL;
 import java.util.Map;
 import java.util.Set;
@@ -168,6 +169,11 @@ public class SessionContext {
             }
         }
         classLoader.close();
+        try {
+            sessionState.resourceManager.close();
+        } catch (IOException e) {
+            LOG.error("Failed to close the resource manager.", e);
+        }
     }
 
     // --------------------------------------------------------------------------------------------
