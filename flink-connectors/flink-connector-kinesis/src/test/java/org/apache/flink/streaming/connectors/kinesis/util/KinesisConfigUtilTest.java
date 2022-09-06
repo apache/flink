@@ -1010,4 +1010,15 @@ public class KinesisConfigUtilTest {
 
         KinesisConfigUtil.validateConsumerConfiguration(testConfig);
     }
+
+    @Test
+    public void testGetV2ConsumerAsyncClientProperties() {
+        Properties properties = new Properties();
+        properties.setProperty("retained", "property");
+
+        assertThat(KinesisConfigUtil.getV2ConsumerAsyncClientProperties(properties))
+                .containsEntry("retained", "property")
+                .containsKey("aws.kinesis.client.user-agent-prefix")
+                .hasSize(2);
+    }
 }
