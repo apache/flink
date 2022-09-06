@@ -355,7 +355,9 @@ public class CliFrontend {
             Pipeline pipeline =
                     PackagedProgramUtils.getPipelineFromProgram(
                             program, effectiveConfiguration, parallelism, true);
-            String jsonPlan = FlinkPipelineTranslationUtil.translateToJSONExecutionPlan(pipeline);
+            String jsonPlan =
+                    FlinkPipelineTranslationUtil.translateToJSONExecutionPlan(
+                            program.getUserCodeClassLoader(), pipeline);
 
             if (jsonPlan != null) {
                 System.out.println(
