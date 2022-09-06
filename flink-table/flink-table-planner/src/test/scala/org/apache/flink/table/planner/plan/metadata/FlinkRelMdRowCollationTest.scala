@@ -18,12 +18,16 @@
 package org.apache.flink.table.planner.plan.metadata
 
 import org.apache.flink.table.planner.functions.sql.FlinkSqlOperatorTable
+import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalIntermediateTableScan
+import org.apache.flink.table.planner.plan.nodes.physical.batch.BatchPhysicalIntermediateTableScan
+import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalIntermediateTableScan
 
 import com.google.common.collect.ImmutableList
 import org.apache.calcite.rel.{RelCollation, RelCollations, RelFieldCollation}
 import org.apache.calcite.rel.logical.{LogicalFilter, LogicalProject, LogicalValues}
 import org.apache.calcite.sql.`type`.SqlTypeName
 import org.apache.calcite.sql.fun.SqlStdOperatorTable.{LESS_THAN, PLUS}
+import org.apache.calcite.util.ImmutableBitSet
 import org.junit.Assert.{assertEquals, assertTrue}
 import org.junit.Test
 
@@ -53,6 +57,23 @@ class FlinkRelMdRowCollationTest extends FlinkRelMdHandlerTestBase {
   def testCollationsOnTableScan(): Unit = {
     Array(studentLogicalScan, studentBatchScan, studentStreamScan).foreach {
       scan => assertEquals(ImmutableList.of(), mq.collations(scan))
+    }
+
+    // Test intermediate table scan.
+    val flinkLogicalIntermediateTableScan: FlinkLogicalIntermediateTableScan =
+      createIntermediateScan(flinkLogicalSort, flinkLogicalTraits, Set(ImmutableBitSet.of(0)))
+    val batchPhysicalIntermediateTableScan: BatchPhysicalIntermediateTableScan =
+      createIntermediateScan(batchSort, batchPhysicalTraits, Set(ImmutableBitSet.of(0)))
+    val streamPhysicalIntermediateTableScan: StreamPhysicalIntermediateTableScan =
+      createIntermediateScan(streamSort, streamPhysicalTraits, Set(ImmutableBitSet.of(0)))
+    Array(
+      flinkLogicalIntermediateTableScan,
+      batchPhysicalIntermediateTableScan,
+      streamPhysicalIntermediateTableScan).foreach {
+      scan =>
+        assertEquals(
+          ImmutableList.of(scan.intermediateTable.relNode.getTraitSet.getCollation),
+          mq.collations(scan))
     }
   }
 
