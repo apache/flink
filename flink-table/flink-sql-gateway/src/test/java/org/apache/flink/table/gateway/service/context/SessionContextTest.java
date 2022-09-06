@@ -31,8 +31,6 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.util.Collections;
-import java.util.HashMap;
-import java.util.Map;
 import java.util.concurrent.ExecutorService;
 
 import static org.apache.flink.configuration.PipelineOptions.MAX_PARALLELISM;
@@ -132,17 +130,15 @@ class SessionContextTest {
     // --------------------------------------------------------------------------------------------
 
     private SessionContext createSessionContext() {
-        Map<String, String> flinkConfig = new HashMap<>();
-        flinkConfig.put(OBJECT_REUSE.key(), "true");
-        flinkConfig.put(MAX_PARALLELISM.key(), "16");
+        Configuration flinkConfig = new Configuration();
+        flinkConfig.set(OBJECT_REUSE, true);
+        flinkConfig.set(MAX_PARALLELISM, 16);
         DefaultContext defaultContext =
-                new DefaultContext(
-                        Configuration.fromMap(flinkConfig),
-                        Collections.singletonList(new DefaultCLI()));
+                new DefaultContext(flinkConfig, Collections.singletonList(new DefaultCLI()));
         SessionEnvironment environment =
                 SessionEnvironment.newBuilder()
                         .setSessionEndpointVersion(MockedEndpointVersion.V1)
-                        .addSessionConfig(flinkConfig)
+                        .addSessionConfig(flinkConfig.toMap())
                         .build();
         return SessionContext.create(
                 defaultContext, SessionHandle.create(), environment, EXECUTOR_SERVICE);

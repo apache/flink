@@ -40,10 +40,10 @@ import org.apache.flink.table.factories.PlannerFactoryUtil;
 import org.apache.flink.table.gateway.api.endpoint.EndpointVersion;
 import org.apache.flink.table.gateway.api.session.SessionEnvironment;
 import org.apache.flink.table.gateway.api.session.SessionHandle;
+import org.apache.flink.table.gateway.api.utils.SqlGatewayException;
 import org.apache.flink.table.gateway.service.operation.OperationExecutor;
 import org.apache.flink.table.gateway.service.operation.OperationManager;
 import org.apache.flink.table.gateway.service.utils.SqlExecutionException;
-import org.apache.flink.table.module.Module;
 import org.apache.flink.table.module.ModuleManager;
 import org.apache.flink.table.resource.ResourceManager;
 import org.apache.flink.util.FlinkUserCodeClassLoaders;
@@ -213,7 +213,7 @@ public class SessionContext {
 
         final ResourceManager resourceManager = new ResourceManager(configuration, userClassLoader);
 
-        final ModuleManager moduleManager = new ModuleManager();
+        final ModuleManager moduleManager = buildModuleManager(environment);
 
         final CatalogManager catalogManager =
                 buildCatalogManager(configuration, userClassLoader, environment);
@@ -222,7 +222,6 @@ public class SessionContext {
                 new FunctionCatalog(configuration, resourceManager, catalogManager, moduleManager);
         SessionState sessionState =
                 new SessionState(catalogManager, moduleManager, resourceManager, functionCatalog);
-        environment.getRegisteredModules().forEach(sessionState::registerModuleAtHead);
 
         return new SessionContext(
                 defaultContext,
@@ -237,48 +236,6 @@ public class SessionContext {
     // ------------------------------------------------------------------------------------------------------------------
     // Helpers
     // ------------------------------------------------------------------------------------------------------------------
-
-    private static CatalogManager buildCatalogManager(
-            Configuration configuration,
-            URLClassLoader userClassLoader,
-            SessionEnvironment environment) {
-        CatalogManager.Builder builder =
-                CatalogManager.newBuilder()
-                        // Currently, the classloader is only used by DataTypeFactory.
-                        .classLoader(userClassLoader)
-                        .config(configuration);
-
-        // init default catalog
-        String defaultCatalogName;
-        Catalog defaultCatalog;
-        if (environment.getDefaultCatalog().isPresent()) {
-            defaultCatalogName = environment.getDefaultCatalog().get();
-            defaultCatalog = environment.getRegisteredCatalogs().get(defaultCatalogName);
-        } else {
-            EnvironmentSettings settings =
-                    EnvironmentSettings.newInstance().withConfiguration(configuration).build();
-            defaultCatalogName = settings.getBuiltInCatalogName();
-            defaultCatalog =
-                    new GenericInMemoryCatalog(
-                            defaultCatalogName, settings.getBuiltInDatabaseName());
-        }
-        defaultCatalog.open();
-
-        CatalogManager catalogManager =
-                builder.defaultCatalog(defaultCatalogName, defaultCatalog).build();
-
-        // filter the default catalog out to avoid repeated registration
-        environment
-                .getRegisteredCatalogs()
-                .forEach(
-                        (catalogName, catalog) -> {
-                            if (!catalogName.equals(defaultCatalogName)) {
-                                catalogManager.registerCatalog(catalogName, catalog);
-                            }
-                        });
-
-        return catalogManager;
-    }
 
     public TableEnvironmentInternal createTableEnvironment() {
         // checks the value of RUNTIME_MODE
@@ -374,6 +331,74 @@ public class SessionContext {
                 TableConfigOptions.RESOURCES_DOWNLOAD_DIR, path.toAbsolutePath().toString());
     }
 
+    private static ModuleManager buildModuleManager(SessionEnvironment environment) {
+        final ModuleManager moduleManager = new ModuleManager();
+
+        environment
+                .getRegisteredModules()
+                .forEach(
+                        (moduleName, module) -> {
+                            Deque<String> moduleNames =
+                                    new ArrayDeque<>(moduleManager.listModules());
+                            moduleNames.addFirst(moduleName);
+
+                            moduleManager.loadModule(moduleName, module);
+                            moduleManager.useModules(moduleNames.toArray(new String[0]));
+                        });
+
+        return moduleManager;
+    }
+
+    private static CatalogManager buildCatalogManager(
+            Configuration configuration,
+            URLClassLoader userClassLoader,
+            SessionEnvironment environment) {
+        CatalogManager.Builder builder =
+                CatalogManager.newBuilder()
+                        // Currently, the classloader is only used by DataTypeFactory.
+                        .classLoader(userClassLoader)
+                        .config(configuration);
+
+        // init default catalog
+        String defaultCatalogName;
+        Catalog defaultCatalog;
+        if (environment.getDefaultCatalog().isPresent()) {
+            defaultCatalogName = environment.getDefaultCatalog().get();
+            defaultCatalog = environment.getRegisteredCatalogs().get(defaultCatalogName);
+        } else {
+            EnvironmentSettings settings =
+                    EnvironmentSettings.newInstance().withConfiguration(configuration).build();
+            defaultCatalogName = settings.getBuiltInCatalogName();
+
+            if (environment.getRegisteredCatalogs().containsKey(defaultCatalogName)) {
+                throw new SqlGatewayException(
+                        String.format(
+                                "The name of the registered catalog is conflicts with the built-in default catalog name: %s.",
+                                defaultCatalogName));
+            }
+
+            defaultCatalog =
+                    new GenericInMemoryCatalog(
+                            defaultCatalogName, settings.getBuiltInDatabaseName());
+        }
+        defaultCatalog.open();
+
+        CatalogManager catalogManager =
+                builder.defaultCatalog(defaultCatalogName, defaultCatalog).build();
+
+        // filter the default catalog out to avoid repeated registration
+        environment
+                .getRegisteredCatalogs()
+                .forEach(
+                        (catalogName, catalog) -> {
+                            if (!catalogName.equals(defaultCatalogName)) {
+                                catalogManager.registerCatalog(catalogName, catalog);
+                            }
+                        });
+
+        return catalogManager;
+    }
+
     // --------------------------------------------------------------------------------------------
     // Inner class
     // --------------------------------------------------------------------------------------------
@@ -395,14 +420,6 @@ public class SessionContext {
             this.moduleManager = moduleManager;
             this.resourceManager = resourceManager;
             this.functionCatalog = functionCatalog;
-        }
-
-        private void registerModuleAtHead(String moduleName, Module module) {
-            Deque<String> moduleNames = new ArrayDeque<>(moduleManager.listModules());
-            moduleNames.addFirst(moduleName);
-
-            moduleManager.loadModule(moduleName, module);
-            moduleManager.useModules(moduleNames.toArray(new String[0]));
         }
     }
 }
