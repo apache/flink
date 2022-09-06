@@ -488,7 +488,6 @@ public class FlinkAggregateJoinTransposeRule extends RelOptRule {
                     aggregate.copy(
                             aggregate.getTraitSet(),
                             aggregate.getInput(),
-                            aggregate.indicator,
                             newGroupSet,
                             com.google.common.collect.ImmutableList.of(newGroupSet),
                             aggCalls);

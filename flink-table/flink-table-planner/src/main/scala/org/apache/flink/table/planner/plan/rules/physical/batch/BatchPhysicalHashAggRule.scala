@@ -79,10 +79,6 @@ class BatchPhysicalHashAggRule
     val input: RelNode = call.rel(1)
     val inputRowType = input.getRowType
 
-    if (agg.indicator) {
-      throw new UnsupportedOperationException("Not support group sets aggregate now.")
-    }
-
     val groupSet = agg.getGroupSet.toArray
     val (auxGroupSet, aggCallsWithoutAuxGroupCalls) = AggregateUtil.checkAndSplitAggCalls(agg)
 

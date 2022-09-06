@@ -84,7 +84,7 @@ class BatchPhysicalWindowAggregateRule
 
     // check if we have grouping sets
     val groupSets = agg.getGroupType != Group.SIMPLE
-    if (groupSets || agg.indicator) {
+    if (groupSets) {
       throw new TableException("GROUPING SETS are currently not supported.")
     }
 
