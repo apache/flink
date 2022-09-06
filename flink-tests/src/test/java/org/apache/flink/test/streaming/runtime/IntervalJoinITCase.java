@@ -158,7 +158,7 @@ public class IntervalJoinITCase {
     }
 
     @Test
-    public void testIntervalJoinSideOutputLeftLateData() throws Exception {
+    public void testIntervalJoinSideOutputLateData() throws Exception {
 
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(1);
@@ -185,70 +185,6 @@ public class IntervalJoinITCase {
                         new SourceFunction<Tuple2<String, Integer>>() {
                             @Override
                             public void run(SourceContext<Tuple2<String, Integer>> ctx) {
-                                ctx.collectWithTimestamp(Tuple2.of("key", 2), 2L);
-                                ctx.collectWithTimestamp(Tuple2.of("key", 1), 1L);
-                                ctx.emitWatermark(new Watermark(2));
-                                ctx.collectWithTimestamp(Tuple2.of("key", 3), 3L);
-                            }
-
-                            @Override
-                            public void cancel() {
-                                // do nothing
-                            }
-                        });
-
-        OutputTag<Tuple2<String, Integer>> late = new OutputTag<Tuple2<String, Integer>>("late") {};
-
-        SingleOutputStreamOperator<String> process =
-                streamOne
-                        .keyBy(new Tuple2KeyExtractor())
-                        .intervalJoin(streamTwo.keyBy(new Tuple2KeyExtractor()))
-                        .between(Time.milliseconds(-1), Time.milliseconds(1))
-                        .sideOutputLeftLateData(late)
-                        .process(new CombineToStringJoinFunction());
-
-        process.getSideOutput(late)
-                .addSink(
-                        new SinkFunction<Tuple2<String, Integer>>() {
-                            @Override
-                            public void invoke(Tuple2<String, Integer> value, Context context)
-                                    throws Exception {
-                                testResults.add(value.toString());
-                            }
-                        });
-        env.execute();
-
-        expectInAnyOrder("(key,1)");
-    }
-
-    @Test
-    public void testIntervalJoinSideOutputRightLateData() throws Exception {
-
-        final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-        env.setParallelism(1);
-
-        DataStream<Tuple2<String, Integer>> streamOne =
-                env.addSource(
-                        new SourceFunction<Tuple2<String, Integer>>() {
-                            @Override
-                            public void run(SourceContext<Tuple2<String, Integer>> ctx) {
-                                ctx.collectWithTimestamp(Tuple2.of("key", 2), 2L);
-                                ctx.collectWithTimestamp(Tuple2.of("key", 3), 3L);
-                                ctx.emitWatermark(new Watermark(3));
-                                ctx.collectWithTimestamp(Tuple2.of("key", 4), 4L);
-                            }
-
-                            @Override
-                            public void cancel() {
-                                // do nothing
-                            }
-                        });
-
-        DataStream<Tuple2<String, Integer>> streamTwo =
-                env.addSource(
-                        new SourceFunction<Tuple2<String, Integer>>() {
-                            @Override
-                            public void run(SourceContext<Tuple2<String, Integer>> ctx) {
                                 ctx.collectWithTimestamp(Tuple2.of("key", 1), 1L);
                                 ctx.collectWithTimestamp(Tuple2.of("key", 3), 3L);
                                 ctx.emitWatermark(new Watermark(3));
@@ -261,17 +197,30 @@ public class IntervalJoinITCase {
                             }
                         });
 
-        OutputTag<Tuple2<String, Integer>> late = new OutputTag<Tuple2<String, Integer>>("late") {};
+        OutputTag<Tuple2<String, Integer>> left =
+                new OutputTag<Tuple2<String, Integer>>("left_late") {};
+        OutputTag<Tuple2<String, Integer>> right =
+                new OutputTag<Tuple2<String, Integer>>("right_late") {};
 
         SingleOutputStreamOperator<String> process =
                 streamOne
                         .keyBy(new Tuple2KeyExtractor())
                         .intervalJoin(streamTwo.keyBy(new Tuple2KeyExtractor()))
                         .between(Time.milliseconds(-1), Time.milliseconds(1))
-                        .sideOutputRightLateData(late)
+                        .sideOutputLeftLateData(left)
+                        .sideOutputRightLateData(right)
                         .process(new CombineToStringJoinFunction());
 
-        process.getSideOutput(late)
+        process.getSideOutput(left)
+                .addSink(
+                        new SinkFunction<Tuple2<String, Integer>>() {
+                            @Override
+                            public void invoke(Tuple2<String, Integer> value, Context context)
+                                    throws Exception {
+                                testResults.add(value.toString());
+                            }
+                        });
+        process.getSideOutput(right)
                 .addSink(
                         new SinkFunction<Tuple2<String, Integer>>() {
                             @Override
@@ -282,7 +231,7 @@ public class IntervalJoinITCase {
                         });
         env.execute();
 
-        expectInAnyOrder("(key,2)");
+        expectInAnyOrder("(key,1)", "(key,2)");
     }
 
     @Test
