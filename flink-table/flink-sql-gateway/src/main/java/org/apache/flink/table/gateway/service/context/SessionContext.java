@@ -171,13 +171,27 @@ public class SessionContext {
             try {
                 sessionState.catalogManager.getCatalog(name).ifPresent(Catalog::close);
             } catch (Throwable t) {
-                LOG.error("Failed to close catalog %s.", t);
+                LOG.error(
+                        String.format(
+                                "Failed to close catalog %s for the session %s.", name, sessionId),
+                        t);
             }
         }
         try {
             userClassloader.close();
         } catch (IOException e) {
-            LOG.debug("Error while closing class loader.", e);
+            LOG.error(
+                    String.format(
+                            "Error while closing class loader for the session %s.", sessionId),
+                    e);
+        }
+        try {
+            sessionState.resourceManager.close();
+        } catch (IOException e) {
+            LOG.error(
+                    String.format(
+                            "Failed to close the resource manager for the session %s.", sessionId),
+                    e);
         }
     }
 
