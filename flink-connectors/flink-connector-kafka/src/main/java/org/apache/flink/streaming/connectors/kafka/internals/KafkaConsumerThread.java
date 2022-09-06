@@ -223,9 +223,12 @@ public class KafkaConsumerThread<T> extends Thread {
                         // also record that a commit is already in progress
                         // the order here matters! first set the flag, then send the commit command.
                         commitInProgress = true;
-                        consumer.commitAsync(
-                                commitOffsetsAndCallback.f0,
-                                new CommitCallback(commitOffsetsAndCallback.f1));
+                        retryOnceOnWakeup(
+                                () ->
+                                        consumer.commitAsync(
+                                                commitOffsetsAndCallback.f0,
+                                                new CommitCallback(commitOffsetsAndCallback.f1)),
+                                "commitAsync");
                     }
                 }
 
@@ -501,6 +504,17 @@ public class KafkaConsumerThread<T> extends Thread {
     @VisibleForTesting
     KafkaConsumer<byte[], byte[]> getConsumer(Properties kafkaProperties) {
         return new KafkaConsumer<>(kafkaProperties);
+    }
+
+    private void retryOnceOnWakeup(Runnable consumerCall, String description) {
+        try {
+            consumerCall.run();
+        } catch (WakeupException we) {
+            log.info(
+                    "Caught WakeupException while executing Kafka consumer call for {}. Will retry it once.",
+                    description);
+            consumerCall.run();
+        }
     }
 
     // ------------------------------------------------------------------------
