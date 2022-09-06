@@ -62,11 +62,13 @@ public class StreamMonitor<T> implements Serializable {
     private boolean localMode;
     private boolean distributedLogging;
     private final T operator;
-    private final ArrayList<Double> joinSelectivities;
     private final ArrayList<Integer> windowLengths;
     private final Logger logger;
     private MongoCollection<JSONObject> mongoCollection;
-    private boolean disableStreamMonitor;
+    private final boolean disableStreamMonitor;
+    private int joinSize1 = 0;
+    private int joinSize2 = 0;
+    private int joinPartners = 0;
 
     public StreamMonitor(HashMap<String, Object> description, T operator) {
         this.description = Objects.requireNonNullElseGet(description, HashMap::new);
@@ -77,7 +79,6 @@ public class StreamMonitor<T> implements Serializable {
         this.initialized = false;
         this.observationMade = false;
         this.operator = operator;
-        this.joinSelectivities = new ArrayList<>();
         this.windowLengths = new ArrayList<>();
         if (this.operator instanceof StreamFilter
                 || this.operator instanceof WindowOperator
@@ -138,9 +139,13 @@ public class StreamMonitor<T> implements Serializable {
         if (this.disableStreamMonitor) {
             return;
         }
-        if (size1 != 0 && size2 != 0) {
-            this.joinSelectivities.add((double) joinPartners / (double) (size1 * size2));
-        }
+        this.joinSize1 += size1;
+        this.joinSize2 += size2;
+        this.joinPartners += joinPartners;
+
+        //        if (size1 != 0 && size2 != 0) {
+        //            this.joinSelectivities.add((double) joinPartners / (double) (size1 * size2));
+        //        }
     }
 
     public <T> void reportWindowLength(T state) {
@@ -173,12 +178,14 @@ public class StreamMonitor<T> implements Serializable {
                 description.put(
                         "inputRate", ((double) this.inputCounter * 1e9 / (double) elapsedTime));
                 if (this.operator instanceof WrappingFunction) {
-                    Double average =
-                            this.joinSelectivities.stream()
-                                    .mapToDouble(val -> val)
-                                    .average()
-                                    .orElse(0.0);
-                    description.put("realSelectivity", average);
+                    double joinSelectivity =
+                            (double) this.joinPartners / (double) (this.joinSize1 * this.joinSize2);
+                    //                    Double average =
+                    //                            this.joinSelectivities.stream()
+                    //                                    .mapToDouble(val -> val)
+                    //                                    .average()
+                    //                                    .orElse(0.0);
+                    description.put("realSelectivity", joinSelectivity);
                 }
                 if (this.operator instanceof StreamFilter) {
                     description.put(
