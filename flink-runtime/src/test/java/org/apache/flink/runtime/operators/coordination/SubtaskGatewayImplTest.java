@@ -139,7 +139,7 @@ public class SubtaskGatewayImplTest {
         final CompletableFuture<Acknowledge> future1 = gateway3.sendEvent(event1);
         final CompletableFuture<Acknowledge> future2 = gateway0.sendEvent(event2);
 
-        gateways.forEach(SubtaskGatewayImpl::openGatewayAndUnmarkCheckpoint);
+        gateways.forEach(SubtaskGatewayImpl::openGatewayAndUnmarkAllCheckpoint);
 
         assertThat(receiver.events)
                 .containsExactly(new EventWithSubtask(event1, 3), new EventWithSubtask(event2, 0));
@@ -161,7 +161,7 @@ public class SubtaskGatewayImplTest {
         gateway.tryCloseGateway(17L);
 
         final CompletableFuture<Acknowledge> future = gateway.sendEvent(new TestOperatorEvent());
-        gateway.openGatewayAndUnmarkCheckpoint();
+        gateway.openGatewayAndUnmarkAllCheckpoint();
 
         assertThat(future).isCompletedExceptionally();
     }
