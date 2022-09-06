@@ -66,6 +66,11 @@ public class EmbeddedExecutorFactory implements PipelineExecutorFactory {
         return EmbeddedExecutor.NAME;
     }
 
+    /**
+     * isCompatibleWith
+     * @param configuration
+     * @return
+     */
     @Override
     public boolean isCompatibleWith(final Configuration configuration) {
         // this is always false because we simply have a special executor loader
