@@ -58,12 +58,6 @@ import static org.apache.flink.util.Preconditions.checkState;
  *
  * <h3>Exactly-one Mechanism</h3>
  *
- * <p>This implementation can handle one checkpoint being triggered at a time. If another checkpoint
- * is triggered while the triggering of the first one was not completed or aborted, this class will
- * throw an exception. That is in line with the capabilities of the Checkpoint Coordinator, which
- * can handle multiple concurrent checkpoints on the TaskManagers, but only one concurrent
- * triggering phase.
- *
  * <p>The mechanism for exactly once semantics is as follows:
  *
  * <ul>
@@ -93,6 +87,11 @@ import static org.apache.flink.util.Preconditions.checkState;
  *   <li>If the event is generated after the coordinator received {@link
  *       AcknowledgeCheckpointEvent}, it would be sent out immediately.
  * </ul>
+ *
+ * <p>This implementation can handle concurrent checkpoints. In the behavior described above, If an
+ * event is generated after the coordinator has completed multiple checkpoints, and before it
+ * receives {@link AcknowledgeCheckpointEvent} about any of them, the event would be buffered until
+ * the coordinator has received {@link AcknowledgeCheckpointEvent} about all of these checkpoints.
  *
  * <p><b>IMPORTANT:</b> A critical assumption is that all events from the scheduler to the Tasks are
  * transported strictly in order. Events being sent from the coordinator after the checkpoint
@@ -282,7 +281,7 @@ public class OperatorCoordinatorHolder
             mainThreadExecutor.assertRunningInMainThread();
         }
 
-        subtaskGatewayMap.values().forEach(SubtaskGatewayImpl::openGatewayAndUnmarkCheckpoint);
+        subtaskGatewayMap.values().forEach(SubtaskGatewayImpl::openGatewayAndUnmarkAllCheckpoint);
         context.resetFailed();
 
         // when initial savepoints are restored, this call comes before the mainThreadExecutor
@@ -401,7 +400,9 @@ public class OperatorCoordinatorHolder
                 () ->
                         subtaskGatewayMap
                                 .values()
-                                .forEach(SubtaskGatewayImpl::openGatewayAndUnmarkCheckpoint));
+                                .forEach(
+                                        SubtaskGatewayImpl
+                                                ::openGatewayAndUnmarkLastCheckpointIfAny));
     }
 
     // ------------------------------------------------------------------------
