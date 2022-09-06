@@ -116,8 +116,6 @@
       "filterNulls" : [ true ],
       "nonEquiCondition" : null
     },
-    "leftUniqueKeys" : [ ],
-    "rightUniqueKeys" : [ ],
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "UNKNOWN"

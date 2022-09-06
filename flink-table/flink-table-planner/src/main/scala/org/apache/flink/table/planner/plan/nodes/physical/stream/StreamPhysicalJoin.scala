@@ -67,7 +67,7 @@ class StreamPhysicalJoin(
   def inputUniqueKeyContainsJoinKey(inputOrdinal: Int): Boolean = {
     val input = getInput(inputOrdinal)
     val joinKeys = if (inputOrdinal == 0) joinSpec.getLeftKeys else joinSpec.getRightKeys
-    val inputUniqueKeys = getUniqueKeys(input, joinKeys)
+    val inputUniqueKeys = getUpsertKeys(input, joinKeys)
     if (inputUniqueKeys != null) {
       inputUniqueKeys.exists(uniqueKey => joinKeys.forall(uniqueKey.contains(_)))
     } else {
@@ -96,7 +96,7 @@ class StreamPhysicalJoin(
           unwrapClassLoader(left),
           InternalTypeInfo.of(FlinkTypeFactory.toLogicalRowType(left.getRowType)),
           joinSpec.getLeftKeys,
-          getUniqueKeys(left, joinSpec.getLeftKeys)
+          getUpsertKeys(left, joinSpec.getLeftKeys)
         )
       )
       .item(
@@ -105,7 +105,7 @@ class StreamPhysicalJoin(
           unwrapClassLoader(right),
           InternalTypeInfo.of(FlinkTypeFactory.toLogicalRowType(right.getRowType)),
           joinSpec.getRightKeys,
-          getUniqueKeys(right, joinSpec.getRightKeys)
+          getUpsertKeys(right, joinSpec.getRightKeys)
         )
       )
   }
@@ -119,8 +119,8 @@ class StreamPhysicalJoin(
     new StreamExecJoin(
       unwrapTableConfig(this),
       joinSpec,
-      getUniqueKeys(left, joinSpec.getLeftKeys),
-      getUniqueKeys(right, joinSpec.getRightKeys),
+      getUpsertKeys(left, joinSpec.getLeftKeys),
+      getUpsertKeys(right, joinSpec.getRightKeys),
       InputProperty.DEFAULT,
       InputProperty.DEFAULT,
       FlinkTypeFactory.toLogicalRowType(getRowType),
