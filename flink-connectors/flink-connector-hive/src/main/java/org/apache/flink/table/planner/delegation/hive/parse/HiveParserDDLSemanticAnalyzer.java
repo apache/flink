@@ -43,6 +43,7 @@ import org.apache.flink.table.catalog.CatalogTableImpl;
 import org.apache.flink.table.catalog.CatalogView;
 import org.apache.flink.table.catalog.CatalogViewImpl;
 import org.apache.flink.table.catalog.ContextResolvedTable;
+import org.apache.flink.table.catalog.FunctionCatalog;
 import org.apache.flink.table.catalog.FunctionLanguage;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.catalog.ObjectPath;
@@ -88,6 +89,7 @@ import org.apache.flink.table.operations.ddl.DropPartitionsOperation;
 import org.apache.flink.table.operations.ddl.DropTableOperation;
 import org.apache.flink.table.operations.ddl.DropTempSystemFunctionOperation;
 import org.apache.flink.table.operations.ddl.DropViewOperation;
+import org.apache.flink.table.planner.calcite.FlinkContext;
 import org.apache.flink.table.planner.delegation.hive.HiveParser;
 import org.apache.flink.table.planner.delegation.hive.HiveParserCalcitePlanner;
 import org.apache.flink.table.planner.delegation.hive.HiveParserConstants;
@@ -204,6 +206,7 @@ public class HiveParserDDLSemanticAnalyzer {
     private final FrameworkConfig frameworkConfig;
     private final RelOptCluster cluster;
     private final ClassLoader classLoader;
+    private final FunctionCatalog functionCatalog;
 
     static {
         TokenToTypeName.put(HiveASTParser.TOK_BOOLEAN, serdeConstants.BOOLEAN_TYPE_NAME);
@@ -267,7 +270,7 @@ public class HiveParserDDLSemanticAnalyzer {
             HiveParserDMLHelper dmlHelper,
             FrameworkConfig frameworkConfig,
             RelOptCluster cluster,
-            ClassLoader classLoader)
+            FlinkContext flinkContext)
             throws SemanticException {
         this.queryState = queryState;
         this.conf = queryState.getConf();
@@ -281,7 +284,8 @@ public class HiveParserDDLSemanticAnalyzer {
         this.dmlHelper = dmlHelper;
         this.frameworkConfig = frameworkConfig;
         this.cluster = cluster;
-        this.classLoader = classLoader;
+        this.classLoader = flinkContext.getClassLoader();
+        this.functionCatalog = flinkContext.getFunctionCatalog();
         reservedPartitionValues = new HashSet<>();
         // Partition can't have this name
         reservedPartitionValues.add(HiveConf.getVar(conf, HiveConf.ConfVars.DEFAULTPARTITIONNAME));
@@ -530,6 +534,7 @@ public class HiveParserDDLSemanticAnalyzer {
         List<ResourceUri> resources = getResourceList(ast);
 
         if (isTemporaryFunction) {
+            functionCatalog.registerFunctionJarResources(functionName, resources);
             FunctionDefinition funcDefinition =
                     funcDefFactory.createFunctionDefinition(
                             functionName,

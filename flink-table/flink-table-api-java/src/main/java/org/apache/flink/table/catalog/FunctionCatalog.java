@@ -700,7 +700,7 @@ public final class FunctionCatalog {
                 function);
     }
 
-    private void registerFunctionJarResources(String functionName, List<ResourceUri> resourceUris) {
+    public void registerFunctionJarResources(String functionName, List<ResourceUri> resourceUris) {
         try {
             if (!resourceUris.isEmpty()) {
                 resourceManager.registerJarResources(resourceUris);
