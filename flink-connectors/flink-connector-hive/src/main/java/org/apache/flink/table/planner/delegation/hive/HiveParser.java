@@ -217,15 +217,16 @@ public class HiveParser extends ParserImpl {
     }
 
     private Optional<Operation> tryProcessHiveNonSqlStatement(HiveConf hiveConf, String statement) {
+        statement = statement.trim();
+        if (statement.endsWith(";")) {
+            // the command may end with ";" since it won't be removed by Flink SQL CLI,
+            // so, we need to remove ";"
+            statement = statement.substring(0, statement.length() - 1);
+        }
         String[] commandTokens = statement.split("\\s+");
         HiveCommand hiveCommand = HiveCommand.find(commandTokens);
         if (hiveCommand != null) {
             String cmdArgs = statement.substring(commandTokens[0].length()).trim();
-            // the command may end with ";" since it won't be removed by Flink SQL CLI,
-            // so, we need to remove ";"
-            if (cmdArgs.endsWith(";")) {
-                cmdArgs = cmdArgs.substring(0, cmdArgs.length() - 1);
-            }
             if (hiveCommand == HiveCommand.SET) {
                 return Optional.of(processSetCmd(statement, cmdArgs));
             } else if (hiveCommand == HiveCommand.RESET) {
@@ -242,9 +243,14 @@ public class HiveParser extends ParserImpl {
 
     private Operation processSetCmd(String originCmd, String setCmdArgs) {
         if (setCmdArgs.equals("")) {
-            return new HiveSetOperation();
+            // the command is "set", if we follow Hive's behavior, it will output all configurations
+            // including hiveconf, hivevar, env, ... which are too many.
+            // So in here, for this case, just delegate to Flink's own behavior
+            // which will only output the flink configuration.
+            return super.parse(originCmd).get(0);
         }
         if (setCmdArgs.equals("-v")) {
+            // the command is "set -v", for such case, we will follow Hive's behavior.
             return new HiveSetOperation(true);
         }
 
