@@ -35,6 +35,7 @@ object FlinkStreamProgram {
   val PREDICATE_PUSHDOWN = "predicate_pushdown"
   val JOIN_REORDER = "join_reorder"
   val PROJECT_REWRITE = "project_rewrite"
+  val LOGICAL_COMMON_PROJECT = "logical_common_project"
   val LOGICAL = "logical"
   val LOGICAL_REWRITE = "logical_rewrite"
   val TIME_INDICATOR = "time_indicator"
@@ -237,6 +238,15 @@ object FlinkStreamProgram {
         .setHepRulesExecutionType(HEP_RULES_EXECUTION_TYPE.RULE_COLLECTION)
         .setHepMatchOrder(HepMatchOrder.BOTTOM_UP)
         .add(FlinkStreamRuleSets.PROJECT_RULES)
+        .build()
+    )
+
+    chainedProgram.addLast(
+      LOGICAL_COMMON_PROJECT,
+      FlinkHepRuleSetProgramBuilder.newBuilder
+        .setHepRulesExecutionType(HEP_RULES_EXECUTION_TYPE.RULE_SEQUENCE)
+        .setHepMatchOrder(HepMatchOrder.TOP_DOWN)
+        .add(FlinkStreamRuleSets.COMMON_PROJECT_RULES)
         .build()
     )
 

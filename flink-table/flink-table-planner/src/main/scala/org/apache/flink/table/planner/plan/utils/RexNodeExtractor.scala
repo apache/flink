@@ -19,7 +19,7 @@ package org.apache.flink.table.planner.plan.utils
 
 import org.apache.flink.annotation.VisibleForTesting
 import org.apache.flink.table.api.TableException
-import org.apache.flink.table.catalog.{CatalogManager, ContextResolvedFunction, FunctionCatalog, FunctionLookup, UnresolvedIdentifier}
+import org.apache.flink.table.catalog.{CatalogManager, ContextResolvedFunction, FunctionCatalog, UnresolvedIdentifier}
 import org.apache.flink.table.data.conversion.{DayTimeIntervalDurationConverter, YearMonthIntervalPeriodConverter}
 import org.apache.flink.table.data.util.DataFormatConverters.{LocalDateConverter, LocalTimeConverter}
 import org.apache.flink.table.expressions._
@@ -37,6 +37,7 @@ import org.apache.flink.table.types.logical.YearMonthIntervalType
 import org.apache.flink.util.Preconditions
 
 import org.apache.calcite.plan.RelOptUtil
+import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rex._
 import org.apache.calcite.sql.{SqlFunction, SqlKind, SqlPostfixOperator}
 import org.apache.calcite.sql.fun.{SqlStdOperatorTable, SqlTrimFunction}
@@ -65,6 +66,20 @@ object RexNodeExtractor extends Logging {
     // extract referenced input fields from expressions
     exprs.foreach(_.accept(visitor))
     visitor.getFields
+  }
+
+  /**
+   * Extracts the indices and type of input fields which accessed by the expressions.
+   * @param exprs
+   *   The RexNode list to analyze
+   * @return
+   *   The indices and type of accessed input fields
+   */
+  def extractRefInputFieldsWithType(exprs: JList[RexNode]): Array[(Int, RelDataType)] = {
+    val visitor = new InputRefVisitor
+    // extract referenced input fields from expressions
+    exprs.foreach(_.accept(visitor))
+    visitor.getFieldsWithType
   }
 
   /**
@@ -283,12 +298,15 @@ object RexNodeExtractor extends Logging {
 /** An RexVisitor to extract all referenced input fields */
 class InputRefVisitor extends RexVisitorImpl[Unit](true) {
 
-  private val fields = mutable.LinkedHashSet[Int]()
+  private val fields = mutable.LinkedHashSet[(Int, RelDataType)]()
 
-  def getFields: Array[Int] = fields.toArray
+  def getFields: Array[Int] = fields.map(f => f._1).toArray
 
-  override def visitInputRef(inputRef: RexInputRef): Unit =
-    fields += inputRef.getIndex
+  def getFieldsWithType: Array[(Int, RelDataType)] = fields.toArray
+
+  override def visitInputRef(inputRef: RexInputRef): Unit = {
+    fields += Tuple2(inputRef.getIndex, inputRef.getType)
+  }
 
   override def visitCall(call: RexCall): Unit =
     call.operands.foreach(operand => operand.accept(this))

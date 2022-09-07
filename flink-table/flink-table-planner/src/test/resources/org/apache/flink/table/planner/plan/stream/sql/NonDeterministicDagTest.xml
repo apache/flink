@@ -1080,14 +1080,14 @@ LogicalSink(table=[default_catalog.default_database.sink_without_pk], fields=[a,
     <Resource name="optimized exec plan">
       <![CDATA[
 Sink(table=[default_catalog.default_database.sink_without_pk], fields=[a, b, c])
-+- Calc(select=[a, b, c])
-   +- Join(joinType=[InnerJoin], where=[($f4 = $f40)], select=[a, c, $f4, b, $f40], leftInputSpec=[HasUniqueKey], rightInputSpec=[NoUniqueKey])
-      :- Exchange(distribution=[hash[$f4]])
-      :  +- Calc(select=[a, c, ndFunc(b) AS $f4])
-      :     +- TableSourceScan(table=[[default_catalog, default_database, cdc, project=[a, c, b], metadata=[]]], fields=[a, c, b])
-      +- Exchange(distribution=[hash[$f4]])
-         +- Calc(select=[b, ndFunc(b) AS $f4])
-            +- TableSourceScan(table=[[default_catalog, default_database, cdc, project=[b], metadata=[]]], fields=[b])
++- Calc(select=[$f0 AS a, $f00 AS b, $f1 AS c])
+   +- Join(joinType=[InnerJoin], where=[($f2 = $f10)], select=[$f0, $f1, $f2, $f00, $f10], leftInputSpec=[HasUniqueKey], rightInputSpec=[NoUniqueKey])
+      :- Exchange(distribution=[hash[$f2]])
+      :  +- Calc(select=[a AS $f0, c AS $f1, ndFunc(b) AS $f2])
+      :     +- TableSourceScan(table=[[default_catalog, default_database, cdc, project=[a, b, c], metadata=[]]], fields=[a, b, c])(reuse_id=[1])
+      +- Exchange(distribution=[hash[$f1]])
+         +- Calc(select=[b AS $f0, ndFunc(b) AS $f1])
+            +- Reused(reference_id=[1])
 ]]>
     </Resource>
   </TestCase>
@@ -1248,14 +1248,14 @@ LogicalSink(table=[default_catalog.default_database.sink_without_pk], fields=[a,
     <Resource name="optimized exec plan">
       <![CDATA[
 Sink(table=[default_catalog.default_database.sink_without_pk], fields=[a, b, c])
-+- Calc(select=[a, b0 AS b, c])
-   +- Join(joinType=[InnerJoin], where=[((b = b0) AND (proctime > (proctime0 - 5000:INTERVAL SECOND)))], select=[b, c, proctime, a, b0, proctime0], leftInputSpec=[NoUniqueKey], rightInputSpec=[HasUniqueKey])
-      :- Exchange(distribution=[hash[b]])
-      :  +- Calc(select=[b, c, PROCTIME_MATERIALIZE(PROCTIME()) AS proctime])
-      :     +- TableSourceScan(table=[[default_catalog, default_database, cdc, project=[b, c], metadata=[]]], fields=[b, c])
-      +- Exchange(distribution=[hash[b]])
-         +- Calc(select=[a, b, PROCTIME_MATERIALIZE(PROCTIME()) AS proctime])
-            +- TableSourceScan(table=[[default_catalog, default_database, cdc, project=[a, b], metadata=[]]], fields=[a, b])
++- Calc(select=[$f00 AS a, $f10 AS b, $f1 AS c])
+   +- Join(joinType=[InnerJoin], where=[(($f0 = $f10) AND ($f2 > ($f20 - 5000:INTERVAL SECOND)))], select=[$f0, $f1, $f2, $f00, $f10, $f20], leftInputSpec=[NoUniqueKey], rightInputSpec=[HasUniqueKey])
+      :- Exchange(distribution=[hash[$f0]])
+      :  +- Calc(select=[b AS $f0, c AS $f1, PROCTIME_MATERIALIZE(PROCTIME()) AS $f2])
+      :     +- TableSourceScan(table=[[default_catalog, default_database, cdc, project=[a, b, c], metadata=[]]], fields=[a, b, c])(reuse_id=[1])
+      +- Exchange(distribution=[hash[$f1]])
+         +- Calc(select=[a AS $f0, b AS $f1, PROCTIME_MATERIALIZE(PROCTIME()) AS $f2])
+            +- Reused(reference_id=[1])
 ]]>
     </Resource>
   </TestCase>
@@ -1283,14 +1283,14 @@ LogicalSink(table=[default_catalog.default_database.sink_without_pk], fields=[a,
     <Resource name="optimized exec plan">
       <![CDATA[
 Sink(table=[default_catalog.default_database.sink_without_pk], fields=[a, b, c])
-+- Calc(select=[a0 AS a, b, c])
-   +- Join(joinType=[InnerJoin], where=[((a = a0) AND (proctime > (proctime0 - 5000:INTERVAL SECOND)))], select=[a, c, proctime, a0, b, proctime0], leftInputSpec=[JoinKeyContainsUniqueKey], rightInputSpec=[JoinKeyContainsUniqueKey])
-      :- Exchange(distribution=[hash[a]])
-      :  +- Calc(select=[a, c, PROCTIME_MATERIALIZE(PROCTIME()) AS proctime])
-      :     +- TableSourceScan(table=[[default_catalog, default_database, cdc, project=[a, c], metadata=[]]], fields=[a, c])
-      +- Exchange(distribution=[hash[a]])
-         +- Calc(select=[a, b, PROCTIME_MATERIALIZE(PROCTIME()) AS proctime])
-            +- TableSourceScan(table=[[default_catalog, default_database, cdc, project=[a, b], metadata=[]]], fields=[a, b])
++- Calc(select=[$f00 AS a, $f10 AS b, $f1 AS c])
+   +- Join(joinType=[InnerJoin], where=[(($f0 = $f00) AND ($f2 > ($f20 - 5000:INTERVAL SECOND)))], select=[$f0, $f1, $f2, $f00, $f10, $f20], leftInputSpec=[JoinKeyContainsUniqueKey], rightInputSpec=[JoinKeyContainsUniqueKey])
+      :- Exchange(distribution=[hash[$f0]])
+      :  +- Calc(select=[a AS $f0, c AS $f1, PROCTIME_MATERIALIZE(PROCTIME()) AS $f2])
+      :     +- TableSourceScan(table=[[default_catalog, default_database, cdc, project=[a, b, c], metadata=[]]], fields=[a, b, c])(reuse_id=[1])
+      +- Exchange(distribution=[hash[$f0]])
+         +- Calc(select=[a AS $f0, b AS $f1, PROCTIME_MATERIALIZE(PROCTIME()) AS $f2])
+            +- Reused(reference_id=[1])
 ]]>
     </Resource>
   </TestCase>
@@ -1318,14 +1318,14 @@ LogicalSink(table=[default_catalog.default_database.sink_without_pk], fields=[a,
     <Resource name="optimized exec plan">
       <![CDATA[
 Sink(table=[default_catalog.default_database.sink_without_pk], fields=[a, b, c])
-+- Calc(select=[a0 AS a, b, c])
-   +- Join(joinType=[InnerJoin], where=[((a = a0) AND (proctime > (proctime0 - 5000:INTERVAL SECOND)))], select=[a, c, proctime, a0, b, proctime0], leftInputSpec=[JoinKeyContainsUniqueKey], rightInputSpec=[JoinKeyContainsUniqueKey])
-      :- Exchange(distribution=[hash[a]])
-      :  +- Calc(select=[a, c, PROCTIME_MATERIALIZE(PROCTIME()) AS proctime])
-      :     +- TableSourceScan(table=[[default_catalog, default_database, cdc, project=[a, c], metadata=[]]], fields=[a, c])
-      +- Exchange(distribution=[hash[a]])
-         +- Calc(select=[a, b, PROCTIME_MATERIALIZE(PROCTIME()) AS proctime])
-            +- TableSourceScan(table=[[default_catalog, default_database, cdc, project=[a, b], metadata=[]]], fields=[a, b])
++- Calc(select=[$f00 AS a, $f10 AS b, $f1 AS c])
+   +- Join(joinType=[InnerJoin], where=[(($f0 = $f00) AND ($f2 > ($f20 - 5000:INTERVAL SECOND)))], select=[$f0, $f1, $f2, $f00, $f10, $f20], leftInputSpec=[JoinKeyContainsUniqueKey], rightInputSpec=[JoinKeyContainsUniqueKey])
+      :- Exchange(distribution=[hash[$f0]])
+      :  +- Calc(select=[a AS $f0, c AS $f1, PROCTIME_MATERIALIZE(PROCTIME()) AS $f2])
+      :     +- TableSourceScan(table=[[default_catalog, default_database, cdc, project=[a, b, c], metadata=[]]], fields=[a, b, c])(reuse_id=[1])
+      +- Exchange(distribution=[hash[$f0]])
+         +- Calc(select=[a AS $f0, b AS $f1, PROCTIME_MATERIALIZE(PROCTIME()) AS $f2])
+            +- Reused(reference_id=[1])
 ]]>
     </Resource>
   </TestCase>
@@ -2009,13 +2009,14 @@ LogicalProject(a=[$0], a0=[$4], c-day=[$6], b=[$5], d=[$7])
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-Calc(select=[a, a0, c-day, b0 AS b, d])
-+- Join(joinType=[InnerJoin], where=[(b = b0)], select=[a, b, a0, b0, c-day, d], leftInputSpec=[HasUniqueKey], rightInputSpec=[HasUniqueKey])
-   :- Exchange(distribution=[hash[b]])
-   :  +- TableSourceScan(table=[[default_catalog, default_database, cdc, project=[a, b], metadata=[]]], fields=[a, b])
-   +- Exchange(distribution=[hash[b]])
-      +- Calc(select=[a, b, CONCAT(c, DATE_FORMAT(CURRENT_TIMESTAMP(), 'yyMMdd')) AS c-day, d])
-         +- TableSourceScan(table=[[default_catalog, default_database, cdc]], fields=[a, b, c, d])
+Calc(select=[$f0 AS a, $f00 AS a0, $f2 AS c-day, $f10 AS b, $f3 AS d])
++- Join(joinType=[InnerJoin], where=[($f1 = $f10)], select=[$f0, $f1, $f00, $f10, $f2, $f3], leftInputSpec=[HasUniqueKey], rightInputSpec=[HasUniqueKey])
+   :- Exchange(distribution=[hash[$f1]])
+   :  +- Calc(select=[a AS $f0, b AS $f1])
+   :     +- TableSourceScan(table=[[default_catalog, default_database, cdc, project=[a, b, c, d], metadata=[]]], fields=[a, b, c, d])(reuse_id=[1])
+   +- Exchange(distribution=[hash[$f1]])
+      +- Calc(select=[a AS $f0, b AS $f1, CONCAT(c, DATE_FORMAT(CURRENT_TIMESTAMP(), 'yyMMdd')) AS $f2, d AS $f3])
+         +- Reused(reference_id=[1])
 ]]>
     </Resource>
   </TestCase>
@@ -2046,13 +2047,14 @@ LogicalProject(a=[$0], a0=[$4], c-day=[$6], b=[$5], d=[$7])
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-Calc(select=[a, a0, c-day, b0 AS b, d])
-+- Join(joinType=[InnerJoin], where=[(b = b0)], select=[a, b, a0, b0, c-day, d], leftInputSpec=[HasUniqueKey], rightInputSpec=[HasUniqueKey])
-   :- Exchange(distribution=[hash[b]])
-   :  +- TableSourceScan(table=[[default_catalog, default_database, cdc, project=[a, b], metadata=[]]], fields=[a, b])
-   +- Exchange(distribution=[hash[b]])
-      +- Calc(select=[a, b, CONCAT(c, DATE_FORMAT(CURRENT_TIMESTAMP(), 'yyMMdd')) AS c-day, d])
-         +- TableSourceScan(table=[[default_catalog, default_database, cdc]], fields=[a, b, c, d])
+Calc(select=[$f0 AS a, $f00 AS a0, $f2 AS c-day, $f10 AS b, $f3 AS d])
++- Join(joinType=[InnerJoin], where=[($f1 = $f10)], select=[$f0, $f1, $f00, $f10, $f2, $f3], leftInputSpec=[HasUniqueKey], rightInputSpec=[HasUniqueKey])
+   :- Exchange(distribution=[hash[$f1]])
+   :  +- Calc(select=[a AS $f0, b AS $f1])
+   :     +- TableSourceScan(table=[[default_catalog, default_database, cdc, project=[a, b, c, d], metadata=[]]], fields=[a, b, c, d])(reuse_id=[1])
+   +- Exchange(distribution=[hash[$f1]])
+      +- Calc(select=[a AS $f0, b AS $f1, CONCAT(c, DATE_FORMAT(CURRENT_TIMESTAMP(), 'yyMMdd')) AS $f2, d AS $f3])
+         +- Reused(reference_id=[1])
 ]]>
     </Resource>
   </TestCase>
@@ -2086,13 +2088,14 @@ LogicalSink(table=[default_catalog.default_database.sink_with_pk], fields=[a, b,
     <Resource name="optimized exec plan">
       <![CDATA[
 Sink(table=[default_catalog.default_database.sink_with_pk], fields=[a, b, c], upsertMaterialize=[true])
-+- Calc(select=[CAST(a AS INTEGER) AS a, CAST(a0 AS BIGINT) AS b, c-day AS c])
-   +- Join(joinType=[InnerJoin], where=[(b = b0)], select=[a, b, a0, b0, c-day], leftInputSpec=[HasUniqueKey], rightInputSpec=[HasUniqueKey])
-      :- Exchange(distribution=[hash[b]])
-      :  +- TableSourceScan(table=[[default_catalog, default_database, cdc, project=[a, b], metadata=[]]], fields=[a, b])
-      +- Exchange(distribution=[hash[b]])
-         +- Calc(select=[a, b, CONCAT(c, DATE_FORMAT(CURRENT_TIMESTAMP(), 'yyMMdd')) AS c-day])
-            +- TableSourceScan(table=[[default_catalog, default_database, cdc, project=[a, b, c], metadata=[]]], fields=[a, b, c])
++- Calc(select=[CAST($f0 AS INTEGER) AS a, CAST($f00 AS BIGINT) AS b, $f2 AS c])
+   +- Join(joinType=[InnerJoin], where=[($f1 = $f10)], select=[$f0, $f1, $f00, $f10, $f2], leftInputSpec=[HasUniqueKey], rightInputSpec=[HasUniqueKey])
+      :- Exchange(distribution=[hash[$f1]])
+      :  +- Calc(select=[a AS $f0, b AS $f1])
+      :     +- TableSourceScan(table=[[default_catalog, default_database, cdc, project=[a, b, c], metadata=[]]], fields=[a, b, c])(reuse_id=[1])
+      +- Exchange(distribution=[hash[$f1]])
+         +- Calc(select=[a AS $f0, b AS $f1, CONCAT(c, DATE_FORMAT(CURRENT_TIMESTAMP(), 'yyMMdd')) AS $f2])
+            +- Reused(reference_id=[1])
 ]]>
     </Resource>
   </TestCase>
@@ -2123,13 +2126,14 @@ LogicalProject(a=[$0], c-day=[$6], b=[$5], d=[$7])
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-Calc(select=[a, c-day, b0 AS b, d])
-+- Join(joinType=[InnerJoin], where=[(b = b0)], select=[a, b, b0, c-day, d], leftInputSpec=[HasUniqueKey], rightInputSpec=[NoUniqueKey])
-   :- Exchange(distribution=[hash[b]])
-   :  +- TableSourceScan(table=[[default_catalog, default_database, cdc, project=[a, b], metadata=[]]], fields=[a, b])
-   +- Exchange(distribution=[hash[b]])
-      +- Calc(select=[b, CONCAT(c, DATE_FORMAT(CURRENT_TIMESTAMP(), 'yyMMdd')) AS c-day, d])
-         +- TableSourceScan(table=[[default_catalog, default_database, cdc, project=[b, c, d], metadata=[]]], fields=[b, c, d])
+Calc(select=[$f0 AS a, $f10 AS c-day, $f00 AS b, $f2 AS d])
++- Join(joinType=[InnerJoin], where=[($f1 = $f00)], select=[$f0, $f1, $f00, $f10, $f2], leftInputSpec=[HasUniqueKey], rightInputSpec=[NoUniqueKey])
+   :- Exchange(distribution=[hash[$f1]])
+   :  +- Calc(select=[a AS $f0, b AS $f1])
+   :     +- TableSourceScan(table=[[default_catalog, default_database, cdc, project=[a, b, c, d], metadata=[]]], fields=[a, b, c, d])(reuse_id=[1])
+   +- Exchange(distribution=[hash[$f0]])
+      +- Calc(select=[b AS $f0, CONCAT(c, DATE_FORMAT(CURRENT_TIMESTAMP(), 'yyMMdd')) AS $f1, d AS $f2])
+         +- Reused(reference_id=[1])
 ]]>
     </Resource>
   </TestCase>
@@ -2160,15 +2164,15 @@ LogicalProject(a=[$0], c-day=[$6], b=[$5], d=[$7])
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-Calc(select=[a, c-day, b, d])
-+- Join(joinType=[InnerJoin], where=[(a = a0)], select=[a, a0, b, c-day, d], leftInputSpec=[JoinKeyContainsUniqueKey], rightInputSpec=[JoinKeyContainsUniqueKey])
-   :- Exchange(distribution=[hash[a]])
-   :  +- DropUpdateBefore
-   :     +- TableSourceScan(table=[[default_catalog, default_database, cdc, project=[a], metadata=[]]], fields=[a])
-   +- Exchange(distribution=[hash[a]])
-      +- Calc(select=[a, b, CONCAT(c, DATE_FORMAT(CURRENT_TIMESTAMP(), 'yyMMdd')) AS c-day, d])
-         +- DropUpdateBefore
-            +- TableSourceScan(table=[[default_catalog, default_database, cdc]], fields=[a, b, c, d])
+Calc(select=[$f0 AS a, $f2 AS c-day, $f1 AS b, $f3 AS d])
++- Join(joinType=[InnerJoin], where=[($f0 = $f00)], select=[$f0, $f00, $f1, $f2, $f3], leftInputSpec=[JoinKeyContainsUniqueKey], rightInputSpec=[JoinKeyContainsUniqueKey])
+   :- Exchange(distribution=[hash[$f0]])
+   :  +- Calc(select=[a AS $f0])
+   :     +- DropUpdateBefore(reuse_id=[1])
+   :        +- TableSourceScan(table=[[default_catalog, default_database, cdc, project=[a, b, c, d], metadata=[]]], fields=[a, b, c, d])
+   +- Exchange(distribution=[hash[$f0]])
+      +- Calc(select=[a AS $f0, b AS $f1, CONCAT(c, DATE_FORMAT(CURRENT_TIMESTAMP(), 'yyMMdd')) AS $f2, d AS $f3])
+         +- Reused(reference_id=[1])
 ]]>
     </Resource>
   </TestCase>
@@ -2199,15 +2203,15 @@ LogicalProject(a=[$0], c-day=[$6], b=[$5], d=[$7])
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-Calc(select=[a, c-day, b, d])
-+- Join(joinType=[InnerJoin], where=[(a = a0)], select=[a, a0, b, c-day, d], leftInputSpec=[JoinKeyContainsUniqueKey], rightInputSpec=[JoinKeyContainsUniqueKey])
-   :- Exchange(distribution=[hash[a]])
-   :  +- DropUpdateBefore
-   :     +- TableSourceScan(table=[[default_catalog, default_database, cdc, project=[a], metadata=[]]], fields=[a])
-   +- Exchange(distribution=[hash[a]])
-      +- Calc(select=[a, b, CONCAT(c, DATE_FORMAT(CURRENT_TIMESTAMP(), 'yyMMdd')) AS c-day, d])
-         +- DropUpdateBefore
-            +- TableSourceScan(table=[[default_catalog, default_database, cdc]], fields=[a, b, c, d])
+Calc(select=[$f0 AS a, $f2 AS c-day, $f1 AS b, $f3 AS d])
++- Join(joinType=[InnerJoin], where=[($f0 = $f00)], select=[$f0, $f00, $f1, $f2, $f3], leftInputSpec=[JoinKeyContainsUniqueKey], rightInputSpec=[JoinKeyContainsUniqueKey])
+   :- Exchange(distribution=[hash[$f0]])
+   :  +- Calc(select=[a AS $f0])
+   :     +- DropUpdateBefore(reuse_id=[1])
+   :        +- TableSourceScan(table=[[default_catalog, default_database, cdc, project=[a, b, c, d], metadata=[]]], fields=[a, b, c, d])
+   +- Exchange(distribution=[hash[$f0]])
+      +- Calc(select=[a AS $f0, b AS $f1, CONCAT(c, DATE_FORMAT(CURRENT_TIMESTAMP(), 'yyMMdd')) AS $f2, d AS $f3])
+         +- Reused(reference_id=[1])
 ]]>
     </Resource>
   </TestCase>

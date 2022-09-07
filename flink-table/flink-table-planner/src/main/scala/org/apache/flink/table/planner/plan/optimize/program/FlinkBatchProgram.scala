@@ -35,6 +35,7 @@ object FlinkBatchProgram {
   val JOIN_REWRITE = "join_rewrite"
   val PROJECT_REWRITE = "project_rewrite"
   val WINDOW = "window"
+  val LOGICAL_COMMON_PROJECT = "logical_common_project"
   val LOGICAL = "logical"
   val LOGICAL_REWRITE = "logical_rewrite"
   val TIME_INDICATOR = "time_indicator"
@@ -245,6 +246,16 @@ object FlinkBatchProgram {
         .setHepRulesExecutionType(HEP_RULES_EXECUTION_TYPE.RULE_COLLECTION)
         .setHepMatchOrder(HepMatchOrder.BOTTOM_UP)
         .add(FlinkBatchRuleSets.PROJECT_RULES)
+        .build()
+    )
+
+    // extract the common project
+    chainedProgram.addLast(
+      LOGICAL_COMMON_PROJECT,
+      FlinkHepRuleSetProgramBuilder.newBuilder
+        .setHepRulesExecutionType(HEP_RULES_EXECUTION_TYPE.RULE_SEQUENCE)
+        .setHepMatchOrder(HepMatchOrder.TOP_DOWN)
+        .add(FlinkBatchRuleSets.COMMON_PROJECT_RULES)
         .build()
     )
 

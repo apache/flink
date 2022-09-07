@@ -188,6 +188,11 @@ object FlinkStreamRuleSets {
     PruneEmptyRules.UNION_INSTANCE
   )
 
+  val COMMON_PROJECT_RULES: RuleSet = RuleSets.ofList(
+    FlinkExtractCommonProjectOnSourceRule.INSTANCE,
+    PushProjectIntoTableSourceScanRule.PUSH_COMMON_PROJECT_INSTANCE
+  )
+
   /** RuleSet about project */
   val PROJECT_RULES: RuleSet = RuleSets.ofList(
     // push a projection past a filter

@@ -21,6 +21,7 @@ import org.apache.flink.api.scala._
 import org.apache.flink.table.api._
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions
 import org.apache.flink.table.planner.plan.optimize.program._
+import org.apache.flink.table.planner.plan.optimize.program.FlinkStreamProgram.{LOGICAL, LOGICAL_COMMON_PROJECT}
 import org.apache.flink.table.planner.plan.rules.FlinkStreamRuleSets
 import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedScalarFunctions.PythonScalarFunction
 import org.apache.flink.table.planner.utils.{MockPythonTableFunction, TableFunc1, TableTestBase}

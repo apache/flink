@@ -331,6 +331,12 @@ object FlinkBatchRuleSets {
     FlinkLogicalScriptTransform.BATCH_CONVERTER
   )
 
+  /** RuleSet to extract the common project on source. */
+  val COMMON_PROJECT_RULES: RuleSet = RuleSets.ofList(
+    FlinkExtractCommonProjectOnSourceRule.INSTANCE,
+    PushProjectIntoTableSourceScanRule.PUSH_COMMON_PROJECT_INSTANCE
+  )
+
   /** RuleSet to do logical optimize for batch */
   val LOGICAL_OPT_RULES: RuleSet = RuleSets.ofList(
     (
@@ -340,7 +346,8 @@ object FlinkBatchRuleSets {
         PRUNE_EMPTY_RULES.asScala ++
         LOGICAL_RULES.asScala ++
         LOGICAL_CONVERTERS.asScala
-    ).asJava)
+    ).asJava
+  )
 
   /** RuleSet to do rewrite on FlinkLogicalRel for batch */
   val LOGICAL_REWRITE: RuleSet = RuleSets.ofList(

@@ -30,6 +30,7 @@ import org.apache.flink.table.connector.source.abilities.SupportsProjectionPushD
 import org.apache.flink.table.connector.source.abilities.SupportsReadingMetadata;
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
 import org.apache.flink.table.planner.connectors.DynamicSourceUtils;
+import org.apache.flink.table.planner.hint.FlinkHints;
 import org.apache.flink.table.planner.plan.abilities.source.ProjectPushDownSpec;
 import org.apache.flink.table.planner.plan.abilities.source.ReadingMetadataSpec;
 import org.apache.flink.table.planner.plan.abilities.source.SourceAbilityContext;
@@ -52,6 +53,8 @@ import org.apache.calcite.rex.RexInputRef;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.rex.RexShuttle;
 import org.immutables.value.Value;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -86,18 +89,39 @@ import static org.apache.flink.table.planner.utils.ShortcutUtils.unwrapTypeFacto
 public class PushProjectIntoTableSourceScanRule
         extends RelRule<PushProjectIntoTableSourceScanRule.Config> {
 
+    private static final Logger LOG =
+            LoggerFactory.getLogger(PushProjectIntoTableSourceScanRule.class);
+
+    private final boolean isCommonProject;
+
+    public static final RelOptRule PUSH_COMMON_PROJECT_INSTANCE =
+            PushProjectIntoTableSourceScanRule.Config.PUSH_COMMON_PROJECT.toRule();
+
     public static final PushProjectIntoTableSourceScanRule INSTANCE =
             new PushProjectIntoTableSourceScanRule(
                     PushProjectIntoTableSourceScanRule.Config.DEFAULT);
 
     public PushProjectIntoTableSourceScanRule(PushProjectIntoTableSourceScanRule.Config config) {
         super(config);
+        this.isCommonProject = config.isCommonProject();
     }
 
     @Override
     public boolean matches(RelOptRuleCall call) {
+        final LogicalProject project = call.rel(0);
         final LogicalTableScan scan = call.rel(1);
         final TableSourceTable sourceTable = scan.getTable().unwrap(TableSourceTable.class);
+
+        boolean commonProject =
+                project.getHints().stream()
+                        .anyMatch(
+                                h ->
+                                        h.hintName.equals(
+                                                FlinkHints.HINT_NAME_COMMON_PROJECT_PRESERVED));
+        if (isCommonProject && !commonProject) {
+            LOG.info("Skip this non common project node.");
+            return false;
+        }
         if (sourceTable == null) {
             return false;
         }
@@ -133,8 +157,19 @@ public class PushProjectIntoTableSourceScanRule
         final boolean supportsNestedProjection =
                 supportsNestedProjection(sourceTable.tableSource());
 
+        boolean commonProject =
+                project.getHints().stream()
+                        .anyMatch(
+                                h ->
+                                        h.hintName.equals(
+                                                FlinkHints.HINT_NAME_COMMON_PROJECT_PRESERVED));
+        if (commonProject) {
+            LOG.info("Pushing common project {} on the source table {}", project, scan);
+        }
         final int[] refFields = RexNodeExtractor.extractRefInputFields(project.getProjects());
-        if (!supportsNestedProjection && refFields.length == scan.getRowType().getFieldCount()) {
+        if (!supportsNestedProjection
+                && refFields.length == scan.getRowType().getFieldCount()
+                && !commonProject) {
             // There is no top-level projection and nested projections aren't supported.
             return;
         }
@@ -192,6 +227,14 @@ public class PushProjectIntoTableSourceScanRule
         if (ProjectRemoveRule.isTrivial(newProject)) {
             call.transformTo(newScan);
         } else {
+            // remove the mark hint
+            newProject.withHints(
+                    newProject.getHints().stream()
+                            .filter(
+                                    h ->
+                                            !h.hintName.equals(
+                                                    FlinkHints.HINT_NAME_COMMON_PROJECT_PRESERVED))
+                            .collect(Collectors.toList()));
             call.transformTo(newProject);
         }
     }
@@ -432,6 +475,14 @@ public class PushProjectIntoTableSourceScanRule
     public interface Config extends RelRule.Config {
         Config DEFAULT =
                 ImmutablePushProjectIntoTableSourceScanRule.Config.builder()
+                        .isCommonProject(false)
+                        .build()
+                        .onProjectedScan()
+                        .as(Config.class);
+
+        Config PUSH_COMMON_PROJECT =
+                ImmutablePushProjectIntoTableSourceScanRule.Config.builder()
+                        .isCommonProject(true)
                         .build()
                         .onProjectedScan()
                         .as(Config.class);
@@ -440,6 +491,12 @@ public class PushProjectIntoTableSourceScanRule
         default RelOptRule toRule() {
             return new PushProjectIntoTableSourceScanRule(this);
         }
+
+        /** Whether to push down aggregate functions, default false. */
+        boolean isCommonProject();
+
+        /** Sets {@link #isCommonProject()}. */
+        Config withIsCommonProject(boolean commonProject);
 
         default Config onProjectedScan() {
             final RelRule.OperandTransform scanTransform =

@@ -94,6 +94,9 @@ public abstract class FlinkHintStrategies {
                                                 HintPredicates.CORRELATE, HintPredicates.JOIN))
                                 .optionChecker(LOOKUP_NON_EMPTY_KV_OPTION_CHECKER)
                                 .build())
+                .hintStrategy(
+                        FlinkHints.HINT_NAME_COMMON_PROJECT_PRESERVED,
+                        HintStrategy.builder(HintPredicates.PROJECT).build())
                 .build();
     }
 

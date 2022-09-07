@@ -494,4 +494,50 @@ class SubplanReuseTest extends TableTestBase {
       """.stripMargin
     util.verifyExecPlan(sqlQuery)
   }
+
+  @Test
+  def testEnableReuseTableSourceOnNewSourceProjectPushDown(): Unit = {
+    util.tableEnv.getConfig
+      .set(OptimizerConfigOptions.TABLE_OPTIMIZER_REUSE_SOURCE_ENABLED, Boolean.box(true))
+    util.tableEnv.getConfig
+      .set(
+        OptimizerConfigOptions.TABLE_OPTIMIZER_PUSH_COMMON_PROJECT_ON_SOURCE_ENABLED,
+        Boolean.box(true))
+    testReuseOnNewSourceProjectPushDown()
+  }
+
+  @Test
+  def testDisableReuseTableSourceOnNewSourceProjectPushDown(): Unit = {
+    util.tableEnv.getConfig
+      .set(OptimizerConfigOptions.TABLE_OPTIMIZER_REUSE_SOURCE_ENABLED, Boolean.box(true))
+    util.tableEnv.getConfig
+      .set(
+        OptimizerConfigOptions.TABLE_OPTIMIZER_PUSH_COMMON_PROJECT_ON_SOURCE_ENABLED,
+        Boolean.box(false))
+    testReuseOnNewSourceProjectPushDown()
+  }
+
+  private def testReuseOnNewSourceProjectPushDown(): Unit = {
+    util.addTable(s"""
+                     |create table newX(
+                     |  a int,
+                     |  b bigint,
+                     |  c varchar,
+                     |  d varchar,
+                     |  e varchar
+                     |) with (
+                     |  'connector' = 'values'
+                     |  ,'enable-projection-push-down' = 'true'
+                     |  ,'bounded' = 'true'
+                     |)
+       """.stripMargin)
+    val sqlQuery =
+      """
+        | SELECT b,c from newX WHERE a > 10
+        | UNION ALL
+        | SELECT b,d from newX WHERE b > 10
+      """.stripMargin
+    util.verifyExecPlan(sqlQuery)
+  }
+
 }

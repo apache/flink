@@ -343,12 +343,12 @@ Calc(select=[c, a, b, c0, a0, b0])
    :- Exchange(distribution=[hash[a]])
    :  +- GroupAggregate(advice=[1], groupBy=[c], select=[c, SUM(a) AS a, SUM(b) AS b])
    :     +- Exchange(distribution=[hash[c]])
-   :        +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[c, a, b], metadata=[]]], fields=[c, a, b])
+   :        +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, b, c], metadata=[]]], fields=[a, b, c])
    +- Exchange(distribution=[hash[b0]])
       +- Calc(select=[c, a, b, CAST(b AS BIGINT) AS b0], where=[>(a, 1)])
          +- GroupAggregate(advice=[1], groupBy=[c], select=[c, SUM(a) AS a, SUM(b) AS b])
             +- Exchange(distribution=[hash[c]])
-               +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[c, a, b], metadata=[]]], fields=[c, a, b])
+               +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, b, c], metadata=[]]], fields=[a, b, c])
 
 advice[1]: [ADVICE] You might want to enable local-global two-phase optimization by configuring ('table.exec.mini-batch.enabled' to 'true').
 
@@ -367,12 +367,12 @@ Calc(select=[c, a, b, c0, a0, b0])
    :- Exchange(distribution=[hash[a]])
    :  +- GroupAggregate(advice=[1], groupBy=[c], select=[c, SUM(a) AS a, SUM(b) AS b])
    :     +- Exchange(distribution=[hash[c]])
-   :        +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[c, a, b], metadata=[]]], fields=[c, a, b])
+   :        +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, b, c], metadata=[]]], fields=[a, b, c])
    +- Exchange(distribution=[hash[b0]])
       +- Calc(select=[c, a, b, CAST(b AS BIGINT) AS b0], where=[>(a, 1)])
          +- GroupAggregate(advice=[1], groupBy=[c], select=[c, SUM(a) AS a, SUM(b) AS b])
             +- Exchange(distribution=[hash[c]])
-               +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[c, a, b], metadata=[]]], fields=[c, a, b])
+               +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, b, c], metadata=[]]], fields=[a, b, c])
 
 advice[1]: [ADVICE] You might want to enable local-global two-phase optimization by configuring ('table.optimizer.agg-phase-strategy' to 'AUTO', 'table.exec.mini-batch.enabled' to 'true', 'table.exec.mini-batch.allow-latency' to a positive long value, 'table.exec.mini-batch.size' to a positive long value).
 
@@ -393,14 +393,14 @@ Calc(select=[c, a, b, c0, a0, b0])
    :     +- Exchange(distribution=[hash[c]])
    :        +- LocalGroupAggregate(groupBy=[c], select=[c, SUM(a) AS sum$0, SUM(b) AS sum$1])
    :           +- MiniBatchAssigner(interval=[10000ms], mode=[ProcTime])
-   :              +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[c, a, b], metadata=[]]], fields=[c, a, b])
+   :              +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, b, c], metadata=[]]], fields=[a, b, c])
    +- Exchange(distribution=[hash[b0]])
       +- Calc(select=[c, a, b, CAST(b AS BIGINT) AS b0], where=[>(a, 1)])
          +- GlobalGroupAggregate(groupBy=[c], select=[c, SUM(sum$0) AS a, SUM(sum$1) AS b])
             +- Exchange(distribution=[hash[c]])
                +- LocalGroupAggregate(groupBy=[c], select=[c, SUM(a) AS sum$0, SUM(b) AS sum$1])
                   +- MiniBatchAssigner(interval=[10000ms], mode=[ProcTime])
-                     +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[c, a, b], metadata=[]]], fields=[c, a, b])
+                     +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, b, c], metadata=[]]], fields=[a, b, c])
 
 No available advice...
 
@@ -420,13 +420,13 @@ Calc(select=[c, a, b, c0, a0, b0])
    :  +- GroupAggregate(advice=[1], groupBy=[c], select=[c, SUM(a) AS a, SUM(b) AS b])
    :     +- Exchange(distribution=[hash[c]])
    :        +- MiniBatchAssigner(interval=[10000ms], mode=[ProcTime])
-   :           +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[c, a, b], metadata=[]]], fields=[c, a, b])
+   :           +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, b, c], metadata=[]]], fields=[a, b, c])
    +- Exchange(distribution=[hash[b0]])
       +- Calc(select=[c, a, b, CAST(b AS BIGINT) AS b0], where=[>(a, 1)])
          +- GroupAggregate(advice=[1], groupBy=[c], select=[c, SUM(a) AS a, SUM(b) AS b])
             +- Exchange(distribution=[hash[c]])
                +- MiniBatchAssigner(interval=[10000ms], mode=[ProcTime])
-                  +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[c, a, b], metadata=[]]], fields=[c, a, b])
+                  +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, b, c], metadata=[]]], fields=[a, b, c])
 
 advice[1]: [ADVICE] You might want to enable local-global two-phase optimization by configuring ('table.optimizer.agg-phase-strategy' to 'AUTO').
 

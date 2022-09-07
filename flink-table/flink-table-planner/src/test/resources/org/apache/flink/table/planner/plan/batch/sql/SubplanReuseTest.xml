@@ -1207,4 +1207,48 @@ MultipleInput(readOrder=[0,1], members=[\nNestedLoopJoin(joinType=[LeftSemiJoin]
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testEnableReuseTableSourceOnNewSourceProjectPushDown">
+    <Resource name="ast">
+      <![CDATA[
+LogicalUnion(all=[true])
+:- LogicalProject(b=[$1], c=[$2])
+:  +- LogicalFilter(condition=[>($0, 10)])
+:     +- LogicalTableScan(table=[[default_catalog, default_database, newX]])
++- LogicalProject(b=[$1], d=[$3])
+   +- LogicalFilter(condition=[>($1, 10)])
+      +- LogicalTableScan(table=[[default_catalog, default_database, newX]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Union(all=[true], union=[b, c])
+:- Calc(select=[b, c], where=[(a > 10)])
+:  +- TableSourceScan(table=[[default_catalog, default_database, newX, filter=[], project=[a, b, c, d], metadata=[]]], fields=[a, b, c, d])(reuse_id=[1])
++- Calc(select=[b AS $f0, d AS $f1], where=[(b > 10)])
+   +- Reused(reference_id=[1])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testDisableReuseTableSourceOnNewSourceProjectPushDown">
+    <Resource name="ast">
+      <![CDATA[
+LogicalUnion(all=[true])
+:- LogicalProject(b=[$1], c=[$2])
+:  +- LogicalFilter(condition=[>($0, 10)])
+:     +- LogicalTableScan(table=[[default_catalog, default_database, newX]])
++- LogicalProject(b=[$1], d=[$3])
+   +- LogicalFilter(condition=[>($1, 10)])
+      +- LogicalTableScan(table=[[default_catalog, default_database, newX]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Union(all=[true], union=[b, c])
+:- Calc(select=[b, c], where=[(a > 10)])
+:  +- TableSourceScan(table=[[default_catalog, default_database, newX, filter=[], project=[a, b, c], metadata=[]]], fields=[a, b, c])
++- Calc(select=[b, d], where=[(b > 10)])
+   +- TableSourceScan(table=[[default_catalog, default_database, newX, filter=[], project=[b, d], metadata=[]]], fields=[b, d])
+]]>
+    </Resource>
+  </TestCase>
 </Root>

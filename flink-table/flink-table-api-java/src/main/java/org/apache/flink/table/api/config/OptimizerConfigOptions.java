@@ -100,6 +100,19 @@ public class OptimizerConfigOptions {
                                     + TABLE_OPTIMIZER_REUSE_SUB_PLAN_ENABLED.key()
                                     + " is true.");
 
+    @Documentation.TableOption(execMode = Documentation.ExecMode.BATCH_STREAMING)
+    public static final ConfigOption<Boolean>
+            TABLE_OPTIMIZER_PUSH_COMMON_PROJECT_ON_SOURCE_ENABLED =
+                    key("table.optimizer.push.common-project-on-source.enabled")
+                            .booleanType()
+                            .defaultValue(true)
+                            .withDescription(
+                                    "When it is true, the optimizer will try to extract the common project on source. This works only when "
+                                            + TABLE_OPTIMIZER_REUSE_SUB_PLAN_ENABLED.key()
+                                            + " and "
+                                            + TABLE_OPTIMIZER_REUSE_SUB_PLAN_ENABLED.key()
+                                            + " is true.");
+
     @Documentation.TableOption(execMode = Documentation.ExecMode.BATCH)
     public static final ConfigOption<Boolean> TABLE_OPTIMIZER_SOURCE_AGGREGATE_PUSHDOWN_ENABLED =
             key("table.optimizer.source.aggregate-pushdown-enabled")
