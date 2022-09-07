@@ -3,7 +3,7 @@ title: "CREATE Statements"
 weight: 2
 type: docs
 aliases:
-- /dev/table/hiveCompatibility/hiveDialect/create.html
+- /dev/table/hive_compatibility/hive_dialect/create.html
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
@@ -128,9 +128,8 @@ table_constraint:
 {{< hint warning >}}
 **NOTE:**
 
-- Create table with `STORED BY 'class_name'` / `CLUSTERED BY` / `SKEWED BY` is not supported yet.
 - Create temporary table is not supported yet.
-  {{< /hint >}}
+{{< /hint >}}
 
 ### Examples
 
@@ -157,7 +156,6 @@ CREATE TABLE t2 AS SELECT key, COUNT(1) FROM t1 GROUP BY key;
 
 ### Description
 
-`View`
 `CREATE VIEW` creates a view with the given name.
 If no column names are supplied, the names of the view's columns will be derived automatically from the defining SELECT expression.
 (If the SELECT contains un-aliased scalar expressions such as x+y, the resulting view column names will be generated in the form _C0, _C1, etc.)
@@ -233,15 +231,18 @@ The function is registered to metastore and will exist in all session unless the
 - `[USING JAR 'file_uri']`
 
   User can use the clause to add Jar that contains the implementation of the function along with its dependencies while creating the function.
-  The `file_uri` can be a local file or distributed file system.
-
+  The `file_uri` can be on local file or distributed file system.
+  Flink will automatically download the jars for remote jars when the function is used in queries. The downloaded jars will be removed when the session exits.
 
 ### Examples
 
 ```sql
--- create a function accuming the class `SimpleUdf` has existed in class path
+-- create a function assuming the class `SimpleUdf` has existed in class path
 CREATE FUNCTION simple_udf AS 'SimpleUdf';
 
--- create function using jar accuming the class `SimpleUdf` hasn't existed in class path
+-- create function using jar assuming the class `SimpleUdf` hasn't existed in class path
 CREATE  FUNCTION simple_udf AS 'SimpleUdf' USING JAR '/tmp/SimpleUdf.jar';
+
+-- create function using remote jar
+CREATE FUNCTION simple_udf AS 'SimpleUdf' USING JAR 'hdfs://namenode-host:port/path/SimpleUdf.jar';
 ```

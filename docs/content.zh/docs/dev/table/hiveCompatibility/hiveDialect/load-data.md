@@ -3,7 +3,7 @@ title: "Load Data Statements"
 weight: 4
 type: docs
 aliases:
-- /dev/table/hiveCompatibility/hiveDialect/load.html
+- /dev/table/hive_compatibility/hive_dialect/load.html
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
@@ -53,7 +53,7 @@ LOAD DATA [LOCAL] INPATH 'filepath' [OVERWRITE] INTO TABLE tablename [PARTITION 
     - it will look for `filepath` in the local file system. If a relative path is specified, it will be interpreted relative to the users' current working directory.
       The user can specify a full URI for local files as well - for example: file:///user/hive/warehouse/data1
     - it will try to **copy** all the files addressed by `filepath` to the target file system.
-      The target file system is inferred by looking at the location attribution. The coped data files will then be moved to the table.
+      The target file system is inferred by looking at the location attribution. The copied data files will then be moved to the location of the table.
 
   If not, then:
     - if schema or authority are not specified, it'll use the schema and authority from the hadoop configuration variable `fs.default.name` that

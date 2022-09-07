@@ -33,9 +33,9 @@ So when there's more than one partition, `SORT BY` may return result that's part
 ### Syntax
 
 ```sql
-colOrder: ( ASC | DESC )
-sortBy: SORT BY BY expression [ , ... ]
 query: SELECT expression [ , ... ] FROM src sortBy
+sortBy: SORT BY expression colOrder [ , ... ]
+colOrder: ( ASC | DESC )
 ```
 
 ### Parameters
@@ -67,8 +67,12 @@ query: SELECT expression [ , ... ] FROM src distributeBy
 ### Examples
 
 ```sql
+-- only use DISTRIBUTE BY clause
 SELECT x, y FROM t DISTRIBUTE BY x;
 SELECT x, y FROM t DISTRIBUTE BY abs(y);
+
+-- use both DISTRIBUTE BY and SORT BY clause
+SELECT x, y FROM t DISTRIBUTE BY x SORT BY y DESC;
 ```
 
 ## Cluster By

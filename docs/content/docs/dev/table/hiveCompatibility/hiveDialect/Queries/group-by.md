@@ -31,13 +31,19 @@ Hive dialect also supports enhanced aggregation features to do multiple aggregat
 ## Syntax
 
 ```sql
-groupByClause: groupByClause-1 | groupByClause-2
-groupByClause-1: GROUP BY group_expression [, ...] [ WITH ROLLUP | WITH CUBE ]
+group_by_clause: 
+  group_by_clause_1 | group_by_clause_2
+
+group_by_clause_1: 
+  GROUP BY group_expression [ , ... ] [ WITH ROLLUP | WITH CUBE ] 
  
-groupByClause-2: GROUP BY { group_expression | { ROLLUP | CUBE | GROUPING SETS } ( grouping_set [, ...] ) } [, ...]
-grouping_set: { expression | ( [ expression [, ...] ] ) }
+group_by_clause_2: 
+  GROUP BY { group_expression | { ROLLUP | CUBE | GROUPING SETS } ( grouping_set [ , ... ] ) } [ , ... ]
+
+grouping_set: 
+  { expression | ( [ expression [ , ... ] ] ) }
  
-groupByQuery: SELECT expression [, ...] FROM src groupByClause?
+groupByQuery: SELECT expression [ , ... ] FROM src groupByClause?
 ```
 In `group_expression`, columns can be also specified by position number. But please remember:
 - For Hive 0.11.0 through 2.1.x, set `hive.groupby.orderby.position.alias` to true (the default is false)
@@ -97,7 +103,7 @@ It represents the given list and all of its possible subsets - the power set.
 
 For example:
 ```sql
-GROUP BY a, b, c, WITH CUBE
+GROUP BY a, b, c WITH CUBE
 ```
 is equivalent to
 ```sql

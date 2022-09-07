@@ -3,7 +3,7 @@ title: "SET Statements"
 weight: 8
 type: docs
 aliases:
-- /dev/table/hiveCompatibility/hiveDialect/create.html
+- /dev/table/hive_compatibility/hive_dialect/set.html
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
@@ -30,17 +30,11 @@ The `SET` statement sets a property which provide a ways to set variables for a 
 configuration property including system variable and Hive configuration.
 But environment variable can't be set via `SET` statement. The behavior of `SET` with Hive dialect is compatible to Hive's.
 
-## Syntax
-
-```sql
-SET key=value;
-```
-
 ## EXAMPLES
 
 ```sql
 -- set Flink's configuration
-SET 'table.sql-dialect'='default';
+SET table.sql-dialect=default;
 
 -- set Hive's configuration
 SET hiveconf:k1=v1;
@@ -52,21 +46,22 @@ SET system:k2=v2;
 SET hivevar:k3=v3;
 
 -- get value for configuration
+SET table.sql-dialect;
 SET hiveconf:k1;
 SET system:k2;
 SET hivevar:k3;
 
--- print options
+-- only print Flink's configuration
+SET;
+
+-- print all configurations
 SET -v;
-SET; 
 ```
 
 {{< hint warning >}}
 **Note:**
-
-In Hive, the `SET` command `SET xx=yy` whose key has no prefix is equivalent to `SET hiveconf:xx=yy`, which means it'll set it to Hive Conf.
-
-But in Flink, with Hive dialect, such `SET` command `set xx=yy` will set `xx` with value `yy` to Flink's configuration.
-
-So, if you want to set configuration to Hive's Conf, please add the prefix `hiveconf:`, using the  `SET` command like `SET hiveconf:xx=yy`.
-{{< /hint  >}}
+- In Hive, the `SET` command `SET xx=yy` whose key has no prefix is equivalent to `SET hiveconf:xx=yy`, which means it'll set it to Hive Conf.
+  But in Flink, with Hive dialect, such `SET` command `set xx=yy` will set `xx` with value `yy` to Flink's configuration.
+  So, if you want to set configuration to Hive's Conf, please add the prefix `hiveconf:`, using the  `SET` command like `SET hiveconf:xx=yy`.
+- In Hive dialect, the `key`/`value` to be set shouldn't be quoted.
+  {{< /hint  >}}

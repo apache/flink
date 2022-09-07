@@ -3,7 +3,7 @@ title: "Overview"
 weight: 1
 type: docs
 aliases:
-- /dev/table/hiveCompatibility/hiveDialect/Queries/overview
+- /dev/table/hive_compatibility/hive_dialect/queries/overview
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
@@ -35,7 +35,7 @@ The following lists some parts of HiveQL supported by the Hive dialect.
 - [Set Operation]({{< ref "docs/dev/table/hiveCompatibility/hiveDialect/Queries/set-op" >}})
 - [Lateral View]({{< ref "docs/dev/table/hiveCompatibility/hiveDialect/Queries/lateral-view" >}})
 - [Window Functions]({{< ref "docs/dev/table/hiveCompatibility/hiveDialect/Queries/window-functions" >}})
-- [SubQueries]({{< ref "docs/dev/table/hiveCompatibility/hiveDialect/Queries/sub-queries" >}})
+- [Sub-Queries]({{< ref "docs/dev/table/hiveCompatibility/hiveDialect/Queries/sub-queries" >}})
 - [CTE]({{< ref "docs/dev/table/hiveCompatibility/hiveDialect/Queries/cte" >}})
 - [Transform]({{< ref "docs/dev/table/hiveCompatibility/hiveDialect/Queries/transform" >}})
 - [Table Sample]({{< ref "docs/dev/table/hiveCompatibility/hiveDialect/Queries/table-sample" >}})
@@ -43,11 +43,11 @@ The following lists some parts of HiveQL supported by the Hive dialect.
 ## Syntax
 
 The following section describes the overall query syntax.
-The SELECT clause can be part of a query which also includes common table expressions (CTE), set operations, and various other clauses.
+The SELECT clause can be part of a query which also includes [common table expressions (CTE)]({{< ref "docs/dev/table/hiveCompatibility/hiveDialect/Queries/cte" >}}), set operations, and various other clauses.
 
 ```sql
-[WITH CommonTableExpression (, CommonTableExpression)*]
-SELECT [ALL | DISTINCT] select_expr, select_expr, ...
+[WITH CommonTableExpression [ , ... ]]
+SELECT [ALL | DISTINCT] select_expr [ , ... ]
   FROM table_reference
   [WHERE where_condition]
   [GROUP BY col_list]
@@ -57,13 +57,14 @@ SELECT [ALL | DISTINCT] select_expr, select_expr, ...
   ]
  [LIMIT [offset,] rows]
 ```
-- A `SELECT` statement can be part of a [set]({{< ref "docs/dev/table/hiveCompatibility/hiveDialect/Queries/set-op" >}}) query or a [subquery]({{< ref "docs/dev/table/hiveCompatibility/hiveDialect/Queries/sub-queries" >}}) of another query
-- `table_reference` indicates the input to the query. It can be a regular table, a view, a [join]({{< ref "docs/dev/table/hiveCompatibility/hiveDialect/Queries/join" >}}) or a [subquery]({{< ref "docs/dev/table/hiveCompatibility/hiveDialect/Queries/sub-queries" >}}).
+- The `SELECT` statement can be part of a [set]({{< ref "docs/dev/table/hiveCompatibility/hiveDialect/Queries/set-op" >}}) query or a [sub-query]({{< ref "docs/dev/table/hiveCompatibility/hiveDialect/Queries/sub-queries" >}}) of another query
+- `CommonTableExpression` is a temporary result set derived from a query specified in a `WITH` clause
+- `table_reference` indicates the input to the query. It can be a regular table, a view, a [join]({{< ref "docs/dev/table/hiveCompatibility/hiveDialect/Queries/join" >}}) or a [sub-query]({{< ref "docs/dev/table/hiveCompatibility/hiveDialect/Queries/sub-queries" >}}).
 - Table names and column names are case-insensitive
 
 ### WHERE Clause
 
-The `WHERE` condition is a boolean expression. Hive dialect supports a number of [operators and UDFS](https://cwiki.apache.org/confluence/display/Hive/LanguageManual+UDF)
+The `WHERE` condition is a boolean expression. Hive dialect supports a number of [operators and UDFs](https://cwiki.apache.org/confluence/display/Hive/LanguageManual+UDF)
 in the `WHERE` clause. Some types of [sub queries]({{< ref "docs/dev/table/hiveCompatibility/hiveDialect/Queries/sub-queries" >}}) are supported in `WHERE` clause.
 
 ### GROUP BY Clause
@@ -74,7 +75,7 @@ Please refer to [GROUP BY]({{< ref "docs/dev/table/hiveCompatibility/hiveDialect
 
 The `ORDER BY` clause is used to return the result rows in a sorted manner in the user specified order.
 Different from [SORT BY]({{< ref "docs/dev/table/hiveCompatibility/hiveDialect/Queries/sort-cluster-distribute-by" >}}#sort-by), `ORDER BY` clause guarantees
-a total order in the output.
+a global order in the output.
 
 {{< hint warning >}}
 **Note:**

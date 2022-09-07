@@ -34,7 +34,7 @@ The sub-query can also be a query expression with `UNION`. Hive dialect supports
 ### Syntax
 
 ```sql
-select_statement from ( subquery_select_statement ) [ AS ] name
+select_statement from ( select_statement ) [ AS ] name
 ```
 
 ### Example
