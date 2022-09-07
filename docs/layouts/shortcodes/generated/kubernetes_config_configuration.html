@@ -290,5 +290,11 @@
             <td>Integer</td>
             <td>Defines the number of Kubernetes transactional operation retries before the client gives up. For example, <code class="highlighter-rouge">FlinkKubeClient#checkAndUpdateConfigMap</code>.</td>
         </tr>
+        <tr>
+            <td><h5>kubernetes.user.artifacts.emptyDir.enable</h5></td>
+            <td style="word-wrap: break-word;">true</td>
+            <td>Boolean</td>
+            <td>Whether to enable create mount an empty dir for <code class="highlighter-rouge">user.artifacts.base.dir</code> to keep user artifacts if container restart.</td>
+        </tr>
     </tbody>
 </table>

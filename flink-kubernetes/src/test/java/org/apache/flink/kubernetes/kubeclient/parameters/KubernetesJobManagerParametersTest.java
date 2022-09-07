@@ -18,6 +18,7 @@
 
 package org.apache.flink.kubernetes.kubeclient.parameters;
 
+import org.apache.flink.client.cli.ArtifactFetchOptions;
 import org.apache.flink.client.deployment.ClusterSpecification;
 import org.apache.flink.configuration.BlobServerOptions;
 import org.apache.flink.configuration.HighAvailabilityOptions;
@@ -253,5 +254,12 @@ class KubernetesJobManagerParametersTest extends KubernetesTestBase {
         flinkConfig.set(HighAvailabilityOptions.HA_MODE, HighAvailabilityMode.KUBERNETES.name());
         flinkConfig.set(KubernetesConfigOptions.KUBERNETES_JOBMANAGER_REPLICAS, 2);
         assertThat(kubernetesJobManagerParameters.getReplicas()).isEqualTo(2);
+    }
+
+    @Test
+    public void testGetUserArtifactsBaseDir() {
+        flinkConfig.set(ArtifactFetchOptions.USER_ARTIFACTS_BASE_DIR, "/opt/job/artifacts");
+        assertThat(kubernetesJobManagerParameters.getUserArtifactsBaseDir())
+                .isEqualTo("/opt/job/artifacts");
     }
 }

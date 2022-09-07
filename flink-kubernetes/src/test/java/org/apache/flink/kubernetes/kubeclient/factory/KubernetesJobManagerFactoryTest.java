@@ -18,6 +18,7 @@
 
 package org.apache.flink.kubernetes.kubeclient.factory;
 
+import org.apache.flink.client.cli.ArtifactFetchOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.DeploymentOptions;
 import org.apache.flink.configuration.HighAvailabilityOptions;
@@ -179,7 +180,7 @@ class KubernetesJobManagerFactoryTest extends KubernetesJobManagerTestBase {
 
         assertThat(resultPodSpec.getContainers()).hasSize(1);
         assertThat(resultPodSpec.getServiceAccountName()).isEqualTo(SERVICE_ACCOUNT_NAME);
-        assertThat(resultPodSpec.getVolumes()).hasSize(3);
+        assertThat(resultPodSpec.getVolumes()).hasSize(4);
 
         final Container resultedMainContainer = resultPodSpec.getContainers().get(0);
         assertThat(resultedMainContainer.getName()).isEqualTo(Constants.MAIN_CONTAINER_NAME);
@@ -202,7 +203,7 @@ class KubernetesJobManagerFactoryTest extends KubernetesJobManagerTestBase {
         // The args list is [bash, -c, 'java -classpath $FLINK_CLASSPATH ...'].
         assertThat(resultedMainContainer.getArgs()).hasSize(3);
 
-        assertThat(resultedMainContainer.getVolumeMounts()).hasSize(3);
+        assertThat(resultedMainContainer.getVolumeMounts()).hasSize(4);
     }
 
     @Test
@@ -397,9 +398,10 @@ class KubernetesJobManagerFactoryTest extends KubernetesJobManagerTestBase {
         assertThat(podSpec.getVolumes())
                 .anyMatch(
                         volume ->
-                                volume.getConfigMap()
-                                        .getName()
-                                        .equals(EXISTING_HADOOP_CONF_CONFIG_MAP));
+                                volume.getConfigMap() != null
+                                        && volume.getConfigMap()
+                                                .getName()
+                                                .equals(EXISTING_HADOOP_CONF_CONFIG_MAP));
     }
 
     @Test
@@ -485,5 +487,48 @@ class KubernetesJobManagerFactoryTest extends KubernetesJobManagerTestBase {
                                 x instanceof ConfigMap
                                         && x.getMetadata().getName().equals(configMapName))
                 .collect(Collectors.toList());
+    }
+
+    @Test
+    public void testArtifactsEmptyDirVolume() throws IOException {
+        flinkConfig.set(ArtifactFetchOptions.USER_ARTIFACTS_BASE_DIR, "/opt/artifacts");
+        kubernetesJobManagerSpecification =
+                KubernetesJobManagerFactory.buildKubernetesJobManagerSpecification(
+                        flinkPod, kubernetesJobManagerParameters);
+        final PodSpec podSpec =
+                kubernetesJobManagerSpecification.getDeployment().getSpec().getTemplate().getSpec();
+        assertThat(podSpec.getVolumes())
+                .anyMatch(resource -> resource.getName().equals(Constants.USER_ARTIFACTS_VOLUME));
+        final Container container = podSpec.getContainers().get(0);
+        assertThat(container.getVolumeMounts())
+                .anyMatch(
+                        resource ->
+                                resource.getName().equals(Constants.USER_ARTIFACTS_VOLUME)
+                                        && resource.getMountPath()
+                                                .equals(
+                                                        kubernetesJobManagerParameters
+                                                                .getUserArtifactsBaseDir()));
+    }
+
+    @Test
+    public void testTurnOffArtifactsEmptyDirVolume() throws IOException {
+        flinkConfig.set(KubernetesConfigOptions.KUBERNETES_USER_ARTIFACTS_EMPTYDIR_ENABLE, false);
+        flinkConfig.set(ArtifactFetchOptions.USER_ARTIFACTS_BASE_DIR, "/opt/artifacts");
+        kubernetesJobManagerSpecification =
+                KubernetesJobManagerFactory.buildKubernetesJobManagerSpecification(
+                        flinkPod, kubernetesJobManagerParameters);
+        final PodSpec podSpec =
+                kubernetesJobManagerSpecification.getDeployment().getSpec().getTemplate().getSpec();
+        assertThat(podSpec.getVolumes())
+                .noneMatch(resource -> resource.getName().equals(Constants.USER_ARTIFACTS_VOLUME));
+        final Container container = podSpec.getContainers().get(0);
+        assertThat(container.getVolumeMounts())
+                .noneMatch(
+                        resource ->
+                                resource.getName().equals(Constants.USER_ARTIFACTS_VOLUME)
+                                        && resource.getMountPath()
+                                                .equals(
+                                                        kubernetesJobManagerParameters
+                                                                .getUserArtifactsBaseDir()));
     }
 }
