@@ -261,4 +261,175 @@ LogicalProject(i=[$0])
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testSimplifyConditionWithBooleanIsAlwaysTrue1">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM o WHERE m = true AND n = true]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(l=[$0], m=[$1], n=[$2])
++- LogicalFilter(condition=[AND(=($1, true), =($2, true))])
+   +- LogicalTableScan(table=[[default_catalog, default_database, o, source: [TestTableSource(l, m, n)]]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+LogicalProject(l=[$0], m=[$1], n=[$2])
++- LogicalFilter(condition=[AND($1, =($2, true))])
+   +- LogicalTableScan(table=[[default_catalog, default_database, o, source: [TestTableSource(l, m, n)]]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testSimplifyConditionWithBooleanIsAlwaysTrue2">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM o WHERE true = m AND true = n]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(l=[$0], m=[$1], n=[$2])
++- LogicalFilter(condition=[AND(=(true, $1), =(true, $2))])
+   +- LogicalTableScan(table=[[default_catalog, default_database, o, source: [TestTableSource(l, m, n)]]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+LogicalProject(l=[$0], m=[$1], n=[$2])
++- LogicalFilter(condition=[AND($1, =(true, $2))])
+   +- LogicalTableScan(table=[[default_catalog, default_database, o, source: [TestTableSource(l, m, n)]]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testSimplifyConditionWithStringEqualsFalse1">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM o WHERE m = false and n = false]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(l=[$0], m=[$1], n=[$2])
++- LogicalFilter(condition=[AND(=($1, false), =($2, false))])
+   +- LogicalTableScan(table=[[default_catalog, default_database, o, source: [TestTableSource(l, m, n)]]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+LogicalProject(l=[$0], m=[$1], n=[$2])
++- LogicalFilter(condition=[AND(=($2, false), NOT($1))])
+   +- LogicalTableScan(table=[[default_catalog, default_database, o, source: [TestTableSource(l, m, n)]]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testSimplifyConditionWithStringEqualsFalse2">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM o WHERE false = m and false = n]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(l=[$0], m=[$1], n=[$2])
++- LogicalFilter(condition=[AND(=(false, $1), =(false, $2))])
+   +- LogicalTableScan(table=[[default_catalog, default_database, o, source: [TestTableSource(l, m, n)]]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+LogicalProject(l=[$0], m=[$1], n=[$2])
++- LogicalFilter(condition=[AND(=(false, $2), NOT($1))])
+   +- LogicalTableScan(table=[[default_catalog, default_database, o, source: [TestTableSource(l, m, n)]]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testSimplifyConditionWithStringEqualsTrue1">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM x WHERE c = true]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2])
++- LogicalFilter(condition=[=($2, true)])
+   +- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2])
++- LogicalFilter(condition=[=($2, true)])
+   +- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testSimplifyConditionWithStringEqualsTrue2">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM x WHERE c = true]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2])
++- LogicalFilter(condition=[=($2, true)])
+   +- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2])
++- LogicalFilter(condition=[=($2, true)])
+   +- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testSimplifyConditionWithStringEqualsTrueInAndCondition1">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM x WHERE a = 1 AND c = true]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2])
++- LogicalFilter(condition=[AND(=($0, 1), =($2, true))])
+   +- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2])
++- LogicalFilter(condition=[AND(=($0, 1), =($2, true))])
+   +- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testSimplifyConditionWithStringEqualsTrueInAndCondition2">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM x WHERE a = 1 AND true = c]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2])
++- LogicalFilter(condition=[AND(=($0, 1), =(true, $2))])
+   +- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2])
++- LogicalFilter(condition=[AND(=($0, 1), =(true, $2))])
+   +- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testSimplifyConditionWithStringGreaterThanTrue">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM x WHERE c > true]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2])
++- LogicalFilter(condition=[>(CAST($2):BOOLEAN, true)])
+   +- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2])
++- LogicalFilter(condition=[>(CAST($2):BOOLEAN, true)])
+   +- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+  </TestCase>
 </Root>

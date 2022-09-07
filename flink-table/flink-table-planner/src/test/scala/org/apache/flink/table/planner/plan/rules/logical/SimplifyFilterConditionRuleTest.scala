@@ -66,6 +66,55 @@ class SimplifyFilterConditionRuleTest extends TableTestBase {
   }
 
   @Test
+  def testSimplifyConditionWithStringEqualsTrue1(): Unit = {
+    util.verifyRelPlan("SELECT * FROM x WHERE c = true")
+  }
+
+  @Test
+  def testSimplifyConditionWithStringEqualsTrue2(): Unit = {
+    util.verifyRelPlan("SELECT * FROM x WHERE c = true")
+  }
+
+  @Test
+  def testSimplifyConditionWithStringEqualsFalse1(): Unit = {
+    util.addTableSource[(Int, Boolean, String)]("o", 'l, 'm, 'n)
+    util.verifyRelPlan("SELECT * FROM o WHERE m = false and n = false")
+  }
+
+  @Test
+  def testSimplifyConditionWithStringEqualsFalse2(): Unit = {
+    util.addTableSource[(Int, Boolean, String)]("o", 'l, 'm, 'n)
+    util.verifyRelPlan("SELECT * FROM o WHERE false = m and false = n")
+  }
+
+  @Test
+  def testSimplifyConditionWithStringGreaterThanTrue(): Unit = {
+    util.verifyRelPlan("SELECT * FROM x WHERE c > true")
+  }
+
+  @Test
+  def testSimplifyConditionWithStringEqualsTrueInAndCondition1(): Unit = {
+    util.verifyRelPlan("SELECT * FROM x WHERE a = 1 AND c = true")
+  }
+
+  @Test
+  def testSimplifyConditionWithStringEqualsTrueInAndCondition2(): Unit = {
+    util.verifyRelPlan("SELECT * FROM x WHERE a = 1 AND true = c")
+  }
+
+  @Test
+  def testSimplifyConditionWithBooleanIsAlwaysTrue1(): Unit = {
+    util.addTableSource[(Int, Boolean, String)]("o", 'l, 'm, 'n)
+    util.verifyRelPlan("SELECT * FROM o WHERE m = true AND n = true")
+  }
+
+  @Test
+  def testSimplifyConditionWithBooleanIsAlwaysTrue2(): Unit = {
+    util.addTableSource[(Int, Boolean, String)]("o", 'l, 'm, 'n)
+    util.verifyRelPlan("SELECT * FROM o WHERE true = m AND true = n")
+  }
+
+  @Test
   def testSimplifyConditionInSubQuery1(): Unit = {
     val sqlQuery = "SELECT * FROM x WHERE EXISTS " +
       "(SELECT * FROM y WHERE (d = 1 AND e = 2) OR (NOT (d <> 1) AND e = 3)) AND true"

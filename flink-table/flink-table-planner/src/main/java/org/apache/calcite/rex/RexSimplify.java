@@ -427,7 +427,8 @@ public class RexSimplify {
             Comparison cmp =
                     Comparison.of(rexBuilder.makeCall(e.getOperator(), o0, o1), node -> true);
             if (cmp != null) {
-                if (cmp.literal.isAlwaysTrue()) {
+                if (cmp.literal.isAlwaysTrue()
+                        && cmp.ref.getType().getSqlTypeName() == SqlTypeName.BOOLEAN) {
                     switch (cmp.kind) {
                         case GREATER_THAN_OR_EQUAL:
                         case EQUALS: // x=true
@@ -451,7 +452,8 @@ public class RexSimplify {
                             break;
                     }
                 }
-                if (cmp.literal.isAlwaysFalse()) {
+                if (cmp.literal.isAlwaysFalse()
+                        && cmp.ref.getType().getSqlTypeName() == SqlTypeName.BOOLEAN) {
                     switch (cmp.kind) {
                         case EQUALS:
                         case LESS_THAN_OR_EQUAL:
@@ -1512,11 +1514,15 @@ public class RexSimplify {
             // Simplify BOOLEAN expressions if possible
             while (term.getKind() == SqlKind.EQUALS) {
                 RexCall call = (RexCall) term;
-                if (call.getOperands().get(0).isAlwaysTrue()) {
+                if (call.getOperands().get(0).isAlwaysTrue()
+                        && call.getOperands().get(1).getType().getSqlTypeName()
+                                == SqlTypeName.BOOLEAN) {
                     term = call.getOperands().get(1);
                     terms.set(i, term);
                     continue;
-                } else if (call.getOperands().get(1).isAlwaysTrue()) {
+                } else if (call.getOperands().get(1).isAlwaysTrue()
+                        && call.getOperands().get(0).getType().getSqlTypeName()
+                                == SqlTypeName.BOOLEAN) {
                     term = call.getOperands().get(0);
                     terms.set(i, term);
                     continue;
