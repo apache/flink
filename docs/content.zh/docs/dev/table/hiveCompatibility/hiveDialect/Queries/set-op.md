@@ -22,7 +22,7 @@ under the License.
 
 # Set Operations
 
-Set Operation is used to combing two select into single one.
+Set Operations are used to combine multiple `SELECT` statements into a single result set.
 Hive dialect supports the following operations:
 - UNION
 - INTERSECT
@@ -39,7 +39,7 @@ Hive dialect supports the following operations:
 ### Syntax
 
 ```sql
-select_statement { UNION [ ALL | DISTINCT ] } select_statement [ .. ]
+<query> { UNION [ ALL | DISTINCT ] } <query> [ .. ]
 ```
 
 ### Examples
@@ -60,7 +60,7 @@ SELECT x, y FROM t1 UNION ALL SELECT x, y FROM t2;
 ### Syntax
 
 ```sql
-select_statement { INTERSECT [ ALL | DISTINCT ] } select_statement [ .. ]
+<query> { INTERSECT [ ALL | DISTINCT ] } <query> [ .. ]
 ```
 
 ### Examples
@@ -83,7 +83,7 @@ SELECT x, y FROM t1 INTERSECT ALL SELECT x, y FROM t2;
 ### Syntax
 
 ```sql
-select_statement { EXCEPT [ ALL | DISTINCT ] } select_statement [ .. ]
+<query> { EXCEPT [ ALL | DISTINCT ] } <query> [ .. ]
 ```
 
 ### Examples

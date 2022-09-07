@@ -3,7 +3,7 @@ title: "DROP Statements"
 weight: 2
 type: docs
 aliases:
-- /dev/table/hiveCompatibility/hiveDialect/create.html
+- /dev/table/hive_compatibility/hive_dialect/drop.html
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one

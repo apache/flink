@@ -30,14 +30,14 @@ or `INSERT` keyword. The CTE is defined only with the execution scope of a singl
 ## Syntax
 
 ```sql
-withClause: cteClause [, ...]
-cteClause: cte_name AS (select statment)
+withClause: WITH cteClause [ , ... ]
+cteClause: cte_name AS (select statement)
 ```
 
 
 {{< hint warning >}}
 **Note:**
-- The `WITH` clause is not supported within SubQuery block
+- The `WITH` clause is not supported within Sub-Query block
 - CTEs are supported in Views, `CTAS` and `INSERT` statement
 - [Recursive Queries](https://wiki.postgresql.org/wiki/CTEReadme#Parsing_recursive_queries) are not supported
   {{< /hint >}}
