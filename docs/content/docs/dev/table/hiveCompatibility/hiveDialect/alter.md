@@ -3,7 +3,7 @@ title: "ALTER Statements"
 weight: 3
 type: docs
 aliases:
-- /dev/table/hiveCompatibility/hiveDialect/alter.html
+- /dev/table/hive_compatibility/hive_dialect/alter.html
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one

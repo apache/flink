@@ -3,7 +3,7 @@ title: "INSERT Statements"
 weight: 3
 type: docs
 aliases:
-- /dev/table/hiveCompatibility/hiveDialect/create.html
+- /dev/table/hive_compatibility/hive_dialect/insert.html
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
@@ -35,31 +35,9 @@ can be specified by value expressions or result from query.
 
 ```sql
 -- Stardard syntax
-INSERT [OVERWRITE] TABLE tablename1
- [PARTITION (partcol1=val1, partcol2=val2 ...) [IF NOT EXISTS]]
-   { VALUES ( value [, ..] ) [, ( ... ) ] | select_statement1 FROM from_statement };
-   
-INSERT INTO TABLE tablename1
- [PARTITION (partcol1=val1, partcol2=val2 ...) [IF NOT EXISTS]]
-   { VALUES ( value [, ..] ) [, ( ... ) ] | select_statement1 FROM from_statement };
-   
--- Hive extension (multiple inserts):
-FROM from_statement
-INSERT [OVERWRITE] TABLE tablename1 [PARTITION (partcol1=val1, partcol2=val2 ...) [IF NOT EXISTS]] select_statement1,
-INSERT [OVERWRITE] TABLE tablename2 [PARTITION ... [IF NOT EXISTS]] select_statement2
-[, ... ];
-
-FROM from_statement
-INSERT INTO TABLE tablename1 [PARTITION (partcol1=val1, partcol2=val2 ...) [IF NOT EXISTS]] select_statement1,
-INSERT INTO TABLE tablename2 [PARTITION ... [IF NOT EXISTS]] select_statement2
-[, ... ];
-
--- Hive extension (dynamic partition inserts):
-INSERT [OVERWRITE] TABLE tablename PARTITION (partcol1[=val1], partcol2[=val2] ...)
-  { VALUES ( value [, ..] ) [, ( ... ) ] | select_statement FROM from_statement };
-  
-INSERT INTO TABLE tablename PARTITION (partcol1[=val1], partcol2[=val2] ...)
-  { VALUES ( value [, ..] ) [, ( ... ) ] | select_statement FROM from_statement };
+INSERT { OVERWRITE | INTO } [TABLE] tablename
+ [PARTITION (partcol1[=val1], partcol2[=val2] ...) [IF NOT EXISTS]]
+   { VALUES ( value [, ..] ) [, ( ... ) ] | select_statement FROM from_statement }
 ```
 
 ### Parameters
@@ -85,14 +63,9 @@ INSERT INTO TABLE tablename PARTITION (partcol1[=val1], partcol2[=val2] ...)
 
 ### Synopsis
 
-#### Multiple Inserts
-
-In the Hive extension syntax - multiple inserts, Flink will minimize the number of data scans requires. Flink can insert data into multiple
-tables by scanning the input data just once.
-
 #### Dynamic Partition Inserts
 
-In the Hive extension syntax - dynamic partition inserts, users can give partial partition specifications, which means just specifying the list of partition column names in the `PARTITION` clause with optional column values.
+When writing data into Hive table's partition, users can specify the list of partition column names in the `PARTITION` clause with optional column values.
 If all the partition columns' value are given, we call this a static partition, otherwise it is a dynamic partition.
 
 Each dynamic partition column has a corresponding input column from the select statement. This means that the dynamic partition creation is determined by the value of the input column.
@@ -102,7 +75,7 @@ The dynamic partition columns must be specified last among the columns in the `S
 {{< hint warning >}}
 **Note:**
 
-In Hive, by default, the user mush specify at least one static partition in case the user accidentally overwrites all partition, and user can
+In Hive, by default, users must specify at least one static partition in case of accidentally overwriting all partitions, and users can
 set the configuration `hive.exec.dynamic.partition.mode` to `nonstrict` to to allow all partitions to be dynamic.
 
 But in Flink's Hive dialect, it'll always be `nonstrict` mode which means all partitions are allowed to be dynamic.
@@ -127,11 +100,6 @@ INSERT INTO t1 PARTITION (year = 2022, month = 12) SELECT value FROM t2;
 --- dynamic partition 
 INSERT INTO t1 PARTITION (year = 2022, month) SELECT month, value FROM t2;
 INSERT INTO t1 PARTITION (year, month) SELECT 2022, month, value FROM t2;
-
--- multi-insert statements
-FROM (SELECT month, value from t1)
-    INSERT OVERWRITE TABLE t1_1 SELECT value WHERE month <= 6
-    INSERT OVERWRITE TABLE t1_1 SELECT value WHERE month > 6;
 ```
 
 ## INSERT OVERWRITE DIRECTORY
@@ -143,17 +111,13 @@ Query results can be inserted into filesystem directories by using a slight vari
 -- Standard syntax:
 INSERT OVERWRITE [LOCAL] DIRECTORY directory_path
   [ROW FORMAT row_format] [STORED AS file_format] 
-  { VALUES ( value [, ..] ) [, ( ... ) ] | select_statement1 FROM from_statement };
+  { VALUES ( value [, ..] ) [, ( ... ) ] | select_statement FROM from_statement }
 
--- Hive extension (multiple inserts):
-FROM from_statement
-INSERT OVERWRITE [LOCAL] DIRECTORY directory1_path select_statement1
-[INSERT OVERWRITE [LOCAL] DIRECTORY directory2_path select_statement2] ...
 row_format:
   : DELIMITED [FIELDS TERMINATED BY char [ESCAPED BY char]] [COLLECTION ITEMS TERMINATED BY char]
       [MAP KEYS TERMINATED BY char] [LINES TERMINATED BY char]
       [NULL DEFINED AS char]
-  | SERDE serde_name [WITH SERDEPROPERTIES (property_name=property_value, ...)]
+  | SERDE serde_name [WITH SERDEPROPERTIES (property_name=property_value, ...)
 ```
 
 ### Parameters
@@ -161,7 +125,7 @@ row_format:
 - directory_path
 
   The path for the directory to be inserted can be a full URI. If scheme or authority are not specified,
-  it'll use the scheme and authority from the hadoop configuration variable `fs.default.name` that specifies the Namenode URI.
+  it'll use the scheme and authority from the Flink configuration variable `fs.default-scheme` that specifies the filesystem scheme.
 
 - `LOCAL`
 
@@ -190,24 +154,61 @@ row_format:
 
 ### Synopsis
 
-#### Multiple Inserts
-
-In the Hive extension syntax - multiple inserts, Flink will minimize the number of data scans requires. Flink can insert data into multiple
-tables by scanning the input data just once.
-
 ### Examples
 
 ```sql
 --- insert directory with specific format
 INSERT OVERWRITE DIRECTORY '/user/hive/warehouse/t1' STORED AS ORC SELECT * FROM t1;
+
 -- insert directory with specific row format
 INSERT OVERWRITE LOCAL DIRECTORY '/tmp/t1'
- ROW FORMAT DELIMITED FIELDS TERMINATED BY ':'
+  ROW FORMAT DELIMITED FIELDS TERMINATED BY ':'
   COLLECTION ITEMS TERMINATED BY '#'
   MAP KEYS TERMINATED BY '=' SELECT * FROM t1;
-  
--- multiple insert
-FROM (SELECT month, value from t1)
-    INSERT OVERWRITE DIRECTORY '/user/hive/warehouse/t1/month1' SELECT value WHERE month <= 6
-    INSERT OVERWRITE DIRECTORY '/user/hive/warehouse/t1/month2' SELECT value WHERE month > 6;
+```
+
+## Multiple Inserts
+
+Hive dialect enables users to insert into multiple destinations in one single statement. Users can mix inserting into table and inserting into directory in one single statement.
+In such syntax, Flink will minimize the number of data scans requires. Flink can insert data into multiple tables/directories by scanning the input data just once.
+
+### Syntax
+
+```sql
+-- multiple insert into table
+FROM from_statement
+  INSERT { OVERWRITE | INTO } [TABLE] tablename1 [PARTITION (partcol1=val1, partcol2=val2 ...) [IF NOT EXISTS] select_statement1,
+  INSERT { OVERWRITE | INTO } [TABLE] tablename2 [PARTITION ... [IF NOT EXISTS]] select_statement2
+  [, ... ]
+
+-- multiple insert into directory
+FROM from_statement
+  INSERT OVERWRITE [LOCAL] DIRECTORY directory1_path [ROW FORMAT row_format] [STORED AS file_format] select_statement1,
+  INSERT OVERWRITE [LOCAL] DIRECTORY directory2_path [ROW FORMAT row_format] [STORED AS file_format] select_statement2
+  [, ... ]
+
+row_format:
+  : DELIMITED [FIELDS TERMINATED BY char [ESCAPED BY char]] [COLLECTION ITEMS TERMINATED BY char]
+      [MAP KEYS TERMINATED BY char] [LINES TERMINATED BY char]
+      [NULL DEFINED AS char]
+  | SERDE serde_name [WITH SERDEPROPERTIES (property_name=property_value, ...)]
+```
+
+### Examples
+
+```sql
+-- multiple insert into table
+FROM (SELECT month, value from t1) t
+  INSERT OVERWRITE TABLE t1_1 SELECT value WHERE month <= 6
+  INSERT OVERWRITE TABLE t1_2 SELECT value WHERE month > 6;
+
+-- multiple insert into directory
+FROM (SELECT month, value from t1) t
+  INSERT OVERWRITE DIRECTORY '/user/hive/warehouse/t1/month1' SELECT value WHERE month <= 6
+  INSERT OVERWRITE DIRECTORY '/user/hive/warehouse/t1/month2' SELECT value WHERE month > 6;
+    
+-- mixed with insert into table/directory in one single statement
+FROM (SELECT month, value from t1) t
+  INSERT OVERWRITE TABLE t1_1 SELECT value WHERE month <= 6
+  INSERT OVERWRITE DIRECTORY '/user/hive/warehouse/t1/month2' SELECT value WHERE month > 6;
 ```

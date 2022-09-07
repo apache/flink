@@ -1,9 +1,9 @@
 ---
-title: "Show Statements"
+title: "SHOW Statements"
 weight: 5
 type: docs
 aliases:
-- /dev/table/hiveCompatibility/hiveDialect/create.html
+- /dev/table/hive_compatibility/hive_dialect/show.html
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
@@ -90,8 +90,7 @@ partition_spec:
 
   The optional `partition_spec` is used to what kind of partition should be returned.
   When specified, the partitions that match the `partition_spec` specification are returned.
-  The `partition_spec` can be partial.
-
+  The `partition_spec` can be partial which means you can specific only part of partition columns for listing the partitions.
 
 ### Examples
 
