@@ -26,10 +26,16 @@ import org.apache.flink.client.program.PackagedProgram;
 import org.apache.flink.client.program.PackagedProgramRetriever;
 import org.apache.flink.client.program.PackagedProgramUtils;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.core.fs.FileSystem;
+import org.apache.flink.core.plugin.PluginManager;
+import org.apache.flink.core.plugin.PluginUtils;
 import org.apache.flink.kubernetes.utils.KubernetesUtils;
 import org.apache.flink.runtime.entrypoint.ClusterEntrypoint;
 import org.apache.flink.runtime.entrypoint.ClusterEntrypointUtils;
 import org.apache.flink.runtime.entrypoint.DynamicParametersConfigurationParserFactory;
+import org.apache.flink.runtime.security.SecurityConfiguration;
+import org.apache.flink.runtime.security.SecurityUtils;
+import org.apache.flink.runtime.security.contexts.SecurityContext;
 import org.apache.flink.runtime.util.EnvironmentInformation;
 import org.apache.flink.runtime.util.JvmShutdownSafeguard;
 import org.apache.flink.runtime.util.SignalHandler;
@@ -67,7 +73,13 @@ public final class KubernetesApplicationClusterEntrypoint extends ApplicationClu
 
         PackagedProgram program = null;
         try {
-            program = getPackagedProgram(configuration);
+            PluginManager pluginManager =
+                    PluginUtils.createPluginManagerFromRootFolder(configuration);
+            LOG.info(
+                    "Install default filesystem for fetching user artifacts in Kubernetes Application Mode.");
+            FileSystem.initialize(configuration, pluginManager);
+            SecurityContext securityContext = installSecurityContext(configuration);
+            program = securityContext.runSecured(() -> getPackagedProgram(configuration));
         } catch (Exception e) {
             LOG.error("Could not create application program.", e);
             System.exit(1);
@@ -111,14 +123,27 @@ public final class KubernetesApplicationClusterEntrypoint extends ApplicationClu
         // No need to do pipelineJars validation if it is a PyFlink job.
         if (!(PackagedProgramUtils.isPython(jobClassName)
                 || PackagedProgramUtils.isPython(programArguments))) {
-            final List<File> pipelineJars =
-                    KubernetesUtils.checkJarFileForApplicationMode(configuration);
-            Preconditions.checkArgument(pipelineJars.size() == 1, "Should only have one jar");
+            final List<File> pipelineJarFiles =
+                    KubernetesUtils.fetchJarFileForApplicationMode(configuration);
+            Preconditions.checkArgument(pipelineJarFiles.size() == 1, "Should only have one jar");
             return DefaultPackagedProgramRetriever.create(
-                    userLibDir, pipelineJars.get(0), jobClassName, programArguments, configuration);
+                    userLibDir,
+                    pipelineJarFiles.get(0),
+                    jobClassName,
+                    programArguments,
+                    configuration);
         }
 
         return DefaultPackagedProgramRetriever.create(
                 userLibDir, jobClassName, programArguments, configuration);
+    }
+
+    private static SecurityContext installSecurityContext(Configuration configuration)
+            throws Exception {
+        LOG.info("Kubernetes Application Mode Install security context.");
+
+        SecurityUtils.install(new SecurityConfiguration(configuration));
+
+        return SecurityUtils.getInstalledContext();
     }
 }

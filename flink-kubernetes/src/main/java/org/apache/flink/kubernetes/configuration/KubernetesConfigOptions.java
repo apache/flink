@@ -485,6 +485,31 @@ public class KubernetesConfigOptions {
                     .withDescription(
                             "The user agent to be used for contacting with Kubernetes APIServer.");
 
+    public static final ConfigOption<Map<String, String>> KUBERNETES_USER_ARTIFACT_HTTP_HEADER =
+            ConfigOptions.key("kubernetes.user.artifacts.http.header")
+                    .mapType()
+                    .noDefaultValue()
+                    .withDescription(
+                            "Custom HTTP header for HttpArtifactFetcher. The header will be applied when getting the application job artifacts. "
+                                    + "Expected format: headerKey1:headerValue1,headerKey2:headerValue2.");
+
+    public static final ConfigOption<String> KUBERNETES_USER_ARTIFACTS_BASE_DIR =
+            ConfigOptions.key("kubernetes.user.artifacts.base.dir")
+                    .stringType()
+                    .defaultValue("/opt/flink/artifacts")
+                    .withDescription("The base dir to put the application job artifacts.");
+
+    public static final ConfigOption<Boolean> KUBERNETES_USER_ARTIFACTS_EMPTYDIR_ENABLE =
+            ConfigOptions.key("kubernetes.user.artifacts.emptyDir.enable")
+                    .booleanType()
+                    .defaultValue(true)
+                    .withDescription(
+                            Description.builder()
+                                    .text(
+                                            "Whether to enable create mount an empty dir for %s to keep user artifacts if container restart.",
+                                            code(KUBERNETES_USER_ARTIFACTS_BASE_DIR.key()))
+                                    .build());
+
     /**
      * This will only be used to support blocklist mechanism, which is experimental currently, so we
      * do not want to expose this option in the documentation.

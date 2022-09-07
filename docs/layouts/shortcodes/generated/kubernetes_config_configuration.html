@@ -278,5 +278,23 @@
             <td>Integer</td>
             <td>Defines the number of Kubernetes transactional operation retries before the client gives up. For example, <code class="highlighter-rouge">FlinkKubeClient#checkAndUpdateConfigMap</code>.</td>
         </tr>
+        <tr>
+            <td><h5>kubernetes.user.artifacts.base.dir</h5></td>
+            <td style="word-wrap: break-word;">"/opt/flink/artifacts"</td>
+            <td>String</td>
+            <td>The base dir to put the application job artifacts.</td>
+        </tr>
+        <tr>
+            <td><h5>kubernetes.user.artifacts.emptyDir.enable</h5></td>
+            <td style="word-wrap: break-word;">true</td>
+            <td>Boolean</td>
+            <td>Whether to enable create mount an empty dir for <code class="highlighter-rouge">kubernetes.user.artifacts.base.dir</code> to keep user artifacts if container restart.</td>
+        </tr>
+        <tr>
+            <td><h5>kubernetes.user.artifacts.http.header</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>Map</td>
+            <td>Custom HTTP header for HttpArtifactFetcher. The header will be applied when getting the application job artifacts. Expected format: headerKey1:headerValue1,headerKey2:headerValue2.</td>
+        </tr>
     </tbody>
 </table>

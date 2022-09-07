@@ -141,21 +141,6 @@ class KubernetesClusterDescriptorTest extends KubernetesClientTestBase {
     }
 
     @Test
-    void testDeployApplicationClusterWithNonLocalSchema() {
-        flinkConfig.set(
-                PipelineOptions.JARS, Collections.singletonList("file:///path/of/user.jar"));
-        flinkConfig.set(DeploymentOptions.TARGET, KubernetesDeploymentTarget.APPLICATION.getName());
-        assertThatThrownBy(
-                        () -> descriptor.deployApplicationCluster(clusterSpecification, appConfig))
-                .satisfies(
-                        cause ->
-                                assertThat(cause)
-                                        .isInstanceOf(IllegalArgumentException.class)
-                                        .hasMessageContaining(
-                                                "Only \"local\" is supported as schema for application mode."));
-    }
-
-    @Test
     void testDeployApplicationClusterWithClusterAlreadyExists() {
         flinkConfig.set(
                 PipelineOptions.JARS, Collections.singletonList("local:///path/of/user.jar"));

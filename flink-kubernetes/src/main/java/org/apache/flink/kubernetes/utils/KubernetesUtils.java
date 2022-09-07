@@ -23,6 +23,7 @@ import org.apache.flink.client.program.PackagedProgramUtils;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.PipelineOptions;
+import org.apache.flink.kubernetes.artifact.ArtifactUtils;
 import org.apache.flink.kubernetes.configuration.KubernetesConfigOptions;
 import org.apache.flink.kubernetes.highavailability.KubernetesCheckpointStoreUtil;
 import org.apache.flink.kubernetes.highavailability.KubernetesJobGraphStoreUtil;
@@ -399,20 +400,24 @@ public class KubernetesUtils {
         return Arrays.asList("bash", "-c", command);
     }
 
-    public static List<File> checkJarFileForApplicationMode(Configuration configuration) {
+    public static List<URI> checkJarFileForApplicationMode(Configuration configuration) {
+        return configuration.get(PipelineOptions.JARS).stream()
+                .map(FunctionUtils.uncheckedFunction(PackagedProgramUtils::resolveURI))
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * Fetch the user jar from path.
+     *
+     * @param configuration Flink Configuration
+     * @return User jar File
+     */
+    public static List<File> fetchJarFileForApplicationMode(Configuration configuration) {
+        String targetDir = ArtifactUtils.generateJarDir(configuration);
         return configuration.get(PipelineOptions.JARS).stream()
                 .map(
                         FunctionUtils.uncheckedFunction(
-                                uri -> {
-                                    final URI jarURI = PackagedProgramUtils.resolveURI(uri);
-                                    if (jarURI.getScheme().equals("local") && jarURI.isAbsolute()) {
-                                        return new File(jarURI.getPath());
-                                    }
-                                    throw new IllegalArgumentException(
-                                            "Only \"local\" is supported as schema for application mode."
-                                                    + " This assumes that the jar is located in the image, not the Flink client."
-                                                    + " An example of such path is: local:///opt/flink/examples/streaming/WindowJoin.jar");
-                                }))
+                                uri -> ArtifactUtils.fetch(uri, configuration, targetDir)))
                 .collect(Collectors.toList());
     }
 

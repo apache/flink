@@ -254,4 +254,12 @@ class KubernetesJobManagerParametersTest extends KubernetesTestBase {
         flinkConfig.set(KubernetesConfigOptions.KUBERNETES_JOBMANAGER_REPLICAS, 2);
         assertThat(kubernetesJobManagerParameters.getReplicas()).isEqualTo(2);
     }
+
+    @Test
+    public void testGetUserArtifactsBaseDir() {
+        flinkConfig.set(
+                KubernetesConfigOptions.KUBERNETES_USER_ARTIFACTS_BASE_DIR, "/opt/job/artifacts");
+        assertThat(kubernetesJobManagerParameters.getUserArtifactsBaseDir())
+                .isEqualTo("/opt/job/artifacts");
+    }
 }

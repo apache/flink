@@ -204,4 +204,8 @@ public class KubernetesJobManagerParameters extends AbstractKubernetesParameters
     public String getEntrypointArgs() {
         return flinkConfig.getString(KubernetesConfigOptions.KUBERNETES_JOBMANAGER_ENTRYPOINT_ARGS);
     }
+
+    public String getUserArtifactsBaseDir() {
+        return flinkConfig.getString(KubernetesConfigOptions.KUBERNETES_USER_ARTIFACTS_BASE_DIR);
+    }
 }
