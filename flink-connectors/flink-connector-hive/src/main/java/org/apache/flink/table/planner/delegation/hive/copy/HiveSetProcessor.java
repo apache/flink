@@ -43,7 +43,6 @@ import static org.apache.hadoop.hive.conf.SystemVariables.SYSTEM_PREFIX;
 public class HiveSetProcessor {
 
     private static final String[] PASSWORD_STRINGS = new String[] {"password", "paswd", "pswd"};
-    private static final String FLINK_PREFIX = "flink:";
 
     /** Set variable following Hive's implementation. */
     public static void setVariable(
@@ -137,7 +136,10 @@ public class HiveSetProcessor {
     }
 
     public static String getVariable(
-            HiveConf hiveConf, Map<String, String> hiveVariables, String varname) {
+            Map<String, String> flinkConf,
+            HiveConf hiveConf,
+            Map<String, String> hiveVariables,
+            String varname) {
         if (varname.equals("silent")) {
             return "silent is not a valid variable";
         }
@@ -198,7 +200,7 @@ public class HiveSetProcessor {
                 return varname + " is undefined as a hive meta variable";
             }
         } else {
-            return dumpOption(hiveConf, hiveVariables, varname);
+            return dumpOption(flinkConf, hiveConf, hiveVariables, varname);
         }
     }
 
@@ -216,8 +218,13 @@ public class HiveSetProcessor {
     }
 
     private static String dumpOption(
-            HiveConf hiveConf, Map<String, String> hiveVariables, String s) {
-        if (hiveConf.isHiddenConfig(s)) {
+            Map<String, String> flinkConf,
+            HiveConf hiveConf,
+            Map<String, String> hiveVariables,
+            String s) {
+        if (flinkConf.get(s) != null) {
+            return s + "=" + flinkConf.get(s);
+        } else if (hiveConf.isHiddenConfig(s)) {
             return s + " is a hidden config";
         } else if (hiveConf.get(s) != null) {
             return s + "=" + hiveConf.get(s);
@@ -241,7 +248,7 @@ public class HiveSetProcessor {
             if (hiveConf.isHiddenConfig(oneProp)) {
                 continue;
             }
-            sortedMap.put(oneProp, oneValue);
+            sortedMap.put(HIVECONF_PREFIX + oneProp, oneValue);
         }
 
         // Inserting hive variables
@@ -271,7 +278,7 @@ public class HiveSetProcessor {
         // Insert Flink table config variable
         for (Map.Entry<String, String> entry :
                 mapToSortedMap(tableConfig.getConfiguration().toMap()).entrySet()) {
-            optionsList.add(FLINK_PREFIX + entry.getKey() + "=" + entry.getValue());
+            optionsList.add(entry.getKey() + "=" + entry.getValue());
         }
 
         return optionsList;

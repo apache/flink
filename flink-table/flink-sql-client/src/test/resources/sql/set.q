@@ -35,6 +35,29 @@ use catalog hivecatalog;
 [INFO] Execute statement succeed.
 !info
 
+# test SET command
+set table.sql-dialect;
++------------------------+
+|              variables |
++------------------------+
+| table.sql-dialect=hive |
++------------------------+
+1 row in set
+!ok
+
+set k1=v1;
+[INFO] Session property has been set.
+!info
+
+set k1;
++-----------+
+| variables |
++-----------+
+|     k1=v1 |
++-----------+
+1 row in set
+!ok
+
 # test create a hive table to verify the configuration works
 CREATE TABLE hive_table (
   product_id STRING,
@@ -104,6 +127,7 @@ set;
 'execution.shutdown-on-attached-exit' = 'false'
 'execution.target' = 'remote'
 'jobmanager.rpc.address' = '$VAR_JOBMANAGER_RPC_ADDRESS'
+'k1' = 'v1'
 'pipeline.classpaths' = ''
 'pipeline.jars' = ''
 'rest.port' = '$VAR_REST_PORT'
