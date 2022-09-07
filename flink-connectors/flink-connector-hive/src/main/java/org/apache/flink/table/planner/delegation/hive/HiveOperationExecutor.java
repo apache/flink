@@ -85,7 +85,7 @@ public class HiveOperationExecutor implements ExtendedOperationExecutor {
                 catalogManager.getCatalog(catalogManager.getCurrentCatalog()).orElse(null);
         if (!(currentCatalog instanceof HiveCatalog)) {
             throw new FlinkHiveException(
-                    "Only support SET command when the current catalog is HiveCatalog ing Hive dialect.");
+                    "Only support SET command when the current catalog is HiveCatalog in Hive dialect.");
         }
 
         HiveConf hiveConf = ((HiveCatalog) currentCatalog).getHiveConf();
@@ -112,7 +112,10 @@ public class HiveOperationExecutor implements ExtendedOperationExecutor {
                 // set key
                 String option =
                         HiveSetProcessor.getVariable(
-                                hiveConf, hiveVariables, hiveSetOperation.getKey().get());
+                                tableConfig.getConfiguration().toMap(),
+                                hiveConf,
+                                hiveVariables,
+                                hiveSetOperation.getKey().get());
                 return Optional.of(buildResultForShowVariable(Collections.singletonList(option)));
             } else {
                 HiveSetProcessor.setVariable(

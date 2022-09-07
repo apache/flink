@@ -1126,23 +1126,14 @@ public class HiveDialectITCase {
                 CollectionUtil.iteratorToList(tableEnv.executeSql("set system:xxx").collect());
         assertThat(rows.toString()).isEqualTo("[+I[system:xxx=5]]");
 
-        // test 'set'
-        rows = CollectionUtil.iteratorToList(tableEnv.executeSql("set").collect());
-        assertThat(rows.toString())
-                .contains("system:xxx=5")
-                .contains("env:PATH=" + System.getenv("PATH"))
-                .contains("flink:execution.runtime-mode=BATCH")
-                .contains("hivevar:a=1")
-                .contains("common-key=common-val");
-
         // test 'set -v'
         rows = CollectionUtil.iteratorToList(tableEnv.executeSql("set -v").collect());
         assertThat(rows.toString())
                 .contains("system:xxx=5")
                 .contains("env:PATH=" + System.getenv("PATH"))
-                .contains("flink:execution.runtime-mode=BATCH")
                 .contains("hivevar:a=1")
-                .contains("fs.defaultFS=file:///");
+                .contains("hiveconf:fs.defaultFS=file:///")
+                .contains("execution.runtime-mode=BATCH");
 
         // test set env isn't supported
         assertThatThrownBy(() -> tableEnv.executeSql("set env:xxx=yyy"))
