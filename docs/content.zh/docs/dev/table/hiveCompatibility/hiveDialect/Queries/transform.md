@@ -29,6 +29,15 @@ The `TRANSFORM` clause allows user to transform inputs using user-specified comm
 ## Syntax
 
 ```sql
+query:
+   SELECT TRANSFORM ( expression [ , ... ] )
+   [ inRowFormat ]
+   [ inRecordWriter ]
+   USING command_or_script
+   [ AS colName [ colType ] [ , ... ] ]
+   [ outRowFormat ]
+   [ outRecordReader ]
+
 rowFormat
   : ROW FORMAT
     (DELIMITED [FIELDS TERMINATED BY char]
@@ -45,14 +54,6 @@ outRowFormat : rowFormat
 inRowFormat : rowFormat
 outRecordReader : RECORDREADER className
 inRecordWriter: RECORDWRITER record_write_class
- 
-query:
-   SELECT TRANSFORM '(' expression [ , ... ] ')'
-    ( inRowFormat )?
-    ( inRecordWriter )?
-    USING command_or_script
-    ( AS colName ( colType )? [, ... ] )?
-    ( outRowFormat )? ( outRecordReader )?
 ```
 
 {{< hint warning >}}
@@ -78,21 +79,26 @@ query:
   and then the resulting `STRING` column will be cast to the data type specified in the table declaration in the usual way.
 
 - inRecordWriter
+
   Specific use what writer(fully-qualified class name) to write the input data. The default is `org.apache.hadoop.hive.ql.exec.TextRecordWriter`
 
 - outRecordReader
+
   Specific use what reader(fully-qualified class name) to read the output data. The default is `org.apache.hadoop.hive.ql.exec.TextRecordReader`
 
 - command_or_script
+
   Specifies a command or a path to script to process data.
 
   {{< hint warning >}}
   **Note:**
 
-  Add a script file and then transform input using the script is not supported yet.
+  - Add a script file and then transform input using the script is not supported yet.
+  - The script used must be a local script and should be accessible on all hosts in the cluster. 
   {{< /hint >}}
 
 - colType
+
   Specific the output of the command/script should be cast what data type. By default, it will be `STRING` data type.
 
 
@@ -110,20 +116,20 @@ For the clause `( AS colName ( colType )? [, ... ] )?`, please be aware the foll
 ```sql
 CREATE TABLE src(key string, value string);
 -- transform using
-SELECT TRANSFORM(key, value) using 'script' from t1;
+SELECT TRANSFORM(key, value) using 'cat' from t1;
 
 -- transform using with specific record writer and record reader
 SELECT TRANSFORM(key, value) ROW FORMAT SERDE 'MySerDe'
  WITH SERDEPROPERTIES ('p1'='v1','p2'='v2')
  RECORDWRITER 'MyRecordWriter'
- using 'script'
+ using 'cat'
  ROW FORMAT DELIMITED FIELDS TERMINATED BY ','
  RECORDREADER 'MyRecordReader' from src;
  
 -- use keyword MAP instead of TRANSFORM
-FROM src INSERT OVERWRITE TABLE dest1 MAP src.key, CAST(src.key / 10 AS INT) using 'script' as (c1, c2);
+FROM src INSERT OVERWRITE TABLE dest1 MAP src.key, CAST(src.key / 10 AS INT) using 'cat' as (c1, c2);
 
 -- specific the output of transform
-SELECT TRANSFORM(column) USING 'script' AS c1, c2;
-SELECT TRANSFORM(column) USING 'script' AS(c1 INT, c2 INT);
+SELECT TRANSFORM(column) USING 'cat' AS c1, c2;
+SELECT TRANSFORM(column) USING 'cat' AS(c1 INT, c2 INT);
 ```

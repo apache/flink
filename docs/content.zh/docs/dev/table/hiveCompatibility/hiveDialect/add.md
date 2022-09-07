@@ -3,7 +3,7 @@ title: "ADD Statements"
 weight: 7
 type: docs
 aliases:
-- /dev/table/hiveCompatibility/hiveDialect/create.html
+- /dev/table/hive_compatibility/hive_dialect/add.html
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
@@ -50,5 +50,9 @@ ADD JAR filename;
 ### Examples
 
 ```sql
+-- add a local jar
 ADD JAR t.jar;
+
+-- add a remote jar
+ADD JAR hdfs://namenode-host:port/path/t.jar
 ```

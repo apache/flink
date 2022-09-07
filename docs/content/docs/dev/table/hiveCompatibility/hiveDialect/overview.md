@@ -3,7 +3,7 @@ title: "Overview"
 weight: 1
 type: docs
 aliases:
-- /dev/table/hiveCompatibility/hiveDialect/overview
+- /dev/table/hive_compatibility/hive_dialect/overview
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
@@ -30,43 +30,54 @@ By providing compatibility with Hive syntax, we aim to improve the interoperabil
 ## Use Hive Dialect
 
 Flink currently supports two SQL dialects: `default` and `hive`. You need to switch to Hive dialect
-before you can write in Hive syntax. The following describes how to set dialect with
-SQL Client and Table API. Also notice that you can dynamically switch dialect for each
+before you can write in Hive syntax. The following describes how to set dialect using
+SQL Client, SQL Gateway configured with HiveServer2 Endpoint and Table API. Also notice that you can dynamically switch dialect for each
 statement you execute. There's no need to restart a session to use a different dialect.
 
 {{< hint warning >}}
 **Note:**
 
 - To use Hive dialect, you have to add dependencies related to Hive. Please refer to [Hive dependencies]({{< ref "docs/connectors/table/hive/overview" >}}#dependencies) for how to add the dependencies.
+- Since Flink 1.15, if you want to use Hive dialect in Flink SQL Client or SQL Gateway, you have to put the jar `flink-table-planner_2.12` located in `FLINK_HOME/opt`
+  to `FLINK_HOME/lib` and then move out the jar `flink-table-planner-loader` from `FLINK_HOME/lib`.
+  Otherwise, it'll throw ValidationException. Please refer to [FLINK-25128](https://issues.apache.org/jira/browse/FLINK-25128) for more details.
 - Please make sure the current catalog is [HiveCatalog]({{< ref "docs/connectors/table/hive/hive_catalog" >}}). Otherwise, it will fall back to Flink's `default` dialect.
+  When using SQL Gateway configured with HiveServer2 Endpoint, the current catalog will be a HiveCatalog by default.
 - In order to have better syntax and semantic compatibility, it’s highly recommended to load [HiveModule]({{< ref "docs/connectors/table/hive/hive_functions" >}}#use-hive-built-in-functions-via-hivemodule) and
   place it first in the module list, so that Hive built-in functions can be picked up during function resolution.
   Please refer [here]({{< ref "docs/dev/table/modules" >}}#how-to-load-unload-use-and-list-modules) for how to change resolution order.
+  But when using SQL Gateway configured with HiveServer2 Endpoint, the Hive module will be loaded automatically.
 - Hive dialect only supports 2-part identifiers, so you can't specify catalog for an identifier.
 - While all Hive versions support the same syntax, whether a specific feature is available still depends on the
   [Hive version]({{< ref "docs/connectors/table/hive/overview" >}}#supported-hive-versions) you use. For example, updating database
   location is only supported in Hive-2.4.0 or later.
+- The Hive dialect is mainly used in batch mode. Some Hive's syntax ([Sort/Cluster/Distributed BY]({{< ref "docs/dev/table/hiveCompatibility/hiveDialect/Queries/sort-cluster-distribute-by" >}}), [Transform]({{< ref "docs/dev/table/hiveCompatibility/hiveDialect/Queries/transform" >}}), etc.)  haven't been supported in streaming mode yet.
 {{< /hint >}}
 
 ### SQL Client
 
 SQL dialect can be specified via the `table.sql-dialect` property.
-Therefore，you can set the dialect after the SQL Client has launched.
+Therefore，you can set the dialect after the SQL Client has launched. 
 
 ```bash
-Flink SQL> SET 'table.sql-dialect' = 'hive'; -- to use hive dialect
+Flink SQL> SET table.sql-dialect = hive; -- to use Hive dialect
 [INFO] Session property has been set.
 
-Flink SQL> SET 'table.sql-dialect' = 'default'; -- to use default dialect
+Flink SQL> SET table.sql-dialect = default; -- to use Flink default dialect
 [INFO] Session property has been set.
 ```
 
-{{< hint warning >}}
-**Note:**
-Since Flink 1.15, when you want to use Hive dialect in Flink SQL client, you have to swap the jar `flink-table-planner-loader` located in `FLINK_HOME/lib`
-with the jar `flink-table-planner_2.12` located in `FLINK_HOME/opt`. Otherwise, it'll throw the following exception:
-{{< /hint >}}
-{{<img alt="error" width="80%" src="/fig/hive_parser_load_exception.png">}}
+### SQL Gateway Configured With HiveServer2 Endpoint
+
+When using the SQL Gateway configured with HiveServer2 Endpoint, the dialect will be Hive dialect by default, so you don't need to do anything if you want to use Hive dialect. But you can still
+change the dialect to Flink default dialect.
+
+```bash
+# assuming has connected to SQL Gateway with beeline
+jdbc:hive2> SET table.sql-dialect = default; -- to use Flink default dialect
+
+jdbc:hive2> SET table.sql-dialect = hive; -- to use Hive dialect
+```
 
 ### Table API
 
@@ -77,8 +88,10 @@ You can set dialect for your TableEnvironment with Table API.
 ```java
 EnvironmentSettings settings = EnvironmentSettings.inStreamingMode();
 TableEnvironment tableEnv = TableEnvironment.create(settings);
+
 // to use hive dialect
 tableEnv.getConfig().setSqlDialect(SqlDialect.HIVE);
+
 // to use default dialect
 tableEnv.getConfig().setSqlDialect(SqlDialect.DEFAULT);
 ```
@@ -88,10 +101,14 @@ tableEnv.getConfig().setSqlDialect(SqlDialect.DEFAULT);
 from pyflink.table import *
 settings = EnvironmentSettings.in_batch_mode()
 t_env = TableEnvironment.create(settings)
-# to use hive dialect
+
+# to use Hive dialect
 t_env.get_config().set_sql_dialect(SqlDialect.HIVE)
-# to use default dialect
+
+# to use Flink default dialect
 t_env.get_config().set_sql_dialect(SqlDialect.DEFAULT)
 ```
 {{< /tab >}}
 {{< /tabs >}}
+
+
