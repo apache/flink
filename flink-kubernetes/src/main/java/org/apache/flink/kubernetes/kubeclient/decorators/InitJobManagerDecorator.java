@@ -107,7 +107,17 @@ public class InitJobManagerDecorator extends AbstractKubernetesStepDecorator {
                 .endSpec();
 
         final Container basicMainContainer = decorateMainContainer(flinkPod.getMainContainer());
-
+        if (flinkConfig.getBoolean(
+                KubernetesConfigOptions.KUBERNETES_USER_ARTIFACTS_EMPTYDIR_ENABLE)) {
+            basicPodBuilder
+                    .editOrNewSpec()
+                    .addNewVolume()
+                    .withName(Constants.USER_ARTIFACTS_VOLUME)
+                    .withNewEmptyDir()
+                    .endEmptyDir()
+                    .endVolume()
+                    .endSpec();
+        }
         return new FlinkPod.Builder(flinkPod)
                 .withPod(basicPodBuilder.build())
                 .withMainContainer(basicMainContainer)
@@ -161,6 +171,14 @@ public class InitJobManagerDecorator extends AbstractKubernetesStepDecorator {
                                 .withNewFieldRef(API_VERSION, POD_IP_FIELD_PATH)
                                 .build())
                 .endEnv();
+        if (flinkConfig.getBoolean(
+                KubernetesConfigOptions.KUBERNETES_USER_ARTIFACTS_EMPTYDIR_ENABLE)) {
+            mainContainerBuilder
+                    .addNewVolumeMount()
+                    .withName(Constants.USER_ARTIFACTS_VOLUME)
+                    .withMountPath(kubernetesJobManagerParameters.getUserArtifactsBaseDir())
+                    .endVolumeMount();
+        }
         getFlinkLogDirEnv().ifPresent(mainContainerBuilder::addToEnv);
         return mainContainerBuilder.build();
     }
