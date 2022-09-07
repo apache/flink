@@ -745,32 +745,40 @@ public class HiveDialectITCase {
     public void testCreateFunctionUsingJar() throws Exception {
         tableEnv.executeSql("create table src(x int)");
         tableEnv.executeSql("insert into src values (1), (2)").await();
-        String udfClass = "addOne";
-        String udfCode =
-                "public class "
-                        + udfClass
+        String udfCodeTemplate =
+                "public class %s"
                         + " extends org.apache.hadoop.hive.ql.exec.UDF {\n"
                         + " public int evaluate(int content) {\n"
                         + "    return content + 1;\n"
                         + " }"
                         + "}\n";
+        String udfClass = "addOne";
+        String udfCode = String.format(udfCodeTemplate, udfClass);
         File jarFile =
                 UserClassLoaderJarTestUtils.createJarFile(
                         tempFolder.newFolder("test-jar"), "test-udf.jar", udfClass, udfCode);
         // test create function using jar
         tableEnv.executeSql(
                 String.format(
-                        "create function add_one as 'addOne' using jar '%s'", jarFile.getPath()));
+                        "create function add_one as '%s' using jar '%s'",
+                        udfClass, jarFile.getPath()));
         assertThat(
                         CollectionUtil.iteratorToList(
                                         tableEnv.executeSql("select add_one(x) from src").collect())
                                 .toString())
                 .isEqualTo("[+I[2], +I[3]]");
+
         // test create temporary function using jar
+        // create a new jarfile with a new class name
+        udfClass = "addOne1";
+        udfCode = String.format(udfCodeTemplate, udfClass);
+        jarFile =
+                UserClassLoaderJarTestUtils.createJarFile(
+                        tempFolder.newFolder("test-jar-1"), "test-udf-1.jar", udfClass, udfCode);
         tableEnv.executeSql(
                 String.format(
-                        "create temporary function t_add_one as 'addOne' using jar '%s'",
-                        jarFile.getPath()));
+                        "create temporary function t_add_one as '%s' using jar '%s'",
+                        udfClass, jarFile.getPath()));
         assertThat(
                         CollectionUtil.iteratorToList(
                                         tableEnv.executeSql("select t_add_one(x) from src")
