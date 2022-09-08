@@ -666,6 +666,14 @@ public class CoordinatorEventsToStreamOperatorRecipientExactlyOnceITCase
 
             if (!isEventSentAfterSecondCheckpoint && isCoordinatorSecondCheckpointCompleted) {
                 isEventSentAfterSecondCheckpoint = true;
+            }
+
+            // If the checkpoint coordinator receives the completion message of checkpoint 1 and
+            // checkpoint 2 at the same time, checkpoint 2 might be completed before checkpoint 1
+            // due to the async mechanism in the checkpoint process, which would cause checkpoint 1
+            // to be accidentally aborted. In order to avoid this situation, the following code is
+            // required to make sure that checkpoint 2 is not completed until checkpoint 1 finishes.
+            if (isEventSentAfterSecondCheckpoint && isJobFirstCheckpointCompleted) {
                 EventReceivingOperator.shouldUnblockAllCheckpoint = true;
             }
         }
