@@ -39,9 +39,11 @@ import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 
+import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.function.Consumer;
 
 /** Integration tests for interval joins. */
 public class IntervalJoinITCase {
@@ -157,70 +159,65 @@ public class IntervalJoinITCase {
                 "(key2,5):(key2,5)");
     }
 
+    private DataStream<Tuple2<String, Integer>> buildSourceStream(
+            final StreamExecutionEnvironment env, final SourceConsumer sourceConsumer) {
+        return env.addSource(
+                new SourceFunction<Tuple2<String, Integer>>() {
+                    @Override
+                    public void run(SourceContext<Tuple2<String, Integer>> ctx) {
+                        sourceConsumer.accept(ctx);
+                    }
+
+                    @Override
+                    public void cancel() {
+                        // do nothing
+                    }
+                });
+    }
+
+    // Ensure consumer func is serializable
+    private interface SourceConsumer
+            extends Serializable, Consumer<SourceFunction.SourceContext<Tuple2<String, Integer>>> {
+        long serialVersionUID = 1L;
+    }
+
     @Test
-    public void testIntervalJoinSideOutputLateData() throws Exception {
+    public void testIntervalJoinSideOutputLeftLateData() throws Exception {
 
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(1);
 
         DataStream<Tuple2<String, Integer>> streamOne =
-                env.addSource(
-                        new SourceFunction<Tuple2<String, Integer>>() {
-                            @Override
-                            public void run(SourceContext<Tuple2<String, Integer>> ctx) {
-                                ctx.collectWithTimestamp(Tuple2.of("key", 2), 2L);
-                                ctx.collectWithTimestamp(Tuple2.of("key", 3), 3L);
-                                ctx.emitWatermark(new Watermark(3));
-                                ctx.collectWithTimestamp(Tuple2.of("key", 1), 1L); // late data
-                            }
-
-                            @Override
-                            public void cancel() {
-                                // do nothing
-                            }
+                buildSourceStream(
+                        env,
+                        (ctx) -> {
+                            ctx.collectWithTimestamp(Tuple2.of("key", 2), 2L);
+                            ctx.collectWithTimestamp(Tuple2.of("key", 3), 3L);
+                            ctx.emitWatermark(new Watermark(3));
+                            ctx.collectWithTimestamp(Tuple2.of("key", 1), 1L); // late data
                         });
 
         DataStream<Tuple2<String, Integer>> streamTwo =
-                env.addSource(
-                        new SourceFunction<Tuple2<String, Integer>>() {
-                            @Override
-                            public void run(SourceContext<Tuple2<String, Integer>> ctx) {
-                                ctx.collectWithTimestamp(Tuple2.of("key", 1), 1L);
-                                ctx.collectWithTimestamp(Tuple2.of("key", 3), 3L);
-                                ctx.emitWatermark(new Watermark(3));
-                                ctx.collectWithTimestamp(Tuple2.of("key", 2), 2L); // late data
-                            }
-
-                            @Override
-                            public void cancel() {
-                                // do nothing
-                            }
+                buildSourceStream(
+                        env,
+                        (ctx) -> {
+                            ctx.collectWithTimestamp(Tuple2.of("key", 2), 2L);
+                            ctx.collectWithTimestamp(Tuple2.of("key", 1), 1L);
+                            ctx.emitWatermark(new Watermark(2));
+                            ctx.collectWithTimestamp(Tuple2.of("key", 3), 3L);
                         });
 
-        OutputTag<Tuple2<String, Integer>> left =
-                new OutputTag<Tuple2<String, Integer>>("left_late") {};
-        OutputTag<Tuple2<String, Integer>> right =
-                new OutputTag<Tuple2<String, Integer>>("right_late") {};
+        OutputTag<Tuple2<String, Integer>> late = new OutputTag<Tuple2<String, Integer>>("late") {};
 
         SingleOutputStreamOperator<String> process =
                 streamOne
                         .keyBy(new Tuple2KeyExtractor())
                         .intervalJoin(streamTwo.keyBy(new Tuple2KeyExtractor()))
                         .between(Time.milliseconds(-1), Time.milliseconds(1))
-                        .sideOutputLeftLateData(left)
-                        .sideOutputRightLateData(right)
+                        .sideOutputLeftLateData(late)
                         .process(new CombineToStringJoinFunction());
 
-        process.getSideOutput(left)
-                .addSink(
-                        new SinkFunction<Tuple2<String, Integer>>() {
-                            @Override
-                            public void invoke(Tuple2<String, Integer> value, Context context)
-                                    throws Exception {
-                                testResults.add(value.toString());
-                            }
-                        });
-        process.getSideOutput(right)
+        process.getSideOutput(late)
                 .addSink(
                         new SinkFunction<Tuple2<String, Integer>>() {
                             @Override
@@ -231,7 +228,57 @@ public class IntervalJoinITCase {
                         });
         env.execute();
 
-        expectInAnyOrder("(key,1)", "(key,2)");
+        expectInAnyOrder("(key,1)");
+    }
+
+    @Test
+    public void testIntervalJoinSideOutputRightLateData() throws Exception {
+
+        final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        env.setParallelism(1);
+
+        DataStream<Tuple2<String, Integer>> streamOne =
+                buildSourceStream(
+                        env,
+                        (ctx) -> {
+                            ctx.collectWithTimestamp(Tuple2.of("key", 2), 2L);
+                            ctx.collectWithTimestamp(Tuple2.of("key", 3), 3L);
+                            ctx.emitWatermark(new Watermark(3));
+                            ctx.collectWithTimestamp(Tuple2.of("key", 4), 4L);
+                        });
+
+        DataStream<Tuple2<String, Integer>> streamTwo =
+                buildSourceStream(
+                        env,
+                        (ctx) -> {
+                            ctx.collectWithTimestamp(Tuple2.of("key", 1), 1L);
+                            ctx.collectWithTimestamp(Tuple2.of("key", 3), 3L);
+                            ctx.emitWatermark(new Watermark(3));
+                            ctx.collectWithTimestamp(Tuple2.of("key", 2), 2L); // late data
+                        });
+
+        OutputTag<Tuple2<String, Integer>> late = new OutputTag<Tuple2<String, Integer>>("late") {};
+
+        SingleOutputStreamOperator<String> process =
+                streamOne
+                        .keyBy(new Tuple2KeyExtractor())
+                        .intervalJoin(streamTwo.keyBy(new Tuple2KeyExtractor()))
+                        .between(Time.milliseconds(-1), Time.milliseconds(1))
+                        .sideOutputRightLateData(late)
+                        .process(new CombineToStringJoinFunction());
+
+        process.getSideOutput(late)
+                .addSink(
+                        new SinkFunction<Tuple2<String, Integer>>() {
+                            @Override
+                            public void invoke(Tuple2<String, Integer> value, Context context)
+                                    throws Exception {
+                                testResults.add(value.toString());
+                            }
+                        });
+        env.execute();
+
+        expectInAnyOrder("(key,2)");
     }
 
     @Test
