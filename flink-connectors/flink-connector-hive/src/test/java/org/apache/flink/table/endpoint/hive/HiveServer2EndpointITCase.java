@@ -677,14 +677,14 @@ public class HiveServer2EndpointITCase extends TestLogger {
 
     private ResolvedSchema getExpectedGetSchemasOperationSchema() {
         return ResolvedSchema.of(
-                Column.physical("TABLE_SCHEMA", DataTypes.STRING()),
-                Column.physical("TABLE_CAT", DataTypes.STRING()));
+                Column.physical("TABLE_SCHEM", DataTypes.STRING()),
+                Column.physical("TABLE_CATALOG", DataTypes.STRING()));
     }
 
     private ResolvedSchema getExpectedGetTablesOperationSchema() {
         return ResolvedSchema.of(
                 Column.physical("TABLE_CAT", DataTypes.STRING()),
-                Column.physical("TABLE_SCHEMA", DataTypes.STRING()),
+                Column.physical("TABLE_SCHEM", DataTypes.STRING()),
                 Column.physical("TABLE_NAME", DataTypes.STRING()),
                 Column.physical("TABLE_TYPE", DataTypes.STRING()),
                 Column.physical("REMARKS", DataTypes.STRING()),

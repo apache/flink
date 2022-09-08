@@ -37,9 +37,9 @@ public class HiveServer2Schemas {
     /** Schema for {@link HiveServer2Endpoint#GetSchemas}. */
     public static final ResolvedSchema GET_SCHEMAS_SCHEMA =
             buildSchema(
-                    Column.physical("TABLE_SCHEMA", DataTypes.STRING())
+                    Column.physical("TABLE_SCHEM", DataTypes.STRING())
                             .withComment("Schema name. NULL if not applicable."),
-                    Column.physical("TABLE_CAT", DataTypes.STRING())
+                    Column.physical("TABLE_CATALOG", DataTypes.STRING())
                             .withComment("Catalog name. NULL if not applicable"));
 
     /** Schema for {@link HiveServer2Endpoint#GetTables}. */
@@ -47,7 +47,7 @@ public class HiveServer2Schemas {
             buildSchema(
                     Column.physical("TABLE_CAT", DataTypes.STRING())
                             .withComment("Catalog name. NULL if not applicable."),
-                    Column.physical("TABLE_SCHEMA", DataTypes.STRING())
+                    Column.physical("TABLE_SCHEM", DataTypes.STRING())
                             .withComment("Schema name. NULL if not applicable."),
                     Column.physical("TABLE_NAME", DataTypes.STRING())
                             .withComment("Table name. NULL if not applicable."),
