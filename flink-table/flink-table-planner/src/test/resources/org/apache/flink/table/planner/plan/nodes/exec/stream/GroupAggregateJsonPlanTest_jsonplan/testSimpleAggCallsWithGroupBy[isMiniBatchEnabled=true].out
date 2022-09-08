@@ -305,6 +305,7 @@
       "priority" : 0
     } ],
     "outputType" : "ROW<`b` BIGINT, `cnt_a` BIGINT, `max_b` BIGINT, `min_c` VARCHAR(2147483647)>",
+    "inputUpsertKey" : [ 0 ],
     "description" : "Sink(table=[default_catalog.default_database.MySink], fields=[b, cnt_a, max_b, min_c])"
   } ],
   "edges" : [ {

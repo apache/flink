@@ -131,6 +131,10 @@ public class JavaUserDefinedScalarFunctions {
             return v + random.nextInt();
         }
 
+        public String eval(String v) {
+            return v + "-" + random.nextInt();
+        }
+
         @Override
         public boolean isDeterministic() {
             return false;

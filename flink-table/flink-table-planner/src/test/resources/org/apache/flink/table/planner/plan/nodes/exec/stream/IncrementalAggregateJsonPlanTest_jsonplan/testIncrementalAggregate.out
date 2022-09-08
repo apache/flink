@@ -327,6 +327,7 @@
       "priority" : 0
     } ],
     "outputType" : "ROW<`a` BIGINT, `$f1` BIGINT NOT NULL>",
+    "inputUpsertKey" : [ 0 ],
     "description" : "Sink(table=[default_catalog.default_database.MySink], fields=[a, $f1])"
   } ],
   "edges" : [ {

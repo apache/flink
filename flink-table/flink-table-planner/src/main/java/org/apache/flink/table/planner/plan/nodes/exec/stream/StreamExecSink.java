@@ -74,6 +74,7 @@ public class StreamExecSink extends CommonExecSink implements StreamExecNode<Obj
 
     public static final String FIELD_NAME_INPUT_CHANGELOG_MODE = "inputChangelogMode";
     public static final String FIELD_NAME_REQUIRE_UPSERT_MATERIALIZE = "requireUpsertMaterialize";
+    public static final String FIELD_NAME_INPUT_UPSERT_KEY = "inputUpsertKey";
 
     @JsonProperty(FIELD_NAME_INPUT_CHANGELOG_MODE)
     private final ChangelogMode inputChangelogMode;
@@ -82,6 +83,10 @@ public class StreamExecSink extends CommonExecSink implements StreamExecNode<Obj
     @JsonInclude(JsonInclude.Include.NON_DEFAULT)
     private final boolean upsertMaterialize;
 
+    @JsonProperty(FIELD_NAME_INPUT_UPSERT_KEY)
+    @JsonInclude(JsonInclude.Include.NON_DEFAULT)
+    private final int[] inputUpsertKey;
+
     public StreamExecSink(
             ReadableConfig tableConfig,
             DynamicTableSinkSpec tableSinkSpec,
@@ -89,6 +94,7 @@ public class StreamExecSink extends CommonExecSink implements StreamExecNode<Obj
             InputProperty inputProperty,
             LogicalType outputType,
             boolean upsertMaterialize,
+            int[] inputUpsertKey,
             String description) {
         this(
                 ExecNodeContext.newNodeId(),
@@ -99,6 +105,7 @@ public class StreamExecSink extends CommonExecSink implements StreamExecNode<Obj
                 Collections.singletonList(inputProperty),
                 outputType,
                 upsertMaterialize,
+                inputUpsertKey,
                 description);
     }
 
@@ -112,6 +119,7 @@ public class StreamExecSink extends CommonExecSink implements StreamExecNode<Obj
             @JsonProperty(FIELD_NAME_INPUT_PROPERTIES) List<InputProperty> inputProperties,
             @JsonProperty(FIELD_NAME_OUTPUT_TYPE) LogicalType outputType,
             @JsonProperty(FIELD_NAME_REQUIRE_UPSERT_MATERIALIZE) boolean upsertMaterialize,
+            @JsonProperty(FIELD_NAME_INPUT_UPSERT_KEY) int[] inputUpsertKey,
             @JsonProperty(FIELD_NAME_DESCRIPTION) String description) {
         super(
                 id,
@@ -125,6 +133,7 @@ public class StreamExecSink extends CommonExecSink implements StreamExecNode<Obj
                 description);
         this.inputChangelogMode = inputChangelogMode;
         this.upsertMaterialize = upsertMaterialize;
+        this.inputUpsertKey = inputUpsertKey;
     }
 
     @SuppressWarnings("unchecked")
@@ -171,6 +180,7 @@ public class StreamExecSink extends CommonExecSink implements StreamExecNode<Obj
                 inputTransform,
                 tableSink,
                 rowtimeFieldIndex,
-                upsertMaterialize);
+                upsertMaterialize,
+                inputUpsertKey);
     }
 }

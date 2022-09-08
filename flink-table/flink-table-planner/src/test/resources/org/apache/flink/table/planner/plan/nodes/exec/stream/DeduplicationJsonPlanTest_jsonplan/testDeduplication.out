@@ -272,6 +272,7 @@
       "priority" : 0
     } ],
     "outputType" : "ROW<`order_id` BIGINT, `user` VARCHAR(2147483647), `product` VARCHAR(2147483647), `order_time` TIMESTAMP(3)>",
+    "inputUpsertKey" : [ 2 ],
     "description" : "Sink(table=[default_catalog.default_database.sink], fields=[order_id, user, product, order_time])"
   } ],
   "edges" : [ {
