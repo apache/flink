@@ -25,6 +25,9 @@ import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.ExecutionStateUpdateListener;
 import org.apache.flink.runtime.jobgraph.JobType;
+import org.apache.flink.runtime.scheduler.metrics.utils.ExecutionStateCounts;
+import org.apache.flink.runtime.scheduler.metrics.utils.ExecutionStateCountsHolder;
+import org.apache.flink.runtime.scheduler.metrics.utils.SubStatePredicateProvider;
 
 import java.util.EnumSet;
 
@@ -33,24 +36,31 @@ public class RunningSubStateTimeMetrics implements ExecutionStateUpdateListener,
     private final SubStateTimeMetrics deploymentStateTimeMetrics;
     private final SubStateTimeMetrics initializingStateTimeMetrics;
 
+    private final ExecutionStateCounts executionStateCounts = new ExecutionStateCounts();
+
     public RunningSubStateTimeMetrics(
             JobType semantic, MetricOptions.JobStatusMetricsSettings stateTimeMetricsSettings) {
         this.deploymentStateTimeMetrics =
                 new SubStateTimeMetrics(
-                        semantic,
                         stateTimeMetricsSettings,
-                        EnumSet.noneOf(ExecutionState.class),
-                        ExecutionState.DEPLOYING,
-                        EnumSet.of(ExecutionState.INITIALIZING, ExecutionState.RUNNING),
-                        "deploying");
+                        "deploying",
+                        SubStatePredicateProvider.getSubStatePredicate(
+                                semantic,
+                                EnumSet.noneOf(ExecutionState.class),
+                                ExecutionState.DEPLOYING,
+                                EnumSet.of(ExecutionState.INITIALIZING, ExecutionState.RUNNING),
+                                executionStateCounts));
+
         this.initializingStateTimeMetrics =
                 new SubStateTimeMetrics(
-                        semantic,
                         stateTimeMetricsSettings,
-                        EnumSet.of(ExecutionState.DEPLOYING),
-                        ExecutionState.INITIALIZING,
-                        EnumSet.of(ExecutionState.RUNNING),
-                        "initializing");
+                        "initializing",
+                        SubStatePredicateProvider.getSubStatePredicate(
+                                semantic,
+                                EnumSet.of(ExecutionState.DEPLOYING),
+                                ExecutionState.INITIALIZING,
+                                EnumSet.of(ExecutionState.RUNNING),
+                                executionStateCounts));
     }
 
     public void registerMetrics(MetricGroup metricGroup) {
@@ -61,8 +71,22 @@ public class RunningSubStateTimeMetrics implements ExecutionStateUpdateListener,
     @Override
     public void onStateUpdate(
             ExecutionAttemptID execution, ExecutionState previousState, ExecutionState newState) {
-        deploymentStateTimeMetrics.onStateUpdate(execution, previousState, newState);
-        initializingStateTimeMetrics.onStateUpdate(execution, previousState, newState);
+        switch (newState) {
+            case DEPLOYING:
+            case INITIALIZING:
+            case RUNNING:
+                executionStateCounts.incrementCount(newState);
+                break;
+        }
+        switch (previousState) {
+            case DEPLOYING:
+            case INITIALIZING:
+            case RUNNING:
+                executionStateCounts.decrementCount(previousState);
+        }
+
+        deploymentStateTimeMetrics.onStateUpdate();
+        initializingStateTimeMetrics.onStateUpdate();
     }
 
     @VisibleForTesting
@@ -73,5 +97,17 @@ public class RunningSubStateTimeMetrics implements ExecutionStateUpdateListener,
     @VisibleForTesting
     SubStateTimeMetrics getInitializingStateTimeMetrics() {
         return initializingStateTimeMetrics;
+    }
+
+    @VisibleForTesting
+    boolean hasCleanState() {
+        return executionStateCounts.areAllCountsZero()
+                && deploymentStateTimeMetrics.hasCleanState()
+                && initializingStateTimeMetrics.hasCleanState();
+    }
+
+    @VisibleForTesting
+    ExecutionStateCountsHolder getExecutionStateCounts() {
+        return executionStateCounts;
     }
 }

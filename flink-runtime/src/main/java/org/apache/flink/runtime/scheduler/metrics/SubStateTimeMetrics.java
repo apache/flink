@@ -21,88 +21,46 @@ package org.apache.flink.runtime.scheduler.metrics;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.configuration.MetricOptions;
 import org.apache.flink.metrics.MetricGroup;
-import org.apache.flink.runtime.execution.ExecutionState;
-import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
-import org.apache.flink.runtime.executiongraph.ExecutionStateUpdateListener;
-import org.apache.flink.runtime.jobgraph.JobType;
-import org.apache.flink.runtime.scheduler.metrics.utils.JobExecutionStatsHolder;
-import org.apache.flink.runtime.scheduler.metrics.utils.MetricsPredicateProvider;
 import org.apache.flink.util.clock.Clock;
 import org.apache.flink.util.clock.SystemClock;
 
-import java.util.EnumSet;
-import java.util.HashSet;
-import java.util.Set;
-import java.util.function.Predicate;
+import java.util.function.Supplier;
 
 /**
  * Defines metrics that capture different aspects of a job execution (time spent in deployment, time
  * spent in initialization etc). Specifics are passed in through the constructor and then.
  */
-public class SubStateTimeMetrics
-        implements ExecutionStateUpdateListener, StateTimeMetric, MetricsRegistrar {
+public class SubStateTimeMetrics implements StateTimeMetric, MetricsRegistrar {
     private static final long NOT_STARTED = -1L;
 
     private final String metricName;
     private final MetricOptions.JobStatusMetricsSettings stateTimeMetricSettings;
 
-    private final EnumSet<ExecutionState> previousStates;
-    private final ExecutionState currentState;
-    private final EnumSet<ExecutionState> nextStates;
-
-    private final Predicate<JobExecutionStatsHolder> metricStartPredicate;
-    private final Predicate<JobExecutionStatsHolder> metricEndPredicate;
+    private final Supplier<Boolean> isSubStateActiveSupplier;
 
     private final Clock clock;
-
-    // book-keeping
-    private final Set<ExecutionAttemptID> expectedDeployments = new HashSet<>();
-    private int pendingDeployments = 0;
-    private int initializingDeployments = 0;
-    private int completedDeployments = 0;
 
     // metrics state
     private long metricStart = NOT_STARTED;
     private long metricTimeTotal = 0L;
 
     public SubStateTimeMetrics(
-            JobType semantic,
-            MetricOptions.JobStatusMetricsSettings stateTimeMetricSettings,
-            EnumSet<ExecutionState> previousStates,
-            ExecutionState targetState,
-            EnumSet<ExecutionState> nextStates,
-            String name) {
-        this(
-                semantic,
-                stateTimeMetricSettings,
-                previousStates,
-                targetState,
-                nextStates,
-                SystemClock.getInstance(),
-                name);
+            MetricOptions.JobStatusMetricsSettings stateTimeMetricsSettings,
+            String metricName,
+            Supplier<Boolean> subStatePredicate) {
+        this(stateTimeMetricsSettings, metricName, subStatePredicate, SystemClock.getInstance());
     }
 
     @VisibleForTesting
-    public SubStateTimeMetrics(
-            JobType semantic,
-            MetricOptions.JobStatusMetricsSettings stateTimeMetricSettings,
-            EnumSet<ExecutionState> previousStates,
-            ExecutionState targetState,
-            EnumSet<ExecutionState> nextStates,
-            Clock clock,
-            String name) {
-        this.stateTimeMetricSettings = stateTimeMetricSettings;
-        this.previousStates = previousStates;
-        this.currentState = targetState;
-        this.nextStates = nextStates;
+    SubStateTimeMetrics(
+            MetricOptions.JobStatusMetricsSettings stateTimeMetricsSettings,
+            String metricName,
+            Supplier<Boolean> subStatePredicate,
+            Clock clock) {
+        this.stateTimeMetricSettings = stateTimeMetricsSettings;
+        this.metricName = metricName;
+        this.isSubStateActiveSupplier = subStatePredicate;
         this.clock = clock;
-        this.metricName = name;
-
-        metricStartPredicate =
-                MetricsPredicateProvider.getStartPredicate(
-                        semantic, targetState, previousStates, nextStates);
-        metricEndPredicate =
-                MetricsPredicateProvider.getEndPredicate(semantic, nextStates, expectedDeployments);
     }
 
     @Override
@@ -127,49 +85,14 @@ public class SubStateTimeMetrics
         StateTimeMetric.register(stateTimeMetricSettings, metricGroup, this, metricName);
     }
 
-    @Override
-    public void onStateUpdate(
-            ExecutionAttemptID execution, ExecutionState previousState, ExecutionState newState) {
-        switch (newState) {
-            case SCHEDULED:
-                expectedDeployments.add(execution);
-                break;
-            case DEPLOYING:
-                pendingDeployments++;
-                break;
-            case INITIALIZING:
-                initializingDeployments++;
-                break;
-            case RUNNING:
-                completedDeployments++;
-                break;
-            default:
-                // the deployment started terminating
-                expectedDeployments.remove(execution);
-        }
-        switch (previousState) {
-            case DEPLOYING:
-                pendingDeployments--;
-                break;
-            case INITIALIZING:
-                initializingDeployments--;
-                break;
-            case RUNNING:
-                completedDeployments--;
-                break;
-        }
-
-        JobExecutionStatsHolder jobExecutionStatsHolder =
-                new JobExecutionStatsHolder(
-                        pendingDeployments, initializingDeployments, completedDeployments);
-
+    public void onStateUpdate() {
+        final boolean subStateActive = isSubStateActiveSupplier.get();
         if (metricStart == NOT_STARTED) {
-            if (metricStartPredicate.test(jobExecutionStatsHolder)) {
+            if (subStateActive) {
                 markMetricStart();
             }
         } else {
-            if (metricEndPredicate.test(jobExecutionStatsHolder)
-                    || expectedDeployments.size() == 0) {
+            if (!subStateActive) {
                 markMetricEnd();
             }
         }
@@ -186,10 +109,6 @@ public class SubStateTimeMetrics
 
     @VisibleForTesting
     boolean hasCleanState() {
-        return expectedDeployments.isEmpty()
-                && pendingDeployments == 0
-                && completedDeployments == 0
-                && initializingDeployments == 0
-                && metricStart == NOT_STARTED;
+        return metricStart == NOT_STARTED;
     }
 }

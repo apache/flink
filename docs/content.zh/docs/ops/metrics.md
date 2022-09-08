@@ -1208,6 +1208,11 @@ Whether these metrics are reported depends on the [metrics.job.status.enable]({{
 While the job is in the RUNNING state the metrics in this table provide additional details on what the job is currently doing.
 Whether these metrics are reported depends on the [metrics.job.status.enable]({{< ref "docs/deployment/config" >}}#metrics-job-status-enable) setting.
 
+Supported `runningSubStates` are:
+
+* `deploying`: the period in which tasks are transferred from the JobManager to the TaskManager
+* `initializing`: the period in which tasks being set up on the TaskManager
+
 <table class="table table-bordered table-inline">
   <thead>
     <tr>
@@ -1220,17 +1225,17 @@ Whether these metrics are reported depends on the [metrics.job.status.enable]({{
   <tbody>
     <tr>
       <th rowspan="3"><strong>Job (only available on JobManager)</strong></th>
-      <td>deployingState</td>
+      <td>&lt;runningSubState&gt;State</td>
       <td>Return 1 if the job is currently deploying* tasks, otherwise return 0.</td>
       <td>Gauge</td>
     </tr>
     <tr>
-      <td>deployingTime</td>
+      <td>&lt;runningSubState&gt;Time</td>
       <td>Return the time (in milliseconds) since the job has started deploying* tasks, otherwise return 0.</td>
       <td>Gauge</td>
     </tr>
     <tr>
-      <td>deployingTimeTotal</td>
+      <td>&lt;runningSubState&gt;TimeTotal</td>
       <td>Return how much time (in milliseconds) the job has spent deploying* tasks in total.</td>
       <td>Gauge</td>
     </tr>
