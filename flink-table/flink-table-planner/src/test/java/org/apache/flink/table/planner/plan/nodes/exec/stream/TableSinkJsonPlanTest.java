@@ -20,6 +20,7 @@ package org.apache.flink.table.planner.plan.nodes.exec.stream;
 
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.TableEnvironment;
+import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedScalarFunctions;
 import org.apache.flink.table.planner.utils.StreamTableTestUtil;
 import org.apache.flink.table.planner.utils.TableTestBase;
 
@@ -90,5 +91,40 @@ public class TableSinkJsonPlanTest extends TableTestBase {
                         + "  'writable-metadata' = 'm:STRING')";
         tEnv.executeSql(sinkTableDdl);
         util.verifyJsonPlan("insert into MySink select * from MyTable");
+    }
+
+    @Test
+    public void testCdcWithNonDeterministicFuncSinkWithDifferentPk() {
+        tEnv.createTemporaryFunction(
+                "ndFunc", new JavaUserDefinedScalarFunctions.NonDeterministicUdf());
+
+        String cdcDdl =
+                "CREATE TABLE users (\n"
+                        + "  user_id STRING,\n"
+                        + "  user_name STRING,\n"
+                        + "  email STRING,\n"
+                        + "  balance DECIMAL(18,2),\n"
+                        + "  primary key (user_id) not enforced\n"
+                        + ") WITH (\n"
+                        + " 'connector' = 'values',\n"
+                        + " 'changelog-mode' = 'I,UA,UB,D'\n"
+                        + ")";
+
+        String sinkTableDdl =
+                "CREATE TABLE sink (\n"
+                        + "  user_id STRING,\n"
+                        + "  user_name STRING,\n"
+                        + "  email STRING,\n"
+                        + "  balance DECIMAL(18,2),\n"
+                        + "  PRIMARY KEY(email) NOT ENFORCED\n"
+                        + ") WITH(\n"
+                        + "  'connector' = 'values',\n"
+                        + "  'sink-insert-only' = 'false'\n"
+                        + ")";
+        tEnv.executeSql(cdcDdl);
+        tEnv.executeSql(sinkTableDdl);
+
+        util.verifyJsonPlan(
+                "insert into sink select user_id, ndFunc(user_name), email, balance from users");
     }
 }
