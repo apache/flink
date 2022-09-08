@@ -312,7 +312,7 @@ public class SqlGatewayServiceImpl implements SqlGatewayService {
     }
 
     @VisibleForTesting
-    Session getSession(SessionHandle sessionHandle) {
+    public Session getSession(SessionHandle sessionHandle) {
         return sessionManager.getSession(sessionHandle);
     }
 }
