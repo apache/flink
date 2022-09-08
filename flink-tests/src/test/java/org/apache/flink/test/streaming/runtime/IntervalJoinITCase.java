@@ -181,6 +181,21 @@ public class IntervalJoinITCase {
         long serialVersionUID = 1L;
     }
 
+    private void addSinkToSideOutput(
+            SingleOutputStreamOperator<String> streamOperator,
+            OutputTag<Tuple2<String, Integer>> outputTag) {
+        streamOperator
+                .getSideOutput(outputTag)
+                .addSink(
+                        new SinkFunction<Tuple2<String, Integer>>() {
+                            @Override
+                            public void invoke(Tuple2<String, Integer> value, Context context)
+                                    throws Exception {
+                                testResults.add(value.toString());
+                            }
+                        });
+    }
+
     @Test
     public void testIntervalJoinSideOutputLeftLateData() throws Exception {
 
@@ -217,15 +232,7 @@ public class IntervalJoinITCase {
                         .sideOutputLeftLateData(late)
                         .process(new CombineToStringJoinFunction());
 
-        process.getSideOutput(late)
-                .addSink(
-                        new SinkFunction<Tuple2<String, Integer>>() {
-                            @Override
-                            public void invoke(Tuple2<String, Integer> value, Context context)
-                                    throws Exception {
-                                testResults.add(value.toString());
-                            }
-                        });
+        addSinkToSideOutput(process, late);
         env.execute();
 
         expectInAnyOrder("(key,1)");
@@ -267,15 +274,7 @@ public class IntervalJoinITCase {
                         .sideOutputRightLateData(late)
                         .process(new CombineToStringJoinFunction());
 
-        process.getSideOutput(late)
-                .addSink(
-                        new SinkFunction<Tuple2<String, Integer>>() {
-                            @Override
-                            public void invoke(Tuple2<String, Integer> value, Context context)
-                                    throws Exception {
-                                testResults.add(value.toString());
-                            }
-                        });
+        addSinkToSideOutput(process, late);
         env.execute();
 
         expectInAnyOrder("(key,2)");
