@@ -148,6 +148,10 @@ public class SessionDispatcherLeaderProcess extends AbstractDispatcherLeaderProc
         for (JobID jobId : jobIds) {
             if (!recoveredDirtyJobResults.contains(jobId)) {
                 tryRecoverJob(jobId).ifPresent(recoveredJobGraphs::add);
+            } else {
+                log.info(
+                        "Skipping recovery of a job with job id {}, because it already reached a globally terminal state",
+                        jobId);
             }
         }
 
