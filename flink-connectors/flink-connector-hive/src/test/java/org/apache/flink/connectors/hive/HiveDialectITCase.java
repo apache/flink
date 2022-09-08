@@ -1230,6 +1230,35 @@ public class HiveDialectITCase {
     }
 
     @Test
+    public void testDescribeTable() {
+        tableEnv.getConfig().setSqlDialect(SqlDialect.DEFAULT);
+        tableEnv.executeSql(
+                "create table t1(id BIGINT,\n"
+                        + "  name STRING) WITH (\n"
+                        + "  'connector' = 'datagen' "
+                        + ")");
+        tableEnv.getConfig().setSqlDialect(SqlDialect.HIVE);
+        tableEnv.executeSql("create table t2(a int, b string, c boolean)");
+        tableEnv.executeSql(
+                "create table t3(a decimal(10, 2), b double, c float) partitioned by (d date)");
+
+        // desc non-hive table
+        List<Row> result = CollectionUtil.iteratorToList(tableEnv.executeSql("desc t1").collect());
+        assertThat(result.toString())
+                .isEqualTo(
+                        "[+I[id, BIGINT, true, null, null, null], +I[name, STRING, true, null, null, null]]");
+        // desc hive table
+        result = CollectionUtil.iteratorToList(tableEnv.executeSql("desc t2").collect());
+        assertThat(result.toString())
+                .isEqualTo("[+I[a, int, ], +I[b, string, ], +I[c, boolean, ]]");
+        result = CollectionUtil.iteratorToList(tableEnv.executeSql("desc default.t3").collect());
+        assertThat(result.toString())
+                .isEqualTo(
+                        "[+I[a, decimal(10,2), ], +I[b, double, ], +I[c, float, ], +I[d, date, ],"
+                                + " +I[# Partition Information, , ], +I[d, date, ]]");
+    }
+
+    @Test
     public void testUnsupportedOperation() {
         List<String> statements =
                 Arrays.asList(
