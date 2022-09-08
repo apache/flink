@@ -20,7 +20,7 @@ jobs:
         linux:
           vm-label: 'ubuntu-20.04'
         mac:
-          vm-label: 'macOS-10.15'
+          vm-label: 'macOS-latest'
     pool:
       vmImage: $(vm-label)
     steps:
