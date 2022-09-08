@@ -1297,7 +1297,7 @@ Note that for failed checkpoints, metrics are updated on a best efforts basis an
   </thead>
   <tbody>
     <tr>
-      <th rowspan="8"><strong>Job (only available on JobManager)</strong></th>
+      <th rowspan="10"><strong>Job (only available on JobManager)</strong></th>
       <td>lastCheckpointDuration</td>
       <td>The time it took to complete the last checkpoint (in milliseconds).</td>
       <td>Gauge</td>
@@ -1305,6 +1305,11 @@ Note that for failed checkpoints, metrics are updated on a best efforts basis an
     <tr>
       <td>lastCheckpointSize</td>
       <td>The checkpointed size of the last checkpoint (in bytes), this metric could be different from lastCheckpointFullSize if incremental checkpoint or changelog is enabled.</td>
+      <td>Gauge</td>
+    </tr>
+    <tr>
+      <td>lastCompletedCheckpointId</td>
+      <td>The identifier of the last completed checkpoint.</td>
       <td>Gauge</td>
     </tr>
     <tr>
