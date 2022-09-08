@@ -181,6 +181,13 @@ under the License.
 			<scope>compile</scope>
 		</dependency>
 
+		<dependency>
+			<!-- Asynchronous Loggers -->
+			<groupId>com.lmax</groupId>
+			<artifactId>disruptor</artifactId>
+			<scope>compile</scope>
+		</dependency>
+
 		<!-- Table dependencies -->
 
 		<dependency>
@@ -720,8 +727,9 @@ under the License.
 							</filters>
 							<artifactSet>
 								<excludes>
-									<!-- log4j 2 is bundled separately from the flink-dist jar -->
+									<!-- log4j 2 and disruptor are bundled separately from the flink-dist jar -->
 									<exclude>org.apache.logging.log4j:*</exclude>
+									<exclude>com.lmax:disruptor</exclude>
 									<!-- Bundled separately so that users can easily switch between ZK 3.4/3.5-->
 									<exclude>org.apache.flink:flink-shaded-zookeeper-3</exclude>
 								</excludes>
