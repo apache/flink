@@ -71,6 +71,7 @@ public class BatchExecSink extends CommonExecSink implements BatchExecNode<Objec
                 inputTransform,
                 tableSink,
                 -1,
-                false);
+                false,
+                null);
     }
 }

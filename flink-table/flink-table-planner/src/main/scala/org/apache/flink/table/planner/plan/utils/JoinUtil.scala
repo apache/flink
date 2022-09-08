@@ -189,7 +189,7 @@ object JoinUtil {
     }
   }
 
-  private def getSmallestKey(keys: util.List[Array[Int]]) = {
+  private[flink] def getSmallestKey(keys: util.List[Array[Int]]): Array[Int] = {
     keys.reduce((k1, k2) => if (k1.length <= k2.length) k1 else k2)
   }
 
