@@ -198,11 +198,6 @@ public class TestingRpcService implements RpcService {
     }
 
     @Override
-    public <F extends Serializable> RpcServer fenceRpcServer(RpcServer rpcServer, F fencingToken) {
-        return backingRpcService.fenceRpcServer(rpcServer, fencingToken);
-    }
-
-    @Override
     public void stopServer(RpcServer selfGateway) {
         backingRpcService.stopServer(selfGateway);
     }

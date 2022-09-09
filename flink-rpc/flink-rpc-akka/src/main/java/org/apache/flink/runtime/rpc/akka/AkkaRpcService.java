@@ -370,40 +370,6 @@ public class AkkaRpcService implements RpcService {
     }
 
     @Override
-    public <F extends Serializable> RpcServer fenceRpcServer(RpcServer rpcServer, F fencingToken) {
-        if (rpcServer instanceof AkkaBasedEndpoint) {
-
-            InvocationHandler fencedInvocationHandler =
-                    new FencedAkkaInvocationHandler<>(
-                            rpcServer.getAddress(),
-                            rpcServer.getHostname(),
-                            ((AkkaBasedEndpoint) rpcServer).getActorRef(),
-                            configuration.getTimeout(),
-                            configuration.getMaximumFramesize(),
-                            configuration.isForceRpcInvocationSerialization(),
-                            null,
-                            () -> fencingToken,
-                            captureAskCallstacks,
-                            flinkClassLoader);
-
-            // Rather than using the System ClassLoader directly, we derive the ClassLoader
-            // from this class . That works better in cases where Flink runs embedded and all Flink
-            // code is loaded dynamically (for example from an OSGI bundle) through a custom
-            // ClassLoader
-            ClassLoader classLoader = getClass().getClassLoader();
-
-            return (RpcServer)
-                    Proxy.newProxyInstance(
-                            classLoader,
-                            new Class<?>[] {RpcServer.class, AkkaBasedEndpoint.class},
-                            fencedInvocationHandler);
-        } else {
-            throw new RuntimeException(
-                    "The given RpcServer must implement the AkkaGateway in order to fence it.");
-        }
-    }
-
-    @Override
     public void stopServer(RpcServer selfGateway) {
         if (selfGateway instanceof AkkaBasedEndpoint) {
             final AkkaBasedEndpoint akkaClient = (AkkaBasedEndpoint) selfGateway;
