@@ -459,8 +459,8 @@ public class HsSubpartitionMemoryDataManager implements HsDataView {
 
     @GuardedBy("subpartitionLock")
     private void checkAndMarkBufferReadable(HsBufferContext bufferContext) {
-        // only spill and not consumed buffer needs to be marked as readable.
-        if (isBufferSatisfyStatus(bufferContext, SpillStatus.SPILL, ConsumeStatus.NOT_CONSUMED)) {
+        // only spill buffer needs to be marked as released.
+        if (isBufferSatisfyStatus(bufferContext, SpillStatus.SPILL, ConsumeStatus.ALL)) {
             bufferContext
                     .getSpilledFuture()
                     .orElseThrow(
@@ -471,7 +471,7 @@ public class HsSubpartitionMemoryDataManager implements HsDataView {
                             () -> {
                                 BufferIndexAndChannel bufferIndexAndChannel =
                                         bufferContext.getBufferIndexAndChannel();
-                                memoryDataManagerOperation.markBufferReadableFromFile(
+                                memoryDataManagerOperation.markBufferReleasedFromFile(
                                         bufferIndexAndChannel.getChannel(),
                                         bufferIndexAndChannel.getBufferIndex());
                             });

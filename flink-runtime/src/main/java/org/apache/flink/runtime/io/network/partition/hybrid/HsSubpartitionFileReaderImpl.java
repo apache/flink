@@ -188,7 +188,9 @@ public class HsSubpartitionFileReaderImpl implements HsSubpartitionFileReader {
     public void prepareForScheduling() {
         // Access the consuming offset with lock, to prevent loading any buffer released from the
         // memory data manager that is already consumed.
-        bufferIndexManager.updateLastConsumed(operations.getConsumingOffset(true));
+        int consumingOffset = operations.getConsumingOffset(true);
+        bufferIndexManager.updateLastConsumed(consumingOffset);
+        cachedRegionManager.updateConsumingOffset(consumingOffset);
     }
 
     /** Provides priority calculation logic for io scheduler. */
@@ -379,6 +381,8 @@ public class HsSubpartitionFileReaderImpl implements HsSubpartitionFileReader {
         private final int subpartitionId;
         private final HsFileDataIndex dataIndex;
 
+        private int consumingOffset = -1;
+
         private int currentBufferIndex;
         private int numSkip;
         private int numReadable;
@@ -392,6 +396,10 @@ public class HsSubpartitionFileReaderImpl implements HsSubpartitionFileReader {
         // ------------------------------------------------------------------------
         //  Called by HsSubpartitionFileReader
         // ------------------------------------------------------------------------
+
+        public void updateConsumingOffset(int consumingOffset) {
+            this.consumingOffset = consumingOffset;
+        }
 
         /** Return Long.MAX_VALUE if region does not exist to giving the lowest priority. */
         private long getFileOffset(int bufferIndex) {
@@ -448,7 +456,7 @@ public class HsSubpartitionFileReaderImpl implements HsSubpartitionFileReader {
             }
 
             Optional<HsFileDataIndex.ReadableRegion> lookupResultOpt =
-                    dataIndex.getReadableRegion(subpartitionId, bufferIndex);
+                    dataIndex.getReadableRegion(subpartitionId, bufferIndex, consumingOffset);
             if (!lookupResultOpt.isPresent()) {
                 currentBufferIndex = -1;
                 numReadable = 0;
