@@ -521,7 +521,7 @@ If you provide no like options, `INCLUDING ALL OVERWRITING OPTIONS` will be used
 Tables can also be created and populated by the results of a query in one create-table-as-select (CTAS) statement. 
 CTAS is the simplest and fastest way to create and insert data into a table with a single command.
 
-There are two parts in CTAS, the SELECT part can be any [SELECT statement]({{< ref "docs/dev/table/sql/queries/overview/" >}}) supported by Flink SQL. 
+There are two parts in CTAS, the SELECT part can be any [SELECT statement]({{< ref "docs/dev/table/sql/queries/overview" >}}) supported by Flink SQL. 
 The CREATE part of the CTAS takes the resulting schema from the SELECT part and creates the target table with other table properties such as the connector and URL. 
 Similar to CREATE TABLE, CTAS requires the required options of the corresponding connector must be specified in WITH clause.
 

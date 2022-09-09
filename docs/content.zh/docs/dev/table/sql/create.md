@@ -520,7 +520,7 @@ LIKE Orders_in_file (
 
 表也可以通过一个创建表即选择（CTAS）语句中的查询结果来创建和填充。 CTAS是用一条命令创建和插入数据到一个表中的最简单和最快的方法。
 
-CTAS有两个部分，SELECT部分可以是Flink SQL支持的任何[SELECT语句]({{< ref "docs/dev/table/sql/queries/overview/" >}})。
+CTAS有两个部分，SELECT部分可以是Flink SQL支持的任何[SELECT语句]({{< ref "docs/dev/table/sql/queries/overview" >}})。
 CREATE部分从SELECT部分获取结果列信息，并创建具有其他表属性（如连接器和URL）的目标表。 与CREATE TABLE类似，CTAS要求必须在WITH子句中指定相应连接器的必要选项。
 
 **注意** 如果使用基于内存实现的 catalog，用户必须确保外部存储已经存在；如果使用外部扩展的 catalog，flink可以通过 catalog去创建表，比如 HiveCatalog。
