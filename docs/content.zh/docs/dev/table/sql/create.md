@@ -523,13 +523,15 @@ LIKE Orders_in_file (
 CTAS有两个部分，SELECT部分可以是Flink SQL支持的任何[SELECT语句]({{< ref "docs/dev/table/sql/queries/overview/" >}})。
 CREATE部分从SELECT部分获取结果列信息，并创建具有其他表属性（如连接器和URL）的目标表。 与CREATE TABLE类似，CTAS要求必须在WITH子句中指定相应连接器的必要选项。
 
+**注意** 如果使用基于内存实现的 catalog，用户必须确保外部存储已经存在；如果使用外部扩展的 catalog，flink可以通过 catalog去创建表，比如 HiveCatalog。
+
 示例如下:
 
 ```sql
 CREATE TABLE my_ctas_table
 WITH (
-    'connector' = 'jdbc',
-    'url' = 'jdbc:mysql://mysqlhost:3306/customerdb'
+    'connector' = 'kafka',
+    ...
 )
 AS
 SELECT id, name, age FROM test WHERE mod(id, 10) = 0;
@@ -542,8 +544,8 @@ CREATE TABLE my_ctas_table (
     name STRING,
     age INT
 ) WITH (
-    'connector' = 'jdbc',
-    'url' = 'jdbc:mysql://mysqlhost:3306/customerdb'
+    'connector' = 'kafka',
+    ...
 );
  
 INSERT INTO my_ctas_table SELECT id, name, age FROM test WHERE mod(id, 10) = 0;

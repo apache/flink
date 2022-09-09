@@ -525,13 +525,15 @@ There are two parts in CTAS, the SELECT part can be any [SELECT statement]({{< r
 The CREATE part of the CTAS takes the resulting schema from the SELECT part and creates the target table with other table properties such as the connector and URL. 
 Similar to CREATE TABLE, CTAS requires the required options of the corresponding connector must be specified in WITH clause.
 
+**NOTE** If using an in-memory catalog, the user must ensure that external storage already exists; If using an external catalog, then flink will create table from the external catalog, such as HiveCatalog.
+
 Consider the example statement below:
 
 ```sql
 CREATE TABLE my_ctas_table
 WITH (
-    'connector' = 'jdbc',
-    'url' = 'jdbc:mysql://mysqlhost:3306/customerdb'
+    'connector' = 'kafka',
+    ...
 )
 AS
 SELECT id, name, age FROM test WHERE mod(id, 10) = 0;
@@ -544,8 +546,8 @@ CREATE TABLE my_ctas_table (
     name STRING,
     age INT
 ) WITH (
-    'connector' = 'jdbc',
-    'url' = 'jdbc:mysql://mysqlhost:3306/customerdb'
+    'connector' = 'kafka',
+    ...
 );
  
 INSERT INTO my_ctas_table SELECT id, name, age FROM test WHERE mod(id, 10) = 0;
