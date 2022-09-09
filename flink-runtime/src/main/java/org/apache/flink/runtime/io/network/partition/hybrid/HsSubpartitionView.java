@@ -73,8 +73,8 @@ public class HsSubpartitionView
     @Nullable
     @Override
     public BufferAndBacklog getNextBuffer() {
-        synchronized (lock) {
-            try {
+        try {
+            synchronized (lock) {
                 checkNotNull(diskDataView, "disk data view must be not null.");
                 checkNotNull(memoryDataView, "memory data view must be not null.");
 
@@ -84,10 +84,11 @@ public class HsSubpartitionView
                 }
                 updateConsumingStatus(bufferToConsume);
                 return bufferToConsume.map(this::handleBacklog).orElse(null);
-            } catch (Throwable cause) {
-                releaseInternal(cause);
-                return null;
             }
+        } catch (Throwable cause) {
+            // release subpartition reader outside of lock to avoid deadlock.
+            releaseInternal(cause);
+            return null;
         }
     }
 
