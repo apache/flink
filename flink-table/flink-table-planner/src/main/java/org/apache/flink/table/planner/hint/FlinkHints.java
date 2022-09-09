@@ -114,7 +114,6 @@ public abstract class FlinkHints {
     public static boolean canTransposeToTableScan(RelNode node) {
         return node instanceof LogicalProject // computed column on table
                 || node instanceof LogicalFilter
-                // TODO support lookup join hint with alias name in FLINK-28850
                 || node instanceof LogicalSnapshot;
     }
 
