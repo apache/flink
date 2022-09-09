@@ -714,17 +714,7 @@ public class HiveCatalog extends AbstractCatalog {
     public Table getHiveTable(ObjectPath tablePath) throws TableNotExistException {
         try {
             Table table = client.getTable(tablePath.getDatabaseName(), tablePath.getObjectName());
-            boolean isHiveTable;
-            if (table.getParameters().containsKey(CatalogPropertiesUtil.IS_GENERIC)) {
-                isHiveTable =
-                        !Boolean.parseBoolean(
-                                table.getParameters().remove(CatalogPropertiesUtil.IS_GENERIC));
-            } else {
-                isHiveTable =
-                        !table.getParameters().containsKey(FLINK_PROPERTY_PREFIX + CONNECTOR.key())
-                                && !table.getParameters()
-                                        .containsKey(FLINK_PROPERTY_PREFIX + CONNECTOR_TYPE);
-            }
+            boolean isHiveTable = isHiveTable(table);
             // for hive table, we add the connector property
             if (isHiveTable) {
                 table.getParameters().put(CONNECTOR.key(), IDENTIFIER);
@@ -1826,6 +1816,22 @@ public class HiveCatalog extends AbstractCatalog {
     @Internal
     public static boolean isHiveTable(Map<String, String> properties) {
         return IDENTIFIER.equalsIgnoreCase(properties.get(CONNECTOR.key()));
+    }
+
+    @Internal
+    public static boolean isHiveTable(Table table) {
+        boolean isHiveTable;
+        if (table.getParameters().containsKey(CatalogPropertiesUtil.IS_GENERIC)) {
+            isHiveTable =
+                    !Boolean.parseBoolean(
+                            table.getParameters().remove(CatalogPropertiesUtil.IS_GENERIC));
+        } else {
+            isHiveTable =
+                    !table.getParameters().containsKey(FLINK_PROPERTY_PREFIX + CONNECTOR.key())
+                            && !table.getParameters()
+                                    .containsKey(FLINK_PROPERTY_PREFIX + CONNECTOR_TYPE);
+        }
+        return isHiveTable;
     }
 
     @Internal
