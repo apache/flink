@@ -497,12 +497,6 @@ public class OperatorEventSendingCheckpointITCase extends TestLogger {
         }
 
         @Override
-        public <F extends Serializable> RpcServer fenceRpcServer(
-                RpcServer rpcServer, F fencingToken) {
-            return rpcService.fenceRpcServer(rpcServer, fencingToken);
-        }
-
-        @Override
         public void stopServer(RpcServer selfGateway) {
             rpcService.stopServer(selfGateway);
         }

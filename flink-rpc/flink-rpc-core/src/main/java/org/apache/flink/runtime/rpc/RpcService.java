@@ -89,20 +89,6 @@ public interface RpcService {
     <C extends RpcEndpoint & RpcGateway> RpcServer startServer(C rpcEndpoint);
 
     /**
-     * Fence the given RpcServer with the given fencing token.
-     *
-     * <p>Fencing the RpcServer means that we fix the fencing token to the provided value. All RPCs
-     * will then be enriched with this fencing token. This expects that the receiving RPC endpoint
-     * extends {@link FencedRpcEndpoint}.
-     *
-     * @param rpcServer to fence with the given fencing token
-     * @param fencingToken to fence the RpcServer with
-     * @param <F> type of the fencing token
-     * @return Fenced RpcServer
-     */
-    <F extends Serializable> RpcServer fenceRpcServer(RpcServer rpcServer, F fencingToken);
-
-    /**
      * Stop the underlying rpc server of the provided self gateway.
      *
      * @param selfGateway Self gateway describing the underlying rpc server
