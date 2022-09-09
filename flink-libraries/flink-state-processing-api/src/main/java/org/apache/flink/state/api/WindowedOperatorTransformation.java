@@ -397,7 +397,7 @@ public class WindowedOperatorTransformation<T, K, W extends Window> {
         aggregateFunction = input.clean(aggregateFunction);
 
         WindowOperator<K, T, ?, R, W> operator =
-                builder.aggregate(aggregateFunction, windowFunction, accumulatorType, null);
+                builder.aggregate(aggregateFunction, windowFunction, accumulatorType);
 
         SavepointWriterOperatorFactory factory =
                 (timestamp, path) -> new StateBootstrapWrapperOperator<>(timestamp, path, operator);

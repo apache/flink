@@ -523,7 +523,7 @@ public class JoinedStreams<T1, T2> {
             extends WrappingFunction<JoinFunction<T1, T2, T>>
             implements CoGroupFunction<T1, T2, T> {
         private static final long serialVersionUID = 1L;
-        private final StreamMonitor<JoinCoGroupFunction<T1, T2, T>> streamMonitor;
+        private final StreamMonitor<WrappingFunction<JoinFunction<T1, T2, T>>> streamMonitor;
         ExecutionConfig executionConfig;
 
         public JoinCoGroupFunction(
