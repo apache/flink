@@ -212,7 +212,7 @@ public class PulsarWriter<IN> implements PrecommittingSinkWriter<IN, PulsarCommi
         } else {
             // Set default message timestamp if flink has provided one.
             Long timestamp = context.timestamp();
-            if (timestamp != null) {
+            if (timestamp != null && timestamp > 0L) {
                 builder.eventTime(timestamp);
             }
         }
