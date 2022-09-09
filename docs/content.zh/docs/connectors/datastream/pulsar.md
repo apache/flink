@@ -46,6 +46,9 @@ Pulsar Source 基于 Flink 最新的[批流一体 API]({{< ref "docs/dev/datastr
 
 Pulsar Source 提供了 builder 类来构造 `PulsarSource` 实例。下面的代码实例使用 builder 类创建的实例会从 “persistent://public/default/my-topic” 的数据开始端进行消费。对应的 Pulsar Source 使用了 **Exclusive**（独占）的订阅方式消费消息，订阅名称为 `my-subscription`，并把消息体的二进制字节流以 UTF-8 的方式编码为字符串。
 
+{{< tabs "pulsar-source-usage" >}}
+{{< tab "Java" >}}
+
 ```java
 PulsarSource<String> pulsarSource = PulsarSource.builder()
     .setServiceUrl(serviceUrl)
@@ -60,6 +63,26 @@ PulsarSource<String> pulsarSource = PulsarSource.builder()
 env.fromSource(source, WatermarkStrategy.noWatermarks(), "Pulsar Source");
 ```
 
+```python
+pulsar_source = PulsarSource.builder() \
+    .set_service_url('pulsar://localhost:6650') \
+    .set_admin_url('http://localhost:8080') \
+    .set_start_cursor(StartCursor.earliest()) \
+    .set_topics("my-topic") \
+    .set_deserialization_schema(
+        PulsarDeserializationSchema.flink_schema(SimpleStringSchema())) \
+    .set_subscription_name('my-subscription') \
+    .set_subscription_type(SubscriptionType.Exclusive) \
+    .build()
+
+env.from_source(source=pulsar_source,
+                watermark_strategy=WatermarkStrategy.for_monotonous_timestamps(),
+                source_name="pulsar source")
+```
+
+{{< /tab >}}
+{{< /tabs >}}
+
 如果使用构造类构造 `PulsarSource`，一定要提供下面几个属性：
 
 - Pulsar 数据消费的地址，使用 `setServiceUrl(String)` 方法提供。
@@ -73,17 +96,38 @@ env.fromSource(source, WatermarkStrategy.noWatermarks(), "Pulsar Source");
 Pulsar Source 提供了两种订阅 Topic 或 Topic 分区的方式。
 
 - Topic 列表，从这个 Topic 的所有分区上消费消息，例如：
+  {{< tabs "pulsar-source-topics" >}}
+  {{< tab "Java" >}}
   ```java
   PulsarSource.builder().setTopics("some-topic1", "some-topic2");
 
   // 从 topic "topic-a" 的 0 和 2 分区上消费
   PulsarSource.builder().setTopics("topic-a-partition-0", "topic-a-partition-2");
   ```
+  {{< /tab >}}
+  {{< tab "Python" >}}
+  ```python
+  PulsarSource.builder().set_topics(["some-topic1", "some-topic2"])
+
+  # 从 topic "topic-a" 的 0 和 2 分区上消费
+  PulsarSource.builder().set_topics(["topic-a-partition-0", "topic-a-partition-2"])
+  ```
+  {{< /tab >}}
+  {{< /tabs >}}
 
 - Topic 正则，Pulsar Source 使用给定的正则表达式匹配出所有合规的 Topic，例如：
+  {{< tabs "pulsar-source-topic-pattern" >}}
+  {{< tab "Java" >}}
   ```java
   PulsarSource.builder().setTopicPattern("topic-*");
   ```
+  {{< /tab >}}
+  {{< tab "Python" >}}
+  ```python
+  PulsarSource.builder().set_topic_pattern("topic-*")
+  ```
+  {{< /tab >}}
+  {{< /tabs >}}
 
 #### Topic 名称简写
 
@@ -147,13 +191,32 @@ Pulsar Source 提供了两种订阅 Topic 或 Topic 分区的方式。
   PulsarDeserializationSchema.pulsarSchema(Schema, Class, Class);
   ```
 - 使用 Flink 的 `DeserializationSchema` 解析消息。
+  {{< tabs "pulsar-deserializer-deserialization-schema" >}}
+  {{< tab "Java" >}}
   ```java
   PulsarDeserializationSchema.flinkSchema(DeserializationSchema);
   ```
+  {{< /tab >}}
+  {{< tab "Python" >}}
+  ```python
+  PulsarDeserializationSchema.flink_schema(DeserializationSchema)
+  ```
+  {{< /tab >}}
+  {{< /tabs >}}
+
 - 使用 Flink 的 `TypeInformation` 解析消息。
+  {{< tabs "pulsar-deserializer-type-information" >}}
+  {{< tab "Java" >}}
   ```java
   PulsarDeserializationSchema.flinkTypeInfo(TypeInformation, ExecutionConfig);
   ```
+  {{< /tab >}}
+  {{< tab "Python" >}}
+  ```python
+  PulsarDeserializationSchema.flink_type_info(TypeInformation)
+  ```
+  {{< /tab >}}
+  {{< /tabs >}}
 
 Pulsar 的 `Message<byte[]>` 包含了很多 [额外的属性](https://pulsar.apache.org/docs/zh-CN/concepts-messaging/#%E6%B6%88%E6%81%AF)。例如，消息的 key、消息发送时间、消息生产时间、用户在消息上自定义的键值对属性等。可以使用 `Message<byte[]>` 接口来获取这些属性。
 
@@ -172,6 +235,9 @@ Pulsar 的 `Message<byte[]>` 包含了很多 [额外的属性](https://pulsar.ap
 
 默认情况下，如果没有指定订阅类型，Pulsar Source 使用共享订阅类型（`SubscriptionType.Shared`）。
 
+{{< tabs "pulsar-subscriptions" >}}
+{{< tab "Java" >}}
+
 ```java
 // 名为 "my-shared" 的共享订阅
 PulsarSource.builder().setSubscriptionName("my-shared");
@@ -179,6 +245,20 @@ PulsarSource.builder().setSubscriptionName("my-shared");
 // 名为 "my-exclusive" 的独占订阅
 PulsarSource.builder().setSubscriptionName("my-exclusive").setSubscriptionType(SubscriptionType.Exclusive);
 ```
+
+{{< /tab >}}
+{{< tab "Python" >}}
+
+```python
+# 名为 "my-shared" 的共享订阅
+PulsarSource.builder().set_subscription_name("my-shared")
+
+# 名为 "my-exclusive" 的独占订阅
+PulsarSource.builder().set_subscription_name("my-exclusive").set_subscription_type(SubscriptionType.Exclusive)
+```
+
+{{< /tab >}}
+{{< /tabs >}}
 
 如果想在 Pulsar Source 里面使用 `key 共享` 订阅，需要提供 `RangeGenerator` 实例。`RangeGenerator` 会生成一组消息 key 的 hash 范围，Pulsar Source 会基于给定的范围来消费数据。
 
@@ -189,29 +269,88 @@ Pulsar Source 也提供了一个名为 `UniformRangeGenerator` 的默认实现�
 Pulsar Source 使用 `setStartCursor(StartCursor)` 方法给定开始消费的位置。内置的开始消费位置有：
 
 - 从 Topic 里面最早的一条消息开始消费。
+  {{< tabs "pulsar-starting-position-earliest" >}}
+  {{< tab "Java" >}}
   ```java
   StartCursor.earliest();
   ```
+  {{< /tab >}}
+  {{< tab "Python" >}}
+  ```python
+  StartCursor.earliest()
+  ```
+  {{< /tab >}}
+  {{< /tabs >}}
+
 - 从 Topic 里面最新的一条消息开始消费。
+  {{< tabs "pulsar-starting-position-latest" >}}
+  {{< tab "Java" >}}
   ```java
   StartCursor.latest();
   ```
+  {{< /tab >}}
+  {{< tab "Python" >}}
+  ```python
+  StartCursor.latest()
+  ```
+  {{< /tab >}}
+  {{< /tabs >}}
+
 - 从给定的消息开始消费。
+  {{< tabs "pulsar-starting-position-from-message-id" >}}
+  {{< tab "Java" >}}
   ```java
   StartCursor.fromMessageId(MessageId);
   ```
+  {{< /tab >}}
+  {{< tab "Python" >}}
+  ```python
+  StartCursor.from_message_id(message_id)
+  ```
+  {{< /tab >}}
+  {{< /tabs >}}
+
 - 与前者不同的是，给定的消息可以跳过，再进行消费。
+  {{< tabs "pulsar-starting-position-from-message-id-bool" >}}
+  {{< tab "Java" >}}
   ```java
   StartCursor.fromMessageId(MessageId, boolean);
   ```
+  {{< /tab >}}
+  {{< tab "Python" >}}
+  ```python
+  StartCursor.from_message_id(message_id, boolean)
+  ```
+  {{< /tab >}}
+  {{< /tabs >}}
+
 - 从给定的消息发布时间开始消费，这个方法因为名称容易导致误解现在已经不建议使用。你可以使用方法 `StartCursor.fromPublishTime(long)`。
+  {{< tabs "pulsar-starting-position-message-time" >}}
+  {{< tab "Java" >}}
   ```java
   StartCursor.fromMessageTime(long);
   ```
+  {{< /tab >}}
+  {{< tab "Python" >}}
+  ```python
+  StartCursor.from_message_time(int)
+  ```
+  {{< /tab >}}
+  {{< /tabs >}}
+
 - 从给定的消息发布时间开始消费。
+  {{< tabs "pulsar-starting-position-publish-time" >}}
+  {{< tab "Java" >}}
   ```java
   StartCursor.fromPublishTime(long);
   ```
+  {{< /tab >}}
+  {{< tab "Python" >}}
+  ```python
+  StartCursor.from_publish_time(int)
+  ```
+  {{< /tab >}}
+  {{< /tabs >}}
 
 {{< hint info >}}
 每条消息都有一个固定的序列号，这个序列号在 Pulsar 上有序排列，其包含了 ledger、entry、partition 等原始信息，用于在 Pulsar 底层存储上查找到具体的消息。
@@ -228,37 +367,116 @@ Pulsar Source 默认情况下使用流的方式消费数据。除非任务失败
 内置的停止消费位置如下：
 
 - 永不停止。
+  {{< tabs "pulsar-boundedness-never" >}}
+  {{< tab "Java" >}}
   ```java
   StopCursor.never();
   ```
+  {{< /tab >}}
+  {{< tab "Python" >}}
+  ```python
+  StopCursor.never()
+  ```
+  {{< /tab >}}
+  {{< /tabs >}}
+
 - 停止于 Pulsar 启动时 Topic 里面最新的那条数据。
+  {{< tabs "pulsar-boundedness-latest" >}}
+  {{< tab "Java" >}}
   ```java
   StopCursor.latest();
   ```
+  {{< /tab >}}
+  {{< tab "Python" >}}
+  ```python
+  StopCursor.latest()
+  ```
+  {{< /tab >}}
+  {{< /tabs >}}
+
 - 停止于某条消息，结果里不包含此消息。
+  {{< tabs "pulsar-boundedness-at-message-id" >}}
+  {{< tab "Java" >}}
   ```java
   StopCursor.atMessageId(MessageId);
   ```
+  {{< /tab >}}
+  {{< tab "Python" >}}
+  ```python
+  StopCursor.at_message_id(message_id)
+  ```
+  {{< /tab >}}
+  {{< /tabs >}}
+
 - 停止于某条消息之后，结果里包含此消息。
+  {{< tabs "pulsar-boundedness-after-message-id" >}}
+  {{< tab "Java" >}}
   ```java
   StopCursor.afterMessageId(MessageId);
   ```
+  {{< /tab >}}
+  {{< tab "Python" >}}
+  ```python
+  StopCursor.after_message_id(message_id)
+  ```
+  {{< /tab >}}
+  {{< /tabs >}}
+
 - 停止于某个给定的消息事件时间戳，比如 `Message<byte[]>.getEventTime()`，消费结果里不包含此时间戳的消息。
+  {{< tabs "pulsar-boundedness-at-event-time" >}}
+  {{< tab "Java" >}}
   ```java
   StopCursor.atEventTime(long);
   ```
+  {{< /tab >}}
+  {{< tab "Python" >}}
+  ```python
+  StopCursor.at_event_time(int)
+  ```
+  {{< /tab >}}
+  {{< /tabs >}}
+
 - 停止于某个给定的消息事件时间戳，比如 `Message<byte[]>.getEventTime()`，消费结果里包含此时间戳的消息。
+  {{< tabs "pulsar-boundedness-after-event-time" >}}
+  {{< tab "Java" >}}
   ```java
   StopCursor.afterEventTime(long);
   ```
+  {{< /tab >}}
+  {{< tab "Python" >}}
+  ```python
+  StopCursor.after_event_time(int)
+  ```
+  {{< /tab >}}
+  {{< /tabs >}}
+
 - 停止于某个给定的消息发布时间戳，比如 `Message<byte[]>.getPublishTime()`，消费结果里不包含此时间戳的消息。
+  {{< tabs "pulsar-boundedness-at-publish-time" >}}
+  {{< tab "Java" >}}
   ```java
   StopCursor.atPublishTime(long);
   ```
+  {{< /tab >}}
+  {{< tab "Python" >}}
+  ```python
+  StopCursor.at_publish_time(int)
+  ```
+  {{< /tab >}}
+  {{< /tabs >}}
+
 - 停止于某个给定的消息发布时间戳，比如 `Message<byte[]>.getPublishTime()`，消费结果里包含此时间戳的消息。
+  {{< tabs "pulsar-boundedness-after-publish-time" >}}
+  {{< tab "Java" >}}
   ```java
   StopCursor.afterPublishTime(long);
   ```
+  {{< /tab >}}
+  {{< tab "Python" >}}
+  ```python
+  StopCursor.after_publish_time(int)
+  ```
+  {{< /tab >}}
+  {{< /tabs >}}
 
 ### Source 配置项
 
@@ -292,11 +510,26 @@ Pulsar 提供了消费者 API 和读者 API 两套 API 来进行数据消费，�
 
 为了能在启动 Flink 任务之后还能发现在 Pulsar 上扩容的分区或者是新创建的 Topic，Pulsar Source 提供了动态分区发现机制。该机制不需要重启 Flink 任务。对选项 `PulsarSourceOptions.PULSAR_PARTITION_DISCOVERY_INTERVAL_MS` 设置一个正整数即可启用。
 
+{{< tabs "pulsar-dynamic-partition-discovery" >}}
+{{< tab "Java" >}}
+
 ```java
 // 10 秒查询一次分区信息
 PulsarSource.builder()
         .setConfig(PulsarSourceOptions.PULSAR_PARTITION_DISCOVERY_INTERVAL_MS, 10000);
 ```
+
+{{< /tab >}}
+{{< tab "Python" >}}
+
+```python
+# 10 秒查询一次分区信息
+PulsarSource.builder()
+    .set_config("pulsar.source.partitionDiscoveryIntervalMs", 10000)
+```
+
+{{< /tab >}}
+{{< /tabs >}}
 
 {{< hint warning >}}
 默认情况下，Pulsar 启用动态分区发现，查询间隔为 30 秒。用户可以给定一个负数，将该功能禁用。如果使用批的方式消费数据，将无法启用该功能。
@@ -306,9 +539,22 @@ PulsarSource.builder()
 
 默认情况下，Pulsar Source 使用 Pulsar 的 `Message<byte[]>` 里面的时间作为解析结果的时间戳。用户可以使用 `WatermarkStrategy` 来自行解析出想要的消息时间，并向下游传递对应的水位线。
 
+{{< tabs "pulsar-watermarks" >}}
+{{< tab "Java" >}}
+
 ```java
 env.fromSource(pulsarSource, new CustomWatermarkStrategy(), "Pulsar Source With Custom Watermark Strategy");
 ```
+
+{{< /tab >}}
+{{< tab "Python" >}}
+
+```python
+env.from_source(pulsar_source, CustomWatermarkStrategy(), "Pulsar Source With Custom Watermark Strategy")
+```
+
+{{< /tab >}}
+{{< /tabs >}}
 
 [这篇文档]({{< ref "docs/dev/datastream/event-time/generating_watermarks.md" >}})详细讲解了如何定义 `WatermarkStrategy`。
 
@@ -356,6 +602,9 @@ Pulsar Sink 使用 builder 类来创建 `PulsarSink` 实例。
 
 下面示例展示了如何通过 Pulsar Sink 以“至少一次”的语义将字符串类型的数据发送给 topic1。
 
+{{< tabs "46e225b1-1e34-4ff3-890c-aa06a2b99c0a" >}}
+{{< tab "Java" >}}
+
 ```java
 DataStream<String> stream = ...
 
@@ -370,6 +619,26 @@ PulsarSink<String> sink = PulsarSink.builder()
 stream.sinkTo(sink);
 ```
 
+{{< /tab >}}
+{{< tab "Python" >}}
+
+```python
+stream = ...
+
+pulsar_sink = PulsarSink.builder() \
+    .set_service_url('pulsar://localhost:6650') \
+    .set_admin_url('http://localhost:8080') \
+    .set_topics("topic1") \
+    .set_serialization_schema(PulsarSerializationSchema.flink_schema(SimpleStringSchema())) \
+    .set_delivery_guarantee(DeliveryGuarantee.AT_LEAST_ONCE) \
+    .build()
+
+stream.sink_to(pulsar_sink)
+```
+
+{{< /tab >}}
+{{< /tabs >}}
+
 下列为创建一个 `PulsarSink` 实例必需的属性：
 
 - Pulsar 数据消费的地址，使用 `setServiceUrl(String)` 方法提供。
@@ -383,6 +652,9 @@ stream.sinkTo(sink);
 
 `PulsarSink` 指定写入 Topic 的方式和 Pulsar Source [指定消费的 Topic 或者 Topic 分区](#指定消费的-topic-或者-topic-分区)的方式类似。`PulsarSink` 支持以 mixin 风格指定写入的 Topic 或分区。因此，可以指定一组 Topic 或者分区或者是两者都有。
 
+{{< tabs "3d452e6b-bffd-42f7-bb91-974b306262ca" >}}
+{{< tab "Java" >}}
+
 ```java
 // Topic "some-topic1" 和 "some-topic2"
 PulsarSink.builder().setTopics("some-topic1", "some-topic2")
@@ -393,6 +665,23 @@ PulsarSink.builder().setTopics("topic-a-partition-0", "topic-a-partition-2")
 // Topic "topic-a" 以及 Topic "some-topic2" 分区 0 和 2
 PulsarSink.builder().setTopics("topic-a-partition-0", "topic-a-partition-2", "some-topic2")
 ```
+
+{{< /tab >}}
+{{< tab "Python" >}}
+
+```python
+# Topic "some-topic1" 和 "some-topic2"
+PulsarSink.builder().set_topics(["some-topic1", "some-topic2"])
+
+# Topic "topic-a" 的分区 0 和 2
+PulsarSink.builder().set_topics(["topic-a-partition-0", "topic-a-partition-2"])
+
+# Topic "topic-a" 以及 Topic "some-topic2" 分区 0 和 2
+PulsarSink.builder().set_topics(["topic-a-partition-0", "topic-a-partition-2", "some-topic2"])
+```
+
+{{< /tab >}}
+{{< /tabs >}}
 
 动态分区发现默认处于开启状态，这意味着 `PulsarSink` 将会周期性地从 Pulsar 集群中查询 Topic 的元数据来获取可能有的分区数量变更信息。使用 `PulsarSinkOptions.PULSAR_TOPIC_METADATA_REFRESH_INTERVAL` 配置项来指定查询的间隔时间。
 
@@ -422,9 +711,22 @@ PulsarSink.builder().setTopics("topic-a-partition-0", "topic-a-partition-2", "so
   PulsarSerializationSchema.pulsarSchema(Schema, Class, Class)
   ```
 - 使用 Flink 的 `SerializationSchema` 来序列化数据。
+  {{< tabs "b65b9978-b1d6-4b0d-ade8-78098e0f23d8" >}}
+  {{< tab "Java" >}}
+
   ```java
   PulsarSerializationSchema.flinkSchema(SerializationSchema)
   ```
+
+  {{< /tab >}}
+  {{< tab "Python" >}}
+
+  ```python
+  PulsarSerializationSchema.flink_schema(SimpleStringSchema())
+  ```
+
+  {{< /tab >}}
+  {{< /tabs >}}
 
 同时使用 `PulsarSerializationSchema.pulsarSchema()` 以及在 builder 中指定 `PulsarSinkBuilder.enableSchemaEvolution()` 可以启用 [Schema evolution](https://pulsar.apache.org/docs/zh-CN/schema-evolution-compatibility/#schema-evolution) 特性。该特性会使用 Pulsar Broker 端提供的 Schema 版本兼容性检测以及 Schema 版本演进。下列示例展示了如何启用 Schema Evolution。
 
@@ -632,10 +934,18 @@ Pulsar Sink 使用生产者 API 来发送消息。Pulsar 的 `ProducerConfigurat
 默认情况下，Pulsar 生产者每隔 60 秒才会刷新一次监控数据，然而 Pulsar Sink 每 500 毫秒就会从 Pulsar 生产者中获得最新的监控数据。因此 `numRecordsOut`、`numBytesOut`、`numAcksReceived` 以及 `numRecordsOutErrors` 4 个指标实际上每 60 秒才会刷新一次。
 
 如果想要更高地刷新评率，可以通过如下方式来将 Pulsar 生产者的监控数据刷新频率调整至相应值（最低为1s）：
-
+{{< tabs "b65b9978-b1d6-4b0d-ade8-78098e0f23d1" >}}
+{{< tab "Java" >}}
 ```java
 builder.setConfig(PulsarOptions.PULSAR_STATS_INTERVAL_SECONDS, 1L);
 ```
+{{< /tab >}}
+{{< tab "Python" >}}
+```python
+builder.set_config("pulsar.client.statsIntervalSeconds", "1")
+```
+{{< /tab >}}
+{{< /tabs >}}
 
 `numBytesOutRate` 和 `numRecordsOutRate` 指标是 Flink 内部通过 `numBytesOut` 和 `numRecordsOut` 计数器，在一个 60 秒的窗口内计算得到的。
 
