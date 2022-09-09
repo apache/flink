@@ -22,10 +22,7 @@ import org.apache.flink.runtime.rpc.exceptions.RpcConnectionException;
 import org.apache.flink.util.concurrent.ScheduledExecutor;
 
 import java.io.Serializable;
-import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ScheduledFuture;
-import java.util.concurrent.TimeUnit;
 
 /**
  * Interface for rpc services. An rpc service is used to start and connect to a {@link RpcEndpoint}.
@@ -121,41 +118,4 @@ public interface RpcService {
      * @return The RPC service provided scheduled executor
      */
     ScheduledExecutor getScheduledExecutor();
-
-    /**
-     * Execute the runnable in the execution context of this RPC Service, as returned by {@link
-     * #getScheduledExecutor()} ()}, after a scheduled delay.
-     *
-     * @param runnable Runnable to be executed
-     * @param delay The delay after which the runnable will be executed
-     */
-    ScheduledFuture<?> scheduleRunnable(Runnable runnable, long delay, TimeUnit unit);
-
-    /**
-     * Execute the given runnable in the executor of the RPC service. This method can be used to run
-     * code outside of the main thread of a {@link RpcEndpoint}.
-     *
-     * <p><b>IMPORTANT:</b> This executor does not isolate the method invocations against any
-     * concurrent invocations and is therefore not suitable to run completion methods of futures
-     * that modify state of an {@link RpcEndpoint}. For such operations, one needs to use the {@link
-     * RpcEndpoint#getMainThreadExecutor() MainThreadExecutionContext} of that {@code RpcEndpoint}.
-     *
-     * @param runnable to execute
-     */
-    void execute(Runnable runnable);
-
-    /**
-     * Execute the given callable and return its result as a {@link CompletableFuture}. This method
-     * can be used to run code outside of the main thread of a {@link RpcEndpoint}.
-     *
-     * <p><b>IMPORTANT:</b> This executor does not isolate the method invocations against any
-     * concurrent invocations and is therefore not suitable to run completion methods of futures
-     * that modify state of an {@link RpcEndpoint}. For such operations, one needs to use the {@link
-     * RpcEndpoint#getMainThreadExecutor() MainThreadExecutionContext} of that {@code RpcEndpoint}.
-     *
-     * @param callable to execute
-     * @param <T> is the return value type
-     * @return Future containing the callable's future result
-     */
-    <T> CompletableFuture<T> execute(Callable<T> callable);
 }

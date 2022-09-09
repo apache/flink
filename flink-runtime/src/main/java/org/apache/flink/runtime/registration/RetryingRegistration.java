@@ -329,19 +329,23 @@ public abstract class RetryingRegistration<
 
     private void registerLater(
             final G gateway, final int attempt, final long timeoutMillis, long delay) {
-        rpcService.scheduleRunnable(
-                new Runnable() {
-                    @Override
-                    public void run() {
-                        register(gateway, attempt, timeoutMillis);
-                    }
-                },
-                delay,
-                TimeUnit.MILLISECONDS);
+        rpcService
+                .getScheduledExecutor()
+                .schedule(
+                        new Runnable() {
+                            @Override
+                            public void run() {
+                                register(gateway, attempt, timeoutMillis);
+                            }
+                        },
+                        delay,
+                        TimeUnit.MILLISECONDS);
     }
 
     private void startRegistrationLater(final long delay) {
-        rpcService.scheduleRunnable(this::startRegistration, delay, TimeUnit.MILLISECONDS);
+        rpcService
+                .getScheduledExecutor()
+                .schedule(this::startRegistration, delay, TimeUnit.MILLISECONDS);
     }
 
     static final class RetryingRegistrationResult<G, S, R> {

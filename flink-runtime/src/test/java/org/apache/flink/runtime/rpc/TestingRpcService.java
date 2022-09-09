@@ -23,11 +23,8 @@ import org.apache.flink.util.concurrent.FutureUtils;
 import org.apache.flink.util.concurrent.ScheduledExecutor;
 
 import java.io.Serializable;
-import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ScheduledFuture;
-import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -210,20 +207,5 @@ public class TestingRpcService implements RpcService {
     @Override
     public ScheduledExecutor getScheduledExecutor() {
         return backingRpcService.getScheduledExecutor();
-    }
-
-    @Override
-    public ScheduledFuture<?> scheduleRunnable(Runnable runnable, long delay, TimeUnit unit) {
-        return backingRpcService.scheduleRunnable(runnable, delay, unit);
-    }
-
-    @Override
-    public void execute(Runnable runnable) {
-        backingRpcService.execute(runnable);
-    }
-
-    @Override
-    public <T> CompletableFuture<T> execute(Callable<T> callable) {
-        return backingRpcService.execute(callable);
     }
 }
