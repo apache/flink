@@ -57,7 +57,7 @@ public class TestingMemoryDataManagerOperation implements HsMemoryDataManagerOpe
     }
 
     @Override
-    public void markBufferReadableFromFile(int subpartitionId, int bufferIndex) {
+    public void markBufferReleasedFromFile(int subpartitionId, int bufferIndex) {
         markBufferReadableConsumer.accept(subpartitionId, bufferIndex);
     }
 

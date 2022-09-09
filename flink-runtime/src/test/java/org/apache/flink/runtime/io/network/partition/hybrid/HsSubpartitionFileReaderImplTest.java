@@ -113,15 +113,17 @@ class HsSubpartitionFileReaderImplTest {
         writeDataToFile(1, 2, 25, 1);
 
         Queue<MemorySegment> memorySegments = createsMemorySegments(6);
-
+        fileReader1.prepareForScheduling();
         fileReader1.readBuffers(memorySegments, FreeingBufferRecycler.INSTANCE);
         assertThat(memorySegments).hasSize(4);
         checkData(fileReader1, 10, 11);
 
+        fileReader2.prepareForScheduling();
         fileReader2.readBuffers(memorySegments, FreeingBufferRecycler.INSTANCE);
         assertThat(memorySegments).hasSize(2);
         checkData(fileReader2, 20, 21);
 
+        fileReader1.prepareForScheduling();
         fileReader1.readBuffers(memorySegments, FreeingBufferRecycler.INSTANCE);
         assertThat(memorySegments).hasSize(1);
         checkData(fileReader1, 15);
@@ -147,7 +149,7 @@ class HsSubpartitionFileReaderImplTest {
         writeDataToFile(0, 0, 1, 3, bufferCompressor);
 
         Queue<MemorySegment> memorySegments = createsMemorySegments(3);
-
+        fileReader1.prepareForScheduling();
         fileReader1.readBuffers(memorySegments, FreeingBufferRecycler.INSTANCE);
         checkData(fileReader1, bufferDecompressor, 1, 2, 3);
     }
@@ -400,6 +402,7 @@ class HsSubpartitionFileReaderImplTest {
         writeDataToFile(0, 0, 0, 2);
 
         Queue<MemorySegment> memorySegments = createsMemorySegments(2);
+        subpartitionFileReader.prepareForScheduling();
         // trigger reading, add buffer to queue.
         subpartitionFileReader.readBuffers(memorySegments, (ignore) -> {});
 
@@ -455,6 +458,7 @@ class HsSubpartitionFileReaderImplTest {
         writeDataToFile(0, 0, 2);
 
         Queue<MemorySegment> memorySegments = createsMemorySegments(2);
+        subpartitionFileReader.prepareForScheduling();
         // trigger reading, add buffer to queue.
         subpartitionFileReader.readBuffers(memorySegments, (ignore) -> {});
 
@@ -464,6 +468,37 @@ class HsSubpartitionFileReaderImplTest {
         // if nextBufferToConsume is equal to peek elements index, return the real DataType.
         assertThat(subpartitionFileReader.peekNextToConsumeDataType(0))
                 .isEqualTo(DataType.DATA_BUFFER);
+    }
+
+    /**
+     * If subpartitionReader is registered more than once due to failover, the new reader should be
+     * able to read all the released data from disk, even if some data was read from memory before
+     * failover.
+     */
+    @Test
+    void testSubpartitionReaderRegisterMultipleTimes() throws Exception {
+        TestingSubpartitionViewInternalOperation viewNotifier =
+                new TestingSubpartitionViewInternalOperation();
+        HsSubpartitionFileReaderImpl subpartitionFileReader =
+                createSubpartitionFileReader(0, viewNotifier);
+        // mock the scenario that buffer 0 is already read form memory.
+        viewNotifier.advanceConsumptionProgress();
+        writeDataToFile(0, 0, 1, 3);
+        subpartitionFileReader.prepareForScheduling();
+        Queue<MemorySegment> memorySegments = createsMemorySegments(3);
+        subpartitionFileReader.readBuffers(memorySegments, (ignore) -> {});
+        assertThat(memorySegments).hasSize(1);
+        checkData(subpartitionFileReader, 2, 3);
+
+        // after failover, new view and subpartitionFileReader will be created.
+        viewNotifier = new TestingSubpartitionViewInternalOperation();
+        subpartitionFileReader = createSubpartitionFileReader(0, viewNotifier);
+        subpartitionFileReader.prepareForScheduling();
+        memorySegments = createsMemorySegments(3);
+        subpartitionFileReader.readBuffers(memorySegments, (ignore) -> {});
+        assertThat(memorySegments).isEmpty();
+        // buffer 0 can be read from disk correctly.
+        checkData(subpartitionFileReader, 1, 2, 3);
     }
 
     private static void checkData(
@@ -556,7 +591,7 @@ class HsSubpartitionFileReaderImplTest {
         // mark all buffers status to release.
         spilledBuffers.forEach(
                 spilledBuffer ->
-                        diskIndex.markBufferReadable(subpartitionId, spilledBuffer.bufferIndex));
+                        diskIndex.markBufferReleased(subpartitionId, spilledBuffer.bufferIndex));
     }
 
     private void writeDataToFile(

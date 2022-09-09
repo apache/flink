@@ -18,22 +18,25 @@
 
 package org.apache.flink.runtime.io.network.partition.hybrid;
 
+import org.apache.flink.util.function.TriFunction;
+
 import java.util.List;
 import java.util.Optional;
 import java.util.function.BiConsumer;
-import java.util.function.BiFunction;
 import java.util.function.Consumer;
 
 /** Mock {@link HsFileDataIndex} for testing. */
 public class TestingFileDataIndex implements HsFileDataIndex {
-    private final BiFunction<Integer, Integer, Optional<ReadableRegion>> getReadableRegionFunction;
+    private final TriFunction<Integer, Integer, Integer, Optional<ReadableRegion>>
+            getReadableRegionFunction;
 
     private final Consumer<List<SpilledBuffer>> addBuffersConsumer;
 
     private final BiConsumer<Integer, Integer> markBufferReadableConsumer;
 
     private TestingFileDataIndex(
-            BiFunction<Integer, Integer, Optional<ReadableRegion>> getReadableRegionFunction,
+            TriFunction<Integer, Integer, Integer, Optional<ReadableRegion>>
+                    getReadableRegionFunction,
             Consumer<List<SpilledBuffer>> addBuffersConsumer,
             BiConsumer<Integer, Integer> markBufferReadableConsumer) {
         this.getReadableRegionFunction = getReadableRegionFunction;
@@ -42,8 +45,9 @@ public class TestingFileDataIndex implements HsFileDataIndex {
     }
 
     @Override
-    public Optional<ReadableRegion> getReadableRegion(int subpartitionId, int bufferIndex) {
-        return getReadableRegionFunction.apply(subpartitionId, bufferIndex);
+    public Optional<ReadableRegion> getReadableRegion(
+            int subpartitionId, int bufferIndex, int consumingOffset) {
+        return getReadableRegionFunction.apply(subpartitionId, bufferIndex, consumingOffset);
     }
 
     @Override
@@ -52,7 +56,7 @@ public class TestingFileDataIndex implements HsFileDataIndex {
     }
 
     @Override
-    public void markBufferReadable(int subpartitionId, int bufferIndex) {
+    public void markBufferReleased(int subpartitionId, int bufferIndex) {
         markBufferReadableConsumer.accept(subpartitionId, bufferIndex);
     }
 
@@ -62,8 +66,8 @@ public class TestingFileDataIndex implements HsFileDataIndex {
 
     /** Builder for {@link TestingFileDataIndex}. */
     public static class Builder {
-        private BiFunction<Integer, Integer, Optional<ReadableRegion>> getReadableRegionFunction =
-                (ignore1, ignore2) -> Optional.empty();
+        private TriFunction<Integer, Integer, Integer, Optional<ReadableRegion>>
+                getReadableRegionFunction = (ignore1, ignore2, ignore3) -> Optional.empty();
 
         private Consumer<List<SpilledBuffer>> addBuffersConsumer = (ignore) -> {};
 
@@ -72,7 +76,8 @@ public class TestingFileDataIndex implements HsFileDataIndex {
         private Builder() {}
 
         public Builder setGetReadableRegionFunction(
-                BiFunction<Integer, Integer, Optional<ReadableRegion>> getReadableRegionFunction) {
+                TriFunction<Integer, Integer, Integer, Optional<ReadableRegion>>
+                        getReadableRegionFunction) {
             this.getReadableRegionFunction = getReadableRegionFunction;
             return this;
         }
