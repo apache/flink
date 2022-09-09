@@ -26,7 +26,7 @@ import org.apache.flink.table.planner.plan.nodes.calcite.Sink
 import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, InputProperty}
 import org.apache.flink.table.planner.plan.nodes.exec.spec.DynamicTableSinkSpec
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecSink
-import org.apache.flink.table.planner.plan.utils.{ChangelogPlanUtils, JoinUtil}
+import org.apache.flink.table.planner.plan.utils.{ChangelogPlanUtils, UpsertKeyUtil}
 import org.apache.flink.table.planner.utils.ShortcutUtils.unwrapTableConfig
 
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
@@ -34,8 +34,6 @@ import org.apache.calcite.rel.{RelNode, RelWriter}
 import org.apache.calcite.rel.hint.RelHint
 
 import java.util
-
-import scala.collection.JavaConversions._
 
 /**
  * Stream physical RelNode to to write data into an external sink defined by a [[DynamicTableSink]].
@@ -90,12 +88,6 @@ class StreamPhysicalSink(
       .reuseOrCreate(cluster.getMetadataQuery)
       .getUpsertKeys(inputRel)
 
-    val usedUpsertKey = if (inputUpsertKeys != null && !inputUpsertKeys.isEmpty) {
-      JoinUtil.getSmallestKey(inputUpsertKeys.map(_.asList.map(_.intValue).toArray).toList)
-    } else {
-      Array.empty[Int]
-    }
-
     new StreamExecSink(
       unwrapTableConfig(this),
       tableSinkSpec,
@@ -103,7 +95,7 @@ class StreamPhysicalSink(
       InputProperty.DEFAULT,
       FlinkTypeFactory.toLogicalRowType(getRowType),
       upsertMaterialize,
-      usedUpsertKey,
+      UpsertKeyUtil.getSmallestKey(inputUpsertKeys),
       getRelDetailedDescription)
   }
 
