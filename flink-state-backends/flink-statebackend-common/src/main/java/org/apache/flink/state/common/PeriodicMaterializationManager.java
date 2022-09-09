@@ -202,6 +202,7 @@ public class PeriodicMaterializationManager implements Closeable {
     public void triggerMaterialization() {
         mailboxExecutor.execute(
                 () -> {
+                    long triggerTime = System.currentTimeMillis();
                     metrics.reportStartedMaterialization();
                     Optional<MaterializationRunnable> materializationRunnableOptional;
                     try {
@@ -216,6 +217,7 @@ public class PeriodicMaterializationManager implements Closeable {
                         asyncOperationsThreadPool.execute(
                                 () ->
                                         asyncMaterializationPhase(
+                                                triggerTime,
                                                 runnable.getMaterializationRunnable(),
                                                 runnable.getMaterializationID(),
                                                 runnable.getMaterializedTo()));
@@ -234,6 +236,7 @@ public class PeriodicMaterializationManager implements Closeable {
     }
 
     private void asyncMaterializationPhase(
+            long triggerTime,
             RunnableFuture<SnapshotResult<KeyedStateHandle>> materializedRunnableFuture,
             long materializationID,
             SequenceNumber upTo) {
@@ -251,6 +254,8 @@ public class PeriodicMaterializationManager implements Closeable {
                                                 target.handleMaterializationResult(
                                                         snapshotResult, materializationID, upTo);
                                                 metrics.reportCompletedMaterialization();
+                                                metrics.reportMaterializationDuration(
+                                                        System.currentTimeMillis() - triggerTime);
                                             } catch (Exception ex) {
                                                 metrics.reportFailedMaterialization();
                                             }

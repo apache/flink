@@ -39,9 +39,15 @@ public class ChangelogMaterializationMetricGroup extends ProxyMetricGroup<Metric
     @VisibleForTesting
     public static final String FAILED_MATERIALIZATION = PREFIX + ".failedMaterialization";
 
+    @VisibleForTesting
+    public static final String LAST_MATERIALIZATION_DURATION =
+            PREFIX + ".lastMaterializationDuration";
+
     private final Counter startedMaterializationCounter;
     private final Counter completedMaterializationCounter;
     private final Counter failedMaterializationCounter;
+
+    private volatile long lastDuration = -1;
 
     public ChangelogMaterializationMetricGroup(MetricGroup parentMetricGroup) {
         super(parentMetricGroup);
@@ -51,6 +57,8 @@ public class ChangelogMaterializationMetricGroup extends ProxyMetricGroup<Metric
                 counter(COMPLETED_MATERIALIZATION, new ThreadSafeSimpleCounter());
         this.failedMaterializationCounter =
                 counter(FAILED_MATERIALIZATION, new ThreadSafeSimpleCounter());
+
+        gauge(LAST_MATERIALIZATION_DURATION, () -> lastDuration);
     }
 
     void reportStartedMaterialization() {
@@ -63,5 +71,9 @@ public class ChangelogMaterializationMetricGroup extends ProxyMetricGroup<Metric
 
     void reportFailedMaterialization() {
         failedMaterializationCounter.inc();
+    }
+
+    void reportMaterializationDuration(long duration) {
+        lastDuration = duration;
     }
 }
