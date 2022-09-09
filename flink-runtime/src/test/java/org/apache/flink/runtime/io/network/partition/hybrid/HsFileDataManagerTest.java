@@ -24,6 +24,8 @@ import org.apache.flink.runtime.concurrent.ManuallyTriggeredScheduledExecutorSer
 import org.apache.flink.runtime.io.disk.BatchShuffleReadBufferPool;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferRecycler;
+import org.apache.flink.runtime.io.network.partition.BufferReaderWriterUtil;
+import org.apache.flink.runtime.io.network.partition.NoOpBufferAvailablityListener;
 import org.apache.flink.runtime.io.network.partition.ResultSubpartition;
 import org.apache.flink.util.TestLoggerExtension;
 import org.apache.flink.util.function.BiConsumerWithException;
@@ -340,6 +342,66 @@ class HsFileDataManagerTest {
                 .hasMessageContaining("HsFileDataManager is already released.");
     }
 
+    /**
+     * When the result partition fails, the view lock may be obtained when the FileDataManager lock
+     * is held. In the same time, the downstream thread will acquire the lock of the FileDataManager
+     * when acquiring the view lock. To avoid this deadlock, the logical of subpartition view
+     * release subpartition reader and subpartition reader fail should not be inside lock.
+     */
+    @Test
+    void testConsumeWhileReleaseNoDeadlock() throws Exception {
+        CompletableFuture<Void> consumerStart = new CompletableFuture<>();
+        CompletableFuture<Void> readerFail = new CompletableFuture<>();
+        HsSubpartitionView subpartitionView =
+                new HsSubpartitionView(new NoOpBufferAvailablityListener());
+
+        HsSubpartitionFileReaderImpl subpartitionFileReader =
+                new HsSubpartitionFileReaderImpl(
+                        0,
+                        dataFileChannel,
+                        subpartitionView,
+                        new HsFileDataIndexImpl(NUM_SUBPARTITIONS),
+                        5,
+                        fileDataManager::releaseSubpartitionReader,
+                        BufferReaderWriterUtil.allocatedHeaderBuffer()) {
+                    @Override
+                    public synchronized void fail(Throwable failureCause) {
+                        try {
+                            readerFail.complete(null);
+                            consumerStart.get();
+                            super.fail(failureCause);
+                        } catch (Exception e) {
+                            throw new RuntimeException(e);
+                        }
+                    }
+                };
+        factory.allReaders.add(subpartitionFileReader);
+        HsDataView diskDataView = fileDataManager.registerNewSubpartition(0, subpartitionView);
+        subpartitionView.setDiskDataView(diskDataView);
+        TestingHsDataView memoryDataView =
+                TestingHsDataView.builder()
+                        .setConsumeBufferFunction(
+                                (ignore) -> {
+                                    // throw an exception to trigger the release of file reader.
+                                    throw new RuntimeException("expected exception.");
+                                })
+                        .build();
+        subpartitionView.setMemoryDataView(memoryDataView);
+
+        CheckedThread consumerThread =
+                new CheckedThread() {
+                    @Override
+                    public void go() throws Exception {
+                        readerFail.get();
+                        consumerStart.complete(null);
+                        subpartitionView.getNextBuffer();
+                    }
+                };
+        consumerThread.start();
+        fileDataManager.release();
+        consumerThread.sync();
+    }
+
     private static FileChannel openFileChannel(Path path) throws IOException {
         return FileChannel.open(path, StandardOpenOption.READ);
     }
@@ -351,6 +413,8 @@ class HsFileDataManagerTest {
                 readBuffersConsumer = (ignore1, ignore2) -> {};
 
         private Consumer<Throwable> failConsumer = (ignore) -> {};
+
+        private Runnable releaseDataViewRunnable = () -> {};
 
         private final Queue<MemorySegment> readBuffers;
 
@@ -400,6 +464,10 @@ class HsFileDataManagerTest {
             this.failConsumer = failConsumer;
         }
 
+        public void setReleaseDataViewRunnable(Runnable releaseDataViewRunnable) {
+            this.releaseDataViewRunnable = releaseDataViewRunnable;
+        }
+
         @Override
         public Optional<ResultSubpartition.BufferAndBacklog> consumeBuffer(
                 int nextBufferToConsume) {
@@ -418,7 +486,7 @@ class HsFileDataManagerTest {
 
         @Override
         public void releaseDataView() {
-            // do nothing.
+            releaseDataViewRunnable.run();
         }
 
         /** Factory for {@link TestingHsSubpartitionFileReader}. */
