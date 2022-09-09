@@ -16,17 +16,19 @@
  */
 package org.apache.calcite.rel.core;
 
+import com.google.common.collect.ImmutableList;
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelTraitSet;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.RelWriter;
 import org.apache.calcite.rel.SingleRel;
+import org.apache.calcite.rel.hint.Hintable;
+import org.apache.calcite.rel.hint.RelHint;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.rex.RexShuttle;
 import org.apache.calcite.sql.type.SqlTypeName;
 import org.apache.calcite.util.Litmus;
-import org.checkerframework.checker.nullness.qual.Nullable;
 
 import java.util.List;
 import java.util.Objects;
@@ -40,13 +42,39 @@ import java.util.Objects;
  * Snapshot}(TableScan(Products)) is a relational operator that only returns the contents whose
  * versions that overlap with the given specific period (i.e. those that started before given period
  * and ended after it).
+ *
+ * <p>Temporarily copy from calcite to cherry-pick [CALCITE-5251] and will be removed when upgrade
+ * to caclite-1.32.0.
  */
-public abstract class Snapshot extends SingleRel {
+public abstract class Snapshot extends SingleRel implements Hintable {
     // ~ Instance fields --------------------------------------------------------
 
     private final RexNode period;
 
+    protected final ImmutableList<RelHint> hints;
+
     // ~ Constructors -----------------------------------------------------------
+
+    /**
+     * Creates a Snapshot.
+     *
+     * @param cluster Cluster that this relational expression belongs to
+     * @param traitSet The traits of this relational expression
+     * @param hints Hints for this node
+     * @param input Input relational expression
+     * @param period Timestamp expression which as the table was at the given time in the past
+     */
+    protected Snapshot(
+            RelOptCluster cluster,
+            RelTraitSet traitSet,
+            List<RelHint> hints,
+            RelNode input,
+            RexNode period) {
+        super(cluster, traitSet, input);
+        this.period = Objects.requireNonNull(period, "period");
+        this.hints = ImmutableList.copyOf(hints);
+        assert isValid(Litmus.THROW, null);
+    }
 
     /**
      * Creates a Snapshot.
@@ -58,9 +86,7 @@ public abstract class Snapshot extends SingleRel {
      */
     @SuppressWarnings("method.invocation.invalid")
     protected Snapshot(RelOptCluster cluster, RelTraitSet traitSet, RelNode input, RexNode period) {
-        super(cluster, traitSet, input);
-        this.period = Objects.requireNonNull(period, "period");
-        assert isValid(Litmus.THROW, null);
+        this(cluster, traitSet, ImmutableList.of(), input, period);
     }
 
     // ~ Methods ----------------------------------------------------------------
@@ -72,7 +98,6 @@ public abstract class Snapshot extends SingleRel {
 
     public abstract Snapshot copy(RelTraitSet traitSet, RelNode input, RexNode period);
 
-    @Override
     public RelNode accept(RexShuttle shuttle) {
         RexNode condition = shuttle.apply(this.period);
         if (this.period == condition) {
@@ -91,7 +116,7 @@ public abstract class Snapshot extends SingleRel {
     }
 
     @Override
-    public boolean isValid(Litmus litmus, @Nullable Context context) {
+    public boolean isValid(Litmus litmus, RelNode.Context context) {
         RelDataType dataType = period.getType();
         if (dataType.getSqlTypeName() != SqlTypeName.TIMESTAMP) {
             return litmus.fail(
@@ -100,5 +125,10 @@ public abstract class Snapshot extends SingleRel {
                             + "'");
         }
         return litmus.succeed();
+    }
+
+    @Override
+    public ImmutableList<RelHint> getHints() {
+        return hints;
     }
 }
