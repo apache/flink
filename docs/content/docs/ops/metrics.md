@@ -1551,7 +1551,7 @@ Note that the metrics are only available via reporters.
       <td>Gauge</td>
     </tr>
     <tr>
-      <th rowspan="7"><strong>Task/Operator</strong></th>
+      <th rowspan="8"><strong>Task/Operator</strong></th>
       <td>startedMaterialization</td>
       <td>The number of started materializations.</td>
       <td>Counter</td>
@@ -1565,6 +1565,11 @@ Note that the metrics are only available via reporters.
       <td>failedMaterialization</td>
       <td>The number of failed materializations.</td>
       <td>Counter</td>
+    </tr>
+    <tr>
+      <td>lastDurationOfMaterialization</td>
+      <td>The duration of the last materialization (in milliseconds).</td>
+      <td>Gauge</td>
     </tr>
     <tr>
       <td>lastFullSizeOfMaterialization</td>
