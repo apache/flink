@@ -39,10 +39,12 @@ public interface HsFileDataIndex {
      *
      * @param subpartitionId that the readable region belongs to
      * @param bufferIndex that the readable region starts with
+     * @param consumingOffset of the downstream
      * @return a {@link ReadableRegion} for the given subpartition that starts with the given buffer
      *     index, if exist; otherwise, {@link Optional#empty()}.
      */
-    Optional<ReadableRegion> getReadableRegion(int subpartitionId, int bufferIndex);
+    Optional<ReadableRegion> getReadableRegion(
+            int subpartitionId, int bufferIndex, int consumingOffset);
 
     /**
      * Add buffers to the index.
@@ -55,12 +57,12 @@ public interface HsFileDataIndex {
     void addBuffers(List<SpilledBuffer> spilledBuffers);
 
     /**
-     * Mark a buffer as READABLE.
+     * Mark a buffer as RELEASED.
      *
      * @param subpartitionId that the buffer belongs to
      * @param bufferIndex of the buffer within the subpartition
      */
-    void markBufferReadable(int subpartitionId, int bufferIndex);
+    void markBufferReleased(int subpartitionId, int bufferIndex);
 
     /**
      * Represents a series of physically continuous buffers in the file, which are readable, from

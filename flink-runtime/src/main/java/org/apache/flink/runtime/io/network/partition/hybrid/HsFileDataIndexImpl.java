@@ -51,10 +51,13 @@ public class HsFileDataIndexImpl implements HsFileDataIndex {
     }
 
     @Override
-    public Optional<ReadableRegion> getReadableRegion(int subpartitionId, int bufferIndex) {
+    public Optional<ReadableRegion> getReadableRegion(
+            int subpartitionId, int bufferIndex, int consumingOffset) {
         synchronized (lock) {
             return getInternalRegion(subpartitionId, bufferIndex)
-                    .map(internalRegion -> internalRegion.toReadableRegion(bufferIndex))
+                    .map(
+                            internalRegion ->
+                                    internalRegion.toReadableRegion(bufferIndex, consumingOffset))
                     .filter(internalRegion -> internalRegion.numReadable > 0);
         }
     }
@@ -76,10 +79,10 @@ public class HsFileDataIndexImpl implements HsFileDataIndex {
     }
 
     @Override
-    public void markBufferReadable(int subpartitionId, int bufferIndex) {
+    public void markBufferReleased(int subpartitionId, int bufferIndex) {
         synchronized (lock) {
             getInternalRegion(subpartitionId, bufferIndex)
-                    .ifPresent(internalRegion -> internalRegion.markBufferReadable(bufferIndex));
+                    .ifPresent(internalRegion -> internalRegion.markBufferReleased(bufferIndex));
         }
     }
 
@@ -170,25 +173,26 @@ public class HsFileDataIndexImpl implements HsFileDataIndex {
         private final int firstBufferIndex;
         private final long firstBufferOffset;
         private final int numBuffers;
-        private final boolean[] readable;
+        private final boolean[] released;
 
         private InternalRegion(int firstBufferIndex, long firstBufferOffset, int numBuffers) {
             this.firstBufferIndex = firstBufferIndex;
             this.firstBufferOffset = firstBufferOffset;
             this.numBuffers = numBuffers;
-            this.readable = new boolean[numBuffers];
-            Arrays.fill(readable, false);
+            this.released = new boolean[numBuffers];
+            Arrays.fill(released, false);
         }
 
         private boolean containBuffer(int bufferIndex) {
             return bufferIndex >= firstBufferIndex && bufferIndex < firstBufferIndex + numBuffers;
         }
 
-        private HsFileDataIndex.ReadableRegion toReadableRegion(int bufferIndex) {
+        private HsFileDataIndex.ReadableRegion toReadableRegion(
+                int bufferIndex, int consumingOffset) {
             int nSkip = bufferIndex - firstBufferIndex;
             int nReadable = 0;
             while (nSkip + nReadable < numBuffers) {
-                if (!readable[nSkip + nReadable]) {
+                if (!released[nSkip + nReadable] || (bufferIndex + nReadable) <= consumingOffset) {
                     break;
                 }
                 ++nReadable;
@@ -196,8 +200,8 @@ public class HsFileDataIndexImpl implements HsFileDataIndex {
             return new ReadableRegion(nSkip, nReadable, firstBufferOffset);
         }
 
-        private void markBufferReadable(int bufferIndex) {
-            readable[bufferIndex - firstBufferIndex] = true;
+        private void markBufferReleased(int bufferIndex) {
+            released[bufferIndex - firstBufferIndex] = true;
         }
     }
 }

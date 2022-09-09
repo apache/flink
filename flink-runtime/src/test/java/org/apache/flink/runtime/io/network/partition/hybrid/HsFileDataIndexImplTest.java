@@ -54,14 +54,14 @@ class HsFileDataIndexImplTest {
     @Test
     void testGetReadableRegionBufferNotExist() {
         hsDataIndex.addBuffers(createSpilledBuffers(0, Arrays.asList(0, 2)));
-        hsDataIndex.markBufferReadable(0, 0);
-        hsDataIndex.markBufferReadable(0, 2);
+        hsDataIndex.markBufferReleased(0, 0);
+        hsDataIndex.markBufferReleased(0, 2);
 
         // subpartition 0 does not have buffer with index 1
-        assertThat(hsDataIndex.getReadableRegion(0, 1)).isNotPresent();
+        assertThat(hsDataIndex.getReadableRegion(0, 1, -1)).isNotPresent();
 
         // subpartition 1 has no buffer
-        assertThat(hsDataIndex.getReadableRegion(1, 0)).isNotPresent();
+        assertThat(hsDataIndex.getReadableRegion(1, 0, -1)).isNotPresent();
     }
 
     /** If target buffer is not readable, {@link Optional#empty()} should be eventually returned. */
@@ -69,8 +69,17 @@ class HsFileDataIndexImplTest {
     void testGetReadableRegionNotReadable() {
         hsDataIndex.addBuffers(createSpilledBuffers(0, Collections.singletonList(0)));
 
-        // 0-0 is not readable
-        assertThat(hsDataIndex.getReadableRegion(0, 0)).isNotPresent();
+        // 0-0 is not readable as consuming offset is bigger than 0.
+        assertThat(hsDataIndex.getReadableRegion(0, 0, 1)).isNotPresent();
+    }
+
+    /** If target buffer is not released, {@link Optional#empty()} should be eventually returned. */
+    @Test
+    void testGetReadableRegionNotReleased() {
+        hsDataIndex.addBuffers(createSpilledBuffers(0, Collections.singletonList(0)));
+
+        // 0-0 is not released
+        assertThat(hsDataIndex.getReadableRegion(0, 0, -1)).isNotPresent();
     }
 
     /**
@@ -82,18 +91,18 @@ class HsFileDataIndexImplTest {
         final int subpartitionId = 0;
 
         hsDataIndex.addBuffers(createSpilledBuffers(subpartitionId, Arrays.asList(0, 1, 3, 4, 5)));
-        hsDataIndex.markBufferReadable(subpartitionId, 1);
-        hsDataIndex.markBufferReadable(subpartitionId, 3);
-        hsDataIndex.markBufferReadable(subpartitionId, 4);
+        hsDataIndex.markBufferReleased(subpartitionId, 1);
+        hsDataIndex.markBufferReleased(subpartitionId, 3);
+        hsDataIndex.markBufferReleased(subpartitionId, 4);
 
-        assertThat(hsDataIndex.getReadableRegion(subpartitionId, 1))
+        assertThat(hsDataIndex.getReadableRegion(subpartitionId, 1, 0))
                 .hasValueSatisfying(
                         readableRegion -> {
                             assertRegionStartWithTargetBufferIndex(readableRegion, 1);
                             // Readable region will not include discontinuous buffer.
                             assertThat(readableRegion.numReadable).isEqualTo(1);
                         });
-        assertThat(hsDataIndex.getReadableRegion(subpartitionId, 3))
+        assertThat(hsDataIndex.getReadableRegion(subpartitionId, 3, 0))
                 .hasValueSatisfying(
                         readableRegion -> {
                             assertRegionStartWithTargetBufferIndex(readableRegion, 3);
@@ -101,7 +110,7 @@ class HsFileDataIndexImplTest {
                                     .isGreaterThanOrEqualTo(1)
                                     .isLessThanOrEqualTo(2);
                         });
-        assertThat(hsDataIndex.getReadableRegion(subpartitionId, 4))
+        assertThat(hsDataIndex.getReadableRegion(subpartitionId, 4, 0))
                 .hasValueSatisfying(
                         readableRegion -> {
                             assertRegionStartWithTargetBufferIndex(readableRegion, 4);
