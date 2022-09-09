@@ -131,8 +131,12 @@ public class JobDispatcherLeaderProcessFactoryFactory
             JobGraph jobGraph, Collection<JobResult> dirtyJobResults) {
         final Set<JobID> jobIdsOfFinishedJobs =
                 dirtyJobResults.stream().map(JobResult::getJobId).collect(Collectors.toSet());
-        return jobIdsOfFinishedJobs.contains(jobGraph.getJobID())
-                ? Optional.empty()
-                : Optional.of(jobGraph);
+        if (jobIdsOfFinishedJobs.contains(jobGraph.getJobID())) {
+            LOG.info(
+                    "Skipping recovery of a job with job id {}, because it already reached a globally terminal state",
+                    jobGraph.getJobID());
+            return Optional.empty();
+        }
+        return Optional.of(jobGraph);
     }
 }
