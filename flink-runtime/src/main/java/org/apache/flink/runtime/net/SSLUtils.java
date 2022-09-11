@@ -110,7 +110,8 @@ public class SSLUtils {
         return new SSLHandlerFactory(
                 sslContext,
                 config.getInteger(SecurityOptions.SSL_INTERNAL_HANDSHAKE_TIMEOUT),
-                config.getInteger(SecurityOptions.SSL_INTERNAL_CLOSE_NOTIFY_FLUSH_TIMEOUT));
+                config.getInteger(SecurityOptions.SSL_INTERNAL_CLOSE_NOTIFY_FLUSH_TIMEOUT),
+                false);
     }
 
     /** Creates a SSLEngineFactory to be used by internal communication client endpoints. */
@@ -125,7 +126,8 @@ public class SSLUtils {
         return new SSLHandlerFactory(
                 sslContext,
                 config.getInteger(SecurityOptions.SSL_INTERNAL_HANDSHAKE_TIMEOUT),
-                config.getInteger(SecurityOptions.SSL_INTERNAL_CLOSE_NOTIFY_FLUSH_TIMEOUT));
+                config.getInteger(SecurityOptions.SSL_INTERNAL_CLOSE_NOTIFY_FLUSH_TIMEOUT),
+                false);
     }
 
     /**
@@ -144,7 +146,7 @@ public class SSLUtils {
             throw new IllegalConfigurationException("SSL is not enabled for REST endpoints.");
         }
 
-        return new SSLHandlerFactory(sslContext, -1, -1);
+        return new SSLHandlerFactory(sslContext, -1, -1, isHostnameVerificationEnabled(config));
     }
 
     /**
@@ -163,7 +165,7 @@ public class SSLUtils {
             throw new IllegalConfigurationException("SSL is not enabled for REST endpoints.");
         }
 
-        return new SSLHandlerFactory(sslContext, -1, -1);
+        return new SSLHandlerFactory(sslContext, -1, -1, isHostnameVerificationEnabled(config));
     }
 
     private static String[] getEnabledProtocols(final Configuration config) {
@@ -279,6 +281,21 @@ public class SSLUtils {
         kmf.init(keyStore, certPassword.toCharArray());
 
         return kmf;
+    }
+
+    private static boolean isHostnameVerificationEnabled(Configuration config) {
+
+        String certFingerprint = config.getString(SecurityOptions.SSL_REST_CERT_FINGERPRINT);
+
+        final boolean isHostnameVerificationEnabled;
+        if (!StringUtils.isNullOrWhitespaceOnly(certFingerprint)) {
+            // When using shared certificate, connections are mutually authenticated then can skip
+            // hostname verification
+            isHostnameVerificationEnabled = false;
+        } else {
+            isHostnameVerificationEnabled = config.getBoolean(SecurityOptions.SSL_VERIFY_HOSTNAME);
+        }
+        return isHostnameVerificationEnabled;
     }
 
     /**

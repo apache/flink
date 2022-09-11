@@ -23,6 +23,7 @@ import org.apache.flink.shaded.netty4.io.netty.handler.ssl.SslContext;
 import org.apache.flink.shaded.netty4.io.netty.handler.ssl.SslHandler;
 
 import javax.net.ssl.SSLEngine;
+import javax.net.ssl.SSLParameters;
 
 import static java.util.Objects.requireNonNull;
 
@@ -35,6 +36,8 @@ public class SSLHandlerFactory {
 
     private final int closeNotifyFlushTimeoutMs;
 
+    private final boolean isHostnameVerificationEnabled;
+
     /**
      * Create a new {@link SslHandler} factory.
      *
@@ -45,11 +48,13 @@ public class SSLHandlerFactory {
     public SSLHandlerFactory(
             final SslContext sslContext,
             final int handshakeTimeoutMs,
-            final int closeNotifyFlushTimeoutMs) {
+            final int closeNotifyFlushTimeoutMs,
+            final boolean isHostnameVerificationEnabled) {
 
         this.sslContext = requireNonNull(sslContext, "sslContext must not be null");
         this.handshakeTimeoutMs = handshakeTimeoutMs;
         this.closeNotifyFlushTimeoutMs = closeNotifyFlushTimeoutMs;
+        this.isHostnameVerificationEnabled = isHostnameVerificationEnabled;
     }
 
     public SslHandler createNettySSLHandler(ByteBufAllocator allocator) {
@@ -73,10 +78,22 @@ public class SSLHandlerFactory {
     }
 
     private SSLEngine createSSLEngine(ByteBufAllocator allocator) {
-        return sslContext.newEngine(allocator);
+        SSLEngine sslEngine = sslContext.newEngine(allocator);
+        if (isHostnameVerificationEnabled) {
+            SSLParameters sslParameters = sslEngine.getSSLParameters();
+            sslParameters.setEndpointIdentificationAlgorithm("HTTPS");
+            sslEngine.setSSLParameters(sslParameters);
+        }
+        return sslEngine;
     }
 
     private SSLEngine createSSLEngine(ByteBufAllocator allocator, String hostname, int port) {
-        return sslContext.newEngine(allocator, hostname, port);
+        SSLEngine sslEngine = sslContext.newEngine(allocator, hostname, port);
+        if (isHostnameVerificationEnabled) {
+            SSLParameters sslParameters = sslEngine.getSSLParameters();
+            sslParameters.setEndpointIdentificationAlgorithm("HTTPS");
+            sslEngine.setSSLParameters(sslParameters);
+        }
+        return sslEngine;
     }
 }
