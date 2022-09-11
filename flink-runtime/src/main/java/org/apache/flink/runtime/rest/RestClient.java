@@ -117,6 +117,10 @@ public class RestClient implements AutoCloseableAsync {
     // used to open connections to a rest server endpoint
     private final Executor executor;
 
+    private final Configuration configuration;
+
+    private final RestClientConfiguration restConfiguration;
+
     private final Bootstrap bootstrap;
 
     private final CompletableFuture<Void> terminationFuture;
@@ -130,6 +134,7 @@ public class RestClient implements AutoCloseableAsync {
         Preconditions.checkNotNull(configuration);
         this.executor = Preconditions.checkNotNull(executor);
         this.terminationFuture = new CompletableFuture<>();
+        this.configuration = configuration;
         outboundChannelHandlerFactories = new ArrayList<>();
         ServiceLoader<OutboundChannelHandlerFactory> loader =
                 ServiceLoader.load(OutboundChannelHandlerFactory.class);
@@ -149,57 +154,8 @@ public class RestClient implements AutoCloseableAsync {
         outboundChannelHandlerFactories.sort(
                 Comparator.comparingInt(OutboundChannelHandlerFactory::priority).reversed());
 
-        final RestClientConfiguration restConfiguration =
-                RestClientConfiguration.fromConfiguration(configuration);
-        final SSLHandlerFactory sslHandlerFactory = restConfiguration.getSslHandlerFactory();
-        ChannelInitializer<SocketChannel> initializer =
-                new ChannelInitializer<SocketChannel>() {
-                    @Override
-                    protected void initChannel(SocketChannel socketChannel) {
-                        try {
-                            // SSL should be the first handler in the pipeline
-                            if (sslHandlerFactory != null) {
-                                socketChannel
-                                        .pipeline()
-                                        .addLast(
-                                                "ssl",
-                                                sslHandlerFactory.createNettySSLHandler(
-                                                        socketChannel.alloc()));
-                            }
+        this.restConfiguration = RestClientConfiguration.fromConfiguration(configuration);
 
-                            socketChannel
-                                    .pipeline()
-                                    .addLast(new HttpClientCodec())
-                                    .addLast(
-                                            new HttpObjectAggregator(
-                                                    restConfiguration.getMaxContentLength()));
-
-                            for (OutboundChannelHandlerFactory factory :
-                                    outboundChannelHandlerFactories) {
-                                Optional<ChannelHandler> channelHandler =
-                                        factory.createHandler(configuration);
-                                if (channelHandler.isPresent()) {
-                                    socketChannel.pipeline().addLast(channelHandler.get());
-                                }
-                            }
-
-                            socketChannel
-                                    .pipeline()
-                                    .addLast(new ChunkedWriteHandler()) // required for
-                                    // multipart-requests
-                                    .addLast(
-                                            new IdleStateHandler(
-                                                    restConfiguration.getIdlenessTimeout(),
-                                                    restConfiguration.getIdlenessTimeout(),
-                                                    restConfiguration.getIdlenessTimeout(),
-                                                    TimeUnit.MILLISECONDS))
-                                    .addLast(new ClientHandler());
-                        } catch (Throwable t) {
-                            t.printStackTrace();
-                            ExceptionUtils.rethrow(t);
-                        }
-                    }
-                };
         NioEventLoopGroup group =
                 new NioEventLoopGroup(1, new ExecutorThreadFactory("flink-rest-client-netty"));
 
@@ -209,8 +165,7 @@ public class RestClient implements AutoCloseableAsync {
                         ChannelOption.CONNECT_TIMEOUT_MILLIS,
                         Math.toIntExact(restConfiguration.getConnectionTimeout()))
                 .group(group)
-                .channel(NioSocketChannel.class)
-                .handler(initializer);
+                .channel(NioSocketChannel.class);
 
         LOG.debug("Rest client endpoint started.");
     }
@@ -468,6 +423,59 @@ public class RestClient implements AutoCloseableAsync {
 
     private <P extends ResponseBody> CompletableFuture<P> submitRequest(
             String targetAddress, int targetPort, Request httpRequest, JavaType responseType) {
+
+        final SSLHandlerFactory sslHandlerFactory = restConfiguration.getSslHandlerFactory();
+        ChannelInitializer<SocketChannel> initializer =
+                new ChannelInitializer<SocketChannel>() {
+                    @Override
+                    protected void initChannel(SocketChannel socketChannel) {
+                        try {
+                            // SSL should be the first handler in the pipeline
+                            if (sslHandlerFactory != null) {
+                                socketChannel
+                                        .pipeline()
+                                        .addLast(
+                                                "ssl",
+                                                sslHandlerFactory.createNettySSLHandler(
+                                                        socketChannel.alloc(),
+                                                        targetAddress,
+                                                        targetPort));
+                            }
+
+                            socketChannel
+                                    .pipeline()
+                                    .addLast(new HttpClientCodec())
+                                    .addLast(
+                                            new HttpObjectAggregator(
+                                                    restConfiguration.getMaxContentLength()));
+
+                            for (OutboundChannelHandlerFactory factory :
+                                    outboundChannelHandlerFactories) {
+                                Optional<ChannelHandler> channelHandler =
+                                        factory.createHandler(configuration);
+                                if (channelHandler.isPresent()) {
+                                    socketChannel.pipeline().addLast(channelHandler.get());
+                                }
+                            }
+
+                            socketChannel
+                                    .pipeline()
+                                    .addLast(new ChunkedWriteHandler()) // required for
+                                    // multipart-requests
+                                    .addLast(
+                                            new IdleStateHandler(
+                                                    restConfiguration.getIdlenessTimeout(),
+                                                    restConfiguration.getIdlenessTimeout(),
+                                                    restConfiguration.getIdlenessTimeout(),
+                                                    TimeUnit.MILLISECONDS))
+                                    .addLast(new ClientHandler());
+                        } catch (Throwable t) {
+                            t.printStackTrace();
+                            ExceptionUtils.rethrow(t);
+                        }
+                    }
+                };
+        bootstrap.handler(initializer);
         final ChannelFuture connectFuture = bootstrap.connect(targetAddress, targetPort);
 
         final CompletableFuture<Channel> channelFuture = new CompletableFuture<>();
