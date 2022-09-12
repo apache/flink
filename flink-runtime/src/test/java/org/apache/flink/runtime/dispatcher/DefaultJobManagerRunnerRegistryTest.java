@@ -20,9 +20,9 @@ package org.apache.flink.runtime.dispatcher;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.core.testutils.FlinkAssertions;
+import org.apache.flink.runtime.concurrent.UnsupportedOperationExecutor;
 import org.apache.flink.runtime.jobmaster.JobManagerRunner;
 import org.apache.flink.runtime.jobmaster.TestingJobManagerRunner;
-import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.concurrent.Executors;
 
 import org.junit.jupiter.api.BeforeEach;
@@ -161,10 +161,7 @@ public class DefaultJobManagerRunnerRegistryTest {
                 .failsWithin(Duration.ZERO)
                 .withThrowableOfType(ExecutionException.class)
                 .extracting(FlinkAssertions::chainOfCauses, FlinkAssertions.STREAM_THROWABLE)
-                .hasExactlyElementsOfTypes(
-                        ExecutionException.class,
-                        FlinkException.class,
-                        expectedException.getClass())
+                .hasExactlyElementsOfTypes(ExecutionException.class, expectedException.getClass())
                 .last()
                 .isEqualTo(expectedException);
         assertThat(testInstance.isRegistered(jobManagerRunner.getJobID())).isFalse();
@@ -200,12 +197,29 @@ public class DefaultJobManagerRunnerRegistryTest {
                 .failsWithin(Duration.ZERO)
                 .withThrowableOfType(ExecutionException.class)
                 .extracting(FlinkAssertions::chainOfCauses, FlinkAssertions.STREAM_THROWABLE)
-                .hasExactlyElementsOfTypes(
-                        ExecutionException.class,
-                        FlinkException.class,
-                        expectedException.getClass())
+                .hasExactlyElementsOfTypes(ExecutionException.class, expectedException.getClass())
                 .last()
                 .isEqualTo(expectedException);
+    }
+
+    @Test
+    public void testLocalCleanupAsyncNonBlocking() {
+        final TestingJobManagerRunner jobManagerRunner =
+                TestingJobManagerRunner.newBuilder().setBlockingTermination(true).build();
+        testInstance.register(jobManagerRunner);
+
+        // this call shouldn't block
+        final CompletableFuture<Void> cleanupFuture =
+                testInstance.localCleanupAsync(
+                        jobManagerRunner.getJobID(), UnsupportedOperationExecutor.INSTANCE);
+
+        assertThat(testInstance.isRegistered(jobManagerRunner.getJobID())).isFalse();
+        assertThat(jobManagerRunner.getTerminationFuture()).isNotCompleted();
+        assertThat(cleanupFuture).isNotCompleted();
+
+        jobManagerRunner.getTerminationFuture().complete(null);
+
+        assertThat(cleanupFuture).isCompleted();
     }
 
     private TestingJobManagerRunner registerTestingJobManagerRunner() {
