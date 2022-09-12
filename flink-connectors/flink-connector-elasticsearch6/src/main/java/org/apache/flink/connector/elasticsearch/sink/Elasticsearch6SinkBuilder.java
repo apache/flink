@@ -25,6 +25,7 @@ import org.elasticsearch.action.bulk.BackoffPolicy;
 import org.elasticsearch.action.bulk.BulkProcessor;
 import org.elasticsearch.action.bulk.BulkRequest;
 import org.elasticsearch.action.bulk.BulkResponse;
+import org.elasticsearch.client.RequestOptions;
 import org.elasticsearch.client.RestHighLevelClient;
 import org.elasticsearch.common.unit.ByteSizeUnit;
 import org.elasticsearch.common.unit.ByteSizeValue;
@@ -83,7 +84,10 @@ public class Elasticsearch6SinkBuilder<IN>
                                             BulkRequest bulkRequest,
                                             ActionListener<BulkResponse>
                                                     bulkResponseActionListener) {
-                                        client.bulkAsync(bulkRequest, bulkResponseActionListener);
+                                        client.bulkAsync(
+                                                bulkRequest,
+                                                RequestOptions.DEFAULT,
+                                                bulkResponseActionListener);
                                     }
                                 },
                                 listener);
