@@ -40,9 +40,12 @@ import java.io.Serializable;
 import java.net.URL;
 import java.net.URLClassLoader;
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.function.Consumer;
 
@@ -99,6 +102,93 @@ class ContextClassLoadingSettingTest {
 
         actorSystem = null;
         akkaRpcService = null;
+    }
+
+    @Test
+    void testAkkaRpcService_ExecuteRunnableSetsFlinkContextClassLoader()
+            throws ExecutionException, InterruptedException {
+        final CompletableFuture<ClassLoader> contextClassLoader = new CompletableFuture<>();
+        akkaRpcService
+                .getScheduledExecutor()
+                .execute(
+                        () ->
+                                contextClassLoader.complete(
+                                        Thread.currentThread().getContextClassLoader()));
+        assertIsFlinkClassLoader(contextClassLoader.get());
+    }
+
+    @Test
+    void testAkkaRpcService_ScheduleCallableSetsFlinkContextClassLoader()
+            throws ExecutionException, InterruptedException {
+        final ClassLoader contextClassLoader =
+                akkaRpcService
+                        .getScheduledExecutor()
+                        .schedule(
+                                () -> Thread.currentThread().getContextClassLoader(),
+                                0,
+                                TimeUnit.MILLISECONDS)
+                        .get();
+        assertIsFlinkClassLoader(contextClassLoader);
+    }
+
+    @Test
+    void testAkkaRpcService_ScheduleRunnableSetsFlinkContextClassLoader()
+            throws ExecutionException, InterruptedException {
+        final CompletableFuture<ClassLoader> contextClassLoader = new CompletableFuture<>();
+        akkaRpcService
+                .getScheduledExecutor()
+                .schedule(
+                        () ->
+                                contextClassLoader.complete(
+                                        Thread.currentThread().getContextClassLoader()),
+                        5,
+                        TimeUnit.MILLISECONDS);
+        assertThat(contextClassLoader.get()).isSameAs(pretendFlinkClassLoader);
+    }
+
+    @Test
+    void testAkkaRpcService_ScheduleRunnableWithFixedRateSetsFlinkContextClassLoader() {
+        final List<ClassLoader> contextClassLoaders = new ArrayList<>(2);
+        akkaRpcService
+                .getScheduledExecutor()
+                .scheduleAtFixedRate(
+                        () -> {
+                            if (contextClassLoaders.size() < 2) {
+                                contextClassLoaders.add(
+                                        Thread.currentThread().getContextClassLoader());
+                            } else {
+                                throw new RuntimeException("cancel task");
+                            }
+                        },
+                        0,
+                        1,
+                        TimeUnit.MILLISECONDS);
+
+        assertThat(contextClassLoaders)
+                .allSatisfy(
+                        classLoader -> assertThat(classLoader).isSameAs(pretendFlinkClassLoader));
+    }
+
+    @Test
+    void testAkkaRpcService_ScheduleRunnableWithFixedDelaySetsFlinkContextClassLoader() {
+        final List<ClassLoader> contextClassLoaders = new ArrayList<>(2);
+        akkaRpcService
+                .getScheduledExecutor()
+                .scheduleWithFixedDelay(
+                        () -> {
+                            if (contextClassLoaders.size() < 2) {
+                                contextClassLoaders.add(
+                                        Thread.currentThread().getContextClassLoader());
+                            } else {
+                                throw new RuntimeException("cancel task");
+                            }
+                        },
+                        0,
+                        1,
+                        TimeUnit.MILLISECONDS);
+        assertThat(contextClassLoaders)
+                .allSatisfy(
+                        classLoader -> assertThat(classLoader).isSameAs(pretendFlinkClassLoader));
     }
 
     @Test
