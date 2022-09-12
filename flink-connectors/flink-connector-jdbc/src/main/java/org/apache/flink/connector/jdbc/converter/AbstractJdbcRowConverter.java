@@ -173,7 +173,7 @@ public abstract class AbstractJdbcRowConverter implements JdbcRowConverter {
                                 : TimestampData.fromTimestamp((Timestamp) val);
             case CHAR:
             case VARCHAR:
-                return val -> StringData.fromString(val.toString());
+                return val -> StringData.fromString((String) val);
             case BINARY:
             case VARBINARY:
                 return val -> val;
