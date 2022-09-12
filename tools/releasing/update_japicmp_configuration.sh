@@ -63,7 +63,9 @@ function clear_exclusions() {
   exclusion_start=$(($(sed -n '/<!-- MARKER: start exclusions/=' ${POM}) + 1))
   exclusion_end=$(($(sed -n '/<!-- MARKER: end exclusions/=' ${POM}) - 1))
 
-  sed -i "${exclusion_start},${exclusion_end}d" ${POM}
+  if [[ $exclusion_start -lt $exclusion_end ]]; then
+    sed -i "${exclusion_start},${exclusion_end}d" ${POM}
+  fi
 }
 
 current_branch=$(git rev-parse --abbrev-ref HEAD)
