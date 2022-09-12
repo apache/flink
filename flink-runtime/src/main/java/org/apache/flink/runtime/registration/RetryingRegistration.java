@@ -332,12 +332,7 @@ public abstract class RetryingRegistration<
         rpcService
                 .getScheduledExecutor()
                 .schedule(
-                        new Runnable() {
-                            @Override
-                            public void run() {
-                                register(gateway, attempt, timeoutMillis);
-                            }
-                        },
+                        () -> register(gateway, attempt, timeoutMillis),
                         delay,
                         TimeUnit.MILLISECONDS);
     }
