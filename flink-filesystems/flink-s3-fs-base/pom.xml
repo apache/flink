@@ -31,7 +31,7 @@ under the License.
 	<packaging>jar</packaging>
 
 	<properties>
-		<fs.s3.aws.version>1.11.951</fs.s3.aws.version>
+		<fs.s3.aws.version>1.12.261</fs.s3.aws.version>
 		<japicmp.skip>true</japicmp.skip>
 	</properties>
 
