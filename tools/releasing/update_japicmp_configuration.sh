@@ -59,6 +59,13 @@ function set_japicmp_reference_version() {
   perl -pi -e 's#(<japicmp.referenceVersion>).*(</japicmp.referenceVersion>)#${1}'${version}'${2}#' ${POM}
 }
 
+function clear_exclusions() {
+  exclusion_start=$(($(sed -n '/<!-- MARKER: start exclusions/=' ${POM}) + 1))
+  exclusion_end=$(($(sed -n '/<!-- MARKER: end exclusions/=' ${POM}) - 1))
+
+  sed -i "${exclusion_start},${exclusion_end}d" ${POM}
+}
+
 current_branch=$(git rev-parse --abbrev-ref HEAD)
 
 if [[ ${current_branch} =~ -rc ]]; then
@@ -73,10 +80,12 @@ if [[ ${current_branch} =~ -rc ]]; then
 elif [[ ${current_branch} =~ ^master$ ]]; then
   # master branch
   set_japicmp_reference_version ${NEW_VERSION}
+  clear_exclusions
 elif [[ ${current_branch} =~ ^release- ]]; then
   # snapshot branch
   set_japicmp_reference_version ${NEW_VERSION}
   enable_public_evolving_compatibility_checks
+  clear_exclusions
 else
   echo "Script was called from unexpected branch ${current_branch}; should be rc/snapshot/master branch."
   exit 1
