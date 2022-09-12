@@ -101,9 +101,9 @@ public class DefaultJobManagerRunnerRegistryTest {
 
     @Test
     public void size() {
-        assertThat(testInstance.size()).isEqualTo(0);
+        assertThat(testInstance.size()).isZero();
         testInstance.register(TestingJobManagerRunner.newBuilder().build());
-        assertThat(testInstance.size()).isEqualTo(1);
+        assertThat(testInstance.size()).isOne();
         testInstance.register(TestingJobManagerRunner.newBuilder().build());
         assertThat(testInstance.size()).isEqualTo(2);
     }
@@ -134,7 +134,7 @@ public class DefaultJobManagerRunnerRegistryTest {
     }
 
     @Test
-    public void testSuccessfulLocalCleanup() throws Throwable {
+    public void testSuccessfulLocalCleanup() {
         final TestingJobManagerRunner jobManagerRunner = registerTestingJobManagerRunner();
 
         assertThat(
@@ -168,7 +168,7 @@ public class DefaultJobManagerRunnerRegistryTest {
     }
 
     @Test
-    public void testSuccessfulLocalCleanupAsync() throws Exception {
+    public void testSuccessfulLocalCleanupAsync() {
         final TestingJobManagerRunner jobManagerRunner = registerTestingJobManagerRunner();
 
         final CompletableFuture<Void> cleanupResult =
@@ -179,7 +179,7 @@ public class DefaultJobManagerRunnerRegistryTest {
     }
 
     @Test
-    public void testFailingLocalCleanupAsync() throws Exception {
+    public void testFailingLocalCleanupAsync() {
         final TestingJobManagerRunner jobManagerRunner = registerTestingJobManagerRunner();
 
         assertThat(testInstance.isRegistered(jobManagerRunner.getJobID())).isTrue();
