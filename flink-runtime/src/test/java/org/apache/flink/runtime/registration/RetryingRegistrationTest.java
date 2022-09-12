@@ -157,7 +157,6 @@ public class RetryingRegistrationTest extends TestLogger {
                 new ManualResponseTestRegistrationGateway(new TestRegistrationSuccess(testId));
 
         try {
-
             // RPC service that fails upon the first connection, but succeeds on the second
             RpcService rpc = mock(RpcService.class);
             when(rpc.connect(anyString(), any(Class.class)))
