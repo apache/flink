@@ -521,10 +521,11 @@ public interface TableEnvironment {
      * Registers a {@link UserDefinedFunction} class as a catalog function in the given path by the
      * specific class name and user defined resource uri.
      *
-     * <p>Compared to {@link #createFunction(String, Class)}, this method allow registering a user
-     * defined function by only provide a full path class name and and available resource list in
-     * which each url may be local or remote. User doesn't need to initialize the function instance
-     * in advance.
+     * <p>Compared to {@link #createFunction(String, Class)}, this method allows registering a user
+     * defined function by only providing a full path class name and a list of resources that
+     * contain the implementation of the function along with its dependencies. Users don't need to
+     * initialize the function instance in advance. The resource file can be a local or remote JAR
+     * file.
      *
      * <p>Compared to system functions with a globally defined name, catalog functions are always
      * (implicitly or explicitly) identified by a catalog and database.
@@ -543,10 +544,11 @@ public interface TableEnvironment {
      * Registers a {@link UserDefinedFunction} class as a catalog function in the given path by the
      * specific class name and user defined resource uri.
      *
-     * <p>Compared to {@link #createFunction(String, Class)}, this method allow registering a user
-     * defined function by only provide a full path class name and an available resource list in
-     * which each url may be local or remote. User doesn't need to initialize the function instance
-     * in advance.
+     * <p>Compared to {@link #createFunction(String, Class)}, this method allows registering a user
+     * defined function by only providing a full path class name and a list of resources that
+     * contain the implementation of the function along with its dependencies. Users don't need to
+     * initialize the function instance in advance. The resource file can be a local or remote JAR
+     * file.
      *
      * <p>Compared to system functions with a globally defined name, catalog functions are always
      * (implicitly or explicitly) identified by a catalog and database.
@@ -607,10 +609,11 @@ public interface TableEnvironment {
      * Registers a {@link UserDefinedFunction} class as a temporary catalog function in the given
      * path by the specific class name and user defined resource uri.
      *
-     * <p>Compared to {@link #createTemporaryFunction(String, Class)}, this method allow registering
-     * a user defined function by only provide a full path class name and an available resource list
-     * in which each url may be local or remote. User doesn't need to initialize the function
-     * instance in advance.
+     * <p>Compared to {@link #createTemporaryFunction(String, Class)}, this method allows
+     * registering a user defined function by only providing a full path class name and a list of
+     * resources that contain the implementation of the function along with its dependencies. Users
+     * don't need to initialize the function instance in advance. The resource file can be a local
+     * or remote JAR file.
      *
      * <p>Compared to {@link #createTemporarySystemFunction(String, String, List)} with a globally
      * defined name, catalog functions are always (implicitly or explicitly) identified by a catalog
@@ -631,10 +634,11 @@ public interface TableEnvironment {
      * Registers a {@link UserDefinedFunction} class as a temporary system function by the specific
      * class name and user defined resource uri.
      *
-     * <p>Compared to {@link #createTemporarySystemFunction(String, Class)}, this method allow
-     * registering a user defined function by only provide a full path class name and an available
-     * resource list in which each url may be local or remote. User doesn't need to initialize the
-     * function instance in advance.
+     * <p>Compared to {@link #createTemporaryFunction(String, Class)}, this method allows
+     * registering a user defined function by only providing a full path class name and a list of
+     * resources that contain the implementation of the function along with its dependencies. Users
+     * don't need to initialize the function instance in advance. The resource file can be a local
+     * or remote JAR file.
      *
      * <p>Temporary functions can shadow permanent ones. If a permanent function under a given name
      * exists, it will be inaccessible in the current session. To make the permanent function
