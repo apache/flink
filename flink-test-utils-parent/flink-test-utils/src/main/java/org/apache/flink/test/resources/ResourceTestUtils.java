@@ -30,6 +30,7 @@ import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+/** Test utils around module resources. */
 public class ResourceTestUtils {
 
     private static final ParameterProperty<Path> MODULE_DIRECTORY =
