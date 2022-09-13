@@ -35,6 +35,7 @@ import org.apache.calcite.rel.core.Project;
 import org.apache.calcite.rel.core.SetOp;
 import org.apache.calcite.rel.core.Sort;
 import org.apache.calcite.rel.core.Values;
+import org.apache.calcite.rel.hint.Hintable;
 import org.apache.calcite.rel.logical.LogicalAggregate;
 import org.apache.calcite.rel.logical.LogicalCorrelate;
 import org.apache.calcite.rel.logical.LogicalFilter;
@@ -492,6 +493,7 @@ public class SubQueryDecorrelator extends RelShuttleImpl {
                 }
             }
             RelNode newProject = RelOptUtil.createProject(newInput, projects, false);
+            newProject = ((LogicalProject) newProject).withHints(rel.getHints());
 
             final RexNode newCorCondition;
             if (frame.c != null) {
@@ -544,11 +546,13 @@ public class SubQueryDecorrelator extends RelShuttleImpl {
 
             // Using LogicalFilter.create instead of RelBuilder.filter to create Filter
             // because RelBuilder.filter method does not have VariablesSet arg.
-            final LogicalFilter newFilter =
+            final RelNode newFilter =
                     LogicalFilter.create(
-                            frame.r,
-                            remainingCondition,
-                            com.google.common.collect.ImmutableSet.copyOf(rel.getVariablesSet()));
+                                    frame.r,
+                                    remainingCondition,
+                                    com.google.common.collect.ImmutableSet.copyOf(
+                                            rel.getVariablesSet()))
+                            .withHints(rel.getHints());
 
             // Adds input's correlation condition
             if (frame.c != null) {
@@ -705,7 +709,8 @@ public class SubQueryDecorrelator extends RelShuttleImpl {
             }
 
             relBuilder.push(
-                    LogicalAggregate.create(newProject, false, newGroupSet, null, newAggCalls));
+                    LogicalAggregate.create(
+                            newProject, rel.getHints(), newGroupSet, null, newAggCalls));
 
             if (!omittedConstants.isEmpty()) {
                 final List<RexNode> postProjects = new ArrayList<>(relBuilder.fields());
@@ -876,7 +881,9 @@ public class SubQueryDecorrelator extends RelShuttleImpl {
             RelCollation oldCollation = rel.getCollation();
             RelCollation newCollation = RexUtil.apply(mapping, oldCollation);
 
-            final Sort newSort = LogicalSort.create(newInput, newCollation, rel.offset, rel.fetch);
+            final RelNode newSort =
+                    LogicalSort.create(newInput, newCollation, rel.offset, rel.fetch)
+                            .withHints(rel.getHints());
 
             // Sort does not change input ordering
             return new Frame(rel, newSort, frame.c, frame.oldToNewOutputs);
@@ -916,6 +923,9 @@ public class SubQueryDecorrelator extends RelShuttleImpl {
 
                 if (!Util.equalShallow(oldInputs, newInputs)) {
                     newRel = rel.copy(rel.getTraitSet(), newInputs);
+                }
+                if (rel instanceof Hintable) {
+                    newRel = ((Hintable) newRel).withHints(((Hintable) rel).getHints());
                 }
             }
             // the output position should not change since there are no corVars coming from below.
