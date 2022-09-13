@@ -22,8 +22,8 @@ import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.connector.aws.testutils.LocalstackContainer;
 import org.apache.flink.connector.testframe.container.FlinkContainers;
 import org.apache.flink.connector.testframe.container.TestcontainersSettings;
+import org.apache.flink.test.resources.ResourceTestUtils;
 import org.apache.flink.test.util.SQLJobSubmission;
-import org.apache.flink.tests.util.TestUtils;
 import org.apache.flink.util.DockerImageVersions;
 import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.jackson.JacksonMapperFactory;
@@ -84,7 +84,7 @@ public class KinesisFirehoseTableITTest extends TestLogger {
 
     private static final ObjectMapper OBJECT_MAPPER = JacksonMapperFactory.createObjectMapper();
 
-    private final Path sqlConnectorFirehoseJar = TestUtils.getResource(".*firehose.jar");
+    private final Path sqlConnectorFirehoseJar = ResourceTestUtils.getResource(".*firehose.jar");
 
     private SdkHttpClient httpClient;
     private S3Client s3Client;

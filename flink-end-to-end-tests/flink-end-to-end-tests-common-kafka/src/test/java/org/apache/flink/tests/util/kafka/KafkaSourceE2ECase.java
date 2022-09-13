@@ -27,7 +27,7 @@ import org.apache.flink.connector.testframe.junit.annotations.TestExternalSystem
 import org.apache.flink.connector.testframe.junit.annotations.TestSemantics;
 import org.apache.flink.connector.testframe.testsuites.SourceTestSuiteBase;
 import org.apache.flink.streaming.api.CheckpointingMode;
-import org.apache.flink.tests.util.TestUtils;
+import org.apache.flink.test.resources.ResourceTestUtils;
 import org.apache.flink.util.DockerImageVersions;
 
 import org.testcontainers.containers.KafkaContainer;
@@ -66,8 +66,8 @@ public class KafkaSourceE2ECase extends SourceTestSuiteBase<String> {
             new KafkaSourceExternalContextFactory(
                     kafka.getContainer(),
                     Arrays.asList(
-                            TestUtils.getResource("kafka-connector.jar").toUri().toURL(),
-                            TestUtils.getResource("kafka-clients.jar").toUri().toURL()),
+                            ResourceTestUtils.getResource("kafka-connector.jar").toUri().toURL(),
+                            ResourceTestUtils.getResource("kafka-clients.jar").toUri().toURL()),
                     PARTITION);
 
     @SuppressWarnings("unused")
@@ -76,8 +76,8 @@ public class KafkaSourceE2ECase extends SourceTestSuiteBase<String> {
             new KafkaSourceExternalContextFactory(
                     kafka.getContainer(),
                     Arrays.asList(
-                            TestUtils.getResource("kafka-connector.jar").toUri().toURL(),
-                            TestUtils.getResource("kafka-clients.jar").toUri().toURL()),
+                            ResourceTestUtils.getResource("kafka-connector.jar").toUri().toURL(),
+                            ResourceTestUtils.getResource("kafka-clients.jar").toUri().toURL()),
                     TOPIC);
 
     public KafkaSourceE2ECase() throws Exception {}
