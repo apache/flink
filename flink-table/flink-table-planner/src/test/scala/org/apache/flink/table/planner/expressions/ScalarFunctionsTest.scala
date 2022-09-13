@@ -287,6 +287,14 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
     testSqlApi("translate('AaBbCc', 'abc', '123')", "A1B2C3")
     testSqlApi("translate('AaBbCc', 'abc', '1')", "A1BC")
     testSqlApi("translate('AaBbCc', 'abc', '')", "ABC")
+
+    testSqlApi("translate('AaBbCc', 'abc', '654321')", "A6B5C4")
+
+    testSqlApi("translate('a', 'rnlt', '123')", "a")
+    testSqlApi("translate('a', 'ale', '123')", "1")
+
+    testSqlApi("translate('Sex', 'ale', '')", "Sx")
+    testSqlApi("translate('Sex', 'a', '-')", "Sex")
   }
 
   @Test
