@@ -282,7 +282,8 @@ under the License.
 			<!-- Indirectly accessed in pyflink_gateway_server -->
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-sql-connector-elasticsearch7</artifactId>
-			<version>${project.version}</version>
+			<!-- Intentionally use the 1.16-SNAPSHOT version until some release is complete -->
+			<version>1.16-SNAPSHOT</version>
 			<scope>test</scope>
 		</dependency>
 
