@@ -142,7 +142,6 @@ public class ChangelogLocalRecoveryITCase extends TestLogger {
         // wait job for doing materialization.
         waitUntilCondition(
                 () -> !getAllStateHandleId(firstJobGraph.getJobID(), miniCluster).isEmpty());
-        miniCluster.triggerCheckpoint(firstJobGraph.getJobID()).get();
         CompletableFuture<Void> terminationFuture = miniCluster.terminateTaskManager(1);
         terminationFuture.get();
         miniCluster.startTaskManager();
@@ -165,7 +164,7 @@ public class ChangelogLocalRecoveryITCase extends TestLogger {
         env.enableCheckpointing(checkpointInterval);
         env.getCheckpointConfig().enableUnalignedCheckpoints(false);
         env.setStateBackend(stateBackend)
-                .setRestartStrategy(RestartStrategies.fixedDelayRestart(1, 10));
+                .setRestartStrategy(RestartStrategies.fixedDelayRestart(3, 10));
         env.configure(new Configuration().set(LOCAL_RECOVERY, true));
 
         env.getCheckpointConfig().setCheckpointStorage(checkpointFile.toURI());
