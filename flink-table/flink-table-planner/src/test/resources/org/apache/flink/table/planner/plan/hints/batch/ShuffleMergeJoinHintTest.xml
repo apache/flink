@@ -636,6 +636,201 @@ SortMergeJoin(joinType=[FullOuterJoin], where=[=(a1, a2)], select=[a1, b1, a2, b
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testJoinHintWithJoinHintInCorrelateAndWithAgg">
+    <Resource name="sql">
+      <![CDATA[select * from T1 WHERE a1 IN (select /*+ ShUfFlE_MeRgE(T2) */ count(T2.a2) from T2 join T1 on T2.a2 = T1.a1 group by T1.a1)]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a1=[$0], b1=[$1])
++- LogicalFilter(condition=[IN($0, {
+LogicalProject(EXPR$0=[$1])
+  LogicalAggregate(group=[{0}], EXPR$0=[COUNT($1)])
+    LogicalProject(a1=[$2], a2=[$0])
+      LogicalJoin(condition=[=($0, $2)], joinType=[inner])
+        LogicalTableScan(table=[[default_catalog, default_database, T2]], hints=[[[ALIAS inheritPath:[] options:[T2]]]])
+        LogicalTableScan(table=[[default_catalog, default_database, T1]], hints=[[[ALIAS inheritPath:[] options:[T1]]]])
+})])
+   +- LogicalTableScan(table=[[default_catalog, default_database, T1]], hints=[[[ALIAS inheritPath:[] options:[T1]]]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+HashJoin(joinType=[LeftSemiJoin], where=[=(a1, EXPR$0)], select=[a1, b1], build=[right], tryDistinctBuildRow=[true])
+:- Exchange(distribution=[hash[a1]])
+:  +- TableSourceScan(table=[[default_catalog, default_database, T1]], fields=[a1, b1])
++- Exchange(distribution=[hash[EXPR$0]])
+   +- LocalHashAggregate(groupBy=[EXPR$0], select=[EXPR$0])
+      +- Calc(select=[EXPR$0])
+         +- SortAggregate(isMerge=[false], groupBy=[a1], select=[a1, COUNT(a2) AS EXPR$0])
+            +- SortMergeJoin(joinType=[InnerJoin], where=[=(a2, a1)], select=[a2, a1])
+               :- Exchange(distribution=[hash[a2]])
+               :  +- TableSourceScan(table=[[default_catalog, default_database, T2, project=[a2], metadata=[]]], fields=[a2], hints=[[[ALIAS options:[T2]]]])
+               +- Exchange(distribution=[hash[a1]])
+                  +- TableSourceScan(table=[[default_catalog, default_database, T1, project=[a1], metadata=[]]], fields=[a1], hints=[[[ALIAS options:[T1]]]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testJoinHintWithJoinHintInCorrelateAndWithFilter">
+    <Resource name="sql">
+      <![CDATA[select * from T1 WHERE a1 IN (select /*+ ShUfFlE_MeRgE(T2) */ a2 from T2 join T3 on T2.a2 = T3.a3 where T1.a1 = T2.a2)]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a1=[$0], b1=[$1])
++- LogicalFilter(condition=[IN($0, {
+LogicalProject(a2=[$0])
+  LogicalFilter(condition=[=($cor0.a1, $0)])
+    LogicalJoin(condition=[=($0, $2)], joinType=[inner])
+      LogicalTableScan(table=[[default_catalog, default_database, T2]], hints=[[[ALIAS inheritPath:[] options:[T2]]]])
+      LogicalTableScan(table=[[default_catalog, default_database, T3]], hints=[[[ALIAS inheritPath:[] options:[T3]]]])
+})], variablesSet=[[$cor0]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, T1]], hints=[[[ALIAS inheritPath:[] options:[T1]]]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+HashJoin(joinType=[LeftSemiJoin], where=[=(a1, a2)], select=[a1, b1], build=[right])
+:- Exchange(distribution=[hash[a1]])
+:  +- TableSourceScan(table=[[default_catalog, default_database, T1]], fields=[a1, b1])
++- Calc(select=[a2])
+   +- SortMergeJoin(joinType=[InnerJoin], where=[=(a2, a3)], select=[a2, a3])
+      :- Exchange(distribution=[hash[a2]])
+      :  +- TableSourceScan(table=[[default_catalog, default_database, T2, project=[a2], metadata=[]]], fields=[a2], hints=[[[ALIAS options:[T2]]]])
+      +- Exchange(distribution=[hash[a3]])
+         +- TableSourceScan(table=[[default_catalog, default_database, T3, project=[a3], metadata=[]]], fields=[a3], hints=[[[ALIAS options:[T3]]]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testJoinHintWithJoinHintInCorrelateAndWithProject">
+    <Resource name="sql">
+      <![CDATA[select * from T1 WHERE a1 IN (select /*+ ShUfFlE_MeRgE(T2) */ a2 + T1.a1 from T2 join T3 on T2.a2 = T3.a3)]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a1=[$0], b1=[$1])
++- LogicalFilter(condition=[IN($0, {
+LogicalProject(EXPR$0=[+($0, $cor0.a1)])
+  LogicalJoin(condition=[=($0, $2)], joinType=[inner])
+    LogicalTableScan(table=[[default_catalog, default_database, T2]], hints=[[[ALIAS inheritPath:[] options:[T2]]]])
+    LogicalTableScan(table=[[default_catalog, default_database, T3]], hints=[[[ALIAS inheritPath:[] options:[T3]]]])
+})], variablesSet=[[$cor0]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, T1]], hints=[[[ALIAS inheritPath:[] options:[T1]]]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Calc(select=[a1, b1])
++- HashJoin(joinType=[InnerJoin], where=[=(a1, EXPR$0)], select=[a1, b1, EXPR$0], build=[left])
+   :- Exchange(distribution=[hash[a1]])
+   :  +- TableSourceScan(table=[[default_catalog, default_database, T1]], fields=[a1, b1])
+   +- Exchange(distribution=[hash[EXPR$0]])
+      +- Calc(select=[EXPR$0])
+         +- HashAggregate(isMerge=[true], groupBy=[EXPR$0, a1], select=[EXPR$0, a1])
+            +- Exchange(distribution=[hash[EXPR$0, a1]])
+               +- LocalHashAggregate(groupBy=[EXPR$0, a1], select=[EXPR$0, a1])
+                  +- Calc(select=[+(a2, a1) AS EXPR$0, a1])
+                     +- NestedLoopJoin(joinType=[InnerJoin], where=[=(+(a2, a1), a1)], select=[a2, a1], build=[right])
+                        :- Calc(select=[a2])
+                        :  +- SortMergeJoin(joinType=[InnerJoin], where=[=(a2, a3)], select=[a2, a3])
+                        :     :- Exchange(distribution=[hash[a2]])
+                        :     :  +- TableSourceScan(table=[[default_catalog, default_database, T2, project=[a2], metadata=[]]], fields=[a2], hints=[[[ALIAS options:[T2]]]])
+                        :     +- Exchange(distribution=[hash[a3]])
+                        :        +- TableSourceScan(table=[[default_catalog, default_database, T3, project=[a3], metadata=[]]], fields=[a3], hints=[[[ALIAS options:[T3]]]])
+                        +- Exchange(distribution=[broadcast])
+                           +- HashAggregate(isMerge=[true], groupBy=[a1], select=[a1])
+                              +- Exchange(distribution=[hash[a1]])
+                                 +- LocalHashAggregate(groupBy=[a1], select=[a1])
+                                    +- TableSourceScan(table=[[default_catalog, default_database, T1, project=[a1], metadata=[]]], fields=[a1])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testJoinHintWithoutJoinPred">
+    <Resource name="sql">
+      <![CDATA[select /*+ SHUFFLE_MERGE(T1) */* from T1, T2]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a1=[$0], b1=[$1], a2=[$2], b2=[$3])
++- LogicalJoin(condition=[true], joinType=[inner], joinHints=[[[SHUFFLE_MERGE inheritPath:[0] options:[T1]]]])
+   :- LogicalTableScan(table=[[default_catalog, default_database, T1]], hints=[[[ALIAS inheritPath:[] options:[T1]]]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, T2]], hints=[[[ALIAS inheritPath:[] options:[T2]]]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+NestedLoopJoin(joinType=[InnerJoin], where=[true], select=[a1, b1, a2, b2], build=[left])
+:- Exchange(distribution=[broadcast])
+:  +- TableSourceScan(table=[[default_catalog, default_database, T1]], fields=[a1, b1])
++- TableSourceScan(table=[[default_catalog, default_database, T2]], fields=[a2, b2])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testJoinHintWithJoinHintInCorrelateAndWithSortLimit">
+    <Resource name="sql">
+      <![CDATA[select * from T1 WHERE a1 IN (select /*+ ShUfFlE_MeRgE(T2) */ T2.a2 from T2 join T1 on T2.a2 = T1.a1 order by T1.a1 limit 10)]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a1=[$0], b1=[$1])
++- LogicalFilter(condition=[IN($0, {
+LogicalProject(a2=[$0])
+  LogicalSort(sort0=[$1], dir0=[ASC-nulls-first], fetch=[10])
+    LogicalProject(a2=[$0], a1=[$2])
+      LogicalJoin(condition=[=($0, $2)], joinType=[inner])
+        LogicalTableScan(table=[[default_catalog, default_database, T2]], hints=[[[ALIAS inheritPath:[] options:[T2]]]])
+        LogicalTableScan(table=[[default_catalog, default_database, T1]], hints=[[[ALIAS inheritPath:[] options:[T1]]]])
+})])
+   +- LogicalTableScan(table=[[default_catalog, default_database, T1]], hints=[[[ALIAS inheritPath:[] options:[T1]]]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+HashJoin(joinType=[LeftSemiJoin], where=[=(a1, a2)], select=[a1, b1], isBroadcast=[true], build=[right])
+:- TableSourceScan(table=[[default_catalog, default_database, T1]], fields=[a1, b1])
++- Exchange(distribution=[broadcast])
+   +- Calc(select=[a2])
+      +- SortLimit(orderBy=[a1 ASC], offset=[0], fetch=[10], global=[true])
+         +- Exchange(distribution=[single])
+            +- SortLimit(orderBy=[a1 ASC], offset=[0], fetch=[10], global=[false])
+               +- SortMergeJoin(joinType=[InnerJoin], where=[=(a2, a1)], select=[a2, a1])
+                  :- Exchange(distribution=[hash[a2]])
+                  :  +- TableSourceScan(table=[[default_catalog, default_database, T2, project=[a2], metadata=[]]], fields=[a2], hints=[[[ALIAS options:[T2]]]])
+                  +- Exchange(distribution=[hash[a1]])
+                     +- TableSourceScan(table=[[default_catalog, default_database, T1, project=[a1], metadata=[]]], fields=[a1], hints=[[[ALIAS options:[T1]]]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testJoinHintWithJoinHintInSubQuery">
+    <Resource name="sql">
+      <![CDATA[select * from T1 WHERE a1 IN (select /*+ ShUfFlE_MeRgE(T2) */ a2 from T2 join T3 on T2.a2 = T3.a3)]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a1=[$0], b1=[$1])
++- LogicalFilter(condition=[IN($0, {
+LogicalProject(a2=[$0])
+  LogicalJoin(condition=[=($0, $2)], joinType=[inner])
+    LogicalTableScan(table=[[default_catalog, default_database, T2]], hints=[[[ALIAS inheritPath:[] options:[T2]]]])
+    LogicalTableScan(table=[[default_catalog, default_database, T3]], hints=[[[ALIAS inheritPath:[] options:[T3]]]])
+})])
+   +- LogicalTableScan(table=[[default_catalog, default_database, T1]], hints=[[[ALIAS inheritPath:[] options:[T1]]]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+HashJoin(joinType=[LeftSemiJoin], where=[=(a1, a2)], select=[a1, b1], build=[right])
+:- Exchange(distribution=[hash[a1]])
+:  +- TableSourceScan(table=[[default_catalog, default_database, T1]], fields=[a1, b1])
++- Calc(select=[a2])
+   +- SortMergeJoin(joinType=[InnerJoin], where=[=(a2, a3)], select=[a2, a3])
+      :- Exchange(distribution=[hash[a2]])
+      :  +- TableSourceScan(table=[[default_catalog, default_database, T2, project=[a2], metadata=[]]], fields=[a2], hints=[[[ALIAS options:[T2]]]])
+      +- Exchange(distribution=[hash[a3]])
+         +- TableSourceScan(table=[[default_catalog, default_database, T3, project=[a3], metadata=[]]], fields=[a3], hints=[[[ALIAS options:[T3]]]])
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testJoinHintWithLeftJoinAndLeftSideAsBuildSide">
     <Resource name="sql">
       <![CDATA[select /*+ SHUFFLE_MERGE(T1) */* from T1 left join T2 on T1.a1 = T2.a2]]>
@@ -866,27 +1061,6 @@ SortMergeJoin(joinType=[InnerJoin], where=[=(b2, b3)], select=[a1, b1, a2, b2, a
 :        +- TableSourceScan(table=[[default_catalog, default_database, T2]], fields=[a2, b2])
 +- Exchange(distribution=[hash[b3]])
    +- TableSourceScan(table=[[default_catalog, default_database, T3]], fields=[a3, b3])
-]]>
-    </Resource>
-  </TestCase>
-  <TestCase name="testJoinHintWithNonEquiPred">
-    <Resource name="sql">
-      <![CDATA[select /*+ SHUFFLE_MERGE(T1) */* from T1 inner join T2 on T1.a1 > T2.a2]]>
-    </Resource>
-    <Resource name="ast">
-      <![CDATA[
-LogicalProject(a1=[$0], b1=[$1], a2=[$2], b2=[$3])
-+- LogicalJoin(condition=[>($0, $2)], joinType=[inner], joinHints=[[[SHUFFLE_MERGE inheritPath:[0] options:[T1]]]])
-   :- LogicalTableScan(table=[[default_catalog, default_database, T1]], hints=[[[ALIAS inheritPath:[] options:[T1]]]])
-   +- LogicalTableScan(table=[[default_catalog, default_database, T2]], hints=[[[ALIAS inheritPath:[] options:[T2]]]])
-]]>
-    </Resource>
-    <Resource name="optimized rel plan">
-      <![CDATA[
-NestedLoopJoin(joinType=[InnerJoin], where=[>(a1, a2)], select=[a1, b1, a2, b2], build=[left])
-:- Exchange(distribution=[broadcast])
-:  +- TableSourceScan(table=[[default_catalog, default_database, T1]], fields=[a1, b1])
-+- TableSourceScan(table=[[default_catalog, default_database, T2]], fields=[a2, b2])
 ]]>
     </Resource>
   </TestCase>
@@ -1189,8 +1363,8 @@ Calc(select=[a1, CAST('abc' AS VARCHAR(2147483647)) AS b1])
       <![CDATA[
 LogicalProject(a1=[$0], b1=[$1], a2=[$2], b2=[$3])
 +- LogicalJoin(condition=[=($0, $2)], joinType=[inner], joinHints=[[[SHUFFLE_MERGE inheritPath:[0] options:[T1]]]])
-   :- LogicalTableScan(table=[[default_catalog, default_database, T1]])
-   +- LogicalTableScan(table=[[default_catalog, default_database, T2]])
+   :- LogicalTableScan(table=[[default_catalog, default_database, T1]], hints=[[[ALIAS inheritPath:[] options:[T1]]]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, T2]], hints=[[[ALIAS inheritPath:[] options:[T2]]]])
 ]]>
     </Resource>
     <Resource name="optimized rel plan">
@@ -1203,21 +1377,45 @@ SortMergeJoin(joinType=[InnerJoin], where=[=(a1, a2)], select=[a1, b1, a2, b2])
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testJoinHintWithoutJoinPred">
+  <TestCase name="testJoinHintWithSemiJoinAndLeftSideAsBuildSide">
     <Resource name="sql">
-      <![CDATA[select /*+ SHUFFLE_MERGE(T1) */* from T1, T2]]>
+      <![CDATA[select /*+ SHUFFLE_MERGE(T1) */* from T1 where a1 in (select a2 from T2)]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a1=[$0], b1=[$1])
++- LogicalFilter(condition=[IN($0, {
+LogicalProject(a2=[$0])
+  LogicalTableScan(table=[[default_catalog, default_database, T2]], hints=[[[ALIAS inheritPath:[] options:[T2]]]])
+})])
+   +- LogicalTableScan(table=[[default_catalog, default_database, T1]], hints=[[[ALIAS inheritPath:[] options:[T1]]]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+HashJoin(joinType=[LeftSemiJoin], where=[=(a1, a2)], select=[a1, b1], build=[right])
+:- Exchange(distribution=[hash[a1]])
+:  +- TableSourceScan(table=[[default_catalog, default_database, T1]], fields=[a1, b1])
++- Exchange(distribution=[hash[a2]])
+   +- TableSourceScan(table=[[default_catalog, default_database, T2, project=[a2], metadata=[]]], fields=[a2], hints=[[[ALIAS options:[T2]]]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testJoinHintWithNonEquiPred">
+    <Resource name="sql">
+      <![CDATA[select /*+ SHUFFLE_MERGE(T1) */* from T1 inner join T2 on T1.a1 > T2.a2]]>
     </Resource>
     <Resource name="ast">
       <![CDATA[
 LogicalProject(a1=[$0], b1=[$1], a2=[$2], b2=[$3])
-+- LogicalJoin(condition=[true], joinType=[inner], joinHints=[[[SHUFFLE_MERGE inheritPath:[0] options:[T1]]]])
++- LogicalJoin(condition=[>($0, $2)], joinType=[inner], joinHints=[[[SHUFFLE_MERGE inheritPath:[0] options:[T1]]]])
    :- LogicalTableScan(table=[[default_catalog, default_database, T1]], hints=[[[ALIAS inheritPath:[] options:[T1]]]])
    +- LogicalTableScan(table=[[default_catalog, default_database, T2]], hints=[[[ALIAS inheritPath:[] options:[T2]]]])
 ]]>
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-NestedLoopJoin(joinType=[InnerJoin], where=[true], select=[a1, b1, a2, b2], build=[left])
+NestedLoopJoin(joinType=[InnerJoin], where=[>(a1, a2)], select=[a1, b1, a2, b2], build=[left])
 :- Exchange(distribution=[broadcast])
 :  +- TableSourceScan(table=[[default_catalog, default_database, T1]], fields=[a1, b1])
 +- TableSourceScan(table=[[default_catalog, default_database, T2]], fields=[a2, b2])
@@ -1265,30 +1463,6 @@ SortMergeJoin(joinType=[RightOuterJoin], where=[=(a1, a2)], select=[a1, b1, a2, 
 :  +- TableSourceScan(table=[[default_catalog, default_database, T1]], fields=[a1, b1])
 +- Exchange(distribution=[hash[a2]])
    +- TableSourceScan(table=[[default_catalog, default_database, T2]], fields=[a2, b2])
-]]>
-    </Resource>
-  </TestCase>
-  <TestCase name="testJoinHintWithSemiJoinAndLeftSideAsBuildSide">
-    <Resource name="sql">
-      <![CDATA[select /*+ SHUFFLE_MERGE(T1) */* from T1 where a1 in (select a2 from T2)]]>
-    </Resource>
-    <Resource name="ast">
-      <![CDATA[
-LogicalProject(a1=[$0], b1=[$1])
-+- LogicalFilter(condition=[IN($0, {
-LogicalProject(a2=[$0])
-  LogicalTableScan(table=[[default_catalog, default_database, T2]], hints=[[[ALIAS inheritPath:[] options:[T2]]]])
-})])
-   +- LogicalTableScan(table=[[default_catalog, default_database, T1]], hints=[[[ALIAS inheritPath:[] options:[T1]]]])
-]]>
-    </Resource>
-    <Resource name="optimized rel plan">
-      <![CDATA[
-HashJoin(joinType=[LeftSemiJoin], where=[=(a1, a2)], select=[a1, b1], build=[right])
-:- Exchange(distribution=[hash[a1]])
-:  +- TableSourceScan(table=[[default_catalog, default_database, T1]], fields=[a1, b1])
-+- Exchange(distribution=[hash[a2]])
-   +- TableSourceScan(table=[[default_catalog, default_database, T2, project=[a2], metadata=[]]], fields=[a2], hints=[[[ALIAS options:[T2]]]])
 ]]>
     </Resource>
   </TestCase>

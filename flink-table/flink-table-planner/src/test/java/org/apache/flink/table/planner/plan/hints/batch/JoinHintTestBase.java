@@ -792,6 +792,46 @@ public abstract class JoinHintTestBase extends TableTestBase {
         verifyRelPlanByCustom(String.format(sql, buildCaseSensitiveStr(getTestSingleJoinHint())));
     }
 
+    @Test
+    public void testJoinHintWithJoinHintInSubQuery() {
+        String sql =
+                "select * from T1 WHERE a1 IN (select /*+ %s(T2) */ a2 from T2 join T3 on T2.a2 = T3.a3)";
+
+        verifyRelPlanByCustom(String.format(sql, buildCaseSensitiveStr(getTestSingleJoinHint())));
+    }
+
+    @Test
+    public void testJoinHintWithJoinHintInCorrelateAndWithFilter() {
+        String sql =
+                "select * from T1 WHERE a1 IN (select /*+ %s(T2) */ a2 from T2 join T3 on T2.a2 = T3.a3 where T1.a1 = T2.a2)";
+
+        verifyRelPlanByCustom(String.format(sql, buildCaseSensitiveStr(getTestSingleJoinHint())));
+    }
+
+    @Test
+    public void testJoinHintWithJoinHintInCorrelateAndWithProject() {
+        String sql =
+                "select * from T1 WHERE a1 IN (select /*+ %s(T2) */ a2 + T1.a1 from T2 join T3 on T2.a2 = T3.a3)";
+
+        verifyRelPlanByCustom(String.format(sql, buildCaseSensitiveStr(getTestSingleJoinHint())));
+    }
+
+    @Test
+    public void testJoinHintWithJoinHintInCorrelateAndWithAgg() {
+        String sql =
+                "select * from T1 WHERE a1 IN (select /*+ %s(T2) */ count(T2.a2) from T2 join T1 on T2.a2 = T1.a1 group by T1.a1)";
+
+        verifyRelPlanByCustom(String.format(sql, buildCaseSensitiveStr(getTestSingleJoinHint())));
+    }
+
+    @Test
+    public void testJoinHintWithJoinHintInCorrelateAndWithSortLimit() {
+        String sql =
+                "select * from T1 WHERE a1 IN (select /*+ %s(T2) */ T2.a2 from T2 join T1 on T2.a2 = T1.a1 order by T1.a1 limit 10)";
+
+        verifyRelPlanByCustom(String.format(sql, buildCaseSensitiveStr(getTestSingleJoinHint())));
+    }
+
     protected String buildAstPlanWithQueryBlockAlias(List<RelNode> relNodes) {
         StringBuilder astBuilder = new StringBuilder();
         relNodes.forEach(
