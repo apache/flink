@@ -20,6 +20,7 @@ package org.apache.flink.quickstarts.test;
 
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.java.utils.ParameterTool;
+import org.apache.flink.quickstarts.test.utils.Utils;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 

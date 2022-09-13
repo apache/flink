@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.quickstarts.test;
+package org.apache.flink.quickstarts.test.utils;
 
 /** Dummy util to test packaging of Flink dependencies in quickstarts. */
 public class Utils {
