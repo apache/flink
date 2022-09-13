@@ -46,7 +46,7 @@ Any API without such an annotation is considered internal to Flink, with no guar
 An API that is `source` compatible means that code **written** against the API will continue to **compile** against a later version.  
 An API that is `binary` compatible means that code **compiled** against the API will continue to **run** against a later version.
 
-This table lists the `source` / `binary`compatibility guarantees for each annotation when upgrading to a particular release:
+This table lists the `source` / `binary` compatibility guarantees for each annotation when upgrading to a particular release:
 
 |    Annotation    | Major release<br>(Source / Binary) | Minor release<br>(Source / Binary) | Patch release<br>(Source / Binary) |
 |:----------------:|:----------------------------------:|:----------------------------------:|:----------------------------------:|
