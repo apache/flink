@@ -30,6 +30,36 @@ Flink DataStream programs are typically designed to run for long periods of time
 
 This document describes how to update a Flink streaming application and how to migrate a running streaming application to a different Flink cluster.
 
+## API compatibility guarantees
+
+The classes & methods of the Java/Scala APIs that are intended for users are annotated with the following stability annotations:
+* `Public`
+* `PublicEvolving`
+* `Experimental`
+
+{{< hint info>}}
+Annotations on a class also apply to all members of that class, unless otherwise annotated.
+{{< /hint >}}
+
+Any API without such an annotation is considered internal to Flink, with no guarantees being provided.
+
+An API that is `source` compatible means that code **written** against the API will continue to **compile** against a later version.  
+An API that is `binary` compatible means that code **compiled** against the API will continue to **run** against a later version.
+
+This table lists the `source` / `binary` compatibility guarantees for each annotation when upgrading to a particular release:
+
+|    Annotation    | Major release<br>(Source / Binary) | Minor release<br>(Source / Binary) | Patch release<br>(Source / Binary) |
+|:----------------:|:----------------------------------:|:----------------------------------:|:----------------------------------:|
+|     `Public`     |    {{< xmark >}}/{{< xmark >}}     |    {{< check >}}/{{< xmark >}}     |    {{< check >}}/{{< check >}}     |
+| `PublicEvolving` |    {{< xmark >}}/{{< xmark >}}     |    {{< xmark >}}/{{< xmark >}}     |    {{< check >}}/{{< check >}}     |
+|  `Experimental`  |    {{< xmark >}}/{{< xmark >}}     |    {{< xmark >}}/{{< xmark >}}     |    {{< xmark >}}/{{< xmark >}}     |
+
+{{< hint info >}}
+{{< label Example >}}  
+Code written against a `PublicEvolving` API in 1.15.2 will continue to run in 1.15.3, without having to recompile the code.  
+That same code would have to be recompiled when upgrading to 1.16.0 though.
+{{< /hint >}}
+
 ## Restarting Streaming Applications
 
 The line of action for upgrading a streaming application or migrating an application to a different cluster is based on Flink's [Savepoint]({{< ref "docs/ops/state/savepoints" >}}) feature. A savepoint is a consistent snapshot of the state of an application at a specific point in time. 
