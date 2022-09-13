@@ -198,6 +198,14 @@ public final class ValueLiteralExpression implements ResolvedExpression {
 
     private @Nullable BigDecimal convertToBigDecimal(Object value) {
         if (Number.class.isAssignableFrom(value.getClass())) {
+            if (value instanceof Double || value instanceof Float) {
+                if (value.toString().equalsIgnoreCase("infinity")
+                        || value.toString().equalsIgnoreCase("-infinity")
+                        || value.toString().equalsIgnoreCase("nan")) {
+                    throw new ExpressionParserException(
+                            "expression parse failed by trying to convert infinity/nan to Decimal");
+                }
+            }
             return new BigDecimal(String.valueOf(value));
         }
 
