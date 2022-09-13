@@ -114,7 +114,7 @@ class ContextClassLoadingSettingTest {
                         () ->
                                 contextClassLoader.complete(
                                         Thread.currentThread().getContextClassLoader()));
-        assertIsFlinkClassLoader(contextClassLoader.get());
+        assertThat(contextClassLoader.get()).isSameAs(pretendFlinkClassLoader);
     }
 
     @Test
@@ -128,7 +128,7 @@ class ContextClassLoadingSettingTest {
                                 0,
                                 TimeUnit.MILLISECONDS)
                         .get();
-        assertIsFlinkClassLoader(contextClassLoader);
+        assertThat(contextClassLoader).isSameAs(pretendFlinkClassLoader);
     }
 
     @Test
@@ -148,12 +148,13 @@ class ContextClassLoadingSettingTest {
 
     @Test
     void testAkkaRpcService_ScheduleRunnableWithFixedRateSetsFlinkContextClassLoader() {
-        final List<ClassLoader> contextClassLoaders = new ArrayList<>(2);
+        final int numberOfScheduledRuns = 2;
+        final List<ClassLoader> contextClassLoaders = new ArrayList<>(numberOfScheduledRuns);
         akkaRpcService
                 .getScheduledExecutor()
                 .scheduleAtFixedRate(
                         () -> {
-                            if (contextClassLoaders.size() < 2) {
+                            if (contextClassLoaders.size() < numberOfScheduledRuns) {
                                 contextClassLoaders.add(
                                         Thread.currentThread().getContextClassLoader());
                             } else {
@@ -171,12 +172,13 @@ class ContextClassLoadingSettingTest {
 
     @Test
     void testAkkaRpcService_ScheduleRunnableWithFixedDelaySetsFlinkContextClassLoader() {
-        final List<ClassLoader> contextClassLoaders = new ArrayList<>(2);
+        final int numberOfScheduledRuns = 2;
+        final List<ClassLoader> contextClassLoaders = new ArrayList<>(numberOfScheduledRuns);
         akkaRpcService
                 .getScheduledExecutor()
                 .scheduleWithFixedDelay(
                         () -> {
-                            if (contextClassLoaders.size() < 2) {
+                            if (contextClassLoaders.size() < numberOfScheduledRuns) {
                                 contextClassLoaders.add(
                                         Thread.currentThread().getContextClassLoader());
                             } else {
