@@ -68,6 +68,7 @@ class HsFileDataIndexImplTest {
     @Test
     void testGetReadableRegionNotReadable() {
         hsDataIndex.addBuffers(createSpilledBuffers(0, Collections.singletonList(0)));
+        hsDataIndex.markBufferReleased(0, 0);
 
         // 0-0 is not readable as consuming offset is bigger than 0.
         assertThat(hsDataIndex.getReadableRegion(0, 0, 1)).isNotPresent();
