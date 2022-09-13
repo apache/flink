@@ -53,6 +53,7 @@ under the License.
 		<module>flink-queryable-state-test</module>
 		<module>flink-local-recovery-and-allocation-test</module>
 		<module>flink-quickstart-test</module>
+		<module>flink-quickstart-test-dummy-dependency</module>
 		<module>flink-confluent-schema-registry</module>
 		<module>flink-stream-state-ttl-test</module>
 		<module>flink-sql-client-test</module>

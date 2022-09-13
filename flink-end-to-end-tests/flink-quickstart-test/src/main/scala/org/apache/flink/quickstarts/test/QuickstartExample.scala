@@ -17,59 +17,30 @@
  */
 package org.apache.flink.quickstarts.test
 
-import org.apache.flink.api.connector.sink2.SinkWriter
 import org.apache.flink.api.java.utils.ParameterTool
-import org.apache.flink.connector.elasticsearch.sink.{Elasticsearch7SinkBuilder, RequestIndexer}
 import org.apache.flink.streaming.api.datastream.DataStream
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
 
-import org.apache.http.HttpHost
-import org.elasticsearch.action.index.IndexRequest
-import org.elasticsearch.client.Requests
-
 import scala.collection.JavaConversions.mapAsJavaMap
 
-object Elasticsearch7SinkExample {
+object QuickstartExample {
   def main(args: Array[String]) {
 
     val parameterTool = ParameterTool.fromArgs(args)
 
-    if (parameterTool.getNumberOfParameters < 3) {
-      println(
-        "Missing parameters!\n" + "Usage:" +
-          " --numRecords <numRecords> --index <index> --type <type>")
+    if (parameterTool.getNumberOfParameters < 1) {
+      println("Missing parameters!\nUsage: --numRecords <numRecords>")
       return
     }
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     env.enableCheckpointing(5000)
 
     val source: DataStream[(String)] = env
-      .fromSequence(0, 20 - 1)
-      .map(v => "message #" + v.toString)
+      .fromSequence(0, parameterTool.getInt("numRecords") - 1)
+      .map(v => Utils.prefix(v))
 
-    source.sinkTo(
-      new Elasticsearch7SinkBuilder[String]
-        // This instructs the sink to emit after every element, otherwise they would
-        // be buffered
-        .setBulkFlushMaxActions(1)
-        .setHosts(new HttpHost("127.0.0.1", 9200, "http"))
-        .setEmitter(
-          (element: String, context: SinkWriter.Context, indexer: RequestIndexer) =>
-            indexer.add(createIndexRequest(element, parameterTool)))
-        .build())
+    source.print()
 
     env.execute("Elasticsearch7.x end to end sink test example")
-  }
-
-  def createIndexRequest(element: (String), parameterTool: (ParameterTool)): IndexRequest = {
-
-    val json2 = Map(
-      "data" -> element.asInstanceOf[AnyRef]
-    )
-
-    Requests.indexRequest
-      .index(parameterTool.getRequired("index"))
-      .`type`(parameterTool.getRequired("type"))
-      .source(mapAsJavaMap(json2))
   }
 }
