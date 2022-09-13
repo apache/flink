@@ -32,6 +32,7 @@ import org.apache.flink.table.runtime.generated.GeneratedRecordEqualiser;
 import org.apache.flink.table.runtime.generated.RecordEqualiser;
 import org.apache.flink.table.runtime.operators.TableStreamOperator;
 import org.apache.flink.types.RowKind;
+import org.apache.flink.util.Preconditions;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -94,7 +95,7 @@ public class SinkUpsertMaterializer extends TableStreamOperator<RowData>
             StateTtlConfig ttlConfig,
             TypeSerializer<RowData> serializer,
             GeneratedRecordEqualiser generatedRecordEqualiser,
-            GeneratedRecordEqualiser generatedUpsertKeyEqualiser,
+            @Nullable GeneratedRecordEqualiser generatedUpsertKeyEqualiser,
             @Nullable int[] inputUpsertKey) {
         this.ttlConfig = ttlConfig;
         this.serializer = serializer;
@@ -102,6 +103,11 @@ public class SinkUpsertMaterializer extends TableStreamOperator<RowData>
         this.generatedUpsertKeyEqualiser = generatedUpsertKeyEqualiser;
         this.inputUpsertKey = inputUpsertKey;
         this.hasUpsertKey = null != inputUpsertKey && inputUpsertKey.length > 0;
+        if (hasUpsertKey) {
+            Preconditions.checkNotNull(
+                    generatedUpsertKeyEqualiser,
+                    "GeneratedUpsertKeyEqualiser cannot be null when inputUpsertKey is not empty!");
+        }
     }
 
     @Override
