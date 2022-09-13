@@ -1925,8 +1925,6 @@ under the License.
 									i.e. poms which do not contain properties which are derived from this root pom.
 									In particular, the Scala version properties are defined in the root pom and without
 									shading, the root pom would have to be Scala suffixed and thereby all other modules.
-									Removing this exclusion will also cause compilation errors in at least
-									1 module (flink-connector-elasticsearch5), for unknown reasons.
 									-->
 									<include>org.apache.flink:flink-shaded-force-shading</include>
 								</includes>

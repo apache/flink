@@ -102,10 +102,6 @@ check_shaded_artifacts_s3_fs hadoop
 EXIT_CODE=$(($EXIT_CODE+$?))
 check_shaded_artifacts_s3_fs presto
 EXIT_CODE=$(($EXIT_CODE+$?))
-check_shaded_artifacts_connector_elasticsearch 6
-EXIT_CODE=$(($EXIT_CODE+$?))
-check_shaded_artifacts_connector_elasticsearch 7
-EXIT_CODE=$(($EXIT_CODE+$?))
 
 echo "============ Run license check ============"
 
