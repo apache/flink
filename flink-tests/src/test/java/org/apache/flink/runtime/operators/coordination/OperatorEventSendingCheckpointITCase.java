@@ -72,9 +72,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Queue;
 import java.util.Set;
-import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
@@ -514,21 +512,6 @@ public class OperatorEventSendingCheckpointITCase extends TestLogger {
         @Override
         public ScheduledExecutor getScheduledExecutor() {
             return rpcService.getScheduledExecutor();
-        }
-
-        @Override
-        public ScheduledFuture<?> scheduleRunnable(Runnable runnable, long delay, TimeUnit unit) {
-            return rpcService.scheduleRunnable(runnable, delay, unit);
-        }
-
-        @Override
-        public void execute(Runnable runnable) {
-            rpcService.execute(runnable);
-        }
-
-        @Override
-        public <T> CompletableFuture<T> execute(Callable<T> callable) {
-            return rpcService.execute(callable);
         }
 
         @SuppressWarnings("unchecked")

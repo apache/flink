@@ -38,7 +38,6 @@ import org.apache.flink.util.ExecutorUtils;
 import org.apache.flink.util.concurrent.ExecutorThreadFactory;
 import org.apache.flink.util.concurrent.FutureUtils;
 import org.apache.flink.util.concurrent.ScheduledExecutor;
-import org.apache.flink.util.function.FunctionUtils;
 
 import akka.actor.AbstractActor;
 import akka.actor.ActorRef;
@@ -64,12 +63,10 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 
@@ -79,7 +76,6 @@ import scala.reflect.ClassTag$;
 import static org.apache.flink.runtime.concurrent.akka.ClassLoadingUtils.guardCompletionWithContextClassLoader;
 import static org.apache.flink.runtime.concurrent.akka.ClassLoadingUtils.runWithContextClassLoader;
 import static org.apache.flink.runtime.concurrent.akka.ClassLoadingUtils.withContextClassLoader;
-import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
 
@@ -462,26 +458,6 @@ public class AkkaRpcService implements RpcService {
     @Override
     public ScheduledExecutor getScheduledExecutor() {
         return internalScheduledExecutor;
-    }
-
-    @Override
-    public ScheduledFuture<?> scheduleRunnable(Runnable runnable, long delay, TimeUnit unit) {
-        checkNotNull(runnable, "runnable");
-        checkNotNull(unit, "unit");
-        checkArgument(delay >= 0L, "delay must be zero or larger");
-
-        return internalScheduledExecutor.schedule(runnable, delay, unit);
-    }
-
-    @Override
-    public void execute(Runnable runnable) {
-        getScheduledExecutor().execute(runnable);
-    }
-
-    @Override
-    public <T> CompletableFuture<T> execute(Callable<T> callable) {
-        return CompletableFuture.supplyAsync(
-                FunctionUtils.uncheckedSupplier(callable::call), getScheduledExecutor());
     }
 
     // ---------------------------------------------------------------------------------------

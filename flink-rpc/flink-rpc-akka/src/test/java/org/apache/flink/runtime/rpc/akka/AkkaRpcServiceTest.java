@@ -85,7 +85,6 @@ class AkkaRpcServiceTest {
     // ------------------------------------------------------------------------
     //  tests
     // ------------------------------------------------------------------------
-
     @Test
     void testScheduleRunnable() throws Exception {
         final OneShotLatch latch = new OneShotLatch();
@@ -93,7 +92,9 @@ class AkkaRpcServiceTest {
         final long start = System.nanoTime();
 
         ScheduledFuture<?> scheduledFuture =
-                akkaRpcService.scheduleRunnable(latch::trigger, delay, TimeUnit.MILLISECONDS);
+                akkaRpcService
+                        .getScheduledExecutor()
+                        .schedule(latch::trigger, delay, TimeUnit.MILLISECONDS);
 
         scheduledFuture.get();
 
@@ -110,31 +111,9 @@ class AkkaRpcServiceTest {
     void testExecuteRunnable() throws Exception {
         final OneShotLatch latch = new OneShotLatch();
 
-        akkaRpcService.execute(latch::trigger);
+        akkaRpcService.getScheduledExecutor().execute(latch::trigger);
 
         latch.await(30L, TimeUnit.SECONDS);
-    }
-
-    /**
-     * Tests that the {@link AkkaRpcService} can execute callables and returns their result as a
-     * {@link CompletableFuture}.
-     */
-    @Test
-    void testExecuteCallable() throws Exception {
-        final OneShotLatch latch = new OneShotLatch();
-        final int expected = 42;
-
-        CompletableFuture<Integer> result =
-                akkaRpcService.execute(
-                        () -> {
-                            latch.trigger();
-                            return expected;
-                        });
-
-        int actual = result.get(30L, TimeUnit.SECONDS);
-
-        assertThat(actual).isEqualTo(expected);
-        assertThat(latch.isTriggered()).isTrue();
     }
 
     @Test
