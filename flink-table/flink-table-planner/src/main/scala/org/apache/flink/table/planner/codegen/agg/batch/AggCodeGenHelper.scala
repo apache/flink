@@ -93,12 +93,6 @@ object AggCodeGenHelper {
       .asInstanceOf[Map[AggregateFunction[_, _], String]]
   }
 
-  /** @deprecated Use [[RowTypeUtils#projectRowType]] instead. */
-  @deprecated
-  def projectRowType(rowType: RowType, mapping: Array[Int]): RowType = {
-    RowType.of(mapping.map(rowType.getTypeAt), mapping.map(rowType.getFieldNames.get(_)))
-  }
-
   /** Add agg handler to class member and open it. */
   private[flink] def addAggsHandler(
       aggsHandler: GeneratedAggsHandleFunction,

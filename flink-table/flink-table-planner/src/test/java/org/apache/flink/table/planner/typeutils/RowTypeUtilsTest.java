@@ -19,7 +19,6 @@
 package org.apache.flink.table.planner.typeutils;
 
 import org.apache.flink.table.api.ValidationException;
-import org.apache.flink.table.planner.codegen.agg.batch.AggCodeGenHelper;
 import org.apache.flink.table.types.logical.BigIntType;
 import org.apache.flink.table.types.logical.IntType;
 import org.apache.flink.table.types.logical.LogicalType;
@@ -59,14 +58,8 @@ public class RowTypeUtilsTest {
 
     @Test
     public void testProjectRowType() {
-        assertThat(RowTypeUtils.projectRowType(srcType, new int[0]))
-                .isEqualTo(AggCodeGenHelper.projectRowType(srcType, new int[0]));
-
         assertThat(RowTypeUtils.projectRowType(srcType, new int[] {0}))
                 .isEqualTo(RowType.of(new LogicalType[] {new IntType()}, new String[] {"f0"}));
-
-        assertThat(RowTypeUtils.projectRowType(srcType, new int[] {0}))
-                .isEqualTo(AggCodeGenHelper.projectRowType(srcType, new int[] {0}));
 
         assertThat(RowTypeUtils.projectRowType(srcType, new int[] {0, 2}))
                 .isEqualTo(
@@ -74,13 +67,7 @@ public class RowTypeUtilsTest {
                                 new LogicalType[] {new IntType(), new BigIntType()},
                                 new String[] {"f0", "f2"}));
 
-        assertThat(RowTypeUtils.projectRowType(srcType, new int[] {0, 2}))
-                .isEqualTo(AggCodeGenHelper.projectRowType(srcType, new int[] {0, 2}));
-
         assertThat(RowTypeUtils.projectRowType(srcType, new int[] {0, 1, 2})).isEqualTo(srcType);
-
-        assertThat(RowTypeUtils.projectRowType(srcType, new int[] {0, 1, 2}))
-                .isEqualTo(AggCodeGenHelper.projectRowType(srcType, new int[] {0, 1, 2}));
     }
 
     @Test
@@ -97,6 +84,5 @@ public class RowTypeUtilsTest {
         expectedException.expect(ValidationException.class);
         expectedException.expectMessage("Field names must be unique. Found duplicates");
         RowTypeUtils.projectRowType(srcType, new int[] {0, 0, 0, 0});
-        AggCodeGenHelper.projectRowType(srcType, new int[] {0, 0, 0, 0});
     }
 }
