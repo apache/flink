@@ -174,7 +174,7 @@ class TableSinkITCase(mode: StateBackendMode) extends StreamingWithStateTestBase
   }
 
   @Test
-  def testCdcWithNonDeterministicFuncSinkWithDifferentPk(): Unit = {
+  def testChangelogSourceWithNonDeterministicFuncSinkWithDifferentPk(): Unit = {
     tEnv.createTemporaryFunction("ndFunc", new TestNonDeterministicUdf)
     tEnv.executeSql("""
                       |CREATE TABLE sink_with_pk (
