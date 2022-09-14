@@ -23,6 +23,7 @@ import org.apache.flink.api.java.utils.ParameterTool;
 import org.apache.flink.quickstarts.test.utils.Utils;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.util.CloseableIterator;
 
 /** End to end test for quickstarts. */
 public class QuickstartExample {
@@ -36,15 +37,29 @@ public class QuickstartExample {
             return;
         }
 
+        int numRecordsToEmit = parameterTool.getInt("numRecords");
+
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.enableCheckpointing(5000);
 
         DataStream<String> source =
-                env.fromSequence(0, parameterTool.getInt("numRecords") - 1)
+                env.fromSequence(0, numRecordsToEmit - 1)
                         .map((MapFunction<Long, String>) Utils::prefix);
 
-        source.print();
+        try (CloseableIterator<String> data = source.collectAsync()) {
+            env.execute("Quickstart example");
 
-        env.execute("Quickstart example");
+            int count = 0;
+            while (data.hasNext()) {
+                data.next();
+                count++;
+            }
+            if (count != numRecordsToEmit) {
+                throw new RuntimeException(
+                        String.format(
+                                "Unexpected number of records; expected :%s actual: %s",
+                                numRecordsToEmit, count));
+            }
+        }
     }
 }
