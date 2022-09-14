@@ -22,15 +22,10 @@ import org.apache.flink.connector.testframe.container.TestcontainersSettings;
 import org.apache.flink.connector.upserttest.sink.UpsertTestFileUtil;
 import org.apache.flink.test.util.SQLJobSubmission;
 import org.apache.flink.tests.util.TestUtils;
+import org.apache.flink.tests.util.kafka.KafkaContainerClient;
 import org.apache.flink.util.DockerImageVersions;
 
-import org.apache.kafka.clients.producer.KafkaProducer;
-import org.apache.kafka.clients.producer.Producer;
-import org.apache.kafka.clients.producer.ProducerConfig;
-import org.apache.kafka.clients.producer.ProducerRecord;
-import org.apache.kafka.common.serialization.BytesSerializer;
 import org.apache.kafka.common.serialization.StringSerializer;
-import org.apache.kafka.common.utils.Bytes;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -50,7 +45,6 @@ import java.io.IOException;
 import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.List;
-import java.util.Properties;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -243,16 +237,8 @@ public class SqlClientITCase {
     }
 
     public void sendMessages(String topic, String... messages) {
-        Properties props = new Properties();
-        props.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, KAFKA.getBootstrapServers());
-        props.put(ProducerConfig.ACKS_CONFIG, "all");
-
-        try (Producer<Bytes, String> producer =
-                new KafkaProducer<>(props, new BytesSerializer(), new StringSerializer())) {
-            for (String message : messages) {
-                producer.send(new ProducerRecord<>(topic, message));
-            }
-        }
+        KafkaContainerClient kafkaClient = new KafkaContainerClient(KAFKA);
+        kafkaClient.sendMessages(topic, new StringSerializer(), messages);
     }
 
     private void verifyNumberOfResultRecords(String resultFilePath, int expectedNumberOfRecords)
