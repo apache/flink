@@ -52,7 +52,7 @@ dependency_plugin_output=${CI_DIR}/dep.txt
 
 run_mvn dependency:tree -Dincludes=org.scala-lang,:*_2.1*:: ${MAVEN_ARGUMENTS} >> "${dependency_plugin_output}"
 
-cd "${CI_DIR}/java-ci-tools/" || exit
+cd "${CI_DIR}/flink-ci-tools/" || exit
 
 run_mvn exec:java -Dexec.mainClass=org.apache.flink.tools.ci.suffixcheck.ScalaSuffixChecker -Dexec.args=\""${dependency_plugin_output}" "${FLINK_ROOT}"\"
 EXIT_CODE=$?
