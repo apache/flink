@@ -27,6 +27,7 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.nio.file.Files;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -53,6 +54,11 @@ class UpsertTestSinkWriter<IN> implements SinkWriter<IN> {
         this.keySerializationSchema = checkNotNull(keySerializationSchema);
         this.valueSerializationSchema = checkNotNull(valueSerializationSchema);
         checkNotNull(outputFile);
+        try {
+            Files.createDirectories(outputFile.toPath().getParent());
+        } catch (IOException e) {
+            throw new FlinkRuntimeException("Could not parent directories for path: " + outputFile);
+        }
         try {
             this.bufferedOutputStream =
                     new BufferedOutputStream(new FileOutputStream(outputFile, true));
