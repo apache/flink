@@ -219,11 +219,8 @@ public class SqlClientITCase {
                         "    'key.format' = 'json',",
                         "    'value.format' = 'json',",
                         "    'output-filepath' = '" + outputFilepath + "'",
-                        "  );");
-        executeSql(sqlLines);
-
-        sqlLines =
-                Arrays.asList(
+                        "  );",
+                        "",
                         "INSERT INTO AppendSinkTable",
                         "  SELECT 1 as user_id, T.userName as user_name, cast(1 as BIGINT) as user_count",
                         "  FROM (",
