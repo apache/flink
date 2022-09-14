@@ -20,6 +20,7 @@ import org.apache.flink.connector.testframe.container.FlinkContainers;
 import org.apache.flink.connector.testframe.container.FlinkContainersSettings;
 import org.apache.flink.connector.testframe.container.TestcontainersSettings;
 import org.apache.flink.connector.upserttest.sink.UpsertTestFileUtil;
+import org.apache.flink.streaming.api.environment.ExecutionCheckpointingOptions;
 import org.apache.flink.test.util.SQLJobSubmission;
 import org.apache.flink.tests.util.TestUtils;
 import org.apache.flink.tests.util.kafka.KafkaContainerClient;
@@ -43,6 +44,7 @@ import org.testcontainers.utility.DockerImageName;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Path;
+import java.time.Duration;
 import java.util.Arrays;
 import java.util.List;
 
@@ -76,7 +78,13 @@ public class SqlClientITCase {
     public final FlinkContainers flink =
             FlinkContainers.builder()
                     .withFlinkContainersSettings(
-                            FlinkContainersSettings.builder().numTaskManagers(1).build())
+                            FlinkContainersSettings.builder()
+                                    .numTaskManagers(1)
+                                    // enable checkpointing for the UpsertTestSink to write anything
+                                    .setConfigOption(
+                                            ExecutionCheckpointingOptions.CHECKPOINTING_INTERVAL,
+                                            Duration.ofMillis(500))
+                                    .build())
                     .withTestcontainersSettings(
                             TestcontainersSettings.builder()
                                     .network(NETWORK)
