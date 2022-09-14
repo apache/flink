@@ -54,6 +54,8 @@ public class SqlClientITCase {
 
     private static final Logger LOG = LoggerFactory.getLogger(SqlClientITCase.class);
 
+    private static final String INTER_CONTAINER_KAFKA_ALIAS = "kafka";
+
     private static final Slf4jLogConsumer LOG_CONSUMER = new Slf4jLogConsumer(LOG);
     private static final Path sqlToolBoxJar = TestUtils.getResource(".*SqlToolbox.jar");
 
@@ -68,7 +70,7 @@ public class SqlClientITCase {
     public static final KafkaContainer KAFKA =
             new KafkaContainer(DockerImageName.parse(DockerImageVersions.KAFKA))
                     .withNetwork(NETWORK)
-                    .withNetworkAliases("kafka")
+                    .withNetworkAliases(INTER_CONTAINER_KAFKA_ALIAS)
                     .withLogConsumer(LOG_CONSUMER);
 
     public final FlinkContainers flink =
@@ -199,8 +201,8 @@ public class SqlClientITCase {
                         "    'connector' = 'kafka',",
                         "    'topic' = 'test-json',",
                         "    'properties.bootstrap.servers' = '"
-                                + KAFKA.getBootstrapServers()
-                                + "',",
+                                + INTER_CONTAINER_KAFKA_ALIAS
+                                + ":9092',",
                         "    'scan.startup.mode' = 'earliest-offset',",
                         "    'format' = 'json',",
                         "    'json.timestamp-format.standard' = 'ISO-8601'",
