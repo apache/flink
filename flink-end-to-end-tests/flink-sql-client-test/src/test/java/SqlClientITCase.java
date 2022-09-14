@@ -169,7 +169,7 @@ public class SqlClientITCase {
                         "    AS UserCountTable(user_id, user_name, user_count);");
         executeSql(sqlLines);
 
-        verifyNumberOfResultRecords(outputFilepath, 6);
+        verifyNumberOfResultRecords(outputFilepath, 3);
     }
 
     @Test
@@ -242,7 +242,7 @@ public class SqlClientITCase {
                         "  ) T");
         executeSql(sqlLines);
 
-        verifyNumberOfResultRecords(outputFilepath, 3);
+        verifyNumberOfResultRecords(outputFilepath, 1);
     }
 
     public void sendMessages(String topic, String... messages) {
