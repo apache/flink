@@ -224,16 +224,16 @@ public class SqlClientITCase {
                         "INSERT INTO AppendSinkTable",
                         "  SELECT 1 as user_id, T.userName as user_name, cast(1 as BIGINT) as user_count",
                         "  FROM (",
-                        "    SELECT \\`user\\`, \\`rowtime\\`",
+                        "    SELECT `user`, `rowtime`",
                         "    FROM JsonSourceTable",
-                        "    WHERE \\`user\\` IS NOT NULL)",
+                        "    WHERE `user` IS NOT NULL)",
                         "  MATCH_RECOGNIZE (",
                         "    ORDER BY rowtime",
                         "    MEASURES",
-                        "        \\`user\\` as userName",
+                        "        `user` as userName",
                         "    PATTERN (A)",
                         "    DEFINE",
-                        "        A as \\`user\\` = 'Alice'",
+                        "        A as `user` = 'Alice'",
                         "  ) T");
         executeSql(sqlLines);
 
