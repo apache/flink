@@ -150,7 +150,7 @@ a table program (e.g. `field.cast(TIMESTAMP(3).bridgedTo(Timestamp.class))`) are
 Java/Scala Table API 的数据类型详见： `org.apache.flink.table.api.DataTypes`.
 {{< /tab >}}
 {{< tab "Python" >}}
-Python Table API, 的数据类型详见： `pyflink.table.types.DataTypes`.
+Python Table API 的数据类型详见： `pyflink.table.types.DataTypes`.
 {{< /tab >}}
 {{< /tabs >}}
 
@@ -173,7 +173,7 @@ Python Table API, 的数据类型详见： `pyflink.table.types.DataTypes`.
 | `FLOAT`          |                                       |
 | `DOUBLE`         |                                       |
 | `DATE`           |                                       |
-| `TIME`           | 仅支持到0.的精度。                            |
+| `TIME`           | 仅支持精度为 0。                            |
 | `TIMESTAMP`      |                                       |
 | `TIMESTAMP_LTZ`  |                                       |
 | `INTERVAL`       | 仅支持从 `MONTH` 详细到 `SECOND(3）`而组成的时间范围。 |
