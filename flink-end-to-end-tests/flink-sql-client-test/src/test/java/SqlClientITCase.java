@@ -238,6 +238,7 @@ public class SqlClientITCase {
 
     public void sendMessages(String topic, String... messages) {
         KafkaContainerClient kafkaClient = new KafkaContainerClient(KAFKA);
+        kafkaClient.createTopic(1, 1, topic);
         kafkaClient.sendMessages(topic, new StringSerializer(), messages);
     }
 
