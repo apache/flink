@@ -60,35 +60,7 @@ under the License.
 		<dependency>
 			<!-- Used by maven-dependency-plugin -->
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-sql-avro</artifactId>
-			<version>${project.version}</version>
-			<scope>provided</scope>
-		</dependency>
-		<dependency>
-			<!-- Used by maven-dependency-plugin -->
-			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-sql-connector-kafka</artifactId>
-			<version>${project.version}</version>
-			<scope>provided</scope>
-		</dependency>
-		<dependency>
-			<!-- Used by maven-dependency-plugin -->
-			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-sql-connector-kinesis</artifactId>
-			<version>${project.version}</version>
-			<scope>provided</scope>
-		</dependency>
-		<dependency>
-			<!-- Used by maven-dependency-plugin -->
-			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-sql-connector-elasticsearch6</artifactId>
-			<version>${project.version}</version>
-			<scope>provided</scope>
-		</dependency>
-		<dependency>
-			<!-- Used by maven-dependency-plugin -->
-			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-sql-connector-elasticsearch7</artifactId>
 			<version>${project.version}</version>
 			<scope>provided</scope>
 		</dependency>
@@ -156,31 +128,7 @@ under the License.
 							<artifactItems>
 								<artifactItem>
 									<groupId>org.apache.flink</groupId>
-									<artifactId>flink-sql-avro</artifactId>
-									<version>${project.version}</version>
-									<type>jar</type>
-								</artifactItem>
-								<artifactItem>
-									<groupId>org.apache.flink</groupId>
 									<artifactId>flink-sql-connector-kafka</artifactId>
-									<version>${project.version}</version>
-									<type>jar</type>
-								</artifactItem>
-								<artifactItem>
-									<groupId>org.apache.flink</groupId>
-									<artifactId>flink-sql-connector-kinesis</artifactId>
-									<version>${project.version}</version>
-									<type>jar</type>
-								</artifactItem>
-								<artifactItem>
-									<groupId>org.apache.flink</groupId>
-									<artifactId>flink-sql-connector-elasticsearch6</artifactId>
-									<version>${project.version}</version>
-									<type>jar</type>
-								</artifactItem>
-								<artifactItem>
-									<groupId>org.apache.flink</groupId>
-									<artifactId>flink-sql-connector-elasticsearch7</artifactId>
 									<version>${project.version}</version>
 									<type>jar</type>
 								</artifactItem>
