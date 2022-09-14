@@ -22,7 +22,7 @@ import org.apache.flink.api.common.typeutils.TypeSerializer
 import org.apache.flink.configuration.ReadableConfig
 import org.apache.flink.table.data.GenericRowData
 import org.apache.flink.table.data.conversion.{DataStructureConverter, DataStructureConverters}
-import org.apache.flink.table.functions.{FunctionContext, UserDefinedFunction}
+import org.apache.flink.table.functions.{FunctionContext, TableFunction, UserDefinedFunction}
 import org.apache.flink.table.planner.codegen.CodeGenUtils._
 import org.apache.flink.table.planner.codegen.GenerateUtils.generateRecordStatement
 import org.apache.flink.table.planner.utils.{InternalConfigOptions, TableConfigUtils}
@@ -67,6 +67,11 @@ class CodeGeneratorContext(val tableConfig: ReadableConfig, val classLoader: Cla
   // set of open statements for RichFunction that will be added only once
   // we use a LinkedHashSet to keep the insertion order
   private val reusableOpenStatements: mutable.LinkedHashSet[String] =
+    mutable.LinkedHashSet[String]()
+
+  // set of finish statements for RichFunction that will be added only once
+  // we use a LinkedHashSet to keep the insertion order
+  private val reusableFinishStatements: mutable.LinkedHashSet[String] =
     mutable.LinkedHashSet[String]()
 
   // set of close statements for RichFunction that will be added only once
@@ -275,6 +280,15 @@ class CodeGeneratorContext(val tableConfig: ReadableConfig, val classLoader: Cla
 
   /**
    * @return
+   *   code block of statements that need to be placed in the finish() method (e.g. RichFunction or
+   *   StreamOperator)
+   */
+  def reuseFinishCode(): String = {
+    reusableFinishStatements.mkString("\n")
+  }
+
+  /**
+   * @return
    *   code block of statements that need to be placed in the close() method (e.g. RichFunction or
    *   StreamOperator)
    */
@@ -359,6 +373,9 @@ class CodeGeneratorContext(val tableConfig: ReadableConfig, val classLoader: Cla
 
   /** Adds a reusable open statement */
   def addReusableOpenStatement(s: String): Unit = reusableOpenStatements.add(s)
+
+  /** Adds a reusable finish statement */
+  def addReusableFinishStatement(s: String): Unit = reusableFinishStatements.add(s)
 
   /** Adds a reusable close statement */
   def addReusableCloseStatement(s: String): Unit = reusableCloseStatements.add(s)
@@ -767,6 +784,14 @@ class CodeGeneratorContext(val tableConfig: ReadableConfig, val classLoader: Cla
        """.stripMargin
     }
     reusableOpenStatements.add(openFunction)
+
+    if (function.isInstanceOf[TableFunction[_]]) {
+      val finishFunction =
+        s"""
+           |$fieldTerm.finish();
+       """.stripMargin
+      reusableFinishStatements.add(finishFunction)
+    }
 
     val closeFunction =
       s"""
