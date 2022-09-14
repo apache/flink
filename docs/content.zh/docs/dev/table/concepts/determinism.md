@@ -144,8 +144,8 @@ SELECT CURRENT_TIMESTAMP, * FROM clicks;
 3. 基于 [TTL]({{< ref "docs/dev/table/config" >}}#table-exec-state-ttl) 淘汰内部状态数据的不确定性
 
 #### Source 连接器回溯读取的不确定性
-对于 Flink SQL 来说，所能提供的确定性局限于计算部分，因为它本身并不存储用户数据（这里需要区别流模式中管理的内部状态和计算时输入的用户数据），所以无法提供确定性回溯读取数据的 Source 连接器实现会带来输入数据的不确定性，从而可能产生不确定的计算结果。
-常见的比如指定相同时间点位请求多次读取的数据不一致、或请求的数据因为保存时限已经不存在等。
+对于 Flink SQL 来说，所能提供的确定性局限于计算部分，因为它本身并不存储用户数据（这里需要区别流模式中管理的内部状态和计算时输入的用户数据），所以对于无法提供确定性回溯读取数据的 Source 连接器实现会带来输入数据的不确定性，从而可能产生不确定的计算结果。
+常见的比如指定相同时间点位请求多次读取的数据不一致、或请求的数据因为保存时限已经不存在等，如请求的 Kafka topic 数据已经超出了保存时限。
 
 #### 基于处理时间计算的不确定性
 区别于事件时间，处理时间是基于机器的本地时间，这种处理不能提供确定性。相关的依赖时间属性的操作作包括[窗口聚合]({{< ref "docs/dev/table/sql/queries/window-agg" >}})、[Interval Join]({{< ref "docs/dev/table/sql/queries/joins" >}}#interval-joins)、[Temporal Join]({{< ref "docs/dev/table/sql/queries/joins" >}}#temporal-joins) 等，另一个典型的操作是 [Lookup Join]({{< ref "docs/dev/table/sql/queries/joins" >}}#lookup-joins)，语义上是类似基于处理时间的 Temporal Join，访问的外部表如存在更新，就会产生不确定性。
@@ -159,28 +159,28 @@ SELECT CURRENT_TIMESTAMP, * FROM clicks;
 Flink SQL 基于[动态表上的连续查询（continuous query）]({{< ref "docs/dev/table/concepts/dynamic_tables" >}}#dynamic-tables-amp-continuous-queries)抽象实现了一套完整的增量更新机制，所有需要产生增量消息的操作都维护了完整的内部状态数据，整个查询管道的顺利运行依赖算子之间对增量消息的正确传递保证，而不确定性就可能破坏这种保证从而导致错误。
 
 什么是不确定更新（Non-deterministic Update, 简称 NDU）？
-增量消息包含插入（Insert，简称 I）、删除（Delete，简称 D）、更新前（Update_Before，简称 UB），更新后（Update_After，简称 UA），在仅有插入类型增量消息的查询管道中不存在 NDU 问题。
+增量消息包含插入（Insert，简称 I）、删除（Delete，简称 D）、更新前（Update_Before，简称 UB），更新后（Update_After，简称 UA），在仅有插入类型增量消息的查询管道中不存在 NDU 问题（对于单个算子只关注输入，对于整个作业，我们需要考虑作业对应的完整查询管道）。
 在有更新消息（除 I 外还包含 D、UB、UA 至少一种消息）时，会根据查询推导消息的更新键（可视为变更日志的主键）
 - 能推导出更新键时，管道中的算子通过更新键来维护内部状态
-- 不能推导出更新键时（有可能 CDC 源表或 Sink 表就没定义主键，也可能从查询的语义上某些操作就推导不出来），所有的算子维护内部状态时只能通过比较完整的行来处理更新（D/UB/UA）消息, Sink 节点在没有定义主键时以 Retract 模式工作，按整行进行删除操作。
+- 不能推导出更新键时（有可能 [CDC 源表]({{< ref "docs/connectors/table/kafka" >}}#cdc-changelog-source)或 Sink 表就没定义主键，也可能从查询的语义上某些操作就推导不出来），所有的算子维护内部状态时只能通过比较完整的行来处理更新（D/UB/UA）消息, Sink 节点在没有定义主键时以 Retract 模式工作，按整行进行删除操作。
 因此，在按行删除时，所有需要维护状态的算子收到的更新消息不能被不确定的列值干扰, 否则就会导致 NDU 问题造成计算错误。
 
 在有更新消息传递并且无法推导出更新键的链路上，以下三点是最主要的 NDU 问题来源：
 1. 不确定函数（包括标量、表值、聚合类型的内置或自定义函数）
 2. 在一个变化的源表上 Lookup Join
-3. CDC 源表携带了元数据字段（系统列，不属于实体行本身）
+3. [CDC 源表]({{< ref "docs/connectors/table/kafka" >}}#cdc-changelog-source)携带了元数据字段（系统列，不属于实体行本身）
 
-注意：基于 TTL 淘汰内部状态数据产生的不确定性造成的异常将作为一个运行时容错处理策略单独讨论(FLINK-24666)。
+注意：基于 TTL 淘汰内部状态数据产生的不确定性造成的异常将作为一个运行时容错处理策略单独讨论([FLINK-24666](https://issues.apache.org/jira/browse/FLINK-24666))。
 
 ### 3.3 如何消除流查询的不确定性影响
-流查询中的不确定更新(NDU)问题通常不是直观的，可能较复杂的查询中一个微小条件的改动就可能产生 NDU 问题风险，从 1.16 版本开始，Flink SQL (FLINK-27849)引入了实验性的 NDU 问题处理机制 ['table.optimizer.non-deterministic-update.strategy']({{< ref "docs/dev/table/config" >}}#table-optimizer-non-deterministic-update-strategy)，
+流查询中的不确定更新(NDU)问题通常不是直观的，可能较复杂的查询中一个微小条件的改动就可能产生 NDU 问题风险，从 1.16 版本开始，Flink SQL ([FLINK-27849](https://issues.apache.org/jira/browse/FLINK-27849))引入了实验性的 NDU 问题处理机制 ['table.optimizer.non-deterministic-update.strategy']({{< ref "docs/dev/table/config" >}}#table-optimizer-non-deterministic-update-strategy)，
 当开启 `TRY_RESOLVE` 模式时，会检查流查询中是否存在 NDU 问题，并尝试消除由 Lookup Join 产生的不确定更新问题（内部会增加物化处理），如果还存在上述第 1 或 第 3 点因素无法自动消除，Flink SQL 会给出尽量详细的错误信息提示用户调整 SQL 来避免引入不确定性（考虑到物化带来的高成本和算子复杂性，目前还没有支持对应的自动解决机制）。
 
 #### 最佳实践
 #### 1. 
 运行流查询前主动开启 `TRY_RESOLVE` 模式，在检查到流查询中存在无法解决的 NDU 问题时，尽量按照错误提示修改 SQL 主动避免问题
 
-一个来源于 FLINK-27639 的真实案例：
+一个来源于 [FLINK-27639](https://issues.apache.org/jira/browse/FLINK-27639) 的真实案例：
 ```sql
 INSERT INTO t_join_sink
 SELECT o.order_id, o.order_name, l.logistics_id, l.logistics_target, l.logistics_source, now()
@@ -216,7 +216,7 @@ from (
 join dim_with_pk for system_time as of t1.proctime as t2
    on t1.a = t2.a
    
--- 执行计划
+-- 执行计划：声明了 pk 后的维表，通过 pk 连接时左流的 upsertKey 属性得以保留，从而节省了高开销的物化节点
 Sink(table=[default_catalog.default_database.sink_with_pk], fields=[a, b, c])
 +- Calc(select=[a, b, c])
    +- LookupJoin(table=[default_catalog.default_database.dim_with_pk], joinType=[InnerJoin], lookup=[a=a], select=[a, b, a, c])

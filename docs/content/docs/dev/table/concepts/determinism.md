@@ -1,5 +1,5 @@
 ---
-title: "流上的确定性 (Determinism in Continuous Queries)"
+title: "Determinism in Continuous Queries"
 weight: 2
 type: docs
 aliases:
@@ -152,7 +152,7 @@ In addition to the non-deterministic function, other factors that may generate n
 #### Non-Deterministic Back Read Of Source Connector
 For Flink SQL, the determinism provided is limited to the computation only, because it does not store user data itself (here it is necessary to distinguish between the managed internal state in streaming mode and the user data itself),
 so the Source connector's implementation that cannot provide deterministic back read will bring non-determinism of the input data, which may produce non-deterministic results.
-Common examples are inconsistent data for multiple reads from a same offset, or requests for data that no longer exists because of the retention time.
+Common examples are inconsistent data for multiple reads from a same offset, or requests for data that no longer exists because of the retention time, e.g., the requested data beyond the configured ttl of Kafka topic.
 
 #### Query Based On Processing Time
 Unlike event time, processing time is based on the machine's local time, and this processing does not provide determinism. Related operations that rely on the time attribute include [Window Aggregation]({{< ref "docs/dev/table/sql/queries/window-agg" >}}), [Interval Join]({{< ref "docs/dev/table/sql/queries/joins" >}}#interval-joins), [Temporal Join]({{< ref "docs/dev/table/sql/queries/joins" >}}temporal-joins), etc.
@@ -169,31 +169,31 @@ The main reason for the latter one is 'non-deterministic update'.
 Flink SQL implements a complete incremental update mechanism based on the ['continuous query on dynamic tables']({{< ref "docs/dev/table/concepts/dynamic_tables" >}}#dynamic-tables-amp-continuous-queries) abstraction. All operations that need to generate incremental messages maintain complete internal state data, and the operation of the entire query pipeline relies on the guarantee of correct delivery of update messages between operators, which can be broken by non-determinism leading to errors.
 
 What is the 'Non-deterministic Update'(NDU)?
-Update messages(changelog) may contain kinds of message types: Insert (I), Delete (D), Update_Before (UB) and Update_After (UA). There's no NDU problem in an insert-only changelog pipeline.
+Update messages(changelog) may contain kinds of message types: Insert (I), Delete (D), Update_Before (UB) and Update_After (UA). There's no NDU problem in an insert-only changelog pipeline(At the operator level, we only focus on the input, for the whole job, we need to consider the complete pipeline for the job).
 When there is an update message (containing at least one message D, UB, UA in addition to I), the update key of the message (which can be regarded as the primary key of the changelog) is deduced from the query:
 - when the update key can be deduced, the operators in the pipeline maintains the internal state by the update key
-- when the update key cannot be deduced (it is possible that the primary key is not defined in the CDC source table or Sink table, or some operations cannot be deduced from the semantics of the query).
+- when the update key cannot be deduced (it is possible that the primary key is not defined in the [CDC source table]({{< ref "docs/connectors/table/kafka" >}}#cdc-changelog-source) or Sink table, or some operations cannot be deduced from the semantics of the query).
 All operators maintaining internal state can only process update (D/UB/UA) messages through complete rows, sink nodes work in retract mode when no primary key is defined, and delete operations are performed by complete rows.
 
 Therefore, in the update-by-row mode, all the update messages received by the operators that need to maintain the state cannot be interfered by the non-deterministic column values, otherwise it will cause NDU problems resulting in computation errors.
 On query pipeline with update messages and cannot derive the update key, the following three points are the most important sources of NDU problems:
 1. Non-deterministic functions(include scalar, table, aggregate functions, builtin or custom ones)
 2. LookupJoin on an evolving source
-3. CDC source carries metadata fields(system columns, not belongs to the entity row itself)
+3. [CDC source]({{< ref "docs/connectors/table/kafka" >}}#cdc-changelog-source) carries metadata fields(system columns, not belongs to the entity row itself)
 
-Note: Exceptions caused by cleaning internal state data based on TTL will be discussed separately as a runtime fault-tolerant handling strategy (FLINK-24666).
+Note: Exceptions caused by cleaning internal state data based on TTL will be discussed separately as a runtime fault-tolerant handling strategy ([FLINK-24666](https://issues.apache.org/jira/browse/FLINK-24666)).
 
 ### 3.3 How To Eliminate The Impact Of Non-Deterministic Update In Streaming
 The NDU problem in streaming queries is usually not intuitive, and the risk of the problem may arise from a small change in a complex query.
 
-Since 1.16, Flink SQL (FLINK-27849) introduces an experimental NDU handling mechanism ['table.optimizer.non-deterministic-update.strategy']({{< ref "docs/dev/table/config" >}}#table-optimizer-non-deterministic-update-strategy)，
+Since 1.16, Flink SQL ([FLINK-27849](https://issues.apache.org/jira/browse/FLINK-27849)) introduces an experimental NDU handling mechanism ['table.optimizer.non-deterministic-update.strategy']({{< ref "docs/dev/table/config" >}}#table-optimizer-non-deterministic-update-strategy)，
 When `TRY_RESOLVE` mode is enabled, it will check whether there is NDU problem in the streaming query and try to eliminate the NDU problem generated by Lookup Join (internal materialization will be added), if there are still factors in point 1 or 3 above that cannot be eliminated automatically,
 Flink SQL will give as detailed error messages to prompt the user to adjust the SQL to avoid introducing non-determinism(considering the high cost and complexity of operators brought by materialization, there is no corresponding automatic resolution mechanism supported yet).
 
 #### Best Practices
 1. Enable `TRY_RESOLVE` mode before running the streaming query, when you check that there is an unsolvable NDU problem in the query, try to modify the SQL according to the error prompt to avoid the problem proactively.
 
-A real case from FLINK-27639:
+A real case from [FLINK-27639](https://issues.apache.org/jira/browse/FLINK-27639):
 ```sql
 INSERT INTO t_join_sink
 SELECT o.order_id, o.order_name, l.logistics_id, l.logistics_target, l.logistics_source, now()
@@ -227,7 +227,7 @@ from (
 join dim_with_pk for system_time as of t1.proctime as t2
    on t1.a = t2.a
    
--- plan
+-- plan: the upsertKey of left stream is reserved when lookup table with a pk definition and use it as lookup key, so that the high cost materialization can be omitted.
 Sink(table=[default_catalog.default_database.sink_with_pk], fields=[a, b, c])
 +- Calc(select=[a, b, c])
    +- LookupJoin(table=[default_catalog.default_database.dim_with_pk], joinType=[InnerJoin], lookup=[a=a], select=[a, b, a, c])
