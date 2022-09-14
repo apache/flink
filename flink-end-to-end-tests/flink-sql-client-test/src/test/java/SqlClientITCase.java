@@ -234,7 +234,7 @@ public class SqlClientITCase {
                         "    PATTERN (A)",
                         "    DEFINE",
                         "        A as `user` = 'Alice'",
-                        "  ) T");
+                        "  ) as T;");
         executeSql(sqlLines);
 
         verifyNumberOfResultRecords(outputFilepath, 1);
