@@ -35,6 +35,7 @@ import org.junit.jupiter.api.io.TempDir;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -60,7 +61,7 @@ class UpsertTestSinkWriterITCase {
 
     @BeforeEach
     void setup() {
-        outputFile = new File(tempDir, "records.out");
+        outputFile = tempDir.toPath().resolve(Paths.get("dir", "records.out")).toFile();
         writer = createSinkWriter(outputFile);
         expectedRecords = writeTestData(writer);
     }
