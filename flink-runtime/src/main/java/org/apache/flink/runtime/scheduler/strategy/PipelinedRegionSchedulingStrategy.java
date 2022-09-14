@@ -29,7 +29,6 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.IdentityHashMap;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -223,21 +222,21 @@ public class PipelinedRegionSchedulingStrategy implements SchedulingStrategy {
     public void onPartitionConsumable(final IntermediateResultPartitionID resultPartitionId) {}
 
     private void maybeScheduleRegions(final Set<SchedulingPipelinedRegion> regions) {
-        final Set<SchedulingPipelinedRegion> regionsToSchedule = new LinkedHashSet<>();
-        LinkedHashSet<SchedulingPipelinedRegion> nextRegions =
-                SchedulingStrategyUtils.sortPipelinedRegionsInTopologicalOrder(
-                        schedulingTopology, regions);
+        final Set<SchedulingPipelinedRegion> regionsToSchedule = new HashSet<>();
+        Set<SchedulingPipelinedRegion> nextRegions = regions;
         while (!nextRegions.isEmpty()) {
             nextRegions = addSchedulableAndGetNextRegions(nextRegions, regionsToSchedule);
         }
-        // schedule regions
-        regionsToSchedule.forEach(this::scheduleRegion);
+        // schedule regions in topological order.
+        SchedulingStrategyUtils.sortPipelinedRegionsInTopologicalOrder(
+                        schedulingTopology, regionsToSchedule)
+                .forEach(this::scheduleRegion);
     }
 
-    private LinkedHashSet<SchedulingPipelinedRegion> addSchedulableAndGetNextRegions(
+    private Set<SchedulingPipelinedRegion> addSchedulableAndGetNextRegions(
             Set<SchedulingPipelinedRegion> currentRegions,
             Set<SchedulingPipelinedRegion> regionsToSchedule) {
-        LinkedHashSet<SchedulingPipelinedRegion> nextRegions = new LinkedHashSet<>();
+        Set<SchedulingPipelinedRegion> nextRegions = new HashSet<>();
         // cache consumedPartitionGroup's consumable status to avoid compute repeatedly.
         final Map<ConsumedPartitionGroup, Boolean> consumableStatusCache = new HashMap<>();
         final Set<ConsumedPartitionGroup> visitedConsumedPartitionGroups = new HashSet<>();
@@ -248,8 +247,8 @@ public class PipelinedRegionSchedulingStrategy implements SchedulingStrategy {
                 producedPartitionGroupsOfRegion
                         .getOrDefault(currentRegion, Collections.emptySet())
                         .forEach(
-                                (consumedPartitionGroup) -> {
-                                    if (!consumedPartitionGroup
+                                (producedPartitionGroup) -> {
+                                    if (!producedPartitionGroup
                                             .getResultPartitionType()
                                             .canBePipelinedConsumed()) {
                                         return;
@@ -257,13 +256,13 @@ public class PipelinedRegionSchedulingStrategy implements SchedulingStrategy {
                                     // If this group has been visited, there is no need
                                     // to repeat the determination.
                                     if (visitedConsumedPartitionGroups.contains(
-                                            consumedPartitionGroup)) {
+                                            producedPartitionGroup)) {
                                         return;
                                     }
-                                    visitedConsumedPartitionGroups.add(consumedPartitionGroup);
+                                    visitedConsumedPartitionGroups.add(producedPartitionGroup);
                                     nextRegions.addAll(
                                             partitionGroupConsumerRegions.getOrDefault(
-                                                    consumedPartitionGroup,
+                                                    producedPartitionGroup,
                                                     Collections.emptySet()));
                                 });
             }
