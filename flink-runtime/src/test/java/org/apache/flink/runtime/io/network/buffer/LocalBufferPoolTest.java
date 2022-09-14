@@ -20,6 +20,7 @@ package org.apache.flink.runtime.io.network.buffer;
 
 import org.apache.flink.core.fs.AutoCloseableRegistry;
 import org.apache.flink.core.memory.MemorySegment;
+import org.apache.flink.core.testutils.CheckedThread;
 import org.apache.flink.runtime.execution.CancelTaskException;
 import org.apache.flink.testutils.executor.TestExecutorResource;
 import org.apache.flink.util.TestLogger;
@@ -28,6 +29,7 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.ClassRule;
 import org.junit.Test;
+import org.junit.jupiter.api.Timeout;
 import org.mockito.Mockito;
 
 import javax.annotation.Nullable;
@@ -246,6 +248,37 @@ public class LocalBufferPoolTest extends TestLogger {
         for (Buffer buffer : requests) {
             buffer.recycleBuffer();
         }
+    }
+
+    @Test
+    @Timeout(30)
+    public void testRequestBuffersOnRecycle() throws Exception {
+        BufferPool bufferPool1 = networkBufferPool.createBufferPool(512, 2048);
+        List<MemorySegment> segments = new ArrayList<>();
+        for (int i = 0; i < 1023; i++) {
+            segments.add(bufferPool1.requestMemorySegmentBlocking());
+        }
+        BufferPool bufferPool2 = networkBufferPool.createBufferPool(512, 512);
+        List<MemorySegment> segments2 = new ArrayList<>();
+        CheckedThread checkedThread =
+                new CheckedThread() {
+                    @Override
+                    public void go() throws Exception {
+                        for (int i = 0; i < 512; i++) {
+                            segments2.add(bufferPool2.requestMemorySegmentBlocking());
+                        }
+                    }
+                };
+        checkedThread.start();
+        for (MemorySegment segment : segments) {
+            bufferPool1.recycle(segment);
+        }
+        bufferPool1.lazyDestroy();
+        checkedThread.sync();
+        for (MemorySegment segment : segments2) {
+            bufferPool2.recycle(segment);
+        }
+        bufferPool2.lazyDestroy();
     }
 
     @Test
