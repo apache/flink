@@ -20,7 +20,7 @@ package org.apache.flink.table.sql.codegen;
 
 import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.tests.util.TestUtils;
+import org.apache.flink.test.resources.ResourceTestUtils;
 import org.apache.flink.tests.util.flink.ClusterController;
 import org.apache.flink.tests.util.flink.FlinkResource;
 import org.apache.flink.tests.util.flink.FlinkResourceSetup;
@@ -77,7 +77,8 @@ public abstract class SqlITCaseBase extends TestLogger {
 
     private Path result;
 
-    protected static final Path SQL_TOOL_BOX_JAR = TestUtils.getResource(".*SqlToolbox.jar");
+    protected static final Path SQL_TOOL_BOX_JAR =
+            ResourceTestUtils.getResource(".*SqlToolbox.jar");
 
     public SqlITCaseBase(String executionMode) {
         this.executionMode = executionMode;

@@ -21,8 +21,8 @@ package org.apache.flink.tests.util.kafka;
 import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.connector.testframe.container.FlinkContainers;
 import org.apache.flink.connector.testframe.container.TestcontainersSettings;
+import org.apache.flink.test.resources.ResourceTestUtils;
 import org.apache.flink.test.util.SQLJobSubmission;
-import org.apache.flink.tests.util.TestUtils;
 import org.apache.flink.tests.util.kafka.containers.SchemaRegistryContainer;
 import org.apache.flink.util.DockerImageVersions;
 
@@ -65,10 +65,11 @@ public class SQLClientSchemaRegistryITCase {
 
     public static final String INTER_CONTAINER_KAFKA_ALIAS = "kafka";
     public static final String INTER_CONTAINER_REGISTRY_ALIAS = "registry";
-    private static final Path sqlAvroJar = TestUtils.getResource(".*avro.jar");
-    private static final Path sqlAvroRegistryJar = TestUtils.getResource(".*avro-confluent.jar");
-    private static final Path sqlToolBoxJar = TestUtils.getResource(".*SqlToolbox.jar");
-    private final Path sqlConnectorKafkaJar = TestUtils.getResource(".*kafka.jar");
+    private static final Path sqlAvroJar = ResourceTestUtils.getResource(".*avro.jar");
+    private static final Path sqlAvroRegistryJar =
+            ResourceTestUtils.getResource(".*avro-confluent.jar");
+    private static final Path sqlToolBoxJar = ResourceTestUtils.getResource(".*SqlToolbox.jar");
+    private final Path sqlConnectorKafkaJar = ResourceTestUtils.getResource(".*kafka.jar");
 
     @ClassRule public static final Network NETWORK = Network.newNetwork();
 

@@ -20,8 +20,8 @@ package org.apache.flink.tests.util.kafka;
 
 import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.test.resources.ResourceTestUtils;
 import org.apache.flink.test.util.SQLJobSubmission;
-import org.apache.flink.tests.util.TestUtils;
 import org.apache.flink.tests.util.cache.DownloadCache;
 import org.apache.flink.tests.util.flink.ClusterController;
 import org.apache.flink.tests.util.flink.FlinkResource;
@@ -101,8 +101,8 @@ public class SQLClientKafkaITCase extends TestLogger {
 
     @ClassRule public static final DownloadCache DOWNLOAD_CACHE = DownloadCache.get();
 
-    private static final Path sqlAvroJar = TestUtils.getResource(".*avro.jar");
-    private static final Path sqlToolBoxJar = TestUtils.getResource(".*SqlToolbox.jar");
+    private static final Path sqlAvroJar = ResourceTestUtils.getResource(".*avro.jar");
+    private static final Path sqlToolBoxJar = ResourceTestUtils.getResource(".*SqlToolbox.jar");
     private final List<Path> apacheAvroJars = new ArrayList<>();
     private final Path sqlConnectorKafkaJar;
 
@@ -116,7 +116,7 @@ public class SQLClientKafkaITCase extends TestLogger {
         this.kafkaSQLVersion = kafkaSQLVersion;
         this.kafkaIdentifier = kafkaIdentifier;
 
-        this.sqlConnectorKafkaJar = TestUtils.getResource(kafkaSQLJarPattern);
+        this.sqlConnectorKafkaJar = ResourceTestUtils.getResource(kafkaSQLJarPattern);
     }
 
     @Before
