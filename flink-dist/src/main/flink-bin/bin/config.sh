@@ -32,7 +32,7 @@ constructFlinkClassPath() {
     done < <(find "$FLINK_LIB_DIR" ! -type d -name '*.jar' -print0 | sort -z)
 
     local FLINK_DIST_COUNT
-    FLINK_DIST_COUNT="$(echo "$FLINK_DIST" | wc -l)"
+    FLINK_DIST_COUNT="$(echo "$FLINK_DIST" | tr -s ':' '\n' | grep -v '^$' | wc -l)"
 
     # If flink-dist*.jar cannot be resolved write error messages to stderr since stdout is stored
     # as the classpath and exit function with empty classpath to force process failure
