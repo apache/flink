@@ -109,7 +109,7 @@ public class SsgNetworkMemoryCalculationUtils {
         Map<IntermediateDataSetID, ResultPartitionType> partitionTypes = getPartitionTypes(jv);
 
         return TaskInputsOutputsDescriptor.from(
-                maxInputChannelNums, maxSubpartitionNums, partitionTypes);
+                jv.getNumberOfInputs(), maxInputChannelNums, maxSubpartitionNums, partitionTypes);
     }
 
     private static Map<IntermediateDataSetID, Integer> getMaxInputChannelNums(
@@ -130,7 +130,7 @@ public class SsgNetworkMemoryCalculationUtils {
                             ejv.getParallelism(),
                             consumedResult.getNumberOfAssignedPartitions(),
                             inputEdge.getDistributionPattern());
-            ret.put(consumedResult.getId(), maxNum);
+            ret.merge(consumedResult.getId(), maxNum, Integer::sum);
         }
 
         return ret;
@@ -177,6 +177,8 @@ public class SsgNetworkMemoryCalculationUtils {
         Map<IntermediateDataSetID, Integer> ret = new HashMap<>();
 
         for (ExecutionVertex vertex : ejv.getTaskVertices()) {
+            Map<IntermediateDataSetID, Integer> tmp = new HashMap<>();
+
             for (ConsumedPartitionGroup partitionGroup : vertex.getAllConsumedPartitionGroups()) {
 
                 IntermediateResultPartition resultPartition =
@@ -187,10 +189,14 @@ public class SsgNetworkMemoryCalculationUtils {
                                 resultPartition,
                                 vertex.getParallelSubtaskIndex());
 
-                ret.merge(
+                tmp.merge(
                         partitionGroup.getIntermediateDataSetID(),
                         subpartitionIndexRange.size() * partitionGroup.size(),
-                        Integer::max);
+                        Integer::sum);
+            }
+
+            for (Map.Entry<IntermediateDataSetID, Integer> entry : tmp.entrySet()) {
+                ret.merge(entry.getKey(), entry.getValue(), Integer::max);
             }
         }
 
