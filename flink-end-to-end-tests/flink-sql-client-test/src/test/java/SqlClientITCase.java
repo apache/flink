@@ -42,6 +42,7 @@ import org.testcontainers.containers.KafkaContainer;
 import org.testcontainers.containers.Network;
 import org.testcontainers.containers.output.Slf4jLogConsumer;
 import org.testcontainers.junit.jupiter.Container;
+import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.utility.DockerImageName;
 
 import java.io.File;
@@ -54,6 +55,7 @@ import java.util.Properties;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** E2E Test for SqlClient. */
+@Testcontainers
 public class SqlClientITCase {
 
     private static final Logger LOG = LoggerFactory.getLogger(SqlClientITCase.class);
