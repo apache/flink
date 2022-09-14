@@ -44,13 +44,6 @@ under the License.
 			<version>${project.version}</version>
 		</dependency>
 
-		<dependency>
-			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-end-to-end-tests-common-kafka</artifactId>
-			<version>${project.version}</version>
-			<scope>test</scope>
-		</dependency>
-
 		<!-- The following dependencies are for connector/format sql-jars that
 			we copy using the maven-dependency-plugin. When extending the test
  			to cover more connectors/formats, add a dependency here and an entry

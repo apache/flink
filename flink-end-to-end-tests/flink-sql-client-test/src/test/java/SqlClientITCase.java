@@ -23,10 +23,17 @@ import org.apache.flink.connector.upserttest.sink.UpsertTestFileUtil;
 import org.apache.flink.streaming.api.environment.ExecutionCheckpointingOptions;
 import org.apache.flink.test.util.SQLJobSubmission;
 import org.apache.flink.tests.util.TestUtils;
-import org.apache.flink.tests.util.kafka.KafkaContainerClient;
 import org.apache.flink.util.DockerImageVersions;
 
+import org.apache.kafka.clients.admin.AdminClient;
+import org.apache.kafka.clients.admin.NewTopic;
+import org.apache.kafka.clients.producer.KafkaProducer;
+import org.apache.kafka.clients.producer.Producer;
+import org.apache.kafka.clients.producer.ProducerConfig;
+import org.apache.kafka.clients.producer.ProducerRecord;
+import org.apache.kafka.common.serialization.BytesSerializer;
 import org.apache.kafka.common.serialization.StringSerializer;
+import org.apache.kafka.common.utils.Bytes;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -46,7 +53,9 @@ import java.io.IOException;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
+import java.util.Properties;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -246,10 +255,22 @@ public class SqlClientITCase {
         verifyNumberOfResultRecords(outputFilepath, 1);
     }
 
-    public void sendMessages(String topic, String... messages) {
-        KafkaContainerClient kafkaClient = new KafkaContainerClient(KAFKA);
-        kafkaClient.createTopic(1, 1, topic);
-        kafkaClient.sendMessages(topic, new StringSerializer(), messages);
+    // duplicated from KafkaContainerClient@flink-end-to-end-tests-common
+    private void sendMessages(String topic, String... messages) {
+        Properties props = new Properties();
+        props.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, KAFKA.getBootstrapServers());
+        props.put(ProducerConfig.ACKS_CONFIG, "all");
+
+        try (AdminClient admin = AdminClient.create(props)) {
+            admin.createTopics(Collections.singletonList(new NewTopic(topic, 1, (short) 1)));
+        }
+
+        try (Producer<Bytes, String> producer =
+                new KafkaProducer<>(props, new BytesSerializer(), new StringSerializer())) {
+            for (String message : messages) {
+                producer.send(new ProducerRecord<>(topic, message));
+            }
+        }
     }
 
     private void verifyNumberOfResultRecords(String resultFilePath, int expectedNumberOfRecords)
