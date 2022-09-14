@@ -129,7 +129,9 @@ public class NoticeFileChecker {
                 LOG.error(
                         "Module {} is missing a NOTICE file. It has shaded dependencies: {}",
                         moduleWithoutNotice,
-                        modulesWithShadedDependencies.get(moduleWithoutNotice));
+                        modulesWithShadedDependencies.get(moduleWithoutNotice).stream()
+                                .map(Dependency::toString)
+                                .collect(Collectors.joining("\n\t", "\n\t", "")));
                 severeIssueCount++;
             }
         }
