@@ -16,10 +16,12 @@
  * limitations under the License.
  */
 
+import org.apache.flink.connector.testframe.container.FlinkContainers;
+import org.apache.flink.connector.testframe.container.FlinkContainersSettings;
+import org.apache.flink.connector.testframe.container.TestcontainersSettings;
 import org.apache.flink.connector.upserttest.sink.UpsertTestFileUtil;
+import org.apache.flink.test.util.SQLJobSubmission;
 import org.apache.flink.tests.util.TestUtils;
-import org.apache.flink.tests.util.flink.SQLJobSubmission;
-import org.apache.flink.tests.util.flink.container.FlinkContainers;
 import org.apache.flink.util.DockerImageVersions;
 
 import org.apache.kafka.clients.producer.KafkaProducer;
@@ -75,10 +77,14 @@ public class SqlClientITCase {
 
     public final FlinkContainers flink =
             FlinkContainers.builder()
-                    .setNumTaskManagers(1)
-                    .setNetwork(NETWORK)
-                    .setLogger(LOG)
-                    .dependsOn(KAFKA)
+                    .withFlinkContainersSettings(
+                            FlinkContainersSettings.builder().numTaskManagers(1).build())
+                    .withTestcontainersSettings(
+                            TestcontainersSettings.builder()
+                                    .network(NETWORK)
+                                    .logger(LOG)
+                                    .dependsOn(KAFKA)
+                                    .build())
                     .build();
 
     @TempDir private File tempDir;
