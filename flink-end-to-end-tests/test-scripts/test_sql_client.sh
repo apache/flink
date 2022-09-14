@@ -41,47 +41,6 @@ SQL_TOOLBOX_JAR=$END_TO_END_DIR/flink-sql-client-test/target/SqlToolbox.jar
 SQL_JARS_DIR=$END_TO_END_DIR/flink-sql-client-test/target/sql-jars
 
 ################################################################################
-# Verify existing SQL jars
-################################################################################
-
-EXTRACTED_JAR=$TEST_DATA_DIR/extracted
-
-mkdir -p $EXTRACTED_JAR
-
-for SQL_JAR in $SQL_JARS_DIR/*.jar; do
-  echo "Checking SQL JAR: $SQL_JAR"
-  (cd $EXTRACTED_JAR && jar xf $SQL_JAR)
-
-  # check for proper shading
-  for EXTRACTED_FILE in $(find $EXTRACTED_JAR -type f); do
-
-    if ! [[ $EXTRACTED_FILE = "$EXTRACTED_JAR/org/apache/flink"* ]] && \
-        ! [[ $EXTRACTED_FILE = "$EXTRACTED_JAR/META-INF"* ]] && \
-        ! [[ $EXTRACTED_FILE = "$EXTRACTED_JAR/LICENSE"* ]] && \
-        ! [[ $EXTRACTED_FILE = "$EXTRACTED_JAR/NOTICE"* ]] && \
-        ! [[ $EXTRACTED_FILE = "$EXTRACTED_JAR/org/apache/avro"* ]] && \
-        # Following required by amazon-kinesis-producer in flink-connector-kinesis
-        ! [[ $EXTRACTED_FILE = "$EXTRACTED_JAR/amazon-kinesis-producer-native-binaries"* ]] && \
-        ! [[ $EXTRACTED_FILE = "$EXTRACTED_JAR/cacerts"* ]] && \
-        ! [[ $EXTRACTED_FILE = "$EXTRACTED_JAR/google"* ]] ; then
-      echo "Bad file in JAR: $EXTRACTED_FILE"
-      exit 1
-    fi
-  done
-
-  # check for table factory
-  if [ ! -f $EXTRACTED_JAR/META-INF/services/org.apache.flink.table.factories.Factory ]; then
-    echo "No table factory found in JAR: $SQL_JAR"
-    exit 1
-  fi
-
-  # clean up
-  rm -r $EXTRACTED_JAR/*
-done
-
-rm -r $EXTRACTED_JAR
-
-################################################################################
 # Prepare connectors
 ################################################################################
 
