@@ -26,11 +26,12 @@ import com.google.common.collect.Multimap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -38,6 +39,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -317,13 +319,21 @@ public class NoticeFileChecker {
 
     private static List<String> loadFromResources(String fileName) {
         try {
-            Path resource = Paths.get(NoticeFileChecker.class.getResource("/" + fileName).toURI());
-            List<String> result =
-                    Files.readAllLines(resource).stream()
-                            .filter(line -> !line.startsWith("#") && !line.isEmpty())
-                            .collect(Collectors.toList());
-            LOG.debug("Loaded {} items from resource {}", result.size(), fileName);
-            return result;
+            try (BufferedReader bufferedReader =
+                    new BufferedReader(
+                            new InputStreamReader(
+                                    Objects.requireNonNull(
+                                            NoticeFileChecker.class.getResourceAsStream(
+                                                    "/" + fileName))))) {
+
+                List<String> result =
+                        bufferedReader
+                                .lines()
+                                .filter(line -> !line.startsWith("#") && !line.isEmpty())
+                                .collect(Collectors.toList());
+                LOG.debug("Loaded {} items from resource {}", result.size(), fileName);
+                return result;
+            }
         } catch (Throwable e) {
             // wrap anything in a RuntimeException to be callable from the static initializer
             throw new RuntimeException("Error while loading resource", e);
