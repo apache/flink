@@ -191,8 +191,6 @@ public class SqlClientITCase {
 
         List<String> sqlLines =
                 Arrays.asList(
-                        "SET 'execution.runtime-mode' = 'batch';",
-                        "",
                         "CREATE FUNCTION RegReplace AS 'org.apache.flink.table.toolbox.StringRegexReplaceFunction';",
                         "",
                         "CREATE TABLE JsonSourceTable (",
