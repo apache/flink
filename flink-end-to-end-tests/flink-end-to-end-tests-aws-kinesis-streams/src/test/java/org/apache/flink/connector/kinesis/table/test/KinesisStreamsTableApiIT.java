@@ -24,8 +24,8 @@ import org.apache.flink.connector.aws.util.AWSGeneralUtil;
 import org.apache.flink.connector.testframe.container.FlinkContainers;
 import org.apache.flink.connector.testframe.container.TestcontainersSettings;
 import org.apache.flink.connectors.kinesis.testutils.KinesaliteContainer;
+import org.apache.flink.test.resources.ResourceTestUtils;
 import org.apache.flink.test.util.SQLJobSubmission;
-import org.apache.flink.tests.util.TestUtils;
 import org.apache.flink.util.DockerImageVersions;
 import org.apache.flink.util.jackson.JacksonMapperFactory;
 
@@ -84,7 +84,8 @@ public class KinesisStreamsTableApiIT {
     private SdkHttpClient httpClient;
     private KinesisClient kinesisClient;
 
-    private final Path sqlConnectorKinesisJar = TestUtils.getResource(".*kinesis-streams.jar");
+    private final Path sqlConnectorKinesisJar =
+            ResourceTestUtils.getResource(".*kinesis-streams.jar");
     private static final Network network = Network.newNetwork();
 
     @ClassRule public static final Timeout TIMEOUT = new Timeout(10, TimeUnit.MINUTES);

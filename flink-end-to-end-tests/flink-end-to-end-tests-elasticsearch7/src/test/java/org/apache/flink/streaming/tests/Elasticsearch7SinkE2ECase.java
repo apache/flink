@@ -18,7 +18,7 @@
 package org.apache.flink.streaming.tests;
 
 import org.apache.flink.connector.testframe.junit.annotations.TestContext;
-import org.apache.flink.tests.util.TestUtils;
+import org.apache.flink.test.resources.ResourceTestUtils;
 import org.apache.flink.util.DockerImageVersions;
 
 import org.slf4j.Logger;
@@ -44,15 +44,17 @@ public class Elasticsearch7SinkE2ECase
             new Elasticsearch7SinkExternalContextFactory(
                     elasticsearch.getContainer(),
                     Arrays.asList(
-                            TestUtils.getResource("dependencies/elasticsearch7-end-to-end-test.jar")
+                            ResourceTestUtils.getResource(
+                                            "dependencies/elasticsearch7-end-to-end-test.jar")
                                     .toAbsolutePath()
                                     .toUri()
                                     .toURL(),
-                            TestUtils.getResource("dependencies/flink-connector-test-utils.jar")
+                            ResourceTestUtils.getResource(
+                                            "dependencies/flink-connector-test-utils.jar")
                                     .toAbsolutePath()
                                     .toUri()
                                     .toURL(),
-                            TestUtils.getResource(
+                            ResourceTestUtils.getResource(
                                             "dependencies/flink-connector-elasticsearch-test-utils.jar")
                                     .toAbsolutePath()
                                     .toUri()
