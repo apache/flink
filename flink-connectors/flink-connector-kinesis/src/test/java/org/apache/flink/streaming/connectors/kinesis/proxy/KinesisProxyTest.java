@@ -38,15 +38,18 @@ import com.amazonaws.services.kinesis.model.ListShardsResult;
 import com.amazonaws.services.kinesis.model.ProvisionedThroughputExceededException;
 import com.amazonaws.services.kinesis.model.Shard;
 import org.apache.commons.lang3.mutable.MutableInt;
+import org.apache.http.HttpHost;
+import org.apache.http.conn.ConnectTimeoutException;
 import org.hamcrest.Description;
 import org.hamcrest.TypeSafeDiagnosingMatcher;
-import org.junit.Assert;
 import org.junit.Test;
 import org.mockito.Mockito;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 import org.powermock.reflect.Whitebox;
 
+import java.net.InetAddress;
+import java.net.UnknownHostException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -58,394 +61,441 @@ import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.collection.IsCollectionWithSize.hasSize;
-import static org.hamcrest.collection.IsIterableContainingInAnyOrder.containsInAnyOrder;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.hamcrest.MockitoHamcrest.argThat;
 
-/**
- * Test for methods in the {@link KinesisProxy} class.
- */
+/** Test for methods in the {@link KinesisProxy} class. */
 public class KinesisProxyTest {
 
-	@Test
-	public void testIsRecoverableExceptionWithProvisionedThroughputExceeded() {
-		final ProvisionedThroughputExceededException ex = new ProvisionedThroughputExceededException("asdf");
-		ex.setErrorType(ErrorType.Client);
-		assertTrue(KinesisProxy.isRecoverableException(ex));
-	}
+    @Test
+    public void testIsRecoverableExceptionWithConnectError() throws UnknownHostException {
+        Properties kinesisConsumerConfig = new Properties();
+        kinesisConsumerConfig.setProperty(ConsumerConfigConstants.AWS_REGION, "us-east-1");
+        KinesisProxy kinesisProxy = new KinesisProxy(kinesisConsumerConfig);
+        final SdkClientException ex =
+                new SdkClientException(
+                        "Unable to execute HTTP request",
+                        new ConnectTimeoutException(
+                                new java.net.SocketTimeoutException("connect timed out"),
+                                new HttpHost("kinesis.us-east-1.amazonaws.com", 443),
+                                InetAddress.getByAddress(
+                                        "kinesis.us-east-1.amazonaws.com",
+                                        new byte[] {3, 91, (byte) 171, (byte) 253})));
+        assertThat(kinesisProxy.isRecoverableSdkClientException(ex)).isTrue();
+    }
 
-	@Test
-	public void testIsRecoverableExceptionWithServiceException() {
-		final AmazonServiceException ex = new AmazonServiceException("asdf");
-		ex.setErrorType(ErrorType.Service);
-		assertTrue(KinesisProxy.isRecoverableException(ex));
-	}
+    @Test
+    public void testIsRecoverableExceptionWithProvisionedThroughputExceeded() {
+        final ProvisionedThroughputExceededException ex =
+                new ProvisionedThroughputExceededException("asdf");
+        ex.setErrorType(ErrorType.Client);
+        assertThat(KinesisProxy.isRecoverableException(ex)).isTrue();
+    }
 
-	@Test
-	public void testIsRecoverableExceptionWithExpiredIteratorException() {
-		final ExpiredIteratorException ex = new ExpiredIteratorException("asdf");
-		ex.setErrorType(ErrorType.Client);
-		assertFalse(KinesisProxy.isRecoverableException(ex));
-	}
+    @Test
+    public void testIsRecoverableExceptionWithServiceException() {
+        final AmazonServiceException ex = new AmazonServiceException("asdf");
+        ex.setErrorType(ErrorType.Service);
+        assertThat(KinesisProxy.isRecoverableException(ex)).isTrue();
+    }
 
-	@Test
-	public void testIsRecoverableExceptionWithNullErrorType() {
-		final AmazonServiceException ex = new AmazonServiceException("asdf");
-		ex.setErrorType(null);
-		assertFalse(KinesisProxy.isRecoverableException(ex));
-	}
+    @Test
+    public void testIsRecoverableExceptionWithExpiredIteratorException() {
+        final ExpiredIteratorException ex = new ExpiredIteratorException("asdf");
+        ex.setErrorType(ErrorType.Client);
+        assertThat(KinesisProxy.isRecoverableException(ex)).isFalse();
+    }
 
-	@Test
-	public void testGetRecordsRetry() throws Exception {
-		Properties kinesisConsumerConfig = new Properties();
-		kinesisConsumerConfig.setProperty(ConsumerConfigConstants.AWS_REGION, "us-east-1");
+    @Test
+    public void testIsRecoverableExceptionWithNullErrorType() {
+        final AmazonServiceException ex = new AmazonServiceException("asdf");
+        ex.setErrorType(null);
+        assertThat(KinesisProxy.isRecoverableException(ex)).isFalse();
+    }
 
-		final GetRecordsResult expectedResult = new GetRecordsResult();
-		MutableInt retries = new MutableInt();
-		final Throwable[] retriableExceptions = new Throwable[] {
-			new AmazonKinesisException("mock"),
-		};
+    @Test
+    public void testGetRecordsRetry() throws Exception {
+        Properties kinesisConsumerConfig = new Properties();
+        kinesisConsumerConfig.setProperty(ConsumerConfigConstants.AWS_REGION, "us-east-1");
 
-		AmazonKinesisClient mockClient = mock(AmazonKinesisClient.class);
-		Mockito.when(mockClient.getRecords(any())).thenAnswer(new Answer<GetRecordsResult>() {
-			@Override
-			public GetRecordsResult answer(InvocationOnMock invocation) throws Throwable{
-				if (retries.intValue() < retriableExceptions.length) {
-					retries.increment();
-					throw retriableExceptions[retries.intValue() - 1];
-				}
-				return expectedResult;
-			}
-		});
+        final GetRecordsResult expectedResult = new GetRecordsResult();
+        MutableInt retries = new MutableInt();
+        final Throwable[] retriableExceptions =
+                new Throwable[] {
+                    new AmazonKinesisException("mock"),
+                };
 
-		KinesisProxy kinesisProxy = new KinesisProxy(kinesisConsumerConfig);
-		Whitebox.getField(KinesisProxy.class, "kinesisClient").set(kinesisProxy, mockClient);
+        AmazonKinesisClient mockClient = mock(AmazonKinesisClient.class);
+        Mockito.when(mockClient.getRecords(any()))
+                .thenAnswer(
+                        new Answer<GetRecordsResult>() {
+                            @Override
+                            public GetRecordsResult answer(InvocationOnMock invocation)
+                                    throws Throwable {
+                                if (retries.intValue() < retriableExceptions.length) {
+                                    retries.increment();
+                                    throw retriableExceptions[retries.intValue() - 1];
+                                }
+                                return expectedResult;
+                            }
+                        });
 
-		GetRecordsResult result = kinesisProxy.getRecords("fakeShardIterator", 1);
-		assertEquals(retriableExceptions.length, retries.intValue());
-		assertEquals(expectedResult, result);
-	}
+        KinesisProxy kinesisProxy = new KinesisProxy(kinesisConsumerConfig);
+        Whitebox.getField(KinesisProxy.class, "kinesisClient").set(kinesisProxy, mockClient);
 
-	@Test
-	public void testGetShardList() throws Exception {
-		List<String> shardIds =
-				Arrays.asList(
-						"shardId-000000000000",
-						"shardId-000000000001",
-						"shardId-000000000002",
-						"shardId-000000000003");
-		String nextToken = "NextToken";
-		String fakeStreamName = "fake-stream";
-		List<Shard> shards = shardIds
-						.stream()
-						.map(shardId -> new Shard().withShardId(shardId))
-						.collect(Collectors.toList());
-		AmazonKinesis mockClient = mock(AmazonKinesis.class);
-		KinesisProxy kinesisProxy = getProxy(mockClient);
+        GetRecordsResult result = kinesisProxy.getRecords("fakeShardIterator", 1);
+        assertThat(retries.intValue()).isEqualTo(retriableExceptions.length);
+        assertThat(result).isEqualTo(expectedResult);
+    }
 
-		ListShardsResult responseWithMoreData =
-				new ListShardsResult().withShards(shards.subList(0, 2)).withNextToken(nextToken);
-		ListShardsResult responseFinal =
-				new ListShardsResult().withShards(shards.subList(2, shards.size())).withNextToken(null);
-		doReturn(responseWithMoreData)
-				.when(mockClient)
-				.listShards(argThat(initialListShardsRequestMatcher()));
-		doReturn(responseFinal).
-						when(mockClient).
-						listShards(argThat(listShardsNextToken(nextToken)));
-		HashMap<String, String> streamHashMap =
-				createInitialSubscribedStreamsToLastDiscoveredShardsState(Arrays.asList(fakeStreamName));
-		GetShardListResult shardListResult = kinesisProxy.getShardList(streamHashMap);
+    @Test
+    public void testGetShardList() throws Exception {
+        List<String> shardIds =
+                Arrays.asList(
+                        "shardId-000000000000",
+                        "shardId-000000000001",
+                        "shardId-000000000002",
+                        "shardId-000000000003");
+        String nextToken = "NextToken";
+        String fakeStreamName = "fake-stream";
+        List<Shard> shards =
+                shardIds.stream()
+                        .map(shardId -> new Shard().withShardId(shardId))
+                        .collect(Collectors.toList());
+        AmazonKinesis mockClient = mock(AmazonKinesis.class);
+        KinesisProxy kinesisProxy = getProxy(mockClient);
 
-		Assert.assertEquals(shardListResult.hasRetrievedShards(), true);
+        ListShardsResult responseWithMoreData =
+                new ListShardsResult().withShards(shards.subList(0, 2)).withNextToken(nextToken);
+        ListShardsResult responseFinal =
+                new ListShardsResult()
+                        .withShards(shards.subList(2, shards.size()))
+                        .withNextToken(null);
+        doReturn(responseWithMoreData)
+                .when(mockClient)
+                .listShards(argThat(initialListShardsRequestMatcher()));
+        doReturn(responseFinal)
+                .when(mockClient)
+                .listShards(argThat(listShardsNextToken(nextToken)));
+        HashMap<String, String> streamHashMap =
+                createInitialSubscribedStreamsToLastDiscoveredShardsState(
+                        Arrays.asList(fakeStreamName));
+        GetShardListResult shardListResult = kinesisProxy.getShardList(streamHashMap);
 
-		Set<String> expectedStreams = new HashSet<>();
-		expectedStreams.add(fakeStreamName);
-		Assert.assertEquals(shardListResult.getStreamsWithRetrievedShards(), expectedStreams);
-		List<StreamShardHandle> actualShardList =
-				shardListResult.getRetrievedShardListOfStream(fakeStreamName);
-		List<StreamShardHandle> expectedStreamShard = new ArrayList<>();
-		assertThat(actualShardList, hasSize(4));
-		for (int i = 0; i < 4; i++) {
-			StreamShardHandle shardHandle =
-					new StreamShardHandle(
-							fakeStreamName,
-							new Shard().withShardId(KinesisShardIdGenerator.generateFromShardOrder(i)));
-			expectedStreamShard.add(shardHandle);
-		}
+        assertThat(shardListResult.hasRetrievedShards()).isTrue();
 
-		Assert.assertThat(
-				actualShardList,
-				containsInAnyOrder(
-						expectedStreamShard.toArray(new StreamShardHandle[actualShardList.size()])));
-	}
+        Set<String> expectedStreams = new HashSet<>();
+        expectedStreams.add(fakeStreamName);
+        assertThat(shardListResult.getStreamsWithRetrievedShards()).isEqualTo(expectedStreams);
+        List<StreamShardHandle> actualShardList =
+                shardListResult.getRetrievedShardListOfStream(fakeStreamName);
+        List<StreamShardHandle> expectedStreamShard = new ArrayList<>();
+        assertThat(actualShardList).hasSize(4);
+        for (int i = 0; i < 4; i++) {
+            StreamShardHandle shardHandle =
+                    new StreamShardHandle(
+                            fakeStreamName,
+                            new Shard()
+                                    .withShardId(
+                                            KinesisShardIdGenerator.generateFromShardOrder(i)));
+            expectedStreamShard.add(shardHandle);
+        }
 
-	@Test
-	public void testGetShardListWithNewShardsOnSecondRun() throws Exception {
-		// given
-		List<String> shardIds =
-			Arrays.asList(
-				KinesisShardIdGenerator.generateFromShardOrder(0),
-				KinesisShardIdGenerator.generateFromShardOrder(1)
-			);
-		String fakeStreamName = "fake-stream";
-		List<Shard> shards = shardIds
-			.stream()
-			.map(shardId -> new Shard().withShardId(shardId))
-			.collect(Collectors.toList());
+        assertThat(actualShardList)
+                .containsExactlyInAnyOrder(
+                        expectedStreamShard.toArray(new StreamShardHandle[actualShardList.size()]));
+    }
 
-		AmazonKinesis mockClient = mock(AmazonKinesis.class);
-		KinesisProxy kinesisProxy = getProxy(mockClient);
+    @Test
+    public void testGetShardListWithNewShardsOnSecondRun() throws Exception {
+        // given
+        List<String> shardIds =
+                Arrays.asList(
+                        KinesisShardIdGenerator.generateFromShardOrder(0),
+                        KinesisShardIdGenerator.generateFromShardOrder(1));
+        String fakeStreamName = "fake-stream";
+        List<Shard> shards =
+                shardIds.stream()
+                        .map(shardId -> new Shard().withShardId(shardId))
+                        .collect(Collectors.toList());
 
-		ListShardsResult responseFirst =
-			new ListShardsResult().withShards(shards).withNextToken(null);
-		doReturn(responseFirst)
-			.when(mockClient)
-			.listShards(argThat(initialListShardsRequestMatcher()));
-		HashMap<String, String> streamHashMap =
-			createInitialSubscribedStreamsToLastDiscoveredShardsState(Collections.singletonList(fakeStreamName));
+        AmazonKinesis mockClient = mock(AmazonKinesis.class);
+        KinesisProxy kinesisProxy = getProxy(mockClient);
 
-		// when
-		GetShardListResult shardListResult = kinesisProxy.getShardList(streamHashMap);
+        ListShardsResult responseFirst =
+                new ListShardsResult().withShards(shards).withNextToken(null);
+        doReturn(responseFirst)
+                .when(mockClient)
+                .listShards(argThat(initialListShardsRequestMatcher()));
+        HashMap<String, String> streamHashMap =
+                createInitialSubscribedStreamsToLastDiscoveredShardsState(
+                        Collections.singletonList(fakeStreamName));
 
-		// then
-		Assert.assertTrue(shardListResult.hasRetrievedShards());
+        // when
+        GetShardListResult shardListResult = kinesisProxy.getShardList(streamHashMap);
 
-		Set<String> expectedStreams = new HashSet<>();
-		expectedStreams.add(fakeStreamName);
-		Assert.assertEquals(shardListResult.getStreamsWithRetrievedShards(), expectedStreams);
+        // then
+        assertThat(shardListResult.hasRetrievedShards()).isTrue();
 
-		List<StreamShardHandle> actualShardList =
-			shardListResult.getRetrievedShardListOfStream(fakeStreamName);
-		Assert.assertThat(actualShardList, hasSize(2));
+        Set<String> expectedStreams = new HashSet<>();
+        expectedStreams.add(fakeStreamName);
+        assertThat(shardListResult.getStreamsWithRetrievedShards()).isEqualTo(expectedStreams);
 
-		List<StreamShardHandle> expectedStreamShard = IntStream.range(0, actualShardList.size())
-			.mapToObj(i ->
-				new StreamShardHandle(
-					fakeStreamName,
-					new Shard().withShardId(KinesisShardIdGenerator.generateFromShardOrder(i)))
-			).collect(Collectors.toList());
+        List<StreamShardHandle> actualShardList =
+                shardListResult.getRetrievedShardListOfStream(fakeStreamName);
+        assertThat(actualShardList).hasSize(2);
 
-		Assert.assertThat(actualShardList, containsInAnyOrder(
-			expectedStreamShard.toArray(new StreamShardHandle[actualShardList.size()])));
+        List<StreamShardHandle> expectedStreamShard =
+                IntStream.range(0, actualShardList.size())
+                        .mapToObj(
+                                i ->
+                                        new StreamShardHandle(
+                                                fakeStreamName,
+                                                new Shard()
+                                                        .withShardId(
+                                                                KinesisShardIdGenerator
+                                                                        .generateFromShardOrder(
+                                                                                i))))
+                        .collect(Collectors.toList());
 
-		// given new shards
-		ListShardsResult responseSecond =
-			new ListShardsResult().withShards(new Shard().withShardId(KinesisShardIdGenerator.generateFromShardOrder(2)))
-				.withNextToken(null);
-		doReturn(responseSecond)
-			.when(mockClient)
-			.listShards(argThat(initialListShardsRequestMatcher()));
+        assertThat(actualShardList)
+                .containsExactlyInAnyOrder(
+                        expectedStreamShard.toArray(new StreamShardHandle[actualShardList.size()]));
 
-		// when new shards
-		GetShardListResult newShardListResult = kinesisProxy.getShardList(streamHashMap);
+        // given new shards
+        ListShardsResult responseSecond =
+                new ListShardsResult()
+                        .withShards(
+                                new Shard()
+                                        .withShardId(
+                                                KinesisShardIdGenerator.generateFromShardOrder(2)))
+                        .withNextToken(null);
+        doReturn(responseSecond)
+                .when(mockClient)
+                .listShards(argThat(initialListShardsRequestMatcher()));
 
-		// then new shards
-		Assert.assertTrue(newShardListResult.hasRetrievedShards());
-		Assert.assertEquals(newShardListResult.getStreamsWithRetrievedShards(), expectedStreams);
+        // when new shards
+        GetShardListResult newShardListResult = kinesisProxy.getShardList(streamHashMap);
 
-		List<StreamShardHandle> newActualShardList =
-			newShardListResult.getRetrievedShardListOfStream(fakeStreamName);
-		Assert.assertThat(newActualShardList, hasSize(1));
+        // then new shards
+        assertThat(newShardListResult.hasRetrievedShards()).isTrue();
+        assertThat(expectedStreams).isEqualTo(newShardListResult.getStreamsWithRetrievedShards());
 
-		List<StreamShardHandle> newExpectedStreamShard = Collections.singletonList(
-			new StreamShardHandle(
-				fakeStreamName,
-				new Shard().withShardId(KinesisShardIdGenerator.generateFromShardOrder(2)))
-		);
+        List<StreamShardHandle> newActualShardList =
+                newShardListResult.getRetrievedShardListOfStream(fakeStreamName);
+        assertThat(newActualShardList).hasSize(1);
 
-		Assert.assertThat(newActualShardList, containsInAnyOrder(
-			newExpectedStreamShard.toArray(new StreamShardHandle[newActualShardList.size()])));
-	}
+        List<StreamShardHandle> newExpectedStreamShard =
+                Collections.singletonList(
+                        new StreamShardHandle(
+                                fakeStreamName,
+                                new Shard()
+                                        .withShardId(
+                                                KinesisShardIdGenerator.generateFromShardOrder(
+                                                        2))));
 
-	@Test
-	public void testGetShardWithNoNewShards() throws Exception {
-		// given
-		String fakeStreamName = "fake-stream";
+        assertThat(newActualShardList)
+                .containsExactlyInAnyOrder(
+                        newExpectedStreamShard.toArray(
+                                new StreamShardHandle[newActualShardList.size()]));
+    }
 
-		AmazonKinesis mockClient = mock(AmazonKinesis.class);
-		KinesisProxy kinesisProxy = getProxy(mockClient);
+    @Test
+    public void testGetShardWithNoNewShards() throws Exception {
+        // given
+        String fakeStreamName = "fake-stream";
 
-		Mockito.when(mockClient.listShards(
-			new ListShardsRequest()
-			.withStreamName(fakeStreamName)
-			.withExclusiveStartShardId(KinesisShardIdGenerator.generateFromShardOrder(1))
-		)).thenReturn(new ListShardsResult().withShards(Collections.emptyList()));
+        AmazonKinesis mockClient = mock(AmazonKinesis.class);
+        KinesisProxy kinesisProxy = getProxy(mockClient);
 
-		HashMap<String, String> streamHashMap = new HashMap<>();
-		streamHashMap.put(fakeStreamName, KinesisShardIdGenerator.generateFromShardOrder(1));
+        Mockito.when(
+                        mockClient.listShards(
+                                new ListShardsRequest()
+                                        .withStreamName(fakeStreamName)
+                                        .withExclusiveStartShardId(
+                                                KinesisShardIdGenerator.generateFromShardOrder(1))))
+                .thenReturn(new ListShardsResult().withShards(Collections.emptyList()));
 
-		// when
-		GetShardListResult shardListResult = kinesisProxy.getShardList(streamHashMap);
+        HashMap<String, String> streamHashMap = new HashMap<>();
+        streamHashMap.put(fakeStreamName, KinesisShardIdGenerator.generateFromShardOrder(1));
 
-		// then
-		Assert.assertFalse(shardListResult.hasRetrievedShards());
-	}
+        // when
+        GetShardListResult shardListResult = kinesisProxy.getShardList(streamHashMap);
 
-	@Test
-	public void testGetShardListRetry() throws Exception {
-		Properties kinesisConsumerConfig = new Properties();
-		kinesisConsumerConfig.setProperty(ConsumerConfigConstants.AWS_REGION, "us-east-1");
+        // then
+        assertThat(shardListResult.hasRetrievedShards()).isFalse();
+    }
 
-		Shard shard = new Shard();
-		shard.setShardId("fake-shard-000000000000");
-		final ListShardsResult expectedResult = new ListShardsResult();
-		expectedResult.withShards(shard);
+    @Test
+    public void testGetShardListRetry() throws Exception {
+        Properties kinesisConsumerConfig = new Properties();
+        kinesisConsumerConfig.setProperty(ConsumerConfigConstants.AWS_REGION, "us-east-1");
 
-		MutableInt exceptionCount = new MutableInt();
-		final Throwable[] retriableExceptions = new Throwable[]{
-			new AmazonKinesisException("attempt1"),
-			new AmazonKinesisException("attempt2"),
-		};
+        Shard shard = new Shard();
+        shard.setShardId("fake-shard-000000000000");
+        final ListShardsResult expectedResult = new ListShardsResult();
+        expectedResult.withShards(shard);
 
-		AmazonKinesisClient mockClient = mock(AmazonKinesisClient.class);
-		Mockito.when(mockClient.listShards(any())).thenAnswer(new Answer<ListShardsResult>() {
+        MutableInt exceptionCount = new MutableInt();
+        final Throwable[] retriableExceptions =
+                new Throwable[] {
+                    new AmazonKinesisException("attempt1"), new AmazonKinesisException("attempt2"),
+                };
 
-			@Override
-			public ListShardsResult answer(InvocationOnMock invocation) throws Throwable {
-				if (exceptionCount.intValue() < retriableExceptions.length) {
-					exceptionCount.increment();
-					throw retriableExceptions[exceptionCount.intValue() - 1];
-				}
-				return expectedResult;
-			}
-		});
+        AmazonKinesisClient mockClient = mock(AmazonKinesisClient.class);
+        Mockito.when(mockClient.listShards(any()))
+                .thenAnswer(
+                        new Answer<ListShardsResult>() {
 
-		KinesisProxy kinesisProxy = new KinesisProxy(kinesisConsumerConfig);
-		Whitebox.getField(KinesisProxy.class, "kinesisClient").set(kinesisProxy, mockClient);
+                            @Override
+                            public ListShardsResult answer(InvocationOnMock invocation)
+                                    throws Throwable {
+                                if (exceptionCount.intValue() < retriableExceptions.length) {
+                                    exceptionCount.increment();
+                                    throw retriableExceptions[exceptionCount.intValue() - 1];
+                                }
+                                return expectedResult;
+                            }
+                        });
 
-		HashMap<String, String> streamNames = new HashMap();
-		streamNames.put("fake-stream", null);
-		GetShardListResult result = kinesisProxy.getShardList(streamNames);
-		assertEquals(retriableExceptions.length, exceptionCount.intValue());
-		assertEquals(true, result.hasRetrievedShards());
-		assertEquals(shard.getShardId(), result.getLastSeenShardOfStream("fake-stream").getShard().getShardId());
+        KinesisProxy kinesisProxy = new KinesisProxy(kinesisConsumerConfig);
+        Whitebox.getField(KinesisProxy.class, "kinesisClient").set(kinesisProxy, mockClient);
 
-		// test max attempt count exceeded
-		int maxRetries = 1;
-		exceptionCount.setValue(0);
-		kinesisConsumerConfig.setProperty(ConsumerConfigConstants.LIST_SHARDS_RETRIES, String.valueOf(maxRetries));
-		kinesisProxy = new KinesisProxy(kinesisConsumerConfig);
-		Whitebox.getField(KinesisProxy.class, "kinesisClient").set(kinesisProxy, mockClient);
-		try {
-			kinesisProxy.getShardList(streamNames);
-			Assert.fail("exception expected");
-		} catch (SdkClientException ex) {
-			assertEquals(retriableExceptions[maxRetries], ex);
-		}
-		assertEquals(maxRetries + 1, exceptionCount.intValue());
-	}
+        HashMap<String, String> streamNames = new HashMap();
+        streamNames.put("fake-stream", null);
+        GetShardListResult result = kinesisProxy.getShardList(streamNames);
+        assertThat(exceptionCount.intValue()).isEqualTo(retriableExceptions.length);
+        assertThat(result.hasRetrievedShards()).isTrue();
+        assertThat(result.getLastSeenShardOfStream("fake-stream").getShard().getShardId())
+                .isEqualTo(shard.getShardId());
 
-	@Test
-	public void testCustomConfigurationOverride() {
-		Properties configProps = new Properties();
-		configProps.setProperty(AWSConfigConstants.AWS_REGION, "us-east-1");
-		KinesisProxy proxy = new KinesisProxy(configProps) {
-			@Override
-			protected AmazonKinesis createKinesisClient(Properties configProps) {
-				ClientConfiguration clientConfig = new ClientConfigurationFactory().getConfig();
-				clientConfig.setSocketTimeout(10000);
-				return AWSUtil.createKinesisClient(configProps, clientConfig);
-			}
-		};
-		AmazonKinesis kinesisClient = Whitebox.getInternalState(proxy, "kinesisClient");
-		ClientConfiguration clientConfiguration = Whitebox.getInternalState(kinesisClient, "clientConfiguration");
-		assertEquals(10000, clientConfiguration.getSocketTimeout());
-	}
+        // test max attempt count exceeded
+        int maxRetries = 1;
+        exceptionCount.setValue(0);
+        kinesisConsumerConfig.setProperty(
+                ConsumerConfigConstants.LIST_SHARDS_RETRIES, String.valueOf(maxRetries));
+        kinesisProxy = new KinesisProxy(kinesisConsumerConfig);
+        Whitebox.getField(KinesisProxy.class, "kinesisClient").set(kinesisProxy, mockClient);
+        KinesisProxy finalKinesisProxy = kinesisProxy;
+        assertThatThrownBy(() -> finalKinesisProxy.getShardList(streamNames))
+                .isInstanceOf(SdkClientException.class)
+                .isEqualTo(retriableExceptions[maxRetries]);
+        assertThat(exceptionCount.intValue()).isEqualTo(maxRetries + 1);
+    }
 
-	@Test
-	public void testClientConfigOverride() {
+    @Test
+    public void testCustomConfigurationOverride() {
+        Properties configProps = new Properties();
+        configProps.setProperty(AWSConfigConstants.AWS_REGION, "us-east-1");
+        KinesisProxy proxy =
+                new KinesisProxy(configProps) {
+                    @Override
+                    protected AmazonKinesis createKinesisClient(Properties configProps) {
+                        ClientConfiguration clientConfig =
+                                new ClientConfigurationFactory().getConfig();
+                        clientConfig.setSocketTimeout(10000);
+                        return AWSUtil.createKinesisClient(configProps, clientConfig);
+                    }
+                };
+        AmazonKinesis kinesisClient = Whitebox.getInternalState(proxy, "kinesisClient");
+        ClientConfiguration clientConfiguration =
+                Whitebox.getInternalState(kinesisClient, "clientConfiguration");
+        assertThat(clientConfiguration.getSocketTimeout()).isEqualTo(10000);
+    }
 
-		Properties configProps = new Properties();
-		configProps.setProperty(AWSConfigConstants.AWS_REGION, "us-east-1");
-		configProps.setProperty(AWSUtil.AWS_CLIENT_CONFIG_PREFIX + "socketTimeout", "9999");
+    @Test
+    public void testClientConfigOverride() {
 
-		KinesisProxyInterface proxy = KinesisProxy.create(configProps);
+        Properties configProps = new Properties();
+        configProps.setProperty(AWSConfigConstants.AWS_REGION, "us-east-1");
+        configProps.setProperty(AWSUtil.AWS_CLIENT_CONFIG_PREFIX + "socketTimeout", "9999");
 
-		AmazonKinesis kinesisClient = Whitebox.getInternalState(proxy, "kinesisClient");
-		ClientConfiguration clientConfiguration = Whitebox.getInternalState(kinesisClient,
-			"clientConfiguration");
-		assertEquals(9999, clientConfiguration.getSocketTimeout());
-	}
+        KinesisProxyInterface proxy = KinesisProxy.create(configProps);
 
-	protected static HashMap<String, String>
-	createInitialSubscribedStreamsToLastDiscoveredShardsState(List<String> streams) {
-		HashMap<String, String> initial = new HashMap<>();
-		for (String stream : streams) {
-			initial.put(stream, null);
-		}
-		return initial;
-	}
+        AmazonKinesis kinesisClient = Whitebox.getInternalState(proxy, "kinesisClient");
+        ClientConfiguration clientConfiguration =
+                Whitebox.getInternalState(kinesisClient, "clientConfiguration");
+        assertThat(clientConfiguration.getSocketTimeout()).isEqualTo(9999);
+    }
 
-	private static ListShardsRequestMatcher initialListShardsRequestMatcher() {
-		return new ListShardsRequestMatcher(null, null);
-	}
+    protected static HashMap<String, String>
+            createInitialSubscribedStreamsToLastDiscoveredShardsState(List<String> streams) {
+        HashMap<String, String> initial = new HashMap<>();
+        for (String stream : streams) {
+            initial.put(stream, null);
+        }
+        return initial;
+    }
 
-	private static ListShardsRequestMatcher listShardsNextToken(final String nextToken) {
-		return new ListShardsRequestMatcher(null, nextToken);
-	}
+    private static ListShardsRequestMatcher initialListShardsRequestMatcher() {
+        return new ListShardsRequestMatcher(null, null);
+    }
 
-	private static class ListShardsRequestMatcher extends TypeSafeDiagnosingMatcher<ListShardsRequest> {
-		private final String shardId;
-		private final String nextToken;
+    private static ListShardsRequestMatcher listShardsNextToken(final String nextToken) {
+        return new ListShardsRequestMatcher(null, nextToken);
+    }
 
-		ListShardsRequestMatcher(String shardIdArg, String nextTokenArg) {
-			shardId = shardIdArg;
-			nextToken = nextTokenArg;
-		}
+    private static class ListShardsRequestMatcher
+            extends TypeSafeDiagnosingMatcher<ListShardsRequest> {
+        private final String shardId;
+        private final String nextToken;
 
-		@Override
-		protected boolean matchesSafely(final ListShardsRequest listShardsRequest, final Description description) {
-			if (shardId == null) {
-				if (listShardsRequest.getExclusiveStartShardId() != null) {
-					return false;
-				}
-			} else {
-				if (!shardId.equals(listShardsRequest.getExclusiveStartShardId())) {
-					return false;
-				}
-			}
+        ListShardsRequestMatcher(String shardIdArg, String nextTokenArg) {
+            shardId = shardIdArg;
+            nextToken = nextTokenArg;
+        }
 
-			if (listShardsRequest.getNextToken() != null) {
-				if (!(listShardsRequest.getStreamName() == null
-								&& listShardsRequest.getExclusiveStartShardId() == null)) {
-					return false;
-				}
+        @Override
+        protected boolean matchesSafely(
+                final ListShardsRequest listShardsRequest, final Description description) {
+            if (shardId == null) {
+                if (listShardsRequest.getExclusiveStartShardId() != null) {
+                    return false;
+                }
+            } else {
+                if (!shardId.equals(listShardsRequest.getExclusiveStartShardId())) {
+                    return false;
+                }
+            }
 
-				if (!listShardsRequest.getNextToken().equals(nextToken)) {
-					return false;
-				}
-			} else {
-				return nextToken == null;
-			}
-			return true;
-		}
+            if (listShardsRequest.getNextToken() != null) {
+                if (!(listShardsRequest.getStreamName() == null
+                        && listShardsRequest.getExclusiveStartShardId() == null)) {
+                    return false;
+                }
 
-		@Override
-		public void describeTo(final Description description) {
-			description
-							.appendText("A ListShardsRequest with a shardId: ")
-							.appendValue(shardId)
-							.appendText(" and empty nextToken");
-		}
-	}
+                if (!listShardsRequest.getNextToken().equals(nextToken)) {
+                    return false;
+                }
+            } else {
+                return nextToken == null;
+            }
+            return true;
+        }
 
-	private KinesisProxy getProxy(AmazonKinesis awsKinesis) {
-		Properties kinesisConsumerConfig = new Properties();
-		kinesisConsumerConfig.setProperty(ConsumerConfigConstants.AWS_REGION, "us-east-1");
-		kinesisConsumerConfig.setProperty(ConsumerConfigConstants.AWS_ACCESS_KEY_ID, "fake_accesskey");
-		kinesisConsumerConfig.setProperty(
-			ConsumerConfigConstants.AWS_SECRET_ACCESS_KEY, "fake_secretkey");
-		KinesisProxy kinesisProxy = new KinesisProxy(kinesisConsumerConfig);
-		Whitebox.setInternalState(kinesisProxy, "kinesisClient", awsKinesis);
+        @Override
+        public void describeTo(final Description description) {
+            description
+                    .appendText("A ListShardsRequest with a shardId: ")
+                    .appendValue(shardId)
+                    .appendText(" and empty nextToken");
+        }
+    }
 
-		return kinesisProxy;
-	}
+    private KinesisProxy getProxy(AmazonKinesis awsKinesis) {
+        Properties kinesisConsumerConfig = new Properties();
+        kinesisConsumerConfig.setProperty(ConsumerConfigConstants.AWS_REGION, "us-east-1");
+        kinesisConsumerConfig.setProperty(
+                ConsumerConfigConstants.AWS_ACCESS_KEY_ID, "fake_accesskey");
+        kinesisConsumerConfig.setProperty(
+                ConsumerConfigConstants.AWS_SECRET_ACCESS_KEY, "fake_secretkey");
+        KinesisProxy kinesisProxy = new KinesisProxy(kinesisConsumerConfig);
+        Whitebox.setInternalState(kinesisProxy, "kinesisClient", awsKinesis);
+
+        return kinesisProxy;
+    }
 }

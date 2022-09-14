@@ -18,19 +18,22 @@
 
 package org.apache.flink.runtime.operators.chaining;
 
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.common.functions.RichFlatMapFunction;
 import org.apache.flink.api.common.operators.util.UserCodeClassWrapper;
 import org.apache.flink.api.common.typeutils.TypeSerializerFactory;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.metrics.Counter;
-import org.apache.flink.runtime.jobgraph.JobVertexID;
+import org.apache.flink.metrics.groups.OperatorIOMetricGroup;
+import org.apache.flink.metrics.groups.OperatorMetricGroup;
+import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.metrics.NoOpMetricRegistry;
-import org.apache.flink.runtime.metrics.groups.OperatorIOMetricGroup;
-import org.apache.flink.runtime.metrics.groups.OperatorMetricGroup;
+import org.apache.flink.runtime.metrics.groups.InternalOperatorIOMetricGroup;
+import org.apache.flink.runtime.metrics.groups.InternalOperatorMetricGroup;
 import org.apache.flink.runtime.metrics.groups.TaskIOMetricGroup;
+import org.apache.flink.runtime.metrics.groups.TaskManagerMetricGroup;
 import org.apache.flink.runtime.metrics.groups.TaskMetricGroup;
-import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.operators.BatchTask;
 import org.apache.flink.runtime.operators.DriverStrategy;
 import org.apache.flink.runtime.operators.FlatMapDriver;
@@ -41,7 +44,6 @@ import org.apache.flink.runtime.operators.testutils.UniformRecordGenerator;
 import org.apache.flink.runtime.operators.util.TaskConfig;
 import org.apache.flink.runtime.testutils.recordutils.RecordSerializerFactory;
 import org.apache.flink.types.Record;
-import org.apache.flink.util.AbstractID;
 import org.apache.flink.util.Collector;
 
 import org.junit.Assert;
@@ -50,126 +52,130 @@ import org.junit.Test;
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * Metrics related tests for batch task chains.
- */
+import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.createExecutionAttemptId;
+
+/** Metrics related tests for batch task chains. */
 public class ChainedOperatorsMetricTest extends TaskTestBase {
 
-	private static final int MEMORY_MANAGER_SIZE = 1024 * 1024 * 3;
+    private static final int MEMORY_MANAGER_SIZE = 1024 * 1024 * 3;
 
-	private static final int NETWORK_BUFFER_SIZE = 1024;
+    private static final int NETWORK_BUFFER_SIZE = 1024;
 
-	private static final TypeSerializerFactory<Record> serFact = RecordSerializerFactory.get();
+    private static final TypeSerializerFactory<Record> serFact = RecordSerializerFactory.get();
 
-	private final List<Record> outList = new ArrayList<>();
+    private final List<Record> outList = new ArrayList<>();
 
-	private static final String HEAD_OPERATOR_NAME = "headoperator";
-	private static final String CHAINED_OPERATOR_NAME = "chainedoperator";
+    private static final String HEAD_OPERATOR_NAME = "headoperator";
+    private static final String CHAINED_OPERATOR_NAME = "chainedoperator";
 
-	@Test
-	public void testOperatorIOMetricReuse() throws Exception {
-		// environment
-		initEnvironment(MEMORY_MANAGER_SIZE, NETWORK_BUFFER_SIZE);
-		this.mockEnv = new MockEnvironmentBuilder()
-			.setTaskName(HEAD_OPERATOR_NAME)
-			.setManagedMemorySize(MEMORY_MANAGER_SIZE)
-			.setInputSplitProvider(this.inputSplitProvider)
-			.setBufferSize(NETWORK_BUFFER_SIZE)
-			.setMetricGroup(new TaskMetricGroup(
-				NoOpMetricRegistry.INSTANCE,
-				UnregisteredMetricGroups.createUnregisteredTaskManagerJobMetricGroup(),
-				new JobVertexID(),
-				new AbstractID(),
-				"task",
-				0,
-				0))
-			.build();
+    @Test
+    public void testOperatorIOMetricReuse() throws Exception {
+        // environment
+        initEnvironment(MEMORY_MANAGER_SIZE, NETWORK_BUFFER_SIZE);
 
-		final int keyCnt = 100;
-		final int valCnt = 20;
-		final int numRecords = keyCnt * valCnt;
-		addInput(new UniformRecordGenerator(keyCnt, valCnt, false), 0);
-		addOutput(this.outList);
+        this.mockEnv =
+                new MockEnvironmentBuilder()
+                        .setTaskName(HEAD_OPERATOR_NAME)
+                        .setManagedMemorySize(MEMORY_MANAGER_SIZE)
+                        .setInputSplitProvider(this.inputSplitProvider)
+                        .setBufferSize(NETWORK_BUFFER_SIZE)
+                        .setMetricGroup(
+                                TaskManagerMetricGroup.createTaskManagerMetricGroup(
+                                                NoOpMetricRegistry.INSTANCE,
+                                                "host",
+                                                ResourceID.generate())
+                                        .addJob(new JobID(), "jobName")
+                                        .addTask(createExecutionAttemptId(), "task"))
+                        .build();
 
-		// the chained operator
-		addChainedOperator();
+        final int keyCnt = 100;
+        final int valCnt = 20;
+        final int numRecords = keyCnt * valCnt;
+        addInput(new UniformRecordGenerator(keyCnt, valCnt, false), 0);
+        addOutput(this.outList);
 
-		// creates the head operator and assembles the chain
-		registerTask(FlatMapDriver.class, DuplicatingFlatMapFunction.class);
-		final BatchTask<FlatMapFunction<Record, Record>, Record> testTask = new BatchTask<>(this.mockEnv);
+        // the chained operator
+        addChainedOperator();
 
-		testTask.invoke();
+        // creates the head operator and assembles the chain
+        registerTask(FlatMapDriver.class, DuplicatingFlatMapFunction.class);
+        final BatchTask<FlatMapFunction<Record, Record>, Record> testTask =
+                new BatchTask<>(this.mockEnv);
 
-		Assert.assertEquals(numRecords * 2 * 2, this.outList.size());
+        testTask.invoke();
 
-		final TaskMetricGroup taskMetricGroup = mockEnv.getMetricGroup();
+        Assert.assertEquals(numRecords * 2 * 2, this.outList.size());
 
-		// verify task-level metrics
-		{
-			final TaskIOMetricGroup ioMetricGroup = taskMetricGroup.getIOMetricGroup();
-			final Counter numRecordsInCounter = ioMetricGroup.getNumRecordsInCounter();
-			final Counter numRecordsOutCounter = ioMetricGroup.getNumRecordsOutCounter();
+        final TaskMetricGroup taskMetricGroup = mockEnv.getMetricGroup();
 
-			Assert.assertEquals(numRecords, numRecordsInCounter.getCount());
-			Assert.assertEquals(numRecords * 2 * 2, numRecordsOutCounter.getCount());
-		}
+        // verify task-level metrics
+        {
+            final TaskIOMetricGroup ioMetricGroup = taskMetricGroup.getIOMetricGroup();
+            final Counter numRecordsInCounter = ioMetricGroup.getNumRecordsInCounter();
+            final Counter numRecordsOutCounter = ioMetricGroup.getNumRecordsOutCounter();
 
-		// verify head operator metrics
-		{
-			// this only returns the existing group and doesn't create a new one
-			final OperatorMetricGroup operatorMetricGroup1 = taskMetricGroup.getOrAddOperator(HEAD_OPERATOR_NAME);
-			final OperatorIOMetricGroup ioMetricGroup = operatorMetricGroup1.getIOMetricGroup();
-			final Counter numRecordsInCounter = ioMetricGroup.getNumRecordsInCounter();
-			final Counter numRecordsOutCounter = ioMetricGroup.getNumRecordsOutCounter();
+            Assert.assertEquals(numRecords, numRecordsInCounter.getCount());
+            Assert.assertEquals(numRecords * 2 * 2, numRecordsOutCounter.getCount());
+        }
 
-			Assert.assertEquals(numRecords, numRecordsInCounter.getCount());
-			Assert.assertEquals(numRecords * 2, numRecordsOutCounter.getCount());
-		}
+        // verify head operator metrics
+        {
+            // this only returns the existing group and doesn't create a new one
+            final OperatorMetricGroup operatorMetricGroup1 =
+                    taskMetricGroup.getOrAddOperator(HEAD_OPERATOR_NAME);
+            final OperatorIOMetricGroup ioMetricGroup = operatorMetricGroup1.getIOMetricGroup();
+            final Counter numRecordsInCounter = ioMetricGroup.getNumRecordsInCounter();
+            final Counter numRecordsOutCounter = ioMetricGroup.getNumRecordsOutCounter();
 
-		// verify chained operator metrics
-		{
-			// this only returns the existing group and doesn't create a new one
-			final OperatorMetricGroup operatorMetricGroup1 = taskMetricGroup.getOrAddOperator(CHAINED_OPERATOR_NAME);
-			final OperatorIOMetricGroup ioMetricGroup = operatorMetricGroup1.getIOMetricGroup();
-			final Counter numRecordsInCounter = ioMetricGroup.getNumRecordsInCounter();
-			final Counter numRecordsOutCounter = ioMetricGroup.getNumRecordsOutCounter();
+            Assert.assertEquals(numRecords, numRecordsInCounter.getCount());
+            Assert.assertEquals(numRecords * 2, numRecordsOutCounter.getCount());
+        }
 
-			Assert.assertEquals(numRecords * 2, numRecordsInCounter.getCount());
-			Assert.assertEquals(numRecords * 2 * 2, numRecordsOutCounter.getCount());
-		}
-	}
+        // verify chained operator metrics
+        {
+            // this only returns the existing group and doesn't create a new one
+            final InternalOperatorMetricGroup operatorMetricGroup1 =
+                    taskMetricGroup.getOrAddOperator(CHAINED_OPERATOR_NAME);
+            final InternalOperatorIOMetricGroup ioMetricGroup =
+                    operatorMetricGroup1.getIOMetricGroup();
+            final Counter numRecordsInCounter = ioMetricGroup.getNumRecordsInCounter();
+            final Counter numRecordsOutCounter = ioMetricGroup.getNumRecordsOutCounter();
 
-	private void addChainedOperator() {
-		final TaskConfig chainedConfig = new TaskConfig(new Configuration());
+            Assert.assertEquals(numRecords * 2, numRecordsInCounter.getCount());
+            Assert.assertEquals(numRecords * 2 * 2, numRecordsOutCounter.getCount());
+        }
+    }
 
-		// input
-		chainedConfig.addInputToGroup(0);
-		chainedConfig.setInputSerializer(serFact, 0);
+    private void addChainedOperator() {
+        final TaskConfig chainedConfig = new TaskConfig(new Configuration());
 
-		// output
-		chainedConfig.addOutputShipStrategy(ShipStrategyType.FORWARD);
-		chainedConfig.setOutputSerializer(serFact);
+        // input
+        chainedConfig.addInputToGroup(0);
+        chainedConfig.setInputSerializer(serFact, 0);
 
-		// driver
-		chainedConfig.setDriverStrategy(DriverStrategy.FLAT_MAP);
+        // output
+        chainedConfig.addOutputShipStrategy(ShipStrategyType.FORWARD);
+        chainedConfig.setOutputSerializer(serFact);
 
-		// udf
-		chainedConfig.setStubWrapper(new UserCodeClassWrapper<>(DuplicatingFlatMapFunction.class));
+        // driver
+        chainedConfig.setDriverStrategy(DriverStrategy.FLAT_MAP);
 
-		getTaskConfig().addChainedTask(ChainedFlatMapDriver.class, chainedConfig, CHAINED_OPERATOR_NAME);
-	}
+        // udf
+        chainedConfig.setStubWrapper(new UserCodeClassWrapper<>(DuplicatingFlatMapFunction.class));
 
-	/**
-	 * Simple {@link FlatMapFunction} that duplicates the input.
-	 */
-	public static class DuplicatingFlatMapFunction extends RichFlatMapFunction<Record, Record> {
+        getTaskConfig()
+                .addChainedTask(ChainedFlatMapDriver.class, chainedConfig, CHAINED_OPERATOR_NAME);
+    }
 
-		private static final long serialVersionUID = -1152068682935346164L;
+    /** Simple {@link FlatMapFunction} that duplicates the input. */
+    public static class DuplicatingFlatMapFunction extends RichFlatMapFunction<Record, Record> {
 
-		@Override
-		public void flatMap(final Record value, final Collector<Record> out) throws Exception {
-			out.collect(value);
-			out.collect(value);
-		}
-	}
+        private static final long serialVersionUID = -1152068682935346164L;
+
+        @Override
+        public void flatMap(final Record value, final Collector<Record> out) throws Exception {
+            out.collect(value);
+            out.collect(value);
+        }
+    }
 }

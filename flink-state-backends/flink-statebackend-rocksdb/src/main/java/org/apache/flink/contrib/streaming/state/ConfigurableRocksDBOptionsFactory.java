@@ -18,22 +18,20 @@
 
 package org.apache.flink.contrib.streaming.state;
 
-import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.ReadableConfig;
 
-/**
- * An interface for options factory that pick up additional parameters from a configuration.
- */
+/** An interface for options factory that pick up additional parameters from a configuration. */
 public interface ConfigurableRocksDBOptionsFactory extends RocksDBOptionsFactory {
 
-	/**
-	 * Creates a variant of the options factory that applies additional configuration parameters.
-	 *
-	 * <p>If no configuration is applied, or if the method directly applies configuration values to
-	 * the (mutable) options factory object, this method may return the original options factory object.
-	 * Otherwise it typically returns a modified copy.
-	 *
-	 * @param configuration The configuration to pick the values from.
-	 * @return A reconfigured options factory.
-	 */
-	RocksDBOptionsFactory configure(Configuration configuration);
+    /**
+     * Creates a variant of the options factory that applies additional configuration parameters.
+     *
+     * <p>If no configuration is applied, or if the method directly applies configuration values to
+     * the (mutable) options factory object, this method may return the original options factory
+     * object. Otherwise it typically returns a modified copy.
+     *
+     * @param configuration The configuration to pick the values from.
+     * @return A reconfigured options factory.
+     */
+    RocksDBOptionsFactory configure(ReadableConfig configuration);
 }

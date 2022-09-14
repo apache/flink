@@ -27,20 +27,18 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ser.std.S
 
 import java.io.IOException;
 
-/**
- * Json serializer for {@link InstanceID}.
- */
+/** Json serializer for {@link InstanceID}. */
 public class ResourceIDSerializer extends StdSerializer<ResourceID> {
 
-	private static final long serialVersionUID = 5798852092159615938L;
+    private static final long serialVersionUID = 5798852092159615938L;
 
-	protected ResourceIDSerializer() {
-		super(ResourceID.class);
-	}
+    protected ResourceIDSerializer() {
+        super(ResourceID.class);
+    }
 
-	@Override
-	public void serialize(ResourceID value, JsonGenerator gen, SerializerProvider provider) throws IOException {
-		gen.writeString(value.getResourceIdString());
-	}
-
+    @Override
+    public void serialize(ResourceID value, JsonGenerator gen, SerializerProvider provider)
+            throws IOException {
+        gen.writeString(value.getResourceIdString());
+    }
 }

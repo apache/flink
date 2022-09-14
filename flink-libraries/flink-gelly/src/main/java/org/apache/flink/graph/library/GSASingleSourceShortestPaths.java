@@ -29,79 +29,84 @@ import org.apache.flink.graph.gsa.Neighbor;
 import org.apache.flink.graph.gsa.SumFunction;
 
 /**
- * This is an implementation of the Single Source Shortest Paths algorithm, using a gather-sum-apply iteration.
+ * This is an implementation of the Single Source Shortest Paths algorithm, using a gather-sum-apply
+ * iteration.
  */
-public class GSASingleSourceShortestPaths<K, VV> implements
-	GraphAlgorithm<K, VV, Double, DataSet<Vertex<K, Double>>> {
+public class GSASingleSourceShortestPaths<K, VV>
+        implements GraphAlgorithm<K, VV, Double, DataSet<Vertex<K, Double>>> {
 
-	private final K srcVertexId;
-	private final Integer maxIterations;
+    private final K srcVertexId;
+    private final Integer maxIterations;
 
-	/**
-	 * Creates an instance of the GSA SingleSourceShortestPaths algorithm.
-	 *
-	 * @param srcVertexId The ID of the source vertex.
-	 * @param maxIterations The maximum number of iterations to run.
-	 */
-	public GSASingleSourceShortestPaths(K srcVertexId, Integer maxIterations) {
-		this.srcVertexId = srcVertexId;
-		this.maxIterations = maxIterations;
-	}
+    /**
+     * Creates an instance of the GSA SingleSourceShortestPaths algorithm.
+     *
+     * @param srcVertexId The ID of the source vertex.
+     * @param maxIterations The maximum number of iterations to run.
+     */
+    public GSASingleSourceShortestPaths(K srcVertexId, Integer maxIterations) {
+        this.srcVertexId = srcVertexId;
+        this.maxIterations = maxIterations;
+    }
 
-	@Override
-	public DataSet<Vertex<K, Double>> run(Graph<K, VV, Double> input) {
+    @Override
+    public DataSet<Vertex<K, Double>> run(Graph<K, VV, Double> input) {
 
-		return input.mapVertices(new InitVerticesMapper<>(srcVertexId))
-				.runGatherSumApplyIteration(new CalculateDistances(), new ChooseMinDistance(),
-					new UpdateDistance<>(), maxIterations)
-						.getVertices();
-	}
+        return input.mapVertices(new InitVerticesMapper<>(srcVertexId))
+                .runGatherSumApplyIteration(
+                        new CalculateDistances(),
+                        new ChooseMinDistance(),
+                        new UpdateDistance<>(),
+                        maxIterations)
+                .getVertices();
+    }
 
-	@SuppressWarnings("serial")
-	private static final class InitVerticesMapper<K, VV> implements MapFunction<Vertex<K, VV>, Double> {
+    @SuppressWarnings("serial")
+    private static final class InitVerticesMapper<K, VV>
+            implements MapFunction<Vertex<K, VV>, Double> {
 
-		private K srcVertexId;
+        private K srcVertexId;
 
-		public InitVerticesMapper(K srcId) {
-			this.srcVertexId = srcId;
-		}
+        public InitVerticesMapper(K srcId) {
+            this.srcVertexId = srcId;
+        }
 
-		public Double map(Vertex<K, VV> value) {
-			if (value.f0.equals(srcVertexId)) {
-				return 0.0;
-			} else {
-				return Double.MAX_VALUE;
-			}
-		}
-	}
+        public Double map(Vertex<K, VV> value) {
+            if (value.f0.equals(srcVertexId)) {
+                return 0.0;
+            } else {
+                return Double.MAX_VALUE;
+            }
+        }
+    }
 
-	// --------------------------------------------------------------------------------------------
-	//  Single Source Shortest Path UDFs
-	// --------------------------------------------------------------------------------------------
+    // --------------------------------------------------------------------------------------------
+    //  Single Source Shortest Path UDFs
+    // --------------------------------------------------------------------------------------------
 
-	@SuppressWarnings("serial")
-	private static final class CalculateDistances extends GatherFunction<Double, Double, Double> {
+    @SuppressWarnings("serial")
+    private static final class CalculateDistances extends GatherFunction<Double, Double, Double> {
 
-		public Double gather(Neighbor<Double, Double> neighbor) {
-			return neighbor.getNeighborValue() + neighbor.getEdgeValue();
-		}
-	}
+        public Double gather(Neighbor<Double, Double> neighbor) {
+            return neighbor.getNeighborValue() + neighbor.getEdgeValue();
+        }
+    }
 
-	@SuppressWarnings("serial")
-	private static final class ChooseMinDistance extends SumFunction<Double, Double, Double> {
+    @SuppressWarnings("serial")
+    private static final class ChooseMinDistance extends SumFunction<Double, Double, Double> {
 
-		public Double sum(Double newValue, Double currentValue) {
-			return Math.min(newValue, currentValue);
-		}
-	}
+        public Double sum(Double newValue, Double currentValue) {
+            return Math.min(newValue, currentValue);
+        }
+    }
 
-	@SuppressWarnings("serial")
-	private static final class UpdateDistance<K> extends ApplyFunction<K, Double, Double> {
+    @SuppressWarnings("serial")
+    private static final class UpdateDistance<K> extends ApplyFunction<K, Double, Double> {
 
-		public void apply(Double newDistance, Double oldDistance) {
-			if (newDistance < oldDistance) {
-				setResult(newDistance);
-			}
-		}
-	}
+        public void apply(Double newDistance, Double oldDistance) {
+            if (newDistance < oldDistance) {
+                setResult(newDistance);
+            }
+        }
+    }
 }

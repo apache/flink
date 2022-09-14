@@ -24,33 +24,31 @@ import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.runtime.state.FunctionInitializationContext;
 import org.apache.flink.util.Preconditions;
 
-/**
- * An {@link ArtificialStateBuilder} for user {@link ValueState}s.
- */
+/** An {@link ArtificialStateBuilder} for user {@link ValueState}s. */
 public class ArtificialValueStateBuilder<IN, STATE> extends ArtificialStateBuilder<IN> {
 
-	private static final long serialVersionUID = -1205814329756790916L;
+    private static final long serialVersionUID = -1205814329756790916L;
 
-	private transient ValueState<STATE> valueState;
-	private final ValueStateDescriptor<STATE> valueStateDescriptor;
-	private final JoinFunction<IN, STATE, STATE> stateValueGenerator;
+    private transient ValueState<STATE> valueState;
+    private final ValueStateDescriptor<STATE> valueStateDescriptor;
+    private final JoinFunction<IN, STATE, STATE> stateValueGenerator;
 
-	public ArtificialValueStateBuilder(
-		String stateName,
-		JoinFunction<IN, STATE, STATE> stateValueGenerator,
-		ValueStateDescriptor<STATE> valueStateDescriptor) {
-		super(stateName);
-		this.valueStateDescriptor = Preconditions.checkNotNull(valueStateDescriptor);
-		this.stateValueGenerator = Preconditions.checkNotNull(stateValueGenerator);
-	}
+    public ArtificialValueStateBuilder(
+            String stateName,
+            JoinFunction<IN, STATE, STATE> stateValueGenerator,
+            ValueStateDescriptor<STATE> valueStateDescriptor) {
+        super(stateName);
+        this.valueStateDescriptor = Preconditions.checkNotNull(valueStateDescriptor);
+        this.stateValueGenerator = Preconditions.checkNotNull(stateValueGenerator);
+    }
 
-	@Override
-	public void artificialStateForElement(IN event) throws Exception {
-		valueState.update(stateValueGenerator.join(event, valueState.value()));
-	}
+    @Override
+    public void artificialStateForElement(IN event) throws Exception {
+        valueState.update(stateValueGenerator.join(event, valueState.value()));
+    }
 
-	@Override
-	public void initialize(FunctionInitializationContext initializationContext) {
-		valueState = initializationContext.getKeyedStateStore().getState(valueStateDescriptor);
-	}
+    @Override
+    public void initialize(FunctionInitializationContext initializationContext) {
+        valueState = initializationContext.getKeyedStateStore().getState(valueStateDescriptor);
+    }
 }

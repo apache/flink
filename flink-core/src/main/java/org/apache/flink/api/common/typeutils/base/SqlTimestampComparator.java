@@ -18,81 +18,84 @@
 
 package org.apache.flink.api.common.typeutils.base;
 
-import java.io.IOException;
-import java.sql.Timestamp;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.MemorySegment;
 
-/**
- * Comparator for comparing Java SQL Timestamps.
- */
+import java.io.IOException;
+import java.sql.Timestamp;
+
+/** Comparator for comparing Java SQL Timestamps. */
 @Internal
 public final class SqlTimestampComparator extends BasicTypeComparator<java.util.Date> {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	public SqlTimestampComparator(boolean ascending) {
-		super(ascending);
-	}
+    public SqlTimestampComparator(boolean ascending) {
+        super(ascending);
+    }
 
-	@Override
-	public int compareSerialized(DataInputView firstSource, DataInputView secondSource) throws IOException {
-		// compare Date part
-		final int comp = DateComparator.compareSerializedDate(firstSource, secondSource, ascendingComparison);
-		// compare nanos
-		if (comp == 0) {
-			final int i1 = firstSource.readInt();
-			final int i2 = secondSource.readInt();
-			final int comp2 = (i1 < i2 ? -1 : (i1 == i2 ? 0 : 1));
-			return ascendingComparison ? comp2 : -comp2;
-		}
-		return comp;
-	}
+    @Override
+    public int compareSerialized(DataInputView firstSource, DataInputView secondSource)
+            throws IOException {
+        // compare Date part
+        final int comp =
+                DateComparator.compareSerializedDate(
+                        firstSource, secondSource, ascendingComparison);
+        // compare nanos
+        if (comp == 0) {
+            final int i1 = firstSource.readInt();
+            final int i2 = secondSource.readInt();
+            final int comp2 = (i1 < i2 ? -1 : (i1 == i2 ? 0 : 1));
+            return ascendingComparison ? comp2 : -comp2;
+        }
+        return comp;
+    }
 
-	@Override
-	public boolean supportsNormalizedKey() {
-		return true;
-	}
+    @Override
+    public boolean supportsNormalizedKey() {
+        return true;
+    }
 
-	@Override
-	public int getNormalizeKeyLen() {
-		return 12;
-	}
+    @Override
+    public int getNormalizeKeyLen() {
+        return 12;
+    }
 
-	@Override
-	public boolean isNormalizedKeyPrefixOnly(int keyBytes) {
-		return keyBytes < 12;
-	}
+    @Override
+    public boolean isNormalizedKeyPrefixOnly(int keyBytes) {
+        return keyBytes < 12;
+    }
 
-	@Override
-	public void putNormalizedKey(java.util.Date record, MemorySegment target, int offset, int numBytes) {
-		// put Date key
-		DateComparator.putNormalizedKeyDate(record, target, offset, numBytes > 8 ? 8 : numBytes);
-		numBytes -= 8;
-		offset += 8;
-		if (numBytes <= 0) {
-			// nothing to do
-		}
-		// put nanos
-		else if (numBytes < 4) {
-			final int nanos = ((Timestamp) record).getNanos();
-			for (int i = 0; numBytes > 0; numBytes--, i++) {
-				target.put(offset + i, (byte) (nanos >>> ((3-i)<<3)));
-			}
-		}
-		// put nanos with padding
-		else {
-			final int nanos = ((Timestamp) record).getNanos();
-			target.putIntBigEndian(offset, nanos);
-			for (int i = 4; i < numBytes; i++) {
-				target.put(offset + i, (byte) 0);
-			}
-		}
-	}
+    @Override
+    public void putNormalizedKey(
+            java.util.Date record, MemorySegment target, int offset, int numBytes) {
+        // put Date key
+        DateComparator.putNormalizedKeyDate(record, target, offset, numBytes > 8 ? 8 : numBytes);
+        numBytes -= 8;
+        offset += 8;
+        if (numBytes <= 0) {
+            // nothing to do
+        }
+        // put nanos
+        else if (numBytes < 4) {
+            final int nanos = ((Timestamp) record).getNanos();
+            for (int i = 0; numBytes > 0; numBytes--, i++) {
+                target.put(offset + i, (byte) (nanos >>> ((3 - i) << 3)));
+            }
+        }
+        // put nanos with padding
+        else {
+            final int nanos = ((Timestamp) record).getNanos();
+            target.putIntBigEndian(offset, nanos);
+            for (int i = 4; i < numBytes; i++) {
+                target.put(offset + i, (byte) 0);
+            }
+        }
+    }
 
-	@Override
-	public SqlTimestampComparator duplicate() {
-		return new SqlTimestampComparator(ascendingComparison);
-	}
+    @Override
+    public SqlTimestampComparator duplicate() {
+        return new SqlTimestampComparator(ascendingComparison);
+    }
 }

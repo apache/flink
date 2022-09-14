@@ -18,13 +18,16 @@
 
 package org.apache.flink.runtime.checkpoint;
 
-import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.operators.coordination.OperatorCoordinator;
-import org.apache.flink.runtime.state.StreamStateHandle;
+import org.apache.flink.runtime.operators.coordination.OperatorInfo;
 import org.apache.flink.runtime.state.memory.ByteStreamStateHandle;
+import org.apache.flink.util.ExceptionUtils;
+import org.apache.flink.util.concurrent.FutureUtils;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.Executor;
@@ -32,113 +35,134 @@ import java.util.concurrent.Executor;
 /**
  * All the logic related to taking checkpoints of the {@link OperatorCoordinator}s.
  *
- * <p>NOTE: This class has a simplified error handling logic. If one of the several coordinator checkpoints
- * fail, no cleanup is triggered for the other concurrent ones. That is okay, since they all produce just byte[]
- * as the result. We have to change that once we allow then to create external resources that actually need
- * to be cleaned up.
+ * <p>NOTE: This class has a simplified error handling logic. If one of the several coordinator
+ * checkpoints fail, no cleanup is triggered for the other concurrent ones. That is okay, since they
+ * all produce just byte[] as the result. We have to change that once we allow then to create
+ * external resources that actually need to be cleaned up.
  */
 final class OperatorCoordinatorCheckpoints {
 
-	public static CompletableFuture<CoordinatorSnapshot> triggerCoordinatorCheckpoint(
-			final OperatorCoordinatorCheckpointContext coordinatorInfo,
-			final long checkpointId) throws Exception {
+    public static CompletableFuture<CoordinatorSnapshot> triggerCoordinatorCheckpoint(
+            final OperatorCoordinatorCheckpointContext coordinatorContext, final long checkpointId)
+            throws Exception {
 
-		final CompletableFuture<byte[]> checkpointFuture =
-				coordinatorInfo.coordinator().checkpointCoordinator(checkpointId);
+        final CompletableFuture<byte[]> checkpointFuture = new CompletableFuture<>();
+        coordinatorContext.checkpointCoordinator(checkpointId, checkpointFuture);
 
-		return checkpointFuture.thenApply(
-				(state) -> new CoordinatorSnapshot(
-						coordinatorInfo, new ByteStreamStateHandle(coordinatorInfo.operatorId().toString(), state))
-		);
-	}
+        return checkpointFuture.thenApply(
+                (state) ->
+                        new CoordinatorSnapshot(
+                                coordinatorContext,
+                                new ByteStreamStateHandle(
+                                        coordinatorContext.operatorId().toString(), state)));
+    }
 
-	public static CompletableFuture<AllCoordinatorSnapshots> triggerAllCoordinatorCheckpoints(
-			final Collection<OperatorCoordinatorCheckpointContext> coordinators,
-			final long checkpointId) throws Exception {
+    public static CompletableFuture<AllCoordinatorSnapshots> triggerAllCoordinatorCheckpoints(
+            final Collection<OperatorCoordinatorCheckpointContext> coordinators,
+            final long checkpointId)
+            throws Exception {
 
-		final Collection<CompletableFuture<CoordinatorSnapshot>> individualSnapshots = new ArrayList<>(coordinators.size());
+        final Collection<CompletableFuture<CoordinatorSnapshot>> individualSnapshots =
+                new ArrayList<>(coordinators.size());
 
-		for (final OperatorCoordinatorCheckpointContext coordinator : coordinators) {
-			individualSnapshots.add(triggerCoordinatorCheckpoint(coordinator, checkpointId));
-		}
+        for (final OperatorCoordinatorCheckpointContext coordinator : coordinators) {
+            final CompletableFuture<CoordinatorSnapshot> checkpointFuture =
+                    triggerCoordinatorCheckpoint(coordinator, checkpointId);
+            individualSnapshots.add(checkpointFuture);
+        }
 
-		return FutureUtils.combineAll(individualSnapshots).thenApply(AllCoordinatorSnapshots::new);
-	}
+        return FutureUtils.combineAll(individualSnapshots).thenApply(AllCoordinatorSnapshots::new);
+    }
 
-	public static CompletableFuture<Void> triggerAndAcknowledgeAllCoordinatorCheckpoints(
-			final Collection<OperatorCoordinatorCheckpointContext> coordinators,
-			final PendingCheckpoint checkpoint,
-			final Executor acknowledgeExecutor) throws Exception {
+    public static CompletableFuture<Void> triggerAndAcknowledgeAllCoordinatorCheckpoints(
+            final Collection<OperatorCoordinatorCheckpointContext> coordinators,
+            final PendingCheckpoint checkpoint,
+            final Executor acknowledgeExecutor)
+            throws Exception {
 
-		final CompletableFuture<AllCoordinatorSnapshots> snapshots =
-				triggerAllCoordinatorCheckpoints(coordinators, checkpoint.getCheckpointId());
+        final CompletableFuture<AllCoordinatorSnapshots> snapshots =
+                triggerAllCoordinatorCheckpoints(coordinators, checkpoint.getCheckpointID());
 
-		return snapshots
-				.thenAcceptAsync(
-						(allSnapshots) -> {
-							try {
-								acknowledgeAllCoordinators(checkpoint, allSnapshots.snapshots);
-							}
-							catch (Exception e) {
-								throw new CompletionException(e);
-							}
-						},
-						acknowledgeExecutor);
-	}
+        return snapshots.thenAcceptAsync(
+                (allSnapshots) -> {
+                    try {
+                        acknowledgeAllCoordinators(checkpoint, allSnapshots.snapshots);
+                    } catch (Exception e) {
+                        throw new CompletionException(e);
+                    }
+                },
+                acknowledgeExecutor);
+    }
 
-	public static CompletableFuture<Void> triggerAndAcknowledgeAllCoordinatorCheckpointsWithCompletion(
-			final Collection<OperatorCoordinatorCheckpointContext> coordinators,
-			final PendingCheckpoint checkpoint,
-			final Executor acknowledgeExecutor) throws CompletionException {
+    public static CompletableFuture<Void>
+            triggerAndAcknowledgeAllCoordinatorCheckpointsWithCompletion(
+                    final Collection<OperatorCoordinatorCheckpointContext> coordinators,
+                    final PendingCheckpoint checkpoint,
+                    final Executor acknowledgeExecutor)
+                    throws CompletionException {
 
-		try {
-			return triggerAndAcknowledgeAllCoordinatorCheckpoints(coordinators, checkpoint, acknowledgeExecutor);
-		} catch (Exception e) {
-			throw new CompletionException(e);
-		}
-	}
+        try {
+            return triggerAndAcknowledgeAllCoordinatorCheckpoints(
+                    coordinators, checkpoint, acknowledgeExecutor);
+        } catch (Exception e) {
+            throw new CompletionException(e);
+        }
+    }
 
-	// ------------------------------------------------------------------------
+    // ------------------------------------------------------------------------
 
-	private static void acknowledgeAllCoordinators(PendingCheckpoint checkpoint, Collection<CoordinatorSnapshot> snapshots) throws CheckpointException {
-		for (final CoordinatorSnapshot snapshot : snapshots) {
-			final PendingCheckpoint.TaskAcknowledgeResult result =
-				checkpoint.acknowledgeCoordinatorState(snapshot.coordinator, snapshot.state);
+    private static void acknowledgeAllCoordinators(
+            PendingCheckpoint checkpoint, Collection<CoordinatorSnapshot> snapshots)
+            throws CheckpointException {
+        for (final CoordinatorSnapshot snapshot : snapshots) {
+            final PendingCheckpoint.TaskAcknowledgeResult result =
+                    checkpoint.acknowledgeCoordinatorState(snapshot.coordinator, snapshot.state);
 
-			if (result != PendingCheckpoint.TaskAcknowledgeResult.SUCCESS) {
-				throw new CheckpointException("Coordinator state not acknowledged successfully: " + result,
-					CheckpointFailureReason.TRIGGER_CHECKPOINT_FAILURE);
-			}
-		}
-	}
+            if (result != PendingCheckpoint.TaskAcknowledgeResult.SUCCESS) {
+                final String errorMessage =
+                        "Coordinator state not acknowledged successfully: " + result;
+                final Throwable error =
+                        checkpoint.isDisposed() ? checkpoint.getFailureCause() : null;
 
-	// ------------------------------------------------------------------------
+                CheckpointFailureReason reason = CheckpointFailureReason.TRIGGER_CHECKPOINT_FAILURE;
+                if (error != null) {
+                    final Optional<IOException> ioExceptionOptional =
+                            ExceptionUtils.findThrowable(error, IOException.class);
+                    if (ioExceptionOptional.isPresent()) {
+                        reason = CheckpointFailureReason.IO_EXCEPTION;
+                    }
 
-	static final class AllCoordinatorSnapshots {
+                    throw new CheckpointException(errorMessage, reason, error);
+                } else {
+                    throw new CheckpointException(errorMessage, reason);
+                }
+            }
+        }
+    }
 
-		private final Collection<CoordinatorSnapshot> snapshots;
+    // ------------------------------------------------------------------------
 
-		AllCoordinatorSnapshots(Collection<CoordinatorSnapshot> snapshots) {
-			this.snapshots = snapshots;
-		}
+    static final class AllCoordinatorSnapshots {
 
-		public Iterable<CoordinatorSnapshot> snapshots() {
-			return snapshots;
-		}
-	}
+        private final Collection<CoordinatorSnapshot> snapshots;
 
-	static final class CoordinatorSnapshot {
+        AllCoordinatorSnapshots(Collection<CoordinatorSnapshot> snapshots) {
+            this.snapshots = snapshots;
+        }
 
-		final OperatorCoordinatorCheckpointContext coordinator;
-		final StreamStateHandle state;
+        public Iterable<CoordinatorSnapshot> snapshots() {
+            return snapshots;
+        }
+    }
 
-		CoordinatorSnapshot(OperatorCoordinatorCheckpointContext coordinator, StreamStateHandle state) {
-			// if this is not true any more, we need more elaborate dispose/cleanup handling
-			// see comment above the class.
-			assert state instanceof ByteStreamStateHandle;
+    static final class CoordinatorSnapshot {
 
-			this.coordinator = coordinator;
-			this.state = state;
-		}
-	}
+        final OperatorInfo coordinator;
+        final ByteStreamStateHandle state;
+
+        CoordinatorSnapshot(OperatorInfo coordinator, ByteStreamStateHandle state) {
+            this.coordinator = coordinator;
+            this.state = state;
+        }
+    }
 }

@@ -23,98 +23,128 @@ import org.apache.flink.annotation.Internal;
 import java.io.Serializable;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.util.Objects;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
- * Base class for resources one can specify.
+ * Base class for resources one can specify. Notice that the scale of value will be limited to
+ * {@link #MAX_VALUE_SCALE} and all the trailing zeros will be stripped for readability.
  */
 @Internal
-public abstract class Resource implements Serializable {
+public abstract class Resource<T extends Resource<T>>
+        implements Serializable, Comparable<Resource> {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	private final String name;
+    private static final int MAX_VALUE_SCALE = 8;
 
-	private final BigDecimal value;
+    private final String name;
 
-	protected Resource(String name, double value) {
-		this(name, BigDecimal.valueOf(value));
-	}
+    private final BigDecimal value;
 
-	protected Resource(String name, BigDecimal value) {
-		checkNotNull(value);
-		checkArgument(value.compareTo(BigDecimal.ZERO) >= 0, "Resource value must be no less than 0");
+    protected Resource(String name, double value) {
+        this(name, BigDecimal.valueOf(value));
+    }
 
-		this.name = checkNotNull(name);
-		this.value = value;
-	}
+    protected Resource(String name, BigDecimal value) {
+        checkNotNull(value);
+        final BigDecimal valueRoundDown =
+                value.setScale(MAX_VALUE_SCALE, RoundingMode.DOWN).stripTrailingZeros();
+        checkArgument(
+                valueRoundDown.compareTo(BigDecimal.ZERO) >= 0,
+                "Resource value must be no less than 0");
 
-	public Resource merge(Resource other) {
-		checkNotNull(other, "Cannot merge with null resources");
-		checkArgument(getClass() == other.getClass(), "Merge with different resource type");
-		checkArgument(name.equals(other.name), "Merge with different resource name");
+        this.name = checkNotNull(name);
+        this.value = valueRoundDown;
+    }
 
-		return create(value.add(other.value));
-	}
+    public T merge(T other) {
+        checkNotNull(other, "Cannot merge with null resources");
+        checkArgument(getClass() == other.getClass(), "Merge with different resource type");
+        checkArgument(name.equals(other.getName()), "Merge with different resource name");
 
-	public Resource subtract(Resource other) {
-		checkNotNull(other, "Cannot subtract null resources");
-		checkArgument(getClass() == other.getClass(), "Minus with different resource type");
-		checkArgument(name.equals(other.name), "Minus with different resource name");
-		checkArgument(value.compareTo(other.value) >= 0, "Try to subtract a larger resource from this one.");
+        return create(value.add(other.getValue()));
+    }
 
-		return create(value.subtract(other.value));
-	}
+    public T subtract(T other) {
+        checkNotNull(other, "Cannot subtract null resources");
+        checkArgument(getClass() == other.getClass(), "Minus with different resource type");
+        checkArgument(name.equals(other.getName()), "Minus with different resource name");
+        checkArgument(
+                value.compareTo(other.getValue()) >= 0,
+                "Try to subtract a larger resource from this one.");
 
-	public Resource divide(BigDecimal by) {
-		return create(value.divide(by, 16, RoundingMode.DOWN));
-	}
+        return create(value.subtract(other.getValue()));
+    }
 
-	public Resource divide(int by) {
-		return divide(BigDecimal.valueOf(by));
-	}
+    public T multiply(BigDecimal multiplier) {
+        return create(value.multiply(multiplier));
+    }
 
-	@Override
-	public boolean equals(Object o) {
-		if (this == o) {
-			return true;
-		} else if (o != null && getClass() == o.getClass()) {
-			Resource other = (Resource) o;
+    public T multiply(int multiplier) {
+        return multiply(BigDecimal.valueOf(multiplier));
+    }
 
-			// Two Resources are considered equal if the values equals disregarding the scales
-			return name.equals(other.name) && value.compareTo(other.value) == 0;
-		} else {
-			return false;
-		}
-	}
+    public T divide(BigDecimal by) {
+        return create(value.divide(by, MAX_VALUE_SCALE, RoundingMode.DOWN));
+    }
 
-	@Override
-	public int hashCode() {
-		int result = name.hashCode();
-		result = 31 * result + value.hashCode();
-		return result;
-	}
+    public T divide(int by) {
+        return divide(BigDecimal.valueOf(by));
+    }
 
-	@Override
-	public String toString() {
-		return String.format("Resource(%s: %s)", name, value);
-	}
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        } else if (o != null && getClass() == o.getClass()) {
+            @SuppressWarnings("unchecked")
+            T other = (T) o;
 
-	public String getName() {
-		return name;
-	}
+            // Two Resources are considered equal if the values equals disregarding the scales
+            return name.equals(other.getName()) && value.compareTo(other.getValue()) == 0;
+        } else {
+            return false;
+        }
+    }
 
-	public BigDecimal getValue() {
-		return value;
-	}
+    @Override
+    public int hashCode() {
+        int result = name.hashCode();
+        result = 31 * result + Objects.hashCode(value.doubleValue());
+        return result;
+    }
 
-	/**
-	 * Create a new instance of the sub resource.
-	 *
-	 * @param value The value of the resource
-	 * @return A new instance of the sub resource
-	 */
-	protected abstract Resource create(BigDecimal value);
+    @Override
+    public String toString() {
+        return String.format("Resource(%s: %s)", name, value);
+    }
+
+    @Override
+    public int compareTo(Resource other) {
+        checkArgument(other != null && getClass() == other.getClass() && name.equals(other.name));
+        return value.compareTo(other.value);
+    }
+
+    public String getName() {
+        return name;
+    }
+
+    public BigDecimal getValue() {
+        return value;
+    }
+
+    public boolean isZero() {
+        return value.compareTo(BigDecimal.ZERO) == 0;
+    }
+
+    /**
+     * Create a new instance of the sub resource.
+     *
+     * @param value The value of the resource
+     * @return A new instance of the sub resource
+     */
+    protected abstract T create(BigDecimal value);
 }

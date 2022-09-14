@@ -27,45 +27,44 @@ import java.util.concurrent.CompletableFuture;
 import java.util.function.LongPredicate;
 
 /**
- * This class implements a {@link TaskLocalStateStore} with no functionality and is used when local recovery is
- * disabled.
+ * This class implements a {@link TaskLocalStateStore} with no functionality and is used when local
+ * recovery is disabled.
  */
 public final class NoOpTaskLocalStateStoreImpl implements OwnedTaskLocalStateStore {
 
-	/** The configuration for local recovery. */
-	@Nonnull
-	private final LocalRecoveryConfig localRecoveryConfig;
+    /** The configuration for local recovery. */
+    @Nonnull private final LocalRecoveryConfig localRecoveryConfig;
 
-	NoOpTaskLocalStateStoreImpl(@Nonnull LocalRecoveryConfig localRecoveryConfig) {
-		this.localRecoveryConfig = localRecoveryConfig;
-	}
+    NoOpTaskLocalStateStoreImpl(@Nonnull LocalRecoveryConfig localRecoveryConfig) {
+        this.localRecoveryConfig = localRecoveryConfig;
+    }
 
-	@Nonnull
-	@Override
-	public LocalRecoveryConfig getLocalRecoveryConfig() {
-		return localRecoveryConfig;
-	}
+    @Nonnull
+    @Override
+    public LocalRecoveryConfig getLocalRecoveryConfig() {
+        return localRecoveryConfig;
+    }
 
-	@Override
-	public CompletableFuture<Void> dispose() {
-		return CompletableFuture.completedFuture(null);
-	}
+    @Override
+    public CompletableFuture<Void> dispose() {
+        return CompletableFuture.completedFuture(null);
+    }
 
-	@Override
-	public void storeLocalState(long checkpointId, @Nullable TaskStateSnapshot localState) {
-	}
+    @Override
+    public void storeLocalState(long checkpointId, @Nullable TaskStateSnapshot localState) {}
 
-	@Nullable
-	@Override
-	public TaskStateSnapshot retrieveLocalState(long checkpointID) {
-		return null;
-	}
+    @Nullable
+    @Override
+    public TaskStateSnapshot retrieveLocalState(long checkpointID) {
+        return null;
+    }
 
-	@Override
-	public void confirmCheckpoint(long confirmedCheckpointId) {
-	}
+    @Override
+    public void confirmCheckpoint(long confirmedCheckpointId) {}
 
-	@Override
-	public void pruneMatchingCheckpoints(LongPredicate matcher) {
-	}
+    @Override
+    public void abortCheckpoint(long abortedCheckpointId) {}
+
+    @Override
+    public void pruneMatchingCheckpoints(LongPredicate matcher) {}
 }

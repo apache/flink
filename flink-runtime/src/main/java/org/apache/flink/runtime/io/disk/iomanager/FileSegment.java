@@ -22,31 +22,31 @@ import java.nio.channels.FileChannel;
 
 public class FileSegment {
 
-	private final FileChannel fileChannel;
-	private final long position;
-	private final int length;
-	private final boolean isBuffer;
+    private final FileChannel fileChannel;
+    private final long position;
+    private final int length;
+    private final boolean isBuffer;
 
-	public FileSegment(FileChannel fileChannel, long position, int length, boolean isBuffer) {
-		this.fileChannel = fileChannel;
-		this.position = position;
-		this.length = length;
-		this.isBuffer = isBuffer;
-	}
+    public FileSegment(FileChannel fileChannel, long position, int length, boolean isBuffer) {
+        this.fileChannel = fileChannel;
+        this.position = position;
+        this.length = length;
+        this.isBuffer = isBuffer;
+    }
 
-	public FileChannel getFileChannel() {
-		return fileChannel;
-	}
+    public FileChannel getFileChannel() {
+        return fileChannel;
+    }
 
-	public long getPosition() {
-		return position;
-	}
+    public long getPosition() {
+        return position;
+    }
 
-	public int getLength() {
-		return length;
-	}
+    public int getLength() {
+        return length;
+    }
 
-	public boolean isBuffer() {
-		return isBuffer;
-	}
+    public boolean isBuffer() {
+        return isBuffer;
+    }
 }

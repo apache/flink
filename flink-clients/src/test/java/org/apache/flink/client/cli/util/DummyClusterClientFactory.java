@@ -31,36 +31,37 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * A {@link ClusterClientFactory} used for testing.
+ *
  * @param <ClusterID> The type of the id of the cluster.
  */
 public class DummyClusterClientFactory<ClusterID> implements ClusterClientFactory {
 
-	public static final String ID = "dummy-client-factory";
+    public static final String ID = "dummy-client-factory";
 
-	private final ClusterClient<ClusterID> clusterClient;
+    private final ClusterClient<ClusterID> clusterClient;
 
-	public DummyClusterClientFactory(ClusterClient<ClusterID> clusterClient) {
-		this.clusterClient = checkNotNull(clusterClient);
-	}
+    public DummyClusterClientFactory(ClusterClient<ClusterID> clusterClient) {
+        this.clusterClient = checkNotNull(clusterClient);
+    }
 
-	@Override
-	public boolean isCompatibleWith(Configuration configuration) {
-		return ID.equals(configuration.getString(DeploymentOptions.TARGET));
-	}
+    @Override
+    public boolean isCompatibleWith(Configuration configuration) {
+        return ID.equals(configuration.getString(DeploymentOptions.TARGET));
+    }
 
-	@Override
-	public ClusterDescriptor<ClusterID> createClusterDescriptor(Configuration configuration) {
-		return new DummyClusterDescriptor<>(checkNotNull(clusterClient));
-	}
+    @Override
+    public ClusterDescriptor<ClusterID> createClusterDescriptor(Configuration configuration) {
+        return new DummyClusterDescriptor<>(checkNotNull(clusterClient));
+    }
 
-	@Override
-	@Nullable
-	public String getClusterId(Configuration configuration) {
-		return "dummy";
-	}
+    @Override
+    @Nullable
+    public String getClusterId(Configuration configuration) {
+        return "dummy";
+    }
 
-	@Override
-	public ClusterSpecification getClusterSpecification(Configuration configuration) {
-		return new ClusterSpecification.ClusterSpecificationBuilder().createClusterSpecification();
-	}
+    @Override
+    public ClusterSpecification getClusterSpecification(Configuration configuration) {
+        return new ClusterSpecification.ClusterSpecificationBuilder().createClusterSpecification();
+    }
 }

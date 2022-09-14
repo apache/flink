@@ -26,50 +26,46 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.fail;
 
-/**
- * Tests for the MIME types map.
- */
+/** Tests for the MIME types map. */
 public class MimeTypesTest {
 
-	@Test
-	public void testCompleteness() {
-		try {
-			assertNotNull(MimeTypes.getMimeTypeForExtension("txt"));
-			assertNotNull(MimeTypes.getMimeTypeForExtension("htm"));
-			assertNotNull(MimeTypes.getMimeTypeForExtension("html"));
-			assertNotNull(MimeTypes.getMimeTypeForExtension("css"));
-			assertNotNull(MimeTypes.getMimeTypeForExtension("js"));
-			assertNotNull(MimeTypes.getMimeTypeForExtension("json"));
-			assertNotNull(MimeTypes.getMimeTypeForExtension("png"));
-			assertNotNull(MimeTypes.getMimeTypeForExtension("jpg"));
-			assertNotNull(MimeTypes.getMimeTypeForExtension("jpeg"));
-			assertNotNull(MimeTypes.getMimeTypeForExtension("gif"));
-			assertNotNull(MimeTypes.getMimeTypeForExtension("woff"));
-			assertNotNull(MimeTypes.getMimeTypeForExtension("woff2"));
-			assertNotNull(MimeTypes.getMimeTypeForExtension("otf"));
-			assertNotNull(MimeTypes.getMimeTypeForExtension("ttf"));
-			assertNotNull(MimeTypes.getMimeTypeForExtension("eot"));
-		}
-		catch (Exception e) {
-			e.printStackTrace();
-			fail(e.getMessage());
-		}
-	}
+    @Test
+    public void testCompleteness() {
+        try {
+            assertNotNull(MimeTypes.getMimeTypeForExtension("txt"));
+            assertNotNull(MimeTypes.getMimeTypeForExtension("htm"));
+            assertNotNull(MimeTypes.getMimeTypeForExtension("html"));
+            assertNotNull(MimeTypes.getMimeTypeForExtension("css"));
+            assertNotNull(MimeTypes.getMimeTypeForExtension("js"));
+            assertNotNull(MimeTypes.getMimeTypeForExtension("json"));
+            assertNotNull(MimeTypes.getMimeTypeForExtension("png"));
+            assertNotNull(MimeTypes.getMimeTypeForExtension("jpg"));
+            assertNotNull(MimeTypes.getMimeTypeForExtension("jpeg"));
+            assertNotNull(MimeTypes.getMimeTypeForExtension("gif"));
+            assertNotNull(MimeTypes.getMimeTypeForExtension("woff"));
+            assertNotNull(MimeTypes.getMimeTypeForExtension("woff2"));
+            assertNotNull(MimeTypes.getMimeTypeForExtension("otf"));
+            assertNotNull(MimeTypes.getMimeTypeForExtension("ttf"));
+            assertNotNull(MimeTypes.getMimeTypeForExtension("eot"));
+        } catch (Exception e) {
+            e.printStackTrace();
+            fail(e.getMessage());
+        }
+    }
 
-	@Test
-	public void testFileNameExtraction() {
-		try {
-			assertNotNull(MimeTypes.getMimeTypeForFileName("test.txt"));
-			assertNotNull(MimeTypes.getMimeTypeForFileName("t.txt"));
-			assertNotNull(MimeTypes.getMimeTypeForFileName("first.second.third.txt"));
+    @Test
+    public void testFileNameExtraction() {
+        try {
+            assertNotNull(MimeTypes.getMimeTypeForFileName("test.txt"));
+            assertNotNull(MimeTypes.getMimeTypeForFileName("t.txt"));
+            assertNotNull(MimeTypes.getMimeTypeForFileName("first.second.third.txt"));
 
-			assertNull(MimeTypes.getMimeTypeForFileName(".txt"));
-			assertNull(MimeTypes.getMimeTypeForFileName("txt"));
-			assertNull(MimeTypes.getMimeTypeForFileName("test."));
-		}
-		catch (Exception e) {
-			e.printStackTrace();
-			fail(e.getMessage());
-		}
-	}
+            assertNull(MimeTypes.getMimeTypeForFileName(".txt"));
+            assertNull(MimeTypes.getMimeTypeForFileName("txt"));
+            assertNull(MimeTypes.getMimeTypeForFileName("test."));
+        } catch (Exception e) {
+            e.printStackTrace();
+            fail(e.getMessage());
+        }
+    }
 }

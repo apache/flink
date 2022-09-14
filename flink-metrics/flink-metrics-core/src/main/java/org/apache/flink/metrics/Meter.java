@@ -18,34 +18,38 @@
 
 package org.apache.flink.metrics;
 
-/**
- * Metric for measuring throughput.
- */
+import org.apache.flink.annotation.Public;
+
+/** Metric for measuring throughput. */
+@Public
 public interface Meter extends Metric {
 
-	/**
-	 * Mark occurrence of an event.
-	 */
-	void markEvent();
+    /** Mark occurrence of an event. */
+    void markEvent();
 
-	/**
-	 * Mark occurrence of multiple events.
-	 *
-	 * @param n number of events occurred
-	 */
-	void markEvent(long n);
+    /**
+     * Mark occurrence of multiple events.
+     *
+     * @param n number of events occurred
+     */
+    void markEvent(long n);
 
-	/**
-	 * Returns the current rate of events per second.
-	 *
-	 * @return current rate of events per second
-	 */
-	double getRate();
+    /**
+     * Returns the current rate of events per second.
+     *
+     * @return current rate of events per second
+     */
+    double getRate();
 
-	/**
-	 * Get number of events marked on the meter.
-	 *
-	 * @return number of events marked on the meter
-	 */
-	long getCount();
+    /**
+     * Get number of events marked on the meter.
+     *
+     * @return number of events marked on the meter
+     */
+    long getCount();
+
+    @Override
+    default MetricType getMetricType() {
+        return MetricType.METER;
+    }
 }

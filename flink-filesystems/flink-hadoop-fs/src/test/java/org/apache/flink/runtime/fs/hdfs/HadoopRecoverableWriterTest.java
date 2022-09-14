@@ -34,62 +34,63 @@ import org.junit.rules.TemporaryFolder;
 
 import java.io.File;
 
-/**
- * Tests for the {@link HadoopRecoverableWriter}.
- */
+/** Tests for the {@link HadoopRecoverableWriter}. */
 public class HadoopRecoverableWriterTest extends AbstractRecoverableWriterTest {
 
-	@ClassRule
-	public static final TemporaryFolder TEMP_FOLDER = new TemporaryFolder();
+    @ClassRule public static final TemporaryFolder TEMP_FOLDER = new TemporaryFolder();
 
-	private static MiniDFSCluster hdfsCluster;
+    private static MiniDFSCluster hdfsCluster;
 
-	/** The cached file system instance. */
-	private static FileSystem fileSystem;
+    /** The cached file system instance. */
+    private static FileSystem fileSystem;
 
-	private static Path basePath;
+    private static Path basePath;
 
-	@BeforeClass
-	public static void testHadoopVersion() {
-		Assume.assumeTrue(HadoopUtils.isMinHadoopVersion(2, 7));
-	}
+    @BeforeClass
+    public static void testHadoopVersion() {
+        Assume.assumeTrue(HadoopUtils.isMinHadoopVersion(2, 7));
+    }
 
-	@BeforeClass
-	public static void verifyOS() {
-		Assume.assumeTrue("HDFS cluster cannot be started on Windows without extensions.", !OperatingSystem.isWindows());
-	}
+    @BeforeClass
+    public static void verifyOS() {
+        Assume.assumeTrue(
+                "HDFS cluster cannot be started on Windows without extensions.",
+                !OperatingSystem.isWindows());
+    }
 
-	@BeforeClass
-	public static void createHDFS() throws Exception {
-		final File baseDir = TEMP_FOLDER.newFolder();
+    @BeforeClass
+    public static void createHDFS() throws Exception {
+        final File baseDir = TEMP_FOLDER.newFolder();
 
-		final Configuration hdConf = new Configuration();
-		hdConf.set(MiniDFSCluster.HDFS_MINIDFS_BASEDIR, baseDir.getAbsolutePath());
+        final Configuration hdConf = new Configuration();
+        hdConf.set(MiniDFSCluster.HDFS_MINIDFS_BASEDIR, baseDir.getAbsolutePath());
 
-		final MiniDFSCluster.Builder builder = new MiniDFSCluster.Builder(hdConf);
-		hdfsCluster = builder.build();
+        final MiniDFSCluster.Builder builder = new MiniDFSCluster.Builder(hdConf);
+        hdfsCluster = builder.build();
 
-		final org.apache.hadoop.fs.FileSystem hdfs = hdfsCluster.getFileSystem();
+        final org.apache.hadoop.fs.FileSystem hdfs = hdfsCluster.getFileSystem();
 
-		fileSystem = new HadoopFileSystem(hdfs);
-		basePath = new Path(hdfs.getUri() + "/tests");
-	}
+        fileSystem = new HadoopFileSystem(hdfs);
+        basePath = new Path(hdfs.getUri() + "/tests");
+    }
 
-	@AfterClass
-	public static void destroyHDFS() throws Exception {
-		if (hdfsCluster != null) {
-			hdfsCluster.getFileSystem().delete(new org.apache.hadoop.fs.Path(basePath.toUri()), true);
-			hdfsCluster.shutdown();
-		}
-	}
+    @AfterClass
+    public static void destroyHDFS() throws Exception {
+        if (hdfsCluster != null) {
+            hdfsCluster
+                    .getFileSystem()
+                    .delete(new org.apache.hadoop.fs.Path(basePath.toUri()), true);
+            hdfsCluster.shutdown();
+        }
+    }
 
-	@Override
-	public Path getBasePath() {
-		return basePath;
-	}
+    @Override
+    public Path getBasePath() {
+        return basePath;
+    }
 
-	@Override
-	public FileSystem initializeFileSystem() {
-		return fileSystem;
-	}
+    @Override
+    public FileSystem initializeFileSystem() {
+        return fileSystem;
+    }
 }

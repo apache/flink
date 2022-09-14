@@ -22,15 +22,13 @@ import org.apache.flink.api.java.ExecutionEnvironment;
 
 import org.junit.Before;
 
-/**
- * Base class for graph generator tests.
- */
+/** Base class for graph generator tests. */
 public abstract class GraphGeneratorTestBase {
 
-	protected ExecutionEnvironment env;
+    protected ExecutionEnvironment env;
 
-	@Before
-	public void setup() {
-		env = ExecutionEnvironment.createCollectionsEnvironment();
-	}
+    @Before
+    public void setup() {
+        env = ExecutionEnvironment.createCollectionsEnvironment();
+    }
 }

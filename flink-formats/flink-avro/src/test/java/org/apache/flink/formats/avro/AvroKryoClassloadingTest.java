@@ -21,21 +21,21 @@ package org.apache.flink.formats.avro;
 import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.core.testutils.FilteredClassLoader;
 import org.apache.flink.formats.avro.utils.AvroKryoSerializerUtils;
-import org.apache.flink.runtime.execution.librarycache.FlinkUserCodeClassLoaders;
+import org.apache.flink.util.FlinkUserCodeClassLoaders;
 
 import com.esotericsoftware.kryo.Kryo;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.lang.reflect.Method;
 import java.net.URL;
 import java.util.LinkedHashMap;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotEquals;
+import static org.apache.flink.util.FlinkUserCodeClassLoader.NOOP_EXCEPTION_HANDLER;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * This test makes sure that reversed classloading works for the Avro/Kryo integration when
- * Kryo is in the application jar file.
+ * This test makes sure that reversed classloading works for the Avro/Kryo integration when Kryo is
+ * in the application jar file.
  *
  * <p>If Kryo is not loaded consistently through the same classloader (parent-first), the following
  * error happens:
@@ -58,32 +58,41 @@ import static org.junit.Assert.assertNotEquals;
  *     0x0000020: 57b1
  * </pre>
  */
-public class AvroKryoClassloadingTest {
+class AvroKryoClassloadingTest {
 
-	@Test
-	public void testKryoInChildClasspath() throws Exception {
-		final Class<?> avroClass = AvroKryoSerializerUtils.class;
+    @Test
+    void testKryoInChildClasspath() throws Exception {
+        final Class<?> avroClass = AvroKryoSerializerUtils.class;
 
-		final URL avroLocation = avroClass.getProtectionDomain().getCodeSource().getLocation();
-		final URL kryoLocation = Kryo.class.getProtectionDomain().getCodeSource().getLocation();
+        final URL avroLocation = avroClass.getProtectionDomain().getCodeSource().getLocation();
+        final URL kryoLocation = Kryo.class.getProtectionDomain().getCodeSource().getLocation();
 
-		final ClassLoader parentClassLoader = new FilteredClassLoader(
-				avroClass.getClassLoader(), AvroKryoSerializerUtils.class.getName());
+        final ClassLoader parentClassLoader =
+                new FilteredClassLoader(
+                        avroClass.getClassLoader(), AvroKryoSerializerUtils.class.getName());
 
-		final ClassLoader userAppClassLoader = FlinkUserCodeClassLoaders.childFirst(
-				new URL[] { avroLocation, kryoLocation },
-				parentClassLoader,
-				CoreOptions.ALWAYS_PARENT_FIRST_LOADER_PATTERNS.defaultValue().split(";"));
+        final ClassLoader userAppClassLoader =
+                FlinkUserCodeClassLoaders.childFirst(
+                        new URL[] {avroLocation, kryoLocation},
+                        parentClassLoader,
+                        CoreOptions.ALWAYS_PARENT_FIRST_LOADER_PATTERNS
+                                .defaultValue()
+                                .toArray(new String[0]),
+                        NOOP_EXCEPTION_HANDLER,
+                        true);
 
-		final Class<?> userLoadedAvroClass = Class.forName(avroClass.getName(), false, userAppClassLoader);
-		assertNotEquals(avroClass, userLoadedAvroClass);
+        final Class<?> userLoadedAvroClass =
+                Class.forName(avroClass.getName(), false, userAppClassLoader);
+        assertThat(userLoadedAvroClass).isNotEqualTo(avroClass);
 
-		// call the 'addAvroGenericDataArrayRegistration(...)' method
-		final Method m = userLoadedAvroClass.getMethod("addAvroGenericDataArrayRegistration", LinkedHashMap.class);
+        // call the 'addAvroGenericDataArrayRegistration(...)' method
+        final Method m =
+                userLoadedAvroClass.getMethod(
+                        "addAvroGenericDataArrayRegistration", LinkedHashMap.class);
 
-		final LinkedHashMap<String, ?> map = new LinkedHashMap<>();
-		m.invoke(userLoadedAvroClass.newInstance(), map);
+        final LinkedHashMap<String, ?> map = new LinkedHashMap<>();
+        m.invoke(userLoadedAvroClass.newInstance(), map);
 
-		assertEquals(1, map.size());
-	}
+        assertThat(map).hasSize(1);
+    }
 }

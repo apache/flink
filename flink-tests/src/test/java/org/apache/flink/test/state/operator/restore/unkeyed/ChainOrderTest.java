@@ -18,11 +18,11 @@
 
 package org.apache.flink.test.state.operator.restore.unkeyed;
 
+import org.apache.flink.FlinkVersion;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.test.state.operator.restore.ExecutionMode;
-import org.apache.flink.testutils.migration.MigrationVersion;
 
 import static org.apache.flink.test.state.operator.restore.unkeyed.NonKeyedJob.createFirstStatefulMap;
 import static org.apache.flink.test.state.operator.restore.unkeyed.NonKeyedJob.createSecondStatefulMap;
@@ -31,30 +31,34 @@ import static org.apache.flink.test.state.operator.restore.unkeyed.NonKeyedJob.c
 import static org.apache.flink.test.state.operator.restore.unkeyed.NonKeyedJob.createThirdStatefulMap;
 
 /**
- * Verifies that the state of all operators is restored if a topology change causes the ordering of a chain to change.
+ * Verifies that the state of all operators is restored if a topology change causes the ordering of
+ * a chain to change.
  */
 public class ChainOrderTest extends AbstractNonKeyedOperatorRestoreTestBase {
 
-	public ChainOrderTest(MigrationVersion migrationVersion) {
-		super(migrationVersion);
-	}
+    public ChainOrderTest(FlinkVersion flinkVersion) {
+        super(flinkVersion);
+    }
 
-	@Override
-	public void createRestoredJob(StreamExecutionEnvironment env) {
-		/**
-		 * Original job: Source -> StatefulMap1 -> CHAIN(StatefulMap2 -> Map -> StatefulMap3)
-		 * Modified job: Source -> StatefulMap1 -> CHAIN(StatefulMap3 -> Map -> StatefulMap2)
-		 */
-		DataStream<Integer> source = createSource(env, ExecutionMode.RESTORE);
+    @Override
+    public void createRestoredJob(StreamExecutionEnvironment env) {
+        /**
+         * Original job: Source -> StatefulMap1 -> CHAIN(StatefulMap2 -> Map -> StatefulMap3)
+         * Modified job: Source -> StatefulMap1 -> CHAIN(StatefulMap3 -> Map -> StatefulMap2)
+         */
+        DataStream<Integer> source = createSource(env, ExecutionMode.RESTORE);
 
-		SingleOutputStreamOperator<Integer> first = createFirstStatefulMap(ExecutionMode.RESTORE, source);
-		first.startNewChain();
+        SingleOutputStreamOperator<Integer> first =
+                createFirstStatefulMap(ExecutionMode.RESTORE, source);
+        first.startNewChain();
 
-		SingleOutputStreamOperator<Integer> third = createThirdStatefulMap(ExecutionMode.RESTORE, first);
-		third.startNewChain();
+        SingleOutputStreamOperator<Integer> third =
+                createThirdStatefulMap(ExecutionMode.RESTORE, first);
+        third.startNewChain();
 
-		SingleOutputStreamOperator<Integer> stateless = createStatelessMap(third);
+        SingleOutputStreamOperator<Integer> stateless = createStatelessMap(third);
 
-		SingleOutputStreamOperator<Integer> second = createSecondStatefulMap(ExecutionMode.RESTORE, stateless);
-	}
+        SingleOutputStreamOperator<Integer> second =
+                createSecondStatefulMap(ExecutionMode.RESTORE, stateless);
+    }
 }

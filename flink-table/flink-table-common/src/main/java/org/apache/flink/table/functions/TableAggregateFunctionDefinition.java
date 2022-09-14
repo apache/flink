@@ -18,7 +18,6 @@
 
 package org.apache.flink.table.functions;
 
-import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.catalog.DataTypeFactory;
@@ -33,81 +32,84 @@ import java.util.Set;
  * system stack.
  *
  * <p>This class can be dropped once we introduce a new type inference.
+ *
+ * @deprecated Non-legacy functions can simply omit this wrapper for declarations.
  */
-@Internal
+@Deprecated
 public final class TableAggregateFunctionDefinition implements FunctionDefinition {
 
-	private final String name;
-	private final TableAggregateFunction<?, ?> aggregateFunction;
-	private final TypeInformation<?> resultTypeInfo;
-	private final TypeInformation<?> accumulatorTypeInfo;
+    private final String name;
+    private final TableAggregateFunction<?, ?> aggregateFunction;
+    private final TypeInformation<?> resultTypeInfo;
+    private final TypeInformation<?> accumulatorTypeInfo;
 
-	public TableAggregateFunctionDefinition(
-			String name,
-			TableAggregateFunction<?, ?> aggregateFunction,
-			TypeInformation<?> resultTypeInfo,
-			TypeInformation<?> accTypeInfo) {
-		this.name = Preconditions.checkNotNull(name);
-		this.aggregateFunction = Preconditions.checkNotNull(aggregateFunction);
-		this.resultTypeInfo = Preconditions.checkNotNull(resultTypeInfo);
-		this.accumulatorTypeInfo = Preconditions.checkNotNull(accTypeInfo);
-	}
+    public TableAggregateFunctionDefinition(
+            String name,
+            TableAggregateFunction<?, ?> aggregateFunction,
+            TypeInformation<?> resultTypeInfo,
+            TypeInformation<?> accTypeInfo) {
+        this.name = Preconditions.checkNotNull(name);
+        this.aggregateFunction = Preconditions.checkNotNull(aggregateFunction);
+        this.resultTypeInfo = Preconditions.checkNotNull(resultTypeInfo);
+        this.accumulatorTypeInfo = Preconditions.checkNotNull(accTypeInfo);
+    }
 
-	public String getName() {
-		return name;
-	}
+    public String getName() {
+        return name;
+    }
 
-	public TableAggregateFunction<?, ?> getTableAggregateFunction() {
-		return aggregateFunction;
-	}
+    public TableAggregateFunction<?, ?> getTableAggregateFunction() {
+        return aggregateFunction;
+    }
 
-	public TypeInformation<?> getResultTypeInfo() {
-		return resultTypeInfo;
-	}
+    public TypeInformation<?> getResultTypeInfo() {
+        return resultTypeInfo;
+    }
 
-	public TypeInformation<?> getAccumulatorTypeInfo() {
-		return accumulatorTypeInfo;
-	}
+    public TypeInformation<?> getAccumulatorTypeInfo() {
+        return accumulatorTypeInfo;
+    }
 
-	@Override
-	public FunctionKind getKind() {
-		return FunctionKind.TABLE_AGGREGATE;
-	}
+    @Override
+    public FunctionKind getKind() {
+        return FunctionKind.TABLE_AGGREGATE;
+    }
 
-	@Override
-	public TypeInference getTypeInference(DataTypeFactory typeFactory) {
-		throw new TableException("Functions implemented for the old type system are not supported.");
-	}
+    @Override
+    public TypeInference getTypeInference(DataTypeFactory typeFactory) {
+        throw new TableException(
+                "Functions implemented for the old type system are not supported.");
+    }
 
-	@Override
-	public Set<FunctionRequirement> getRequirements() {
-		return aggregateFunction.getRequirements();
-	}
+    @Override
+    public Set<FunctionRequirement> getRequirements() {
+        return aggregateFunction.getRequirements();
+    }
 
-	@Override
-	public boolean isDeterministic() {
-		return aggregateFunction.isDeterministic();
-	}
+    @Override
+    public boolean isDeterministic() {
+        return aggregateFunction.isDeterministic();
+    }
 
-	@Override
-	public boolean equals(Object o) {
-		if (this == o) {
-			return true;
-		}
-		if (o == null || getClass() != o.getClass()) {
-			return false;
-		}
-		TableAggregateFunctionDefinition that = (TableAggregateFunctionDefinition) o;
-		return name.equals(that.name);
-	}
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
+        TableAggregateFunctionDefinition that = (TableAggregateFunctionDefinition) o;
+        return name.equals(that.name);
+    }
 
-	@Override
-	public int hashCode() {
-		return Objects.hash(name);
-	}
+    @Override
+    public int hashCode() {
+        return Objects.hash(name);
+    }
 
-	@Override
-	public String toString() {
-		return name;
-	}
+    @Override
+    public String toString() {
+        return name;
+    }
 }

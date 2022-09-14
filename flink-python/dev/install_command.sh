@@ -16,6 +16,14 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 ################################################################################
+if [[ "$@" =~ 'apache-flink-libraries' ]]; then
+    pushd apache-flink-libraries
+    python setup.py sdist
+    pushd dist
+    python -m pip install *
+    popd
+    popd
+fi
 retry_times=3
 install_command="python -m pip install $@"
 ${install_command}

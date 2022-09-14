@@ -37,135 +37,150 @@ import org.junit.Test;
 import static org.junit.Assert.fail;
 
 /**
- * Test expected exceptions for {@link Graph#groupReduceOnNeighbors} and {@link Graph#reduceOnNeighbors}.
+ * Test expected exceptions for {@link Graph#groupReduceOnNeighbors} and {@link
+ * Graph#reduceOnNeighbors}.
  */
 public class ReduceOnNeighborsWithExceptionITCase extends AbstractTestBase {
 
-	private static final int PARALLELISM = 4;
+    private static final int PARALLELISM = 4;
 
-	/**
-	 * Test groupReduceOnNeighbors() -NeighborsFunctionWithVertexValue-
-	 * with an edge having a srcId that does not exist in the vertex DataSet.
-	 */
-	@Test
-	public void testGroupReduceOnNeighborsWithVVInvalidEdgeSrcId() throws Exception {
+    /**
+     * Test groupReduceOnNeighbors() -NeighborsFunctionWithVertexValue- with an edge having a srcId
+     * that does not exist in the vertex DataSet.
+     */
+    @Test
+    public void testGroupReduceOnNeighborsWithVVInvalidEdgeSrcId() throws Exception {
 
-		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		env.setParallelism(PARALLELISM);
+        final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+        env.setParallelism(PARALLELISM);
 
-		Graph<Long, Long, Long> graph = Graph.fromDataSet(TestGraphUtils.getLongLongVertexData(env),
-				TestGraphUtils.getLongLongEdgeInvalidSrcData(env), env);
+        Graph<Long, Long, Long> graph =
+                Graph.fromDataSet(
+                        TestGraphUtils.getLongLongVertexData(env),
+                        TestGraphUtils.getLongLongEdgeInvalidSrcData(env),
+                        env);
 
-		try {
-			DataSet<Tuple2<Long, Long>> verticesWithSumOfOutNeighborValues =
-					graph.groupReduceOnNeighbors(new SumAllNeighbors(), EdgeDirection.ALL);
+        try {
+            DataSet<Tuple2<Long, Long>> verticesWithSumOfOutNeighborValues =
+                    graph.groupReduceOnNeighbors(new SumAllNeighbors(), EdgeDirection.ALL);
 
-			verticesWithSumOfOutNeighborValues.output(new DiscardingOutputFormat<>());
-			env.execute();
+            verticesWithSumOfOutNeighborValues.output(new DiscardingOutputFormat<>());
+            env.execute();
 
-			fail("Expected an exception.");
-		} catch (Exception e) {
-			// We expect the job to fail with an exception
-		}
-	}
+            fail("Expected an exception.");
+        } catch (Exception e) {
+            // We expect the job to fail with an exception
+        }
+    }
 
-	/**
-	 * Test groupReduceOnNeighbors() -NeighborsFunctionWithVertexValue-
-	 * with an edge having a trgId that does not exist in the vertex DataSet.
-	 */
-	@Test
-	public void testGroupReduceOnNeighborsWithVVInvalidEdgeTrgId() throws Exception {
+    /**
+     * Test groupReduceOnNeighbors() -NeighborsFunctionWithVertexValue- with an edge having a trgId
+     * that does not exist in the vertex DataSet.
+     */
+    @Test
+    public void testGroupReduceOnNeighborsWithVVInvalidEdgeTrgId() throws Exception {
 
-		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		env.setParallelism(PARALLELISM);
+        final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+        env.setParallelism(PARALLELISM);
 
-		Graph<Long, Long, Long> graph = Graph.fromDataSet(TestGraphUtils.getLongLongVertexData(env),
-				TestGraphUtils.getLongLongEdgeInvalidTrgData(env), env);
+        Graph<Long, Long, Long> graph =
+                Graph.fromDataSet(
+                        TestGraphUtils.getLongLongVertexData(env),
+                        TestGraphUtils.getLongLongEdgeInvalidTrgData(env),
+                        env);
 
-		try {
-			DataSet<Tuple2<Long, Long>> verticesWithSumOfOutNeighborValues =
-					graph.groupReduceOnNeighbors(new SumAllNeighbors(), EdgeDirection.ALL);
+        try {
+            DataSet<Tuple2<Long, Long>> verticesWithSumOfOutNeighborValues =
+                    graph.groupReduceOnNeighbors(new SumAllNeighbors(), EdgeDirection.ALL);
 
-			verticesWithSumOfOutNeighborValues.output(new DiscardingOutputFormat<>());
-			env.execute();
+            verticesWithSumOfOutNeighborValues.output(new DiscardingOutputFormat<>());
+            env.execute();
 
-			fail("Expected an exception.");
-		} catch (Exception e) {
-			// We expect the job to fail with an exception
-		}
-	}
+            fail("Expected an exception.");
+        } catch (Exception e) {
+            // We expect the job to fail with an exception
+        }
+    }
 
-	/**
-	 * Test groupReduceOnNeighbors() -NeighborsFunction-
-	 * with an edge having a srcId that does not exist in the vertex DataSet.
-	 */
-	@Test
-	public void testGroupReduceOnNeighborsInvalidEdgeSrcId() throws Exception {
+    /**
+     * Test groupReduceOnNeighbors() -NeighborsFunction- with an edge having a srcId that does not
+     * exist in the vertex DataSet.
+     */
+    @Test
+    public void testGroupReduceOnNeighborsInvalidEdgeSrcId() throws Exception {
 
-		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		env.setParallelism(PARALLELISM);
+        final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+        env.setParallelism(PARALLELISM);
 
-		Graph<Long, Long, Long> graph = Graph.fromDataSet(TestGraphUtils.getLongLongVertexData(env),
-				TestGraphUtils.getLongLongEdgeInvalidTrgData(env), env);
+        Graph<Long, Long, Long> graph =
+                Graph.fromDataSet(
+                        TestGraphUtils.getLongLongVertexData(env),
+                        TestGraphUtils.getLongLongEdgeInvalidTrgData(env),
+                        env);
 
-		try {
-			DataSet<Tuple2<Long, Long>> verticesWithSumOfAllNeighborValues =
-					graph.reduceOnNeighbors(new SumNeighbors(), EdgeDirection.ALL);
+        try {
+            DataSet<Tuple2<Long, Long>> verticesWithSumOfAllNeighborValues =
+                    graph.reduceOnNeighbors(new SumNeighbors(), EdgeDirection.ALL);
 
-			verticesWithSumOfAllNeighborValues.output(new DiscardingOutputFormat<>());
-			env.execute();
-		} catch (Exception e) {
-			// We expect the job to fail with an exception
-		}
-	}
+            verticesWithSumOfAllNeighborValues.output(new DiscardingOutputFormat<>());
+            env.execute();
+        } catch (Exception e) {
+            // We expect the job to fail with an exception
+        }
+    }
 
-	/**
-	 * Test groupReduceOnNeighbors() -NeighborsFunction-
-	 * with an edge having a trgId that does not exist in the vertex DataSet.
-	 */
-	@Test
-	public void testGroupReduceOnNeighborsInvalidEdgeTrgId() throws Exception {
+    /**
+     * Test groupReduceOnNeighbors() -NeighborsFunction- with an edge having a trgId that does not
+     * exist in the vertex DataSet.
+     */
+    @Test
+    public void testGroupReduceOnNeighborsInvalidEdgeTrgId() throws Exception {
 
-		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		env.setParallelism(PARALLELISM);
+        final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+        env.setParallelism(PARALLELISM);
 
-		Graph<Long, Long, Long> graph = Graph.fromDataSet(TestGraphUtils.getLongLongVertexData(env),
-				TestGraphUtils.getLongLongEdgeInvalidSrcData(env), env);
+        Graph<Long, Long, Long> graph =
+                Graph.fromDataSet(
+                        TestGraphUtils.getLongLongVertexData(env),
+                        TestGraphUtils.getLongLongEdgeInvalidSrcData(env),
+                        env);
 
-		try {
-			DataSet<Tuple2<Long, Long>> verticesWithSumOfAllNeighborValues =
-					graph.reduceOnNeighbors(new SumNeighbors(), EdgeDirection.ALL);
+        try {
+            DataSet<Tuple2<Long, Long>> verticesWithSumOfAllNeighborValues =
+                    graph.reduceOnNeighbors(new SumNeighbors(), EdgeDirection.ALL);
 
-			verticesWithSumOfAllNeighborValues.output(new DiscardingOutputFormat<>());
-			env.execute();
-		} catch (Exception e) {
-			// We expect the job to fail with an exception
-		}
-	}
+            verticesWithSumOfAllNeighborValues.output(new DiscardingOutputFormat<>());
+            env.execute();
+        } catch (Exception e) {
+            // We expect the job to fail with an exception
+        }
+    }
 
-	@SuppressWarnings("serial")
-	private static final class SumAllNeighbors implements NeighborsFunctionWithVertexValue<Long, Long, Long,
-			Tuple2<Long, Long>> {
+    @SuppressWarnings("serial")
+    private static final class SumAllNeighbors
+            implements NeighborsFunctionWithVertexValue<Long, Long, Long, Tuple2<Long, Long>> {
 
-		@Override
-		public void iterateNeighbors(Vertex<Long, Long> vertex,
-				Iterable<Tuple2<Edge<Long, Long>, Vertex<Long, Long>>> neighbors,
-				Collector<Tuple2<Long, Long>> out) throws Exception {
+        @Override
+        public void iterateNeighbors(
+                Vertex<Long, Long> vertex,
+                Iterable<Tuple2<Edge<Long, Long>, Vertex<Long, Long>>> neighbors,
+                Collector<Tuple2<Long, Long>> out)
+                throws Exception {
 
-			long sum = 0;
-			for (Tuple2<Edge<Long, Long>, Vertex<Long, Long>> neighbor : neighbors) {
-				sum += neighbor.f1.getValue();
-			}
-			out.collect(new Tuple2<>(vertex.getId(), sum + vertex.getValue()));
-		}
-	}
+            long sum = 0;
+            for (Tuple2<Edge<Long, Long>, Vertex<Long, Long>> neighbor : neighbors) {
+                sum += neighbor.f1.getValue();
+            }
+            out.collect(new Tuple2<>(vertex.getId(), sum + vertex.getValue()));
+        }
+    }
 
-	@SuppressWarnings("serial")
-	private static final class SumNeighbors implements ReduceNeighborsFunction<Long> {
+    @SuppressWarnings("serial")
+    private static final class SumNeighbors implements ReduceNeighborsFunction<Long> {
 
-		@Override
-		public Long reduceNeighbors(Long firstNeighbor, Long secondNeighbor) {
-			return firstNeighbor + secondNeighbor;
-		}
-	}
+        @Override
+        public Long reduceNeighbors(Long firstNeighbor, Long secondNeighbor) {
+            return firstNeighbor + secondNeighbor;
+        }
+    }
 }

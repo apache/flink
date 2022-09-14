@@ -18,53 +18,52 @@
 
 package org.apache.flink.api.common.typeutils.base;
 
-import java.io.IOException;
-
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.MemorySegment;
 
+import java.io.IOException;
+
 @Internal
 public final class BooleanComparator extends BasicTypeComparator<Boolean> {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	
-	public BooleanComparator(boolean ascending) {
-		super(ascending);
-	}
+    public BooleanComparator(boolean ascending) {
+        super(ascending);
+    }
 
-	@Override
-	public int compareSerialized(DataInputView firstSource, DataInputView secondSource) throws IOException {
-		final int fs = firstSource.readBoolean() ? 1 : 0;
-		final int ss = secondSource.readBoolean() ? 1 : 0;
-		int comp = fs - ss; 
-		return ascendingComparison ? comp : -comp; 
-	}
+    @Override
+    public int compareSerialized(DataInputView firstSource, DataInputView secondSource)
+            throws IOException {
+        final int fs = firstSource.readBoolean() ? 1 : 0;
+        final int ss = secondSource.readBoolean() ? 1 : 0;
+        int comp = fs - ss;
+        return ascendingComparison ? comp : -comp;
+    }
 
+    @Override
+    public boolean supportsNormalizedKey() {
+        return true;
+    }
 
-	@Override
-	public boolean supportsNormalizedKey() {
-		return true;
-	}
+    @Override
+    public int getNormalizeKeyLen() {
+        return 1;
+    }
 
-	@Override
-	public int getNormalizeKeyLen() {
-		return 1;
-	}
+    @Override
+    public boolean isNormalizedKeyPrefixOnly(int keyBytes) {
+        return keyBytes < 1;
+    }
 
-	@Override
-	public boolean isNormalizedKeyPrefixOnly(int keyBytes) {
-		return keyBytes < 1;
-	}
+    @Override
+    public void putNormalizedKey(Boolean value, MemorySegment target, int offset, int numBytes) {
+        NormalizedKeyUtil.putBooleanNormalizedKey(value, target, offset, numBytes);
+    }
 
-	@Override
-	public void putNormalizedKey(Boolean value, MemorySegment target, int offset, int numBytes) {
-		NormalizedKeyUtil.putBooleanNormalizedKey(value, target, offset, numBytes);
-	}
-
-	@Override
-	public BooleanComparator duplicate() {
-		return new BooleanComparator(ascendingComparison);
-	}
+    @Override
+    public BooleanComparator duplicate() {
+        return new BooleanComparator(ascendingComparison);
+    }
 }

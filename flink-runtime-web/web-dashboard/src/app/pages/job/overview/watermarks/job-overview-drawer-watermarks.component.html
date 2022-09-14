@@ -18,12 +18,17 @@
 
 <nz-table
   class="no-border small full-height"
-  [nzSize]="'small'"
+  nzSize="small"
   [nzLoading]="isLoading"
   [nzData]="listOfWaterMark"
-  [nzScroll]="{y:'calc( 100% - 35px )'}"
+  [nzScroll]="{ y: 'calc( 100% - 36px )' }"
   [nzFrontPagination]="false"
-  [nzShowPagination]="false">
+  [nzShowPagination]="false"
+  [nzVirtualItemSize]="virtualItemSize"
+  [nzVirtualMinBufferPx]="300"
+  [nzVirtualMaxBufferPx]="300"
+  [nzVirtualForTrackBy]="trackBySubtaskIndex"
+>
   <thead>
     <tr>
       <th nzWidth="50%">SubTask</th>
@@ -31,9 +36,13 @@
     </tr>
   </thead>
   <tbody>
-    <tr *ngFor="let watermark of listOfWaterMark; trackBy:trackWatermarkBy;">
-      <td>{{ watermark.subTaskIndex }}</td>
-      <td>{{ watermark.watermark | humanizeWatermark }}</td>
-    </tr>
+    <ng-template nz-virtual-scroll let-data>
+      <ng-container *ngIf="narrowLogData(data) as watermark">
+        <tr>
+          <td>{{ watermark.subTaskIndex }}</td>
+          <td>{{ watermark.watermark | humanizeWatermark }}</td>
+        </tr>
+      </ng-container>
+    </ng-template>
   </tbody>
 </nz-table>

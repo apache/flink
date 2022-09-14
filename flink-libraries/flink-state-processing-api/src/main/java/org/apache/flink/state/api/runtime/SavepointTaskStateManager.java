@@ -18,57 +18,112 @@
 
 package org.apache.flink.state.api.runtime;
 
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
+import org.apache.flink.runtime.checkpoint.InflightDataRescalingDescriptor;
 import org.apache.flink.runtime.checkpoint.PrioritizedOperatorSubtaskState;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
+import org.apache.flink.runtime.checkpoint.channel.SequentialChannelStateReader;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.state.LocalRecoveryConfig;
-import org.apache.flink.runtime.state.LocalRecoveryDirectoryProvider;
 import org.apache.flink.runtime.state.TaskStateManager;
+import org.apache.flink.runtime.state.changelog.ChangelogStateHandle;
+import org.apache.flink.runtime.state.changelog.StateChangelogStorage;
+import org.apache.flink.runtime.state.changelog.StateChangelogStorageView;
 import org.apache.flink.util.Preconditions;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
+
+import java.util.Optional;
 
 /**
  * A minimally implemented {@link TaskStateManager} that provides the functionality required to run
  * the {@code state-processor-api}.
  */
 final class SavepointTaskStateManager implements TaskStateManager {
-	private static final String MSG = "This method should never be called";
+    private static final String MSG = "This method should never be called";
 
-	@Nonnull
-	private final PrioritizedOperatorSubtaskState prioritizedOperatorSubtaskState;
+    @Nonnull private final PrioritizedOperatorSubtaskState prioritizedOperatorSubtaskState;
 
-	SavepointTaskStateManager(PrioritizedOperatorSubtaskState prioritizedOperatorSubtaskState) {
-		Preconditions.checkNotNull(prioritizedOperatorSubtaskState, "Operator subtask state must not be null");
-		this.prioritizedOperatorSubtaskState = prioritizedOperatorSubtaskState;
-	}
+    SavepointTaskStateManager(PrioritizedOperatorSubtaskState prioritizedOperatorSubtaskState) {
+        Preconditions.checkNotNull(
+                prioritizedOperatorSubtaskState, "Operator subtask state must not be null");
+        this.prioritizedOperatorSubtaskState = prioritizedOperatorSubtaskState;
+    }
 
-	@Override
-	public void reportTaskStateSnapshots(
-		@Nonnull CheckpointMetaData checkpointMetaData,
-		@Nonnull CheckpointMetrics checkpointMetrics,
-		@Nullable TaskStateSnapshot acknowledgedState,
-		@Nullable TaskStateSnapshot localState) {}
+    @Override
+    public void reportTaskStateSnapshots(
+            @Nonnull CheckpointMetaData checkpointMetaData,
+            @Nonnull CheckpointMetrics checkpointMetrics,
+            @Nullable TaskStateSnapshot acknowledgedState,
+            @Nullable TaskStateSnapshot localState) {}
 
-	@Nonnull
-	@Override
-	public PrioritizedOperatorSubtaskState prioritizedOperatorState(OperatorID operatorID) {
-		return prioritizedOperatorSubtaskState;
-	}
+    @Override
+    public void reportIncompleteTaskStateSnapshots(
+            CheckpointMetaData checkpointMetaData, CheckpointMetrics checkpointMetrics) {}
 
-	@Nonnull
-	@Override
-	public LocalRecoveryConfig createLocalRecoveryConfig() {
-		LocalRecoveryDirectoryProvider provider = new SavepointLocalRecoveryProvider();
-		return new LocalRecoveryConfig(false, provider);
-	}
+    @Override
+    public boolean isTaskDeployedAsFinished() {
+        return false;
+    }
 
-	@Override
-	public void notifyCheckpointComplete(long checkpointId) {
-		throw new UnsupportedOperationException(MSG);
-	}
+    @Override
+    public Optional<Long> getRestoreCheckpointId() {
+        return Optional.empty();
+    }
+
+    @Nonnull
+    @Override
+    public PrioritizedOperatorSubtaskState prioritizedOperatorState(OperatorID operatorID) {
+        return prioritizedOperatorSubtaskState;
+    }
+
+    @Nonnull
+    @Override
+    public LocalRecoveryConfig createLocalRecoveryConfig() {
+        return new LocalRecoveryConfig(null);
+    }
+
+    @Override
+    public SequentialChannelStateReader getSequentialChannelStateReader() {
+        return SequentialChannelStateReader.NO_OP;
+    }
+
+    @Override
+    public InflightDataRescalingDescriptor getInputRescalingDescriptor() {
+        return InflightDataRescalingDescriptor.NO_RESCALE;
+    }
+
+    @Override
+    public InflightDataRescalingDescriptor getOutputRescalingDescriptor() {
+        return InflightDataRescalingDescriptor.NO_RESCALE;
+    }
+
+    @Nullable
+    @Override
+    public StateChangelogStorage<?> getStateChangelogStorage() {
+        return null;
+    }
+
+    @Nullable
+    @Override
+    public StateChangelogStorageView<?> getStateChangelogStorageView(
+            Configuration configuration, ChangelogStateHandle changelogStateHandle) {
+        return null;
+    }
+
+    @Override
+    public void notifyCheckpointComplete(long checkpointId) {
+        throw new UnsupportedOperationException(MSG);
+    }
+
+    @Override
+    public void notifyCheckpointAborted(long checkpointId) {
+        throw new UnsupportedOperationException(MSG);
+    }
+
+    @Override
+    public void close() {}
 }
-

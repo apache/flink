@@ -23,41 +23,37 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 
 import java.util.List;
 
-/**
- * Snapshot class for the {@link ListSerializer}.
- */
-public class ListSerializerSnapshot<T> extends CompositeTypeSerializerSnapshot<List<T>, ListSerializer<T>> {
+/** Snapshot class for the {@link ListSerializer}. */
+public class ListSerializerSnapshot<T>
+        extends CompositeTypeSerializerSnapshot<List<T>, ListSerializer<T>> {
 
-	private static final int CURRENT_VERSION = 1;
+    private static final int CURRENT_VERSION = 1;
 
-	/**
-	 * Constructor for read instantiation.
-	 */
-	public ListSerializerSnapshot() {
-		super(ListSerializer.class);
-	}
+    /** Constructor for read instantiation. */
+    public ListSerializerSnapshot() {
+        super(ListSerializer.class);
+    }
 
-	/**
-	 * Constructor to create the snapshot for writing.
-	 */
-	public ListSerializerSnapshot(ListSerializer<T> listSerializer) {
-		super(listSerializer);
-	}
+    /** Constructor to create the snapshot for writing. */
+    public ListSerializerSnapshot(ListSerializer<T> listSerializer) {
+        super(listSerializer);
+    }
 
-	@Override
-	public int getCurrentOuterSnapshotVersion() {
-		return CURRENT_VERSION;
-	}
+    @Override
+    public int getCurrentOuterSnapshotVersion() {
+        return CURRENT_VERSION;
+    }
 
-	@Override
-	protected ListSerializer<T> createOuterSerializerWithNestedSerializers(TypeSerializer<?>[] nestedSerializers) {
-		@SuppressWarnings("unchecked")
-		TypeSerializer<T> elementSerializer = (TypeSerializer<T>) nestedSerializers[0];
-		return new ListSerializer<>(elementSerializer);
-	}
+    @Override
+    protected ListSerializer<T> createOuterSerializerWithNestedSerializers(
+            TypeSerializer<?>[] nestedSerializers) {
+        @SuppressWarnings("unchecked")
+        TypeSerializer<T> elementSerializer = (TypeSerializer<T>) nestedSerializers[0];
+        return new ListSerializer<>(elementSerializer);
+    }
 
-	@Override
-	protected TypeSerializer<?>[] getNestedSerializers(ListSerializer<T> outerSerializer) {
-		return new TypeSerializer<?>[] { outerSerializer.getElementSerializer() };
-	}
+    @Override
+    protected TypeSerializer<?>[] getNestedSerializers(ListSerializer<T> outerSerializer) {
+        return new TypeSerializer<?>[] {outerSerializer.getElementSerializer()};
+    }
 }

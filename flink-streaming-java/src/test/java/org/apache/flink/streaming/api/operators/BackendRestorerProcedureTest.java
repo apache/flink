@@ -53,151 +53,165 @@ import static org.powermock.api.mockito.PowerMockito.spy;
 import static org.powermock.api.mockito.PowerMockito.verifyZeroInteractions;
 import static org.powermock.api.mockito.PowerMockito.when;
 
-/**
- * Tests for {@link BackendRestorerProcedure}.
- */
+/** Tests for {@link BackendRestorerProcedure}. */
 public class BackendRestorerProcedureTest extends TestLogger {
 
-	private final FunctionWithException<Collection<OperatorStateHandle>, OperatorStateBackend, Exception> backendSupplier =
-		(stateHandles) -> new DefaultOperatorStateBackendBuilder(
-			getClass().getClassLoader(),
-			new ExecutionConfig(),
-			true,
-			stateHandles,
-			new CloseableRegistry()).build();
+    private final FunctionWithException<
+                    Collection<OperatorStateHandle>, OperatorStateBackend, Exception>
+            backendSupplier =
+                    (stateHandles) ->
+                            new DefaultOperatorStateBackendBuilder(
+                                            getClass().getClassLoader(),
+                                            new ExecutionConfig(),
+                                            true,
+                                            stateHandles,
+                                            new CloseableRegistry())
+                                    .build();
 
-	/**
-	 * Tests that the restore procedure follows the order of the iterator and will retries failed attempts if there are
-	 * more options.
-	 */
-	@Test
-	public void testRestoreProcedureOrderAndFailure() throws Exception {
+    /**
+     * Tests that the restore procedure follows the order of the iterator and will retries failed
+     * attempts if there are more options.
+     */
+    @Test
+    public void testRestoreProcedureOrderAndFailure() throws Exception {
 
-		CloseableRegistry closeableRegistry = new CloseableRegistry();
-		CheckpointStreamFactory checkpointStreamFactory = new MemCheckpointStreamFactory(1024);
+        CloseableRegistry closeableRegistry = new CloseableRegistry();
+        CheckpointStreamFactory checkpointStreamFactory = new MemCheckpointStreamFactory(1024);
 
-		ListStateDescriptor<Integer> stateDescriptor = new ListStateDescriptor<>("test-state", Integer.class);
-		OperatorStateBackend originalBackend = backendSupplier.apply(Collections.emptyList());
-		SnapshotResult<OperatorStateHandle> snapshotResult;
+        ListStateDescriptor<Integer> stateDescriptor =
+                new ListStateDescriptor<>("test-state", Integer.class);
+        OperatorStateBackend originalBackend = backendSupplier.apply(Collections.emptyList());
+        SnapshotResult<OperatorStateHandle> snapshotResult;
 
-		try {
-			ListState<Integer> listState = originalBackend.getListState(stateDescriptor);
+        try {
+            ListState<Integer> listState = originalBackend.getListState(stateDescriptor);
 
-			listState.add(0);
-			listState.add(1);
-			listState.add(2);
-			listState.add(3);
+            listState.add(0);
+            listState.add(1);
+            listState.add(2);
+            listState.add(3);
 
-			RunnableFuture<SnapshotResult<OperatorStateHandle>> snapshot =
-				originalBackend.snapshot(0L, 0L, checkpointStreamFactory, CheckpointOptions.forCheckpointWithDefaultLocation());
+            RunnableFuture<SnapshotResult<OperatorStateHandle>> snapshot =
+                    originalBackend.snapshot(
+                            0L,
+                            0L,
+                            checkpointStreamFactory,
+                            CheckpointOptions.forCheckpointWithDefaultLocation());
 
-			snapshot.run();
-			snapshotResult = snapshot.get();
+            snapshot.run();
+            snapshotResult = snapshot.get();
 
-		} finally {
-			originalBackend.close();
-			originalBackend.dispose();
-		}
+        } finally {
+            originalBackend.close();
+            originalBackend.dispose();
+        }
 
-		OperatorStateHandle firstFailHandle = mock(OperatorStateHandle.class);
-		OperatorStateHandle secondSuccessHandle = spy(snapshotResult.getJobManagerOwnedSnapshot());
-		OperatorStateHandle thirdNotUsedHandle = mock(OperatorStateHandle.class);
+        OperatorStateHandle firstFailHandle = mock(OperatorStateHandle.class);
+        OperatorStateHandle secondSuccessHandle = spy(snapshotResult.getJobManagerOwnedSnapshot());
+        OperatorStateHandle thirdNotUsedHandle = mock(OperatorStateHandle.class);
 
-		List<StateObjectCollection<OperatorStateHandle>> sortedRestoreOptions = Arrays.asList(
-			new StateObjectCollection<>(Collections.singletonList(firstFailHandle)),
-			new StateObjectCollection<>(Collections.singletonList(secondSuccessHandle)),
-			new StateObjectCollection<>(Collections.singletonList(thirdNotUsedHandle)));
+        List<StateObjectCollection<OperatorStateHandle>> sortedRestoreOptions =
+                Arrays.asList(
+                        new StateObjectCollection<>(Collections.singletonList(firstFailHandle)),
+                        new StateObjectCollection<>(Collections.singletonList(secondSuccessHandle)),
+                        new StateObjectCollection<>(Collections.singletonList(thirdNotUsedHandle)));
 
-		BackendRestorerProcedure<OperatorStateBackend, OperatorStateHandle> restorerProcedure =
-			new BackendRestorerProcedure<>(backendSupplier, closeableRegistry, "test op state backend");
+        BackendRestorerProcedure<OperatorStateBackend, OperatorStateHandle> restorerProcedure =
+                new BackendRestorerProcedure<>(
+                        backendSupplier, closeableRegistry, "test op state backend");
 
-		OperatorStateBackend restoredBackend = restorerProcedure.createAndRestore(sortedRestoreOptions);
-		Assert.assertNotNull(restoredBackend);
+        OperatorStateBackend restoredBackend =
+                restorerProcedure.createAndRestore(sortedRestoreOptions);
+        Assert.assertNotNull(restoredBackend);
 
-		try {
-			verify(firstFailHandle).openInputStream();
-			verify(secondSuccessHandle).openInputStream();
-			verifyZeroInteractions(thirdNotUsedHandle);
+        try {
+            verify(firstFailHandle).openInputStream();
+            verify(secondSuccessHandle).openInputStream();
+            verifyZeroInteractions(thirdNotUsedHandle);
 
-			ListState<Integer> listState = restoredBackend.getListState(stateDescriptor);
+            ListState<Integer> listState = restoredBackend.getListState(stateDescriptor);
 
-			Iterator<Integer> stateIterator = listState.get().iterator();
-			Assert.assertEquals(0, (int) stateIterator.next());
-			Assert.assertEquals(1, (int) stateIterator.next());
-			Assert.assertEquals(2, (int) stateIterator.next());
-			Assert.assertEquals(3, (int) stateIterator.next());
-			Assert.assertFalse(stateIterator.hasNext());
+            Iterator<Integer> stateIterator = listState.get().iterator();
+            Assert.assertEquals(0, (int) stateIterator.next());
+            Assert.assertEquals(1, (int) stateIterator.next());
+            Assert.assertEquals(2, (int) stateIterator.next());
+            Assert.assertEquals(3, (int) stateIterator.next());
+            Assert.assertFalse(stateIterator.hasNext());
 
-		} finally {
-			restoredBackend.close();
-			restoredBackend.dispose();
-		}
-	}
+        } finally {
+            restoredBackend.close();
+            restoredBackend.dispose();
+        }
+    }
 
-	/**
-	 * Tests if there is an exception if all restore attempts are exhausted and failed.
-	 */
-	@Test
-	public void testExceptionThrownIfAllRestoresFailed() throws Exception {
+    /** Tests if there is an exception if all restore attempts are exhausted and failed. */
+    @Test
+    public void testExceptionThrownIfAllRestoresFailed() throws Exception {
 
-		CloseableRegistry closeableRegistry = new CloseableRegistry();
+        CloseableRegistry closeableRegistry = new CloseableRegistry();
 
-		OperatorStateHandle firstFailHandle = mock(OperatorStateHandle.class);
-		OperatorStateHandle secondFailHandle = mock(OperatorStateHandle.class);
-		OperatorStateHandle thirdFailHandle = mock(OperatorStateHandle.class);
+        OperatorStateHandle firstFailHandle = mock(OperatorStateHandle.class);
+        OperatorStateHandle secondFailHandle = mock(OperatorStateHandle.class);
+        OperatorStateHandle thirdFailHandle = mock(OperatorStateHandle.class);
 
-		List<StateObjectCollection<OperatorStateHandle>> sortedRestoreOptions = Arrays.asList(
-			new StateObjectCollection<>(Collections.singletonList(firstFailHandle)),
-			new StateObjectCollection<>(Collections.singletonList(secondFailHandle)),
-			new StateObjectCollection<>(Collections.singletonList(thirdFailHandle)));
+        List<StateObjectCollection<OperatorStateHandle>> sortedRestoreOptions =
+                Arrays.asList(
+                        new StateObjectCollection<>(Collections.singletonList(firstFailHandle)),
+                        new StateObjectCollection<>(Collections.singletonList(secondFailHandle)),
+                        new StateObjectCollection<>(Collections.singletonList(thirdFailHandle)));
 
-		BackendRestorerProcedure<OperatorStateBackend, OperatorStateHandle> restorerProcedure =
-			new BackendRestorerProcedure<>(backendSupplier, closeableRegistry, "test op state backend");
+        BackendRestorerProcedure<OperatorStateBackend, OperatorStateHandle> restorerProcedure =
+                new BackendRestorerProcedure<>(
+                        backendSupplier, closeableRegistry, "test op state backend");
 
-		try {
-			restorerProcedure.createAndRestore(sortedRestoreOptions);
-			Assert.fail();
-		} catch (Exception ignore) {
-		}
+        try {
+            restorerProcedure.createAndRestore(sortedRestoreOptions);
+            Assert.fail();
+        } catch (Exception ignore) {
+        }
 
-		verify(firstFailHandle).openInputStream();
-		verify(secondFailHandle).openInputStream();
-		verify(thirdFailHandle).openInputStream();
-	}
+        verify(firstFailHandle).openInputStream();
+        verify(secondFailHandle).openInputStream();
+        verify(thirdFailHandle).openInputStream();
+    }
 
-	/**
-	 * Test that the restore can be stopped via the provided closeable registry.
-	 */
-	@Test
-	public void testCanBeCanceledViaRegistry() throws Exception {
-		CloseableRegistry closeableRegistry = new CloseableRegistry();
-		OneShotLatch waitForBlock = new OneShotLatch();
-		OneShotLatch unblock = new OneShotLatch();
-		OperatorStateHandle blockingRestoreHandle = mock(OperatorStateHandle.class);
-		when(blockingRestoreHandle.openInputStream()).thenReturn(new BlockingFSDataInputStream(waitForBlock, unblock));
+    /** Test that the restore can be stopped via the provided closeable registry. */
+    @Test
+    public void testCanBeCanceledViaRegistry() throws Exception {
+        CloseableRegistry closeableRegistry = new CloseableRegistry();
+        OneShotLatch waitForBlock = new OneShotLatch();
+        OneShotLatch unblock = new OneShotLatch();
+        OperatorStateHandle blockingRestoreHandle = mock(OperatorStateHandle.class);
+        when(blockingRestoreHandle.openInputStream())
+                .thenReturn(new BlockingFSDataInputStream(waitForBlock, unblock));
 
-		List<StateObjectCollection<OperatorStateHandle>> sortedRestoreOptions =
-			Collections.singletonList(new StateObjectCollection<>(Collections.singletonList(blockingRestoreHandle)));
+        List<StateObjectCollection<OperatorStateHandle>> sortedRestoreOptions =
+                Collections.singletonList(
+                        new StateObjectCollection<>(
+                                Collections.singletonList(blockingRestoreHandle)));
 
-		BackendRestorerProcedure<OperatorStateBackend, OperatorStateHandle> restorerProcedure =
-			new BackendRestorerProcedure<>(backendSupplier, closeableRegistry, "test op state backend");
+        BackendRestorerProcedure<OperatorStateBackend, OperatorStateHandle> restorerProcedure =
+                new BackendRestorerProcedure<>(
+                        backendSupplier, closeableRegistry, "test op state backend");
 
-		AtomicReference<Exception> exceptionReference = new AtomicReference<>(null);
-		Thread restoreThread = new Thread(() -> {
-			try {
-				restorerProcedure.createAndRestore(sortedRestoreOptions);
-			} catch (Exception e) {
-				exceptionReference.set(e);
-			}
-		});
+        AtomicReference<Exception> exceptionReference = new AtomicReference<>(null);
+        Thread restoreThread =
+                new Thread(
+                        () -> {
+                            try {
+                                restorerProcedure.createAndRestore(sortedRestoreOptions);
+                            } catch (Exception e) {
+                                exceptionReference.set(e);
+                            }
+                        });
 
-		restoreThread.start();
-		waitForBlock.await();
-		closeableRegistry.close();
-		unblock.trigger();
-		restoreThread.join();
+        restoreThread.start();
+        waitForBlock.await();
+        closeableRegistry.close();
+        unblock.trigger();
+        restoreThread.join();
 
-		Exception exception = exceptionReference.get();
-		Assert.assertTrue(exception instanceof FlinkException);
-	}
+        Exception exception = exceptionReference.get();
+        Assert.assertTrue(exception instanceof FlinkException);
+    }
 }

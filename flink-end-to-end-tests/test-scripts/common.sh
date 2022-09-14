@@ -21,9 +21,13 @@
 #set -Eexuo pipefail
 set -o pipefail
 
-if [[ -z $FLINK_DIR ]]; then
+if [[ -z "${FLINK_DIR:-}" ]]; then
     echo "FLINK_DIR needs to point to a Flink distribution directory"
     exit 1
+fi
+
+if [ -z "$FLINK_LOG_DIR" ] ; then
+    export FLINK_LOG_DIR="$FLINK_DIR/log"
 fi
 
 case "$(uname -s)" in
@@ -47,13 +51,22 @@ cd $TEST_ROOT
 
 source "${TEST_INFRA_DIR}/common_utils.sh"
 
-NODENAME=${NODENAME:-`hostname -f`}
+NODENAME=${NODENAME:-"localhost"}
 
 # REST_PROTOCOL and CURL_SSL_ARGS can be modified in common_ssl.sh if SSL is activated
 # they should be used in curl command to query Flink REST API
 REST_PROTOCOL="http"
 CURL_SSL_ARGS=""
 source "${TEST_INFRA_DIR}/common_ssl.sh"
+
+function set_hadoop_classpath {
+  YARN_CLASSPATH_LOCATION="${TEST_INFRA_DIR}/../../flink-yarn-tests/target/yarn.classpath";
+  if [ ! -f $YARN_CLASSPATH_LOCATION ]; then
+    echo "File '$YARN_CLASSPATH_LOCATION' does not exist."
+    exit 1
+  fi
+  export HADOOP_CLASSPATH=`cat $YARN_CLASSPATH_LOCATION`
+}
 
 function print_mem_use_osx {
     declare -a mem_types=("active" "inactive" "wired down")
@@ -101,6 +114,22 @@ function revert_flink_dir() {
     CURL_SSL_ARGS=""
 }
 
+function setup_flink_shaded_zookeeper() {
+  local version=$1
+  # if it is already in lib we don't have to do anything
+  if ! [ -e "${FLINK_DIR}"/lib/flink-shaded-zookeeper-${version}* ]; then
+    if ! [ -e "${FLINK_DIR}"/opt/flink-shaded-zookeeper-${version}* ]; then
+      echo "Could not find ZK ${version} in opt or lib."
+      exit 1
+    else
+      # contents of 'opt' must not be changed since it is not backed up in common.sh#backup_flink_dir
+      # it is fine to delete jars from 'lib' since it is backed up and will be restored after the test
+      rm "${FLINK_DIR}"/lib/flink-shaded-zookeeper-*
+      cp "${FLINK_DIR}"/opt/flink-shaded-zookeeper-${version}* "${FLINK_DIR}/lib"
+    fi
+  fi
+}
+
 function add_optional_lib() {
     local lib_name=$1
     cp "$FLINK_DIR/opt/flink-${lib_name}"*".jar" "$FLINK_DIR/lib"
@@ -116,6 +145,16 @@ function add_optional_plugin() {
 
     mkdir -p "$plugin_dir"
     cp "$FLINK_DIR/opt/flink-$plugin"*".jar" "$plugin_dir"
+}
+
+function swap_planner_loader_with_planner_scala() {
+  mv "$FLINK_DIR/lib/flink-table-planner-loader"*".jar" "$FLINK_DIR/opt"
+  mv "$FLINK_DIR/opt/flink-table-planner_"*".jar" "$FLINK_DIR/lib"
+}
+
+function swap_planner_scala_with_planner_loader() {
+  mv "$FLINK_DIR/opt/flink-table-planner-loader"*".jar" "$FLINK_DIR/lib"
+  mv "$FLINK_DIR/lib/flink-table-planner_"*".jar" "$FLINK_DIR/opt"
 }
 
 function delete_config_key() {
@@ -151,7 +190,7 @@ function create_ha_config() {
 
     jobmanager.rpc.address: localhost
     jobmanager.rpc.port: 6123
-    jobmanager.heap.size: 1024m
+    jobmanager.memory.process.size: 1024m
     taskmanager.memory.process.size: 1024m
     taskmanager.numberOfTaskSlots: ${TASK_SLOTS_PER_TM_HA}
 
@@ -232,17 +271,26 @@ function wait_rest_endpoint_up {
   local query_url=$1
   local endpoint_name=$2
   local successful_response_regex=$3
-  # wait at most 10 seconds until the endpoint is up
-  local TIMEOUT=20
+  # wait at most 30 seconds until the endpoint is up
+  local TIMEOUT=30
   for i in $(seq 1 ${TIMEOUT}); do
+    local log_file=$(mktemp)
     # without the || true this would exit our script if the endpoint is not yet up
-    QUERY_RESULT=$(curl ${CURL_SSL_ARGS} "$query_url" 2> /dev/null || true)
+    QUERY_RESULT=$(curl -v ${CURL_SSL_ARGS} "$query_url" 2> ${log_file} || true)
 
-    # ensure the response adapts with the suceessful regex
+    # ensure the response adapts with the successful regex
     if [[ ${QUERY_RESULT} =~ ${successful_response_regex} ]]; then
       echo "${endpoint_name} REST endpoint is up."
       return
+    else
+      echo "***************** Curl detailed output *****************"
+      echo "QUERY_RESULT is ${QUERY_RESULT}"
+      cat ${log_file}
+      echo "********************************************************"
     fi
+
+    # Remove the temporary file
+    rm ${log_file}
 
     echo "Waiting for ${endpoint_name} REST endpoint to come up..."
     sleep 1
@@ -251,12 +299,20 @@ function wait_rest_endpoint_up {
   exit 1
 }
 
+function relocate_rocksdb_logs {
+  # After FLINK-24785, RocksDB's log would be created under Flink's log directory by default,
+  # this would make e2e tests' artifacts containing too many log files.
+  # As RocksDB's log would not help much in e2e tests, move the location back to its own folder.
+  set_config_key "state.backend.rocksdb.log.dir" "/dev/null"
+}
+
 function wait_dispatcher_running {
   local query_url="${REST_PROTOCOL}://${NODENAME}:8081/taskmanagers"
   wait_rest_endpoint_up "${query_url}" "Dispatcher" "\{\"taskmanagers\":\[.+\]\}"
 }
 
 function start_cluster {
+  relocate_rocksdb_logs
   "$FLINK_DIR"/bin/start-cluster.sh
   wait_dispatcher_running
 }
@@ -316,7 +372,7 @@ function wait_for_number_of_running_tms {
 
 function check_logs_for_errors {
   echo "Checking for errors..."
-  error_count=$(grep -rv "GroupCoordinatorNotAvailableException" $FLINK_DIR/log \
+  error_count=$(grep -rv "GroupCoordinatorNotAvailableException" $FLINK_LOG_DIR \
       | grep -v "RetriableCommitFailedException" \
       | grep -v "NoAvailableBrokersException" \
       | grep -v "Async Kafka commit failed" \
@@ -325,7 +381,7 @@ function check_logs_for_errors {
       | grep -v "AskTimeoutException" \
       | grep -v "Error while loading kafka-version.properties" \
       | grep -v "WARN  akka.remote.transport.netty.NettyTransport" \
-      | grep -v "WARN  org.apache.flink.shaded.akka.org.jboss.netty.channel.DefaultChannelPipeline" \
+      | grep -v "WARN  org.jboss.netty.channel.DefaultChannelPipeline" \
       | grep -v "jvm-exit-on-fatal-error" \
       | grep -v 'INFO.*AWSErrorCode' \
       | grep -v "RejectedExecutionException" \
@@ -336,10 +392,15 @@ function check_logs_for_errors {
       | grep -v "Error while loading kafka-version.properties :null" \
       | grep -v "Failed Elasticsearch item request" \
       | grep -v "[Terror] modules" \
+      | grep -v "HeapDumpOnOutOfMemoryError" \
+      | grep -v "error_prone_annotations" \
+      | grep -v "Error sending fetch request" \
+      | grep -v "WARN  akka.remote.ReliableDeliverySupervisor" \
+      | grep -v "Options.*error_*" \
       | grep -ic "error" || true)
   if [[ ${error_count} -gt 0 ]]; then
-    echo "Found error in log files:"
-    cat $FLINK_DIR/log/*
+    echo "Found error in log files; printing first 500 lines; see full logs for details:"
+    find $FLINK_LOG_DIR/ -type f -exec head -n 500 {} \;
     EXIT_CODE=1
   else
     echo "No errors in log files."
@@ -348,7 +409,8 @@ function check_logs_for_errors {
 
 function check_logs_for_exceptions {
   echo "Checking for exceptions..."
-  exception_count=$(grep -rv "GroupCoordinatorNotAvailableException" $FLINK_DIR/log \
+  exception_count=$(grep -rv "GroupCoordinatorNotAvailableException" $FLINK_LOG_DIR \
+   | grep -v "due to CancelTaskException" \
    | grep -v "RetriableCommitFailedException" \
    | grep -v "NoAvailableBrokersException" \
    | grep -v "Async Kafka commit failed" \
@@ -356,9 +418,10 @@ function check_logs_for_exceptions {
    | grep -v "Cannot connect to ResourceManager right now" \
    | grep -v "AskTimeoutException" \
    | grep -v "WARN  akka.remote.transport.netty.NettyTransport" \
-   | grep -v  "WARN  org.apache.flink.shaded.akka.org.jboss.netty.channel.DefaultChannelPipeline" \
+   | grep -v  "WARN  org.jboss.netty.channel.DefaultChannelPipeline" \
    | grep -v 'INFO.*AWSErrorCode' \
    | grep -v "RejectedExecutionException" \
+   | grep -v "CancellationException" \
    | grep -v "An exception was thrown by an exception handler" \
    | grep -v "Caused by: java.lang.ClassNotFoundException: org.apache.hadoop.yarn.exceptions.YarnException" \
    | grep -v "Caused by: java.lang.ClassNotFoundException: org.apache.hadoop.conf.Configuration" \
@@ -372,10 +435,15 @@ function check_logs_for_exceptions {
    | grep -v "org.elasticsearch.ElasticsearchException" \
    | grep -v "Elasticsearch exception" \
    | grep -v "org.apache.flink.runtime.JobException: Recovery is suppressed" \
+   | grep -v "WARN  akka.remote.ReliableDeliverySupervisor" \
+   | grep -v "RecipientUnreachableException" \
+   | grep -v "SerializedCheckpointException.unwrap" \
+   | grep -v "ExecutionGraphException: The execution attempt" \
+   | grep -v "Cannot find task to fail for execution" \
    | grep -ic "exception" || true)
   if [[ ${exception_count} -gt 0 ]]; then
-    echo "Found exception in log files:"
-    cat $FLINK_DIR/log/*
+    echo "Found exception in log files; printing first 500 lines; see full logs for details:"
+    find $FLINK_LOG_DIR/ -type f -exec head -n 500 {} \;
     EXIT_CODE=1
   else
     echo "No exceptions in log files."
@@ -385,17 +453,19 @@ function check_logs_for_exceptions {
 function check_logs_for_non_empty_out_files {
   echo "Checking for non-empty .out files..."
   # exclude reflective access warnings as these are expected (and currently unavoidable) on Java 9
+  # exclude message about JAVA_TOOL_OPTIONS being set (https://bugs.openjdk.java.net/browse/JDK-8039152)
   if grep -ri -v \
     -e "WARNING: An illegal reflective access" \
     -e "WARNING: Illegal reflective access"\
     -e "WARNING: Please consider reporting"\
     -e "WARNING: Use --illegal-access"\
     -e "WARNING: All illegal access"\
-    $FLINK_DIR/log/*.out\
+    -e "Picked up JAVA_TOOL_OPTIONS"\
+    $FLINK_LOG_DIR/*.out\
    | grep "." \
    > /dev/null; then
-    echo "Found non-empty .out files:"
-    cat $FLINK_DIR/log/*.out
+    echo "Found non-empty .out files; printing first 500 lines; see full logs for details:"
+    find $FLINK_LOG_DIR/ -type f -name '*.out' -exec head -n 500 {} \;
     EXIT_CODE=1
   else
     echo "No non-empty .out files."
@@ -404,6 +474,8 @@ function check_logs_for_non_empty_out_files {
 
 function shutdown_all {
   stop_cluster
+  # stop TMs which started by command: bin/taskmanager.sh start
+  "$FLINK_DIR"/bin/taskmanager.sh stop-all
   tm_kill_all
   jm_kill_all
 }
@@ -427,7 +499,7 @@ function wait_for_job_state_transition {
   echo "Waiting for job ($job) to switch from state ${initial_state} to state ${next_state} ..."
 
   while : ; do
-    N=$(grep -o "($job) switched from state ${initial_state} to ${next_state}" $FLINK_DIR/log/*standalonesession*.log | tail -1)
+    N=$(grep -o "($job) switched from state ${initial_state} to ${next_state}" $FLINK_LOG_DIR/*standalonesession*.log* | tail -1)
 
     if [[ -z $N ]]; then
       sleep 1
@@ -462,7 +534,7 @@ function wait_job_terminal_state {
   echo "Waiting for job ($job) to reach terminal state $expected_terminal_state ..."
 
   while : ; do
-    local N=$(grep -o "Job $job reached globally terminal state .*" $FLINK_DIR/log/*$log_file_name*.log | tail -1 || true)
+    local N=$(grep -o "Job $job reached terminal state .*" $FLINK_LOG_DIR/*$log_file_name*.log* | tail -1 || true)
     if [[ -z $N ]]; then
       sleep 1
     else
@@ -566,10 +638,10 @@ function kill_random_taskmanager {
 }
 
 function setup_flink_slf4j_metric_reporter() {
-  INTERVAL="${1:-1 SECONDS}"
-  add_optional_lib "metrics-slf4j"
-  set_config_key "metrics.reporter.slf4j.class" "org.apache.flink.metrics.slf4j.Slf4jReporter"
-  set_config_key "metrics.reporter.slf4j.interval" "${INTERVAL}"
+  METRIC_NAME_PATTERN="${1:-"*"}"
+  set_config_key "metrics.reporter.slf4j.factory.class" "org.apache.flink.metrics.slf4j.Slf4jReporterFactory"
+  set_config_key "metrics.reporter.slf4j.interval" "1 SECONDS"
+  set_config_key "metrics.reporter.slf4j.filter.includes" "*:${METRIC_NAME_PATTERN}"
 }
 
 function get_job_metric {
@@ -585,7 +657,7 @@ function get_job_metric {
 function get_metric_processed_records {
   OPERATOR=$1
   JOB_NAME="${2:-General purpose test job}"
-  N=$(grep ".${JOB_NAME}.$OPERATOR.numRecordsIn:" $FLINK_DIR/log/*taskexecutor*.log | sed 's/.* //g' | tail -1)
+  N=$(grep ".${JOB_NAME}.$OPERATOR.numRecordsIn:" $FLINK_LOG_DIR/*taskexecutor*.log* | sed 's/.* //g' | tail -1)
   if [ -z $N ]; then
     N=0
   fi
@@ -595,7 +667,7 @@ function get_metric_processed_records {
 function get_num_metric_samples {
   OPERATOR=$1
   JOB_NAME="${2:-General purpose test job}"
-  N=$(grep ".${JOB_NAME}.$OPERATOR.numRecordsIn:" $FLINK_DIR/log/*taskexecutor*.log | wc -l)
+  N=$(grep ".${JOB_NAME}.$OPERATOR.numRecordsIn:" $FLINK_LOG_DIR/*taskexecutor*.log* | wc -l)
   if [ -z $N ]; then
     N=0
   fi
@@ -608,6 +680,8 @@ function wait_oper_metric_num_in_records {
     JOB_NAME="${3:-General purpose test job}"
     NUM_METRICS=$(get_num_metric_samples ${OPERATOR} '${JOB_NAME}')
     OLD_NUM_METRICS=${4:-${NUM_METRICS}}
+    local timeout="${5:-600}"
+    local i=0
     # monitor the numRecordsIn metric of the state machine operator in the second execution
     # we let the test finish once the second restore execution has processed 200 records
     while : ; do
@@ -622,6 +696,11 @@ function wait_oper_metric_num_in_records {
       if (( $NUM_RECORDS < $MAX_NUM_METRICS )); then
         echo "Waiting for job to process up to ${MAX_NUM_METRICS} records, current progress: ${NUM_RECORDS} records ..."
         sleep 1
+        ((i++))
+        if ((i > timeout)); then
+            echo "A timeout occurred waiting for job to process up to ${MAX_NUM_METRICS} records"
+            exit 1
+        fi
       else
         break
       fi
@@ -632,11 +711,13 @@ function wait_num_of_occurence_in_logs {
     local text=$1
     local number=$2
     local logs=${3:-standalonesession}
+    local timeout="${4:-600}"
+    local i=0
 
     echo "Waiting for text ${text} to appear ${number} of times in logs..."
 
     while : ; do
-      N=$(grep -o "${text}" $FLINK_DIR/log/*${logs}*.log | wc -l)
+      N=$(grep -E -o "${text}" $FLINK_LOG_DIR/*${logs}*.log* | wc -l)
 
       if [ -z $N ]; then
         N=0
@@ -644,20 +725,28 @@ function wait_num_of_occurence_in_logs {
 
       if (( N < number )); then
         sleep 1
+        ((i++))
+        if ((i > timeout)); then
+            echo "A timeout occurred waiting for ${text} to appear ${number} of times in logs."
+            exit 1
+        fi
       else
         break
       fi
     done
+
 }
 
 function wait_num_checkpoints {
     JOB=$1
     NUM_CHECKPOINTS=$2
+    local timeout="${3:-600}"
+    local i=0
 
     echo "Waiting for job ($JOB) to have at least $NUM_CHECKPOINTS completed checkpoints ..."
 
     while : ; do
-      N=$(grep -o "Completed checkpoint [1-9]* for job $JOB" $FLINK_DIR/log/*standalonesession*.log | awk '{print $3}' | tail -1)
+      N=$(grep -o "Completed checkpoint [1-9]* for job $JOB" $FLINK_LOG_DIR/*standalonesession*.log* | awk '{print $3}' | tail -1)
 
       if [ -z $N ]; then
         N=0
@@ -665,6 +754,11 @@ function wait_num_checkpoints {
 
       if (( N < NUM_CHECKPOINTS )); then
         sleep 1
+        ((i++))
+        if ((i > timeout)); then
+            echo "A timeout occurred waiting for job ($JOB) to have at least $NUM_CHECKPOINTS completed checkpoints ."
+            exit 1
+        fi
       else
         break
       fi
@@ -683,8 +777,8 @@ function end_timer {
 }
 
 function clean_stdout_files {
-    rm ${FLINK_DIR}/log/*.out
-    echo "Deleted all stdout files under ${FLINK_DIR}/log/"
+    rm $FLINK_LOG_DIR/*.out
+    echo "Deleted all stdout files under $FLINK_LOG_DIR/"
 }
 
 # Expect a string to appear in the log files of the task manager before a given timeout
@@ -694,7 +788,7 @@ function expect_in_taskmanager_logs {
     local expected="$1"
     local timeout=$2
     local i=0
-    local logfile="${FLINK_DIR}/log/flink*taskexecutor*log"
+    local logfile="$FLINK_LOG_DIR/flink*taskexecutor*log*"
 
 
     while ! grep "${expected}" ${logfile} > /dev/null; do
@@ -715,7 +809,8 @@ function wait_for_restart_to_complete {
     local expected_num_restarts=$((current_num_restarts + 1))
 
     echo "Waiting for restart to happen"
-    while ! [[ ${current_num_restarts} -eq ${expected_num_restarts} ]]; do
+    while [[ ${current_num_restarts} -lt ${expected_num_restarts} ]]; do
+        echo "Still waiting for restarts. Expected: $expected_num_restarts Current: $current_num_restarts"
         sleep 5
         current_num_restarts=$(get_job_metric ${jobid} "fullRestarts")
         if [[ -z ${current_num_restarts} ]]; then
@@ -758,6 +853,27 @@ function retry_times_with_backoff_and_cleanup() {
     return 1
 }
 
+function retry_times_with_exponential_backoff {
+  local retries=$1
+  shift
+
+  local count=0
+  echo "Executing command:" "$@"
+  until "$@"; do
+    exit=$?
+    wait=$((2 ** $count))
+    count=$(($count + 1))
+    if [ $count -lt $retries ]; then
+      echo "Retry $count/$retries exited $exit, retrying in $wait seconds..."
+      sleep $wait
+    else
+      echo "Retry $count/$retries exited $exit, no more retries left."
+      return $exit
+    fi
+  done
+  return 0
+}
+
 JOB_ID_REGEX_EXTRACTOR=".*JobID ([0-9,a-f]*)"
 
 function extract_job_id_from_job_submission_return() {
@@ -770,3 +886,44 @@ function extract_job_id_from_job_submission_return() {
     echo "$JOB_ID"
 }
 
+kill_test_watchdog() {
+    local watchdog_pid=$(cat $TEST_DATA_DIR/job_watchdog.pid)
+    echo "Stopping job timeout watchdog (with pid=$watchdog_pid)"
+    kill $watchdog_pid
+}
+
+#
+# NOTE: This function requires at least Bash version >= 4 due to the usage of $BASHPID. Mac OS in 2020 still ships 3.x
+#
+internal_run_with_timeout() {
+  local timeout_in_seconds="$1"
+  local on_failure="$2"
+  local command_label="$3"
+  local command="${@:4}"
+
+  on_exit kill_test_watchdog
+
+  (
+      command_pid=$BASHPID
+      (sleep "${timeout_in_seconds}" # set a timeout for this command
+      echo "${command_label:-"The command '${command}'"} (pid: $command_pid) did not finish after $timeout_in_seconds seconds."
+      eval "${on_failure}"
+      kill "$command_pid") & watchdog_pid=$!
+      echo $watchdog_pid > $TEST_DATA_DIR/job_watchdog.pid
+      # invoke
+      $command
+  )
+}
+
+run_on_test_failure() {
+  echo "Printing Flink logs and killing it:"
+  cat $FLINK_LOG_DIR/*
+}
+
+run_test_with_timeout() {
+  internal_run_with_timeout $1 run_on_test_failure "Test" ${@:2}
+}
+
+run_with_timeout() {
+  internal_run_with_timeout $1 "" "" ${@:2}
+}

@@ -1,0 +1,96 @@
+<table class="configuration table table-bordered">
+    <thead>
+        <tr>
+            <th class="text-left" style="width: 20%">Key</th>
+            <th class="text-left" style="width: 15%">Default</th>
+            <th class="text-left" style="width: 10%">Type</th>
+            <th class="text-left" style="width: 55%">Description</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td><h5>dstl.dfs.base-path</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>String</td>
+            <td>Base path to store changelog files.</td>
+        </tr>
+        <tr>
+            <td><h5>dstl.dfs.batch.persist-delay</h5></td>
+            <td style="word-wrap: break-word;">10 ms</td>
+            <td>Duration</td>
+            <td>Delay before persisting changelog after receiving persist request (on checkpoint). Minimizes the number of files and requests if multiple operators (backends) or sub-tasks are using the same store. Correspondingly increases checkpoint time (async phase).</td>
+        </tr>
+        <tr>
+            <td><h5>dstl.dfs.batch.persist-size-threshold</h5></td>
+            <td style="word-wrap: break-word;">10 mb</td>
+            <td>MemorySize</td>
+            <td>Size threshold for state changes that were requested to be persisted but are waiting for dstl.dfs.batch.persist-delay (from all operators). . Once reached, accumulated changes are persisted immediately. This is different from dstl.dfs.preemptive-persist-threshold as it happens AFTER the checkpoint and potentially for state changes of multiple operators. Must not exceed in-flight data limit (see below)</td>
+        </tr>
+        <tr>
+            <td><h5>dstl.dfs.compression.enabled</h5></td>
+            <td style="word-wrap: break-word;">false</td>
+            <td>Boolean</td>
+            <td>Whether to enable compression when serializing changelog.</td>
+        </tr>
+        <tr>
+            <td><h5>dstl.dfs.discard.num-threads</h5></td>
+            <td style="word-wrap: break-word;">1</td>
+            <td>Integer</td>
+            <td>Number of threads to use to discard changelog (e.g. pre-emptively uploaded unused state).</td>
+        </tr>
+        <tr>
+            <td><h5>dstl.dfs.download.local-cache.idle-timeout-ms</h5></td>
+            <td style="word-wrap: break-word;">10 min</td>
+            <td>Duration</td>
+            <td>Maximum idle time for cache files of distributed changelog file, after which the cache files will be deleted.</td>
+        </tr>
+        <tr>
+            <td><h5>dstl.dfs.preemptive-persist-threshold</h5></td>
+            <td style="word-wrap: break-word;">5 mb</td>
+            <td>MemorySize</td>
+            <td>Size threshold for state changes of a single operator beyond which they are persisted pre-emptively without waiting for a checkpoint.  Improves checkpointing time by allowing quasi-continuous uploading of state changes (as opposed to uploading all accumulated changes on checkpoint).</td>
+        </tr>
+        <tr>
+            <td><h5>dstl.dfs.upload.buffer-size</h5></td>
+            <td style="word-wrap: break-word;">1 mb</td>
+            <td>MemorySize</td>
+            <td>Buffer size used when uploading change sets</td>
+        </tr>
+        <tr>
+            <td><h5>dstl.dfs.upload.max-attempts</h5></td>
+            <td style="word-wrap: break-word;">3</td>
+            <td>Integer</td>
+            <td>Maximum number of attempts (including the initial one) to perform a particular upload. Only takes effect if dstl.dfs.upload.retry-policy is fixed.</td>
+        </tr>
+        <tr>
+            <td><h5>dstl.dfs.upload.max-in-flight</h5></td>
+            <td style="word-wrap: break-word;">100 mb</td>
+            <td>MemorySize</td>
+            <td>Max amount of data allowed to be in-flight. Upon reaching this limit the task will be back-pressured.  I.e., snapshotting will block; normal processing will block if dstl.dfs.preemptive-persist-threshold is set and reached. The limit is applied to the total size of in-flight changes if multiple operators/backends are using the same changelog storage. Must be greater than or equal to dstl.dfs.batch.persist-size-threshold</td>
+        </tr>
+        <tr>
+            <td><h5>dstl.dfs.upload.next-attempt-delay</h5></td>
+            <td style="word-wrap: break-word;">500 ms</td>
+            <td>Duration</td>
+            <td>Delay before the next attempt (if the failure was not caused by a timeout).</td>
+        </tr>
+        <tr>
+            <td><h5>dstl.dfs.upload.num-threads</h5></td>
+            <td style="word-wrap: break-word;">5</td>
+            <td>Integer</td>
+            <td>Number of threads to use for upload.</td>
+        </tr>
+        <tr>
+            <td><h5>dstl.dfs.upload.retry-policy</h5></td>
+            <td style="word-wrap: break-word;">"fixed"</td>
+            <td>String</td>
+            <td>Retry policy for the failed uploads (in particular, timed out). Valid values: none, fixed.</td>
+        </tr>
+        <tr>
+            <td><h5>dstl.dfs.upload.timeout</h5></td>
+            <td style="word-wrap: break-word;">1 s</td>
+            <td>Duration</td>
+            <td>Time threshold beyond which an upload is considered timed out. If a new attempt is made but this upload succeeds earlier then this upload result will be used. May improve upload times if tail latencies of upload requests are significantly high. Only takes effect if dstl.dfs.upload.retry-policy is fixed. Please note that timeout * max_attempts should be less than execution.checkpointing.timeout</td>
+        </tr>
+    </tbody>
+</table>

@@ -17,37 +17,33 @@
 
 package org.apache.flink.table.module.hive;
 
-import org.apache.flink.table.descriptors.ModuleDescriptor;
-import org.apache.flink.table.factories.ModuleFactory;
-import org.apache.flink.table.factories.TableFactoryService;
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.table.factories.FactoryUtil;
 import org.apache.flink.table.module.Module;
 
 import org.junit.Test;
 
-import java.util.Map;
+import java.util.Collections;
 
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
-
-/**
- * Test for {@link HiveModuleFactory}.
- */
+/** Test for {@link HiveModuleFactory}. */
 public class HiveModuleFactoryTest {
-	@Test
-	public void test() {
-		final HiveModule expected = new HiveModule();
+    @Test
+    public void test() {
+        final HiveModule expected = new HiveModule();
 
-		final ModuleDescriptor moduleDescriptor = new HiveModuleDescriptor();
+        final Module actualModule =
+                FactoryUtil.createModule(
+                        HiveModuleFactory.IDENTIFIER,
+                        Collections.emptyMap(),
+                        new Configuration(),
+                        Thread.currentThread().getContextClassLoader());
 
-		final Map<String, String> properties = moduleDescriptor.toProperties();
+        checkEquals(expected, (HiveModule) actualModule);
+    }
 
-		final Module actualModule = TableFactoryService.find(ModuleFactory.class, properties)
-			.createModule(properties);
-
-		checkEquals(expected, (HiveModule) actualModule);
-	}
-
-	private static void checkEquals(HiveModule m1, HiveModule m2) {
-		assertEquals(m1.getHiveVersion(), m2.getHiveVersion());
-	}
+    private static void checkEquals(HiveModule m1, HiveModule m2) {
+        assertThat(m2.getHiveVersion()).isEqualTo(m1.getHiveVersion());
+    }
 }

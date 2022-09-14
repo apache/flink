@@ -22,23 +22,17 @@ import org.apache.flink.metrics.Gauge;
 
 import java.util.List;
 
-/**
- * Mapping of gauge between Flink and Datadog.
- */
+/** Mapping of gauge between Flink and Datadog. */
 public class DGauge extends DMetric {
-	private final Gauge<Number> gauge;
+    private final Gauge<Number> gauge;
 
-	public DGauge(Gauge<Number> g, String metricName, String host, List<String> tags, Clock clock) {
-		super(MetricType.gauge, metricName, host, tags, clock);
-		gauge = g;
-	}
+    public DGauge(Gauge<Number> g, String metricName, String host, List<String> tags, Clock clock) {
+        super(new MetricMetaData(MetricType.gauge, metricName, host, tags, clock));
+        gauge = g;
+    }
 
-	/**
-	 * Visibility of this method must not be changed
-	 * since we deliberately not map it to json object in a Datadog-defined format.
-	 */
-	@Override
-	public Number getMetricValue() {
-		return gauge.getValue();
-	}
+    @Override
+    public Number getMetricValue() {
+        return gauge.getValue();
+    }
 }

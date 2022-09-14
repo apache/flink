@@ -23,63 +23,63 @@ import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 
 /**
- * Common interface for the runtime {@link ExecutionJobVertex} and {@link ArchivedExecutionJobVertex}.
+ * Common interface for the runtime {@link ExecutionJobVertex} and {@link
+ * ArchivedExecutionJobVertex}.
  */
 public interface AccessExecutionJobVertex {
-	/**
-	 * Returns the name for this job vertex.
-	 *
-	 * @return name for this job vertex.
-	 */
-	String getName();
+    /**
+     * Returns the name for this job vertex.
+     *
+     * @return name for this job vertex.
+     */
+    String getName();
 
-	/**
-	 * Returns the parallelism for this job vertex.
-	 *
-	 * @return parallelism for this job vertex.
-	 */
-	int getParallelism();
+    /**
+     * Returns the parallelism for this job vertex.
+     *
+     * @return parallelism for this job vertex.
+     */
+    int getParallelism();
 
-	/**
-	 * Returns the max parallelism for this job vertex.
-	 *
-	 * @return max parallelism for this job vertex.
-	 */
-	int getMaxParallelism();
+    /**
+     * Returns the max parallelism for this job vertex.
+     *
+     * @return max parallelism for this job vertex.
+     */
+    int getMaxParallelism();
 
-	/**
-	 * Returns the resource profile for this job vertex.
-	 *
-	 * @return resource profile for this job vertex.
-	 */
-	ResourceProfile getResourceProfile();
+    /**
+     * Returns the resource profile for this job vertex.
+     *
+     * @return resource profile for this job vertex.
+     */
+    ResourceProfile getResourceProfile();
 
-	/**
-	 * Returns the {@link JobVertexID} for this job vertex.
-	 *
-	 * @return JobVertexID for this job vertex.
-	 */
-	JobVertexID getJobVertexId();
+    /**
+     * Returns the {@link JobVertexID} for this job vertex.
+     *
+     * @return JobVertexID for this job vertex.
+     */
+    JobVertexID getJobVertexId();
 
-	/**
-	 * Returns all execution vertices for this job vertex.
-	 *
-	 * @return all execution vertices for this job vertex
-	 */
-	AccessExecutionVertex[] getTaskVertices();
+    /**
+     * Returns all execution vertices for this job vertex.
+     *
+     * @return all execution vertices for this job vertex
+     */
+    AccessExecutionVertex[] getTaskVertices();
 
-	/**
-	 * Returns the aggregated {@link ExecutionState} for this job vertex.
-	 *
-	 * @return aggregated state for this job vertex
-	 */
-	ExecutionState getAggregateState();
+    /**
+     * Returns the aggregated {@link ExecutionState} for this job vertex.
+     *
+     * @return aggregated state for this job vertex
+     */
+    ExecutionState getAggregateState();
 
-	/**
-	 * Returns the aggregated user-defined accumulators as strings.
-	 *
-	 * @return aggregated user-defined accumulators as strings.
-	 */
-	StringifiedAccumulatorResult[] getAggregatedUserAccumulatorsStringified();
-
+    /**
+     * Returns the aggregated user-defined accumulators as strings.
+     *
+     * @return aggregated user-defined accumulators as strings.
+     */
+    StringifiedAccumulatorResult[] getAggregatedUserAccumulatorsStringified();
 }

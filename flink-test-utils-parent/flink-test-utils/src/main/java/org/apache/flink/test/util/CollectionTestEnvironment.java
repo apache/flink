@@ -24,44 +24,45 @@ import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.ExecutionEnvironmentFactory;
 
 /**
- * A {@link CollectionEnvironment} to be used in tests. The predominant feature of this class is that it allows setting
- * it as a context environment, causing it to be returned by {@link ExecutionEnvironment#getExecutionEnvironment()}.
- * This also allows retrieving the {@link JobExecutionResult} outside the actual program.
+ * A {@link CollectionEnvironment} to be used in tests. The predominant feature of this class is
+ * that it allows setting it as a context environment, causing it to be returned by {@link
+ * ExecutionEnvironment#getExecutionEnvironment()}. This also allows retrieving the {@link
+ * JobExecutionResult} outside the actual program.
  */
 public class CollectionTestEnvironment extends CollectionEnvironment {
 
-	private CollectionTestEnvironment lastEnv = null;
+    private CollectionTestEnvironment lastEnv = null;
 
-	@Override
-	public JobExecutionResult getLastJobExecutionResult() {
-		if (lastEnv == null) {
-			return this.lastJobExecutionResult;
-		}
-		else {
-			return lastEnv.getLastJobExecutionResult();
-		}
-	}
+    @Override
+    public JobExecutionResult getLastJobExecutionResult() {
+        if (lastEnv == null) {
+            return this.lastJobExecutionResult;
+        } else {
+            return lastEnv.getLastJobExecutionResult();
+        }
+    }
 
-	@Override
-	public JobExecutionResult execute(String jobName) throws Exception {
-		JobExecutionResult result = super.execute(jobName);
-		this.lastJobExecutionResult = result;
-		return result;
-	}
+    @Override
+    public JobExecutionResult execute(String jobName) throws Exception {
+        JobExecutionResult result = super.execute(jobName);
+        this.lastJobExecutionResult = result;
+        return result;
+    }
 
-	protected void setAsContext() {
-		ExecutionEnvironmentFactory factory = new ExecutionEnvironmentFactory() {
-			@Override
-			public ExecutionEnvironment createExecutionEnvironment() {
-				lastEnv = new CollectionTestEnvironment();
-				return lastEnv;
-			}
-		};
+    protected void setAsContext() {
+        ExecutionEnvironmentFactory factory =
+                new ExecutionEnvironmentFactory() {
+                    @Override
+                    public ExecutionEnvironment createExecutionEnvironment() {
+                        lastEnv = new CollectionTestEnvironment();
+                        return lastEnv;
+                    }
+                };
 
-		initializeContextEnvironment(factory);
-	}
+        initializeContextEnvironment(factory);
+    }
 
-	protected static void unsetAsContext() {
-		resetContextEnvironment();
-	}
+    protected static void unsetAsContext() {
+        resetContextEnvironment();
+    }
 }

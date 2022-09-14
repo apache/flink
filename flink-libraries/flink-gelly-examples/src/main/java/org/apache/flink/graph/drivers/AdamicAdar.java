@@ -27,45 +27,48 @@ import org.apache.flink.types.CopyableValue;
 import org.apache.commons.lang3.text.StrBuilder;
 import org.apache.commons.lang3.text.WordUtils;
 
-/**
- * Driver for {@link org.apache.flink.graph.library.similarity.AdamicAdar}.
- */
-public class AdamicAdar<K extends CopyableValue<K>, VV, EV>
-extends DriverBase<K, VV, EV> {
+/** Driver for {@link org.apache.flink.graph.library.similarity.AdamicAdar}. */
+public class AdamicAdar<K extends CopyableValue<K>, VV, EV> extends DriverBase<K, VV, EV> {
 
-	private DoubleParameter minRatio = new DoubleParameter(this, "minimum_ratio")
-		.setDefaultValue(0.0)
-		.setMinimumValue(0.0, true);
+    private DoubleParameter minRatio =
+            new DoubleParameter(this, "minimum_ratio")
+                    .setDefaultValue(0.0)
+                    .setMinimumValue(0.0, true);
 
-	private DoubleParameter minScore = new DoubleParameter(this, "minimum_score")
-		.setDefaultValue(0.0)
-		.setMinimumValue(0.0, true);
+    private DoubleParameter minScore =
+            new DoubleParameter(this, "minimum_score")
+                    .setDefaultValue(0.0)
+                    .setMinimumValue(0.0, true);
 
-	private BooleanParameter mirrorResults = new BooleanParameter(this, "mirror_results");
+    private BooleanParameter mirrorResults = new BooleanParameter(this, "mirror_results");
 
-	@Override
-	public String getShortDescription() {
-		return "similarity score weighted by centerpoint degree";
-	}
+    @Override
+    public String getShortDescription() {
+        return "similarity score weighted by centerpoint degree";
+    }
 
-	@Override
-	public String getLongDescription() {
-		return WordUtils.wrap(new StrBuilder()
-			.appendln("Adamic-Adar measures the similarity between vertex neighborhoods and is " +
-				"computed as the sum of the inverse logarithm of centerpoint degree over shared " +
-				"neighbors.")
-			.appendNewLine()
-			.append("The algorithm result contains two vertex IDs and the similarity score.")
-			.toString(), 80);
-	}
+    @Override
+    public String getLongDescription() {
+        return WordUtils.wrap(
+                new StrBuilder()
+                        .appendln(
+                                "Adamic-Adar measures the similarity between vertex neighborhoods and is "
+                                        + "computed as the sum of the inverse logarithm of centerpoint degree over shared "
+                                        + "neighbors.")
+                        .appendNewLine()
+                        .append(
+                                "The algorithm result contains two vertex IDs and the similarity score.")
+                        .toString(),
+                80);
+    }
 
-	@Override
-	public DataSet plan(Graph<K, VV, EV> graph) throws Exception {
-		return graph
-			.run(new org.apache.flink.graph.library.similarity.AdamicAdar<K, VV, EV>()
-				.setMinimumRatio(minRatio.getValue().floatValue())
-				.setMinimumScore(minScore.getValue().floatValue())
-				.setMirrorResults(mirrorResults.getValue())
-				.setParallelism(parallelism.getValue().intValue()));
-	}
+    @Override
+    public DataSet plan(Graph<K, VV, EV> graph) throws Exception {
+        return graph.run(
+                new org.apache.flink.graph.library.similarity.AdamicAdar<K, VV, EV>()
+                        .setMinimumRatio(minRatio.getValue().floatValue())
+                        .setMinimumScore(minScore.getValue().floatValue())
+                        .setMirrorResults(mirrorResults.getValue())
+                        .setParallelism(parallelism.getValue().intValue()));
+    }
 }

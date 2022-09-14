@@ -21,13 +21,11 @@ import org.apache.flink.annotation.Internal
 import org.apache.flink.api.common.typeutils.TypeComparator
 import org.apache.flink.core.memory.{DataInputView, DataOutputView, MemorySegment}
 
-/**
-  * Comparator for [[Option]] values. Note that [[None]] is lesser than any [[Some]] values.
-  */
+/** Comparator for [[Option]] values. Note that [[None]] is lesser than any [[Some]] values. */
 @Internal
 class OptionTypeComparator[A](
-  private val ascending: Boolean,
-  private val typeComparator: TypeComparator[A]
+    private val ascending: Boolean,
+    private val typeComparator: TypeComparator[A]
 ) extends TypeComparator[Option[A]] {
   private var reference: Option[A] = _
 
@@ -109,10 +107,10 @@ class OptionTypeComparator[A](
   override def getNormalizeKeyLen = 1 + typeComparator.getNormalizeKeyLen
 
   override def putNormalizedKey(
-    record: Option[A],
-    target: MemorySegment,
-    offset: Int,
-    numBytes: Int
+      record: Option[A],
+      target: MemorySegment,
+      offset: Int,
+      numBytes: Int
   ) = {
     if (numBytes >= 1) {
       record match {

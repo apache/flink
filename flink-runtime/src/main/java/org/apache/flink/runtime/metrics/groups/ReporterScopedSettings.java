@@ -17,37 +17,56 @@
 
 package org.apache.flink.runtime.metrics.groups;
 
+import org.apache.flink.runtime.metrics.filter.MetricFilter;
 import org.apache.flink.util.Preconditions;
 
+import java.util.Map;
 import java.util.Set;
 
-/**
- * Encapsulates all settings that are defined per reporter.
- */
+/** Encapsulates all settings that are defined per reporter. */
 public class ReporterScopedSettings {
 
-	private final int reporterIndex;
+    private final int reporterIndex;
 
-	private final char delimiter;
+    private final char delimiter;
 
-	private Set<String> excludedVariables;
+    private final Set<String> excludedVariables;
 
-	public ReporterScopedSettings(int reporterIndex, char delimiter, Set<String> excludedVariables) {
-		this.excludedVariables = excludedVariables;
-		Preconditions.checkArgument(reporterIndex >= 0);
-		this.reporterIndex = reporterIndex;
-		this.delimiter = delimiter;
-	}
+    private final MetricFilter filter;
 
-	public int getReporterIndex() {
-		return reporterIndex;
-	}
+    private final Map<String, String> additionalVariables;
 
-	public char getDelimiter() {
-		return delimiter;
-	}
+    public ReporterScopedSettings(
+            int reporterIndex,
+            char delimiter,
+            MetricFilter filter,
+            Set<String> excludedVariables,
+            Map<String, String> additionalVariables) {
+        this.excludedVariables = excludedVariables;
+        Preconditions.checkArgument(reporterIndex >= 0);
+        this.reporterIndex = reporterIndex;
+        this.delimiter = delimiter;
+        this.filter = filter;
+        this.additionalVariables = additionalVariables;
+    }
 
-	public Set<String> getExcludedVariables() {
-		return excludedVariables;
-	}
+    public int getReporterIndex() {
+        return reporterIndex;
+    }
+
+    public char getDelimiter() {
+        return delimiter;
+    }
+
+    public MetricFilter getFilter() {
+        return filter;
+    }
+
+    public Set<String> getExcludedVariables() {
+        return excludedVariables;
+    }
+
+    public Map<String, String> getAdditionalVariables() {
+        return additionalVariables;
+    }
 }

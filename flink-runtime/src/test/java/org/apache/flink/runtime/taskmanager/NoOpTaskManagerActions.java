@@ -20,17 +20,15 @@ package org.apache.flink.runtime.taskmanager;
 
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 
-/**
- * Dummy implementation of {@link TaskManagerActions}.
- */
+/** Dummy implementation of {@link TaskManagerActions}. */
 public class NoOpTaskManagerActions implements TaskManagerActions {
 
-	@Override
-	public void notifyFatalError(String message, Throwable cause) {}
+    @Override
+    public void notifyFatalError(String message, Throwable cause) {}
 
-	@Override
-	public void failTask(ExecutionAttemptID executionAttemptID, Throwable cause) {}
+    @Override
+    public void failTask(ExecutionAttemptID executionAttemptID, Throwable cause) {}
 
-	@Override
-	public void updateTaskExecutionState(TaskExecutionState taskExecutionState) {}
+    @Override
+    public void updateTaskExecutionState(TaskExecutionState taskExecutionState) {}
 }

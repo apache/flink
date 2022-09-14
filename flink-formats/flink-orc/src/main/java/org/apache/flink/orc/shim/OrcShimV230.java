@@ -36,22 +36,22 @@ import java.io.IOException;
  */
 public class OrcShimV230 extends OrcShimV210 {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	@Override
-	protected Reader createReader(Path path,
-			Configuration conf) throws IOException {
-		return OrcFile.createReader(path, OrcFile.readerOptions(conf));
-	}
+    @Override
+    protected Reader createReader(Path path, Configuration conf) throws IOException {
+        return OrcFile.createReader(path, OrcFile.readerOptions(conf));
+    }
 
-	@Override
-	protected RecordReader createRecordReader(Reader reader, Reader.Options options) throws IOException {
-		return reader.rows(options);
-	}
+    @Override
+    protected RecordReader createRecordReader(Reader reader, Reader.Options options)
+            throws IOException {
+        return reader.rows(options);
+    }
 
-	@Override
-	protected Reader.Options readOrcConf(Reader.Options options, Configuration conf) {
-		return super.readOrcConf(options, conf)
-				.tolerateMissingSchema(OrcConf.TOLERATE_MISSING_SCHEMA.getBoolean(conf));
-	}
+    @Override
+    protected Reader.Options readOrcConf(Reader.Options options, Configuration conf) {
+        return super.readOrcConf(options, conf)
+                .tolerateMissingSchema(OrcConf.TOLERATE_MISSING_SCHEMA.getBoolean(conf));
+    }
 }

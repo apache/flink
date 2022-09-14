@@ -31,17 +31,17 @@ import java.util.List;
 @Internal
 public class ListCollector<T> implements Collector<T> {
 
-	private final List<T> list;
+    private final List<T> list;
 
-	public ListCollector(List<T> list) {
-		this.list = list;
-	}
+    public ListCollector(List<T> list) {
+        this.list = list;
+    }
 
-	@Override
-	public void collect(T record) {
-		list.add(record);
-	}
+    @Override
+    public void collect(T record) {
+        list.add(record);
+    }
 
-	@Override
-	public void close() {}
+    @Override
+    public void close() {}
 }

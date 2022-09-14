@@ -25,11 +25,13 @@ import org.apache.flink.table.types.inference.ArgumentTypeStrategy;
 import org.apache.flink.table.types.inference.CallContext;
 import org.apache.flink.table.types.inference.Signature.Argument;
 import org.apache.flink.table.types.logical.LogicalType;
-import org.apache.flink.table.types.logical.utils.LogicalTypeCasts;
 import org.apache.flink.util.Preconditions;
 
 import java.util.Objects;
 import java.util.Optional;
+
+import static org.apache.flink.table.types.logical.utils.LogicalTypeCasts.supportsAvoidingCast;
+import static org.apache.flink.table.types.logical.utils.LogicalTypeCasts.supportsImplicitCast;
 
 /**
  * Strategy for an argument that corresponds to an explicitly defined type. Implicit casts will be
@@ -38,53 +40,53 @@ import java.util.Optional;
 @Internal
 public final class ExplicitArgumentTypeStrategy implements ArgumentTypeStrategy {
 
-	private final DataType expectedDataType;
+    private final DataType expectedDataType;
 
-	public ExplicitArgumentTypeStrategy(DataType expectedDataType) {
-		this.expectedDataType = Preconditions.checkNotNull(expectedDataType);
-	}
+    public ExplicitArgumentTypeStrategy(DataType expectedDataType) {
+        this.expectedDataType = Preconditions.checkNotNull(expectedDataType);
+    }
 
-	@Override
-	public Optional<DataType> inferArgumentType(CallContext callContext, int argumentPos, boolean throwOnFailure) {
-		final LogicalType expectedType = expectedDataType.getLogicalType();
-		final LogicalType actualType = callContext.getArgumentDataTypes().get(argumentPos).getLogicalType();
-		// if logical types match, we return the expected data type
-		// for ensuring the expected conversion class
-		if (expectedType.equals(actualType)) {
-			return Optional.of(expectedDataType);
-		}
-		// type coercion
-		if (!LogicalTypeCasts.supportsImplicitCast(actualType, expectedType)) {
-			if (throwOnFailure) {
-				throw callContext.newValidationError(
-					"Unsupported argument type. Expected type '%s' but actual type was '%s'.",
-					expectedType,
-					actualType);
-			}
-			return Optional.empty();
-		}
-		return Optional.of(expectedDataType);
-	}
+    @Override
+    public Optional<DataType> inferArgumentType(
+            CallContext callContext, int argumentPos, boolean throwOnFailure) {
+        final LogicalType expectedType = expectedDataType.getLogicalType();
+        final LogicalType actualType =
+                callContext.getArgumentDataTypes().get(argumentPos).getLogicalType();
+        // if logical types match, we return the expected data type
+        // for ensuring the expected conversion class
+        if (supportsAvoidingCast(actualType, expectedType)) {
+            return Optional.of(expectedDataType);
+        }
+        // type coercion
+        if (!supportsImplicitCast(actualType, expectedType)) {
+            return callContext.fail(
+                    throwOnFailure,
+                    "Unsupported argument type. Expected type '%s' but actual type was '%s'.",
+                    expectedType,
+                    actualType);
+        }
+        return Optional.of(expectedDataType);
+    }
 
-	@Override
-	public Argument getExpectedArgument(FunctionDefinition functionDefinition, int argumentPos) {
-		return Argument.of(expectedDataType.toString());
-	}
+    @Override
+    public Argument getExpectedArgument(FunctionDefinition functionDefinition, int argumentPos) {
+        return Argument.of(expectedDataType.getLogicalType());
+    }
 
-	@Override
-	public boolean equals(Object o) {
-		if (this == o) {
-			return true;
-		}
-		if (o == null || getClass() != o.getClass()) {
-			return false;
-		}
-		ExplicitArgumentTypeStrategy that = (ExplicitArgumentTypeStrategy) o;
-		return Objects.equals(expectedDataType, that.expectedDataType);
-	}
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
+        ExplicitArgumentTypeStrategy that = (ExplicitArgumentTypeStrategy) o;
+        return Objects.equals(expectedDataType, that.expectedDataType);
+    }
 
-	@Override
-	public int hashCode() {
-		return Objects.hash(expectedDataType);
-	}
+    @Override
+    public int hashCode() {
+        return Objects.hash(expectedDataType);
+    }
 }

@@ -25,17 +25,16 @@ import org.apache.flink.runtime.security.modules.SecurityModuleFactory;
 
 import org.apache.hadoop.conf.Configuration;
 
-/**
- * Test hadoop security module factory that loads customized hadoop configuration properties.
- */
+/** Test hadoop security module factory that loads customized hadoop configuration properties. */
 public class TestHadoopModuleFactory implements SecurityModuleFactory {
-	public static Configuration hadoopConfiguration;
+    public static Configuration hadoopConfiguration;
 
-	@Override
-	public SecurityModule createModule(SecurityConfiguration securityConfig) {
-		if (hadoopConfiguration == null) {
-			throw new IllegalStateException("Cannot instantiate test module, hadoop config not set!");
-		}
-		return new HadoopModule(securityConfig, hadoopConfiguration);
-	}
+    @Override
+    public SecurityModule createModule(SecurityConfiguration securityConfig) {
+        if (hadoopConfiguration == null) {
+            throw new IllegalStateException(
+                    "Cannot instantiate test module, hadoop config not set!");
+        }
+        return new HadoopModule(securityConfig, hadoopConfiguration);
+    }
 }

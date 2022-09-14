@@ -20,110 +20,101 @@ package org.apache.flink.api.java.summarize.aggregation;
 
 import org.apache.flink.annotation.Internal;
 
-/**
- * Aggregator that can handle Integer types.
- */
+/** Aggregator that can handle Integer types. */
 @Internal
 public class IntegerSummaryAggregator extends NumericSummaryAggregator<Integer> {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	// Nested classes are only "public static" for Kryo serialization, otherwise they'd be private
+    // Nested classes are only "public static" for Kryo serialization, otherwise they'd be private
 
-	/**
-	 * Aggregator for min operation.
-	 */
-	public static class MinIntegerAggregator implements Aggregator<Integer, Integer> {
+    /** Aggregator for min operation. */
+    public static class MinIntegerAggregator implements Aggregator<Integer, Integer> {
 
-		private int min = Integer.MAX_VALUE;
+        private int min = Integer.MAX_VALUE;
 
-		@Override
-		public void aggregate(Integer value) {
-			min = Math.min(min, value);
-		}
+        @Override
+        public void aggregate(Integer value) {
+            min = Math.min(min, value);
+        }
 
-		@Override
-		public void combine(Aggregator<Integer, Integer> other) {
-			min = Math.min(min, ((MinIntegerAggregator) other).min);
-		}
+        @Override
+        public void combine(Aggregator<Integer, Integer> other) {
+            min = Math.min(min, ((MinIntegerAggregator) other).min);
+        }
 
-		@Override
-		public Integer result() {
-			return min;
-		}
-	}
+        @Override
+        public Integer result() {
+            return min;
+        }
+    }
 
-	/**
-	 * Aggregator for max operation.
-	 */
-	public static class MaxIntegerAggregator implements Aggregator<Integer, Integer> {
+    /** Aggregator for max operation. */
+    public static class MaxIntegerAggregator implements Aggregator<Integer, Integer> {
 
-		private int max = Integer.MIN_VALUE;
+        private int max = Integer.MIN_VALUE;
 
-		@Override
-		public void aggregate(Integer value) {
-			max = Math.max(max, value);
-		}
+        @Override
+        public void aggregate(Integer value) {
+            max = Math.max(max, value);
+        }
 
-		@Override
-		public void combine(Aggregator<Integer, Integer> other) {
-			max = Math.max(max, ((MaxIntegerAggregator) other).max);
-		}
+        @Override
+        public void combine(Aggregator<Integer, Integer> other) {
+            max = Math.max(max, ((MaxIntegerAggregator) other).max);
+        }
 
-		@Override
-		public Integer result() {
-			return max;
-		}
-	}
+        @Override
+        public Integer result() {
+            return max;
+        }
+    }
 
-	/**
-	 * Aggregator for sum operation.
-	 */
-	public static class SumIntegerAggregator implements Aggregator<Integer, Integer> {
+    /** Aggregator for sum operation. */
+    public static class SumIntegerAggregator implements Aggregator<Integer, Integer> {
 
-		private int sum = 0;
+        private int sum = 0;
 
-		@Override
-		public void aggregate(Integer value) {
-			sum += value;
-		}
+        @Override
+        public void aggregate(Integer value) {
+            sum += value;
+        }
 
-		@Override
-		public void combine(Aggregator<Integer, Integer> other) {
-			sum += ((SumIntegerAggregator) other).sum;
-		}
+        @Override
+        public void combine(Aggregator<Integer, Integer> other) {
+            sum += ((SumIntegerAggregator) other).sum;
+        }
 
-		@Override
-		public Integer result() {
-			return sum;
-		}
-	}
+        @Override
+        public Integer result() {
+            return sum;
+        }
+    }
 
-	@Override
-	protected Aggregator<Integer, Integer> initMin() {
-		return new MinIntegerAggregator();
-	}
+    @Override
+    protected Aggregator<Integer, Integer> initMin() {
+        return new MinIntegerAggregator();
+    }
 
-	@Override
-	protected Aggregator<Integer, Integer> initMax() {
-		return new MaxIntegerAggregator();
-	}
+    @Override
+    protected Aggregator<Integer, Integer> initMax() {
+        return new MaxIntegerAggregator();
+    }
 
-	@Override
-	protected Aggregator<Integer, Integer> initSum() {
-		return new SumIntegerAggregator();
-	}
+    @Override
+    protected Aggregator<Integer, Integer> initSum() {
+        return new SumIntegerAggregator();
+    }
 
-	@Override
-	protected boolean isNan(Integer number) {
-		// NaN never applies here because only types like Float and Double have NaN
-		return false;
-	}
+    @Override
+    protected boolean isNan(Integer number) {
+        // NaN never applies here because only types like Float and Double have NaN
+        return false;
+    }
 
-	@Override
-	protected boolean isInfinite(Integer number) {
-		// Infinity never applies here because only types like Float and Double have Infinity
-		return false;
-	}
-
+    @Override
+    protected boolean isInfinite(Integer number) {
+        // Infinity never applies here because only types like Float and Double have Infinity
+        return false;
+    }
 }

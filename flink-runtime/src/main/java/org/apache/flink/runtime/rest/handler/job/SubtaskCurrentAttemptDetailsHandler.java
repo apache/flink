@@ -37,40 +37,68 @@ import org.apache.flink.runtime.webmonitor.RestfulGateway;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
 import org.apache.flink.util.Preconditions;
 
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Executor;
 
-/**
- * Request handler providing details about a single task execution attempt.
- */
-public class SubtaskCurrentAttemptDetailsHandler extends AbstractSubtaskHandler<SubtaskExecutionAttemptDetailsInfo, SubtaskMessageParameters> {
+/** Request handler providing details about a single task execution attempt. */
+public class SubtaskCurrentAttemptDetailsHandler
+        extends AbstractSubtaskHandler<
+                SubtaskExecutionAttemptDetailsInfo, SubtaskMessageParameters> {
 
-	private final MetricFetcher metricFetcher;
+    private final MetricFetcher metricFetcher;
 
-	public SubtaskCurrentAttemptDetailsHandler(
-		GatewayRetriever<? extends RestfulGateway> leaderRetriever,
-		Time timeout,
-		Map<String, String> responseHeaders,
-		MessageHeaders<EmptyRequestBody, SubtaskExecutionAttemptDetailsInfo, SubtaskMessageParameters> messageHeaders,
-		ExecutionGraphCache executionGraphCache,
-		Executor executor,
-		MetricFetcher metricFetcher) {
+    public SubtaskCurrentAttemptDetailsHandler(
+            GatewayRetriever<? extends RestfulGateway> leaderRetriever,
+            Time timeout,
+            Map<String, String> responseHeaders,
+            MessageHeaders<
+                            EmptyRequestBody,
+                            SubtaskExecutionAttemptDetailsInfo,
+                            SubtaskMessageParameters>
+                    messageHeaders,
+            ExecutionGraphCache executionGraphCache,
+            Executor executor,
+            MetricFetcher metricFetcher) {
 
-		super(leaderRetriever, timeout, responseHeaders, messageHeaders, executionGraphCache, executor);
+        super(
+                leaderRetriever,
+                timeout,
+                responseHeaders,
+                messageHeaders,
+                executionGraphCache,
+                executor);
 
-		this.metricFetcher = Preconditions.checkNotNull(metricFetcher);
-	}
+        this.metricFetcher = Preconditions.checkNotNull(metricFetcher);
+    }
 
-	@Override
-	protected SubtaskExecutionAttemptDetailsInfo handleRequest(
-			HandlerRequest<EmptyRequestBody, SubtaskMessageParameters> request,
-			AccessExecutionVertex executionVertex) throws RestHandlerException {
+    @Override
+    protected SubtaskExecutionAttemptDetailsInfo handleRequest(
+            HandlerRequest<EmptyRequestBody> request, AccessExecutionVertex executionVertex)
+            throws RestHandlerException {
 
-		final AccessExecution execution = executionVertex.getCurrentExecutionAttempt();
+        final AccessExecution execution = executionVertex.getCurrentExecutionAttempt();
 
-		final JobID jobID = request.getPathParameter(JobIDPathParameter.class);
-		final JobVertexID jobVertexID = request.getPathParameter(JobVertexIdPathParameter.class);
+        final JobID jobID = request.getPathParameter(JobIDPathParameter.class);
+        final JobVertexID jobVertexID = request.getPathParameter(JobVertexIdPathParameter.class);
 
-		return SubtaskExecutionAttemptDetailsInfo.create(execution, metricFetcher, jobID, jobVertexID);
-	}
+        final Collection<AccessExecution> attempts = executionVertex.getCurrentExecutions();
+        List<SubtaskExecutionAttemptDetailsInfo> otherConcurrentAttempts = null;
+
+        if (attempts.size() > 1) {
+            otherConcurrentAttempts = new ArrayList<>();
+            for (AccessExecution attempt : attempts) {
+                if (attempt.getAttemptNumber() != execution.getAttemptNumber()) {
+                    otherConcurrentAttempts.add(
+                            SubtaskExecutionAttemptDetailsInfo.create(
+                                    attempt, metricFetcher, jobID, jobVertexID, null));
+                }
+            }
+        }
+
+        return SubtaskExecutionAttemptDetailsInfo.create(
+                execution, metricFetcher, jobID, jobVertexID, otherConcurrentAttempts);
+    }
 }

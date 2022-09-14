@@ -20,325 +20,361 @@ package org.apache.flink.runtime.executiongraph;
 
 import org.apache.flink.api.common.ArchivedExecutionConfig;
 import org.apache.flink.api.common.ExecutionConfig;
-import org.apache.flink.api.common.ExecutionMode;
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.core.testutils.CommonTestUtils;
-import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
-import org.apache.flink.runtime.accumulators.StringifiedAccumulatorResult;
 import org.apache.flink.runtime.checkpoint.CheckpointRetentionPolicy;
 import org.apache.flink.runtime.checkpoint.CheckpointStatsSnapshot;
-import org.apache.flink.runtime.checkpoint.CheckpointStatsTracker;
-import org.apache.flink.runtime.checkpoint.MasterTriggerRestoreHook;
-import org.apache.flink.runtime.checkpoint.StandaloneCheckpointIDCounter;
-import org.apache.flink.runtime.checkpoint.StandaloneCompletedCheckpointStore;
+import org.apache.flink.runtime.checkpoint.CompletedCheckpointStatsSummarySnapshot;
+import org.apache.flink.runtime.checkpoint.StatsSummarySnapshot;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutorServiceAdapter;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.jobgraph.JobGraphBuilder;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration;
-import org.apache.flink.runtime.state.memory.MemoryStateBackend;
-import org.apache.flink.util.OptionalFailure;
-import org.apache.flink.util.SerializedValue;
-import org.apache.flink.util.TestLogger;
+import org.apache.flink.runtime.jobgraph.tasks.JobCheckpointingSettings;
+import org.apache.flink.runtime.scheduler.SchedulerBase;
+import org.apache.flink.runtime.scheduler.SchedulerTestingUtils;
+import org.apache.flink.runtime.taskmanager.TaskExecutionState;
+import org.apache.flink.testutils.TestingUtils;
+import org.apache.flink.testutils.executor.TestExecutorExtension;
 
-import org.junit.BeforeClass;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.RegisterExtension;
 
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.Map.Entry;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.function.Function;
 
-import static org.junit.Assert.assertArrayEquals;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
-import static org.mockito.Mockito.mock;
+import static java.util.Arrays.asList;
+import static org.assertj.core.api.Assertions.assertThat;
 
-/**
- * Tests for the {@link ArchivedExecutionGraph}.
- */
-public class ArchivedExecutionGraphTest extends TestLogger {
+/** Tests for the {@link ArchivedExecutionGraph}. */
+public class ArchivedExecutionGraphTest {
 
-	private static ExecutionGraph runtimeGraph;
+    @RegisterExtension
+    static final TestExecutorExtension<ScheduledExecutorService> EXECUTOR_RESOURCE =
+            TestingUtils.defaultExecutorExtension();
 
-	@BeforeClass
-	public static void setupExecutionGraph() throws Exception {
-		// -------------------------------------------------------------------------------------------------------------
-		// Setup
-		// -------------------------------------------------------------------------------------------------------------
+    private static ExecutionGraph runtimeGraph;
 
-		JobVertexID v1ID = new JobVertexID();
-		JobVertexID v2ID = new JobVertexID();
+    @BeforeAll
+    static void setupExecutionGraph() throws Exception {
+        // -------------------------------------------------------------------------------------------------------------
+        // Setup
+        // -------------------------------------------------------------------------------------------------------------
 
-		JobVertex v1 = new JobVertex("v1", v1ID);
-		JobVertex v2 = new JobVertex("v2", v2ID);
+        JobVertexID v1ID = new JobVertexID();
+        JobVertexID v2ID = new JobVertexID();
 
-		v1.setParallelism(1);
-		v2.setParallelism(2);
+        JobVertex v1 = new JobVertex("v1", v1ID);
+        JobVertex v2 = new JobVertex("v2", v2ID);
 
-		v1.setInvokableClass(AbstractInvokable.class);
-		v2.setInvokableClass(AbstractInvokable.class);
+        v1.setParallelism(1);
+        v2.setParallelism(2);
 
-		JobGraph jobGraph = new JobGraph(v1, v2);
-		ExecutionConfig config = new ExecutionConfig();
+        v1.setInvokableClass(AbstractInvokable.class);
+        v2.setInvokableClass(AbstractInvokable.class);
 
-		config.setExecutionMode(ExecutionMode.BATCH_FORCED);
-		config.setRestartStrategy(new RestartStrategies.NoRestartStrategyConfiguration());
-		config.setParallelism(4);
-		config.enableObjectReuse();
-		config.setGlobalJobParameters(new TestJobParameters());
+        ExecutionConfig config = new ExecutionConfig();
 
-		jobGraph.setExecutionConfig(config);
+        config.setRestartStrategy(new RestartStrategies.NoRestartStrategyConfiguration());
+        config.setParallelism(4);
+        config.enableObjectReuse();
+        config.setGlobalJobParameters(new TestJobParameters());
 
-		runtimeGraph = TestingExecutionGraphBuilder
-			.newBuilder()
-			.setJobGraph(jobGraph)
-			.build();
+        CheckpointCoordinatorConfiguration chkConfig =
+                new CheckpointCoordinatorConfiguration(
+                        100,
+                        100,
+                        100,
+                        1,
+                        CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION,
+                        true,
+                        false,
+                        0,
+                        0);
+        JobCheckpointingSettings checkpointingSettings =
+                new JobCheckpointingSettings(chkConfig, null);
 
-		runtimeGraph.start(ComponentMainThreadExecutorServiceAdapter.forMainThread());
+        final JobGraph jobGraph =
+                JobGraphBuilder.newStreamingJobGraphBuilder()
+                        .addJobVertices(asList(v1, v2))
+                        .setJobCheckpointingSettings(checkpointingSettings)
+                        .setExecutionConfig(config)
+                        .build();
 
-		List<ExecutionJobVertex> jobVertices = new ArrayList<>();
-		jobVertices.add(runtimeGraph.getJobVertex(v1ID));
-		jobVertices.add(runtimeGraph.getJobVertex(v2ID));
+        SchedulerBase scheduler =
+                SchedulerTestingUtils.createScheduler(
+                        jobGraph,
+                        ComponentMainThreadExecutorServiceAdapter.forMainThread(),
+                        EXECUTOR_RESOURCE.getExecutor());
 
-		CheckpointStatsTracker statsTracker = new CheckpointStatsTracker(
-				0,
-				jobVertices,
-				mock(CheckpointCoordinatorConfiguration.class),
-				new UnregisteredMetricsGroup());
+        runtimeGraph = scheduler.getExecutionGraph();
 
-		CheckpointCoordinatorConfiguration chkConfig = new CheckpointCoordinatorConfiguration(
-			100,
-			100,
-			100,
-			1,
-			CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION,
-			true,
-			false,
-			0);
+        scheduler.startScheduling();
+        scheduler.updateTaskExecutionState(
+                new TaskExecutionState(
+                        runtimeGraph
+                                .getAllExecutionVertices()
+                                .iterator()
+                                .next()
+                                .getCurrentExecutionAttempt()
+                                .getAttemptId(),
+                        ExecutionState.FAILED,
+                        new RuntimeException("Local failure")));
+    }
 
-		runtimeGraph.enableCheckpointing(
-			chkConfig,
-			Collections.<ExecutionJobVertex>emptyList(),
-			Collections.<ExecutionJobVertex>emptyList(),
-			Collections.<ExecutionJobVertex>emptyList(),
-			Collections.<MasterTriggerRestoreHook<?>>emptyList(),
-			new StandaloneCheckpointIDCounter(),
-			new StandaloneCompletedCheckpointStore(1),
-			new MemoryStateBackend(),
-			statsTracker);
+    @Test
+    void testArchive() throws IOException, ClassNotFoundException {
+        ArchivedExecutionGraph archivedGraph = ArchivedExecutionGraph.createFrom(runtimeGraph);
 
-		runtimeGraph.setJsonPlan("{}");
+        compareExecutionGraph(runtimeGraph, archivedGraph);
+    }
 
-		runtimeGraph.getJobVertex(v2ID).getTaskVertices()[0].getCurrentExecutionAttempt().fail(new RuntimeException("This exception was thrown on purpose."));
-	}
+    @Test
+    void testSerialization() throws IOException, ClassNotFoundException {
+        ArchivedExecutionGraph archivedGraph = ArchivedExecutionGraph.createFrom(runtimeGraph);
 
-	@Test
-	public void testArchive() throws IOException, ClassNotFoundException {
-		ArchivedExecutionGraph archivedGraph = ArchivedExecutionGraph.createFrom(runtimeGraph);
+        verifySerializability(archivedGraph);
+    }
 
-		compareExecutionGraph(runtimeGraph, archivedGraph);
-	}
+    @Test
+    void testCreateFromInitializingJobForSuspendedJob() {
+        final ArchivedExecutionGraph suspendedExecutionGraph =
+                ArchivedExecutionGraph.createSparseArchivedExecutionGraph(
+                        new JobID(),
+                        "TestJob",
+                        JobStatus.SUSPENDED,
+                        new Exception("Test suspension exception"),
+                        null,
+                        System.currentTimeMillis());
 
-	@Test
-	public void testSerialization() throws IOException, ClassNotFoundException {
-		ArchivedExecutionGraph archivedGraph = ArchivedExecutionGraph.createFrom(runtimeGraph);
+        assertThat(suspendedExecutionGraph.getState()).isEqualTo(JobStatus.SUSPENDED);
+        assertThat(suspendedExecutionGraph.getFailureInfo()).isNotNull();
+    }
 
-		verifySerializability(archivedGraph);
-	}
+    @Test
+    void testCheckpointSettingsArchiving() {
+        final CheckpointCoordinatorConfiguration checkpointCoordinatorConfiguration =
+                CheckpointCoordinatorConfiguration.builder().build();
 
-	private static void compareExecutionGraph(AccessExecutionGraph runtimeGraph, AccessExecutionGraph archivedGraph) throws IOException, ClassNotFoundException {
-		assertTrue(archivedGraph.isArchived());
-		// -------------------------------------------------------------------------------------------------------------
-		// ExecutionGraph
-		// -------------------------------------------------------------------------------------------------------------
-		assertEquals(runtimeGraph.getJsonPlan(), archivedGraph.getJsonPlan());
-		assertEquals(runtimeGraph.getJobID(), archivedGraph.getJobID());
-		assertEquals(runtimeGraph.getJobName(), archivedGraph.getJobName());
-		assertEquals(runtimeGraph.getState(), archivedGraph.getState());
-		assertEquals(runtimeGraph.getFailureInfo().getExceptionAsString(), archivedGraph.getFailureInfo().getExceptionAsString());
-		assertEquals(runtimeGraph.getStatusTimestamp(JobStatus.CREATED), archivedGraph.getStatusTimestamp(JobStatus.CREATED));
-		assertEquals(runtimeGraph.getStatusTimestamp(JobStatus.RUNNING), archivedGraph.getStatusTimestamp(JobStatus.RUNNING));
-		assertEquals(runtimeGraph.getStatusTimestamp(JobStatus.FAILING), archivedGraph.getStatusTimestamp(JobStatus.FAILING));
-		assertEquals(runtimeGraph.getStatusTimestamp(JobStatus.FAILED), archivedGraph.getStatusTimestamp(JobStatus.FAILED));
-		assertEquals(runtimeGraph.getStatusTimestamp(JobStatus.CANCELLING), archivedGraph.getStatusTimestamp(JobStatus.CANCELLING));
-		assertEquals(runtimeGraph.getStatusTimestamp(JobStatus.CANCELED), archivedGraph.getStatusTimestamp(JobStatus.CANCELED));
-		assertEquals(runtimeGraph.getStatusTimestamp(JobStatus.FINISHED), archivedGraph.getStatusTimestamp(JobStatus.FINISHED));
-		assertEquals(runtimeGraph.getStatusTimestamp(JobStatus.RESTARTING), archivedGraph.getStatusTimestamp(JobStatus.RESTARTING));
-		assertEquals(runtimeGraph.getStatusTimestamp(JobStatus.SUSPENDED), archivedGraph.getStatusTimestamp(JobStatus.SUSPENDED));
-		assertEquals(runtimeGraph.isStoppable(), archivedGraph.isStoppable());
+        final ArchivedExecutionGraph archivedGraph =
+                ArchivedExecutionGraph.createSparseArchivedExecutionGraph(
+                        new JobID(),
+                        "TestJob",
+                        JobStatus.INITIALIZING,
+                        null,
+                        new JobCheckpointingSettings(checkpointCoordinatorConfiguration, null),
+                        System.currentTimeMillis());
 
-		// -------------------------------------------------------------------------------------------------------------
-		// CheckpointStats
-		// -------------------------------------------------------------------------------------------------------------
-		CheckpointStatsSnapshot runtimeSnapshot = runtimeGraph.getCheckpointStatsSnapshot();
-		CheckpointStatsSnapshot archivedSnapshot = archivedGraph.getCheckpointStatsSnapshot();
+        assertContainsCheckpointSettings(archivedGraph);
+    }
 
-		assertEquals(runtimeSnapshot.getSummaryStats().getEndToEndDurationStats().getAverage(), archivedSnapshot.getSummaryStats().getEndToEndDurationStats().getAverage());
-		assertEquals(runtimeSnapshot.getSummaryStats().getEndToEndDurationStats().getMinimum(), archivedSnapshot.getSummaryStats().getEndToEndDurationStats().getMinimum());
-		assertEquals(runtimeSnapshot.getSummaryStats().getEndToEndDurationStats().getMaximum(), archivedSnapshot.getSummaryStats().getEndToEndDurationStats().getMaximum());
+    public static void assertContainsCheckpointSettings(ArchivedExecutionGraph archivedGraph) {
+        assertThat(archivedGraph.getCheckpointCoordinatorConfiguration()).isNotNull();
+        assertThat(archivedGraph.getCheckpointStatsSnapshot()).isNotNull();
+        assertThat(archivedGraph.getCheckpointStorageName().get()).isEqualTo("Unknown");
+        assertThat(archivedGraph.getStateBackendName().get()).isEqualTo("Unknown");
+    }
 
-		assertEquals(runtimeSnapshot.getSummaryStats().getStateSizeStats().getAverage(), archivedSnapshot.getSummaryStats().getStateSizeStats().getAverage());
-		assertEquals(runtimeSnapshot.getSummaryStats().getStateSizeStats().getMinimum(), archivedSnapshot.getSummaryStats().getStateSizeStats().getMinimum());
-		assertEquals(runtimeSnapshot.getSummaryStats().getStateSizeStats().getMaximum(), archivedSnapshot.getSummaryStats().getStateSizeStats().getMaximum());
+    @Test
+    void testArchiveWithStatusOverride() throws IOException, ClassNotFoundException {
+        ArchivedExecutionGraph archivedGraph =
+                ArchivedExecutionGraph.createFrom(runtimeGraph, JobStatus.RESTARTING);
 
-		assertEquals(runtimeSnapshot.getCounts().getTotalNumberOfCheckpoints(), archivedSnapshot.getCounts().getTotalNumberOfCheckpoints());
-		assertEquals(runtimeSnapshot.getCounts().getNumberOfCompletedCheckpoints(), archivedSnapshot.getCounts().getNumberOfCompletedCheckpoints());
-		assertEquals(runtimeSnapshot.getCounts().getNumberOfInProgressCheckpoints(), archivedSnapshot.getCounts().getNumberOfInProgressCheckpoints());
+        assertThat(archivedGraph.getState()).isEqualTo(JobStatus.RESTARTING);
+        assertThat(archivedGraph.getStatusTimestamp(JobStatus.FAILED)).isEqualTo(0L);
+    }
 
-		// -------------------------------------------------------------------------------------------------------------
-		// ArchivedExecutionConfig
-		// -------------------------------------------------------------------------------------------------------------
-		ArchivedExecutionConfig runtimeConfig = runtimeGraph.getArchivedExecutionConfig();
-		ArchivedExecutionConfig archivedConfig = archivedGraph.getArchivedExecutionConfig();
+    private static void compareExecutionGraph(
+            AccessExecutionGraph runtimeGraph, AccessExecutionGraph archivedGraph)
+            throws IOException, ClassNotFoundException {
+        // -------------------------------------------------------------------------------------------------------------
+        // ExecutionGraph
+        // -------------------------------------------------------------------------------------------------------------
+        assertThat(runtimeGraph.getJsonPlan()).isEqualTo(archivedGraph.getJsonPlan());
+        assertThat(runtimeGraph.getJobID()).isEqualTo(archivedGraph.getJobID());
+        assertThat(runtimeGraph.getJobName()).isEqualTo(archivedGraph.getJobName());
+        assertThat(runtimeGraph.getState()).isEqualTo(archivedGraph.getState());
+        assertThat(runtimeGraph.getFailureInfo().getExceptionAsString())
+                .isEqualTo(archivedGraph.getFailureInfo().getExceptionAsString());
+        assertThat(runtimeGraph.getStatusTimestamp(JobStatus.CREATED))
+                .isEqualTo(archivedGraph.getStatusTimestamp(JobStatus.CREATED));
+        assertThat(runtimeGraph.getStatusTimestamp(JobStatus.RUNNING))
+                .isEqualTo(archivedGraph.getStatusTimestamp(JobStatus.RUNNING));
+        assertThat(runtimeGraph.getStatusTimestamp(JobStatus.FAILING))
+                .isEqualTo(archivedGraph.getStatusTimestamp(JobStatus.FAILING));
+        assertThat(runtimeGraph.getStatusTimestamp(JobStatus.FAILED))
+                .isEqualTo(archivedGraph.getStatusTimestamp(JobStatus.FAILED));
+        assertThat(runtimeGraph.getStatusTimestamp(JobStatus.CANCELLING))
+                .isEqualTo(archivedGraph.getStatusTimestamp(JobStatus.CANCELLING));
+        assertThat(runtimeGraph.getStatusTimestamp(JobStatus.CANCELED))
+                .isEqualTo(archivedGraph.getStatusTimestamp(JobStatus.CANCELED));
+        assertThat(runtimeGraph.getStatusTimestamp(JobStatus.FINISHED))
+                .isEqualTo(archivedGraph.getStatusTimestamp(JobStatus.FINISHED));
+        assertThat(runtimeGraph.getStatusTimestamp(JobStatus.RESTARTING))
+                .isEqualTo(archivedGraph.getStatusTimestamp(JobStatus.RESTARTING));
+        assertThat(runtimeGraph.getStatusTimestamp(JobStatus.SUSPENDED))
+                .isEqualTo(archivedGraph.getStatusTimestamp(JobStatus.SUSPENDED));
+        assertThat(runtimeGraph.isStoppable()).isEqualTo(archivedGraph.isStoppable());
 
-		assertEquals(runtimeConfig.getExecutionMode(), archivedConfig.getExecutionMode());
-		assertEquals(runtimeConfig.getParallelism(), archivedConfig.getParallelism());
-		assertEquals(runtimeConfig.getObjectReuseEnabled(), archivedConfig.getObjectReuseEnabled());
-		assertEquals(runtimeConfig.getRestartStrategyDescription(), archivedConfig.getRestartStrategyDescription());
-		assertNotNull(archivedConfig.getGlobalJobParameters().get("hello"));
-		assertEquals(runtimeConfig.getGlobalJobParameters().get("hello"), archivedConfig.getGlobalJobParameters().get("hello"));
+        // -------------------------------------------------------------------------------------------------------------
+        // CheckpointStats
+        // -------------------------------------------------------------------------------------------------------------
+        CheckpointStatsSnapshot runtimeSnapshot = runtimeGraph.getCheckpointStatsSnapshot();
+        CheckpointStatsSnapshot archivedSnapshot = archivedGraph.getCheckpointStatsSnapshot();
 
-		// -------------------------------------------------------------------------------------------------------------
-		// StringifiedAccumulators
-		// -------------------------------------------------------------------------------------------------------------
-		compareStringifiedAccumulators(runtimeGraph.getAccumulatorResultsStringified(), archivedGraph.getAccumulatorResultsStringified());
-		compareSerializedAccumulators(runtimeGraph.getAccumulatorsSerialized(), archivedGraph.getAccumulatorsSerialized());
+        List<Function<CompletedCheckpointStatsSummarySnapshot, StatsSummarySnapshot>> meters =
+                asList(
+                        CompletedCheckpointStatsSummarySnapshot::getEndToEndDurationStats,
+                        CompletedCheckpointStatsSummarySnapshot::getPersistedDataStats,
+                        CompletedCheckpointStatsSummarySnapshot::getProcessedDataStats,
+                        CompletedCheckpointStatsSummarySnapshot::getStateSizeStats);
 
-		// -------------------------------------------------------------------------------------------------------------
-		// JobVertices
-		// -------------------------------------------------------------------------------------------------------------
-		Map<JobVertexID, ? extends AccessExecutionJobVertex> runtimeVertices = runtimeGraph.getAllVertices();
-		Map<JobVertexID, ? extends AccessExecutionJobVertex> archivedVertices = archivedGraph.getAllVertices();
+        List<Function<StatsSummarySnapshot, Object>> aggs =
+                asList(
+                        StatsSummarySnapshot::getAverage,
+                        StatsSummarySnapshot::getMinimum,
+                        StatsSummarySnapshot::getMaximum,
+                        StatsSummarySnapshot::getSum,
+                        StatsSummarySnapshot::getCount,
+                        s -> s.getQuantile(0.5d),
+                        s -> s.getQuantile(0.9d),
+                        s -> s.getQuantile(0.95d),
+                        s -> s.getQuantile(0.99d),
+                        s -> s.getQuantile(0.999d));
+        for (Function<CompletedCheckpointStatsSummarySnapshot, StatsSummarySnapshot> meter :
+                meters) {
+            StatsSummarySnapshot runtime = meter.apply(runtimeSnapshot.getSummaryStats());
+            StatsSummarySnapshot archived = meter.apply(runtimeSnapshot.getSummaryStats());
+            for (Function<StatsSummarySnapshot, Object> agg : aggs) {
+                assertThat(agg.apply(runtime)).isEqualTo(agg.apply(archived));
+            }
+        }
 
-		for (Map.Entry<JobVertexID, ? extends AccessExecutionJobVertex> vertex : runtimeVertices.entrySet()) {
-			compareExecutionJobVertex(vertex.getValue(), archivedVertices.get(vertex.getKey()));
-		}
+        assertThat(runtimeSnapshot.getCounts().getTotalNumberOfCheckpoints())
+                .isEqualTo(archivedSnapshot.getCounts().getTotalNumberOfCheckpoints());
+        assertThat(runtimeSnapshot.getCounts().getNumberOfCompletedCheckpoints())
+                .isEqualTo(archivedSnapshot.getCounts().getNumberOfCompletedCheckpoints());
+        assertThat(runtimeSnapshot.getCounts().getNumberOfInProgressCheckpoints())
+                .isEqualTo(archivedSnapshot.getCounts().getNumberOfInProgressCheckpoints());
 
-		Iterator<? extends AccessExecutionJobVertex> runtimeTopologicalVertices = runtimeGraph.getVerticesTopologically().iterator();
-		Iterator<? extends AccessExecutionJobVertex> archiveTopologicaldVertices = archivedGraph.getVerticesTopologically().iterator();
+        // -------------------------------------------------------------------------------------------------------------
+        // ArchivedExecutionConfig
+        // -------------------------------------------------------------------------------------------------------------
+        ArchivedExecutionConfig runtimeConfig = runtimeGraph.getArchivedExecutionConfig();
+        ArchivedExecutionConfig archivedConfig = archivedGraph.getArchivedExecutionConfig();
 
-		while (runtimeTopologicalVertices.hasNext()) {
-			assertTrue(archiveTopologicaldVertices.hasNext());
-			compareExecutionJobVertex(runtimeTopologicalVertices.next(), archiveTopologicaldVertices.next());
-		}
+        assertThat(runtimeConfig.getExecutionMode()).isEqualTo(archivedConfig.getExecutionMode());
+        assertThat(runtimeConfig.getParallelism()).isEqualTo(archivedConfig.getParallelism());
+        assertThat(runtimeConfig.getObjectReuseEnabled())
+                .isEqualTo(archivedConfig.getObjectReuseEnabled());
+        assertThat(runtimeConfig.getRestartStrategyDescription())
+                .isEqualTo(archivedConfig.getRestartStrategyDescription());
+        assertThat(archivedConfig.getGlobalJobParameters().get("hello")).isNotNull();
+        assertThat(runtimeConfig.getGlobalJobParameters().get("hello"))
+                .isEqualTo(archivedConfig.getGlobalJobParameters().get("hello"));
 
-		// -------------------------------------------------------------------------------------------------------------
-		// ExecutionVertices
-		// -------------------------------------------------------------------------------------------------------------
-		Iterator<? extends AccessExecutionVertex> runtimeExecutionVertices = runtimeGraph.getAllExecutionVertices().iterator();
-		Iterator<? extends AccessExecutionVertex> archivedExecutionVertices = archivedGraph.getAllExecutionVertices().iterator();
+        // -------------------------------------------------------------------------------------------------------------
+        // StringifiedAccumulators
+        // -------------------------------------------------------------------------------------------------------------
+        ArchivedExecutionGraphTestUtils.compareStringifiedAccumulators(
+                runtimeGraph.getAccumulatorResultsStringified(),
+                archivedGraph.getAccumulatorResultsStringified());
+        ArchivedExecutionGraphTestUtils.compareSerializedAccumulators(
+                runtimeGraph.getAccumulatorsSerialized(),
+                archivedGraph.getAccumulatorsSerialized());
 
-		while (runtimeExecutionVertices.hasNext()) {
-			assertTrue(archivedExecutionVertices.hasNext());
-			compareExecutionVertex(runtimeExecutionVertices.next(), archivedExecutionVertices.next());
-		}
-	}
+        // -------------------------------------------------------------------------------------------------------------
+        // JobVertices
+        // -------------------------------------------------------------------------------------------------------------
+        Map<JobVertexID, ? extends AccessExecutionJobVertex> runtimeVertices =
+                runtimeGraph.getAllVertices();
+        Map<JobVertexID, ? extends AccessExecutionJobVertex> archivedVertices =
+                archivedGraph.getAllVertices();
 
-	private static void compareExecutionJobVertex(AccessExecutionJobVertex runtimeJobVertex, AccessExecutionJobVertex archivedJobVertex) {
-		assertEquals(runtimeJobVertex.getName(), archivedJobVertex.getName());
-		assertEquals(runtimeJobVertex.getParallelism(), archivedJobVertex.getParallelism());
-		assertEquals(runtimeJobVertex.getMaxParallelism(), archivedJobVertex.getMaxParallelism());
-		assertEquals(runtimeJobVertex.getJobVertexId(), archivedJobVertex.getJobVertexId());
-		assertEquals(runtimeJobVertex.getAggregateState(), archivedJobVertex.getAggregateState());
+        for (Map.Entry<JobVertexID, ? extends AccessExecutionJobVertex> vertex :
+                runtimeVertices.entrySet()) {
+            compareExecutionJobVertex(vertex.getValue(), archivedVertices.get(vertex.getKey()));
+        }
 
-		compareStringifiedAccumulators(runtimeJobVertex.getAggregatedUserAccumulatorsStringified(), archivedJobVertex.getAggregatedUserAccumulatorsStringified());
+        Iterator<? extends AccessExecutionJobVertex> runtimeTopologicalVertices =
+                runtimeGraph.getVerticesTopologically().iterator();
+        Iterator<? extends AccessExecutionJobVertex> archiveTopologicaldVertices =
+                archivedGraph.getVerticesTopologically().iterator();
 
-		AccessExecutionVertex[] runtimeExecutionVertices = runtimeJobVertex.getTaskVertices();
-		AccessExecutionVertex[] archivedExecutionVertices = archivedJobVertex.getTaskVertices();
-		assertEquals(runtimeExecutionVertices.length, archivedExecutionVertices.length);
-		for (int x = 0; x < runtimeExecutionVertices.length; x++) {
-			compareExecutionVertex(runtimeExecutionVertices[x], archivedExecutionVertices[x]);
-		}
-	}
+        while (runtimeTopologicalVertices.hasNext()) {
+            assertThat(archiveTopologicaldVertices.hasNext()).isTrue();
+            compareExecutionJobVertex(
+                    runtimeTopologicalVertices.next(), archiveTopologicaldVertices.next());
+        }
 
-	private static void compareExecutionVertex(AccessExecutionVertex runtimeVertex, AccessExecutionVertex archivedVertex) {
-		assertEquals(runtimeVertex.getTaskNameWithSubtaskIndex(), archivedVertex.getTaskNameWithSubtaskIndex());
-		assertEquals(runtimeVertex.getParallelSubtaskIndex(), archivedVertex.getParallelSubtaskIndex());
-		assertEquals(runtimeVertex.getExecutionState(), archivedVertex.getExecutionState());
-		assertEquals(runtimeVertex.getStateTimestamp(ExecutionState.CREATED), archivedVertex.getStateTimestamp(ExecutionState.CREATED));
-		assertEquals(runtimeVertex.getStateTimestamp(ExecutionState.SCHEDULED), archivedVertex.getStateTimestamp(ExecutionState.SCHEDULED));
-		assertEquals(runtimeVertex.getStateTimestamp(ExecutionState.DEPLOYING), archivedVertex.getStateTimestamp(ExecutionState.DEPLOYING));
-		assertEquals(runtimeVertex.getStateTimestamp(ExecutionState.RUNNING), archivedVertex.getStateTimestamp(ExecutionState.RUNNING));
-		assertEquals(runtimeVertex.getStateTimestamp(ExecutionState.FINISHED), archivedVertex.getStateTimestamp(ExecutionState.FINISHED));
-		assertEquals(runtimeVertex.getStateTimestamp(ExecutionState.CANCELING), archivedVertex.getStateTimestamp(ExecutionState.CANCELING));
-		assertEquals(runtimeVertex.getStateTimestamp(ExecutionState.CANCELED), archivedVertex.getStateTimestamp(ExecutionState.CANCELED));
-		assertEquals(runtimeVertex.getStateTimestamp(ExecutionState.FAILED), archivedVertex.getStateTimestamp(ExecutionState.FAILED));
-		assertEquals(runtimeVertex.getFailureCauseAsString(), archivedVertex.getFailureCauseAsString());
-		assertEquals(runtimeVertex.getCurrentAssignedResourceLocation(), archivedVertex.getCurrentAssignedResourceLocation());
+        // -------------------------------------------------------------------------------------------------------------
+        // ExecutionVertices
+        // -------------------------------------------------------------------------------------------------------------
+        Iterator<? extends AccessExecutionVertex> runtimeExecutionVertices =
+                runtimeGraph.getAllExecutionVertices().iterator();
+        Iterator<? extends AccessExecutionVertex> archivedExecutionVertices =
+                archivedGraph.getAllExecutionVertices().iterator();
 
-		compareExecution(runtimeVertex.getCurrentExecutionAttempt(), archivedVertex.getCurrentExecutionAttempt());
-	}
+        while (runtimeExecutionVertices.hasNext()) {
+            assertThat(archivedExecutionVertices.hasNext()).isTrue();
+            ArchivedExecutionGraphTestUtils.compareExecutionVertex(
+                    runtimeExecutionVertices.next(), archivedExecutionVertices.next());
+        }
+    }
 
-	private static void compareExecution(AccessExecution runtimeExecution, AccessExecution archivedExecution) {
-		assertEquals(runtimeExecution.getAttemptId(), archivedExecution.getAttemptId());
-		assertEquals(runtimeExecution.getAttemptNumber(), archivedExecution.getAttemptNumber());
-		assertArrayEquals(runtimeExecution.getStateTimestamps(), archivedExecution.getStateTimestamps());
-		assertEquals(runtimeExecution.getState(), archivedExecution.getState());
-		assertEquals(runtimeExecution.getAssignedResourceLocation(), archivedExecution.getAssignedResourceLocation());
-		assertEquals(runtimeExecution.getFailureCauseAsString(), archivedExecution.getFailureCauseAsString());
-		assertEquals(runtimeExecution.getStateTimestamp(ExecutionState.CREATED), archivedExecution.getStateTimestamp(ExecutionState.CREATED));
-		assertEquals(runtimeExecution.getStateTimestamp(ExecutionState.SCHEDULED), archivedExecution.getStateTimestamp(ExecutionState.SCHEDULED));
-		assertEquals(runtimeExecution.getStateTimestamp(ExecutionState.DEPLOYING), archivedExecution.getStateTimestamp(ExecutionState.DEPLOYING));
-		assertEquals(runtimeExecution.getStateTimestamp(ExecutionState.RUNNING), archivedExecution.getStateTimestamp(ExecutionState.RUNNING));
-		assertEquals(runtimeExecution.getStateTimestamp(ExecutionState.FINISHED), archivedExecution.getStateTimestamp(ExecutionState.FINISHED));
-		assertEquals(runtimeExecution.getStateTimestamp(ExecutionState.CANCELING), archivedExecution.getStateTimestamp(ExecutionState.CANCELING));
-		assertEquals(runtimeExecution.getStateTimestamp(ExecutionState.CANCELED), archivedExecution.getStateTimestamp(ExecutionState.CANCELED));
-		assertEquals(runtimeExecution.getStateTimestamp(ExecutionState.FAILED), archivedExecution.getStateTimestamp(ExecutionState.FAILED));
-		compareStringifiedAccumulators(runtimeExecution.getUserAccumulatorsStringified(), archivedExecution.getUserAccumulatorsStringified());
-		assertEquals(runtimeExecution.getParallelSubtaskIndex(), archivedExecution.getParallelSubtaskIndex());
-	}
+    private static void compareExecutionJobVertex(
+            AccessExecutionJobVertex runtimeJobVertex, AccessExecutionJobVertex archivedJobVertex) {
+        assertThat(runtimeJobVertex.getName()).isEqualTo(archivedJobVertex.getName());
+        assertThat(runtimeJobVertex.getParallelism()).isEqualTo(archivedJobVertex.getParallelism());
+        assertThat(runtimeJobVertex.getMaxParallelism())
+                .isEqualTo(archivedJobVertex.getMaxParallelism());
+        assertThat(runtimeJobVertex.getJobVertexId()).isEqualTo(archivedJobVertex.getJobVertexId());
+        assertThat(runtimeJobVertex.getAggregateState())
+                .isEqualTo(archivedJobVertex.getAggregateState());
 
-	private static void compareStringifiedAccumulators(StringifiedAccumulatorResult[] runtimeAccs, StringifiedAccumulatorResult[] archivedAccs) {
-		assertEquals(runtimeAccs.length, archivedAccs.length);
+        ArchivedExecutionGraphTestUtils.compareStringifiedAccumulators(
+                runtimeJobVertex.getAggregatedUserAccumulatorsStringified(),
+                archivedJobVertex.getAggregatedUserAccumulatorsStringified());
 
-		for (int x = 0; x < runtimeAccs.length; x++) {
-			StringifiedAccumulatorResult runtimeResult = runtimeAccs[x];
-			StringifiedAccumulatorResult archivedResult = archivedAccs[x];
+        AccessExecutionVertex[] runtimeExecutionVertices = runtimeJobVertex.getTaskVertices();
+        AccessExecutionVertex[] archivedExecutionVertices = archivedJobVertex.getTaskVertices();
+        assertThat(runtimeExecutionVertices.length).isEqualTo(archivedExecutionVertices.length);
+        for (int x = 0; x < runtimeExecutionVertices.length; x++) {
+            ArchivedExecutionGraphTestUtils.compareExecutionVertex(
+                    runtimeExecutionVertices[x], archivedExecutionVertices[x]);
+        }
+    }
 
-			assertEquals(runtimeResult.getName(), archivedResult.getName());
-			assertEquals(runtimeResult.getType(), archivedResult.getType());
-			assertEquals(runtimeResult.getValue(), archivedResult.getValue());
-		}
-	}
+    private static void verifySerializability(ArchivedExecutionGraph graph)
+            throws IOException, ClassNotFoundException {
+        ArchivedExecutionGraph copy = CommonTestUtils.createCopySerializable(graph);
+        compareExecutionGraph(graph, copy);
+    }
 
-	private static void compareSerializedAccumulators(
-			Map<String, SerializedValue<OptionalFailure<Object>>> runtimeAccs,
-			Map<String, SerializedValue<OptionalFailure<Object>>> archivedAccs) throws IOException, ClassNotFoundException {
-		assertEquals(runtimeAccs.size(), archivedAccs.size());
-		for (Entry<String, SerializedValue<OptionalFailure<Object>>> runtimeAcc : runtimeAccs.entrySet()) {
-			long runtimeUserAcc = (long) runtimeAcc.getValue().deserializeValue(ClassLoader.getSystemClassLoader()).getUnchecked();
-			long archivedUserAcc = (long) archivedAccs.get(runtimeAcc.getKey()).deserializeValue(ClassLoader.getSystemClassLoader()).getUnchecked();
+    private static class TestJobParameters extends ExecutionConfig.GlobalJobParameters {
+        private static final long serialVersionUID = -8118611781035212808L;
+        private Map<String, String> parameters;
 
-			assertEquals(runtimeUserAcc, archivedUserAcc);
-		}
-	}
+        private TestJobParameters() {
+            this.parameters = new HashMap<>();
+            this.parameters.put("hello", "world");
+        }
 
-	private static void verifySerializability(ArchivedExecutionGraph graph) throws IOException, ClassNotFoundException {
-		ArchivedExecutionGraph copy = CommonTestUtils.createCopySerializable(graph);
-		compareExecutionGraph(graph, copy);
-	}
-
-	private static class TestJobParameters extends ExecutionConfig.GlobalJobParameters {
-		private static final long serialVersionUID = -8118611781035212808L;
-		private Map<String, String> parameters;
-
-		private TestJobParameters() {
-			this.parameters = new HashMap<>();
-			this.parameters.put("hello", "world");
-		}
-
-		@Override
-		public Map<String, String> toMap() {
-			return parameters;
-		}
-	}
+        @Override
+        public Map<String, String> toMap() {
+            return parameters;
+        }
+    }
 }

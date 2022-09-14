@@ -1,0 +1,193 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!--
+Licensed to the Apache Software Foundation (ASF) under one
+or more contributor license agreements.  See the NOTICE file
+distributed with this work for additional information
+regarding copyright ownership.  The ASF licenses this file
+to you under the Apache License, Version 2.0 (the
+"License"); you may not use this file except in compliance
+with the License.  You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing,
+software distributed under the License is distributed on an
+"AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+KIND, either express or implied.  See the License for the
+specific language governing permissions and limitations
+under the License.
+-->
+
+<svg
+   xmlns:dc="http://purl.org/dc/elements/1.1/"
+   xmlns:cc="http://creativecommons.org/ns#"
+   xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+   xmlns:svg="http://www.w3.org/2000/svg"
+   xmlns="http://www.w3.org/2000/svg"
+   version="1.1"
+   width="974.0144"
+   height="409.9375"
+   id="svg2">
+  <defs
+     id="defs4" />
+  <metadata
+     id="metadata7">
+    <rdf:RDF>
+      <cc:Work
+         rdf:about="">
+        <dc:format>image/svg+xml</dc:format>
+        <dc:type
+           rdf:resource="http://purl.org/dc/dcmitype/StillImage" />
+        <dc:title></dc:title>
+      </cc:Work>
+    </rdf:RDF>
+  </metadata>
+  <g
+     transform="translate(258.42828,-167.38041)"
+     id="layer1">
+    <g
+       transform="translate(-323.70953,144.47416)"
+       id="g2989">
+      <path
+         d="m 66.203993,358.32677 0,73.59333 621.867427,0 0,-73.59333 -621.867427,0 z"
+         id="path2991"
+         style="fill:#e4eaf4;fill-opacity:1;fill-rule:evenodd;stroke:none" />
+      <path
+         d="m 66.203993,358.32677 621.867427,0 0,73.59333 -621.867427,0 z"
+         id="path2993"
+         style="fill:none;stroke:#898c92;stroke-width:1.87546718px;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-opacity:1;stroke-dasharray:none" />
+      <text
+         x="164.98396"
+         y="408.29218"
+         id="text2995"
+         xml:space="preserve"
+         style="font-size:34.95870972px;font-style:normal;font-weight:normal;text-align:start;text-anchor:start;fill:#000000;font-family:Arial">Stateful</text>
+      <text
+         x="293.41599"
+         y="408.29218"
+         id="text2997"
+         xml:space="preserve"
+         style="font-size:34.95870972px;font-style:normal;font-weight:normal;text-align:start;text-anchor:start;fill:#000000;font-family:Arial">Stream Processing</text>
+      <path
+         d="m 181.69526,246.88651 0,73.59333 506.37616,0 0,-73.59333 -506.37616,0 z"
+         id="path2999"
+         style="fill:#f5a030;fill-opacity:1;fill-rule:evenodd;stroke:none" />
+      <path
+         d="m 181.69526,246.88651 506.37616,0 0,73.59333 -506.37616,0 z"
+         id="path3001"
+         style="fill:none;stroke:#935f1c;stroke-width:1.87546718px;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-opacity:1;stroke-dasharray:none" />
+      <text
+         x="231.63388"
+         y="296.79422"
+         id="text3003"
+         xml:space="preserve"
+         style="font-size:34.95870972px;font-style:normal;font-weight:normal;text-align:start;text-anchor:start;fill:#000000;font-family:Arial">DataStream </text>
+      <text
+         x="428.33289"
+         y="296.79422"
+         id="text3005"
+         xml:space="preserve"
+         style="font-size:34.95870972px;font-style:normal;font-weight:normal;text-align:start;text-anchor:start;fill:#000000;font-family:Arial">/ </text>
+      <text
+         x="447.83777"
+         y="296.79422"
+         id="text3007"
+         xml:space="preserve"
+         style="font-size:34.95870972px;font-style:normal;font-weight:normal;text-align:start;text-anchor:start;fill:#000000;font-family:Arial">DataSet</text>
+      <text
+         x="582.12122"
+         y="296.79422"
+         id="text3009"
+         xml:space="preserve"
+         style="font-size:34.95870972px;font-style:normal;font-weight:normal;text-align:start;text-anchor:start;fill:#000000;font-family:Arial">API</text>
+      <path
+         d="m 288.93448,135.44624 0,73.4433 399.13694,0 0,-73.4433 -399.13694,0 z"
+         id="path3011"
+         style="fill:#be73f1;fill-opacity:1;fill-rule:evenodd;stroke:none" />
+      <path
+         d="m 288.93448,135.44624 399.13694,0 0,73.4433 -399.13694,0 z"
+         id="path3013"
+         style="fill:none;stroke:#724591;stroke-width:1.87546718px;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-opacity:1;stroke-dasharray:none" />
+      <text
+         x="414.60895"
+         y="185.29616"
+         id="text3015"
+         xml:space="preserve"
+         style="font-size:34.95870972px;font-style:normal;font-weight:normal;text-align:start;text-anchor:start;fill:#000000;font-family:Arial">Table API</text>
+      <path
+         d="m 415.0409,23.855943 0,73.593334 273.03052,0 0,-73.593334 -273.03052,0 z"
+         id="path3017"
+         style="fill:#e6526e;fill-opacity:1;fill-rule:evenodd;stroke:none" />
+      <path
+         d="m 415.0409,23.855943 273.03052,0 0,73.593334 -273.03052,0 z"
+         id="path3019"
+         style="fill:none;stroke:#8a3142;stroke-width:1.87546718px;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-opacity:1;stroke-dasharray:none" />
+      <text
+         x="516.66846"
+         y="73.79821"
+         id="text3021"
+         xml:space="preserve"
+         style="font-size:34.95870972px;font-style:normal;font-weight:normal;text-align:start;text-anchor:start;fill:#000000;font-family:Arial">SQL</text>
+      <text
+         x="722.66699"
+         y="292.85269"
+         id="text3023"
+         xml:space="preserve"
+         style="font-size:25.05624199px;font-style:normal;font-weight:normal;text-align:start;text-anchor:start;fill:#000000;font-family:Arial">Core </text>
+      <text
+         x="782.38184"
+         y="292.85269"
+         id="text3025"
+         xml:space="preserve"
+         style="font-size:25.05624199px;font-style:normal;font-weight:normal;text-align:start;text-anchor:start;fill:#000000;font-family:Arial">APIs</text>
+      <text
+         x="722.66699"
+         y="181.35474"
+         id="text3027"
+         xml:space="preserve"
+         style="font-size:25.05624199px;font-style:normal;font-weight:normal;text-align:start;text-anchor:start;fill:#000000;font-family:Arial">Declarative DSL</text>
+      <text
+         x="722.66699"
+         y="69.856773"
+         id="text3029"
+         xml:space="preserve"
+         style="font-size:25.05624199px;font-style:normal;font-weight:normal;text-align:start;text-anchor:start;fill:#000000;font-family:Arial">High</text>
+      <text
+         x="774.27985"
+         y="69.856773"
+         id="text3031"
+         xml:space="preserve"
+         style="font-size:25.05624199px;font-style:normal;font-weight:normal;text-align:start;text-anchor:start;fill:#000000;font-family:Arial">-</text>
+      <text
+         x="782.68195"
+         y="69.856773"
+         id="text3033"
+         xml:space="preserve"
+         style="font-size:25.05624199px;font-style:normal;font-weight:normal;text-align:start;text-anchor:start;fill:#000000;font-family:Arial">level Language</text>
+      <text
+         x="722.66699"
+         y="389.2005"
+         id="text3035"
+         xml:space="preserve"
+         style="font-size:25.05624199px;font-style:normal;font-weight:normal;text-align:start;text-anchor:start;fill:#000000;font-family:Arial">Low</text>
+      <text
+         x="768.72845"
+         y="389.2005"
+         id="text3037"
+         xml:space="preserve"
+         style="font-size:25.05624199px;font-style:normal;font-weight:normal;text-align:start;text-anchor:start;fill:#000000;font-family:Arial">-</text>
+      <text
+         x="777.13055"
+         y="389.2005"
+         id="text3039"
+         xml:space="preserve"
+         style="font-size:25.05624199px;font-style:normal;font-weight:normal;text-align:start;text-anchor:start;fill:#000000;font-family:Arial">level building block</text>
+      <text
+         x="722.66699"
+         y="419.20798"
+         id="text3041"
+         xml:space="preserve"
+         style="font-size:25.05624199px;font-style:normal;font-weight:normal;text-align:start;text-anchor:start;fill:#000000;font-family:Arial">(streams, state, [event] time)</text>
+    </g>
+  </g>
+</svg>

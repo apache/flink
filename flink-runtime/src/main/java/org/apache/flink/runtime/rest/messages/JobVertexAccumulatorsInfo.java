@@ -28,43 +28,42 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonPro
 import java.util.Collection;
 import java.util.Objects;
 
-/**
- * Response type of the {@link JobVertexAccumulatorsHandler}.
- */
+/** Response type of the {@link JobVertexAccumulatorsHandler}. */
 public class JobVertexAccumulatorsInfo implements ResponseBody {
 
-	public static final String FIELD_NAME_ID = "id";
-	public static final String FIELD_NAME_USER_ACCUMULATORS = "user-accumulators";
+    public static final String FIELD_NAME_ID = "id";
+    public static final String FIELD_NAME_USER_ACCUMULATORS = "user-accumulators";
 
-	@JsonProperty(FIELD_NAME_ID)
-	private String id;
+    @JsonProperty(FIELD_NAME_ID)
+    private String id;
 
-	@JsonProperty(FIELD_NAME_USER_ACCUMULATORS)
-	private Collection<UserAccumulator> userAccumulatorList;
+    @JsonProperty(FIELD_NAME_USER_ACCUMULATORS)
+    private Collection<UserAccumulator> userAccumulatorList;
 
-	@JsonCreator
-	public JobVertexAccumulatorsInfo(
-			@JsonProperty(FIELD_NAME_ID) String id,
-			@JsonProperty(FIELD_NAME_USER_ACCUMULATORS) Collection<UserAccumulator> userAccumulatorList) {
-		this.id = Preconditions.checkNotNull(id);
-		this.userAccumulatorList = Preconditions.checkNotNull(userAccumulatorList);
-	}
+    @JsonCreator
+    public JobVertexAccumulatorsInfo(
+            @JsonProperty(FIELD_NAME_ID) String id,
+            @JsonProperty(FIELD_NAME_USER_ACCUMULATORS)
+                    Collection<UserAccumulator> userAccumulatorList) {
+        this.id = Preconditions.checkNotNull(id);
+        this.userAccumulatorList = Preconditions.checkNotNull(userAccumulatorList);
+    }
 
-	@Override
-	public boolean equals(Object o) {
-		if (this == o) {
-			return true;
-		}
-		if (o == null || getClass() != o.getClass()) {
-			return false;
-		}
-		JobVertexAccumulatorsInfo that = (JobVertexAccumulatorsInfo) o;
-		return Objects.equals(id, that.id) &&
-			Objects.equals(userAccumulatorList, that.userAccumulatorList);
-	}
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
+        JobVertexAccumulatorsInfo that = (JobVertexAccumulatorsInfo) o;
+        return Objects.equals(id, that.id)
+                && Objects.equals(userAccumulatorList, that.userAccumulatorList);
+    }
 
-	@Override
-	public int hashCode() {
-		return Objects.hash(id, userAccumulatorList);
-	}
+    @Override
+    public int hashCode() {
+        return Objects.hash(id, userAccumulatorList);
+    }
 }

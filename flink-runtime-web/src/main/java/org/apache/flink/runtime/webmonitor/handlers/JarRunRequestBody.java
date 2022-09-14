@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.webmonitor.handlers;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.runtime.jobgraph.RestoreMode;
 import org.apache.flink.runtime.rest.messages.RequestBody;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
@@ -30,49 +31,62 @@ import javax.annotation.Nullable;
 
 import java.util.List;
 
-/**
- * {@link RequestBody} for running a jar.
- */
+/** {@link RequestBody} for running a jar. */
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public class JarRunRequestBody extends JarRequestBody {
-	private static final String FIELD_NAME_ALLOW_NON_RESTORED_STATE = "allowNonRestoredState";
-	private static final String FIELD_NAME_SAVEPOINT_PATH = "savepointPath";
+    private static final String FIELD_NAME_ALLOW_NON_RESTORED_STATE = "allowNonRestoredState";
+    private static final String FIELD_NAME_SAVEPOINT_PATH = "savepointPath";
+    private static final String FIELD_NAME_SAVEPOINT_RESTORE_MODE = "restoreMode";
 
-	@JsonProperty(FIELD_NAME_ALLOW_NON_RESTORED_STATE)
-	@Nullable
-	private Boolean allowNonRestoredState;
+    @JsonProperty(FIELD_NAME_ALLOW_NON_RESTORED_STATE)
+    @Nullable
+    private Boolean allowNonRestoredState;
 
-	@JsonProperty(FIELD_NAME_SAVEPOINT_PATH)
-	@Nullable
-	private String savepointPath;
+    @JsonProperty(FIELD_NAME_SAVEPOINT_PATH)
+    @Nullable
+    private String savepointPath;
 
-	public JarRunRequestBody() {
-		this(null, null, null, null, null, null, null);
-	}
+    @JsonProperty(FIELD_NAME_SAVEPOINT_RESTORE_MODE)
+    @Nullable
+    private RestoreMode restoreMode;
 
-	@JsonCreator
-	public JarRunRequestBody(
-			@Nullable @JsonProperty(FIELD_NAME_ENTRY_CLASS) String entryClassName,
-			@Nullable @JsonProperty(FIELD_NAME_PROGRAM_ARGUMENTS) String programArguments,
-			@Nullable @JsonProperty(FIELD_NAME_PROGRAM_ARGUMENTS_LIST) List<String> programArgumentsList,
-			@Nullable @JsonProperty(FIELD_NAME_PARALLELISM) Integer parallelism,
-			@Nullable @JsonProperty(FIELD_NAME_JOB_ID) JobID jobId,
-			@Nullable @JsonProperty(FIELD_NAME_ALLOW_NON_RESTORED_STATE) Boolean allowNonRestoredState,
-			@Nullable @JsonProperty(FIELD_NAME_SAVEPOINT_PATH) String savepointPath) {
-		super(entryClassName, programArguments, programArgumentsList, parallelism, jobId);
-		this.allowNonRestoredState = allowNonRestoredState;
-		this.savepointPath = savepointPath;
-	}
+    public JarRunRequestBody() {
+        this(null, null, null, null, null, null, null, null);
+    }
 
-	@Nullable
-	@JsonIgnore
-	public Boolean getAllowNonRestoredState() {
-		return allowNonRestoredState;
-	}
+    @JsonCreator
+    public JarRunRequestBody(
+            @Nullable @JsonProperty(FIELD_NAME_ENTRY_CLASS) String entryClassName,
+            @Nullable @JsonProperty(FIELD_NAME_PROGRAM_ARGUMENTS) String programArguments,
+            @Nullable @JsonProperty(FIELD_NAME_PROGRAM_ARGUMENTS_LIST)
+                    List<String> programArgumentsList,
+            @Nullable @JsonProperty(FIELD_NAME_PARALLELISM) Integer parallelism,
+            @Nullable @JsonProperty(FIELD_NAME_JOB_ID) JobID jobId,
+            @Nullable @JsonProperty(FIELD_NAME_ALLOW_NON_RESTORED_STATE)
+                    Boolean allowNonRestoredState,
+            @Nullable @JsonProperty(FIELD_NAME_SAVEPOINT_PATH) String savepointPath,
+            @Nullable @JsonProperty(FIELD_NAME_SAVEPOINT_RESTORE_MODE) RestoreMode restoreMode) {
+        super(entryClassName, programArguments, programArgumentsList, parallelism, jobId);
+        this.allowNonRestoredState = allowNonRestoredState;
+        this.savepointPath = savepointPath;
+        this.restoreMode = restoreMode;
+    }
 
-	@Nullable
-	@JsonIgnore
-	public String getSavepointPath() {
-		return savepointPath;
-	}
+    @Nullable
+    @JsonIgnore
+    public Boolean getAllowNonRestoredState() {
+        return allowNonRestoredState;
+    }
+
+    @Nullable
+    @JsonIgnore
+    public String getSavepointPath() {
+        return savepointPath;
+    }
+
+    @Nullable
+    @JsonIgnore
+    public RestoreMode getRestoreMode() {
+        return restoreMode;
+    }
 }

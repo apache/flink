@@ -18,11 +18,23 @@
 ################################################################################
 
 # Start/stop a Flink JobManager.
-USAGE="Usage: jobmanager.sh ((start|start-foreground) [host] [webui-port])|stop|stop-all"
+USAGE="Usage: jobmanager.sh ((start|start-foreground) [args])|stop|stop-all"
 
 STARTSTOP=$1
-HOST=$2 # optional when starting multiple instances
-WEBUIPORT=$3 # optional when starting multiple instances
+
+if [ -z $2 ] || [[ $2 == "-D" ]]; then
+    # start [-D ...]
+    args=("${@:2}")
+elif [ -z $3 ] || [[ $3 == "-D" ]]; then
+    # legacy path: start <host> [-D ...]
+    HOST=$2
+    args=("${@:3}")
+else
+    # legacy path: start <host> <port> [-D ...]
+    HOST=$2
+    WEBUIPORT=$3
+    args=("${@:4}")
+fi
 
 if [[ $STARTSTOP != "start" ]] && [[ $STARTSTOP != "start-foreground" ]] && [[ $STARTSTOP != "stop" ]] && [[ $STARTSTOP != "stop-all" ]]; then
   echo $USAGE
@@ -37,27 +49,11 @@ bin=`cd "$bin"; pwd`
 ENTRYPOINT=standalonesession
 
 if [[ $STARTSTOP == "start" ]] || [[ $STARTSTOP == "start-foreground" ]]; then
-    if [ ! -z "${FLINK_JM_HEAP_MB}" ] && [ "${FLINK_JM_HEAP}" == 0 ]; then
-	    echo "used deprecated key \`${KEY_JOBM_MEM_MB}\`, please replace with key \`${KEY_JOBM_MEM_SIZE}\`"
-    else
-	    flink_jm_heap_bytes=$(parseBytes ${FLINK_JM_HEAP})
-	    FLINK_JM_HEAP_MB=$(getMebiBytes ${flink_jm_heap_bytes})
-    fi
-
-    if [[ ! ${FLINK_JM_HEAP_MB} =~ $IS_NUMBER ]] || [[ "${FLINK_JM_HEAP_MB}" -lt "0" ]]; then
-        echo "[ERROR] Configured JobManager memory size is not a valid value. Please set '${KEY_JOBM_MEM_SIZE}' in ${FLINK_CONF_FILE}."
-        exit 1
-    fi
-
-    if [ "${FLINK_JM_HEAP_MB}" -gt "0" ]; then
-        export JVM_ARGS="$JVM_ARGS -Xms"$FLINK_JM_HEAP_MB"m -Xmx"$FLINK_JM_HEAP_MB"m"
-    fi
-
     # Add JobManager-specific JVM options
     export FLINK_ENV_JAVA_OPTS="${FLINK_ENV_JAVA_OPTS} ${FLINK_ENV_JAVA_OPTS_JM}"
+    parseJmArgsAndExportLogs "${ARGS[@]}"
 
-    # Startup parameters
-    args=("--configDir" "${FLINK_CONF_DIR}" "--executionMode" "cluster")
+    args=("--configDir" "${FLINK_CONF_DIR}" "--executionMode" "cluster" "${args[@]}")
     if [ ! -z $HOST ]; then
         args+=("--host")
         args+=("${HOST}")
@@ -66,6 +62,10 @@ if [[ $STARTSTOP == "start" ]] || [[ $STARTSTOP == "start-foreground" ]]; then
     if [ ! -z $WEBUIPORT ]; then
         args+=("--webui-port")
         args+=("${WEBUIPORT}")
+    fi
+
+    if [ ! -z "${DYNAMIC_PARAMETERS}" ]; then
+        args=(${DYNAMIC_PARAMETERS[@]} "${args[@]}")
     fi
 fi
 

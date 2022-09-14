@@ -26,22 +26,25 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-connectors</artifactId>
-		<version>1.11-SNAPSHOT</version>
-		<relativePath>..</relativePath>
+		<version>1.17-SNAPSHOT</version>
 	</parent>
 
-	<artifactId>flink-connector-gcp-pubsub_${scala.binary.version}</artifactId>
-	<name>flink-connector-gcp-pubsub</name>
+	<artifactId>flink-connector-gcp-pubsub</artifactId>
+	<name>Flink : Connectors : Google PubSub</name>
 
 	<packaging>jar</packaging>
+
+	<properties>
+		<google-cloud-libraries-bom.version>8.1.0</google-cloud-libraries-bom.version>
+	</properties>
 
 	<dependencyManagement>
 		<dependencies>
 			<dependency>
 				<!-- This is the way we get a consistent set of versions of the Google tools -->
 				<groupId>com.google.cloud</groupId>
-				<artifactId>google-cloud-bom</artifactId>
-				<version>0.80.0-alpha</version>
+				<artifactId>libraries-bom</artifactId>
+				<version>${google-cloud-libraries-bom.version}</version>
 				<type>pom</type>
 				<scope>import</scope>
 			</dependency>
@@ -51,28 +54,32 @@ under the License.
 	<dependencies>
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-streaming-java_${scala.binary.version}</artifactId>
+			<artifactId>flink-streaming-java</artifactId>
 			<version>${project.version}</version>
 			<scope>provided</scope>
 		</dependency>
 
 		<dependency>
 			<groupId>com.google.cloud</groupId>
+			<artifactId>google-cloud-core</artifactId>
+			<!-- Version is pulled from google-cloud-bom (loaded via the libraries-bom) -->
+		</dependency>
+
+		<dependency>
+			<groupId>com.google.cloud</groupId>
 			<artifactId>google-cloud-pubsub</artifactId>
-			<!-- Version is pulled from google-cloud-bom -->
-			<exclusions>
-				<!-- Exclude an old version of guava that is being pulled
-                in by a transitive dependency of google-api-client -->
-				<exclusion>
-					<groupId>com.google.guava</groupId>
-					<artifactId>guava-jdk5</artifactId>
-				</exclusion>
-			</exclusions>
+			<!-- Version is pulled from google-cloud-bom (loaded via the libraries-bom) -->
+		</dependency>
+
+		<dependency>
+			<groupId>com.google.api.grpc</groupId>
+			<artifactId>grpc-google-cloud-pubsub-v1</artifactId>
+			<!-- Version is pulled from google-cloud-bom (loaded via the libraries-bom) -->
 		</dependency>
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-streaming-java_${scala.binary.version}</artifactId>
+			<artifactId>flink-streaming-java</artifactId>
 			<version>${project.version}</version>
 			<scope>test</scope>
 			<type>test-jar</type>
@@ -80,9 +87,17 @@ under the License.
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-runtime_${scala.binary.version}</artifactId>
+			<artifactId>flink-runtime</artifactId>
 			<version>${project.version}</version>
 			<type>test-jar</type>
+			<scope>test</scope>
+		</dependency>
+
+		<!-- ArchUit test dependencies -->
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-architecture-tests-test</artifactId>
 			<scope>test</scope>
 		</dependency>
 	</dependencies>

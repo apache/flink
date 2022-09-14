@@ -25,11 +25,11 @@ package org.apache.flink.client.program.rest.retry;
 @FunctionalInterface
 public interface WaitStrategy {
 
-	/**
-	 * Returns the time to wait until the next attempt. Attempts start at {@code 0}.
-	 * @param attempt The number of the last attempt.
-	 * @return Waiting time in ms.
-	 */
-	long sleepTime(long attempt);
-
+    /**
+     * Returns the time to wait until the next attempt. Attempts start at {@code 0}.
+     *
+     * @param attempt The number of the last attempt.
+     * @return Waiting time in ms.
+     */
+    long sleepTime(long attempt);
 }

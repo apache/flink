@@ -20,214 +20,313 @@ package org.apache.flink.runtime.io.network.partition;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.runtime.deployment.ResultPartitionDeploymentDescriptor;
+import org.apache.flink.runtime.io.disk.BatchShuffleReadBufferPool;
 import org.apache.flink.runtime.io.disk.FileChannelManager;
 import org.apache.flink.runtime.io.network.NettyShuffleEnvironment;
 import org.apache.flink.runtime.io.network.buffer.BufferCompressor;
 import org.apache.flink.runtime.io.network.buffer.BufferPool;
 import org.apache.flink.runtime.io.network.buffer.BufferPoolFactory;
-import org.apache.flink.runtime.io.network.buffer.BufferPoolOwner;
+import org.apache.flink.runtime.io.network.partition.hybrid.HsResultPartition;
+import org.apache.flink.runtime.io.network.partition.hybrid.HybridShuffleConfiguration;
+import org.apache.flink.runtime.shuffle.NettyShuffleUtils;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.ProcessorArchitecture;
-import org.apache.flink.util.function.FunctionWithException;
+import org.apache.flink.util.function.SupplierWithException;
 
+import org.apache.commons.lang3.tuple.Pair;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.concurrent.ScheduledExecutorService;
 
-/**
- * Factory for {@link ResultPartition} to use in {@link NettyShuffleEnvironment}.
- */
+/** Factory for {@link ResultPartition} to use in {@link NettyShuffleEnvironment}. */
 public class ResultPartitionFactory {
 
-	private static final Logger LOG = LoggerFactory.getLogger(ResultPartitionFactory.class);
+    private static final Logger LOG = LoggerFactory.getLogger(ResultPartitionFactory.class);
 
-	private final ResultPartitionManager partitionManager;
+    private final ResultPartitionManager partitionManager;
 
-	private final FileChannelManager channelManager;
+    private final FileChannelManager channelManager;
 
-	private final BufferPoolFactory bufferPoolFactory;
+    private final BufferPoolFactory bufferPoolFactory;
 
-	private final BoundedBlockingSubpartitionType blockingSubpartitionType;
+    private final BatchShuffleReadBufferPool batchShuffleReadBufferPool;
 
-	private final int networkBuffersPerChannel;
+    private final ScheduledExecutorService batchShuffleReadIOExecutor;
 
-	private final int floatingNetworkBuffersPerGate;
+    private final BoundedBlockingSubpartitionType blockingSubpartitionType;
 
-	private final int networkBufferSize;
+    private final int configuredNetworkBuffersPerChannel;
 
-	private final boolean forcePartitionReleaseOnConsumption;
+    private final int floatingNetworkBuffersPerGate;
 
-	private final boolean blockingShuffleCompressionEnabled;
+    private final int networkBufferSize;
 
-	private final String compressionCodec;
+    private final boolean batchShuffleCompressionEnabled;
 
-	public ResultPartitionFactory(
-		ResultPartitionManager partitionManager,
-		FileChannelManager channelManager,
-		BufferPoolFactory bufferPoolFactory,
-		BoundedBlockingSubpartitionType blockingSubpartitionType,
-		int networkBuffersPerChannel,
-		int floatingNetworkBuffersPerGate,
-		int networkBufferSize,
-		boolean forcePartitionReleaseOnConsumption,
-		boolean blockingShuffleCompressionEnabled,
-		String compressionCodec) {
+    private final String compressionCodec;
 
-		this.partitionManager = partitionManager;
-		this.channelManager = channelManager;
-		this.networkBuffersPerChannel = networkBuffersPerChannel;
-		this.floatingNetworkBuffersPerGate = floatingNetworkBuffersPerGate;
-		this.bufferPoolFactory = bufferPoolFactory;
-		this.blockingSubpartitionType = blockingSubpartitionType;
-		this.networkBufferSize = networkBufferSize;
-		this.forcePartitionReleaseOnConsumption = forcePartitionReleaseOnConsumption;
-		this.blockingShuffleCompressionEnabled = blockingShuffleCompressionEnabled;
-		this.compressionCodec = compressionCodec;
-	}
+    private final int maxBuffersPerChannel;
 
-	public ResultPartition create(
-			String taskNameWithSubtaskAndId,
-			ResultPartitionDeploymentDescriptor desc) {
-		return create(
-			taskNameWithSubtaskAndId,
-			desc.getShuffleDescriptor().getResultPartitionID(),
-			desc.getPartitionType(),
-			desc.getNumberOfSubpartitions(),
-			desc.getMaxParallelism(),
-			createBufferPoolFactory(desc.getNumberOfSubpartitions(), desc.getPartitionType()));
-	}
+    private final int sortShuffleMinBuffers;
 
-	@VisibleForTesting
-	public ResultPartition create(
-			String taskNameWithSubtaskAndId,
-			ResultPartitionID id,
-			ResultPartitionType type,
-			int numberOfSubpartitions,
-			int maxParallelism,
-			FunctionWithException<BufferPoolOwner, BufferPool, IOException> bufferPoolFactory) {
-		BufferCompressor bufferCompressor = null;
-		if (type.isBlocking() && blockingShuffleCompressionEnabled) {
-			bufferCompressor = new BufferCompressor(networkBufferSize, compressionCodec);
-		}
+    private final int sortShuffleMinParallelism;
 
-		ResultSubpartition[] subpartitions = new ResultSubpartition[numberOfSubpartitions];
-		ResultPartition partition = forcePartitionReleaseOnConsumption || !type.isBlocking()
-			? new ReleaseOnConsumptionResultPartition(
-				taskNameWithSubtaskAndId,
-				id,
-				type,
-				subpartitions,
-				maxParallelism,
-				partitionManager,
-				bufferCompressor,
-				bufferPoolFactory)
-			: new ResultPartition(
-				taskNameWithSubtaskAndId,
-				id,
-				type,
-				subpartitions,
-				maxParallelism,
-				partitionManager,
-				bufferCompressor,
-				bufferPoolFactory);
+    private final boolean sslEnabled;
 
-		createSubpartitions(partition, type, blockingSubpartitionType, subpartitions);
+    private final int maxOverdraftBuffersPerGate;
 
-		LOG.debug("{}: Initialized {}", taskNameWithSubtaskAndId, this);
+    public ResultPartitionFactory(
+            ResultPartitionManager partitionManager,
+            FileChannelManager channelManager,
+            BufferPoolFactory bufferPoolFactory,
+            BatchShuffleReadBufferPool batchShuffleReadBufferPool,
+            ScheduledExecutorService batchShuffleReadIOExecutor,
+            BoundedBlockingSubpartitionType blockingSubpartitionType,
+            int configuredNetworkBuffersPerChannel,
+            int floatingNetworkBuffersPerGate,
+            int networkBufferSize,
+            boolean batchShuffleCompressionEnabled,
+            String compressionCodec,
+            int maxBuffersPerChannel,
+            int sortShuffleMinBuffers,
+            int sortShuffleMinParallelism,
+            boolean sslEnabled,
+            int maxOverdraftBuffersPerGate) {
 
-		return partition;
-	}
+        this.partitionManager = partitionManager;
+        this.channelManager = channelManager;
+        this.configuredNetworkBuffersPerChannel = configuredNetworkBuffersPerChannel;
+        this.floatingNetworkBuffersPerGate = floatingNetworkBuffersPerGate;
+        this.bufferPoolFactory = bufferPoolFactory;
+        this.batchShuffleReadBufferPool = batchShuffleReadBufferPool;
+        this.batchShuffleReadIOExecutor = batchShuffleReadIOExecutor;
+        this.blockingSubpartitionType = blockingSubpartitionType;
+        this.networkBufferSize = networkBufferSize;
+        this.batchShuffleCompressionEnabled = batchShuffleCompressionEnabled;
+        this.compressionCodec = compressionCodec;
+        this.maxBuffersPerChannel = maxBuffersPerChannel;
+        this.sortShuffleMinBuffers = sortShuffleMinBuffers;
+        this.sortShuffleMinParallelism = sortShuffleMinParallelism;
+        this.sslEnabled = sslEnabled;
+        this.maxOverdraftBuffersPerGate = maxOverdraftBuffersPerGate;
+    }
 
-	private void createSubpartitions(
-			ResultPartition partition,
-			ResultPartitionType type,
-			BoundedBlockingSubpartitionType blockingSubpartitionType,
-			ResultSubpartition[] subpartitions) {
-		// Create the subpartitions.
-		if (type.isBlocking()) {
-			initializeBoundedBlockingPartitions(
-				subpartitions,
-				partition,
-				blockingSubpartitionType,
-				networkBufferSize,
-				channelManager);
-		} else {
-			for (int i = 0; i < subpartitions.length; i++) {
-				subpartitions[i] = new PipelinedSubpartition(i, partition);
-			}
-		}
-	}
+    public ResultPartition create(
+            String taskNameWithSubtaskAndId,
+            int partitionIndex,
+            ResultPartitionDeploymentDescriptor desc) {
+        return create(
+                taskNameWithSubtaskAndId,
+                partitionIndex,
+                desc.getShuffleDescriptor().getResultPartitionID(),
+                desc.getPartitionType(),
+                desc.getNumberOfSubpartitions(),
+                desc.getMaxParallelism(),
+                createBufferPoolFactory(desc.getNumberOfSubpartitions(), desc.getPartitionType()));
+    }
 
-	private static void initializeBoundedBlockingPartitions(
-			ResultSubpartition[] subpartitions,
-			ResultPartition parent,
-			BoundedBlockingSubpartitionType blockingSubpartitionType,
-			int networkBufferSize,
-			FileChannelManager channelManager) {
-		int i = 0;
-		try {
-			for (i = 0; i < subpartitions.length; i++) {
-				final File spillFile = channelManager.createChannel().getPathFile();
-				subpartitions[i] = blockingSubpartitionType.create(i, parent, spillFile, networkBufferSize);
-			}
-		}
-		catch (IOException e) {
-			// undo all the work so that a failed constructor does not leave any resources
-			// in need of disposal
-			releasePartitionsQuietly(subpartitions, i);
+    @VisibleForTesting
+    public ResultPartition create(
+            String taskNameWithSubtaskAndId,
+            int partitionIndex,
+            ResultPartitionID id,
+            ResultPartitionType type,
+            int numberOfSubpartitions,
+            int maxParallelism,
+            SupplierWithException<BufferPool, IOException> bufferPoolFactory) {
+        BufferCompressor bufferCompressor = null;
+        if (type.supportCompression() && batchShuffleCompressionEnabled) {
+            bufferCompressor = new BufferCompressor(networkBufferSize, compressionCodec);
+        }
 
-			// this is not good, we should not be forced to wrap this in a runtime exception.
-			// the fact that the ResultPartition and Task constructor (which calls this) do not tolerate any exceptions
-			// is incompatible with eager initialization of resources (RAII).
-			throw new FlinkRuntimeException(e);
-		}
-	}
+        ResultSubpartition[] subpartitions = new ResultSubpartition[numberOfSubpartitions];
 
-	private static void releasePartitionsQuietly(ResultSubpartition[] partitions, int until) {
-		for (int i = 0; i < until; i++) {
-			final ResultSubpartition subpartition = partitions[i];
-			ExceptionUtils.suppressExceptions(subpartition::release);
-		}
-	}
+        final ResultPartition partition;
+        if (type == ResultPartitionType.PIPELINED
+                || type == ResultPartitionType.PIPELINED_BOUNDED
+                || type == ResultPartitionType.PIPELINED_APPROXIMATE) {
+            final PipelinedResultPartition pipelinedPartition =
+                    new PipelinedResultPartition(
+                            taskNameWithSubtaskAndId,
+                            partitionIndex,
+                            id,
+                            type,
+                            subpartitions,
+                            maxParallelism,
+                            partitionManager,
+                            bufferCompressor,
+                            bufferPoolFactory);
 
-	/**
-	 * The minimum pool size should be <code>numberOfSubpartitions + 1</code> for two considerations:
-	 *
-	 * <p>1. StreamTask can only process input if there is at-least one available buffer on output side, so it might cause
-	 * stuck problem if the minimum pool size is exactly equal to the number of subpartitions, because every subpartition
-	 * might maintain a partial unfilled buffer.
-	 *
-	 * <p>2. Increases one more buffer for every output LocalBufferPool to void performance regression if processing input is
-	 * based on at-least one buffer available on output side.
-	 */
-	@VisibleForTesting
-	FunctionWithException<BufferPoolOwner, BufferPool, IOException> createBufferPoolFactory(
-			int numberOfSubpartitions,
-			ResultPartitionType type) {
-		return bufferPoolOwner -> {
-			int maxNumberOfMemorySegments = type.isBounded() ?
-				numberOfSubpartitions * networkBuffersPerChannel + floatingNetworkBuffersPerGate : Integer.MAX_VALUE;
-			// If the partition type is back pressure-free, we register with the buffer pool for
-			// callbacks to release memory.
-			return bufferPoolFactory.createBufferPool(
-				numberOfSubpartitions + 1,
-				maxNumberOfMemorySegments,
-				type.hasBackPressure() ? null : bufferPoolOwner);
-		};
-	}
+            for (int i = 0; i < subpartitions.length; i++) {
+                if (type == ResultPartitionType.PIPELINED_APPROXIMATE) {
+                    subpartitions[i] =
+                            new PipelinedApproximateSubpartition(
+                                    i, configuredNetworkBuffersPerChannel, pipelinedPartition);
+                } else {
+                    subpartitions[i] =
+                            new PipelinedSubpartition(
+                                    i, configuredNetworkBuffersPerChannel, pipelinedPartition);
+                }
+            }
 
-	static BoundedBlockingSubpartitionType getBoundedBlockingType() {
-		switch (ProcessorArchitecture.getMemoryAddressSize()) {
-			case _64_BIT:
-				return BoundedBlockingSubpartitionType.FILE_MMAP;
-			case _32_BIT:
-				return BoundedBlockingSubpartitionType.FILE;
-			default:
-				LOG.warn("Cannot determine memory architecture. Using pure file-based shuffle.");
-				return BoundedBlockingSubpartitionType.FILE;
-		}
-	}
+            partition = pipelinedPartition;
+        } else if (type == ResultPartitionType.BLOCKING
+                || type == ResultPartitionType.BLOCKING_PERSISTENT) {
+            if (numberOfSubpartitions >= sortShuffleMinParallelism) {
+                partition =
+                        new SortMergeResultPartition(
+                                taskNameWithSubtaskAndId,
+                                partitionIndex,
+                                id,
+                                type,
+                                subpartitions.length,
+                                maxParallelism,
+                                batchShuffleReadBufferPool,
+                                batchShuffleReadIOExecutor,
+                                partitionManager,
+                                channelManager.createChannel().getPath(),
+                                bufferCompressor,
+                                bufferPoolFactory);
+            } else {
+                final BoundedBlockingResultPartition blockingPartition =
+                        new BoundedBlockingResultPartition(
+                                taskNameWithSubtaskAndId,
+                                partitionIndex,
+                                id,
+                                type,
+                                subpartitions,
+                                maxParallelism,
+                                partitionManager,
+                                bufferCompressor,
+                                bufferPoolFactory);
+
+                initializeBoundedBlockingPartitions(
+                        subpartitions,
+                        blockingPartition,
+                        blockingSubpartitionType,
+                        networkBufferSize,
+                        channelManager,
+                        sslEnabled);
+
+                partition = blockingPartition;
+            }
+        } else if (type == ResultPartitionType.HYBRID_FULL
+                || type == ResultPartitionType.HYBRID_SELECTIVE) {
+            partition =
+                    new HsResultPartition(
+                            taskNameWithSubtaskAndId,
+                            partitionIndex,
+                            id,
+                            type,
+                            subpartitions.length,
+                            maxParallelism,
+                            batchShuffleReadBufferPool,
+                            batchShuffleReadIOExecutor,
+                            partitionManager,
+                            channelManager.createChannel().getPath(),
+                            networkBufferSize,
+                            HybridShuffleConfiguration.builder(
+                                            numberOfSubpartitions,
+                                            batchShuffleReadBufferPool.getNumBuffersPerRequest())
+                                    .setSpillingStrategyType(
+                                            type == ResultPartitionType.HYBRID_FULL
+                                                    ? HybridShuffleConfiguration
+                                                            .SpillingStrategyType.FULL
+                                                    : HybridShuffleConfiguration
+                                                            .SpillingStrategyType.SELECTIVE)
+                                    .build(),
+                            bufferCompressor,
+                            bufferPoolFactory);
+        } else {
+            throw new IllegalArgumentException("Unrecognized ResultPartitionType: " + type);
+        }
+
+        LOG.debug("{}: Initialized {}", taskNameWithSubtaskAndId, this);
+
+        return partition;
+    }
+
+    private static void initializeBoundedBlockingPartitions(
+            ResultSubpartition[] subpartitions,
+            BoundedBlockingResultPartition parent,
+            BoundedBlockingSubpartitionType blockingSubpartitionType,
+            int networkBufferSize,
+            FileChannelManager channelManager,
+            boolean sslEnabled) {
+        int i = 0;
+        try {
+            for (i = 0; i < subpartitions.length; i++) {
+                final File spillFile = channelManager.createChannel().getPathFile();
+                subpartitions[i] =
+                        blockingSubpartitionType.create(
+                                i, parent, spillFile, networkBufferSize, sslEnabled);
+            }
+        } catch (IOException e) {
+            // undo all the work so that a failed constructor does not leave any resources
+            // in need of disposal
+            releasePartitionsQuietly(subpartitions, i);
+
+            // this is not good, we should not be forced to wrap this in a runtime exception.
+            // the fact that the ResultPartition and Task constructor (which calls this) do not
+            // tolerate any exceptions
+            // is incompatible with eager initialization of resources (RAII).
+            throw new FlinkRuntimeException(e);
+        }
+    }
+
+    private static void releasePartitionsQuietly(ResultSubpartition[] partitions, int until) {
+        for (int i = 0; i < until; i++) {
+            final ResultSubpartition subpartition = partitions[i];
+            ExceptionUtils.suppressExceptions(subpartition::release);
+        }
+    }
+
+    /**
+     * The minimum pool size should be <code>numberOfSubpartitions + 1</code> for two
+     * considerations:
+     *
+     * <p>1. StreamTask can only process input if there is at-least one available buffer on output
+     * side, so it might cause stuck problem if the minimum pool size is exactly equal to the number
+     * of subpartitions, because every subpartition might maintain a partial unfilled buffer.
+     *
+     * <p>2. Increases one more buffer for every output LocalBufferPool to avoid performance
+     * regression if processing input is based on at-least one buffer available on output side.
+     */
+    @VisibleForTesting
+    SupplierWithException<BufferPool, IOException> createBufferPoolFactory(
+            int numberOfSubpartitions, ResultPartitionType type) {
+        return () -> {
+            Pair<Integer, Integer> pair =
+                    NettyShuffleUtils.getMinMaxNetworkBuffersPerResultPartition(
+                            configuredNetworkBuffersPerChannel,
+                            floatingNetworkBuffersPerGate,
+                            sortShuffleMinParallelism,
+                            sortShuffleMinBuffers,
+                            numberOfSubpartitions,
+                            type);
+
+            return bufferPoolFactory.createBufferPool(
+                    pair.getLeft(),
+                    pair.getRight(),
+                    numberOfSubpartitions,
+                    maxBuffersPerChannel,
+                    maxOverdraftBuffersPerGate);
+        };
+    }
+
+    static BoundedBlockingSubpartitionType getBoundedBlockingType() {
+        switch (ProcessorArchitecture.getMemoryAddressSize()) {
+            case _64_BIT:
+                return BoundedBlockingSubpartitionType.FILE_MMAP;
+            case _32_BIT:
+                return BoundedBlockingSubpartitionType.FILE;
+            default:
+                LOG.warn("Cannot determine memory architecture. Using pure file-based shuffle.");
+                return BoundedBlockingSubpartitionType.FILE;
+        }
+    }
 }

@@ -29,70 +29,69 @@ import static org.apache.flink.util.Preconditions.checkState;
 
 /**
  * This class waits for {@code expectedRepetitionsOfExpectedRecord} number of occurrences of the
- * {@code expectedRecord}. {@code expectedRepetitionsOfExpectedRecord} is correlated with number of input channels.
+ * {@code expectedRecord}. {@code expectedRepetitionsOfExpectedRecord} is correlated with number of
+ * input channels.
  */
 public abstract class ReceiverThread extends CheckedThread {
-	protected static final Logger LOG = LoggerFactory.getLogger(ReceiverThread.class);
+    protected static final Logger LOG = LoggerFactory.getLogger(ReceiverThread.class);
 
-	protected final int expectedRepetitionsOfExpectedRecord;
+    protected final int expectedRepetitionsOfExpectedRecord;
 
-	protected int expectedRecordCounter;
-	protected CompletableFuture<Long> expectedRecord = new CompletableFuture<>();
-	protected CompletableFuture<?> recordsProcessed = new CompletableFuture<>();
+    protected int expectedRecordCounter;
+    protected CompletableFuture<Long> expectedRecord = new CompletableFuture<>();
+    protected CompletableFuture<?> recordsProcessed = new CompletableFuture<>();
 
-	protected volatile boolean running;
+    protected volatile boolean running;
 
-	ReceiverThread(int expectedRepetitionsOfExpectedRecord) {
-		setName(this.getClass().getName());
+    ReceiverThread(int expectedRepetitionsOfExpectedRecord) {
+        setName(this.getClass().getName());
 
-		this.expectedRepetitionsOfExpectedRecord = expectedRepetitionsOfExpectedRecord;
-		this.running = true;
-	}
+        this.expectedRepetitionsOfExpectedRecord = expectedRepetitionsOfExpectedRecord;
+        this.running = true;
+    }
 
-	public synchronized CompletableFuture<?> setExpectedRecord(long record) {
-		checkState(!expectedRecord.isDone());
-		checkState(!recordsProcessed.isDone());
-		expectedRecord.complete(record);
-		expectedRecordCounter = 0;
-		return recordsProcessed;
-	}
+    public synchronized CompletableFuture<?> setExpectedRecord(long record) {
+        checkState(!expectedRecord.isDone());
+        checkState(!recordsProcessed.isDone());
+        expectedRecord.complete(record);
+        expectedRecordCounter = 0;
+        return recordsProcessed;
+    }
 
-	private synchronized CompletableFuture<Long> getExpectedRecord() {
-		return expectedRecord;
-	}
+    private synchronized CompletableFuture<Long> getExpectedRecord() {
+        return expectedRecord;
+    }
 
-	private synchronized void finishProcessingExpectedRecords() {
-		checkState(expectedRecord.isDone());
-		checkState(!recordsProcessed.isDone());
+    private synchronized void finishProcessingExpectedRecords() {
+        checkState(expectedRecord.isDone());
+        checkState(!recordsProcessed.isDone());
 
-		recordsProcessed.complete(null);
-		expectedRecord = new CompletableFuture<>();
-		recordsProcessed = new CompletableFuture<>();
-	}
+        recordsProcessed.complete(null);
+        expectedRecord = new CompletableFuture<>();
+        recordsProcessed = new CompletableFuture<>();
+    }
 
-	@Override
-	public void go() throws Exception {
-		try {
-			while (running) {
-				readRecords(getExpectedRecord().get());
-				finishProcessingExpectedRecords();
-			}
-		}
-		catch (InterruptedException e) {
-			if (running) {
-				throw e;
-			}
-		} catch (Exception e) {
-			e.printStackTrace();
-		}
-	}
+    @Override
+    public void go() throws Exception {
+        try {
+            while (running) {
+                readRecords(getExpectedRecord().get());
+                finishProcessingExpectedRecords();
+            }
+        } catch (InterruptedException e) {
+            if (running) {
+                throw e;
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
 
-	protected abstract void readRecords(long lastExpectedRecord) throws Exception;
+    protected abstract void readRecords(long lastExpectedRecord) throws Exception;
 
-	public void shutdown() {
-		running = false;
-		interrupt();
-		expectedRecord.complete(0L);
-	}
-
+    public void shutdown() {
+        running = false;
+        interrupt();
+        expectedRecord.complete(0L);
+    }
 }

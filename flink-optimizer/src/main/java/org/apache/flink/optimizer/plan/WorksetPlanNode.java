@@ -16,15 +16,7 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.optimizer.plan;
-
-import static org.apache.flink.optimizer.plan.PlanNode.SourceAndDamReport.FOUND_SOURCE;
-import static org.apache.flink.optimizer.plan.PlanNode.SourceAndDamReport.FOUND_SOURCE_AND_DAM;
-import static org.apache.flink.optimizer.plan.PlanNode.SourceAndDamReport.NOT_FOUND;
-
-import java.util.Collections;
-import java.util.HashMap;
 
 import org.apache.flink.optimizer.costs.Costs;
 import org.apache.flink.optimizer.dag.OptimizerNode;
@@ -35,97 +27,99 @@ import org.apache.flink.runtime.operators.DamBehavior;
 import org.apache.flink.runtime.operators.DriverStrategy;
 import org.apache.flink.util.Visitor;
 
-/**
- * Plan candidate node for partial solution of a bulk iteration.
- */
+import java.util.Collections;
+import java.util.HashMap;
+
+import static org.apache.flink.optimizer.plan.PlanNode.SourceAndDamReport.FOUND_SOURCE;
+import static org.apache.flink.optimizer.plan.PlanNode.SourceAndDamReport.FOUND_SOURCE_AND_DAM;
+import static org.apache.flink.optimizer.plan.PlanNode.SourceAndDamReport.NOT_FOUND;
+
+/** Plan candidate node for partial solution of a bulk iteration. */
 public class WorksetPlanNode extends PlanNode {
-	
-	private static final Costs NO_COSTS = new Costs();
-	
-	private WorksetIterationPlanNode containingIterationNode;
-	
-	private final Channel initialInput;
-	
-	public Object postPassHelper;
-	
-	
-	public WorksetPlanNode(WorksetNode template, String nodeName,
-			GlobalProperties gProps, LocalProperties lProps,
-			Channel initialInput)
-	{
-		super(template, nodeName, DriverStrategy.NONE);
-		
-		this.globalProps = gProps;
-		this.localProps = lProps;
-		this.initialInput = initialInput;
-		
-		// the node incurs no cost
-		this.nodeCosts = NO_COSTS;
-		this.cumulativeCosts = NO_COSTS;
-		
-		if (initialInput.getSource().branchPlan != null && initialInput.getSource().branchPlan.size() > 0) {
-			if (this.branchPlan == null) {
-				this.branchPlan = new HashMap<OptimizerNode, PlanNode>();
-			}
-			
-			this.branchPlan.putAll(initialInput.getSource().branchPlan);
-		}
-	}
-	
-	// --------------------------------------------------------------------------------------------
-	
-	public WorksetNode getWorksetNode() {
-		return (WorksetNode) this.template;
-	}
-	
-	public WorksetIterationPlanNode getContainingIterationNode() {
-		return this.containingIterationNode;
-	}
-	
-	public void setContainingIterationNode(WorksetIterationPlanNode containingIterationNode) {
-		this.containingIterationNode = containingIterationNode;
-	}
 
-	// --------------------------------------------------------------------------------------------
-	
+    private static final Costs NO_COSTS = new Costs();
 
-	@Override
-	public void accept(Visitor<PlanNode> visitor) {
-		if (visitor.preVisit(this)) {
-			visitor.postVisit(this);
-		}
-	}
+    private WorksetIterationPlanNode containingIterationNode;
 
+    private final Channel initialInput;
 
-	@Override
-	public Iterable<PlanNode> getPredecessors() {
-		return Collections.<PlanNode>emptyList();
-	}
+    public Object postPassHelper;
 
+    public WorksetPlanNode(
+            WorksetNode template,
+            String nodeName,
+            GlobalProperties gProps,
+            LocalProperties lProps,
+            Channel initialInput) {
+        super(template, nodeName, DriverStrategy.NONE);
 
-	@Override
-	public Iterable<Channel> getInputs() {
-		return Collections.<Channel>emptyList();
-	}
+        this.globalProps = gProps;
+        this.localProps = lProps;
+        this.initialInput = initialInput;
 
+        // the node incurs no cost
+        this.nodeCosts = NO_COSTS;
+        this.cumulativeCosts = NO_COSTS;
 
-	@Override
-	public SourceAndDamReport hasDamOnPathDownTo(PlanNode source) {
-		if (source == this) {
-			return FOUND_SOURCE;
-		}
-		SourceAndDamReport res = this.initialInput.getSource().hasDamOnPathDownTo(source);
-		if (res == FOUND_SOURCE_AND_DAM) {
-			return FOUND_SOURCE_AND_DAM;
-		}
-		else if (res == FOUND_SOURCE) {
-			return (this.initialInput.getLocalStrategy().dams() || 
-					this.initialInput.getTempMode().breaksPipeline() ||
-					getDriverStrategy().firstDam() == DamBehavior.FULL_DAM) ?
-				FOUND_SOURCE_AND_DAM : FOUND_SOURCE;
-		}
-		else {
-			return NOT_FOUND;
-		}
-	}
+        if (initialInput.getSource().branchPlan != null
+                && initialInput.getSource().branchPlan.size() > 0) {
+            if (this.branchPlan == null) {
+                this.branchPlan = new HashMap<OptimizerNode, PlanNode>();
+            }
+
+            this.branchPlan.putAll(initialInput.getSource().branchPlan);
+        }
+    }
+
+    // --------------------------------------------------------------------------------------------
+
+    public WorksetNode getWorksetNode() {
+        return (WorksetNode) this.template;
+    }
+
+    public WorksetIterationPlanNode getContainingIterationNode() {
+        return this.containingIterationNode;
+    }
+
+    public void setContainingIterationNode(WorksetIterationPlanNode containingIterationNode) {
+        this.containingIterationNode = containingIterationNode;
+    }
+
+    // --------------------------------------------------------------------------------------------
+
+    @Override
+    public void accept(Visitor<PlanNode> visitor) {
+        if (visitor.preVisit(this)) {
+            visitor.postVisit(this);
+        }
+    }
+
+    @Override
+    public Iterable<PlanNode> getPredecessors() {
+        return Collections.<PlanNode>emptyList();
+    }
+
+    @Override
+    public Iterable<Channel> getInputs() {
+        return Collections.<Channel>emptyList();
+    }
+
+    @Override
+    public SourceAndDamReport hasDamOnPathDownTo(PlanNode source) {
+        if (source == this) {
+            return FOUND_SOURCE;
+        }
+        SourceAndDamReport res = this.initialInput.getSource().hasDamOnPathDownTo(source);
+        if (res == FOUND_SOURCE_AND_DAM) {
+            return FOUND_SOURCE_AND_DAM;
+        } else if (res == FOUND_SOURCE) {
+            return (this.initialInput.getLocalStrategy().dams()
+                            || this.initialInput.getTempMode().breaksPipeline()
+                            || getDriverStrategy().firstDam() == DamBehavior.FULL_DAM)
+                    ? FOUND_SOURCE_AND_DAM
+                    : FOUND_SOURCE;
+        } else {
+            return NOT_FOUND;
+        }
+    }
 }

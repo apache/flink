@@ -45,118 +45,126 @@ import java.util.stream.LongStream;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
-/**
- * Tests for the {@link MetricQueryService}.
- */
+/** Tests for the {@link MetricQueryService}. */
 public class MetricQueryServiceTest extends TestLogger {
 
-	private static final Time TIMEOUT = Time.seconds(1);
+    private static final Time TIMEOUT = Time.seconds(1);
 
-	private static TestingRpcService rpcService;
+    private static TestingRpcService rpcService;
 
-	@BeforeClass
-	public static void setupClass() {
-		rpcService = new TestingRpcService();
-	}
+    @BeforeClass
+    public static void setupClass() {
+        rpcService = new TestingRpcService();
+    }
 
-	@After
-	public void teardown() {
-		rpcService.clearGateways();
-	}
+    @After
+    public void teardown() {
+        rpcService.clearGateways();
+    }
 
-	@AfterClass
-	public static void teardownClass() {
-		if (rpcService != null) {
-			rpcService.stopService();
-			rpcService = null;
-		}
-	}
+    @AfterClass
+    public static void teardownClass() {
+        if (rpcService != null) {
+            rpcService.stopService();
+            rpcService = null;
+        }
+    }
 
-	@Test
-	public void testCreateDump() throws Exception {
-		MetricQueryService queryService = MetricQueryService.createMetricQueryService(rpcService, ResourceID.generate(), Long.MAX_VALUE);
-		queryService.start();
+    @Test
+    public void testCreateDump() throws Exception {
+        MetricQueryService queryService =
+                MetricQueryService.createMetricQueryService(
+                        rpcService, ResourceID.generate(), Long.MAX_VALUE);
+        queryService.start();
 
-		final Counter c = new SimpleCounter();
-		final Gauge<String> g = () -> "Hello";
-		final Histogram h = new TestHistogram();
-		final Meter m = new TestMeter();
+        final Counter c = new SimpleCounter();
+        final Gauge<String> g = () -> "Hello";
+        final Histogram h = new TestHistogram();
+        final Meter m = new TestMeter();
 
-		final TaskManagerMetricGroup tm = UnregisteredMetricGroups.createUnregisteredTaskManagerMetricGroup();
+        final TaskManagerMetricGroup tm =
+                UnregisteredMetricGroups.createUnregisteredTaskManagerMetricGroup();
 
-		queryService.addMetric("counter", c, tm);
-		queryService.addMetric("gauge", g, tm);
-		queryService.addMetric("histogram", h, tm);
-		queryService.addMetric("meter", m, tm);
+        queryService.addMetric("counter", c, tm);
+        queryService.addMetric("gauge", g, tm);
+        queryService.addMetric("histogram", h, tm);
+        queryService.addMetric("meter", m, tm);
 
-		MetricDumpSerialization.MetricSerializationResult dump = queryService.queryMetrics(TIMEOUT).get();
+        MetricDumpSerialization.MetricSerializationResult dump =
+                queryService.queryMetrics(TIMEOUT).get();
 
-		assertTrue(dump.serializedCounters.length > 0);
-		assertTrue(dump.serializedGauges.length > 0);
-		assertTrue(dump.serializedHistograms.length > 0);
-		assertTrue(dump.serializedMeters.length > 0);
+        assertTrue(dump.serializedCounters.length > 0);
+        assertTrue(dump.serializedGauges.length > 0);
+        assertTrue(dump.serializedHistograms.length > 0);
+        assertTrue(dump.serializedMeters.length > 0);
 
-		queryService.removeMetric(c);
-		queryService.removeMetric(g);
-		queryService.removeMetric(h);
-		queryService.removeMetric(m);
+        queryService.removeMetric(c);
+        queryService.removeMetric(g);
+        queryService.removeMetric(h);
+        queryService.removeMetric(m);
 
-		MetricDumpSerialization.MetricSerializationResult emptyDump = queryService.queryMetrics(TIMEOUT).get();
+        MetricDumpSerialization.MetricSerializationResult emptyDump =
+                queryService.queryMetrics(TIMEOUT).get();
 
-		assertEquals(0, emptyDump.serializedCounters.length);
-		assertEquals(0, emptyDump.serializedGauges.length);
-		assertEquals(0, emptyDump.serializedHistograms.length);
-		assertEquals(0, emptyDump.serializedMeters.length);
-	}
+        assertEquals(0, emptyDump.serializedCounters.length);
+        assertEquals(0, emptyDump.serializedGauges.length);
+        assertEquals(0, emptyDump.serializedHistograms.length);
+        assertEquals(0, emptyDump.serializedMeters.length);
+    }
 
-	@Test
-	public void testHandleOversizedMetricMessage() throws Exception {
-		final long sizeLimit = 200L;
-		MetricQueryService queryService = MetricQueryService.createMetricQueryService(rpcService, ResourceID.generate(), sizeLimit);
-		queryService.start();
+    @Test
+    public void testHandleOversizedMetricMessage() throws Exception {
+        final long sizeLimit = 200L;
+        MetricQueryService queryService =
+                MetricQueryService.createMetricQueryService(
+                        rpcService, ResourceID.generate(), sizeLimit);
+        queryService.start();
 
-		final TaskManagerMetricGroup tm = UnregisteredMetricGroups.createUnregisteredTaskManagerMetricGroup();
+        final TaskManagerMetricGroup tm =
+                UnregisteredMetricGroups.createUnregisteredTaskManagerMetricGroup();
 
-		final String gaugeValue = "Hello";
-		final long requiredGaugesToExceedLimit = sizeLimit / gaugeValue.length() + 1;
-		List<Tuple2<String, Gauge<String>>> gauges = LongStream.range(0, requiredGaugesToExceedLimit)
-			.mapToObj(x -> Tuple2.of("gauge" + x, (Gauge<String>) () -> "Hello" + x))
-			.collect(Collectors.toList());
-		gauges.forEach(gauge -> queryService.addMetric(gauge.f0, gauge.f1, tm));
+        final String gaugeValue = "Hello";
+        final long requiredGaugesToExceedLimit = sizeLimit / gaugeValue.length() + 1;
+        List<Tuple2<String, Gauge<String>>> gauges =
+                LongStream.range(0, requiredGaugesToExceedLimit)
+                        .mapToObj(x -> Tuple2.of("gauge" + x, (Gauge<String>) () -> "Hello" + x))
+                        .collect(Collectors.toList());
+        gauges.forEach(gauge -> queryService.addMetric(gauge.f0, gauge.f1, tm));
 
-		queryService.addMetric("counter", new SimpleCounter(), tm);
-		queryService.addMetric("histogram", new TestHistogram(), tm);
-		queryService.addMetric("meter", new TestMeter(), tm);
+        queryService.addMetric("counter", new SimpleCounter(), tm);
+        queryService.addMetric("histogram", new TestHistogram(), tm);
+        queryService.addMetric("meter", new TestMeter(), tm);
 
-		MetricDumpSerialization.MetricSerializationResult dump = queryService.queryMetrics(TIMEOUT).get();
+        MetricDumpSerialization.MetricSerializationResult dump =
+                queryService.queryMetrics(TIMEOUT).get();
 
-		assertTrue(dump.serializedCounters.length > 0);
-		assertEquals(1, dump.numCounters);
-		assertTrue(dump.serializedMeters.length > 0);
-		assertEquals(1, dump.numMeters);
+        assertTrue(dump.serializedCounters.length > 0);
+        assertEquals(1, dump.numCounters);
+        assertTrue(dump.serializedMeters.length > 0);
+        assertEquals(1, dump.numMeters);
 
-		// gauges exceeded the size limit and will be excluded
-		assertEquals(0, dump.serializedGauges.length);
-		assertEquals(0, dump.numGauges);
+        // gauges exceeded the size limit and will be excluded
+        assertEquals(0, dump.serializedGauges.length);
+        assertEquals(0, dump.numGauges);
 
-		assertTrue(dump.serializedHistograms.length > 0);
-		assertEquals(1, dump.numHistograms);
+        assertTrue(dump.serializedHistograms.length > 0);
+        assertEquals(1, dump.numHistograms);
 
-		// unregister all but one gauge to ensure gauges are reported again if the remaining fit
-		for (int x = 1; x < gauges.size(); x++) {
-			queryService.removeMetric(gauges.get(x).f1);
-		}
+        // unregister all but one gauge to ensure gauges are reported again if the remaining fit
+        for (int x = 1; x < gauges.size(); x++) {
+            queryService.removeMetric(gauges.get(x).f1);
+        }
 
-		MetricDumpSerialization.MetricSerializationResult recoveredDump = queryService.queryMetrics(TIMEOUT).get();
+        MetricDumpSerialization.MetricSerializationResult recoveredDump =
+                queryService.queryMetrics(TIMEOUT).get();
 
-		assertTrue(recoveredDump.serializedCounters.length > 0);
-		assertEquals(1, recoveredDump.numCounters);
-		assertTrue(recoveredDump.serializedMeters.length > 0);
-		assertEquals(1, recoveredDump.numMeters);
-		assertTrue(recoveredDump.serializedGauges.length > 0);
-		assertEquals(1, recoveredDump.numGauges);
-		assertTrue(recoveredDump.serializedHistograms.length > 0);
-		assertEquals(1, recoveredDump.numHistograms);
-
-	}
+        assertTrue(recoveredDump.serializedCounters.length > 0);
+        assertEquals(1, recoveredDump.numCounters);
+        assertTrue(recoveredDump.serializedMeters.length > 0);
+        assertEquals(1, recoveredDump.numMeters);
+        assertTrue(recoveredDump.serializedGauges.length > 0);
+        assertEquals(1, recoveredDump.numGauges);
+        assertTrue(recoveredDump.serializedHistograms.length > 0);
+        assertEquals(1, recoveredDump.numHistograms);
+    }
 }

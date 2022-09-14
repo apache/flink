@@ -20,18 +20,24 @@ package org.apache.flink.runtime.state;
 
 import org.apache.flink.util.StringBasedID;
 
+import java.util.UUID;
+
 /**
  * Unique ID that allows for logical comparison between state handles.
- * <p>
- * Two state handles that are considered as logically equal should always return the same ID
- * (whatever logically equal means is up to the implementation). For example, this could be based
- * on the string representation of the full filepath for a state that is based on a file.
+ *
+ * <p>Two state handles that are considered as logically equal should always return the same ID
+ * (whatever logically equal means is up to the implementation). For example, this could be based on
+ * the string representation of the full filepath for a state that is based on a file.
  */
 public class StateHandleID extends StringBasedID {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	public StateHandleID(String keyString) {
-		super(keyString);
-	}
+    public StateHandleID(String keyString) {
+        super(keyString);
+    }
+
+    public static StateHandleID randomStateHandleId() {
+        return new StateHandleID(UUID.randomUUID().toString());
+    }
 }

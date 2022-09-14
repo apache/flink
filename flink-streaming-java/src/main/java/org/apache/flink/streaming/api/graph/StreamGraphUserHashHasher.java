@@ -24,25 +24,24 @@ import java.util.HashMap;
 import java.util.Map;
 
 /**
- * StreamGraphHasher that works with user provided hashes. This is useful in case we want to set (alternative) hashes
- * explicitly, e.g. to provide a way of manual backwards compatibility between versions when the mechanism of generating
- * hashes has changed in an incompatible way.
- *
+ * StreamGraphHasher that works with user provided hashes. This is useful in case we want to set
+ * (alternative) hashes explicitly, e.g. to provide a way of manual backwards compatibility between
+ * versions when the mechanism of generating hashes has changed in an incompatible way.
  */
 public class StreamGraphUserHashHasher implements StreamGraphHasher {
 
-	@Override
-	public Map<Integer, byte[]> traverseStreamGraphAndGenerateHashes(StreamGraph streamGraph) {
-		HashMap<Integer, byte[]> hashResult = new HashMap<>();
-		for (StreamNode streamNode : streamGraph.getStreamNodes()) {
+    @Override
+    public Map<Integer, byte[]> traverseStreamGraphAndGenerateHashes(StreamGraph streamGraph) {
+        HashMap<Integer, byte[]> hashResult = new HashMap<>();
+        for (StreamNode streamNode : streamGraph.getStreamNodes()) {
 
-			String userHash = streamNode.getUserHash();
+            String userHash = streamNode.getUserHash();
 
-			if (null != userHash) {
-				hashResult.put(streamNode.getId(), StringUtils.hexStringToByte(userHash));
-			}
-		}
+            if (null != userHash) {
+                hashResult.put(streamNode.getId(), StringUtils.hexStringToByte(userHash));
+            }
+        }
 
-		return hashResult;
-	}
+        return hashResult;
+    }
 }

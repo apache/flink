@@ -20,127 +20,176 @@ package org.apache.flink.runtime.executiongraph;
 
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.JobException;
-import org.apache.flink.runtime.client.JobExecutionException;
+import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
+import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
-import org.apache.flink.runtime.testutils.DirectScheduledExecutorService;
+import org.apache.flink.runtime.operators.coordination.CoordinatorStoreImpl;
+import org.apache.flink.runtime.scheduler.VertexParallelismInformation;
+import org.apache.flink.runtime.scheduler.VertexParallelismStore;
+import org.apache.flink.runtime.scheduler.adaptivebatch.AdaptiveBatchScheduler;
+import org.apache.flink.testutils.TestingUtils;
+import org.apache.flink.testutils.executor.TestExecutorExtension;
 
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.RegisterExtension;
 
-public class ExecutionJobVertexTest {
+import java.util.Collections;
+import java.util.concurrent.ScheduledExecutorService;
 
-	private static final int NOT_CONFIGURED = -1;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-	@Test
-	public void testMaxParallelismDefaulting() throws Exception {
+/** Test for {@link ExecutionJobVertex} */
+class ExecutionJobVertexTest {
+    @RegisterExtension
+    static final TestExecutorExtension<ScheduledExecutorService> EXECUTOR_RESOURCE =
+            TestingUtils.defaultExecutorExtension();
 
-		// default minimum
-		ExecutionJobVertex executionJobVertex = createExecutionJobVertex(1, NOT_CONFIGURED);
-		Assert.assertEquals(128, executionJobVertex.getMaxParallelism());
+    @Test
+    void testParallelismGreaterThanMaxParallelism() {
+        JobVertex jobVertex = new JobVertex("testVertex");
+        jobVertex.setInvokableClass(AbstractInvokable.class);
+        // parallelism must be smaller than the max parallelism
+        jobVertex.setParallelism(172);
+        jobVertex.setMaxParallelism(4);
 
-		// test round up part 1
-		executionJobVertex = createExecutionJobVertex(171, NOT_CONFIGURED);
-		Assert.assertEquals(256, executionJobVertex.getMaxParallelism());
+        assertThatThrownBy(() -> ExecutionGraphTestUtils.getExecutionJobVertex(jobVertex))
+                .isInstanceOf(JobException.class)
+                .hasMessageContaining("higher than the max parallelism");
+    }
 
-		// test round up part 2
-		executionJobVertex = createExecutionJobVertex(172, NOT_CONFIGURED);
-		Assert.assertEquals(512, executionJobVertex.getMaxParallelism());
+    @Test
+    void testLazyInitialization() throws Exception {
+        final int parallelism = 3;
+        final int configuredMaxParallelism = 12;
+        final ExecutionJobVertex ejv =
+                createDynamicExecutionJobVertex(parallelism, configuredMaxParallelism, -1);
 
-		// test round up limit
-		executionJobVertex = createExecutionJobVertex(1 << 15, NOT_CONFIGURED);
-		Assert.assertEquals(1 << 15, executionJobVertex.getMaxParallelism());
+        assertThat(ejv.getParallelism()).isEqualTo(parallelism);
+        assertThat(ejv.getMaxParallelism()).isEqualTo(configuredMaxParallelism);
+        assertThat(ejv.isInitialized()).isFalse();
 
-		// test upper bound
-		try {
-			executionJobVertex = createExecutionJobVertex(1 + (1 << 15), NOT_CONFIGURED);
-			executionJobVertex.getMaxParallelism();
-			Assert.fail();
-		} catch (IllegalArgumentException ignore) {
-		}
+        assertThat(ejv.getTaskVertices()).isEmpty();
 
-		// parallelism must be smaller than the max parallelism
-		try {
-			createExecutionJobVertex(172, 4);
-			Assert.fail("We should not be able to create an ExecutionJobVertex which " +
-				"has a smaller max parallelism than parallelism.");
-		} catch (JobException ignored) {
-			// expected
-		}
+        assertThatThrownBy(ejv::getInputs).isInstanceOf(IllegalStateException.class);
 
+        assertThatThrownBy(ejv::getProducedDataSets).isInstanceOf(IllegalStateException.class);
 
-		// test configured / trumps computed default
-		executionJobVertex = createExecutionJobVertex(4, 1 << 15);
-		Assert.assertEquals(1 << 15, executionJobVertex.getMaxParallelism());
+        assertThatThrownBy(ejv::getSplitAssigner).isInstanceOf(IllegalStateException.class);
 
-		// test upper bound configured
-		try {
-			executionJobVertex = createExecutionJobVertex(4, 1 + (1 << 15));
-			Assert.fail(String.valueOf(executionJobVertex.getMaxParallelism()));
-		} catch (IllegalArgumentException ignore) {
-		}
+        assertThatThrownBy(ejv::getOperatorCoordinators).isInstanceOf(IllegalStateException.class);
 
-		// test lower bound configured
-		try {
-			executionJobVertex = createExecutionJobVertex(4, 0);
-			Assert.fail(String.valueOf(executionJobVertex.getMaxParallelism()));
-		} catch (IllegalArgumentException ignore) {
-		}
+        assertThatThrownBy(() -> ejv.connectToPredecessors(Collections.emptyMap()))
+                .isInstanceOf(IllegalStateException.class);
 
-		// test override trumps test configured 2
-		executionJobVertex = createExecutionJobVertex(4, NOT_CONFIGURED);
-		executionJobVertex.setMaxParallelism(7);
-		Assert.assertEquals(7, executionJobVertex.getMaxParallelism());
+        assertThatThrownBy(ejv::executionVertexFinished).isInstanceOf(IllegalStateException.class);
 
-		// test lower bound with derived value
-		executionJobVertex = createExecutionJobVertex(4, NOT_CONFIGURED);
-		try {
-			executionJobVertex.setMaxParallelism(0);
-			Assert.fail(String.valueOf(executionJobVertex.getMaxParallelism()));
-		} catch (IllegalArgumentException ignore) {
-		}
+        assertThatThrownBy(ejv::executionVertexUnFinished)
+                .isInstanceOf(IllegalStateException.class);
 
-		// test upper bound with derived value
-		executionJobVertex = createExecutionJobVertex(4, NOT_CONFIGURED);
-		try {
-			executionJobVertex.setMaxParallelism(1 + (1 << 15));
-			Assert.fail(String.valueOf(executionJobVertex.getMaxParallelism()));
-		} catch (IllegalArgumentException ignore) {
-		}
+        initializeVertex(ejv);
 
-		// test complain on setting derived value in presence of a configured value
-		executionJobVertex = createExecutionJobVertex(4, 16);
-		try {
-			executionJobVertex.setMaxParallelism(7);
-			Assert.fail(String.valueOf(executionJobVertex.getMaxParallelism()));
-		} catch (IllegalStateException ignore) {
-		}
+        assertThat(ejv.isInitialized()).isTrue();
+        assertThat(ejv.getTaskVertices()).hasSize(3);
+        assertThat(ejv.getInputs()).isEmpty();
+        assertThat(ejv.getProducedDataSets()).hasSize(1);
+        assertThat(ejv.getOperatorCoordinators()).isEmpty();
+    }
 
-	}
+    @Test
+    void testErrorIfInitializationWithoutParallelismDecided() throws Exception {
+        final ExecutionJobVertex ejv = createDynamicExecutionJobVertex();
 
-	//------------------------------------------------------------------------------------------------------
+        assertThatThrownBy(() -> initializeVertex(ejv)).isInstanceOf(IllegalStateException.class);
+    }
 
-	public static ExecutionJobVertex createExecutionJobVertex(
-			int parallelism,
-			int preconfiguredMaxParallelism) throws JobException, JobExecutionException {
-		JobVertex jobVertex = new JobVertex("testVertex");
-		jobVertex.setInvokableClass(AbstractInvokable.class);
-		jobVertex.setParallelism(parallelism);
+    @Test
+    void testSetParallelismLazily() throws Exception {
+        final int parallelism = 3;
+        final int defaultMaxParallelism = 13;
+        final ExecutionJobVertex ejv =
+                createDynamicExecutionJobVertex(-1, -1, defaultMaxParallelism);
 
-		if (NOT_CONFIGURED != preconfiguredMaxParallelism) {
-			jobVertex.setMaxParallelism(preconfiguredMaxParallelism);
-		}
+        assertThat(ejv.isParallelismDecided()).isFalse();
 
-		ExecutionGraph executionGraph = createExecutionGraph();
-		return new ExecutionJobVertex(executionGraph, jobVertex, 1, Time.seconds(10));
-	}
+        ejv.setParallelism(parallelism);
 
-	private static ExecutionGraph createExecutionGraph() throws JobException, JobExecutionException {
-		final ExecutionGraph executionGraph = TestingExecutionGraphBuilder
-			.newBuilder()
-			.setFutureExecutor(new DirectScheduledExecutorService())
-			.build();
-		executionGraph.transitionToRunning();
-		return executionGraph;
-	}
+        assertThat(ejv.isParallelismDecided()).isTrue();
+        assertThat(ejv.getParallelism()).isEqualTo(parallelism);
+
+        initializeVertex(ejv);
+
+        assertThat(ejv.getTaskVertices()).hasSize(parallelism);
+    }
+
+    @Test
+    void testConfiguredMaxParallelismIsRespected() throws Exception {
+        final int configuredMaxParallelism = 12;
+        final int defaultMaxParallelism = 13;
+        final ExecutionJobVertex ejv =
+                createDynamicExecutionJobVertex(
+                        -1, configuredMaxParallelism, defaultMaxParallelism);
+
+        assertThat(ejv.getMaxParallelism()).isEqualTo(configuredMaxParallelism);
+    }
+
+    @Test
+    void testComputingMaxParallelismFromConfiguredParallelism() throws Exception {
+        final int parallelism = 300;
+        final int defaultMaxParallelism = 13;
+        final ExecutionJobVertex ejv =
+                createDynamicExecutionJobVertex(parallelism, -1, defaultMaxParallelism);
+
+        assertThat(ejv.getMaxParallelism()).isEqualTo(512);
+    }
+
+    @Test
+    void testFallingBackToDefaultMaxParallelism() throws Exception {
+        final int defaultMaxParallelism = 13;
+        final ExecutionJobVertex ejv =
+                createDynamicExecutionJobVertex(-1, -1, defaultMaxParallelism);
+
+        assertThat(ejv.getMaxParallelism()).isEqualTo(defaultMaxParallelism);
+    }
+
+    static void initializeVertex(ExecutionJobVertex vertex) throws Exception {
+        vertex.initialize(
+                1,
+                Time.milliseconds(1L),
+                1L,
+                new DefaultSubtaskAttemptNumberStore(Collections.emptyList()),
+                new CoordinatorStoreImpl());
+    }
+
+    private static ExecutionJobVertex createDynamicExecutionJobVertex() throws Exception {
+        return createDynamicExecutionJobVertex(-1, -1, 1);
+    }
+
+    public static ExecutionJobVertex createDynamicExecutionJobVertex(
+            int parallelism, int maxParallelism, int defaultMaxParallelism) throws Exception {
+        JobVertex jobVertex = new JobVertex("testVertex");
+        jobVertex.setInvokableClass(AbstractInvokable.class);
+        jobVertex.getOrCreateResultDataSet(
+                new IntermediateDataSetID(), ResultPartitionType.BLOCKING);
+
+        if (maxParallelism > 0) {
+            jobVertex.setMaxParallelism(maxParallelism);
+        }
+
+        if (parallelism > 0) {
+            jobVertex.setParallelism(parallelism);
+        }
+
+        final DefaultExecutionGraph eg =
+                TestingDefaultExecutionGraphBuilder.newBuilder()
+                        .build(EXECUTOR_RESOURCE.getExecutor());
+        final VertexParallelismStore vertexParallelismStore =
+                AdaptiveBatchScheduler.computeVertexParallelismStoreForDynamicGraph(
+                        Collections.singletonList(jobVertex), defaultMaxParallelism);
+        final VertexParallelismInformation vertexParallelismInfo =
+                vertexParallelismStore.getParallelismInfo(jobVertex.getID());
+
+        return new ExecutionJobVertex(eg, jobVertex, vertexParallelismInfo);
+    }
 }

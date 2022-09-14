@@ -48,33 +48,13 @@ if [[ $STARTSTOP == "start" ]] || [[ $STARTSTOP == "start-foreground" ]]; then
 
     # Startup parameters
 
-    jvm_params_output=`runBashJavaUtilsCmd GET_TM_RESOURCE_JVM_PARAMS ${FLINK_CONF_DIR}`
-    jvm_params=`extractExecutionParams "$jvm_params_output"`
-    if [[ $? -ne 0 ]]; then
-        echo "[ERROR] Could not get JVM parameters properly."
-        exit 1
+    parseTmArgsAndExportLogs "${ARGS[@]}"
+
+    if [ ! -z "${DYNAMIC_PARAMETERS}" ]; then
+        ARGS=(${DYNAMIC_PARAMETERS[@]} "${ARGS[@]}")
     fi
-    export JVM_ARGS="${JVM_ARGS} ${jvm_params}"
 
-    IFS=$" "
-
-    dynamic_configs_output=`runBashJavaUtilsCmd GET_TM_RESOURCE_DYNAMIC_CONFIGS ${FLINK_CONF_DIR}`
-    dynamic_configs=`extractExecutionParams "$dynamic_configs_output"`
-    if [[ $? -ne 0 ]]; then
-        echo "[ERROR] Could not get dynamic configurations properly."
-        exit 1
-    fi
-    ARGS+=("--configDir" "${FLINK_CONF_DIR}" ${dynamic_configs[@]})
-
-    export FLINK_INHERITED_LOGS="
-$FLINK_INHERITED_LOGS
-
-TM_RESOURCES_JVM_PARAMS extraction logs:
-$jvm_params_output
-
-TM_RESOURCES_DYNAMIC_CONFIGS extraction logs:
-$dynamic_configs_output
-"
+    ARGS=("--configDir" "${FLINK_CONF_DIR}" "${ARGS[@]}")
 fi
 
 if [[ $STARTSTOP == "start-foreground" ]]; then

@@ -27,113 +27,124 @@ import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
 
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
+
+import java.util.concurrent.Executor;
 
 /**
- * Partial {@link DispatcherServices} services container which needs to
- * be completed before being given to the {@link Dispatcher}.
+ * Partial {@link DispatcherServices} services container which needs to be completed before being
+ * given to the {@link Dispatcher}.
  */
 public class PartialDispatcherServices {
 
-	@Nonnull
-	private final Configuration configuration;
+    @Nonnull private final Configuration configuration;
 
-	@Nonnull
-	private final HighAvailabilityServices highAvailabilityServices;
+    @Nonnull private final HighAvailabilityServices highAvailabilityServices;
 
-	@Nonnull
-	private final GatewayRetriever<ResourceManagerGateway> resourceManagerGatewayRetriever;
+    @Nonnull private final GatewayRetriever<ResourceManagerGateway> resourceManagerGatewayRetriever;
 
-	@Nonnull
-	private final BlobServer blobServer;
+    @Nonnull private final BlobServer blobServer;
 
-	@Nonnull
-	private final HeartbeatServices heartbeatServices;
+    @Nonnull private final HeartbeatServices heartbeatServices;
 
-	@Nonnull
-	private final JobManagerMetricGroupFactory jobManagerMetricGroupFactory;
+    @Nonnull private final JobManagerMetricGroupFactory jobManagerMetricGroupFactory;
 
-	@Nonnull
-	private final ArchivedExecutionGraphStore archivedExecutionGraphStore;
+    @Nonnull private final ExecutionGraphInfoStore executionGraphInfoStore;
 
-	@Nonnull
-	private final FatalErrorHandler fatalErrorHandler;
+    @Nonnull private final FatalErrorHandler fatalErrorHandler;
 
-	@Nonnull
-	private final HistoryServerArchivist historyServerArchivist;
+    @Nonnull private final HistoryServerArchivist historyServerArchivist;
 
-	@Nonnull
-	private final String metricQueryServiceAddress;
+    @Nullable private final String metricQueryServiceAddress;
 
-	public PartialDispatcherServices(
-			@Nonnull Configuration configuration,
-			@Nonnull HighAvailabilityServices highAvailabilityServices,
-			@Nonnull GatewayRetriever<ResourceManagerGateway> resourceManagerGatewayRetriever,
-			@Nonnull BlobServer blobServer,
-			@Nonnull HeartbeatServices heartbeatServices,
-			@Nonnull JobManagerMetricGroupFactory jobManagerMetricGroupFactory,
-			@Nonnull ArchivedExecutionGraphStore archivedExecutionGraphStore,
-			@Nonnull FatalErrorHandler fatalErrorHandler,
-			@Nonnull HistoryServerArchivist historyServerArchivist,
-			@Nonnull String metricQueryServiceAddress) {
-		this.configuration = configuration;
-		this.highAvailabilityServices = highAvailabilityServices;
-		this.resourceManagerGatewayRetriever = resourceManagerGatewayRetriever;
-		this.blobServer = blobServer;
-		this.heartbeatServices = heartbeatServices;
-		this.jobManagerMetricGroupFactory = jobManagerMetricGroupFactory;
-		this.archivedExecutionGraphStore = archivedExecutionGraphStore;
-		this.fatalErrorHandler = fatalErrorHandler;
-		this.historyServerArchivist = historyServerArchivist;
-		this.metricQueryServiceAddress = metricQueryServiceAddress;
-	}
+    @Nonnull private final DispatcherOperationCaches operationCaches;
 
-	@Nonnull
-	public Configuration getConfiguration() {
-		return configuration;
-	}
+    @Nonnull private final Executor ioExecutor;
 
-	@Nonnull
-	public HighAvailabilityServices getHighAvailabilityServices() {
-		return highAvailabilityServices;
-	}
+    public PartialDispatcherServices(
+            @Nonnull Configuration configuration,
+            @Nonnull HighAvailabilityServices highAvailabilityServices,
+            @Nonnull GatewayRetriever<ResourceManagerGateway> resourceManagerGatewayRetriever,
+            @Nonnull BlobServer blobServer,
+            @Nonnull HeartbeatServices heartbeatServices,
+            @Nonnull JobManagerMetricGroupFactory jobManagerMetricGroupFactory,
+            @Nonnull ExecutionGraphInfoStore executionGraphInfoStore,
+            @Nonnull FatalErrorHandler fatalErrorHandler,
+            @Nonnull HistoryServerArchivist historyServerArchivist,
+            @Nullable String metricQueryServiceAddress,
+            @Nonnull Executor ioExecutor,
+            @Nonnull DispatcherOperationCaches operationCaches) {
+        this.configuration = configuration;
+        this.highAvailabilityServices = highAvailabilityServices;
+        this.resourceManagerGatewayRetriever = resourceManagerGatewayRetriever;
+        this.blobServer = blobServer;
+        this.heartbeatServices = heartbeatServices;
+        this.jobManagerMetricGroupFactory = jobManagerMetricGroupFactory;
+        this.executionGraphInfoStore = executionGraphInfoStore;
+        this.fatalErrorHandler = fatalErrorHandler;
+        this.historyServerArchivist = historyServerArchivist;
+        this.metricQueryServiceAddress = metricQueryServiceAddress;
+        this.ioExecutor = ioExecutor;
+        this.operationCaches = operationCaches;
+    }
 
-	@Nonnull
-	public GatewayRetriever<ResourceManagerGateway> getResourceManagerGatewayRetriever() {
-		return resourceManagerGatewayRetriever;
-	}
+    @Nonnull
+    public Configuration getConfiguration() {
+        return configuration;
+    }
 
-	@Nonnull
-	public BlobServer getBlobServer() {
-		return blobServer;
-	}
+    @Nonnull
+    public HighAvailabilityServices getHighAvailabilityServices() {
+        return highAvailabilityServices;
+    }
 
-	@Nonnull
-	public HeartbeatServices getHeartbeatServices() {
-		return heartbeatServices;
-	}
+    @Nonnull
+    public GatewayRetriever<ResourceManagerGateway> getResourceManagerGatewayRetriever() {
+        return resourceManagerGatewayRetriever;
+    }
 
-	@Nonnull
-	public JobManagerMetricGroupFactory getJobManagerMetricGroupFactory() {
-		return jobManagerMetricGroupFactory;
-	}
+    @Nonnull
+    public BlobServer getBlobServer() {
+        return blobServer;
+    }
 
-	@Nonnull
-	public ArchivedExecutionGraphStore getArchivedExecutionGraphStore() {
-		return archivedExecutionGraphStore;
-	}
+    @Nonnull
+    public HeartbeatServices getHeartbeatServices() {
+        return heartbeatServices;
+    }
 
-	@Nonnull
-	public FatalErrorHandler getFatalErrorHandler() {
-		return fatalErrorHandler;
-	}
+    @Nonnull
+    public JobManagerMetricGroupFactory getJobManagerMetricGroupFactory() {
+        return jobManagerMetricGroupFactory;
+    }
 
-	@Nonnull
-	public HistoryServerArchivist getHistoryServerArchivist() {
-		return historyServerArchivist;
-	}
+    @Nonnull
+    public ExecutionGraphInfoStore getArchivedExecutionGraphStore() {
+        return executionGraphInfoStore;
+    }
 
-	@Nonnull
-	public String getMetricQueryServiceAddress() {
-		return metricQueryServiceAddress;
-	}
+    @Nonnull
+    public FatalErrorHandler getFatalErrorHandler() {
+        return fatalErrorHandler;
+    }
+
+    @Nonnull
+    public HistoryServerArchivist getHistoryServerArchivist() {
+        return historyServerArchivist;
+    }
+
+    @Nullable
+    public String getMetricQueryServiceAddress() {
+        return metricQueryServiceAddress;
+    }
+
+    @Nonnull
+    public DispatcherOperationCaches getOperationCaches() {
+        return operationCaches;
+    }
+
+    @Nonnull
+    public Executor getIoExecutor() {
+        return ioExecutor;
+    }
 }

@@ -22,20 +22,18 @@ import org.apache.flink.api.common.functions.FilterFunction;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 
-/**
- * A lambda filter using a static method.
- */
+/** A lambda filter using a static method. */
 public class FilterWithMethodReference {
 
-	public static void main(String[] args) throws Exception {
-		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		DataSet<String> input = env.fromElements("Please filter", "the words", "but not this");
+    public static void main(String[] args) throws Exception {
+        ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+        DataSet<String> input = env.fromElements("Please filter", "the words", "but not this");
 
-		FilterFunction<String> filter = WordFilter::filter;
+        FilterFunction<String> filter = WordFilter::filter;
 
-		DataSet<String> output = input.filter(filter);
-		output.print();
+        DataSet<String> output = input.filter(filter);
+        output.print();
 
-		env.execute();
-	}
+        env.execute();
+    }
 }

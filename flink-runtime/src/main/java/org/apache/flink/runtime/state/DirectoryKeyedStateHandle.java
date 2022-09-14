@@ -21,89 +21,104 @@ package org.apache.flink.runtime.state;
 import javax.annotation.Nonnull;
 
 /**
- * This class is a keyed state handle based on a directory. It combines a {@link DirectoryStateHandle} and a
- * {@link KeyGroupRange}.
+ * This class is a keyed state handle based on a directory. It combines a {@link
+ * DirectoryStateHandle} and a {@link KeyGroupRange}.
  */
 public class DirectoryKeyedStateHandle implements KeyedStateHandle {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	/** The directory state handle. */
-	@Nonnull
-	private final DirectoryStateHandle directoryStateHandle;
+    /** The directory state handle. */
+    @Nonnull private final DirectoryStateHandle directoryStateHandle;
 
-	/** The key-group range. */
-	@Nonnull
-	private final KeyGroupRange keyGroupRange;
+    /** The key-group range. */
+    @Nonnull private final KeyGroupRange keyGroupRange;
 
-	public DirectoryKeyedStateHandle(
-		@Nonnull DirectoryStateHandle directoryStateHandle,
-		@Nonnull KeyGroupRange keyGroupRange) {
+    private final StateHandleID stateHandleId;
 
-		this.directoryStateHandle = directoryStateHandle;
-		this.keyGroupRange = keyGroupRange;
-	}
+    public DirectoryKeyedStateHandle(
+            @Nonnull DirectoryStateHandle directoryStateHandle,
+            @Nonnull KeyGroupRange keyGroupRange) {
 
-	@Nonnull
-	public DirectoryStateHandle getDirectoryStateHandle() {
-		return directoryStateHandle;
-	}
+        this.directoryStateHandle = directoryStateHandle;
+        this.keyGroupRange = keyGroupRange;
+        this.stateHandleId = StateHandleID.randomStateHandleId();
+    }
 
-	@Nonnull
-	@Override
-	public KeyGroupRange getKeyGroupRange() {
-		return keyGroupRange;
-	}
+    @Nonnull
+    public DirectoryStateHandle getDirectoryStateHandle() {
+        return directoryStateHandle;
+    }
 
-	@Override
-	public void discardState() throws Exception {
-		directoryStateHandle.discardState();
-	}
+    @Nonnull
+    @Override
+    public KeyGroupRange getKeyGroupRange() {
+        return keyGroupRange;
+    }
 
-	@Override
-	public long getStateSize() {
-		return directoryStateHandle.getStateSize();
-	}
+    @Override
+    public void discardState() throws Exception {
+        directoryStateHandle.discardState();
+    }
 
-	@Override
-	public KeyedStateHandle getIntersection(KeyGroupRange otherKeyGroupRange) {
-		return this.keyGroupRange.getIntersection(otherKeyGroupRange).getNumberOfKeyGroups() > 0 ? this : null;
-	}
+    @Override
+    public long getStateSize() {
+        return directoryStateHandle.getStateSize();
+    }
 
-	@Override
-	public void registerSharedStates(SharedStateRegistry stateRegistry) {
-		// Nothing to do, this is for local use only.
-	}
+    @Override
+    public long getCheckpointedSize() {
+        return getStateSize();
+    }
 
-	@Override
-	public boolean equals(Object o) {
-		if (this == o) {
-			return true;
-		}
-		if (o == null || getClass() != o.getClass()) {
-			return false;
-		}
+    @Override
+    public KeyedStateHandle getIntersection(KeyGroupRange otherKeyGroupRange) {
+        return this.keyGroupRange.getIntersection(otherKeyGroupRange).getNumberOfKeyGroups() > 0
+                ? this
+                : null;
+    }
 
-		DirectoryKeyedStateHandle that = (DirectoryKeyedStateHandle) o;
+    @Override
+    public StateHandleID getStateHandleId() {
+        return stateHandleId;
+    }
 
-		if (!getDirectoryStateHandle().equals(that.getDirectoryStateHandle())) {
-			return false;
-		}
-		return getKeyGroupRange().equals(that.getKeyGroupRange());
-	}
+    @Override
+    public void registerSharedStates(SharedStateRegistry stateRegistry, long checkpointID) {
+        // Nothing to do, this is for local use only.
+    }
 
-	@Override
-	public int hashCode() {
-		int result = getDirectoryStateHandle().hashCode();
-		result = 31 * result + getKeyGroupRange().hashCode();
-		return result;
-	}
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
 
-	@Override
-	public String toString() {
-		return "DirectoryKeyedStateHandle{" +
-			"directoryStateHandle=" + directoryStateHandle +
-			", keyGroupRange=" + keyGroupRange +
-			'}';
-	}
+        DirectoryKeyedStateHandle that = (DirectoryKeyedStateHandle) o;
+
+        if (!getDirectoryStateHandle().equals(that.getDirectoryStateHandle())) {
+            return false;
+        }
+        return getKeyGroupRange().equals(that.getKeyGroupRange());
+    }
+
+    @Override
+    public int hashCode() {
+        int result = getDirectoryStateHandle().hashCode();
+        result = 31 * result + getKeyGroupRange().hashCode();
+        return result;
+    }
+
+    @Override
+    public String toString() {
+        return "DirectoryKeyedStateHandle{"
+                + "directoryStateHandle="
+                + directoryStateHandle
+                + ", keyGroupRange="
+                + keyGroupRange
+                + '}';
+    }
 }

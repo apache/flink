@@ -29,88 +29,77 @@ import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.io.DiscardingOutputFormat;
 import org.apache.flink.api.java.tuple.Tuple3;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 
-/**
- * Tests the precedence of semantic properties: annotation > API.
- */
-public class SemanticPropertiesPrecedenceTest {
+/** Tests the precedence of semantic properties: annotation > API. */
+class SemanticPropertiesPrecedenceTest {
 
-	@Test
-	public void testFunctionForwardedAnnotationPrecedence() {
-		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+    @Test
+    void testFunctionForwardedAnnotationPrecedence() {
+        ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
-		@SuppressWarnings("unchecked")
-		DataSet<Tuple3<Long, String, Integer>> input = env.fromElements(Tuple3.of(3L, "test", 42));
-		input
-				.map(new WildcardForwardedMapperWithForwardAnnotation<Tuple3<Long, String, Integer>>())
-				.output(new DiscardingOutputFormat<Tuple3<Long, String, Integer>>());
-		Plan plan = env.createProgramPlan();
+        @SuppressWarnings("unchecked")
+        DataSet<Tuple3<Long, String, Integer>> input = env.fromElements(Tuple3.of(3L, "test", 42));
+        input.map(new WildcardForwardedMapperWithForwardAnnotation<>())
+                .output(new DiscardingOutputFormat<>());
+        Plan plan = env.createProgramPlan();
 
-		GenericDataSinkBase<?> sink = plan.getDataSinks().iterator().next();
-		MapOperatorBase<?, ?, ?> mapper = (MapOperatorBase<?, ?, ?>) sink.getInput();
+        GenericDataSinkBase<?> sink = plan.getDataSinks().iterator().next();
+        MapOperatorBase<?, ?, ?> mapper = (MapOperatorBase<?, ?, ?>) sink.getInput();
 
-		SingleInputSemanticProperties semantics = mapper.getSemanticProperties();
+        SingleInputSemanticProperties semantics = mapper.getSemanticProperties();
 
-		FieldSet fw1 = semantics.getForwardingTargetFields(0, 0);
-		FieldSet fw2 = semantics.getForwardingTargetFields(0, 1);
-		FieldSet fw3 = semantics.getForwardingTargetFields(0, 2);
-		assertNotNull(fw1);
-		assertNotNull(fw2);
-		assertNotNull(fw3);
-		assertTrue(fw1.contains(0));
-		assertFalse(fw2.contains(1));
-		assertFalse(fw3.contains(2));
-	}
+        FieldSet fw1 = semantics.getForwardingTargetFields(0, 0);
+        FieldSet fw2 = semantics.getForwardingTargetFields(0, 1);
+        FieldSet fw3 = semantics.getForwardingTargetFields(0, 2);
+        assertThat(fw1).contains(0);
+        assertThat(fw2).doesNotContain(1);
+        assertThat(fw3).doesNotContain(2);
+    }
 
-	@Test
-	public void testFunctionApiPrecedence() {
-		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+    @Test
+    void testFunctionApiPrecedence() {
+        ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
-		@SuppressWarnings("unchecked")
-		DataSet<Tuple3<Long, String, Integer>> input = env.fromElements(Tuple3.of(3L, "test", 42));
-		input
-				.map(new WildcardForwardedMapper<Tuple3<Long, String, Integer>>())
-				.withForwardedFields("f0")
-				.output(new DiscardingOutputFormat<Tuple3<Long, String, Integer>>());
-		Plan plan = env.createProgramPlan();
+        @SuppressWarnings("unchecked")
+        DataSet<Tuple3<Long, String, Integer>> input = env.fromElements(Tuple3.of(3L, "test", 42));
+        input.map(new WildcardForwardedMapper<>())
+                .withForwardedFields("f0")
+                .output(new DiscardingOutputFormat<>());
+        Plan plan = env.createProgramPlan();
 
-		GenericDataSinkBase<?> sink = plan.getDataSinks().iterator().next();
-		MapOperatorBase<?, ?, ?> mapper = (MapOperatorBase<?, ?, ?>) sink.getInput();
+        GenericDataSinkBase<?> sink = plan.getDataSinks().iterator().next();
+        MapOperatorBase<?, ?, ?> mapper = (MapOperatorBase<?, ?, ?>) sink.getInput();
 
-		SingleInputSemanticProperties semantics = mapper.getSemanticProperties();
+        SingleInputSemanticProperties semantics = mapper.getSemanticProperties();
 
-		FieldSet fw1 = semantics.getForwardingTargetFields(0, 0);
-		FieldSet fw2 = semantics.getForwardingTargetFields(0, 1);
-		FieldSet fw3 = semantics.getForwardingTargetFields(0, 2);
-		assertNotNull(fw1);
-		assertNotNull(fw2);
-		assertNotNull(fw3);
-		assertTrue(fw1.contains(0));
-		assertFalse(fw2.contains(1));
-		assertFalse(fw3.contains(2));
-	}
+        FieldSet fw1 = semantics.getForwardingTargetFields(0, 0);
+        FieldSet fw2 = semantics.getForwardingTargetFields(0, 1);
+        FieldSet fw3 = semantics.getForwardingTargetFields(0, 2);
+        assertThat(fw1).contains(0);
+        assertThat(fw2).doesNotContain(1);
+        assertThat(fw3).doesNotContain(2);
+    }
 
-	// --------------------------------------------------------------------------------------------
+    // --------------------------------------------------------------------------------------------
 
-	@FunctionAnnotation.ForwardedFields("f0")
-	private static class WildcardForwardedMapperWithForwardAnnotation<T> implements MapFunction<T, T> {
+    @FunctionAnnotation.ForwardedFields("f0")
+    private static class WildcardForwardedMapperWithForwardAnnotation<T>
+            implements MapFunction<T, T> {
 
-		@Override
-		public T map(T value)  {
-			return value;
-		}
-	}
+        @Override
+        public T map(T value) {
+            return value;
+        }
+    }
 
-	private static class WildcardForwardedMapper<T> implements MapFunction<T, T> {
+    private static class WildcardForwardedMapper<T> implements MapFunction<T, T> {
 
-		@Override
-		public T map(T value)  {
-			return value;
-		}
-	}
+        @Override
+        public T map(T value) {
+            return value;
+        }
+    }
 }

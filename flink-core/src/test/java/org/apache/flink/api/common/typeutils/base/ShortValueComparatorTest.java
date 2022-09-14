@@ -25,39 +25,40 @@ import org.apache.flink.types.ShortValue;
 
 import java.util.Random;
 
-public class ShortValueComparatorTest extends ComparatorTestBase<ShortValue> {
+class ShortValueComparatorTest extends ComparatorTestBase<ShortValue> {
 
-	@Override
-	protected TypeComparator<ShortValue> createComparator(boolean ascending) {
-		return new ShortValueComparator(ascending);
-	}
+    @Override
+    protected TypeComparator<ShortValue> createComparator(boolean ascending) {
+        return new ShortValueComparator(ascending);
+    }
 
-	@Override
-	protected TypeSerializer<ShortValue> createSerializer() {
-		return new ShortValueSerializer();
-	}
+    @Override
+    protected TypeSerializer<ShortValue> createSerializer() {
+        return new ShortValueSerializer();
+    }
 
-	@Override
-	protected ShortValue[] getSortedTestData() {
-		Random rnd = new Random(874597969123412338L);
-		short rndShort = Integer.valueOf(rnd.nextInt()).shortValue();
-		if (rndShort < 0) {
-			rndShort = Integer.valueOf(-rndShort).shortValue();
-		}
-		if (rndShort == Short.MAX_VALUE) {
-			rndShort -= 3;
-		}
-		if (rndShort <= 2) {
-			rndShort += 3;
-		}
-		return new ShortValue[]{
-			new ShortValue(Short.MIN_VALUE),
-			new ShortValue(Integer.valueOf(-rndShort).shortValue()),
-			new ShortValue(Integer.valueOf(-1).shortValue()),
-			new ShortValue(Integer.valueOf(0).shortValue()),
-			new ShortValue(Integer.valueOf(1).shortValue()),
-			new ShortValue(Integer.valueOf(2).shortValue()),
-			new ShortValue(Integer.valueOf(rndShort).shortValue()),
-			new ShortValue(Short.MAX_VALUE)};
-	}
+    @Override
+    protected ShortValue[] getSortedTestData() {
+        Random rnd = new Random(874597969123412338L);
+        short rndShort = Integer.valueOf(rnd.nextInt()).shortValue();
+        if (rndShort < 0) {
+            rndShort = Integer.valueOf(-rndShort).shortValue();
+        }
+        if (rndShort == Short.MAX_VALUE) {
+            rndShort -= 3;
+        }
+        if (rndShort <= 2) {
+            rndShort += 3;
+        }
+        return new ShortValue[] {
+            new ShortValue(Short.MIN_VALUE),
+            new ShortValue(Integer.valueOf(-rndShort).shortValue()),
+            new ShortValue(Integer.valueOf(-1).shortValue()),
+            new ShortValue(Integer.valueOf(0).shortValue()),
+            new ShortValue(Integer.valueOf(1).shortValue()),
+            new ShortValue(Integer.valueOf(2).shortValue()),
+            new ShortValue(Integer.valueOf(rndShort).shortValue()),
+            new ShortValue(Short.MAX_VALUE)
+        };
+    }
 }

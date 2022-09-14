@@ -18,46 +18,58 @@
 
 package org.apache.flink.runtime.operators.coordination;
 
+import javax.annotation.Nullable;
+
 import java.util.concurrent.CompletableFuture;
 
 /**
- * An empty interface implementation of the {@link OperatorCoordinator}.
- * If you need a testing stub, use the {@link TestingOperatorCoordinator} instead.
+ * An empty interface implementation of the {@link OperatorCoordinator}. If you need a testing stub,
+ * use the {@link TestingOperatorCoordinator} instead.
  */
 public final class MockOperatorCoordinator implements OperatorCoordinator {
 
-	@Override
-	public void start() {
-		throw new UnsupportedOperationException();
-	}
+    @Override
+    public void start() {
+        throw new UnsupportedOperationException();
+    }
 
-	@Override
-	public void close() {
-		throw new UnsupportedOperationException();
-	}
+    @Override
+    public void close() {
+        throw new UnsupportedOperationException();
+    }
 
-	@Override
-	public void handleEventFromOperator(int subtask, OperatorEvent event) {
-		throw new UnsupportedOperationException();
-	}
+    @Override
+    public void handleEventFromOperator(int subtask, int attemptNumber, OperatorEvent event) {
+        throw new UnsupportedOperationException();
+    }
 
-	@Override
-	public void subtaskFailed(int subtask) {
-		throw new UnsupportedOperationException();
-	}
+    @Override
+    public void executionAttemptFailed(int subtask, int attemptNumber, @Nullable Throwable reason) {
+        throw new UnsupportedOperationException();
+    }
 
-	@Override
-	public CompletableFuture<byte[]> checkpointCoordinator(long checkpointId) {
-		throw new UnsupportedOperationException();
-	}
+    @Override
+    public void subtaskReset(int subtask, long checkpointId) {
+        throw new UnsupportedOperationException();
+    }
 
-	@Override
-	public void checkpointComplete(long checkpointId) {
-		throw new UnsupportedOperationException();
-	}
+    @Override
+    public void executionAttemptReady(int subtask, int attemptNumber, SubtaskGateway gateway) {
+        throw new UnsupportedOperationException();
+    }
 
-	@Override
-	public void resetToCheckpoint(byte[] checkpointData) {
-		throw new UnsupportedOperationException();
-	}
+    @Override
+    public void checkpointCoordinator(long checkpointId, CompletableFuture<byte[]> result) {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public void notifyCheckpointComplete(long checkpointId) {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public void resetToCheckpoint(long checkpointId, byte[] checkpointData) {
+        throw new UnsupportedOperationException();
+    }
 }

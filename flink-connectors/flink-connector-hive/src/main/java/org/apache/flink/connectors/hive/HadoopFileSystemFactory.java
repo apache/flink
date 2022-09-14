@@ -18,9 +18,9 @@
 
 package org.apache.flink.connectors.hive;
 
+import org.apache.flink.connector.file.table.FileSystemFactory;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.runtime.fs.hdfs.HadoopFileSystem;
-import org.apache.flink.table.filesystem.FileSystemFactory;
 
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.mapred.JobConf;
@@ -28,21 +28,19 @@ import org.apache.hadoop.mapred.JobConf;
 import java.io.IOException;
 import java.net.URI;
 
-/**
- * Hive {@link FileSystemFactory}, hive need use job conf to create file system.
- */
+/** Hive {@link FileSystemFactory}, hive need use job conf to create file system. */
 public class HadoopFileSystemFactory implements FileSystemFactory {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	private JobConfWrapper jobConfWrapper;
+    private JobConfWrapper jobConfWrapper;
 
-	HadoopFileSystemFactory(JobConf jobConf) {
-		this.jobConfWrapper = new JobConfWrapper(jobConf);
-	}
+    HadoopFileSystemFactory(JobConf jobConf) {
+        this.jobConfWrapper = new JobConfWrapper(jobConf);
+    }
 
-	@Override
-	public FileSystem create(URI uri) throws IOException {
-		return new HadoopFileSystem(new Path(uri).getFileSystem(jobConfWrapper.conf()));
-	}
+    @Override
+    public FileSystem create(URI uri) throws IOException {
+        return new HadoopFileSystem(new Path(uri).getFileSystem(jobConfWrapper.conf()));
+    }
 }

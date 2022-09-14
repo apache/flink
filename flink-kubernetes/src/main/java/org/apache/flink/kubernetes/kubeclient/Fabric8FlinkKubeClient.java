@@ -18,272 +18,406 @@
 
 package org.apache.flink.kubernetes.kubeclient;
 
-import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.kubernetes.configuration.KubernetesConfigOptions;
+import org.apache.flink.kubernetes.configuration.KubernetesLeaderElectionConfiguration;
+import org.apache.flink.kubernetes.kubeclient.decorators.ExternalServiceDecorator;
+import org.apache.flink.kubernetes.kubeclient.resources.KubernetesConfigMap;
+import org.apache.flink.kubernetes.kubeclient.resources.KubernetesConfigMapSharedInformer;
+import org.apache.flink.kubernetes.kubeclient.resources.KubernetesException;
+import org.apache.flink.kubernetes.kubeclient.resources.KubernetesLeaderElector;
 import org.apache.flink.kubernetes.kubeclient.resources.KubernetesPod;
+import org.apache.flink.kubernetes.kubeclient.resources.KubernetesPodsWatcher;
 import org.apache.flink.kubernetes.kubeclient.resources.KubernetesService;
+import org.apache.flink.kubernetes.kubeclient.resources.KubernetesWatch;
+import org.apache.flink.kubernetes.kubeclient.services.ServiceType;
 import org.apache.flink.kubernetes.utils.KubernetesUtils;
+import org.apache.flink.runtime.persistence.PossibleInconsistentStateException;
+import org.apache.flink.util.ExceptionUtils;
+import org.apache.flink.util.ExecutorUtils;
+import org.apache.flink.util.FlinkRuntimeException;
+import org.apache.flink.util.concurrent.FutureUtils;
 
+import io.fabric8.kubernetes.api.model.ConfigMap;
 import io.fabric8.kubernetes.api.model.HasMetadata;
+import io.fabric8.kubernetes.api.model.IntOrString;
 import io.fabric8.kubernetes.api.model.OwnerReference;
 import io.fabric8.kubernetes.api.model.OwnerReferenceBuilder;
 import io.fabric8.kubernetes.api.model.Pod;
 import io.fabric8.kubernetes.api.model.Service;
-import io.fabric8.kubernetes.api.model.ServicePort;
+import io.fabric8.kubernetes.api.model.ServiceBuilder;
 import io.fabric8.kubernetes.api.model.apps.Deployment;
-import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.kubernetes.client.KubernetesClientException;
-import io.fabric8.kubernetes.client.Watcher;
+import io.fabric8.kubernetes.client.NamespacedKubernetesClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.annotation.Nullable;
-
+import java.io.File;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
-/**
- * The implementation of {@link FlinkKubeClient}.
- */
+/** The implementation of {@link FlinkKubeClient}. */
 public class Fabric8FlinkKubeClient implements FlinkKubeClient {
 
-	private static final Logger LOG = LoggerFactory.getLogger(Fabric8FlinkKubeClient.class);
+    private static final Logger LOG = LoggerFactory.getLogger(Fabric8FlinkKubeClient.class);
 
-	private final Configuration flinkConfig;
-	private final KubernetesClient internalClient;
-	private final String clusterId;
-	private final String nameSpace;
+    private final String clusterId;
+    private final String namespace;
+    private final int maxRetryAttempts;
+    private final KubernetesConfigOptions.NodePortAddressType nodePortAddressType;
 
-	public Fabric8FlinkKubeClient(Configuration flinkConfig, KubernetesClient client) {
-		this.flinkConfig = checkNotNull(flinkConfig);
-		this.internalClient = checkNotNull(client);
-		this.clusterId = checkNotNull(flinkConfig.getString(KubernetesConfigOptions.CLUSTER_ID));
+    private final NamespacedKubernetesClient internalClient;
+    private final ExecutorService kubeClientExecutorService;
+    // save the master deployment atomic reference for setting owner reference of task manager pods
+    private final AtomicReference<Deployment> masterDeploymentRef;
 
-		this.nameSpace = flinkConfig.getString(KubernetesConfigOptions.NAMESPACE);
-	}
+    public Fabric8FlinkKubeClient(
+            Configuration flinkConfig,
+            NamespacedKubernetesClient client,
+            ExecutorService executorService) {
+        this.clusterId =
+                flinkConfig
+                        .getOptional(KubernetesConfigOptions.CLUSTER_ID)
+                        .orElseThrow(
+                                () ->
+                                        new IllegalArgumentException(
+                                                String.format(
+                                                        "Configuration option '%s' is not set.",
+                                                        KubernetesConfigOptions.CLUSTER_ID.key())));
+        this.namespace = flinkConfig.getString(KubernetesConfigOptions.NAMESPACE);
+        this.maxRetryAttempts =
+                flinkConfig.getInteger(
+                        KubernetesConfigOptions.KUBERNETES_TRANSACTIONAL_OPERATION_MAX_RETRIES);
+        this.nodePortAddressType =
+                flinkConfig.get(
+                        KubernetesConfigOptions.REST_SERVICE_EXPOSED_NODE_PORT_ADDRESS_TYPE);
+        this.internalClient = checkNotNull(client);
+        this.kubeClientExecutorService = checkNotNull(executorService);
+        this.masterDeploymentRef = new AtomicReference<>();
+    }
 
-	@Override
-	public void createJobManagerComponent(KubernetesJobManagerSpecification kubernetesJMSpec) {
-		final Deployment deployment = kubernetesJMSpec.getDeployment();
-		final List<HasMetadata> accompanyingResources = kubernetesJMSpec.getAccompanyingResources();
+    @Override
+    public void createJobManagerComponent(KubernetesJobManagerSpecification kubernetesJMSpec) {
+        final Deployment deployment = kubernetesJMSpec.getDeployment();
+        final List<HasMetadata> accompanyingResources = kubernetesJMSpec.getAccompanyingResources();
 
-		// create Deployment
-		LOG.debug("Start to create deployment with spec {}", deployment.getSpec().toString());
-		final Deployment createdDeployment = this.internalClient
-			.apps()
-			.deployments()
-			.inNamespace(this.nameSpace)
-			.create(deployment);
+        // create Deployment
+        LOG.debug(
+                "Start to create deployment with spec {}{}",
+                System.lineSeparator(),
+                KubernetesUtils.tryToGetPrettyPrintYaml(deployment));
+        final Deployment createdDeployment =
+                this.internalClient.apps().deployments().create(deployment);
 
-		// Note that we should use the uid of the created Deployment for the OwnerReference.
-		setOwnerReference(createdDeployment, accompanyingResources);
+        // Note that we should use the uid of the created Deployment for the OwnerReference.
+        setOwnerReference(createdDeployment, accompanyingResources);
 
-		this.internalClient
-			.resourceList(accompanyingResources)
-			.inNamespace(this.nameSpace)
-			.createOrReplace();
-	}
+        this.internalClient.resourceList(accompanyingResources).createOrReplace();
+    }
 
-	@Override
-	public void createTaskManagerPod(KubernetesPod kubernetesPod) {
-		final Deployment masterDeployment = this.internalClient
-			.apps()
-			.deployments()
-			.inNamespace(this.nameSpace)
-			.withName(KubernetesUtils.getDeploymentName(clusterId))
-			.get();
+    @Override
+    public CompletableFuture<Void> createTaskManagerPod(KubernetesPod kubernetesPod) {
+        return CompletableFuture.runAsync(
+                () -> {
+                    if (masterDeploymentRef.get() == null) {
+                        final Deployment masterDeployment =
+                                this.internalClient
+                                        .apps()
+                                        .deployments()
+                                        .withName(KubernetesUtils.getDeploymentName(clusterId))
+                                        .get();
+                        if (masterDeployment == null) {
+                            throw new RuntimeException(
+                                    "Failed to find Deployment named "
+                                            + clusterId
+                                            + " in namespace "
+                                            + this.namespace);
+                        }
+                        masterDeploymentRef.compareAndSet(null, masterDeployment);
+                    }
 
-		if (masterDeployment == null) {
-			throw new RuntimeException(
-				"Failed to find Deployment named " + clusterId + " in namespace " + this.nameSpace);
-		}
+                    // Note that we should use the uid of the master Deployment for the
+                    // OwnerReference.
+                    setOwnerReference(
+                            checkNotNull(masterDeploymentRef.get()),
+                            Collections.singletonList(kubernetesPod.getInternalResource()));
 
-		// Note that we should use the uid of the master Deployment for the OwnerReference.
-		setOwnerReference(masterDeployment, Collections.singletonList(kubernetesPod.getInternalResource()));
+                    LOG.debug(
+                            "Start to create pod with spec {}{}",
+                            System.lineSeparator(),
+                            KubernetesUtils.tryToGetPrettyPrintYaml(
+                                    kubernetesPod.getInternalResource()));
 
-		LOG.debug("Start to create pod with metadata {}, spec {}",
-			kubernetesPod.getInternalResource().getMetadata(),
-			kubernetesPod.getInternalResource().getSpec());
+                    this.internalClient.pods().create(kubernetesPod.getInternalResource());
+                },
+                kubeClientExecutorService);
+    }
 
-		this.internalClient
-			.pods()
-			.inNamespace(this.nameSpace)
-			.create(kubernetesPod.getInternalResource());
-	}
+    @Override
+    public CompletableFuture<Void> stopPod(String podName) {
+        return CompletableFuture.runAsync(
+                () -> this.internalClient.pods().withName(podName).delete(),
+                kubeClientExecutorService);
+    }
 
-	@Override
-	public void stopPod(String podName) {
-		this.internalClient.pods().withName(podName).delete();
-	}
+    @Override
+    public Optional<Endpoint> getRestEndpoint(String clusterId) {
+        Optional<KubernetesService> restService =
+                getService(ExternalServiceDecorator.getExternalServiceName(clusterId));
+        if (!restService.isPresent()) {
+            return Optional.empty();
+        }
+        final Service service = restService.get().getInternalResource();
 
-	@Override
-	@Nullable
-	public Endpoint getRestEndpoint(String clusterId) {
-		int restPort = this.flinkConfig.getInteger(RestOptions.PORT);
-		String serviceExposedType = flinkConfig.getString(KubernetesConfigOptions.REST_SERVICE_EXPOSED_TYPE);
+        final KubernetesConfigOptions.ServiceExposedType serviceExposedType =
+                ServiceType.classify(service);
 
-		// Return the service.namespace directly when use ClusterIP.
-		if (serviceExposedType.equals(KubernetesConfigOptions.ServiceExposedType.ClusterIP.toString())) {
-			return new Endpoint(KubernetesUtils.getInternalServiceName(clusterId) + "." + nameSpace, restPort);
-		}
+        return serviceExposedType
+                .serviceType()
+                .getRestEndpoint(service, internalClient, nodePortAddressType);
+    }
 
-		KubernetesService restService = getRestService(clusterId);
-		if (restService == null) {
-			return null;
-		}
-		Service service = restService.getInternalResource();
+    @Override
+    public List<KubernetesPod> getPodsWithLabels(Map<String, String> labels) {
+        final List<Pod> podList = this.internalClient.pods().withLabels(labels).list().getItems();
 
-		String address = null;
+        if (podList == null || podList.isEmpty()) {
+            return new ArrayList<>();
+        }
 
-		if (service.getStatus() != null && (service.getStatus().getLoadBalancer() != null ||
-			service.getStatus().getLoadBalancer().getIngress() != null)) {
-			if (service.getStatus().getLoadBalancer().getIngress().size() > 0) {
-				address = service.getStatus().getLoadBalancer().getIngress().get(0).getIp();
-				if (address == null || address.isEmpty()) {
-					address = service.getStatus().getLoadBalancer().getIngress().get(0).getHostname();
-				}
-			} else {
-				address = this.internalClient.getMasterUrl().getHost();
-				restPort = getServiceNodePort(service, RestOptions.PORT);
-			}
-		} else if (service.getSpec().getExternalIPs() != null && service.getSpec().getExternalIPs().size() > 0) {
-			address = service.getSpec().getExternalIPs().get(0);
-		}
-		if (address == null || address.isEmpty()) {
-			return null;
-		}
-		return new Endpoint(address, restPort);
-	}
+        return podList.stream().map(KubernetesPod::new).collect(Collectors.toList());
+    }
 
-	@Override
-	public List<KubernetesPod> getPodsWithLabels(Map<String, String> labels) {
-		final List<Pod> podList = this.internalClient.pods().withLabels(labels).list().getItems();
+    @Override
+    public void stopAndCleanupCluster(String clusterId) {
+        this.internalClient
+                .apps()
+                .deployments()
+                .withName(KubernetesUtils.getDeploymentName(clusterId))
+                .cascading(true)
+                .delete();
+    }
 
-		if (podList == null || podList.size() < 1) {
-			return new ArrayList<>();
-		}
+    @Override
+    public Optional<KubernetesService> getService(String serviceName) {
+        final Service service =
+                this.internalClient.services().withName(serviceName).fromServer().get();
+        if (service == null) {
+            LOG.debug("Service {} does not exist", serviceName);
+            return Optional.empty();
+        }
+        return Optional.of(new KubernetesService(service));
+    }
 
-		return podList
-			.stream()
-			.map(KubernetesPod::new)
-			.collect(Collectors.toList());
-	}
+    @Override
+    public KubernetesWatch watchPodsAndDoCallback(
+            Map<String, String> labels, WatchCallbackHandler<KubernetesPod> podCallbackHandler)
+            throws Exception {
+        return FutureUtils.retry(
+                        () ->
+                                CompletableFuture.supplyAsync(
+                                        () ->
+                                                new KubernetesWatch(
+                                                        this.internalClient
+                                                                .pods()
+                                                                .withLabels(labels)
+                                                                .watch(
+                                                                        new KubernetesPodsWatcher(
+                                                                                podCallbackHandler))),
+                                        kubeClientExecutorService),
+                        maxRetryAttempts,
+                        t ->
+                                ExceptionUtils.findThrowable(t, KubernetesClientException.class)
+                                        .isPresent(),
+                        kubeClientExecutorService)
+                .get();
+    }
 
-	@Override
-	public void stopAndCleanupCluster(String clusterId) {
-		this.internalClient
-			.apps()
-			.deployments()
-			.inNamespace(this.nameSpace)
-			.withName(KubernetesUtils.getDeploymentName(clusterId))
-			.cascading(true)
-			.delete();
-	}
+    @Override
+    public KubernetesLeaderElector createLeaderElector(
+            KubernetesLeaderElectionConfiguration leaderElectionConfiguration,
+            KubernetesLeaderElector.LeaderCallbackHandler leaderCallbackHandler) {
+        return new KubernetesLeaderElector(
+                this.internalClient, leaderElectionConfiguration, leaderCallbackHandler);
+    }
 
-	@Override
-	public void handleException(Exception e) {
-		LOG.error("A Kubernetes exception occurred.", e);
-	}
+    @Override
+    public CompletableFuture<Void> createConfigMap(KubernetesConfigMap configMap) {
+        final String configMapName = configMap.getName();
+        return CompletableFuture.runAsync(
+                        () ->
+                                this.internalClient
+                                        .configMaps()
+                                        .create(configMap.getInternalResource()),
+                        kubeClientExecutorService)
+                .exceptionally(
+                        throwable -> {
+                            throw new CompletionException(
+                                    new KubernetesException(
+                                            "Failed to create ConfigMap " + configMapName,
+                                            throwable));
+                        });
+    }
 
-	@Nullable
-	@Override
-	public KubernetesService getInternalService(String clusterId) {
-		return getService(KubernetesUtils.getInternalServiceName(clusterId));
-	}
+    @Override
+    public Optional<KubernetesConfigMap> getConfigMap(String name) {
+        final ConfigMap configMap = this.internalClient.configMaps().withName(name).get();
+        return configMap == null
+                ? Optional.empty()
+                : Optional.of(new KubernetesConfigMap(configMap));
+    }
 
-	@Override
-	@Nullable
-	public KubernetesService getRestService(String clusterId) {
-		return getService(KubernetesUtils.getRestServiceName(clusterId));
-	}
+    @Override
+    public CompletableFuture<Boolean> checkAndUpdateConfigMap(
+            String configMapName,
+            Function<KubernetesConfigMap, Optional<KubernetesConfigMap>> updateFunction) {
+        return FutureUtils.retry(
+                () -> attemptCheckAndUpdateConfigMap(configMapName, updateFunction),
+                maxRetryAttempts,
+                // Only KubernetesClientException is retryable
+                t -> ExceptionUtils.findThrowable(t, KubernetesClientException.class).isPresent(),
+                kubeClientExecutorService);
+    }
 
-	@Override
-	public void watchPodsAndDoCallback(Map<String, String> labels, PodCallbackHandler callbackHandler) {
-		final Watcher<Pod> watcher = new Watcher<Pod>() {
-			@Override
-			public void eventReceived(Action action, Pod pod) {
-				LOG.debug("Received {} event for pod {}, details: {}", action, pod.getMetadata().getName(), pod.getStatus());
-				switch (action) {
-					case ADDED:
-						callbackHandler.onAdded(Collections.singletonList(new KubernetesPod(pod)));
-						break;
-					case MODIFIED:
-						callbackHandler.onModified(Collections.singletonList(new KubernetesPod(pod)));
-						break;
-					case ERROR:
-						callbackHandler.onError(Collections.singletonList(new KubernetesPod(pod)));
-						break;
-					case DELETED:
-						callbackHandler.onDeleted(Collections.singletonList(new KubernetesPod(pod)));
-						break;
-					default:
-						LOG.debug("Ignore handling {} event for pod {}", action, pod.getMetadata().getName());
-						break;
-				}
-			}
+    private CompletableFuture<Boolean> attemptCheckAndUpdateConfigMap(
+            String configMapName,
+            Function<KubernetesConfigMap, Optional<KubernetesConfigMap>> updateFunction) {
+        return CompletableFuture.supplyAsync(
+                () -> {
+                    final KubernetesConfigMap configMap =
+                            getConfigMap(configMapName)
+                                    .orElseThrow(
+                                            () ->
+                                                    new CompletionException(
+                                                            new KubernetesException(
+                                                                    "Cannot retry checkAndUpdateConfigMap with configMap "
+                                                                            + configMapName
+                                                                            + " because it does not exist.")));
+                    final Optional<KubernetesConfigMap> maybeUpdate =
+                            updateFunction.apply(configMap);
+                    if (maybeUpdate.isPresent()) {
+                        try {
+                            internalClient
+                                    .configMaps()
+                                    .withName(configMapName)
+                                    .lockResourceVersion(maybeUpdate.get().getResourceVersion())
+                                    .replace(maybeUpdate.get().getInternalResource());
+                            return true;
+                        } catch (Throwable throwable) {
+                            LOG.debug(
+                                    "Failed to update ConfigMap {} with data {}. Trying again.",
+                                    configMap.getName(),
+                                    configMap.getData());
+                            // the client implementation does not expose the different kind of error
+                            // causes to a degree that we could do a more fine-grained error
+                            // handling here
+                            throw new CompletionException(
+                                    new PossibleInconsistentStateException(throwable));
+                        }
+                    }
+                    return false;
+                },
+                kubeClientExecutorService);
+    }
 
-			@Override
-			public void onClose(KubernetesClientException e) {
-				LOG.error("The pods watcher is closing.", e);
-			}
-		};
-		this.internalClient.pods().withLabels(labels).watch(watcher);
-	}
+    @Override
+    public CompletableFuture<Void> deleteConfigMapsByLabels(Map<String, String> labels) {
+        // the only time, the delete method returns false is due to a 404 HTTP status which is
+        // returned if the underlying resource doesn't exist
+        return CompletableFuture.runAsync(
+                () -> this.internalClient.configMaps().withLabels(labels).delete(),
+                kubeClientExecutorService);
+    }
 
-	@Override
-	public void close() {
-		this.internalClient.close();
-	}
+    @Override
+    public CompletableFuture<Void> deleteConfigMap(String configMapName) {
+        // the only time, the delete method returns false is due to a 404 HTTP status which is
+        // returned if the underlying resource doesn't exist
+        return CompletableFuture.runAsync(
+                () -> this.internalClient.configMaps().withName(configMapName).delete(),
+                kubeClientExecutorService);
+    }
 
-	private void setOwnerReference(Deployment deployment, List<HasMetadata> resources) {
-		final OwnerReference deploymentOwnerReference = new OwnerReferenceBuilder()
-			.withName(deployment.getMetadata().getName())
-			.withApiVersion(deployment.getApiVersion())
-			.withUid(deployment.getMetadata().getUid())
-			.withKind(deployment.getKind())
-			.withController(true)
-			.withBlockOwnerDeletion(true)
-			.build();
-		resources.forEach(resource ->
-			resource.getMetadata().setOwnerReferences(Collections.singletonList(deploymentOwnerReference)));
-	}
+    @Override
+    public KubernetesConfigMapSharedWatcher createConfigMapSharedWatcher(
+            Map<String, String> labels) {
+        return new KubernetesConfigMapSharedInformer(this.internalClient, labels);
+    }
 
-	private KubernetesService getService(String serviceName) {
-		final Service service = this
-			.internalClient
-			.services()
-			.inNamespace(nameSpace)
-			.withName(serviceName)
-			.fromServer()
-			.get();
+    @Override
+    public void close() {
+        this.internalClient.close();
+        ExecutorUtils.gracefulShutdown(5, TimeUnit.SECONDS, this.kubeClientExecutorService);
+    }
 
-		if (service == null) {
-			LOG.debug("Service {} does not exist", serviceName);
-			return null;
-		}
+    @Override
+    public KubernetesPod loadPodFromTemplateFile(File file) {
+        if (!file.exists()) {
+            throw new FlinkRuntimeException(
+                    String.format("Pod template file %s does not exist.", file));
+        }
+        return new KubernetesPod(this.internalClient.pods().load(file).get());
+    }
 
-		return new KubernetesService(service);
-	}
+    @Override
+    public CompletableFuture<Void> updateServiceTargetPort(
+            String serviceName, String portName, int targetPort) {
+        LOG.debug("Update {} target port to {}", portName, targetPort);
+        return CompletableFuture.runAsync(
+                () ->
+                        getService(serviceName)
+                                .ifPresent(
+                                        service -> {
+                                            final Service updatedService =
+                                                    new ServiceBuilder(
+                                                                    service.getInternalResource())
+                                                            .editSpec()
+                                                            .editMatchingPort(
+                                                                    servicePortBuilder ->
+                                                                            servicePortBuilder
+                                                                                    .build()
+                                                                                    .getName()
+                                                                                    .equals(
+                                                                                            portName))
+                                                            .withTargetPort(
+                                                                    new IntOrString(targetPort))
+                                                            .endPort()
+                                                            .endSpec()
+                                                            .build();
+                                            this.internalClient
+                                                    .services()
+                                                    .withName(serviceName)
+                                                    .replace(updatedService);
+                                        }),
+                kubeClientExecutorService);
+    }
 
-	/**
-	 * To get nodePort of configured ports.
-	 */
-	private int getServiceNodePort(Service service, ConfigOption<Integer> configPort) {
-		final int port = this.flinkConfig.getInteger(configPort);
-		if (service.getSpec() != null && service.getSpec().getPorts() != null) {
-			for (ServicePort p : service.getSpec().getPorts()) {
-				if (p.getPort() == port) {
-					return p.getNodePort();
-				}
-			}
-		}
-		return port;
-	}
+    private void setOwnerReference(Deployment deployment, List<HasMetadata> resources) {
+        final OwnerReference deploymentOwnerReference =
+                new OwnerReferenceBuilder()
+                        .withName(deployment.getMetadata().getName())
+                        .withApiVersion(deployment.getApiVersion())
+                        .withUid(deployment.getMetadata().getUid())
+                        .withKind(deployment.getKind())
+                        .withController(true)
+                        .withBlockOwnerDeletion(true)
+                        .build();
+        resources.forEach(
+                resource ->
+                        resource.getMetadata()
+                                .setOwnerReferences(
+                                        Collections.singletonList(deploymentOwnerReference)));
+    }
 }

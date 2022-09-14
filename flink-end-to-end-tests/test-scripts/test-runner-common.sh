@@ -19,7 +19,7 @@
 
 source "${END_TO_END_DIR}"/test-scripts/common.sh
 
-export FLINK_VERSION=$(mvn --file ${END_TO_END_DIR}/pom.xml org.apache.maven.plugins:maven-help-plugin:3.1.0:evaluate -Dexpression=project.version -q -DforceStdout)
+export FLINK_VERSION=$(MVN_RUN_VERBOSE=false run_mvn --file ${END_TO_END_DIR}/pom.xml org.apache.maven.plugins:maven-help-plugin:3.1.0:evaluate -Dexpression=project.version -q -DforceStdout)
 
 #######################################
 # Prints the given description, runs the given test and prints how long the execution took.
@@ -50,6 +50,9 @@ function run_test {
     }
     # set a trap to catch a test execution error
     trap 'test_error' ERR
+
+    # Always enable unaligned checkpoint
+    set_config_key "execution.checkpointing.unaligned" "true"
 
     ${command}
     exit_code="$?"
@@ -93,9 +96,34 @@ function post_test_validation {
 
     if [[ ${exit_code} == 0 ]]; then
         cleanup
+        log_environment_info
     else
+        log_environment_info
         exit "${exit_code}"
     fi
+}
+
+function log_environment_info {
+    echo "##[group]Environment Information"
+    echo "Jps"
+    jps
+
+    echo "Disk information"
+    df -h
+
+    echo "##[group]Top 15 biggest directories in terms of used disk space"
+    du -a . | sort -n -r | head -n 15
+
+    if sudo -n true 2>/dev/null; then
+      echo "Allocated ports"
+      sudo netstat -tulpn
+    else
+      echo "Could not retrieve allocated ports because no sudo rights."
+    fi
+
+    echo "Running docker containers"
+    docker ps -a
+    echo "##[endgroup]"
 }
 
 # Shuts down cluster and reverts changes to cluster configs
@@ -106,8 +134,8 @@ function cleanup_proc {
 
 # Cleans up all temporary folders and files
 function cleanup_tmp_files {
-    rm -f ${FLINK_DIR}/log/*
-    echo "Deleted all files under ${FLINK_DIR}/log/"
+    rm -f $FLINK_LOG_DIR/*
+    echo "Deleted all files under $FLINK_LOG_DIR/"
 
     rm -rf ${TEST_DATA_DIR} 2> /dev/null
     echo "Deleted ${TEST_DATA_DIR}"
@@ -120,4 +148,4 @@ function cleanup {
 }
 
 trap cleanup SIGINT
-trap cleanup_proc EXIT
+on_exit cleanup_proc

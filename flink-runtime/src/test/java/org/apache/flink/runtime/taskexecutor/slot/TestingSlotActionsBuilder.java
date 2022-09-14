@@ -24,24 +24,23 @@ import java.util.UUID;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 
-/**
- * Builder for the {@link TestingSlotActions}.
- */
+/** Builder for the {@link TestingSlotActions}. */
 public class TestingSlotActionsBuilder {
-	private Consumer<AllocationID> freeSlotConsumer = ignored -> {};
-	private BiConsumer<AllocationID, UUID> timeoutSlotConsumer = (ignoredA, ignoredB) -> {};
+    private Consumer<AllocationID> freeSlotConsumer = ignored -> {};
+    private BiConsumer<AllocationID, UUID> timeoutSlotConsumer = (ignoredA, ignoredB) -> {};
 
-	public TestingSlotActionsBuilder setFreeSlotConsumer(Consumer<AllocationID> freeSlotConsumer) {
-		this.freeSlotConsumer = freeSlotConsumer;
-		return this;
-	}
+    public TestingSlotActionsBuilder setFreeSlotConsumer(Consumer<AllocationID> freeSlotConsumer) {
+        this.freeSlotConsumer = freeSlotConsumer;
+        return this;
+    }
 
-	public TestingSlotActionsBuilder setTimeoutSlotConsumer(BiConsumer<AllocationID, UUID> timeoutSlotConsumer) {
-		this.timeoutSlotConsumer = timeoutSlotConsumer;
-		return this;
-	}
+    public TestingSlotActionsBuilder setTimeoutSlotConsumer(
+            BiConsumer<AllocationID, UUID> timeoutSlotConsumer) {
+        this.timeoutSlotConsumer = timeoutSlotConsumer;
+        return this;
+    }
 
-	public TestingSlotActions build() {
-		return new TestingSlotActions(freeSlotConsumer, timeoutSlotConsumer);
-	}
+    public TestingSlotActions build() {
+        return new TestingSlotActions(freeSlotConsumer, timeoutSlotConsumer);
+    }
 }

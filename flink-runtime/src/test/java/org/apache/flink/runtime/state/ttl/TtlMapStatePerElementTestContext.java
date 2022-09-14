@@ -20,37 +20,37 @@ package org.apache.flink.runtime.state.ttl;
 
 /** Test suite for per element methods of {@link TtlMapState}. */
 class TtlMapStatePerElementTestContext extends TtlMapStateTestContext<String, String> {
-	private static final int TEST_KEY = 1;
-	private static final String TEST_VAL1 = "test value1";
-	private static final String TEST_VAL2 = "test value2";
-	private static final String TEST_VAL3 = "test value3";
+    private static final int TEST_KEY = 1;
+    private static final String TEST_VAL1 = "test value1";
+    private static final String TEST_VAL2 = "test value2";
+    private static final String TEST_VAL3 = "test value3";
 
-	@Override
-	void initTestValues() {
-		updateEmpty = TEST_VAL1;
-		updateUnexpired = TEST_VAL2;
-		updateExpired = TEST_VAL3;
+    @Override
+    void initTestValues() {
+        updateEmpty = TEST_VAL1;
+        updateUnexpired = TEST_VAL2;
+        updateExpired = TEST_VAL3;
 
-		getUpdateEmpty = TEST_VAL1;
-		getUnexpired = TEST_VAL2;
-		getUpdateExpired = TEST_VAL3;
-	}
+        getUpdateEmpty = TEST_VAL1;
+        getUnexpired = TEST_VAL2;
+        getUpdateExpired = TEST_VAL3;
+    }
 
-	@Override
-	public void update(String value) throws Exception {
-		ttlState.put(TEST_KEY, value);
-	}
+    @Override
+    public void update(String value) throws Exception {
+        ttlState.put(TEST_KEY, value);
+    }
 
-	@Override
-	public String get() throws Exception {
-		String value = ttlState.get(TEST_KEY);
-		assert (getOriginal() == null && !ttlState.contains(TEST_KEY)) ||
-			(getOriginal() != null && ttlState.contains(TEST_KEY));
-		return value;
-	}
+    @Override
+    public String get() throws Exception {
+        String value = ttlState.get(TEST_KEY);
+        assert (getOriginal() == null && !ttlState.contains(TEST_KEY))
+                || (getOriginal() != null && ttlState.contains(TEST_KEY));
+        return value;
+    }
 
-	@Override
-	public Object getOriginal() throws Exception {
-		return ttlState.original.get(TEST_KEY);
-	}
+    @Override
+    public Object getOriginal() throws Exception {
+        return ttlState.original.get(TEST_KEY);
+    }
 }

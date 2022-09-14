@@ -26,61 +26,57 @@ import org.apache.flink.types.Value;
 
 import java.util.concurrent.CountDownLatch;
 
-/**
- * A resettable one-shot latch.
- */
+/** A resettable one-shot latch. */
 public class SuperstepBarrier implements EventListener<TaskEvent> {
 
-	private final ClassLoader userCodeClassLoader;
+    private final ClassLoader userCodeClassLoader;
 
-	private boolean terminationSignaled = false;
+    private boolean terminationSignaled = false;
 
-	private CountDownLatch latch;
+    private CountDownLatch latch;
 
-	private String[] aggregatorNames;
-	private Value[] aggregates;
+    private String[] aggregatorNames;
+    private Value[] aggregates;
 
-	public SuperstepBarrier(ClassLoader userCodeClassLoader) {
-		this.userCodeClassLoader = userCodeClassLoader;
-	}
+    public SuperstepBarrier(ClassLoader userCodeClassLoader) {
+        this.userCodeClassLoader = userCodeClassLoader;
+    }
 
-	/** Setup the barrier, has to be called at the beginning of each superstep. */
-	public void setup() {
-		latch = new CountDownLatch(1);
-	}
+    /** Setup the barrier, has to be called at the beginning of each superstep. */
+    public void setup() {
+        latch = new CountDownLatch(1);
+    }
 
-	/** Wait on the barrier. */
-	public void waitForOtherWorkers() throws InterruptedException {
-		latch.await();
-	}
+    /** Wait on the barrier. */
+    public void waitForOtherWorkers() throws InterruptedException {
+        latch.await();
+    }
 
-	public String[] getAggregatorNames() {
-		return aggregatorNames;
-	}
+    public String[] getAggregatorNames() {
+        return aggregatorNames;
+    }
 
-	public Value[] getAggregates() {
-		return aggregates;
-	}
+    public Value[] getAggregates() {
+        return aggregates;
+    }
 
-	/** Barrier will release the waiting thread if an event occurs. */
-	@Override
-	public void onEvent(TaskEvent event) {
-		if (event instanceof TerminationEvent) {
-			terminationSignaled = true;
-		}
-		else if (event instanceof AllWorkersDoneEvent) {
-			AllWorkersDoneEvent wde = (AllWorkersDoneEvent) event;
-			aggregatorNames = wde.getAggregatorNames();
-			aggregates = wde.getAggregates(userCodeClassLoader);
-		}
-		else {
-			throw new IllegalArgumentException("Unknown event type.");
-		}
+    /** Barrier will release the waiting thread if an event occurs. */
+    @Override
+    public void onEvent(TaskEvent event) {
+        if (event instanceof TerminationEvent) {
+            terminationSignaled = true;
+        } else if (event instanceof AllWorkersDoneEvent) {
+            AllWorkersDoneEvent wde = (AllWorkersDoneEvent) event;
+            aggregatorNames = wde.getAggregatorNames();
+            aggregates = wde.getAggregates(userCodeClassLoader);
+        } else {
+            throw new IllegalArgumentException("Unknown event type.");
+        }
 
-		latch.countDown();
-	}
+        latch.countDown();
+    }
 
-	public boolean terminationSignaled() {
-		return terminationSignaled;
-	}
+    public boolean terminationSignaled() {
+        return terminationSignaled;
+    }
 }

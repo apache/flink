@@ -18,55 +18,97 @@
 
 package org.apache.flink.runtime.state;
 
+import org.apache.flink.api.common.state.CheckpointListener;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
+import org.apache.flink.runtime.checkpoint.InflightDataRescalingDescriptor;
 import org.apache.flink.runtime.checkpoint.PrioritizedOperatorSubtaskState;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
+import org.apache.flink.runtime.checkpoint.channel.SequentialChannelStateReader;
 import org.apache.flink.runtime.jobgraph.OperatorID;
+import org.apache.flink.runtime.state.changelog.ChangelogStateHandle;
+import org.apache.flink.runtime.state.changelog.StateChangelogStorage;
+import org.apache.flink.runtime.state.changelog.StateChangelogStorageView;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
+import java.util.Optional;
+
 /**
  * This interface provides methods to report and retrieve state for a task.
  *
- * <p>When a checkpoint or savepoint is triggered on a task, it will create snapshots for all stream operator instances
- * it owns. All operator snapshots from the task are then reported via this interface. A typical implementation will
- * dispatch and forward the reported state information to interested parties such as the checkpoint coordinator or a
- * local state store.
+ * <p>When a checkpoint or savepoint is triggered on a task, it will create snapshots for all stream
+ * operator instances it owns. All operator snapshots from the task are then reported via this
+ * interface. A typical implementation will dispatch and forward the reported state information to
+ * interested parties such as the checkpoint coordinator or a local state store.
  *
- * <p>This interface also offers the complementary method that provides access to previously saved state of operator
- * instances in the task for restore purposes.
+ * <p>This interface also offers the complementary method that provides access to previously saved
+ * state of operator instances in the task for restore purposes.
  */
-public interface TaskStateManager extends CheckpointListener {
+public interface TaskStateManager extends CheckpointListener, AutoCloseable {
 
-	/**
-	 * Report the state snapshots for the operator instances running in the owning task.
-	 *
-	 * @param checkpointMetaData meta data from the checkpoint request.
-	 * @param checkpointMetrics  task level metrics for the checkpoint.
-	 * @param acknowledgedState  the reported states to acknowledge to the job manager.
-	 * @param localState         the reported states for local recovery.
-	 */
-	void reportTaskStateSnapshots(
-		@Nonnull CheckpointMetaData checkpointMetaData,
-		@Nonnull CheckpointMetrics checkpointMetrics,
-		@Nullable TaskStateSnapshot acknowledgedState,
-		@Nullable TaskStateSnapshot localState);
+    /**
+     * Report the state snapshots for the operator instances running in the owning task.
+     *
+     * @param checkpointMetaData meta data from the checkpoint request.
+     * @param checkpointMetrics task level metrics for the checkpoint.
+     * @param acknowledgedState the reported states to acknowledge to the job manager.
+     * @param localState the reported states for local recovery.
+     */
+    void reportTaskStateSnapshots(
+            @Nonnull CheckpointMetaData checkpointMetaData,
+            @Nonnull CheckpointMetrics checkpointMetrics,
+            @Nullable TaskStateSnapshot acknowledgedState,
+            @Nullable TaskStateSnapshot localState);
 
-	/**
-	 * Returns means to restore previously reported state of an operator running in the owning task.
-	 *
-	 * @param operatorID the id of the operator for which we request state.
-	 * @return Previous state for the operator. The previous state can be empty if the operator had no previous state.
-	 */
-	@Nonnull
-	PrioritizedOperatorSubtaskState prioritizedOperatorState(OperatorID operatorID);
+    InflightDataRescalingDescriptor getInputRescalingDescriptor();
 
-	/**
-	 * Returns the configuration for local recovery, i.e. the base directories for all file-based local state of the
-	 * owning subtask and the general mode for local recovery.
-	 */
-	@Nonnull
-	LocalRecoveryConfig createLocalRecoveryConfig();
+    InflightDataRescalingDescriptor getOutputRescalingDescriptor();
+
+    /**
+     * Report the stats for state snapshots for an aborted checkpoint.
+     *
+     * @param checkpointMetaData meta data from the checkpoint request.
+     * @param checkpointMetrics task level metrics for the checkpoint.
+     */
+    void reportIncompleteTaskStateSnapshots(
+            CheckpointMetaData checkpointMetaData, CheckpointMetrics checkpointMetrics);
+
+    /** Whether all the operators of the task are finished on restore. */
+    boolean isTaskDeployedAsFinished();
+
+    /** Acquires the checkpoint id to restore from. */
+    Optional<Long> getRestoreCheckpointId();
+
+    /**
+     * Returns means to restore previously reported state of an operator running in the owning task.
+     *
+     * @param operatorID the id of the operator for which we request state.
+     * @return Previous state for the operator. The previous state can be empty if the operator had
+     *     no previous state.
+     */
+    @Nonnull
+    PrioritizedOperatorSubtaskState prioritizedOperatorState(OperatorID operatorID);
+
+    /**
+     * Returns the configuration for local recovery, i.e. the base directories for all file-based
+     * local state of the owning subtask and the general mode for local recovery.
+     */
+    @Nonnull
+    LocalRecoveryConfig createLocalRecoveryConfig();
+
+    SequentialChannelStateReader getSequentialChannelStateReader();
+
+    /** Returns the configured state changelog storage for this task. */
+    @Nullable
+    StateChangelogStorage<?> getStateChangelogStorage();
+
+    /**
+     * Returns the state changelog storage view of given {@link ChangelogStateHandle} for this task.
+     */
+    @Nullable
+    StateChangelogStorageView<?> getStateChangelogStorageView(
+            Configuration configuration, ChangelogStateHandle changelogStateHandle);
 }

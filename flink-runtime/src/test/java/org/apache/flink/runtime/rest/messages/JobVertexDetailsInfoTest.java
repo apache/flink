@@ -24,67 +24,102 @@ import org.apache.flink.runtime.rest.messages.job.SubtaskExecutionAttemptDetails
 import org.apache.flink.runtime.rest.messages.job.metrics.IOMetricsInfo;
 
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Random;
 
-/**
- * Tests that the {@link JobVertexDetailsInfo} can be marshalled and unmarshalled.
- */
-public class JobVertexDetailsInfoTest extends RestResponseMarshallingTestBase<JobVertexDetailsInfo> {
-	@Override
-	protected Class<JobVertexDetailsInfo> getTestResponseClass() {
-		return JobVertexDetailsInfo.class;
-	}
+/** Tests that the {@link JobVertexDetailsInfo} can be marshalled and unmarshalled. */
+public class JobVertexDetailsInfoTest
+        extends RestResponseMarshallingTestBase<JobVertexDetailsInfo> {
+    @Override
+    protected Class<JobVertexDetailsInfo> getTestResponseClass() {
+        return JobVertexDetailsInfo.class;
+    }
 
-	@Override
-	protected JobVertexDetailsInfo getTestResponseInstance() throws Exception {
-		final Random random = new Random();
-		final IOMetricsInfo jobVertexMetrics = new IOMetricsInfo(
-			random.nextLong(),
-			random.nextBoolean(),
-			random.nextLong(),
-			random.nextBoolean(),
-			random.nextLong(),
-			random.nextBoolean(),
-			random.nextLong(),
-			random.nextBoolean());
-		List<SubtaskExecutionAttemptDetailsInfo> vertexTaskDetailList = new ArrayList<>();
-		vertexTaskDetailList.add(new SubtaskExecutionAttemptDetailsInfo(
-			0,
-			ExecutionState.CREATED,
-			random.nextInt(),
-			"local1",
-			System.currentTimeMillis(),
-			System.currentTimeMillis(),
-			1L,
-			jobVertexMetrics,
-			"taskmanagerId1"));
-		vertexTaskDetailList.add(new SubtaskExecutionAttemptDetailsInfo(
-			1,
-			ExecutionState.FAILED,
-			random.nextInt(),
-			"local2",
-			System.currentTimeMillis(),
-			System.currentTimeMillis(),
-			1L,
-			jobVertexMetrics,
-			"taskmanagerId2"));
-		vertexTaskDetailList.add(new SubtaskExecutionAttemptDetailsInfo(
-			2,
-			ExecutionState.FINISHED,
-			random.nextInt(),
-			"local3",
-			System.currentTimeMillis(),
-			System.currentTimeMillis(),
-			1L,
-			jobVertexMetrics,
-			"taskmanagerId3"));
+    @Override
+    protected JobVertexDetailsInfo getTestResponseInstance() throws Exception {
+        final Random random = new Random();
+        final IOMetricsInfo jobVertexMetrics =
+                new IOMetricsInfo(
+                        random.nextLong(),
+                        random.nextBoolean(),
+                        random.nextLong(),
+                        random.nextBoolean(),
+                        random.nextLong(),
+                        random.nextBoolean(),
+                        random.nextLong(),
+                        random.nextBoolean(),
+                        Math.abs(random.nextLong()),
+                        Math.abs(random.nextLong()),
+                        Math.abs(random.nextDouble()));
+        List<SubtaskExecutionAttemptDetailsInfo> vertexTaskDetailList = new ArrayList<>();
+        final Map<ExecutionState, Long> statusDuration = new HashMap<>();
+        statusDuration.put(ExecutionState.CREATED, 10L);
+        statusDuration.put(ExecutionState.SCHEDULED, 20L);
+        statusDuration.put(ExecutionState.DEPLOYING, 30L);
+        statusDuration.put(ExecutionState.INITIALIZING, 40L);
+        statusDuration.put(ExecutionState.RUNNING, 50L);
+        vertexTaskDetailList.add(
+                new SubtaskExecutionAttemptDetailsInfo(
+                        0,
+                        ExecutionState.CREATED,
+                        random.nextInt(),
+                        "local1",
+                        System.currentTimeMillis(),
+                        System.currentTimeMillis(),
+                        1L,
+                        jobVertexMetrics,
+                        "taskmanagerId1",
+                        statusDuration,
+                        null));
+        vertexTaskDetailList.add(
+                new SubtaskExecutionAttemptDetailsInfo(
+                        1,
+                        ExecutionState.RUNNING,
+                        random.nextInt(),
+                        "local2",
+                        System.currentTimeMillis(),
+                        System.currentTimeMillis(),
+                        1L,
+                        jobVertexMetrics,
+                        "taskmanagerId2",
+                        statusDuration,
+                        Collections.singletonList(
+                                new SubtaskExecutionAttemptDetailsInfo(
+                                        1,
+                                        ExecutionState.FAILED,
+                                        random.nextInt(),
+                                        "local2",
+                                        System.currentTimeMillis(),
+                                        System.currentTimeMillis(),
+                                        1L,
+                                        jobVertexMetrics,
+                                        "taskmanagerId2",
+                                        statusDuration,
+                                        null))));
+        vertexTaskDetailList.add(
+                new SubtaskExecutionAttemptDetailsInfo(
+                        2,
+                        ExecutionState.FINISHED,
+                        random.nextInt(),
+                        "local3",
+                        System.currentTimeMillis(),
+                        System.currentTimeMillis(),
+                        1L,
+                        jobVertexMetrics,
+                        "taskmanagerId3",
+                        statusDuration,
+                        null));
 
-		return new JobVertexDetailsInfo(
-			new JobVertexID(),
-			"jobVertex" + random.nextLong(),
-			random.nextInt(),
-			System.currentTimeMillis(),
-			vertexTaskDetailList);
-	}
+        int parallelism = 1 + (random.nextInt() / 3);
+        return new JobVertexDetailsInfo(
+                new JobVertexID(),
+                "jobVertex" + random.nextLong(),
+                parallelism,
+                2 * parallelism,
+                System.currentTimeMillis(),
+                vertexTaskDetailList);
+    }
 }

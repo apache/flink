@@ -26,19 +26,22 @@ under the License.
 	<parent>
 		<artifactId>flink-connectors</artifactId>
 		<groupId>org.apache.flink</groupId>
-		<version>1.11-SNAPSHOT</version>
-		<relativePath>..</relativePath>
+		<version>1.17-SNAPSHOT</version>
 	</parent>
 
-	<artifactId>flink-sql-connector-kafka_${scala.binary.version}</artifactId>
-	<name>flink-sql-connector-kafka</name>
+	<artifactId>flink-sql-connector-kafka</artifactId>
+	<name>Flink : Connectors : SQL : Kafka</name>
 
 	<packaging>jar</packaging>
+
+	<properties>
+		<japicmp.skip>true</japicmp.skip>
+	</properties>
 
 	<dependencies>
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-connector-kafka_${scala.binary.version}</artifactId>
+			<artifactId>flink-connector-kafka</artifactId>
 			<version>${project.version}</version>
 		</dependency>
 	</dependencies>
@@ -56,12 +59,11 @@ under the License.
 							<goal>shade</goal>
 						</goals>
 						<configuration>
-							<shadeTestJar>false</shadeTestJar>
 							<artifactSet>
 								<includes>
+									<include>org.apache.flink:flink-connector-base</include>
+									<include>org.apache.flink:flink-connector-kafka</include>
 									<include>org.apache.kafka:*</include>
-									<include>org.apache.flink:flink-connector-kafka_${scala.binary.version}</include>
-									<include>org.apache.flink:flink-connector-kafka-base_${scala.binary.version}</include>
 								</includes>
 							</artifactSet>
 							<filters>

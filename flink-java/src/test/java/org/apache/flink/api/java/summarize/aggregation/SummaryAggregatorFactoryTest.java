@@ -26,39 +26,53 @@ import org.apache.flink.types.LongValue;
 import org.apache.flink.types.ShortValue;
 import org.apache.flink.types.StringValue;
 
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.List;
 
-/**
- * Tests for {@link SummaryAggregatorFactory}.
- */
-public class SummaryAggregatorFactoryTest {
+import static org.assertj.core.api.Assertions.assertThat;
 
-	@Test
-	public void testCreate() throws Exception {
-		// supported primitive types
-		Assert.assertEquals(StringSummaryAggregator.class, SummaryAggregatorFactory.create(String.class).getClass());
-		Assert.assertEquals(ShortSummaryAggregator.class, SummaryAggregatorFactory.create(Short.class).getClass());
-		Assert.assertEquals(IntegerSummaryAggregator.class, SummaryAggregatorFactory.create(Integer.class).getClass());
-		Assert.assertEquals(LongSummaryAggregator.class, SummaryAggregatorFactory.create(Long.class).getClass());
-		Assert.assertEquals(FloatSummaryAggregator.class, SummaryAggregatorFactory.create(Float.class).getClass());
-		Assert.assertEquals(DoubleSummaryAggregator.class, SummaryAggregatorFactory.create(Double.class).getClass());
-		Assert.assertEquals(BooleanSummaryAggregator.class, SummaryAggregatorFactory.create(Boolean.class).getClass());
+/** Tests for {@link SummaryAggregatorFactory}. */
+class SummaryAggregatorFactoryTest {
 
-		// supported value types
-		Assert.assertEquals(ValueSummaryAggregator.StringValueSummaryAggregator.class, SummaryAggregatorFactory.create(StringValue.class).getClass());
-		Assert.assertEquals(ValueSummaryAggregator.ShortValueSummaryAggregator.class, SummaryAggregatorFactory.create(ShortValue.class).getClass());
-		Assert.assertEquals(ValueSummaryAggregator.IntegerValueSummaryAggregator.class, SummaryAggregatorFactory.create(IntValue.class).getClass());
-		Assert.assertEquals(ValueSummaryAggregator.LongValueSummaryAggregator.class, SummaryAggregatorFactory.create(LongValue.class).getClass());
-		Assert.assertEquals(ValueSummaryAggregator.FloatValueSummaryAggregator.class, SummaryAggregatorFactory.create(FloatValue.class).getClass());
-		Assert.assertEquals(ValueSummaryAggregator.DoubleValueSummaryAggregator.class, SummaryAggregatorFactory.create(DoubleValue.class).getClass());
-		Assert.assertEquals(ValueSummaryAggregator.BooleanValueSummaryAggregator.class, SummaryAggregatorFactory.create(BooleanValue.class).getClass());
+    @Test
+    void testCreate() {
+        // supported primitive types
+        assertThat(SummaryAggregatorFactory.create(String.class).getClass())
+                .isEqualTo(StringSummaryAggregator.class);
+        assertThat(SummaryAggregatorFactory.create(Short.class).getClass())
+                .isEqualTo(ShortSummaryAggregator.class);
+        assertThat(SummaryAggregatorFactory.create(Integer.class).getClass())
+                .isEqualTo(IntegerSummaryAggregator.class);
+        assertThat(SummaryAggregatorFactory.create(Long.class).getClass())
+                .isEqualTo(LongSummaryAggregator.class);
+        assertThat(SummaryAggregatorFactory.create(Float.class).getClass())
+                .isEqualTo(FloatSummaryAggregator.class);
+        assertThat(SummaryAggregatorFactory.create(Double.class).getClass())
+                .isEqualTo(DoubleSummaryAggregator.class);
+        assertThat(SummaryAggregatorFactory.create(Boolean.class).getClass())
+                .isEqualTo(BooleanSummaryAggregator.class);
 
-		// some not well supported types - these fallback to ObjectSummaryAggregator
-		Assert.assertEquals(ObjectSummaryAggregator.class, SummaryAggregatorFactory.create(Object.class).getClass());
-		Assert.assertEquals(ObjectSummaryAggregator.class, SummaryAggregatorFactory.create(List.class).getClass());
-	}
+        // supported value types
+        assertThat(SummaryAggregatorFactory.create(StringValue.class).getClass())
+                .isEqualTo(ValueSummaryAggregator.StringValueSummaryAggregator.class);
+        assertThat(SummaryAggregatorFactory.create(ShortValue.class).getClass())
+                .isEqualTo(ValueSummaryAggregator.ShortValueSummaryAggregator.class);
+        assertThat(SummaryAggregatorFactory.create(IntValue.class).getClass())
+                .isEqualTo(ValueSummaryAggregator.IntegerValueSummaryAggregator.class);
+        assertThat(SummaryAggregatorFactory.create(LongValue.class).getClass())
+                .isEqualTo(ValueSummaryAggregator.LongValueSummaryAggregator.class);
+        assertThat(SummaryAggregatorFactory.create(FloatValue.class).getClass())
+                .isEqualTo(ValueSummaryAggregator.FloatValueSummaryAggregator.class);
+        assertThat(SummaryAggregatorFactory.create(DoubleValue.class).getClass())
+                .isEqualTo(ValueSummaryAggregator.DoubleValueSummaryAggregator.class);
+        assertThat(SummaryAggregatorFactory.create(BooleanValue.class).getClass())
+                .isEqualTo(ValueSummaryAggregator.BooleanValueSummaryAggregator.class);
 
+        // some not well supported types - these fallback to ObjectSummaryAggregator
+        assertThat(SummaryAggregatorFactory.create(Object.class).getClass())
+                .isEqualTo(ObjectSummaryAggregator.class);
+        assertThat(SummaryAggregatorFactory.create(List.class).getClass())
+                .isEqualTo(ObjectSummaryAggregator.class);
+    }
 }

@@ -18,36 +18,36 @@
 
 package org.apache.flink.table.module;
 
+import org.apache.flink.annotation.Internal;
+import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.table.factories.ModuleFactory;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.Collections;
+import java.util.Set;
 
-import static org.apache.flink.table.descriptors.CoreModuleDescriptorValidator.MODULE_TYPE_CORE;
-import static org.apache.flink.table.descriptors.ModuleDescriptorValidator.MODULE_TYPE;
-
-/**
- * Factory for {@link CoreModule}.
- */
+/** Factory for {@link CoreModule}. */
+@Internal
 public class CoreModuleFactory implements ModuleFactory {
 
-	@Override
-	public Module createModule(Map<String, String> properties) {
-		return CoreModule.INSTANCE;
-	}
+    public static final String IDENTIFIER = "core";
 
-	@Override
-	public Map<String, String> requiredContext() {
-		Map<String, String> context = new HashMap<>();
-		context.put(MODULE_TYPE, MODULE_TYPE_CORE);
+    @Override
+    public String factoryIdentifier() {
+        return IDENTIFIER;
+    }
 
-		return context;
-	}
+    @Override
+    public Set<ConfigOption<?>> requiredOptions() {
+        return Collections.emptySet();
+    }
 
-	@Override
-	public List<String> supportedProperties() {
-		return new ArrayList<>();
-	}
+    @Override
+    public Set<ConfigOption<?>> optionalOptions() {
+        return Collections.emptySet();
+    }
+
+    @Override
+    public Module createModule(Context context) {
+        return CoreModule.INSTANCE;
+    }
 }

@@ -19,168 +19,262 @@
 package org.apache.flink.runtime.executiongraph;
 
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.runtime.blob.PermanentBlobKey;
+import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor.MaybeOffloaded;
+import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor.Offloaded;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
+import org.apache.flink.runtime.jobgraph.DistributionPattern;
+import org.apache.flink.runtime.jobgraph.IntermediateDataSet;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
+import org.apache.flink.runtime.jobgraph.JobEdge;
+import org.apache.flink.runtime.jobgraph.JobVertexID;
+import org.apache.flink.runtime.scheduler.strategy.ConsumedPartitionGroup;
+import org.apache.flink.runtime.shuffle.ShuffleDescriptor;
 
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
-import java.util.concurrent.atomic.AtomicInteger;
+import java.util.List;
+import java.util.Map;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
+import static org.apache.flink.util.Preconditions.checkState;
 
 public class IntermediateResult {
 
-	private final IntermediateDataSetID id;
+    private final IntermediateDataSet intermediateDataSet;
 
-	private final ExecutionJobVertex producer;
+    private final IntermediateDataSetID id;
 
-	private final IntermediateResultPartition[] partitions;
+    private final ExecutionJobVertex producer;
 
-	/**
-	 * Maps intermediate result partition IDs to a partition index. This is
-	 * used for ID lookups of intermediate results. I didn't dare to change the
-	 * partition connect logic in other places that is tightly coupled to the
-	 * partitions being held as an array.
-	 */
-	private final HashMap<IntermediateResultPartitionID, Integer> partitionLookupHelper = new HashMap<>();
+    private final IntermediateResultPartition[] partitions;
 
-	private final int numParallelProducers;
+    /**
+     * Maps intermediate result partition IDs to a partition index. This is used for ID lookups of
+     * intermediate results. I didn't dare to change the partition connect logic in other places
+     * that is tightly coupled to the partitions being held as an array.
+     */
+    private final HashMap<IntermediateResultPartitionID, Integer> partitionLookupHelper =
+            new HashMap<>();
 
-	private final AtomicInteger numberOfRunningProducers;
+    private final int numParallelProducers;
 
-	private int partitionsAssigned;
+    private int partitionsAssigned;
 
-	private int numConsumers;
+    private final int connectionIndex;
 
-	private final int connectionIndex;
+    private final ResultPartitionType resultType;
 
-	private final ResultPartitionType resultType;
+    private final Map<ConsumedPartitionGroup, MaybeOffloaded<ShuffleDescriptor[]>>
+            shuffleDescriptorCache;
 
-	public IntermediateResult(
-			IntermediateDataSetID id,
-			ExecutionJobVertex producer,
-			int numParallelProducers,
-			ResultPartitionType resultType) {
+    /** All consumer job vertex ids of this dataset. */
+    private final List<JobVertexID> consumerVertices = new ArrayList<>();
 
-		this.id = checkNotNull(id);
-		this.producer = checkNotNull(producer);
+    public IntermediateResult(
+            IntermediateDataSet intermediateDataSet,
+            ExecutionJobVertex producer,
+            int numParallelProducers,
+            ResultPartitionType resultType) {
 
-		checkArgument(numParallelProducers >= 1);
-		this.numParallelProducers = numParallelProducers;
+        this.intermediateDataSet = checkNotNull(intermediateDataSet);
+        this.id = checkNotNull(intermediateDataSet.getId());
 
-		this.partitions = new IntermediateResultPartition[numParallelProducers];
+        this.producer = checkNotNull(producer);
 
-		this.numberOfRunningProducers = new AtomicInteger(numParallelProducers);
+        checkArgument(numParallelProducers >= 1);
+        this.numParallelProducers = numParallelProducers;
 
-		// we do not set the intermediate result partitions here, because we let them be initialized by
-		// the execution vertex that produces them
+        this.partitions = new IntermediateResultPartition[numParallelProducers];
 
-		// assign a random connection index
-		this.connectionIndex = (int) (Math.random() * Integer.MAX_VALUE);
+        // we do not set the intermediate result partitions here, because we let them be initialized
+        // by
+        // the execution vertex that produces them
 
-		// The runtime type for this produced result
-		this.resultType = checkNotNull(resultType);
-	}
+        // assign a random connection index
+        this.connectionIndex = (int) (Math.random() * Integer.MAX_VALUE);
 
-	public void setPartition(int partitionNumber, IntermediateResultPartition partition) {
-		if (partition == null || partitionNumber < 0 || partitionNumber >= numParallelProducers) {
-			throw new IllegalArgumentException();
-		}
+        // The runtime type for this produced result
+        this.resultType = checkNotNull(resultType);
 
-		if (partitions[partitionNumber] != null) {
-			throw new IllegalStateException("Partition #" + partitionNumber + " has already been assigned.");
-		}
+        this.shuffleDescriptorCache = new HashMap<>();
 
-		partitions[partitionNumber] = partition;
-		partitionLookupHelper.put(partition.getPartitionId(), partitionNumber);
-		partitionsAssigned++;
-	}
+        intermediateDataSet
+                .getConsumers()
+                .forEach(jobEdge -> consumerVertices.add(jobEdge.getTarget().getID()));
+    }
 
-	public IntermediateDataSetID getId() {
-		return id;
-	}
+    public void setPartition(int partitionNumber, IntermediateResultPartition partition) {
+        if (partition == null || partitionNumber < 0 || partitionNumber >= numParallelProducers) {
+            throw new IllegalArgumentException();
+        }
 
-	public ExecutionJobVertex getProducer() {
-		return producer;
-	}
+        if (partitions[partitionNumber] != null) {
+            throw new IllegalStateException(
+                    "Partition #" + partitionNumber + " has already been assigned.");
+        }
 
-	public IntermediateResultPartition[] getPartitions() {
-		return partitions;
-	}
+        partitions[partitionNumber] = partition;
+        partitionLookupHelper.put(partition.getPartitionId(), partitionNumber);
+        partitionsAssigned++;
+    }
 
-	/**
-	 * Returns the partition with the given ID.
-	 *
-	 * @param resultPartitionId ID of the partition to look up
-	 * @throws NullPointerException If partition ID <code>null</code>
-	 * @throws IllegalArgumentException Thrown if unknown partition ID
-	 * @return Intermediate result partition with the given ID
-	 */
-	public IntermediateResultPartition getPartitionById(IntermediateResultPartitionID resultPartitionId) {
-		// Looks ups the partition number via the helper map and returns the
-		// partition. Currently, this happens infrequently enough that we could
-		// consider removing the map and scanning the partitions on every lookup.
-		// The lookup (currently) only happen when the producer of an intermediate
-		// result cannot be found via its registered execution.
-		Integer partitionNumber = partitionLookupHelper.get(checkNotNull(resultPartitionId, "IntermediateResultPartitionID"));
-		if (partitionNumber != null) {
-			return partitions[partitionNumber];
-		} else {
-			throw new IllegalArgumentException("Unknown intermediate result partition ID " + resultPartitionId);
-		}
-	}
+    public IntermediateDataSetID getId() {
+        return id;
+    }
 
-	public int getNumberOfAssignedPartitions() {
-		return partitionsAssigned;
-	}
+    public ExecutionJobVertex getProducer() {
+        return producer;
+    }
 
-	public ResultPartitionType getResultType() {
-		return resultType;
-	}
+    public IntermediateResultPartition[] getPartitions() {
+        return partitions;
+    }
 
-	public int registerConsumer() {
-		final int index = numConsumers;
-		numConsumers++;
+    public List<JobVertexID> getConsumerVertices() {
+        return consumerVertices;
+    }
 
-		for (IntermediateResultPartition p : partitions) {
-			if (p.addConsumerGroup() != index) {
-				throw new RuntimeException("Inconsistent consumer mapping between intermediate result partitions.");
-			}
-		}
-		return index;
-	}
+    /**
+     * Returns the partition with the given ID.
+     *
+     * @param resultPartitionId ID of the partition to look up
+     * @throws NullPointerException If partition ID <code>null</code>
+     * @throws IllegalArgumentException Thrown if unknown partition ID
+     * @return Intermediate result partition with the given ID
+     */
+    public IntermediateResultPartition getPartitionById(
+            IntermediateResultPartitionID resultPartitionId) {
+        // Looks ups the partition number via the helper map and returns the
+        // partition. Currently, this happens infrequently enough that we could
+        // consider removing the map and scanning the partitions on every lookup.
+        // The lookup (currently) only happen when the producer of an intermediate
+        // result cannot be found via its registered execution.
+        Integer partitionNumber =
+                partitionLookupHelper.get(
+                        checkNotNull(resultPartitionId, "IntermediateResultPartitionID"));
+        if (partitionNumber != null) {
+            return partitions[partitionNumber];
+        } else {
+            throw new IllegalArgumentException(
+                    "Unknown intermediate result partition ID " + resultPartitionId);
+        }
+    }
 
-	public int getConnectionIndex() {
-		return connectionIndex;
-	}
+    public int getNumberOfAssignedPartitions() {
+        return partitionsAssigned;
+    }
 
-	@VisibleForTesting
-	void resetForNewExecution() {
-		for (IntermediateResultPartition partition : partitions) {
-			partition.resetForNewExecution();
-		}
-	}
+    public ResultPartitionType getResultType() {
+        return resultType;
+    }
 
-	@VisibleForTesting
-	int getNumberOfRunningProducers() {
-		return numberOfRunningProducers.get();
-	}
+    int getNumParallelProducers() {
+        return numParallelProducers;
+    }
 
-	int incrementNumberOfRunningProducersAndGetRemaining() {
-		return numberOfRunningProducers.incrementAndGet();
-	}
+    /**
+     * Currently, this method is only used to compute the maximum number of consumers. For dynamic
+     * graph, it should be called before adaptively deciding the downstream consumer parallelism.
+     */
+    int getConsumersParallelism() {
+        List<JobEdge> consumers = intermediateDataSet.getConsumers();
+        checkState(!consumers.isEmpty());
 
-	int decrementNumberOfRunningProducersAndGetRemaining() {
-		return numberOfRunningProducers.decrementAndGet();
-	}
+        InternalExecutionGraphAccessor graph = getProducer().getGraph();
+        int consumersParallelism =
+                graph.getJobVertex(consumers.get(0).getTarget().getID()).getParallelism();
+        if (consumers.size() == 1) {
+            return consumersParallelism;
+        }
 
-	boolean areAllPartitionsFinished() {
-		return numberOfRunningProducers.get() == 0;
-	}
+        // sanity check, all consumer vertices must have the same parallelism:
+        // 1. for vertices that are not assigned a parallelism initially (for example, dynamic
+        // graph), the parallelisms will all be -1 (parallelism not decided yet)
+        // 2. for vertices that are initially assigned a parallelism, the parallelisms must be the
+        // same, which is guaranteed at compilation phase
+        for (JobVertexID jobVertexID : consumerVertices) {
+            checkState(
+                    consumersParallelism == graph.getJobVertex(jobVertexID).getParallelism(),
+                    "Consumers must have the same parallelism.");
+        }
+        return consumersParallelism;
+    }
 
-	@Override
-	public String toString() {
-		return "IntermediateResult " + id.toString();
-	}
+    int getConsumersMaxParallelism() {
+        List<JobEdge> consumers = intermediateDataSet.getConsumers();
+        checkState(!consumers.isEmpty());
+
+        InternalExecutionGraphAccessor graph = getProducer().getGraph();
+        int consumersMaxParallelism =
+                graph.getJobVertex(consumers.get(0).getTarget().getID()).getMaxParallelism();
+        if (consumers.size() == 1) {
+            return consumersMaxParallelism;
+        }
+
+        // sanity check, all consumer vertices must have the same max parallelism
+        for (JobVertexID jobVertexID : consumerVertices) {
+            checkState(
+                    consumersMaxParallelism == graph.getJobVertex(jobVertexID).getMaxParallelism(),
+                    "Consumers must have the same max parallelism.");
+        }
+        return consumersMaxParallelism;
+    }
+
+    public DistributionPattern getConsumingDistributionPattern() {
+        return intermediateDataSet.getDistributionPattern();
+    }
+
+    public boolean isBroadcast() {
+        return intermediateDataSet.isBroadcast();
+    }
+
+    public int getConnectionIndex() {
+        return connectionIndex;
+    }
+
+    @VisibleForTesting
+    void resetForNewExecution() {
+        for (IntermediateResultPartition partition : partitions) {
+            partition.resetForNewExecution();
+        }
+    }
+
+    public MaybeOffloaded<ShuffleDescriptor[]> getCachedShuffleDescriptors(
+            ConsumedPartitionGroup consumedPartitionGroup) {
+        return shuffleDescriptorCache.get(consumedPartitionGroup);
+    }
+
+    public void cacheShuffleDescriptors(
+            ConsumedPartitionGroup consumedPartitionGroup,
+            MaybeOffloaded<ShuffleDescriptor[]> shuffleDescriptors) {
+        this.shuffleDescriptorCache.put(consumedPartitionGroup, shuffleDescriptors);
+    }
+
+    public void clearCachedInformationForPartitionGroup(
+            ConsumedPartitionGroup consumedPartitionGroup) {
+        // When a ConsumedPartitionGroup changes, the cache of ShuffleDescriptors for this
+        // partition group is no longer valid and needs to be removed.
+        //
+        // Currently, there are two scenarios:
+        // 1. The ConsumedPartitionGroup is released
+        // 2. Its producer encounters a failover
+
+        // Remove the cache for the ConsumedPartitionGroup and notify the BLOB writer to delete the
+        // cache if it is offloaded
+        final MaybeOffloaded<ShuffleDescriptor[]> cache =
+                this.shuffleDescriptorCache.remove(consumedPartitionGroup);
+        if (cache instanceof Offloaded) {
+            PermanentBlobKey blobKey = ((Offloaded<ShuffleDescriptor[]>) cache).serializedValueKey;
+            this.producer.getGraph().deleteBlobs(Collections.singletonList(blobKey));
+        }
+    }
+
+    @Override
+    public String toString() {
+        return "IntermediateResult " + id.toString();
+    }
 }

@@ -19,12 +19,15 @@
 
 set -Eeuo pipefail
 
-PLANNER="${1:-old}"
-
-KAFKA_VERSION="2.2.0"
-CONFLUENT_VERSION="5.0.0"
-CONFLUENT_MAJOR_VERSION="5.0"
+KAFKA_VERSION="3.2.1"
+CONFLUENT_VERSION="6.2.2"
+CONFLUENT_MAJOR_VERSION="6.2"
+# Check the Confluent Platform <> Apache Kafka compatibility matrix when updating KAFKA_VERSION
 KAFKA_SQL_VERSION="universal"
+ELASTICSEARCH_VERSION=7
+# we use the smallest version possible
+ELASTICSEARCH_MAC_DOWNLOAD_URL='https://artifacts.elastic.co/downloads/elasticsearch/elasticsearch-7.10.2-darwin-x86_64.tar.gz'
+ELASTICSEARCH_LINUX_DOWNLOAD_URL='https://artifacts.elastic.co/downloads/elasticsearch/elasticsearch-7.10.2-linux-x86_64.tar.gz'
 
 source "$(dirname "$0")"/common.sh
 source "$(dirname "$0")"/kafka_sql_common.sh \
@@ -55,14 +58,19 @@ for SQL_JAR in $SQL_JARS_DIR/*.jar; do
     if ! [[ $EXTRACTED_FILE = "$EXTRACTED_JAR/org/apache/flink"* ]] && \
         ! [[ $EXTRACTED_FILE = "$EXTRACTED_JAR/META-INF"* ]] && \
         ! [[ $EXTRACTED_FILE = "$EXTRACTED_JAR/LICENSE"* ]] && \
-        ! [[ $EXTRACTED_FILE = "$EXTRACTED_JAR/NOTICE"* ]] ; then
+        ! [[ $EXTRACTED_FILE = "$EXTRACTED_JAR/NOTICE"* ]] && \
+        ! [[ $EXTRACTED_FILE = "$EXTRACTED_JAR/org/apache/avro"* ]] && \
+        # Following required by amazon-kinesis-producer in flink-connector-kinesis
+        ! [[ $EXTRACTED_FILE = "$EXTRACTED_JAR/amazon-kinesis-producer-native-binaries"* ]] && \
+        ! [[ $EXTRACTED_FILE = "$EXTRACTED_JAR/cacerts"* ]] && \
+        ! [[ $EXTRACTED_FILE = "$EXTRACTED_JAR/google"* ]] ; then
       echo "Bad file in JAR: $EXTRACTED_FILE"
       exit 1
     fi
   done
 
-  # check for proper factory
-  if [ ! -f $EXTRACTED_JAR/META-INF/services/org.apache.flink.table.factories.TableFactory ]; then
+  # check for table factory
+  if [ ! -f $EXTRACTED_JAR/META-INF/services/org.apache.flink.table.factories.Factory ]; then
     echo "No table factory found in JAR: $SQL_JAR"
     exit 1
   fi
@@ -85,6 +93,28 @@ function sql_cleanup() {
 }
 on_exit sql_cleanup
 
+function prepare_elasticsearch {
+  echo "Preparing Elasticsearch (version=$ELASTICSEARCH_VERSION)..."
+  # elastcisearch offers different release binary file for corresponding system since version 7.
+  case "$(uname -s)" in
+      Linux*)     OS_TYPE=linux;;
+      Darwin*)    OS_TYPE=mac;;
+      *)          OS_TYPE="UNKNOWN:${unameOut}"
+  esac
+
+  if [[ "$OS_TYPE" == "mac" ]]; then
+    DOWNLOAD_URL=$ELASTICSEARCH_MAC_DOWNLOAD_URL
+  elif [[ "$OS_TYPE" == "linux" ]]; then
+    DOWNLOAD_URL=$ELASTICSEARCH_LINUX_DOWNLOAD_URL
+  else
+    echo "[ERROR] Unsupported OS for Elasticsearch: $OS_TYPE"
+    exit 1
+  fi
+
+  setup_elasticsearch $DOWNLOAD_URL $ELASTICSEARCH_VERSION
+  wait_elasticsearch_working
+}
+
 # prepare Kafka
 echo "Preparing Kafka..."
 
@@ -96,13 +126,7 @@ create_kafka_json_source test-json
 create_kafka_topic 1 1 test-avro
 
 # prepare Elasticsearch
-echo "Preparing Elasticsearch..."
-
-ELASTICSEARCH_VERSION=6
-DOWNLOAD_URL='https://artifacts.elastic.co/downloads/elasticsearch/elasticsearch-6.3.1.tar.gz'
-
-setup_elasticsearch $DOWNLOAD_URL $ELASTICSEARCH_VERSION
-wait_elasticsearch_working
+prepare_elasticsearch
 
 ################################################################################
 # Prepare Flink
@@ -119,78 +143,50 @@ start_taskmanagers 2
 
 echo "Testing SQL statements..."
 
-JSON_SQL_JAR=$(find "$SQL_JARS_DIR" | grep "json" )
-KAFKA_SQL_JAR=$(find "$SQL_JARS_DIR" | grep "kafka_" )
-ELASTICSEARCH_SQL_JAR=$(find "$SQL_JARS_DIR" | grep "elasticsearch6" )
+KAFKA_SQL_JAR=$(find "$SQL_JARS_DIR" | grep "kafka" )
+ELASTICSEARCH_SQL_JAR=$(find "$SQL_JARS_DIR" | grep "elasticsearch$ELASTICSEARCH_VERSION" )
 
 # create session environment file
 RESULT=$TEST_DATA_DIR/result
-SQL_CONF=$TEST_DATA_DIR/sql-client-session.conf
+INIT_SQL=$TEST_DATA_DIR/sql-client-init.sql
 
-cat >> $SQL_CONF << EOF
-tables:
-EOF
+get_kafka_json_source_schema test-json JsonSourceTable >> $INIT_SQL
 
-get_kafka_json_source_schema test-json JsonSourceTable >> $SQL_CONF
+cat >> $INIT_SQL << EOF
 
-cat >> $SQL_CONF << EOF
-  - name: ElasticsearchUpsertSinkTable
-    type: sink-table
-    update-mode: upsert
-    schema:
-      - name: user_id
-        data-type: INT
-      - name: user_name
-        data-type: STRING
-      - name: user_count
-        data-type: BIGINT
-    connector:
-      type: elasticsearch
-      version: 6
-      hosts: "http://localhost:9200"
-      index: "$ELASTICSEARCH_INDEX"
-      document-type: "user"
-      bulk-flush:
-        max-actions: 1
-    format:
-      type: json
-      derive-schema: true
-  - name: ElasticsearchAppendSinkTable
-    type: sink-table
-    update-mode: append
-    schema:
-      - name: user_id
-        data-type: INT
-      - name: user_name
-        data-type: STRING
-      - name: user_count
-        data-type: BIGINT
-    connector:
-      type: elasticsearch
-      version: 6
-      hosts: "http://localhost:9200"
-      index: "$ELASTICSEARCH_INDEX"
-      document-type: "user"
-      bulk-flush:
-        max-actions: 1
-    format:
-      type: json
-      derive-schema: true
+  CREATE TABLE ElasticsearchUpsertSinkTable (
+    user_id INT,
+    user_name STRING,
+    user_count BIGINT,
+    PRIMARY KEY (user_id) NOT ENFORCED
+  ) WITH (
+    'connector' = 'elasticsearch-$ELASTICSEARCH_VERSION',
+    'hosts' = 'http://localhost:9200',
+    'index' = '$ELASTICSEARCH_INDEX',
+    'sink.bulk-flush.max-actions' = '1',
+    'format' = 'json'
+  );
 
-functions:
-  - name: RegReplace
-    from: class
-    class: org.apache.flink.table.toolbox.StringRegexReplaceFunction
+  CREATE TABLE ElasticsearchAppendSinkTable (
+    user_id INT,
+    user_name STRING,
+    user_count BIGINT
+  ) WITH (
+    'connector' = 'elasticsearch-$ELASTICSEARCH_VERSION',
+    'hosts' = 'http://localhost:9200',
+    'index' = '$ELASTICSEARCH_INDEX',
+    'sink.bulk-flush.max-actions' = '1',
+    'format' = 'json'
+  );
 
-execution:
-  planner: "$PLANNER"
+  CREATE FUNCTION RegReplace AS 'org.apache.flink.table.toolbox.StringRegexReplaceFunction';
 EOF
 
 # submit SQL statements
 
 echo "Executing SQL: Values -> Elasticsearch (upsert)"
 
-SQL_STATEMENT_3=$(cat << EOF
+SQL_STATEMENT_1=$(cat << EOF
 INSERT INTO ElasticsearchUpsertSinkTable
   SELECT user_id, user_name, COUNT(*) AS user_count
   FROM (VALUES (1, 'Bob'), (22, 'Tom'), (42, 'Kim'), (42, 'Kim'), (42, 'Kim'), (1, 'Bob'))
@@ -199,19 +195,20 @@ INSERT INTO ElasticsearchUpsertSinkTable
 EOF
 )
 
-JOB_ID=$($FLINK_DIR/bin/sql-client.sh embedded \
-  --library $SQL_JARS_DIR \
+JOB_ID=$($FLINK_DIR/bin/sql-client.sh \
+  --jar $KAFKA_SQL_JAR \
+  --jar $ELASTICSEARCH_SQL_JAR \
   --jar $SQL_TOOLBOX_JAR \
-  --environment $SQL_CONF \
-  --update "$SQL_STATEMENT_3" | grep "Job ID:" | sed 's/.* //g')
+  --init $INIT_SQL \
+  --update "$SQL_STATEMENT_1" | grep "Job ID:" | sed 's/.* //g')
 
 wait_job_terminal_state "$JOB_ID" "FINISHED"
 
-verify_result_hash "SQL Client Elasticsearch Upsert" "$ELASTICSEARCH_INDEX" 3 "21a76360e2a40f442816d940e7071ccf"
+verify_result_line_number 3 "$ELASTICSEARCH_INDEX"
 
 echo "Executing SQL: Values -> Elasticsearch (append, no key)"
 
-SQL_STATEMENT_4=$(cat << EOF
+SQL_STATEMENT_2=$(cat << EOF
 INSERT INTO ElasticsearchAppendSinkTable
   SELECT *
   FROM (
@@ -226,13 +223,12 @@ INSERT INTO ElasticsearchAppendSinkTable
 EOF
 )
 
-JOB_ID=$($FLINK_DIR/bin/sql-client.sh embedded \
+JOB_ID=$($FLINK_DIR/bin/sql-client.sh \
   --jar $KAFKA_SQL_JAR \
-  --jar $JSON_SQL_JAR \
   --jar $ELASTICSEARCH_SQL_JAR \
   --jar $SQL_TOOLBOX_JAR \
-  --environment $SQL_CONF \
-  --update "$SQL_STATEMENT_4" | grep "Job ID:" | sed 's/.* //g')
+  --init $INIT_SQL \
+  --update "$SQL_STATEMENT_2" | grep "Job ID:" | sed 's/.* //g')
 
 wait_job_terminal_state "$JOB_ID" "FINISHED"
 
@@ -241,31 +237,30 @@ verify_result_line_number 9 "$ELASTICSEARCH_INDEX"
 
 echo "Executing SQL: Match recognize -> Elasticsearch"
 
-SQL_STATEMENT_5=$(cat << EOF
+SQL_STATEMENT_3=$(cat << EOF
 INSERT INTO ElasticsearchAppendSinkTable
   SELECT 1 as user_id, T.userName as user_name, cast(1 as BIGINT) as user_count
   FROM (
-    SELECT user, rowtime
+    SELECT \`user\`, \`rowtime\`
     FROM JsonSourceTable
-    WHERE user IS NOT NULL)
+    WHERE \`user\` IS NOT NULL)
   MATCH_RECOGNIZE (
     ORDER BY rowtime
     MEASURES
-        user as userName
+        \`user\` as userName
     PATTERN (A)
     DEFINE
-        A as user = 'Alice'
+        A as \`user\` = 'Alice'
   ) T
 EOF
 )
 
-JOB_ID=$($FLINK_DIR/bin/sql-client.sh embedded \
+JOB_ID=$($FLINK_DIR/bin/sql-client.sh \
   --jar $KAFKA_SQL_JAR \
-  --jar $JSON_SQL_JAR \
   --jar $ELASTICSEARCH_SQL_JAR \
   --jar $SQL_TOOLBOX_JAR \
-  --environment $SQL_CONF \
-  --update "$SQL_STATEMENT_5" | grep "Job ID:" | sed 's/.* //g')
+  --init $INIT_SQL \
+  --update "$SQL_STATEMENT_3" | grep "Job ID:" | sed 's/.* //g')
 
 # 3 upsert results and 6 append results and 3 match_recognize results
 verify_result_line_number 12 "$ELASTICSEARCH_INDEX"

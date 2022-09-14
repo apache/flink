@@ -25,39 +25,30 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-formats</artifactId>
-		<version>1.11-SNAPSHOT</version>
-		<relativePath>..</relativePath>
+		<version>1.17-SNAPSHOT</version>
 	</parent>
 
-	<artifactId>flink-orc_${scala.binary.version}</artifactId>
-	<name>flink-orc</name>
+	<artifactId>flink-orc</artifactId>
+	<name>Flink : Formats : Orc</name>
 
 	<packaging>jar</packaging>
 
 	<dependencies>
 
-		<!-- core dependencies -->
+		<!-- Core -->
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-streaming-scala_${scala.binary.version}</artifactId>
+			<artifactId>flink-streaming-java</artifactId>
 			<version>${project.version}</version>
 			<scope>provided</scope>
 		</dependency>
 
-		<!-- Table ecosystem -->
-		<!-- Projects depending on this project won't depend on flink-table-*. -->
+		<!-- Table ecosystem and filesystem connector -->
+
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-table-api-java-bridge_${scala.binary.version}</artifactId>
-			<version>${project.version}</version>
-			<scope>provided</scope>
-			<optional>true</optional>
-		</dependency>
-		<!-- A planner dependency won't be necessary once FLIP-32 has been completed. -->
-		<dependency>
-			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-table-planner_${scala.binary.version}</artifactId>
+			<artifactId>flink-table-common</artifactId>
 			<version>${project.version}</version>
 			<scope>provided</scope>
 			<optional>true</optional>
@@ -65,29 +56,37 @@ under the License.
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-table-runtime-blink_${scala.binary.version}</artifactId>
+			<artifactId>flink-connector-files</artifactId>
 			<version>${project.version}</version>
 			<scope>provided</scope>
+			<optional>true</optional>
 		</dependency>
+
+		<!-- ORC -->
 
 		<dependency>
 			<groupId>org.apache.orc</groupId>
 			<artifactId>orc-core</artifactId>
 			<version>${orc.version}</version>
 			<exclusions>
-				<!-- Exclude ORC's Hadoop dependency and pull in Flink's shaded Hadoop. -->
+				<!-- Exclude ORC's Hadoop dependency and pull in provided vanilla hadoop. -->
 				<exclusion>
 					<groupId>org.apache.hadoop</groupId>
 					<artifactId>hadoop-common</artifactId>
 				</exclusion>
+				<exclusion>
+					<groupId>org.apache.hadoop</groupId>
+					<artifactId>hadoop-hdfs</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>javax.activation</groupId>
+					<artifactId>javax.activation-api</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>javax.xml.bind</groupId>
+					<artifactId>jaxb-api</artifactId>
+				</exclusion>
 			</exclusions>
-		</dependency>
-
-		<!-- Replacement for ORC's Hadoop dependency. -->
-		<dependency>
-			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-shaded-hadoop-2</artifactId>
-			<scope>provided</scope>
 		</dependency>
 
 		<dependency>
@@ -96,21 +95,109 @@ under the License.
 			<scope>provided</scope>
 		</dependency>
 
-		<!-- test dependencies -->
+		<dependency>
+			<groupId>org.apache.hadoop</groupId>
+			<artifactId>hadoop-common</artifactId>
+			<scope>provided</scope>
+		</dependency>
 
 		<dependency>
-			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-test-utils-junit</artifactId>
+			<groupId>org.apache.hadoop</groupId>
+			<artifactId>hadoop-hdfs</artifactId>
+			<scope>provided</scope>
+		</dependency>
+
+		<!-- Tests -->
+
+		<!--Support OrcFileSystemStatisticsReport using calcite verify plan methods, see FLINK-27991 -->
+		<dependency>
+			<groupId>com.google.guava</groupId>
+			<artifactId>guava</artifactId>
+			<version>${guava.version}</version>
+			<scope>test</scope>
 		</dependency>
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-test-utils_${scala.binary.version}</artifactId>
+			<artifactId>flink-test-utils</artifactId>
 			<version>${project.version}</version>
 			<scope>test</scope>
 		</dependency>
 
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-streaming-java</artifactId>
+			<version>${project.version}</version>
+			<scope>test</scope>
+			<type>test-jar</type>
+		</dependency>
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-table-planner_${scala.binary.version}</artifactId>
+			<version>${project.version}</version>
+			<scope>test</scope>
+		</dependency>
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-table-api-scala-bridge_${scala.binary.version}</artifactId>
+			<version>${project.version}</version>
+			<scope>test</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-table-planner_${scala.binary.version}</artifactId>
+			<version>${project.version}</version>
+			<scope>test</scope>
+			<type>test-jar</type>
+		</dependency>
+
+		<!-- ArchUit test dependencies -->
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-architecture-tests-test</artifactId>
+			<scope>test</scope>
+		</dependency>
+
+		<!-- Required due to UniqueBucketAssigner -->
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-file-sink-common</artifactId>
+			<version>${project.version}</version>
+			<scope>test</scope>
+			<type>test-jar</type>
+		</dependency>
+
 	</dependencies>
+
+	<dependencyManagement>
+		<dependencies>
+			<dependency>
+				<groupId>com.google.guava</groupId>
+				<artifactId>guava</artifactId>
+				<version>27.0.1-jre</version>
+			</dependency>
+		</dependencies>
+	</dependencyManagement>
+
+	<profiles>
+		<profile>
+			<!-- This profile adds dependencies needed to execute the tests
+			with Hadoop 3 -->
+			<id>hadoop3-tests</id>
+			<dependencies>
+				<dependency>
+					<groupId>org.apache.hadoop</groupId>
+					<artifactId>hadoop-hdfs-client</artifactId>
+					<version>${flink.hadoop.version}</version>
+					<scope>test</scope>
+				</dependency>
+			</dependencies>
+		</profile>
+	</profiles>
+
 
 	<build>
 		<plugins>
@@ -144,5 +231,4 @@ under the License.
 			</plugin>
 		</plugins>
 	</build>
-
 </project>

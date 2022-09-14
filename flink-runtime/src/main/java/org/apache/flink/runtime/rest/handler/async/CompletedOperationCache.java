@@ -19,23 +19,27 @@
 package org.apache.flink.runtime.rest.handler.async;
 
 import org.apache.flink.annotation.VisibleForTesting;
-import org.apache.flink.runtime.concurrent.FutureUtils;
-import org.apache.flink.types.Either;
+import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.util.AutoCloseableAsync;
 import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.concurrent.FutureUtils;
 
-import org.apache.flink.shaded.guava18.com.google.common.base.Ticker;
-import org.apache.flink.shaded.guava18.com.google.common.cache.Cache;
-import org.apache.flink.shaded.guava18.com.google.common.cache.CacheBuilder;
-import org.apache.flink.shaded.guava18.com.google.common.cache.RemovalListener;
+import org.apache.flink.shaded.guava30.com.google.common.base.Ticker;
+import org.apache.flink.shaded.guava30.com.google.common.cache.Cache;
+import org.apache.flink.shaded.guava30.com.google.common.cache.CacheBuilder;
+import org.apache.flink.shaded.guava30.com.google.common.cache.RemovalListener;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
+import javax.annotation.concurrent.GuardedBy;
 import javax.annotation.concurrent.ThreadSafe;
 
+import java.io.Serializable;
+import java.time.Duration;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
@@ -48,169 +52,212 @@ import static org.apache.flink.util.Preconditions.checkState;
 /**
  * Cache to manage ongoing operations.
  *
- * <p>The cache allows to register ongoing operations by calling
- * {@link #registerOngoingOperation(K, CompletableFuture)}, where the
- * {@code CompletableFuture} contains the operation result. Completed operations will be
- * removed from the cache automatically after a fixed timeout.
+ * <p>The cache allows to register ongoing operations by calling {@link #registerOngoingOperation(K,
+ * CompletableFuture)}, where the {@code CompletableFuture} contains the operation result. Completed
+ * operations will be removed from the cache automatically after a fixed timeout.
  */
 @ThreadSafe
-class CompletedOperationCache<K extends OperationKey, R> implements AutoCloseableAsync {
+public class CompletedOperationCache<K extends OperationKey, R extends Serializable>
+        implements AutoCloseableAsync {
 
-	private static final long COMPLETED_OPERATION_RESULT_CACHE_DURATION_SECONDS = 300L;
+    private static final Logger LOGGER = LoggerFactory.getLogger(CompletedOperationCache.class);
 
-	private static final Logger LOGGER = LoggerFactory.getLogger(CompletedOperationCache.class);
+    /** In-progress asynchronous operations. */
+    private final Map<K, ResultAccessTracker<R>> registeredOperationTriggers =
+            new ConcurrentHashMap<>();
 
-	/**
-	 * In-progress asynchronous operations.
-	 */
-	private final Map<K, ResultAccessTracker<R>> registeredOperationTriggers = new ConcurrentHashMap<>();
+    /** Caches the result of completed operations. */
+    private final Cache<K, ResultAccessTracker<R>> completedOperations;
 
-	/**
-	 * Caches the result of completed operations.
-	 */
-	private final Cache<K, ResultAccessTracker<R>> completedOperations;
+    private final Object lock = new Object();
 
-	CompletedOperationCache() {
-		this(Ticker.systemTicker());
-	}
+    @Nullable private CompletableFuture<Void> terminationFuture;
+    private Duration cacheDuration;
 
-	@VisibleForTesting
-	CompletedOperationCache(final Ticker ticker) {
-		completedOperations = CacheBuilder.newBuilder()
-			.expireAfterWrite(COMPLETED_OPERATION_RESULT_CACHE_DURATION_SECONDS, TimeUnit.SECONDS)
-			.removalListener((RemovalListener<K, ResultAccessTracker<R>>) removalNotification -> {
-				if (removalNotification.wasEvicted()) {
-					Preconditions.checkState(removalNotification.getKey() != null);
-					Preconditions.checkState(removalNotification.getValue() != null);
+    public CompletedOperationCache(final Duration cacheDuration) {
+        this(cacheDuration, Ticker.systemTicker());
+    }
 
-					// When shutting down the cache, we wait until all results are accessed.
-					// When a result gets evicted from the cache, it will not be possible to access
-					// it any longer, and we might be in the process of shutting down, so we mark
-					// the result as accessed to avoid waiting indefinitely.
-					removalNotification.getValue().markAccessed();
+    @VisibleForTesting
+    CompletedOperationCache(final Ticker ticker) {
+        this(RestOptions.ASYNC_OPERATION_STORE_DURATION.defaultValue(), ticker);
+    }
 
-					LOGGER.info("Evicted result with trigger id {} because its TTL of {}s has expired.",
-						removalNotification.getKey().getTriggerId(),
-						COMPLETED_OPERATION_RESULT_CACHE_DURATION_SECONDS);
-				}
-			})
-			.ticker(ticker)
-			.build();
-	}
+    @VisibleForTesting
+    CompletedOperationCache(final Duration cacheDuration, final Ticker ticker) {
+        this.cacheDuration = Preconditions.checkNotNull(cacheDuration);
 
-	/**
-	 * Registers an ongoing operation with the cache.
-	 *
-	 * @param operationResultFuture A future containing the operation result.
-	 */
-	public void registerOngoingOperation(
-			final K operationKey,
-			final CompletableFuture<R> operationResultFuture) {
-		final ResultAccessTracker<R> inProgress = ResultAccessTracker.inProgress();
-		registeredOperationTriggers.put(operationKey, inProgress);
-		operationResultFuture.whenComplete((result, error) -> {
-			if (error == null) {
-				completedOperations.put(operationKey, inProgress.finishOperation(Either.Right(result)));
-			} else {
-				completedOperations.put(operationKey, inProgress.finishOperation(Either.Left(error)));
-			}
-			registeredOperationTriggers.remove(operationKey);
-		});
-	}
+        CacheBuilder<Object, Object> cacheBuilder = CacheBuilder.newBuilder();
 
-	/**
-	 * Returns the operation result or a {@code Throwable} if the {@code CompletableFuture}
-	 * finished, otherwise {@code null}.
-	 *
-	 * @throws UnknownOperationKeyException If the operation is not found, and there is no ongoing
-	 *                                      operation under the provided key.
-	 */
-	@Nullable
-	public Either<Throwable, R> get(
-			final K operationKey) throws UnknownOperationKeyException {
-		ResultAccessTracker<R> resultAccessTracker;
-		if ((resultAccessTracker = registeredOperationTriggers.get(operationKey)) == null
-			&& (resultAccessTracker = completedOperations.getIfPresent(operationKey)) == null) {
-			throw new UnknownOperationKeyException(operationKey);
-		}
+        if (cacheDuration.getSeconds() != 0) {
+            cacheBuilder = cacheBuilder.expireAfterWrite(cacheDuration);
+        }
 
-		return resultAccessTracker.accessOperationResultOrError();
-	}
+        completedOperations =
+                cacheBuilder
+                        .removalListener(
+                                (RemovalListener<K, ResultAccessTracker<R>>)
+                                        removalNotification -> {
+                                            if (removalNotification.wasEvicted()) {
+                                                Preconditions.checkState(
+                                                        removalNotification.getKey() != null);
+                                                Preconditions.checkState(
+                                                        removalNotification.getValue() != null);
 
-	@Override
-	public CompletableFuture<Void> closeAsync() {
-		return FutureUtils.orTimeout(
-			asyncWaitForResultsToBeAccessed(),
-			COMPLETED_OPERATION_RESULT_CACHE_DURATION_SECONDS,
-			TimeUnit.SECONDS);
-	}
+                                                // When shutting down the cache, we wait until all
+                                                // results are accessed.
+                                                // When a result gets evicted from the cache, it
+                                                // will not be possible to access
+                                                // it any longer, and we might be in the process of
+                                                // shutting down, so we mark
+                                                // the result as accessed to avoid waiting
+                                                // indefinitely.
+                                                removalNotification.getValue().markAccessed();
 
-	private CompletableFuture<Void> asyncWaitForResultsToBeAccessed() {
-		return FutureUtils.waitForAll(
-			Stream.concat(registeredOperationTriggers.values().stream(), completedOperations.asMap().values().stream())
-				.map(ResultAccessTracker::getAccessedFuture)
-				.collect(Collectors.toList()));
-	}
+                                                LOGGER.info(
+                                                        "Evicted result with trigger id {} because its TTL of {}s has expired.",
+                                                        removalNotification.getKey().getTriggerId(),
+                                                        cacheDuration.getSeconds());
+                                            }
+                                        })
+                        .ticker(ticker)
+                        .build();
+    }
 
-	@VisibleForTesting
-	void cleanUp() {
-		completedOperations.cleanUp();
-	}
+    /**
+     * Registers an ongoing operation with the cache.
+     *
+     * @param operationResultFuture A future containing the operation result.
+     * @throws IllegalStateException if the cache is already shutting down
+     */
+    public void registerOngoingOperation(
+            final K operationKey, final CompletableFuture<R> operationResultFuture) {
+        final ResultAccessTracker<R> inProgress = ResultAccessTracker.inProgress();
 
-	/**
-	 * Stores the result of an asynchronous operation, and tracks accesses to it.
-	 */
-	private static class ResultAccessTracker<R> {
+        synchronized (lock) {
+            checkState(isRunning(), "The CompletedOperationCache has already been closed.");
+            registeredOperationTriggers.put(operationKey, inProgress);
+        }
 
-		/** Result of an asynchronous operation. Null if operation is in progress. */
-		@Nullable
-		private final Either<Throwable, R> operationResultOrError;
+        operationResultFuture.whenComplete(
+                (result, error) -> {
+                    if (error == null) {
+                        completedOperations.put(
+                                operationKey,
+                                inProgress.finishOperation(OperationResult.success(result)));
+                    } else {
+                        completedOperations.put(
+                                operationKey,
+                                inProgress.finishOperation(OperationResult.failure(error)));
+                    }
+                    registeredOperationTriggers.remove(operationKey);
+                });
+    }
 
-		/** Future that completes if a non-null {@link #operationResultOrError} is accessed. */
-		private final CompletableFuture<Void> accessed;
+    @GuardedBy("lock")
+    private boolean isRunning() {
+        return terminationFuture == null;
+    }
 
-		private static <R> ResultAccessTracker<R> inProgress() {
-			return new ResultAccessTracker<>();
-		}
+    /** Returns whether this cache contains an operation under the given operation key. */
+    public boolean containsOperation(final K operationKey) {
+        return registeredOperationTriggers.containsKey(operationKey)
+                || completedOperations.getIfPresent(operationKey) != null;
+    }
 
-		private ResultAccessTracker() {
-			this.operationResultOrError = null;
-			this.accessed = new CompletableFuture<>();
-		}
+    /**
+     * Returns an optional containing the {@link OperationResult} for the specified key, or an empty
+     * optional if no operation is registered under the key.
+     */
+    public Optional<OperationResult<R>> get(final K operationKey) {
+        ResultAccessTracker<R> resultAccessTracker;
+        if ((resultAccessTracker = registeredOperationTriggers.get(operationKey)) == null
+                && (resultAccessTracker = completedOperations.getIfPresent(operationKey)) == null) {
+            return Optional.empty();
+        }
 
-		private ResultAccessTracker(final Either<Throwable, R> operationResultOrError, final CompletableFuture<Void> accessed) {
-			this.operationResultOrError = checkNotNull(operationResultOrError);
-			this.accessed = checkNotNull(accessed);
-		}
+        return Optional.of(resultAccessTracker.accessOperationResultOrError());
+    }
 
-		/**
-		 * Creates a new instance of the tracker with the result of the asynchronous operation set.
-		 */
-		public ResultAccessTracker<R> finishOperation(final Either<Throwable, R> operationResultOrError) {
-			checkState(this.operationResultOrError == null);
+    @Override
+    public CompletableFuture<Void> closeAsync() {
+        synchronized (lock) {
+            if (isRunning()) {
+                terminationFuture =
+                        FutureUtils.orTimeout(
+                                asyncWaitForResultsToBeAccessed(),
+                                cacheDuration.getSeconds(),
+                                TimeUnit.SECONDS);
+            }
 
-			return new ResultAccessTracker<>(checkNotNull(operationResultOrError), this.accessed);
-		}
+            return terminationFuture;
+        }
+    }
 
-		/**
-		 * If present, returns the result of the asynchronous operation, and marks the result as
-		 * accessed. If the result is not present, this method returns null.
-		 */
-		@Nullable
-		public Either<Throwable, R> accessOperationResultOrError() {
-			if (operationResultOrError != null) {
-				markAccessed();
-			}
-			return operationResultOrError;
-		}
+    private CompletableFuture<Void> asyncWaitForResultsToBeAccessed() {
+        return FutureUtils.waitForAll(
+                Stream.concat(
+                                registeredOperationTriggers.values().stream(),
+                                completedOperations.asMap().values().stream())
+                        .map(ResultAccessTracker::getAccessedFuture)
+                        .collect(Collectors.toList()));
+    }
 
-		public CompletableFuture<Void> getAccessedFuture() {
-			return accessed;
-		}
+    @VisibleForTesting
+    void cleanUp() {
+        completedOperations.cleanUp();
+    }
 
-		private void markAccessed() {
-			accessed.complete(null);
-		}
+    /** Stores the result of an asynchronous operation, and tracks accesses to it. */
+    private static class ResultAccessTracker<R extends Serializable> {
 
-	}
+        /** Result of an asynchronous operation. */
+        private final OperationResult<R> operationResult;
+
+        /** Future that completes if {@link #operationResult} is accessed after it finished. */
+        private final CompletableFuture<Void> accessed;
+
+        private static <R extends Serializable> ResultAccessTracker<R> inProgress() {
+            return new ResultAccessTracker<>();
+        }
+
+        private ResultAccessTracker() {
+            this.operationResult = OperationResult.inProgress();
+            this.accessed = new CompletableFuture<>();
+        }
+
+        private ResultAccessTracker(
+                final OperationResult<R> operationResult, final CompletableFuture<Void> accessed) {
+            this.operationResult = checkNotNull(operationResult);
+            this.accessed = checkNotNull(accessed);
+        }
+
+        /**
+         * Creates a new instance of the tracker with the result of the asynchronous operation set.
+         */
+        public ResultAccessTracker<R> finishOperation(final OperationResult<R> operationResult) {
+            checkState(!this.operationResult.isFinished());
+
+            return new ResultAccessTracker<>(checkNotNull(operationResult), this.accessed);
+        }
+
+        /**
+         * Returns the {@link OperationResult} of the asynchronous operation. If the operation is
+         * finished, marks the result as accessed.
+         */
+        public OperationResult<R> accessOperationResultOrError() {
+            if (operationResult.isFinished()) {
+                markAccessed();
+            }
+            return operationResult;
+        }
+
+        public CompletableFuture<Void> getAccessedFuture() {
+            return accessed;
+        }
+
+        private void markAccessed() {
+            accessed.complete(null);
+        }
+    }
 }

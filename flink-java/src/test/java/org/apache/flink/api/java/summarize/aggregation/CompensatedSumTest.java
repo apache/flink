@@ -18,64 +18,65 @@
 
 package org.apache.flink.api.java.summarize.aggregation;
 
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-/**
- * Tests for {@link CompensatedSum}.
- */
-public class CompensatedSumTest {
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.data.Offset.offset;
 
-	/**
-	 * When adding a series of numbers the order of the numbers should not impact the results.
-	 *
-	 * <p>This test shows that a naive summation comes up with a different result than Kahan
-	 * Summation when you start with either a smaller or larger number in some cases and
-	 * helps prove our Kahan Summation is working.
-	 */
-	@Test
-	public void testAdd1() throws Exception {
-		final CompensatedSum smallSum = new CompensatedSum(0.001, 0.0);
-		final CompensatedSum largeSum = new CompensatedSum(1000, 0.0);
+/** Tests for {@link CompensatedSum}. */
+class CompensatedSumTest {
 
-		CompensatedSum compensatedResult1 = smallSum;
-		CompensatedSum compensatedResult2 = largeSum;
-		double naiveResult1 = smallSum.value();
-		double naiveResult2 = largeSum.value();
+    /**
+     * When adding a series of numbers the order of the numbers should not impact the results.
+     *
+     * <p>This test shows that a naive summation comes up with a different result than Kahan
+     * Summation when you start with either a smaller or larger number in some cases and helps prove
+     * our Kahan Summation is working.
+     */
+    @Test
+    void testAdd1() {
+        final CompensatedSum smallSum = new CompensatedSum(0.001, 0.0);
+        final CompensatedSum largeSum = new CompensatedSum(1000, 0.0);
 
-		for (int i = 0; i < 10; i++) {
-			compensatedResult1 = compensatedResult1.add(smallSum);
-			compensatedResult2 = compensatedResult2.add(smallSum);
-			naiveResult1 += smallSum.value();
-			naiveResult2 += smallSum.value();
-		}
+        CompensatedSum compensatedResult1 = smallSum;
+        CompensatedSum compensatedResult2 = largeSum;
+        double naiveResult1 = smallSum.value();
+        double naiveResult2 = largeSum.value();
 
-		compensatedResult1 = compensatedResult1.add(largeSum);
-		compensatedResult2 = compensatedResult2.add(smallSum);
-		naiveResult1 += largeSum.value();
-		naiveResult2 += smallSum.value();
+        for (int i = 0; i < 10; i++) {
+            compensatedResult1 = compensatedResult1.add(smallSum);
+            compensatedResult2 = compensatedResult2.add(smallSum);
+            naiveResult1 += smallSum.value();
+            naiveResult2 += smallSum.value();
+        }
 
-		// Kahan summation gave the same result no matter what order we added
-		Assert.assertEquals(1000.011, compensatedResult1.value(), 0.0);
-		Assert.assertEquals(1000.011, compensatedResult2.value(), 0.0);
+        compensatedResult1 = compensatedResult1.add(largeSum);
+        compensatedResult2 = compensatedResult2.add(smallSum);
+        naiveResult1 += largeSum.value();
+        naiveResult2 += smallSum.value();
 
-		// naive addition gave a small floating point error
-		Assert.assertEquals(1000.011, naiveResult1, 0.0);
-		Assert.assertEquals(1000.0109999999997, naiveResult2, 0.0);
+        // Kahan summation gave the same result no matter what order we added
+        assertThat(compensatedResult1.value()).isCloseTo(1000.011, offset(0.0));
+        assertThat(compensatedResult2.value()).isCloseTo(1000.011, offset(0.0));
 
-		Assert.assertEquals(compensatedResult1.value(), compensatedResult2.value(), 0.0);
-		Assert.assertEquals(naiveResult1, naiveResult2, 0.0001);
-		Assert.assertNotEquals(naiveResult1, naiveResult2, 0.0);
-	}
+        // naive addition gave a small floating point error
+        assertThat(naiveResult1).isCloseTo(1000.011, offset(0.0));
+        assertThat(naiveResult2).isCloseTo(1000.0109999999997, offset(0.0));
 
-	@Test
-	public void testDelta() throws Exception {
-		CompensatedSum compensatedResult1 = new CompensatedSum(0.001, 0.0);
-		for (int i = 0; i < 10; i++) {
-			compensatedResult1 = compensatedResult1.add(0.001);
-		}
-		Assert.assertEquals(0.011, compensatedResult1.value(), 0.0);
-		Assert.assertEquals(new Double("8.673617379884035E-19"), compensatedResult1.delta(), 0.0);
-	}
+        assertThat(compensatedResult2.value()).isCloseTo(compensatedResult1.value(), offset(0.0));
+        assertThat(naiveResult2)
+                .isCloseTo(naiveResult1, offset(0.0001))
+                .isNotCloseTo(naiveResult1, offset(0.0));
+    }
 
+    @Test
+    void testDelta() {
+        CompensatedSum compensatedResult1 = new CompensatedSum(0.001, 0.0);
+        for (int i = 0; i < 10; i++) {
+            compensatedResult1 = compensatedResult1.add(0.001);
+        }
+        assertThat(compensatedResult1.value()).isCloseTo(0.011, offset(0.0));
+        assertThat(compensatedResult1.delta())
+                .isCloseTo(new Double("8.673617379884035E-19"), offset(0.0));
+    }
 }

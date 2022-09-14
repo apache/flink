@@ -36,38 +36,38 @@ import static org.apache.flink.graph.asm.translate.Translate.translateEdgeValues
  * @param <NEW> new edge value type
  */
 public class TranslateEdgeValues<K, VV, OLD, NEW>
-extends GraphAlgorithmWrappingGraph<K, VV, OLD, K, VV, NEW> {
+        extends GraphAlgorithmWrappingGraph<K, VV, OLD, K, VV, NEW> {
 
-	// Required configuration
-	private TranslateFunction<OLD, NEW> translator;
+    // Required configuration
+    private TranslateFunction<OLD, NEW> translator;
 
-	/**
-	 * Translate {@link Edge} values using the given {@link TranslateFunction}.
-	 *
-	 * @param translator implements conversion from {@code OLD} to {@code NEW}
-	 */
-	public TranslateEdgeValues(TranslateFunction<OLD, NEW> translator) {
-		Preconditions.checkNotNull(translator);
+    /**
+     * Translate {@link Edge} values using the given {@link TranslateFunction}.
+     *
+     * @param translator implements conversion from {@code OLD} to {@code NEW}
+     */
+    public TranslateEdgeValues(TranslateFunction<OLD, NEW> translator) {
+        Preconditions.checkNotNull(translator);
 
-		this.translator = translator;
-	}
+        this.translator = translator;
+    }
 
-	@Override
-	protected boolean canMergeConfigurationWith(GraphAlgorithmWrappingBase other) {
-		if (!super.canMergeConfigurationWith(other)) {
-			return false;
-		}
+    @Override
+    protected boolean canMergeConfigurationWith(GraphAlgorithmWrappingBase other) {
+        if (!super.canMergeConfigurationWith(other)) {
+            return false;
+        }
 
-		TranslateEdgeValues rhs = (TranslateEdgeValues) other;
+        TranslateEdgeValues rhs = (TranslateEdgeValues) other;
 
-		return translator == rhs.translator;
-	}
+        return translator == rhs.translator;
+    }
 
-	@Override
-	public Graph<K, VV, NEW> runInternal(Graph<K, VV, OLD> input)
-			throws Exception {
-		DataSet<Edge<K, NEW>> translatedEdges = translateEdgeValues(input.getEdges(), translator, parallelism);
+    @Override
+    public Graph<K, VV, NEW> runInternal(Graph<K, VV, OLD> input) throws Exception {
+        DataSet<Edge<K, NEW>> translatedEdges =
+                translateEdgeValues(input.getEdges(), translator, parallelism);
 
-		return Graph.fromDataSet(input.getVertices(), translatedEdges, input.getContext());
-	}
+        return Graph.fromDataSet(input.getVertices(), translatedEdges, input.getContext());
+    }
 }

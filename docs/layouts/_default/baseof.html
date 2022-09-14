@@ -1,0 +1,125 @@
+<!--
+Licensed to the Apache Software Foundation (ASF) under one
+or more contributor license agreements.  See the NOTICE file
+distributed with this work for additional information
+regarding copyright ownership.  The ASF licenses this file
+to you under the Apache License, Version 2.0 (the
+"License"); you may not use this file except in compliance
+with the License.  You may obtain a copy of the License at
+
+  http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing,
+software distributed under the License is distributed on an
+"AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+KIND, either express or implied.  See the License for the
+specific language governing permissions and limitations
+under the License.
+-->
+<!DOCTYPE html>
+<html lang="{{ .Site.Language.Lang }}" dir={{ .Site.Language.LanguageDirection }}>
+
+<head>
+  {{ hugo.Generator }}
+  {{ partial "docs/html-head" . }}
+  {{ partial "docs/inject/head" . }}
+    <!-- Matomo -->
+    <script>
+      var _paq = window._paq = window._paq || [];
+      /* tracker methods like "setCustomDimension" should be called before "trackPageView" */
+      /* We explicitly disable cookie tracking to avoid privacy issues */
+      _paq.push(['disableCookies']);
+      /* Measure a visit to flink.apache.org and nightlies.apache.org/flink as the same visit */
+      _paq.push(["setDomains", ["*.flink.apache.org","*.nightlies.apache.org/flink"]]);
+      _paq.push(['trackPageView']);
+      _paq.push(['enableLinkTracking']);
+      (function() {
+        var u="//matomo.privacy.apache.org/";
+        _paq.push(['setTrackerUrl', u+'matomo.php']);
+        _paq.push(['setSiteId', '1']);
+        var d=document, g=d.createElement('script'), s=d.getElementsByTagName('script')[0];
+        g.async=true; g.src=u+'matomo.js'; s.parentNode.insertBefore(g,s);
+      })();
+    </script>
+    <!-- End Matomo Code -->
+</head>
+
+<body dir={{ .Site.Language.LanguageDirection }}>
+  <input type="checkbox" class="hidden toggle" id="menu-control" />
+  <input type="checkbox" class="hidden toggle" id="toc-control" />
+  <main class="container flex">
+    <aside class="book-menu">
+      {{ template "menu" . }} <!-- Left menu Content -->
+    </aside>
+
+    <div class="book-page">
+      <header class="book-header">
+        {{ template "header" . }} <!-- Mobile layout header -->
+      </header>
+
+      {{ partial "docs/inject/content-before" . }}
+      {{ template "main" . }} <!-- Page Content -->
+      {{ partial "docs/inject/content-after" . }}
+
+      <footer class="book-footer">
+        {{ template "footer" . }} <!-- Footer under page content -->
+        {{ partial "docs/inject/footer" . }}
+      </footer>
+
+      {{ template "comments" . }} <!-- Comments block -->
+
+      <label for="menu-control" class="hidden book-menu-overlay"></label>
+    </div>
+
+    {{ if default true (default .Site.Params.BookToC .Params.BookToC) }}
+    <aside class="book-toc">
+      {{ template "toc" . }} <!-- Table of Contents -->
+    </aside>
+    <aside class="expand-toc">
+      <button class="toc" onclick="expandToc()">
+        <i class="fa fa-expand" aria-hidden="true"></i>
+      </button>
+    </aside>
+    {{ end }}
+  </main>
+
+  {{ partial "docs/inject/body" . }}
+</body>
+
+</html>
+
+{{ define "menu" }}
+  {{ partial "docs/menu" . }}
+{{ end }}
+
+{{ define "header" }}
+  {{ partial "docs/header" . }}
+
+  {{ if default true (default .Site.Params.BookToC .Params.BookToC) }}
+  <aside class="hidden clearfix">
+    {{ template "toc" . }}
+  </aside>
+  {{ end }}
+{{ end }}
+
+{{ define "footer" }}
+  {{ partial "docs/footer" . }}
+{{ end }}
+
+{{ define "comments" }}
+  {{ if and .Content (default true (default .Site.Params.BookComments .Params.BookComments)) }}
+  <div class="book-comments">
+    {{- partial "docs/comments" . -}}
+  </div>
+  {{ end }}
+{{ end }}
+
+{{ define "main" }}
+  <article class="markdown">
+    {{- .Content -}}
+  </article>
+{{ end }}
+
+{{ define "toc" }}
+  {{ partial "docs/toc" . }}
+{{ end }}

@@ -19,37 +19,45 @@ package org.apache.flink.api.java.io;
 
 import org.apache.flink.api.java.ExecutionEnvironment;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-/**
- * Tests for {@link ExecutionEnvironment#fromElements}.
- */
-public class FromElementsTest {
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-	@Test
-	public void fromElementsWithBaseTypeTest1() {
-		ExecutionEnvironment executionEnvironment = ExecutionEnvironment.getExecutionEnvironment();
-		executionEnvironment.fromElements(ParentType.class, new SubType(1, "Java"), new ParentType(1, "hello"));
-	}
+/** Tests for {@link ExecutionEnvironment#fromElements}. */
+class FromElementsTest {
 
-	@Test(expected = IllegalArgumentException.class)
-	public void fromElementsWithBaseTypeTest2() {
-		ExecutionEnvironment executionEnvironment = ExecutionEnvironment.getExecutionEnvironment();
-		executionEnvironment.fromElements(SubType.class, new SubType(1, "Java"), new ParentType(1, "hello"));
-	}
+    @Test
+    void fromElementsWithBaseTypeTest1() {
+        ExecutionEnvironment executionEnvironment = ExecutionEnvironment.getExecutionEnvironment();
+        executionEnvironment.fromElements(
+                ParentType.class, new SubType(1, "Java"), new ParentType(1, "hello"));
+    }
 
-	private static class ParentType {
-		int num;
-		String string;
-		public ParentType(int num, String string) {
-			this.num = num;
-			this.string = string;
-		}
-	}
+    @Test
+    void fromElementsWithBaseTypeTest2() {
+        ExecutionEnvironment executionEnvironment = ExecutionEnvironment.getExecutionEnvironment();
+        assertThatThrownBy(
+                        () ->
+                                executionEnvironment.fromElements(
+                                        SubType.class,
+                                        new SubType(1, "Java"),
+                                        new ParentType(1, "hello")))
+                .isInstanceOf(IllegalArgumentException.class);
+    }
 
-	private static class SubType extends ParentType{
-		public SubType(int num, String string) {
-			super(num, string);
-		}
-	}
+    private static class ParentType {
+        int num;
+        String string;
+
+        public ParentType(int num, String string) {
+            this.num = num;
+            this.string = string;
+        }
+    }
+
+    private static class SubType extends ParentType {
+        public SubType(int num, String string) {
+            super(num, string);
+        }
+    }
 }

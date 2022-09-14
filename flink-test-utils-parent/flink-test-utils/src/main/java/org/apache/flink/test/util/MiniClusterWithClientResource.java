@@ -20,68 +20,99 @@ package org.apache.flink.test.util;
 
 import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.client.program.MiniClusterClient;
+import org.apache.flink.client.program.rest.RestClusterClient;
 import org.apache.flink.runtime.testutils.MiniClusterResource;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.streaming.util.TestStreamEnvironment;
+import org.apache.flink.util.ExceptionUtils;
 
 /**
- * Starts a Flink mini cluster as a resource and registers the respective
- * ExecutionEnvironment and StreamExecutionEnvironment.
+ * Starts a Flink mini cluster as a resource and registers the respective ExecutionEnvironment and
+ * StreamExecutionEnvironment.
  */
 public class MiniClusterWithClientResource extends MiniClusterResource {
 
-	private ClusterClient<?> clusterClient;
+    private ClusterClient<?> clusterClient;
+    private RestClusterClient<MiniClusterClient.MiniClusterId> restClusterClient;
 
-	private TestEnvironment executionEnvironment;
+    private TestEnvironment executionEnvironment;
 
-	public MiniClusterWithClientResource(final MiniClusterResourceConfiguration miniClusterResourceConfiguration) {
-		super(miniClusterResourceConfiguration);
-	}
+    public MiniClusterWithClientResource(
+            final MiniClusterResourceConfiguration miniClusterResourceConfiguration) {
+        super(miniClusterResourceConfiguration);
+    }
 
-	public ClusterClient<?> getClusterClient() {
-		return clusterClient;
-	}
+    public ClusterClient<?> getClusterClient() {
+        return clusterClient;
+    }
 
-	public TestEnvironment getTestEnvironment() {
-		return executionEnvironment;
-	}
+    /**
+     * Returns a {@link RestClusterClient} that can be used to communicate with this mini cluster.
+     * Only use this if the client returned via {@link #getClusterClient()} does not fulfill your
+     * needs.
+     */
+    public RestClusterClient<?> getRestClusterClient() throws Exception {
+        return restClusterClient;
+    }
 
-	@Override
-	public void before() throws Exception {
-		super.before();
+    public TestEnvironment getTestEnvironment() {
+        return executionEnvironment;
+    }
 
-		clusterClient = createMiniClusterClient();
+    @Override
+    public void before() throws Exception {
+        super.before();
 
-		executionEnvironment = new TestEnvironment(getMiniCluster(), getNumberSlots(), false);
-		executionEnvironment.setAsContext();
-		TestStreamEnvironment.setAsContext(getMiniCluster(), getNumberSlots());
-	}
+        clusterClient = createMiniClusterClient();
+        restClusterClient = createRestClusterClient();
 
-	@Override
-	public void after() {
-		TestStreamEnvironment.unsetAsContext();
-		TestEnvironment.unsetAsContext();
+        executionEnvironment = new TestEnvironment(getMiniCluster(), getNumberSlots(), false);
+        executionEnvironment.setAsContext();
+        TestStreamEnvironment.setAsContext(getMiniCluster(), getNumberSlots());
+    }
 
-		Exception exception = null;
+    @Override
+    public void after() {
+        log.info("Finalization triggered: Cluster shutdown is going to be initiated.");
+        TestStreamEnvironment.unsetAsContext();
+        TestEnvironment.unsetAsContext();
 
-		if (clusterClient != null) {
-			try {
-				clusterClient.close();
-			} catch (Exception e) {
-				exception = e;
-			}
-		}
+        Exception exception = null;
 
-		clusterClient = null;
+        if (clusterClient != null) {
+            try {
+                clusterClient.close();
+            } catch (Exception e) {
+                exception = e;
+            }
+        }
 
-		super.after();
+        clusterClient = null;
 
-		if (exception != null) {
-			log.warn("Could not properly shut down the MiniClusterWithClientResource.", exception);
-		}
-	}
+        if (restClusterClient != null) {
+            try {
+                restClusterClient.close();
+            } catch (Exception e) {
+                exception = ExceptionUtils.firstOrSuppressed(e, exception);
+            }
+        }
 
-	private MiniClusterClient createMiniClusterClient() {
-		return new MiniClusterClient(getClientConfiguration(), getMiniCluster());
-	}
+        restClusterClient = null;
+
+        super.after();
+
+        if (exception != null) {
+            log.warn("Could not properly shut down the MiniClusterWithClientResource.", exception);
+        }
+    }
+
+    private MiniClusterClient createMiniClusterClient() {
+        return new MiniClusterClient(getClientConfiguration(), getMiniCluster());
+    }
+
+    private RestClusterClient<MiniClusterClient.MiniClusterId> createRestClusterClient()
+            throws Exception {
+        return new RestClusterClient<>(
+                getClientConfiguration(), MiniClusterClient.MiniClusterId.INSTANCE);
+    }
 }

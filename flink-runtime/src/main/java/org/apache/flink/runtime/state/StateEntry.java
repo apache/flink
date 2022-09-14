@@ -27,45 +27,48 @@ package org.apache.flink.runtime.state;
  */
 public interface StateEntry<K, N, S> {
 
-	/**
-	 * Returns the key of this entry.
-	 */
-	K getKey();
+    /** Returns the key of this entry. */
+    K getKey();
 
-	/**
-	 * Returns the namespace of this entry.
-	 */
-	N getNamespace();
+    /** Returns the namespace of this entry. */
+    N getNamespace();
 
-	/**
-	 * Returns the state of this entry.
-	 */
-	S getState();
+    /** Returns the state of this entry. */
+    S getState();
 
-	class SimpleStateEntry<K, N, S> implements StateEntry<K, N, S> {
-		private final K key;
-		private final N namespace;
-		private final S value;
+    default StateEntry<K, N, S> filterOrTransform(StateSnapshotTransformer<S> transformer) {
+        S newState = transformer.filterOrTransform(getState());
+        if (newState != null) {
+            return new SimpleStateEntry<>(getKey(), getNamespace(), newState);
+        } else {
+            return null;
+        }
+    }
 
-		public SimpleStateEntry(K key, N namespace, S value) {
-			this.key = key;
-			this.namespace = namespace;
-			this.value = value;
-		}
+    class SimpleStateEntry<K, N, S> implements StateEntry<K, N, S> {
+        private final K key;
+        private final N namespace;
+        private final S value;
 
-		@Override
-		public K getKey() {
-			return key;
-		}
+        public SimpleStateEntry(K key, N namespace, S value) {
+            this.key = key;
+            this.namespace = namespace;
+            this.value = value;
+        }
 
-		@Override
-		public N getNamespace() {
-			return namespace;
-		}
+        @Override
+        public K getKey() {
+            return key;
+        }
 
-		@Override
-		public S getState() {
-			return value;
-		}
-	}
+        @Override
+        public N getNamespace() {
+            return namespace;
+        }
+
+        @Override
+        public S getState() {
+            return value;
+        }
+    }
 }

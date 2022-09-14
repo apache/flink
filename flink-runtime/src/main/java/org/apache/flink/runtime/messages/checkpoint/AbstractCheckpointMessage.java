@@ -21,71 +21,70 @@ package org.apache.flink.runtime.messages.checkpoint;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 
-/**
- * The base class of all checkpoint messages.
- */
+/** The base class of all checkpoint messages. */
 public abstract class AbstractCheckpointMessage implements java.io.Serializable {
 
-	private static final long serialVersionUID = 186780414819428178L;
-	
-	/** The job to which this message belongs */
-	private final JobID job;
-	
-	/** The task execution that is source/target of the checkpoint message */  
-	private final ExecutionAttemptID taskExecutionId;
-	
-	/** The ID of the checkpoint that this message coordinates */
-	private final long checkpointId;
+    private static final long serialVersionUID = 186780414819428178L;
 
-	
-	protected AbstractCheckpointMessage(JobID job, ExecutionAttemptID taskExecutionId, long checkpointId) {
-		if (job == null || taskExecutionId == null) {
-			throw new NullPointerException();
-		}
-		
-		this.job = job;
-		this.taskExecutionId = taskExecutionId;
-		this.checkpointId = checkpointId;
-	}
+    /** The job to which this message belongs */
+    private final JobID job;
 
-	// --------------------------------------------------------------------------------------------
-	
-	public JobID getJob() {
-		return job;
-	}
+    /** The task execution that is source/target of the checkpoint message */
+    private final ExecutionAttemptID taskExecutionId;
 
-	public ExecutionAttemptID getTaskExecutionId() {
-		return taskExecutionId;
-	}
+    /** The ID of the checkpoint that this message coordinates */
+    private final long checkpointId;
 
-	public long getCheckpointId() {
-		return checkpointId;
-	}
+    protected AbstractCheckpointMessage(
+            JobID job, ExecutionAttemptID taskExecutionId, long checkpointId) {
+        if (job == null || taskExecutionId == null) {
+            throw new NullPointerException();
+        }
 
-	// --------------------------------------------------------------------------------------------
+        this.job = job;
+        this.taskExecutionId = taskExecutionId;
+        this.checkpointId = checkpointId;
+    }
 
-	@Override
-	public int hashCode() {
-		return job.hashCode() + taskExecutionId.hashCode() + (int) (checkpointId ^ (checkpointId >>> 32));
-	}
+    // --------------------------------------------------------------------------------------------
 
-	@Override
-	public boolean equals(Object o) {
-		if (this == o) {
-			return true;
-		}
-		else if (o instanceof AbstractCheckpointMessage) {
-			AbstractCheckpointMessage that = (AbstractCheckpointMessage) o;
-			return this.job.equals(that.job) && this.taskExecutionId.equals(that.taskExecutionId) &&
-					this.checkpointId == that.checkpointId;
-		}
-		else {
-			return false;
-		}
-	}
+    public JobID getJob() {
+        return job;
+    }
 
-	@Override
-	public String toString() {
-		return "(" + checkpointId + ':' + job + '/' + taskExecutionId + ')';
-	}
+    public ExecutionAttemptID getTaskExecutionId() {
+        return taskExecutionId;
+    }
+
+    public long getCheckpointId() {
+        return checkpointId;
+    }
+
+    // --------------------------------------------------------------------------------------------
+
+    @Override
+    public int hashCode() {
+        return job.hashCode()
+                + taskExecutionId.hashCode()
+                + (int) (checkpointId ^ (checkpointId >>> 32));
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        } else if (o instanceof AbstractCheckpointMessage) {
+            AbstractCheckpointMessage that = (AbstractCheckpointMessage) o;
+            return this.job.equals(that.job)
+                    && this.taskExecutionId.equals(that.taskExecutionId)
+                    && this.checkpointId == that.checkpointId;
+        } else {
+            return false;
+        }
+    }
+
+    @Override
+    public String toString() {
+        return "(" + checkpointId + ':' + job + '/' + taskExecutionId + ')';
+    }
 }

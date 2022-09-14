@@ -26,16 +26,14 @@ import org.apache.flink.runtime.rest.messages.MessageQueryParameter;
 import java.util.Collection;
 import java.util.Collections;
 
-/**
- * {@link MessageParameters} for {@link JobExceptionsHandler}.
- */
+/** {@link MessageParameters} for {@link JobExceptionsHandler}. */
 public class JobExceptionsMessageParameters extends JobMessageParameters {
 
-	private final UpperLimitExceptionParameter upperLimitExceptionParameter = new UpperLimitExceptionParameter();
+    private final UpperLimitExceptionParameter upperLimitExceptionParameter =
+            new UpperLimitExceptionParameter();
 
-	@Override
-	public Collection<MessageQueryParameter<?>> getQueryParameters() {
-		return Collections.singletonList(upperLimitExceptionParameter);
-	}
-
+    @Override
+    public Collection<MessageQueryParameter<?>> getQueryParameters() {
+        return Collections.singletonList(upperLimitExceptionParameter);
+    }
 }

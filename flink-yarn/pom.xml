@@ -23,12 +23,11 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-parent</artifactId>
-		<version>1.11-SNAPSHOT</version>
-		<relativePath>..</relativePath>
+		<version>1.17-SNAPSHOT</version>
 	</parent>
 
-	<artifactId>flink-yarn_${scala.binary.version}</artifactId>
-	<name>flink-yarn</name>
+	<artifactId>flink-yarn</artifactId>
+	<name>Flink : Yarn</name>
 	<packaging>jar</packaging>
 
 	<properties>
@@ -43,20 +42,41 @@ under the License.
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-runtime_${scala.binary.version}</artifactId>
+			<artifactId>flink-runtime</artifactId>
 			<version>${project.version}</version>
 		</dependency>
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-clients_${scala.binary.version}</artifactId>
+			<artifactId>flink-clients</artifactId>
 			<version>${project.version}</version>
 		</dependency>
 
 		<dependency>
-			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-shaded-hadoop-2</artifactId>
+			<groupId>org.apache.hadoop</groupId>
+			<artifactId>hadoop-common</artifactId>
 		</dependency>
+
+		<dependency>
+			<groupId>org.apache.hadoop</groupId>
+			<artifactId>hadoop-hdfs</artifactId>
+		</dependency>
+
+		<dependency>
+			<groupId>org.apache.hadoop</groupId>
+			<artifactId>hadoop-yarn-common</artifactId>
+		</dependency>
+
+		<dependency>
+			<groupId>org.apache.hadoop</groupId>
+			<artifactId>hadoop-yarn-client</artifactId>
+		</dependency>
+
+		<dependency>
+			<groupId>org.apache.hadoop</groupId>
+			<artifactId>hadoop-mapreduce-client-core</artifactId>
+		</dependency>
+		
 
 		<!-- test dependencies -->
 
@@ -67,7 +87,7 @@ under the License.
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-runtime_${scala.binary.version}</artifactId>
+			<artifactId>flink-runtime</artifactId>
 			<version>${project.version}</version>
 			<type>test-jar</type>
 			<scope>test</scope>
@@ -78,7 +98,7 @@ under the License.
 			<artifactId>hadoop-hdfs</artifactId>
 			<scope>test</scope>
 			<type>test-jar</type>
-			<version>${hadoop.version}</version>
+			<version>${flink.hadoop.version}</version>
 			<exclusions>
 				<exclusion>
 					<groupId>log4j</groupId>
@@ -92,7 +112,7 @@ under the License.
 			<artifactId>hadoop-common</artifactId>
 			<scope>test</scope>
 			<type>test-jar</type>
-			<version>${hadoop.version}</version>
+			<version>${flink.hadoop.version}</version>
 			<exclusions>
 				<exclusion>
 					<groupId>log4j</groupId>
@@ -128,7 +148,7 @@ under the License.
 				<dependency>
 					<groupId>org.apache.hadoop</groupId>
 					<artifactId>hadoop-aws</artifactId>
-					<version>${hadoop.version}</version>
+					<version>${flink.hadoop.version}</version>
 					<scope>test</scope>
 					<exclusions>
 						<exclusion>
@@ -191,18 +211,6 @@ under the License.
 						<configuration>
 							<skip>true</skip>
 						</configuration>
-					</execution>
-				</executions>
-			</plugin>
-
-			<plugin>
-				<groupId>org.apache.maven.plugins</groupId>
-				<artifactId>maven-jar-plugin</artifactId>
-				<executions>
-					<execution>
-						<goals>
-							<goal>test-jar</goal>
-						</goals>
 					</execution>
 				</executions>
 			</plugin>

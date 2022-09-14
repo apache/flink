@@ -18,30 +18,24 @@
 
 package org.apache.flink.runtime.throwable;
 
-/**
- * Enum for the classification of {@link Throwable} objects into failure/recovery classes.
- */
+/** Enum for the classification of {@link Throwable} objects into failure/recovery classes. */
 public enum ThrowableType {
 
-	/**
-	 * This indicates error that would not succeed even with retry, such as DivideZeroException.
-	 * No recovery attempt should happen for such an error. Instead, the job should fail immediately.
-	 */
-	NonRecoverableError,
+    /**
+     * This indicates error that would not succeed even with retry, such as DivideZeroException. No
+     * recovery attempt should happen for such an error. Instead, the job should fail immediately.
+     */
+    NonRecoverableError,
 
-	/**
-	 * Data consumption error, which indicates that we should revoke the producer.
-	 * */
-	PartitionDataMissingError,
+    /** Data consumption error, which indicates that we should revoke the producer. */
+    PartitionDataMissingError,
 
-	/**
-	 * This indicates an error related to the  running environment, such as hardware error, service issue, in which
-	 * case we should consider blacklisting the machine.
-	 * */
-	EnvironmentError,
+    /**
+     * This indicates an error related to the running environment, such as hardware error, service
+     * issue, in which case we should consider blacklisting the machine.
+     */
+    EnvironmentError,
 
-	/**
-	 * This indicates a problem that is recoverable.
-	 * */
-	RecoverableError
+    /** This indicates a problem that is recoverable. */
+    RecoverableError
 }

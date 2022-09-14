@@ -22,25 +22,25 @@ import org.apache.flink.annotation.Public;
 import org.apache.flink.util.Collector;
 
 /**
- * Rich variant of the {@link GroupReduceFunction}. As a {@link RichFunction}, it gives access to the
- * {@link org.apache.flink.api.common.functions.RuntimeContext} and provides setup and teardown methods:
- * {@link RichFunction#open(org.apache.flink.configuration.Configuration)} and
- * {@link RichFunction#close()}.
+ * Rich variant of the {@link GroupReduceFunction}. As a {@link RichFunction}, it gives access to
+ * the {@link org.apache.flink.api.common.functions.RuntimeContext} and provides setup and teardown
+ * methods: {@link RichFunction#open(org.apache.flink.configuration.Configuration)} and {@link
+ * RichFunction#close()}.
  *
- * <p>Partial computation can significantly improve the performance of a {@link RichGroupReduceFunction}.
- * This technique is also known as applying a Combiner.
- * Implement the {@link GroupCombineFunction} interface to enable partial computation, i.e.,
- * a combiner for this {@link RichGroupReduceFunction}.
+ * <p>Partial computation can significantly improve the performance of a {@link
+ * RichGroupReduceFunction}. This technique is also known as applying a Combiner. Implement the
+ * {@link GroupCombineFunction} interface to enable partial computation, i.e., a combiner for this
+ * {@link RichGroupReduceFunction}.
  *
  * @param <IN> Type of the elements that this function processes.
  * @param <OUT> The type of the elements returned by the user-defined function.
  */
 @Public
-public abstract class RichGroupReduceFunction<IN, OUT> extends AbstractRichFunction implements GroupReduceFunction<IN, OUT> {
+public abstract class RichGroupReduceFunction<IN, OUT> extends AbstractRichFunction
+        implements GroupReduceFunction<IN, OUT> {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	@Override
-	public abstract void reduce(Iterable<IN> values, Collector<OUT> out) throws Exception;
-
+    @Override
+    public abstract void reduce(Iterable<IN> values, Collector<OUT> out) throws Exception;
 }

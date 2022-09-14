@@ -24,26 +24,23 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Map;
 
-/**
- * Test map in Hive UDF.
- */
+/** Test map in Hive UDF. */
 public class TestHiveUDFMap extends UDF {
 
-	public String evaluate(Map<String, String> a) {
-		if (a == null) {
-			return null;
-		}
-		ArrayList<String> r = new ArrayList<String>(a.size());
-		for (Map.Entry<String, String> entry : a.entrySet()) {
-			r.add("(" + entry.getKey() + ":" + entry.getValue() + ")");
-		}
-		Collections.sort(r);
+    public String evaluate(Map<String, String> a) {
+        if (a == null) {
+            return null;
+        }
+        ArrayList<String> r = new ArrayList<String>(a.size());
+        for (Map.Entry<String, String> entry : a.entrySet()) {
+            r.add("(" + entry.getKey() + ":" + entry.getValue() + ")");
+        }
+        Collections.sort(r);
 
-		StringBuilder sb = new StringBuilder();
-		for (int i = 0; i < r.size(); i++) {
-			sb.append(r.get(i));
-		}
-		return sb.toString();
-	}
-
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < r.size(); i++) {
+            sb.append(r.get(i));
+        }
+        return sb.toString();
+    }
 }

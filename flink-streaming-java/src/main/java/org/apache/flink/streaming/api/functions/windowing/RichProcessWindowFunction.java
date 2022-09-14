@@ -22,19 +22,19 @@ import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.streaming.api.windowing.windows.Window;
 
 /**
- * Base rich abstract class for functions that are evaluated over keyed (grouped) windows using a context
- * for passing extra information.
+ * Base rich abstract class for functions that are evaluated over keyed (grouped) windows using a
+ * context for passing extra information.
  *
  * @param <IN> The type of the input value.
  * @param <OUT> The type of the output value.
  * @param <KEY> The type of the key.
  * @param <W> The type of {@code Window} that this window function can be applied on.
- *
  * @deprecated use {@link ProcessWindowFunction} instead
  */
 @PublicEvolving
 @Deprecated
-public abstract class RichProcessWindowFunction<IN, OUT, KEY, W extends Window> extends ProcessWindowFunction<IN, OUT, KEY, W> {
+public abstract class RichProcessWindowFunction<IN, OUT, KEY, W extends Window>
+        extends ProcessWindowFunction<IN, OUT, KEY, W> {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 }

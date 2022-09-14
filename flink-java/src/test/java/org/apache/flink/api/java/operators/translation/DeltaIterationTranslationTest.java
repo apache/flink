@@ -36,229 +36,281 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.util.Collector;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.Iterator;
 
-import static org.junit.Assert.assertArrayEquals;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.fail;
 
-/**
- * Tests for translation of delta iterations.
- */
+/** Tests for translation of delta iterations. */
 @SuppressWarnings("serial")
-public class DeltaIterationTranslationTest implements java.io.Serializable {
+class DeltaIterationTranslationTest implements java.io.Serializable {
 
-	@Test
-	public void testCorrectTranslation() {
-		try {
-			final String jobName = "Test JobName";
-			final String iterationName = "Test Name";
+    @Test
+    void testCorrectTranslation() {
+        try {
+            final String jobName = "Test JobName";
+            final String iterationName = "Test Name";
 
-			final String beforeNextWorksetMap = "Some Mapper";
+            final String beforeNextWorksetMap = "Some Mapper";
 
-			final String aggregatorName = "AggregatorName";
+            final String aggregatorName = "AggregatorName";
 
-			final int[] iterationKeys = new int[] {2};
-			final int numIterations = 13;
+            final int[] iterationKeys = new int[] {2};
+            final int numIterations = 13;
 
-			final int defaultParallelism = 133;
-			final int iterationParallelism = 77;
+            final int defaultParallelism = 133;
+            final int iterationParallelism = 77;
 
-			ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+            ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
-			// ------------ construct the test program ------------------
-			{
-				env.setParallelism(defaultParallelism);
+            // ------------ construct the test program ------------------
+            {
+                env.setParallelism(defaultParallelism);
 
-				@SuppressWarnings("unchecked")
-				DataSet<Tuple3<Double, Long, String>> initialSolutionSet = env.fromElements(new Tuple3<Double, Long, String>(3.44, 5L, "abc"));
+                @SuppressWarnings("unchecked")
+                DataSet<Tuple3<Double, Long, String>> initialSolutionSet =
+                        env.fromElements(new Tuple3<>(3.44, 5L, "abc"));
 
-				@SuppressWarnings("unchecked")
-				DataSet<Tuple2<Double, String>> initialWorkSet = env.fromElements(new Tuple2<Double, String>(1.23, "abc"));
+                @SuppressWarnings("unchecked")
+                DataSet<Tuple2<Double, String>> initialWorkSet =
+                        env.fromElements(new Tuple2<>(1.23, "abc"));
 
-				DeltaIteration<Tuple3<Double, Long, String>, Tuple2<Double, String>> iteration = initialSolutionSet.iterateDelta(initialWorkSet, numIterations, iterationKeys);
-				iteration.name(iterationName).parallelism(iterationParallelism);
+                DeltaIteration<Tuple3<Double, Long, String>, Tuple2<Double, String>> iteration =
+                        initialSolutionSet.iterateDelta(
+                                initialWorkSet, numIterations, iterationKeys);
+                iteration.name(iterationName).parallelism(iterationParallelism);
 
-				iteration.registerAggregator(aggregatorName, new LongSumAggregator());
+                iteration.registerAggregator(aggregatorName, new LongSumAggregator());
 
-				// test that multiple workset consumers are supported
-				DataSet<Tuple2<Double, String>> worksetSelfJoin =
-					iteration.getWorkset()
-						.map(new IdentityMapper<Tuple2<Double, String>>())
-						.join(iteration.getWorkset()).where(1).equalTo(1).projectFirst(0, 1);
+                // test that multiple workset consumers are supported
+                DataSet<Tuple2<Double, String>> worksetSelfJoin =
+                        iteration
+                                .getWorkset()
+                                .map(new IdentityMapper<Tuple2<Double, String>>())
+                                .join(iteration.getWorkset())
+                                .where(1)
+                                .equalTo(1)
+                                .projectFirst(0, 1);
 
-				DataSet<Tuple3<Double, Long, String>> joined = worksetSelfJoin.join(iteration.getSolutionSet()).where(1).equalTo(2).with(new SolutionWorksetJoin());
+                DataSet<Tuple3<Double, Long, String>> joined =
+                        worksetSelfJoin
+                                .join(iteration.getSolutionSet())
+                                .where(1)
+                                .equalTo(2)
+                                .with(new SolutionWorksetJoin());
 
-				DataSet<Tuple3<Double, Long, String>> result = iteration.closeWith(
-						joined,
-						joined.map(new NextWorksetMapper()).name(beforeNextWorksetMap));
+                DataSet<Tuple3<Double, Long, String>> result =
+                        iteration.closeWith(
+                                joined,
+                                joined.map(new NextWorksetMapper()).name(beforeNextWorksetMap));
 
-				result.output(new DiscardingOutputFormat<Tuple3<Double, Long, String>>());
-				result.writeAsText("/dev/null");
-			}
+                result.output(new DiscardingOutputFormat<>());
+                result.writeAsText("/dev/null");
+            }
 
-			Plan p = env.createProgramPlan(jobName);
+            Plan p = env.createProgramPlan(jobName);
 
-			// ------------- validate the plan ----------------
-			assertEquals(jobName, p.getJobName());
-			assertEquals(defaultParallelism, p.getDefaultParallelism());
+            // ------------- validate the plan ----------------
+            assertThat(p.getJobName()).isEqualTo(jobName);
+            assertThat(p.getDefaultParallelism()).isEqualTo(defaultParallelism);
 
-			// validate the iteration
-			GenericDataSinkBase<?> sink1, sink2;
-			{
-				Iterator<? extends GenericDataSinkBase<?>> sinks = p.getDataSinks().iterator();
-				sink1 = sinks.next();
-				sink2 = sinks.next();
-			}
+            // validate the iteration
+            GenericDataSinkBase<?> sink1, sink2;
+            {
+                Iterator<? extends GenericDataSinkBase<?>> sinks = p.getDataSinks().iterator();
+                sink1 = sinks.next();
+                sink2 = sinks.next();
+            }
 
-			DeltaIterationBase<?, ?> iteration = (DeltaIterationBase<?, ?>) sink1.getInput();
+            DeltaIterationBase<?, ?> iteration = (DeltaIterationBase<?, ?>) sink1.getInput();
 
-			// check that multi consumer translation works for iterations
-			assertEquals(iteration, sink2.getInput());
+            // check that multi consumer translation works for iterations
+            assertThat(sink2.getInput()).isEqualTo(iteration);
 
-			// check the basic iteration properties
-			assertEquals(numIterations, iteration.getMaximumNumberOfIterations());
-			assertArrayEquals(iterationKeys, iteration.getSolutionSetKeyFields());
-			assertEquals(iterationParallelism, iteration.getParallelism());
-			assertEquals(iterationName, iteration.getName());
+            // check the basic iteration properties
+            assertThat(iteration.getMaximumNumberOfIterations()).isEqualTo(numIterations);
+            assertThat(iteration.getSolutionSetKeyFields()).containsExactly(iterationKeys);
+            assertThat(iteration.getParallelism()).isEqualTo(iterationParallelism);
+            assertThat(iteration.getName()).isEqualTo(iterationName);
 
-			MapOperatorBase<?, ?, ?> nextWorksetMapper = (MapOperatorBase<?, ?, ?>) iteration.getNextWorkset();
-			InnerJoinOperatorBase<?, ?, ?, ?> solutionSetJoin = (InnerJoinOperatorBase<?, ?, ?, ?>) iteration.getSolutionSetDelta();
-			InnerJoinOperatorBase<?, ?, ?, ?> worksetSelfJoin = (InnerJoinOperatorBase<?, ?, ?, ?>) solutionSetJoin.getFirstInput();
-			MapOperatorBase<?, ?, ?> worksetMapper = (MapOperatorBase<?, ?, ?>) worksetSelfJoin.getFirstInput();
+            MapOperatorBase<?, ?, ?> nextWorksetMapper =
+                    (MapOperatorBase<?, ?, ?>) iteration.getNextWorkset();
+            InnerJoinOperatorBase<?, ?, ?, ?> solutionSetJoin =
+                    (InnerJoinOperatorBase<?, ?, ?, ?>) iteration.getSolutionSetDelta();
+            InnerJoinOperatorBase<?, ?, ?, ?> worksetSelfJoin =
+                    (InnerJoinOperatorBase<?, ?, ?, ?>) solutionSetJoin.getFirstInput();
+            MapOperatorBase<?, ?, ?> worksetMapper =
+                    (MapOperatorBase<?, ?, ?>) worksetSelfJoin.getFirstInput();
 
-			assertEquals(IdentityMapper.class, worksetMapper.getUserCodeWrapper().getUserCodeClass());
-			assertEquals(NextWorksetMapper.class, nextWorksetMapper.getUserCodeWrapper().getUserCodeClass());
-			if (solutionSetJoin.getUserCodeWrapper().getUserCodeObject() instanceof WrappingFunction) {
-				WrappingFunction<?> wf = (WrappingFunction<?>) solutionSetJoin.getUserCodeWrapper().getUserCodeObject();
-				assertEquals(SolutionWorksetJoin.class, wf.getWrappedFunction().getClass());
-			}
-			else {
-				assertEquals(SolutionWorksetJoin.class, solutionSetJoin.getUserCodeWrapper().getUserCodeClass());
-			}
+            assertThat(worksetMapper.getUserCodeWrapper().getUserCodeClass())
+                    .isEqualTo(IdentityMapper.class);
+            assertThat(nextWorksetMapper.getUserCodeWrapper().getUserCodeClass())
+                    .isEqualTo(NextWorksetMapper.class);
+            if (solutionSetJoin.getUserCodeWrapper().getUserCodeObject()
+                    instanceof WrappingFunction) {
+                WrappingFunction<?> wf =
+                        (WrappingFunction<?>)
+                                solutionSetJoin.getUserCodeWrapper().getUserCodeObject();
+                assertThat(wf.getWrappedFunction().getClass()).isEqualTo(SolutionWorksetJoin.class);
+            } else {
+                assertThat(solutionSetJoin.getUserCodeWrapper().getUserCodeClass())
+                        .isEqualTo(SolutionWorksetJoin.class);
+            }
 
-			assertEquals(beforeNextWorksetMap, nextWorksetMapper.getName());
+            assertThat(nextWorksetMapper.getName()).isEqualTo(beforeNextWorksetMap);
 
-			assertEquals(aggregatorName, iteration.getAggregators().getAllRegisteredAggregators().iterator().next().getName());
-		}
-		catch (Exception e) {
-			System.err.println(e.getMessage());
-			e.printStackTrace();
-			fail(e.getMessage());
-		}
-	}
+            assertThat(
+                            iteration
+                                    .getAggregators()
+                                    .getAllRegisteredAggregators()
+                                    .iterator()
+                                    .next()
+                                    .getName())
+                    .isEqualTo(aggregatorName);
+        } catch (Exception e) {
+            System.err.println(e.getMessage());
+            e.printStackTrace();
+            fail(e.getMessage());
+        }
+    }
 
-	@Test
-	public void testRejectWhenSolutionSetKeysDontMatchJoin() {
-		try {
-			ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+    @Test
+    void testRejectWhenSolutionSetKeysDontMatchJoin() {
+        try {
+            ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
-			@SuppressWarnings("unchecked")
-			DataSet<Tuple3<Double, Long, String>> initialSolutionSet = env.fromElements(new Tuple3<Double, Long, String>(3.44, 5L, "abc"));
+            @SuppressWarnings("unchecked")
+            DataSet<Tuple3<Double, Long, String>> initialSolutionSet =
+                    env.fromElements(new Tuple3<Double, Long, String>(3.44, 5L, "abc"));
 
-			@SuppressWarnings("unchecked")
-			DataSet<Tuple2<Double, String>> initialWorkSet = env.fromElements(new Tuple2<Double, String>(1.23, "abc"));
+            @SuppressWarnings("unchecked")
+            DataSet<Tuple2<Double, String>> initialWorkSet =
+                    env.fromElements(new Tuple2<Double, String>(1.23, "abc"));
 
-			DeltaIteration<Tuple3<Double, Long, String>, Tuple2<Double, String>> iteration = initialSolutionSet.iterateDelta(initialWorkSet, 10, 1);
+            DeltaIteration<Tuple3<Double, Long, String>, Tuple2<Double, String>> iteration =
+                    initialSolutionSet.iterateDelta(initialWorkSet, 10, 1);
 
-			try {
-				iteration.getWorkset().join(iteration.getSolutionSet()).where(1).equalTo(2);
-				fail("Accepted invalid program.");
-			}
-			catch (InvalidProgramException e) {
-				// all good!
-			}
+            try {
+                iteration.getWorkset().join(iteration.getSolutionSet()).where(1).equalTo(2);
+                fail("Accepted invalid program.");
+            } catch (InvalidProgramException e) {
+                // all good!
+            }
 
-			try {
-				iteration.getSolutionSet().join(iteration.getWorkset()).where(2).equalTo(1);
-				fail("Accepted invalid program.");
-			}
-			catch (InvalidProgramException e) {
-				// all good!
-			}
-		}
-		catch (Exception e) {
-			System.err.println(e.getMessage());
-			e.printStackTrace();
-			fail(e.getMessage());
-		}
-	}
+            try {
+                iteration.getSolutionSet().join(iteration.getWorkset()).where(2).equalTo(1);
+                fail("Accepted invalid program.");
+            } catch (InvalidProgramException e) {
+                // all good!
+            }
+        } catch (Exception e) {
+            System.err.println(e.getMessage());
+            e.printStackTrace();
+            fail(e.getMessage());
+        }
+    }
 
-	@Test
-	public void testRejectWhenSolutionSetKeysDontMatchCoGroup() {
-		try {
-			ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+    @Test
+    void testRejectWhenSolutionSetKeysDontMatchCoGroup() {
+        try {
+            ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
-			@SuppressWarnings("unchecked")
-			DataSet<Tuple3<Double, Long, String>> initialSolutionSet = env.fromElements(new Tuple3<Double, Long, String>(3.44, 5L, "abc"));
+            @SuppressWarnings("unchecked")
+            DataSet<Tuple3<Double, Long, String>> initialSolutionSet =
+                    env.fromElements(new Tuple3<Double, Long, String>(3.44, 5L, "abc"));
 
-			@SuppressWarnings("unchecked")
-			DataSet<Tuple2<Double, String>> initialWorkSet = env.fromElements(new Tuple2<Double, String>(1.23, "abc"));
+            @SuppressWarnings("unchecked")
+            DataSet<Tuple2<Double, String>> initialWorkSet =
+                    env.fromElements(new Tuple2<Double, String>(1.23, "abc"));
 
-			DeltaIteration<Tuple3<Double, Long, String>, Tuple2<Double, String>> iteration = initialSolutionSet.iterateDelta(initialWorkSet, 10, 1);
+            DeltaIteration<Tuple3<Double, Long, String>, Tuple2<Double, String>> iteration =
+                    initialSolutionSet.iterateDelta(initialWorkSet, 10, 1);
 
-			try {
-				iteration.getWorkset().coGroup(iteration.getSolutionSet()).where(1).equalTo(2).with(new SolutionWorksetCoGroup1());
-				fail("Accepted invalid program.");
-			}
-			catch (InvalidProgramException e) {
-				// all good!
-			}
+            try {
+                iteration
+                        .getWorkset()
+                        .coGroup(iteration.getSolutionSet())
+                        .where(1)
+                        .equalTo(2)
+                        .with(new SolutionWorksetCoGroup1());
+                fail("Accepted invalid program.");
+            } catch (InvalidProgramException e) {
+                // all good!
+            }
 
-			try {
-				iteration.getSolutionSet().coGroup(iteration.getWorkset()).where(2).equalTo(1).with(new SolutionWorksetCoGroup2());
-				fail("Accepted invalid program.");
-			}
-			catch (InvalidProgramException e) {
-				// all good!
-			}
-		}
-		catch (Exception e) {
-			System.err.println(e.getMessage());
-			e.printStackTrace();
-			fail(e.getMessage());
-		}
-	}
+            try {
+                iteration
+                        .getSolutionSet()
+                        .coGroup(iteration.getWorkset())
+                        .where(2)
+                        .equalTo(1)
+                        .with(new SolutionWorksetCoGroup2());
+                fail("Accepted invalid program.");
+            } catch (InvalidProgramException e) {
+                // all good!
+            }
+        } catch (Exception e) {
+            System.err.println(e.getMessage());
+            e.printStackTrace();
+            fail(e.getMessage());
+        }
+    }
 
-	// --------------------------------------------------------------------------------------------
+    // --------------------------------------------------------------------------------------------
 
-	private static class SolutionWorksetJoin extends RichJoinFunction<Tuple2<Double, String>, Tuple3<Double, Long, String>, Tuple3<Double, Long, String>> {
-		@Override
-		public Tuple3<Double, Long, String> join(Tuple2<Double, String> first, Tuple3<Double, Long, String> second){
-			return null;
-		}
-	}
+    private static class SolutionWorksetJoin
+            extends RichJoinFunction<
+                    Tuple2<Double, String>,
+                    Tuple3<Double, Long, String>,
+                    Tuple3<Double, Long, String>> {
+        @Override
+        public Tuple3<Double, Long, String> join(
+                Tuple2<Double, String> first, Tuple3<Double, Long, String> second) {
+            return null;
+        }
+    }
 
-	private static class NextWorksetMapper extends RichMapFunction<Tuple3<Double, Long, String>, Tuple2<Double, String>> {
-		@Override
-		public Tuple2<Double, String> map(Tuple3<Double, Long, String> value) {
-			return null;
-		}
-	}
+    private static class NextWorksetMapper
+            extends RichMapFunction<Tuple3<Double, Long, String>, Tuple2<Double, String>> {
+        @Override
+        public Tuple2<Double, String> map(Tuple3<Double, Long, String> value) {
+            return null;
+        }
+    }
 
-	private static class IdentityMapper<T> extends RichMapFunction<T, T> {
+    private static class IdentityMapper<T> extends RichMapFunction<T, T> {
 
-		@Override
-		public T map(T value) throws Exception {
-			return value;
-		}
-	}
+        @Override
+        public T map(T value) throws Exception {
+            return value;
+        }
+    }
 
-	private static class SolutionWorksetCoGroup1 extends RichCoGroupFunction<Tuple2<Double, String>, Tuple3<Double, Long, String>, Tuple3<Double, Long, String>> {
+    private static class SolutionWorksetCoGroup1
+            extends RichCoGroupFunction<
+                    Tuple2<Double, String>,
+                    Tuple3<Double, Long, String>,
+                    Tuple3<Double, Long, String>> {
 
-		@Override
-		public void coGroup(Iterable<Tuple2<Double, String>> first, Iterable<Tuple3<Double, Long, String>> second,
-				Collector<Tuple3<Double, Long, String>> out) {
-		}
-	}
+        @Override
+        public void coGroup(
+                Iterable<Tuple2<Double, String>> first,
+                Iterable<Tuple3<Double, Long, String>> second,
+                Collector<Tuple3<Double, Long, String>> out) {}
+    }
 
-	private static class SolutionWorksetCoGroup2 extends RichCoGroupFunction<Tuple3<Double, Long, String>, Tuple2<Double, String>, Tuple3<Double, Long, String>> {
+    private static class SolutionWorksetCoGroup2
+            extends RichCoGroupFunction<
+                    Tuple3<Double, Long, String>,
+                    Tuple2<Double, String>,
+                    Tuple3<Double, Long, String>> {
 
-		@Override
-		public void coGroup(Iterable<Tuple3<Double, Long, String>> second, Iterable<Tuple2<Double, String>> first,
-				Collector<Tuple3<Double, Long, String>> out) {
-		}
-	}
+        @Override
+        public void coGroup(
+                Iterable<Tuple3<Double, Long, String>> second,
+                Iterable<Tuple2<Double, String>> first,
+                Collector<Tuple3<Double, Long, String>> out) {}
+    }
 }

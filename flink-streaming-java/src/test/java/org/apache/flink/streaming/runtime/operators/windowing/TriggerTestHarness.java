@@ -53,352 +53,355 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 
-/**
- * Utility for testing {@link Trigger} behaviour.
- */
+/** Utility for testing {@link Trigger} behaviour. */
 public class TriggerTestHarness<T, W extends Window> {
 
-	private static final Integer KEY = 1;
+    private static final Integer KEY = 1;
 
-	private final Trigger<T, W> trigger;
-	private final TypeSerializer<W> windowSerializer;
+    private final Trigger<T, W> trigger;
+    private final TypeSerializer<W> windowSerializer;
 
-	private final HeapKeyedStateBackend<Integer> stateBackend;
-	private final TestInternalTimerService<Integer, W> internalTimerService;
+    private final HeapKeyedStateBackend<Integer> stateBackend;
+    private final TestInternalTimerService<Integer, W> internalTimerService;
 
-	public TriggerTestHarness(
-			Trigger<T, W> trigger,
-			TypeSerializer<W> windowSerializer) throws Exception {
-		this.trigger = trigger;
-		this.windowSerializer = windowSerializer;
+    public TriggerTestHarness(Trigger<T, W> trigger, TypeSerializer<W> windowSerializer)
+            throws Exception {
+        this.trigger = trigger;
+        this.windowSerializer = windowSerializer;
 
-		// we only ever use one key, other tests make sure that windows work across different
-		// keys
-		DummyEnvironment dummyEnv = new DummyEnvironment("test", 1, 0);
-		MemoryStateBackend backend = new MemoryStateBackend();
+        // we only ever use one key, other tests make sure that windows work across different
+        // keys
+        DummyEnvironment dummyEnv = new DummyEnvironment("test", 1, 0);
+        MemoryStateBackend backend = new MemoryStateBackend();
 
-		@SuppressWarnings("unchecked")
-		HeapKeyedStateBackend<Integer> stateBackend = (HeapKeyedStateBackend<Integer>) backend.createKeyedStateBackend(
-			dummyEnv,
-			new JobID(),
-			"test_op",
-			IntSerializer.INSTANCE,
-			1,
-			new KeyGroupRange(0, 0),
-			new KvStateRegistry().createTaskRegistry(new JobID(), new JobVertexID()),
-			TtlTimeProvider.DEFAULT,
-			new UnregisteredMetricsGroup(),
-			Collections.emptyList(),
-			new CloseableRegistry());
-		this.stateBackend = stateBackend;
+        @SuppressWarnings("unchecked")
+        HeapKeyedStateBackend<Integer> stateBackend =
+                (HeapKeyedStateBackend<Integer>)
+                        backend.createKeyedStateBackend(
+                                dummyEnv,
+                                new JobID(),
+                                "test_op",
+                                IntSerializer.INSTANCE,
+                                1,
+                                new KeyGroupRange(0, 0),
+                                new KvStateRegistry()
+                                        .createTaskRegistry(new JobID(), new JobVertexID()),
+                                TtlTimeProvider.DEFAULT,
+                                new UnregisteredMetricsGroup(),
+                                Collections.emptyList(),
+                                new CloseableRegistry());
+        this.stateBackend = stateBackend;
 
-		this.stateBackend.setCurrentKey(KEY);
+        this.stateBackend.setCurrentKey(KEY);
 
-		this.internalTimerService = new TestInternalTimerService<>(new KeyContext() {
-			@Override
-			public void setCurrentKey(Object key) {
-				// ignore
-			}
+        this.internalTimerService =
+                new TestInternalTimerService<>(
+                        new KeyContext() {
+                            @Override
+                            public void setCurrentKey(Object key) {
+                                // ignore
+                            }
 
-			@Override
-			public Object getCurrentKey() {
-				return KEY;
-			}
-		});
-	}
+                            @Override
+                            public Object getCurrentKey() {
+                                return KEY;
+                            }
+                        });
+    }
 
-	public int numProcessingTimeTimers() {
-		return internalTimerService.numProcessingTimeTimers();
-	}
+    public int numProcessingTimeTimers() {
+        return internalTimerService.numProcessingTimeTimers();
+    }
 
-	public int numProcessingTimeTimers(W window) {
-		return internalTimerService.numProcessingTimeTimers(window);
-	}
+    public int numProcessingTimeTimers(W window) {
+        return internalTimerService.numProcessingTimeTimers(window);
+    }
 
-	public int numEventTimeTimers() {
-		return internalTimerService.numEventTimeTimers();
-	}
+    public int numEventTimeTimers() {
+        return internalTimerService.numEventTimeTimers();
+    }
 
-	public int numEventTimeTimers(W window) {
-		return internalTimerService.numEventTimeTimers(window);
-	}
+    public int numEventTimeTimers(W window) {
+        return internalTimerService.numEventTimeTimers(window);
+    }
 
-	public int numStateEntries() {
-		return stateBackend.numKeyValueStateEntries();
-	}
+    public int numStateEntries() {
+        return stateBackend.numKeyValueStateEntries();
+    }
 
-	public int numStateEntries(W window) {
-		return stateBackend.numKeyValueStateEntries(window);
-	}
+    public int numStateEntries(W window) {
+        return stateBackend.numKeyValueStateEntries(window);
+    }
 
-	/**
-	 * Injects one element into the trigger for the given window and returns the result of
-	 * {@link Trigger#onElement(Object, long, Window, Trigger.TriggerContext)}.
-	 */
-	public TriggerResult processElement(StreamRecord<T> element, W window) throws Exception {
-		TestTriggerContext<Integer, W> triggerContext = new TestTriggerContext<>(
-				KEY,
-				window,
-				internalTimerService,
-				stateBackend,
-				windowSerializer);
-		return trigger.onElement(element.getValue(), element.getTimestamp(), window, triggerContext);
-	}
+    /**
+     * Injects one element into the trigger for the given window and returns the result of {@link
+     * Trigger#onElement(Object, long, Window, Trigger.TriggerContext)}.
+     */
+    public TriggerResult processElement(StreamRecord<T> element, W window) throws Exception {
+        TestTriggerContext<Integer, W> triggerContext =
+                new TestTriggerContext<>(
+                        KEY, window, internalTimerService, stateBackend, windowSerializer);
+        return trigger.onElement(
+                element.getValue(), element.getTimestamp(), window, triggerContext);
+    }
 
-	/**
-	 * Advanced processing time and checks whether we have exactly one firing for the given
-	 * window. The result of {@link Trigger#onProcessingTime(long, Window, Trigger.TriggerContext)}
-	 * is returned for that firing.
-	 */
-	public TriggerResult advanceProcessingTime(long time, W window) throws Exception {
-		Collection<Tuple2<W, TriggerResult>> firings = advanceProcessingTime(time);
+    /**
+     * Advanced processing time and checks whether we have exactly one firing for the given window.
+     * The result of {@link Trigger#onProcessingTime(long, Window, Trigger.TriggerContext)} is
+     * returned for that firing.
+     */
+    public TriggerResult advanceProcessingTime(long time, W window) throws Exception {
+        Collection<Tuple2<W, TriggerResult>> firings = advanceProcessingTime(time);
 
-		if (firings.size() != 1) {
-			throw new IllegalStateException("Must have exactly one timer firing. Fired timers: " + firings);
-		}
+        if (firings.size() != 1) {
+            throw new IllegalStateException(
+                    "Must have exactly one timer firing. Fired timers: " + firings);
+        }
 
-		Tuple2<W, TriggerResult> firing = firings.iterator().next();
+        Tuple2<W, TriggerResult> firing = firings.iterator().next();
 
-		if (!firing.f0.equals(window)) {
-			throw new IllegalStateException("Trigger fired for another window.");
-		}
+        if (!firing.f0.equals(window)) {
+            throw new IllegalStateException("Trigger fired for another window.");
+        }
 
-		return firing.f1;
-	}
+        return firing.f1;
+    }
 
-	/**
-	 * Advanced the watermark and checks whether we have exactly one firing for the given
-	 * window. The result of {@link Trigger#onEventTime(long, Window, Trigger.TriggerContext)}
-	 * is returned for that firing.
-	 */
-	public TriggerResult advanceWatermark(long time, W window) throws Exception {
-		Collection<Tuple2<W, TriggerResult>> firings = advanceWatermark(time);
+    /**
+     * Advanced the watermark and checks whether we have exactly one firing for the given window.
+     * The result of {@link Trigger#onEventTime(long, Window, Trigger.TriggerContext)} is returned
+     * for that firing.
+     */
+    public TriggerResult advanceWatermark(long time, W window) throws Exception {
+        Collection<Tuple2<W, TriggerResult>> firings = advanceWatermark(time);
 
-		if (firings.size() != 1) {
-			throw new IllegalStateException("Must have exactly one timer firing. Fired timers: " + firings);
-		}
+        if (firings.size() != 1) {
+            throw new IllegalStateException(
+                    "Must have exactly one timer firing. Fired timers: " + firings);
+        }
 
-		Tuple2<W, TriggerResult> firing = firings.iterator().next();
+        Tuple2<W, TriggerResult> firing = firings.iterator().next();
 
-		if (!firing.f0.equals(window)) {
-			throw new IllegalStateException("Trigger fired for another window.");
-		}
+        if (!firing.f0.equals(window)) {
+            throw new IllegalStateException("Trigger fired for another window.");
+        }
 
-		return firing.f1;
-	}
+        return firing.f1;
+    }
 
-	/**
-	 * Advanced processing time and processes any timers that fire because of this. The
-	 * window and {@link TriggerResult} for each firing are returned.
-	 */
-	public Collection<Tuple2<W, TriggerResult>> advanceProcessingTime(long time) throws Exception {
-		Collection<TestInternalTimerService.Timer<Integer, W>> firedTimers =
-				internalTimerService.advanceProcessingTime(time);
+    /**
+     * Advanced processing time and processes any timers that fire because of this. The window and
+     * {@link TriggerResult} for each firing are returned.
+     */
+    public Collection<Tuple2<W, TriggerResult>> advanceProcessingTime(long time) throws Exception {
+        Collection<TestInternalTimerService.Timer<Integer, W>> firedTimers =
+                internalTimerService.advanceProcessingTime(time);
 
-		Collection<Tuple2<W, TriggerResult>> result = new ArrayList<>();
+        Collection<Tuple2<W, TriggerResult>> result = new ArrayList<>();
 
-		for (TestInternalTimerService.Timer<Integer, W> timer : firedTimers) {
-			TestTriggerContext<Integer, W> triggerContext = new TestTriggerContext<>(
-					KEY,
-					timer.getNamespace(),
-					internalTimerService,
-					stateBackend,
-					windowSerializer);
+        for (TestInternalTimerService.Timer<Integer, W> timer : firedTimers) {
+            TestTriggerContext<Integer, W> triggerContext =
+                    new TestTriggerContext<>(
+                            KEY,
+                            timer.getNamespace(),
+                            internalTimerService,
+                            stateBackend,
+                            windowSerializer);
 
-			TriggerResult triggerResult =
-					trigger.onProcessingTime(timer.getTimestamp(), timer.getNamespace(), triggerContext);
+            TriggerResult triggerResult =
+                    trigger.onProcessingTime(
+                            timer.getTimestamp(), timer.getNamespace(), triggerContext);
 
-			result.add(new Tuple2<>(timer.getNamespace(), triggerResult));
-		}
+            result.add(new Tuple2<>(timer.getNamespace(), triggerResult));
+        }
 
-		return result;
-	}
+        return result;
+    }
 
-	/**
-	 * Advanced the watermark and processes any timers that fire because of this. The
-	 * window and {@link TriggerResult} for each firing are returned.
-	 */
-	public Collection<Tuple2<W, TriggerResult>> advanceWatermark(long time) throws Exception {
-		Collection<TestInternalTimerService.Timer<Integer, W>> firedTimers =
-				internalTimerService.advanceWatermark(time);
+    /**
+     * Advanced the watermark and processes any timers that fire because of this. The window and
+     * {@link TriggerResult} for each firing are returned.
+     */
+    public Collection<Tuple2<W, TriggerResult>> advanceWatermark(long time) throws Exception {
+        Collection<TestInternalTimerService.Timer<Integer, W>> firedTimers =
+                internalTimerService.advanceWatermark(time);
 
-		Collection<Tuple2<W, TriggerResult>> result = new ArrayList<>();
+        Collection<Tuple2<W, TriggerResult>> result = new ArrayList<>();
 
-		for (TestInternalTimerService.Timer<Integer, W> timer : firedTimers) {
-			TriggerResult triggerResult = invokeOnEventTime(timer);
-			result.add(new Tuple2<>(timer.getNamespace(), triggerResult));
-		}
+        for (TestInternalTimerService.Timer<Integer, W> timer : firedTimers) {
+            TriggerResult triggerResult = invokeOnEventTime(timer);
+            result.add(new Tuple2<>(timer.getNamespace(), triggerResult));
+        }
 
-		return result;
-	}
+        return result;
+    }
 
-	private TriggerResult invokeOnEventTime(TestInternalTimerService.Timer<Integer, W> timer) throws Exception {
-		TestTriggerContext<Integer, W> triggerContext = new TestTriggerContext<>(
-				KEY,
-				timer.getNamespace(),
-				internalTimerService,
-				stateBackend,
-				windowSerializer);
+    private TriggerResult invokeOnEventTime(TestInternalTimerService.Timer<Integer, W> timer)
+            throws Exception {
+        TestTriggerContext<Integer, W> triggerContext =
+                new TestTriggerContext<>(
+                        KEY,
+                        timer.getNamespace(),
+                        internalTimerService,
+                        stateBackend,
+                        windowSerializer);
 
-		return trigger.onEventTime(timer.getTimestamp(), timer.getNamespace(), triggerContext);
-	}
+        return trigger.onEventTime(timer.getTimestamp(), timer.getNamespace(), triggerContext);
+    }
 
-	/**
-	 * Manually invoke {@link Trigger#onEventTime(long, Window, Trigger.TriggerContext)} with
-	 * the given parameters.
-	 */
-	public TriggerResult invokeOnEventTime(long timestamp, W window) throws Exception {
-		TestInternalTimerService.Timer<Integer, W> timer =
-				new TestInternalTimerService.Timer<>(timestamp, KEY, window);
+    /**
+     * Manually invoke {@link Trigger#onEventTime(long, Window, Trigger.TriggerContext)} with the
+     * given parameters.
+     */
+    public TriggerResult invokeOnEventTime(long timestamp, W window) throws Exception {
+        TestInternalTimerService.Timer<Integer, W> timer =
+                new TestInternalTimerService.Timer<>(timestamp, KEY, window);
 
-		return invokeOnEventTime(timer);
-	}
+        return invokeOnEventTime(timer);
+    }
 
-	/**
-	 * Calls {@link Trigger#onMerge(Window, Trigger.OnMergeContext)} with the given
-	 * parameters. This also calls {@link Trigger#clear(Window, Trigger.TriggerContext)} on the
-	 * merged windows as does {@link WindowOperator}.
-	 */
-	public void mergeWindows(W targetWindow, Collection<W> mergedWindows) throws Exception {
-		TestOnMergeContext<Integer, W> onMergeContext = new TestOnMergeContext<>(
-				KEY,
-				targetWindow,
-				mergedWindows,
-				internalTimerService,
-				stateBackend,
-				windowSerializer);
-		trigger.onMerge(targetWindow, onMergeContext);
+    /**
+     * Calls {@link Trigger#onMerge(Window, Trigger.OnMergeContext)} with the given parameters. This
+     * also calls {@link Trigger#clear(Window, Trigger.TriggerContext)} on the merged windows as
+     * does {@link WindowOperator}.
+     */
+    public void mergeWindows(W targetWindow, Collection<W> mergedWindows) throws Exception {
+        TestOnMergeContext<Integer, W> onMergeContext =
+                new TestOnMergeContext<>(
+                        KEY,
+                        targetWindow,
+                        mergedWindows,
+                        internalTimerService,
+                        stateBackend,
+                        windowSerializer);
+        trigger.onMerge(targetWindow, onMergeContext);
 
-		for (W mergedWindow : mergedWindows) {
-			clearTriggerState(mergedWindow);
-		}
-	}
+        for (W mergedWindow : mergedWindows) {
+            clearTriggerState(mergedWindow);
+        }
+    }
 
-	/**
-	 * Calls {@link Trigger#clear(Window, Trigger.TriggerContext)} for the given window.
-	 */
-	public void clearTriggerState(W window) throws Exception {
-		TestTriggerContext<Integer, W> triggerContext = new TestTriggerContext<>(
-				KEY,
-				window,
-				internalTimerService,
-				stateBackend,
-				windowSerializer);
-		trigger.clear(window, triggerContext);
-	}
+    /** Calls {@link Trigger#clear(Window, Trigger.TriggerContext)} for the given window. */
+    public void clearTriggerState(W window) throws Exception {
+        TestTriggerContext<Integer, W> triggerContext =
+                new TestTriggerContext<>(
+                        KEY, window, internalTimerService, stateBackend, windowSerializer);
+        trigger.clear(window, triggerContext);
+    }
 
-	private static class TestTriggerContext<K, W extends Window> implements Trigger.TriggerContext {
+    private static class TestTriggerContext<K, W extends Window> implements Trigger.TriggerContext {
 
-		protected final InternalTimerService<W> timerService;
-		protected final KeyedStateBackend<Integer> stateBackend;
-		protected final K key;
-		protected final W window;
-		protected final TypeSerializer<W> windowSerializer;
+        protected final InternalTimerService<W> timerService;
+        protected final KeyedStateBackend<Integer> stateBackend;
+        protected final K key;
+        protected final W window;
+        protected final TypeSerializer<W> windowSerializer;
 
-		TestTriggerContext(
-				K key,
-				W window,
-				InternalTimerService<W> timerService,
-				KeyedStateBackend<Integer> stateBackend,
-				TypeSerializer<W> windowSerializer) {
-			this.key = key;
-			this.window = window;
-			this.timerService = timerService;
-			this.stateBackend = stateBackend;
-			this.windowSerializer = windowSerializer;
-		}
+        TestTriggerContext(
+                K key,
+                W window,
+                InternalTimerService<W> timerService,
+                KeyedStateBackend<Integer> stateBackend,
+                TypeSerializer<W> windowSerializer) {
+            this.key = key;
+            this.window = window;
+            this.timerService = timerService;
+            this.stateBackend = stateBackend;
+            this.windowSerializer = windowSerializer;
+        }
 
-		@Override
-		public long getCurrentProcessingTime() {
-			return timerService.currentProcessingTime();
-		}
+        @Override
+        public long getCurrentProcessingTime() {
+            return timerService.currentProcessingTime();
+        }
 
-		@Override
-		public MetricGroup getMetricGroup() {
-			return null;
-		}
+        @Override
+        public MetricGroup getMetricGroup() {
+            return null;
+        }
 
-		@Override
-		public long getCurrentWatermark() {
-			return timerService.currentWatermark();
-		}
+        @Override
+        public long getCurrentWatermark() {
+            return timerService.currentWatermark();
+        }
 
-		@Override
-		public void registerProcessingTimeTimer(long time) {
-			timerService.registerProcessingTimeTimer(window, time);
-		}
+        @Override
+        public void registerProcessingTimeTimer(long time) {
+            timerService.registerProcessingTimeTimer(window, time);
+        }
 
-		@Override
-		public void registerEventTimeTimer(long time) {
-			timerService.registerEventTimeTimer(window, time);
-		}
+        @Override
+        public void registerEventTimeTimer(long time) {
+            timerService.registerEventTimeTimer(window, time);
+        }
 
-		@Override
-		public void deleteProcessingTimeTimer(long time) {
-			timerService.deleteProcessingTimeTimer(window, time);
-		}
+        @Override
+        public void deleteProcessingTimeTimer(long time) {
+            timerService.deleteProcessingTimeTimer(window, time);
+        }
 
-		@Override
-		public void deleteEventTimeTimer(long time) {
-			timerService.deleteEventTimeTimer(window, time);
-		}
+        @Override
+        public void deleteEventTimeTimer(long time) {
+            timerService.deleteEventTimeTimer(window, time);
+        }
 
-		@Override
-		public <S extends State> S getPartitionedState(StateDescriptor<S, ?> stateDescriptor) {
-			try {
-				return stateBackend.getPartitionedState(window, windowSerializer, stateDescriptor);
-			} catch (Exception e) {
-				throw new RuntimeException("Error getting state", e);
-			}
-		}
+        @Override
+        public <S extends State> S getPartitionedState(StateDescriptor<S, ?> stateDescriptor) {
+            try {
+                return stateBackend.getPartitionedState(window, windowSerializer, stateDescriptor);
+            } catch (Exception e) {
+                throw new RuntimeException("Error getting state", e);
+            }
+        }
 
-		@Override
-		public <S extends Serializable> ValueState<S> getKeyValueState(
-				String name, Class<S> stateType, S defaultState) {
-			return getPartitionedState(new ValueStateDescriptor<>(name, stateType, defaultState));
-		}
+        @Override
+        public <S extends Serializable> ValueState<S> getKeyValueState(
+                String name, Class<S> stateType, S defaultState) {
+            return getPartitionedState(new ValueStateDescriptor<>(name, stateType, defaultState));
+        }
 
-		@Override
-		public <S extends Serializable> ValueState<S> getKeyValueState(
-				String name, TypeInformation<S> stateType, S defaultState) {
-			return getPartitionedState(new ValueStateDescriptor<>(name, stateType, defaultState));
-		}
-	}
+        @Override
+        public <S extends Serializable> ValueState<S> getKeyValueState(
+                String name, TypeInformation<S> stateType, S defaultState) {
+            return getPartitionedState(new ValueStateDescriptor<>(name, stateType, defaultState));
+        }
+    }
 
-	private static class TestOnMergeContext<K, W extends Window> extends TestTriggerContext<K, W> implements Trigger.OnMergeContext {
+    private static class TestOnMergeContext<K, W extends Window> extends TestTriggerContext<K, W>
+            implements Trigger.OnMergeContext {
 
-		private final Collection<W> mergedWindows;
+        private final Collection<W> mergedWindows;
 
-		public TestOnMergeContext(
-				K key,
-				W targetWindow,
-				Collection<W> mergedWindows,
-				InternalTimerService<W> timerService,
-				KeyedStateBackend<Integer> stateBackend,
-				TypeSerializer<W> windowSerializer) {
-			super(key, targetWindow, timerService, stateBackend, windowSerializer);
+        public TestOnMergeContext(
+                K key,
+                W targetWindow,
+                Collection<W> mergedWindows,
+                InternalTimerService<W> timerService,
+                KeyedStateBackend<Integer> stateBackend,
+                TypeSerializer<W> windowSerializer) {
+            super(key, targetWindow, timerService, stateBackend, windowSerializer);
 
-			this.mergedWindows = mergedWindows;
-		}
+            this.mergedWindows = mergedWindows;
+        }
 
-		@Override
-		public <S extends MergingState<?, ?>> void mergePartitionedState(StateDescriptor<S, ?> stateDescriptor) {
-			try {
-				S rawState = stateBackend.getOrCreateKeyedState(windowSerializer, stateDescriptor);
+        @Override
+        public <S extends MergingState<?, ?>> void mergePartitionedState(
+                StateDescriptor<S, ?> stateDescriptor) {
+            try {
+                S rawState = stateBackend.getOrCreateKeyedState(windowSerializer, stateDescriptor);
 
-				if (rawState instanceof InternalMergingState) {
-					@SuppressWarnings("unchecked")
-					InternalMergingState<K, W, ?, ?, ?> mergingState = (InternalMergingState<K, W, ?, ?, ?>) rawState;
-					mergingState.mergeNamespaces(window, mergedWindows);
-				}
-				else {
-					throw new IllegalArgumentException(
-							"The given state descriptor does not refer to a mergeable state (MergingState)");
-				}
-			}
-			catch (Exception e) {
-				throw new RuntimeException("Error while merging state.", e);
-			}
-		}
-	}
+                if (rawState instanceof InternalMergingState) {
+                    @SuppressWarnings("unchecked")
+                    InternalMergingState<K, W, ?, ?, ?> mergingState =
+                            (InternalMergingState<K, W, ?, ?, ?>) rawState;
+                    mergingState.mergeNamespaces(window, mergedWindows);
+                } else {
+                    throw new IllegalArgumentException(
+                            "The given state descriptor does not refer to a mergeable state (MergingState)");
+                }
+            } catch (Exception e) {
+                throw new RuntimeException("Error while merging state.", e);
+            }
+        }
+    }
 }

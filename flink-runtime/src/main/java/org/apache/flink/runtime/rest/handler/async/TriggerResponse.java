@@ -25,22 +25,19 @@ import org.apache.flink.util.Preconditions;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
 
-/**
- * Response to the triggering of an asynchronous operation.
- */
+/** Response to the triggering of an asynchronous operation. */
 public class TriggerResponse implements ResponseBody {
-	private static final String FIELD_NAME_REQUEST_ID = "request-id";
+    private static final String FIELD_NAME_REQUEST_ID = "request-id";
 
-	@JsonProperty(FIELD_NAME_REQUEST_ID)
-	private final TriggerId triggerId;
+    @JsonProperty(FIELD_NAME_REQUEST_ID)
+    private final TriggerId triggerId;
 
-	@JsonCreator
-	public TriggerResponse(
-			@JsonProperty(FIELD_NAME_REQUEST_ID) TriggerId triggerId) {
-		this.triggerId = Preconditions.checkNotNull(triggerId);
-	}
+    @JsonCreator
+    public TriggerResponse(@JsonProperty(FIELD_NAME_REQUEST_ID) TriggerId triggerId) {
+        this.triggerId = Preconditions.checkNotNull(triggerId);
+    }
 
-	public TriggerId getTriggerId() {
-		return triggerId;
-	}
+    public TriggerId getTriggerId() {
+        return triggerId;
+    }
 }

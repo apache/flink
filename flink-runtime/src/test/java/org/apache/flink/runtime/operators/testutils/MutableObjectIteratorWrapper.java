@@ -18,44 +18,39 @@
 
 package org.apache.flink.runtime.operators.testutils;
 
-import java.io.IOException;
-import java.util.Iterator;
-
 import org.apache.flink.types.Record;
 import org.apache.flink.util.MutableObjectIterator;
 
-/**
- *
- */
+import java.io.IOException;
+import java.util.Iterator;
+
+/** */
 public class MutableObjectIteratorWrapper implements MutableObjectIterator<Record> {
-	
-	private final Iterator<Record> source;
-	
-	public MutableObjectIteratorWrapper(Iterator<Record> source) {
-		this.source = source;
-	}
 
+    private final Iterator<Record> source;
 
-	@Override
-	public Record next(Record reuse) throws IOException {
-		if (this.source.hasNext()) {
-			return this.source.next();
-		}
-		else {
-			return null;
-		}
-	}
+    public MutableObjectIteratorWrapper(Iterator<Record> source) {
+        this.source = source;
+    }
 
-	@Override
-	public Record next() throws IOException {
-		// copy to be on the safe side
-		if (this.source.hasNext()) {
-			Record result = new Record();
-			this.source.next().copyTo(result);
-			return result;
-		}
-		else {
-			return null;
-		}
-	}
+    @Override
+    public Record next(Record reuse) throws IOException {
+        if (this.source.hasNext()) {
+            return this.source.next();
+        } else {
+            return null;
+        }
+    }
+
+    @Override
+    public Record next() throws IOException {
+        // copy to be on the safe side
+        if (this.source.hasNext()) {
+            Record result = new Record();
+            this.source.next().copyTo(result);
+            return result;
+        } else {
+            return null;
+        }
+    }
 }

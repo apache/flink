@@ -19,13 +19,12 @@
 package org.apache.flink.core.testutils;
 
 /**
- * A utility to help synchronize two threads in cases where one of them is supposed to reach
- * a blocking state before the other may continue.
+ * A utility to help synchronize two threads in cases where one of them is supposed to reach a
+ * blocking state before the other may continue.
  *
  * <p>Use as follows:
- * <pre>
- * {@code
  *
+ * <pre>{@code
  * final BlockerSync sync = new BlockerSync();
  *
  * // thread to be blocked
@@ -40,68 +39,66 @@ package org.apache.flink.core.testutils;
  *
  * // do stuff that requires the other thread to still hold the resource
  * sync.releaseBlocker();
- * }
- * </pre>
+ * }</pre>
  */
 public class BlockerSync {
 
-	private final Object lock = new Object();
+    private final Object lock = new Object();
 
-	private boolean blockerReady;
+    private boolean blockerReady;
 
-	private boolean blockerReleased;
+    private boolean blockerReleased;
 
-	/**
-	 * Waits until the blocking thread has entered the method {@link #block()}
-	 * or {@link #blockNonInterruptible()}.
-	 */
-	public void awaitBlocker() throws InterruptedException {
-		synchronized (lock) {
-			while (!blockerReady) {
-				lock.wait();
-			}
-		}
-	}
+    /**
+     * Waits until the blocking thread has entered the method {@link #block()} or {@link
+     * #blockNonInterruptible()}.
+     */
+    public void awaitBlocker() throws InterruptedException {
+        synchronized (lock) {
+            while (!blockerReady) {
+                lock.wait();
+            }
+        }
+    }
 
-	/**
-	 * Blocks until {@link #releaseBlocker()} is called or this thread is interrupted.
-	 * Notifies the awaiting thread that waits in the method {@link #awaitBlocker()}.
-	 */
-	public void block() throws InterruptedException {
-		synchronized (lock) {
-			blockerReady = true;
-			lock.notifyAll();
+    /**
+     * Blocks until {@link #releaseBlocker()} is called or this thread is interrupted. Notifies the
+     * awaiting thread that waits in the method {@link #awaitBlocker()}.
+     */
+    public void block() throws InterruptedException {
+        synchronized (lock) {
+            blockerReady = true;
+            lock.notifyAll();
 
-			while (!blockerReleased) {
-				lock.wait();
-			}
-		}
-	}
+            while (!blockerReleased) {
+                lock.wait();
+            }
+        }
+    }
 
-	/**
-	 * Blocks until {@link #releaseBlocker()} is called.
-	 * Notifies the awaiting thread that waits in the method {@link #awaitBlocker()}.
-	 */
-	public void blockNonInterruptible() {
-		synchronized (lock) {
-			blockerReady = true;
-			lock.notifyAll();
+    /**
+     * Blocks until {@link #releaseBlocker()} is called. Notifies the awaiting thread that waits in
+     * the method {@link #awaitBlocker()}.
+     */
+    public void blockNonInterruptible() {
+        synchronized (lock) {
+            blockerReady = true;
+            lock.notifyAll();
 
-			while (!blockerReleased) {
-				try {
-					lock.wait();
-				} catch (InterruptedException ignored) {}
-			}
-		}
-	}
+            while (!blockerReleased) {
+                try {
+                    lock.wait();
+                } catch (InterruptedException ignored) {
+                }
+            }
+        }
+    }
 
-	/**
-	 * Lets the blocked thread continue.
-	 */
-	public void releaseBlocker() {
-		synchronized (lock) {
-			blockerReleased = true;
-			lock.notifyAll();
-		}
-	}
+    /** Lets the blocked thread continue. */
+    public void releaseBlocker() {
+        synchronized (lock) {
+            blockerReleased = true;
+            lock.notifyAll();
+        }
+    }
 }

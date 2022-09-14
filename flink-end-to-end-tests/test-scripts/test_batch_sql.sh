@@ -69,12 +69,6 @@ GROUP BY TUMBLE(rowtime, INTERVAL '20' SECOND)"
 
 set_config_key "taskmanager.numberOfTaskSlots" "1"
 
-function sql_cleanup() {
-  stop_cluster
-  $FLINK_DIR/bin/taskmanager.sh stop-all
-}
-on_exit sql_cleanup
-
 start_cluster
 
 # The task has total 2 x (1 + 1 + 1 + 1) + 1 = 9 slots

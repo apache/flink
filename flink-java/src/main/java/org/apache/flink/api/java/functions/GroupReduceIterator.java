@@ -26,22 +26,23 @@ import java.util.Iterator;
 
 /**
  * Base class that simplifies reducing all values provided as {@link Iterable}.
+ *
  * @param <IN>
  * @param <OUT>
  */
 @PublicEvolving
 public abstract class GroupReduceIterator<IN, OUT> extends RichGroupReduceFunction<IN, OUT> {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	public abstract Iterator<OUT> reduceGroup(Iterable<IN> values) throws Exception;
+    public abstract Iterator<OUT> reduceGroup(Iterable<IN> values) throws Exception;
 
-	// -------------------------------------------------------------------------------------------
+    // -------------------------------------------------------------------------------------------
 
-	@Override
-	public final void reduce(Iterable<IN> values, Collector<OUT> out) throws Exception {
-		for (Iterator<OUT> iter = reduceGroup(values); iter.hasNext(); ) {
-			out.collect(iter.next());
-		}
-	}
+    @Override
+    public final void reduce(Iterable<IN> values, Collector<OUT> out) throws Exception {
+        for (Iterator<OUT> iter = reduceGroup(values); iter.hasNext(); ) {
+            out.collect(iter.next());
+        }
+    }
 }

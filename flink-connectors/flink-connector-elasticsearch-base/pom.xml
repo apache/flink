@@ -26,30 +26,47 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-connectors</artifactId>
-		<version>1.11-SNAPSHOT</version>
-		<relativePath>..</relativePath>
+		<version>1.17-SNAPSHOT</version>
 	</parent>
 
-	<artifactId>flink-connector-elasticsearch-base_${scala.binary.version}</artifactId>
-	<name>flink-connector-elasticsearch-base</name>
+	<artifactId>flink-connector-elasticsearch-base</artifactId>
+	<name>Flink : Connectors : Elasticsearch base</name>
 
 	<packaging>jar</packaging>
 
 	<!-- Allow users to pass custom connector versions -->
 	<properties>
-		<elasticsearch.version>5.1.2</elasticsearch.version>
+		<elasticsearch.version>7.10.2</elasticsearch.version>
 	</properties>
 
 	<dependencies>
 
-		<!-- core dependencies -->
+		<!-- Core -->
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-streaming-java_${scala.binary.version}</artifactId>
+			<artifactId>flink-connector-base</artifactId>
+			<version>${project.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-streaming-java</artifactId>
 			<version>${project.version}</version>
 			<scope>provided</scope>
 		</dependency>
+
+		<!-- Table ecosystem -->
+
+		<!-- Projects depending on this project won't depend on flink-table-*. -->
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-table-api-java-bridge</artifactId>
+			<version>${project.version}</version>
+			<scope>provided</scope>
+			<optional>true</optional>
+		</dependency>
+
+		<!-- Elasticsearch -->
 
 		<dependency>
 			<groupId>org.elasticsearch</groupId>
@@ -70,36 +87,37 @@ under the License.
 			</exclusions>
 		</dependency>
 
-		<!-- Table ecosystem -->
-		<!-- Projects depending on this project won't depend on flink-table-*. -->
 		<dependency>
-			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-table-api-java-bridge_${scala.binary.version}</artifactId>
-			<version>${project.version}</version>
-			<scope>provided</scope>
-			<optional>true</optional>
-		</dependency>
-		<!-- A planner dependency won't be necessary once FLIP-32 has been completed. -->
-		<dependency>
-			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-table-planner_${scala.binary.version}</artifactId>
-			<version>${project.version}</version>
-			<scope>provided</scope>
-			<optional>true</optional>
+			<groupId>org.elasticsearch.client</groupId>
+			<artifactId>elasticsearch-rest-high-level-client</artifactId>
+			<version>${elasticsearch.version}</version>
 		</dependency>
 
-		<!-- test dependencies -->
+		<!-- Tests -->
+
+		<dependency>
+			<groupId>org.testcontainers</groupId>
+			<artifactId>elasticsearch</artifactId>
+			<scope>test</scope>
+		</dependency>
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-test-utils_${scala.binary.version}</artifactId>
+			<artifactId>flink-test-utils</artifactId>
 			<version>${project.version}</version>
 			<scope>test</scope>
 		</dependency>
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-runtime_${scala.binary.version}</artifactId>
+			<artifactId>flink-connector-test-utils</artifactId>
+			<version>${project.version}</version>
+			<scope>test</scope>
+		</dependency>
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-runtime</artifactId>
 			<version>${project.version}</version>
 			<type>test-jar</type>
 			<scope>test</scope>
@@ -107,19 +125,10 @@ under the License.
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-streaming-java_${scala.binary.version}</artifactId>
+			<artifactId>flink-streaming-java</artifactId>
 			<version>${project.version}</version>
 			<scope>test</scope>
 			<type>test-jar</type>
-		</dependency>
-
-		<!-- Elasticsearch table descriptor testing -->
-		<dependency>
-			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-table-planner_${scala.binary.version}</artifactId>
-			<version>${project.version}</version>
-			<type>test-jar</type>
-			<scope>test</scope>
 		</dependency>
 
 		<!-- Elasticsearch table descriptor testing -->
@@ -156,6 +165,13 @@ under the License.
 			<scope>test</scope>
 		</dependency>
 
+		<!-- ArchUit test dependencies -->
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-architecture-tests-test</artifactId>
+			<scope>test</scope>
+		</dependency>
 	</dependencies>
 
 	<build>

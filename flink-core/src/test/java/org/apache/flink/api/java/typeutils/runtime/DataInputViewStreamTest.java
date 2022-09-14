@@ -29,58 +29,51 @@ import java.io.InputStream;
 
 import static org.junit.Assert.assertEquals;
 
-/**
- * Unit test for {@link DataInputViewStream}.
- */
+/** Unit test for {@link DataInputViewStream}. */
 public class DataInputViewStreamTest extends TestLogger {
 
-	@Test
-	public void testSkip() throws IOException {
-		final TestInputStream inputStream = new TestInputStream();
-		try (TestDataInputView dataInputView = new TestDataInputView(inputStream)) {
-			try (DataInputViewStream dataInputViewStream = new DataInputViewStream(dataInputView)) {
-				assertEquals(1, dataInputViewStream.skip(1));
-				assertEquals(1, inputStream.skipped);
+    @Test
+    public void testSkip() throws IOException {
+        final TestInputStream inputStream = new TestInputStream();
+        try (TestDataInputView dataInputView = new TestDataInputView(inputStream)) {
+            try (DataInputViewStream dataInputViewStream = new DataInputViewStream(dataInputView)) {
+                assertEquals(1, dataInputViewStream.skip(1));
+                assertEquals(1, inputStream.skipped);
 
-				final long bigNumberToSkip = 1024L + 2L * Integer.MAX_VALUE;
-				assertEquals(bigNumberToSkip, dataInputViewStream.skip(bigNumberToSkip));
-				assertEquals(1 + bigNumberToSkip, inputStream.skipped);
-			}
-		}
+                final long bigNumberToSkip = 1024L + 2L * Integer.MAX_VALUE;
+                assertEquals(bigNumberToSkip, dataInputViewStream.skip(bigNumberToSkip));
+                assertEquals(1 + bigNumberToSkip, inputStream.skipped);
+            }
+        }
+    }
 
-	}
+    /** Test implementation of {@link DataInputView}. */
+    private static class TestDataInputView extends DataInputStream implements DataInputView {
 
-	/**
-	 * Test implementation of {@link DataInputView}.
-	 */
-	private static class TestDataInputView extends DataInputStream implements DataInputView {
+        TestDataInputView(InputStream in) {
+            super(in);
+        }
 
-		TestDataInputView(InputStream in) {
-			super(in);
-		}
+        @Override
+        public void skipBytesToRead(int numBytes) throws IOException {
+            throw new UnsupportedOperationException("Not properly implemented.");
+        }
+    }
 
-		@Override
-		public void skipBytesToRead(int numBytes) throws IOException {
-			throw new UnsupportedOperationException("Not properly implemented.");
-		}
-	}
+    /** Test implementation of {@link InputStream}. */
+    private static class TestInputStream extends InputStream {
 
-	/**
-	 * Test implementation of {@link InputStream}.
-	 */
-	private static class TestInputStream extends InputStream {
+        long skipped = 0;
 
-		long skipped = 0;
+        @Override
+        public int read() throws IOException {
+            return 0;
+        }
 
-		@Override
-		public int read() throws IOException {
-			return 0;
-		}
-
-		@Override
-		public long skip(long n) {
-			skipped += n;
-			return n;
-		}
-	}
+        @Override
+        public long skip(long n) {
+            skipped += n;
+            return n;
+        }
+    }
 }

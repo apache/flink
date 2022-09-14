@@ -17,10 +17,45 @@
  */
 
 import { formatDate } from '@angular/common';
-import { Component, OnInit, ChangeDetectionStrategy, ChangeDetectorRef } from '@angular/core';
-import { JobExceptionItemInterface } from 'interfaces';
-import { distinctUntilChanged, flatMap } from 'rxjs/operators';
-import { JobService } from 'services';
+import { Component, OnInit, ChangeDetectionStrategy, ChangeDetectorRef, OnDestroy } from '@angular/core';
+import { Subject } from 'rxjs';
+import { distinctUntilChanged, mergeMap, takeUntil, tap } from 'rxjs/operators';
+
+import { ExceptionInfo, RootExceptionInfo } from '@flink-runtime-web/interfaces';
+import { JobService } from '@flink-runtime-web/services';
+import { flinkEditorOptions } from '@flink-runtime-web/share/common/editor/editor-config';
+import { EditorOptions } from 'ng-zorro-antd/code-editor/typings';
+
+import { JobLocalService } from '../job-local.service';
+
+interface ExceptionHistoryItem {
+  /**
+   * List of concurrent exceptions that caused this failure.
+   */
+  exceptions: ExceptionInfo[];
+
+  /**
+   * An exception from the list, that is currently selected for rendering.
+   */
+  selected: ExceptionInfo;
+
+  /**
+   * Should this failure be expanded in UI?
+   */
+  expand: boolean;
+}
+
+const stripConcurrentExceptions = function (rootException: RootExceptionInfo): ExceptionInfo {
+  const { concurrentExceptions, ...mainException } = rootException;
+  return mainException;
+};
+
+const markGlobalFailure = function (exception: ExceptionInfo): ExceptionInfo {
+  if (exception.taskName == null) {
+    exception.taskName = '(global failure)';
+  }
+  return exception;
+};
 
 @Component({
   selector: 'flink-job-exceptions',
@@ -28,31 +63,68 @@ import { JobService } from 'services';
   styleUrls: ['./job-exceptions.component.less'],
   changeDetection: ChangeDetectionStrategy.OnPush
 })
-export class JobExceptionsComponent implements OnInit {
-  rootException = '';
-  listOfException: JobExceptionItemInterface[] = [];
+export class JobExceptionsComponent implements OnInit, OnDestroy {
+  public readonly trackByTimestamp = (_: number, node: ExceptionInfo): number => node.timestamp;
 
-  trackExceptionBy(_: number, node: JobExceptionItemInterface) {
-    return node.timestamp;
+  public rootException = '';
+  public exceptionHistory: ExceptionHistoryItem[] = [];
+  public truncated = false;
+  public isLoading = false;
+  public maxExceptions = 0;
+  public total = 0;
+  public editorOptions: EditorOptions = flinkEditorOptions;
+
+  private readonly destroy$ = new Subject<void>();
+
+  constructor(
+    private readonly jobService: JobService,
+    private readonly jobLocalService: JobLocalService,
+    private readonly cdr: ChangeDetectorRef
+  ) {}
+
+  public ngOnInit(): void {
+    this.loadMore();
   }
 
-  constructor(private jobService: JobService, private cdr: ChangeDetectorRef) {}
+  public ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
+  }
 
-  ngOnInit() {
-    this.jobService.jobDetail$
+  public loadMore(): void {
+    this.isLoading = true;
+    this.maxExceptions += 10;
+    this.jobLocalService
+      .jobDetailChanges()
       .pipe(
         distinctUntilChanged((pre, next) => pre.jid === next.jid),
-        flatMap(job => this.jobService.loadExceptions(job.jid))
+        mergeMap(job => this.jobService.loadExceptions(job.jid, this.maxExceptions)),
+        tap(() => {
+          this.isLoading = false;
+          this.cdr.markForCheck();
+        }),
+        takeUntil(this.destroy$)
       )
       .subscribe(data => {
         // @ts-ignore
-        if (data['root-exception']) {
-          this.rootException = formatDate(data.timestamp, 'yyyy-MM-dd HH:mm:ss', 'en') + '\n' + data['root-exception'];
+        const exceptionHistory = data.exceptionHistory;
+        if (exceptionHistory.entries.length > 0) {
+          const mostRecentException = exceptionHistory.entries[0];
+          this.rootException = `${formatDate(mostRecentException.timestamp, 'yyyy-MM-dd HH:mm:ss', 'en')}\n${
+            mostRecentException.stacktrace
+          }`;
         } else {
           this.rootException = 'No Root Exception';
         }
-        this.listOfException = data['all-exceptions'];
-        this.cdr.markForCheck();
+        this.truncated = exceptionHistory.truncated;
+        this.exceptionHistory = exceptionHistory.entries.map(entry => {
+          const values = [stripConcurrentExceptions(entry)].concat(entry.concurrentExceptions).map(markGlobalFailure);
+          return {
+            selected: values[0],
+            exceptions: values,
+            expand: false
+          };
+        });
       });
   }
 }

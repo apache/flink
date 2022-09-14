@@ -25,44 +25,44 @@ import org.apache.flink.optimizer.dag.OptimizerNode;
 import org.apache.flink.util.Visitor;
 
 /**
- * This traversal of the optimizer DAG assigns IDs to each node (in a pre-order fashion),
- * and calls each node to compute its estimates. The latter happens in the postVisit function,
- * where it is guaranteed that all predecessors have computed their estimates.
+ * This traversal of the optimizer DAG assigns IDs to each node (in a pre-order fashion), and calls
+ * each node to compute its estimates. The latter happens in the postVisit function, where it is
+ * guaranteed that all predecessors have computed their estimates.
  */
 public class IdAndEstimatesVisitor implements Visitor<OptimizerNode> {
 
-	private final DataStatistics statistics;
+    private final DataStatistics statistics;
 
-	private int id = 1;
+    private int id = 1;
 
-	public IdAndEstimatesVisitor(DataStatistics statistics) {
-		this.statistics = statistics;
-	}
+    public IdAndEstimatesVisitor(DataStatistics statistics) {
+        this.statistics = statistics;
+    }
 
-	@Override
-	public boolean preVisit(OptimizerNode visitable) {
-		return visitable.getId() == -1;
-	}
+    @Override
+    public boolean preVisit(OptimizerNode visitable) {
+        return visitable.getId() == -1;
+    }
 
-	@Override
-	public void postVisit(OptimizerNode visitable) {
-		// the node ids
-		visitable.initId(this.id++);
+    @Override
+    public void postVisit(OptimizerNode visitable) {
+        // the node ids
+        visitable.initId(this.id++);
 
-		// connections need to figure out their maximum path depths
-		for (DagConnection conn : visitable.getIncomingConnections()) {
-			conn.initMaxDepth();
-		}
-		for (DagConnection conn : visitable.getBroadcastConnections()) {
-			conn.initMaxDepth();
-		}
+        // connections need to figure out their maximum path depths
+        for (DagConnection conn : visitable.getIncomingConnections()) {
+            conn.initMaxDepth();
+        }
+        for (DagConnection conn : visitable.getBroadcastConnections()) {
+            conn.initMaxDepth();
+        }
 
-		// the estimates
-		visitable.computeOutputEstimates(this.statistics);
+        // the estimates
+        visitable.computeOutputEstimates(this.statistics);
 
-		// if required, recurse into the step function
-		if (visitable instanceof IterationNode) {
-			((IterationNode) visitable).acceptForStepFunction(this);
-		}
-	}
+        // if required, recurse into the step function
+        if (visitable instanceof IterationNode) {
+            ((IterationNode) visitable).acceptForStepFunction(this);
+        }
+    }
 }

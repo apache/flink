@@ -32,8 +32,9 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
 import org.apache.flink.util.Collector;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
+import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -43,167 +44,182 @@ import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import static java.util.Arrays.asList;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.fail;
 
-/**
- * Tests for {@link GroupReduceFunction}.
- */
+/** Tests for {@link GroupReduceFunction}. */
 @SuppressWarnings({"serial", "unchecked"})
-public class GroupReduceOperatorTest implements java.io.Serializable {
+class GroupReduceOperatorTest implements Serializable {
 
-	private static final TypeInformation<Tuple2<String, Integer>> STRING_INT_TUPLE =
-			TypeInformation.of(new TypeHint<Tuple2<String, Integer>>(){});
+    private static final TypeInformation<Tuple2<String, Integer>> STRING_INT_TUPLE =
+            TypeInformation.of(new TypeHint<Tuple2<String, Integer>>() {});
 
-	@Test
-	public void testGroupReduceCollection() {
-		try {
-			final GroupReduceFunction<Tuple2<String, Integer>, Tuple2<String,
-					Integer>> reducer = new GroupReduceFunction<Tuple2<String, Integer>,
-					Tuple2<String, Integer>>() {
+    @Test
+    void testGroupReduceCollection() {
+        try {
+            final GroupReduceFunction<Tuple2<String, Integer>, Tuple2<String, Integer>> reducer =
+                    (values, out) -> {
+                        Iterator<Tuple2<String, Integer>> input = values.iterator();
 
-				@Override
-				public void reduce(Iterable<Tuple2<String, Integer>> values,
-									Collector<Tuple2<String, Integer>> out) throws Exception {
-					Iterator<Tuple2<String, Integer>> input = values.iterator();
+                        Tuple2<String, Integer> result = input.next();
+                        int sum = result.f1;
+                        while (input.hasNext()) {
+                            Tuple2<String, Integer> next = input.next();
+                            sum += next.f1;
+                        }
+                        result.f1 = sum;
+                        out.collect(result);
+                    };
 
-					Tuple2<String, Integer> result = input.next();
-					int sum = result.f1;
-					while (input.hasNext()) {
-						Tuple2<String, Integer> next = input.next();
-						sum += next.f1;
-					}
-					result.f1 = sum;
-					out.collect(result);
-				}
-			};
+            GroupReduceOperatorBase<
+                            Tuple2<String, Integer>,
+                            Tuple2<String, Integer>,
+                            GroupReduceFunction<Tuple2<String, Integer>, Tuple2<String, Integer>>>
+                    op =
+                            new GroupReduceOperatorBase<>(
+                                    reducer,
+                                    new UnaryOperatorInformation<>(
+                                            STRING_INT_TUPLE, STRING_INT_TUPLE),
+                                    new int[] {0},
+                                    "TestReducer");
 
-			GroupReduceOperatorBase<Tuple2<String, Integer>, Tuple2<String, Integer>,
-							GroupReduceFunction<Tuple2<String, Integer>, Tuple2<String, Integer>>> op =
-					new GroupReduceOperatorBase<>(
-							reducer,
-							new UnaryOperatorInformation<>(STRING_INT_TUPLE, STRING_INT_TUPLE),
-							new int[]{0},
-							"TestReducer");
+            List<Tuple2<String, Integer>> input =
+                    new ArrayList<>(
+                            asList(
+                                    new Tuple2<>("foo", 1),
+                                    new Tuple2<>("foo", 3),
+                                    new Tuple2<>("bar", 2),
+                                    new Tuple2<>("bar", 4)));
 
-			List<Tuple2<String, Integer>> input = new ArrayList<>(asList(
-					new Tuple2<>("foo", 1),
-					new Tuple2<>("foo", 3),
-					new Tuple2<>("bar", 2),
-					new Tuple2<>("bar", 4)));
+            ExecutionConfig executionConfig = new ExecutionConfig();
+            executionConfig.disableObjectReuse();
+            List<Tuple2<String, Integer>> resultMutableSafe =
+                    op.executeOnCollections(input, null, executionConfig);
+            executionConfig.enableObjectReuse();
+            List<Tuple2<String, Integer>> resultRegular =
+                    op.executeOnCollections(input, null, executionConfig);
 
-			ExecutionConfig executionConfig = new ExecutionConfig();
-			executionConfig.disableObjectReuse();
-			List<Tuple2<String, Integer>> resultMutableSafe = op.executeOnCollections(input, null, executionConfig);
-			executionConfig.enableObjectReuse();
-			List<Tuple2<String, Integer>> resultRegular = op.executeOnCollections(input, null, executionConfig);
+            Set<Tuple2<String, Integer>> resultSetMutableSafe = new HashSet<>(resultMutableSafe);
+            Set<Tuple2<String, Integer>> resultSetRegular = new HashSet<>(resultRegular);
 
-			Set<Tuple2<String, Integer>> resultSetMutableSafe = new HashSet<>(resultMutableSafe);
-			Set<Tuple2<String, Integer>> resultSetRegular = new HashSet<>(resultRegular);
+            Set<Tuple2<String, Integer>> expectedResult =
+                    new HashSet<>(asList(new Tuple2<>("foo", 4), new Tuple2<>("bar", 6)));
 
-			Set<Tuple2<String, Integer>> expectedResult = new HashSet<>(asList(
-					new Tuple2<>("foo", 4),
-					new Tuple2<>("bar", 6)));
+            assertThat(resultSetMutableSafe).isEqualTo(expectedResult);
+            assertThat(resultSetRegular).isEqualTo(expectedResult);
+        } catch (Exception e) {
+            e.printStackTrace();
+            fail(e.getMessage());
+        }
+    }
 
-			assertEquals(expectedResult, resultSetMutableSafe);
-			assertEquals(expectedResult, resultSetRegular);
-		}
-		catch (Exception e) {
-			e.printStackTrace();
-			fail(e.getMessage());
-		}
-	}
+    @Test
+    void testGroupReduceCollectionWithRuntimeContext() {
+        try {
+            final String taskName = "Test Task";
+            final AtomicBoolean opened = new AtomicBoolean();
+            final AtomicBoolean closed = new AtomicBoolean();
 
-	@Test
-	public void testGroupReduceCollectionWithRuntimeContext() {
-		try {
-			final String taskName = "Test Task";
-			final AtomicBoolean opened = new AtomicBoolean();
-			final AtomicBoolean closed = new AtomicBoolean();
+            final RichGroupReduceFunction<Tuple2<String, Integer>, Tuple2<String, Integer>>
+                    reducer =
+                            new RichGroupReduceFunction<
+                                    Tuple2<String, Integer>, Tuple2<String, Integer>>() {
 
-			final RichGroupReduceFunction<Tuple2<String, Integer>, Tuple2<String,
-					Integer>> reducer = new RichGroupReduceFunction<Tuple2<String, Integer>,
-					Tuple2<String, Integer>>() {
+                                @Override
+                                public void reduce(
+                                        Iterable<Tuple2<String, Integer>> values,
+                                        Collector<Tuple2<String, Integer>> out)
+                                        throws Exception {
+                                    Iterator<Tuple2<String, Integer>> input = values.iterator();
 
-				@Override
-				public void reduce(Iterable<Tuple2<String, Integer>> values,
-									Collector<Tuple2<String, Integer>> out) throws Exception {
-					Iterator<Tuple2<String, Integer>> input = values.iterator();
+                                    Tuple2<String, Integer> result = input.next();
+                                    int sum = result.f1;
+                                    while (input.hasNext()) {
+                                        Tuple2<String, Integer> next = input.next();
+                                        sum += next.f1;
+                                    }
+                                    result.f1 = sum;
+                                    out.collect(result);
+                                }
 
-					Tuple2<String, Integer> result = input.next();
-					int sum = result.f1;
-					while (input.hasNext()) {
-						Tuple2<String, Integer> next = input.next();
-						sum += next.f1;
-					}
-					result.f1 = sum;
-					out.collect(result);
-				}
+                                @Override
+                                public void open(Configuration parameters) throws Exception {
+                                    opened.set(true);
+                                    RuntimeContext ctx = getRuntimeContext();
+                                    assertThat(ctx.getIndexOfThisSubtask()).isZero();
+                                    assertThat(ctx.getNumberOfParallelSubtasks()).isOne();
+                                    assertThat(ctx.getTaskName()).isEqualTo(taskName);
+                                }
 
-				@Override
-				public void open(Configuration parameters) throws Exception {
-					opened.set(true);
-					RuntimeContext ctx = getRuntimeContext();
-					assertEquals(0, ctx.getIndexOfThisSubtask());
-					assertEquals(1, ctx.getNumberOfParallelSubtasks());
-					assertEquals(taskName, ctx.getTaskName());
-				}
+                                @Override
+                                public void close() throws Exception {
+                                    closed.set(true);
+                                }
+                            };
 
-				@Override
-				public void close() throws Exception {
-					closed.set(true);
-				}
-			};
+            GroupReduceOperatorBase<
+                            Tuple2<String, Integer>,
+                            Tuple2<String, Integer>,
+                            GroupReduceFunction<Tuple2<String, Integer>, Tuple2<String, Integer>>>
+                    op =
+                            new GroupReduceOperatorBase<>(
+                                    reducer,
+                                    new UnaryOperatorInformation<>(
+                                            STRING_INT_TUPLE, STRING_INT_TUPLE),
+                                    new int[] {0},
+                                    "TestReducer");
 
-			GroupReduceOperatorBase<Tuple2<String, Integer>, Tuple2<String, Integer>,
-							GroupReduceFunction<Tuple2<String, Integer>, Tuple2<String, Integer>>> op =
-					new GroupReduceOperatorBase<>(
-							reducer,
-							new UnaryOperatorInformation<>(STRING_INT_TUPLE, STRING_INT_TUPLE),
-							new int[]{0},
-							"TestReducer");
+            List<Tuple2<String, Integer>> input =
+                    new ArrayList<>(
+                            asList(
+                                    new Tuple2<>("foo", 1),
+                                    new Tuple2<>("foo", 3),
+                                    new Tuple2<>("bar", 2),
+                                    new Tuple2<>("bar", 4)));
 
-			List<Tuple2<String, Integer>> input = new ArrayList<>(asList(
-					new Tuple2<>("foo", 1),
-					new Tuple2<>("foo", 3),
-					new Tuple2<>("bar", 2),
-					new Tuple2<>("bar", 4)));
+            final TaskInfo taskInfo = new TaskInfo(taskName, 1, 0, 1, 0);
 
-			final TaskInfo taskInfo = new TaskInfo(taskName, 1, 0, 1, 0);
+            ExecutionConfig executionConfig = new ExecutionConfig();
+            executionConfig.disableObjectReuse();
+            List<Tuple2<String, Integer>> resultMutableSafe =
+                    op.executeOnCollections(
+                            input,
+                            new RuntimeUDFContext(
+                                    taskInfo,
+                                    null,
+                                    executionConfig,
+                                    new HashMap<>(),
+                                    new HashMap<>(),
+                                    UnregisteredMetricsGroup.createOperatorMetricGroup()),
+                            executionConfig);
 
-			ExecutionConfig executionConfig = new ExecutionConfig();
-			executionConfig.disableObjectReuse();
-			List<Tuple2<String, Integer>> resultMutableSafe = op.executeOnCollections(input,
-					new RuntimeUDFContext(taskInfo, null, executionConfig,
-							new HashMap<>(),
-							new HashMap<>(),
-							new UnregisteredMetricsGroup()),
-					executionConfig);
+            executionConfig.enableObjectReuse();
+            List<Tuple2<String, Integer>> resultRegular =
+                    op.executeOnCollections(
+                            input,
+                            new RuntimeUDFContext(
+                                    taskInfo,
+                                    null,
+                                    executionConfig,
+                                    new HashMap<>(),
+                                    new HashMap<>(),
+                                    UnregisteredMetricsGroup.createOperatorMetricGroup()),
+                            executionConfig);
 
-			executionConfig.enableObjectReuse();
-			List<Tuple2<String, Integer>> resultRegular = op.executeOnCollections(input,
-					new RuntimeUDFContext(taskInfo, null, executionConfig,
-							new HashMap<>(),
-							new HashMap<>(),
-							new UnregisteredMetricsGroup()),
-					executionConfig);
+            Set<Tuple2<String, Integer>> resultSetMutableSafe = new HashSet<>(resultMutableSafe);
+            Set<Tuple2<String, Integer>> resultSetRegular = new HashSet<>(resultRegular);
 
-			Set<Tuple2<String, Integer>> resultSetMutableSafe = new HashSet<>(resultMutableSafe);
-			Set<Tuple2<String, Integer>> resultSetRegular = new HashSet<>(resultRegular);
+            Set<Tuple2<String, Integer>> expectedResult =
+                    new HashSet<>(asList(new Tuple2<>("foo", 4), new Tuple2<>("bar", 6)));
 
-			Set<Tuple2<String, Integer>> expectedResult = new HashSet<>(asList(
-					new Tuple2<>("foo", 4),
-					new Tuple2<>("bar", 6)));
+            assertThat(resultSetMutableSafe).isEqualTo(expectedResult);
+            assertThat(resultSetRegular).isEqualTo(expectedResult);
 
-			assertEquals(expectedResult, resultSetMutableSafe);
-			assertEquals(expectedResult, resultSetRegular);
-
-			assertTrue(opened.get());
-			assertTrue(closed.get());
-		} catch (Exception e) {
-			e.printStackTrace();
-			fail(e.getMessage());
-		}
-	}
+            assertThat(opened.get()).isTrue();
+            assertThat(closed.get()).isTrue();
+        } catch (Exception e) {
+            e.printStackTrace();
+            fail(e.getMessage());
+        }
+    }
 }

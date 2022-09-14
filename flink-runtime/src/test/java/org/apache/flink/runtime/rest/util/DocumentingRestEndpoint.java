@@ -30,20 +30,24 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 
-/**
- * Interface to expose the supported {@link MessageHeaders} of a {@link RestServerEndpoint}.
- */
+/** Interface to expose the supported {@link MessageHeaders} of a {@link RestServerEndpoint}. */
 public interface DocumentingRestEndpoint {
-	List<Tuple2<RestHandlerSpecification, ChannelInboundHandler>> initializeHandlers(final CompletableFuture<String> localAddressFuture);
+    List<Tuple2<RestHandlerSpecification, ChannelInboundHandler>> initializeHandlers(
+            final CompletableFuture<String> localAddressFuture);
 
-	default List<MessageHeaders<?, ?, ?>> getSpecs() {
-		final Comparator<String> comparator = new RestServerEndpoint.RestHandlerUrlComparator.CaseInsensitiveOrderComparator();
+    default List<MessageHeaders<?, ?, ?>> getSpecs() {
+        final Comparator<String> comparator =
+                new RestServerEndpoint.RestHandlerUrlComparator.CaseInsensitiveOrderComparator();
 
-		return initializeHandlers(CompletableFuture.completedFuture(null)).stream()
-			.map(tuple -> tuple.f0)
-			.filter(spec -> spec instanceof MessageHeaders)
-			.map(spec -> (MessageHeaders<?, ?, ?>) spec)
-			.sorted((spec1, spec2) -> comparator.compare(spec1.getTargetRestEndpointURL(), spec2.getTargetRestEndpointURL()))
-			.collect(Collectors.toList());
-	}
+        return initializeHandlers(CompletableFuture.completedFuture(null)).stream()
+                .map(tuple -> tuple.f0)
+                .filter(spec -> spec instanceof MessageHeaders)
+                .map(spec -> (MessageHeaders<?, ?, ?>) spec)
+                .sorted(
+                        (spec1, spec2) ->
+                                comparator.compare(
+                                        spec1.getTargetRestEndpointURL(),
+                                        spec2.getTargetRestEndpointURL()))
+                .collect(Collectors.toList());
+    }
 }

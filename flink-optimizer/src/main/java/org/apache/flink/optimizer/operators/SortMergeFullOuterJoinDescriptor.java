@@ -23,17 +23,17 @@ import org.apache.flink.runtime.operators.DriverStrategy;
 
 public class SortMergeFullOuterJoinDescriptor extends AbstractSortMergeJoinDescriptor {
 
-	public SortMergeFullOuterJoinDescriptor(FieldList keys1, FieldList keys2) {
-		super(keys1, keys2, false, false, true);
-	}
+    public SortMergeFullOuterJoinDescriptor(FieldList keys1, FieldList keys2) {
+        super(keys1, keys2, false, false, true);
+    }
 
-	@Override
-	public DriverStrategy getStrategy() {
-		return DriverStrategy.FULL_OUTER_MERGE;
-	}
+    @Override
+    public DriverStrategy getStrategy() {
+        return DriverStrategy.FULL_OUTER_MERGE;
+    }
 
-	@Override
-	protected String getNodeName() {
-		return "FullOuterJoin";
-	}
+    @Override
+    protected String getNodeName() {
+        return "FullOuterJoin";
+    }
 }

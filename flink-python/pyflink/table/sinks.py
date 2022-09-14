@@ -17,8 +17,8 @@
 ################################################################################
 
 from pyflink.java_gateway import get_gateway
-from pyflink.table.types import _to_java_type, DataType
-from pyflink.util import utils
+from pyflink.table.types import _to_java_data_type
+from pyflink.util import java_utils
 
 __all__ = ['TableSink', 'CsvTableSink', 'WriteMode']
 
@@ -59,7 +59,6 @@ class CsvTableSink(TableSink):
 
     def __init__(self, field_names, field_types, path, field_delimiter=',', num_files=-1,
                  write_mode=None):
-        # type: (list[str], list[DataType], str, str, int, int) -> None
         gateway = get_gateway()
         if write_mode == WriteMode.NO_OVERWRITE:
             j_write_mode = gateway.jvm.org.apache.flink.core.fs.FileSystem.WriteMode.NO_OVERWRITE
@@ -69,10 +68,11 @@ class CsvTableSink(TableSink):
             j_write_mode = None
         else:
             raise Exception('Unsupported write_mode: %s' % write_mode)
+        j_field_names = java_utils.to_jarray(gateway.jvm.String, field_names)
+        j_field_types = java_utils.to_jarray(
+            gateway.jvm.DataType,
+            [_to_java_data_type(field_type) for field_type in field_types])
         j_csv_table_sink = gateway.jvm.CsvTableSink(
-            path, field_delimiter, num_files, j_write_mode)
-        j_field_names = utils.to_jarray(gateway.jvm.String, field_names)
-        j_field_types = utils.to_jarray(gateway.jvm.TypeInformation,
-                                        [_to_java_type(field_type) for field_type in field_types])
-        j_csv_table_sink = j_csv_table_sink.configure(j_field_names, j_field_types)
+            path, field_delimiter, num_files, j_write_mode, j_field_names, j_field_types)
+
         super(CsvTableSink, self).__init__(j_csv_table_sink)

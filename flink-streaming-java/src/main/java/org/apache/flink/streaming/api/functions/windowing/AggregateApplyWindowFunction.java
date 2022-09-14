@@ -28,8 +28,8 @@ import java.util.Collections;
 
 /**
  * A {@link WindowFunction} that composes an {@link AggregateFunction} and {@link WindowFunction}.
- * Upon invocation, this first applies {@code AggregateFunction} to the input, and then
- * finally the {@code WindowFunction} to the single result element.
+ * Upon invocation, this first applies {@code AggregateFunction} to the input, and then finally the
+ * {@code WindowFunction} to the single result element.
  *
  * @param <K> The key type
  * @param <W> The window type
@@ -40,26 +40,27 @@ import java.util.Collections;
  */
 @Internal
 public class AggregateApplyWindowFunction<K, W extends Window, T, ACC, V, R>
-	extends WrappingFunction<WindowFunction<V, R, K, W>>
-	implements WindowFunction<T, R, K, W> {
+        extends WrappingFunction<WindowFunction<V, R, K, W>> implements WindowFunction<T, R, K, W> {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	private final AggregateFunction<T, ACC, V> aggFunction;
+    private final AggregateFunction<T, ACC, V> aggFunction;
 
-	public AggregateApplyWindowFunction(AggregateFunction<T, ACC, V> aggFunction, WindowFunction<V, R, K, W> windowFunction) {
-		super(windowFunction);
-		this.aggFunction = aggFunction;
-	}
+    public AggregateApplyWindowFunction(
+            AggregateFunction<T, ACC, V> aggFunction, WindowFunction<V, R, K, W> windowFunction) {
+        super(windowFunction);
+        this.aggFunction = aggFunction;
+    }
 
-	@Override
-	public void apply(K key, W window, Iterable<T> values, Collector<R> out) throws Exception {
-		ACC acc = aggFunction.createAccumulator();
+    @Override
+    public void apply(K key, W window, Iterable<T> values, Collector<R> out) throws Exception {
+        ACC acc = aggFunction.createAccumulator();
 
-		for (T val : values) {
-			acc = aggFunction.add(val, acc);
-		}
+        for (T val : values) {
+            acc = aggFunction.add(val, acc);
+        }
 
-		wrappedFunction.apply(key, window, Collections.singletonList(aggFunction.getResult(acc)), out);
-	}
+        wrappedFunction.apply(
+                key, window, Collections.singletonList(aggFunction.getResult(acc)), out);
+    }
 }

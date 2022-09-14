@@ -24,29 +24,28 @@ import org.junit.Test;
 
 import static org.junit.Assert.assertEquals;
 
-/**
- * Tests for the {@link OpaqueMemoryResource}.
- */
+/** Tests for the {@link OpaqueMemoryResource}. */
 public class OpaqueMemoryResourceTest {
 
-	@Test
-	public void testCloseIsIdempotent() throws Exception {
-		final CountingCloseable disposer = new CountingCloseable();
-		final OpaqueMemoryResource<Object> resource = new OpaqueMemoryResource<>(new Object(), 10, disposer);
+    @Test
+    public void testCloseIsIdempotent() throws Exception {
+        final CountingCloseable disposer = new CountingCloseable();
+        final OpaqueMemoryResource<Object> resource =
+                new OpaqueMemoryResource<>(new Object(), 10, disposer);
 
-		resource.close();
-		resource.close();
+        resource.close();
+        resource.close();
 
-		assertEquals(1, disposer.count);
-	}
+        assertEquals(1, disposer.count);
+    }
 
-	private static final class CountingCloseable implements ThrowingRunnable<Exception> {
+    private static final class CountingCloseable implements ThrowingRunnable<Exception> {
 
-		int count = 0;
+        int count = 0;
 
-		@Override
-		public void run() throws Exception {
-			count++;
-		}
-	}
+        @Override
+        public void run() throws Exception {
+            count++;
+        }
+    }
 }

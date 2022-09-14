@@ -20,9 +20,13 @@ package org.apache.flink.state.api.input;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.state.ListStateDescriptor;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.checkpoint.OperatorState;
 import org.apache.flink.runtime.state.OperatorStateBackend;
+import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.util.Preconditions;
+
+import javax.annotation.Nullable;
 
 /**
  * Input format for reading operator union state.
@@ -30,26 +34,34 @@ import org.apache.flink.util.Preconditions;
  * @param <OT> The generic type of the state
  */
 @Internal
-public class UnionStateInputFormat <OT> extends OperatorStateInputFormat<OT> {
+public class UnionStateInputFormat<OT> extends OperatorStateInputFormat<OT> {
 
-	private static final long serialVersionUID = 499388405631162440L;
+    private static final long serialVersionUID = 499388405631162440L;
 
-	private final ListStateDescriptor<OT> descriptor;
+    private final ListStateDescriptor<OT> descriptor;
 
-	/**
-	 * Creates an input format for reading union state from an operator in a savepoint.
-	 *
-	 * @param operatorState The state to be queried.
-	 * @param descriptor The descriptor for this state, providing a name and serializer.
-	 */
-	public UnionStateInputFormat(OperatorState operatorState, ListStateDescriptor<OT> descriptor) {
-		super(operatorState, true);
+    /**
+     * Creates an input format for reading union state from an operator in a savepoint.
+     *
+     * @param operatorState The state to be queried.
+     * @param configuration The cluster configuration for restoring the backend.
+     * @param backend The state backend used to restore the state.
+     * @param descriptor The descriptor for this state, providing a name and serializer.
+     */
+    public UnionStateInputFormat(
+            OperatorState operatorState,
+            Configuration configuration,
+            @Nullable StateBackend backend,
+            ListStateDescriptor<OT> descriptor) {
+        super(operatorState, configuration, backend, true);
 
-		this.descriptor = Preconditions.checkNotNull(descriptor, "The state descriptor must not be null");
-	}
+        this.descriptor =
+                Preconditions.checkNotNull(descriptor, "The state descriptor must not be null");
+    }
 
-	@Override
-	protected final Iterable<OT> getElements(OperatorStateBackend restoredBackend) throws Exception {
-		return restoredBackend.getUnionListState(descriptor).get();
-	}
+    @Override
+    protected final Iterable<OT> getElements(OperatorStateBackend restoredBackend)
+            throws Exception {
+        return restoredBackend.getUnionListState(descriptor).get();
+    }
 }

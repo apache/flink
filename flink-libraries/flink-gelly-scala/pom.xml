@@ -23,13 +23,12 @@ under the License.
     <parent>
         <groupId>org.apache.flink</groupId>
         <artifactId>flink-libraries</artifactId>
-        <version>1.11-SNAPSHOT</version>
-        <relativePath>..</relativePath>
+        <version>1.17-SNAPSHOT</version>
     </parent>
     <modelVersion>4.0.0</modelVersion>
 
     <artifactId>flink-gelly-scala_${scala.binary.version}</artifactId>
-    <name>flink-gelly-scala</name>
+    <name>Flink : Libraries : Gelly scala</name>
 
     <packaging>jar</packaging>
 
@@ -45,14 +44,14 @@ under the License.
 
         <dependency>
             <groupId>org.apache.flink</groupId>
-            <artifactId>flink-clients_${scala.binary.version}</artifactId>
+            <artifactId>flink-clients</artifactId>
             <version>${project.version}</version>
             <scope>provided</scope>
         </dependency>
 
         <dependency>
             <groupId>org.apache.flink</groupId>
-            <artifactId>flink-gelly_${scala.binary.version}</artifactId>
+            <artifactId>flink-gelly</artifactId>
             <version>${project.version}</version>
         </dependency>
 
@@ -80,15 +79,14 @@ under the License.
         
         <dependency>
             <groupId>org.apache.flink</groupId>
-            <artifactId>flink-tests</artifactId>
+            <artifactId>flink-scala_${scala.binary.version}</artifactId>
             <version>${project.version}</version>
             <scope>test</scope>
             <type>test-jar</type>
-        
         </dependency>
         <dependency>
             <groupId>org.apache.flink</groupId>
-            <artifactId>flink-test-utils_${scala.binary.version}</artifactId>
+            <artifactId>flink-test-utils</artifactId>
             <version>${project.version}</version>
             <scope>test</scope>
         </dependency>
@@ -96,6 +94,22 @@ under the License.
 
     <build>
         <plugins>
+            <plugin>
+                <groupId>com.diffplug.spotless</groupId>
+                <artifactId>spotless-maven-plugin</artifactId>
+                <configuration>
+                    <scala>
+                        <scalafmt>
+                            <version>${spotless.scalafmt.version}</version>
+                            <file>${project.basedir}/../../.scalafmt.conf</file>
+                        </scalafmt>
+                        <licenseHeader>
+                            <content>${spotless.license.header}</content>
+                            <delimiter>${spotless.delimiter}</delimiter>
+                        </licenseHeader>
+                    </scala>
+                </configuration>
+            </plugin>
             <!-- Scala Compiler -->
             <plugin>
                 <groupId>net.alchim31.maven</groupId>
@@ -199,15 +213,6 @@ under the License.
                 </executions>
             </plugin>
 
-			<!-- Scala Code Style, most of the configuration done via plugin management -->
-			<plugin>
-				<groupId>org.scalastyle</groupId>
-				<artifactId>scalastyle-maven-plugin</artifactId>
-				<configuration>
-					<configLocation>${project.basedir}/../../tools/maven/scalastyle-config.xml</configLocation>
-				</configuration>
-			</plugin>
-
             <!-- build a jar-with-dependencies, to be included in the 'opt' build folder -->
             <plugin>
                 <artifactId>maven-assembly-plugin</artifactId>
@@ -215,6 +220,10 @@ under the License.
                     <descriptorRefs>
                         <descriptorRef>jar-with-dependencies</descriptorRef>
                     </descriptorRefs>
+                    <archive>
+                        <!-- Globally exclude maven metadata, because it may accidentally bundle files we don't intend to -->
+                        <addMavenDescriptor>false</addMavenDescriptor>
+                    </archive>
                 </configuration>
                 <executions>
                     <execution>

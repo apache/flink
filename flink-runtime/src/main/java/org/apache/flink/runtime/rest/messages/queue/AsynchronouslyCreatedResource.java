@@ -24,19 +24,15 @@ import javax.annotation.Nullable;
 
 /**
  * Interface for REST resources that are created asynchronously.
+ *
  * @param <T> The type of the resource.
  */
 public interface AsynchronouslyCreatedResource<T> extends ResponseBody {
 
-	/**
-	 * Returns the status of the resource creation.
-	 */
-	QueueStatus queueStatus();
+    /** Returns the status of the resource creation. */
+    QueueStatus queueStatus();
 
-	/**
-	 * Returns the resource if it is available, {@code null} otherwise.
-	 */
-	@Nullable
-	T resource();
-
+    /** Returns the resource if it is available, {@code null} otherwise. */
+    @Nullable
+    T resource();
 }

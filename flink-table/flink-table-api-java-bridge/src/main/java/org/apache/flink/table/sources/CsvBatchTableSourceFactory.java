@@ -18,20 +18,24 @@
 
 package org.apache.flink.table.sources;
 
-import org.apache.flink.annotation.PublicEvolving;
-import org.apache.flink.table.factories.BatchTableSourceFactory;
+import org.apache.flink.annotation.Internal;
+import org.apache.flink.table.factories.StreamTableSourceFactory;
 import org.apache.flink.types.Row;
 
 import java.util.Map;
 
 /**
  * Factory for creating configured instances of {@link CsvTableSource} in a batch environment.
+ *
+ * @deprecated The legacy CSV connector has been replaced by {@code FileSource}. It is kept only to
+ *     support tests for the legacy connector stack.
  */
-@PublicEvolving
-public class CsvBatchTableSourceFactory extends CsvTableSourceFactoryBase implements BatchTableSourceFactory<Row> {
+@Internal
+public class CsvBatchTableSourceFactory extends CsvTableSourceFactoryBase
+        implements StreamTableSourceFactory<Row> {
 
-	@Override
-	public BatchTableSource<Row> createBatchTableSource(Map<String, String> properties) {
-		return createTableSource(false, properties);
-	}
+    @Override
+    public StreamTableSource<Row> createStreamTableSource(Map<String, String> properties) {
+        return createTableSource(false, properties);
+    }
 }

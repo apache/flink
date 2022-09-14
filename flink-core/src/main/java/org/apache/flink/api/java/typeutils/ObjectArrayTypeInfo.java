@@ -18,139 +18,140 @@
 
 package org.apache.flink.api.java.typeutils;
 
-import java.lang.reflect.Array;
-
-import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.annotation.Public;
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.base.GenericArraySerializer;
 
-import static org.apache.flink.util.Preconditions.checkNotNull;
+import java.lang.reflect.Array;
+
 import static org.apache.flink.util.Preconditions.checkArgument;
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 @Public
 public class ObjectArrayTypeInfo<T, C> extends TypeInformation<T> {
 
-	private static final long serialVersionUID = 1L;
-	
-	private final Class<T> arrayType;
-	private final TypeInformation<C> componentInfo;
+    private static final long serialVersionUID = 1L;
 
-	private ObjectArrayTypeInfo(Class<T> arrayType, TypeInformation<C> componentInfo) {
-		this.arrayType = checkNotNull(arrayType);
-		this.componentInfo = checkNotNull(componentInfo);
-	}
+    private final Class<T> arrayType;
+    private final TypeInformation<C> componentInfo;
 
-	// --------------------------------------------------------------------------------------------
+    private ObjectArrayTypeInfo(Class<T> arrayType, TypeInformation<C> componentInfo) {
+        this.arrayType = checkNotNull(arrayType);
+        this.componentInfo = checkNotNull(componentInfo);
+    }
 
-	@Override
-	@PublicEvolving
-	public boolean isBasicType() {
-		return false;
-	}
+    // --------------------------------------------------------------------------------------------
 
-	@Override
-	@PublicEvolving
-	public boolean isTupleType() {
-		return false;
-	}
+    @Override
+    @PublicEvolving
+    public boolean isBasicType() {
+        return false;
+    }
 
-	@Override
-	@PublicEvolving
-	public int getArity() {
-		return 1;
-	}
+    @Override
+    @PublicEvolving
+    public boolean isTupleType() {
+        return false;
+    }
 
-	@Override
-	@PublicEvolving
-	public int getTotalFields() {
-		return 1;
-	}
+    @Override
+    @PublicEvolving
+    public int getArity() {
+        return 1;
+    }
 
-	@SuppressWarnings("unchecked")
-	@Override
-	@PublicEvolving
-	public Class<T> getTypeClass() {
-		return arrayType;
-	}
+    @Override
+    @PublicEvolving
+    public int getTotalFields() {
+        return 1;
+    }
 
-	@PublicEvolving
-	public TypeInformation<C> getComponentInfo() {
-		return componentInfo;
-	}
+    @SuppressWarnings("unchecked")
+    @Override
+    @PublicEvolving
+    public Class<T> getTypeClass() {
+        return arrayType;
+    }
 
-	@Override
-	@PublicEvolving
-	public boolean isKeyType() {
-		return false;
-	}
+    @PublicEvolving
+    public TypeInformation<C> getComponentInfo() {
+        return componentInfo;
+    }
 
-	@SuppressWarnings("unchecked")
-	@Override
-	@PublicEvolving
-	public TypeSerializer<T> createSerializer(ExecutionConfig executionConfig) {
-		return (TypeSerializer<T>) new GenericArraySerializer<C>(
-			componentInfo.getTypeClass(),
-			componentInfo.createSerializer(executionConfig));
-	}
+    @Override
+    @PublicEvolving
+    public boolean isKeyType() {
+        return false;
+    }
 
-	@Override
-	public String toString() {
-		return this.getClass().getSimpleName() + "<" + this.componentInfo + ">";
-	}
+    @SuppressWarnings("unchecked")
+    @Override
+    @PublicEvolving
+    public TypeSerializer<T> createSerializer(ExecutionConfig executionConfig) {
+        return (TypeSerializer<T>)
+                new GenericArraySerializer<C>(
+                        componentInfo.getTypeClass(),
+                        componentInfo.createSerializer(executionConfig));
+    }
 
-	@Override
-	public boolean equals(Object obj) {
-		if (obj instanceof ObjectArrayTypeInfo) {
-			@SuppressWarnings("unchecked")
-			ObjectArrayTypeInfo<T, C> objectArrayTypeInfo = (ObjectArrayTypeInfo<T, C>)obj;
+    @Override
+    public String toString() {
+        return this.getClass().getSimpleName() + "<" + this.componentInfo + ">";
+    }
 
-			return objectArrayTypeInfo.canEqual(this) &&
-				arrayType == objectArrayTypeInfo.arrayType &&
-				componentInfo.equals(objectArrayTypeInfo.componentInfo);
-		} else {
-			return false;
-		}
-	}
+    @Override
+    public boolean equals(Object obj) {
+        if (obj instanceof ObjectArrayTypeInfo) {
+            @SuppressWarnings("unchecked")
+            ObjectArrayTypeInfo<T, C> objectArrayTypeInfo = (ObjectArrayTypeInfo<T, C>) obj;
 
-	@Override
-	public boolean canEqual(Object obj) {
-		return obj instanceof ObjectArrayTypeInfo;
-	}
+            return objectArrayTypeInfo.canEqual(this)
+                    && arrayType == objectArrayTypeInfo.arrayType
+                    && componentInfo.equals(objectArrayTypeInfo.componentInfo);
+        } else {
+            return false;
+        }
+    }
 
-	@Override
-	public int hashCode() {
-		return 31 * this.arrayType.hashCode() + this.componentInfo.hashCode();
-	}
+    @Override
+    public boolean canEqual(Object obj) {
+        return obj instanceof ObjectArrayTypeInfo;
+    }
 
-	// --------------------------------------------------------------------------------------------
+    @Override
+    public int hashCode() {
+        return 31 * this.arrayType.hashCode() + this.componentInfo.hashCode();
+    }
 
-	@PublicEvolving
-	public static <T, C> ObjectArrayTypeInfo<T, C> getInfoFor(Class<T> arrayClass, TypeInformation<C> componentInfo) {
-		checkNotNull(arrayClass);
-		checkNotNull(componentInfo);
-		checkArgument(arrayClass.isArray(), "Class " + arrayClass + " must be an array.");
+    // --------------------------------------------------------------------------------------------
 
-		return new ObjectArrayTypeInfo<T, C>(arrayClass, componentInfo);
-	}
+    @PublicEvolving
+    public static <T, C> ObjectArrayTypeInfo<T, C> getInfoFor(
+            Class<T> arrayClass, TypeInformation<C> componentInfo) {
+        checkNotNull(arrayClass);
+        checkNotNull(componentInfo);
+        checkArgument(arrayClass.isArray(), "Class " + arrayClass + " must be an array.");
 
-	/**
-	 * Creates a new {@link org.apache.flink.api.java.typeutils.ObjectArrayTypeInfo} from a
-	 * {@link TypeInformation} for the component type.
-	 *
-	 * <p>
-	 * This must be used in cases where the complete type of the array is not available as a
-	 * {@link java.lang.reflect.Type} or {@link java.lang.Class}.
-	 */
-	@SuppressWarnings("unchecked")
-	@PublicEvolving
-	public static <T, C> ObjectArrayTypeInfo<T, C> getInfoFor(TypeInformation<C> componentInfo) {
-		checkNotNull(componentInfo);
+        return new ObjectArrayTypeInfo<T, C>(arrayClass, componentInfo);
+    }
 
-		return new ObjectArrayTypeInfo<T, C>(
-			(Class<T>)Array.newInstance(componentInfo.getTypeClass(), 0).getClass(),
-			componentInfo);
-	}
+    /**
+     * Creates a new {@link org.apache.flink.api.java.typeutils.ObjectArrayTypeInfo} from a {@link
+     * TypeInformation} for the component type.
+     *
+     * <p>This must be used in cases where the complete type of the array is not available as a
+     * {@link java.lang.reflect.Type} or {@link java.lang.Class}.
+     */
+    @SuppressWarnings("unchecked")
+    @PublicEvolving
+    public static <T, C> ObjectArrayTypeInfo<T, C> getInfoFor(TypeInformation<C> componentInfo) {
+        checkNotNull(componentInfo);
+
+        return new ObjectArrayTypeInfo<T, C>(
+                (Class<T>) Array.newInstance(componentInfo.getTypeClass(), 0).getClass(),
+                componentInfo);
+    }
 }

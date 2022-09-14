@@ -35,78 +35,84 @@ import static org.junit.Assert.assertTrue;
 /**
  * Tests for the SocketStreamIterator.
  *
- * <p>This experimental class is relocated from flink-streaming-contrib. Please see package-info.java
- * for more information.
+ * <p>This experimental class is relocated from flink-streaming-contrib. Please see
+ * package-info.java for more information.
  */
 public class SocketStreamIteratorTest {
 
-	@Test
-	public void testIterator() throws Exception {
+    @Test
+    public void testIterator() throws Exception {
 
-		final AtomicReference<Throwable> error = new AtomicReference<>();
+        final AtomicReference<Throwable> error = new AtomicReference<>();
 
-		final long seed = new Random().nextLong();
-		final int numElements = 1000;
+        final long seed = new Random().nextLong();
+        final int numElements = 1000;
 
-		final SocketStreamIterator<Long> iterator = new SocketStreamIterator<>(LongSerializer.INSTANCE);
+        final SocketStreamIterator<Long> iterator =
+                new SocketStreamIterator<>(LongSerializer.INSTANCE);
 
-		Thread writer = new Thread() {
+        Thread writer =
+                new Thread() {
 
-			@Override
-			public void run() {
-				try {
-					try (Socket sock = new Socket(iterator.getBindAddress(), iterator.getPort());
-						DataOutputViewStreamWrapper out = new DataOutputViewStreamWrapper(sock.getOutputStream())) {
+                    @Override
+                    public void run() {
+                        try {
+                            try (Socket sock =
+                                            new Socket(
+                                                    iterator.getBindAddress(), iterator.getPort());
+                                    DataOutputViewStreamWrapper out =
+                                            new DataOutputViewStreamWrapper(
+                                                    sock.getOutputStream())) {
 
-						final TypeSerializer<Long> serializer = LongSerializer.INSTANCE;
-						final Random rnd = new Random(seed);
+                                final TypeSerializer<Long> serializer = LongSerializer.INSTANCE;
+                                final Random rnd = new Random(seed);
 
-						for (int i = 0; i < numElements; i++) {
-							serializer.serialize(rnd.nextLong(), out);
-						}
-					}
-				}
-				catch (Throwable t) {
-					error.set(t);
-				}
-			}
-		};
+                                for (int i = 0; i < numElements; i++) {
+                                    serializer.serialize(rnd.nextLong(), out);
+                                }
+                            }
+                        } catch (Throwable t) {
+                            error.set(t);
+                        }
+                    }
+                };
 
-		writer.start();
+        writer.start();
 
-		final Random validator = new Random(seed);
-		for (int i = 0; i < numElements; i++) {
-			assertTrue(iterator.hasNext());
-			assertTrue(iterator.hasNext());
-			assertEquals(validator.nextLong(), iterator.next().longValue());
-		}
+        final Random validator = new Random(seed);
+        for (int i = 0; i < numElements; i++) {
+            assertTrue(iterator.hasNext());
+            assertTrue(iterator.hasNext());
+            assertEquals(validator.nextLong(), iterator.next().longValue());
+        }
 
-		assertFalse(iterator.hasNext());
-		writer.join();
-		assertFalse(iterator.hasNext());
-	}
+        assertFalse(iterator.hasNext());
+        writer.join();
+        assertFalse(iterator.hasNext());
+    }
 
-	@Test
-	public void testIteratorWithException() throws Exception {
+    @Test
+    public void testIteratorWithException() throws Exception {
 
-		final SocketStreamIterator<Long> iterator = new SocketStreamIterator<>(LongSerializer.INSTANCE);
+        final SocketStreamIterator<Long> iterator =
+                new SocketStreamIterator<>(LongSerializer.INSTANCE);
 
-		// asynchronously set an error
-		new Thread() {
-			@Override
-			public void run() {
-				try {
-					Thread.sleep(100);
-				} catch (InterruptedException ignored) {}
-				iterator.notifyOfError(new Exception("test"));
-			}
-		}.start();
+        // asynchronously set an error
+        new Thread() {
+            @Override
+            public void run() {
+                try {
+                    Thread.sleep(100);
+                } catch (InterruptedException ignored) {
+                }
+                iterator.notifyOfError(new Exception("test"));
+            }
+        }.start();
 
-		try {
-			iterator.hasNext();
-		}
-		catch (Exception e) {
-			assertTrue(e.getCause().getMessage().contains("test"));
-		}
-	}
+        try {
+            iterator.hasNext();
+        } catch (Exception e) {
+            assertTrue(e.getCause().getMessage().contains("test"));
+        }
+    }
 }

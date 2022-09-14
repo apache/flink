@@ -15,17 +15,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.streaming.api.scala
 
 import org.apache.flink.api.scala.typeutils.CaseClassTypeInfo
-import org.apache.flink.streaming.api.TimeCharacteristic
 import org.apache.flink.streaming.api.functions.co.ProcessJoinFunction
 import org.apache.flink.streaming.api.functions.sink.SinkFunction
 import org.apache.flink.streaming.api.functions.timestamps.AscendingTimestampExtractor
 import org.apache.flink.streaming.api.windowing.time.Time
 import org.apache.flink.test.util.AbstractTestBase
 import org.apache.flink.util.Collector
+
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -36,20 +35,22 @@ class IntervalJoinITCase extends AbstractTestBase {
   @Test
   def testInclusiveBounds(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
-    env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
     env.setParallelism(1)
 
-    val dataStream1 = env.fromElements(("key", 0L), ("key", 1L), ("key", 2L))
+    val dataStream1 = env
+      .fromElements(("key", 0L), ("key", 1L), ("key", 2L))
       .assignTimestampsAndWatermarks(new TimestampExtractor())
       .keyBy(elem => elem._1)
 
-    val dataStream2 = env.fromElements(("key", 0L), ("key", 1L), ("key", 2L))
+    val dataStream2 = env
+      .fromElements(("key", 0L), ("key", 1L), ("key", 2L))
       .assignTimestampsAndWatermarks(new TimestampExtractor())
       .keyBy(elem => elem._1)
 
     val sink = new ResultSink()
 
-    val join = dataStream1.intervalJoin(dataStream2)
+    val join = dataStream1
+      .intervalJoin(dataStream2)
       .between(Time.milliseconds(0), Time.milliseconds(2))
       .process(new CombineJoinFunction())
 
@@ -63,10 +64,8 @@ class IntervalJoinITCase extends AbstractTestBase {
       "(key:key,0)",
       "(key:key,1)",
       "(key:key,2)",
-
       "(key:key,2)",
       "(key:key,3)",
-
       "(key:key,4)"
     )
   }
@@ -74,20 +73,22 @@ class IntervalJoinITCase extends AbstractTestBase {
   @Test
   def testExclusiveBounds(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
-    env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
     env.setParallelism(1)
 
-    val dataStream1 = env.fromElements(("key", 0L), ("key", 1L), ("key", 2L))
+    val dataStream1 = env
+      .fromElements(("key", 0L), ("key", 1L), ("key", 2L))
       .assignTimestampsAndWatermarks(new TimestampExtractor())
       .keyBy(elem => elem._1)
 
-    val dataStream2 = env.fromElements(("key", 0L), ("key", 1L), ("key", 2L))
+    val dataStream2 = env
+      .fromElements(("key", 0L), ("key", 1L), ("key", 2L))
       .assignTimestampsAndWatermarks(new TimestampExtractor())
       .keyBy(elem => elem._1)
 
     val sink = new ResultSink()
 
-    val join = dataStream1.intervalJoin(dataStream2)
+    val join = dataStream1
+      .intervalJoin(dataStream2)
       .between(Time.milliseconds(0), Time.milliseconds(2))
       .lowerBoundExclusive()
       .upperBoundExclusive()
@@ -112,7 +113,7 @@ object Companion {
 
 class ResultSink extends SinkFunction[(String, Long)] {
 
-  override def invoke(value: (String, Long), context: SinkFunction.Context[_]): Unit = {
+  override def invoke(value: (String, Long), context: SinkFunction.Context): Unit = {
     Companion.results.append(value.toString())
   }
 

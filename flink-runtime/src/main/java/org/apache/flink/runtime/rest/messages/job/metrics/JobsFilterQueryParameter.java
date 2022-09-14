@@ -22,32 +22,29 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.rest.messages.ConversionException;
 import org.apache.flink.runtime.rest.messages.MessageQueryParameter;
 
-
-/**
- * {@link MessageQueryParameter} for selecting jobs when aggregating metrics.
- */
+/** {@link MessageQueryParameter} for selecting jobs when aggregating metrics. */
 public class JobsFilterQueryParameter extends MessageQueryParameter<JobID> {
 
-	JobsFilterQueryParameter() {
-		super("jobs", MessageParameterRequisiteness.OPTIONAL);
-	}
+    JobsFilterQueryParameter() {
+        super("jobs", MessageParameterRequisiteness.OPTIONAL);
+    }
 
-	@Override
-	public JobID convertStringToValue(String value) throws ConversionException {
-		try {
-			return JobID.fromHexString(value);
-		} catch (IllegalArgumentException iae) {
-			throw new ConversionException("Not a valid job ID: " + value, iae);
-		}
-	}
+    @Override
+    public JobID convertStringToValue(String value) throws ConversionException {
+        try {
+            return JobID.fromHexString(value);
+        } catch (IllegalArgumentException iae) {
+            throw new ConversionException("Not a valid job ID: " + value, iae);
+        }
+    }
 
-	@Override
-	public String convertValueToString(JobID value) {
-		return value.toString();
-	}
+    @Override
+    public String convertValueToString(JobID value) {
+        return value.toString();
+    }
 
-	@Override
-	public String getDescription() {
-		return "Comma-separated list of 32-character hexadecimal strings to select specific jobs.";
-	}
+    @Override
+    public String getDescription() {
+        return "Comma-separated list of 32-character hexadecimal strings to select specific jobs.";
+    }
 }

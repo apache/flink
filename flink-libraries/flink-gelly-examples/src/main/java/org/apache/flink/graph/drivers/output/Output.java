@@ -24,18 +24,15 @@ import org.apache.flink.graph.drivers.parameter.Parameterized;
 
 import java.io.PrintStream;
 
-/**
- * Output writer for a {@link GraphAlgorithm} result.
- */
-public interface Output<T>
-extends Parameterized {
+/** Output writer for a {@link GraphAlgorithm} result. */
+public interface Output<T> extends Parameterized {
 
-	/**
-	 * Write the output {@link DataSet}.
-	 *
-	 * @param executionName job name
-	 * @param out output printer
-	 * @param data the output
-	 */
-	void write(String executionName, PrintStream out, DataSet<T> data) throws Exception;
+    /**
+     * Write the output {@link DataSet}.
+     *
+     * @param executionName job name
+     * @param out output printer
+     * @param data the output
+     */
+    void write(String executionName, PrintStream out, DataSet<T> data) throws Exception;
 }

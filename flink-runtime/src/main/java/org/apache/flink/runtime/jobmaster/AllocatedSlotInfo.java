@@ -25,36 +25,36 @@ import java.io.Serializable;
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
-/**
- * Information about an allocated slot which is owned by a JobMaster.
- */
+/** Information about an allocated slot which is owned by a JobMaster. */
 public class AllocatedSlotInfo implements Serializable {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	private final int slotIndex;
+    private final int slotIndex;
 
-	private final AllocationID allocationId;
+    private final AllocationID allocationId;
 
-	public AllocatedSlotInfo(int index, AllocationID allocationId) {
-		checkArgument(index >= 0);
-		this.slotIndex = index;
-		this.allocationId = checkNotNull(allocationId);
-	}
+    public AllocatedSlotInfo(int index, AllocationID allocationId) {
+        checkArgument(index >= 0);
+        this.slotIndex = index;
+        this.allocationId = checkNotNull(allocationId);
+    }
 
-	public AllocationID getAllocationId() {
-		return allocationId;
-	}
+    public AllocationID getAllocationId() {
+        return allocationId;
+    }
 
-	public int getSlotIndex() {
-		return slotIndex;
-	}
+    public int getSlotIndex() {
+        return slotIndex;
+    }
 
-	@Override
-	public String toString() {
-		return "AllocatedSlotInfo{" +
-			"slotIndex=" + slotIndex +
-			", allocationId=" + allocationId +
-			'}';
-	}
+    @Override
+    public String toString() {
+        return "AllocatedSlotInfo{"
+                + "slotIndex="
+                + slotIndex
+                + ", allocationId="
+                + allocationId
+                + '}';
+    }
 }

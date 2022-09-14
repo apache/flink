@@ -24,29 +24,27 @@ import org.junit.Test;
 
 import static org.junit.Assert.assertNotNull;
 
-/**
- * This test verifies that the data exchange modes are defined for every execution mode.
- */
+/** This test verifies that the data exchange modes are defined for every execution mode. */
 public class DataExchangeModeTest {
 
-	@Test
-	public void testForward() {
-		for (ExecutionMode mode : ExecutionMode.values()) {
-			assertNotNull(DataExchangeMode.getForForwardExchange(mode));
-		}
-	}
+    @Test
+    public void testForward() {
+        for (ExecutionMode mode : ExecutionMode.values()) {
+            assertNotNull(DataExchangeMode.getForForwardExchange(mode));
+        }
+    }
 
-	@Test
-	public void testShuffleAndBroadcast() {
-		for (ExecutionMode mode : ExecutionMode.values()) {
-			assertNotNull(DataExchangeMode.getForShuffleOrBroadcast(mode));
-		}
-	}
+    @Test
+    public void testShuffleAndBroadcast() {
+        for (ExecutionMode mode : ExecutionMode.values()) {
+            assertNotNull(DataExchangeMode.getForShuffleOrBroadcast(mode));
+        }
+    }
 
-	@Test
-	public void testPipelineBreaking() {
-		for (ExecutionMode mode : ExecutionMode.values()) {
-			assertNotNull(DataExchangeMode.getPipelineBreakingExchange(mode));
-		}
-	}
+    @Test
+    public void testPipelineBreaking() {
+        for (ExecutionMode mode : ExecutionMode.values()) {
+            assertNotNull(DataExchangeMode.getPipelineBreakingExchange(mode));
+        }
+    }
 }

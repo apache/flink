@@ -26,19 +26,22 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-connectors</artifactId>
-		<version>1.11-SNAPSHOT</version>
-		<relativePath>..</relativePath>
+		<version>1.17-SNAPSHOT</version>
 	</parent>
 
-	<artifactId>flink-sql-connector-elasticsearch6_${scala.binary.version}</artifactId>
-	<name>flink-sql-connector-elasticsearch6</name>
+	<artifactId>flink-sql-connector-elasticsearch6</artifactId>
+	<name>Flink : Connectors : SQL : Elasticsearch 6</name>
 
 	<packaging>jar</packaging>
+
+	<properties>
+		<japicmp.skip>true</japicmp.skip>
+	</properties>
 
 	<dependencies>
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-connector-elasticsearch6_${scala.binary.version}</artifactId>
+			<artifactId>flink-connector-elasticsearch6</artifactId>
 			<version>${project.version}</version>
 		</dependency>
 	</dependencies>
@@ -56,7 +59,6 @@ under the License.
 							<goal>shade</goal>
 						</goals>
 						<configuration>
-							<shadeTestJar>false</shadeTestJar>
 							<artifactSet>
 								<includes>
 									<include>*:*</include>
@@ -135,6 +137,10 @@ under the License.
 								<relocation>
 									<pattern>com.fasterxml.jackson</pattern>
 									<shadedPattern>org.apache.flink.elasticsearch6.shaded.com.fasterxml.jackson</shadedPattern>
+								</relocation>
+								<relocation>
+									<pattern>com.github.mustachejava</pattern>
+									<shadedPattern>org.apache.flink.elasticsearch6.shaded.com.github.mustachejava</shadedPattern>
 								</relocation>
 							</relocations>
 						</configuration>

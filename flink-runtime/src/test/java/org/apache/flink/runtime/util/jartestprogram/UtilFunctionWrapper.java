@@ -20,18 +20,14 @@ package org.apache.flink.runtime.util.jartestprogram;
 
 import org.apache.flink.api.common.functions.FilterFunction;
 
-/**
- * A wrapper around {@link WordFilter} to introduce additional indirection.
- */
+/** A wrapper around {@link WordFilter} to introduce additional indirection. */
 public class UtilFunctionWrapper {
 
-	/**
-	 * Static factory for a lambda filter function.
-	 */
-	public static class UtilFunction {
-		@SuppressWarnings("Convert2MethodRef")
-		public static FilterFunction<String> getWordFilter() {
-			return (v) -> WordFilter.filter(v);
-		}
-	}
+    /** Static factory for a lambda filter function. */
+    public static class UtilFunction {
+        @SuppressWarnings("Convert2MethodRef")
+        public static FilterFunction<String> getWordFilter() {
+            return (v) -> WordFilter.filter(v);
+        }
+    }
 }

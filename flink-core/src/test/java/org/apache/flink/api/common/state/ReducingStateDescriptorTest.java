@@ -31,58 +31,61 @@ import org.junit.Test;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 
-/**
- * Tests for the {@link ReducingStateDescriptor}.
- */
+/** Tests for the {@link ReducingStateDescriptor}. */
 public class ReducingStateDescriptorTest extends TestLogger {
 
-	@Test
-	public void testReducingStateDescriptor() throws Exception {
+    @Test
+    public void testReducingStateDescriptor() throws Exception {
 
-		ReduceFunction<String> reducer = (a, b) -> a;
+        ReduceFunction<String> reducer = (a, b) -> a;
 
-		TypeSerializer<String> serializer = new KryoSerializer<>(String.class, new ExecutionConfig());
+        TypeSerializer<String> serializer =
+                new KryoSerializer<>(String.class, new ExecutionConfig());
 
-		ReducingStateDescriptor<String> descr =
-				new ReducingStateDescriptor<>("testName", reducer, serializer);
+        ReducingStateDescriptor<String> descr =
+                new ReducingStateDescriptor<>("testName", reducer, serializer);
 
-		assertEquals("testName", descr.getName());
-		assertNotNull(descr.getSerializer());
-		assertEquals(serializer, descr.getSerializer());
-		assertEquals(reducer, descr.getReduceFunction());
+        assertEquals("testName", descr.getName());
+        assertNotNull(descr.getSerializer());
+        assertEquals(serializer, descr.getSerializer());
+        assertEquals(reducer, descr.getReduceFunction());
 
-		ReducingStateDescriptor<String> copy = CommonTestUtils.createCopySerializable(descr);
+        ReducingStateDescriptor<String> copy = CommonTestUtils.createCopySerializable(descr);
 
-		assertEquals("testName", copy.getName());
-		assertNotNull(copy.getSerializer());
-		assertEquals(serializer, copy.getSerializer());
-	}
+        assertEquals("testName", copy.getName());
+        assertNotNull(copy.getSerializer());
+        assertEquals(serializer, copy.getSerializer());
+    }
 
-	@Test
-	public void testHashCodeEquals() throws Exception {
-		final String name = "testName";
-		final ReduceFunction<String> reducer = (a, b) -> a;
+    @Test
+    public void testHashCodeEquals() throws Exception {
+        final String name = "testName";
+        final ReduceFunction<String> reducer = (a, b) -> a;
 
-		ReducingStateDescriptor<String> original = new ReducingStateDescriptor<>(name, reducer, String.class);
-		ReducingStateDescriptor<String> same = new ReducingStateDescriptor<>(name, reducer, String.class);
-		ReducingStateDescriptor<String> sameBySerializer = new ReducingStateDescriptor<>(name, reducer, StringSerializer.INSTANCE);
+        ReducingStateDescriptor<String> original =
+                new ReducingStateDescriptor<>(name, reducer, String.class);
+        ReducingStateDescriptor<String> same =
+                new ReducingStateDescriptor<>(name, reducer, String.class);
+        ReducingStateDescriptor<String> sameBySerializer =
+                new ReducingStateDescriptor<>(name, reducer, StringSerializer.INSTANCE);
 
-		// test that hashCode() works on state descriptors with initialized and uninitialized serializers
-		assertEquals(original.hashCode(), same.hashCode());
-		assertEquals(original.hashCode(), sameBySerializer.hashCode());
+        // test that hashCode() works on state descriptors with initialized and uninitialized
+        // serializers
+        assertEquals(original.hashCode(), same.hashCode());
+        assertEquals(original.hashCode(), sameBySerializer.hashCode());
 
-		assertEquals(original, same);
-		assertEquals(original, sameBySerializer);
+        assertEquals(original, same);
+        assertEquals(original, sameBySerializer);
 
-		// equality with a clone
-		ReducingStateDescriptor<String> clone = CommonTestUtils.createCopySerializable(original);
-		assertEquals(original, clone);
+        // equality with a clone
+        ReducingStateDescriptor<String> clone = CommonTestUtils.createCopySerializable(original);
+        assertEquals(original, clone);
 
-		// equality with an initialized
-		clone.initializeSerializerUnlessSet(new ExecutionConfig());
-		assertEquals(original, clone);
+        // equality with an initialized
+        clone.initializeSerializerUnlessSet(new ExecutionConfig());
+        assertEquals(original, clone);
 
-		original.initializeSerializerUnlessSet(new ExecutionConfig());
-		assertEquals(original, same);
-	}
+        original.initializeSerializerUnlessSet(new ExecutionConfig());
+        assertEquals(original, same);
+    }
 }

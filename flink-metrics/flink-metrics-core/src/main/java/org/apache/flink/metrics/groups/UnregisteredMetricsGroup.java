@@ -18,6 +18,7 @@
 
 package org.apache.flink.metrics.groups;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.metrics.CharacterFilter;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.Gauge;
@@ -30,93 +31,179 @@ import java.util.Collections;
 import java.util.Map;
 
 /**
- * A special {@link MetricGroup} that does not register any metrics at the metrics registry
- * and any reporters.
+ * A special {@link MetricGroup} that does not register any metrics at the metrics registry and any
+ * reporters.
  */
+@Internal
 public class UnregisteredMetricsGroup implements MetricGroup {
 
-	@Override
-	public Counter counter(int name) {
-		return new SimpleCounter();
-	}
+    @Override
+    public Counter counter(String name) {
+        return new SimpleCounter();
+    }
 
-	@Override
-	public Counter counter(String name) {
-		return new SimpleCounter();
-	}
+    @Override
+    public <C extends Counter> C counter(String name, C counter) {
+        return counter;
+    }
 
-	@Override
-	public <C extends Counter> C counter(int name, C counter) {
-		return counter;
-	}
+    @Override
+    public <T, G extends Gauge<T>> G gauge(String name, G gauge) {
+        return gauge;
+    }
 
-	@Override
-	public <C extends Counter> C counter(String name, C counter) {
-		return counter;
-	}
+    @Override
+    public <M extends Meter> M meter(String name, M meter) {
+        return meter;
+    }
 
-	@Override
-	public <T, G extends Gauge<T>> G gauge(int name, G gauge) {
-		return gauge;
-	}
+    @Override
+    public <H extends Histogram> H histogram(String name, H histogram) {
+        return histogram;
+    }
 
-	@Override
-	public <T, G extends Gauge<T>> G gauge(String name, G gauge) {
-		return gauge;
-	}
+    @Override
+    public MetricGroup addGroup(String name) {
+        return new UnregisteredMetricsGroup();
+    }
 
-	@Override
-	public <H extends Histogram> H histogram(int name, H histogram) {
-		return histogram;
-	}
+    @Override
+    public MetricGroup addGroup(String key, String value) {
+        return new UnregisteredMetricsGroup();
+    }
 
-	@Override
-	public <M extends Meter> M meter(String name, M meter) {
-		return meter;
-	}
+    @Override
+    public String[] getScopeComponents() {
+        return new String[0];
+    }
 
-	@Override
-	public <M extends Meter> M meter(int name, M meter) {
-		return meter;
-	}
+    @Override
+    public Map<String, String> getAllVariables() {
+        return Collections.emptyMap();
+    }
 
-	@Override
-	public <H extends Histogram> H histogram(String name, H histogram) {
-		return histogram;
-	}
+    @Override
+    public String getMetricIdentifier(String metricName) {
+        return metricName;
+    }
 
-	@Override
-	public MetricGroup addGroup(int name) {
-		return addGroup(String.valueOf(name));
-	}
+    @Override
+    public String getMetricIdentifier(String metricName, CharacterFilter filter) {
+        return metricName;
+    }
 
-	@Override
-	public MetricGroup addGroup(String name) {
-		return new UnregisteredMetricsGroup();
-	}
+    public static OperatorMetricGroup createOperatorMetricGroup() {
+        return new UnregisteredOperatorMetricGroup();
+    }
 
-	@Override
-	public MetricGroup addGroup(String key, String value) {
-		return new UnregisteredMetricsGroup();
-	}
+    public static OperatorIOMetricGroup createOperatorIOMetricGroup() {
+        return new UnregisteredOperatorIOMetricGroup();
+    }
 
-	@Override
-	public String[] getScopeComponents() {
-		return new String[0];
-	}
+    public static SourceReaderMetricGroup createSourceReaderMetricGroup() {
+        return new UnregisteredSourceReaderMetricGroup();
+    }
 
-	@Override
-	public Map<String, String> getAllVariables() {
-		return Collections.emptyMap();
-	}
+    public static SplitEnumeratorMetricGroup createSplitEnumeratorMetricGroup() {
+        return new UnregisteredSplitEnumeratorMetricGroup();
+    }
 
-	@Override
-	public String getMetricIdentifier(String metricName) {
-		return metricName;
-	}
+    public static CacheMetricGroup createCacheMetricGroup() {
+        return new UnregisteredCacheMetricGroup();
+    }
 
-	@Override
-	public String getMetricIdentifier(String metricName, CharacterFilter filter) {
-		return metricName;
-	}
+    private static class UnregisteredOperatorMetricGroup extends UnregisteredMetricsGroup
+            implements OperatorMetricGroup {
+        @Override
+        public OperatorIOMetricGroup getIOMetricGroup() {
+            return new UnregisteredOperatorIOMetricGroup();
+        }
+    }
+
+    private static class UnregisteredOperatorIOMetricGroup extends UnregisteredMetricsGroup
+            implements OperatorIOMetricGroup {
+        @Override
+        public Counter getNumRecordsInCounter() {
+            return new SimpleCounter();
+        }
+
+        @Override
+        public Counter getNumRecordsOutCounter() {
+            return new SimpleCounter();
+        }
+
+        @Override
+        public Counter getNumBytesInCounter() {
+            return new SimpleCounter();
+        }
+
+        @Override
+        public Counter getNumBytesOutCounter() {
+            return new SimpleCounter();
+        }
+    }
+
+    private static class UnregisteredSourceReaderMetricGroup extends UnregisteredMetricsGroup
+            implements SourceReaderMetricGroup {
+        @Override
+        public OperatorIOMetricGroup getIOMetricGroup() {
+            return new UnregisteredOperatorIOMetricGroup();
+        }
+
+        @Override
+        public Counter getNumRecordsInErrorsCounter() {
+            return new SimpleCounter();
+        }
+
+        @Override
+        public void setPendingBytesGauge(Gauge<Long> pendingBytesGauge) {}
+
+        @Override
+        public void setPendingRecordsGauge(Gauge<Long> pendingRecordsGauge) {}
+    }
+
+    private static class DummyGauge<T> implements Gauge<T> {
+        private final T value;
+
+        public DummyGauge(T value) {
+            this.value = value;
+        }
+
+        @Override
+        public T getValue() {
+            return value;
+        }
+    }
+
+    private static class UnregisteredSplitEnumeratorMetricGroup extends UnregisteredMetricsGroup
+            implements SplitEnumeratorMetricGroup {
+        @Override
+        public <G extends Gauge<Long>> G setUnassignedSplitsGauge(G unassignedSplitsGauge) {
+            return null;
+        }
+    }
+
+    private static class UnregisteredCacheMetricGroup extends UnregisteredMetricsGroup
+            implements CacheMetricGroup {
+        @Override
+        public void hitCounter(Counter hitCounter) {}
+
+        @Override
+        public void missCounter(Counter missCounter) {}
+
+        @Override
+        public void loadCounter(Counter loadCounter) {}
+
+        @Override
+        public void numLoadFailuresCounter(Counter numLoadFailuresCounter) {}
+
+        @Override
+        public void latestLoadTimeGauge(Gauge<Long> latestLoadTimeGauge) {}
+
+        @Override
+        public void numCachedRecordsGauge(Gauge<Long> numCachedRecordsGauge) {}
+
+        @Override
+        public void numCachedBytesGauge(Gauge<Long> numCachedBytesGauge) {}
+    }
 }

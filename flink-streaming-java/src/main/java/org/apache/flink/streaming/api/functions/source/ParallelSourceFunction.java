@@ -20,18 +20,15 @@ package org.apache.flink.streaming.api.functions.source;
 import org.apache.flink.annotation.Public;
 
 /**
- * A stream data source that is executed in parallel. Upon execution, the runtime will
- * execute as many parallel instances of this function as configured parallelism
- * of the source.
+ * A stream data source that is executed in parallel. Upon execution, the runtime will execute as
+ * many parallel instances of this function as configured parallelism of the source.
  *
- * <p>This interface acts only as a marker to tell the system that this source may
- * be executed in parallel. When different parallel instances are required to perform
- * different tasks, use the {@link RichParallelSourceFunction} to get access to the runtime
- * context, which reveals information like the number of parallel tasks, and which parallel
- * task the current instance is.
+ * <p>This interface acts only as a marker to tell the system that this source may be executed in
+ * parallel. When different parallel instances are required to perform different tasks, use the
+ * {@link RichParallelSourceFunction} to get access to the runtime context, which reveals
+ * information like the number of parallel tasks, and which parallel task the current instance is.
  *
  * @param <OUT> The type of the records produced by this source.
  */
 @Public
-public interface ParallelSourceFunction<OUT> extends SourceFunction<OUT> {
-}
+public interface ParallelSourceFunction<OUT> extends SourceFunction<OUT> {}

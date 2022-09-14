@@ -21,16 +21,14 @@ import org.apache.flink.metrics.reporter.MetricReporterFactory;
 
 import java.util.Properties;
 
-/**
- * {@link MetricReporterFactory} for {@link JMXReporter}.
- */
+/** {@link MetricReporterFactory} for {@link JMXReporter}. */
 public class JMXReporterFactory implements MetricReporterFactory {
 
-	static final String ARG_PORT = "port";
+    static final String ARG_PORT = "port";
 
-	@Override
-	public JMXReporter createMetricReporter(Properties properties) {
-		String portsConfig = properties.getProperty(ARG_PORT);
-		return new JMXReporter(portsConfig);
-	}
+    @Override
+    public JMXReporter createMetricReporter(Properties properties) {
+        String portsConfig = properties.getProperty(ARG_PORT);
+        return new JMXReporter(portsConfig);
+    }
 }

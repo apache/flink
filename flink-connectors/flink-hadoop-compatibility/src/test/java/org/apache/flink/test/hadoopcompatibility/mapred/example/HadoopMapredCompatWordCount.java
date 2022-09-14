@@ -41,97 +41,104 @@ import java.io.IOException;
 import java.util.Iterator;
 
 /**
- * Implements a word count which takes the input file and counts the number of
- * occurrences of each word in the file and writes the result back to disk.
+ * Implements a word count which takes the input file and counts the number of occurrences of each
+ * word in the file and writes the result back to disk.
  *
- * <p>This example shows how to use Hadoop Input Formats, how to convert Hadoop Writables to
- * common Java types for better usage in a Flink job and how to use Hadoop Output Formats.
+ * <p>This example shows how to use Hadoop Input Formats, how to convert Hadoop Writables to common
+ * Java types for better usage in a Flink job and how to use Hadoop Output Formats.
  */
 public class HadoopMapredCompatWordCount {
 
-	public static void main(String[] args) throws Exception {
-		if (args.length < 2) {
-			System.err.println("Usage: WordCount <input path> <result path>");
-			return;
-		}
+    public static void main(String[] args) throws Exception {
+        if (args.length < 2) {
+            System.err.println("Usage: WordCount <input path> <result path>");
+            return;
+        }
 
-		final String inputPath = args[0];
-		final String outputPath = args[1];
+        final String inputPath = args[0];
+        final String outputPath = args[1];
 
-		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+        final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
-		// Set up the Hadoop Input Format
-		HadoopInputFormat<LongWritable, Text> hadoopInputFormat = new HadoopInputFormat<LongWritable, Text>(new TextInputFormat(), LongWritable.class, Text.class, new JobConf());
-		TextInputFormat.addInputPath(hadoopInputFormat.getJobConf(), new Path(inputPath));
+        // Set up the Hadoop Input Format
+        HadoopInputFormat<LongWritable, Text> hadoopInputFormat =
+                new HadoopInputFormat<LongWritable, Text>(
+                        new TextInputFormat(), LongWritable.class, Text.class, new JobConf());
+        TextInputFormat.addInputPath(hadoopInputFormat.getJobConf(), new Path(inputPath));
 
-		// Create a Flink job with it
-		DataSet<Tuple2<LongWritable, Text>> text = env.createInput(hadoopInputFormat);
+        // Create a Flink job with it
+        DataSet<Tuple2<LongWritable, Text>> text = env.createInput(hadoopInputFormat);
 
-		DataSet<Tuple2<Text, LongWritable>> words =
-				text.flatMap(new HadoopMapFunction<LongWritable, Text, Text, LongWritable>(new Tokenizer()))
-					.groupBy(0).reduceGroup(new HadoopReduceCombineFunction<Text, LongWritable, Text, LongWritable>(new Counter(), new Counter()));
+        DataSet<Tuple2<Text, LongWritable>> words =
+                text.flatMap(
+                                new HadoopMapFunction<LongWritable, Text, Text, LongWritable>(
+                                        new Tokenizer()))
+                        .groupBy(0)
+                        .reduceGroup(
+                                new HadoopReduceCombineFunction<
+                                        Text, LongWritable, Text, LongWritable>(
+                                        new Counter(), new Counter()));
 
-		// Set up Hadoop Output Format
-		HadoopOutputFormat<Text, LongWritable> hadoopOutputFormat =
-				new HadoopOutputFormat<Text, LongWritable>(new TextOutputFormat<Text, LongWritable>(), new JobConf());
-		hadoopOutputFormat.getJobConf().set("mapred.textoutputformat.separator", " ");
-		TextOutputFormat.setOutputPath(hadoopOutputFormat.getJobConf(), new Path(outputPath));
+        // Set up Hadoop Output Format
+        HadoopOutputFormat<Text, LongWritable> hadoopOutputFormat =
+                new HadoopOutputFormat<Text, LongWritable>(
+                        new TextOutputFormat<Text, LongWritable>(), new JobConf());
+        hadoopOutputFormat.getJobConf().set("mapred.textoutputformat.separator", " ");
+        TextOutputFormat.setOutputPath(hadoopOutputFormat.getJobConf(), new Path(outputPath));
 
-		// Output & Execute
-		words.output(hadoopOutputFormat).setParallelism(1);
-		env.execute("Hadoop Compat WordCount");
-	}
+        // Output & Execute
+        words.output(hadoopOutputFormat).setParallelism(1);
+        env.execute("Hadoop Compat WordCount");
+    }
 
-	/**
-	 * A {@link Mapper} that splits a line into words.
-	 */
-	public static final class Tokenizer implements Mapper<LongWritable, Text, Text, LongWritable> {
+    /** A {@link Mapper} that splits a line into words. */
+    public static final class Tokenizer implements Mapper<LongWritable, Text, Text, LongWritable> {
 
-		@Override
-		public void map(LongWritable k, Text v, OutputCollector<Text, LongWritable> out, Reporter rep)
-				throws IOException {
-			// normalize and split the line
-			String line = v.toString();
-			String[] tokens = line.toLowerCase().split("\\W+");
+        @Override
+        public void map(
+                LongWritable k, Text v, OutputCollector<Text, LongWritable> out, Reporter rep)
+                throws IOException {
+            // normalize and split the line
+            String line = v.toString();
+            String[] tokens = line.toLowerCase().split("\\W+");
 
-			// emit the pairs
-			for (String token : tokens) {
-				if (token.length() > 0) {
-					out.collect(new Text(token), new LongWritable(1L));
-				}
-			}
-		}
+            // emit the pairs
+            for (String token : tokens) {
+                if (token.length() > 0) {
+                    out.collect(new Text(token), new LongWritable(1L));
+                }
+            }
+        }
 
-		@Override
-		public void configure(JobConf arg0) { }
+        @Override
+        public void configure(JobConf arg0) {}
 
-		@Override
-		public void close() throws IOException { }
+        @Override
+        public void close() throws IOException {}
+    }
 
-	}
+    /** A {@link Reducer} to sum counts. */
+    public static final class Counter implements Reducer<Text, LongWritable, Text, LongWritable> {
 
-	/**
-	 * A {@link Reducer} to sum counts.
-	 */
-	public static final class Counter implements Reducer<Text, LongWritable, Text, LongWritable> {
+        @Override
+        public void reduce(
+                Text k,
+                Iterator<LongWritable> vs,
+                OutputCollector<Text, LongWritable> out,
+                Reporter rep)
+                throws IOException {
 
-		@Override
-		public void reduce(Text k, Iterator<LongWritable> vs, OutputCollector<Text, LongWritable> out, Reporter rep)
-				throws IOException {
+            long cnt = 0;
+            while (vs.hasNext()) {
+                cnt += vs.next().get();
+            }
+            out.collect(k, new LongWritable(cnt));
+        }
 
-			long cnt = 0;
-			while (vs.hasNext()) {
-				cnt += vs.next().get();
-			}
-			out.collect(k, new LongWritable(cnt));
+        @Override
+        public void configure(JobConf arg0) {}
 
-		}
-
-		@Override
-		public void configure(JobConf arg0) { }
-
-		@Override
-		public void close() throws IOException { }
-	}
-
+        @Override
+        public void close() throws IOException {}
+    }
 }

@@ -24,104 +24,121 @@ import java.util.Objects;
 import java.util.PriorityQueue;
 import java.util.Queue;
 
-/**
- * State kept for a {@link NFA}.
- */
+/** State kept for a {@link NFA}. */
 public class NFAState {
 
-	/**
-	 * Current set of {@link ComputationState computation states} within the state machine.
-	 * These are the "active" intermediate states that are waiting for new matching
-	 * events to transition to new valid states.
-	 */
-	private Queue<ComputationState> partialMatches;
+    /**
+     * Current set of {@link ComputationState computation states} within the state machine. These
+     * are the "active" intermediate states that are waiting for new matching events to transition
+     * to new valid states.
+     */
+    private Queue<ComputationState> partialMatches;
 
-	private Queue<ComputationState> completedMatches;
+    private Queue<ComputationState> completedMatches;
 
-	/**
-	 * Flag indicating whether the matching status of the state machine has changed.
-	 */
-	private boolean stateChanged;
+    /** Flag indicating whether the matching status of the state machine has changed. */
+    private boolean stateChanged;
 
-	public static final Comparator<ComputationState> COMPUTATION_STATE_COMPARATOR =
-		Comparator.<ComputationState>comparingLong(c ->
-				c.getStartEventID() != null ? c.getStartEventID().getTimestamp() : Long.MAX_VALUE)
-			.thenComparingInt(c ->
-				c.getStartEventID() != null ? c.getStartEventID().getId() : Integer.MAX_VALUE);
+    /** Flag indicating whether the current matching status is new partial matched. */
+    private boolean isNewStartPartialMatch;
 
-	public NFAState(Iterable<ComputationState> states) {
-		this.partialMatches = new PriorityQueue<>(COMPUTATION_STATE_COMPARATOR);
-		for (ComputationState startingState : states) {
-			partialMatches.add(startingState);
-		}
+    public static final Comparator<ComputationState> COMPUTATION_STATE_COMPARATOR =
+            Comparator.<ComputationState>comparingLong(
+                            c ->
+                                    c.getStartEventID() != null
+                                            ? c.getStartEventID().getTimestamp()
+                                            : Long.MAX_VALUE)
+                    .thenComparingInt(
+                            c ->
+                                    c.getStartEventID() != null
+                                            ? c.getStartEventID().getId()
+                                            : Integer.MAX_VALUE);
 
-		this.completedMatches = new PriorityQueue<>(COMPUTATION_STATE_COMPARATOR);
-	}
+    public NFAState(Iterable<ComputationState> states) {
+        this.partialMatches = new PriorityQueue<>(COMPUTATION_STATE_COMPARATOR);
+        for (ComputationState startingState : states) {
+            partialMatches.add(startingState);
+        }
 
-	public NFAState(Queue<ComputationState> partialMatches, Queue<ComputationState> completedMatches) {
-		this.partialMatches = partialMatches;
-		this.completedMatches = completedMatches;
-	}
+        this.completedMatches = new PriorityQueue<>(COMPUTATION_STATE_COMPARATOR);
+    }
 
-	/**
-	 * Check if the matching status of the NFA has changed so far.
-	 *
-	 * @return {@code true} if matching status has changed, {@code false} otherwise
-	 */
-	public boolean isStateChanged() {
-		return stateChanged;
-	}
+    public NFAState(
+            Queue<ComputationState> partialMatches, Queue<ComputationState> completedMatches) {
+        this.partialMatches = partialMatches;
+        this.completedMatches = completedMatches;
+    }
 
-	/**
-	 * Reset the changed bit checked via {@link #isStateChanged()} to {@code false}.
-	 */
-	public void resetStateChanged() {
-		this.stateChanged = false;
-	}
+    /**
+     * Check if the matching status of the NFA has changed so far.
+     *
+     * @return {@code true} if matching status has changed, {@code false} otherwise
+     */
+    public boolean isStateChanged() {
+        return stateChanged;
+    }
 
-	/**
-	 * Set the changed bit checked via {@link #isStateChanged()} to {@code true}.
-	 */
-	public void setStateChanged() {
-		this.stateChanged = true;
-	}
+    /** Reset the changed bit checked via {@link #isStateChanged()} to {@code false}. */
+    public void resetStateChanged() {
+        this.stateChanged = false;
+    }
 
-	public Queue<ComputationState> getPartialMatches() {
-		return partialMatches;
-	}
+    /** Set the changed bit checked via {@link #isStateChanged()} to {@code true}. */
+    public void setStateChanged() {
+        this.stateChanged = true;
+    }
 
-	public Queue<ComputationState> getCompletedMatches() {
-		return completedMatches;
-	}
+    public Queue<ComputationState> getPartialMatches() {
+        return partialMatches;
+    }
 
-	public void setNewPartialMatches(PriorityQueue<ComputationState> newPartialMatches) {
-		this.partialMatches = newPartialMatches;
-	}
+    public Queue<ComputationState> getCompletedMatches() {
+        return completedMatches;
+    }
 
-	@Override
-	public boolean equals(Object o) {
-		if (this == o) {
-			return true;
-		}
-		if (o == null || getClass() != o.getClass()) {
-			return false;
-		}
-		NFAState nfaState = (NFAState) o;
-		return Arrays.equals(partialMatches.toArray(), nfaState.partialMatches.toArray()) &&
-			Arrays.equals(completedMatches.toArray(), nfaState.completedMatches.toArray());
-	}
+    public void setNewPartialMatches(PriorityQueue<ComputationState> newPartialMatches) {
+        this.partialMatches = newPartialMatches;
+    }
 
-	@Override
-	public int hashCode() {
-		return Objects.hash(partialMatches, completedMatches);
-	}
+    public boolean isNewStartPartialMatch() {
+        return isNewStartPartialMatch;
+    }
 
-	@Override
-	public String toString() {
-		return "NFAState{" +
-			"partialMatches=" + partialMatches +
-			", completedMatches=" + completedMatches +
-			", stateChanged=" + stateChanged +
-			'}';
-	}
+    public void resetNewStartPartialMatch() {
+        this.isNewStartPartialMatch = false;
+    }
+
+    public void setNewStartPartiailMatch() {
+        this.isNewStartPartialMatch = true;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
+        NFAState nfaState = (NFAState) o;
+        return Arrays.equals(partialMatches.toArray(), nfaState.partialMatches.toArray())
+                && Arrays.equals(completedMatches.toArray(), nfaState.completedMatches.toArray());
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(partialMatches, completedMatches);
+    }
+
+    @Override
+    public String toString() {
+        return "NFAState{"
+                + "partialMatches="
+                + partialMatches
+                + ", completedMatches="
+                + completedMatches
+                + ", stateChanged="
+                + stateChanged
+                + '}';
+    }
 }

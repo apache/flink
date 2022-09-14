@@ -16,11 +16,15 @@
  * limitations under the License.
  */
 
-import { Component, OnDestroy, OnInit, ChangeDetectionStrategy, ChangeDetectorRef } from '@angular/core';
-import { Subject } from 'rxjs';
-import { flatMap, takeUntil } from 'rxjs/operators';
-import { SubTaskAccumulatorsInterface, UserAccumulatorsInterface } from 'interfaces';
-import { JobService } from 'services';
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, OnDestroy, OnInit } from '@angular/core';
+import { of, Subject } from 'rxjs';
+import { catchError, mergeMap, takeUntil } from 'rxjs/operators';
+
+import { JobAccumulators, SubTaskAccumulators, UserAccumulators } from '@flink-runtime-web/interfaces';
+import { JobService } from '@flink-runtime-web/services';
+import { typeDefinition } from '@flink-runtime-web/utils/strong-type';
+
+import { JobLocalService } from '../../job-local.service';
 
 @Component({
   selector: 'flink-job-overview-drawer-accumulators',
@@ -29,42 +33,65 @@ import { JobService } from 'services';
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class JobOverviewDrawerAccumulatorsComponent implements OnInit, OnDestroy {
-  destroy$ = new Subject();
-  listOfAccumulator: UserAccumulatorsInterface[] = [];
-  listOfSubTaskAccumulator: SubTaskAccumulatorsInterface[] = [];
-  isLoading = true;
+  public readonly trackByName = (_: number, node: UserAccumulators): string => node.name;
 
-  trackAccumulatorBy(_: number, node: SubTaskAccumulatorsInterface) {
-    return node.name;
-  }
-  trackSubtaskBy(_: number, node: SubTaskAccumulatorsInterface) {
-    return node.subtask;
-  }
+  public listOfAccumulator: UserAccumulators[] = [];
+  public listOfSubTaskAccumulator: SubTaskAccumulators[] = [];
+  public isLoading = true;
+  public virtualItemSize = 36;
+  public readonly narrowUserAccumulators = typeDefinition<UserAccumulators>();
+  public readonly narrowSubTaskAccumulators = typeDefinition<SubTaskAccumulators>();
 
-  constructor(private jobService: JobService, private cdr: ChangeDetectorRef) {}
+  private readonly destroy$ = new Subject<void>();
 
-  ngOnInit() {
-    this.jobService.jobWithVertex$
+  constructor(
+    private readonly jobService: JobService,
+    private readonly jobLocalService: JobLocalService,
+    private readonly cdr: ChangeDetectorRef
+  ) {}
+
+  public ngOnInit(): void {
+    this.jobLocalService
+      .jobWithVertexChanges()
       .pipe(
-        takeUntil(this.destroy$),
-        flatMap(data => this.jobService.loadAccumulators(data.job.jid, data.vertex!.id))
+        mergeMap(data =>
+          this.jobService.loadAccumulators(data.job.jid, data.vertex!.id).pipe(
+            catchError(() => {
+              return of({
+                main: [],
+                subtasks: []
+              } as JobAccumulators);
+            })
+          )
+        ),
+        takeUntil(this.destroy$)
       )
-      .subscribe(
-        data => {
-          this.isLoading = false;
-          this.listOfAccumulator = data.main;
-          this.listOfSubTaskAccumulator = data.subtasks || [];
-          this.cdr.markForCheck();
-        },
-        () => {
-          this.isLoading = false;
-          this.cdr.markForCheck();
-        }
-      );
+      .subscribe(data => {
+        this.isLoading = false;
+        this.listOfAccumulator = data.main;
+        this.listOfSubTaskAccumulator = this.transformToSubTaskAccumulator(data.subtasks) || [];
+        this.cdr.markForCheck();
+      });
   }
 
-  ngOnDestroy() {
+  public ngOnDestroy(): void {
     this.destroy$.next();
     this.destroy$.complete();
+  }
+
+  private transformToSubTaskAccumulator(list: SubTaskAccumulators[]): SubTaskAccumulators[] {
+    const transformed: SubTaskAccumulators[] = [];
+    list.forEach(accumulator => {
+      // @ts-ignore
+      accumulator['user-accumulators'].forEach(userAccumulator => {
+        transformed.push({
+          ...accumulator,
+          name: userAccumulator.name,
+          type: userAccumulator.type,
+          value: userAccumulator.value
+        });
+      });
+    });
+    return transformed;
   }
 }

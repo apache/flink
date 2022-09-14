@@ -26,62 +26,63 @@ import org.apache.flink.util.Preconditions;
 /**
  * Queryable state stream instance.
  *
- * @param <K>  State key type
- * @param <V>  State value type
+ * @param <K> State key type
+ * @param <V> State value type
  */
 @PublicEvolving
 public class QueryableStateStream<K, V> {
 
-	/** Name under which the state is queryable. */
-	private final String queryableStateName;
+    /** Name under which the state is queryable. */
+    private final String queryableStateName;
 
-	/** Key serializer for the state instance. */
-	private final TypeSerializer<K> keySerializer;
+    /** Key serializer for the state instance. */
+    private final TypeSerializer<K> keySerializer;
 
-	/** State descriptor for the state instance. */
-	private final StateDescriptor<?, V> stateDescriptor;
+    /** State descriptor for the state instance. */
+    private final StateDescriptor<?, V> stateDescriptor;
 
-	/**
-	 * Creates a queryable state stream.
-	 *
-	 * @param queryableStateName Name under which to publish the queryable state instance
-	 * @param stateDescriptor The state descriptor for the state instance
-	 * @param keySerializer Key serializer for the state instance
-	 */
-	public QueryableStateStream(
-			String queryableStateName,
-			StateDescriptor<?, V> stateDescriptor,
-			TypeSerializer<K> keySerializer) {
+    /**
+     * Creates a queryable state stream.
+     *
+     * @param queryableStateName Name under which to publish the queryable state instance
+     * @param stateDescriptor The state descriptor for the state instance
+     * @param keySerializer Key serializer for the state instance
+     */
+    public QueryableStateStream(
+            String queryableStateName,
+            StateDescriptor<?, V> stateDescriptor,
+            TypeSerializer<K> keySerializer) {
 
-		this.queryableStateName = Preconditions.checkNotNull(queryableStateName, "Queryable state name");
-		this.stateDescriptor = Preconditions.checkNotNull(stateDescriptor, "State Descriptor");
-		this.keySerializer = Preconditions.checkNotNull(keySerializer, "Key serializer");
-	}
+        this.queryableStateName =
+                Preconditions.checkNotNull(queryableStateName, "Queryable state name");
+        this.stateDescriptor = Preconditions.checkNotNull(stateDescriptor, "State Descriptor");
+        this.keySerializer = Preconditions.checkNotNull(keySerializer, "Key serializer");
+    }
 
-	/**
-	 * Returns the name under which the state can be queried.
-	 *
-	 * @return Name under which state can be queried.
-	 */
-	public String getQueryableStateName() {
-		return queryableStateName;
-	}
+    /**
+     * Returns the name under which the state can be queried.
+     *
+     * @return Name under which state can be queried.
+     */
+    public String getQueryableStateName() {
+        return queryableStateName;
+    }
 
-	/**
-	 * Returns the key serializer for the queryable state instance.
-	 *
-	 * @return Key serializer for the state instance.
-	 */
-	public TypeSerializer<K> getKeySerializer() {
-		return keySerializer;
-	}
+    /**
+     * Returns the key serializer for the queryable state instance.
+     *
+     * @return Key serializer for the state instance.
+     */
+    public TypeSerializer<K> getKeySerializer() {
+        return keySerializer;
+    }
 
-	/**
-	 * Returns the state descriptor for the queryable state instance.
-	 *
-	 * @return State descriptor for the state instance
-	 */
-	public StateDescriptor<?, V> getStateDescriptor() {
-		return stateDescriptor;
-	}
+    /**
+     * Returns the state descriptor for the queryable state instance.
+     *
+     * @return State descriptor for the state instance
+     */
+    public StateDescriptor<?, V> getStateDescriptor() {
+        return stateDescriptor;
+    }
 }

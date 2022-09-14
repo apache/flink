@@ -18,76 +18,137 @@
 
 package org.apache.flink.table.client.cli;
 
+import org.apache.flink.table.api.SqlParserEOFException;
+import org.apache.flink.table.client.gateway.SqlExecutionException;
+import org.apache.flink.table.operations.Operation;
+
 import org.jline.reader.EOFError;
 import org.jline.reader.ParsedLine;
+import org.jline.reader.SyntaxError;
 import org.jline.reader.impl.DefaultParser;
 
 import java.util.List;
+import java.util.Optional;
 
 /**
  * Multi-line parser for parsing an arbitrary number of SQL lines until a line ends with ';'.
  *
  * <p>Quoting and escaping are disabled for now.
  */
-public class SqlMultiLineParser extends DefaultParser {
+class SqlMultiLineParser extends DefaultParser {
 
-	private static final String EOF_CHARACTER = ";";
-	private static final String NEW_LINE_PROMPT = ""; // results in simple '>' output
+    private static final String STATEMENT_DELIMITER = ";"; // a statement should end with `;`
+    private static final String LINE_DELIMITER = "\n";
+    private static final String NEW_LINE_PROMPT = ""; // results in simple '>' output
 
-	public SqlMultiLineParser() {
-		setEscapeChars(null);
-		setQuoteChars(null);
-	}
+    /** Sql command parser. */
+    private final SqlCommandParser parser;
+    /** Exception caught in parsing. */
+    private Throwable parseException = null;
+    /** Operation parsed. */
+    private Operation parsedOperation = null;
+    /** Command read from terminal. */
+    private String command;
 
-	@Override
-	public ParsedLine parse(String line, int cursor, ParseContext context) {
-		if (!line.trim().endsWith(EOF_CHARACTER) && context != ParseContext.COMPLETE) {
-			throw new EOFError(
-				-1,
-				-1,
-				"New line without EOF character.",
-				NEW_LINE_PROMPT);
-		}
-		final ArgumentList parsedLine = (ArgumentList) super.parse(line, cursor, context);
-		return new SqlArgumentList(
-			parsedLine.line(),
-			parsedLine.words(),
-			parsedLine.wordIndex(),
-			parsedLine.wordCursor(),
-			parsedLine.cursor(),
-			null,
-			parsedLine.rawWordCursor(),
-			parsedLine.rawWordLength());
-	}
+    public SqlMultiLineParser(SqlCommandParser parser) {
+        this.parser = parser;
+        setEscapeChars(null);
+        setQuoteChars(null);
+    }
 
-	private class SqlArgumentList extends DefaultParser.ArgumentList {
+    @Override
+    public ParsedLine parse(String line, int cursor, ParseContext context) {
+        if (context != ParseContext.ACCEPT_LINE) {
+            return parseInternal(line, cursor, context);
+        }
+        if (!line.trim().endsWith(STATEMENT_DELIMITER)) {
+            throw new EOFError(-1, -1, "New line without EOF character.", NEW_LINE_PROMPT);
+        }
+        try {
+            command = line;
+            parseException = null;
+            // try to parse the line read
+            parsedOperation = parser.parseCommand(line).orElse(null);
+        } catch (SqlExecutionException e) {
+            if (e.getCause() instanceof SqlParserEOFException) {
+                throw new EOFError(-1, -1, "The statement is incomplete.", NEW_LINE_PROMPT);
+            }
+            // cache the exception so that we can print details in the terminal.
+            parseException = e;
+            throw new SyntaxError(-1, -1, e.getMessage());
+        }
+        return parseInternal(line, cursor, context);
+    }
 
-		public SqlArgumentList(
-				String line,
-				List<String> words,
-				int wordIndex,
-				int wordCursor,
-				int cursor,
-				String openingQuote,
-				int rawWordCursor,
-				int rawWordLength) {
+    public static String formatSqlFile(String content) {
+        String trimmed = content.trim();
+        StringBuilder formatted = new StringBuilder();
+        formatted.append(trimmed);
+        if (!trimmed.endsWith(STATEMENT_DELIMITER)) {
+            formatted.append(STATEMENT_DELIMITER);
+        }
+        formatted.append(LINE_DELIMITER);
+        return formatted.toString();
+    }
 
-			super(
-				line,
-				words,
-				wordIndex,
-				wordCursor,
-				cursor,
-				openingQuote,
-				rawWordCursor,
-				rawWordLength);
-		}
+    private SqlArgumentList parseInternal(String line, int cursor, ParseContext context) {
+        final ArgumentList parsedLine = (ArgumentList) super.parse(line, cursor, context);
+        return new SqlArgumentList(
+                parsedLine.line(),
+                parsedLine.words(),
+                parsedLine.wordIndex(),
+                parsedLine.wordCursor(),
+                parsedLine.cursor(),
+                null,
+                parsedLine.rawWordCursor(),
+                parsedLine.rawWordLength());
+    }
 
-		@Override
-		public CharSequence escape(CharSequence candidate, boolean complete) {
-			// escaping is skipped for now because it highly depends on the context in the SQL statement
-			// e.g. 'INS(ERT INTO)' should not be quoted but 'SELECT * FROM T(axi Rides)' should
-			return candidate;
-		}
-	}
+    /**
+     * Gets operation parsed from current command read by LineReader. If the command read is
+     * invalid, throw the exception from parser so that we can print details of the exception in
+     * client.
+     */
+    public Optional<Operation> getParsedOperation() throws Throwable {
+        if (parseException != null) {
+            throw parseException;
+        }
+        return Optional.ofNullable(parsedOperation);
+    }
+
+    public String getCommand() {
+        return command;
+    }
+
+    private class SqlArgumentList extends DefaultParser.ArgumentList {
+
+        public SqlArgumentList(
+                String line,
+                List<String> words,
+                int wordIndex,
+                int wordCursor,
+                int cursor,
+                String openingQuote,
+                int rawWordCursor,
+                int rawWordLength) {
+
+            super(
+                    line,
+                    words,
+                    wordIndex,
+                    wordCursor,
+                    cursor,
+                    openingQuote,
+                    rawWordCursor,
+                    rawWordLength);
+        }
+
+        @Override
+        public CharSequence escape(CharSequence candidate, boolean complete) {
+            // escaping is skipped for now because it highly depends on the context in the SQL
+            // statement
+            // e.g. 'INS(ERT INTO)' should not be quoted but 'SELECT * FROM T(axi Rides)' should
+            return candidate;
+        }
+    }
 }

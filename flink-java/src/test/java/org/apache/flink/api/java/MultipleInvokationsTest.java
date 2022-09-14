@@ -22,56 +22,52 @@ import org.apache.flink.api.common.Plan;
 import org.apache.flink.api.common.operators.GenericDataSinkBase;
 import org.apache.flink.api.java.io.DiscardingOutputFormat;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.fail;
 
-/**
- * Tests for multiple invocations of a plan.
- */
-public class MultipleInvokationsTest {
+/** Tests for multiple invocations of a plan. */
+class MultipleInvokationsTest {
 
-	@Test
-	public void testMultipleInvocationsGetPlan() {
-		try {
-			ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+    @Test
+    void testMultipleInvocationsGetPlan() {
+        try {
+            ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
-			// ----------- Execution 1 ---------------
+            // ----------- Execution 1 ---------------
 
-			DataSet<String> data = env.fromElements("Some", "test", "data").name("source1");
-			//data.print();
-			data.output(new DiscardingOutputFormat<String>()).name("print1");
-			data.output(new DiscardingOutputFormat<String>()).name("output1");
+            DataSet<String> data = env.fromElements("Some", "test", "data").name("source1");
+            // data.print();
+            data.output(new DiscardingOutputFormat<>()).name("print1");
+            data.output(new DiscardingOutputFormat<>()).name("output1");
 
-			{
-				Plan p = env.createProgramPlan();
+            {
+                Plan p = env.createProgramPlan();
 
-				assertEquals(2, p.getDataSinks().size());
-				for (GenericDataSinkBase<?> sink : p.getDataSinks()) {
-					assertTrue(sink.getName().equals("print1") || sink.getName().equals("output1"));
-					assertEquals("source1", sink.getInput().getName());
-				}
-			}
+                assertThat(p.getDataSinks()).hasSize(2);
+                for (GenericDataSinkBase<?> sink : p.getDataSinks()) {
+                    assertThat(sink.getName()).isIn("print1", "output1");
+                    assertThat(sink.getInput().getName()).isEqualTo("source1");
+                }
+            }
 
-			// ----------- Execution 2 ---------------
+            // ----------- Execution 2 ---------------
 
-			data.writeAsText("/some/file/path").name("textsink");
+            data.writeAsText("/some/file/path").name("textsink");
 
-			{
-				Plan p = env.createProgramPlan();
+            {
+                Plan p = env.createProgramPlan();
 
-				assertEquals(1, p.getDataSinks().size());
-				GenericDataSinkBase<?> sink = p.getDataSinks().iterator().next();
-				assertEquals("textsink", sink.getName());
-				assertEquals("source1", sink.getInput().getName());
-			}
-		}
-		catch (Exception e) {
-			System.err.println(e.getMessage());
-			e.printStackTrace();
-			fail(e.getMessage());
-		}
-	}
+                assertThat(p.getDataSinks()).hasSize(1);
+                GenericDataSinkBase<?> sink = p.getDataSinks().iterator().next();
+                assertThat(sink.getName()).isEqualTo("textsink");
+                assertThat(sink.getInput().getName()).isEqualTo("source1");
+            }
+        } catch (Exception e) {
+            System.err.println(e.getMessage());
+            e.printStackTrace();
+            fail(e.getMessage());
+        }
+    }
 }

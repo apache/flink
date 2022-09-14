@@ -21,48 +21,63 @@ package org.apache.flink.runtime.resourcemanager.slotmanager;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
-import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.instance.InstanceID;
-import org.apache.flink.runtime.resourcemanager.exceptions.ResourceManagerException;
-import org.apache.flink.util.function.FunctionWithException;
+import org.apache.flink.runtime.resourcemanager.WorkerResourceSpec;
+import org.apache.flink.runtime.slots.ResourceRequirement;
 
 import java.util.Collection;
-import java.util.Collections;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
+import java.util.function.Function;
 
-/**
- * Builder for the {@link TestingResourceActions}.
- */
+/** Builder for the {@link TestingResourceActions}. */
 public class TestingResourceActionsBuilder {
-	private BiConsumer<InstanceID, Exception> releaseResourceConsumer = (ignoredA, ignoredB) -> {};
-	private FunctionWithException<ResourceProfile, Collection<ResourceProfile>, ResourceManagerException> allocateResourceFunction = (ignored) -> Collections.singleton(ResourceProfile.ANY);
-	private Consumer<Tuple3<JobID, AllocationID, Exception>> notifyAllocationFailureConsumer = (ignored) -> {};
+    private BiConsumer<InstanceID, Exception> releaseResourceConsumer = (ignoredA, ignoredB) -> {};
+    private Function<WorkerResourceSpec, Boolean> allocateResourceFunction = (ignored) -> true;
+    private Consumer<Tuple3<JobID, AllocationID, Exception>> notifyAllocationFailureConsumer =
+            (ignored) -> {};
+    private BiConsumer<JobID, Collection<ResourceRequirement>> notifyNotEnoughResourcesConsumer =
+            (ignoredA, ignoredB) -> {};
 
-	public TestingResourceActionsBuilder setReleaseResourceConsumer(BiConsumer<InstanceID, Exception> releaseResourceConsumer) {
-		this.releaseResourceConsumer = releaseResourceConsumer;
-		return this;
-	}
+    public TestingResourceActionsBuilder setReleaseResourceConsumer(
+            BiConsumer<InstanceID, Exception> releaseResourceConsumer) {
+        this.releaseResourceConsumer = releaseResourceConsumer;
+        return this;
+    }
 
-	public TestingResourceActionsBuilder setAllocateResourceFunction(FunctionWithException<ResourceProfile, Collection<ResourceProfile>, ResourceManagerException> allocateResourceFunction) {
-		this.allocateResourceFunction = allocateResourceFunction;
-		return this;
-	}
+    public TestingResourceActionsBuilder setAllocateResourceFunction(
+            Function<WorkerResourceSpec, Boolean> allocateResourceFunction) {
+        this.allocateResourceFunction = allocateResourceFunction;
+        return this;
+    }
 
-	public TestingResourceActionsBuilder setAllocateResourceConsumer(Consumer<ResourceProfile> allocateResourceConsumer) {
-		this.allocateResourceFunction = (ResourceProfile resourceProfile) -> {
-			allocateResourceConsumer.accept(resourceProfile);
-			return Collections.singleton(ResourceProfile.ANY);
-		};
-		return this;
-	}
+    public TestingResourceActionsBuilder setAllocateResourceConsumer(
+            Consumer<WorkerResourceSpec> allocateResourceConsumer) {
+        this.allocateResourceFunction =
+                workerRequest -> {
+                    allocateResourceConsumer.accept(workerRequest);
+                    return true;
+                };
+        return this;
+    }
 
-	public TestingResourceActionsBuilder setNotifyAllocationFailureConsumer(Consumer<Tuple3<JobID, AllocationID, Exception>> notifyAllocationFailureConsumer) {
-		this.notifyAllocationFailureConsumer = notifyAllocationFailureConsumer;
-		return this;
-	}
+    public TestingResourceActionsBuilder setNotifyAllocationFailureConsumer(
+            Consumer<Tuple3<JobID, AllocationID, Exception>> notifyAllocationFailureConsumer) {
+        this.notifyAllocationFailureConsumer = notifyAllocationFailureConsumer;
+        return this;
+    }
 
-	public TestingResourceActions build() {
-		return new TestingResourceActions(releaseResourceConsumer, allocateResourceFunction, notifyAllocationFailureConsumer);
-	}
+    public TestingResourceActionsBuilder setNotEnoughResourcesConsumer(
+            BiConsumer<JobID, Collection<ResourceRequirement>> notifyNotEnoughResourcesConsumer) {
+        this.notifyNotEnoughResourcesConsumer = notifyNotEnoughResourcesConsumer;
+        return this;
+    }
+
+    public TestingResourceActions build() {
+        return new TestingResourceActions(
+                releaseResourceConsumer,
+                allocateResourceFunction,
+                notifyAllocationFailureConsumer,
+                notifyNotEnoughResourcesConsumer);
+    }
 }

@@ -25,37 +25,36 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Iterator;
 
-
 public class CollectionIterator<T> implements ResettableMutableObjectIterator<T> {
 
-	private final Collection<T> collection;
-	private Iterator<T> iterator;
+    private final Collection<T> collection;
+    private Iterator<T> iterator;
 
-	public CollectionIterator(Collection<T> collection) {
-		this.collection = collection;
-		this.iterator = collection.iterator();
-	}
+    public CollectionIterator(Collection<T> collection) {
+        this.collection = collection;
+        this.iterator = collection.iterator();
+    }
 
-	@Override
-	public T next(T reuse) throws IOException {
-		return next();
-	}
+    @Override
+    public T next(T reuse) throws IOException {
+        return next();
+    }
 
-	@Override
-	public T next() throws IOException {
-		if (!iterator.hasNext()) {
-			return null;
-		} else {
-			return iterator.next();
-		}
-	}
+    @Override
+    public T next() throws IOException {
+        if (!iterator.hasNext()) {
+            return null;
+        } else {
+            return iterator.next();
+        }
+    }
 
-	@Override
-	public void reset() throws IOException {
-		iterator = collection.iterator();
-	}
+    @Override
+    public void reset() throws IOException {
+        iterator = collection.iterator();
+    }
 
-	public static <T> CollectionIterator<T> of(T... values) {
-		return new CollectionIterator<T>(Arrays.asList(values));
-	}
+    public static <T> CollectionIterator<T> of(T... values) {
+        return new CollectionIterator<T>(Arrays.asList(values));
+    }
 }

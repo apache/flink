@@ -20,15 +20,13 @@ package org.apache.flink.yarn;
 
 import org.apache.flink.util.FlinkException;
 
-/**
- * Interface which allows to retrieve information about a Yarn cluster.
- */
+/** Interface which allows to retrieve information about a Yarn cluster. */
 public interface YarnClusterInformationRetriever {
 
-	/**
-	 * Get the maximum number of vcores supported by the Yarn cluster.
-	 *
-	 * @return max vcores supported by the cluster
-	 */
-	int getMaxVcores() throws FlinkException;
+    /**
+     * Get the maximum number of vcores supported by the Yarn cluster.
+     *
+     * @return max vcores supported by the cluster
+     */
+    int getMaxVcores() throws FlinkException;
 }

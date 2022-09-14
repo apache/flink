@@ -26,6 +26,5 @@ import java.io.Serializable;
  */
 public interface Extractor<T> extends Serializable {
 
-	byte[] extract(T element);
-
+    byte[] extract(T element);
 }

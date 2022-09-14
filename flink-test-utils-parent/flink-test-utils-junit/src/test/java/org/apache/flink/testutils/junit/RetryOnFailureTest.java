@@ -18,64 +18,59 @@
 
 package org.apache.flink.testutils.junit;
 
-import org.junit.AfterClass;
-import org.junit.Rule;
-import org.junit.Test;
+import org.apache.flink.testutils.junit.extensions.retry.RetryExtension;
 
-import static org.junit.Assert.assertEquals;
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.TestTemplate;
+import org.junit.jupiter.api.extension.ExtendWith;
 
-/**
- * Tests for the RetryOnFailure annotation.
- */
-public class RetryOnFailureTest {
+import static org.assertj.core.api.Assertions.assertThat;
 
-	@Rule
-	public RetryRule retryRule = new RetryRule();
+/** Tests for the RetryOnFailure annotation. */
+@ExtendWith(RetryExtension.class)
+class RetryOnFailureTest {
 
-	private static final int NUMBER_OF_RUNS = 5;
+    private static final int NUMBER_OF_RUNS = 5;
 
-	private static int numberOfFailedRuns;
+    private static int numberOfFailedRuns;
 
-	private static int numberOfSuccessfulRuns;
+    private static int numberOfSuccessfulRuns;
 
-	private static boolean firstRun = true;
+    private static boolean firstRun = true;
 
-	@AfterClass
-	public static void verify() throws Exception {
-		assertEquals(NUMBER_OF_RUNS + 1, numberOfFailedRuns);
-		assertEquals(3, numberOfSuccessfulRuns);
-	}
+    @AfterAll
+    static void verify() {
+        assertThat(numberOfFailedRuns).isEqualTo(NUMBER_OF_RUNS + 1);
+        assertThat(numberOfSuccessfulRuns).isEqualTo(3);
+    }
 
-	@Test
-	@RetryOnFailure(times = NUMBER_OF_RUNS)
-	public void testRetryOnFailure() throws Exception {
-		// All but the (expected) last run should be successful
-		if (numberOfFailedRuns < NUMBER_OF_RUNS) {
-			numberOfFailedRuns++;
-			throw new RuntimeException("Expected test exception");
-		}
-		else {
-			numberOfSuccessfulRuns++;
-		}
-	}
+    @TestTemplate
+    @RetryOnFailure(times = NUMBER_OF_RUNS)
+    void testRetryOnFailure() {
+        // All but the (expected) last run should be successful
+        if (numberOfFailedRuns < NUMBER_OF_RUNS) {
+            numberOfFailedRuns++;
+            throw new RuntimeException("Expected test exception");
+        } else {
+            numberOfSuccessfulRuns++;
+        }
+    }
 
-	@Test
-	@RetryOnFailure(times = NUMBER_OF_RUNS)
-	public void testRetryOnceOnFailure() throws Exception {
-		if (firstRun) {
-			numberOfFailedRuns++;
-			firstRun = false;
-			throw new RuntimeException("Expected test exception");
-		}
-		else {
-			numberOfSuccessfulRuns++;
-		}
-	}
+    @TestTemplate
+    @RetryOnFailure(times = NUMBER_OF_RUNS)
+    void testRetryOnceOnFailure() {
+        if (firstRun) {
+            numberOfFailedRuns++;
+            firstRun = false;
+            throw new RuntimeException("Expected test exception");
+        } else {
+            numberOfSuccessfulRuns++;
+        }
+    }
 
-	@Test
-	@RetryOnFailure(times = NUMBER_OF_RUNS)
-	public void testDontRetryOnSuccess() throws Exception {
-		numberOfSuccessfulRuns++;
-	}
-
+    @TestTemplate
+    @RetryOnFailure(times = NUMBER_OF_RUNS)
+    void testDontRetryOnSuccess() {
+        numberOfSuccessfulRuns++;
+    }
 }

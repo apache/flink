@@ -15,33 +15,37 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.streaming.scala.examples.iteration
 
-import java.util.Random
-
+import org.apache.flink.api.common.serialization.SimpleStringEncoder
 import org.apache.flink.api.java.utils.ParameterTool
 import org.apache.flink.api.scala._
+import org.apache.flink.configuration.MemorySize
+import org.apache.flink.connector.file.sink.FileSink
+import org.apache.flink.core.fs.Path
+import org.apache.flink.streaming.api.functions.sink.filesystem.rollingpolicies.DefaultRollingPolicy
 import org.apache.flink.streaming.api.functions.source.SourceFunction
 import org.apache.flink.streaming.api.functions.source.SourceFunction.SourceContext
 import org.apache.flink.streaming.api.scala.{DataStream, StreamExecutionEnvironment}
 
+import java.time.Duration
+import java.util.Random
+
 /**
  * Example illustrating iterations in Flink streaming.
  *
- * The program sums up random numbers and counts additions
- * it performs to reach a specific threshold in an iterative streaming fashion.
+ * The program sums up random numbers and counts additions it performs to reach a specific threshold
+ * in an iterative streaming fashion.
  *
  * This example shows how to use:
  *
- *  - streaming iterations,
- *  - buffer timeout to enhance latency,
- *  - directed outputs.
- *
+ *   - streaming iterations,
+ *   - buffer timeout to enhance latency,
+ *   - directed outputs.
  */
 object IterateExample {
 
-  private final val Bound = 100
+  final private val Bound = 100
 
   def main(args: Array[String]): Unit = {
     // Checking input parameters
@@ -56,18 +60,19 @@ object IterateExample {
 
     // create input stream of integer pairs
     val inputStream: DataStream[(Int, Int)] =
-    if (params.has("input")) {
-      // map a list of strings to integer pairs
-      env.readTextFile(params.get("input")).map { value: String =>
-        val record = value.substring(1, value.length - 1)
-        val splitted = record.split(",")
-        (Integer.parseInt(splitted(0)), Integer.parseInt(splitted(1)))
+      if (params.has("input")) {
+        // map a list of strings to integer pairs
+        env.readTextFile(params.get("input")).map {
+          value: String =>
+            val record = value.substring(1, value.length - 1)
+            val splitted = record.split(",")
+            (Integer.parseInt(splitted(0)), Integer.parseInt(splitted(1)))
+        }
+      } else {
+        println("Executing Iterate example with default input data set.")
+        println("Use --input to specify file input.")
+        env.addSource(new RandomFibonacciSource)
       }
-    } else {
-      println("Executing Iterate example with default input data set.")
-      println("Use --input to specify file input.")
-      env.addSource(new RandomFibonacciSource)
-    }
 
     def withinBound(value: (Int, Int)) = value._1 < Bound && value._2 < Bound
 
@@ -80,8 +85,8 @@ object IterateExample {
       .iterate(
         (iteration: DataStream[(Int, Int, Int, Int, Int)]) => {
           // calculates the next Fibonacci number and increment the counter
-          val step = iteration.map(value =>
-            (value._1, value._2, value._4, value._3 + value._4, value._5 + 1))
+          val step = iteration.map(
+            value => (value._1, value._2, value._4, value._3 + value._4, value._5 + 1))
           // testing which tuple needs to be iterated again
           val feedback = step.filter(value => withinBound(value._3, value._4))
           // giving back the input pair and the counter
@@ -91,11 +96,25 @@ object IterateExample {
           (feedback, output)
         }
         // timeout after 5 seconds
-        , 5000L
+        ,
+        5000L
       )
 
     if (params.has("output")) {
-      numbers.writeAsText(params.get("output"))
+      numbers
+        .sinkTo(
+          FileSink
+            .forRowFormat[((Int, Int), Int)](
+              new Path(params.get("output")),
+              new SimpleStringEncoder())
+            .withRollingPolicy(
+              DefaultRollingPolicy
+                .builder()
+                .withMaxPartSize(MemorySize.ofMebiBytes(1))
+                .withRolloverInterval(Duration.ofSeconds(10))
+                .build())
+            .build())
+        .name("file-sink")
     } else {
       println("Printing result to stdout. Use --output to specify output path.")
       numbers.print()
@@ -108,9 +127,7 @@ object IterateExample {
   // USER FUNCTIONS
   // *************************************************************************
 
-  /**
-   * Generate BOUND number of random integer pairs from the range from 0 to BOUND/2
-   */
+  /** Generate BOUND number of random integer pairs from the range from 0 to BOUND/2 */
   private class RandomFibonacciSource extends SourceFunction[(Int, Int)] {
 
     val rnd = new Random()

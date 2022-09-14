@@ -25,19 +25,18 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-contrib</artifactId>
-		<version>1.11-SNAPSHOT</version>
-		<relativePath>..</relativePath>
+		<version>1.17-SNAPSHOT</version>
 	</parent>
 
-	<artifactId>flink-connector-wikiedits_${scala.binary.version}</artifactId>
-	<name>flink-connector-wikiedits</name>
+	<artifactId>flink-connector-wikiedits</artifactId>
+	<name>Flink : Contrib : Connectors : Wikiedits</name>
 
 	<packaging>jar</packaging>
 
 	<dependencies>
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-streaming-java_${scala.binary.version}</artifactId>
+			<artifactId>flink-streaming-java</artifactId>
 			<version>${project.version}</version>
 		</dependency>
 		<dependency>

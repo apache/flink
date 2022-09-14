@@ -24,24 +24,22 @@ import org.apache.flink.configuration.DeploymentOptions;
 import org.apache.flink.core.execution.PipelineExecutor;
 import org.apache.flink.core.execution.PipelineExecutorFactory;
 
-/**
- * An {@link PipelineExecutorFactory} for {@link RemoteExecutor remote executors}.
- */
+/** An {@link PipelineExecutorFactory} for {@link RemoteExecutor remote executors}. */
 @Internal
 public class RemoteExecutorFactory implements PipelineExecutorFactory {
 
-	@Override
-	public String getName() {
-		return RemoteExecutor.NAME;
-	}
+    @Override
+    public String getName() {
+        return RemoteExecutor.NAME;
+    }
 
-	@Override
-	public boolean isCompatibleWith(final Configuration configuration) {
-		return RemoteExecutor.NAME.equalsIgnoreCase(configuration.get(DeploymentOptions.TARGET));
-	}
+    @Override
+    public boolean isCompatibleWith(final Configuration configuration) {
+        return RemoteExecutor.NAME.equalsIgnoreCase(configuration.get(DeploymentOptions.TARGET));
+    }
 
-	@Override
-	public PipelineExecutor getExecutor(final Configuration configuration) {
-		return new RemoteExecutor();
-	}
+    @Override
+    public PipelineExecutor getExecutor(final Configuration configuration) {
+        return new RemoteExecutor();
+    }
 }

@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.security.contexts;
 
 import org.apache.flink.runtime.security.SecurityConfiguration;
+import org.apache.flink.runtime.security.SecurityContextInitializeException;
 
 /**
  * A factory for a {@link SecurityContext}.
@@ -28,24 +29,25 @@ import org.apache.flink.runtime.security.SecurityConfiguration;
 @FunctionalInterface
 public interface SecurityContextFactory {
 
-	/**
-	 * Check if this factory is compatible with the security configuration.
-	 *
-	 * <p>Specific implementation must override this to provide compatibility
-	 * check, by default it will always return {@code false}.
-	 *
-	 * @param securityConfig security configurations.
-	 * @return {@code true} if factory is compatible with the configuration.
-	 */
-	default boolean isCompatibleWith(final SecurityConfiguration securityConfig) {
-		return false;
-	}
+    /**
+     * Check if this factory is compatible with the security configuration.
+     *
+     * <p>Specific implementation must override this to provide compatibility check, by default it
+     * will always return {@code false}.
+     *
+     * @param securityConfig security configurations.
+     * @return {@code true} if factory is compatible with the configuration.
+     */
+    default boolean isCompatibleWith(final SecurityConfiguration securityConfig) {
+        return false;
+    }
 
-	/**
-	 * create security context.
-	 *
-	 * @param securityConfig security configuration used to create context.
-	 * @return the security context object.
-	 */
-	SecurityContext createContext(SecurityConfiguration securityConfig);
+    /**
+     * create security context.
+     *
+     * @param securityConfig security configuration used to create context.
+     * @return the security context object.
+     */
+    SecurityContext createContext(SecurityConfiguration securityConfig)
+            throws SecurityContextInitializeException;
 }

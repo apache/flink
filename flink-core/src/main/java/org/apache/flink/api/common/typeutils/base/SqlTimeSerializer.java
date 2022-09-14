@@ -18,107 +18,105 @@
 
 package org.apache.flink.api.common.typeutils.base;
 
-import java.io.IOException;
-import java.sql.Time;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeutils.SimpleTypeSerializerSnapshot;
 import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 
+import java.io.IOException;
+import java.sql.Time;
+
 @Internal
 public final class SqlTimeSerializer extends TypeSerializerSingleton<Time> {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	public static final SqlTimeSerializer INSTANCE = new SqlTimeSerializer();
+    public static final SqlTimeSerializer INSTANCE = new SqlTimeSerializer();
 
-	@Override
-	public boolean isImmutableType() {
-		return false;
-	}
+    @Override
+    public boolean isImmutableType() {
+        return false;
+    }
 
-	@Override
-	public Time createInstance() {
-		return new Time(0L);
-	}
+    @Override
+    public Time createInstance() {
+        return new Time(0L);
+    }
 
-	@Override
-	public Time copy(Time from) {
-		if (from == null) {
-			return null;
-		}
-		return new Time(from.getTime());
-	}
+    @Override
+    public Time copy(Time from) {
+        if (from == null) {
+            return null;
+        }
+        return new Time(from.getTime());
+    }
 
-	@Override
-	public Time copy(Time from, Time reuse) {
-		if (from == null) {
-			return null;
-		}
-		reuse.setTime(from.getTime());
-		return reuse;
-	}
+    @Override
+    public Time copy(Time from, Time reuse) {
+        if (from == null) {
+            return null;
+        }
+        reuse.setTime(from.getTime());
+        return reuse;
+    }
 
-	@Override
-	public int getLength() {
-		return 8;
-	}
+    @Override
+    public int getLength() {
+        return 8;
+    }
 
-	@Override
-	public void serialize(Time record, DataOutputView target) throws IOException {
-		if (record == null) {
-			target.writeLong(Long.MIN_VALUE);
-		} else {
-			target.writeLong(record.getTime());
-		}
-	}
+    @Override
+    public void serialize(Time record, DataOutputView target) throws IOException {
+        if (record == null) {
+            target.writeLong(Long.MIN_VALUE);
+        } else {
+            target.writeLong(record.getTime());
+        }
+    }
 
-	@Override
-	public Time deserialize(DataInputView source) throws IOException {
-		final long v = source.readLong();
-		if (v == Long.MIN_VALUE) {
-			return null;
-		} else {
-			return new Time(v);
-		}
-	}
+    @Override
+    public Time deserialize(DataInputView source) throws IOException {
+        final long v = source.readLong();
+        if (v == Long.MIN_VALUE) {
+            return null;
+        } else {
+            return new Time(v);
+        }
+    }
 
-	@Override
-	public Time deserialize(Time reuse, DataInputView source) throws IOException {
-		final long v = source.readLong();
-		if (v == Long.MIN_VALUE) {
-			return null;
-		}
-		reuse.setTime(v);
-		return reuse;
-	}
+    @Override
+    public Time deserialize(Time reuse, DataInputView source) throws IOException {
+        final long v = source.readLong();
+        if (v == Long.MIN_VALUE) {
+            return null;
+        }
+        reuse.setTime(v);
+        return reuse;
+    }
 
-	@Override
-	public void copy(DataInputView source, DataOutputView target) throws IOException {
-		target.writeLong(source.readLong());
-	}
+    @Override
+    public void copy(DataInputView source, DataOutputView target) throws IOException {
+        target.writeLong(source.readLong());
+    }
 
-	// --------------------------------------------------------------------------------------------
-	// Serializer configuration snapshotting
-	// --------------------------------------------------------------------------------------------
+    // --------------------------------------------------------------------------------------------
+    // Serializer configuration snapshotting
+    // --------------------------------------------------------------------------------------------
 
-	@Override
-	public TypeSerializerSnapshot<Time> snapshotConfiguration() {
-		return new SqlTimeSerializerSnapshot();
-	}
+    @Override
+    public TypeSerializerSnapshot<Time> snapshotConfiguration() {
+        return new SqlTimeSerializerSnapshot();
+    }
 
+    // ------------------------------------------------------------------------
 
-	// ------------------------------------------------------------------------
+    /** Serializer configuration snapshot for compatibility and format evolution. */
+    @SuppressWarnings("WeakerAccess")
+    public static final class SqlTimeSerializerSnapshot extends SimpleTypeSerializerSnapshot<Time> {
 
-	/**
-	 * Serializer configuration snapshot for compatibility and format evolution.
-	 */
-	@SuppressWarnings("WeakerAccess")
-	public static final class SqlTimeSerializerSnapshot extends SimpleTypeSerializerSnapshot<Time> {
-
-		public SqlTimeSerializerSnapshot() {
-			super(() -> INSTANCE);
-		}
-	}
+        public SqlTimeSerializerSnapshot() {
+            super(() -> INSTANCE);
+        }
+    }
 }

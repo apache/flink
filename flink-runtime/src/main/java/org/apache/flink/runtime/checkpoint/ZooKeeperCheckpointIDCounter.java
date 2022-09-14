@@ -18,27 +18,40 @@
 
 package org.apache.flink.runtime.checkpoint;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.runtime.jobmanager.HighAvailabilityMode;
+import org.apache.flink.runtime.util.ZooKeeperUtils;
+import org.apache.flink.util.FlinkException;
+import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.concurrent.FutureUtils;
 
-import org.apache.flink.shaded.curator4.org.apache.curator.framework.CuratorFramework;
-import org.apache.flink.shaded.curator4.org.apache.curator.framework.recipes.shared.SharedCount;
-import org.apache.flink.shaded.curator4.org.apache.curator.framework.recipes.shared.VersionedValue;
-import org.apache.flink.shaded.curator4.org.apache.curator.framework.state.ConnectionState;
+import org.apache.flink.shaded.curator5.com.google.common.collect.Sets;
+import org.apache.flink.shaded.curator5.org.apache.curator.framework.CuratorFramework;
+import org.apache.flink.shaded.curator5.org.apache.curator.framework.api.CuratorEvent;
+import org.apache.flink.shaded.curator5.org.apache.curator.framework.api.CuratorEventType;
+import org.apache.flink.shaded.curator5.org.apache.curator.framework.recipes.shared.SharedCount;
+import org.apache.flink.shaded.curator5.org.apache.curator.framework.recipes.shared.VersionedValue;
+import org.apache.flink.shaded.curator5.org.apache.curator.framework.state.ConnectionState;
+import org.apache.flink.shaded.zookeeper3.org.apache.zookeeper.KeeperException;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.annotation.concurrent.GuardedBy;
 
+import java.io.IOException;
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
- * {@link CheckpointIDCounter} instances for JobManagers running in {@link HighAvailabilityMode#ZOOKEEPER}.
+ * {@link CheckpointIDCounter} instances for JobManagers running in {@link
+ * HighAvailabilityMode#ZOOKEEPER}.
  *
  * <p>Each counter creates a ZNode:
+ *
  * <pre>
  * +----O /flink/checkpoint-counter/&lt;job-id&gt; 1 [persistent]
  * .
@@ -52,116 +65,171 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  */
 public class ZooKeeperCheckpointIDCounter implements CheckpointIDCounter {
 
-	private static final Logger LOG = LoggerFactory.getLogger(ZooKeeperCheckpointIDCounter.class);
+    private static final Logger LOG = LoggerFactory.getLogger(ZooKeeperCheckpointIDCounter.class);
 
-	/** Curator ZooKeeper client. */
-	private final CuratorFramework client;
+    /** Curator ZooKeeper client. */
+    private final CuratorFramework client;
 
-	/** Path of the shared count. */
-	private final String counterPath;
+    /** Path of the shared count. */
+    private final String counterPath;
 
-	/** Curator recipe for shared counts. */
-	private final SharedCount sharedCount;
+    /** Curator recipe for shared counts. */
+    private final SharedCount sharedCount;
 
-	private final LastStateConnectionStateListener connectionStateListener;
+    private final LastStateConnectionStateListener connectionStateListener;
 
-	private final Object startStopLock = new Object();
+    private final Object startStopLock = new Object();
 
-	@GuardedBy("startStopLock")
-	private boolean isStarted;
+    @GuardedBy("startStopLock")
+    private boolean isStarted;
 
-	/**
-	 * Creates a {@link ZooKeeperCheckpointIDCounter} instance.
-	 *
-	 * @param client      Curator ZooKeeper client
-	 * @param counterPath ZooKeeper path for the counter. It's sufficient to have a path per-job.
-	 */
-	public ZooKeeperCheckpointIDCounter(CuratorFramework client, String counterPath, LastStateConnectionStateListener connectionStateListener) {
-		this.client = checkNotNull(client, "Curator client");
-		this.counterPath = checkNotNull(counterPath, "Counter path");
-		this.sharedCount = new SharedCount(client, counterPath, 1);
-		this.connectionStateListener = connectionStateListener;
-	}
+    /**
+     * Creates a {@link ZooKeeperCheckpointIDCounter} instance.
+     *
+     * @param client Curator ZooKeeper client
+     */
+    public ZooKeeperCheckpointIDCounter(
+            CuratorFramework client, LastStateConnectionStateListener connectionStateListener) {
+        this.client = checkNotNull(client, "Curator client");
+        this.counterPath = ZooKeeperUtils.getCheckpointIdCounterPath();
+        this.sharedCount = new SharedCount(client, counterPath, INITIAL_CHECKPOINT_ID);
+        this.connectionStateListener = connectionStateListener;
+    }
 
-	@Override
-	public void start() throws Exception {
-		synchronized (startStopLock) {
-			if (!isStarted) {
-				sharedCount.start();
+    @Override
+    public void start() throws Exception {
+        synchronized (startStopLock) {
+            if (!isStarted) {
+                sharedCount.start();
 
-				client.getConnectionStateListenable().addListener(connectionStateListener);
+                client.getConnectionStateListenable().addListener(connectionStateListener);
 
-				isStarted = true;
-			}
-		}
-	}
+                isStarted = true;
+            }
+        }
+    }
 
-	@Override
-	public void shutdown(JobStatus jobStatus) throws Exception {
-		synchronized (startStopLock) {
-			if (isStarted) {
-				LOG.info("Shutting down.");
-				sharedCount.close();
+    @Override
+    public CompletableFuture<Void> shutdown(JobStatus jobStatus) {
+        synchronized (startStopLock) {
+            if (isStarted) {
+                LOG.info("Shutting down.");
+                try {
+                    sharedCount.close();
+                } catch (IOException e) {
+                    return FutureUtils.completedExceptionally(e);
+                }
 
-				client.getConnectionStateListenable().removeListener(connectionStateListener);
+                client.getConnectionStateListenable().removeListener(connectionStateListener);
 
-				if (jobStatus.isGloballyTerminalState()) {
-					LOG.info("Removing {} from ZooKeeper", counterPath);
-					client.delete().deletingChildrenIfNeeded().inBackground().forPath(counterPath);
-				}
+                if (jobStatus.isGloballyTerminalState()) {
+                    LOG.info("Removing {} from ZooKeeper", counterPath);
+                    try {
+                        final CompletableFuture<Void> deletionFuture = new CompletableFuture<>();
+                        client.delete()
+                                .inBackground(
+                                        (curatorFramework, curatorEvent) ->
+                                                handleDeletionOfCounterPath(
+                                                        curatorEvent, deletionFuture))
+                                .forPath(counterPath);
+                        return deletionFuture;
+                    } catch (Exception e) {
+                        return FutureUtils.completedExceptionally(e);
+                    }
+                }
 
-				isStarted = false;
-			}
-		}
-	}
+                isStarted = false;
+            }
+        }
 
-	@Override
-	public long getAndIncrement() throws Exception {
-		while (true) {
-			checkConnectionState();
+        return FutureUtils.completedVoidFuture();
+    }
 
-			VersionedValue<Integer> current = sharedCount.getVersionedValue();
-			int newCount = current.getValue() + 1;
+    private void handleDeletionOfCounterPath(
+            CuratorEvent curatorEvent, CompletableFuture<Void> deletionFuture) {
+        Preconditions.checkArgument(
+                curatorEvent.getType() == CuratorEventType.DELETE,
+                "An unexpected CuratorEvent was monitored: " + curatorEvent.getType());
+        Preconditions.checkArgument(
+                counterPath.endsWith(curatorEvent.getPath()),
+                "An unexpected path was selected for deletion: " + curatorEvent.getPath());
 
-			if (newCount < 0) {
-				// overflow and wrap around
-				throw new Exception("Checkpoint counter overflow. ZooKeeper checkpoint counter only supports " +
-						"checkpoints Ids up to " + Integer.MAX_VALUE);
-			}
+        final KeeperException.Code eventCode =
+                KeeperException.Code.get(curatorEvent.getResultCode());
+        if (Sets.immutableEnumSet(KeeperException.Code.OK, KeeperException.Code.NONODE)
+                .contains(eventCode)) {
+            deletionFuture.complete(null);
+        } else {
+            final String namespacedCounterPath =
+                    ZooKeeperUtils.generateZookeeperPath(client.getNamespace(), counterPath);
+            deletionFuture.completeExceptionally(
+                    new FlinkException(
+                            String.format(
+                                    "An error occurred while shutting down the CheckpointIDCounter in path '%s'.",
+                                    namespacedCounterPath),
+                            KeeperException.create(eventCode, namespacedCounterPath)));
+        }
+    }
 
-			if (sharedCount.trySetCount(current, newCount)) {
-				return current.getValue();
-			}
-		}
-	}
+    @Override
+    public long getAndIncrement() throws Exception {
+        while (true) {
+            checkConnectionState();
 
-	@Override
-	public long get() {
-		checkConnectionState();
+            VersionedValue<Integer> current = sharedCount.getVersionedValue();
+            int newCount = current.getValue() + 1;
 
-		return sharedCount.getVersionedValue().getValue();
-	}
+            if (newCount < 0) {
+                // overflow and wrap around
+                throw new Exception(
+                        "Checkpoint counter overflow. ZooKeeper checkpoint counter only supports "
+                                + "checkpoints Ids up to "
+                                + Integer.MAX_VALUE);
+            }
 
-	@Override
-	public void setCount(long newId) throws Exception {
-		checkConnectionState();
+            if (sharedCount.trySetCount(current, newCount)) {
+                return current.getValue();
+            }
+        }
+    }
 
-		if (newId > Integer.MAX_VALUE) {
-			throw new IllegalArgumentException("ZooKeeper checkpoint counter only supports " +
-					"checkpoints Ids up to " + Integer.MAX_VALUE  + ", but given value is" +
-					newId);
-		}
+    @Override
+    public long get() {
+        checkConnectionState();
 
-		sharedCount.setCount((int) newId);
-	}
+        return sharedCount.getVersionedValue().getValue();
+    }
 
-	private void checkConnectionState() {
-		final Optional<ConnectionState> optionalLastState = connectionStateListener.getLastState();
+    @Override
+    public void setCount(long newId) throws Exception {
+        checkConnectionState();
 
-		optionalLastState.ifPresent(lastState -> {
-			if (lastState != ConnectionState.CONNECTED && lastState != ConnectionState.RECONNECTED) {
-				throw new IllegalStateException("Connection state: " + lastState);
-			}
-		});
-	}
+        if (newId > Integer.MAX_VALUE) {
+            throw new IllegalArgumentException(
+                    "ZooKeeper checkpoint counter only supports "
+                            + "checkpoints Ids up to "
+                            + Integer.MAX_VALUE
+                            + ", but given value is"
+                            + newId);
+        }
+
+        sharedCount.setCount((int) newId);
+    }
+
+    private void checkConnectionState() {
+        final Optional<ConnectionState> optionalLastState = connectionStateListener.getLastState();
+
+        optionalLastState.ifPresent(
+                lastState -> {
+                    if (lastState != ConnectionState.CONNECTED
+                            && lastState != ConnectionState.RECONNECTED) {
+                        throw new IllegalStateException("Connection state: " + lastState);
+                    }
+                });
+    }
+
+    @VisibleForTesting
+    String getPath() {
+        return counterPath;
+    }
 }

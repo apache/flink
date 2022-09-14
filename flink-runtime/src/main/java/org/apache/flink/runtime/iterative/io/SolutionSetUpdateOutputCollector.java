@@ -28,42 +28,44 @@ import java.io.IOException;
  *
  * <p>The records are written to a HashTable hash table to allow in-memory point updates.
  *
- * <p>Records will only be collected, if there is a match after probing the hash table. If the build side iterator is
- * already positioned for the update, use {@link SolutionSetFastUpdateOutputCollector} to the save re-probing.
+ * <p>Records will only be collected, if there is a match after probing the hash table. If the build
+ * side iterator is already positioned for the update, use {@link
+ * SolutionSetFastUpdateOutputCollector} to the save re-probing.
  *
  * @see SolutionSetFastUpdateOutputCollector
  */
 public class SolutionSetUpdateOutputCollector<T> implements Collector<T> {
 
-	private final Collector<T> delegate;
+    private final Collector<T> delegate;
 
-	private final CompactingHashTable<T> solutionSet;
+    private final CompactingHashTable<T> solutionSet;
 
-	public SolutionSetUpdateOutputCollector(CompactingHashTable<T> solutionSet) {
-		this(solutionSet, null);
-	}
+    public SolutionSetUpdateOutputCollector(CompactingHashTable<T> solutionSet) {
+        this(solutionSet, null);
+    }
 
-	public SolutionSetUpdateOutputCollector(CompactingHashTable<T> solutionSet, Collector<T> delegate) {
-		this.solutionSet = solutionSet;
-		this.delegate = delegate;
-	}
+    public SolutionSetUpdateOutputCollector(
+            CompactingHashTable<T> solutionSet, Collector<T> delegate) {
+        this.solutionSet = solutionSet;
+        this.delegate = delegate;
+    }
 
-	@Override
-	public void collect(T record) {
-		try {
-			solutionSet.insertOrReplaceRecord(record);
-			if (delegate != null) {
-				delegate.collect(record);
-			}
-		} catch (IOException e) {
-			throw new RuntimeException(e);
-		}
-	}
+    @Override
+    public void collect(T record) {
+        try {
+            solutionSet.insertOrReplaceRecord(record);
+            if (delegate != null) {
+                delegate.collect(record);
+            }
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+    }
 
-	@Override
-	public void close() {
-		if (delegate != null) {
-			delegate.close();
-		}
-	}
+    @Override
+    public void close() {
+        if (delegate != null) {
+            delegate.close();
+        }
+    }
 }

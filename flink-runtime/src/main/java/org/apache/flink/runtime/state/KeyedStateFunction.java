@@ -29,11 +29,11 @@ import org.apache.flink.api.common.state.State;
 @FunctionalInterface
 public interface KeyedStateFunction<K, S extends State> {
 
-	/**
-	 * The actual method to be applied on each of the states.
-	 *
-	 * @param key the key whose state is being processed.
-	 * @param state the state associated with the aforementioned key.
-	 */
-	void process(K key, S state) throws Exception;
+    /**
+     * The actual method to be applied on each of the states.
+     *
+     * @param key the key whose state is being processed.
+     * @param state the state associated with the aforementioned key.
+     */
+    void process(K key, S state) throws Exception;
 }

@@ -31,10 +31,11 @@ import java.util.Collection;
  */
 public class TaskCheckpointMessageParameters extends CheckpointMessageParameters {
 
-	protected final JobVertexIdPathParameter jobVertexIdPathParameter = new JobVertexIdPathParameter();
+    protected final JobVertexIdPathParameter jobVertexIdPathParameter =
+            new JobVertexIdPathParameter();
 
-	@Override
-	public Collection<MessagePathParameter<?>> getPathParameters() {
-		return Arrays.asList(jobPathParameter, checkpointIdPathParameter, jobVertexIdPathParameter);
-	}
+    @Override
+    public Collection<MessagePathParameter<?>> getPathParameters() {
+        return Arrays.asList(jobPathParameter, checkpointIdPathParameter, jobVertexIdPathParameter);
+    }
 }

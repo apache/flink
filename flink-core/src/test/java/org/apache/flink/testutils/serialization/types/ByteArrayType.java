@@ -16,68 +16,67 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.testutils.serialization.types;
+
+import org.apache.flink.core.memory.DataInputView;
+import org.apache.flink.core.memory.DataOutputView;
 
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.Random;
 
-import org.apache.flink.core.memory.DataInputView;
-import org.apache.flink.core.memory.DataOutputView;
-
 public class ByteArrayType implements SerializationTestType {
 
-	private static final int MAX_LEN = 512 * 15;
+    private static final int MAX_LEN = 512 * 15;
 
-	private byte[] data;
+    private byte[] data;
 
-	public ByteArrayType() {
-		this.data = new byte[0];
-	}
+    public ByteArrayType() {
+        this.data = new byte[0];
+    }
 
-	public ByteArrayType(byte[] data) {
-		this.data = data;
-	}
+    public ByteArrayType(byte[] data) {
+        this.data = data;
+    }
 
-	@Override
-	public ByteArrayType getRandom(Random rnd) {
-		final int len = rnd.nextInt(MAX_LEN) + 1;
-		final byte[] data = new byte[len];
-		rnd.nextBytes(data);
-		return new ByteArrayType(data);
-	}
+    @Override
+    public ByteArrayType getRandom(Random rnd) {
+        final int len = rnd.nextInt(MAX_LEN) + 1;
+        final byte[] data = new byte[len];
+        rnd.nextBytes(data);
+        return new ByteArrayType(data);
+    }
 
-	@Override
-	public int length() {
-		return data.length + 4;
-	}
+    @Override
+    public int length() {
+        return data.length + 4;
+    }
 
-	@Override
-	public void write(DataOutputView out) throws IOException {
-		out.writeInt(this.data.length);
-		out.write(this.data);
-	}
+    @Override
+    public void write(DataOutputView out) throws IOException {
+        out.writeInt(this.data.length);
+        out.write(this.data);
+    }
 
-	@Override
-	public void read(DataInputView in) throws IOException {
-		final int len = in.readInt();
-		this.data = new byte[len];
-		in.readFully(this.data);
-	}
+    @Override
+    public void read(DataInputView in) throws IOException {
+        final int len = in.readInt();
+        this.data = new byte[len];
+        in.readFully(this.data);
+    }
 
-	@Override
-	public int hashCode() {
-		return Arrays.hashCode(this.data);
-	}
+    @Override
+    public int hashCode() {
+        return Arrays.hashCode(this.data);
+    }
 
-	@Override
-	public boolean equals(Object obj) {
-		if (obj instanceof ByteArrayType) {
-			ByteArrayType other = (ByteArrayType) obj;
-			return Arrays.equals(this.data, other.data);
-		} else {
-			return false;
-		}
-	}
+    @Override
+    public boolean equals(Object obj) {
+        if (obj instanceof ByteArrayType) {
+            ByteArrayType other = (ByteArrayType) obj;
+            return Arrays.equals(this.data, other.data);
+        } else {
+            return false;
+        }
+    }
 }

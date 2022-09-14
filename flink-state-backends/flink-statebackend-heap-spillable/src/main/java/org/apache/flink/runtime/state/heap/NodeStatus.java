@@ -18,31 +18,29 @@
 
 package org.apache.flink.runtime.state.heap;
 
-/**
- * Status of the node.
- */
+/** Status of the node. */
 public enum NodeStatus {
+    PUT((byte) 0),
+    REMOVE((byte) 1);
 
-	PUT((byte) 0), REMOVE((byte) 1);
+    private final byte value;
 
-	private final byte value;
+    NodeStatus(byte value) {
+        this.value = value;
+    }
 
-	NodeStatus(byte value) {
-		this.value = value;
-	}
+    public byte getValue() {
+        return value;
+    }
 
-	public byte getValue() {
-		return value;
-	}
-
-	public static NodeStatus valueOf(byte value) {
-		switch (value) {
-			case 0:
-				return PUT;
-			case 1:
-				return REMOVE;
-			default:
-				throw new IllegalArgumentException("Unknown type: " + value);
-		}
-	}
+    public static NodeStatus valueOf(byte value) {
+        switch (value) {
+            case 0:
+                return PUT;
+            case 1:
+                return REMOVE;
+            default:
+                throw new IllegalArgumentException("Unknown type: " + value);
+        }
+    }
 }

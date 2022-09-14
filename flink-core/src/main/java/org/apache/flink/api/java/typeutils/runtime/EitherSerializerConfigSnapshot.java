@@ -29,42 +29,41 @@ import org.apache.flink.types.Either;
 
 import java.util.List;
 
-/**
- * Deprecated config snapshot retained for savepoint compatibility with Flink 1.6 and earlier.
- */
+/** Deprecated config snapshot retained for savepoint compatibility with Flink 1.6 and earlier. */
 @Deprecated
 @Internal
-public final class EitherSerializerConfigSnapshot<L, R> extends CompositeTypeSerializerConfigSnapshot<Either<L, R>> {
+public final class EitherSerializerConfigSnapshot<L, R>
+        extends CompositeTypeSerializerConfigSnapshot<Either<L, R>> {
 
-	private static final int VERSION = 1;
+    private static final int VERSION = 1;
 
-	/** This empty nullary constructor is required for deserializing the configuration. */
-	@SuppressWarnings("unused")
-	public EitherSerializerConfigSnapshot() {}
+    /** This empty nullary constructor is required for deserializing the configuration. */
+    @SuppressWarnings("unused")
+    public EitherSerializerConfigSnapshot() {}
 
-	@Override
-	public int getVersion() {
-		return VERSION;
-	}
+    @Override
+    public int getVersion() {
+        return VERSION;
+    }
 
-	@Override
-	@SuppressWarnings("unchecked")
-	public TypeSerializerSchemaCompatibility<Either<L, R>> resolveSchemaCompatibility(
-			TypeSerializer<Either<L, R>> newSerializer) {
+    @Override
+    @SuppressWarnings("unchecked")
+    public TypeSerializerSchemaCompatibility<Either<L, R>> resolveSchemaCompatibility(
+            TypeSerializer<Either<L, R>> newSerializer) {
 
-		// this class was shared between the Java Either Serializer and the
-		// Scala Either serializer
-		if (newSerializer.getClass() == EitherSerializer.class) {
-			List<Tuple2<TypeSerializer<?>, TypeSerializerSnapshot<?>>> nestedSerializersAndConfigs = getNestedSerializersAndConfigs();
-			return CompositeTypeSerializerUtil.delegateCompatibilityCheckToNewSnapshot(
-				newSerializer,
-				new JavaEitherSerializerSnapshot<>(),
-				nestedSerializersAndConfigs.get(0).f1,
-				nestedSerializersAndConfigs.get(1).f1);
-		}
-		else {
-			// fall back to the backwards compatibility path
-			return super.resolveSchemaCompatibility(newSerializer);
-		}
-	}
+        // this class was shared between the Java Either Serializer and the
+        // Scala Either serializer
+        if (newSerializer.getClass() == EitherSerializer.class) {
+            List<Tuple2<TypeSerializer<?>, TypeSerializerSnapshot<?>>> nestedSerializersAndConfigs =
+                    getNestedSerializersAndConfigs();
+            return CompositeTypeSerializerUtil.delegateCompatibilityCheckToNewSnapshot(
+                    newSerializer,
+                    new JavaEitherSerializerSnapshot<>(),
+                    nestedSerializersAndConfigs.get(0).f1,
+                    nestedSerializersAndConfigs.get(1).f1);
+        } else {
+            // fall back to the backwards compatibility path
+            return super.resolveSchemaCompatibility(newSerializer);
+        }
+    }
 }

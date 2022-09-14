@@ -27,95 +27,93 @@ import java.io.Serializable;
 import java.net.InetSocketAddress;
 import java.util.Optional;
 
-/**
- * Default implementation of {@link ShuffleDescriptor} for {@link NettyShuffleMaster}.
- */
+/** Default implementation of {@link ShuffleDescriptor} for {@link NettyShuffleMaster}. */
 public class NettyShuffleDescriptor implements ShuffleDescriptor {
 
-	private static final long serialVersionUID = 852181945034989215L;
+    private static final long serialVersionUID = 852181945034989215L;
 
-	private final ResourceID producerLocation;
+    private final ResourceID producerLocation;
 
-	private final PartitionConnectionInfo partitionConnectionInfo;
+    private final PartitionConnectionInfo partitionConnectionInfo;
 
-	private final ResultPartitionID resultPartitionID;
+    private final ResultPartitionID resultPartitionID;
 
-	public NettyShuffleDescriptor(
-			ResourceID producerLocation,
-			PartitionConnectionInfo partitionConnectionInfo,
-			ResultPartitionID resultPartitionID) {
-		this.producerLocation = producerLocation;
-		this.partitionConnectionInfo = partitionConnectionInfo;
-		this.resultPartitionID = resultPartitionID;
-	}
+    public NettyShuffleDescriptor(
+            ResourceID producerLocation,
+            PartitionConnectionInfo partitionConnectionInfo,
+            ResultPartitionID resultPartitionID) {
+        this.producerLocation = producerLocation;
+        this.partitionConnectionInfo = partitionConnectionInfo;
+        this.resultPartitionID = resultPartitionID;
+    }
 
-	public ConnectionID getConnectionId() {
-		return partitionConnectionInfo.getConnectionId();
-	}
+    public ConnectionID getConnectionId() {
+        return partitionConnectionInfo.getConnectionId();
+    }
 
-	@Override
-	public ResultPartitionID getResultPartitionID() {
-		return resultPartitionID;
-	}
+    @Override
+    public ResultPartitionID getResultPartitionID() {
+        return resultPartitionID;
+    }
 
-	@Override
-	public Optional<ResourceID> storesLocalResourcesOn() {
-		return Optional.of(producerLocation);
-	}
+    @Override
+    public Optional<ResourceID> storesLocalResourcesOn() {
+        return Optional.of(producerLocation);
+    }
 
-	public boolean isLocalTo(ResourceID consumerLocation) {
-		return producerLocation.equals(consumerLocation);
-	}
+    public boolean isLocalTo(ResourceID consumerLocation) {
+        return producerLocation.equals(consumerLocation);
+    }
 
-	/**
-	 * Information for connection to partition producer for shuffle exchange.
-	 */
-	@FunctionalInterface
-	public interface PartitionConnectionInfo extends Serializable {
-		ConnectionID getConnectionId();
-	}
+    /** Information for connection to partition producer for shuffle exchange. */
+    @FunctionalInterface
+    public interface PartitionConnectionInfo extends Serializable {
+        ConnectionID getConnectionId();
+    }
 
-	/**
-	 * Remote partition connection information with index to query partition.
-	 *
-	 * <p>Normal connection information with network address and port for connection in case of distributed execution.
-	 */
-	public static class NetworkPartitionConnectionInfo implements PartitionConnectionInfo {
+    /**
+     * Remote partition connection information with index to query partition.
+     *
+     * <p>Normal connection information with network address and port for connection in case of
+     * distributed execution.
+     */
+    public static class NetworkPartitionConnectionInfo implements PartitionConnectionInfo {
 
-		private static final long serialVersionUID = 5992534320110743746L;
+        private static final long serialVersionUID = 5992534320110743746L;
 
-		private final ConnectionID connectionID;
+        private final ConnectionID connectionID;
 
-		@VisibleForTesting
-		public NetworkPartitionConnectionInfo(ConnectionID connectionID) {
-			this.connectionID = connectionID;
-		}
+        @VisibleForTesting
+        public NetworkPartitionConnectionInfo(ConnectionID connectionID) {
+            this.connectionID = connectionID;
+        }
 
-		@Override
-		public ConnectionID getConnectionId() {
-			return connectionID;
-		}
+        @Override
+        public ConnectionID getConnectionId() {
+            return connectionID;
+        }
 
-		static NetworkPartitionConnectionInfo fromProducerDescriptor(
-				ProducerDescriptor producerDescriptor,
-				int connectionIndex) {
-			InetSocketAddress address =
-				new InetSocketAddress(producerDescriptor.getAddress(), producerDescriptor.getDataPort());
-			return new NetworkPartitionConnectionInfo(new ConnectionID(address, connectionIndex));
-		}
-	}
+        static NetworkPartitionConnectionInfo fromProducerDescriptor(
+                ProducerDescriptor producerDescriptor, int connectionIndex) {
+            InetSocketAddress address =
+                    new InetSocketAddress(
+                            producerDescriptor.getAddress(), producerDescriptor.getDataPort());
+            return new NetworkPartitionConnectionInfo(new ConnectionID(address, connectionIndex));
+        }
+    }
 
-	/**
-	 * Local partition connection information.
-	 *
-	 * <p>Does not have any network connection information in case of local execution.
-	 */
-	public enum LocalExecutionPartitionConnectionInfo implements PartitionConnectionInfo {
-		INSTANCE;
+    /**
+     * Local partition connection information.
+     *
+     * <p>Does not have any network connection information in case of local execution.
+     */
+    public enum LocalExecutionPartitionConnectionInfo implements PartitionConnectionInfo {
+        INSTANCE;
 
-		@Override
-		public ConnectionID getConnectionId() {
-			throw new UnsupportedOperationException("Local execution does not support shuffle connection.");
-		}
-	}
+        @Override
+        public ConnectionID getConnectionId() {
+            throw new UnsupportedOperationException(
+                    "Local execution does not support shuffle connection.");
+        }
+    }
 }

@@ -23,22 +23,26 @@ import org.apache.flink.runtime.operators.DriverStrategy;
 
 public class SortMergeInnerJoinDescriptor extends AbstractSortMergeJoinDescriptor {
 
-	public SortMergeInnerJoinDescriptor(FieldList keys1, FieldList keys2) {
-		super(keys1, keys2);
-	}
+    public SortMergeInnerJoinDescriptor(FieldList keys1, FieldList keys2) {
+        super(keys1, keys2);
+    }
 
-	public SortMergeInnerJoinDescriptor(FieldList keys1, FieldList keys2,
-			boolean broadcastFirstAllowed, boolean broadcastSecondAllowed, boolean repartitionAllowed) {
-		super(keys1, keys2, broadcastFirstAllowed, broadcastSecondAllowed, repartitionAllowed);
-	}
+    public SortMergeInnerJoinDescriptor(
+            FieldList keys1,
+            FieldList keys2,
+            boolean broadcastFirstAllowed,
+            boolean broadcastSecondAllowed,
+            boolean repartitionAllowed) {
+        super(keys1, keys2, broadcastFirstAllowed, broadcastSecondAllowed, repartitionAllowed);
+    }
 
-	@Override
-	public DriverStrategy getStrategy() {
-		return DriverStrategy.INNER_MERGE;
-	}
+    @Override
+    public DriverStrategy getStrategy() {
+        return DriverStrategy.INNER_MERGE;
+    }
 
-	@Override
-	protected String getNodeName() {
-		return "Join";
-	}
+    @Override
+    protected String getNodeName() {
+        return "Join";
+    }
 }

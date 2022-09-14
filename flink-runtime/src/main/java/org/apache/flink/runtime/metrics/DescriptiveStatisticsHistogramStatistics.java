@@ -17,6 +17,7 @@
 
 package org.apache.flink.runtime.metrics;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.metrics.HistogramStatistics;
 
 import org.apache.commons.math3.exception.MathIllegalArgumentException;
@@ -27,176 +28,192 @@ import org.apache.commons.math3.stat.descriptive.moment.StandardDeviation;
 import org.apache.commons.math3.stat.descriptive.rank.Percentile;
 import org.apache.commons.math3.stat.ranking.NaNStrategy;
 
+import java.io.Serializable;
 import java.util.Arrays;
 
 /**
- * DescriptiveStatistics histogram statistics implementation returned by {@link DescriptiveStatisticsHistogram}.
+ * DescriptiveStatistics histogram statistics implementation returned by {@link
+ * DescriptiveStatisticsHistogram}.
  *
  * <p>The statistics takes a point-in-time snapshot of a {@link DescriptiveStatistics} instance and
  * allows optimised metrics retrieval from this.
  */
-public class DescriptiveStatisticsHistogramStatistics extends HistogramStatistics {
-	private final CommonMetricsSnapshot statisticsSummary = new CommonMetricsSnapshot();
+public class DescriptiveStatisticsHistogramStatistics extends HistogramStatistics
+        implements Serializable {
+    private static final long serialVersionUID = 1L;
+    private final CommonMetricsSnapshot statisticsSummary = new CommonMetricsSnapshot();
 
-	public DescriptiveStatisticsHistogramStatistics(
-			DescriptiveStatisticsHistogram.CircularDoubleArray histogramValues) {
-		statisticsSummary.evaluate(histogramValues.toUnsortedArray());
-	}
+    public DescriptiveStatisticsHistogramStatistics(
+            DescriptiveStatisticsHistogram.CircularDoubleArray histogramValues) {
+        statisticsSummary.evaluate(histogramValues.toUnsortedArray());
+    }
 
-	@Override
-	public double getQuantile(double quantile) {
-		return statisticsSummary.getPercentile(quantile * 100);
-	}
+    @Override
+    public double getQuantile(double quantile) {
+        return statisticsSummary.getPercentile(quantile * 100);
+    }
 
-	@Override
-	public long[] getValues() {
-		return Arrays.stream(statisticsSummary.getValues()).mapToLong(i -> (long) i).toArray();
-	}
+    @Override
+    public long[] getValues() {
+        return Arrays.stream(statisticsSummary.getValues()).mapToLong(i -> (long) i).toArray();
+    }
 
-	@Override
-	public int size() {
-		return (int) statisticsSummary.getCount();
-	}
+    @Override
+    public int size() {
+        return (int) statisticsSummary.getCount();
+    }
 
-	@Override
-	public double getMean() {
-		return statisticsSummary.getMean();
-	}
+    @Override
+    public double getMean() {
+        return statisticsSummary.getMean();
+    }
 
-	@Override
-	public double getStdDev() {
-		return statisticsSummary.getStandardDeviation();
-	}
+    @Override
+    public double getStdDev() {
+        return statisticsSummary.getStandardDeviation();
+    }
 
-	@Override
-	public long getMax() {
-		return (long) statisticsSummary.getMax();
-	}
+    @Override
+    public long getMax() {
+        return (long) statisticsSummary.getMax();
+    }
 
-	@Override
-	public long getMin() {
-		return (long) statisticsSummary.getMin();
-	}
+    @Override
+    public long getMin() {
+        return (long) statisticsSummary.getMin();
+    }
 
-	/**
-	 * Function to extract several commonly used metrics in an optimised way, i.e. with as few runs
-	 * over the data / calculations as possible.
-	 *
-	 * <p>Note that calls to {@link #evaluate(double[])} or {@link #evaluate(double[], int, int)}
-	 * will not return a value but instead populate this class so that further values can be
-	 * retrieved from it.
-	 */
-	private static class CommonMetricsSnapshot implements UnivariateStatistic {
-		private long count = 0;
-		private double min = Double.NaN;
-		private double max = Double.NaN;
-		private double mean = Double.NaN;
-		private double stddev = Double.NaN;
-		private Percentile percentilesImpl = new Percentile().withNaNStrategy(NaNStrategy.FIXED);
+    /**
+     * Function to extract several commonly used metrics in an optimised way, i.e. with as few runs
+     * over the data / calculations as possible.
+     *
+     * <p>Note that calls to {@link #evaluate(double[])} or {@link #evaluate(double[], int, int)}
+     * will not return a value but instead populate this class so that further values can be
+     * retrieved from it.
+     */
+    @VisibleForTesting
+    static class CommonMetricsSnapshot implements UnivariateStatistic, Serializable {
+        private static final long serialVersionUID = 2L;
 
-		@Override
-		public double evaluate(final double[] values) throws MathIllegalArgumentException {
-			return evaluate(values, 0, values.length);
-		}
+        private double[] data;
+        private double min = Double.NaN;
+        private double max = Double.NaN;
+        private double mean = Double.NaN;
+        private double stddev = Double.NaN;
+        private transient Percentile percentilesImpl;
 
-		@Override
-		public double evaluate(double[] values, int begin, int length)
-				throws MathIllegalArgumentException {
-			this.count = length;
-			percentilesImpl.setData(values, begin, length);
+        @Override
+        public double evaluate(final double[] values) throws MathIllegalArgumentException {
+            return evaluate(values, 0, values.length);
+        }
 
-			SimpleStats secondMoment = new SimpleStats();
-			secondMoment.evaluate(values, begin, length);
-			this.mean = secondMoment.getMean();
-			this.min = secondMoment.getMin();
-			this.max = secondMoment.getMax();
+        @Override
+        public double evaluate(double[] values, int begin, int length)
+                throws MathIllegalArgumentException {
+            this.data = values;
 
-			this.stddev = new StandardDeviation(secondMoment).getResult();
+            SimpleStats secondMoment = new SimpleStats();
+            secondMoment.evaluate(values, begin, length);
+            this.mean = secondMoment.getMean();
+            this.min = secondMoment.getMin();
+            this.max = secondMoment.getMax();
 
-			return Double.NaN;
-		}
+            this.stddev = new StandardDeviation(secondMoment).getResult();
 
-		@Override
-		public CommonMetricsSnapshot copy() {
-			CommonMetricsSnapshot result = new CommonMetricsSnapshot();
-			result.count = count;
-			result.min = min;
-			result.max = max;
-			result.mean = mean;
-			result.stddev = stddev;
-			result.percentilesImpl = percentilesImpl.copy();
-			return result;
-		}
+            return Double.NaN;
+        }
 
-		long getCount() {
-			return count;
-		}
+        @Override
+        public CommonMetricsSnapshot copy() {
+            CommonMetricsSnapshot result = new CommonMetricsSnapshot();
+            result.data = Arrays.copyOf(data, data.length);
+            result.min = min;
+            result.max = max;
+            result.mean = mean;
+            result.stddev = stddev;
+            return result;
+        }
 
-		double getMin() {
-			return min;
-		}
+        long getCount() {
+            return data.length;
+        }
 
-		double getMax() {
-			return max;
-		}
+        double getMin() {
+            return min;
+        }
 
-		double getMean() {
-			return mean;
-		}
+        double getMax() {
+            return max;
+        }
 
-		double getStandardDeviation() {
-			return stddev;
-		}
+        double getMean() {
+            return mean;
+        }
 
-		double getPercentile(double p) {
-			return percentilesImpl.evaluate(p);
-		}
+        double getStandardDeviation() {
+            return stddev;
+        }
 
-		double[] getValues() {
-			return percentilesImpl.getData();
-		}
-	}
+        double getPercentile(double p) {
+            maybeInitPercentile();
+            return percentilesImpl.evaluate(p);
+        }
 
-	/**
-	 * Calculates min, max, mean (first moment), as well as the second moment in one go over
-	 * the value array.
-	 */
-	private static class SimpleStats extends SecondMoment {
-		private static final long serialVersionUID = 1L;
+        double[] getValues() {
+            maybeInitPercentile();
+            return percentilesImpl.getData();
+        }
 
-		private double min = Double.NaN;
-		private double max = Double.NaN;
+        private void maybeInitPercentile() {
+            if (percentilesImpl == null) {
+                percentilesImpl = new Percentile().withNaNStrategy(NaNStrategy.FIXED);
+            }
+            if (data != null) {
+                percentilesImpl.setData(data);
+            }
+        }
+    }
 
-		@Override
-		public void increment(double d) {
-			if (d < min || Double.isNaN(min)) {
-				min = d;
-			}
-			if (d > max || Double.isNaN(max)) {
-				max = d;
-			}
-			super.increment(d);
-		}
+    /**
+     * Calculates min, max, mean (first moment), as well as the second moment in one go over the
+     * value array.
+     */
+    private static class SimpleStats extends SecondMoment {
+        private static final long serialVersionUID = 1L;
 
-		@Override
-		public SecondMoment copy() {
-			SimpleStats result = new SimpleStats();
-			SecondMoment.copy(this, result);
-			result.min = min;
-			result.max = max;
-			return result;
-		}
+        private double min = Double.NaN;
+        private double max = Double.NaN;
 
-		public double getMin() {
-			return min;
-		}
+        @Override
+        public void increment(double d) {
+            if (d < min || Double.isNaN(min)) {
+                min = d;
+            }
+            if (d > max || Double.isNaN(max)) {
+                max = d;
+            }
+            super.increment(d);
+        }
 
-		public double getMax() {
-			return max;
-		}
+        @Override
+        public SecondMoment copy() {
+            SimpleStats result = new SimpleStats();
+            SecondMoment.copy(this, result);
+            result.min = min;
+            result.max = max;
+            return result;
+        }
 
-		public double getMean() {
-			return m1;
-		}
-	}
+        public double getMin() {
+            return min;
+        }
+
+        public double getMax() {
+            return max;
+        }
+
+        public double getMean() {
+            return m1;
+        }
+    }
 }

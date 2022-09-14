@@ -15,11 +15,15 @@
   ~ See the License for the specific language governing permissions and
   ~ limitations under the License.
   -->
-<flink-job-status [isLoading]="isLoading"></flink-job-status>
-<div class="content">
-  <nz-skeleton [nzActive]="true" *ngIf="isLoading"></nz-skeleton>
-  <div class="router" *ngIf="!isLoading">
-    <router-outlet></router-outlet>
-  </div>
-</div>
 
+<ng-container *ngIf="!jobIdSelected; else jobTemplate">
+  <flink-job-list
+    [completed]="isCompleted"
+    [title]="cardTitle"
+    (navigate)="navigateToJob($event)"
+  ></flink-job-list>
+</ng-container>
+
+<ng-template #jobTemplate>
+  <router-outlet></router-outlet>
+</ng-template>

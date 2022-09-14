@@ -18,55 +18,31 @@
 
 package org.apache.flink.runtime.state;
 
-import org.apache.flink.core.fs.FSDataInputStream;
+import org.apache.flink.runtime.state.memory.ByteStreamStateHandle;
 
-import javax.annotation.Nullable;
+import java.util.UUID;
 
-/**
- * A simple test mock for a {@link StreamStateHandle}.
- */
-public class TestingStreamStateHandle implements StreamStateHandle {
-	private static final long serialVersionUID = 1L;
+/** A simple test mock for a {@link StreamStateHandle}. */
+public class TestingStreamStateHandle extends ByteStreamStateHandle {
+    private static final long serialVersionUID = 1L;
 
-	@Nullable
-	private final FSDataInputStream inputStream;
+    private boolean disposed;
 
-	private final long size;
+    public TestingStreamStateHandle() {
+        super(UUID.randomUUID().toString(), new byte[0]);
+    }
 
-	private boolean disposed;
+    // ------------------------------------------------------------------------
 
-	public TestingStreamStateHandle() {
-		this(null, 0L);
-	}
+    @Override
+    public void discardState() {
+        super.discardState();
+        disposed = true;
+    }
 
-	public TestingStreamStateHandle(@Nullable FSDataInputStream inputStream, long size) {
-		this.inputStream = inputStream;
-		this.size = size;
-	}
+    // ------------------------------------------------------------------------
 
-	// ------------------------------------------------------------------------
-
-	@Override
-	public FSDataInputStream openInputStream() {
-		if (inputStream == null) {
-			throw new UnsupportedOperationException("no input stream provided");
-		}
-		return inputStream;
-	}
-
-	@Override
-	public void discardState() {
-		disposed = true;
-	}
-
-	@Override
-	public long getStateSize() {
-		return size;
-	}
-
-	// ------------------------------------------------------------------------
-
-	public boolean isDisposed() {
-		return disposed;
-	}
+    public boolean isDisposed() {
+        return disposed;
+    }
 }

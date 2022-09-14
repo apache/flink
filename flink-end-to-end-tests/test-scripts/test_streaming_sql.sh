@@ -19,7 +19,11 @@
 
 source "$(dirname "$0")"/common.sh
 
-PLANNER="${1:-old}"
+PLANNER=$1
+if [ "$PLANNER" = "scala-planner" ]; then
+  swap_planner_loader_with_planner_scala
+  on_exit swap_planner_scala_with_planner_loader
+fi
 
 TEST_PROGRAM_JAR=${END_TO_END_DIR}/flink-stream-sql-test/target/StreamSQLTestProgram.jar
 
@@ -28,19 +32,13 @@ $FLINK_DIR/bin/taskmanager.sh start
 $FLINK_DIR/bin/taskmanager.sh start
 $FLINK_DIR/bin/taskmanager.sh start
 
-$FLINK_DIR/bin/flink run -p 4 $TEST_PROGRAM_JAR -outputPath file://${TEST_DATA_DIR}/out/result -planner ${PLANNER}
-
-function sql_cleanup() {
-  stop_cluster
-  $FLINK_DIR/bin/taskmanager.sh stop-all
-}
-on_exit sql_cleanup
+$FLINK_DIR/bin/flink run -p 4 $TEST_PROGRAM_JAR -outputPath file://${TEST_DATA_DIR}/out/result
 
 # collect results from files
 cat $TEST_DATA_DIR/out/result/20/.part-* $TEST_DATA_DIR/out/result/20/part-* | sort > $TEST_DATA_DIR/out/result-complete
 
 # check result:
-# 20,1970-01-01 00:00:00.0
-# 20,1970-01-01 00:00:20.0
-# 20,1970-01-01 00:00:40.0
-check_result_hash "StreamSQL" $TEST_DATA_DIR/out/result-complete "b29f14ed221a936211202ff65b51ee26"
+# +I[20, 1970-01-01 00:00:00.0]
+# +I[20, 1970-01-01 00:00:20.0]
+# +I[20, 1970-01-01 00:00:40.0]
+check_result_hash "StreamSQL" $TEST_DATA_DIR/out/result-complete "a88cc1dc7e7c2c2adc75bd23454ef4da"

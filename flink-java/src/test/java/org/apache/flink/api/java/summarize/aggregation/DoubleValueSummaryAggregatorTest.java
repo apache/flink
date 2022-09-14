@@ -21,39 +21,42 @@ package org.apache.flink.api.java.summarize.aggregation;
 import org.apache.flink.api.java.summarize.NumericColumnSummary;
 import org.apache.flink.types.DoubleValue;
 
-import org.junit.Assert;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.data.Offset.offset;
 
-/**
- * Tests for {@link ValueSummaryAggregator.DoubleValueSummaryAggregator}.
- */
-public class DoubleValueSummaryAggregatorTest extends DoubleSummaryAggregatorTest {
+/** Tests for {@link ValueSummaryAggregator.DoubleValueSummaryAggregator}. */
+class DoubleValueSummaryAggregatorTest extends DoubleSummaryAggregatorTest {
 
-	/**
-	 * Helper method for summarizing a list of values.
-	 *
-	 * <p>This method breaks the rule of "testing only one thing" by aggregating and combining
-	 * a bunch of different ways.
-	 */
-	protected NumericColumnSummary<Double> summarize(Double... values) {
+    /**
+     * Helper method for summarizing a list of values.
+     *
+     * <p>This method breaks the rule of "testing only one thing" by aggregating and combining a
+     * bunch of different ways.
+     */
+    protected NumericColumnSummary<Double> summarize(Double... values) {
 
-		DoubleValue[] doubleValues = new DoubleValue[values.length];
-		for (int i = 0; i < values.length; i++) {
-			if (values[i] != null) {
-				doubleValues[i] = new DoubleValue(values[i]);
-			}
-		}
+        DoubleValue[] doubleValues = new DoubleValue[values.length];
+        for (int i = 0; i < values.length; i++) {
+            if (values[i] != null) {
+                doubleValues[i] = new DoubleValue(values[i]);
+            }
+        }
 
-		return new AggregateCombineHarness<DoubleValue, NumericColumnSummary<Double>, ValueSummaryAggregator.DoubleValueSummaryAggregator>() {
+        return new AggregateCombineHarness<
+                DoubleValue,
+                NumericColumnSummary<Double>,
+                ValueSummaryAggregator.DoubleValueSummaryAggregator>() {
 
-			@Override
-			protected void compareResults(NumericColumnSummary<Double> result1, NumericColumnSummary<Double> result2) {
-				Assert.assertEquals(result1.getMin(), result2.getMin(), 0.0);
-				Assert.assertEquals(result1.getMax(), result2.getMax(), 0.0);
-				Assert.assertEquals(result1.getMean(), result2.getMean(), 1e-12d);
-				Assert.assertEquals(result1.getVariance(), result2.getVariance(), 1e-9d);
-				Assert.assertEquals(result1.getStandardDeviation(), result2.getStandardDeviation(), 1e-12d);
-			}
-
-		}.summarize(doubleValues);
-	}
+            @Override
+            protected void compareResults(
+                    NumericColumnSummary<Double> result1, NumericColumnSummary<Double> result2) {
+                assertThat(result2.getMin()).isCloseTo(result1.getMin(), offset(0.0));
+                assertThat(result2.getMax()).isCloseTo(result1.getMax(), offset(0.0));
+                assertThat(result2.getMean()).isCloseTo(result1.getMean(), offset(1e-12d));
+                assertThat(result2.getVariance()).isCloseTo(result1.getVariance(), offset(1e-9d));
+                assertThat(result2.getStandardDeviation())
+                        .isCloseTo(result1.getStandardDeviation(), offset(1e-12d));
+            }
+        }.summarize(doubleValues);
+    }
 }

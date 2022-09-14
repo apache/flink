@@ -1,0 +1,56 @@
+{{/*
+Licensed to the Apache Software Foundation (ASF) under one
+or more contributor license agreements.  See the NOTICE file
+distributed with this work for additional information
+regarding copyright ownership.  The ASF licenses this file
+to you under the Apache License, Version 2.0 (the
+"License"); you may not use this file except in compliance
+with the License.  You may obtain a copy of the License at
+
+  http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing,
+software distributed under the License is distributed on an
+"AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+KIND, either express or implied.  See the License for the
+specific language governing permissions and limitations
+under the License.
+*/}}
+{{/* 
+  Generates the gradle snippet for the gradle artifact.
+  IMPORTANT: the whitespace is relevant. Do not change without looking at the 
+  rendered documentation. 
+*/}}
+{{ $scalaVersion := "" }}
+{{ $testScope := "" }}
+{{ $providedScope := "" }}
+{{ $testClassifier := "" }}
+
+{{ $artifactId := .Get 0 }}
+
+{{ $path := .Page.Path }}
+
+{{ range after 1 .Params }}
+  {{ if eq . "withScalaVersion" }}
+    {{ $scalaVersion = "true" }}
+  {{ else if eq . "withTestScope" }}
+    {{ $testScope = "true" }}
+  {{ else if eq . "withProvidedScope" }}
+    {{ $providedScope = "true" }}
+  {{ else if eq . "withTestClassifier" }}
+    {{ $testClassifier = "true" }}
+  {{ else }}
+    {{ errorf "%q: Invalid use of artifact shortcode. Unknown flag `%s`" $path . }}
+  {{ end }}
+{{ end }}
+
+{{ $hash := md5 now }}
+
+{{ if ne $scalaVersion "" }}
+  {{ $artifactId = printf "%s%s" $artifactId $.Site.Params.ScalaVersion }}
+{{ end }}
+
+<div id="{{ $hash }}" onclick="selectTextAndCopy('{{ $hash }}')" class="highlight"><pre class="chroma"><code class="language-gradle" data-lang="gradle">{{ if ne $testScope "" }}testCompile{{ else if ne $providedScope "" }}runtime{{ else }}flinkShadowJar{{ end }} "org.apache.flink:{{- $artifactId -}}:{{- site.Params.Version -}}{{ if ne $scalaVersion "" }}:tests{{ end }}"</code></pre></div>
+<div class="book-hint info" style="text-align:center;display:none" copyable="flink-module" copyattribute="{{ $hash }}">
+  Copied to clipboard!
+</div> 

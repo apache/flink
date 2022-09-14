@@ -21,7 +21,7 @@ package org.apache.flink.runtime.dispatcher.runner;
 import org.apache.flink.runtime.dispatcher.DispatcherFactory;
 import org.apache.flink.runtime.dispatcher.PartialDispatcherServices;
 import org.apache.flink.runtime.entrypoint.component.JobGraphRetriever;
-import org.apache.flink.runtime.jobmanager.JobGraphStoreFactory;
+import org.apache.flink.runtime.jobmanager.JobPersistenceComponentFactory;
 import org.apache.flink.runtime.leaderelection.LeaderElectionService;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcService;
@@ -33,41 +33,44 @@ import java.util.concurrent.Executor;
  * instances.
  */
 public class DefaultDispatcherRunnerFactory implements DispatcherRunnerFactory {
-	private final DispatcherLeaderProcessFactoryFactory dispatcherLeaderProcessFactoryFactory;
+    private final DispatcherLeaderProcessFactoryFactory dispatcherLeaderProcessFactoryFactory;
 
-	private DefaultDispatcherRunnerFactory(DispatcherLeaderProcessFactoryFactory dispatcherLeaderProcessFactoryFactory) {
-		this.dispatcherLeaderProcessFactoryFactory = dispatcherLeaderProcessFactoryFactory;
-	}
+    public DefaultDispatcherRunnerFactory(
+            DispatcherLeaderProcessFactoryFactory dispatcherLeaderProcessFactoryFactory) {
+        this.dispatcherLeaderProcessFactoryFactory = dispatcherLeaderProcessFactoryFactory;
+    }
 
-	@Override
-	public DispatcherRunner createDispatcherRunner(
-			LeaderElectionService leaderElectionService,
-			FatalErrorHandler fatalErrorHandler,
-			JobGraphStoreFactory jobGraphStoreFactory,
-			Executor ioExecutor,
-			RpcService rpcService,
-			PartialDispatcherServices partialDispatcherServices) throws Exception {
+    @Override
+    public DispatcherRunner createDispatcherRunner(
+            LeaderElectionService leaderElectionService,
+            FatalErrorHandler fatalErrorHandler,
+            JobPersistenceComponentFactory jobPersistenceComponentFactory,
+            Executor ioExecutor,
+            RpcService rpcService,
+            PartialDispatcherServices partialDispatcherServices)
+            throws Exception {
 
-		final DispatcherLeaderProcessFactory dispatcherLeaderProcessFactory = dispatcherLeaderProcessFactoryFactory.createFactory(
-			jobGraphStoreFactory,
-			ioExecutor,
-			rpcService,
-			partialDispatcherServices,
-			fatalErrorHandler);
+        final DispatcherLeaderProcessFactory dispatcherLeaderProcessFactory =
+                dispatcherLeaderProcessFactoryFactory.createFactory(
+                        jobPersistenceComponentFactory,
+                        ioExecutor,
+                        rpcService,
+                        partialDispatcherServices,
+                        fatalErrorHandler);
 
-		return DefaultDispatcherRunner.create(
-			leaderElectionService,
-			fatalErrorHandler,
-			dispatcherLeaderProcessFactory);
-	}
+        return DefaultDispatcherRunner.create(
+                leaderElectionService, fatalErrorHandler, dispatcherLeaderProcessFactory);
+    }
 
-	public static DefaultDispatcherRunnerFactory createSessionRunner(DispatcherFactory dispatcherFactory) {
-		return new DefaultDispatcherRunnerFactory(
-			SessionDispatcherLeaderProcessFactoryFactory.create(dispatcherFactory));
-	}
+    public static DefaultDispatcherRunnerFactory createSessionRunner(
+            DispatcherFactory dispatcherFactory) {
+        return new DefaultDispatcherRunnerFactory(
+                SessionDispatcherLeaderProcessFactoryFactory.create(dispatcherFactory));
+    }
 
-	public static DefaultDispatcherRunnerFactory createJobRunner(JobGraphRetriever jobGraphRetriever) {
-		return new DefaultDispatcherRunnerFactory(
-			JobDispatcherLeaderProcessFactoryFactory.create(jobGraphRetriever));
-	}
+    public static DefaultDispatcherRunnerFactory createJobRunner(
+            JobGraphRetriever jobGraphRetriever) {
+        return new DefaultDispatcherRunnerFactory(
+                JobDispatcherLeaderProcessFactoryFactory.create(jobGraphRetriever));
+    }
 }

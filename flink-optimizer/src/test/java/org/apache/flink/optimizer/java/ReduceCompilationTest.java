@@ -42,339 +42,382 @@ import static org.junit.Assert.fail;
 @SuppressWarnings("serial")
 public class ReduceCompilationTest extends CompilerTestBase implements java.io.Serializable {
 
-	@Test
-	public void testAllReduceNoCombiner() {
-		try {
-			ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-			env.setParallelism(8);
-			
-			DataSet<Double> data = env.fromElements(0.2, 0.3, 0.4, 0.5).name("source");
-			
-			data.reduce(new RichReduceFunction<Double>() {
-				
-				@Override
-				public Double reduce(Double value1, Double value2){
-					return value1 + value2;
-				}
-			}).name("reducer")
-			.output(new DiscardingOutputFormat<Double>()).name("sink");
-			
-			Plan p = env.createProgramPlan();
-			OptimizedPlan op = compileNoStats(p);
-			
-			OptimizerPlanNodeResolver resolver = getOptimizerPlanNodeResolver(op);
-			
-			
-			// the all-reduce has no combiner, when the parallelism of the input is one
-			
-			SourcePlanNode sourceNode = resolver.getNode("source");
-			SingleInputPlanNode reduceNode = resolver.getNode("reducer");
-			SinkPlanNode sinkNode = resolver.getNode("sink");
-			
-			// check wiring
-			assertEquals(sourceNode, reduceNode.getInput().getSource());
-			assertEquals(reduceNode, sinkNode.getInput().getSource());
-			
-			// check parallelism
-			assertEquals(1, sourceNode.getParallelism());
-			assertEquals(1, reduceNode.getParallelism());
-			assertEquals(1, sinkNode.getParallelism());
-		}
-		catch (Exception e) {
-			System.err.println(e.getMessage());
-			e.printStackTrace();
-			fail(e.getClass().getSimpleName() + " in test: " + e.getMessage());
-		}
-	}
-	
-	@Test
-	public void testAllReduceWithCombiner() {
-		try {
-			ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-			env.setParallelism(8);
-			
-			DataSet<Long> data = env.generateSequence(1, 8000000).name("source");
-			
-			data.reduce(new RichReduceFunction<Long>() {
-				
-				@Override
-				public Long reduce(Long value1, Long value2){
-					return value1 + value2;
-				}
-			}).name("reducer")
-			.output(new DiscardingOutputFormat<Long>()).name("sink");
-			
-			Plan p = env.createProgramPlan();
-			OptimizedPlan op = compileNoStats(p);
-			
-			OptimizerPlanNodeResolver resolver = getOptimizerPlanNodeResolver(op);
-			
-			// get the original nodes
-			SourcePlanNode sourceNode = resolver.getNode("source");
-			SingleInputPlanNode reduceNode = resolver.getNode("reducer");
-			SinkPlanNode sinkNode = resolver.getNode("sink");
-			
-			// get the combiner
-			SingleInputPlanNode combineNode = (SingleInputPlanNode) reduceNode.getInput().getSource();
-			
-			// check wiring
-			assertEquals(sourceNode, combineNode.getInput().getSource());
-			assertEquals(reduceNode, sinkNode.getInput().getSource());
-			
-			// check that both reduce and combiner have the same strategy
-			assertEquals(DriverStrategy.ALL_REDUCE, reduceNode.getDriverStrategy());
-			assertEquals(DriverStrategy.ALL_REDUCE, combineNode.getDriverStrategy());
-			
-			// check parallelism
-			assertEquals(8, sourceNode.getParallelism());
-			assertEquals(8, combineNode.getParallelism());
-			assertEquals(1, reduceNode.getParallelism());
-			assertEquals(1, sinkNode.getParallelism());
-		}
-		catch (Exception e) {
-			System.err.println(e.getMessage());
-			e.printStackTrace();
-			fail(e.getClass().getSimpleName() + " in test: " + e.getMessage());
-		}
-	}
-	
-	@Test
-	public void testGroupedReduceWithFieldPositionKey() {
-		try {
-			ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-			env.setParallelism(8);
-			
-			DataSet<Tuple2<String, Double>> data = env.readCsvFile("file:///will/never/be/read").types(String.class, Double.class)
-				.name("source").setParallelism(6);
-			
-			data
-				.groupBy(1)
-				.reduce(new RichReduceFunction<Tuple2<String,Double>>() {
-				@Override
-				public Tuple2<String, Double> reduce(Tuple2<String, Double> value1, Tuple2<String, Double> value2){
-					return null;
-				}
-			}).name("reducer")
-			.output(new DiscardingOutputFormat<Tuple2<String, Double>>()).name("sink");
-			
-			Plan p = env.createProgramPlan();
-			OptimizedPlan op = compileNoStats(p);
-			
-			OptimizerPlanNodeResolver resolver = getOptimizerPlanNodeResolver(op);
-			
-			// get the original nodes
-			SourcePlanNode sourceNode = resolver.getNode("source");
-			SingleInputPlanNode reduceNode = resolver.getNode("reducer");
-			SinkPlanNode sinkNode = resolver.getNode("sink");
-			
-			// get the combiner
-			SingleInputPlanNode combineNode = (SingleInputPlanNode) reduceNode.getInput().getSource();
-			
-			// check wiring
-			assertEquals(sourceNode, combineNode.getInput().getSource());
-			assertEquals(reduceNode, sinkNode.getInput().getSource());
-			
-			// check the strategies
-			assertEquals(DriverStrategy.SORTED_REDUCE, reduceNode.getDriverStrategy());
-			assertEquals(DriverStrategy.SORTED_PARTIAL_REDUCE, combineNode.getDriverStrategy());
-			
-			// check the keys
-			assertEquals(new FieldList(1), reduceNode.getKeys(0));
-			assertEquals(new FieldList(1), combineNode.getKeys(0));
-			assertEquals(new FieldList(1), reduceNode.getInput().getLocalStrategyKeys());
-			
-			// check parallelism
-			assertEquals(6, sourceNode.getParallelism());
-			assertEquals(6, combineNode.getParallelism());
-			assertEquals(8, reduceNode.getParallelism());
-			assertEquals(8, sinkNode.getParallelism());
-		}
-		catch (Exception e) {
-			System.err.println(e.getMessage());
-			e.printStackTrace();
-			fail(e.getClass().getSimpleName() + " in test: " + e.getMessage());
-		}
-	}
-	
-	@Test
-	public void testGroupedReduceWithSelectorFunctionKey() {
-		try {
-			ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-			env.setParallelism(8);
-			
-			DataSet<Tuple2<String, Double>> data = env.readCsvFile("file:///will/never/be/read").types(String.class, Double.class)
-				.name("source").setParallelism(6);
-			
-			data
-				.groupBy(new KeySelector<Tuple2<String,Double>, String>() { 
-					public String getKey(Tuple2<String, Double> value) { return value.f0; }
-				})
-				.reduce(new RichReduceFunction<Tuple2<String,Double>>() {
-				@Override
-				public Tuple2<String, Double> reduce(Tuple2<String, Double> value1, Tuple2<String, Double> value2){
-					return null;
-				}
-			}).name("reducer")
-			.output(new DiscardingOutputFormat<Tuple2<String, Double>>()).name("sink");
-			
-			Plan p = env.createProgramPlan();
-			OptimizedPlan op = compileNoStats(p);
-			
-			OptimizerPlanNodeResolver resolver = getOptimizerPlanNodeResolver(op);
-			
-			// get the original nodes
-			SourcePlanNode sourceNode = resolver.getNode("source");
-			SingleInputPlanNode reduceNode = resolver.getNode("reducer");
-			SinkPlanNode sinkNode = resolver.getNode("sink");
-			
-			// get the combiner
-			SingleInputPlanNode combineNode = (SingleInputPlanNode) reduceNode.getInput().getSource();
-			
-			// get the key extractors and projectors
-			SingleInputPlanNode keyExtractor = (SingleInputPlanNode) combineNode.getInput().getSource();
-			SingleInputPlanNode keyProjector = (SingleInputPlanNode) sinkNode.getInput().getSource();
-			
-			// check wiring
-			assertEquals(sourceNode, keyExtractor.getInput().getSource());
-			assertEquals(keyProjector, sinkNode.getInput().getSource());
+    @Test
+    public void testAllReduceNoCombiner() {
+        try {
+            ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+            env.setParallelism(8);
 
-			// check the strategies
-			assertEquals(DriverStrategy.SORTED_REDUCE, reduceNode.getDriverStrategy());
-			assertEquals(DriverStrategy.SORTED_PARTIAL_REDUCE, combineNode.getDriverStrategy());
-			
-			// check the keys
-			assertEquals(new FieldList(0), reduceNode.getKeys(0));
-			assertEquals(new FieldList(0), combineNode.getKeys(0));
-			assertEquals(new FieldList(0), reduceNode.getInput().getLocalStrategyKeys());
-			
-			// check parallelism
-			assertEquals(6, sourceNode.getParallelism());
-			assertEquals(6, keyExtractor.getParallelism());
-			assertEquals(6, combineNode.getParallelism());
-			
-			assertEquals(8, reduceNode.getParallelism());
-			assertEquals(8, keyProjector.getParallelism());
-			assertEquals(8, sinkNode.getParallelism());
-		}
-		catch (Exception e) {
-			System.err.println(e.getMessage());
-			e.printStackTrace();
-			fail(e.getClass().getSimpleName() + " in test: " + e.getMessage());
-		}
-	}
+            DataSet<Double> data = env.fromElements(0.2, 0.3, 0.4, 0.5).name("source");
 
-	@Test
-	public void testGroupedReduceWithHint() {
-		try {
-			ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-			env.setParallelism(8);
+            data.reduce(
+                            new RichReduceFunction<Double>() {
 
-			DataSet<Tuple2<String, Double>> data = env.readCsvFile("file:///will/never/be/read").types(String.class, Double.class)
-				.name("source").setParallelism(6);
+                                @Override
+                                public Double reduce(Double value1, Double value2) {
+                                    return value1 + value2;
+                                }
+                            })
+                    .name("reducer")
+                    .output(new DiscardingOutputFormat<Double>())
+                    .name("sink");
 
-			data
-				.groupBy(new KeySelector<Tuple2<String,Double>, String>() {
-					public String getKey(Tuple2<String, Double> value) { return value.f0; }
-				})
-				.reduce(new RichReduceFunction<Tuple2<String,Double>>() {
-					@Override
-					public Tuple2<String, Double> reduce(Tuple2<String, Double> value1, Tuple2<String, Double> value2){
-						return null;
-					}
-				}).setCombineHint(CombineHint.HASH).name("reducer")
-				.output(new DiscardingOutputFormat<Tuple2<String, Double>>()).name("sink");
+            Plan p = env.createProgramPlan();
+            OptimizedPlan op = compileNoStats(p);
 
-			Plan p = env.createProgramPlan();
-			OptimizedPlan op = compileNoStats(p);
+            OptimizerPlanNodeResolver resolver = getOptimizerPlanNodeResolver(op);
 
-			OptimizerPlanNodeResolver resolver = getOptimizerPlanNodeResolver(op);
+            // the all-reduce has no combiner, when the parallelism of the input is one
 
-			// get the original nodes
-			SourcePlanNode sourceNode = resolver.getNode("source");
-			SingleInputPlanNode reduceNode = resolver.getNode("reducer");
-			SinkPlanNode sinkNode = resolver.getNode("sink");
+            SourcePlanNode sourceNode = resolver.getNode("source");
+            SingleInputPlanNode reduceNode = resolver.getNode("reducer");
+            SinkPlanNode sinkNode = resolver.getNode("sink");
 
-			// get the combiner
-			SingleInputPlanNode combineNode = (SingleInputPlanNode) reduceNode.getInput().getSource();
+            // check wiring
+            assertEquals(sourceNode, reduceNode.getInput().getSource());
+            assertEquals(reduceNode, sinkNode.getInput().getSource());
 
-			// get the key extractors and projectors
-			SingleInputPlanNode keyExtractor = (SingleInputPlanNode) combineNode.getInput().getSource();
-			SingleInputPlanNode keyProjector = (SingleInputPlanNode) sinkNode.getInput().getSource();
+            // check parallelism
+            assertEquals(1, sourceNode.getParallelism());
+            assertEquals(1, reduceNode.getParallelism());
+            assertEquals(1, sinkNode.getParallelism());
+        } catch (Exception e) {
+            System.err.println(e.getMessage());
+            e.printStackTrace();
+            fail(e.getClass().getSimpleName() + " in test: " + e.getMessage());
+        }
+    }
 
-			// check wiring
-			assertEquals(sourceNode, keyExtractor.getInput().getSource());
-			assertEquals(keyProjector, sinkNode.getInput().getSource());
+    @Test
+    public void testAllReduceWithCombiner() {
+        try {
+            ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+            env.setParallelism(8);
 
-			// check the strategies
-			assertEquals(DriverStrategy.SORTED_REDUCE, reduceNode.getDriverStrategy());
-			assertEquals(DriverStrategy.HASHED_PARTIAL_REDUCE, combineNode.getDriverStrategy());
+            DataSet<Long> data = env.generateSequence(1, 8000000).name("source");
 
-			// check the keys
-			assertEquals(new FieldList(0), reduceNode.getKeys(0));
-			assertEquals(new FieldList(0), combineNode.getKeys(0));
-			assertEquals(new FieldList(0), reduceNode.getInput().getLocalStrategyKeys());
+            data.reduce(
+                            new RichReduceFunction<Long>() {
 
-			// check parallelism
-			assertEquals(6, sourceNode.getParallelism());
-			assertEquals(6, keyExtractor.getParallelism());
-			assertEquals(6, combineNode.getParallelism());
+                                @Override
+                                public Long reduce(Long value1, Long value2) {
+                                    return value1 + value2;
+                                }
+                            })
+                    .name("reducer")
+                    .output(new DiscardingOutputFormat<Long>())
+                    .name("sink");
 
-			assertEquals(8, reduceNode.getParallelism());
-			assertEquals(8, keyProjector.getParallelism());
-			assertEquals(8, sinkNode.getParallelism());
-		}
-		catch (Exception e) {
-			System.err.println(e.getMessage());
-			e.printStackTrace();
-			fail(e.getClass().getSimpleName() + " in test: " + e.getMessage());
-		}
-	}
+            Plan p = env.createProgramPlan();
+            OptimizedPlan op = compileNoStats(p);
 
-	/**
-	 * Test program compilation when the Reduce's combiner has been excluded
-	 * by setting {@code CombineHint.NONE}.
-	 */
-	@Test
-	public void testGroupedReduceWithoutCombiner() {
-		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		env.setParallelism(8);
+            OptimizerPlanNodeResolver resolver = getOptimizerPlanNodeResolver(op);
 
-		DataSet<Tuple2<String, Double>> data = env.readCsvFile("file:///will/never/be/read").types(String.class, Double.class)
-			.name("source").setParallelism(6);
+            // get the original nodes
+            SourcePlanNode sourceNode = resolver.getNode("source");
+            SingleInputPlanNode reduceNode = resolver.getNode("reducer");
+            SinkPlanNode sinkNode = resolver.getNode("sink");
 
-		data
-			.groupBy(0)
-			.reduce(new RichReduceFunction<Tuple2<String, Double>>() {
-				@Override
-				public Tuple2<String, Double> reduce(Tuple2<String, Double> value1, Tuple2<String, Double> value2) {
-					return null;
-				}
-			}).setCombineHint(CombineHint.NONE).name("reducer")
-			.output(new DiscardingOutputFormat<Tuple2<String, Double>>()).name("sink");
+            // get the combiner
+            SingleInputPlanNode combineNode =
+                    (SingleInputPlanNode) reduceNode.getInput().getSource();
 
-		Plan p = env.createProgramPlan();
-		OptimizedPlan op = compileNoStats(p);
+            // check wiring
+            assertEquals(sourceNode, combineNode.getInput().getSource());
+            assertEquals(reduceNode, sinkNode.getInput().getSource());
 
-		OptimizerPlanNodeResolver resolver = getOptimizerPlanNodeResolver(op);
+            // check that both reduce and combiner have the same strategy
+            assertEquals(DriverStrategy.ALL_REDUCE, reduceNode.getDriverStrategy());
+            assertEquals(DriverStrategy.ALL_REDUCE, combineNode.getDriverStrategy());
 
-		// get the original nodes
-		SourcePlanNode sourceNode = resolver.getNode("source");
-		SingleInputPlanNode reduceNode = resolver.getNode("reducer");
-		SinkPlanNode sinkNode = resolver.getNode("sink");
+            // check parallelism
+            assertEquals(8, sourceNode.getParallelism());
+            assertEquals(8, combineNode.getParallelism());
+            assertEquals(1, reduceNode.getParallelism());
+            assertEquals(1, sinkNode.getParallelism());
+        } catch (Exception e) {
+            System.err.println(e.getMessage());
+            e.printStackTrace();
+            fail(e.getClass().getSimpleName() + " in test: " + e.getMessage());
+        }
+    }
 
-		// check wiring
-		assertEquals(sourceNode, reduceNode.getInput().getSource());
+    @Test
+    public void testGroupedReduceWithFieldPositionKey() {
+        try {
+            ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+            env.setParallelism(8);
 
-		// check the strategies
-		assertEquals(DriverStrategy.SORTED_REDUCE, reduceNode.getDriverStrategy());
+            DataSet<Tuple2<String, Double>> data =
+                    env.readCsvFile("file:///will/never/be/read")
+                            .types(String.class, Double.class)
+                            .name("source")
+                            .setParallelism(6);
 
-		// check the keys
-		assertEquals(new FieldList(0), reduceNode.getKeys(0));
-		assertEquals(new FieldList(0), reduceNode.getInput().getLocalStrategyKeys());
+            data.groupBy(1)
+                    .reduce(
+                            new RichReduceFunction<Tuple2<String, Double>>() {
+                                @Override
+                                public Tuple2<String, Double> reduce(
+                                        Tuple2<String, Double> value1,
+                                        Tuple2<String, Double> value2) {
+                                    return null;
+                                }
+                            })
+                    .name("reducer")
+                    .output(new DiscardingOutputFormat<Tuple2<String, Double>>())
+                    .name("sink");
 
-		// check parallelism
-		assertEquals(6, sourceNode.getParallelism());
-		assertEquals(8, reduceNode.getParallelism());
-		assertEquals(8, sinkNode.getParallelism());
-	}
+            Plan p = env.createProgramPlan();
+            OptimizedPlan op = compileNoStats(p);
+
+            OptimizerPlanNodeResolver resolver = getOptimizerPlanNodeResolver(op);
+
+            // get the original nodes
+            SourcePlanNode sourceNode = resolver.getNode("source");
+            SingleInputPlanNode reduceNode = resolver.getNode("reducer");
+            SinkPlanNode sinkNode = resolver.getNode("sink");
+
+            // get the combiner
+            SingleInputPlanNode combineNode =
+                    (SingleInputPlanNode) reduceNode.getInput().getSource();
+
+            // check wiring
+            assertEquals(sourceNode, combineNode.getInput().getSource());
+            assertEquals(reduceNode, sinkNode.getInput().getSource());
+
+            // check the strategies
+            assertEquals(DriverStrategy.SORTED_REDUCE, reduceNode.getDriverStrategy());
+            assertEquals(DriverStrategy.SORTED_PARTIAL_REDUCE, combineNode.getDriverStrategy());
+
+            // check the keys
+            assertEquals(new FieldList(1), reduceNode.getKeys(0));
+            assertEquals(new FieldList(1), combineNode.getKeys(0));
+            assertEquals(new FieldList(1), reduceNode.getInput().getLocalStrategyKeys());
+
+            // check parallelism
+            assertEquals(6, sourceNode.getParallelism());
+            assertEquals(6, combineNode.getParallelism());
+            assertEquals(8, reduceNode.getParallelism());
+            assertEquals(8, sinkNode.getParallelism());
+        } catch (Exception e) {
+            System.err.println(e.getMessage());
+            e.printStackTrace();
+            fail(e.getClass().getSimpleName() + " in test: " + e.getMessage());
+        }
+    }
+
+    @Test
+    public void testGroupedReduceWithSelectorFunctionKey() {
+        try {
+            ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+            env.setParallelism(8);
+
+            DataSet<Tuple2<String, Double>> data =
+                    env.readCsvFile("file:///will/never/be/read")
+                            .types(String.class, Double.class)
+                            .name("source")
+                            .setParallelism(6);
+
+            data.groupBy(
+                            new KeySelector<Tuple2<String, Double>, String>() {
+                                public String getKey(Tuple2<String, Double> value) {
+                                    return value.f0;
+                                }
+                            })
+                    .reduce(
+                            new RichReduceFunction<Tuple2<String, Double>>() {
+                                @Override
+                                public Tuple2<String, Double> reduce(
+                                        Tuple2<String, Double> value1,
+                                        Tuple2<String, Double> value2) {
+                                    return null;
+                                }
+                            })
+                    .name("reducer")
+                    .output(new DiscardingOutputFormat<Tuple2<String, Double>>())
+                    .name("sink");
+
+            Plan p = env.createProgramPlan();
+            OptimizedPlan op = compileNoStats(p);
+
+            OptimizerPlanNodeResolver resolver = getOptimizerPlanNodeResolver(op);
+
+            // get the original nodes
+            SourcePlanNode sourceNode = resolver.getNode("source");
+            SingleInputPlanNode reduceNode = resolver.getNode("reducer");
+            SinkPlanNode sinkNode = resolver.getNode("sink");
+
+            // get the combiner
+            SingleInputPlanNode combineNode =
+                    (SingleInputPlanNode) reduceNode.getInput().getSource();
+
+            // get the key extractors and projectors
+            SingleInputPlanNode keyExtractor =
+                    (SingleInputPlanNode) combineNode.getInput().getSource();
+            SingleInputPlanNode keyProjector =
+                    (SingleInputPlanNode) sinkNode.getInput().getSource();
+
+            // check wiring
+            assertEquals(sourceNode, keyExtractor.getInput().getSource());
+            assertEquals(keyProjector, sinkNode.getInput().getSource());
+
+            // check the strategies
+            assertEquals(DriverStrategy.SORTED_REDUCE, reduceNode.getDriverStrategy());
+            assertEquals(DriverStrategy.SORTED_PARTIAL_REDUCE, combineNode.getDriverStrategy());
+
+            // check the keys
+            assertEquals(new FieldList(0), reduceNode.getKeys(0));
+            assertEquals(new FieldList(0), combineNode.getKeys(0));
+            assertEquals(new FieldList(0), reduceNode.getInput().getLocalStrategyKeys());
+
+            // check parallelism
+            assertEquals(6, sourceNode.getParallelism());
+            assertEquals(6, keyExtractor.getParallelism());
+            assertEquals(6, combineNode.getParallelism());
+
+            assertEquals(8, reduceNode.getParallelism());
+            assertEquals(8, keyProjector.getParallelism());
+            assertEquals(8, sinkNode.getParallelism());
+        } catch (Exception e) {
+            System.err.println(e.getMessage());
+            e.printStackTrace();
+            fail(e.getClass().getSimpleName() + " in test: " + e.getMessage());
+        }
+    }
+
+    @Test
+    public void testGroupedReduceWithHint() {
+        try {
+            ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+            env.setParallelism(8);
+
+            DataSet<Tuple2<String, Double>> data =
+                    env.readCsvFile("file:///will/never/be/read")
+                            .types(String.class, Double.class)
+                            .name("source")
+                            .setParallelism(6);
+
+            data.groupBy(
+                            new KeySelector<Tuple2<String, Double>, String>() {
+                                public String getKey(Tuple2<String, Double> value) {
+                                    return value.f0;
+                                }
+                            })
+                    .reduce(
+                            new RichReduceFunction<Tuple2<String, Double>>() {
+                                @Override
+                                public Tuple2<String, Double> reduce(
+                                        Tuple2<String, Double> value1,
+                                        Tuple2<String, Double> value2) {
+                                    return null;
+                                }
+                            })
+                    .setCombineHint(CombineHint.HASH)
+                    .name("reducer")
+                    .output(new DiscardingOutputFormat<Tuple2<String, Double>>())
+                    .name("sink");
+
+            Plan p = env.createProgramPlan();
+            OptimizedPlan op = compileNoStats(p);
+
+            OptimizerPlanNodeResolver resolver = getOptimizerPlanNodeResolver(op);
+
+            // get the original nodes
+            SourcePlanNode sourceNode = resolver.getNode("source");
+            SingleInputPlanNode reduceNode = resolver.getNode("reducer");
+            SinkPlanNode sinkNode = resolver.getNode("sink");
+
+            // get the combiner
+            SingleInputPlanNode combineNode =
+                    (SingleInputPlanNode) reduceNode.getInput().getSource();
+
+            // get the key extractors and projectors
+            SingleInputPlanNode keyExtractor =
+                    (SingleInputPlanNode) combineNode.getInput().getSource();
+            SingleInputPlanNode keyProjector =
+                    (SingleInputPlanNode) sinkNode.getInput().getSource();
+
+            // check wiring
+            assertEquals(sourceNode, keyExtractor.getInput().getSource());
+            assertEquals(keyProjector, sinkNode.getInput().getSource());
+
+            // check the strategies
+            assertEquals(DriverStrategy.SORTED_REDUCE, reduceNode.getDriverStrategy());
+            assertEquals(DriverStrategy.HASHED_PARTIAL_REDUCE, combineNode.getDriverStrategy());
+
+            // check the keys
+            assertEquals(new FieldList(0), reduceNode.getKeys(0));
+            assertEquals(new FieldList(0), combineNode.getKeys(0));
+            assertEquals(new FieldList(0), reduceNode.getInput().getLocalStrategyKeys());
+
+            // check parallelism
+            assertEquals(6, sourceNode.getParallelism());
+            assertEquals(6, keyExtractor.getParallelism());
+            assertEquals(6, combineNode.getParallelism());
+
+            assertEquals(8, reduceNode.getParallelism());
+            assertEquals(8, keyProjector.getParallelism());
+            assertEquals(8, sinkNode.getParallelism());
+        } catch (Exception e) {
+            System.err.println(e.getMessage());
+            e.printStackTrace();
+            fail(e.getClass().getSimpleName() + " in test: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Test program compilation when the Reduce's combiner has been excluded by setting {@code
+     * CombineHint.NONE}.
+     */
+    @Test
+    public void testGroupedReduceWithoutCombiner() {
+        ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+        env.setParallelism(8);
+
+        DataSet<Tuple2<String, Double>> data =
+                env.readCsvFile("file:///will/never/be/read")
+                        .types(String.class, Double.class)
+                        .name("source")
+                        .setParallelism(6);
+
+        data.groupBy(0)
+                .reduce(
+                        new RichReduceFunction<Tuple2<String, Double>>() {
+                            @Override
+                            public Tuple2<String, Double> reduce(
+                                    Tuple2<String, Double> value1, Tuple2<String, Double> value2) {
+                                return null;
+                            }
+                        })
+                .setCombineHint(CombineHint.NONE)
+                .name("reducer")
+                .output(new DiscardingOutputFormat<Tuple2<String, Double>>())
+                .name("sink");
+
+        Plan p = env.createProgramPlan();
+        OptimizedPlan op = compileNoStats(p);
+
+        OptimizerPlanNodeResolver resolver = getOptimizerPlanNodeResolver(op);
+
+        // get the original nodes
+        SourcePlanNode sourceNode = resolver.getNode("source");
+        SingleInputPlanNode reduceNode = resolver.getNode("reducer");
+        SinkPlanNode sinkNode = resolver.getNode("sink");
+
+        // check wiring
+        assertEquals(sourceNode, reduceNode.getInput().getSource());
+
+        // check the strategies
+        assertEquals(DriverStrategy.SORTED_REDUCE, reduceNode.getDriverStrategy());
+
+        // check the keys
+        assertEquals(new FieldList(0), reduceNode.getKeys(0));
+        assertEquals(new FieldList(0), reduceNode.getInput().getLocalStrategyKeys());
+
+        // check parallelism
+        assertEquals(6, sourceNode.getParallelism());
+        assertEquals(8, reduceNode.getParallelism());
+        assertEquals(8, sinkNode.getParallelism());
+    }
 }

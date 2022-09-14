@@ -25,42 +25,42 @@ import org.apache.flink.streaming.api.operators.InputSelection;
 import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 
-/**
- * A test operator class for sequential reading.
- */
+/** A test operator class for sequential reading. */
 public class TestSequentialReadingStreamOperator extends AbstractStreamOperator<String>
-	implements TwoInputStreamOperator<String, Integer, String>, InputSelectable, BoundedMultiInput {
+        implements TwoInputStreamOperator<String, Integer, String>,
+                InputSelectable,
+                BoundedMultiInput {
 
-	private final String name;
+    private final String name;
 
-	private InputSelection inputSelection;
+    private InputSelection inputSelection;
 
-	public TestSequentialReadingStreamOperator(String name) {
-		super();
+    public TestSequentialReadingStreamOperator(String name) {
+        super();
 
-		this.name = name;
-		this.inputSelection = InputSelection.FIRST;
-	}
+        this.name = name;
+        this.inputSelection = InputSelection.FIRST;
+    }
 
-	@Override
-	public InputSelection nextSelection() {
-		return inputSelection;
-	}
+    @Override
+    public InputSelection nextSelection() {
+        return inputSelection;
+    }
 
-	@Override
-	public void processElement1(StreamRecord<String> element) {
-		output.collect(element.replace("[" + name + "-1]: " + element.getValue()));
-	}
+    @Override
+    public void processElement1(StreamRecord<String> element) {
+        output.collect(element.replace("[" + name + "-1]: " + element.getValue()));
+    }
 
-	@Override
-	public void processElement2(StreamRecord<Integer> element) {
-		output.collect(element.replace("[" + name + "-2]: " + element.getValue()));
-	}
+    @Override
+    public void processElement2(StreamRecord<Integer> element) {
+        output.collect(element.replace("[" + name + "-2]: " + element.getValue()));
+    }
 
-	@Override
-	public void endInput(int inputId) {
-		if (inputId == 1) {
-			inputSelection = InputSelection.SECOND;
-		}
-	}
+    @Override
+    public void endInput(int inputId) {
+        if (inputId == 1) {
+            inputSelection = InputSelection.SECOND;
+        }
+    }
 }

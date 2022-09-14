@@ -19,7 +19,7 @@
 package org.apache.flink.runtime.webmonitor;
 
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.client.ClientUtils;
+import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
@@ -29,14 +29,16 @@ import org.apache.flink.configuration.WebOptions;
 import org.apache.flink.runtime.client.JobStatusMessage;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.jobgraph.JobGraphBuilder;
+import org.apache.flink.runtime.jobgraph.JobGraphTestUtils;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.runtime.webmonitor.testutils.HttpTestClient;
-import org.apache.flink.test.util.MiniClusterWithClientResource;
-import org.apache.flink.test.util.TestBaseUtils;
-import org.apache.flink.testutils.junit.category.AlsoRunWithLegacyScheduler;
-import org.apache.flink.util.TestLogger;
+import org.apache.flink.test.junit5.InjectClusterClient;
+import org.apache.flink.test.junit5.InjectClusterRESTAddress;
+import org.apache.flink.test.junit5.MiniClusterExtension;
+import org.apache.flink.util.jackson.JacksonMapperFactory;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.JsonNode;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
@@ -45,340 +47,488 @@ import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseSt
 
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.IOUtils;
-import org.junit.After;
-import org.junit.Assert;
-import org.junit.ClassRule;
-import org.junit.Test;
-import org.junit.experimental.categories.Category;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.RegisterExtension;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.InputStream;
 import java.net.HttpURLConnection;
+import java.net.URI;
 import java.net.URL;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.time.Duration;
-import java.time.LocalTime;
 import java.util.Collection;
+import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeoutException;
 import java.util.stream.Collectors;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
-
-/**
- * Tests for the WebFrontend.
- */
-@Category(AlsoRunWithLegacyScheduler.class)
-public class WebFrontendITCase extends TestLogger {
-
-	private static final int NUM_TASK_MANAGERS = 2;
-	private static final int NUM_SLOTS = 4;
-
-	private static final Configuration CLUSTER_CONFIGURATION = getClusterConfiguration();
-
-	@ClassRule
-	public static final MiniClusterWithClientResource CLUSTER = new MiniClusterWithClientResource(
-		new MiniClusterResourceConfiguration.Builder()
-			.setConfiguration(CLUSTER_CONFIGURATION)
-			.setNumberTaskManagers(NUM_TASK_MANAGERS)
-			.setNumberSlotsPerTaskManager(NUM_SLOTS)
-			.build());
-
-	private static Configuration getClusterConfiguration() {
-		Configuration config = new Configuration();
-		try {
-			File logDir = File.createTempFile("TestBaseUtils-logdir", null);
-			assertTrue("Unable to delete temp file", logDir.delete());
-			assertTrue("Unable to create temp directory", logDir.mkdir());
-			File logFile = new File(logDir, "jobmanager.log");
-			File outFile = new File(logDir, "jobmanager.out");
-
-			Files.createFile(logFile.toPath());
-			Files.createFile(outFile.toPath());
-
-			config.setString(WebOptions.LOG_PATH, logFile.getAbsolutePath());
-			config.setString(ConfigConstants.TASK_MANAGER_LOG_PATH_KEY, logFile.getAbsolutePath());
-		} catch (Exception e) {
-			throw new AssertionError("Could not setup test.", e);
-		}
-
-		// !!DO NOT REMOVE!! next line is required for tests
-		config.set(TaskManagerOptions.MANAGED_MEMORY_SIZE, MemorySize.parse("12m"));
-
-		return config;
-	}
-
-	@After
-	public void tearDown() {
-		BlockingInvokable.reset();
-	}
-
-	@Test
-	public void getFrontPage() throws Exception {
-		String fromHTTP = TestBaseUtils.getFromHTTP("http://localhost:" + getRestPort() + "/index.html");
-		String text = "Apache Flink Web Dashboard";
-		assertTrue("Startpage should contain " + text, fromHTTP.contains(text));
-	}
-
-	private int getRestPort() {
-		return CLUSTER.getRestAddres().getPort();
-	}
-
-	@Test
-	public void testResponseHeaders() throws Exception {
-		// check headers for successful json response
-		URL taskManagersUrl = new URL("http://localhost:" + getRestPort() + "/taskmanagers");
-		HttpURLConnection taskManagerConnection = (HttpURLConnection) taskManagersUrl.openConnection();
-		taskManagerConnection.setConnectTimeout(100000);
-		taskManagerConnection.connect();
-		if (taskManagerConnection.getResponseCode() >= 400) {
-			// error!
-			InputStream is = taskManagerConnection.getErrorStream();
-			String errorMessage = IOUtils.toString(is, ConfigConstants.DEFAULT_CHARSET);
-			fail(errorMessage);
-		}
-
-		// we don't set the content-encoding header
-		Assert.assertNull(taskManagerConnection.getContentEncoding());
-		Assert.assertEquals("application/json; charset=UTF-8", taskManagerConnection.getContentType());
-
-		// check headers in case of an error
-		URL notFoundJobUrl = new URL("http://localhost:" + getRestPort() + "/jobs/dontexist");
-		HttpURLConnection notFoundJobConnection = (HttpURLConnection) notFoundJobUrl.openConnection();
-		notFoundJobConnection.setConnectTimeout(100000);
-		notFoundJobConnection.connect();
-		if (notFoundJobConnection.getResponseCode() >= 400) {
-			// we don't set the content-encoding header
-			Assert.assertNull(notFoundJobConnection.getContentEncoding());
-			Assert.assertEquals("application/json; charset=UTF-8", notFoundJobConnection.getContentType());
-		} else {
-			fail("Request for non-existing job did not return an error.");
-		}
-	}
-
-	@Test
-	public void getNumberOfTaskManagers() throws Exception {
-		String json = TestBaseUtils.getFromHTTP("http://localhost:" + getRestPort() + "/taskmanagers/");
-
-		ObjectMapper mapper = new ObjectMapper();
-		JsonNode response = mapper.readTree(json);
-		ArrayNode taskManagers = (ArrayNode) response.get("taskmanagers");
-
-		assertNotNull(taskManagers);
-		assertEquals(NUM_TASK_MANAGERS, taskManagers.size());
-	}
-
-	@Test
-	public void getTaskManagers() throws Exception {
-		String json = TestBaseUtils.getFromHTTP("http://localhost:" + getRestPort() + "/taskmanagers/");
-
-		ObjectMapper mapper = new ObjectMapper();
-		JsonNode parsed = mapper.readTree(json);
-		ArrayNode taskManagers = (ArrayNode) parsed.get("taskmanagers");
-
-		assertNotNull(taskManagers);
-		assertEquals(NUM_TASK_MANAGERS, taskManagers.size());
-
-		JsonNode taskManager = taskManagers.get(0);
-		assertNotNull(taskManager);
-		assertEquals(NUM_SLOTS, taskManager.get("slotsNumber").asInt());
-		assertTrue(taskManager.get("freeSlots").asInt() <= NUM_SLOTS);
-	}
-
-	@Test
-	public void getLogAndStdoutFiles() throws Exception {
-		WebMonitorUtils.LogFileLocation logFiles = WebMonitorUtils.LogFileLocation.find(CLUSTER_CONFIGURATION);
-
-		FileUtils.writeStringToFile(logFiles.logFile, "job manager log");
-		String logs = TestBaseUtils.getFromHTTP("http://localhost:" + getRestPort() + "/jobmanager/log");
-		assertTrue(logs.contains("job manager log"));
-
-		FileUtils.writeStringToFile(logFiles.stdOutFile, "job manager out");
-		logs = TestBaseUtils.getFromHTTP("http://localhost:" + getRestPort() + "/jobmanager/stdout");
-		assertTrue(logs.contains("job manager out"));
-	}
-
-	@Test
-	public void getTaskManagerLogAndStdoutFiles() throws Exception {
-		String json = TestBaseUtils.getFromHTTP("http://localhost:" + getRestPort() + "/taskmanagers/");
-
-		ObjectMapper mapper = new ObjectMapper();
-		JsonNode parsed = mapper.readTree(json);
-		ArrayNode taskManagers = (ArrayNode) parsed.get("taskmanagers");
-		JsonNode taskManager = taskManagers.get(0);
-		String id = taskManager.get("id").asText();
-
-		WebMonitorUtils.LogFileLocation logFiles = WebMonitorUtils.LogFileLocation.find(CLUSTER_CONFIGURATION);
-
-		//we check for job manager log files, since no separate taskmanager logs exist
-		FileUtils.writeStringToFile(logFiles.logFile, "job manager log");
-		String logs = TestBaseUtils.getFromHTTP("http://localhost:" + getRestPort() + "/taskmanagers/" + id + "/log");
-		assertTrue(logs.contains("job manager log"));
-
-		FileUtils.writeStringToFile(logFiles.stdOutFile, "job manager out");
-		logs = TestBaseUtils.getFromHTTP("http://localhost:" + getRestPort() + "/taskmanagers/" + id + "/stdout");
-		assertTrue(logs.contains("job manager out"));
-	}
-
-	@Test
-	public void getConfiguration() throws Exception {
-		String config = TestBaseUtils.getFromHTTP("http://localhost:" + getRestPort() + "/jobmanager/config");
-		Map<String, String> conf = WebMonitorUtils.fromKeyValueJsonArray(config);
-
-		MemorySize expected = CLUSTER_CONFIGURATION.get(TaskManagerOptions.MANAGED_MEMORY_SIZE);
-		MemorySize actual = MemorySize.parse(conf.get(TaskManagerOptions.MANAGED_MEMORY_SIZE.key()));
-
-		assertEquals(expected, actual);
-	}
-
-	@Test
-	public void testCancel() throws Exception {
-		// this only works if there is no active job at this point
-		assertTrue(getRunningJobs(CLUSTER.getClusterClient()).isEmpty());
-
-		// Create a task
-		final JobVertex sender = new JobVertex("Sender");
-		sender.setParallelism(2);
-		sender.setInvokableClass(BlockingInvokable.class);
-
-		final JobGraph jobGraph = new JobGraph("Stoppable streaming test job", sender);
-		final JobID jid = jobGraph.getJobID();
-
-		ClusterClient<?> clusterClient = CLUSTER.getClusterClient();
-		ClientUtils.submitJob(clusterClient, jobGraph);
-
-		// wait for job to show up
-		while (getRunningJobs(CLUSTER.getClusterClient()).isEmpty()) {
-			Thread.sleep(10);
-		}
-
-		// wait for tasks to be properly running
-		BlockingInvokable.latch.await();
-
-		final Duration testTimeout = Duration.ofMinutes(2);
-		final LocalTime deadline = LocalTime.now().plus(testTimeout);
-
-		try (HttpTestClient client = new HttpTestClient("localhost", getRestPort())) {
-			// cancel the job
-			client.sendPatchRequest("/jobs/" + jid + "/", getTimeLeft(deadline));
-			HttpTestClient.SimpleHttpResponse response = client.getNextResponse(getTimeLeft(deadline));
-
-			assertEquals(HttpResponseStatus.ACCEPTED, response.getStatus());
-			assertEquals("application/json; charset=UTF-8", response.getType());
-			assertEquals("{}", response.getContent());
-		}
-
-		// wait for cancellation to finish
-		while (!getRunningJobs(CLUSTER.getClusterClient()).isEmpty()) {
-			Thread.sleep(20);
-		}
-
-		// ensure we can access job details when its finished (FLINK-4011)
-		try (HttpTestClient client = new HttpTestClient("localhost", getRestPort())) {
-			Duration timeout = Duration.ofSeconds(30);
-			client.sendGetRequest("/jobs/" + jid + "/config", timeout);
-			HttpTestClient.SimpleHttpResponse response = client.getNextResponse(timeout);
-
-			assertEquals(HttpResponseStatus.OK, response.getStatus());
-			assertEquals("application/json; charset=UTF-8", response.getType());
-			assertEquals("{\"jid\":\"" + jid + "\",\"name\":\"Stoppable streaming test job\"," +
-				"\"execution-config\":{\"execution-mode\":\"PIPELINED\",\"restart-strategy\":\"Cluster level default restart strategy\"," +
-				"\"job-parallelism\":1,\"object-reuse-mode\":false,\"user-config\":{}}}", response.getContent());
-		}
-
-		BlockingInvokable.reset();
-	}
-
-	@Test
-	public void testCancelYarn() throws Exception {
-		// this only works if there is no active job at this point
-		assertTrue(getRunningJobs(CLUSTER.getClusterClient()).isEmpty());
-
-		// Create a task
-		final JobVertex sender = new JobVertex("Sender");
-		sender.setParallelism(2);
-		sender.setInvokableClass(BlockingInvokable.class);
-
-		final JobGraph jobGraph = new JobGraph("Stoppable streaming test job", sender);
-		final JobID jid = jobGraph.getJobID();
-
-		ClusterClient<?> clusterClient = CLUSTER.getClusterClient();
-		ClientUtils.submitJob(clusterClient, jobGraph);
-
-		// wait for job to show up
-		while (getRunningJobs(CLUSTER.getClusterClient()).isEmpty()) {
-			Thread.sleep(10);
-		}
-
-		// wait for tasks to be properly running
-		BlockingInvokable.latch.await();
-
-		final Duration testTimeout = Duration.ofMinutes(2);
-		final LocalTime deadline = LocalTime.now().plus(testTimeout);
-
-		try (HttpTestClient client = new HttpTestClient("localhost", getRestPort())) {
-			// Request the file from the web server
-			client.sendGetRequest("/jobs/" + jid + "/yarn-cancel", getTimeLeft(deadline));
-
-			HttpTestClient.SimpleHttpResponse response = client.getNextResponse(getTimeLeft(deadline));
-
-			assertEquals(HttpResponseStatus.ACCEPTED, response.getStatus());
-			assertEquals("application/json; charset=UTF-8", response.getType());
-			assertEquals("{}", response.getContent());
-		}
-
-		// wait for cancellation to finish
-		while (!getRunningJobs(CLUSTER.getClusterClient()).isEmpty()) {
-			Thread.sleep(20);
-		}
-
-		BlockingInvokable.reset();
-	}
-
-	private static List<JobID> getRunningJobs(ClusterClient<?> client) throws Exception {
-		Collection<JobStatusMessage> statusMessages = client.listJobs().get();
-		return statusMessages.stream()
-			.filter(status -> !status.getJobState().isGloballyTerminalState())
-			.map(JobStatusMessage::getJobId)
-			.collect(Collectors.toList());
-	}
-
-	private static Duration getTimeLeft(LocalTime deadline) {
-		return Duration.between(LocalTime.now(), deadline);
-	}
-
-	/**
-	 * Test invokable that allows waiting for all subtasks to be running.
-	 */
-	public static class BlockingInvokable extends AbstractInvokable {
-
-		private static CountDownLatch latch = new CountDownLatch(2);
-
-		private volatile boolean isRunning = true;
-
-		public BlockingInvokable(Environment environment) {
-			super(environment);
-		}
-
-		@Override
-		public void invoke() throws Exception {
-			latch.countDown();
-			while (isRunning) {
-				Thread.sleep(100);
-			}
-		}
-
-		@Override
-		public void cancel() {
-			this.isRunning = false;
-		}
-
-		public static void reset() {
-			latch = new CountDownLatch(2);
-		}
-	}
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.fail;
+
+/** Tests for the WebFrontend. */
+class WebFrontendITCase {
+
+    private static final Logger LOG = LoggerFactory.getLogger(WebFrontendITCase.class);
+
+    private static final int NUM_TASK_MANAGERS = 2;
+    private static final int NUM_SLOTS = 4;
+
+    private static final ObjectMapper OBJECT_MAPPER = JacksonMapperFactory.createObjectMapper();
+    private static final Configuration CLUSTER_CONFIGURATION = getClusterConfiguration();
+
+    @RegisterExtension
+    private static final MiniClusterExtension CLUSTER =
+            new MiniClusterExtension(
+                    new MiniClusterResourceConfiguration.Builder()
+                            .setConfiguration(CLUSTER_CONFIGURATION)
+                            .setNumberTaskManagers(NUM_TASK_MANAGERS)
+                            .setNumberSlotsPerTaskManager(NUM_SLOTS)
+                            .build());
+
+    private static Configuration getClusterConfiguration() {
+        Configuration config = new Configuration();
+        try {
+            Path logDir = Files.createTempFile("TestBaseUtils-logdir", null);
+            Files.delete(logDir);
+            Files.createDirectories(logDir);
+            Path logFile = logDir.resolve("jobmanager.log");
+            Path outFile = logDir.resolve("jobmanager.out");
+
+            Files.createFile(logFile);
+            Files.createFile(outFile);
+
+            config.setString(WebOptions.LOG_PATH, logFile.toAbsolutePath().toString());
+            config.setString(
+                    ConfigConstants.TASK_MANAGER_LOG_PATH_KEY, logFile.toAbsolutePath().toString());
+        } catch (Exception e) {
+            throw new AssertionError("Could not setup test.", e);
+        }
+
+        // !!DO NOT REMOVE!! next line is required for tests
+        config.set(TaskManagerOptions.MANAGED_MEMORY_SIZE, MemorySize.parse("12m"));
+
+        return config;
+    }
+
+    @AfterEach
+    void tearDown() {
+        BlockingInvokable.reset();
+    }
+
+    @Test
+    void getFrontPage(@InjectClusterRESTAddress URI restAddress) throws Exception {
+        String fromHTTP = getFromHTTP("http://localhost:" + restAddress.getPort() + "/index.html");
+        assertThat(fromHTTP).contains("Apache Flink Web Dashboard");
+    }
+
+    @Test
+    void testResponseHeaders(@InjectClusterRESTAddress URI restAddress) throws Exception {
+        // check headers for successful json response
+        URL taskManagersUrl =
+                new URL("http://localhost:" + restAddress.getPort() + "/taskmanagers");
+        HttpURLConnection taskManagerConnection =
+                (HttpURLConnection) taskManagersUrl.openConnection();
+        taskManagerConnection.setConnectTimeout(100000);
+        taskManagerConnection.connect();
+        if (taskManagerConnection.getResponseCode() >= 400) {
+            // error!
+            InputStream is = taskManagerConnection.getErrorStream();
+            String errorMessage = IOUtils.toString(is, ConfigConstants.DEFAULT_CHARSET);
+            fail(errorMessage);
+        }
+
+        // we don't set the content-encoding header
+        assertThat(taskManagerConnection.getContentEncoding()).isNull();
+        assertThat(taskManagerConnection.getContentType())
+                .isEqualTo("application/json; charset=UTF-8");
+
+        // check headers in case of an error
+        URL notFoundJobUrl =
+                new URL("http://localhost:" + restAddress.getPort() + "/jobs/dontexist");
+        HttpURLConnection notFoundJobConnection =
+                (HttpURLConnection) notFoundJobUrl.openConnection();
+        notFoundJobConnection.setConnectTimeout(100000);
+        notFoundJobConnection.connect();
+        assertThat(notFoundJobConnection)
+                .satisfies(c -> assertThat(c.getResponseCode()).isGreaterThanOrEqualTo(400))
+                // we don't set the content-encoding header
+                .satisfies(c -> assertThat(c.getContentEncoding()).isNull())
+                .satisfies(
+                        c ->
+                                assertThat(c.getContentType())
+                                        .isEqualTo("application/json; charset=UTF-8"));
+    }
+
+    @Test
+    void getNumberOfTaskManagers(@InjectClusterRESTAddress URI restAddress) throws Exception {
+        String json = getFromHTTP("http://localhost:" + restAddress.getPort() + "/taskmanagers/");
+
+        JsonNode response = OBJECT_MAPPER.readTree(json);
+        ArrayNode taskManagers = (ArrayNode) response.get("taskmanagers");
+
+        assertThat(taskManagers).hasSize(NUM_TASK_MANAGERS);
+    }
+
+    @Test
+    void getTaskManagers(@InjectClusterRESTAddress URI restAddress) throws Exception {
+        String json = getFromHTTP("http://localhost:" + restAddress.getPort() + "/taskmanagers/");
+
+        JsonNode parsed = OBJECT_MAPPER.readTree(json);
+        ArrayNode taskManagers = (ArrayNode) parsed.get("taskmanagers");
+
+        assertThat(taskManagers).hasSize(NUM_TASK_MANAGERS);
+
+        JsonNode taskManager = taskManagers.get(0);
+        assertThat(taskManager).isNotNull();
+        assertThat(taskManager.get("slotsNumber").asInt()).isEqualTo(NUM_SLOTS);
+        assertThat(taskManager.get("freeSlots").asInt()).isLessThanOrEqualTo(NUM_SLOTS);
+    }
+
+    @Test
+    void getLogAndStdoutFiles(@InjectClusterRESTAddress URI restAddress) throws Exception {
+        WebMonitorUtils.LogFileLocation logFiles =
+                WebMonitorUtils.LogFileLocation.find(CLUSTER_CONFIGURATION);
+
+        FileUtils.writeStringToFile(logFiles.logFile, "job manager log");
+        String logs = getFromHTTP("http://localhost:" + restAddress.getPort() + "/jobmanager/log");
+        assertThat(logs).contains("job manager log");
+
+        FileUtils.writeStringToFile(logFiles.stdOutFile, "job manager out");
+        logs = getFromHTTP("http://localhost:" + restAddress.getPort() + "/jobmanager/stdout");
+        assertThat(logs).contains("job manager out");
+    }
+
+    @Test
+    void getCustomLogFiles(@InjectClusterRESTAddress URI restAddress) throws Exception {
+        WebMonitorUtils.LogFileLocation logFiles =
+                WebMonitorUtils.LogFileLocation.find(CLUSTER_CONFIGURATION);
+
+        String customFileName = "test.log";
+        final String logDir = logFiles.logFile.getParent();
+        final String expectedLogContent = "job manager custom log";
+        FileUtils.writeStringToFile(new File(logDir, customFileName), expectedLogContent);
+
+        String logs =
+                getFromHTTP(
+                        "http://localhost:"
+                                + restAddress.getPort()
+                                + "/jobmanager/logs/"
+                                + customFileName);
+        assertThat(logs).contains(expectedLogContent);
+    }
+
+    @Test
+    void getTaskManagerLogAndStdoutFiles(@InjectClusterRESTAddress URI restAddress)
+            throws Exception {
+        String json = getFromHTTP("http://localhost:" + restAddress.getPort() + "/taskmanagers/");
+
+        JsonNode parsed = OBJECT_MAPPER.readTree(json);
+        ArrayNode taskManagers = (ArrayNode) parsed.get("taskmanagers");
+        JsonNode taskManager = taskManagers.get(0);
+        String id = taskManager.get("id").asText();
+
+        WebMonitorUtils.LogFileLocation logFiles =
+                WebMonitorUtils.LogFileLocation.find(CLUSTER_CONFIGURATION);
+
+        // we check for job manager log files, since no separate taskmanager logs exist
+        FileUtils.writeStringToFile(logFiles.logFile, "job manager log");
+        String logs =
+                getFromHTTP(
+                        "http://localhost:"
+                                + restAddress.getPort()
+                                + "/taskmanagers/"
+                                + id
+                                + "/log");
+        assertThat(logs).contains("job manager log");
+
+        FileUtils.writeStringToFile(logFiles.stdOutFile, "job manager out");
+        logs =
+                getFromHTTP(
+                        "http://localhost:"
+                                + restAddress.getPort()
+                                + "/taskmanagers/"
+                                + id
+                                + "/stdout");
+        assertThat(logs).contains("job manager out");
+    }
+
+    @Test
+    void getConfiguration(@InjectClusterRESTAddress URI restAddress) throws Exception {
+        String config =
+                getFromHTTP("http://localhost:" + restAddress.getPort() + "/jobmanager/config");
+        Map<String, String> conf = fromKeyValueJsonArray(config);
+
+        MemorySize expected = CLUSTER_CONFIGURATION.get(TaskManagerOptions.MANAGED_MEMORY_SIZE);
+        MemorySize actual =
+                MemorySize.parse(conf.get(TaskManagerOptions.MANAGED_MEMORY_SIZE.key()));
+
+        assertThat(actual).isEqualTo(expected);
+    }
+
+    private static Map<String, String> fromKeyValueJsonArray(String jsonString) {
+        try {
+            Map<String, String> map = new HashMap<>();
+            ArrayNode array = (ArrayNode) OBJECT_MAPPER.readTree(jsonString);
+
+            Iterator<JsonNode> elements = array.elements();
+            while (elements.hasNext()) {
+                JsonNode node = elements.next();
+                String key = node.get("key").asText();
+                String value = node.get("value").asText();
+                map.put(key, value);
+            }
+
+            return map;
+        } catch (Exception e) {
+            throw new RuntimeException(e.getMessage(), e);
+        }
+    }
+
+    @Test
+    void testCancel(
+            @InjectClusterClient ClusterClient<?> clusterClient,
+            @InjectClusterRESTAddress URI restAddress)
+            throws Exception {
+        // this only works if there is no active job at this point
+        assertThat(getRunningJobs(clusterClient).isEmpty());
+
+        // Create a task
+        final JobVertex sender = new JobVertex("Sender");
+        sender.setParallelism(2);
+        sender.setInvokableClass(BlockingInvokable.class);
+
+        final JobGraph jobGraph =
+                JobGraphBuilder.newStreamingJobGraphBuilder()
+                        .setJobName("Stoppable streaming test job")
+                        .addJobVertex(sender)
+                        .build();
+        final JobID jid = jobGraph.getJobID();
+
+        clusterClient.submitJob(jobGraph).get();
+
+        // wait for job to show up
+        while (getRunningJobs(clusterClient).isEmpty()) {
+            Thread.sleep(10);
+        }
+
+        // wait for tasks to be properly running
+        BlockingInvokable.latch.await();
+
+        final Duration testTimeout = Duration.ofMinutes(2);
+        final Deadline deadline = Deadline.fromNow(testTimeout);
+
+        try (HttpTestClient client = new HttpTestClient("localhost", restAddress.getPort())) {
+            // cancel the job
+            client.sendPatchRequest("/jobs/" + jid + "/", deadline.timeLeft());
+            HttpTestClient.SimpleHttpResponse response =
+                    client.getNextResponse(deadline.timeLeft());
+
+            assertThat(response.getStatus()).isEqualTo(HttpResponseStatus.ACCEPTED);
+            assertThat(response.getType()).isEqualTo("application/json; charset=UTF-8");
+            assertThat(response.getContent()).isEqualTo("{}");
+        }
+
+        // wait for cancellation to finish
+        while (!getRunningJobs(clusterClient).isEmpty()) {
+            Thread.sleep(20);
+        }
+
+        // ensure we can access job details when its finished (FLINK-4011)
+        try (HttpTestClient client = new HttpTestClient("localhost", restAddress.getPort())) {
+            Duration timeout = Duration.ofSeconds(30);
+            client.sendGetRequest("/jobs/" + jid + "/config", timeout);
+            HttpTestClient.SimpleHttpResponse response = client.getNextResponse(timeout);
+
+            assertThat(response.getStatus()).isEqualTo(HttpResponseStatus.OK);
+            assertThat(response.getType()).isEqualTo("application/json; charset=UTF-8");
+            assertThat(response.getContent())
+                    .isEqualTo(
+                            "{\"jid\":\""
+                                    + jid
+                                    + "\",\"name\":\"Stoppable streaming test job\","
+                                    + "\"execution-config\":{\"execution-mode\":\"PIPELINED\",\"restart-strategy\":\"Cluster level default restart strategy\","
+                                    + "\"job-parallelism\":1,\"object-reuse-mode\":false,\"user-config\":{}}}");
+        }
+
+        BlockingInvokable.reset();
+    }
+
+    /** See FLINK-19518. This test ensures that the /jobs/overview handler shows a duration != 0. */
+    @Test
+    void testJobOverviewHandler(
+            @InjectClusterClient ClusterClient<?> clusterClient,
+            @InjectClusterRESTAddress URI restAddress)
+            throws Exception {
+        // this only works if there is no active job at this point
+        assertThat(getRunningJobs(clusterClient).isEmpty());
+
+        // Create a task
+        final JobVertex sender = new JobVertex("Sender");
+        sender.setParallelism(2);
+        sender.setInvokableClass(BlockingInvokable.class);
+
+        final JobGraph jobGraph = JobGraphTestUtils.streamingJobGraph(sender);
+
+        clusterClient.submitJob(jobGraph).get();
+
+        // wait for job to show up
+        while (getRunningJobs(clusterClient).isEmpty()) {
+            Thread.sleep(10);
+        }
+
+        // wait for tasks to be properly running
+        BlockingInvokable.latch.await();
+
+        final Duration testTimeout = Duration.ofMinutes(2);
+
+        String json = getFromHTTP("http://localhost:" + restAddress.getPort() + "/jobs/overview");
+
+        JsonNode parsed = OBJECT_MAPPER.readTree(json);
+        ArrayNode jsonJobs = (ArrayNode) parsed.get("jobs");
+        assertThat(jsonJobs.size()).isEqualTo(1);
+        assertThat(jsonJobs.get(0).get("duration").asInt()).isGreaterThan(0);
+
+        clusterClient.cancel(jobGraph.getJobID()).get();
+
+        // ensure cancellation is finished
+        while (!getRunningJobs(clusterClient).isEmpty()) {
+            Thread.sleep(20);
+        }
+
+        BlockingInvokable.reset();
+    }
+
+    @Test
+    void testCancelYarn(
+            @InjectClusterClient ClusterClient<?> clusterClient,
+            @InjectClusterRESTAddress URI restAddress)
+            throws Exception {
+        // this only works if there is no active job at this point
+        assertThat(getRunningJobs(clusterClient).isEmpty());
+
+        // Create a task
+        final JobVertex sender = new JobVertex("Sender");
+        sender.setParallelism(2);
+        sender.setInvokableClass(BlockingInvokable.class);
+
+        final JobGraph jobGraph = JobGraphTestUtils.streamingJobGraph(sender);
+        final JobID jid = jobGraph.getJobID();
+
+        clusterClient.submitJob(jobGraph).get();
+
+        // wait for job to show up
+        while (getRunningJobs(clusterClient).isEmpty()) {
+            Thread.sleep(10);
+        }
+
+        // wait for tasks to be properly running
+        BlockingInvokable.latch.await();
+
+        final Duration testTimeout = Duration.ofMinutes(2);
+        final Deadline deadline = Deadline.fromNow(testTimeout);
+
+        try (HttpTestClient client = new HttpTestClient("localhost", restAddress.getPort())) {
+            // Request the file from the web server
+            client.sendGetRequest("/jobs/" + jid + "/yarn-cancel", deadline.timeLeft());
+
+            HttpTestClient.SimpleHttpResponse response =
+                    client.getNextResponse(deadline.timeLeft());
+
+            assertThat(response.getStatus()).isEqualTo(HttpResponseStatus.ACCEPTED);
+            assertThat(response.getType()).isEqualTo("application/json; charset=UTF-8");
+            assertThat(response.getContent()).isEqualTo("{}");
+        }
+
+        // wait for cancellation to finish
+        while (!getRunningJobs(clusterClient).isEmpty()) {
+            Thread.sleep(20);
+        }
+
+        BlockingInvokable.reset();
+    }
+
+    private static List<JobID> getRunningJobs(ClusterClient<?> client) throws Exception {
+        Collection<JobStatusMessage> statusMessages = client.listJobs().get();
+        return statusMessages.stream()
+                .filter(status -> !status.getJobState().isGloballyTerminalState())
+                .map(JobStatusMessage::getJobId)
+                .collect(Collectors.toList());
+    }
+
+    private static String getFromHTTP(String url) throws Exception {
+        final URL u = new URL(url);
+        LOG.info("Accessing URL " + url + " as URL: " + u);
+
+        final Deadline deadline = Deadline.fromNow(Duration.ofSeconds(10L));
+
+        while (deadline.hasTimeLeft()) {
+            HttpURLConnection connection = (HttpURLConnection) u.openConnection();
+            connection.setConnectTimeout(100000);
+            connection.connect();
+
+            if (Objects.equals(
+                    HttpResponseStatus.SERVICE_UNAVAILABLE,
+                    HttpResponseStatus.valueOf(connection.getResponseCode()))) {
+                // service not available --> Sleep and retry
+                LOG.debug("Web service currently not available. Retrying the request in a bit.");
+                Thread.sleep(100L);
+            } else {
+                InputStream is;
+
+                if (connection.getResponseCode() >= 400) {
+                    // error!
+                    LOG.warn(
+                            "HTTP Response code when connecting to {} was {}",
+                            url,
+                            connection.getResponseCode());
+                    is = connection.getErrorStream();
+                } else {
+                    is = connection.getInputStream();
+                }
+
+                return IOUtils.toString(is, ConfigConstants.DEFAULT_CHARSET);
+            }
+        }
+
+        throw new TimeoutException(
+                "Could not get HTTP response in time since the service is still unavailable.");
+    }
+
+    /** Test invokable that allows waiting for all subtasks to be running. */
+    public static class BlockingInvokable extends AbstractInvokable {
+
+        private static CountDownLatch latch = new CountDownLatch(2);
+
+        private volatile boolean isRunning = true;
+
+        public BlockingInvokable(Environment environment) {
+            super(environment);
+        }
+
+        @Override
+        public void invoke() throws Exception {
+            latch.countDown();
+            while (isRunning) {
+                Thread.sleep(100);
+            }
+        }
+
+        @Override
+        public void cancel() {
+            this.isRunning = false;
+        }
+
+        public static void reset() {
+            latch = new CountDownLatch(2);
+        }
+    }
 }

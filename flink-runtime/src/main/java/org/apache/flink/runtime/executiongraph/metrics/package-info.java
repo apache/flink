@@ -17,7 +17,7 @@
  */
 
 /**
- * This package contains classes implementing various metrics for the job execution,
- * based on the {@link org.apache.flink.runtime.executiongraph.ExecutionGraph Execution Graph}.
+ * This package contains classes implementing various metrics for the job execution, based on the
+ * {@link org.apache.flink.runtime.executiongraph.ExecutionGraph Execution Graph}.
  */
 package org.apache.flink.runtime.executiongraph.metrics;

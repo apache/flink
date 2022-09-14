@@ -18,128 +18,140 @@
 
 package org.apache.flink.runtime.io.network.buffer;
 
+import org.apache.flink.runtime.execution.CancelTaskException;
+
 import org.junit.Test;
 
+import java.io.IOException;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
-/**
- * Tests for the destruction of a {@link LocalBufferPool}.
- */
+/** Tests for the destruction of a {@link LocalBufferPool}. */
 public class LocalBufferPoolDestroyTest {
+    @Test
+    public void testRequestAfterDestroy() throws IOException {
+        NetworkBufferPool networkBufferPool = new NetworkBufferPool(1, 4096);
+        LocalBufferPool localBufferPool = new LocalBufferPool(networkBufferPool, 1);
+        localBufferPool.lazyDestroy();
 
-	/**
-	 * Tests that a blocking request fails properly if the buffer pool is
-	 * destroyed.
-	 *
-	 * <p>Starts a Thread, which triggers an unsatisfiable blocking buffer
-	 * request. After making sure that the Thread is actually waiting in the
-	 * blocking call, the buffer pool is destroyed and we check whether the
-	 * request Thread threw the expected Exception.
-	 */
-	@Test
-	public void testDestroyWhileBlockingRequest() throws Exception {
-		AtomicReference<Exception> asyncException = new AtomicReference<>();
+        try {
+            localBufferPool.requestBuffer();
+            fail("Call should have failed with an IllegalStateException");
+        } catch (CancelTaskException e) {
+            // we expect exactly that
+        }
+    }
 
-		NetworkBufferPool networkBufferPool = null;
-		LocalBufferPool localBufferPool = null;
+    /**
+     * Tests that a blocking request fails properly if the buffer pool is destroyed.
+     *
+     * <p>Starts a Thread, which triggers an unsatisfiable blocking buffer request. After making
+     * sure that the Thread is actually waiting in the blocking call, the buffer pool is destroyed
+     * and we check whether the request Thread threw the expected Exception.
+     */
+    @Test
+    public void testDestroyWhileBlockingRequest() throws Exception {
+        AtomicReference<Exception> asyncException = new AtomicReference<>();
 
-		try {
-			networkBufferPool = new NetworkBufferPool(1, 4096, 1);
-			localBufferPool = new LocalBufferPool(networkBufferPool, 1);
+        NetworkBufferPool networkBufferPool = null;
+        LocalBufferPool localBufferPool = null;
 
-			// Drain buffer pool
-			assertNotNull(localBufferPool.requestBuffer());
-			assertNull(localBufferPool.requestBuffer());
+        try {
+            networkBufferPool = new NetworkBufferPool(1, 4096);
+            localBufferPool = new LocalBufferPool(networkBufferPool, 1);
 
-			// Start request Thread
-			Thread thread = new Thread(new BufferRequestTask(localBufferPool, asyncException));
-			thread.start();
+            // Drain buffer pool
+            assertNotNull(localBufferPool.requestBuffer());
+            assertNull(localBufferPool.requestBuffer());
 
-			// Wait for request
-			boolean success = false;
+            // Start request Thread
+            Thread thread = new Thread(new BufferRequestTask(localBufferPool, asyncException));
+            thread.start();
 
-			for (int i = 0; i < 50; i++) {
-				StackTraceElement[] stackTrace = thread.getStackTrace();
-				success = isInBlockingBufferRequest(stackTrace);
+            // Wait for request
+            boolean success = false;
 
-				if (success) {
-					break;
-				} else {
-					// Retry
-					Thread.sleep(500);
-				}
-			}
+            for (int i = 0; i < 50; i++) {
+                StackTraceElement[] stackTrace = thread.getStackTrace();
+                success = isInBlockingBufferRequest(stackTrace);
 
-			// Verify that Thread was in blocking request
-			assertTrue("Did not trigger blocking buffer request.", success);
+                if (success) {
+                    break;
+                } else {
+                    // Retry
+                    Thread.sleep(500);
+                }
+            }
 
-			// Destroy the buffer pool
-			localBufferPool.lazyDestroy();
+            // Verify that Thread was in blocking request
+            assertTrue("Did not trigger blocking buffer request.", success);
 
-			// Wait for Thread to finish
-			thread.join();
+            // Destroy the buffer pool
+            localBufferPool.lazyDestroy();
 
-			// Verify expected Exception
-			assertNotNull("Did not throw expected Exception", asyncException.get());
-			assertTrue(asyncException.get() instanceof IllegalStateException);
-		} finally {
-			if (localBufferPool != null) {
-				localBufferPool.lazyDestroy();
-			}
+            // Wait for Thread to finish
+            thread.join();
 
-			if (networkBufferPool != null) {
-				networkBufferPool.destroyAllBufferPools();
-				networkBufferPool.destroy();
-			}
-		}
-	}
+            // Verify expected Exception
+            assertNotNull("Did not throw expected Exception", asyncException.get());
+            assertTrue(asyncException.get() instanceof CancelTaskException);
+        } finally {
+            if (localBufferPool != null) {
+                localBufferPool.lazyDestroy();
+            }
 
-	/**
-	 * Returns whether the stack trace represents a Thread in a blocking buffer
-	 * request.
-	 *
-	 * @param stackTrace Stack trace of the Thread to check
-	 *
-	 * @return Flag indicating whether the Thread is in a blocking buffer
-	 * request or not
-	 */
-	public static boolean isInBlockingBufferRequest(StackTraceElement[] stackTrace) {
-		if (stackTrace.length >= 8) {
-			return stackTrace[5].getMethodName().equals("get") &&
-					stackTrace[7].getClassName().equals(LocalBufferPool.class.getName());
-		} else {
-			return false;
-		}
-	}
+            if (networkBufferPool != null) {
+                networkBufferPool.destroyAllBufferPools();
+                networkBufferPool.destroy();
+            }
+        }
+    }
 
-	/**
-	 * Task triggering a blocking buffer request (the test assumes that no
-	 * buffer is available).
-	 */
-	private static class BufferRequestTask implements Runnable {
+    /**
+     * Returns whether the stack trace represents a Thread in a blocking buffer request.
+     *
+     * @param stackTrace Stack trace of the Thread to check
+     * @return Flag indicating whether the Thread is in a blocking buffer request or not
+     */
+    public static boolean isInBlockingBufferRequest(StackTraceElement[] stackTrace) {
+        if (stackTrace.length >= 8) {
+            for (int x = 0; x < stackTrace.length - 2; x++) {
+                if (stackTrace[x].getMethodName().equals("get")
+                        && stackTrace[x + 2]
+                                .getClassName()
+                                .equals(LocalBufferPool.class.getName())) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
 
-		private final BufferPool bufferPool;
-		private final AtomicReference<Exception> asyncException;
+    /** Task triggering a blocking buffer request (the test assumes that no buffer is available). */
+    private static class BufferRequestTask implements Runnable {
 
-		public BufferRequestTask(BufferPool bufferPool, AtomicReference<Exception> asyncException) {
-			this.bufferPool = bufferPool;
-			this.asyncException = asyncException;
-		}
+        private final BufferPool bufferPool;
+        private final AtomicReference<Exception> asyncException;
 
-		@Override
-		public void run() {
-			try {
-				String msg = "Test assumption violated: expected no available buffer";
-				assertNull(msg, bufferPool.requestBuffer());
+        public BufferRequestTask(BufferPool bufferPool, AtomicReference<Exception> asyncException) {
+            this.bufferPool = bufferPool;
+            this.asyncException = asyncException;
+        }
 
-				bufferPool.requestBufferBuilderBlocking();
-			} catch (Exception t) {
-				asyncException.set(t);
-			}
-		}
-	}
+        @Override
+        public void run() {
+            try {
+                String msg = "Test assumption violated: expected no available buffer";
+                assertNull(msg, bufferPool.requestBuffer());
+
+                bufferPool.requestBufferBuilderBlocking();
+            } catch (Exception t) {
+                asyncException.set(t);
+            }
+        }
+    }
 }

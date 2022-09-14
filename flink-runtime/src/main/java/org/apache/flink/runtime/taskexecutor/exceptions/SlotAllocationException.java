@@ -18,22 +18,20 @@
 
 package org.apache.flink.runtime.taskexecutor.exceptions;
 
-/**
- * Exception indicating that the slot allocation on the task manager failed.
- */
+/** Exception indicating that the slot allocation on the task manager failed. */
 public class SlotAllocationException extends TaskManagerException {
 
-	private static final long serialVersionUID = -4764932098204266773L;
+    private static final long serialVersionUID = -4764932098204266773L;
 
-	public SlotAllocationException(String message) {
-		super(message);
-	}
+    public SlotAllocationException(String message) {
+        super(message);
+    }
 
-	public SlotAllocationException(String message, Throwable cause) {
-		super(message, cause);
-	}
+    public SlotAllocationException(String message, Throwable cause) {
+        super(message, cause);
+    }
 
-	public SlotAllocationException(Throwable cause) {
-		super(cause);
-	}
+    public SlotAllocationException(Throwable cause) {
+        super(cause);
+    }
 }

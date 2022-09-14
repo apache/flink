@@ -23,54 +23,75 @@ import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.descriptors.DescriptorProperties;
 import org.apache.flink.table.descriptors.Schema;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
-/**
- * Test for {@link CatalogTableImpl}.
- */
-public class CatalogTableImpTest {
-	private static final String TEST = "test";
+/** Test for {@link CatalogTableImpl}. */
+class CatalogTableImpTest {
+    private static final String TEST = "test";
 
-	@Test
-	public void testToProperties() {
-		TableSchema schema = createTableSchema();
-		Map<String, String> prop = createProperties();
-		CatalogTable table = new CatalogTableImpl(
-			schema,
-			createPartitionKeys(),
-			prop,
-			TEST
-		);
+    @Test
+    void testToProperties() {
+        TableSchema schema = createTableSchema();
+        Map<String, String> prop = createProperties();
+        CatalogTable table = new CatalogTableImpl(schema, createPartitionKeys(), prop, TEST);
 
-		DescriptorProperties descriptorProperties = new DescriptorProperties();
-		descriptorProperties.putProperties(table.toProperties());
+        DescriptorProperties descriptorProperties = new DescriptorProperties(false);
+        descriptorProperties.putProperties(table.toProperties());
 
-		assertEquals(schema, descriptorProperties.getTableSchema(Schema.SCHEMA));
-	}
+        assertThat(descriptorProperties.getTableSchema(Schema.SCHEMA)).isEqualTo(schema);
+    }
 
-	private static Map<String, String> createProperties() {
-		return new HashMap<String, String>() {{
-			put("k", "v");
-		}};
-	}
+    @Test
+    void testFromProperties() {
+        TableSchema schema = createTableSchema();
+        Map<String, String> prop = createProperties();
+        CatalogTable table = new CatalogTableImpl(schema, createPartitionKeys(), prop, TEST);
 
-	private static TableSchema createTableSchema() {
-		return TableSchema.builder()
-			.field("first", DataTypes.STRING())
-			.field("second", DataTypes.INT())
-			.field("third", DataTypes.DOUBLE())
-			.build();
-	}
+        CatalogTableImpl tableFromProperties =
+                CatalogTableImpl.fromProperties(table.toProperties());
 
-	private static List<String> createPartitionKeys() {
-		return Arrays.asList("second", "third");
-	}
+        assertThat(table.getOptions()).isEqualTo(tableFromProperties.getOptions());
+        assertThat(table.getPartitionKeys()).isEqualTo(tableFromProperties.getPartitionKeys());
+        assertThat(table.getSchema()).isEqualTo(tableFromProperties.getSchema());
+    }
 
+    @Test
+    void testNullComment() {
+        TableSchema schema = createTableSchema();
+        Map<String, String> prop = createProperties();
+        CatalogTable table = new CatalogTableImpl(schema, createPartitionKeys(), prop, null);
+
+        assertThat(table.getComment()).isEmpty();
+        assertThat(table.getDescription()).isEqualTo(Optional.of(""));
+    }
+
+    private static Map<String, String> createProperties() {
+        return new HashMap<String, String>() {
+            {
+                put("k", "v");
+                put("K1", "V1"); // for test case-sensitive
+            }
+        };
+    }
+
+    private static TableSchema createTableSchema() {
+        return TableSchema.builder()
+                .field("first", DataTypes.STRING())
+                .field("second", DataTypes.INT())
+                .field("third", DataTypes.DOUBLE())
+                .field("Fourth", DataTypes.BOOLEAN()) // for test case-sensitive
+                .build();
+    }
+
+    private static List<String> createPartitionKeys() {
+        return Arrays.asList("second", "third");
+    }
 }

@@ -44,7 +44,7 @@ cd "$TPCDS_TOOL_DIR"
 TPCDS_GENERATOR_RELATIVE_DIR="../target/generator"
 TPCDS_DATA_RELATIVE_DIR="../table"
 
-${TPCDS_TOOL_DIR}/data_generator.sh "$TPCDS_GENERATOR_RELATIVE_DIR" "$SCALE" "$TPCDS_DATA_RELATIVE_DIR"
+${TPCDS_TOOL_DIR}/data_generator.sh "$TPCDS_GENERATOR_RELATIVE_DIR" "$SCALE" "$TPCDS_DATA_RELATIVE_DIR" "$END_TO_END_DIR/test-scripts"
 
 cd "$END_TO_END_DIR"
 
@@ -54,9 +54,29 @@ cd "$END_TO_END_DIR"
 
 echo "[INFO]Preparing Flink cluster..."
 
+SCHEDULER="${1:-Default}"
+
+set_config_key "jobmanager.scheduler" "${SCHEDULER}"
 set_config_key "taskmanager.memory.process.size" "4096m"
-set_config_key "taskmanager.numberOfTaskSlots" "4"
-set_config_key "parallelism.default" "4"
+set_config_key "taskmanager.memory.network.fraction" "0.2"
+
+if [ "${SCHEDULER}" == "Default" ]; then
+    set_config_key "taskmanager.numberOfTaskSlots" "4"
+    set_config_key "parallelism.default" "4"
+elif [ "${SCHEDULER}" == "AdaptiveBatch" ]; then
+    set_config_key "taskmanager.numberOfTaskSlots" "8"
+    set_config_key "parallelism.default" "-1"
+    set_config_key "jobmanager.adaptive-batch-scheduler.max-parallelism" "8"
+    set_config_key "jobmanager.adaptive-batch-scheduler.avg-data-volume-per-task" "6m"
+    set_config_key "jobmanager.adaptive-batch-scheduler.speculative.enabled" "true"
+    set_config_key "jobmanager.adaptive-batch-scheduler.speculative.block-slow-node-duration" "0s"
+    set_config_key "slow-task-detector.execution-time.baseline-ratio" "0.0"
+    set_config_key "slow-task-detector.execution-time.baseline-lower-bound" "0s"
+else
+    echo "ERROR: Scheduler ${SCHEDULER} is unsupported for tpcds test. Aborting..."
+    exit 1
+fi
+
 start_cluster
 
 
@@ -71,12 +91,6 @@ mkdir -p "$RESULT_DIR"
 
 $FLINK_DIR/bin/flink run -c org.apache.flink.table.tpcds.TpcdsTestProgram "$TARGET_DIR/TpcdsTestProgram.jar" -sourceTablePath "$TPCDS_DATA_DIR" -queryPath "$TPCDS_QUERY_DIR" -sinkTablePath "$RESULT_DIR" -useTableStats "$USE_TABLE_STATS"
 
-function sql_cleanup() {
-  stop_cluster
-  $FLINK_DIR/bin/taskmanager.sh stop-all
-}
-on_exit sql_cleanup
-
 ################################################################################
 # validate result
 ################################################################################
@@ -86,3 +100,10 @@ mkdir -p "$QUALIFIED_ANSWER_DIR"
 java -cp "$TARGET_DIR/TpcdsTestProgram.jar:$TARGET_DIR/lib/*" org.apache.flink.table.tpcds.utils.AnswerFormatter -originDir "$ORGIN_ANSWER_DIR" -destDir "$QUALIFIED_ANSWER_DIR"
 
 java -cp "$TARGET_DIR/TpcdsTestProgram.jar:$TARGET_DIR/lib/*" org.apache.flink.table.tpcds.utils.TpcdsResultComparator -expectedDir "$QUALIFIED_ANSWER_DIR" -actualDir "$RESULT_DIR"
+
+################################################################################
+# Clean-up generated data folder
+################################################################################
+
+rm -rf "${TPCDS_DATA_DIR}"
+echo "Deleted all files under $TPCDS_DATA_DIR"

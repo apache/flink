@@ -31,22 +31,21 @@ import org.apache.flink.api.common.state.AppendingState;
  * @param <SV> The type of elements in the state
  * @param <OUT> The type of the resulting element in the state
  */
-public interface InternalAppendingState<K, N, IN, SV, OUT> extends InternalKvState<K, N, SV>, AppendingState<IN, OUT> {
-	/**
-	 * Get internally stored value.
-	 *
-	 * @return internally stored value.
-	 *
-	 * @throws Exception The method may forward exception thrown internally (by I/O or functions).
-	 */
-	SV getInternal() throws Exception;
+public interface InternalAppendingState<K, N, IN, SV, OUT>
+        extends InternalKvState<K, N, SV>, AppendingState<IN, OUT> {
+    /**
+     * Get internally stored value.
+     *
+     * @return internally stored value.
+     * @throws Exception The method may forward exception thrown internally (by I/O or functions).
+     */
+    SV getInternal() throws Exception;
 
-	/**
-	 * Update internally stored value.
-	 *
-	 * @param valueToStore new value to store.
-	 *
-	 * @throws Exception The method may forward exception thrown internally (by I/O or functions).
-	 */
-	void updateInternal(SV valueToStore) throws Exception;
+    /**
+     * Update internally stored value.
+     *
+     * @param valueToStore new value to store.
+     * @throws Exception The method may forward exception thrown internally (by I/O or functions).
+     */
+    void updateInternal(SV valueToStore) throws Exception;
 }

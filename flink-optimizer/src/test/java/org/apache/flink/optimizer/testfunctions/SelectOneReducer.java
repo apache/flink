@@ -22,10 +22,10 @@ import org.apache.flink.api.common.functions.RichReduceFunction;
 
 public class SelectOneReducer<T> extends RichReduceFunction<T> {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	@Override
-	public T reduce(T value1, T value2) throws Exception {
-		return value1;
-	}
+    @Override
+    public T reduce(T value1, T value2) throws Exception {
+        return value1;
+    }
 }

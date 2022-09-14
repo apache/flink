@@ -15,19 +15,19 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.api.scala.typeutils
 
-import java.io.ByteArrayOutputStream
-
 import org.apache.flink.util.{InstantiationUtil, TestLogger}
+
 import org.hamcrest.Matchers
 import org.junit.{Assert, Test}
 
+import java.io.ByteArrayOutputStream
+
 /**
-  * Serialization/Deserialization tests of Scala types using the
-  * [[org.apache.flink.util.InstantiationUtil]].
-  */
+ * Serialization/Deserialization tests of Scala types using the
+ * [[org.apache.flink.util.InstantiationUtil]].
+ */
 class InstantiationUtilTest extends TestLogger {
 
   @Test
@@ -64,10 +64,7 @@ class InstantiationUtilTest extends TestLogger {
 
     InstantiationUtil.serializeObject(baos, instance)
 
-    InstantiationUtil.deserializeObject(
-      baos.toByteArray,
-      getClass.getClassLoader,
-      true)
+    InstantiationUtil.deserializeObject(baos.toByteArray, getClass.getClassLoader, true)
   }
 }
 

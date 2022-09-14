@@ -21,45 +21,105 @@ package org.apache.flink.runtime.metrics.groups;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.SimpleCounter;
 import org.apache.flink.runtime.executiongraph.IOMetrics;
+import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 
 import org.junit.Test;
 
+import java.util.Map;
+
+import static org.hamcrest.Matchers.greaterThanOrEqualTo;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertThat;
 
-/**
- * Tests for the {@link TaskIOMetricGroup}.
- */
+/** Tests for the {@link TaskIOMetricGroup}. */
 public class TaskIOMetricGroupTest {
-	@Test
-	public void testTaskIOMetricGroup() {
-		TaskMetricGroup task = UnregisteredMetricGroups.createUnregisteredTaskMetricGroup();
-		TaskIOMetricGroup taskIO = task.getIOMetricGroup();
+    @Test
+    public void testTaskIOMetricGroup() throws InterruptedException {
+        TaskMetricGroup task = UnregisteredMetricGroups.createUnregisteredTaskMetricGroup();
+        TaskIOMetricGroup taskIO = task.getIOMetricGroup();
+        taskIO.setEnableBusyTime(true);
+        final long startTime = System.currentTimeMillis();
 
-		// test counter forwarding
-		assertNotNull(taskIO.getNumRecordsInCounter());
-		assertNotNull(taskIO.getNumRecordsOutCounter());
+        // test counter forwarding
+        assertNotNull(taskIO.getNumRecordsInCounter());
+        assertNotNull(taskIO.getNumRecordsOutCounter());
 
-		Counter c1 = new SimpleCounter();
-		c1.inc(32L);
-		Counter c2 = new SimpleCounter();
-		c2.inc(64L);
+        Counter c1 = new SimpleCounter();
+        c1.inc(32L);
+        Counter c2 = new SimpleCounter();
+        c2.inc(64L);
 
-		taskIO.reuseRecordsInputCounter(c1);
-		taskIO.reuseRecordsOutputCounter(c2);
-		assertEquals(32L, taskIO.getNumRecordsInCounter().getCount());
-		assertEquals(64L, taskIO.getNumRecordsOutCounter().getCount());
+        taskIO.reuseRecordsInputCounter(c1);
+        taskIO.reuseRecordsOutputCounter(c2);
+        assertEquals(32L, taskIO.getNumRecordsInCounter().getCount());
+        assertEquals(64L, taskIO.getNumRecordsOutCounter().getCount());
 
-		// test IOMetrics instantiation
-		taskIO.getNumBytesInCounter().inc(100L);
-		taskIO.getNumBytesOutCounter().inc(250L);
-		taskIO.getNumBuffersOutCounter().inc(3L);
+        // test IOMetrics instantiation
+        taskIO.getNumBytesInCounter().inc(100L);
+        taskIO.getNumBytesOutCounter().inc(250L);
+        taskIO.getNumBuffersOutCounter().inc(3L);
+        taskIO.getIdleTimeMsPerSecond().markStart();
+        taskIO.getSoftBackPressuredTimePerSecond().markStart();
+        long softSleepTime = 2L;
+        Thread.sleep(softSleepTime);
+        taskIO.getIdleTimeMsPerSecond().markEnd();
+        taskIO.getSoftBackPressuredTimePerSecond().markEnd();
 
-		IOMetrics io = taskIO.createSnapshot();
-		assertEquals(32L, io.getNumRecordsIn());
-		assertEquals(64L, io.getNumRecordsOut());
-		assertEquals(100L, io.getNumBytesIn());
-		assertEquals(250L, io.getNumBytesOut());
-		assertEquals(3L, taskIO.getNumBuffersOutCounter().getCount());
-	}
+        long hardSleepTime = 4L;
+        taskIO.getHardBackPressuredTimePerSecond().markStart();
+        Thread.sleep(hardSleepTime);
+        taskIO.getHardBackPressuredTimePerSecond().markEnd();
+
+        IOMetrics io = taskIO.createSnapshot();
+        assertEquals(32L, io.getNumRecordsIn());
+        assertEquals(64L, io.getNumRecordsOut());
+        assertEquals(100L, io.getNumBytesIn());
+        assertEquals(250L, io.getNumBytesOut());
+        assertEquals(3L, taskIO.getNumBuffersOutCounter().getCount());
+        assertEquals(
+                taskIO.getIdleTimeMsPerSecond().getAccumulatedCount(), io.getAccumulateIdleTime());
+        assertEquals(
+                taskIO.getHardBackPressuredTimePerSecond().getAccumulatedCount()
+                        + taskIO.getSoftBackPressuredTimePerSecond().getAccumulatedCount(),
+                io.getAccumulateBackPressuredTime());
+        assertThat(
+                io.getAccumulateBusyTime(),
+                greaterThanOrEqualTo(
+                        (double) System.currentTimeMillis()
+                                - startTime
+                                - io.getAccumulateIdleTime()
+                                - io.getAccumulateBackPressuredTime()));
+        assertThat(taskIO.getIdleTimeMsPerSecond().getCount(), greaterThanOrEqualTo(softSleepTime));
+        assertThat(
+                taskIO.getSoftBackPressuredTimePerSecond().getCount(),
+                greaterThanOrEqualTo(softSleepTime));
+        assertThat(
+                taskIO.getHardBackPressuredTimePerSecond().getCount(),
+                greaterThanOrEqualTo(hardSleepTime));
+    }
+
+    @Test
+    public void testNumBytesProducedOfPartitionsMetrics() {
+        TaskMetricGroup task = UnregisteredMetricGroups.createUnregisteredTaskMetricGroup();
+        TaskIOMetricGroup taskIO = task.getIOMetricGroup();
+
+        Counter c1 = new SimpleCounter();
+        c1.inc(32L);
+        Counter c2 = new SimpleCounter();
+        c2.inc(64L);
+
+        IntermediateResultPartitionID resultPartitionID1 = new IntermediateResultPartitionID();
+        IntermediateResultPartitionID resultPartitionID2 = new IntermediateResultPartitionID();
+
+        taskIO.registerNumBytesProducedCounterForPartition(resultPartitionID1, c1);
+        taskIO.registerNumBytesProducedCounterForPartition(resultPartitionID2, c2);
+
+        Map<IntermediateResultPartitionID, Long> numBytesProducedOfPartitions =
+                taskIO.createSnapshot().getNumBytesProducedOfPartitions();
+
+        assertEquals(2, numBytesProducedOfPartitions.size());
+        assertEquals(32L, numBytesProducedOfPartitions.get(resultPartitionID1).longValue());
+        assertEquals(64L, numBytesProducedOfPartitions.get(resultPartitionID2).longValue());
+    }
 }

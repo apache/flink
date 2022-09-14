@@ -18,8 +18,10 @@
 
 package org.apache.flink.runtime.io.network.api.serialization;
 
+import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.CheckpointType;
+import org.apache.flink.runtime.checkpoint.SavepointType;
 import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
 import org.apache.flink.runtime.state.CheckpointStorageLocationReference;
 
@@ -32,54 +34,76 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 
 /**
- * Tests the {@link EventSerializer} functionality for serializing {@link CheckpointBarrier checkpoint barriers}.
+ * Tests the {@link EventSerializer} functionality for serializing {@link CheckpointBarrier
+ * checkpoint barriers}.
  */
 public class CheckpointSerializationTest {
 
-	private static final byte[] STORAGE_LOCATION_REF = new byte[] { 15, 52, 52, 11, 0, 0, 0, 0, -1, -23, -19, 35 };
+    private static final byte[] STORAGE_LOCATION_REF =
+            new byte[] {15, 52, 52, 11, 0, 0, 0, 0, -1, -23, -19, 35};
 
-	@Test
-	public void testSuspendingCheckpointBarrierSerialization() throws Exception {
-		CheckpointOptions suspendSavepointToSerialize = new CheckpointOptions(
-				CheckpointType.SYNC_SAVEPOINT, new CheckpointStorageLocationReference(STORAGE_LOCATION_REF));
-		testCheckpointBarrierSerialization(suspendSavepointToSerialize);
-	}
+    @Test
+    public void testSuspendingCheckpointBarrierSerialization() throws Exception {
+        CheckpointOptions suspendSavepointToSerialize =
+                new CheckpointOptions(
+                        SavepointType.suspend(SavepointFormatType.CANONICAL),
+                        new CheckpointStorageLocationReference(STORAGE_LOCATION_REF));
+        testCheckpointBarrierSerialization(suspendSavepointToSerialize);
+    }
 
-	@Test
-	public void testSavepointBarrierSerialization() throws Exception {
-		CheckpointOptions savepointToSerialize = new CheckpointOptions(
-				CheckpointType.SAVEPOINT, new CheckpointStorageLocationReference(STORAGE_LOCATION_REF));
-		testCheckpointBarrierSerialization(savepointToSerialize);
-	}
+    @Test
+    public void testSavepointBarrierSerialization() throws Exception {
+        CheckpointOptions savepointToSerialize =
+                new CheckpointOptions(
+                        SavepointType.savepoint(SavepointFormatType.CANONICAL),
+                        new CheckpointStorageLocationReference(STORAGE_LOCATION_REF));
+        testCheckpointBarrierSerialization(savepointToSerialize);
+    }
 
-	@Test
-	public void testCheckpointBarrierSerialization() throws Exception {
-		CheckpointOptions checkpointToSerialize = new CheckpointOptions(
-				CheckpointType.CHECKPOINT, new CheckpointStorageLocationReference(STORAGE_LOCATION_REF));
-		testCheckpointBarrierSerialization(checkpointToSerialize);
-	}
+    @Test
+    public void testCheckpointBarrierSerialization() throws Exception {
+        CheckpointOptions checkpointToSerialize =
+                new CheckpointOptions(
+                        CheckpointType.CHECKPOINT,
+                        new CheckpointStorageLocationReference(STORAGE_LOCATION_REF));
+        testCheckpointBarrierSerialization(checkpointToSerialize);
+    }
 
-	@Test
-	public void testCheckpointWithDefaultLocationSerialization() throws Exception {
-		CheckpointOptions checkpointToSerialize = CheckpointOptions.forCheckpointWithDefaultLocation();
-		testCheckpointBarrierSerialization(checkpointToSerialize);
-	}
+    @Test
+    public void testFullCheckpointBarrierSerialization() throws Exception {
+        CheckpointOptions checkpointToSerialize =
+                new CheckpointOptions(
+                        CheckpointType.FULL_CHECKPOINT,
+                        new CheckpointStorageLocationReference(STORAGE_LOCATION_REF));
+        testCheckpointBarrierSerialization(checkpointToSerialize);
+    }
 
-	private void testCheckpointBarrierSerialization(CheckpointOptions options) throws IOException {
-		final long checkpointId = Integer.MAX_VALUE + 123123L;
-		final long timestamp = Integer.MAX_VALUE + 1228L;
+    @Test
+    public void testCheckpointWithDefaultLocationSerialization() throws Exception {
+        CheckpointOptions checkpointToSerialize =
+                CheckpointOptions.forCheckpointWithDefaultLocation();
+        testCheckpointBarrierSerialization(checkpointToSerialize);
+    }
 
-		final CheckpointBarrier barrierBeforeSerialization = new CheckpointBarrier(checkpointId, timestamp, options);
-		final CheckpointBarrier barrierAfterDeserialization = serializeAndDeserializeCheckpointBarrier(barrierBeforeSerialization);
+    private void testCheckpointBarrierSerialization(CheckpointOptions options) throws IOException {
+        final long checkpointId = Integer.MAX_VALUE + 123123L;
+        final long timestamp = Integer.MAX_VALUE + 1228L;
 
-		assertEquals(barrierBeforeSerialization, barrierAfterDeserialization);
-	}
+        final CheckpointBarrier barrierBeforeSerialization =
+                new CheckpointBarrier(checkpointId, timestamp, options);
+        final CheckpointBarrier barrierAfterDeserialization =
+                serializeAndDeserializeCheckpointBarrier(barrierBeforeSerialization);
 
-	private CheckpointBarrier serializeAndDeserializeCheckpointBarrier(final CheckpointBarrier barrierUnderTest) throws IOException {
-		final ClassLoader cl = Thread.currentThread().getContextClassLoader();
-		final ByteBuffer serialized = EventSerializer.toSerializedEvent(barrierUnderTest);
-		final CheckpointBarrier deserialized = (CheckpointBarrier) EventSerializer.fromSerializedEvent(serialized, cl);
-		assertFalse(serialized.hasRemaining());
-		return deserialized;
-	}
+        assertEquals(barrierBeforeSerialization, barrierAfterDeserialization);
+    }
+
+    private CheckpointBarrier serializeAndDeserializeCheckpointBarrier(
+            final CheckpointBarrier barrierUnderTest) throws IOException {
+        final ClassLoader cl = Thread.currentThread().getContextClassLoader();
+        final ByteBuffer serialized = EventSerializer.toSerializedEvent(barrierUnderTest);
+        final CheckpointBarrier deserialized =
+                (CheckpointBarrier) EventSerializer.fromSerializedEvent(serialized, cl);
+        assertFalse(serialized.hasRemaining());
+        return deserialized;
+    }
 }

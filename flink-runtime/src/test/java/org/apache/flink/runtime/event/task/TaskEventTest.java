@@ -29,46 +29,42 @@ import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 /**
- * This class contains serialization tests concerning task events derived from
- * {@link org.apache.flink.runtime.event.AbstractEvent}.
+ * This class contains serialization tests concerning task events derived from {@link
+ * org.apache.flink.runtime.event.AbstractEvent}.
  */
 public class TaskEventTest {
-	/**
-	 * This test checks the serialization/deserialization of {@link IntegerTaskEvent} objects.
-	 */
-	@Test
-	public void testIntegerTaskEvent() {
+    /** This test checks the serialization/deserialization of {@link IntegerTaskEvent} objects. */
+    @Test
+    public void testIntegerTaskEvent() {
 
-		try {
-			final IntegerTaskEvent orig = new IntegerTaskEvent(11);
-			final IntegerTaskEvent copy = InstantiationUtil.createCopyWritable(orig);
+        try {
+            final IntegerTaskEvent orig = new IntegerTaskEvent(11);
+            final IntegerTaskEvent copy = InstantiationUtil.createCopyWritable(orig);
 
-			assertEquals(orig.getInteger(), copy.getInteger());
-			assertEquals(orig.hashCode(), copy.hashCode());
-			assertTrue(orig.equals(copy));
+            assertEquals(orig.getInteger(), copy.getInteger());
+            assertEquals(orig.hashCode(), copy.hashCode());
+            assertTrue(orig.equals(copy));
 
-		} catch (IOException ioe) {
-			fail(ioe.getMessage());
-		}
-	}
+        } catch (IOException ioe) {
+            fail(ioe.getMessage());
+        }
+    }
 
-	/**
-	 * This test checks the serialization/deserialization of {@link StringTaskEvent} objects.
-	 */
-	@Test
-	public void testStringTaskEvent() {
+    /** This test checks the serialization/deserialization of {@link StringTaskEvent} objects. */
+    @Test
+    public void testStringTaskEvent() {
 
-		try {
+        try {
 
-			final StringTaskEvent orig = new StringTaskEvent("Test");
-			final StringTaskEvent copy = InstantiationUtil.createCopyWritable(orig);
+            final StringTaskEvent orig = new StringTaskEvent("Test");
+            final StringTaskEvent copy = InstantiationUtil.createCopyWritable(orig);
 
-			assertEquals(orig.getString(), copy.getString());
-			assertEquals(orig.hashCode(), copy.hashCode());
-			assertTrue(orig.equals(copy));
+            assertEquals(orig.getString(), copy.getString());
+            assertEquals(orig.hashCode(), copy.hashCode());
+            assertTrue(orig.equals(copy));
 
-		} catch (IOException ioe) {
-			fail(ioe.getMessage());
-		}
-	}
+        } catch (IOException ioe) {
+            fail(ioe.getMessage());
+        }
+    }
 }

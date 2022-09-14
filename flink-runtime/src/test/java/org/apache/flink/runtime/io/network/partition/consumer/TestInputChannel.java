@@ -20,10 +20,14 @@ package org.apache.flink.runtime.io.network.partition.consumer;
 
 import org.apache.flink.metrics.SimpleCounter;
 import org.apache.flink.runtime.event.TaskEvent;
+import org.apache.flink.runtime.io.network.api.EndOfData;
 import org.apache.flink.runtime.io.network.api.EndOfPartitionEvent;
+import org.apache.flink.runtime.io.network.api.StopMode;
 import org.apache.flink.runtime.io.network.api.serialization.EventSerializer;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
+
+import javax.annotation.Nullable;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -32,150 +36,235 @@ import java.util.Optional;
 import java.util.Queue;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
+import static org.apache.flink.runtime.io.network.util.TestBufferFactory.createBuffer;
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
+import static org.apache.flink.util.Preconditions.checkState;
 import static org.junit.Assert.fail;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
 
-/**
- * A mocked input channel.
- */
+/** A mocked input channel. */
 public class TestInputChannel extends InputChannel {
 
-	private final Queue<BufferAndAvailabilityProvider> buffers = new ConcurrentLinkedQueue<>();
+    private final Queue<BufferAndAvailabilityProvider> buffers = new ConcurrentLinkedQueue<>();
 
-	private final Collection<Buffer> allReturnedBuffers = new ArrayList<>();
+    private final Collection<Buffer> allReturnedBuffers = new ArrayList<>();
 
-	private BufferAndAvailabilityProvider lastProvider = null;
+    private final boolean reuseLastReturnBuffer;
 
-	private boolean isReleased = false;
+    private final boolean notifyChannelNonEmpty;
 
-	TestInputChannel(SingleInputGate inputGate, int channelIndex) {
-		super(inputGate, channelIndex, new ResultPartitionID(), 0, 0, new SimpleCounter(), new SimpleCounter());
-	}
+    private BufferAndAvailabilityProvider lastProvider = null;
 
-	public TestInputChannel read(Buffer buffer) throws IOException, InterruptedException {
-		return read(buffer, true);
-	}
+    private boolean isReleased = false;
 
-	public TestInputChannel read(Buffer buffer, boolean moreAvailable) throws IOException, InterruptedException {
-		addBufferAndAvailability(new BufferAndAvailability(buffer, moreAvailable, 0));
+    private Runnable actionOnResumed;
 
-		return this;
-	}
+    private boolean isBlocked;
 
-	TestInputChannel readBuffer() throws IOException, InterruptedException {
-		return readBuffer(true);
-	}
+    private int sequenceNumber;
 
-	TestInputChannel readBuffer(boolean moreAvailable) throws IOException, InterruptedException {
-		final Buffer buffer = mock(Buffer.class);
-		when(buffer.isBuffer()).thenReturn(true);
+    private int currentBufferSize;
 
-		return read(buffer, moreAvailable);
-	}
+    public TestInputChannel(SingleInputGate inputGate, int channelIndex) {
+        this(inputGate, channelIndex, true, false);
+    }
 
-	TestInputChannel readEndOfPartitionEvent() {
-		addBufferAndAvailability(
-			() -> {
-				setReleased();
-				return Optional.of(new BufferAndAvailability(EventSerializer.toBuffer(EndOfPartitionEvent.INSTANCE),
-					false,
-					0));
-			}
-		);
-		return this;
-	}
+    public TestInputChannel(
+            SingleInputGate inputGate,
+            int channelIndex,
+            boolean reuseLastReturnBuffer,
+            boolean notifyChannelNonEmpty) {
+        super(
+                inputGate,
+                channelIndex,
+                new ResultPartitionID(),
+                0,
+                0,
+                0,
+                new SimpleCounter(),
+                new SimpleCounter());
+        this.reuseLastReturnBuffer = reuseLastReturnBuffer;
+        this.notifyChannelNonEmpty = notifyChannelNonEmpty;
+    }
 
-	void addBufferAndAvailability(BufferAndAvailability bufferAndAvailability) {
-		buffers.add(() -> Optional.of(bufferAndAvailability));
-	}
+    public TestInputChannel read(Buffer buffer) throws IOException, InterruptedException {
+        return read(buffer, Buffer.DataType.DATA_BUFFER);
+    }
 
-	void addBufferAndAvailability(BufferAndAvailabilityProvider bufferAndAvailability) {
-		buffers.add(bufferAndAvailability);
-	}
+    public TestInputChannel read(Buffer buffer, @Nullable Buffer.DataType nextType)
+            throws IOException, InterruptedException {
+        addBufferAndAvailability(new BufferAndAvailability(buffer, nextType, 0, sequenceNumber++));
+        if (notifyChannelNonEmpty) {
+            notifyChannelNonEmpty();
+        }
+        return this;
+    }
 
-	// ------------------------------------------------------------------------
+    TestInputChannel readBuffer() throws IOException, InterruptedException {
+        return readBuffer(Buffer.DataType.DATA_BUFFER);
+    }
 
-	/**
-	 * Creates test input channels and attaches them to the specified input gate.
-	 *
-	 * @return The created test input channels.
-	 */
-	static TestInputChannel[] createInputChannels(SingleInputGate inputGate, int numberOfInputChannels) {
-		checkNotNull(inputGate);
-		checkArgument(numberOfInputChannels > 0);
+    TestInputChannel readBuffer(Buffer.DataType nextType) throws IOException, InterruptedException {
+        return read(createBuffer(1), nextType);
+    }
 
-		TestInputChannel[] mocks = new TestInputChannel[numberOfInputChannels];
+    TestInputChannel readEndOfData() throws IOException {
+        return readEndOfData(StopMode.DRAIN);
+    }
 
-		for (int i = 0; i < numberOfInputChannels; i++) {
-			mocks[i] = new TestInputChannel(inputGate, i);
+    TestInputChannel readEndOfData(StopMode mode) throws IOException {
+        addBufferAndAvailability(
+                new BufferAndAvailability(
+                        EventSerializer.toBuffer(new EndOfData(mode), false),
+                        Buffer.DataType.EVENT_BUFFER,
+                        0,
+                        sequenceNumber++));
+        return this;
+    }
 
-			inputGate.setInputChannel(mocks[i]);
-		}
+    TestInputChannel readEndOfPartitionEvent() {
+        addBufferAndAvailability(
+                () -> {
+                    setReleased();
+                    return Optional.of(
+                            new BufferAndAvailability(
+                                    EventSerializer.toBuffer(EndOfPartitionEvent.INSTANCE, false),
+                                    Buffer.DataType.NONE,
+                                    0,
+                                    sequenceNumber++));
+                });
+        return this;
+    }
 
-		return mocks;
-	}
+    void addBufferAndAvailability(BufferAndAvailability bufferAndAvailability) {
+        buffers.add(() -> Optional.of(bufferAndAvailability));
+    }
 
-	@Override
-	void requestSubpartition(int subpartitionIndex) throws IOException, InterruptedException {
-	}
+    void addBufferAndAvailability(BufferAndAvailabilityProvider bufferAndAvailability) {
+        buffers.add(bufferAndAvailability);
+    }
 
-	@Override
-	Optional<BufferAndAvailability> getNextBuffer() throws IOException, InterruptedException {
-		BufferAndAvailabilityProvider provider = buffers.poll();
+    // ------------------------------------------------------------------------
 
-		if (provider != null) {
-			lastProvider = provider;
-			Optional<BufferAndAvailability> baa = provider.getBufferAvailability();
-			baa.ifPresent((v) -> allReturnedBuffers.add(v.buffer()));
-			return baa;
-		} else if (lastProvider != null) {
-			return lastProvider.getBufferAvailability();
-		} else {
-			return Optional.empty();
-		}
-	}
+    /**
+     * Creates test input channels and attaches them to the specified input gate.
+     *
+     * @return The created test input channels.
+     */
+    static TestInputChannel[] createInputChannels(
+            SingleInputGate inputGate, int numberOfInputChannels) {
+        checkNotNull(inputGate);
+        checkArgument(numberOfInputChannels > 0);
 
-	@Override
-	void sendTaskEvent(TaskEvent event) throws IOException {
-	}
+        TestInputChannel[] mocks = new TestInputChannel[numberOfInputChannels];
 
-	@Override
-	boolean isReleased() {
-		return isReleased;
-	}
+        for (int i = 0; i < numberOfInputChannels; i++) {
+            mocks[i] = new TestInputChannel(inputGate, i);
+        }
+        inputGate.setInputChannels(mocks);
 
-	void setReleased() {
-		this.isReleased = true;
-	}
+        return mocks;
+    }
 
-	@Override
-	void releaseAllResources() throws IOException {
-	}
+    @Override
+    void requestSubpartition() throws IOException, InterruptedException {}
 
-	@Override
-	protected void notifyChannelNonEmpty() {
-	}
+    @Override
+    Optional<BufferAndAvailability> getNextBuffer() throws IOException, InterruptedException {
+        checkState(!isReleased);
 
-	public void assertReturnedEventsAreRecycled() {
-		assertReturnedBuffersAreRecycled(false, true);
-	}
+        BufferAndAvailabilityProvider provider = buffers.poll();
 
-	private void assertReturnedBuffersAreRecycled(boolean assertBuffers, boolean assertEvents) {
-		for (Buffer b : allReturnedBuffers) {
-			if (b.isBuffer() && assertBuffers && !b.isRecycled()) {
-				fail("Data Buffer " + b + " not recycled");
-			}
-			if (!b.isBuffer() && assertEvents && !b.isRecycled()) {
-				fail("Event Buffer " + b + " not recycled");
-			}
-		}
-	}
+        if (provider != null) {
+            if (reuseLastReturnBuffer) {
+                lastProvider = provider;
+            }
+            Optional<BufferAndAvailability> baa = provider.getBufferAvailability();
+            baa.ifPresent((v) -> allReturnedBuffers.add(v.buffer()));
+            return baa;
+        } else if (lastProvider != null) {
+            return lastProvider.getBufferAvailability();
+        } else {
+            return Optional.empty();
+        }
+    }
 
-	interface BufferAndAvailabilityProvider {
-		Optional<BufferAndAvailability> getBufferAvailability() throws IOException, InterruptedException;
-	}
+    @Override
+    void sendTaskEvent(TaskEvent event) throws IOException {}
 
+    @Override
+    boolean isReleased() {
+        return isReleased;
+    }
+
+    void setReleased() {
+        this.isReleased = true;
+    }
+
+    @Override
+    void releaseAllResources() throws IOException {
+        isReleased = true;
+    }
+
+    @Override
+    void announceBufferSize(int newBufferSize) {
+        currentBufferSize = newBufferSize;
+    }
+
+    public int getCurrentBufferSize() {
+        return currentBufferSize;
+    }
+
+    @Override
+    int getBuffersInUseCount() {
+        return buffers.size();
+    }
+
+    @Override
+    public void resumeConsumption() {
+        isBlocked = false;
+        if (actionOnResumed != null) {
+            actionOnResumed.run();
+        }
+    }
+
+    @Override
+    public void acknowledgeAllRecordsProcessed() throws IOException {}
+
+    @Override
+    protected void notifyChannelNonEmpty() {
+        inputGate.notifyChannelNonEmpty(this);
+    }
+
+    public void assertReturnedEventsAreRecycled() {
+        assertReturnedBuffersAreRecycled(false, true);
+    }
+
+    private void assertReturnedBuffersAreRecycled(boolean assertBuffers, boolean assertEvents) {
+        for (Buffer b : allReturnedBuffers) {
+            if (b.isBuffer() && assertBuffers && !b.isRecycled()) {
+                fail("Data Buffer " + b + " not recycled");
+            }
+            if (!b.isBuffer() && assertEvents && !b.isRecycled()) {
+                fail("Event Buffer " + b + " not recycled");
+            }
+        }
+    }
+
+    public boolean isBlocked() {
+        return isBlocked;
+    }
+
+    public void setBlocked(boolean isBlocked) {
+        this.isBlocked = isBlocked;
+    }
+
+    public void setActionOnResumed(Runnable actionOnResumed) {
+        this.actionOnResumed = actionOnResumed;
+    }
+
+    interface BufferAndAvailabilityProvider {
+        Optional<BufferAndAvailability> getBufferAvailability()
+                throws IOException, InterruptedException;
+    }
 }

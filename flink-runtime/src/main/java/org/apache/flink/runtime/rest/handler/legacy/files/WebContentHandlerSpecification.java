@@ -20,27 +20,35 @@ package org.apache.flink.runtime.rest.handler.legacy.files;
 
 import org.apache.flink.runtime.rest.HttpMethodWrapper;
 import org.apache.flink.runtime.rest.handler.RestHandlerSpecification;
+import org.apache.flink.runtime.rest.versioning.RuntimeRestAPIVersion;
 
-/**
- * Rest handler specification for the web content handler.
- */
+import java.util.Collection;
+import java.util.Collections;
+
+/** Rest handler specification for the web content handler. */
 public final class WebContentHandlerSpecification implements RestHandlerSpecification {
 
-	private static final WebContentHandlerSpecification INSTANCE = new WebContentHandlerSpecification();
+    private static final WebContentHandlerSpecification INSTANCE =
+            new WebContentHandlerSpecification();
 
-	private WebContentHandlerSpecification() {}
+    private WebContentHandlerSpecification() {}
 
-	@Override
-	public HttpMethodWrapper getHttpMethod() {
-		return HttpMethodWrapper.GET;
-	}
+    @Override
+    public HttpMethodWrapper getHttpMethod() {
+        return HttpMethodWrapper.GET;
+    }
 
-	@Override
-	public String getTargetRestEndpointURL() {
-		return "/:*";
-	}
+    @Override
+    public String getTargetRestEndpointURL() {
+        return "/:*";
+    }
 
-	public static WebContentHandlerSpecification getInstance() {
-		return INSTANCE;
-	}
+    public static WebContentHandlerSpecification getInstance() {
+        return INSTANCE;
+    }
+
+    @Override
+    public Collection<RuntimeRestAPIVersion> getSupportedAPIVersions() {
+        return Collections.singleton(RuntimeRestAPIVersion.V1);
+    }
 }

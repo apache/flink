@@ -18,43 +18,72 @@
 
 package org.apache.flink.runtime.rest.messages.job.savepoints.stop;
 
+import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.runtime.rest.messages.RequestBody;
+import org.apache.flink.runtime.rest.messages.TriggerId;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonIgnore;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
 
 import javax.annotation.Nullable;
 
-/**
- * {@link RequestBody} for stopping a job with a savepoint.
- */
+import java.util.Optional;
+
+/** {@link RequestBody} for stopping a job with a savepoint. */
 public class StopWithSavepointRequestBody implements RequestBody {
 
-	public static final String FIELD_NAME_TARGET_DIRECTORY = "targetDirectory";
+    public static final String FIELD_NAME_TARGET_DIRECTORY = "targetDirectory";
 
-	private static final String FIELD_NAME_DRAIN = "drain";
+    public static final String FIELD_NAME_FORMAT_TYPE = "formatType";
 
-	@JsonProperty(FIELD_NAME_TARGET_DIRECTORY)
-	@Nullable
-	private final String targetDirectory;
+    private static final String FIELD_NAME_DRAIN = "drain";
 
-	@JsonProperty(FIELD_NAME_DRAIN)
-	private final boolean drain;
+    private static final String FIELD_NAME_TRIGGER_ID = "triggerId";
 
-	@JsonCreator
-	public StopWithSavepointRequestBody(
-			@Nullable @JsonProperty(FIELD_NAME_TARGET_DIRECTORY) final String targetDirectory,
-			@JsonProperty(value = FIELD_NAME_DRAIN, defaultValue = "false") final boolean drain) {
-		this.targetDirectory = targetDirectory;
-		this.drain = drain;
-	}
+    @JsonProperty(FIELD_NAME_TARGET_DIRECTORY)
+    @Nullable
+    private final String targetDirectory;
 
-	@Nullable
-	public String getTargetDirectory() {
-		return targetDirectory;
-	}
+    @JsonProperty(FIELD_NAME_DRAIN)
+    private final boolean drain;
 
-	public boolean shouldDrain() {
-		return drain;
-	}
+    @JsonProperty(FIELD_NAME_TRIGGER_ID)
+    @Nullable
+    private final TriggerId triggerId;
+
+    @JsonProperty(FIELD_NAME_FORMAT_TYPE)
+    @Nullable
+    private final SavepointFormatType formatType;
+
+    @JsonCreator
+    public StopWithSavepointRequestBody(
+            @Nullable @JsonProperty(FIELD_NAME_TARGET_DIRECTORY) final String targetDirectory,
+            @Nullable @JsonProperty(FIELD_NAME_DRAIN) final Boolean drain,
+            @Nullable @JsonProperty(FIELD_NAME_FORMAT_TYPE) final SavepointFormatType formatType,
+            @Nullable @JsonProperty(FIELD_NAME_TRIGGER_ID) TriggerId triggerId) {
+        this.targetDirectory = targetDirectory;
+        this.drain = drain != null ? drain : false;
+        this.triggerId = triggerId;
+        this.formatType = formatType != null ? formatType : SavepointFormatType.DEFAULT;
+    }
+
+    @JsonIgnore
+    public Optional<String> getTargetDirectory() {
+        return Optional.ofNullable(targetDirectory);
+    }
+
+    public boolean shouldDrain() {
+        return drain;
+    }
+
+    @JsonIgnore
+    public Optional<TriggerId> getTriggerId() {
+        return Optional.ofNullable(triggerId);
+    }
+
+    @JsonIgnore
+    public SavepointFormatType getFormatType() {
+        return formatType;
+    }
 }

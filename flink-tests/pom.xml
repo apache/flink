@@ -26,12 +26,11 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-parent</artifactId>
-		<version>1.11-SNAPSHOT</version>
-		<relativePath>..</relativePath>
+		<version>1.17-SNAPSHOT</version>
 	</parent>
 
 	<artifactId>flink-tests</artifactId>
-	<name>flink-tests</name>
+	<name>Flink : Tests</name>
 
 	<packaging>jar</packaging>
 
@@ -46,6 +45,28 @@ under the License.
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-table-test-utils</artifactId>
+			<version>${project.version}</version>
+			<scope>test</scope>
+		</dependency>
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-connector-files</artifactId>
+			<version>${project.version}</version>
+			<scope>test</scope>
+		</dependency>
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-connector-files</artifactId>
+			<version>${project.version}</version>
+			<scope>test</scope>
+			<type>test-jar</type>
+		</dependency>
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-core</artifactId>
 			<version>${project.version}</version>
 			<scope>test</scope>
@@ -54,7 +75,7 @@ under the License.
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-shaded-hadoop-2</artifactId>
+			<artifactId>flink-shaded-guava</artifactId>
 			<scope>test</scope>
 		</dependency>
 
@@ -63,10 +84,16 @@ under the License.
 			<artifactId>flink-shaded-jackson</artifactId>
 			<scope>test</scope>
 		</dependency>
+		
+		<dependency>
+			<groupId>org.apache.hadoop</groupId>
+			<artifactId>hadoop-common</artifactId>
+			<scope>test</scope>
+		</dependency>
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-streaming-java_${scala.binary.version}</artifactId>
+			<artifactId>flink-streaming-java</artifactId>
 			<version>${project.version}</version>
 			<scope>test</scope>
 			<type>test-jar</type>
@@ -74,36 +101,21 @@ under the License.
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-optimizer_${scala.binary.version}</artifactId>
+			<artifactId>flink-optimizer</artifactId>
 			<version>${project.version}</version>
 			<scope>test</scope>
 		</dependency>
 		
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-runtime_${scala.binary.version}</artifactId>
+			<artifactId>flink-runtime</artifactId>
 			<version>${project.version}</version>
 			<scope>test</scope>
 		</dependency>
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-runtime-web_${scala.binary.version}</artifactId>
-			<version>${project.version}</version>
-			<scope>test</scope>
-		</dependency>
-
-		<dependency>
-			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-runtime-web_${scala.binary.version}</artifactId>
-			<version>${project.version}</version>
-			<scope>test</scope>
-			<type>test-jar</type>
-		</dependency>
-
-		<dependency>
-			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-clients_${scala.binary.version}</artifactId>
+			<artifactId>flink-clients</artifactId>
 			<version>${project.version}</version>
 			<scope>test</scope>
 		</dependency>
@@ -137,7 +149,7 @@ under the License.
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-test-utils_${scala.binary.version}</artifactId>
+			<artifactId>flink-test-utils</artifactId>
 			<version>${project.version}</version>
 			<scope>test</scope>
 		</dependency>
@@ -174,7 +186,7 @@ under the License.
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-optimizer_${scala.binary.version}</artifactId>
+			<artifactId>flink-optimizer</artifactId>
 			<version>${project.version}</version>
 			<type>test-jar</type>
 			<scope>test</scope>
@@ -182,7 +194,7 @@ under the License.
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-runtime_${scala.binary.version}</artifactId>
+			<artifactId>flink-runtime</artifactId>
 			<version>${project.version}</version>
 			<type>test-jar</type>
 			<scope>test</scope>
@@ -220,14 +232,38 @@ under the License.
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-statebackend-rocksdb_${scala.binary.version}</artifactId>
+			<artifactId>flink-statebackend-rocksdb</artifactId>
 			<version>${project.version}</version>
 			<scope>test</scope>
 		</dependency>
 
+
 		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-statebackend-rocksdb</artifactId>
+			<version>${project.version}</version>
+			<type>test-jar</type>
+			<scope>test</scope>
+		</dependency>
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-dstl-dfs</artifactId>
+			<version>${project.version}</version>
+			<scope>test</scope>
+        </dependency>
+
+        <dependency>
 			<groupId>com.github.oshi</groupId>
 			<artifactId>oshi-core</artifactId>
+			<scope>test</scope>
+		</dependency>
+
+		<!-- For UpsertTestDynamicTableSinkITCase -->
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-json</artifactId>
+			<version>${project.version}</version>
 			<scope>test</scope>
 		</dependency>
 
@@ -237,7 +273,7 @@ under the License.
 			<artifactId>reflections</artifactId>
 		</dependency>
 
-	</dependencies>
+    </dependencies>
 
 	<build>
 		<plugins>
@@ -255,6 +291,23 @@ under the License.
 						</configuration>
 					</execution>
 				</executions>
+			</plugin>
+
+			<plugin>
+				<groupId>com.diffplug.spotless</groupId>
+				<artifactId>spotless-maven-plugin</artifactId>
+				<configuration>
+					<scala>
+						<scalafmt>
+							<version>${spotless.scalafmt.version}</version>
+							<file>${project.basedir}/../.scalafmt.conf</file>
+						</scalafmt>
+						<licenseHeader>
+							<content>${spotless.license.header}</content>
+							<delimiter>${spotless.delimiter}</delimiter>
+						</licenseHeader>
+					</scala>
+				</configuration>
 			</plugin>
 
 			<!-- Scala Compiler -->
@@ -352,15 +405,6 @@ under the License.
 					</execution>
 				</executions>
 			</plugin>
-
-			<!-- Scala Code Style, most of the configuration done via plugin management -->
-			<plugin>
-				<groupId>org.scalastyle</groupId>
-				<artifactId>scalastyle-maven-plugin</artifactId>
-				<configuration>
-					<configLocation>${project.basedir}/../tools/maven/scalastyle-config.xml</configLocation>
-				</configuration>
-			</plugin>
 		
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
@@ -389,10 +433,6 @@ under the License.
 						<classpathDependencyExclude>org.apache.curator:curator-client</classpathDependencyExclude>
 						<classpathDependencyExclude>org.apache.curator:curator-framework</classpathDependencyExclude>
 					</classpathDependencyExcludes>
-					<!-- We override the fork behaviour for those expensive tests to avoid process
-					kills due to container limits on travis -->
-					<forkCount>${flink.forkCountTestPackage}</forkCount>
-					<reuseForks>false</reuseForks>
 					<environmentVariables>
 						<!-- Make sure external hadoop environment will not affect maven building -->
 						<HADOOP_HOME />
@@ -638,74 +678,5 @@ under the License.
 				</executions>
 			</plugin>
 		</plugins>
-		
-		<pluginManagement>
-			<plugins>
-				<!--This plugin's configuration is used to store Eclipse m2e settings only. It has no influence on the Maven build itself.-->
-				<plugin>
-					<groupId>org.eclipse.m2e</groupId>
-					<artifactId>lifecycle-mapping</artifactId>
-					<version>1.0.0</version>
-					<configuration>
-						<lifecycleMappingMetadata>
-							<pluginExecutions>
-								<pluginExecution>
-									<pluginExecutionFilter>
-										<groupId>
-											org.apache.maven.plugins
-										</groupId>
-										<artifactId>
-											maven-assembly-plugin
-										</artifactId>
-										<versionRange>
-											[2.4,)
-										</versionRange>
-										<goals>
-											<goal>single</goal>
-										</goals>
-									</pluginExecutionFilter>
-									<action>
-										<ignore/>
-									</action>
-								</pluginExecution>
-								<pluginExecution>
-									<pluginExecutionFilter>
-										<groupId>org.apache.maven.plugins</groupId>
-										<artifactId>maven-clean-plugin</artifactId>
-										<versionRange>[1,)</versionRange>
-										<goals>
-											<goal>clean</goal>
-										</goals>
-									</pluginExecutionFilter>
-									<action>
-										<ignore/>
-									</action>
-								</pluginExecution>
-								<pluginExecution>
-									<pluginExecutionFilter>
-										<groupId>
-											net.alchim31.maven
-										</groupId>
-										<artifactId>
-											scala-maven-plugin
-										</artifactId>
-										<versionRange>
-											[3.1.4,)
-										</versionRange>
-										<goals>
-											<goal>compile</goal>
-											<goal>testCompile</goal>
-										</goals>
-									</pluginExecutionFilter>
-									<action>
-										<ignore/>
-									</action>
-								</pluginExecution>
-							</pluginExecutions>
-						</lifecycleMappingMetadata>
-					</configuration>
-				</plugin>
-			</plugins>
-		</pluginManagement>
 	</build>
 </project>

@@ -24,23 +24,20 @@ import org.apache.flink.api.common.typeutils.base.BooleanSerializer;
 import org.apache.flink.api.common.typeutils.base.ByteSerializer;
 import org.apache.flink.api.common.typeutils.base.DoubleSerializer;
 import org.apache.flink.api.common.typeutils.base.FloatSerializer;
-import org.apache.flink.api.common.typeutils.base.GenericArraySerializer;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.api.common.typeutils.base.LongSerializer;
-import org.apache.flink.api.common.typeutils.base.MapSerializer;
 import org.apache.flink.api.common.typeutils.base.ShortSerializer;
 import org.apache.flink.api.common.typeutils.base.array.BytePrimitiveArraySerializer;
-import org.apache.flink.api.java.typeutils.runtime.RowSerializer;
 import org.apache.flink.fnexecution.v1.FlinkFnApi;
-import org.apache.flink.table.runtime.typeutils.serializers.python.BaseArraySerializer;
-import org.apache.flink.table.runtime.typeutils.serializers.python.BaseMapSerializer;
-import org.apache.flink.table.runtime.typeutils.serializers.python.BaseRowSerializer;
-import org.apache.flink.table.runtime.typeutils.serializers.python.BigDecSerializer;
-import org.apache.flink.table.runtime.typeutils.serializers.python.DateSerializer;
-import org.apache.flink.table.runtime.typeutils.serializers.python.DecimalSerializer;
-import org.apache.flink.table.runtime.typeutils.serializers.python.StringSerializer;
-import org.apache.flink.table.runtime.typeutils.serializers.python.TimeSerializer;
-import org.apache.flink.table.runtime.typeutils.serializers.python.TimestampSerializer;
+import org.apache.flink.table.data.ArrayData;
+import org.apache.flink.table.data.DecimalData;
+import org.apache.flink.table.data.MapData;
+import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.data.util.DataFormatConverters;
+import org.apache.flink.table.runtime.typeutils.serializers.python.ArrayDataSerializer;
+import org.apache.flink.table.runtime.typeutils.serializers.python.DecimalDataSerializer;
+import org.apache.flink.table.runtime.typeutils.serializers.python.MapDataSerializer;
+import org.apache.flink.table.runtime.typeutils.serializers.python.RowDataSerializer;
 import org.apache.flink.table.types.logical.ArrayType;
 import org.apache.flink.table.types.logical.BigIntType;
 import org.apache.flink.table.types.logical.BinaryType;
@@ -52,6 +49,7 @@ import org.apache.flink.table.types.logical.DoubleType;
 import org.apache.flink.table.types.logical.FloatType;
 import org.apache.flink.table.types.logical.IntType;
 import org.apache.flink.table.types.logical.LegacyTypeInformationType;
+import org.apache.flink.table.types.logical.LocalZonedTimestampType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.MapType;
 import org.apache.flink.table.types.logical.RowType;
@@ -62,438 +60,852 @@ import org.apache.flink.table.types.logical.TinyIntType;
 import org.apache.flink.table.types.logical.VarBinaryType;
 import org.apache.flink.table.types.logical.VarCharType;
 import org.apache.flink.table.types.logical.utils.LogicalTypeDefaultVisitor;
+import org.apache.flink.table.types.utils.TypeConversions;
+import org.apache.flink.types.Row;
+import org.apache.flink.types.RowKind;
 
+import java.io.Serializable;
 import java.lang.reflect.Array;
 import java.math.BigDecimal;
-import java.sql.Date;
+import java.math.RoundingMode;
 import java.sql.Time;
-import java.sql.Timestamp;
+import java.util.HashMap;
+import java.util.Map;
 
 /**
- * Utilities for converting Flink logical types, such as convert it to the related
- * TypeSerializer or ProtoType.
+ * Utilities for converting Flink logical types, such as convert it to the related TypeSerializer or
+ * ProtoType.
  */
 @Internal
 public final class PythonTypeUtils {
 
-	private static final String EMPTY_STRING = "";
+    private static final String EMPTY_STRING = "";
 
-	public static TypeSerializer toFlinkTypeSerializer(LogicalType logicalType) {
-		return logicalType.accept(new LogicalTypeToTypeSerializerConverter());
-	}
+    public static FlinkFnApi.Schema.FieldType toProtoType(LogicalType logicalType) {
+        return logicalType.accept(new PythonTypeUtils.LogicalTypeToProtoTypeConverter());
+    }
 
-	public static TypeSerializer toBlinkTypeSerializer(LogicalType logicalType) {
-		return logicalType.accept(new LogicalTypeToBlinkTypeSerializerConverter());
-	}
+    public static TypeSerializer toInternalSerializer(LogicalType logicalType) {
+        return logicalType.accept(new LogicalTypetoInternalSerializerConverter());
+    }
 
-	/**
-	 * Convert LogicalType to conversion class for flink planner.
-	 */
-	public static class LogicalTypeToConversionClassConverter extends LogicalTypeDefaultVisitor<Class> {
+    public static DataConverter toDataConverter(LogicalType logicalType) {
+        return logicalType.accept(new LogicalTypeToDataConverter());
+    }
 
-		public static final LogicalTypeToConversionClassConverter INSTANCE = new LogicalTypeToConversionClassConverter();
+    /**
+     * Convert the specified bigDecimal according to the specified precision and scale. The
+     * specified bigDecimal may be rounded to have the specified scale and then the specified
+     * precision is checked. If precision overflow, it will return `null`.
+     *
+     * <p>Note: The implementation refers to {@link DecimalData#fromBigDecimal}.
+     */
+    public static BigDecimal fromBigDecimal(BigDecimal bigDecimal, int precision, int scale) {
+        if (bigDecimal.scale() != scale || bigDecimal.precision() > precision) {
+            // need adjust the precision and scale
+            bigDecimal = bigDecimal.setScale(scale, RoundingMode.HALF_UP);
+            if (bigDecimal.precision() > precision) {
+                return null;
+            }
+        }
+        return bigDecimal;
+    }
 
-		private LogicalTypeToConversionClassConverter() {
-		}
+    private static class LogicalTypetoInternalSerializerConverter
+            extends LogicalTypeDefaultVisitor<TypeSerializer> {
+        @Override
+        public TypeSerializer visit(BooleanType booleanType) {
+            return BooleanSerializer.INSTANCE;
+        }
 
-		@Override
-		public Class visit(DateType dateType) {
-			return Date.class;
-		}
+        @Override
+        public TypeSerializer visit(TinyIntType tinyIntType) {
+            return ByteSerializer.INSTANCE;
+        }
 
-		@Override
-		public Class visit(TimeType timeType) {
-			return Time.class;
-		}
+        @Override
+        public TypeSerializer visit(SmallIntType smallIntType) {
+            return ShortSerializer.INSTANCE;
+        }
 
-		@Override
-		public Class visit(TimestampType timestampType) {
-			return Timestamp.class;
-		}
+        @Override
+        public TypeSerializer visit(IntType intType) {
+            return IntSerializer.INSTANCE;
+        }
 
-		@Override
-		public Class visit(ArrayType arrayType) {
-			Class elementClass = arrayType.getElementType().accept(this);
-			return Array.newInstance(elementClass, 0).getClass();
-		}
+        @Override
+        public TypeSerializer visit(BigIntType bigIntType) {
+            return LongSerializer.INSTANCE;
+        }
 
-		@Override
-		protected Class defaultMethod(LogicalType logicalType) {
-			return logicalType.getDefaultConversion();
-		}
-	}
+        @Override
+        public TypeSerializer visit(FloatType floatType) {
+            return FloatSerializer.INSTANCE;
+        }
 
-	private static class LogicalTypeToTypeSerializerConverter extends LogicalTypeDefaultVisitor<TypeSerializer> {
-		@Override
-		public TypeSerializer visit(BooleanType booleanType) {
-			return BooleanSerializer.INSTANCE;
-		}
+        @Override
+        public TypeSerializer visit(DoubleType doubleType) {
+            return DoubleSerializer.INSTANCE;
+        }
 
-		@Override
-		public TypeSerializer visit(TinyIntType tinyIntType) {
-			return ByteSerializer.INSTANCE;
-		}
+        @Override
+        public TypeSerializer visit(BinaryType binaryType) {
+            return BytePrimitiveArraySerializer.INSTANCE;
+        }
 
-		@Override
-		public TypeSerializer visit(SmallIntType smallIntType) {
-			return ShortSerializer.INSTANCE;
-		}
+        @Override
+        public TypeSerializer visit(VarBinaryType varBinaryType) {
+            return BytePrimitiveArraySerializer.INSTANCE;
+        }
 
-		@Override
-		public TypeSerializer visit(IntType intType) {
-			return IntSerializer.INSTANCE;
-		}
+        @Override
+        public TypeSerializer visit(RowType rowType) {
+            final TypeSerializer[] fieldTypeSerializers =
+                    rowType.getFields().stream()
+                            .map(f -> f.getType().accept(this))
+                            .toArray(TypeSerializer[]::new);
+            return new RowDataSerializer(
+                    rowType.getChildren().toArray(new LogicalType[0]), fieldTypeSerializers);
+        }
 
-		@Override
-		public TypeSerializer visit(BigIntType bigIntType) {
-			return LongSerializer.INSTANCE;
-		}
+        @Override
+        public TypeSerializer visit(VarCharType varCharType) {
+            return StringDataSerializer.INSTANCE;
+        }
 
-		@Override
-		public TypeSerializer visit(FloatType floatType) {
-			return FloatSerializer.INSTANCE;
-		}
+        @Override
+        public TypeSerializer visit(CharType charType) {
+            return StringDataSerializer.INSTANCE;
+        }
 
-		@Override
-		public TypeSerializer visit(DoubleType doubleType) {
-			return DoubleSerializer.INSTANCE;
-		}
+        @Override
+        public TypeSerializer visit(DateType dateType) {
+            return IntSerializer.INSTANCE;
+        }
 
-		@Override
-		public TypeSerializer visit(BinaryType binaryType) {
-			return BytePrimitiveArraySerializer.INSTANCE;
-		}
+        @Override
+        public TypeSerializer visit(TimeType timeType) {
+            return IntSerializer.INSTANCE;
+        }
 
-		@Override
-		public TypeSerializer visit(VarBinaryType varBinaryType) {
-			return BytePrimitiveArraySerializer.INSTANCE;
-		}
+        @Override
+        public TypeSerializer visit(TimestampType timestampType) {
+            return new TimestampDataSerializer(timestampType.getPrecision());
+        }
 
-		@Override
-		public TypeSerializer visit(VarCharType varCharType) {
-			return StringSerializer.INSTANCE;
-		}
+        @Override
+        public TypeSerializer visit(LocalZonedTimestampType localZonedTimestampType) {
+            return new TimestampDataSerializer(localZonedTimestampType.getPrecision());
+        }
 
-		@Override
-		public TypeSerializer visit(CharType charType) {
-			return StringSerializer.INSTANCE;
-		}
+        public TypeSerializer visit(ArrayType arrayType) {
+            LogicalType elementType = arrayType.getElementType();
+            TypeSerializer elementTypeSerializer = elementType.accept(this);
+            return new ArrayDataSerializer(elementType, elementTypeSerializer);
+        }
 
-		@Override
-		public TypeSerializer visit(DateType dateType) {
-			return DateSerializer.INSTANCE;
-		}
+        @Override
+        public TypeSerializer visit(MapType mapType) {
+            LogicalType keyType = mapType.getKeyType();
+            LogicalType valueType = mapType.getValueType();
+            TypeSerializer<?> keyTypeSerializer = keyType.accept(this);
+            TypeSerializer<?> valueTypeSerializer = valueType.accept(this);
+            return new MapDataSerializer(
+                    keyType, valueType, keyTypeSerializer, valueTypeSerializer);
+        }
 
-		@Override
-		public TypeSerializer visit(TimeType timeType) {
-			return TimeSerializer.INSTANCE;
-		}
+        @Override
+        public TypeSerializer visit(DecimalType decimalType) {
+            return new DecimalDataSerializer(decimalType.getPrecision(), decimalType.getScale());
+        }
 
-		@Override
-		public TypeSerializer visit(TimestampType timestampType) {
-			return new TimestampSerializer(timestampType.getPrecision());
-		}
+        @Override
+        protected TypeSerializer defaultMethod(LogicalType logicalType) {
+            throw new UnsupportedOperationException(
+                    String.format(
+                            "Python UDF doesn't support logical type %s currently.",
+                            logicalType.asSummaryString()));
+        }
+    }
 
-		@SuppressWarnings("unchecked")
-		@Override
-		public TypeSerializer visit(ArrayType arrayType) {
-			LogicalType elementType = arrayType.getElementType();
-			TypeSerializer<?> elementTypeSerializer = elementType.accept(this);
-			Class<?> elementClass = elementType.accept(LogicalTypeToConversionClassConverter.INSTANCE);
-			return new GenericArraySerializer(elementClass, elementTypeSerializer);
-		}
+    /** Converter That convert the logicalType to the related Prototype. */
+    public static class LogicalTypeToProtoTypeConverter
+            extends LogicalTypeDefaultVisitor<FlinkFnApi.Schema.FieldType> {
+        @Override
+        public FlinkFnApi.Schema.FieldType visit(BooleanType booleanType) {
+            return FlinkFnApi.Schema.FieldType.newBuilder()
+                    .setTypeName(FlinkFnApi.Schema.TypeName.BOOLEAN)
+                    .setNullable(booleanType.isNullable())
+                    .build();
+        }
 
-		@Override
-		public TypeSerializer visit(MapType mapType) {
-			TypeSerializer<?> keyTypeSerializer = mapType.getKeyType().accept(this);
-			TypeSerializer<?> valueTypeSerializer = mapType.getValueType().accept(this);
-			return new MapSerializer<>(keyTypeSerializer, valueTypeSerializer);
-		}
+        @Override
+        public FlinkFnApi.Schema.FieldType visit(TinyIntType tinyIntType) {
+            return FlinkFnApi.Schema.FieldType.newBuilder()
+                    .setTypeName(FlinkFnApi.Schema.TypeName.TINYINT)
+                    .setNullable(tinyIntType.isNullable())
+                    .build();
+        }
 
-		@Override
-		public TypeSerializer visit(RowType rowType) {
-			final TypeSerializer[] fieldTypeSerializers = rowType.getFields()
-				.stream()
-				.map(f -> f.getType().accept(this))
-				.toArray(TypeSerializer[]::new);
-			return new RowSerializer(fieldTypeSerializers);
-		}
+        @Override
+        public FlinkFnApi.Schema.FieldType visit(SmallIntType smallIntType) {
+            return FlinkFnApi.Schema.FieldType.newBuilder()
+                    .setTypeName(FlinkFnApi.Schema.TypeName.SMALLINT)
+                    .setNullable(smallIntType.isNullable())
+                    .build();
+        }
 
-		@Override
-		protected TypeSerializer defaultMethod(LogicalType logicalType) {
-			if (logicalType instanceof LegacyTypeInformationType) {
-				Class<?> typeClass = ((LegacyTypeInformationType) logicalType).getTypeInformation().getTypeClass();
-				if (typeClass == BigDecimal.class) {
-					return BigDecSerializer.INSTANCE;
-				}
-			}
-			throw new UnsupportedOperationException(String.format(
-				"Python UDF doesn't support logical type %s currently.", logicalType.asSummaryString()));
-		}
-	}
+        @Override
+        public FlinkFnApi.Schema.FieldType visit(IntType intType) {
+            return FlinkFnApi.Schema.FieldType.newBuilder()
+                    .setTypeName(FlinkFnApi.Schema.TypeName.INT)
+                    .setNullable(intType.isNullable())
+                    .build();
+        }
 
-	private static class LogicalTypeToBlinkTypeSerializerConverter extends LogicalTypeToTypeSerializerConverter {
+        @Override
+        public FlinkFnApi.Schema.FieldType visit(BigIntType bigIntType) {
+            return FlinkFnApi.Schema.FieldType.newBuilder()
+                    .setTypeName(FlinkFnApi.Schema.TypeName.BIGINT)
+                    .setNullable(bigIntType.isNullable())
+                    .build();
+        }
 
-		@Override
-		public TypeSerializer visit(RowType rowType) {
-			final TypeSerializer[] fieldTypeSerializers = rowType.getFields()
-				.stream()
-				.map(f -> f.getType().accept(this))
-				.toArray(TypeSerializer[]::new);
-			return new BaseRowSerializer(rowType.getChildren().toArray(new LogicalType[0]), fieldTypeSerializers);
-		}
+        @Override
+        public FlinkFnApi.Schema.FieldType visit(FloatType floatType) {
+            return FlinkFnApi.Schema.FieldType.newBuilder()
+                    .setTypeName(FlinkFnApi.Schema.TypeName.FLOAT)
+                    .setNullable(floatType.isNullable())
+                    .build();
+        }
 
-		@Override
-		public TypeSerializer visit(VarCharType varCharType) {
-			return BinaryStringSerializer.INSTANCE;
-		}
+        @Override
+        public FlinkFnApi.Schema.FieldType visit(DoubleType doubleType) {
+            return FlinkFnApi.Schema.FieldType.newBuilder()
+                    .setTypeName(FlinkFnApi.Schema.TypeName.DOUBLE)
+                    .setNullable(doubleType.isNullable())
+                    .build();
+        }
 
-		@Override
-		public TypeSerializer visit(CharType charType) {
-			return BinaryStringSerializer.INSTANCE;
-		}
+        @Override
+        public FlinkFnApi.Schema.FieldType visit(BinaryType binaryType) {
+            return FlinkFnApi.Schema.FieldType.newBuilder()
+                    .setTypeName(FlinkFnApi.Schema.TypeName.BINARY)
+                    .setBinaryInfo(
+                            FlinkFnApi.Schema.BinaryInfo.newBuilder()
+                                    .setLength(binaryType.getLength()))
+                    .setNullable(binaryType.isNullable())
+                    .build();
+        }
 
-		@Override
-		public TypeSerializer visit(DateType dateType) {
-			return IntSerializer.INSTANCE;
-		}
+        @Override
+        public FlinkFnApi.Schema.FieldType visit(VarBinaryType varBinaryType) {
+            return FlinkFnApi.Schema.FieldType.newBuilder()
+                    .setTypeName(FlinkFnApi.Schema.TypeName.VARBINARY)
+                    .setVarBinaryInfo(
+                            FlinkFnApi.Schema.VarBinaryInfo.newBuilder()
+                                    .setLength(varBinaryType.getLength()))
+                    .setNullable(varBinaryType.isNullable())
+                    .build();
+        }
 
-		@Override
-		public TypeSerializer visit(TimeType timeType) {
-			return IntSerializer.INSTANCE;
-		}
+        @Override
+        public FlinkFnApi.Schema.FieldType visit(CharType charType) {
+            return FlinkFnApi.Schema.FieldType.newBuilder()
+                    .setTypeName(FlinkFnApi.Schema.TypeName.CHAR)
+                    .setCharInfo(
+                            FlinkFnApi.Schema.CharInfo.newBuilder().setLength(charType.getLength()))
+                    .setNullable(charType.isNullable())
+                    .build();
+        }
 
-		@Override
-		public TypeSerializer visit(TimestampType timestampType) {
-			return new SqlTimestampSerializer(timestampType.getPrecision());
-		}
+        @Override
+        public FlinkFnApi.Schema.FieldType visit(VarCharType varCharType) {
+            return FlinkFnApi.Schema.FieldType.newBuilder()
+                    .setTypeName(FlinkFnApi.Schema.TypeName.VARCHAR)
+                    .setVarCharInfo(
+                            FlinkFnApi.Schema.VarCharInfo.newBuilder()
+                                    .setLength(varCharType.getLength()))
+                    .setNullable(varCharType.isNullable())
+                    .build();
+        }
 
-		public TypeSerializer visit(ArrayType arrayType) {
-			LogicalType elementType = arrayType.getElementType();
-			TypeSerializer elementTypeSerializer = elementType.accept(this);
-			return new BaseArraySerializer(elementType, elementTypeSerializer);
-		}
+        @Override
+        public FlinkFnApi.Schema.FieldType visit(DateType dateType) {
+            return FlinkFnApi.Schema.FieldType.newBuilder()
+                    .setTypeName(FlinkFnApi.Schema.TypeName.DATE)
+                    .setNullable(dateType.isNullable())
+                    .build();
+        }
 
-		@Override
-		public TypeSerializer visit(MapType mapType) {
-			LogicalType keyType = mapType.getKeyType();
-			LogicalType valueType = mapType.getValueType();
-			TypeSerializer<?> keyTypeSerializer = keyType.accept(this);
-			TypeSerializer<?> valueTypeSerializer = valueType.accept(this);
-			return new BaseMapSerializer(keyType, valueType, keyTypeSerializer, valueTypeSerializer);
-		}
+        @Override
+        public FlinkFnApi.Schema.FieldType visit(TimeType timeType) {
+            return FlinkFnApi.Schema.FieldType.newBuilder()
+                    .setTypeName(FlinkFnApi.Schema.TypeName.TIME)
+                    .setTimeInfo(
+                            FlinkFnApi.Schema.TimeInfo.newBuilder()
+                                    .setPrecision(timeType.getPrecision()))
+                    .setNullable(timeType.isNullable())
+                    .build();
+        }
 
-		@Override
-		public TypeSerializer visit(DecimalType decimalType) {
-			return new DecimalSerializer(decimalType.getPrecision(), decimalType.getScale());
-		}
-	}
+        @Override
+        public FlinkFnApi.Schema.FieldType visit(TimestampType timestampType) {
+            FlinkFnApi.Schema.FieldType.Builder builder =
+                    FlinkFnApi.Schema.FieldType.newBuilder()
+                            .setTypeName(FlinkFnApi.Schema.TypeName.TIMESTAMP)
+                            .setNullable(timestampType.isNullable());
 
-	/**
-	 * Converter That convert the logicalType to the related Prototype.
-	 */
-	public static class LogicalTypeToProtoTypeConverter extends LogicalTypeDefaultVisitor<FlinkFnApi.Schema.FieldType> {
-		@Override
-		public FlinkFnApi.Schema.FieldType visit(BooleanType booleanType) {
-			return FlinkFnApi.Schema.FieldType.newBuilder()
-				.setTypeName(FlinkFnApi.Schema.TypeName.BOOLEAN)
-				.setNullable(booleanType.isNullable())
-				.build();
-		}
+            FlinkFnApi.Schema.TimestampInfo.Builder timestampInfoBuilder =
+                    FlinkFnApi.Schema.TimestampInfo.newBuilder()
+                            .setPrecision(timestampType.getPrecision());
+            builder.setTimestampInfo(timestampInfoBuilder);
+            return builder.build();
+        }
 
-		@Override
-		public FlinkFnApi.Schema.FieldType visit(TinyIntType tinyIntType) {
-			return FlinkFnApi.Schema.FieldType.newBuilder()
-				.setTypeName(FlinkFnApi.Schema.TypeName.TINYINT)
-				.setNullable(tinyIntType.isNullable())
-				.build();
-		}
+        @Override
+        public FlinkFnApi.Schema.FieldType visit(LocalZonedTimestampType localZonedTimestampType) {
+            FlinkFnApi.Schema.FieldType.Builder builder =
+                    FlinkFnApi.Schema.FieldType.newBuilder()
+                            .setTypeName(FlinkFnApi.Schema.TypeName.LOCAL_ZONED_TIMESTAMP)
+                            .setNullable(localZonedTimestampType.isNullable());
 
-		@Override
-		public FlinkFnApi.Schema.FieldType visit(SmallIntType smallIntType) {
-			return FlinkFnApi.Schema.FieldType.newBuilder()
-				.setTypeName(FlinkFnApi.Schema.TypeName.SMALLINT)
-				.setNullable(smallIntType.isNullable())
-				.build();
-		}
+            FlinkFnApi.Schema.LocalZonedTimestampInfo.Builder dateTimeBuilder =
+                    FlinkFnApi.Schema.LocalZonedTimestampInfo.newBuilder()
+                            .setPrecision(localZonedTimestampType.getPrecision());
+            builder.setLocalZonedTimestampInfo(dateTimeBuilder.build());
+            return builder.build();
+        }
 
-		@Override
-		public FlinkFnApi.Schema.FieldType visit(IntType intType) {
-			return FlinkFnApi.Schema.FieldType.newBuilder()
-				.setTypeName(FlinkFnApi.Schema.TypeName.INT)
-				.setNullable(intType.isNullable())
-				.build();
-		}
+        @Override
+        public FlinkFnApi.Schema.FieldType visit(DecimalType decimalType) {
+            FlinkFnApi.Schema.FieldType.Builder builder =
+                    FlinkFnApi.Schema.FieldType.newBuilder()
+                            .setTypeName(FlinkFnApi.Schema.TypeName.DECIMAL)
+                            .setNullable(decimalType.isNullable());
 
-		@Override
-		public FlinkFnApi.Schema.FieldType visit(BigIntType bigIntType) {
-			return FlinkFnApi.Schema.FieldType.newBuilder()
-				.setTypeName(FlinkFnApi.Schema.TypeName.BIGINT)
-				.setNullable(bigIntType.isNullable())
-				.build();
-		}
+            FlinkFnApi.Schema.DecimalInfo.Builder decimalInfoBuilder =
+                    FlinkFnApi.Schema.DecimalInfo.newBuilder()
+                            .setPrecision(decimalType.getPrecision())
+                            .setScale(decimalType.getScale());
+            builder.setDecimalInfo(decimalInfoBuilder);
+            return builder.build();
+        }
 
-		@Override
-		public FlinkFnApi.Schema.FieldType visit(FloatType floatType) {
-			return FlinkFnApi.Schema.FieldType.newBuilder()
-				.setTypeName(FlinkFnApi.Schema.TypeName.FLOAT)
-				.setNullable(floatType.isNullable())
-				.build();
-		}
+        @Override
+        public FlinkFnApi.Schema.FieldType visit(ArrayType arrayType) {
+            FlinkFnApi.Schema.FieldType.Builder builder =
+                    FlinkFnApi.Schema.FieldType.newBuilder()
+                            .setTypeName(FlinkFnApi.Schema.TypeName.BASIC_ARRAY)
+                            .setNullable(arrayType.isNullable());
 
-		@Override
-		public FlinkFnApi.Schema.FieldType visit(DoubleType doubleType) {
-			return FlinkFnApi.Schema.FieldType.newBuilder()
-				.setTypeName(FlinkFnApi.Schema.TypeName.DOUBLE)
-				.setNullable(doubleType.isNullable())
-				.build();
-		}
+            FlinkFnApi.Schema.FieldType elementFieldType = arrayType.getElementType().accept(this);
+            builder.setCollectionElementType(elementFieldType);
+            return builder.build();
+        }
 
-		@Override
-		public FlinkFnApi.Schema.FieldType visit(BinaryType binaryType) {
-			return FlinkFnApi.Schema.FieldType.newBuilder()
-				.setTypeName(FlinkFnApi.Schema.TypeName.BINARY)
-				.setNullable(binaryType.isNullable())
-				.build();
-		}
+        @Override
+        public FlinkFnApi.Schema.FieldType visit(MapType mapType) {
+            FlinkFnApi.Schema.FieldType.Builder builder =
+                    FlinkFnApi.Schema.FieldType.newBuilder()
+                            .setTypeName(FlinkFnApi.Schema.TypeName.MAP)
+                            .setNullable(mapType.isNullable());
 
-		@Override
-		public FlinkFnApi.Schema.FieldType visit(VarBinaryType varBinaryType) {
-			return FlinkFnApi.Schema.FieldType.newBuilder()
-				.setTypeName(FlinkFnApi.Schema.TypeName.VARBINARY)
-				.setNullable(varBinaryType.isNullable())
-				.build();
-		}
+            FlinkFnApi.Schema.MapInfo.Builder mapBuilder =
+                    FlinkFnApi.Schema.MapInfo.newBuilder()
+                            .setKeyType(mapType.getKeyType().accept(this))
+                            .setValueType(mapType.getValueType().accept(this));
+            builder.setMapInfo(mapBuilder.build());
+            return builder.build();
+        }
 
-		@Override
-		public FlinkFnApi.Schema.FieldType visit(CharType charType) {
-			return FlinkFnApi.Schema.FieldType.newBuilder()
-				.setTypeName(FlinkFnApi.Schema.TypeName.CHAR)
-				.setNullable(charType.isNullable())
-				.build();
-		}
+        @Override
+        public FlinkFnApi.Schema.FieldType visit(RowType rowType) {
+            FlinkFnApi.Schema.FieldType.Builder builder =
+                    FlinkFnApi.Schema.FieldType.newBuilder()
+                            .setTypeName(FlinkFnApi.Schema.TypeName.ROW)
+                            .setNullable(rowType.isNullable());
 
-		@Override
-		public FlinkFnApi.Schema.FieldType visit(VarCharType varCharType) {
-			return FlinkFnApi.Schema.FieldType.newBuilder()
-				.setTypeName(FlinkFnApi.Schema.TypeName.VARCHAR)
-				.setNullable(varCharType.isNullable())
-				.build();
-		}
+            FlinkFnApi.Schema.Builder schemaBuilder = FlinkFnApi.Schema.newBuilder();
+            for (RowType.RowField field : rowType.getFields()) {
+                schemaBuilder.addFields(
+                        FlinkFnApi.Schema.Field.newBuilder()
+                                .setName(field.getName())
+                                .setDescription(field.getDescription().orElse(EMPTY_STRING))
+                                .setType(field.getType().accept(this))
+                                .build());
+            }
+            builder.setRowSchema(schemaBuilder.build());
+            return builder.build();
+        }
 
-		@Override
-		public FlinkFnApi.Schema.FieldType visit(DateType dateType) {
-			return FlinkFnApi.Schema.FieldType.newBuilder()
-				.setTypeName(FlinkFnApi.Schema.TypeName.DATE)
-				.setNullable(dateType.isNullable())
-				.build();
-		}
+        @Override
+        protected FlinkFnApi.Schema.FieldType defaultMethod(LogicalType logicalType) {
+            if (logicalType instanceof LegacyTypeInformationType) {
+                Class<?> typeClass =
+                        ((LegacyTypeInformationType) logicalType)
+                                .getTypeInformation()
+                                .getTypeClass();
+                if (typeClass == BigDecimal.class) {
+                    FlinkFnApi.Schema.FieldType.Builder builder =
+                            FlinkFnApi.Schema.FieldType.newBuilder()
+                                    .setTypeName(FlinkFnApi.Schema.TypeName.DECIMAL)
+                                    .setNullable(logicalType.isNullable());
+                    // Because we can't get precision and scale from legacy BIG_DEC_TYPE_INFO,
+                    // we set the precision and scale to default value compatible with python.
+                    FlinkFnApi.Schema.DecimalInfo.Builder decimalTypeBuilder =
+                            FlinkFnApi.Schema.DecimalInfo.newBuilder()
+                                    .setPrecision(38)
+                                    .setScale(18);
+                    builder.setDecimalInfo(decimalTypeBuilder);
+                    return builder.build();
+                }
+            }
+            throw new UnsupportedOperationException(
+                    String.format(
+                            "Python UDF doesn't support logical type %s currently.",
+                            logicalType.asSummaryString()));
+        }
+    }
 
-		@Override
-		public FlinkFnApi.Schema.FieldType visit(TimeType timeType) {
-			return FlinkFnApi.Schema.FieldType.newBuilder()
-				.setTypeName(FlinkFnApi.Schema.TypeName.TIME)
-				.setNullable(timeType.isNullable())
-				.build();
-		}
+    /** Data Converter that converts the data to the java format data which can be used in PemJa. */
+    public abstract static class DataConverter<IN, INTER, OUT> implements Serializable {
 
-		@Override
-		public FlinkFnApi.Schema.FieldType visit(TimestampType timestampType) {
-			FlinkFnApi.Schema.FieldType.Builder builder =
-				FlinkFnApi.Schema.FieldType.newBuilder()
-					.setTypeName(FlinkFnApi.Schema.TypeName.DATETIME)
-					.setNullable(timestampType.isNullable());
+        private static final long serialVersionUID = 1L;
 
-			FlinkFnApi.Schema.DateTimeType.Builder dateTimeBuilder =
-				FlinkFnApi.Schema.DateTimeType.newBuilder()
-					.setPrecision(timestampType.getPrecision());
-			builder.setDateTimeType(dateTimeBuilder.build());
-			return builder.build();
-		}
+        private final DataFormatConverters.DataFormatConverter<IN, INTER> dataFormatConverter;
 
-		@Override
-		public FlinkFnApi.Schema.FieldType visit(DecimalType decimalType) {
-			FlinkFnApi.Schema.FieldType.Builder builder =
-				FlinkFnApi.Schema.FieldType.newBuilder()
-					.setTypeName(FlinkFnApi.Schema.TypeName.DECIMAL)
-					.setNullable(decimalType.isNullable());
+        public DataConverter(
+                DataFormatConverters.DataFormatConverter<IN, INTER> dataFormatConverter) {
+            this.dataFormatConverter = dataFormatConverter;
+        }
 
-			FlinkFnApi.Schema.DecimalType.Builder decimalTypeBuilder =
-				FlinkFnApi.Schema.DecimalType.newBuilder()
-					.setPrecision(decimalType.getPrecision())
-					.setScale(decimalType.getScale());
-			builder.setDecimalType(decimalTypeBuilder);
-			return builder.build();
-		}
+        public final IN toInternal(OUT value) {
+            return dataFormatConverter.toInternal(toInternalImpl(value));
+        }
 
-		@Override
-		public FlinkFnApi.Schema.FieldType visit(ArrayType arrayType) {
-			FlinkFnApi.Schema.FieldType.Builder builder =
-				FlinkFnApi.Schema.FieldType.newBuilder()
-					.setTypeName(FlinkFnApi.Schema.TypeName.ARRAY)
-					.setNullable(arrayType.isNullable());
+        public final OUT toExternal(RowData row, int column) {
+            return toExternalImpl(dataFormatConverter.toExternal(row, column));
+        }
 
-			FlinkFnApi.Schema.FieldType elementFieldType = arrayType.getElementType().accept(this);
-			builder.setCollectionElementType(elementFieldType);
-			return builder.build();
-		}
+        abstract INTER toInternalImpl(OUT value);
 
-		@Override
-		public FlinkFnApi.Schema.FieldType visit(MapType mapType) {
-			FlinkFnApi.Schema.FieldType.Builder builder =
-				FlinkFnApi.Schema.FieldType.newBuilder()
-					.setTypeName(FlinkFnApi.Schema.TypeName.MAP)
-					.setNullable(mapType.isNullable());
+        abstract OUT toExternalImpl(INTER value);
+    }
 
-			FlinkFnApi.Schema.MapType.Builder mapBuilder =
-				FlinkFnApi.Schema.MapType.newBuilder()
-					.setKeyType(mapType.getKeyType().accept(this))
-					.setValueType(mapType.getValueType().accept(this));
-			builder.setMapType(mapBuilder.build());
-			return builder.build();
-		}
+    /** Identity data converter. */
+    public static final class IdentityDataConverter<IN, OUT> extends DataConverter<IN, OUT, OUT> {
+        IdentityDataConverter(
+                DataFormatConverters.DataFormatConverter<IN, OUT> dataFormatConverter) {
+            super(dataFormatConverter);
+        }
 
-		@Override
-		public FlinkFnApi.Schema.FieldType visit(RowType rowType) {
-			FlinkFnApi.Schema.FieldType.Builder builder =
-				FlinkFnApi.Schema.FieldType.newBuilder()
-					.setTypeName(FlinkFnApi.Schema.TypeName.ROW)
-					.setNullable(rowType.isNullable());
+        @Override
+        OUT toInternalImpl(OUT value) {
+            return value;
+        }
 
-			FlinkFnApi.Schema.Builder schemaBuilder = FlinkFnApi.Schema.newBuilder();
-			for (RowType.RowField field : rowType.getFields()) {
-				schemaBuilder.addFields(
-					FlinkFnApi.Schema.Field.newBuilder()
-						.setName(field.getName())
-						.setDescription(field.getDescription().orElse(EMPTY_STRING))
-						.setType(field.getType().accept(this))
-						.build());
-			}
-			builder.setRowSchema(schemaBuilder.build());
-			return builder.build();
-		}
+        @Override
+        OUT toExternalImpl(OUT value) {
+            return value;
+        }
+    }
 
-		@Override
-		protected FlinkFnApi.Schema.FieldType defaultMethod(LogicalType logicalType) {
-			if (logicalType instanceof LegacyTypeInformationType) {
-				Class<?> typeClass = ((LegacyTypeInformationType) logicalType).getTypeInformation().getTypeClass();
-				if (typeClass == BigDecimal.class) {
-					FlinkFnApi.Schema.FieldType.Builder builder =
-						FlinkFnApi.Schema.FieldType.newBuilder()
-							.setTypeName(FlinkFnApi.Schema.TypeName.DECIMAL)
-							.setNullable(logicalType.isNullable());
-					// Because we can't get precision and scale from legacy BIG_DEC_TYPE_INFO,
-					// we set the precision and scale to default value compatible with python.
-					FlinkFnApi.Schema.DecimalType.Builder decimalTypeBuilder =
-						FlinkFnApi.Schema.DecimalType.newBuilder()
-							.setPrecision(38)
-							.setScale(18);
-					builder.setDecimalType(decimalTypeBuilder);
-					return builder.build();
-				}
-			}
-			throw new UnsupportedOperationException(String.format(
-				"Python UDF doesn't support logical type %s currently.", logicalType.asSummaryString()));
-		}
-	}
+    /**
+     * Python Long will be converted to Long in PemJa, so we need ByteDataConverter to convert Java
+     * Long to internal Byte.
+     */
+    public static final class ByteDataConverter extends DataConverter<Byte, Byte, Long> {
+
+        public static final ByteDataConverter INSTANCE = new ByteDataConverter();
+
+        private ByteDataConverter() {
+            super(DataFormatConverters.ByteConverter.INSTANCE);
+        }
+
+        @Override
+        Byte toInternalImpl(Long value) {
+            return value.byteValue();
+        }
+
+        @Override
+        Long toExternalImpl(Byte value) {
+            return value.longValue();
+        }
+    }
+
+    /**
+     * Python Long will be converted to Long in PemJa, so we need ShortDataConverter to convert Java
+     * Long to internal Short.
+     */
+    public static final class ShortDataConverter extends DataConverter<Short, Short, Long> {
+
+        public static final ShortDataConverter INSTANCE = new ShortDataConverter();
+
+        private ShortDataConverter() {
+            super(DataFormatConverters.ShortConverter.INSTANCE);
+        }
+
+        @Override
+        Short toInternalImpl(Long value) {
+            return value.shortValue();
+        }
+
+        @Override
+        Long toExternalImpl(Short value) {
+            return value.longValue();
+        }
+    }
+
+    /**
+     * Python Long will be converted to Long in PemJa, so we need IntDataConverter to convert Java
+     * Long to internal Integer.
+     */
+    public static final class IntDataConverter extends DataConverter<Integer, Integer, Long> {
+
+        public static final IntDataConverter INSTANCE = new IntDataConverter();
+
+        private IntDataConverter() {
+            super(DataFormatConverters.IntConverter.INSTANCE);
+        }
+
+        @Override
+        Integer toInternalImpl(Long value) {
+            return value.intValue();
+        }
+
+        @Override
+        Long toExternalImpl(Integer value) {
+            return value.longValue();
+        }
+    }
+
+    /**
+     * Python Float will be converted to Double in PemJa, so we need FloatDataConverter to convert
+     * Java Double to internal Float.
+     */
+    public static final class FloatDataConverter extends DataConverter<Float, Float, Double> {
+
+        public static final FloatDataConverter INSTANCE = new FloatDataConverter();
+
+        private FloatDataConverter() {
+            super(DataFormatConverters.FloatConverter.INSTANCE);
+        }
+
+        @Override
+        Float toInternalImpl(Double value) {
+            return value.floatValue();
+        }
+
+        @Override
+        Double toExternalImpl(Float value) {
+            return value.doubleValue();
+        }
+    }
+
+    /**
+     * Python datetime.time will be converted to Time in PemJa, so we need TimeDataConverter to
+     * convert Java Double to internal Integer.
+     */
+    public static final class TimeDataConverter extends DataConverter<Integer, Integer, Time> {
+
+        public static final TimeDataConverter INSTANCE = new TimeDataConverter();
+
+        private TimeDataConverter() {
+            super(DataFormatConverters.IntConverter.INSTANCE);
+        }
+
+        @Override
+        Integer toInternalImpl(Time value) {
+            return (int) value.getTime();
+        }
+
+        @Override
+        Time toExternalImpl(Integer value) {
+            return new Time(value);
+        }
+    }
+
+    /**
+     * RowData will be converted to the Object Array [RowKind(as Long Object), Field Values(as
+     * Object Array)].
+     */
+    public static final class RowDataConverter extends DataConverter<RowData, Row, Object[]> {
+
+        private final DataConverter[] fieldDataConverters;
+        private final Row reuseRow;
+        private final Object[] reuseExternalRow;
+        private final Object[] reuseExternalRowData;
+
+        RowDataConverter(
+                DataConverter[] fieldDataConverters,
+                DataFormatConverters.DataFormatConverter<RowData, Row> dataFormatConverter) {
+            super(dataFormatConverter);
+            this.fieldDataConverters = fieldDataConverters;
+            this.reuseRow = new Row(fieldDataConverters.length);
+            this.reuseExternalRowData = new Object[fieldDataConverters.length];
+            this.reuseExternalRow = new Object[2];
+            this.reuseExternalRow[1] = reuseExternalRowData;
+        }
+
+        @SuppressWarnings("unchecked")
+        @Override
+        Row toInternalImpl(Object[] value) {
+
+            RowKind rowKind = RowKind.fromByteValue(((Long) value[0]).byteValue());
+            reuseRow.setKind(rowKind);
+
+            Object[] fieldValues = (Object[]) value[1];
+
+            for (int i = 0; i < fieldValues.length; i++) {
+                reuseRow.setField(i, fieldDataConverters[i].toInternalImpl(fieldValues[i]));
+            }
+            return reuseRow;
+        }
+
+        @SuppressWarnings("unchecked")
+        @Override
+        Object[] toExternalImpl(Row value) {
+
+            reuseExternalRow[0] = (long) value.getKind().toByteValue();
+            for (int i = 0; i < value.getArity(); i++) {
+                reuseExternalRowData[i] = fieldDataConverters[i].toExternalImpl(value.getField(i));
+            }
+
+            return reuseExternalRow;
+        }
+    }
+
+    /**
+     * The element in the Object Array will be converted to the corresponding Data through element
+     * DataConverter.
+     */
+    public static final class ArrayDataConverter<T>
+            extends DataConverter<ArrayData, T[], Object[]> {
+
+        private final DataConverter elementConverter;
+        private final Class<T> componentClass;
+
+        ArrayDataConverter(
+                Class<T> componentClass,
+                DataConverter elementConverter,
+                DataFormatConverters.DataFormatConverter<ArrayData, T[]> dataFormatConverter) {
+            super(dataFormatConverter);
+            this.componentClass = componentClass;
+            this.elementConverter = elementConverter;
+        }
+
+        @SuppressWarnings("unchecked")
+        @Override
+        T[] toInternalImpl(Object[] value) {
+            T[] array = (T[]) Array.newInstance(componentClass, value.length);
+
+            for (int i = 0; i < value.length; i++) {
+                array[i] = (T) elementConverter.toInternalImpl(value[i]);
+            }
+
+            return array;
+        }
+
+        @SuppressWarnings("unchecked")
+        @Override
+        Object[] toExternalImpl(T[] value) {
+            Object[] array = new Object[value.length];
+
+            for (int i = 0; i < value.length; i++) {
+                array[i] = elementConverter.toExternalImpl(value[i]);
+            }
+
+            return array;
+        }
+    }
+
+    /**
+     * The key/value in the Map will be converted to the corresponding Data through key/value
+     * DataConverter.
+     */
+    public static final class MapDataConverter
+            extends DataConverter<MapData, Map<?, ?>, Map<?, ?>> {
+
+        private final DataConverter keyConverter;
+        private final DataConverter valueConverter;
+
+        MapDataConverter(
+                DataConverter keyConverter,
+                DataConverter valueConverter,
+                DataFormatConverters.DataFormatConverter<MapData, Map<?, ?>> dataFormatConverter) {
+            super(dataFormatConverter);
+            this.keyConverter = keyConverter;
+            this.valueConverter = valueConverter;
+        }
+
+        @SuppressWarnings("unchecked")
+        @Override
+        Map toInternalImpl(Map<?, ?> value) {
+            Map<Object, Object> map = new HashMap<>();
+
+            for (Map.Entry<?, ?> entry : value.entrySet()) {
+                map.put(
+                        keyConverter.toInternalImpl(entry.getKey()),
+                        valueConverter.toInternalImpl(entry.getValue()));
+            }
+
+            return map;
+        }
+
+        @SuppressWarnings("unchecked")
+        @Override
+        Map<?, ?> toExternalImpl(Map<?, ?> value) {
+            Map<Object, Object> map = new HashMap<>();
+
+            for (Map.Entry<?, ?> entry : value.entrySet()) {
+                map.put(
+                        keyConverter.toExternalImpl(entry.getKey()),
+                        valueConverter.toExternalImpl(entry.getValue()));
+            }
+            return map;
+        }
+    }
+
+    private static final class LogicalTypeToDataConverter
+            extends LogicalTypeDefaultVisitor<DataConverter> {
+
+        @Override
+        public DataConverter visit(BooleanType booleanType) {
+            return defaultConverter(booleanType);
+        }
+
+        @Override
+        public DataConverter visit(TinyIntType tinyIntType) {
+            return ByteDataConverter.INSTANCE;
+        }
+
+        @Override
+        public DataConverter visit(SmallIntType smallIntType) {
+            return ShortDataConverter.INSTANCE;
+        }
+
+        @Override
+        public DataConverter visit(IntType intType) {
+            return IntDataConverter.INSTANCE;
+        }
+
+        @Override
+        public DataConverter visit(BigIntType bigIntType) {
+            return defaultConverter(bigIntType);
+        }
+
+        @Override
+        public DataConverter visit(FloatType floatType) {
+            return FloatDataConverter.INSTANCE;
+        }
+
+        @Override
+        public DataConverter visit(DoubleType doubleType) {
+            return defaultConverter(doubleType);
+        }
+
+        @Override
+        public DataConverter visit(DecimalType decimalType) {
+            return defaultConverter(decimalType);
+        }
+
+        @Override
+        public DataConverter visit(VarCharType varCharType) {
+            return defaultConverter(varCharType);
+        }
+
+        @Override
+        public DataConverter visit(CharType charType) {
+            return defaultConverter(charType);
+        }
+
+        @Override
+        public DataConverter visit(VarBinaryType varBinaryType) {
+            return defaultConverter(varBinaryType);
+        }
+
+        @Override
+        public DataConverter visit(BinaryType binaryType) {
+            return defaultConverter(binaryType);
+        }
+
+        @Override
+        public DataConverter visit(DateType dateType) {
+            return new IdentityDataConverter<>(DataFormatConverters.DateConverter.INSTANCE);
+        }
+
+        @Override
+        public DataConverter visit(TimeType timeType) {
+            return TimeDataConverter.INSTANCE;
+        }
+
+        @Override
+        public DataConverter visit(TimestampType timestampType) {
+            return new IdentityDataConverter<>(
+                    new DataFormatConverters.TimestampConverter(timestampType.getPrecision()));
+        }
+
+        @Override
+        public DataConverter visit(LocalZonedTimestampType localZonedTimestampType) {
+            return new IdentityDataConverter<>(
+                    new DataFormatConverters.TimestampConverter(
+                            localZonedTimestampType.getPrecision()));
+        }
+
+        @SuppressWarnings("unchecked")
+        @Override
+        public DataConverter visit(ArrayType arrayType) {
+            LogicalType elementType = arrayType.getElementType();
+            DataConverter elementDataConverter = elementType.accept(this);
+            return new ArrayDataConverter(
+                    TypeConversions.fromLogicalToDataType(elementType).getConversionClass(),
+                    elementDataConverter,
+                    DataFormatConverters.getConverterForDataType(
+                            TypeConversions.fromLogicalToDataType(arrayType)));
+        }
+
+        @SuppressWarnings("unchecked")
+        @Override
+        public DataConverter visit(MapType mapType) {
+            LogicalType keyType = mapType.getKeyType();
+            LogicalType valueType = mapType.getValueType();
+            DataConverter keyTypeDataConverter = keyType.accept(this);
+            DataConverter valueTyDataConverter = valueType.accept(this);
+            return new MapDataConverter(
+                    keyTypeDataConverter,
+                    valueTyDataConverter,
+                    DataFormatConverters.getConverterForDataType(
+                            TypeConversions.fromLogicalToDataType(mapType)));
+        }
+
+        @SuppressWarnings("unchecked")
+        @Override
+        public DataConverter visit(RowType rowType) {
+            final DataConverter[] fieldDataConverters =
+                    rowType.getFields().stream()
+                            .map(f -> f.getType().accept(this))
+                            .toArray(DataConverter[]::new);
+
+            return new RowDataConverter(
+                    fieldDataConverters,
+                    DataFormatConverters.getConverterForDataType(
+                            TypeConversions.fromLogicalToDataType(rowType)));
+        }
+
+        @Override
+        protected DataConverter defaultMethod(LogicalType logicalType) {
+            throw new UnsupportedOperationException(
+                    String.format(
+                            "Currently, Python UDF doesn't support logical type %s in Thread Mode.",
+                            logicalType.asSummaryString()));
+        }
+
+        @SuppressWarnings("unchecked")
+        private DataConverter defaultConverter(LogicalType logicalType) {
+            return new IdentityDataConverter<>(
+                    DataFormatConverters.getConverterForDataType(
+                            TypeConversions.fromLogicalToDataType(logicalType)));
+        }
+    }
 }

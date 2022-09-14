@@ -32,8 +32,7 @@ import warnings
 
 import pkg_resources
 
-# latest grpcio-tools incompatible with latest protobuf 3.6.1.
-GRPC_TOOLS = 'grpcio-tools>=1.3.5,<=1.14.2'
+GRPC_TOOLS = 'grpcio-tools>=1.29.0,<=1.46.3'
 PROTO_PATHS = ['proto']
 PYFLINK_ROOT_PATH = os.path.dirname(os.path.abspath(__file__))
 DEFAULT_PYTHON_OUTPUT_PATH = os.path.join(PYFLINK_ROOT_PATH, 'fn_execution')
@@ -74,7 +73,7 @@ def generate_proto_files(force=True, output_dir=DEFAULT_PYTHON_OUTPUT_PATH):
                 raise RuntimeError(
                     'Cannot generate protos for Windows since grpcio-tools package is '
                     'not installed. Please install this package manually '
-                    'using \'pip install grpcio-tools\'.')
+                    'using \'pip install "grpcio-tools>=1.29.0,<=1.46.3"\'.')
 
             # Use a subprocess to avoid messing with this process' path and imports.
             # Note that this requires a separate module from setup.py for Windows:
@@ -179,15 +178,17 @@ def _add_license_header(dir, file_name):
                 '################################################################################\n'
             )
             tmp_file.write(original_data)
-            os.rename(os.path.join(dir, tmp_file_name), os.path.join(dir, file_name))
+    if os.path.exists(os.path.join(dir, file_name)):
+        os.remove(os.path.join(dir, file_name))
+    os.rename(os.path.join(dir, tmp_file_name), os.path.join(dir, file_name))
 
 
 def _check_grpcio_tools_version():
     version = pkg_resources.get_distribution("grpcio-tools").parsed_version
     from pkg_resources import parse_version
-    if version < parse_version('1.3.5') or version > parse_version('1.14.2'):
+    if version < parse_version('1.29.0') or version > parse_version('1.46.3'):
         raise RuntimeError(
-            "Version of grpcio-tools must be between 1.3.5 and 1.14.2, got %s" % version)
+            "Version of grpcio-tools must be between 1.29.0 and 1.46.3, got %s" % version)
 
 
 if __name__ == '__main__':

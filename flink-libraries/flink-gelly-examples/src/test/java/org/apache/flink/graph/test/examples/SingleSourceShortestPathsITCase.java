@@ -36,57 +36,60 @@ import org.junit.runners.Parameterized;
 
 import java.io.File;
 
-/**
- * Tests for {@link SingleSourceShortestPaths}.
- */
+/** Tests for {@link SingleSourceShortestPaths}. */
 @RunWith(Parameterized.class)
 public class SingleSourceShortestPathsITCase extends MultipleProgramsTestBase {
 
-	private String edgesPath;
+    private String edgesPath;
 
-	private String resultPath;
+    private String resultPath;
 
-	private String expected;
+    private String expected;
 
-	@Rule
-	public TemporaryFolder tempFolder = new TemporaryFolder();
+    @Rule public TemporaryFolder tempFolder = new TemporaryFolder();
 
-	public SingleSourceShortestPathsITCase(TestExecutionMode mode) {
-		super(mode);
-	}
+    public SingleSourceShortestPathsITCase(TestExecutionMode mode) {
+        super(mode);
+    }
 
-	@Before
-	public void before() throws Exception {
-		resultPath = tempFolder.newFile().toURI().toString();
+    @Before
+    public void before() throws Exception {
+        resultPath = tempFolder.newFile().toURI().toString();
 
-		File edgesFile = tempFolder.newFile();
-		FileUtils.writeFileUtf8(edgesFile, SingleSourceShortestPathsData.EDGES);
-		edgesPath = edgesFile.toURI().toString();
-	}
+        File edgesFile = tempFolder.newFile();
+        FileUtils.writeFileUtf8(edgesFile, SingleSourceShortestPathsData.EDGES);
+        edgesPath = edgesFile.toURI().toString();
+    }
 
-	@Test
-	public void testSSSPExample() throws Exception {
-		SingleSourceShortestPaths.main(new String[]{ SingleSourceShortestPathsData.SRC_VERTEX_ID + "",
-			edgesPath, resultPath, 10 + "" });
-		expected = SingleSourceShortestPathsData.RESULTED_SINGLE_SOURCE_SHORTEST_PATHS;
-	}
+    @Test
+    public void testSSSPExample() throws Exception {
+        SingleSourceShortestPaths.main(
+                new String[] {
+                    SingleSourceShortestPathsData.SRC_VERTEX_ID + "", edgesPath, resultPath, 10 + ""
+                });
+        expected = SingleSourceShortestPathsData.RESULTED_SINGLE_SOURCE_SHORTEST_PATHS;
+    }
 
-	@Test
-	public void testGSASSSPExample() throws Exception {
-		GSASingleSourceShortestPaths.main(new String[]{ SingleSourceShortestPathsData.SRC_VERTEX_ID + "",
-			edgesPath, resultPath, 10 + "" });
-		expected = SingleSourceShortestPathsData.RESULTED_SINGLE_SOURCE_SHORTEST_PATHS;
-	}
+    @Test
+    public void testGSASSSPExample() throws Exception {
+        GSASingleSourceShortestPaths.main(
+                new String[] {
+                    SingleSourceShortestPathsData.SRC_VERTEX_ID + "", edgesPath, resultPath, 10 + ""
+                });
+        expected = SingleSourceShortestPathsData.RESULTED_SINGLE_SOURCE_SHORTEST_PATHS;
+    }
 
-	@Test
-	public void testPregelSSSPExample() throws Exception {
-		PregelSSSP.main(new String[]{ SingleSourceShortestPathsData.SRC_VERTEX_ID + "",
-			edgesPath, resultPath, 10 + "" });
-		expected = SingleSourceShortestPathsData.RESULTED_SINGLE_SOURCE_SHORTEST_PATHS;
-	}
+    @Test
+    public void testPregelSSSPExample() throws Exception {
+        PregelSSSP.main(
+                new String[] {
+                    SingleSourceShortestPathsData.SRC_VERTEX_ID + "", edgesPath, resultPath, 10 + ""
+                });
+        expected = SingleSourceShortestPathsData.RESULTED_SINGLE_SOURCE_SHORTEST_PATHS;
+    }
 
-	@After
-	public void after() throws Exception {
-		TestBaseUtils.compareResultsByLinesInMemory(expected, resultPath);
-	}
+    @After
+    public void after() throws Exception {
+        TestBaseUtils.compareResultsByLinesInMemory(expected, resultPath);
+    }
 }

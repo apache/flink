@@ -1,0 +1,106 @@
+== Abstract Syntax Tree ==
+LogicalSink(table=[default_catalog.default_database.Sink1], fields=[a, name, age])
++- LogicalProject(a=[$0], name=[$4], age=[$5])
+   +- LogicalCorrelate(correlation=[$cor0], joinType=[left], requiredColumns=[{2}])
+      :- LogicalProject(a=[$1], c=[$2], proctime=[PROCTIME()])
+      :  +- LogicalAggregate(group=[{0}], a=[MAX($1)], c=[COUNT($2)])
+      :     +- LogicalProject(b=[$1], a=[$0], c=[$2])
+      :        +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+      +- LogicalFilter(condition=[=($0, 100)])
+         +- LogicalSnapshot(period=[$cor0.proctime])
+            +- LogicalTableScan(table=[[default_catalog, default_database, LookupTable, source: [TestTemporalTable(id, name, age)]]])
+
+== Optimized Physical Plan ==
+Sink(table=[default_catalog.default_database.Sink1], fields=[a, name, age])
++- LookupJoin(table=[default_catalog.default_database.LookupTable], joinType=[LeftOuterJoin], lookup=[id=100], where=[=(id, 100)], select=[a, name, age], upsertMaterialize=[true])
+   +- Calc(select=[a])
+      +- GroupAggregate(groupBy=[b], select=[b, MAX(a) AS a])
+         +- Exchange(distribution=[hash[b]])
+            +- Calc(select=[b, a, c])
+               +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime])
+
+== Optimized Execution Plan ==
+Sink(table=[default_catalog.default_database.Sink1], fields=[a, name, age])
++- LookupJoin(table=[default_catalog.default_database.LookupTable], joinType=[LeftOuterJoin], lookup=[id=100], where=[(id = 100)], select=[a, name, age], upsertMaterialize=[true])
+   +- Calc(select=[a])
+      +- GroupAggregate(groupBy=[b], select=[b, MAX(a) AS a])
+         +- Exchange(distribution=[hash[b]])
+            +- Calc(select=[b, a, c])
+               +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime])
+
+== Physical Execution Plan ==
+{
+  "nodes" : [ {
+    "id" : 1,
+    "type" : "Source: Collection Source",
+    "pact" : "Data Source",
+    "contents" : "Source: Collection Source",
+    "parallelism" : 1
+  }, {
+    "id" : 4,
+    "type" : "SourceConversion[1]",
+    "pact" : "Operator",
+    "contents" : "[1]:SourceConversion(table=[default_catalog.default_database.MyTable], fields=[a, b, c, proctime, rowtime])",
+    "parallelism" : 1,
+    "predecessors" : [ {
+      "id" : 1,
+      "ship_strategy" : "FORWARD",
+      "side" : "second"
+    } ]
+  }, {
+    "id" : 5,
+    "type" : "Calc[2]",
+    "pact" : "Operator",
+    "contents" : "[2]:Calc(select=[b, a, c])",
+    "parallelism" : 1,
+    "predecessors" : [ {
+      "id" : 4,
+      "ship_strategy" : "FORWARD",
+      "side" : "second"
+    } ]
+  }, {
+    "id" : 7,
+    "type" : "GroupAggregate[4]",
+    "pact" : "Operator",
+    "contents" : "[4]:GroupAggregate(groupBy=[b], select=[b, MAX(a) AS a])",
+    "parallelism" : 4,
+    "predecessors" : [ {
+      "id" : 5,
+      "ship_strategy" : "HASH",
+      "side" : "second"
+    } ]
+  }, {
+    "id" : 8,
+    "type" : "Calc[5]",
+    "pact" : "Operator",
+    "contents" : "[5]:Calc(select=[a])",
+    "parallelism" : 4,
+    "predecessors" : [ {
+      "id" : 7,
+      "ship_strategy" : "FORWARD",
+      "side" : "second"
+    } ]
+  }, {
+    "id" : 10,
+    "type" : "LookupJoin[6]",
+    "pact" : "Operator",
+    "contents" : "[6]:LookupJoin(table=[default_catalog.default_database.LookupTable], joinType=[LeftOuterJoin], lookup=[id=100], where=[(id = 100)], select=[a, name, age], upsertMaterialize=[true])",
+    "parallelism" : 1,
+    "predecessors" : [ {
+      "id" : 8,
+      "ship_strategy" : "HASH",
+      "side" : "second"
+    } ]
+  }, {
+    "id" : 11,
+    "type" : "Sink: Sink1[7]",
+    "pact" : "Data Sink",
+    "contents" : "[7]:Sink(table=[default_catalog.default_database.Sink1], fields=[a, name, age])",
+    "parallelism" : 1,
+    "predecessors" : [ {
+      "id" : 10,
+      "ship_strategy" : "FORWARD",
+      "side" : "second"
+    } ]
+  } ]
+}

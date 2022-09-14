@@ -21,12 +21,33 @@ package org.apache.flink.runtime.client;
 import org.apache.flink.api.common.JobID;
 
 /**
- * Exception which is returned upon job submission if the submitted job
- * is currently being executed.
+ * Exception which is returned upon job submission if the submitted job is currently being executed.
  */
 public class DuplicateJobSubmissionException extends JobSubmissionException {
 
-	public DuplicateJobSubmissionException(JobID jobID) {
-		super(jobID, "Job has already been submitted.");
-	}
+    private static final long serialVersionUID = 2917336585664347210L;
+
+    public static DuplicateJobSubmissionException of(JobID jobId) {
+        return new DuplicateJobSubmissionException(jobId, false);
+    }
+
+    public static DuplicateJobSubmissionException ofGloballyTerminated(JobID jobId) {
+        return new DuplicateJobSubmissionException(jobId, true);
+    }
+
+    private final boolean globallyTerminated;
+
+    private DuplicateJobSubmissionException(JobID jobID, boolean globallyTerminated) {
+        super(jobID, "Job has already been submitted.");
+        this.globallyTerminated = globallyTerminated;
+    }
+
+    /**
+     * Checks whether the duplicate job has already been finished.
+     *
+     * @return true if the job has already finished, either successfully or as a failure
+     */
+    public boolean isGloballyTerminated() {
+        return globallyTerminated;
+    }
 }

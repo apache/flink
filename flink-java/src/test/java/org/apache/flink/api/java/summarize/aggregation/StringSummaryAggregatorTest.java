@@ -20,76 +20,76 @@ package org.apache.flink.api.java.summarize.aggregation;
 
 import org.apache.flink.api.java.summarize.StringColumnSummary;
 
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-/**
- * Tests for {@link StringSummaryAggregator}.
- */
-public class StringSummaryAggregatorTest {
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.data.Offset.offset;
 
-	@Test
-	public void testMixedGroup() {
-		StringColumnSummary summary = summarize("abc", "", null, "  ", "defghi", "foo", null, null, "", " ");
-		Assert.assertEquals(10, summary.getTotalCount());
-		Assert.assertEquals(3, summary.getNullCount());
-		Assert.assertEquals(7, summary.getNonNullCount());
-		Assert.assertEquals(2, summary.getEmptyCount());
-		Assert.assertEquals(0, summary.getMinLength().intValue());
-		Assert.assertEquals(6, summary.getMaxLength().intValue());
-		Assert.assertEquals(2.142857, summary.getMeanLength().doubleValue(), 0.001);
-	}
+/** Tests for {@link StringSummaryAggregator}. */
+class StringSummaryAggregatorTest {
 
-	@Test
-	public void testAllNullStrings() {
-		StringColumnSummary summary = summarize(null, null, null, null);
-		Assert.assertEquals(4, summary.getTotalCount());
-		Assert.assertEquals(4, summary.getNullCount());
-		Assert.assertEquals(0, summary.getNonNullCount());
-		Assert.assertEquals(0, summary.getEmptyCount());
-		Assert.assertNull(summary.getMinLength());
-		Assert.assertNull(summary.getMaxLength());
-		Assert.assertNull(summary.getMeanLength());
-	}
+    @Test
+    void testMixedGroup() {
+        StringColumnSummary summary =
+                summarize("abc", "", null, "  ", "defghi", "foo", null, null, "", " ");
+        assertThat(summary.getTotalCount()).isEqualTo(10);
+        assertThat(summary.getNullCount()).isEqualTo(3);
+        assertThat(summary.getNonNullCount()).isEqualTo(7);
+        assertThat(summary.getEmptyCount()).isEqualTo(2);
+        assertThat(summary.getMinLength().intValue()).isZero();
+        assertThat(summary.getMaxLength().intValue()).isEqualTo(6);
+        assertThat(summary.getMeanLength().doubleValue()).isCloseTo(2.142857, offset(0.001));
+    }
 
-	@Test
-	public void testAllWithValues() {
-		StringColumnSummary summary = summarize("cat", "hat", "dog", "frog");
-		Assert.assertEquals(4, summary.getTotalCount());
-		Assert.assertEquals(0, summary.getNullCount());
-		Assert.assertEquals(4, summary.getNonNullCount());
-		Assert.assertEquals(0, summary.getEmptyCount());
-		Assert.assertEquals(3, summary.getMinLength().intValue());
-		Assert.assertEquals(4, summary.getMaxLength().intValue());
-		Assert.assertEquals(3.25, summary.getMeanLength().doubleValue(), 0.0);
-	}
+    @Test
+    void testAllNullStrings() {
+        StringColumnSummary summary = summarize(null, null, null, null);
+        assertThat(summary.getTotalCount()).isEqualTo(4);
+        assertThat(summary.getNullCount()).isEqualTo(4);
+        assertThat(summary.getNonNullCount()).isZero();
+        assertThat(summary.getEmptyCount()).isZero();
+        assertThat(summary.getMinLength()).isNull();
+        assertThat(summary.getMaxLength()).isNull();
+        assertThat(summary.getMeanLength()).isNull();
+    }
 
-	/**
-	 * Helper method for summarizing a list of values.
-	 *
-	 * <p>This method breaks the rule of "testing only one thing" by aggregating and combining
-	 * a bunch of different ways.
-	 */
-	protected StringColumnSummary summarize(String... values) {
+    @Test
+    void testAllWithValues() {
+        StringColumnSummary summary = summarize("cat", "hat", "dog", "frog");
+        assertThat(summary.getTotalCount()).isEqualTo(4);
+        assertThat(summary.getNullCount()).isZero();
+        assertThat(summary.getNonNullCount()).isEqualTo(4);
+        assertThat(summary.getEmptyCount()).isZero();
+        assertThat(summary.getMinLength().intValue()).isEqualTo(3);
+        assertThat(summary.getMaxLength().intValue()).isEqualTo(4);
+        assertThat(summary.getMeanLength().doubleValue()).isCloseTo(3.25, offset(0.0));
+    }
 
-		return new AggregateCombineHarness<String, StringColumnSummary, StringSummaryAggregator>(){
+    /**
+     * Helper method for summarizing a list of values.
+     *
+     * <p>This method breaks the rule of "testing only one thing" by aggregating and combining a
+     * bunch of different ways.
+     */
+    protected StringColumnSummary summarize(String... values) {
 
-			@Override
-			protected void compareResults(StringColumnSummary result1, StringColumnSummary result2) {
-				Assert.assertEquals(result1.getEmptyCount(), result2.getEmptyCount());
-				Assert.assertEquals(result1.getMaxLength(), result2.getMaxLength());
-				Assert.assertEquals(result1.getMinLength(), result2.getMinLength());
-				if (result1.getMeanLength() == null) {
-					Assert.assertEquals(result1.getMeanLength(), result2.getMeanLength());
-				}
-				else {
-					Assert.assertEquals(result1.getMeanLength().doubleValue(), result2.getMeanLength().doubleValue(), 1e-5d);
-				}
-				Assert.assertEquals(result1.getNullCount(), result2.getNullCount());
-				Assert.assertEquals(result1.getNonNullCount(), result2.getNonNullCount());
-			}
+        return new AggregateCombineHarness<String, StringColumnSummary, StringSummaryAggregator>() {
 
-		}.summarize(values);
-	}
-
+            @Override
+            protected void compareResults(
+                    StringColumnSummary result1, StringColumnSummary result2) {
+                assertThat(result2.getEmptyCount()).isEqualTo(result1.getEmptyCount());
+                assertThat(result2.getMaxLength()).isEqualTo(result1.getMaxLength());
+                assertThat(result2.getMinLength()).isEqualTo(result1.getMinLength());
+                if (result1.getMeanLength() == null) {
+                    assertThat(result2.getMeanLength()).isEqualTo(result1.getMeanLength());
+                } else {
+                    assertThat(result2.getMeanLength().doubleValue())
+                            .isCloseTo(result1.getMeanLength().doubleValue(), offset(1e-5d));
+                }
+                assertThat(result2.getNullCount()).isEqualTo(result1.getNullCount());
+                assertThat(result2.getNonNullCount()).isEqualTo(result1.getNonNullCount());
+            }
+        }.summarize(values);
+    }
 }

@@ -35,9 +35,9 @@ import java.util.List;
 import java.util.Set;
 
 /**
- * Abstract base class for data sources that receive elements from a message queue and
- * acknowledge them back by IDs. In contrast to {@link MessageAcknowledgingSourceBase}, this source
- * handles two types of ids:
+ * Abstract base class for data sources that receive elements from a message queue and acknowledge
+ * them back by IDs. In contrast to {@link MessageAcknowledgingSourceBase}, this source handles two
+ * types of ids:
  *
  * <ol>
  *   <li>Session ids
@@ -50,96 +50,99 @@ import java.util.Set;
  *
  * @param <Type> The type of the messages created by the source.
  * @param <UId> The type of the unique IDs which are consistent across sessions.
- * @param <SessionId> The type of the IDs that are used for acknowledging elements
- *                    (ids valid during session).
+ * @param <SessionId> The type of the IDs that are used for acknowledging elements (ids valid during
+ *     session).
  */
 @PublicEvolving
 public abstract class MultipleIdsMessageAcknowledgingSourceBase<Type, UId, SessionId>
-		extends MessageAcknowledgingSourceBase<Type, UId> {
+        extends MessageAcknowledgingSourceBase<Type, UId> {
 
-	private static final long serialVersionUID = 42L;
+    private static final long serialVersionUID = 42L;
 
-	private static final Logger LOG =
-		LoggerFactory.getLogger(MultipleIdsMessageAcknowledgingSourceBase.class);
+    private static final Logger LOG =
+            LoggerFactory.getLogger(MultipleIdsMessageAcknowledgingSourceBase.class);
 
-	/* Session ids per pending snapshot */
-	protected transient Deque<Tuple2<Long, List<SessionId>>> sessionIdsPerSnapshot;
+    /* Session ids per pending snapshot */
+    protected transient Deque<Tuple2<Long, List<SessionId>>> sessionIdsPerSnapshot;
 
-	/* Current session ids for this snapshot */
-	protected transient List<SessionId> sessionIds;
+    /* Current session ids for this snapshot */
+    protected transient List<SessionId> sessionIds;
 
-	/**
-	 * Creates a new MessageAcknowledgingSourceBase for IDs of the given type.
-	 *
-	 * @param idClass The class of the message ID type, used to create a serializer for the message IDs.
-	 */
-	protected MultipleIdsMessageAcknowledgingSourceBase(Class<UId> idClass) {
-		super(idClass);
-	}
+    /**
+     * Creates a new MessageAcknowledgingSourceBase for IDs of the given type.
+     *
+     * @param idClass The class of the message ID type, used to create a serializer for the message
+     *     IDs.
+     */
+    protected MultipleIdsMessageAcknowledgingSourceBase(Class<UId> idClass) {
+        super(idClass);
+    }
 
-	/**
-	 * Creates a new MessageAcknowledgingSourceBase for IDs of the given type.
-	 *
-	 * @param idTypeInfo The type information of the message ID type, used to create a serializer for the message IDs.
-	 */
-	protected MultipleIdsMessageAcknowledgingSourceBase(TypeInformation<UId> idTypeInfo) {
-		super(idTypeInfo);
-	}
+    /**
+     * Creates a new MessageAcknowledgingSourceBase for IDs of the given type.
+     *
+     * @param idTypeInfo The type information of the message ID type, used to create a serializer
+     *     for the message IDs.
+     */
+    protected MultipleIdsMessageAcknowledgingSourceBase(TypeInformation<UId> idTypeInfo) {
+        super(idTypeInfo);
+    }
 
-	@Override
-	public void open(Configuration parameters) throws Exception {
-		super.open(parameters);
-		sessionIds = new ArrayList<>(64);
-		sessionIdsPerSnapshot = new ArrayDeque<>();
-	}
+    @Override
+    public void open(Configuration parameters) throws Exception {
+        super.open(parameters);
+        sessionIds = new ArrayList<>(64);
+        sessionIdsPerSnapshot = new ArrayDeque<>();
+    }
 
-	@Override
-	public void close() throws Exception {
-		super.close();
-		sessionIds.clear();
-		sessionIdsPerSnapshot.clear();
-	}
+    @Override
+    public void close() throws Exception {
+        super.close();
+        sessionIds.clear();
+        sessionIdsPerSnapshot.clear();
+    }
 
-	// ------------------------------------------------------------------------
-	//  ID Checkpointing
-	// ------------------------------------------------------------------------
+    // ------------------------------------------------------------------------
+    //  ID Checkpointing
+    // ------------------------------------------------------------------------
 
-	/**
-	 * Acknowledges the session ids.
-	 * @param checkpointId The id of the current checkout to acknowledge ids for.
-	 * @param uniqueIds The checkpointed unique ids which are ignored here. They only serve as a
-	 *                  means of de-duplicating messages when the acknowledgment after a checkpoint
-	 *                  fails.
-	 */
-	@Override
-	protected final void acknowledgeIDs(long checkpointId, Set<UId> uniqueIds) {
-		LOG.debug("Acknowledging ids for checkpoint {}", checkpointId);
-		Iterator<Tuple2<Long, List<SessionId>>> iterator = sessionIdsPerSnapshot.iterator();
-		while (iterator.hasNext()) {
-			final Tuple2<Long, List<SessionId>> next = iterator.next();
-			long id = next.f0;
-			if (id <= checkpointId) {
-				acknowledgeSessionIDs(next.f1);
-				// remove ids for this session
-				iterator.remove();
-			}
-		}
-	}
+    /**
+     * Acknowledges the session ids.
+     *
+     * @param checkpointId The id of the current checkout to acknowledge ids for.
+     * @param uniqueIds The checkpointed unique ids which are ignored here. They only serve as a
+     *     means of de-duplicating messages when the acknowledgment after a checkpoint fails.
+     */
+    @Override
+    protected final void acknowledgeIDs(long checkpointId, Set<UId> uniqueIds) {
+        LOG.debug("Acknowledging ids for checkpoint {}", checkpointId);
+        Iterator<Tuple2<Long, List<SessionId>>> iterator = sessionIdsPerSnapshot.iterator();
+        while (iterator.hasNext()) {
+            final Tuple2<Long, List<SessionId>> next = iterator.next();
+            long id = next.f0;
+            if (id <= checkpointId) {
+                acknowledgeSessionIDs(next.f1);
+                // remove ids for this session
+                iterator.remove();
+            }
+        }
+    }
 
-	/**
-	 * Acknowledges the session ids.
-	 * @param sessionIds The message ids for this session.
-	 */
-	protected abstract void acknowledgeSessionIDs(List<SessionId> sessionIds);
+    /**
+     * Acknowledges the session ids.
+     *
+     * @param sessionIds The message ids for this session.
+     */
+    protected abstract void acknowledgeSessionIDs(List<SessionId> sessionIds);
 
-	// ------------------------------------------------------------------------
-	//  Checkpointing the data
-	// ------------------------------------------------------------------------
+    // ------------------------------------------------------------------------
+    //  Checkpointing the data
+    // ------------------------------------------------------------------------
 
-	@Override
-	public void snapshotState(FunctionSnapshotContext context) throws Exception {
-		sessionIdsPerSnapshot.add(new Tuple2<>(context.getCheckpointId(), sessionIds));
-		sessionIds = new ArrayList<>(64);
-		super.snapshotState(context);
-	}
+    @Override
+    public void snapshotState(FunctionSnapshotContext context) throws Exception {
+        sessionIdsPerSnapshot.add(new Tuple2<>(context.getCheckpointId(), sessionIds));
+        sessionIds = new ArrayList<>(64);
+        super.snapshotState(context);
+    }
 }

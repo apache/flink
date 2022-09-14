@@ -18,78 +18,119 @@
 
 package org.apache.flink.table.runtime.operators.python.table;
 
-import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.python.PythonFunctionRunner;
-import org.apache.flink.python.env.PythonEnvironmentManager;
-import org.apache.flink.streaming.util.TestHarnessUtil;
+import org.apache.flink.table.api.DataTypes;
+import org.apache.flink.table.connector.Projection;
+import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.functions.python.PythonFunctionInfo;
-import org.apache.flink.table.runtime.types.CRow;
-import org.apache.flink.table.runtime.typeutils.PythonTypeUtils;
+import org.apache.flink.table.planner.codegen.CodeGeneratorContext;
+import org.apache.flink.table.planner.codegen.ProjectionCodeGenerator;
+import org.apache.flink.table.runtime.generated.GeneratedProjection;
+import org.apache.flink.table.runtime.operators.join.FlinkJoinType;
+import org.apache.flink.table.runtime.util.RowDataHarnessAssertor;
 import org.apache.flink.table.runtime.utils.PassThroughPythonTableFunctionRunner;
+import org.apache.flink.table.runtime.utils.PythonTestUtils;
+import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
-import org.apache.flink.types.Row;
-
-import org.apache.beam.sdk.fn.data.FnDataReceiver;
-import org.apache.calcite.rel.core.JoinRelType;
+import org.apache.flink.types.RowKind;
 
 import java.util.Collection;
-import java.util.Queue;
 
-/**
- * Tests for {@link PythonTableFunctionOperator}.
- */
-public class PythonTableFunctionOperatorTest extends PythonTableFunctionOperatorTestBase<CRow, CRow, Row> {
-	@Override
-	public AbstractPythonTableFunctionOperator<CRow, CRow, Row> getTestOperator(
-		Configuration config,
-		PythonFunctionInfo tableFunction,
-		RowType inputType,
-		RowType outputType,
-		int[] udfInputOffsets,
-		JoinRelType joinRelType) {
-		return new PassThroughPythonTableFunctionOperator(
-			config, tableFunction, inputType, outputType, udfInputOffsets, joinRelType);
-	}
+import static org.apache.flink.table.runtime.util.StreamRecordUtils.row;
 
-	@Override
-	public CRow newRow(boolean accumulateMsg, Object... fields) {
-		return new CRow(Row.of(fields), accumulateMsg);
-	}
+/** Tests for {@link PythonTableFunctionOperator}. */
+public class PythonTableFunctionOperatorTest
+        extends PythonTableFunctionOperatorTestBase<RowData, RowData> {
 
-	@Override
-	public void assertOutputEquals(String message, Collection<Object> expected, Collection<Object> actual) {
-		TestHarnessUtil.assertOutputEquals(message, (Queue<Object>) expected, (Queue<Object>) actual);
-	}
+    private final RowDataHarnessAssertor assertor =
+            new RowDataHarnessAssertor(
+                    new LogicalType[] {
+                        DataTypes.STRING().getLogicalType(),
+                        DataTypes.STRING().getLogicalType(),
+                        DataTypes.BIGINT().getLogicalType(),
+                        DataTypes.BIGINT().getLogicalType()
+                    });
 
-	private static class PassThroughPythonTableFunctionOperator extends PythonTableFunctionOperator {
+    @Override
+    public RowData newRow(boolean accumulateMsg, Object... fields) {
+        if (accumulateMsg) {
+            return row(fields);
+        } else {
+            RowData row = row(fields);
+            row.setRowKind(RowKind.DELETE);
+            return row;
+        }
+    }
 
-		PassThroughPythonTableFunctionOperator(
-			Configuration config,
-			PythonFunctionInfo tableFunction,
-			RowType inputType,
-			RowType outputType,
-			int[] udfInputOffsets,
-			JoinRelType joinRelType) {
-			super(config, tableFunction, inputType, outputType, udfInputOffsets, joinRelType);
-		}
+    @Override
+    public void assertOutputEquals(
+            String message, Collection<Object> expected, Collection<Object> actual) {
+        assertor.assertOutputEquals(message, expected, actual);
+    }
 
-		@Override
-		public PythonFunctionRunner<Row> createPythonFunctionRunner(
-			FnDataReceiver<byte[]> resultReceiver,
-			PythonEnvironmentManager pythonEnvironmentManager) {
-			return new PassThroughPythonTableFunctionRunner<Row>(resultReceiver) {
-				@Override
-				public Row copy(Row element) {
-					return Row.copy(element);
-				}
+    @Override
+    public PythonTableFunctionOperator getTestOperator(
+            Configuration config,
+            PythonFunctionInfo tableFunction,
+            RowType inputType,
+            RowType outputType,
+            int[] udfInputOffsets,
+            FlinkJoinType joinRelType) {
+        final RowType udfInputType = (RowType) Projection.of(udfInputOffsets).project(inputType);
+        final RowType udfOutputType =
+                (RowType)
+                        Projection.range(inputType.getFieldCount(), outputType.getFieldCount())
+                                .project(outputType);
 
-				@Override
-				@SuppressWarnings("unchecked")
-				public TypeSerializer<Row> getInputTypeSerializer() {
-					return PythonTypeUtils.toFlinkTypeSerializer(userDefinedFunctionInputType);
-				}
-			};
-		}
-	}
+        return new PassThroughPythonTableFunctionOperator(
+                config,
+                tableFunction,
+                inputType,
+                udfInputType,
+                udfOutputType,
+                joinRelType,
+                ProjectionCodeGenerator.generateProjection(
+                        new CodeGeneratorContext(
+                                new Configuration(),
+                                Thread.currentThread().getContextClassLoader()),
+                        "UdtfInputProjection",
+                        inputType,
+                        udfInputType,
+                        udfInputOffsets));
+    }
+
+    private static class PassThroughPythonTableFunctionOperator
+            extends PythonTableFunctionOperator {
+
+        PassThroughPythonTableFunctionOperator(
+                Configuration config,
+                PythonFunctionInfo tableFunction,
+                RowType inputType,
+                RowType udfInputType,
+                RowType udfOutputType,
+                FlinkJoinType joinType,
+                GeneratedProjection udtfInputGeneratedProjection) {
+            super(
+                    config,
+                    tableFunction,
+                    inputType,
+                    udfInputType,
+                    udfOutputType,
+                    joinType,
+                    udtfInputGeneratedProjection);
+        }
+
+        @Override
+        public PythonFunctionRunner createPythonFunctionRunner() {
+            return new PassThroughPythonTableFunctionRunner(
+                    getRuntimeContext().getTaskName(),
+                    PythonTestUtils.createTestProcessEnvironmentManager(),
+                    udfInputType,
+                    udfOutputType,
+                    getFunctionUrn(),
+                    createUserDefinedFunctionsProto(),
+                    PythonTestUtils.createMockFlinkMetricContainer());
+        }
+    }
 }

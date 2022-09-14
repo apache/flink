@@ -25,9 +25,8 @@ package org.apache.flink.formats.compress.extractor;
  */
 public class DefaultExtractor<T> implements Extractor<T> {
 
-	@Override
-	public byte[] extract(T element) {
-		return (element.toString() + System.lineSeparator()).getBytes();
-	}
-
+    @Override
+    public byte[] extract(T element) {
+        return (element.toString() + System.lineSeparator()).getBytes();
+    }
 }

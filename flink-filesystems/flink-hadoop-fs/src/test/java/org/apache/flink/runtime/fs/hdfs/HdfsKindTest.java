@@ -30,30 +30,30 @@ import java.io.IOException;
 import static org.junit.Assert.assertEquals;
 
 /**
- * Tests for extracting the {@link FileSystemKind} from file systems that Flink
- * accesses through Hadoop's File System interface.
+ * Tests for extracting the {@link FileSystemKind} from file systems that Flink accesses through
+ * Hadoop's File System interface.
  *
- * <p>This class needs to be in this package, because it accesses package private methods
- * from the HDFS file system wrapper class.
+ * <p>This class needs to be in this package, because it accesses package private methods from the
+ * HDFS file system wrapper class.
  */
 public class HdfsKindTest extends TestLogger {
 
-	@Test
-	public void testHdfsKind() throws IOException {
-		final FileSystem fs = new Path("hdfs://localhost:55445/my/file").getFileSystem();
-		assertEquals(FileSystemKind.FILE_SYSTEM, fs.getKind());
-	}
+    @Test
+    public void testHdfsKind() throws IOException {
+        final FileSystem fs = new Path("hdfs://localhost:55445/my/file").getFileSystem();
+        assertEquals(FileSystemKind.FILE_SYSTEM, fs.getKind());
+    }
 
-	@Test
-	public void testS3fileSystemSchemes() {
-		assertEquals(FileSystemKind.OBJECT_STORE, HadoopFileSystem.getKindForScheme("s3"));
-		assertEquals(FileSystemKind.OBJECT_STORE, HadoopFileSystem.getKindForScheme("s3n"));
-		assertEquals(FileSystemKind.OBJECT_STORE, HadoopFileSystem.getKindForScheme("s3a"));
-		assertEquals(FileSystemKind.OBJECT_STORE, HadoopFileSystem.getKindForScheme("EMRFS"));
-	}
+    @Test
+    public void testS3fileSystemSchemes() {
+        assertEquals(FileSystemKind.OBJECT_STORE, HadoopFileSystem.getKindForScheme("s3"));
+        assertEquals(FileSystemKind.OBJECT_STORE, HadoopFileSystem.getKindForScheme("s3n"));
+        assertEquals(FileSystemKind.OBJECT_STORE, HadoopFileSystem.getKindForScheme("s3a"));
+        assertEquals(FileSystemKind.OBJECT_STORE, HadoopFileSystem.getKindForScheme("EMRFS"));
+    }
 
-	@Test
-	public void testViewFs() {
-		assertEquals(FileSystemKind.FILE_SYSTEM, HadoopFileSystem.getKindForScheme("viewfs"));
-	}
+    @Test
+    public void testViewFs() {
+        assertEquals(FileSystemKind.FILE_SYSTEM, HadoopFileSystem.getKindForScheme("viewfs"));
+    }
 }

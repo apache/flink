@@ -18,12 +18,10 @@
 
 package org.apache.flink.runtime.webmonitor.handlers.utils;
 
-/**
- * Simple test program that prints to stdout/stderr.
- */
+/** Simple test program that prints to stdout/stderr. */
 public class OutputTestProgram {
-	public static void main(String[] args) throws Exception {
-		System.out.println("hello out!");
-		System.err.println("hello err!");
-	}
+    public static void main(String[] args) throws Exception {
+        System.out.println("hello out!");
+        System.err.println("hello err!");
+    }
 }

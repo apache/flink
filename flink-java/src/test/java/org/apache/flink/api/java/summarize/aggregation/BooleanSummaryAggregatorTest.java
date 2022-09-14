@@ -20,70 +20,71 @@ package org.apache.flink.api.java.summarize.aggregation;
 
 import org.apache.flink.api.java.summarize.BooleanColumnSummary;
 
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-/**
- * Tests for {@link BooleanSummaryAggregator}.
- */
-public class BooleanSummaryAggregatorTest {
+import static org.assertj.core.api.Assertions.assertThat;
 
-	@Test
-	public void testMixedGroup() {
-		BooleanColumnSummary summary = summarize(true, false, null, true, true, true, false, null, true, false, true);
-		Assert.assertEquals(11, summary.getTotalCount());
-		Assert.assertEquals(2, summary.getNullCount());
-		Assert.assertEquals(9, summary.getNonNullCount());
-		Assert.assertEquals(6, summary.getTrueCount());
-		Assert.assertEquals(3, summary.getFalseCount());
-	}
+/** Tests for {@link BooleanSummaryAggregator}. */
+class BooleanSummaryAggregatorTest {
 
-	@Test
-	public void testAllNullBooleans() {
-		BooleanColumnSummary summary = summarize(null, null, null, null);
-		Assert.assertEquals(4, summary.getTotalCount());
-		Assert.assertEquals(4, summary.getNullCount());
-		Assert.assertEquals(0, summary.getNonNullCount());
-		Assert.assertEquals(0, summary.getTrueCount());
-		Assert.assertEquals(0, summary.getFalseCount());
-	}
+    @Test
+    void testMixedGroup() {
+        BooleanColumnSummary summary =
+                summarize(true, false, null, true, true, true, false, null, true, false, true);
+        assertThat(summary.getTotalCount()).isEqualTo(11);
+        assertThat(summary.getNullCount()).isEqualTo(2);
+        assertThat(summary.getNonNullCount()).isEqualTo(9);
+        assertThat(summary.getTrueCount()).isEqualTo(6);
+        assertThat(summary.getFalseCount()).isEqualTo(3);
+    }
 
-	@Test
-	public void testAllTrue() {
-		BooleanColumnSummary summary = summarize(true, true, true, true, true, true);
-		Assert.assertEquals(6, summary.getTotalCount());
-		Assert.assertEquals(0, summary.getNullCount());
-		Assert.assertEquals(6, summary.getNonNullCount());
-		Assert.assertEquals(6, summary.getTrueCount());
-		Assert.assertEquals(0, summary.getFalseCount());
-	}
+    @Test
+    void testAllNullBooleans() {
+        BooleanColumnSummary summary = summarize(null, null, null, null);
+        assertThat(summary.getTotalCount()).isEqualTo(4);
+        assertThat(summary.getNullCount()).isEqualTo(4);
+        assertThat(summary.getNonNullCount()).isZero();
+        assertThat(summary.getTrueCount()).isZero();
+        assertThat(summary.getFalseCount()).isZero();
+    }
 
-	@Test
-	public void testAllFalse() {
-		BooleanColumnSummary summary = summarize(false, false, false);
-		Assert.assertEquals(3, summary.getTotalCount());
-		Assert.assertEquals(0, summary.getNullCount());
-		Assert.assertEquals(3, summary.getNonNullCount());
-		Assert.assertEquals(0, summary.getTrueCount());
-		Assert.assertEquals(3, summary.getFalseCount());
-	}
+    @Test
+    void testAllTrue() {
+        BooleanColumnSummary summary = summarize(true, true, true, true, true, true);
+        assertThat(summary.getTotalCount()).isEqualTo(6);
+        assertThat(summary.getNullCount()).isZero();
+        assertThat(summary.getNonNullCount()).isEqualTo(6);
+        assertThat(summary.getTrueCount()).isEqualTo(6);
+        assertThat(summary.getFalseCount()).isZero();
+    }
 
-	/**
-	 * Helper method for summarizing a list of values.
-	 *
-	 * <p>This method breaks the rule of "testing only one thing" by aggregating and combining
-	 * a bunch of different ways.
-	 */
-	protected BooleanColumnSummary summarize(Boolean... values) {
-		return new AggregateCombineHarness<Boolean, BooleanColumnSummary, BooleanSummaryAggregator>() {
-			@Override
-			protected void compareResults(BooleanColumnSummary result1, BooleanColumnSummary result2) {
-				Assert.assertEquals(result1.getNullCount(), result2.getNullCount());
-				Assert.assertEquals(result1.getNonNullCount(), result2.getNonNullCount());
-				Assert.assertEquals(result1.getTrueCount(), result2.getTrueCount());
-				Assert.assertEquals(result1.getFalseCount(), result2.getFalseCount());
-			}
-		}.summarize(values);
-	}
+    @Test
+    void testAllFalse() {
+        BooleanColumnSummary summary = summarize(false, false, false);
+        assertThat(summary.getTotalCount()).isEqualTo(3);
+        assertThat(summary.getNullCount()).isZero();
+        assertThat(summary.getNonNullCount()).isEqualTo(3);
+        assertThat(summary.getTrueCount()).isZero();
+        assertThat(summary.getFalseCount()).isEqualTo(3);
+    }
 
+    /**
+     * Helper method for summarizing a list of values.
+     *
+     * <p>This method breaks the rule of "testing only one thing" by aggregating and combining a
+     * bunch of different ways.
+     */
+    protected BooleanColumnSummary summarize(Boolean... values) {
+        return new AggregateCombineHarness<
+                Boolean, BooleanColumnSummary, BooleanSummaryAggregator>() {
+            @Override
+            protected void compareResults(
+                    BooleanColumnSummary result1, BooleanColumnSummary result2) {
+                assertThat(result2.getNullCount()).isEqualTo(result1.getNullCount());
+                assertThat(result2.getNonNullCount()).isEqualTo(result1.getNonNullCount());
+                assertThat(result2.getTrueCount()).isEqualTo(result1.getTrueCount());
+                assertThat(result2.getFalseCount()).isEqualTo(result1.getFalseCount());
+            }
+        }.summarize(values);
+    }
 }

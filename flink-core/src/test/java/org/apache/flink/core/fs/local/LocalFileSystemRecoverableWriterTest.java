@@ -25,21 +25,18 @@ import org.apache.flink.core.fs.Path;
 import org.junit.ClassRule;
 import org.junit.rules.TemporaryFolder;
 
-/**
- * Tests for the {@link LocalRecoverableWriter}.
- */
+/** Tests for the {@link LocalRecoverableWriter}. */
 public class LocalFileSystemRecoverableWriterTest extends AbstractRecoverableWriterTest {
 
-	@ClassRule
-	public static final TemporaryFolder TEMP_FOLDER = new TemporaryFolder();
+    @ClassRule public static final TemporaryFolder TEMP_FOLDER = new TemporaryFolder();
 
-	@Override
-	public Path getBasePath() throws Exception {
-		return new Path(TEMP_FOLDER.newFolder().toURI());
-	}
+    @Override
+    public Path getBasePath() throws Exception {
+        return new Path(TEMP_FOLDER.newFolder().toURI());
+    }
 
-	@Override
-	public FileSystem initializeFileSystem() {
-		return FileSystem.getLocalFileSystem();
-	}
+    @Override
+    public FileSystem initializeFileSystem() {
+        return FileSystem.getLocalFileSystem();
+    }
 }

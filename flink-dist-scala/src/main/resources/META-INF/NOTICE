@@ -1,0 +1,16 @@
+flink-dist-scala
+Copyright 2014-2022 The Apache Software Foundation
+
+This product includes software developed at
+The Apache Software Foundation (http://www.apache.org/).
+
+This project bundles the following dependencies under the Apache Software License 2.0 (http://www.apache.org/licenses/LICENSE-2.0.txt)
+
+- com.twitter:chill_2.12:0.7.6
+
+The following dependencies all share the same BSD license which you find under licenses/LICENSE.scala.
+
+- org.scala-lang:scala-compiler:2.12.7
+- org.scala-lang:scala-library:2.12.7
+- org.scala-lang:scala-reflect:2.12.7
+- org.scala-lang.modules:scala-xml_2.12:1.0.6

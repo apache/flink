@@ -18,48 +18,47 @@
 
 package org.apache.flink.api.common.typeutils.base;
 
-import java.util.Random;
-
 import org.apache.flink.api.common.typeutils.ComparatorTestBase;
 import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.api.common.typeutils.base.IntComparator;
-import org.apache.flink.api.common.typeutils.base.IntSerializer;
 
-public class IntComparatorTest extends ComparatorTestBase<Integer> {
+import java.util.Random;
 
-	@Override
-	protected TypeComparator<Integer> createComparator(boolean ascending) {
-		return new IntComparator(ascending);
-	}
+class IntComparatorTest extends ComparatorTestBase<Integer> {
 
-	@Override
-	protected TypeSerializer<Integer> createSerializer() {
-		return new IntSerializer();
-	}
+    @Override
+    protected TypeComparator<Integer> createComparator(boolean ascending) {
+        return new IntComparator(ascending);
+    }
 
-	@Override
-	protected Integer[] getSortedTestData() {
+    @Override
+    protected TypeSerializer<Integer> createSerializer() {
+        return new IntSerializer();
+    }
 
-		Random rnd = new Random(874597969123412338L);
-		int rndInt = rnd.nextInt();
-		if (rndInt < 0) {
-			rndInt = -rndInt;
-		}
-		if (rndInt == Integer.MAX_VALUE) {
-			rndInt -= 3;
-		}
-		if (rndInt <= 2) {
-			rndInt += 3;
-		}
-		return new Integer[]{
-			Integer.valueOf(Integer.MIN_VALUE),
-			Integer.valueOf(-rndInt),
-			Integer.valueOf(-1),
-			Integer.valueOf(0),
-			Integer.valueOf(1),
-			Integer.valueOf(2),
-			Integer.valueOf(rndInt),
-			Integer.valueOf(Integer.MAX_VALUE)};
-	}
+    @Override
+    protected Integer[] getSortedTestData() {
+
+        Random rnd = new Random(874597969123412338L);
+        int rndInt = rnd.nextInt();
+        if (rndInt < 0) {
+            rndInt = -rndInt;
+        }
+        if (rndInt == Integer.MAX_VALUE) {
+            rndInt -= 3;
+        }
+        if (rndInt <= 2) {
+            rndInt += 3;
+        }
+        return new Integer[] {
+            Integer.valueOf(Integer.MIN_VALUE),
+            Integer.valueOf(-rndInt),
+            Integer.valueOf(-1),
+            Integer.valueOf(0),
+            Integer.valueOf(1),
+            Integer.valueOf(2),
+            Integer.valueOf(rndInt),
+            Integer.valueOf(Integer.MAX_VALUE)
+        };
+    }
 }

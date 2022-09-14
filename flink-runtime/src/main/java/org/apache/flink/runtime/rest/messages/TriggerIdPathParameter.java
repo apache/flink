@@ -18,30 +18,28 @@
 
 package org.apache.flink.runtime.rest.messages;
 
-/**
- * {@link MessagePathParameter} for the trigger id of an asynchronous operation.
- */
+/** {@link MessagePathParameter} for the trigger id of an asynchronous operation. */
 public class TriggerIdPathParameter extends MessagePathParameter<TriggerId> {
 
-	public static final String KEY = "triggerid";
+    public static final String KEY = "triggerid";
 
-	public TriggerIdPathParameter() {
-		super(KEY);
-	}
+    public TriggerIdPathParameter() {
+        super(KEY);
+    }
 
-	@Override
-	protected TriggerId convertFromString(String value) throws ConversionException {
-		return TriggerId.fromHexString(value);
-	}
+    @Override
+    protected TriggerId convertFromString(String value) throws ConversionException {
+        return TriggerId.fromHexString(value);
+    }
 
-	@Override
-	protected String convertToString(TriggerId value) {
-		return value.toString();
-	}
+    @Override
+    protected String convertToString(TriggerId value) {
+        return value.toString();
+    }
 
-	@Override
-	public String getDescription() {
-		return "32-character hexadecimal string that identifies an asynchronous operation trigger ID. " +
-			"The ID was returned then the operation was triggered.";
-	}
+    @Override
+    public String getDescription() {
+        return "32-character hexadecimal string that identifies an asynchronous operation trigger ID. "
+                + "The ID was returned then the operation was triggered.";
+    }
 }

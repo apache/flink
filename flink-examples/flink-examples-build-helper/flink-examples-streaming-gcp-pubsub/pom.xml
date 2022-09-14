@@ -24,18 +24,17 @@ under the License.
 	<parent>
 		<artifactId>flink-examples-build-helper</artifactId>
 		<groupId>org.apache.flink</groupId>
-		<version>1.11-SNAPSHOT</version>
-		<relativePath>..</relativePath>
+		<version>1.17-SNAPSHOT</version>
 	</parent>
 
 	<artifactId>flink-examples-streaming-gcp-pubsub_${scala.binary.version}</artifactId>
-	<name>flink-examples-streaming-gcp-pubsub</name>
+	<name>Flink : Examples : Build Helper : Streaming Google PubSub</name>
 	<packaging>jar</packaging>
 
 	<dependencies>
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-connector-gcp-pubsub_${scala.binary.version}</artifactId>
+			<artifactId>flink-connector-gcp-pubsub</artifactId>
 			<version>${project.version}</version>
 		</dependency>
 		<dependency>
@@ -66,7 +65,6 @@ under the License.
 							<goal>shade</goal>
 						</goals>
 						<configuration>
-							<shadeTestJar>false</shadeTestJar>
 							<shadedArtifactAttached>false</shadedArtifactAttached>
 							<createDependencyReducedPom>false</createDependencyReducedPom>
 							<transformers>

@@ -21,47 +21,51 @@ package org.apache.flink.api.java.summarize.aggregation;
 import org.apache.flink.api.java.summarize.NumericColumnSummary;
 import org.apache.flink.types.ShortValue;
 
-import org.junit.Assert;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.data.Offset.offset;
 
-/**
- * Tests for {@link ValueSummaryAggregator.ShortValueSummaryAggregator}.
- */
-public class ShortValueSummaryAggregatorTest extends ShortSummaryAggregatorTest {
+/** Tests for {@link ValueSummaryAggregator.ShortValueSummaryAggregator}. */
+class ShortValueSummaryAggregatorTest extends ShortSummaryAggregatorTest {
 
-	/**
-	 * Helper method for summarizing a list of values.
-	 */
-	protected NumericColumnSummary<Short> summarize(Integer... values) {
+    /** Helper method for summarizing a list of values. */
+    protected NumericColumnSummary<Short> summarize(Integer... values) {
 
-		ShortValue[] shortValues = new ShortValue[values.length];
-		for (int i = 0; i < values.length; i++) {
-			if (values[i] != null) {
-				shortValues[i] = new ShortValue(values[i].shortValue());
-			}
-		}
+        ShortValue[] shortValues = new ShortValue[values.length];
+        for (int i = 0; i < values.length; i++) {
+            if (values[i] != null) {
+                shortValues[i] = new ShortValue(values[i].shortValue());
+            }
+        }
 
-		return new AggregateCombineHarness<ShortValue, NumericColumnSummary<Short>, ValueSummaryAggregator.ShortValueSummaryAggregator>() {
+        return new AggregateCombineHarness<
+                ShortValue,
+                NumericColumnSummary<Short>,
+                ValueSummaryAggregator.ShortValueSummaryAggregator>() {
 
-			@Override
-			protected void compareResults(NumericColumnSummary<Short> result1, NumericColumnSummary<Short> result2) {
+            @Override
+            protected void compareResults(
+                    NumericColumnSummary<Short> result1, NumericColumnSummary<Short> result2) {
 
-				Assert.assertEquals(result1.getTotalCount(), result2.getTotalCount());
-				Assert.assertEquals(result1.getNullCount(), result2.getNullCount());
-				Assert.assertEquals(result1.getMissingCount(), result2.getMissingCount());
-				Assert.assertEquals(result1.getNonMissingCount(), result2.getNonMissingCount());
-				Assert.assertEquals(result1.getInfinityCount(), result2.getInfinityCount());
-				Assert.assertEquals(result1.getNanCount(), result2.getNanCount());
+                assertThat(result2.getTotalCount()).isEqualTo(result1.getTotalCount());
+                assertThat(result2.getNullCount()).isEqualTo(result1.getNullCount());
+                assertThat(result2.getMissingCount()).isEqualTo(result1.getMissingCount());
+                assertThat(result2.getNonMissingCount()).isEqualTo(result1.getNonMissingCount());
+                assertThat(result2.getInfinityCount()).isEqualTo(result1.getInfinityCount());
+                assertThat(result2.getNanCount()).isEqualTo(result1.getNanCount());
 
-				Assert.assertEquals(result1.containsNull(), result2.containsNull());
-				Assert.assertEquals(result1.containsNonNull(), result2.containsNonNull());
+                assertThat(result2.containsNull()).isEqualTo(result1.containsNull());
+                assertThat(result2.containsNonNull()).isEqualTo(result1.containsNonNull());
 
-				Assert.assertEquals(result1.getMin().shortValue(), result2.getMin().shortValue());
-				Assert.assertEquals(result1.getMax().shortValue(), result2.getMax().shortValue());
-				Assert.assertEquals(result1.getSum().shortValue(), result2.getSum().shortValue());
-				Assert.assertEquals(result1.getMean().doubleValue(), result2.getMean().doubleValue(), 1e-12d);
-				Assert.assertEquals(result1.getVariance().doubleValue(), result2.getVariance().doubleValue(), 1e-9d);
-				Assert.assertEquals(result1.getStandardDeviation().doubleValue(), result2.getStandardDeviation().doubleValue(), 1e-12d);
-			}
-		}.summarize(shortValues);
-	}
+                assertThat(result2.getMin().shortValue()).isEqualTo(result1.getMin().shortValue());
+                assertThat(result2.getMax().shortValue()).isEqualTo(result1.getMax().shortValue());
+                assertThat(result2.getSum().shortValue()).isEqualTo(result1.getSum().shortValue());
+                assertThat(result2.getMean().doubleValue())
+                        .isCloseTo(result1.getMean().doubleValue(), offset(1e-12d));
+                assertThat(result2.getVariance().doubleValue())
+                        .isCloseTo(result1.getVariance().doubleValue(), offset(1e-9d));
+                assertThat(result2.getStandardDeviation().doubleValue())
+                        .isCloseTo(result1.getStandardDeviation().doubleValue(), offset(1e-12d));
+            }
+        }.summarize(shortValues);
+    }
 }

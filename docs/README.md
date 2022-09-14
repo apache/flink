@@ -6,69 +6,113 @@ https://flink.apache.org/ is also generated from the files found here.
 
 # Requirements
 
-The dependencies are declared in the Gemfile in this directory. We use Markdown
-to write and Jekyll to translate the documentation to static HTML. All required
-dependencies are installed locally when you build the documentation through the
-`build_docs.sh` script. If you want to install the software manually, use Ruby's
-Bundler Gem to install all dependencies:
+### Build the documentation and serve it locally
 
-    gem install bundler -v 1.16.1
-    bundle install
+The Flink documentation uses [Hugo](https://gohugo.io/getting-started/installing/) to generate HTML files.  More specifically, it uses the *extended version* of Hugo with Sass/SCSS support. 
 
-Note that in Ubuntu based systems, it may be necessary to install the following
-packages: `rubygems ruby-dev libssl-dev build-essential`.
+As a pre-requisite, you need to have [Go](https://golang.org/doc/install) installed.
+To build the documentation, you can install Hugo locally or use a Docker image. 
 
-# Using Dockerized Jekyll
+Both methods require you to execute commands in the directory of this module (`docs/`). The built site is served at http://localhost:1313/.
 
-We dockerized the jekyll environment above. If you have [docker](https://docs.docker.com/),
-you can run following command to start the container.
+#### Using Hugo Docker image:
 
-```
-cd flink/docs/docker
-./run.sh
+```sh
+$ git submodule update --init --recursive
+$ ./setup_docs.sh
+$ docker run -v $(pwd):/src -p 1313:1313 jakejarvis/hugo-extended:latest server --buildDrafts --buildFuture --bind 0.0.0.0
 ```
 
-It takes a few moment to build the image for the first time, but will be a second from the second time.
-The run.sh command brings you in a bash session where you run the `./build_docs.sh` script mentioned above.
+#### Local Hugo installation:
 
+Make sure you have installed [Hugo](https://gohugo.io/getting-started/installing/) on your system.
 
-# Build
+```sh
+$ git submodule update --init --recursive
+$ ./setup_docs.sh
+$ ./build_docs.sh
+```
 
-The `docs/build_docs.sh` script installs dependencies locally, calls Jekyll, and
-generates the documentation in `docs/content`. You can then point your browser
-to `docs/content/index.html` and start reading.
+The site can be viewed at http://localhost:1313/
 
-If you call the script with the preview flag `build_docs.sh -p`, Jekyll will
-start a web server at `localhost:4000` and watch the docs directory for
-updates. Use this mode to preview changes locally. 
+## Include externally hosted documentation
 
-You can call the script with the incremental flag `build_docs.sh -i`.
-Jekyll will then serve a live preview at `localhost:4000`,
-and it will be much faster because it will only rebuild the pages corresponding
-to files that are modified. Note that if you are making changes that affect
-the sidebar navigation, you'll have to build the entire site to see
-those changes reflected on every page.
+With the ongoing efforts to move Flink's connectors from this repository to individual, dedicated
+repositories, this also requires the documentation to be hosted outside this repo. However, 
+we still want to serve all documentation as a whole on the Flink documentation website.
 
-| Flag | Action | 
-| -----| -------| 
-| -p   | Run interactive preview | 
-| -i   | Incremental builds | 
-| -e   | Build only English docs |
-| -z   | Build only Chinese docs |
+In order to achieve this, we're using [Hugo Modules.](https://gohugo.io/hugo-modules/configuration/) 
+to create a virtual filesystem. 
+
+Adding new externally hosted documentation requires the following steps to be taken:
+
+1. (If necessary) Move the existing documentation to the new repository
+2. In this new repository, in the `docs` folder, create a file `go.mod` containing:
+
+```go
+module github.com/apache/flink-connector-<repositoryname>/docs
+
+go 1.18
+```
+
+Replace <repositoryname> with the name of your repository.
+See https://github.com/apache/flink-connector-elasticsearch/tree/main/docs/go.mod for an example.
+3. In this new repository, in the `docs` folder, create a `config.toml` file containing:
+
+```yaml
+module:
+  mounts:
+    - source: content
+      target: content
+      lang: en
+    - source: content.zh
+      target: content.zh
+      lang: zh
+```
+
+See https://github.com/apache/flink-connector-elasticsearch/tree/main/docs/config.toml for an example.
+
+4. In the Flink repository, edit the `docs/setup_docs.sh` file and add a reference to your now 
+externally hosted documentation. The reference will look like `hugo mod get -u github.com/apache/<reponame>/docs@main`
+
+Replace <repositoryname> with the name of your repository.
+
+5. In the Flink repository, edit the `docs/config.toml` file add the files from the external
+repository as a mount to the Flink documentation. Hugo creates a virtual mount, meaning that any
+mounted file will appear as if it's located in this repository. 
+
+```yaml
+[module]
+[[module.imports]]
+  path = 'github.com/apache/<repositoryname>/docs'
+[[module.imports.mounts]]
+  source = 'content'
+  target = 'content'
+  lang = 'en'
+[[module.imports.mounts]]
+  source = 'content.zh'
+  target = 'content'
+  lang = 'zh'
+```
+
+Replace <repositoryname> with the name of your repository.
+The Chinese documentation source `content.zh` is targetted to the actual `content` folder. 
+Hugo combines the `target` and `lang` to display the correct language. 
+See the current `docs/config.toml` file for an example.
 
 ## Generate configuration tables
 
-Configuration descriptions are auto generated from code. To trigger the generation you need to run:
+Configuration descriptions are auto generated from code. To trigger the generation you need to run in the project root:
 
 ```
-mvn -Pgenerate-config-docs install
+mvn -Pgenerate-config-docs install -Dfast -DskipTests
 ```
 
-The resulting html files will be written to `_includes/generated`. Tables are regenerated each time the command is invoked.
+The resulting html files will be written to `layouts/shortcodes/generated`. Tables are regenerated each time the command is invoked.
 These tables can be directly included into the documentation:
 
 ```
-{% include generated/file_name.html %}
+{{< generated/file_name >}}
 ```
 
 # Contribute
@@ -84,12 +128,14 @@ In addition to Markdown, every page contains a Jekyll front matter, which specif
     ---
     title: "Title of the Page"
     ---
-
-Furthermore, you can access variables found in `docs/_config.yml` as follows:
-
-    {{ site.NAME }}
-
-This will be replaced with the value of the variable called `NAME` when generating the docs.
+    
+    ---
+    title: "Title of the Page" <-- Title rendered in the side nave
+    weight: 1 <-- Weight controls the ordering of pages in the side nav. 
+    type: docs <-- required
+    aliases:  <-- Alias to setup redirect from removed page to this one
+      - /alias/to/removed/page.html
+    ---
 
 ## Structure
 
@@ -100,8 +146,8 @@ This will be replaced with the value of the variable called `NAME` when generati
 All documents are structured with headings. From these headings, you can automatically generate a page table of contents (see below).
 
 ```
-# Level-1 Heading  <- Used for the title of the page (don't use this)
-## Level-2 Heading <- Start with this one
+# Level-1 Heading  <- Used for the title of the page 
+## Level-2 Heading <- Start with this one for content
 ### Level-3 heading
 #### Level-4 heading
 ##### Level-5 heading
@@ -111,47 +157,162 @@ Please stick to the "logical order" when using the headlines, e.g. start with le
 
 #### Table of Contents
 
-    * This will be replaced by the TOC
-    {:toc}
+Table of contents are added automatically to every page, based on heading levels 2 - 4. 
+The ToC can be omitted by adding the following to the front matter of the page:
 
+    ---
+    bookToc: false
+    ---
 
-Add this markup (both lines) to the document in order to generate a table of contents for the page. Headings until level 3 headings are included.
+### ShortCodes 
 
-You can exclude a heading from the table of contents:
+Flink uses [shortcodes](https://gohugo.io/content-management/shortcodes/) to add custom functionality
+to its documentation markdown. The following are available for use:  
 
-    # Excluded heading
-    {:.no_toc}
+#### Flink Artifact
+
+    {{< artifact flink-streaming-scala withScalaVersion >}}
+
+This will be replaced by the maven artifact for flink-streaming-scala that users should copy into their pom.xml file. It will render out to:
+
+```xml
+<dependency>
+    <groupId>org.apache.flink</groupId>
+    <artifactId>flink-streaming-scala_2.12</artifactId>
+    <version><!-- current flink version --></version>
+</dependency>
+```
+
+It includes a number of optional flags:
+
+* withScalaVersion: Includes the scala version suffix to the artifact id
+* withTestScope: Includes `<scope>test</scope>` to the module. Useful for marking test dependencies.
+* withTestClassifier: Includes `<classifier>tests</classifier>`. Useful when users should be pulling in Flink tests dependencies. This is mostly for the test harnesses and probably not what you want. 
+
+You can also use the shortcodes (with same flags) instead:
+
+* `artifact_gradle` to show the Gradle syntax
+* `artifact_tabs` to create a tabbed view, showing both Maven and Gradle syntax
 
 #### Back to Top
 
-	{% top %}
+	{{< top >}}
 
-This will be replaced by a default back to top link. It is recommended to use these links at least at the end of each level-2 section.
+This will be replaced by a back to top link. It is recommended to use these links at least at the end of each level-2 section.
 
-#### Labels
+#### Info Hints
 
-	{% info %}
-	{% warn %}
+	{{< hint info >}}
+	Some interesting information
+	{{< /hint >}}
 
-These will be replaced by a info or warning label. You can change the text of the label by providing an argument:
+The hint will be rendered in a blue box. This hint is useful when providing 
+additional information for the user that does not fit into the flow of the documentation.
 
-    {% info Recommendation %}
+#### Info Warning 
 
-### Documentation
+    {{< hint warning >}}
+    Something to watch out for. 
+    {{< /hint >}}
 
-#### Navigation
+The hint will be rendered in a yellow box. This hint is useful when highlighting
+information users should watch out for to prevent errors. 
 
-The navigation on the left side of the docs is automatically generated when building the docs. You can modify the markup in `_include/sidenav.html`.
+#### Info Danger
 
-The structure of the navigation is determined by the front matter of all pages. The fields used to determine the structure are:
+    {{< hint danger >}}
+    Something to avoid
+    {{< /hint >}}
 
-- `nav-id` => ID of this page. Other pages can use this ID as their parent ID.
-- `nav-parent_id` => ID of the parent. This page will be listed under the page with id `nav-parent_id`.
+The hint will be rendered in a red box. This hint is useful when highlighting
+information users need to know to avoid data loss or to point out broken
+functionality. 
 
-Level 0 is made up of all pages, which have nav-parent_id set to `root`. There is no limitation on how many levels you can nest.
+#### Label
 
-The `title` of the page is used as the default link text. You can override this via `nav-title`. The relative position per navigational level is determined by `nav-pos`.
+    {{< label "My Label" >}}
 
-If you have a page with sub pages, the link target will be used to expand the sub level navigation. If you want to actually add a link to the page as well, you can add the `nav-show_overview: true` field to the front matter. This will then add an `Overview` sub page to the expanded list.
+The label will be rendered in an inlined blue box. This is useful for labeling functionality
+such as whether a SQL feature works for only batch or streaming execution. 
 
-The nesting is also used for the breadcrumbs like `Application Development > Libraries > Machine Learning > Optimization`.
+#### Flink version 
+
+    {{< version >}}
+
+Interpolates the current Flink version
+
+#### Scala Version
+
+    {{< scala_version >}}
+
+Interpolates the default scala version
+
+#### Stable
+
+    {{< stable >}}
+     Some content
+    {{< /stable >}}
+
+This shortcode will only render its content if the site is marked as stable. 
+
+#### Unstable 
+
+    {{< unstable >}}
+    Some content 
+    {{< /unstable >}}
+
+This shortcode will only render its content if the site is marked as unstable. 
+
+#### Query State Warning
+
+    {{< query_state_warning >}}
+
+Will render a warning the current SQL feature may have unbounded state requirements.
+
+#### tab
+
+    {{< tabs "sometab" >}}
+    {{< tab "Java" >}}
+    ```java
+    System.out.println("Hello World!");
+    ```
+    {{< /tab >}}
+    {{< tab "Scala" >}}
+    ```scala
+    println("Hello World!");
+    ```
+    {< /tab >}}
+    {{< /tabs }}
+
+Prints the content in tabs. IMPORTANT: The label in the outermost "tabs" shortcode must
+be unique for the page. 
+
+#### Github Repo
+
+    {{< github_repo >}}
+
+Renders a link to the apache flink repo. 
+
+#### Github Link
+
+    {{< gh_link file="/some/file.java" name="Some file" >}}
+
+Renders a link to a file in the Apache Flink repo with a given name. 
+
+#### JavaDocs Link
+    {{< javadoc file="some/file" name="Some file" >}}
+
+Renders a link to a file in the Apache Flink Java Documentation. 
+
+#### PythonDocs Link
+    {< pythondoc file="some/file" name="Some file" >}}
+
+Renders a link to a file in the Apache Flink Python Documentation. 
+
+#### FlinkDownloads Link
+
+```
+{{< downloads >}}
+```
+
+Renders a link to the apache flink download page. 

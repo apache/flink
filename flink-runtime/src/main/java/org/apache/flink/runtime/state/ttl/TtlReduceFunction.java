@@ -26,29 +26,28 @@ import org.apache.flink.api.common.state.StateTtlConfig;
  *
  * @param <T> Type of the user value of state with TTL
  */
-class TtlReduceFunction<T>
-	extends AbstractTtlDecorator<ReduceFunction<T>>
-	implements ReduceFunction<TtlValue<T>> {
+class TtlReduceFunction<T> extends AbstractTtlDecorator<ReduceFunction<T>>
+        implements ReduceFunction<TtlValue<T>> {
 
-	TtlReduceFunction(
-		ReduceFunction<T> originalReduceFunction,
-		StateTtlConfig config,
-		TtlTimeProvider timeProvider) {
-		super(originalReduceFunction, config, timeProvider);
-	}
+    TtlReduceFunction(
+            ReduceFunction<T> originalReduceFunction,
+            StateTtlConfig config,
+            TtlTimeProvider timeProvider) {
+        super(originalReduceFunction, config, timeProvider);
+    }
 
-	@Override
-	public TtlValue<T> reduce(TtlValue<T> value1, TtlValue<T> value2) throws Exception {
-		T userValue1 = getUnexpired(value1);
-		T userValue2 = getUnexpired(value2);
-		if (userValue1 != null && userValue2 != null) {
-			return wrapWithTs(original.reduce(userValue1, userValue2));
-		} else if (userValue1 != null) {
-			return rewrapWithNewTs(value1);
-		} else if (userValue2 != null) {
-			return rewrapWithNewTs(value2);
-		} else {
-			return null;
-		}
-	}
+    @Override
+    public TtlValue<T> reduce(TtlValue<T> value1, TtlValue<T> value2) throws Exception {
+        T userValue1 = getUnexpired(value1);
+        T userValue2 = getUnexpired(value2);
+        if (userValue1 != null && userValue2 != null) {
+            return wrapWithTs(original.reduce(userValue1, userValue2));
+        } else if (userValue1 != null) {
+            return rewrapWithNewTs(value1);
+        } else if (userValue2 != null) {
+            return rewrapWithNewTs(value2);
+        } else {
+            return null;
+        }
+    }
 }

@@ -21,22 +21,22 @@ import org.apache.flink.metrics.Counter;
 import org.apache.flink.util.Collector;
 
 public class CountingCollector<OUT> implements Collector<OUT> {
-	private final Collector<OUT> collector;
-	private final Counter numRecordsOut;
+    private final Collector<OUT> collector;
+    private final Counter numRecordsOut;
 
-	public CountingCollector(Collector<OUT> collector, Counter numRecordsOut) {
-		this.collector = collector;
-		this.numRecordsOut = numRecordsOut;
-	}
+    public CountingCollector(Collector<OUT> collector, Counter numRecordsOut) {
+        this.collector = collector;
+        this.numRecordsOut = numRecordsOut;
+    }
 
-	@Override
-	public void collect(OUT record) {
-		this.numRecordsOut.inc();
-		this.collector.collect(record);
-	}
+    @Override
+    public void collect(OUT record) {
+        this.numRecordsOut.inc();
+        this.collector.collect(record);
+    }
 
-	@Override
-	public void close() {
-		this.collector.close();
-	}
+    @Override
+    public void close() {
+        this.collector.close();
+    }
 }

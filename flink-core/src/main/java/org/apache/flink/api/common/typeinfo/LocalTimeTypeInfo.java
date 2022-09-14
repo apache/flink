@@ -38,134 +38,141 @@ import java.util.Objects;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
-/**
- * Type information for Java LocalDate/LocalTime/LocalDateTime.
- */
+/** Type information for Java LocalDate/LocalTime/LocalDateTime. */
 @PublicEvolving
-public class LocalTimeTypeInfo<T extends Temporal> extends TypeInformation<T> implements AtomicType<T> {
+public class LocalTimeTypeInfo<T extends Temporal> extends TypeInformation<T>
+        implements AtomicType<T> {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	public static final LocalTimeTypeInfo<LocalDate> LOCAL_DATE = new LocalTimeTypeInfo<>(
-			LocalDate.class, LocalDateSerializer.INSTANCE, LocalDateComparator.class);
+    public static final LocalTimeTypeInfo<LocalDate> LOCAL_DATE =
+            new LocalTimeTypeInfo<>(
+                    LocalDate.class, LocalDateSerializer.INSTANCE, LocalDateComparator.class);
 
-	public static final LocalTimeTypeInfo<LocalTime> LOCAL_TIME = new LocalTimeTypeInfo<>(
-			LocalTime.class, LocalTimeSerializer.INSTANCE, LocalTimeComparator.class);
+    public static final LocalTimeTypeInfo<LocalTime> LOCAL_TIME =
+            new LocalTimeTypeInfo<>(
+                    LocalTime.class, LocalTimeSerializer.INSTANCE, LocalTimeComparator.class);
 
-	public static final LocalTimeTypeInfo<LocalDateTime> LOCAL_DATE_TIME = new LocalTimeTypeInfo<>(
-			LocalDateTime.class, LocalDateTimeSerializer.INSTANCE, LocalDateTimeComparator.class);
+    public static final LocalTimeTypeInfo<LocalDateTime> LOCAL_DATE_TIME =
+            new LocalTimeTypeInfo<>(
+                    LocalDateTime.class,
+                    LocalDateTimeSerializer.INSTANCE,
+                    LocalDateTimeComparator.class);
 
-	// --------------------------------------------------------------------------------------------
+    // --------------------------------------------------------------------------------------------
 
-	private final Class<T> clazz;
+    private final Class<T> clazz;
 
-	private final TypeSerializer<T> serializer;
+    private final TypeSerializer<T> serializer;
 
-	private final Class<? extends TypeComparator<T>> comparatorClass;
+    private final Class<? extends TypeComparator<T>> comparatorClass;
 
-	protected LocalTimeTypeInfo(Class<T> clazz, TypeSerializer<T> serializer, Class<? extends TypeComparator<T>> comparatorClass) {
-		this.clazz = checkNotNull(clazz);
-		this.serializer = checkNotNull(serializer);
-		this.comparatorClass = checkNotNull(comparatorClass);
-	}
+    protected LocalTimeTypeInfo(
+            Class<T> clazz,
+            TypeSerializer<T> serializer,
+            Class<? extends TypeComparator<T>> comparatorClass) {
+        this.clazz = checkNotNull(clazz);
+        this.serializer = checkNotNull(serializer);
+        this.comparatorClass = checkNotNull(comparatorClass);
+    }
 
-	@Override
-	public boolean isBasicType() {
-		return false;
-	}
+    @Override
+    public boolean isBasicType() {
+        return false;
+    }
 
-	@Override
-	public boolean isTupleType() {
-		return false;
-	}
+    @Override
+    public boolean isTupleType() {
+        return false;
+    }
 
-	@Override
-	public int getArity() {
-		return 1;
-	}
+    @Override
+    public int getArity() {
+        return 1;
+    }
 
-	@Override
-	public int getTotalFields() {
-		return 1;
-	}
+    @Override
+    public int getTotalFields() {
+        return 1;
+    }
 
-	@Override
-	public Class<T> getTypeClass() {
-		return clazz;
-	}
+    @Override
+    public Class<T> getTypeClass() {
+        return clazz;
+    }
 
-	@Override
-	public boolean isKeyType() {
-		return true;
-	}
+    @Override
+    public boolean isKeyType() {
+        return true;
+    }
 
-	@Override
-	public TypeSerializer<T> createSerializer(ExecutionConfig executionConfig) {
-		return serializer;
-	}
+    @Override
+    public TypeSerializer<T> createSerializer(ExecutionConfig executionConfig) {
+        return serializer;
+    }
 
-	@Override
-	public TypeComparator<T> createComparator(boolean sortOrderAscending, ExecutionConfig executionConfig) {
-		return instantiateComparator(comparatorClass, sortOrderAscending);
-	}
+    @Override
+    public TypeComparator<T> createComparator(
+            boolean sortOrderAscending, ExecutionConfig executionConfig) {
+        return instantiateComparator(comparatorClass, sortOrderAscending);
+    }
 
-	// --------------------------------------------------------------------------------------------
+    // --------------------------------------------------------------------------------------------
 
-	@Override
-	public int hashCode() {
-		return Objects.hash(clazz, serializer, comparatorClass);
-	}
+    @Override
+    public int hashCode() {
+        return Objects.hash(clazz, serializer, comparatorClass);
+    }
 
-	@Override
-	public boolean canEqual(Object obj) {
-		return obj instanceof LocalTimeTypeInfo;
-	}
+    @Override
+    public boolean canEqual(Object obj) {
+        return obj instanceof LocalTimeTypeInfo;
+    }
 
-	@Override
-	public boolean equals(Object obj) {
-		if (obj instanceof LocalTimeTypeInfo) {
-			@SuppressWarnings("unchecked")
-			LocalTimeTypeInfo<T> other = (LocalTimeTypeInfo<T>) obj;
+    @Override
+    public boolean equals(Object obj) {
+        if (obj instanceof LocalTimeTypeInfo) {
+            @SuppressWarnings("unchecked")
+            LocalTimeTypeInfo<T> other = (LocalTimeTypeInfo<T>) obj;
 
-			return other.canEqual(this) &&
-					this.clazz == other.clazz &&
-					serializer.equals(other.serializer) &&
-					this.comparatorClass == other.comparatorClass;
-		} else {
-			return false;
-		}
-	}
+            return other.canEqual(this)
+                    && this.clazz == other.clazz
+                    && serializer.equals(other.serializer)
+                    && this.comparatorClass == other.comparatorClass;
+        } else {
+            return false;
+        }
+    }
 
-	@Override
-	public String toString() {
-		return clazz.getSimpleName();
-	}
+    @Override
+    public String toString() {
+        return clazz.getSimpleName();
+    }
 
-	// --------------------------------------------------------------------------------------------
+    // --------------------------------------------------------------------------------------------
 
-	private static <X> TypeComparator<X> instantiateComparator(Class<? extends TypeComparator<X>> comparatorClass, boolean ascendingOrder) {
-		try {
-			Constructor<? extends TypeComparator<X>> constructor = comparatorClass.getConstructor(boolean.class);
-			return constructor.newInstance(ascendingOrder);
-		}
-		catch (Exception e) {
-			throw new RuntimeException("Could not initialize comparator " + comparatorClass.getName(), e);
-		}
-	}
+    private static <X> TypeComparator<X> instantiateComparator(
+            Class<? extends TypeComparator<X>> comparatorClass, boolean ascendingOrder) {
+        try {
+            Constructor<? extends TypeComparator<X>> constructor =
+                    comparatorClass.getConstructor(boolean.class);
+            return constructor.newInstance(ascendingOrder);
+        } catch (Exception e) {
+            throw new RuntimeException(
+                    "Could not initialize comparator " + comparatorClass.getName(), e);
+        }
+    }
 
-	public static LocalTimeTypeInfo getInfoFor(Class type) {
-		checkNotNull(type);
+    public static LocalTimeTypeInfo getInfoFor(Class type) {
+        checkNotNull(type);
 
-		if (type == LocalDate.class) {
-			return LOCAL_DATE;
-		}
-		else if (type == LocalTime.class) {
-			return LOCAL_TIME;
-		}
-		else if (type == LocalDateTime.class) {
-			return LOCAL_DATE_TIME;
-		}
-		return null;
-	}
-
+        if (type == LocalDate.class) {
+            return LOCAL_DATE;
+        } else if (type == LocalTime.class) {
+            return LOCAL_TIME;
+        } else if (type == LocalDateTime.class) {
+            return LOCAL_DATE_TIME;
+        }
+        return null;
+    }
 }

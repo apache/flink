@@ -1,0 +1,14 @@
+== Abstract Syntax Tree ==
+LogicalLegacySink(name=[`default_catalog`.`default_database`.`MySink1`], fields=[first])
++- LogicalProject(first=[$0])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+
+== Optimized Physical Plan ==
+LegacySink(name=[`default_catalog`.`default_database`.`MySink1`], fields=[first])
++- Calc(select=[first])
+   +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[first, id, score, last])
+
+== Optimized Execution Plan ==
+LegacySink(name=[`default_catalog`.`default_database`.`MySink1`], fields=[first])
++- Calc(select=[first])
+   +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[first, id, score, last])

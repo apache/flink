@@ -34,53 +34,52 @@ import java.util.Arrays;
 
 import static org.junit.Assert.assertEquals;
 
-/**
- * Tests for the {@link MultipleJobsDetails} class.
- */
+/** Tests for the {@link MultipleJobsDetails} class. */
 public class MultipleJobsDetailsTest extends TestLogger {
 
-	/**
-	 * Tests that we can un/marshal {@link MultipleJobsDetails} objects.
-	 */
-	@Test
-	public void testMultipleJobsDetailsMarshalling() throws JsonProcessingException {
-		int[] verticesPerState = new int[ExecutionState.values().length];
+    /** Tests that we can un/marshal {@link MultipleJobsDetails} objects. */
+    @Test
+    public void testMultipleJobsDetailsMarshalling() throws JsonProcessingException {
+        int[] verticesPerState = new int[ExecutionState.values().length];
 
-		for (int i = 0; i < verticesPerState.length; i++) {
-			verticesPerState[i] = i;
-		}
+        for (int i = 0; i < verticesPerState.length; i++) {
+            verticesPerState[i] = i;
+        }
 
-		final JobDetails running = new JobDetails(
-			new JobID(),
-			"running",
-			1L,
-			-1L,
-			9L,
-			JobStatus.RUNNING,
-			9L,
-			verticesPerState,
-			9);
+        final JobDetails running =
+                new JobDetails(
+                        new JobID(),
+                        "running",
+                        1L,
+                        -1L,
+                        9L,
+                        JobStatus.RUNNING,
+                        9L,
+                        verticesPerState,
+                        9);
 
-		final JobDetails finished = new JobDetails(
-			new JobID(),
-			"finished",
-			1L,
-			5L,
-			4L,
-			JobStatus.FINISHED,
-			8L,
-			verticesPerState,
-			4);
+        final JobDetails finished =
+                new JobDetails(
+                        new JobID(),
+                        "finished",
+                        1L,
+                        5L,
+                        4L,
+                        JobStatus.FINISHED,
+                        8L,
+                        verticesPerState,
+                        4);
 
-		final MultipleJobsDetails expected = new MultipleJobsDetails(
-			Arrays.asList(running, finished));
+        final MultipleJobsDetails expected =
+                new MultipleJobsDetails(Arrays.asList(running, finished));
 
-		final ObjectMapper objectMapper = RestMapperUtils.getStrictObjectMapper();
+        final ObjectMapper objectMapper = RestMapperUtils.getStrictObjectMapper();
 
-		final JsonNode marshalled = objectMapper.valueToTree(expected);
+        final JsonNode marshalled = objectMapper.valueToTree(expected);
 
-		final MultipleJobsDetails unmarshalled = objectMapper.treeToValue(marshalled, MultipleJobsDetails.class);
+        final MultipleJobsDetails unmarshalled =
+                objectMapper.treeToValue(marshalled, MultipleJobsDetails.class);
 
-		assertEquals(expected, unmarshalled);
-	}
+        assertEquals(expected, unmarshalled);
+    }
 }

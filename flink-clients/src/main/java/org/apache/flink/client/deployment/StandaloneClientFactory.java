@@ -27,34 +27,33 @@ import javax.annotation.Nullable;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
-/**
- * A {@link ClusterClientFactory} for a standalone cluster, i.e. Flink on bare-metal.
- */
+/** A {@link ClusterClientFactory} for a standalone cluster, i.e. Flink on bare-metal. */
 @Internal
 public class StandaloneClientFactory implements ClusterClientFactory<StandaloneClusterId> {
 
-	@Override
-	public boolean isCompatibleWith(Configuration configuration) {
-		checkNotNull(configuration);
-		return RemoteExecutor.NAME.equalsIgnoreCase(configuration.getString(DeploymentOptions.TARGET));
-	}
+    @Override
+    public boolean isCompatibleWith(Configuration configuration) {
+        checkNotNull(configuration);
+        return RemoteExecutor.NAME.equalsIgnoreCase(
+                configuration.getString(DeploymentOptions.TARGET));
+    }
 
-	@Override
-	public StandaloneClusterDescriptor createClusterDescriptor(Configuration configuration) {
-		checkNotNull(configuration);
-		return new StandaloneClusterDescriptor(configuration);
-	}
+    @Override
+    public StandaloneClusterDescriptor createClusterDescriptor(Configuration configuration) {
+        checkNotNull(configuration);
+        return new StandaloneClusterDescriptor(configuration);
+    }
 
-	@Override
-	@Nullable
-	public StandaloneClusterId getClusterId(Configuration configuration) {
-		checkNotNull(configuration);
-		return StandaloneClusterId.getInstance();
-	}
+    @Override
+    @Nullable
+    public StandaloneClusterId getClusterId(Configuration configuration) {
+        checkNotNull(configuration);
+        return StandaloneClusterId.getInstance();
+    }
 
-	@Override
-	public ClusterSpecification getClusterSpecification(Configuration configuration) {
-		checkNotNull(configuration);
-		return new ClusterSpecification.ClusterSpecificationBuilder().createClusterSpecification();
-	}
+    @Override
+    public ClusterSpecification getClusterSpecification(Configuration configuration) {
+        checkNotNull(configuration);
+        return new ClusterSpecification.ClusterSpecificationBuilder().createClusterSpecification();
+    }
 }

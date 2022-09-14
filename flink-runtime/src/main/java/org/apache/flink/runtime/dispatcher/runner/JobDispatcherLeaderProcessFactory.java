@@ -18,32 +18,61 @@
 
 package org.apache.flink.runtime.dispatcher.runner;
 
+import org.apache.flink.runtime.highavailability.JobResultStore;
 import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.jobmaster.JobResult;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
+import org.apache.flink.util.Preconditions;
+
+import javax.annotation.Nullable;
 
 import java.util.UUID;
 
-/**
- * Factory for the {@link JobDispatcherLeaderProcess}.
- */
+/** Factory for the {@link JobDispatcherLeaderProcess}. */
 public class JobDispatcherLeaderProcessFactory implements DispatcherLeaderProcessFactory {
-	private final AbstractDispatcherLeaderProcess.DispatcherGatewayServiceFactory dispatcherGatewayServiceFactory;
 
-	private final JobGraph jobGraph;
+    private final AbstractDispatcherLeaderProcess.DispatcherGatewayServiceFactory
+            dispatcherGatewayServiceFactory;
 
-	private final FatalErrorHandler fatalErrorHandler;
+    @Nullable private final JobGraph jobGraph;
+    @Nullable private final JobResult recoveredDirtyJobResult;
 
-	JobDispatcherLeaderProcessFactory(
-			AbstractDispatcherLeaderProcess.DispatcherGatewayServiceFactory dispatcherGatewayServiceFactory,
-			JobGraph jobGraph,
-			FatalErrorHandler fatalErrorHandler) {
-		this.dispatcherGatewayServiceFactory = dispatcherGatewayServiceFactory;
-		this.jobGraph = jobGraph;
-		this.fatalErrorHandler = fatalErrorHandler;
-	}
+    private final JobResultStore jobResultStore;
 
-	@Override
-	public DispatcherLeaderProcess create(UUID leaderSessionID) {
-		return new JobDispatcherLeaderProcess(leaderSessionID, dispatcherGatewayServiceFactory, jobGraph, fatalErrorHandler);
-	}
+    private final FatalErrorHandler fatalErrorHandler;
+
+    JobDispatcherLeaderProcessFactory(
+            AbstractDispatcherLeaderProcess.DispatcherGatewayServiceFactory
+                    dispatcherGatewayServiceFactory,
+            @Nullable JobGraph jobGraph,
+            @Nullable JobResult recoveredDirtyJobResult,
+            JobResultStore jobResultStore,
+            FatalErrorHandler fatalErrorHandler) {
+        this.dispatcherGatewayServiceFactory = dispatcherGatewayServiceFactory;
+        this.jobGraph = jobGraph;
+        this.recoveredDirtyJobResult = recoveredDirtyJobResult;
+        this.jobResultStore = Preconditions.checkNotNull(jobResultStore);
+        this.fatalErrorHandler = fatalErrorHandler;
+    }
+
+    @Override
+    public DispatcherLeaderProcess create(UUID leaderSessionID) {
+        return new JobDispatcherLeaderProcess(
+                leaderSessionID,
+                dispatcherGatewayServiceFactory,
+                jobGraph,
+                recoveredDirtyJobResult,
+                jobResultStore,
+                fatalErrorHandler);
+    }
+
+    @Nullable
+    JobGraph getJobGraph() {
+        return this.jobGraph;
+    }
+
+    @Nullable
+    JobResult getRecoveredDirtyJobResult() {
+        return this.recoveredDirtyJobResult;
+    }
 }

@@ -20,102 +20,115 @@ package org.apache.flink.api.java.summarize.aggregation;
 
 import org.apache.flink.api.java.summarize.NumericColumnSummary;
 
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-/**
- * Tests for {@link IntegerSummaryAggregator}.
- */
-public class IntegerSummaryAggregatorTest {
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.data.Offset.offset;
 
-	@Test
-	public void testIsNan() throws Exception {
-		IntegerSummaryAggregator ag = new IntegerSummaryAggregator();
-		// always false for Integer
-		Assert.assertFalse(ag.isNan(-1));
-		Assert.assertFalse(ag.isNan(0));
-		Assert.assertFalse(ag.isNan(23));
-		Assert.assertFalse(ag.isNan(Integer.MAX_VALUE));
-		Assert.assertFalse(ag.isNan(Integer.MIN_VALUE));
-		Assert.assertFalse(ag.isNan(null));
-	}
+/** Tests for {@link IntegerSummaryAggregator}. */
+class IntegerSummaryAggregatorTest {
 
-	@Test
-	public void testIsInfinite() throws Exception {
-		IntegerSummaryAggregator ag = new IntegerSummaryAggregator();
-		// always false for Integer
-		Assert.assertFalse(ag.isInfinite(-1));
-		Assert.assertFalse(ag.isInfinite(0));
-		Assert.assertFalse(ag.isInfinite(23));
-		Assert.assertFalse(ag.isInfinite(Integer.MAX_VALUE));
-		Assert.assertFalse(ag.isInfinite(Integer.MIN_VALUE));
-		Assert.assertFalse(ag.isInfinite(null));
-	}
+    @Test
+    void testIsNan() {
+        IntegerSummaryAggregator ag = new IntegerSummaryAggregator();
+        // always false for Integer
+        assertThat(ag.isNan(-1)).isFalse();
+        assertThat(ag.isNan(0)).isFalse();
+        assertThat(ag.isNan(23)).isFalse();
+        assertThat(ag.isNan(Integer.MAX_VALUE)).isFalse();
+        assertThat(ag.isNan(Integer.MIN_VALUE)).isFalse();
+        assertThat(ag.isNan(null)).isFalse();
+    }
 
-	@Test
-	public void testMean() throws Exception {
-		Assert.assertEquals(50.0, summarize(0, 100).getMean(), 0.0);
-		Assert.assertEquals(33.333333, summarize(0, 0, 100).getMean(), 0.00001);
-		Assert.assertEquals(50.0, summarize(0, 0, 100, 100).getMean(), 0.0);
-		Assert.assertEquals(50.0, summarize(0, 100, null).getMean(), 0.0);
-		Assert.assertNull(summarize().getMean());
-	}
+    @Test
+    void testIsInfinite() {
+        IntegerSummaryAggregator ag = new IntegerSummaryAggregator();
+        // always false for Integer
+        assertThat(ag.isInfinite(-1)).isFalse();
+        assertThat(ag.isInfinite(0)).isFalse();
+        assertThat(ag.isInfinite(23)).isFalse();
+        assertThat(ag.isInfinite(Integer.MAX_VALUE)).isFalse();
+        assertThat(ag.isInfinite(Integer.MIN_VALUE)).isFalse();
+        assertThat(ag.isInfinite(null)).isFalse();
+    }
 
-	@Test
-	public void testSum() throws Exception {
-		Assert.assertEquals(100, summarize(0, 100).getSum().intValue());
-		Assert.assertEquals(15, summarize(1, 2, 3, 4, 5).getSum().intValue());
-		Assert.assertEquals(0, summarize(-100, 0, 100, null).getSum().intValue());
-		Assert.assertEquals(90, summarize(-10, 100, null).getSum().intValue());
-		Assert.assertNull(summarize().getSum());
-	}
+    @Test
+    void testMean() {
+        assertThat(summarize(0, 100).getMean()).isCloseTo(50.0, offset(0.0));
+        assertThat(summarize(0, 0, 100).getMean()).isCloseTo(33.333333, offset(0.00001));
+        assertThat(summarize(0, 0, 100, 100).getMean()).isCloseTo(50.0, offset(0.0));
+        assertThat(summarize(0, 100, null).getMean()).isCloseTo(50.0, offset(0.0));
+        assertThat(summarize().getMean()).isNull();
+    }
 
-	@Test
-	public void testMax() throws Exception {
-		Assert.assertEquals(1001, summarize(-1000, 0, 1, 50, 999, 1001).getMax().intValue());
-		Assert.assertEquals(0, summarize(Integer.MIN_VALUE, -1000, 0).getMax().intValue());
-		Assert.assertEquals(11, summarize(1, 8, 7, 6, 9, 10, 2, 3, 5, 0, 11, -2, 3).getMax().intValue());
-		Assert.assertEquals(11, summarize(1, 8, 7, 6, 9, null, 10, 2, 3, 5, null, 0, 11, -2, 3).getMax().intValue());
-		Assert.assertNull(summarize().getMax());
-	}
+    @Test
+    void testSum() throws Exception {
+        assertThat(summarize(0, 100).getSum().intValue()).isEqualTo(100);
+        assertThat(summarize(1, 2, 3, 4, 5).getSum().intValue()).isEqualTo(15);
+        assertThat(summarize(-100, 0, 100, null).getSum().intValue()).isZero();
+        assertThat(summarize(-10, 100, null).getSum().intValue()).isEqualTo(90);
+        assertThat(summarize().getSum()).isNull();
+    }
 
-	@Test
-	public void testMin() throws Exception {
-		Assert.assertEquals(-1000, summarize(-1000, 0, 1, 50, 999, 1001).getMin().intValue());
-		Assert.assertEquals(Integer.MIN_VALUE, summarize(Integer.MIN_VALUE, -1000, 0).getMin().intValue());
-		Assert.assertEquals(-2, summarize(1, 8, 7, 6, 9, 10, 2, 3, 5, 0, 11, -2, 3).getMin().intValue());
-		Assert.assertEquals(-2, summarize(1, 8, 7, 6, 9, null, 10, 2, 3, 5, null, 0, 11, -2, 3).getMin().intValue());
-		Assert.assertNull(summarize().getMin());
-	}
+    @Test
+    void testMax() {
+        assertThat(summarize(-1000, 0, 1, 50, 999, 1001).getMax().intValue()).isEqualTo(1001);
+        assertThat(summarize(Integer.MIN_VALUE, -1000, 0).getMax().intValue()).isZero();
+        assertThat(summarize(1, 8, 7, 6, 9, 10, 2, 3, 5, 0, 11, -2, 3).getMax().intValue())
+                .isEqualTo(11);
+        assertThat(
+                        summarize(1, 8, 7, 6, 9, null, 10, 2, 3, 5, null, 0, 11, -2, 3)
+                                .getMax()
+                                .intValue())
+                .isEqualTo(11);
+        assertThat(summarize().getMax()).isNull();
+    }
 
-	/**
-	 * Helper method for summarizing a list of values.
-	 */
-	protected NumericColumnSummary<Integer> summarize(Integer... values) {
+    @Test
+    void testMin() {
+        assertThat(summarize(-1000, 0, 1, 50, 999, 1001).getMin().intValue()).isEqualTo(-1000);
+        assertThat(summarize(Integer.MIN_VALUE, -1000, 0).getMin().intValue())
+                .isEqualTo(Integer.MIN_VALUE);
+        assertThat(summarize(1, 8, 7, 6, 9, 10, 2, 3, 5, 0, 11, -2, 3).getMin().intValue())
+                .isEqualTo(-2);
+        assertThat(
+                        summarize(1, 8, 7, 6, 9, null, 10, 2, 3, 5, null, 0, 11, -2, 3)
+                                .getMin()
+                                .intValue())
+                .isEqualTo(-2);
+        assertThat(summarize().getMin()).isNull();
+    }
 
-		return new AggregateCombineHarness<Integer, NumericColumnSummary<Integer>, IntegerSummaryAggregator>() {
+    /** Helper method for summarizing a list of values. */
+    protected NumericColumnSummary<Integer> summarize(Integer... values) {
 
-			@Override
-			protected void compareResults(NumericColumnSummary<Integer> result1, NumericColumnSummary<Integer> result2) {
+        return new AggregateCombineHarness<
+                Integer, NumericColumnSummary<Integer>, IntegerSummaryAggregator>() {
 
-				Assert.assertEquals(result1.getTotalCount(), result2.getTotalCount());
-				Assert.assertEquals(result1.getNullCount(), result2.getNullCount());
-				Assert.assertEquals(result1.getMissingCount(), result2.getMissingCount());
-				Assert.assertEquals(result1.getNonMissingCount(), result2.getNonMissingCount());
-				Assert.assertEquals(result1.getInfinityCount(), result2.getInfinityCount());
-				Assert.assertEquals(result1.getNanCount(), result2.getNanCount());
+            @Override
+            protected void compareResults(
+                    NumericColumnSummary<Integer> result1, NumericColumnSummary<Integer> result2) {
 
-				Assert.assertEquals(result1.containsNull(), result2.containsNull());
-				Assert.assertEquals(result1.containsNonNull(), result2.containsNonNull());
+                assertThat(result2.getTotalCount()).isEqualTo(result1.getTotalCount());
+                assertThat(result2.getNullCount()).isEqualTo(result1.getNullCount());
+                assertThat(result2.getMissingCount()).isEqualTo(result1.getMissingCount());
+                assertThat(result2.getNonMissingCount()).isEqualTo(result1.getNonMissingCount());
+                assertThat(result2.getInfinityCount()).isEqualTo(result1.getInfinityCount());
+                assertThat(result2.getNanCount()).isEqualTo(result1.getNanCount());
 
-				Assert.assertEquals(result1.getMin().intValue(), result2.getMin().intValue());
-				Assert.assertEquals(result1.getMax().intValue(), result2.getMax().intValue());
-				Assert.assertEquals(result1.getSum().intValue(), result2.getSum().intValue());
-				Assert.assertEquals(result1.getMean().doubleValue(), result2.getMean().doubleValue(), 1e-12d);
-				Assert.assertEquals(result1.getVariance().doubleValue(), result2.getVariance().doubleValue(), 1e-9d);
-				Assert.assertEquals(result1.getStandardDeviation().doubleValue(), result2.getStandardDeviation().doubleValue(), 1e-12d);
-			}
-		}.summarize(values);
-	}
+                assertThat(result2.containsNull()).isEqualTo(result1.containsNull());
+                assertThat(result2.containsNonNull()).isEqualTo(result1.containsNonNull());
 
+                assertThat(result2.getMin().intValue()).isEqualTo(result1.getMin().intValue());
+                assertThat(result2.getMax().intValue()).isEqualTo(result1.getMax().intValue());
+                assertThat(result2.getSum().intValue()).isEqualTo(result1.getSum().intValue());
+                assertThat(result2.getMean().doubleValue())
+                        .isCloseTo(result1.getMean().doubleValue(), offset(1e-12d));
+                assertThat(result2.getVariance().doubleValue())
+                        .isCloseTo(result1.getVariance().doubleValue(), offset(1e-9d));
+                assertThat(result2.getStandardDeviation().doubleValue())
+                        .isCloseTo(result1.getStandardDeviation().doubleValue(), offset(1e-12d));
+            }
+        }.summarize(values);
+    }
 }

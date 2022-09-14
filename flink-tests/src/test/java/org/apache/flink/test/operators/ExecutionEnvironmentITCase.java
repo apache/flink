@@ -35,58 +35,58 @@ import java.util.List;
 
 import static org.junit.Assert.assertEquals;
 
-/**
- * Test ExecutionEnvironment from user perspective.
- */
+/** Test ExecutionEnvironment from user perspective. */
 @SuppressWarnings("serial")
 public class ExecutionEnvironmentITCase extends TestLogger {
 
-	private static final int PARALLELISM = 5;
+    private static final int PARALLELISM = 5;
 
-	/**
-	 * Ensure that the user can pass a custom configuration object to the LocalEnvironment.
-	 */
-	@Test
-	public void testLocalEnvironmentWithConfig() throws Exception {
-		Configuration conf = new Configuration();
-		conf.setInteger(TaskManagerOptions.NUM_TASK_SLOTS, PARALLELISM);
+    /** Ensure that the user can pass a custom configuration object to the LocalEnvironment. */
+    @Test
+    public void testLocalEnvironmentWithConfig() throws Exception {
+        Configuration conf = new Configuration();
+        conf.setInteger(TaskManagerOptions.NUM_TASK_SLOTS, PARALLELISM);
 
-		final ExecutionEnvironment env = ExecutionEnvironment.createLocalEnvironment(conf);
+        final ExecutionEnvironment env = ExecutionEnvironment.createLocalEnvironment(conf);
 
-		DataSet<Integer> result = env.createInput(new ParallelismDependentInputFormat())
-				.rebalance()
-				.mapPartition(new RichMapPartitionFunction<Integer, Integer>() {
-					@Override
-					public void mapPartition(Iterable<Integer> values, Collector<Integer> out) throws Exception {
-						out.collect(getRuntimeContext().getIndexOfThisSubtask());
-					}
-				});
-		List<Integer> resultCollection = result.collect();
-		assertEquals(PARALLELISM, resultCollection.size());
-	}
+        DataSet<Integer> result =
+                env.createInput(new ParallelismDependentInputFormat())
+                        .rebalance()
+                        .mapPartition(
+                                new RichMapPartitionFunction<Integer, Integer>() {
+                                    @Override
+                                    public void mapPartition(
+                                            Iterable<Integer> values, Collector<Integer> out)
+                                            throws Exception {
+                                        out.collect(getRuntimeContext().getIndexOfThisSubtask());
+                                    }
+                                });
+        List<Integer> resultCollection = result.collect();
+        assertEquals(PARALLELISM, resultCollection.size());
+    }
 
-	private static class ParallelismDependentInputFormat extends GenericInputFormat<Integer> {
+    private static class ParallelismDependentInputFormat extends GenericInputFormat<Integer> {
 
-		private transient boolean emitted;
+        private transient boolean emitted;
 
-		@Override
-		public GenericInputSplit[] createInputSplits(int numSplits) throws IOException {
-			assertEquals(PARALLELISM, numSplits);
-			return super.createInputSplits(numSplits);
-		}
+        @Override
+        public GenericInputSplit[] createInputSplits(int numSplits) throws IOException {
+            assertEquals(PARALLELISM, numSplits);
+            return super.createInputSplits(numSplits);
+        }
 
-		@Override
-		public boolean reachedEnd() {
-			return emitted;
-		}
+        @Override
+        public boolean reachedEnd() {
+            return emitted;
+        }
 
-		@Override
-		public Integer nextRecord(Integer reuse) {
-			if (emitted) {
-				return null;
-			}
-			emitted = true;
-			return 1;
-		}
-	}
+        @Override
+        public Integer nextRecord(Integer reuse) {
+            if (emitted) {
+                return null;
+            }
+            emitted = true;
+            return 1;
+        }
+    }
 }

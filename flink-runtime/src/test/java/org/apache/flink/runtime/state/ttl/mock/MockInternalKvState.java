@@ -26,68 +26,69 @@ import java.util.function.Supplier;
 
 /** In memory mock internal state base class. */
 abstract class MockInternalKvState<K, N, T> implements InternalKvState<K, N, T> {
-	Supplier<Map<Object, Object>> values;
-	private N currentNamespace;
-	private final Supplier<T> emptyValue;
+    Supplier<Map<Object, Object>> values;
+    private N currentNamespace;
+    private final Supplier<T> emptyValue;
 
-	MockInternalKvState() {
-		this(() -> null);
-	}
+    MockInternalKvState() {
+        this(() -> null);
+    }
 
-	MockInternalKvState(Supplier<T> emptyValue) {
-		this.emptyValue = emptyValue;
-	}
+    MockInternalKvState(Supplier<T> emptyValue) {
+        this.emptyValue = emptyValue;
+    }
 
-	@Override
-	public TypeSerializer<K> getKeySerializer() {
-		return null;
-	}
+    @Override
+    public TypeSerializer<K> getKeySerializer() {
+        return null;
+    }
 
-	@Override
-	public TypeSerializer<N> getNamespaceSerializer() {
-		return null;
-	}
+    @Override
+    public TypeSerializer<N> getNamespaceSerializer() {
+        return null;
+    }
 
-	@Override
-	public TypeSerializer<T> getValueSerializer() {
-		return null;
-	}
+    @Override
+    public TypeSerializer<T> getValueSerializer() {
+        return null;
+    }
 
-	@Override
-	public void setCurrentNamespace(N namespace) {
-		currentNamespace = namespace;
-	}
+    @Override
+    public void setCurrentNamespace(N namespace) {
+        currentNamespace = namespace;
+    }
 
-	@Override
-	public byte[] getSerializedValue(
-		byte[] serializedKeyAndNamespace,
-		TypeSerializer safeKeySerializer,
-		TypeSerializer safeNamespaceSerializer,
-		TypeSerializer safeValueSerializer) {
-		return null;
-	}
+    @Override
+    public byte[] getSerializedValue(
+            byte[] serializedKeyAndNamespace,
+            TypeSerializer safeKeySerializer,
+            TypeSerializer safeNamespaceSerializer,
+            TypeSerializer safeValueSerializer) {
+        return null;
+    }
 
-	@Override
-	public void clear() {
-		getCurrentKeyValues().remove(currentNamespace);
-	}
+    @Override
+    public void clear() {
+        getCurrentKeyValues().remove(currentNamespace);
+    }
 
-	@SuppressWarnings("unchecked")
-	public T getInternal() {
-		return (T) getCurrentKeyValues().computeIfAbsent(currentNamespace, n -> emptyValue.get());
-	}
+    @SuppressWarnings("unchecked")
+    public T getInternal() {
+        return (T) getCurrentKeyValues().computeIfAbsent(currentNamespace, n -> emptyValue.get());
+    }
 
-	@SuppressWarnings("WeakerAccess")
-	public void updateInternal(T valueToStore) {
-		getCurrentKeyValues().put(currentNamespace, valueToStore);
-	}
+    @SuppressWarnings("WeakerAccess")
+    public void updateInternal(T valueToStore) {
+        getCurrentKeyValues().put(currentNamespace, valueToStore);
+    }
 
-	private Map<Object, Object> getCurrentKeyValues() {
-		return values.get();
-	}
+    private Map<Object, Object> getCurrentKeyValues() {
+        return values.get();
+    }
 
-	@Override
-	public StateIncrementalVisitor<K, N, T> getStateIncrementalVisitor(int recommendedMaxNumberOfReturnedRecords) {
-		throw new UnsupportedOperationException();
-	}
+    @Override
+    public StateIncrementalVisitor<K, N, T> getStateIncrementalVisitor(
+            int recommendedMaxNumberOfReturnedRecords) {
+        throw new UnsupportedOperationException();
+    }
 }

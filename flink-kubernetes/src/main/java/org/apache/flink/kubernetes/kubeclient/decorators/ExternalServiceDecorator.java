@@ -18,42 +18,48 @@
 
 package org.apache.flink.kubernetes.kubeclient.decorators;
 
-import org.apache.flink.kubernetes.configuration.KubernetesConfigOptions;
 import org.apache.flink.kubernetes.kubeclient.parameters.KubernetesJobManagerParameters;
-import org.apache.flink.kubernetes.utils.KubernetesUtils;
+import org.apache.flink.kubernetes.utils.Constants;
 
 import io.fabric8.kubernetes.api.model.HasMetadata;
+import io.fabric8.kubernetes.api.model.Service;
 
 import java.io.IOException;
 import java.util.Collections;
 import java.util.List;
 
-/**
- * Creates an external Service to expose the rest port of the Flink JobManager(s).
- */
-public class ExternalServiceDecorator extends AbstractServiceDecorator {
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
-	public ExternalServiceDecorator(KubernetesJobManagerParameters kubernetesJobManagerParameters) {
-		super(kubernetesJobManagerParameters);
-	}
+/** Creates an external Service to expose the rest port of the Flink JobManager(s). */
+public class ExternalServiceDecorator extends AbstractKubernetesStepDecorator {
 
-	@Override
-	public List<HasMetadata> buildAccompanyingKubernetesResources() throws IOException {
-		if (kubernetesJobManagerParameters.getRestServiceExposedType().equals(
-			KubernetesConfigOptions.ServiceExposedType.ClusterIP.name())) {
-			return Collections.emptyList();
-		}
+    private final KubernetesJobManagerParameters kubernetesJobManagerParameters;
 
-		return super.buildAccompanyingKubernetesResources();
-	}
+    public ExternalServiceDecorator(KubernetesJobManagerParameters kubernetesJobManagerParameters) {
+        this.kubernetesJobManagerParameters = checkNotNull(kubernetesJobManagerParameters);
+    }
 
-	@Override
-	protected String getServiceType() {
-		return kubernetesJobManagerParameters.getRestServiceExposedType();
-	}
+    @Override
+    public List<HasMetadata> buildAccompanyingKubernetesResources() throws IOException {
+        final Service service =
+                kubernetesJobManagerParameters
+                        .getRestServiceExposedType()
+                        .serviceType()
+                        .buildUpExternalRestService(kubernetesJobManagerParameters);
 
-	@Override
-	protected String getServiceName() {
-		return KubernetesUtils.getRestServiceName(kubernetesJobManagerParameters.getClusterId());
-	}
+        return Collections.singletonList(service);
+    }
+
+    /** Generate name of the external rest Service. */
+    public static String getExternalServiceName(String clusterId) {
+        return clusterId + Constants.FLINK_REST_SERVICE_SUFFIX;
+    }
+
+    /**
+     * Generate namespaced name of the external rest Service by cluster Id, This is used by other
+     * project, so do not delete it.
+     */
+    public static String getNamespacedExternalServiceName(String clusterId, String namespace) {
+        return getExternalServiceName(clusterId) + "." + namespace;
+    }
 }

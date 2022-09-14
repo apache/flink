@@ -27,44 +27,45 @@ import java.util.Arrays;
 
 public class CustomEqualityMatcher extends BaseMatcher<Object> {
 
-	private final Object wanted;
+    private final Object wanted;
 
-	private final DeeplyEqualsChecker checker;
+    private final DeeplyEqualsChecker checker;
 
-	private CustomEqualityMatcher(Object wanted, DeeplyEqualsChecker checker) {
-		this.wanted = wanted;
-		this.checker = checker;
-	}
+    private CustomEqualityMatcher(Object wanted, DeeplyEqualsChecker checker) {
+        this.wanted = wanted;
+        this.checker = checker;
+    }
 
-	/**
-	 * This matcher performs similar comparison to {@link org.hamcrest.core.IsEqual}, which resembles
-	 * {@link java.util.Objects#deepEquals(Object, Object)} logic. The only difference here is that {@link Tuple}s
-	 * are treated similarly to arrays.
-	 *
-	 * <p>This means that if we compare two Tuples that contain arrays, those arrays will
-	 * be compared with {@link Arrays#deepEquals(Object[], Object[])} rather than with reference comparison.
-	 *
-	 * @param item expected value
-	 */
-	public static CustomEqualityMatcher deeplyEquals(Object item) {
-		return new CustomEqualityMatcher(item, new DeeplyEqualsChecker());
-	}
+    /**
+     * This matcher performs similar comparison to {@link org.hamcrest.core.IsEqual}, which
+     * resembles {@link java.util.Objects#deepEquals(Object, Object)} logic. The only difference
+     * here is that {@link Tuple}s are treated similarly to arrays.
+     *
+     * <p>This means that if we compare two Tuples that contain arrays, those arrays will be
+     * compared with {@link Arrays#deepEquals(Object[], Object[])} rather than with reference
+     * comparison.
+     *
+     * @param item expected value
+     */
+    public static CustomEqualityMatcher deeplyEquals(Object item) {
+        return new CustomEqualityMatcher(item, new DeeplyEqualsChecker());
+    }
 
-	/**
-	 * Performs assertions with this customly configured {@link DeeplyEqualsChecker}. It might have some additional
-	 * rules applied.
-	 */
-	public CustomEqualityMatcher withChecker(DeeplyEqualsChecker checker) {
-		return new CustomEqualityMatcher(wanted, checker);
-	}
+    /**
+     * Performs assertions with this customly configured {@link DeeplyEqualsChecker}. It might have
+     * some additional rules applied.
+     */
+    public CustomEqualityMatcher withChecker(DeeplyEqualsChecker checker) {
+        return new CustomEqualityMatcher(wanted, checker);
+    }
 
-	@Override
-	public boolean matches(Object item) {
-		return checker.deepEquals(item, wanted);
-	}
+    @Override
+    public boolean matches(Object item) {
+        return checker.deepEquals(item, wanted);
+    }
 
-	@Override
-	public void describeTo(Description description) {
-		description.appendValue(wanted);
-	}
+    @Override
+    public void describeTo(Description description) {
+        description.appendValue(wanted);
+    }
 }

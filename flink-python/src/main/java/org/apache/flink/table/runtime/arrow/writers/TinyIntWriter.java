@@ -19,26 +19,77 @@
 package org.apache.flink.table.runtime.arrow.writers;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.types.Row;
+import org.apache.flink.table.data.ArrayData;
+import org.apache.flink.table.data.RowData;
 
 import org.apache.arrow.vector.TinyIntVector;
 
-/**
- * {@link ArrowFieldWriter} for TinyInt.
- */
+/** {@link ArrowFieldWriter} for TinyInt. */
 @Internal
-public final class TinyIntWriter extends ArrowFieldWriter<Row> {
+public abstract class TinyIntWriter<T> extends ArrowFieldWriter<T> {
 
-	public TinyIntWriter(TinyIntVector tinyIntVector) {
-		super(tinyIntVector);
-	}
+    public static TinyIntWriter<RowData> forRow(TinyIntVector tinyIntVector) {
+        return new TinyIntWriterForRow(tinyIntVector);
+    }
 
-	@Override
-	public void doWrite(Row value, int ordinal) {
-		if (value.getField(ordinal) == null) {
-			((TinyIntVector) getValueVector()).setNull(getCount());
-		} else {
-			((TinyIntVector) getValueVector()).setSafe(getCount(), (byte) value.getField(ordinal));
-		}
-	}
+    public static TinyIntWriter<ArrayData> forArray(TinyIntVector tinyIntVector) {
+        return new TinyIntWriterForArray(tinyIntVector);
+    }
+
+    // ------------------------------------------------------------------------------------------
+
+    private TinyIntWriter(TinyIntVector tinyIntVector) {
+        super(tinyIntVector);
+    }
+
+    abstract boolean isNullAt(T in, int ordinal);
+
+    abstract byte readByte(T in, int ordinal);
+
+    @Override
+    public void doWrite(T in, int ordinal) {
+        if (isNullAt(in, ordinal)) {
+            ((TinyIntVector) getValueVector()).setNull(getCount());
+        } else {
+            ((TinyIntVector) getValueVector()).setSafe(getCount(), readByte(in, ordinal));
+        }
+    }
+
+    // ------------------------------------------------------------------------------------------
+
+    /** {@link TinyIntWriter} for {@link RowData} input. */
+    public static final class TinyIntWriterForRow extends TinyIntWriter<RowData> {
+
+        private TinyIntWriterForRow(TinyIntVector tinyIntVector) {
+            super(tinyIntVector);
+        }
+
+        @Override
+        boolean isNullAt(RowData in, int ordinal) {
+            return in.isNullAt(ordinal);
+        }
+
+        @Override
+        byte readByte(RowData in, int ordinal) {
+            return in.getByte(ordinal);
+        }
+    }
+
+    /** {@link TinyIntWriter} for {@link ArrayData} input. */
+    public static final class TinyIntWriterForArray extends TinyIntWriter<ArrayData> {
+
+        private TinyIntWriterForArray(TinyIntVector tinyIntVector) {
+            super(tinyIntVector);
+        }
+
+        @Override
+        boolean isNullAt(ArrayData in, int ordinal) {
+            return in.isNullAt(ordinal);
+        }
+
+        @Override
+        byte readByte(ArrayData in, int ordinal) {
+            return in.getByte(ordinal);
+        }
+    }
 }

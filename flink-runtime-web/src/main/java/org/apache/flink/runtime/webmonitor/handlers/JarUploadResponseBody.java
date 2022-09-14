@@ -25,36 +25,33 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonPro
 
 import static java.util.Objects.requireNonNull;
 
-/**
- * {@link ResponseBody} for {@link JarUploadHandler}.
- */
+/** {@link ResponseBody} for {@link JarUploadHandler}. */
 public class JarUploadResponseBody implements ResponseBody {
 
-	private static final String FIELD_NAME_FILENAME = "filename";
+    private static final String FIELD_NAME_FILENAME = "filename";
 
-	private static final String FIELD_NAME_STATUS = "status";
+    private static final String FIELD_NAME_STATUS = "status";
 
-	@JsonProperty(FIELD_NAME_STATUS)
-	private final UploadStatus status = UploadStatus.success;
+    @JsonProperty(FIELD_NAME_STATUS)
+    private final UploadStatus status = UploadStatus.success;
 
-	@JsonProperty(FIELD_NAME_FILENAME)
-	private final String filename;
+    @JsonProperty(FIELD_NAME_FILENAME)
+    private final String filename;
 
-	@JsonCreator
-	public JarUploadResponseBody(@JsonProperty(FIELD_NAME_FILENAME) final String filename) {
-		this.filename = requireNonNull(filename);
-	}
+    @JsonCreator
+    public JarUploadResponseBody(@JsonProperty(FIELD_NAME_FILENAME) final String filename) {
+        this.filename = requireNonNull(filename);
+    }
 
-	public UploadStatus getStatus() {
-		return status;
-	}
+    public UploadStatus getStatus() {
+        return status;
+    }
 
-	public String getFilename() {
-		return filename;
-	}
+    public String getFilename() {
+        return filename;
+    }
 
-	enum UploadStatus {
-		success
-	}
-
+    enum UploadStatus {
+        success
+    }
 }

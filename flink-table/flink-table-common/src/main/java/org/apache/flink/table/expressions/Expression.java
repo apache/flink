@@ -27,8 +27,8 @@ import java.util.List;
  * General interface for all kinds of expressions.
  *
  * <p>Expressions represent a logical tree for producing a computation result. Every expression
- * consists of zero, one, or more subexpressions. Expressions might be literal values, function calls,
- * or field references.
+ * consists of zero, one, or more subexpressions. Expressions might be literal values, function
+ * calls, or field references.
  *
  * <p>Expressions are part of the API. They might be transformed multiple times within the API stack
  * until they are fully {@link ResolvedExpression}s. Value types and output types are expressed as
@@ -37,15 +37,15 @@ import java.util.List;
 @PublicEvolving
 public interface Expression {
 
-	/**
-	 * Returns a string that summarizes this expression for printing to a console. An implementation
-	 * might skip very specific properties.
-	 *
-	 * @return summary string of this expression for debugging purposes
-	 */
-	String asSummaryString();
+    /**
+     * Returns a string that summarizes this expression for printing to a console. An implementation
+     * might skip very specific properties.
+     *
+     * @return summary string of this expression for debugging purposes
+     */
+    String asSummaryString();
 
-	List<Expression> getChildren();
+    List<Expression> getChildren();
 
-	<R> R accept(ExpressionVisitor<R> visitor);
+    <R> R accept(ExpressionVisitor<R> visitor);
 }

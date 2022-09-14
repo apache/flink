@@ -28,75 +28,77 @@ import javax.annotation.Nullable;
 import java.util.Set;
 
 /**
- * A snapshot of internal timers, containing event and processing timers and
- * the serializers to use to write / read them.
+ * A snapshot of internal timers, containing event and processing timers and the serializers to use
+ * to write / read them.
  */
 public class InternalTimersSnapshot<K, N> {
 
-	private TypeSerializerSnapshot<K> keySerializerSnapshot;
-	private TypeSerializerSnapshot<N> namespaceSerializerSnapshot;
+    private TypeSerializerSnapshot<K> keySerializerSnapshot;
+    private TypeSerializerSnapshot<N> namespaceSerializerSnapshot;
 
-	private Set<TimerHeapInternalTimer<K, N>> eventTimeTimers;
-	private Set<TimerHeapInternalTimer<K, N>> processingTimeTimers;
+    private Set<TimerHeapInternalTimer<K, N>> eventTimeTimers;
+    private Set<TimerHeapInternalTimer<K, N>> processingTimeTimers;
 
-	/** Empty constructor used when restoring the timers. */
-	public InternalTimersSnapshot() {}
+    /** Empty constructor used when restoring the timers. */
+    public InternalTimersSnapshot() {}
 
-	/** Constructor to use when snapshotting the timers. */
-	public InternalTimersSnapshot(
-			TypeSerializer<K> keySerializer,
-			TypeSerializer<N> namespaceSerializer,
-			@Nullable Set<TimerHeapInternalTimer<K, N>> eventTimeTimers,
-			@Nullable Set<TimerHeapInternalTimer<K, N>> processingTimeTimers) {
+    /** Constructor to use when snapshotting the timers. */
+    public InternalTimersSnapshot(
+            TypeSerializer<K> keySerializer,
+            TypeSerializer<N> namespaceSerializer,
+            @Nullable Set<TimerHeapInternalTimer<K, N>> eventTimeTimers,
+            @Nullable Set<TimerHeapInternalTimer<K, N>> processingTimeTimers) {
 
-		Preconditions.checkNotNull(keySerializer);
-		this.keySerializerSnapshot = TypeSerializerUtils.snapshotBackwardsCompatible(keySerializer);
-		Preconditions.checkNotNull(namespaceSerializer);
-		this.namespaceSerializerSnapshot = TypeSerializerUtils.snapshotBackwardsCompatible(namespaceSerializer);
+        Preconditions.checkNotNull(keySerializer);
+        this.keySerializerSnapshot = TypeSerializerUtils.snapshotBackwardsCompatible(keySerializer);
+        Preconditions.checkNotNull(namespaceSerializer);
+        this.namespaceSerializerSnapshot =
+                TypeSerializerUtils.snapshotBackwardsCompatible(namespaceSerializer);
 
-		this.eventTimeTimers = eventTimeTimers;
-		this.processingTimeTimers = processingTimeTimers;
-	}
+        this.eventTimeTimers = eventTimeTimers;
+        this.processingTimeTimers = processingTimeTimers;
+    }
 
-	public TypeSerializerSnapshot<K> getKeySerializerSnapshot() {
-		return keySerializerSnapshot;
-	}
+    public TypeSerializerSnapshot<K> getKeySerializerSnapshot() {
+        return keySerializerSnapshot;
+    }
 
-	public void setKeySerializerSnapshot(TypeSerializerSnapshot<K> keySerializerConfigSnapshot) {
-		this.keySerializerSnapshot = keySerializerConfigSnapshot;
-	}
+    public void setKeySerializerSnapshot(TypeSerializerSnapshot<K> keySerializerConfigSnapshot) {
+        this.keySerializerSnapshot = keySerializerConfigSnapshot;
+    }
 
-	public TypeSerializerSnapshot<N> getNamespaceSerializerSnapshot() {
-		return namespaceSerializerSnapshot;
-	}
+    public TypeSerializerSnapshot<N> getNamespaceSerializerSnapshot() {
+        return namespaceSerializerSnapshot;
+    }
 
-	public void setNamespaceSerializerSnapshot(TypeSerializerSnapshot<N> namespaceSerializerConfigSnapshot) {
-		this.namespaceSerializerSnapshot = namespaceSerializerConfigSnapshot;
-	}
+    public void setNamespaceSerializerSnapshot(
+            TypeSerializerSnapshot<N> namespaceSerializerConfigSnapshot) {
+        this.namespaceSerializerSnapshot = namespaceSerializerConfigSnapshot;
+    }
 
-	public Set<TimerHeapInternalTimer<K, N>> getEventTimeTimers() {
-		return eventTimeTimers;
-	}
+    public Set<TimerHeapInternalTimer<K, N>> getEventTimeTimers() {
+        return eventTimeTimers;
+    }
 
-	public void setEventTimeTimers(Set<TimerHeapInternalTimer<K, N>> eventTimeTimers) {
-		this.eventTimeTimers = eventTimeTimers;
-	}
+    public void setEventTimeTimers(Set<TimerHeapInternalTimer<K, N>> eventTimeTimers) {
+        this.eventTimeTimers = eventTimeTimers;
+    }
 
-	public Set<TimerHeapInternalTimer<K, N>> getProcessingTimeTimers() {
-		return processingTimeTimers;
-	}
+    public Set<TimerHeapInternalTimer<K, N>> getProcessingTimeTimers() {
+        return processingTimeTimers;
+    }
 
-	public void setProcessingTimeTimers(Set<TimerHeapInternalTimer<K, N>> processingTimeTimers) {
-		this.processingTimeTimers = processingTimeTimers;
-	}
+    public void setProcessingTimeTimers(Set<TimerHeapInternalTimer<K, N>> processingTimeTimers) {
+        this.processingTimeTimers = processingTimeTimers;
+    }
 
-	@Override
-	public boolean equals(Object obj) {
-		return super.equals(obj);
-	}
+    @Override
+    public boolean equals(Object obj) {
+        return super.equals(obj);
+    }
 
-	@Override
-	public int hashCode() {
-		return super.hashCode();
-	}
+    @Override
+    public int hashCode() {
+        return super.hashCode();
+    }
 }

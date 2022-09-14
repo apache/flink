@@ -15,23 +15,23 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.streaming.api.scala.function
 
 import org.apache.flink.annotation.Public
 import org.apache.flink.streaming.api.windowing.windows.Window
 
 /**
-  * Base abstract class for functions that are evaluated over
-  * keyed (grouped) windows using a context for retrieving extra information.
-  *
-  * @tparam IN The type of the input value.
-  * @tparam OUT The type of the output value.
-  * @tparam W The type of the window.
-  */
+ * Base abstract class for functions that are evaluated over keyed (grouped) windows using a context
+ * for retrieving extra information.
+ *
+ * @tparam IN
+ *   The type of the input value.
+ * @tparam OUT
+ *   The type of the output value.
+ * @tparam W
+ *   The type of the window.
+ */
 @Public
 @deprecated("use [[ProcessAllWindowFunction]] instead")
 abstract class RichProcessAllWindowFunction[IN, OUT, W <: Window]
-    extends ProcessAllWindowFunction[IN, OUT, W] {
-}
-
+  extends ProcessAllWindowFunction[IN, OUT, W] {}

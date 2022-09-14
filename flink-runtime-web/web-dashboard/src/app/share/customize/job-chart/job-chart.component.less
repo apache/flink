@@ -18,10 +18,10 @@
 @import "theme";
 
 :host {
-  padding: 12px;
-  margin-bottom: 12px;
   float: left;
   width: 33.33%;
+  margin-bottom: 12px;
+  padding: 12px;
 
   &.big {
     width: 100%;
@@ -38,16 +38,16 @@
 }
 
 .title {
-  padding: 12px;
   position: relative;
+  padding: 12px;
   border-bottom: 1px solid @border-color-split;
 }
 
 .text {
-  font-size: 12px;
-  line-height: 24px;
   overflow: hidden;
   max-width: calc(~"100% - 128px");
+  font-size: 12px;
+  line-height: 24px;
   text-overflow: ellipsis;
 }
 
@@ -55,14 +55,16 @@
   position: absolute;
   top: 12px;
   right: 12px;
+  display: flex;
+  align-items: center;
 }
 
 .content {
   padding: 12px;
 
   .numeric {
-    line-height: 150px;
     font-size: 32px;
+    line-height: 150px;
     text-align: center;
   }
 }

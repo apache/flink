@@ -22,21 +22,21 @@ import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.functions.AggregateFunction;
 
 /**
- * {@link State} interface for aggregating state, based on an
- * {@link AggregateFunction}. Elements that are added to this type of state will
- * be eagerly pre-aggregated using a given {@code AggregateFunction}.
+ * {@link State} interface for aggregating state, based on an {@link AggregateFunction}. Elements
+ * that are added to this type of state will be eagerly pre-aggregated using a given {@code
+ * AggregateFunction}.
  *
- * <p>The state holds internally always the accumulator type of the {@code AggregateFunction}.
- * When accessing the result of the state, the function's
- * {@link AggregateFunction#getResult(Object)} method.
+ * <p>The state holds internally always the accumulator type of the {@code AggregateFunction}. When
+ * accessing the result of the state, the function's {@link AggregateFunction#getResult(Object)}
+ * method.
  *
- * <p>The state is accessed and modified by user functions, and checkpointed consistently
- * by the system as part of the distributed snapshots.
+ * <p>The state is accessed and modified by user functions, and checkpointed consistently by the
+ * system as part of the distributed snapshots.
  *
  * <p>The state is only accessible by functions applied on a {@code KeyedStream}. The key is
- * automatically supplied by the system, so the function always sees the value mapped to the
- * key of the current element. That way, the system can handle stream and state partitioning
- * consistently together.
+ * automatically supplied by the system, so the function always sees the value mapped to the key of
+ * the current element. That way, the system can handle stream and state partitioning consistently
+ * together.
  *
  * @param <IN> Type of the value added to the state.
  * @param <OUT> Type of the value extracted from the state.

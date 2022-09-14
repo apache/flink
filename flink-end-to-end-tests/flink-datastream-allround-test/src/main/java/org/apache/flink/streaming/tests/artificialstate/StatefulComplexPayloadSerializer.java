@@ -28,126 +28,123 @@ import org.apache.flink.util.InstantiationUtil;
 import java.io.IOException;
 import java.util.concurrent.atomic.AtomicReference;
 
-/**
- * A custom stateful serializer to test that serializers are not used concurrently.
- */
+/** A custom stateful serializer to test that serializers are not used concurrently. */
 public class StatefulComplexPayloadSerializer extends TypeSerializer<ComplexPayload> {
 
-	private static final long serialVersionUID = 8766687317209282373L;
+    private static final long serialVersionUID = 8766687317209282373L;
 
-	/** This holds the thread that currently has exclusive ownership over the serializer. */
-	private final AtomicReference<Thread> currentOwnerThread;
+    /** This holds the thread that currently has exclusive ownership over the serializer. */
+    private final AtomicReference<Thread> currentOwnerThread;
 
-	public StatefulComplexPayloadSerializer() {
-		this.currentOwnerThread = new AtomicReference<>(null);
-	}
+    public StatefulComplexPayloadSerializer() {
+        this.currentOwnerThread = new AtomicReference<>(null);
+    }
 
-	@Override
-	public boolean isImmutableType() {
-		return false;
-	}
+    @Override
+    public boolean isImmutableType() {
+        return false;
+    }
 
-	@Override
-	public TypeSerializer<ComplexPayload> duplicate() {
-		return new StatefulComplexPayloadSerializer();
-	}
+    @Override
+    public TypeSerializer<ComplexPayload> duplicate() {
+        return new StatefulComplexPayloadSerializer();
+    }
 
-	@Override
-	public ComplexPayload createInstance() {
-		throw new UnsupportedOperationException();
-	}
+    @Override
+    public ComplexPayload createInstance() {
+        throw new UnsupportedOperationException();
+    }
 
-	@Override
-	public ComplexPayload copy(ComplexPayload from) {
-		try {
-			Thread currentThread = Thread.currentThread();
-			if (currentOwnerThread.compareAndSet(null, currentThread)) {
-				return InstantiationUtil.deserializeObject(
-					InstantiationUtil.serializeObject(from), currentThread.getContextClassLoader());
-			} else {
-				throw new IllegalStateException("Concurrent access to type serializer detected!");
-			}
-		} catch (Exception e) {
-			throw new RuntimeException(e);
-		} finally {
-			currentOwnerThread.set(null);
-		}
-	}
+    @Override
+    public ComplexPayload copy(ComplexPayload from) {
+        try {
+            Thread currentThread = Thread.currentThread();
+            if (currentOwnerThread.compareAndSet(null, currentThread)) {
+                return InstantiationUtil.deserializeObject(
+                        InstantiationUtil.serializeObject(from),
+                        currentThread.getContextClassLoader());
+            } else {
+                throw new IllegalStateException("Concurrent access to type serializer detected!");
+            }
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        } finally {
+            currentOwnerThread.set(null);
+        }
+    }
 
-	@Override
-	public ComplexPayload copy(ComplexPayload from, ComplexPayload reuse) {
-		return copy(from);
-	}
+    @Override
+    public ComplexPayload copy(ComplexPayload from, ComplexPayload reuse) {
+        return copy(from);
+    }
 
-	@Override
-	public int getLength() {
-		return -1;
-	}
+    @Override
+    public int getLength() {
+        return -1;
+    }
 
-	@Override
-	public void serialize(ComplexPayload record, DataOutputView target) throws IOException {
-		try {
-			if (currentOwnerThread.compareAndSet(null, Thread.currentThread())) {
-				target.write(InstantiationUtil.serializeObject(record));
-			} else {
-				throw new IllegalStateException("Concurrent access to type serializer detected!");
-			}
-		} finally {
-			currentOwnerThread.set(null);
-		}
-	}
+    @Override
+    public void serialize(ComplexPayload record, DataOutputView target) throws IOException {
+        try {
+            if (currentOwnerThread.compareAndSet(null, Thread.currentThread())) {
+                target.write(InstantiationUtil.serializeObject(record));
+            } else {
+                throw new IllegalStateException("Concurrent access to type serializer detected!");
+            }
+        } finally {
+            currentOwnerThread.set(null);
+        }
+    }
 
-	@Override
-	public ComplexPayload deserialize(DataInputView source) throws IOException {
-		try (final DataInputViewStream inViewWrapper = new DataInputViewStream(source)) {
-			Thread currentThread = Thread.currentThread();
-			if (currentOwnerThread.compareAndSet(null, currentThread)) {
-				return InstantiationUtil.deserializeObject(
-					inViewWrapper,
-					currentThread.getContextClassLoader());
-			} else {
-				throw new IllegalStateException("Concurrent access to type serializer detected!");
-			}
-		} catch (ClassNotFoundException e) {
-			throw new IOException("Could not deserialize object.", e);
-		} finally {
-			currentOwnerThread.set(null);
-		}
-	}
+    @Override
+    public ComplexPayload deserialize(DataInputView source) throws IOException {
+        try (final DataInputViewStream inViewWrapper = new DataInputViewStream(source)) {
+            Thread currentThread = Thread.currentThread();
+            if (currentOwnerThread.compareAndSet(null, currentThread)) {
+                return InstantiationUtil.deserializeObject(
+                        inViewWrapper, currentThread.getContextClassLoader());
+            } else {
+                throw new IllegalStateException("Concurrent access to type serializer detected!");
+            }
+        } catch (ClassNotFoundException e) {
+            throw new IOException("Could not deserialize object.", e);
+        } finally {
+            currentOwnerThread.set(null);
+        }
+    }
 
-	@Override
-	public ComplexPayload deserialize(ComplexPayload reuse, DataInputView source) throws IOException {
-		return deserialize(source);
-	}
+    @Override
+    public ComplexPayload deserialize(ComplexPayload reuse, DataInputView source)
+            throws IOException {
+        return deserialize(source);
+    }
 
-	@Override
-	public void copy(DataInputView source, DataOutputView target) throws IOException {
-		serialize(deserialize(source), target);
-	}
+    @Override
+    public void copy(DataInputView source, DataOutputView target) throws IOException {
+        serialize(deserialize(source), target);
+    }
 
-	@Override
-	public boolean equals(Object obj) {
-		return obj == this;
-	}
+    @Override
+    public boolean equals(Object obj) {
+        return obj == this;
+    }
 
-	@Override
-	public int hashCode() {
-		return 42;
-	}
+    @Override
+    public int hashCode() {
+        return 42;
+    }
 
-	@Override
-	public Snapshot snapshotConfiguration() {
-		return new Snapshot();
-	}
+    @Override
+    public Snapshot snapshotConfiguration() {
+        return new Snapshot();
+    }
 
-	// ----------------------------------------------------------------------------------------
+    // ----------------------------------------------------------------------------------------
 
-	/**
-	 * Snapshot for the {@link StatefulComplexPayloadSerializer}.
-	 */
-	public static class Snapshot extends SimpleTypeSerializerSnapshot<ComplexPayload> {
-		public Snapshot() {
-			super(StatefulComplexPayloadSerializer::new);
-		}
-	}
+    /** Snapshot for the {@link StatefulComplexPayloadSerializer}. */
+    public static class Snapshot extends SimpleTypeSerializerSnapshot<ComplexPayload> {
+        public Snapshot() {
+            super(StatefulComplexPayloadSerializer::new);
+        }
+    }
 }

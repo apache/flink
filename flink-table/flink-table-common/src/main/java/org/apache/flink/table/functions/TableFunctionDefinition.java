@@ -18,7 +18,6 @@
 
 package org.apache.flink.table.functions;
 
-import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.catalog.DataTypeFactory;
@@ -33,74 +32,75 @@ import java.util.Set;
  * stack.
  *
  * <p>This class can be dropped once we introduce a new type inference.
+ *
+ * @deprecated Non-legacy functions can simply omit this wrapper for declarations.
  */
-@Internal
+@Deprecated
 public final class TableFunctionDefinition implements FunctionDefinition {
 
-	private final String name;
-	private final TableFunction<?> tableFunction;
-	private final TypeInformation<?> resultType;
+    private final String name;
+    private final TableFunction<?> tableFunction;
+    private final TypeInformation<?> resultType;
 
-	public TableFunctionDefinition(
-			String name,
-			TableFunction<?> tableFunction,
-			TypeInformation<?> resultType) {
-		this.name = Preconditions.checkNotNull(name);
-		this.tableFunction = Preconditions.checkNotNull(tableFunction);
-		this.resultType = Preconditions.checkNotNull(resultType);
-	}
+    public TableFunctionDefinition(
+            String name, TableFunction<?> tableFunction, TypeInformation<?> resultType) {
+        this.name = Preconditions.checkNotNull(name);
+        this.tableFunction = Preconditions.checkNotNull(tableFunction);
+        this.resultType = Preconditions.checkNotNull(resultType);
+    }
 
-	public String getName() {
-		return name;
-	}
+    public String getName() {
+        return name;
+    }
 
-	public TableFunction<?> getTableFunction() {
-		return tableFunction;
-	}
+    public TableFunction<?> getTableFunction() {
+        return tableFunction;
+    }
 
-	public TypeInformation<?> getResultType() {
-		return resultType;
-	}
+    public TypeInformation<?> getResultType() {
+        return resultType;
+    }
 
-	@Override
-	public FunctionKind getKind() {
-		return FunctionKind.TABLE;
-	}
+    @Override
+    public FunctionKind getKind() {
+        return FunctionKind.TABLE;
+    }
 
-	@Override
-	public TypeInference getTypeInference(DataTypeFactory typeFactory) {
-		throw new TableException("Functions implemented for the old type system are not supported.");
-	}
+    @Override
+    public TypeInference getTypeInference(DataTypeFactory typeFactory) {
+        throw new TableException(
+                "Functions implemented for the old type system are not supported.");
+    }
 
-	@Override
-	public Set<FunctionRequirement> getRequirements() {
-		return tableFunction.getRequirements();
-	}
+    @Override
+    public Set<FunctionRequirement> getRequirements() {
+        return tableFunction.getRequirements();
+    }
 
-	@Override
-	public boolean isDeterministic() {
-		return tableFunction.isDeterministic();
-	}
+    @Override
+    public boolean isDeterministic() {
+        return tableFunction.isDeterministic();
+    }
 
-	@Override
-	public boolean equals(Object o) {
-		if (this == o) {
-			return true;
-		}
-		if (o == null || getClass() != o.getClass()) {
-			return false;
-		}
-		TableFunctionDefinition that = (TableFunctionDefinition) o;
-		return name.equals(that.name);
-	}
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
+        TableFunctionDefinition that = (TableFunctionDefinition) o;
+        return name.equals(that.name);
+    }
 
-	@Override
-	public int hashCode() {
-		return Objects.hash(name);
-	}
+    @Override
+    public int hashCode() {
+        return Objects.hash(name);
+    }
 
-	@Override
-	public String toString() {
-		return name;
-	}
+    @Override
+    public String toString() {
+        return name;
+    }
 }

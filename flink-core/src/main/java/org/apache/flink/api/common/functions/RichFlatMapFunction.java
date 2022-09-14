@@ -23,18 +23,19 @@ import org.apache.flink.util.Collector;
 
 /**
  * Rich variant of the {@link FlatMapFunction}. As a {@link RichFunction}, it gives access to the
- * {@link org.apache.flink.api.common.functions.RuntimeContext} and provides setup and teardown methods:
- * {@link RichFunction#open(org.apache.flink.configuration.Configuration)} and
- * {@link RichFunction#close()}.
+ * {@link org.apache.flink.api.common.functions.RuntimeContext} and provides setup and teardown
+ * methods: {@link RichFunction#open(org.apache.flink.configuration.Configuration)} and {@link
+ * RichFunction#close()}.
  *
  * @param <IN> Type of the input elements.
  * @param <OUT> Type of the returned elements.
  */
 @Public
-public abstract class RichFlatMapFunction<IN, OUT> extends AbstractRichFunction implements FlatMapFunction<IN, OUT> {
+public abstract class RichFlatMapFunction<IN, OUT> extends AbstractRichFunction
+        implements FlatMapFunction<IN, OUT> {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	@Override
-	public abstract void flatMap(IN value, Collector<OUT> out) throws Exception;
+    @Override
+    public abstract void flatMap(IN value, Collector<OUT> out) throws Exception;
 }

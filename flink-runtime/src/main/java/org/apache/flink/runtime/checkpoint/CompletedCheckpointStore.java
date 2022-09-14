@@ -19,97 +19,98 @@
 package org.apache.flink.runtime.checkpoint;
 
 import org.apache.flink.api.common.JobStatus;
+import org.apache.flink.runtime.state.SharedStateRegistry;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.List;
-import java.util.ListIterator;
+import javax.annotation.Nullable;
 
-/**
- * A bounded LIFO-queue of {@link CompletedCheckpoint} instances.
- */
+import java.util.List;
+
+/** A bounded LIFO-queue of {@link CompletedCheckpoint} instances. */
 public interface CompletedCheckpointStore {
 
-	Logger LOG = LoggerFactory.getLogger(CompletedCheckpointStore.class);
+    Logger LOG = LoggerFactory.getLogger(CompletedCheckpointStore.class);
 
-	/**
-	 * Recover available {@link CompletedCheckpoint} instances.
-	 *
-	 * <p>After a call to this method, {@link #getLatestCheckpoint(boolean)} returns the latest
-	 * available checkpoint.
-	 */
-	void recover() throws Exception;
+    /**
+     * Adds a {@link CompletedCheckpoint} instance to the list of completed checkpoints.
+     *
+     * <p>Only a bounded number of checkpoints is kept. When exceeding the maximum number of
+     * retained checkpoints, the oldest one will be discarded.
+     *
+     * @return the subsumed oldest completed checkpoint if possible, return null if no checkpoint
+     *     needs to be discarded on subsume.
+     */
+    @Nullable
+    CompletedCheckpoint addCheckpointAndSubsumeOldestOne(
+            CompletedCheckpoint checkpoint,
+            CheckpointsCleaner checkpointsCleaner,
+            Runnable postCleanup)
+            throws Exception;
 
-	/**
-	 * Adds a {@link CompletedCheckpoint} instance to the list of completed checkpoints.
-	 *
-	 * <p>Only a bounded number of checkpoints is kept. When exceeding the maximum number of
-	 * retained checkpoints, the oldest one will be discarded.
-	 */
-	void addCheckpoint(CompletedCheckpoint checkpoint) throws Exception;
+    /**
+     * Returns the latest {@link CompletedCheckpoint} instance or <code>null</code> if none was
+     * added.
+     */
+    default CompletedCheckpoint getLatestCheckpoint() throws Exception {
+        List<CompletedCheckpoint> allCheckpoints = getAllCheckpoints();
+        if (allCheckpoints.isEmpty()) {
+            return null;
+        }
 
-	/**
-	 * Returns the latest {@link CompletedCheckpoint} instance or <code>null</code> if none was
-	 * added.
-	 */
-	default CompletedCheckpoint getLatestCheckpoint(boolean isPreferCheckpointForRecovery) throws Exception {
-		List<CompletedCheckpoint> allCheckpoints = getAllCheckpoints();
-		if (allCheckpoints.isEmpty()) {
-			return null;
-		}
+        return allCheckpoints.get(allCheckpoints.size() - 1);
+    }
 
-		CompletedCheckpoint lastCompleted = allCheckpoints.get(allCheckpoints.size() - 1);
+    /** Returns the id of the latest completed checkpoints. */
+    default long getLatestCheckpointId() {
+        try {
+            List<CompletedCheckpoint> allCheckpoints = getAllCheckpoints();
+            if (allCheckpoints.isEmpty()) {
+                return 0;
+            }
 
-		if (isPreferCheckpointForRecovery && allCheckpoints.size() > 1 && lastCompleted.getProperties().isSavepoint()) {
-			ListIterator<CompletedCheckpoint> listIterator = allCheckpoints.listIterator(allCheckpoints.size() - 1);
-			while (listIterator.hasPrevious()) {
-				CompletedCheckpoint prev = listIterator.previous();
-				if (!prev.getProperties().isSavepoint()) {
-					LOG.info("Found a completed checkpoint ({}) before the latest savepoint, will use it to recover!", prev);
-					return prev;
-				}
-			}
-			LOG.info("Did not find earlier checkpoint, using latest savepoint to recover.");
-		}
+            return allCheckpoints.get(allCheckpoints.size() - 1).getCheckpointID();
+        } catch (Throwable throwable) {
+            LOG.warn("Get the latest completed checkpoints failed", throwable);
+            return 0;
+        }
+    }
 
-		return lastCompleted;
-	}
+    /**
+     * Shuts down the store.
+     *
+     * <p>The job status is forwarded and used to decide whether state should actually be discarded
+     * or kept.
+     *
+     * @param jobStatus Job state on shut down
+     * @param checkpointsCleaner that will cleanup completed checkpoints if needed
+     */
+    void shutdown(JobStatus jobStatus, CheckpointsCleaner checkpointsCleaner) throws Exception;
 
-	/**
-	 * Shuts down the store.
-	 *
-	 * <p>The job status is forwarded and used to decide whether state should
-	 * actually be discarded or kept.
-	 *
-	 * @param jobStatus Job state on shut down
-	 */
-	void shutdown(JobStatus jobStatus) throws Exception;
+    /**
+     * Returns all {@link CompletedCheckpoint} instances.
+     *
+     * <p>Returns an empty list if no checkpoint has been added yet.
+     */
+    List<CompletedCheckpoint> getAllCheckpoints() throws Exception;
 
-	/**
-	 * Returns all {@link CompletedCheckpoint} instances.
-	 *
-	 * <p>Returns an empty list if no checkpoint has been added yet.
-	 */
-	List<CompletedCheckpoint> getAllCheckpoints() throws Exception;
+    /** Returns the current number of retained checkpoints. */
+    int getNumberOfRetainedCheckpoints();
 
-	/**
-	 * Returns the current number of retained checkpoints.
-	 */
-	int getNumberOfRetainedCheckpoints();
+    /** Returns the max number of retained checkpoints. */
+    int getMaxNumberOfRetainedCheckpoints();
 
-	/**
-	 * Returns the max number of retained checkpoints.
-	 */
-	int getMaxNumberOfRetainedCheckpoints();
+    /**
+     * This method returns whether the completed checkpoint store requires checkpoints to be
+     * externalized. Externalized checkpoints have their meta data persisted, which the checkpoint
+     * store can exploit (for example by simply pointing the persisted metadata).
+     *
+     * @return True, if the store requires that checkpoints are externalized before being added,
+     *     false if the store stores the metadata itself.
+     */
+    boolean requiresExternalizedCheckpoints();
 
-	/**
-	 * This method returns whether the completed checkpoint store requires checkpoints to be
-	 * externalized. Externalized checkpoints have their meta data persisted, which the checkpoint
-	 * store can exploit (for example by simply pointing the persisted metadata).
-	 *
-	 * @return True, if the store requires that checkpoints are externalized before being added, false
-	 *         if the store stores the metadata itself.
-	 */
-	boolean requiresExternalizedCheckpoints();
+    /** Returns the {@link SharedStateRegistry} used to register the shared state. */
+    SharedStateRegistry getSharedStateRegistry();
 }

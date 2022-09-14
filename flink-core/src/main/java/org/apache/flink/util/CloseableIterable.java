@@ -32,30 +32,23 @@ import java.util.Iterator;
  */
 public interface CloseableIterable<T> extends Iterable<T>, Closeable {
 
-	/**
-	 * Empty iterator.
-	 */
-	class Empty<T> implements CloseableIterable<T> {
+    /** Empty iterator. */
+    class Empty<T> implements CloseableIterable<T> {
 
-		private Empty() {
-		}
+        private Empty() {}
 
-		@Override
-		public void close() throws IOException {
+        @Override
+        public void close() throws IOException {}
 
-		}
+        @Nonnull
+        @Override
+        public Iterator<T> iterator() {
+            return Collections.emptyIterator();
+        }
+    }
 
-		@Nonnull
-		@Override
-		public Iterator<T> iterator() {
-			return Collections.emptyIterator();
-		}
-	}
-
-	/**
-	 * Returns an empty iterator.
-	 */
-	static <T> CloseableIterable<T> empty() {
-		return new CloseableIterable.Empty<>();
-	}
+    /** Returns an empty iterator. */
+    static <T> CloseableIterable<T> empty() {
+        return new CloseableIterable.Empty<>();
+    }
 }

@@ -25,20 +25,18 @@ import org.apache.flink.runtime.rest.messages.MessageQueryParameter;
 import java.util.Collection;
 import java.util.Collections;
 
-/**
- * Message parameters for {@link JarDeleteHandler}.
- */
+/** Message parameters for {@link JarDeleteHandler}. */
 public class JarDeleteMessageParameters extends MessageParameters {
 
-	public JarIdPathParameter jarIdPathParameter = new JarIdPathParameter();
+    public JarIdPathParameter jarIdPathParameter = new JarIdPathParameter();
 
-	@Override
-	public Collection<MessagePathParameter<?>> getPathParameters() {
-		return Collections.singletonList(jarIdPathParameter);
-	}
+    @Override
+    public Collection<MessagePathParameter<?>> getPathParameters() {
+        return Collections.singletonList(jarIdPathParameter);
+    }
 
-	@Override
-	public Collection<MessageQueryParameter<?>> getQueryParameters() {
-		return Collections.emptyList();
-	}
+    @Override
+    public Collection<MessageQueryParameter<?>> getQueryParameters() {
+        return Collections.emptyList();
+    }
 }

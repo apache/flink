@@ -23,29 +23,29 @@ import org.apache.flink.util.MutableObjectIterator;
 import java.io.IOException;
 
 public class CountingMutableObjectIterator<IN> implements MutableObjectIterator<IN> {
-	private final MutableObjectIterator<IN> iterator;
-	private final Counter numRecordsIn;
+    private final MutableObjectIterator<IN> iterator;
+    private final Counter numRecordsIn;
 
-	public CountingMutableObjectIterator(MutableObjectIterator<IN> iterator, Counter numRecordsIn) {
-		this.iterator = iterator;
-		this.numRecordsIn = numRecordsIn;
-	}
+    public CountingMutableObjectIterator(MutableObjectIterator<IN> iterator, Counter numRecordsIn) {
+        this.iterator = iterator;
+        this.numRecordsIn = numRecordsIn;
+    }
 
-	@Override
-	public IN next(IN reuse) throws IOException {
-		IN next = iterator.next(reuse);
-		if (next != null) {
-			numRecordsIn.inc();
-		}
-		return next;
-	}
+    @Override
+    public IN next(IN reuse) throws IOException {
+        IN next = iterator.next(reuse);
+        if (next != null) {
+            numRecordsIn.inc();
+        }
+        return next;
+    }
 
-	@Override
-	public IN next() throws IOException {
-		IN next = iterator.next();
-		if (next != null) {
-			numRecordsIn.inc();
-		}
-		return next;
-	}
+    @Override
+    public IN next() throws IOException {
+        IN next = iterator.next();
+        if (next != null) {
+            numRecordsIn.inc();
+        }
+        return next;
+    }
 }

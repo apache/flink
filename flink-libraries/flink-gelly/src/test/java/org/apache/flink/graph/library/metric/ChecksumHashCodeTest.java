@@ -27,43 +27,36 @@ import org.junit.Test;
 
 import static org.junit.Assert.assertEquals;
 
-/**
- * Tests for {@link ChecksumHashCode}.
- */
+/** Tests for {@link ChecksumHashCode}. */
 public class ChecksumHashCodeTest extends AsmTestBase {
 
-	@Test
-	public void testSmallGraph() throws Exception {
-		Graph<Long, Long, Long> graph = Graph.fromDataSet(
-			TestGraphUtils.getLongLongVertexData(env),
-			TestGraphUtils.getLongLongEdgeData(env),
-			env);
+    @Test
+    public void testSmallGraph() throws Exception {
+        Graph<Long, Long, Long> graph =
+                Graph.fromDataSet(
+                        TestGraphUtils.getLongLongVertexData(env),
+                        TestGraphUtils.getLongLongEdgeData(env),
+                        env);
 
-		Checksum checksum = graph
-			.run(new ChecksumHashCode<>())
-			.execute();
+        Checksum checksum = graph.run(new ChecksumHashCode<>()).execute();
 
-		assertEquals(12, checksum.getCount());
-		assertEquals(0x4cd1, checksum.getChecksum());
-	}
+        assertEquals(12, checksum.getCount());
+        assertEquals(0x4cd1, checksum.getChecksum());
+    }
 
-	@Test
-	public void testEmptyGraphWithVertices() throws Exception {
-		Checksum checksum = emptyGraphWithVertices
-			.run(new ChecksumHashCode<>())
-			.execute();
+    @Test
+    public void testEmptyGraphWithVertices() throws Exception {
+        Checksum checksum = emptyGraphWithVertices.run(new ChecksumHashCode<>()).execute();
 
-		assertEquals(3, checksum.getCount());
-		assertEquals(0x109b, checksum.getChecksum());
-	}
+        assertEquals(3, checksum.getCount());
+        assertEquals(0x109b, checksum.getChecksum());
+    }
 
-	@Test
-	public void testEmptyGraphWithoutVertices() throws Exception {
-		Checksum checksum = emptyGraphWithoutVertices
-			.run(new ChecksumHashCode<>())
-			.execute();
+    @Test
+    public void testEmptyGraphWithoutVertices() throws Exception {
+        Checksum checksum = emptyGraphWithoutVertices.run(new ChecksumHashCode<>()).execute();
 
-		assertEquals(0, checksum.getCount());
-		assertEquals(0, checksum.getChecksum());
-	}
+        assertEquals(0, checksum.getCount());
+        assertEquals(0, checksum.getChecksum());
+    }
 }

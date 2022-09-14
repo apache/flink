@@ -1,0 +1,168 @@
+<table class="configuration table table-bordered">
+    <thead>
+        <tr>
+            <th class="text-left" style="width: 20%">Key</th>
+            <th class="text-left" style="width: 15%">Default</th>
+            <th class="text-left" style="width: 10%">Type</th>
+            <th class="text-left" style="width: 55%">Description</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td><h5>pulsar.consumer.ackReceiptEnabled</h5></td>
+            <td style="word-wrap: break-word;">false</td>
+            <td>Boolean</td>
+            <td>Acknowledgement will return a receipt but this does not mean that the message will not be resent after getting the receipt.</td>
+        </tr>
+        <tr>
+            <td><h5>pulsar.consumer.ackTimeoutMillis</h5></td>
+            <td style="word-wrap: break-word;">0</td>
+            <td>Long</td>
+            <td>The timeout (in ms) for unacknowledged messages, truncated to the nearest millisecond. The timeout needs to be greater than 1 second.<br />By default, the acknowledge timeout is disabled and that means that messages delivered to a consumer will not be re-delivered unless the consumer crashes.<br />When acknowledgement timeout being enabled, if a message is not acknowledged within the specified timeout it will be re-delivered to the consumer (possibly to a different consumer in case of a shared subscription).</td>
+        </tr>
+        <tr>
+            <td><h5>pulsar.consumer.acknowledgementsGroupTimeMicros</h5></td>
+            <td style="word-wrap: break-word;">100000</td>
+            <td>Long</td>
+            <td>Group a consumer acknowledgment for a specified time (in μs). By default, a consumer uses <code class="highlighter-rouge">100μs</code> grouping time to send out acknowledgments to a broker. If the group time is set to <code class="highlighter-rouge">0</code>, acknowledgments are sent out immediately. A longer ack group time is more efficient at the expense of a slight increase in message re-deliveries after a failure.</td>
+        </tr>
+        <tr>
+            <td><h5>pulsar.consumer.autoAckOldestChunkedMessageOnQueueFull</h5></td>
+            <td style="word-wrap: break-word;">false</td>
+            <td>Boolean</td>
+            <td>Buffering a large number of outstanding uncompleted chunked messages can bring memory pressure and it can be guarded by providing this <code class="highlighter-rouge">pulsar.consumer.maxPendingChunkedMessage</code> threshold. Once a consumer reaches this threshold, it drops the outstanding unchunked-messages by silently acknowledging if <code class="highlighter-rouge">pulsar.consumer.autoAckOldestChunkedMessageOnQueueFull</code> is true. Otherwise, it marks them for redelivery.</td>
+        </tr>
+        <tr>
+            <td><h5>pulsar.consumer.autoUpdatePartitionsIntervalSeconds</h5></td>
+            <td style="word-wrap: break-word;">60</td>
+            <td>Integer</td>
+            <td>The interval (in seconds) of updating partitions. This only works if autoUpdatePartitions is enabled.</td>
+        </tr>
+        <tr>
+            <td><h5>pulsar.consumer.consumerName</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>String</td>
+            <td>The consumer name is informative and it can be used to identify a particular consumer instance from the topic stats.</td>
+        </tr>
+        <tr>
+            <td><h5>pulsar.consumer.cryptoFailureAction</h5></td>
+            <td style="word-wrap: break-word;">FAIL</td>
+            <td><p>Enum</p></td>
+            <td>The consumer should take action when it receives a message that can not be decrypted.<ul><li><code class="highlighter-rouge">FAIL</code>: this is the default option to fail messages until crypto succeeds.</li><li><code class="highlighter-rouge">DISCARD</code>: silently acknowledge but do not deliver messages to an application.</li><li><code class="highlighter-rouge">CONSUME</code>: deliver encrypted messages to applications. It is the application's responsibility to decrypt the message.</li></ul><br />Fail to decompress the messages.<br />If messages contain batch messages, a client is not be able to retrieve individual messages in batch.<br />The delivered encrypted message contains <code class="highlighter-rouge">EncryptionContext</code> which contains encryption and compression information in. You can use an application to decrypt the consumed message payload.<br /><br />Possible values:<ul><li>"FAIL"</li><li>"DISCARD"</li><li>"CONSUME"</li></ul></td>
+        </tr>
+        <tr>
+            <td><h5>pulsar.consumer.deadLetterPolicy.deadLetterTopic</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>String</td>
+            <td>Name of the dead topic where the failed messages are sent.</td>
+        </tr>
+        <tr>
+            <td><h5>pulsar.consumer.deadLetterPolicy.maxRedeliverCount</h5></td>
+            <td style="word-wrap: break-word;">0</td>
+            <td>Integer</td>
+            <td>The maximum number of times that a message are redelivered before being sent to the dead letter queue.</td>
+        </tr>
+        <tr>
+            <td><h5>pulsar.consumer.deadLetterPolicy.retryLetterTopic</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>String</td>
+            <td>Name of the retry topic where the failed messages are sent.</td>
+        </tr>
+        <tr>
+            <td><h5>pulsar.consumer.expireTimeOfIncompleteChunkedMessageMillis</h5></td>
+            <td style="word-wrap: break-word;">60000</td>
+            <td>Long</td>
+            <td>If a producer fails to publish all the chunks of a message, the consumer can expire incomplete chunks if the consumer cannot receive all chunks in expire times (default 1 hour, in ms).</td>
+        </tr>
+        <tr>
+            <td><h5>pulsar.consumer.maxPendingChunkedMessage</h5></td>
+            <td style="word-wrap: break-word;">10</td>
+            <td>Integer</td>
+            <td>The consumer buffers chunk messages into memory until it receives all the chunks of the original message. While consuming chunk-messages, chunks from the same message might not be contiguous in the stream and they might be mixed with other messages' chunks. So, consumer has to maintain multiple buffers to manage chunks coming from different messages. This mainly happens when multiple publishers are publishing messages on the topic concurrently or publishers failed to publish all chunks of the messages.<br />For example, there are M1-C1, M2-C1, M1-C2, M2-C2 messages.Messages M1-C1 and M1-C2 belong to the M1 original message while M2-C1 and M2-C2 belong to the M2 message.<br />Buffering a large number of outstanding uncompleted chunked messages can bring memory pressure and it can be guarded by providing this <code class="highlighter-rouge">pulsar.consumer.maxPendingChunkedMessage</code> threshold. Once, a consumer reaches this threshold, it drops the outstanding unchunked messages by silently acknowledging or asking the broker to redeliver messages later by marking it unacknowledged. This behavior can be controlled by the <code class="highlighter-rouge">pulsar.consumer.autoAckOldestChunkedMessageOnQueueFull</code> option.</td>
+        </tr>
+        <tr>
+            <td><h5>pulsar.consumer.maxTotalReceiverQueueSizeAcrossPartitions</h5></td>
+            <td style="word-wrap: break-word;">50000</td>
+            <td>Integer</td>
+            <td>The maximum total receiver queue size across partitions.<br />This setting reduces the receiver queue size for individual partitions if the total receiver queue size exceeds this value.</td>
+        </tr>
+        <tr>
+            <td><h5>pulsar.consumer.negativeAckRedeliveryDelayMicros</h5></td>
+            <td style="word-wrap: break-word;">60000000</td>
+            <td>Long</td>
+            <td>Delay (in μs) to wait before redelivering messages that failed to be processed.<br />When an application uses <code class="highlighter-rouge">Consumer.negativeAcknowledge(Message)</code>, failed messages are redelivered after a fixed timeout.</td>
+        </tr>
+        <tr>
+            <td><h5>pulsar.consumer.poolMessages</h5></td>
+            <td style="word-wrap: break-word;">false</td>
+            <td>Boolean</td>
+            <td>Enable pooling of messages and the underlying data buffers.</td>
+        </tr>
+        <tr>
+            <td><h5>pulsar.consumer.priorityLevel</h5></td>
+            <td style="word-wrap: break-word;">0</td>
+            <td>Integer</td>
+            <td>Priority level for a consumer to which a broker gives more priorities while dispatching messages in the shared subscription type.<br />The broker follows descending priorities. For example, 0=max-priority, 1, 2,...<br />In shared subscription mode, the broker first dispatches messages to the consumers on the highest priority level if they have permits. Otherwise, the broker considers consumers on the next priority level.<br /><br />Example 1<br />If a subscription has consumer A with <code class="highlighter-rouge">priorityLevel</code> 0 and consumer B with <code class="highlighter-rouge">priorityLevel</code> 1, then the broker only dispatches messages to consumer A until it runs out permits and then starts dispatching messages to consumer B.<br />Example 2<br />Consumer Priority, Level, Permits
+C1, 0, 2
+C2, 0, 1
+C3, 0, 1
+C4, 1, 2
+C5, 1, 1
+<br />The order in which a broker dispatches messages to consumers is: C1, C2, C3, C1, C4, C5, C4.</td>
+        </tr>
+        <tr>
+            <td><h5>pulsar.consumer.properties</h5></td>
+            <td style="word-wrap: break-word;"></td>
+            <td>Map</td>
+            <td>A name or value property of this consumer. <code class="highlighter-rouge">properties</code> is application defined metadata attached to a consumer. When getting a topic stats, associate this metadata with the consumer stats for easier identification.</td>
+        </tr>
+        <tr>
+            <td><h5>pulsar.consumer.readCompacted</h5></td>
+            <td style="word-wrap: break-word;">false</td>
+            <td>Boolean</td>
+            <td>If enabling <code class="highlighter-rouge">readCompacted</code>, a consumer reads messages from a compacted topic rather than reading a full message backlog of a topic.<br />A consumer only sees the latest value for each key in the compacted topic, up until reaching the point in the topic message when compacting backlog. Beyond that point, send messages as normal.<br />Only enabling <code class="highlighter-rouge">readCompacted</code> on subscriptions to persistent topics, which have a single active consumer (like failure or exclusive subscriptions).<br />Attempting to enable it on subscriptions to non-persistent topics or on shared subscriptions leads to a subscription call throwing a <code class="highlighter-rouge">PulsarClientException</code>.</td>
+        </tr>
+        <tr>
+            <td><h5>pulsar.consumer.receiverQueueSize</h5></td>
+            <td style="word-wrap: break-word;">1000</td>
+            <td>Integer</td>
+            <td>Size of a consumer's receiver queue.<br />For example, the number of messages accumulated by a consumer before an application calls <code class="highlighter-rouge">Receive</code>.<br />A value higher than the default value increases consumer throughput, though at the expense of more memory utilization.</td>
+        </tr>
+        <tr>
+            <td><h5>pulsar.consumer.replicateSubscriptionState</h5></td>
+            <td style="word-wrap: break-word;">false</td>
+            <td>Boolean</td>
+            <td>If <code class="highlighter-rouge">replicateSubscriptionState</code> is enabled, a subscription state is replicated to geo-replicated clusters.</td>
+        </tr>
+        <tr>
+            <td><h5>pulsar.consumer.retryEnable</h5></td>
+            <td style="word-wrap: break-word;">false</td>
+            <td>Boolean</td>
+            <td>If enabled, the consumer will automatically retry messages.</td>
+        </tr>
+        <tr>
+            <td><h5>pulsar.consumer.subscriptionMode</h5></td>
+            <td style="word-wrap: break-word;">Durable</td>
+            <td><p>Enum</p></td>
+            <td>Select the subscription mode to be used when subscribing to the topic.<ul><li><code class="highlighter-rouge">Durable</code>: Make the subscription to be backed by a durable cursor that will retain messages and persist the current position.</li><li><code class="highlighter-rouge">NonDurable</code>: Lightweight subscription mode that doesn't have a durable cursor associated</li></ul><br /><br />Possible values:<ul><li>"Durable"</li><li>"NonDurable"</li></ul></td>
+        </tr>
+        <tr>
+            <td><h5>pulsar.consumer.subscriptionName</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>String</td>
+            <td>Specify the subscription name for this consumer. This argument is required when constructing the consumer.</td>
+        </tr>
+        <tr>
+            <td><h5>pulsar.consumer.subscriptionType</h5></td>
+            <td style="word-wrap: break-word;">Shared</td>
+            <td><p>Enum</p></td>
+            <td>Subscription type.<br /><br />Four subscription types are available:<ul><li>Exclusive</li><li>Failover</li><li>Shared</li><li>Key_Shared</li></ul><br /><br />Possible values:<ul><li>"Exclusive"</li><li>"Shared"</li><li>"Failover"</li><li>"Key_Shared"</li></ul></td>
+        </tr>
+        <tr>
+            <td><h5>pulsar.consumer.tickDurationMillis</h5></td>
+            <td style="word-wrap: break-word;">1000</td>
+            <td>Long</td>
+            <td>Granularity (in ms) of the ack-timeout redelivery.<br />A greater (for example, 1 hour) <code class="highlighter-rouge">tickDurationMillis</code> reduces the memory overhead to track messages.</td>
+        </tr>
+    </tbody>
+</table>

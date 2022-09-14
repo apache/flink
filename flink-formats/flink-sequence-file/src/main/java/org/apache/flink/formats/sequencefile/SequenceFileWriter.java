@@ -36,26 +36,27 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * @param <V> The type of value written.
  */
 @PublicEvolving
-public class SequenceFileWriter<K extends Writable, V extends Writable> implements BulkWriter<Tuple2<K, V>> {
+public class SequenceFileWriter<K extends Writable, V extends Writable>
+        implements BulkWriter<Tuple2<K, V>> {
 
-	private final SequenceFile.Writer writer;
+    private final SequenceFile.Writer writer;
 
-	SequenceFileWriter(SequenceFile.Writer writer) {
-		this.writer = checkNotNull(writer);
-	}
+    SequenceFileWriter(SequenceFile.Writer writer) {
+        this.writer = checkNotNull(writer);
+    }
 
-	@Override
-	public void addElement(Tuple2<K, V> element) throws IOException {
-		writer.append(element.f0, element.f1);
-	}
+    @Override
+    public void addElement(Tuple2<K, V> element) throws IOException {
+        writer.append(element.f0, element.f1);
+    }
 
-	@Override
-	public void flush() throws IOException {
-		writer.hsync();
-	}
+    @Override
+    public void flush() throws IOException {
+        writer.hsync();
+    }
 
-	@Override
-	public void finish() throws IOException {
-		writer.close();
-	}
+    @Override
+    public void finish() throws IOException {
+        writer.close();
+    }
 }

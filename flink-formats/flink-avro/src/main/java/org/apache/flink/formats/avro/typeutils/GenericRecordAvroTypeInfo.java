@@ -28,88 +28,92 @@ import org.apache.avro.generic.GenericRecord;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
+import java.nio.charset.StandardCharsets;
 import java.util.Objects;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
-/**
- * TypeInformation for {@link GenericRecord}.
- */
+/** TypeInformation for {@link GenericRecord}. */
 public class GenericRecordAvroTypeInfo extends TypeInformation<GenericRecord> {
 
-	private static final long serialVersionUID = 4141977586453820650L;
+    private static final long serialVersionUID = 4141977586453820650L;
 
-	private transient Schema schema;
+    private transient Schema schema;
 
-	public GenericRecordAvroTypeInfo(Schema schema) {
-		this.schema = checkNotNull(schema);
-	}
+    public GenericRecordAvroTypeInfo(Schema schema) {
+        this.schema = checkNotNull(schema);
+    }
 
-	@Override
-	public boolean isBasicType() {
-		return false;
-	}
+    @Override
+    public boolean isBasicType() {
+        return false;
+    }
 
-	@Override
-	public boolean isTupleType() {
-		return false;
-	}
+    @Override
+    public boolean isTupleType() {
+        return false;
+    }
 
-	@Override
-	public int getArity() {
-		return 1;
-	}
+    @Override
+    public int getArity() {
+        return 1;
+    }
 
-	@Override
-	public int getTotalFields() {
-		return 1;
-	}
+    @Override
+    public int getTotalFields() {
+        return 1;
+    }
 
-	@Override
-	public Class<GenericRecord> getTypeClass() {
-		return GenericRecord.class;
-	}
+    @Override
+    public Class<GenericRecord> getTypeClass() {
+        return GenericRecord.class;
+    }
 
-	@Override
-	public boolean isKeyType() {
-		return false;
-	}
+    @Override
+    public boolean isKeyType() {
+        return false;
+    }
 
-	@Override
-	public TypeSerializer<GenericRecord> createSerializer(ExecutionConfig config) {
-		return new AvroSerializer<>(GenericRecord.class, schema);
-	}
+    @Override
+    public TypeSerializer<GenericRecord> createSerializer(ExecutionConfig config) {
+        return new AvroSerializer<>(GenericRecord.class, schema);
+    }
 
-	@Override
-	public String toString() {
-		return String.format("GenericRecord(\"%s\")", schema.toString());
-	}
+    @Override
+    public String toString() {
+        return String.format("GenericRecord(\"%s\")", schema.toString());
+    }
 
-	@Override
-	public boolean equals(Object obj) {
-		if (obj instanceof GenericRecordAvroTypeInfo) {
-			GenericRecordAvroTypeInfo avroTypeInfo = (GenericRecordAvroTypeInfo) obj;
-			return Objects.equals(avroTypeInfo.schema, schema);
-		} else {
-			return false;
-		}
-	}
+    @Override
+    public boolean equals(Object obj) {
+        if (obj instanceof GenericRecordAvroTypeInfo) {
+            GenericRecordAvroTypeInfo avroTypeInfo = (GenericRecordAvroTypeInfo) obj;
+            return Objects.equals(avroTypeInfo.schema, schema);
+        } else {
+            return false;
+        }
+    }
 
-	@Override
-	public int hashCode() {
-		return Objects.hashCode(schema);
-	}
+    @Override
+    public int hashCode() {
+        return Objects.hashCode(schema);
+    }
 
-	@Override
-	public boolean canEqual(Object obj) {
-		return obj instanceof GenericRecordAvroTypeInfo;
-	}
+    @Override
+    public boolean canEqual(Object obj) {
+        return obj instanceof GenericRecordAvroTypeInfo;
+    }
 
-	private void writeObject(ObjectOutputStream oos) throws IOException {
-		oos.writeUTF(schema.toString());
-	}
+    private void writeObject(ObjectOutputStream oos) throws IOException {
+        byte[] schemaStrInBytes = schema.toString(false).getBytes(StandardCharsets.UTF_8);
+        oos.writeInt(schemaStrInBytes.length);
+        oos.write(schemaStrInBytes);
+    }
 
-	private void readObject(ObjectInputStream ois) throws ClassNotFoundException, IOException {
-		this.schema = new Schema.Parser().parse(ois.readUTF());
-	}
+    private void readObject(ObjectInputStream ois) throws ClassNotFoundException, IOException {
+        int len = ois.readInt();
+        byte[] content = new byte[len];
+        ois.readFully(content);
+        this.schema = new Schema.Parser().parse(new String(content, StandardCharsets.UTF_8));
+    }
 }

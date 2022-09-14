@@ -21,65 +21,62 @@ package org.apache.flink.runtime.broadcast;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 
 /**
- * An identifier for a {@link BroadcastVariableMaterialization} based on the task's {@link JobVertexID}, broadcast
- * variable name and iteration superstep.
+ * An identifier for a {@link BroadcastVariableMaterialization} based on the task's {@link
+ * JobVertexID}, broadcast variable name and iteration superstep.
  */
 public class BroadcastVariableKey {
 
-	private final JobVertexID vertexId;
+    private final JobVertexID vertexId;
 
-	private final String name;
+    private final String name;
 
-	private final int superstep;
+    private final int superstep;
 
-	public BroadcastVariableKey(JobVertexID vertexId, String name, int superstep) {
-		if (vertexId == null || name == null || superstep <= 0) {
-			throw new IllegalArgumentException();
-		}
+    public BroadcastVariableKey(JobVertexID vertexId, String name, int superstep) {
+        if (vertexId == null || name == null || superstep <= 0) {
+            throw new IllegalArgumentException();
+        }
 
-		this.vertexId = vertexId;
-		this.name = name;
-		this.superstep = superstep;
-	}
+        this.vertexId = vertexId;
+        this.name = name;
+        this.superstep = superstep;
+    }
 
-	// ---------------------------------------------------------------------------------------------
+    // ---------------------------------------------------------------------------------------------
 
-	public JobVertexID getVertexId() {
-		return vertexId;
-	}
+    public JobVertexID getVertexId() {
+        return vertexId;
+    }
 
-	public String getName() {
-		return name;
-	}
+    public String getName() {
+        return name;
+    }
 
-	public int getSuperstep() {
-		return superstep;
-	}
+    public int getSuperstep() {
+        return superstep;
+    }
 
-	// ---------------------------------------------------------------------------------------------
+    // ---------------------------------------------------------------------------------------------
 
-	@Override
-	public int hashCode() {
-		return 31 * superstep +
-				47 * name.hashCode() +
-				83 * vertexId.hashCode();
-	}
+    @Override
+    public int hashCode() {
+        return 31 * superstep + 47 * name.hashCode() + 83 * vertexId.hashCode();
+    }
 
-	@Override
-	public boolean equals(Object obj) {
-		if (obj != null && obj.getClass() == BroadcastVariableKey.class) {
-			BroadcastVariableKey other = (BroadcastVariableKey) obj;
-			return this.superstep == other.superstep &&
-					this.name.equals(other.name) &&
-					this.vertexId.equals(other.vertexId);
-		}
-		else {
-			return false;
-		}
-	}
+    @Override
+    public boolean equals(Object obj) {
+        if (obj != null && obj.getClass() == BroadcastVariableKey.class) {
+            BroadcastVariableKey other = (BroadcastVariableKey) obj;
+            return this.superstep == other.superstep
+                    && this.name.equals(other.name)
+                    && this.vertexId.equals(other.vertexId);
+        } else {
+            return false;
+        }
+    }
 
-	@Override
-	public String toString() {
-		return vertexId + " \"" + name + "\" (" + superstep + ')';
-	}
+    @Override
+    public String toString() {
+        return vertexId + " \"" + name + "\" (" + superstep + ')';
+    }
 }

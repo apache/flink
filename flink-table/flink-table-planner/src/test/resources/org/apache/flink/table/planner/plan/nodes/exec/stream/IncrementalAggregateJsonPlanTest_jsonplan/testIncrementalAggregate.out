@@ -1,0 +1,389 @@
+{
+  "flinkVersion" : "",
+  "nodes" : [ {
+    "id" : 1,
+    "type" : "stream-exec-table-source-scan_1",
+    "scanTableSource" : {
+      "table" : {
+        "identifier" : "`default_catalog`.`default_database`.`MyTable`",
+        "resolvedTable" : {
+          "schema" : {
+            "columns" : [ {
+              "name" : "a",
+              "dataType" : "BIGINT"
+            }, {
+              "name" : "b",
+              "dataType" : "INT NOT NULL"
+            }, {
+              "name" : "c",
+              "dataType" : "VARCHAR(2147483647)"
+            }, {
+              "name" : "d",
+              "dataType" : "BIGINT"
+            } ],
+            "watermarkSpecs" : [ ]
+          },
+          "partitionKeys" : [ ],
+          "options" : {
+            "connector" : "values",
+            "bounded" : "false"
+          }
+        }
+      },
+      "abilities" : [ {
+        "type" : "ProjectPushDown",
+        "projectedFields" : [ [ 0 ], [ 2 ] ],
+        "producedType" : "ROW<`a` BIGINT, `c` VARCHAR(2147483647)> NOT NULL"
+      }, {
+        "type" : "ReadingMetadata",
+        "metadataKeys" : [ ],
+        "producedType" : "ROW<`a` BIGINT, `c` VARCHAR(2147483647)> NOT NULL"
+      } ]
+    },
+    "outputType" : "ROW<`a` BIGINT, `c` VARCHAR(2147483647)>",
+    "description" : "TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, c], metadata=[]]], fields=[a, c])",
+    "inputProperties" : [ ]
+  }, {
+    "id" : 2,
+    "type" : "stream-exec-mini-batch-assigner_1",
+    "miniBatchInterval" : {
+      "interval" : 10000,
+      "mode" : "ProcTime"
+    },
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "UNKNOWN"
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    } ],
+    "outputType" : "ROW<`a` BIGINT, `c` VARCHAR(2147483647)>",
+    "description" : "MiniBatchAssigner(interval=[10000ms], mode=[ProcTime])"
+  }, {
+    "id" : 3,
+    "type" : "stream-exec-calc_1",
+    "projection" : [ {
+      "kind" : "INPUT_REF",
+      "inputIndex" : 0,
+      "type" : "BIGINT"
+    }, {
+      "kind" : "INPUT_REF",
+      "inputIndex" : 1,
+      "type" : "VARCHAR(2147483647)"
+    }, {
+      "kind" : "CALL",
+      "internalName" : "$MOD$1",
+      "operands" : [ {
+        "kind" : "CALL",
+        "internalName" : "$HASH_CODE$1",
+        "operands" : [ {
+          "kind" : "INPUT_REF",
+          "inputIndex" : 1,
+          "type" : "VARCHAR(2147483647)"
+        } ],
+        "type" : "INT"
+      }, {
+        "kind" : "LITERAL",
+        "value" : "1024",
+        "type" : "INT NOT NULL"
+      } ],
+      "type" : "INT"
+    } ],
+    "condition" : null,
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "UNKNOWN"
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    } ],
+    "outputType" : "ROW<`a` BIGINT, `c` VARCHAR(2147483647), `$f2` INT>",
+    "description" : "Calc(select=[a, c, MOD(HASH_CODE(c), 1024) AS $f2])"
+  }, {
+    "id" : 4,
+    "type" : "stream-exec-local-group-aggregate_1",
+    "configuration" : {
+      "table.exec.mini-batch.enabled" : "true",
+      "table.exec.mini-batch.size" : "5"
+    },
+    "grouping" : [ 0, 2 ],
+    "aggCalls" : [ {
+      "name" : null,
+      "syntax" : "FUNCTION_STAR",
+      "internalName" : "$COUNT$1",
+      "argList" : [ 1 ],
+      "filterArg" : -1,
+      "distinct" : true,
+      "approximate" : false,
+      "ignoreNulls" : false,
+      "type" : "BIGINT NOT NULL"
+    } ],
+    "aggCallNeedRetractions" : [ false ],
+    "needRetraction" : false,
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "UNKNOWN"
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    } ],
+    "outputType" : {
+      "type" : "ROW",
+      "fields" : [ {
+        "name" : "a",
+        "fieldType" : "BIGINT"
+      }, {
+        "name" : "$f2",
+        "fieldType" : "INT"
+      }, {
+        "name" : "count$0",
+        "fieldType" : "BIGINT"
+      }, {
+        "name" : "distinct$0",
+        "fieldType" : {
+          "type" : "RAW",
+          "class" : "org.apache.flink.table.api.dataview.MapView",
+          "externalDataType" : {
+            "logicalType" : {
+              "type" : "STRUCTURED_TYPE",
+              "implementationClass" : "org.apache.flink.table.api.dataview.MapView",
+              "attributes" : [ {
+                "name" : "map",
+                "attributeType" : "MAP<VARCHAR(2147483647), BIGINT NOT NULL>"
+              } ]
+            },
+            "fields" : [ {
+              "name" : "map",
+              "keyClass" : {
+                "conversionClass" : "org.apache.flink.table.data.StringData"
+              }
+            } ]
+          }
+        }
+      } ]
+    },
+    "description" : "LocalGroupAggregate(groupBy=[a, $f2], partialFinalType=[PARTIAL], select=[a, $f2, COUNT(distinct$0 c) AS count$0, DISTINCT(c) AS distinct$0])"
+  }, {
+    "id" : 5,
+    "type" : "stream-exec-exchange_1",
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "HASH",
+        "keys" : [ 0, 1 ]
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    } ],
+    "outputType" : {
+      "type" : "ROW",
+      "fields" : [ {
+        "name" : "a",
+        "fieldType" : "BIGINT"
+      }, {
+        "name" : "$f2",
+        "fieldType" : "INT"
+      }, {
+        "name" : "count$0",
+        "fieldType" : "BIGINT"
+      }, {
+        "name" : "distinct$0",
+        "fieldType" : {
+          "type" : "RAW",
+          "class" : "org.apache.flink.table.api.dataview.MapView",
+          "externalDataType" : {
+            "logicalType" : {
+              "type" : "STRUCTURED_TYPE",
+              "implementationClass" : "org.apache.flink.table.api.dataview.MapView",
+              "attributes" : [ {
+                "name" : "map",
+                "attributeType" : "MAP<VARCHAR(2147483647), BIGINT NOT NULL>"
+              } ]
+            },
+            "fields" : [ {
+              "name" : "map",
+              "keyClass" : {
+                "conversionClass" : "org.apache.flink.table.data.StringData"
+              }
+            } ]
+          }
+        }
+      } ]
+    },
+    "description" : "Exchange(distribution=[hash[a, $f2]])"
+  }, {
+    "id" : 6,
+    "type" : "stream-exec-incremental-group-aggregate_1",
+    "configuration" : {
+      "table.exec.mini-batch.enabled" : "true",
+      "table.exec.mini-batch.size" : "5"
+    },
+    "partialAggGrouping" : [ 0, 1 ],
+    "finalAggGrouping" : [ 0 ],
+    "partialOriginalAggCalls" : [ {
+      "name" : null,
+      "syntax" : "FUNCTION_STAR",
+      "internalName" : "$COUNT$1",
+      "argList" : [ 1 ],
+      "filterArg" : -1,
+      "distinct" : true,
+      "approximate" : false,
+      "ignoreNulls" : false,
+      "type" : "BIGINT NOT NULL"
+    } ],
+    "partialAggCallNeedRetractions" : [ false ],
+    "partialLocalAggInputRowType" : "ROW<`a` BIGINT, `c` VARCHAR(2147483647), `$f2` INT>",
+    "partialAggNeedRetraction" : false,
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "UNKNOWN"
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    } ],
+    "outputType" : "ROW<`a` BIGINT, `count$0` BIGINT>",
+    "description" : "IncrementalGroupAggregate(partialAggGrouping=[a, $f2], finalAggGrouping=[a], select=[a, COUNT(distinct$0 count$0) AS count$0])"
+  }, {
+    "id" : 7,
+    "type" : "stream-exec-exchange_1",
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "HASH",
+        "keys" : [ 0 ]
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    } ],
+    "outputType" : "ROW<`a` BIGINT, `count$0` BIGINT>",
+    "description" : "Exchange(distribution=[hash[a]])"
+  }, {
+    "id" : 8,
+    "type" : "stream-exec-global-group-aggregate_1",
+    "configuration" : {
+      "table.exec.mini-batch.enabled" : "true",
+      "table.exec.mini-batch.size" : "5"
+    },
+    "grouping" : [ 0 ],
+    "aggCalls" : [ {
+      "name" : null,
+      "internalName" : "$$SUM0$1",
+      "argList" : [ 2 ],
+      "filterArg" : -1,
+      "distinct" : false,
+      "approximate" : false,
+      "ignoreNulls" : false,
+      "type" : "BIGINT NOT NULL"
+    } ],
+    "aggCallNeedRetractions" : [ false ],
+    "localAggInputRowType" : "ROW<`a` BIGINT, `$f2` INT, `$f2_0` BIGINT NOT NULL>",
+    "generateUpdateBefore" : true,
+    "needRetraction" : false,
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "UNKNOWN"
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    } ],
+    "outputType" : "ROW<`a` BIGINT, `$f1` BIGINT NOT NULL>",
+    "description" : "GlobalGroupAggregate(groupBy=[a], partialFinalType=[FINAL], select=[a, $SUM0(count$0) AS $f1])"
+  }, {
+    "id" : 9,
+    "type" : "stream-exec-sink_1",
+    "configuration" : {
+      "table.exec.sink.keyed-shuffle" : "AUTO",
+      "table.exec.sink.not-null-enforcer" : "ERROR",
+      "table.exec.sink.type-length-enforcer" : "IGNORE",
+      "table.exec.sink.upsert-materialize" : "AUTO"
+    },
+    "dynamicTableSink" : {
+      "table" : {
+        "identifier" : "`default_catalog`.`default_database`.`MySink`",
+        "resolvedTable" : {
+          "schema" : {
+            "columns" : [ {
+              "name" : "a",
+              "dataType" : "BIGINT"
+            }, {
+              "name" : "c",
+              "dataType" : "BIGINT"
+            } ],
+            "watermarkSpecs" : [ ]
+          },
+          "partitionKeys" : [ ],
+          "options" : {
+            "sink-insert-only" : "false",
+            "table-sink-class" : "DEFAULT",
+            "connector" : "values"
+          }
+        }
+      }
+    },
+    "inputChangelogMode" : [ "INSERT", "UPDATE_BEFORE", "UPDATE_AFTER", "DELETE" ],
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "UNKNOWN"
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    } ],
+    "outputType" : "ROW<`a` BIGINT, `$f1` BIGINT NOT NULL>",
+    "description" : "Sink(table=[default_catalog.default_database.MySink], fields=[a, $f1])"
+  } ],
+  "edges" : [ {
+    "source" : 1,
+    "target" : 2,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 2,
+    "target" : 3,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 3,
+    "target" : 4,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 4,
+    "target" : 5,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 5,
+    "target" : 6,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 6,
+    "target" : 7,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 7,
+    "target" : 8,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 8,
+    "target" : 9,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  } ]
+}

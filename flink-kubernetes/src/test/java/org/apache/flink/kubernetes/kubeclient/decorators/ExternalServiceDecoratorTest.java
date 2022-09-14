@@ -20,71 +20,111 @@ package org.apache.flink.kubernetes.kubeclient.decorators;
 
 import org.apache.flink.kubernetes.configuration.KubernetesConfigOptions;
 import org.apache.flink.kubernetes.kubeclient.KubernetesJobManagerTestBase;
+import org.apache.flink.kubernetes.kubeclient.services.HeadlessClusterIPService;
 import org.apache.flink.kubernetes.utils.Constants;
-import org.apache.flink.kubernetes.utils.KubernetesUtils;
 
 import io.fabric8.kubernetes.api.model.HasMetadata;
 import io.fabric8.kubernetes.api.model.Service;
 import io.fabric8.kubernetes.api.model.ServicePort;
 import io.fabric8.kubernetes.api.model.ServicePortBuilder;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import static junit.framework.TestCase.assertTrue;
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
-/**
- * General tests for the {@link ExternalServiceDecorator}.
- */
-public class ExternalServiceDecoratorTest extends KubernetesJobManagerTestBase {
+/** General tests for the {@link ExternalServiceDecorator}. */
+class ExternalServiceDecoratorTest extends KubernetesJobManagerTestBase {
 
-	private ExternalServiceDecorator externalServiceDecorator;
+    private ExternalServiceDecorator externalServiceDecorator;
 
-	@Before
-	public void setup() throws Exception {
-		super.setup();
-		this.externalServiceDecorator = new ExternalServiceDecorator(this.kubernetesJobManagerParameters);
-	}
+    private Map<String, String> customizedAnnotations =
+            new HashMap<String, String>() {
+                {
+                    put("annotation1", "annotation-value1");
+                    put("annotation2", "annotation-value2");
+                }
+            };
 
-	@Test
-	public void testBuildAccompanyingKubernetesResources() throws IOException {
-		final List<HasMetadata> resources = this.externalServiceDecorator.buildAccompanyingKubernetesResources();
-		assertEquals(1, resources.size());
+    @Override
+    protected void onSetup() throws Exception {
+        super.onSetup();
 
-		final Service restService = (Service) resources.get(0);
+        this.flinkConfig.set(
+                KubernetesConfigOptions.REST_SERVICE_ANNOTATIONS, customizedAnnotations);
+        this.externalServiceDecorator =
+                new ExternalServiceDecorator(this.kubernetesJobManagerParameters);
+    }
 
-		assertEquals(Constants.API_VERSION, restService.getApiVersion());
+    @Test
+    void testBuildAccompanyingKubernetesResources() throws IOException {
+        final List<HasMetadata> resources =
+                this.externalServiceDecorator.buildAccompanyingKubernetesResources();
+        assertThat(resources).hasSize(1);
 
-		assertEquals(KubernetesUtils.getRestServiceName(CLUSTER_ID), restService.getMetadata().getName());
+        final Service restService = (Service) resources.get(0);
 
-		final Map<String, String> expectedLabels = getCommonLabels();
-		assertEquals(expectedLabels, restService.getMetadata().getLabels());
+        assertThat(restService.getApiVersion()).isEqualTo(Constants.API_VERSION);
 
-		assertEquals("LoadBalancer", restService.getSpec().getType());
+        assertThat(restService.getMetadata().getName())
+                .isEqualTo(ExternalServiceDecorator.getExternalServiceName(CLUSTER_ID));
 
-		List<ServicePort> expectedServicePorts = Collections.singletonList(
-			new ServicePortBuilder()
-				.withName("rest-port")
-				.withPort(REST_PORT)
-				.build());
-		assertEquals(expectedServicePorts, restService.getSpec().getPorts());
+        final Map<String, String> expectedLabels = getCommonLabels();
+        assertThat(restService.getMetadata().getLabels()).isEqualTo(expectedLabels);
 
-		expectedLabels.put(Constants.LABEL_COMPONENT_KEY, Constants.LABEL_COMPONENT_JOB_MANAGER);
-		assertEquals(expectedLabels, restService.getSpec().getSelector());
-	}
+        assertThat(restService.getSpec().getType())
+                .isEqualTo(KubernetesConfigOptions.ServiceExposedType.ClusterIP.name());
 
-	@Test
-	public void testSetServiceExposedType() throws IOException {
-		this.flinkConfig.set(KubernetesConfigOptions.REST_SERVICE_EXPOSED_TYPE, "NodePort");
-		List<HasMetadata> resources = this.externalServiceDecorator.buildAccompanyingKubernetesResources();
-		assertEquals("NodePort", ((Service) resources.get(0)).getSpec().getType());
+        final List<ServicePort> expectedServicePorts =
+                Collections.singletonList(
+                        new ServicePortBuilder()
+                                .withName(Constants.REST_PORT_NAME)
+                                .withPort(REST_PORT)
+                                .withNewTargetPort(Integer.valueOf(REST_BIND_PORT))
+                                .build());
+        assertThat(restService.getSpec().getPorts()).isEqualTo(expectedServicePorts);
 
-		this.flinkConfig.set(KubernetesConfigOptions.REST_SERVICE_EXPOSED_TYPE, "ClusterIP");
-		assertTrue(this.externalServiceDecorator.buildAccompanyingKubernetesResources().isEmpty());
-	}
+        expectedLabels.put(Constants.LABEL_COMPONENT_KEY, Constants.LABEL_COMPONENT_JOB_MANAGER);
+        assertThat(restService.getSpec().getSelector()).isEqualTo(expectedLabels);
+
+        final Map<String, String> resultAnnotations = restService.getMetadata().getAnnotations();
+        assertThat(resultAnnotations).isEqualTo(customizedAnnotations);
+    }
+
+    @Test
+    void testSetServiceExposedType() throws IOException {
+        this.flinkConfig.set(
+                KubernetesConfigOptions.REST_SERVICE_EXPOSED_TYPE,
+                KubernetesConfigOptions.ServiceExposedType.NodePort);
+        final List<HasMetadata> resources =
+                this.externalServiceDecorator.buildAccompanyingKubernetesResources();
+        assertThat(((Service) resources.get(0)).getSpec().getType())
+                .isEqualTo(KubernetesConfigOptions.ServiceExposedType.NodePort.name());
+
+        this.flinkConfig.set(
+                KubernetesConfigOptions.REST_SERVICE_EXPOSED_TYPE,
+                KubernetesConfigOptions.ServiceExposedType.ClusterIP);
+        final List<HasMetadata> servicesWithClusterIP =
+                this.externalServiceDecorator.buildAccompanyingKubernetesResources();
+        assertThat(((Service) servicesWithClusterIP.get(0)).getSpec().getType())
+                .isEqualTo(KubernetesConfigOptions.ServiceExposedType.ClusterIP.name());
+    }
+
+    @Test
+    void testSetServiceExposedTypeWithHeadless() throws IOException {
+
+        this.flinkConfig.set(
+                KubernetesConfigOptions.REST_SERVICE_EXPOSED_TYPE,
+                KubernetesConfigOptions.ServiceExposedType.Headless_ClusterIP);
+        final List<HasMetadata> servicesWithHeadlessClusterIP =
+                this.externalServiceDecorator.buildAccompanyingKubernetesResources();
+        assertThat(((Service) servicesWithHeadlessClusterIP.get(0)).getSpec().getType())
+                .isEqualTo(KubernetesConfigOptions.ServiceExposedType.ClusterIP.name());
+        assertThat(((Service) servicesWithHeadlessClusterIP.get(0)).getSpec().getClusterIP())
+                .isEqualTo(HeadlessClusterIPService.HEADLESS_CLUSTER_IP);
+    }
 }

@@ -23,20 +23,20 @@ import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.types.BooleanValue;
 
-public class BooleanValueComparatorTest extends ComparatorTestBase<BooleanValue> {
+class BooleanValueComparatorTest extends ComparatorTestBase<BooleanValue> {
 
-	@Override
-	protected TypeComparator<BooleanValue> createComparator(boolean ascending) {
-		return new BooleanValueComparator(ascending);
-	}
+    @Override
+    protected TypeComparator<BooleanValue> createComparator(boolean ascending) {
+        return new BooleanValueComparator(ascending);
+    }
 
-	@Override
-	protected TypeSerializer<BooleanValue> createSerializer() {
-		return new BooleanValueSerializer();
-	}
+    @Override
+    protected TypeSerializer<BooleanValue> createSerializer() {
+        return new BooleanValueSerializer();
+    }
 
-	@Override
-	protected BooleanValue[] getSortedTestData() {
-		return new BooleanValue[]{BooleanValue.FALSE, BooleanValue.TRUE};
-	}
+    @Override
+    protected BooleanValue[] getSortedTestData() {
+        return new BooleanValue[] {BooleanValue.FALSE, BooleanValue.TRUE};
+    }
 }

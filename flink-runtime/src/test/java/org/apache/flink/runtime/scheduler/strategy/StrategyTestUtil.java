@@ -18,21 +18,31 @@
 
 package org.apache.flink.runtime.scheduler.strategy;
 
-import org.apache.flink.runtime.scheduler.ExecutionVertexDeploymentOption;
-
 import java.util.List;
 import java.util.stream.Collectors;
 
-/**
- * Strategy test utilities.
- */
-public class StrategyTestUtil {
+import static org.assertj.core.api.Assertions.assertThat;
 
-	static List<ExecutionVertexID> getExecutionVertexIdsFromDeployOptions(
-			final List<ExecutionVertexDeploymentOption> deploymentOptions) {
+/** Strategy test utilities. */
+class StrategyTestUtil {
 
-		return deploymentOptions.stream()
-			.map(ExecutionVertexDeploymentOption::getExecutionVertexId)
-			.collect(Collectors.toList());
-	}
+    static void assertLatestScheduledVerticesAreEqualTo(
+            final List<List<TestingSchedulingExecutionVertex>> expected,
+            TestingSchedulerOperations testingSchedulerOperation) {
+        final List<List<ExecutionVertexID>> allScheduledVertices =
+                testingSchedulerOperation.getScheduledVertices();
+        final int expectedScheduledBulks = expected.size();
+        assertThat(expectedScheduledBulks).isLessThanOrEqualTo(allScheduledVertices.size());
+        for (int i = 0; i < expectedScheduledBulks; i++) {
+            assertThat(allScheduledVertices.get(allScheduledVertices.size() - i - 1))
+                    .isEqualTo(idsFromVertices(expected.get(expectedScheduledBulks - i - 1)));
+        }
+    }
+
+    static List<ExecutionVertexID> idsFromVertices(
+            final List<TestingSchedulingExecutionVertex> vertices) {
+        return vertices.stream()
+                .map(TestingSchedulingExecutionVertex::getId)
+                .collect(Collectors.toList());
+    }
 }

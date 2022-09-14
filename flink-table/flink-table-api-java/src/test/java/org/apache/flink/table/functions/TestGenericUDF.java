@@ -23,28 +23,26 @@ import org.apache.flink.table.types.inference.TypeInference;
 
 import java.util.Set;
 
-/**
- * UDF definition for test function create, alert and drop in catalog.
- */
+/** UDF definition for test function create, alert and drop in catalog. */
 public class TestGenericUDF extends UserDefinedFunction {
 
-	@Override
-	public FunctionKind getKind() {
-		return FunctionKind.SCALAR;
-	}
+    @Override
+    public FunctionKind getKind() {
+        return FunctionKind.SCALAR;
+    }
 
-	@Override
-	public TypeInference getTypeInference(DataTypeFactory typeFactory) {
-		throw new UnsupportedOperationException();
-	}
+    @Override
+    public TypeInference getTypeInference(DataTypeFactory typeFactory) {
+        throw new UnsupportedOperationException();
+    }
 
-	@Override
-	public Set<FunctionRequirement> getRequirements() {
-		return null;
-	}
+    @Override
+    public Set<FunctionRequirement> getRequirements() {
+        return null;
+    }
 
-	@Override
-	public boolean isDeterministic() {
-		return false;
-	}
+    @Override
+    public boolean isDeterministic() {
+        return false;
+    }
 }

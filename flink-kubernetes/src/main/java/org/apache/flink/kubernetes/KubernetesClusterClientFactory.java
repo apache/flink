@@ -24,48 +24,58 @@ import org.apache.flink.client.deployment.ClusterClientFactory;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.DeploymentOptions;
 import org.apache.flink.kubernetes.configuration.KubernetesConfigOptions;
-import org.apache.flink.kubernetes.executors.KubernetesSessionClusterExecutor;
-import org.apache.flink.kubernetes.kubeclient.KubeClientFactory;
+import org.apache.flink.kubernetes.configuration.KubernetesDeploymentTarget;
+import org.apache.flink.kubernetes.kubeclient.FlinkKubeClientFactory;
+import org.apache.flink.kubernetes.utils.Constants;
+import org.apache.flink.util.AbstractID;
 
 import javax.annotation.Nullable;
 
-import java.util.UUID;
+import java.util.Optional;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
-/**
- * A {@link ClusterClientFactory} for a Kubernetes cluster.
- */
+/** A {@link ClusterClientFactory} for a Kubernetes cluster. */
 @Internal
-public class KubernetesClusterClientFactory extends AbstractContainerizedClusterClientFactory<String> {
+public class KubernetesClusterClientFactory
+        extends AbstractContainerizedClusterClientFactory<String> {
 
-	private static final String CLUSTER_ID_PREFIX = "flink-cluster-";
+    private static final String CLUSTER_ID_PREFIX = "flink-cluster-";
 
-	@Override
-	public boolean isCompatibleWith(Configuration configuration) {
-		checkNotNull(configuration);
-		final String deploymentTarget = configuration.getString(DeploymentOptions.TARGET);
-		return KubernetesSessionClusterExecutor.NAME.equalsIgnoreCase(deploymentTarget);
-	}
+    @Override
+    public boolean isCompatibleWith(Configuration configuration) {
+        checkNotNull(configuration);
+        final String deploymentTarget = configuration.getString(DeploymentOptions.TARGET);
+        return KubernetesDeploymentTarget.isValidKubernetesTarget(deploymentTarget);
+    }
 
-	@Override
-	public KubernetesClusterDescriptor createClusterDescriptor(Configuration configuration) {
-		checkNotNull(configuration);
-		if (!configuration.contains(KubernetesConfigOptions.CLUSTER_ID)) {
-			final String clusterId = generateClusterId();
-			configuration.setString(KubernetesConfigOptions.CLUSTER_ID, clusterId);
-		}
-		return new KubernetesClusterDescriptor(configuration, KubeClientFactory.fromConfiguration(configuration));
-	}
+    @Override
+    public KubernetesClusterDescriptor createClusterDescriptor(Configuration configuration) {
+        checkNotNull(configuration);
+        if (!configuration.contains(KubernetesConfigOptions.CLUSTER_ID)) {
+            final String clusterId = generateClusterId();
+            configuration.setString(KubernetesConfigOptions.CLUSTER_ID, clusterId);
+        }
+        return new KubernetesClusterDescriptor(
+                configuration,
+                FlinkKubeClientFactory.getInstance().fromConfiguration(configuration, "client"));
+    }
 
-	@Nullable
-	@Override
-	public String getClusterId(Configuration configuration) {
-		checkNotNull(configuration);
-		return configuration.getString(KubernetesConfigOptions.CLUSTER_ID);
-	}
+    @Nullable
+    @Override
+    public String getClusterId(Configuration configuration) {
+        checkNotNull(configuration);
+        return configuration.getString(KubernetesConfigOptions.CLUSTER_ID);
+    }
 
-	private String generateClusterId() {
-		return CLUSTER_ID_PREFIX + UUID.randomUUID();
-	}
+    @Override
+    public Optional<String> getApplicationTargetName() {
+        return Optional.of(KubernetesDeploymentTarget.APPLICATION.getName());
+    }
+
+    private String generateClusterId() {
+        final String randomID = new AbstractID().toString();
+        return (CLUSTER_ID_PREFIX + randomID)
+                .substring(0, Constants.MAXIMUM_CHARACTERS_OF_CLUSTER_ID);
+    }
 }

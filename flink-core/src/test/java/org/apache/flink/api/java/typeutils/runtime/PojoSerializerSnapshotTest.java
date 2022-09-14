@@ -43,344 +43,362 @@ import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
 
-/**
- * Tests for the {@link PojoSerializerSnapshot}.
- */
+/** Tests for the {@link PojoSerializerSnapshot}. */
 public class PojoSerializerSnapshotTest {
 
-	public static class TestPojo {
-		public int id;
-		public String name;
-		public double height;
+    public static class TestPojo {
+        public int id;
+        public String name;
+        public double height;
 
-		public TestPojo() {}
+        public TestPojo() {}
 
-		public TestPojo(int id, String name, double height) {
-			this.id = id;
-			this.name = name;
-			this.height = height;
-		}
-	}
+        public TestPojo(int id, String name, double height) {
+            this.id = id;
+            this.name = name;
+            this.height = height;
+        }
+    }
 
-	private static class TestPojoField {
-		String name;
-		Field field;
-		TypeSerializer<?> serializer;
-		TypeSerializerSnapshot<?> serializerSnapshot;
+    private static class TestPojoField {
+        String name;
+        Field field;
+        TypeSerializer<?> serializer;
+        TypeSerializerSnapshot<?> serializerSnapshot;
 
-		TestPojoField(String name, TypeSerializer<?> serializer) throws Exception {
-			this.name = name;
-			this.field = TestPojo.class.getDeclaredField(name);
-			this.serializer = serializer;
-			this.serializerSnapshot = serializer.snapshotConfiguration();
-		}
+        TestPojoField(String name, TypeSerializer<?> serializer) throws Exception {
+            this.name = name;
+            this.field = TestPojo.class.getDeclaredField(name);
+            this.serializer = serializer;
+            this.serializerSnapshot = serializer.snapshotConfiguration();
+        }
 
-		TestPojoField(String name, Field field, TypeSerializerSnapshot<?> serializerSnapshot) {
-			this.name = name;
-			this.field = field;
-			this.serializerSnapshot = serializerSnapshot;
-		}
+        TestPojoField(String name, Field field, TypeSerializerSnapshot<?> serializerSnapshot) {
+            this.name = name;
+            this.field = field;
+            this.serializerSnapshot = serializerSnapshot;
+        }
 
-		TestPojoField shallowCopy() {
-			return new TestPojoField(name, field, serializerSnapshot);
-		}
-	}
+        TestPojoField shallowCopy() {
+            return new TestPojoField(name, field, serializerSnapshot);
+        }
+    }
 
-	private final static Map<String, Field> FIELDS = new HashMap<>(3);
-	static {
-		try {
-			FIELDS.put("id", TestPojo.class.getDeclaredField("id"));
-			FIELDS.put("name", TestPojo.class.getDeclaredField("name"));
-			FIELDS.put("height", TestPojo.class.getDeclaredField("height"));
-		} catch (Exception e) {
-			throw new RuntimeException(e);
-		}
-	}
+    private static final Map<String, Field> FIELDS = new HashMap<>(3);
 
-	private static TestPojoField ID_FIELD;
-	private static TestPojoField NAME_FIELD;
-	private static TestPojoField HEIGHT_FIELD;
-	static {
-		try {
-			ID_FIELD = new TestPojoField("id", IntSerializer.INSTANCE);
-			NAME_FIELD = new TestPojoField("name", StringSerializer.INSTANCE);
-			HEIGHT_FIELD = new TestPojoField("height", DoubleSerializer.INSTANCE);
-		} catch (Exception e) {
-			throw new RuntimeException(e);
-		}
-	}
-	// ------------------------------------------------------------------------------------------------
-	//  Tests for PojoSerializerSnapshot#restoreSerializer
-	// ------------------------------------------------------------------------------------------------
+    static {
+        try {
+            FIELDS.put("id", TestPojo.class.getDeclaredField("id"));
+            FIELDS.put("name", TestPojo.class.getDeclaredField("name"));
+            FIELDS.put("height", TestPojo.class.getDeclaredField("height"));
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
 
-	@Test
-	public void testRestoreSerializerWithSameFields() {
-		final PojoSerializerSnapshot<TestPojo> testSnapshot = buildTestSnapshot(Arrays.asList(
-			ID_FIELD,
-			NAME_FIELD,
-			HEIGHT_FIELD
-		));
+    private static TestPojoField ID_FIELD;
+    private static TestPojoField NAME_FIELD;
+    private static TestPojoField HEIGHT_FIELD;
 
-		final TypeSerializer<TestPojo> restoredSerializer = testSnapshot.restoreSerializer();
-		assertSame(restoredSerializer.getClass(), PojoSerializer.class);
-		final PojoSerializer<TestPojo> restoredPojoSerializer = (PojoSerializer<TestPojo>) restoredSerializer;
+    static {
+        try {
+            ID_FIELD = new TestPojoField("id", IntSerializer.INSTANCE);
+            NAME_FIELD = new TestPojoField("name", StringSerializer.INSTANCE);
+            HEIGHT_FIELD = new TestPojoField("height", DoubleSerializer.INSTANCE);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+    // ------------------------------------------------------------------------------------------------
+    //  Tests for PojoSerializerSnapshot#restoreSerializer
+    // ------------------------------------------------------------------------------------------------
 
-		final Field[] restoredFields = restoredPojoSerializer.getFields();
-		assertArrayEquals(
-			new Field[] { ID_FIELD.field, NAME_FIELD.field, HEIGHT_FIELD.field },
-			restoredFields);
+    @Test
+    public void testRestoreSerializerWithSameFields() {
+        final PojoSerializerSnapshot<TestPojo> testSnapshot =
+                buildTestSnapshot(Arrays.asList(ID_FIELD, NAME_FIELD, HEIGHT_FIELD));
 
-		final TypeSerializer<?>[] restoredFieldSerializers = restoredPojoSerializer.getFieldSerializers();
-		assertArrayEquals(
-			new TypeSerializer[] { IntSerializer.INSTANCE, StringSerializer.INSTANCE, DoubleSerializer.INSTANCE },
-			restoredFieldSerializers);
-	}
+        final TypeSerializer<TestPojo> restoredSerializer = testSnapshot.restoreSerializer();
+        assertSame(restoredSerializer.getClass(), PojoSerializer.class);
+        final PojoSerializer<TestPojo> restoredPojoSerializer =
+                (PojoSerializer<TestPojo>) restoredSerializer;
 
-	@Test
-	public void testRestoreSerializerWithRemovedFields() {
-		final PojoSerializerSnapshot<TestPojo> testSnapshot = buildTestSnapshot(Arrays.asList(
-			mockRemovedField(ID_FIELD),
-			NAME_FIELD,
-			mockRemovedField(HEIGHT_FIELD)
-		));
+        final Field[] restoredFields = restoredPojoSerializer.getFields();
+        assertArrayEquals(
+                new Field[] {ID_FIELD.field, NAME_FIELD.field, HEIGHT_FIELD.field}, restoredFields);
 
-		final TypeSerializer<TestPojo> restoredSerializer = testSnapshot.restoreSerializer();
-		assertTrue(restoredSerializer.getClass() == PojoSerializer.class);
-		final PojoSerializer<TestPojo> restoredPojoSerializer = (PojoSerializer<TestPojo>) restoredSerializer;
+        final TypeSerializer<?>[] restoredFieldSerializers =
+                restoredPojoSerializer.getFieldSerializers();
+        assertArrayEquals(
+                new TypeSerializer[] {
+                    IntSerializer.INSTANCE, StringSerializer.INSTANCE, DoubleSerializer.INSTANCE
+                },
+                restoredFieldSerializers);
+    }
 
-		final Field[] restoredFields = restoredPojoSerializer.getFields();
-		assertArrayEquals(
-			new Field[] { null, NAME_FIELD.field, null },
-			restoredFields);
+    @Test
+    public void testRestoreSerializerWithRemovedFields() {
+        final PojoSerializerSnapshot<TestPojo> testSnapshot =
+                buildTestSnapshot(
+                        Arrays.asList(
+                                mockRemovedField(ID_FIELD),
+                                NAME_FIELD,
+                                mockRemovedField(HEIGHT_FIELD)));
 
-		final TypeSerializer<?>[] restoredFieldSerializers = restoredPojoSerializer.getFieldSerializers();
-		assertArrayEquals(
-			new TypeSerializer[] { IntSerializer.INSTANCE, StringSerializer.INSTANCE, DoubleSerializer.INSTANCE },
-			restoredFieldSerializers);
-	}
+        final TypeSerializer<TestPojo> restoredSerializer = testSnapshot.restoreSerializer();
+        assertTrue(restoredSerializer.getClass() == PojoSerializer.class);
+        final PojoSerializer<TestPojo> restoredPojoSerializer =
+                (PojoSerializer<TestPojo>) restoredSerializer;
 
-	@Test
-	public void testRestoreSerializerWithNewFields() {
-		final PojoSerializerSnapshot<TestPojo> testSnapshot = buildTestSnapshot(Collections.singletonList(HEIGHT_FIELD));
+        final Field[] restoredFields = restoredPojoSerializer.getFields();
+        assertArrayEquals(new Field[] {null, NAME_FIELD.field, null}, restoredFields);
 
-		final TypeSerializer<TestPojo> restoredSerializer = testSnapshot.restoreSerializer();
-		assertTrue(restoredSerializer.getClass() == PojoSerializer.class);
-		final PojoSerializer<TestPojo> restoredPojoSerializer = (PojoSerializer<TestPojo>) restoredSerializer;
+        final TypeSerializer<?>[] restoredFieldSerializers =
+                restoredPojoSerializer.getFieldSerializers();
+        assertArrayEquals(
+                new TypeSerializer[] {
+                    IntSerializer.INSTANCE, StringSerializer.INSTANCE, DoubleSerializer.INSTANCE
+                },
+                restoredFieldSerializers);
+    }
 
-		final Field[] restoredFields = restoredPojoSerializer.getFields();
-		assertArrayEquals(
-			new Field[] { HEIGHT_FIELD.field },
-			restoredFields);
+    @Test
+    public void testRestoreSerializerWithNewFields() {
+        final PojoSerializerSnapshot<TestPojo> testSnapshot =
+                buildTestSnapshot(Collections.singletonList(HEIGHT_FIELD));
 
-		final TypeSerializer<?>[] restoredFieldSerializers = restoredPojoSerializer.getFieldSerializers();
-		assertArrayEquals(
-			new TypeSerializer[] { DoubleSerializer.INSTANCE },
-			restoredFieldSerializers);
-	}
+        final TypeSerializer<TestPojo> restoredSerializer = testSnapshot.restoreSerializer();
+        assertTrue(restoredSerializer.getClass() == PojoSerializer.class);
+        final PojoSerializer<TestPojo> restoredPojoSerializer =
+                (PojoSerializer<TestPojo>) restoredSerializer;
 
-	// ------------------------------------------------------------------------------------------------
-	//  Tests for PojoSerializerSnapshot#resolveSchemaCompatibility
-	// ------------------------------------------------------------------------------------------------
+        final Field[] restoredFields = restoredPojoSerializer.getFields();
+        assertArrayEquals(new Field[] {HEIGHT_FIELD.field}, restoredFields);
 
-	@Test
-	public void testResolveSchemaCompatibilityWithSameFields() {
-		final PojoSerializerSnapshot<TestPojo> testSnapshot = buildTestSnapshot(Arrays.asList(
-			ID_FIELD,
-			NAME_FIELD,
-			HEIGHT_FIELD
-		));
+        final TypeSerializer<?>[] restoredFieldSerializers =
+                restoredPojoSerializer.getFieldSerializers();
+        assertArrayEquals(
+                new TypeSerializer[] {DoubleSerializer.INSTANCE}, restoredFieldSerializers);
+    }
 
-		final PojoSerializer<TestPojo> newPojoSerializer = buildTestNewPojoSerializer(Arrays.asList(
-			ID_FIELD,
-			NAME_FIELD,
-			HEIGHT_FIELD
-		));
+    // ------------------------------------------------------------------------------------------------
+    //  Tests for PojoSerializerSnapshot#resolveSchemaCompatibility
+    // ------------------------------------------------------------------------------------------------
 
-		final TypeSerializerSchemaCompatibility<TestPojo> resultCompatibility =
-			testSnapshot.resolveSchemaCompatibility(newPojoSerializer);
+    @Test
+    public void testResolveSchemaCompatibilityWithSameFields() {
+        final PojoSerializerSnapshot<TestPojo> testSnapshot =
+                buildTestSnapshot(Arrays.asList(ID_FIELD, NAME_FIELD, HEIGHT_FIELD));
 
-		assertTrue(resultCompatibility.isCompatibleAsIs());
-	}
+        final PojoSerializer<TestPojo> newPojoSerializer =
+                buildTestNewPojoSerializer(Arrays.asList(ID_FIELD, NAME_FIELD, HEIGHT_FIELD));
 
-	@Test
-	public void testResolveSchemaCompatibilityWithRemovedFields() {
-		final PojoSerializerSnapshot<TestPojo> testSnapshot = buildTestSnapshot(Arrays.asList(
-			mockRemovedField(ID_FIELD),
-			NAME_FIELD,
-			mockRemovedField(HEIGHT_FIELD)
-		));
+        final TypeSerializerSchemaCompatibility<TestPojo> resultCompatibility =
+                testSnapshot.resolveSchemaCompatibility(newPojoSerializer);
 
-		final PojoSerializer<TestPojo> newPojoSerializer = buildTestNewPojoSerializer(Collections.singletonList(NAME_FIELD));
+        assertTrue(resultCompatibility.isCompatibleAsIs());
+    }
 
-		final TypeSerializerSchemaCompatibility<TestPojo> resultCompatibility =
-			testSnapshot.resolveSchemaCompatibility(newPojoSerializer);
+    @Test
+    public void testResolveSchemaCompatibilityWithRemovedFields() {
+        final PojoSerializerSnapshot<TestPojo> testSnapshot =
+                buildTestSnapshot(
+                        Arrays.asList(
+                                mockRemovedField(ID_FIELD),
+                                NAME_FIELD,
+                                mockRemovedField(HEIGHT_FIELD)));
 
-		assertTrue(resultCompatibility.isCompatibleAfterMigration());
-	}
+        final PojoSerializer<TestPojo> newPojoSerializer =
+                buildTestNewPojoSerializer(Collections.singletonList(NAME_FIELD));
 
-	@Test
-	public void testResolveSchemaCompatibilityWithNewFields() {
-		final PojoSerializerSnapshot<TestPojo> testSnapshot = buildTestSnapshot(Collections.singletonList(HEIGHT_FIELD));
+        final TypeSerializerSchemaCompatibility<TestPojo> resultCompatibility =
+                testSnapshot.resolveSchemaCompatibility(newPojoSerializer);
 
-		final PojoSerializer<TestPojo> newPojoSerializer = buildTestNewPojoSerializer(Arrays.asList(
-			ID_FIELD,
-			NAME_FIELD,
-			HEIGHT_FIELD
-		));
+        assertTrue(resultCompatibility.isCompatibleAfterMigration());
+    }
 
-		final TypeSerializerSchemaCompatibility<TestPojo> resultCompatibility =
-			testSnapshot.resolveSchemaCompatibility(newPojoSerializer);
+    @Test
+    public void testResolveSchemaCompatibilityWithNewFields() {
+        final PojoSerializerSnapshot<TestPojo> testSnapshot =
+                buildTestSnapshot(Collections.singletonList(HEIGHT_FIELD));
 
-		assertTrue(resultCompatibility.isCompatibleAfterMigration());
-	}
+        final PojoSerializer<TestPojo> newPojoSerializer =
+                buildTestNewPojoSerializer(Arrays.asList(ID_FIELD, NAME_FIELD, HEIGHT_FIELD));
 
-	@Test
-	public void testResolveSchemaCompatibilityWithNewAndRemovedFields() {
-		final PojoSerializerSnapshot<TestPojo> testSnapshot = buildTestSnapshot(
-			Collections.singletonList(mockRemovedField(ID_FIELD)));
+        final TypeSerializerSchemaCompatibility<TestPojo> resultCompatibility =
+                testSnapshot.resolveSchemaCompatibility(newPojoSerializer);
 
-		final PojoSerializer<TestPojo> newPojoSerializer = buildTestNewPojoSerializer(Arrays.asList(
-			NAME_FIELD,
-			HEIGHT_FIELD
-		));
+        assertTrue(resultCompatibility.isCompatibleAfterMigration());
+    }
 
-		final TypeSerializerSchemaCompatibility<TestPojo> resultCompatibility =
-			testSnapshot.resolveSchemaCompatibility(newPojoSerializer);
+    @Test
+    public void testResolveSchemaCompatibilityWithNewAndRemovedFields() {
+        final PojoSerializerSnapshot<TestPojo> testSnapshot =
+                buildTestSnapshot(Collections.singletonList(mockRemovedField(ID_FIELD)));
 
-		assertTrue(resultCompatibility.isCompatibleAfterMigration());
-	}
+        final PojoSerializer<TestPojo> newPojoSerializer =
+                buildTestNewPojoSerializer(Arrays.asList(NAME_FIELD, HEIGHT_FIELD));
 
-	@Test
-	public void testResolveSchemaCompatibilityWithIncompatibleFieldSerializers() {
-		final PojoSerializerSnapshot<TestPojo> testSnapshot = buildTestSnapshot(Arrays.asList(
-			ID_FIELD,
-			mockFieldSerializerSnapshot(
-				NAME_FIELD,
-				SchemaCompatibilityTestingSnapshot.thatIsIncompatibleWithTheNextSerializer()),
-			HEIGHT_FIELD
-		));
+        final TypeSerializerSchemaCompatibility<TestPojo> resultCompatibility =
+                testSnapshot.resolveSchemaCompatibility(newPojoSerializer);
 
-		final PojoSerializer<TestPojo> newPojoSerializer = buildTestNewPojoSerializer(Arrays.asList(
-			ID_FIELD,
-			mockFieldSerializer(NAME_FIELD, new SchemaCompatibilityTestingSerializer()),
-			HEIGHT_FIELD
-		));
+        assertTrue(resultCompatibility.isCompatibleAfterMigration());
+    }
 
-		final TypeSerializerSchemaCompatibility<TestPojo> resultCompatibility =
-			testSnapshot.resolveSchemaCompatibility(newPojoSerializer);
+    @Test
+    public void testResolveSchemaCompatibilityWithIncompatibleFieldSerializers() {
+        final PojoSerializerSnapshot<TestPojo> testSnapshot =
+                buildTestSnapshot(
+                        Arrays.asList(
+                                ID_FIELD,
+                                mockFieldSerializerSnapshot(
+                                        NAME_FIELD,
+                                        SchemaCompatibilityTestingSnapshot
+                                                .thatIsIncompatibleWithTheNextSerializer()),
+                                HEIGHT_FIELD));
 
-		assertTrue(resultCompatibility.isIncompatible());
-	}
+        final PojoSerializer<TestPojo> newPojoSerializer =
+                buildTestNewPojoSerializer(
+                        Arrays.asList(
+                                ID_FIELD,
+                                mockFieldSerializer(
+                                        NAME_FIELD, new SchemaCompatibilityTestingSerializer()),
+                                HEIGHT_FIELD));
 
-	@Test
-	public void testResolveSchemaCompatibilityWithCompatibleAfterMigrationFieldSerializers() {
-		final PojoSerializerSnapshot<TestPojo> testSnapshot = buildTestSnapshot(Arrays.asList(
-			ID_FIELD,
-			NAME_FIELD,
-			mockFieldSerializerSnapshot(
-				HEIGHT_FIELD,
-				SchemaCompatibilityTestingSnapshot.thatIsCompatibleWithNextSerializerAfterMigration())));
+        final TypeSerializerSchemaCompatibility<TestPojo> resultCompatibility =
+                testSnapshot.resolveSchemaCompatibility(newPojoSerializer);
 
-		final PojoSerializer<TestPojo> newPojoSerializer = buildTestNewPojoSerializer(Arrays.asList(
-			ID_FIELD,
-			NAME_FIELD,
-			mockFieldSerializer(HEIGHT_FIELD, new SchemaCompatibilityTestingSerializer())
-		));
+        assertTrue(resultCompatibility.isIncompatible());
+    }
 
-		final TypeSerializerSchemaCompatibility<TestPojo> resultCompatibility =
-			testSnapshot.resolveSchemaCompatibility(newPojoSerializer);
+    @Test
+    public void testResolveSchemaCompatibilityWithCompatibleAfterMigrationFieldSerializers() {
+        final PojoSerializerSnapshot<TestPojo> testSnapshot =
+                buildTestSnapshot(
+                        Arrays.asList(
+                                ID_FIELD,
+                                NAME_FIELD,
+                                mockFieldSerializerSnapshot(
+                                        HEIGHT_FIELD,
+                                        SchemaCompatibilityTestingSnapshot
+                                                .thatIsCompatibleWithNextSerializerAfterMigration())));
 
-		assertTrue(resultCompatibility.isCompatibleAfterMigration());
-	}
+        final PojoSerializer<TestPojo> newPojoSerializer =
+                buildTestNewPojoSerializer(
+                        Arrays.asList(
+                                ID_FIELD,
+                                NAME_FIELD,
+                                mockFieldSerializer(
+                                        HEIGHT_FIELD, new SchemaCompatibilityTestingSerializer())));
 
-	@Test
-	public void testResolveSchemaCompatibilityWithCompatibleWithReconfigurationFieldSerializers() {
-		final PojoSerializerSnapshot<TestPojo> testSnapshot = buildTestSnapshot(Arrays.asList(
-			mockFieldSerializerSnapshot(
-				ID_FIELD,
-				SchemaCompatibilityTestingSnapshot.thatIsCompatibleWithNextSerializerAfterReconfiguration()),
-			NAME_FIELD,
-			HEIGHT_FIELD
-		));
+        final TypeSerializerSchemaCompatibility<TestPojo> resultCompatibility =
+                testSnapshot.resolveSchemaCompatibility(newPojoSerializer);
 
-		final PojoSerializer<TestPojo> newPojoSerializer = buildTestNewPojoSerializer(Arrays.asList(
-			mockFieldSerializer(ID_FIELD, new SchemaCompatibilityTestingSerializer()),
-			NAME_FIELD,
-			HEIGHT_FIELD
-		));
+        assertTrue(resultCompatibility.isCompatibleAfterMigration());
+    }
 
-		final TypeSerializerSchemaCompatibility<TestPojo> resultCompatibility =
-			testSnapshot.resolveSchemaCompatibility(newPojoSerializer);
+    @Test
+    public void testResolveSchemaCompatibilityWithCompatibleWithReconfigurationFieldSerializers() {
+        final PojoSerializerSnapshot<TestPojo> testSnapshot =
+                buildTestSnapshot(
+                        Arrays.asList(
+                                mockFieldSerializerSnapshot(
+                                        ID_FIELD,
+                                        SchemaCompatibilityTestingSnapshot
+                                                .thatIsCompatibleWithNextSerializerAfterReconfiguration()),
+                                NAME_FIELD,
+                                HEIGHT_FIELD));
 
-		assertTrue(resultCompatibility.isCompatibleWithReconfiguredSerializer());
+        final PojoSerializer<TestPojo> newPojoSerializer =
+                buildTestNewPojoSerializer(
+                        Arrays.asList(
+                                mockFieldSerializer(
+                                        ID_FIELD, new SchemaCompatibilityTestingSerializer()),
+                                NAME_FIELD,
+                                HEIGHT_FIELD));
 
-		final TypeSerializer<TestPojo> reconfiguredSerializer = resultCompatibility.getReconfiguredSerializer();
-		assertSame(reconfiguredSerializer.getClass(), PojoSerializer.class);
-		final PojoSerializer<TestPojo> reconfiguredPojoSerializer = (PojoSerializer<TestPojo>) reconfiguredSerializer;
+        final TypeSerializerSchemaCompatibility<TestPojo> resultCompatibility =
+                testSnapshot.resolveSchemaCompatibility(newPojoSerializer);
 
-		final TypeSerializer<?>[] reconfiguredFieldSerializers = reconfiguredPojoSerializer.getFieldSerializers();
-		assertArrayEquals(
-			new TypeSerializer[] {
-				new SchemaCompatibilityTestingSerializer(),
-				StringSerializer.INSTANCE,
-				DoubleSerializer.INSTANCE },
-			reconfiguredFieldSerializers);
-	}
+        assertTrue(resultCompatibility.isCompatibleWithReconfiguredSerializer());
 
-	// ------------------------------------------------------------------------------------------------
-	//  Test utilities
-	// ------------------------------------------------------------------------------------------------
+        final TypeSerializer<TestPojo> reconfiguredSerializer =
+                resultCompatibility.getReconfiguredSerializer();
+        assertSame(reconfiguredSerializer.getClass(), PojoSerializer.class);
+        final PojoSerializer<TestPojo> reconfiguredPojoSerializer =
+                (PojoSerializer<TestPojo>) reconfiguredSerializer;
 
-	private static PojoSerializerSnapshot<TestPojo> buildTestSnapshot(List<TestPojoField> fieldsToContainInSnapshot) {
+        final TypeSerializer<?>[] reconfiguredFieldSerializers =
+                reconfiguredPojoSerializer.getFieldSerializers();
+        assertArrayEquals(
+                new TypeSerializer[] {
+                    new SchemaCompatibilityTestingSerializer(),
+                    StringSerializer.INSTANCE,
+                    DoubleSerializer.INSTANCE
+                },
+                reconfiguredFieldSerializers);
+    }
 
-		int numFields = fieldsToContainInSnapshot.size();
-		ArrayList<Field> fields = new ArrayList<>(numFields);
-		ArrayList<TypeSerializerSnapshot<?>> fieldSerializerSnapshots = new ArrayList<>(numFields);
-		fieldsToContainInSnapshot.forEach(testPojoField -> {
-			fields.add(testPojoField.field);
-			fieldSerializerSnapshots.add(testPojoField.serializerSnapshot);
-		});
+    // ------------------------------------------------------------------------------------------------
+    //  Test utilities
+    // ------------------------------------------------------------------------------------------------
 
-		return new PojoSerializerSnapshot<>(
-			TestPojo.class,
-			fields.toArray(new Field[numFields]),
-			fieldSerializerSnapshots.toArray(new TypeSerializerSnapshot[numFields]),
-			new LinkedHashMap<>(),
-			new LinkedHashMap<>());
-	}
+    private static PojoSerializerSnapshot<TestPojo> buildTestSnapshot(
+            List<TestPojoField> fieldsToContainInSnapshot) {
 
-	private static PojoSerializer<TestPojo> buildTestNewPojoSerializer(List<TestPojoField> fieldsForNewPojo) {
-		int numFields = fieldsForNewPojo.size();
+        int numFields = fieldsToContainInSnapshot.size();
+        ArrayList<Field> fields = new ArrayList<>(numFields);
+        ArrayList<TypeSerializerSnapshot<?>> fieldSerializerSnapshots = new ArrayList<>(numFields);
+        fieldsToContainInSnapshot.forEach(
+                testPojoField -> {
+                    fields.add(testPojoField.field);
+                    fieldSerializerSnapshots.add(testPojoField.serializerSnapshot);
+                });
 
-		final ArrayList<Field> fields = new ArrayList<>(numFields);
-		final ArrayList<TypeSerializer<?>> fieldSerializers = new ArrayList<>(numFields);
-		fieldsForNewPojo.forEach(fieldForNewPojo -> {
-			fields.add(fieldForNewPojo.field);
-			fieldSerializers.add(fieldForNewPojo.serializer);
-		});
+        return new PojoSerializerSnapshot<>(
+                TestPojo.class,
+                fields.toArray(new Field[numFields]),
+                fieldSerializerSnapshots.toArray(new TypeSerializerSnapshot[numFields]),
+                new LinkedHashMap<>(),
+                new LinkedHashMap<>());
+    }
 
-		return new PojoSerializer<>(
-			TestPojo.class,
-			fieldSerializers.toArray(new TypeSerializer[numFields]),
-			fields.toArray(new Field[numFields]),
-			new ExecutionConfig());
-	}
+    private static PojoSerializer<TestPojo> buildTestNewPojoSerializer(
+            List<TestPojoField> fieldsForNewPojo) {
+        int numFields = fieldsForNewPojo.size();
 
-	private static TestPojoField mockRemovedField(TestPojoField original) {
-		TestPojoField copy = original.shallowCopy();
-		copy.field = null;
-		return copy;
-	}
+        final ArrayList<Field> fields = new ArrayList<>(numFields);
+        final ArrayList<TypeSerializer<?>> fieldSerializers = new ArrayList<>(numFields);
+        fieldsForNewPojo.forEach(
+                fieldForNewPojo -> {
+                    fields.add(fieldForNewPojo.field);
+                    fieldSerializers.add(fieldForNewPojo.serializer);
+                });
 
-	private static TestPojoField mockFieldSerializer(TestPojoField original, TypeSerializer<?> mockSerializer) {
-		TestPojoField copy = original.shallowCopy();
-		copy.serializer = mockSerializer;
-		return copy;
-	}
+        return new PojoSerializer<>(
+                TestPojo.class,
+                fieldSerializers.toArray(new TypeSerializer[numFields]),
+                fields.toArray(new Field[numFields]),
+                new ExecutionConfig());
+    }
 
-	private static TestPojoField mockFieldSerializerSnapshot(TestPojoField original, TypeSerializerSnapshot<?> mockSnapshot) {
-		TestPojoField copy = original.shallowCopy();
-		copy.serializerSnapshot = mockSnapshot;
-		return copy;
-	}
+    private static TestPojoField mockRemovedField(TestPojoField original) {
+        TestPojoField copy = original.shallowCopy();
+        copy.field = null;
+        return copy;
+    }
+
+    private static TestPojoField mockFieldSerializer(
+            TestPojoField original, TypeSerializer<?> mockSerializer) {
+        TestPojoField copy = original.shallowCopy();
+        copy.serializer = mockSerializer;
+        return copy;
+    }
+
+    private static TestPojoField mockFieldSerializerSnapshot(
+            TestPojoField original, TypeSerializerSnapshot<?> mockSnapshot) {
+        TestPojoField copy = original.shallowCopy();
+        copy.serializerSnapshot = mockSnapshot;
+        return copy;
+    }
 }

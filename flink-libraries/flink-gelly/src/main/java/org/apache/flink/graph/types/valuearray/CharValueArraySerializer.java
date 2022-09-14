@@ -27,75 +27,73 @@ import org.apache.flink.core.memory.DataOutputView;
 
 import java.io.IOException;
 
-/**
- * Specialized serializer for {@code CharValueArray}.
- */
+/** Specialized serializer for {@code CharValueArray}. */
 public final class CharValueArraySerializer extends TypeSerializerSingleton<CharValueArray> {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	@Override
-	public boolean isImmutableType() {
-		return false;
-	}
+    @Override
+    public boolean isImmutableType() {
+        return false;
+    }
 
-	@Override
-	public CharValueArray createInstance() {
-		return new CharValueArray();
-	}
+    @Override
+    public CharValueArray createInstance() {
+        return new CharValueArray();
+    }
 
-	@Override
-	public CharValueArray copy(CharValueArray from) {
-		return copy(from, new CharValueArray());
-	}
+    @Override
+    public CharValueArray copy(CharValueArray from) {
+        return copy(from, new CharValueArray());
+    }
 
-	@Override
-	public CharValueArray copy(CharValueArray from, CharValueArray reuse) {
-		reuse.setValue(from);
-		return reuse;
-	}
+    @Override
+    public CharValueArray copy(CharValueArray from, CharValueArray reuse) {
+        reuse.setValue(from);
+        return reuse;
+    }
 
-	@Override
-	public int getLength() {
-		return -1;
-	}
+    @Override
+    public int getLength() {
+        return -1;
+    }
 
-	@Override
-	public void serialize(CharValueArray record, DataOutputView target) throws IOException {
-		record.write(target);
-	}
+    @Override
+    public void serialize(CharValueArray record, DataOutputView target) throws IOException {
+        record.write(target);
+    }
 
-	@Override
-	public CharValueArray deserialize(DataInputView source) throws IOException {
-		return deserialize(new CharValueArray(), source);
-	}
+    @Override
+    public CharValueArray deserialize(DataInputView source) throws IOException {
+        return deserialize(new CharValueArray(), source);
+    }
 
-	@Override
-	public CharValueArray deserialize(CharValueArray reuse, DataInputView source) throws IOException {
-		reuse.read(source);
-		return reuse;
-	}
+    @Override
+    public CharValueArray deserialize(CharValueArray reuse, DataInputView source)
+            throws IOException {
+        reuse.read(source);
+        return reuse;
+    }
 
-	@Override
-	public void copy(DataInputView source, DataOutputView target) throws IOException {
-		CharValueArray.copyInternal(source, target);
-	}
+    @Override
+    public void copy(DataInputView source, DataOutputView target) throws IOException {
+        CharValueArray.copyInternal(source, target);
+    }
 
-	// -----------------------------------------------------------------------------------
+    // -----------------------------------------------------------------------------------
 
-	@Override
-	public TypeSerializerSnapshot<CharValueArray> snapshotConfiguration() {
-		return new CharValueArraySerializerSnapshot();
-	}
+    @Override
+    public TypeSerializerSnapshot<CharValueArray> snapshotConfiguration() {
+        return new CharValueArraySerializerSnapshot();
+    }
 
-	/**
-	 * Serializer configuration snapshot for compatibility and format evolution.
-	 */
-	@SuppressWarnings("WeakerAccess")
-	public static final class CharValueArraySerializerSnapshot extends SimpleTypeSerializerSnapshot<CharValueArray> {
+    /** Serializer configuration snapshot for compatibility and format evolution. */
+    @SuppressWarnings("WeakerAccess")
+    public static final class CharValueArraySerializerSnapshot
+            extends SimpleTypeSerializerSnapshot<CharValueArray> {
 
-		public CharValueArraySerializerSnapshot() {
-			super(CharValueArraySerializer::new);
-		}
-	}
+        public CharValueArraySerializerSnapshot() {
+            super(CharValueArraySerializer::new);
+        }
+    }
 }

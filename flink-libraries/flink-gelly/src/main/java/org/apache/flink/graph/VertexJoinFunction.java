@@ -24,21 +24,21 @@ import org.apache.flink.api.java.DataSet;
 import java.io.Serializable;
 
 /**
- * Interface to be implemented by the transformation function
- * applied in {@link Graph#joinWithVertices(DataSet, VertexJoinFunction)} method.
+ * Interface to be implemented by the transformation function applied in {@link
+ * Graph#joinWithVertices(DataSet, VertexJoinFunction)} method.
  *
  * @param <VV> the vertex value type
  * @param <T> the input value type
  */
 public interface VertexJoinFunction<VV, T> extends Function, Serializable {
 
-	/**
-	 * Applies a transformation on the current vertex value
-	 * and the value of the matched tuple of the input DataSet.
-	 *
-	 * @param vertexValue the current vertex value
-	 * @param inputValue the value of the matched Tuple2 input
-	 * @return the new vertex value
-	 */
-	VV vertexJoin(VV vertexValue, T inputValue) throws Exception;
+    /**
+     * Applies a transformation on the current vertex value and the value of the matched tuple of
+     * the input DataSet.
+     *
+     * @param vertexValue the current vertex value
+     * @param inputValue the value of the matched Tuple2 input
+     * @return the new vertex value
+     */
+    VV vertexJoin(VV vertexValue, T inputValue) throws Exception;
 }

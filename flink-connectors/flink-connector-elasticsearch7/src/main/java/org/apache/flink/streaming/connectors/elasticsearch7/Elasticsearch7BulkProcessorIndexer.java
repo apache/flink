@@ -32,54 +32,54 @@ import java.util.concurrent.atomic.AtomicLong;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
- * Implementation of a {@link RequestIndexer}, using a {@link BulkProcessor}.
- * {@link ActionRequest ActionRequests} will be buffered before sending a bulk request to the Elasticsearch cluster.
+ * Implementation of a {@link RequestIndexer}, using a {@link BulkProcessor}. {@link ActionRequest
+ * ActionRequests} will be buffered before sending a bulk request to the Elasticsearch cluster.
  *
  * <p>Note: This class is binary compatible to Elasticsearch 7.
  */
 @Internal
 class Elasticsearch7BulkProcessorIndexer implements RequestIndexer {
 
-	private final BulkProcessor bulkProcessor;
-	private final boolean flushOnCheckpoint;
-	private final AtomicLong numPendingRequestsRef;
+    private final BulkProcessor bulkProcessor;
+    private final boolean flushOnCheckpoint;
+    private final AtomicLong numPendingRequestsRef;
 
-	Elasticsearch7BulkProcessorIndexer(
-			BulkProcessor bulkProcessor,
-			boolean flushOnCheckpoint,
-			AtomicLong numPendingRequestsRef) {
-		this.bulkProcessor = checkNotNull(bulkProcessor);
-		this.flushOnCheckpoint = flushOnCheckpoint;
-		this.numPendingRequestsRef = checkNotNull(numPendingRequestsRef);
-	}
+    Elasticsearch7BulkProcessorIndexer(
+            BulkProcessor bulkProcessor,
+            boolean flushOnCheckpoint,
+            AtomicLong numPendingRequestsRef) {
+        this.bulkProcessor = checkNotNull(bulkProcessor);
+        this.flushOnCheckpoint = flushOnCheckpoint;
+        this.numPendingRequestsRef = checkNotNull(numPendingRequestsRef);
+    }
 
-	@Override
-	public void add(DeleteRequest... deleteRequests) {
-		for (DeleteRequest deleteRequest : deleteRequests) {
-			if (flushOnCheckpoint) {
-				numPendingRequestsRef.getAndIncrement();
-			}
-			this.bulkProcessor.add(deleteRequest);
-		}
-	}
+    @Override
+    public void add(DeleteRequest... deleteRequests) {
+        for (DeleteRequest deleteRequest : deleteRequests) {
+            if (flushOnCheckpoint) {
+                numPendingRequestsRef.getAndIncrement();
+            }
+            this.bulkProcessor.add(deleteRequest);
+        }
+    }
 
-	@Override
-	public void add(IndexRequest... indexRequests) {
-		for (IndexRequest indexRequest : indexRequests) {
-			if (flushOnCheckpoint) {
-				numPendingRequestsRef.getAndIncrement();
-			}
-			this.bulkProcessor.add(indexRequest);
-		}
-	}
+    @Override
+    public void add(IndexRequest... indexRequests) {
+        for (IndexRequest indexRequest : indexRequests) {
+            if (flushOnCheckpoint) {
+                numPendingRequestsRef.getAndIncrement();
+            }
+            this.bulkProcessor.add(indexRequest);
+        }
+    }
 
-	@Override
-	public void add(UpdateRequest... updateRequests) {
-		for (UpdateRequest updateRequest : updateRequests) {
-			if (flushOnCheckpoint) {
-				numPendingRequestsRef.getAndIncrement();
-			}
-			this.bulkProcessor.add(updateRequest);
-		}
-	}
+    @Override
+    public void add(UpdateRequest... updateRequests) {
+        for (UpdateRequest updateRequest : updateRequests) {
+            if (flushOnCheckpoint) {
+                numPendingRequestsRef.getAndIncrement();
+            }
+            this.bulkProcessor.add(updateRequest);
+        }
+    }
 }

@@ -32,91 +32,88 @@ import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.memory.DataOutputView;
 
-import org.junit.Assert;
-import org.junit.Before;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
+import org.junit.jupiter.api.BeforeEach;
 
 import java.io.IOException;
 
-/**
- * Tests for type serialization format.
- */
-@RunWith(Parameterized.class)
-public class TypeSerializerFormatTest extends SequentialFormatTestBase<Tuple2<Integer, String>> {
+import static org.assertj.core.api.Assertions.assertThat;
 
-	TypeInformation<Tuple2<Integer, String>> resultType = TypeExtractor.getForObject(getRecord(0));
+/** Tests for type serialization format. */
+class TypeSerializerFormatTest extends SequentialFormatTestBase<Tuple2<Integer, String>> {
 
-	private TypeSerializer<Tuple2<Integer, String>> serializer;
+    TypeInformation<Tuple2<Integer, String>> resultType;
 
-	private BlockInfo block;
+    private final TypeSerializer<Tuple2<Integer, String>> serializer;
 
-	public TypeSerializerFormatTest(int numberOfTuples, long blockSize, int parallelism) {
-		super(numberOfTuples, blockSize, parallelism);
+    private BlockInfo block;
 
-		resultType = TypeExtractor.getForObject(getRecord(0));
+    TypeSerializerFormatTest() {
 
-		serializer = resultType.createSerializer(new ExecutionConfig());
-	}
+        resultType = TypeExtractor.getForObject(getRecord(0));
 
-	@Before
-	public void setup(){
-		block = createInputFormat().createBlockInfo();
-	}
+        serializer = resultType.createSerializer(new ExecutionConfig());
+    }
 
-	@Override
-	protected BinaryInputFormat<Tuple2<Integer, String>> createInputFormat() {
-		Configuration configuration = new Configuration();
+    @BeforeEach
+    void setup() {
+        block = createInputFormat().createBlockInfo();
+    }
 
-		final TypeSerializerInputFormat<Tuple2<Integer, String>> inputFormat = new
-				TypeSerializerInputFormat<Tuple2<Integer, String>>(resultType);
-		inputFormat.setFilePath(this.tempFile.toURI().toString());
-		inputFormat.setBlockSize(this.blockSize);
+    @Override
+    protected BinaryInputFormat<Tuple2<Integer, String>> createInputFormat() {
+        Configuration configuration = new Configuration();
 
-		inputFormat.configure(configuration);
-		return inputFormat;
-	}
+        final TypeSerializerInputFormat<Tuple2<Integer, String>> inputFormat =
+                new TypeSerializerInputFormat<>(resultType);
+        inputFormat.setFilePath(this.tempFile.toURI().toString());
+        inputFormat.setBlockSize(this.blockSize);
 
-	@Override
-	protected BinaryOutputFormat<Tuple2<Integer, String>> createOutputFormat(String path, Configuration configuration) throws IOException {
-		TypeSerializerOutputFormat<Tuple2<Integer, String>> outputFormat = new
-				TypeSerializerOutputFormat<Tuple2<Integer, String>>();
+        inputFormat.configure(configuration);
+        return inputFormat;
+    }
 
-		outputFormat.setSerializer(serializer);
-		outputFormat.setOutputFilePath(new Path(path));
-		outputFormat.setWriteMode(FileSystem.WriteMode.OVERWRITE);
+    @Override
+    protected BinaryOutputFormat<Tuple2<Integer, String>> createOutputFormat(
+            String path, Configuration configuration) throws IOException {
+        TypeSerializerOutputFormat<Tuple2<Integer, String>> outputFormat =
+                new TypeSerializerOutputFormat<>();
 
-		configuration = configuration == null ? new Configuration() : configuration;
+        outputFormat.setSerializer(serializer);
+        outputFormat.setOutputFilePath(new Path(path));
+        outputFormat.setWriteMode(FileSystem.WriteMode.OVERWRITE);
 
-		outputFormat.configure(configuration);
-		outputFormat.open(0, 1);
+        configuration = configuration == null ? new Configuration() : configuration;
 
-		return outputFormat;
-	}
+        outputFormat.configure(configuration);
+        outputFormat.open(0, 1);
 
-	@Override
-	protected int getInfoSize() {
-		return block.getInfoSize();
-	}
+        return outputFormat;
+    }
 
-	@Override
-	protected Tuple2<Integer, String> getRecord(int index) {
-		return new Tuple2<Integer, String>(index, String.valueOf(index));
-	}
+    @Override
+    protected int getInfoSize() {
+        return block.getInfoSize();
+    }
 
-	@Override
-	protected Tuple2<Integer, String> createInstance() {
-		return new Tuple2<Integer, String>();
-	}
+    @Override
+    protected Tuple2<Integer, String> getRecord(int index) {
+        return new Tuple2<>(index, String.valueOf(index));
+    }
 
-	@Override
-	protected void writeRecord(Tuple2<Integer, String> record, DataOutputView outputView) throws IOException {
-		serializer.serialize(record, outputView);
-	}
+    @Override
+    protected Tuple2<Integer, String> createInstance() {
+        return new Tuple2<>();
+    }
 
-	@Override
-	protected void checkEquals(Tuple2<Integer, String> expected, Tuple2<Integer, String> actual) {
-		Assert.assertEquals(expected.f0, actual.f0);
-		Assert.assertEquals(expected.f1, actual.f1);
-	}
+    @Override
+    protected void writeRecord(Tuple2<Integer, String> record, DataOutputView outputView)
+            throws IOException {
+        serializer.serialize(record, outputView);
+    }
+
+    @Override
+    protected void checkEquals(Tuple2<Integer, String> expected, Tuple2<Integer, String> actual) {
+        assertThat(actual.f0).isEqualTo(expected.f0);
+        assertThat(actual.f1).isEqualTo(expected.f1);
+    }
 }

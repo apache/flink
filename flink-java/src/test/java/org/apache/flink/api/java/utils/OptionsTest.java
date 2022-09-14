@@ -18,88 +18,87 @@
 
 package org.apache.flink.api.java.utils;
 
-import org.junit.Assert;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.ExpectedException;
+import org.junit.jupiter.api.Test;
 
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.fail;
 
-/**
- * Tests for the Options utility class.
- */
+/** Tests for the Options utility class. */
 @Deprecated
-public class OptionsTest {
+class OptionsTest {
 
-	@Rule
-	public ExpectedException expectedException = ExpectedException.none();
+    @Test
+    void testChoicesWithInvalidDefaultValue() {
+        assertThatThrownBy(
+                        () -> {
+                            Option option = new Option("choices").choices("a", "b", "c");
+                            option.defaultValue("d");
+                        })
+                .isInstanceOf(RequiredParametersException.class)
+                .hasMessageContaining(
+                        "Default value d is not in the list of valid values for option choices");
+    }
 
-	@Test
-	public void testChoicesWithInvalidDefaultValue() throws RequiredParametersException {
-		expectedException.expect(RequiredParametersException.class);
-		expectedException.expectMessage("Default value d is not in the list of valid values for option choices");
+    @Test
+    void testChoicesWithValidDefaultValue() {
+        Option option = null;
+        try {
+            option = new Option("choices").choices("a", "b", "c");
+            option = option.defaultValue("a");
+        } catch (RequiredParametersException e) {
+            fail("Exception thrown: " + e.getMessage());
+        }
 
-		Option option = new Option("choices").choices("a", "b", "c");
-		option.defaultValue("d");
-	}
+        assertThat(option.getDefaultValue()).isEqualTo("a");
+    }
 
-	@Test
-	public void testChoicesWithValidDefaultValue() {
-		Option option = null;
-		try {
-			option = new Option("choices").choices("a", "b", "c");
-			option = option.defaultValue("a");
-		} catch (RequiredParametersException e) {
-			fail("Exception thrown: " + e.getMessage());
-		}
+    @Test
+    void testChoicesWithInvalidDefautlValue() {
 
-		Assert.assertEquals(option.getDefaultValue(), "a");
-	}
+        assertThatThrownBy(
+                        () -> {
+                            Option option = new Option("choices").defaultValue("x");
+                            option.choices("a", "b");
+                        })
+                .isInstanceOf(RequiredParametersException.class)
+                .hasMessageContaining(
+                        "Valid values for option choices do not contain defined default value x");
+    }
 
-	@Test
-	public void testChoicesWithInvalidDefautlValue() throws RequiredParametersException {
-		expectedException.expect(RequiredParametersException.class);
-		expectedException.expectMessage("Valid values for option choices do not contain defined default value x");
+    @Test
+    void testIsCastableToDefinedTypeWithDefaultType() {
+        Option option = new Option("name");
+        assertThat(option.isCastableToDefinedType("some value")).isTrue();
+    }
 
-		Option option = new Option("choices").defaultValue("x");
-		option.choices("a", "b");
-	}
+    @Test
+    void testIsCastableToDefinedTypeWithMatchingTypes() {
+        // Integer
+        Option option = new Option("name").type(OptionType.INTEGER);
+        assertThat(option.isCastableToDefinedType("15")).isTrue();
 
-	@Test
-	public void testIsCastableToDefinedTypeWithDefaultType() {
-		Option option = new Option("name");
-		Assert.assertTrue(option.isCastableToDefinedType("some value"));
-	}
+        // Double
+        Option optionDouble = new Option("name").type(OptionType.DOUBLE);
+        assertThat(optionDouble.isCastableToDefinedType("15.0")).isTrue();
 
-	@Test
-	public void testIsCastableToDefinedTypeWithMatchingTypes() {
-		// Integer
-		Option option = new Option("name").type(OptionType.INTEGER);
-		Assert.assertTrue(option.isCastableToDefinedType("15"));
+        // Boolean
+        Option optionFloat = new Option("name").type(OptionType.BOOLEAN);
+        assertThat(optionFloat.isCastableToDefinedType("true")).isTrue();
+    }
 
-		// Double
-		Option optionDouble = new Option("name").type(OptionType.DOUBLE);
-		Assert.assertTrue(optionDouble.isCastableToDefinedType("15.0"));
+    @Test
+    void testIsCastableToDefinedTypeWithNonMatchingTypes() {
+        // Integer
+        Option option = new Option("name").type(OptionType.INTEGER);
+        assertThat(option.isCastableToDefinedType("true")).isFalse();
 
-		// Boolean
-		Option optionFloat = new Option("name").type(OptionType.BOOLEAN);
-		Assert.assertTrue(optionFloat.isCastableToDefinedType("true"));
+        // Double
+        Option optionDouble = new Option("name").type(OptionType.DOUBLE);
+        assertThat(optionDouble.isCastableToDefinedType("name")).isFalse();
 
-	}
-
-	@Test
-	public void testIsCastableToDefinedTypeWithNonMatchingTypes() {
-		// Integer
-		Option option = new Option("name").type(OptionType.INTEGER);
-		Assert.assertFalse(option.isCastableToDefinedType("true"));
-
-		// Double
-		Option optionDouble = new Option("name").type(OptionType.DOUBLE);
-		Assert.assertFalse(optionDouble.isCastableToDefinedType("name"));
-
-		// Boolean
-		Option optionFloat = new Option("name").type(OptionType.BOOLEAN);
-		Assert.assertFalse(optionFloat.isCastableToDefinedType("15"));
-
-	}
+        // Boolean
+        Option optionFloat = new Option("name").type(OptionType.BOOLEAN);
+        assertThat(optionFloat.isCastableToDefinedType("15")).isFalse();
+    }
 }

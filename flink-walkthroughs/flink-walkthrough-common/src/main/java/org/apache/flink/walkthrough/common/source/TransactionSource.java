@@ -25,41 +25,39 @@ import org.apache.flink.walkthrough.common.entity.Transaction;
 import java.io.Serializable;
 import java.util.Iterator;
 
-/**
- * A stream of transactions.
- */
+/** A stream of transactions. */
 @Public
 public class TransactionSource extends FromIteratorFunction<Transaction> {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	public TransactionSource() {
-		super(new RateLimitedIterator<>(TransactionIterator.unbounded()));
-	}
+    public TransactionSource() {
+        super(new RateLimitedIterator<>(TransactionIterator.unbounded()));
+    }
 
-	private static class RateLimitedIterator<T> implements Iterator<T>, Serializable {
+    private static class RateLimitedIterator<T> implements Iterator<T>, Serializable {
 
-		private static final long serialVersionUID = 1L;
+        private static final long serialVersionUID = 1L;
 
-		private final Iterator<T> inner;
+        private final Iterator<T> inner;
 
-		private RateLimitedIterator(Iterator<T> inner) {
-			this.inner = inner;
-		}
+        private RateLimitedIterator(Iterator<T> inner) {
+            this.inner = inner;
+        }
 
-		@Override
-		public boolean hasNext() {
-			return inner.hasNext();
-		}
+        @Override
+        public boolean hasNext() {
+            return inner.hasNext();
+        }
 
-		@Override
-		public T next() {
-			try {
-				Thread.sleep(100);
-			} catch (InterruptedException e) {
-				throw new RuntimeException(e);
-			}
-			return inner.next();
-		}
-	}
+        @Override
+        public T next() {
+            try {
+                Thread.sleep(100);
+            } catch (InterruptedException e) {
+                throw new RuntimeException(e);
+            }
+            return inner.next();
+        }
+    }
 }

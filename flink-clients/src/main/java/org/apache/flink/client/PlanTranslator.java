@@ -35,65 +35,60 @@ import org.slf4j.LoggerFactory;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 
-/**
- * {@link FlinkPipelineTranslator} for DataSet API {@link Plan Plans}.
- */
+/** {@link FlinkPipelineTranslator} for DataSet API {@link Plan Plans}. */
 public class PlanTranslator implements FlinkPipelineTranslator {
 
-	private static final Logger LOG = LoggerFactory.getLogger(PlanTranslator.class);
+    private static final Logger LOG = LoggerFactory.getLogger(PlanTranslator.class);
 
-	@Override
-	public JobGraph translateToJobGraph(
-			Pipeline pipeline,
-			Configuration optimizerConfiguration,
-			int defaultParallelism) {
-		checkArgument(pipeline instanceof Plan, "Given pipeline is not a DataSet Plan.");
+    @Override
+    public JobGraph translateToJobGraph(
+            Pipeline pipeline, Configuration optimizerConfiguration, int defaultParallelism) {
+        checkArgument(pipeline instanceof Plan, "Given pipeline is not a DataSet Plan.");
 
-		Plan plan = (Plan) pipeline;
-		setDefaultParallelism(plan, defaultParallelism);
-		return compilePlan(plan, optimizerConfiguration);
-	}
+        Plan plan = (Plan) pipeline;
+        setDefaultParallelism(plan, defaultParallelism);
+        return compilePlan(plan, optimizerConfiguration);
+    }
 
-	private void setDefaultParallelism(Plan plan, int defaultParallelism) {
-		if (defaultParallelism > 0 && plan.getDefaultParallelism() <= 0) {
-			LOG.debug(
-					"Changing plan default parallelism from {} to {}",
-					plan.getDefaultParallelism(),
-					defaultParallelism);
-			plan.setDefaultParallelism(defaultParallelism);
-		}
+    private void setDefaultParallelism(Plan plan, int defaultParallelism) {
+        if (defaultParallelism > 0 && plan.getDefaultParallelism() <= 0) {
+            LOG.debug(
+                    "Changing plan default parallelism from {} to {}",
+                    plan.getDefaultParallelism(),
+                    defaultParallelism);
+            plan.setDefaultParallelism(defaultParallelism);
+        }
 
-		LOG.debug(
-				"Set parallelism {}, plan default parallelism {}",
-				defaultParallelism,
-				plan.getDefaultParallelism());
-	}
+        LOG.debug(
+                "Set parallelism {}, plan default parallelism {}",
+                defaultParallelism,
+                plan.getDefaultParallelism());
+    }
 
-	@Override
-	public String translateToJSONExecutionPlan(Pipeline pipeline) {
-		checkArgument(pipeline instanceof Plan, "Given pipeline is not a DataSet Plan.");
+    @Override
+    public String translateToJSONExecutionPlan(Pipeline pipeline) {
+        checkArgument(pipeline instanceof Plan, "Given pipeline is not a DataSet Plan.");
 
-		Plan plan = (Plan) pipeline;
+        Plan plan = (Plan) pipeline;
 
-		Optimizer opt = new Optimizer(
-				new DataStatistics(),
-				new DefaultCostEstimator(),
-				new Configuration());
-		OptimizedPlan optPlan = opt.compile(plan);
+        Optimizer opt =
+                new Optimizer(
+                        new DataStatistics(), new DefaultCostEstimator(), new Configuration());
+        OptimizedPlan optPlan = opt.compile(plan);
 
-		return new PlanJSONDumpGenerator().getOptimizerPlanAsJSON(optPlan);
-	}
+        return new PlanJSONDumpGenerator().getOptimizerPlanAsJSON(optPlan);
+    }
 
-	private JobGraph compilePlan(Plan plan, Configuration optimizerConfiguration) {
-		Optimizer optimizer = new Optimizer(new DataStatistics(), optimizerConfiguration);
-		OptimizedPlan optimizedPlan = optimizer.compile(plan);
+    private JobGraph compilePlan(Plan plan, Configuration optimizerConfiguration) {
+        Optimizer optimizer = new Optimizer(new DataStatistics(), optimizerConfiguration);
+        OptimizedPlan optimizedPlan = optimizer.compile(plan);
 
-		JobGraphGenerator jobGraphGenerator = new JobGraphGenerator(optimizerConfiguration);
-		return jobGraphGenerator.compileJobGraph(optimizedPlan, plan.getJobId());
-	}
+        JobGraphGenerator jobGraphGenerator = new JobGraphGenerator(optimizerConfiguration);
+        return jobGraphGenerator.compileJobGraph(optimizedPlan, plan.getJobId());
+    }
 
-	@Override
-	public boolean canTranslate(Pipeline pipeline) {
-		return pipeline instanceof Plan;
-	}
+    @Override
+    public boolean canTranslate(Pipeline pipeline) {
+        return pipeline instanceof Plan;
+    }
 }

@@ -22,12 +22,13 @@ under the License.
 	<parent>
 		<artifactId>flink-end-to-end-tests</artifactId>
 		<groupId>org.apache.flink</groupId>
-		<version>1.11-SNAPSHOT</version>
+		<version>1.17-SNAPSHOT</version>
 	</parent>
 
 	<modelVersion>4.0.0</modelVersion>
 
 	<artifactId>flink-end-to-end-tests-common</artifactId>
+	<name>Flink : E2E Tests : Common</name>
 
 	<dependencies>
 		<dependency>
@@ -38,16 +39,14 @@ under the License.
 		<dependency>
 			<groupId>com.squareup.okhttp3</groupId>
 			<artifactId>okhttp</artifactId>
-			<version>3.7.0</version>
 		</dependency>
 		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-shaded-jackson</artifactId>
 		</dependency>
 		<dependency>
-			<groupId>junit</groupId>
-			<artifactId>junit</artifactId>
-			<version>${junit.version}</version>
+			<groupId>org.junit.jupiter</groupId>
+			<artifactId>junit-jupiter</artifactId>
 			<scope>compile</scope>
 		</dependency>
 		<dependency>
@@ -57,9 +56,18 @@ under the License.
 		</dependency>
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-runtime_${scala.binary.version}</artifactId>
+			<artifactId>flink-runtime</artifactId>
 			<version>${project.version}</version>
 			<scope>compile</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-connector-test-utils</artifactId>
+			<version>${project.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>org.testcontainers</groupId>
+			<artifactId>testcontainers</artifactId>
 		</dependency>
 		<dependency>
 			<!-- To ensure that flink-dist is built beforehand -->
@@ -67,6 +75,57 @@ under the License.
 			<artifactId>flink-dist_${scala.binary.version}</artifactId>
 			<version>${project.version}</version>
 			<scope>provided</scope>
+			<exclusions>
+				<!-- needed for dependency convergence -->
+				<exclusion>
+					<groupId>commons-beanutils</groupId>
+					<artifactId>commons-beanutils</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.codehaus.jackson</groupId>
+					<artifactId>jackson-core-asl</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.codehaus.jackson</groupId>
+					<artifactId>jackson-mapper-asl</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.codehaus.jackson</groupId>
+					<artifactId>jackson-xc</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.codehaus.jackson</groupId>
+					<artifactId>jackson-jaxrs</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>com.google.guava</groupId>
+					<artifactId>guava</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>com.squareup.okio</groupId>
+					<artifactId>okio</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>javax.servlet</groupId>
+					<artifactId>servlet-api</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>com.nimbusds</groupId>
+					<artifactId>nimbus-jose-jwt</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>com.nimbusds</groupId>
+					<artifactId>nimbus-jose-jwt</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>com.google.inject</groupId>
+					<artifactId>guice</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>com.google.inject.extensions</groupId>
+					<artifactId>guice-servlet</artifactId>
+				</exclusion>
+			</exclusions>
 		</dependency>
 	</dependencies>
 

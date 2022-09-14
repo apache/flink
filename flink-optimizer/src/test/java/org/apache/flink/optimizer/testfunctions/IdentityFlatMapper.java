@@ -23,8 +23,8 @@ import org.apache.flink.util.Collector;
 
 public class IdentityFlatMapper<T> implements FlatMapFunction<T, T> {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	@Override
-	public void flatMap(T value, Collector<T> out) {}
+    @Override
+    public void flatMap(T value, Collector<T> out) {}
 }

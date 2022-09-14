@@ -28,54 +28,58 @@ import java.util.stream.Collectors;
 /**
  * Source of randomly generated keyed state updates.
  *
- * <p>Internal loop generates {@code sleepAfterElements} state updates
- * for each verifier from {@link TtlStateVerifier#VERIFIERS} using {@link TtlStateVerifier#generateRandomUpdate}
- * and waits for {@code sleepTime} to continue generation.
+ * <p>Internal loop generates {@code sleepAfterElements} state updates for each verifier from {@link
+ * TtlStateVerifier#VERIFIERS} using {@link TtlStateVerifier#generateRandomUpdate} and waits for
+ * {@code sleepTime} to continue generation.
  */
 class TtlStateUpdateSource extends RichParallelSourceFunction<TtlStateUpdate> {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	private final int maxKey;
-	private final long sleepAfterElements;
-	private final long sleepTime;
+    private final int maxKey;
+    private final long sleepAfterElements;
+    private final long sleepTime;
 
-	/** Flag that determines if this source is running, i.e. generating events. */
-	private volatile boolean running = true;
+    /** Flag that determines if this source is running, i.e. generating events. */
+    private volatile boolean running = true;
 
-	TtlStateUpdateSource(int maxKey, long sleepAfterElements, long sleepTime) {
-		this.maxKey = maxKey;
-		this.sleepAfterElements = sleepAfterElements;
-		this.sleepTime = sleepTime;
-	}
+    TtlStateUpdateSource(int maxKey, long sleepAfterElements, long sleepTime) {
+        this.maxKey = maxKey;
+        this.sleepAfterElements = sleepAfterElements;
+        this.sleepTime = sleepTime;
+    }
 
-	@Override
-	public void run(SourceContext<TtlStateUpdate> ctx) throws Exception {
-		Random random = new Random();
-		long elementsBeforeSleep = sleepAfterElements;
-		while (running) {
-			for (int i = 0; i < sleepAfterElements; i++) {
-				synchronized (ctx.getCheckpointLock()) {
-					Map<String, Object> updates = TtlStateVerifier.VERIFIERS.stream()
-						.collect(Collectors.toMap(TtlStateVerifier::getId, TtlStateVerifier::generateRandomUpdate));
-					ctx.collect(new TtlStateUpdate(random.nextInt(maxKey), updates));
-				}
-			}
+    @Override
+    public void run(SourceContext<TtlStateUpdate> ctx) throws Exception {
+        Random random = new Random();
+        long elementsBeforeSleep = sleepAfterElements;
+        while (running) {
+            for (int i = 0; i < sleepAfterElements; i++) {
+                synchronized (ctx.getCheckpointLock()) {
+                    Map<String, Object> updates =
+                            TtlStateVerifier.VERIFIERS.stream()
+                                    .collect(
+                                            Collectors.toMap(
+                                                    TtlStateVerifier::getId,
+                                                    TtlStateVerifier::generateRandomUpdate));
+                    ctx.collect(new TtlStateUpdate(random.nextInt(maxKey), updates));
+                }
+            }
 
-			if (sleepTime > 0) {
-				if (elementsBeforeSleep == 1) {
-					elementsBeforeSleep = sleepAfterElements;
-					long rnd = sleepTime < Integer.MAX_VALUE ? random.nextInt((int) sleepTime) : 0L;
-					Thread.sleep(rnd + sleepTime);
-				} else if (elementsBeforeSleep > 1) {
-					--elementsBeforeSleep;
-				}
-			}
-		}
-	}
+            if (sleepTime > 0) {
+                if (elementsBeforeSleep == 1) {
+                    elementsBeforeSleep = sleepAfterElements;
+                    long rnd = sleepTime < Integer.MAX_VALUE ? random.nextInt((int) sleepTime) : 0L;
+                    Thread.sleep(rnd + sleepTime);
+                } else if (elementsBeforeSleep > 1) {
+                    --elementsBeforeSleep;
+                }
+            }
+        }
+    }
 
-	@Override
-	public void cancel() {
-		running = false;
-	}
+    @Override
+    public void cancel() {
+        running = false;
+    }
 }

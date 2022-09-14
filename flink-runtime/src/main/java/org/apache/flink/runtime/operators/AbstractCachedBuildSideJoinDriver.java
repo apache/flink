@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.runtime.operators;
 
 import org.apache.flink.api.common.ExecutionConfig;
@@ -37,188 +36,226 @@ import org.apache.flink.runtime.operators.util.metrics.CountingMutableObjectIter
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.MutableObjectIterator;
 
-public abstract class AbstractCachedBuildSideJoinDriver<IT1, IT2, OT> extends JoinDriver<IT1, IT2, OT> implements ResettableDriver<FlatJoinFunction<IT1, IT2, OT>, OT> {
+public abstract class AbstractCachedBuildSideJoinDriver<IT1, IT2, OT>
+        extends JoinDriver<IT1, IT2, OT>
+        implements ResettableDriver<FlatJoinFunction<IT1, IT2, OT>, OT> {
 
-	private volatile JoinTaskIterator<IT1, IT2, OT> matchIterator;
-	
-	private final int buildSideIndex;
-	
-	private final int probeSideIndex;
+    private volatile JoinTaskIterator<IT1, IT2, OT> matchIterator;
 
-	private boolean objectReuseEnabled = false;
+    private final int buildSideIndex;
 
+    private final int probeSideIndex;
 
-	protected AbstractCachedBuildSideJoinDriver(int buildSideIndex, int probeSideIndex) {
-		this.buildSideIndex = buildSideIndex;
-		this.probeSideIndex = probeSideIndex;
-	}
-	
-	// --------------------------------------------------------------------------------------------
-	
-	@Override
-	public boolean isInputResettable(int inputNum) {
-		if (inputNum < 0 || inputNum > 1) {
-			throw new IndexOutOfBoundsException();
-		}
-		return inputNum == buildSideIndex;
-	}
+    private boolean objectReuseEnabled = false;
 
-	@Override
-	public void initialize() throws Exception {
-		TaskConfig config = this.taskContext.getTaskConfig();
+    protected AbstractCachedBuildSideJoinDriver(int buildSideIndex, int probeSideIndex) {
+        this.buildSideIndex = buildSideIndex;
+        this.probeSideIndex = probeSideIndex;
+    }
 
-		final Counter numRecordsIn = taskContext.getMetricGroup().getIOMetricGroup().getNumRecordsInCounter();
-		
-		TypeSerializer<IT1> serializer1 = this.taskContext.<IT1>getInputSerializer(0).getSerializer();
-		TypeSerializer<IT2> serializer2 = this.taskContext.<IT2>getInputSerializer(1).getSerializer();
-		TypeComparator<IT1> comparator1 = this.taskContext.getDriverComparator(0);
-		TypeComparator<IT2> comparator2 = this.taskContext.getDriverComparator(1);
-		MutableObjectIterator<IT1> input1 = new CountingMutableObjectIterator<>(this.taskContext.<IT1>getInput(0), numRecordsIn);
-		MutableObjectIterator<IT2> input2 = new CountingMutableObjectIterator<>(this.taskContext.<IT2>getInput(1), numRecordsIn);
+    // --------------------------------------------------------------------------------------------
 
-		TypePairComparatorFactory<IT1, IT2> pairComparatorFactory = 
-				this.taskContext.getTaskConfig().getPairComparatorFactory(this.taskContext.getUserCodeClassLoader());
+    @Override
+    public boolean isInputResettable(int inputNum) {
+        if (inputNum < 0 || inputNum > 1) {
+            throw new IndexOutOfBoundsException();
+        }
+        return inputNum == buildSideIndex;
+    }
 
-		double availableMemory = config.getRelativeMemoryDriver();
-		boolean hashJoinUseBitMaps = taskContext.getTaskManagerInfo().getConfiguration()
-			.getBoolean(AlgorithmOptions.HASH_JOIN_BLOOM_FILTERS);
-		
-		ExecutionConfig executionConfig = taskContext.getExecutionConfig();
-		objectReuseEnabled = executionConfig.isObjectReuseEnabled();
+    @Override
+    public void initialize() throws Exception {
+        TaskConfig config = this.taskContext.getTaskConfig();
 
-		if (objectReuseEnabled) {
-			if (buildSideIndex == 0 && probeSideIndex == 1) {
+        final Counter numRecordsIn =
+                taskContext.getMetricGroup().getIOMetricGroup().getNumRecordsInCounter();
 
-				matchIterator = new ReusingBuildFirstReOpenableHashJoinIterator<IT1, IT2, OT>(
-						input1, input2,
-						serializer1, comparator1,
-						serializer2, comparator2,
-						pairComparatorFactory.createComparator21(comparator1, comparator2),
-						this.taskContext.getMemoryManager(),
-						this.taskContext.getIOManager(),
-						this.taskContext.getContainingTask(),
-						availableMemory,
-						false,
-						false,
-						hashJoinUseBitMaps);
+        TypeSerializer<IT1> serializer1 =
+                this.taskContext.<IT1>getInputSerializer(0).getSerializer();
+        TypeSerializer<IT2> serializer2 =
+                this.taskContext.<IT2>getInputSerializer(1).getSerializer();
+        TypeComparator<IT1> comparator1 = this.taskContext.getDriverComparator(0);
+        TypeComparator<IT2> comparator2 = this.taskContext.getDriverComparator(1);
+        MutableObjectIterator<IT1> input1 =
+                new CountingMutableObjectIterator<>(
+                        this.taskContext.<IT1>getInput(0), numRecordsIn);
+        MutableObjectIterator<IT2> input2 =
+                new CountingMutableObjectIterator<>(
+                        this.taskContext.<IT2>getInput(1), numRecordsIn);
 
+        TypePairComparatorFactory<IT1, IT2> pairComparatorFactory =
+                this.taskContext
+                        .getTaskConfig()
+                        .getPairComparatorFactory(this.taskContext.getUserCodeClassLoader());
 
-			} else if (buildSideIndex == 1 && probeSideIndex == 0) {
+        double availableMemory = config.getRelativeMemoryDriver();
+        boolean hashJoinUseBitMaps =
+                taskContext
+                        .getTaskManagerInfo()
+                        .getConfiguration()
+                        .getBoolean(AlgorithmOptions.HASH_JOIN_BLOOM_FILTERS);
 
-				matchIterator = new ReusingBuildSecondReOpenableHashJoinIterator<IT1, IT2, OT>(
-						input1, input2,
-						serializer1, comparator1,
-						serializer2, comparator2,
-						pairComparatorFactory.createComparator12(comparator1, comparator2),
-						this.taskContext.getMemoryManager(),
-						this.taskContext.getIOManager(),
-						this.taskContext.getContainingTask(),
-						availableMemory,
-						false,
-						false,
-						hashJoinUseBitMaps);
+        ExecutionConfig executionConfig = taskContext.getExecutionConfig();
+        objectReuseEnabled = executionConfig.isObjectReuseEnabled();
 
-			} else {
-				throw new Exception("Error: Inconsistent setup for repeatable hash join driver.");
-			}
-		} else {
-			if (buildSideIndex == 0 && probeSideIndex == 1) {
+        if (objectReuseEnabled) {
+            if (buildSideIndex == 0 && probeSideIndex == 1) {
 
-				matchIterator = new NonReusingBuildFirstReOpenableHashJoinIterator<IT1, IT2, OT>(
-						input1, input2,
-						serializer1, comparator1,
-						serializer2, comparator2,
-						pairComparatorFactory.createComparator21(comparator1, comparator2),
-						this.taskContext.getMemoryManager(),
-						this.taskContext.getIOManager(),
-						this.taskContext.getContainingTask(),
-						availableMemory,
-						false,
-						false,
-						hashJoinUseBitMaps);
+                matchIterator =
+                        new ReusingBuildFirstReOpenableHashJoinIterator<IT1, IT2, OT>(
+                                input1,
+                                input2,
+                                serializer1,
+                                comparator1,
+                                serializer2,
+                                comparator2,
+                                pairComparatorFactory.createComparator21(comparator1, comparator2),
+                                this.taskContext.getMemoryManager(),
+                                this.taskContext.getIOManager(),
+                                this.taskContext.getContainingTask(),
+                                availableMemory,
+                                false,
+                                false,
+                                hashJoinUseBitMaps);
 
+            } else if (buildSideIndex == 1 && probeSideIndex == 0) {
 
-			} else if (buildSideIndex == 1 && probeSideIndex == 0) {
+                matchIterator =
+                        new ReusingBuildSecondReOpenableHashJoinIterator<IT1, IT2, OT>(
+                                input1,
+                                input2,
+                                serializer1,
+                                comparator1,
+                                serializer2,
+                                comparator2,
+                                pairComparatorFactory.createComparator12(comparator1, comparator2),
+                                this.taskContext.getMemoryManager(),
+                                this.taskContext.getIOManager(),
+                                this.taskContext.getContainingTask(),
+                                availableMemory,
+                                false,
+                                false,
+                                hashJoinUseBitMaps);
 
-				matchIterator = new NonReusingBuildSecondReOpenableHashJoinIterator<IT1, IT2, OT>(
-						input1, input2,
-						serializer1, comparator1,
-						serializer2, comparator2,
-						pairComparatorFactory.createComparator12(comparator1, comparator2),
-						this.taskContext.getMemoryManager(),
-						this.taskContext.getIOManager(),
-						this.taskContext.getContainingTask(),
-						availableMemory,
-						false,
-						false,
-						hashJoinUseBitMaps);
+            } else {
+                throw new Exception("Error: Inconsistent setup for repeatable hash join driver.");
+            }
+        } else {
+            if (buildSideIndex == 0 && probeSideIndex == 1) {
 
-			} else {
-				throw new Exception("Error: Inconsistent setup for repeatable hash join driver.");
-			}
-		}
-		
-		this.matchIterator.open();
-	}
+                matchIterator =
+                        new NonReusingBuildFirstReOpenableHashJoinIterator<IT1, IT2, OT>(
+                                input1,
+                                input2,
+                                serializer1,
+                                comparator1,
+                                serializer2,
+                                comparator2,
+                                pairComparatorFactory.createComparator21(comparator1, comparator2),
+                                this.taskContext.getMemoryManager(),
+                                this.taskContext.getIOManager(),
+                                this.taskContext.getContainingTask(),
+                                availableMemory,
+                                false,
+                                false,
+                                hashJoinUseBitMaps);
 
-	@Override
-	public void prepare() throws Exception {
-		// nothing
-	}
+            } else if (buildSideIndex == 1 && probeSideIndex == 0) {
 
-	@Override
-	public void run() throws Exception {
-		final Counter numRecordsOut = taskContext.getMetricGroup().getIOMetricGroup().getNumRecordsOutCounter();
-		final FlatJoinFunction<IT1, IT2, OT> matchStub = this.taskContext.getStub();
-		final Collector<OT> collector = new CountingCollector<>(this.taskContext.getOutputCollector(), numRecordsOut);
-		
-		while (this.running && matchIterator != null && matchIterator.callWithNextKey(matchStub, collector)) {
-		}
-	}
+                matchIterator =
+                        new NonReusingBuildSecondReOpenableHashJoinIterator<IT1, IT2, OT>(
+                                input1,
+                                input2,
+                                serializer1,
+                                comparator1,
+                                serializer2,
+                                comparator2,
+                                pairComparatorFactory.createComparator12(comparator1, comparator2),
+                                this.taskContext.getMemoryManager(),
+                                this.taskContext.getIOManager(),
+                                this.taskContext.getContainingTask(),
+                                availableMemory,
+                                false,
+                                false,
+                                hashJoinUseBitMaps);
 
-	@Override
-	public void cleanup() throws Exception {}
-	
-	@Override
-	public void reset() throws Exception {
-		
-		MutableObjectIterator<IT1> input1 = this.taskContext.getInput(0);
-		MutableObjectIterator<IT2> input2 = this.taskContext.getInput(1);
+            } else {
+                throw new Exception("Error: Inconsistent setup for repeatable hash join driver.");
+            }
+        }
 
-		if (objectReuseEnabled) {
-			if (buildSideIndex == 0 && probeSideIndex == 1) {
-				final ReusingBuildFirstReOpenableHashJoinIterator<IT1, IT2, OT> matchIterator = (ReusingBuildFirstReOpenableHashJoinIterator<IT1, IT2, OT>) this.matchIterator;
+        this.matchIterator.open();
+    }
 
-				matchIterator.reopenProbe(input2);
-			} else {
-				final ReusingBuildSecondReOpenableHashJoinIterator<IT1, IT2, OT> matchIterator = (ReusingBuildSecondReOpenableHashJoinIterator<IT1, IT2, OT>) this.matchIterator;
-				matchIterator.reopenProbe(input1);
-			}
-		} else {
-			if (buildSideIndex == 0 && probeSideIndex == 1) {
-				final NonReusingBuildFirstReOpenableHashJoinIterator<IT1, IT2, OT> matchIterator = (NonReusingBuildFirstReOpenableHashJoinIterator<IT1, IT2, OT>) this.matchIterator;
+    @Override
+    public void prepare() throws Exception {
+        // nothing
+    }
 
-				matchIterator.reopenProbe(input2);
-			} else {
-				final NonReusingBuildSecondReOpenableHashJoinIterator<IT1, IT2, OT> matchIterator = (NonReusingBuildSecondReOpenableHashJoinIterator<IT1, IT2, OT>) this.matchIterator;
-				matchIterator.reopenProbe(input1);
-			}
-		}
-	}
+    @Override
+    public void run() throws Exception {
+        final Counter numRecordsOut =
+                taskContext.getMetricGroup().getIOMetricGroup().getNumRecordsOutCounter();
+        final FlatJoinFunction<IT1, IT2, OT> matchStub = this.taskContext.getStub();
+        final Collector<OT> collector =
+                new CountingCollector<>(this.taskContext.getOutputCollector(), numRecordsOut);
 
-	@Override
-	public void teardown() {
-		this.running = false;
-		if (this.matchIterator != null) {
-			this.matchIterator.close();
-		}
-	}
+        while (this.running
+                && matchIterator != null
+                && matchIterator.callWithNextKey(matchStub, collector)) {}
+    }
 
-	@Override
-	public void cancel() {
-		this.running = false;
-		if (this.matchIterator != null) {
-			this.matchIterator.abort();
-		}
-	}
+    @Override
+    public void cleanup() throws Exception {}
+
+    @Override
+    public void reset() throws Exception {
+
+        MutableObjectIterator<IT1> input1 = this.taskContext.getInput(0);
+        MutableObjectIterator<IT2> input2 = this.taskContext.getInput(1);
+
+        if (objectReuseEnabled) {
+            if (buildSideIndex == 0 && probeSideIndex == 1) {
+                final ReusingBuildFirstReOpenableHashJoinIterator<IT1, IT2, OT> matchIterator =
+                        (ReusingBuildFirstReOpenableHashJoinIterator<IT1, IT2, OT>)
+                                this.matchIterator;
+
+                matchIterator.reopenProbe(input2);
+            } else {
+                final ReusingBuildSecondReOpenableHashJoinIterator<IT1, IT2, OT> matchIterator =
+                        (ReusingBuildSecondReOpenableHashJoinIterator<IT1, IT2, OT>)
+                                this.matchIterator;
+                matchIterator.reopenProbe(input1);
+            }
+        } else {
+            if (buildSideIndex == 0 && probeSideIndex == 1) {
+                final NonReusingBuildFirstReOpenableHashJoinIterator<IT1, IT2, OT> matchIterator =
+                        (NonReusingBuildFirstReOpenableHashJoinIterator<IT1, IT2, OT>)
+                                this.matchIterator;
+
+                matchIterator.reopenProbe(input2);
+            } else {
+                final NonReusingBuildSecondReOpenableHashJoinIterator<IT1, IT2, OT> matchIterator =
+                        (NonReusingBuildSecondReOpenableHashJoinIterator<IT1, IT2, OT>)
+                                this.matchIterator;
+                matchIterator.reopenProbe(input1);
+            }
+        }
+    }
+
+    @Override
+    public void teardown() {
+        this.running = false;
+        if (this.matchIterator != null) {
+            this.matchIterator.close();
+        }
+    }
+
+    @Override
+    public void cancel() {
+        this.running = false;
+        if (this.matchIterator != null) {
+            this.matchIterator.abort();
+        }
+    }
 }

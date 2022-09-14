@@ -28,13 +28,9 @@ import org.apache.flink.api.common.functions.Function;
 @Internal
 public interface UdfStreamOperatorFactory<OUT> extends StreamOperatorFactory<OUT> {
 
-	/**
-	 * @return user define function.
-	 */
-	Function getUserFunction();
+    /** @return user define function. */
+    Function getUserFunction();
 
-	/**
-	 * @return user define function class name.
-	 */
-	String getUserFunctionClassName();
+    /** @return user define function class name. */
+    String getUserFunctionClassName();
 }

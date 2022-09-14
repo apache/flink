@@ -25,12 +25,11 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-metrics</artifactId>
-		<version>1.11-SNAPSHOT</version>
-		<relativePath>..</relativePath>
+		<version>1.17-SNAPSHOT</version>
 	</parent>
 
 	<artifactId>flink-metrics-datadog</artifactId>
-	<name>flink-metrics-datadog</name>
+	<name>Flink : Metrics : Datadog</name>
 
 	<dependencies>
 		<dependency>
@@ -56,7 +55,20 @@ under the License.
 		<dependency>
 			<groupId>com.squareup.okhttp3</groupId>
 			<artifactId>okhttp</artifactId>
-			<version>3.7.0</version>
+		</dependency>
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-test-utils-junit</artifactId>
+			<version>${project.version}</version>
+		</dependency>
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-metrics-core</artifactId>
+			<version>${project.version}</version>
+			<scope>test</scope>
+			<type>test-jar</type>
 		</dependency>
 	</dependencies>
 
@@ -79,17 +91,16 @@ under the License.
 									<include>com.squareup.okio:*</include>
 								</includes>
 							</artifactSet>
-							<promoteTransitiveDependencies>true</promoteTransitiveDependencies>
-							<relocations combine.children="append">
+							<relocations>
 								<relocation>
-									<pattern>okhttp3</pattern>
-									<shadedPattern>org.apache.flink.shaded.okhttp3</shadedPattern>
-								</relocation>
-								<relocation>
-									<pattern>okio</pattern>
-									<shadedPattern>org.apache.flink.shaded.okio</shadedPattern>
+									<pattern>okhttp3/internal/publicsuffix</pattern>
+									<shadedPattern>META-INF</shadedPattern>
+									<includes>
+										<include>**/NOTICE</include>
+									</includes>
 								</relocation>
 							</relocations>
+							<promoteTransitiveDependencies>true</promoteTransitiveDependencies>
 						</configuration>
 					</execution>
 				</executions>

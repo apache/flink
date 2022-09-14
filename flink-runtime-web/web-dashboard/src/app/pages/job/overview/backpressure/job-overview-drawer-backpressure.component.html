@@ -17,32 +17,37 @@
   -->
 
 <nz-table
-  class="no-border small full-height"
-  [nzSize]="'small'"
+  nzSize="small"
   [nzLoading]="isLoading"
   [nzData]="listOfSubTaskBackpressure"
-  [nzScroll]="{y:'calc( 100% - 72px )'}"
-  [nzWidthConfig]="['33.33%','33.33%','33.33%']"
+  [nzScroll]="{ y: 'calc( 100% - 90px )' }"
+  [nzWidthConfig]="['33.33%', '33.33%', '33.33%']"
   [nzFrontPagination]="false"
-  [nzShowPagination]="false">
+  [nzShowPagination]="false"
+  [nzVirtualItemSize]="36"
+  [nzVirtualMinBufferPx]="300"
+  [nzVirtualMaxBufferPx]="300"
+  [nzVirtualForTrackBy]="trackBySubtask"
+>
   <thead>
     <tr>
-      <th colspan="3">
+      <th colspan="3" class="title">
         <span *ngIf="selectedVertex?.detail?.status === 'RUNNING'">
-           Measurement:
+          Measurement:
           <span *ngIf="backpressure['end-timestamp']">
-            {{ (now - backpressure['end-timestamp']) | humanizeDuration }} ago
+            {{ now - backpressure['end-timestamp'] | humanizeDuration }} ago
           </span>
-          <span *ngIf="backpressure['status'] === 'deprecated'">
-            Sampling in progress...
-          </span>
-          <span *ngIf="(!backpressure['end-timestamp']) && (backpressure['status'] !== 'deprecated')">
+          <span *ngIf="backpressure['status'] === 'deprecated'">Sampling in progress...</span>
+          <span *ngIf="!backpressure['end-timestamp'] && backpressure['status'] !== 'deprecated'">
             -
           </span>
           <nz-divider [nzType]="'vertical'"></nz-divider>
           Back Pressure Status:
           <span>
-            <flink-backpressure-badge [state]="backpressure['backpressure-level']"></flink-backpressure-badge>
+            <flink-dynamic-host
+              [data]="{ state: backpressure['backpressure-level'] }"
+              [component]="stateBadgeComponent"
+            ></flink-dynamic-host>
           </span>
         </span>
         <span *ngIf="selectedVertex?.detail?.status !== 'RUNNING'">
@@ -52,17 +57,65 @@
     </tr>
     <tr>
       <th>SubTask</th>
-      <th>Ratio</th>
-      <th>Status</th>
+      <th>Backpressured / Idle / Busy</th>
+      <th>Backpressure Status</th>
     </tr>
   </thead>
   <tbody>
-    <tr *ngFor="let subtask of listOfSubTaskBackpressure;trackBy:trackBackPressureBy;">
-      <td>{{ subtask['subtask'] + 1 }}</td>
-      <td>{{ subtask['ratio'] }}</td>
-      <td>
-        <flink-backpressure-badge [state]="backpressure['backpressure-level']"></flink-backpressure-badge>
-      </td>
-    </tr>
+    <ng-template nz-virtual-scroll let-data>
+      <ng-container *ngIf="narrowType(data) as subtask">
+        <tr>
+          <td
+            [nzShowExpand]="subtask['other-concurrent-attempts']?.length > 0"
+            [nzExpand]="expandSet.has(subtask['subtask'])"
+            (nzExpandChange)="onExpandChange(subtask, $event)"
+          >
+            {{ subtask['subtask'] }}
+            <span class="left-margin" *ngIf="subtask['attempt-number'] !== undefined">
+              [attempt-{{ subtask['attempt-number'] + 1 }}]
+            </span>
+          </td>
+          <td>
+            {{ this.prettyPrint(subtask['ratio']) }} /
+            {{ this.prettyPrint(subtask['idleRatio']) }} /
+            {{ this.prettyPrint(subtask['busyRatio']) }}
+          </td>
+          <td>
+            <flink-dynamic-host
+              [data]="{ state: subtask['backpressure-level'] }"
+              [component]="stateBadgeComponent"
+            ></flink-dynamic-host>
+          </td>
+        </tr>
+        <ng-container *ngIf="expandSet.has(subtask['subtask'])">
+          <ng-container
+            *ngFor="
+              let attempt of subtask['other-concurrent-attempts'];
+              trackBy: trackBySubtaskAttempt
+            "
+          >
+            <tr>
+              <td [nzIndentSize]="1">
+                {{ attempt['subtask'] }}
+                <ng-container *ngIf="attempt['attempt-number'] !== undefined">
+                  &nbsp;[attempt-{{ attempt['attempt-number'] + 1 }}]
+                </ng-container>
+              </td>
+              <td>
+                {{ this.prettyPrint(attempt['ratio']) }} /
+                {{ this.prettyPrint(attempt['idleRatio']) }} /
+                {{ this.prettyPrint(attempt['busyRatio']) }}
+              </td>
+              <td>
+                <flink-dynamic-host
+                  [data]="{ state: attempt['backpressure-level'] }"
+                  [component]="stateBadgeComponent"
+                ></flink-dynamic-host>
+              </td>
+            </tr>
+          </ng-container>
+        </ng-container>
+      </ng-container>
+    </ng-template>
   </tbody>
 </nz-table>

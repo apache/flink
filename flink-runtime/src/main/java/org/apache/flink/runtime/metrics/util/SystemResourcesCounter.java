@@ -29,6 +29,7 @@ import oshi.hardware.NetworkIF;
 
 import javax.annotation.concurrent.ThreadSafe;
 
+import java.util.List;
 import java.util.concurrent.atomic.AtomicLongArray;
 import java.util.concurrent.atomic.AtomicReferenceArray;
 
@@ -37,200 +38,247 @@ import static org.apache.flink.util.Preconditions.checkState;
 /**
  * Daemon thread probing system resources.
  *
- * <p>To accurately and consistently report CPU and network usage we have to periodically probe
- * CPU ticks and network sent/received bytes and then convert those values to CPU usage and
- * send/receive byte rates.
+ * <p>To accurately and consistently report CPU and network usage we have to periodically probe CPU
+ * ticks and network sent/received bytes and then convert those values to CPU usage and send/receive
+ * byte rates.
  */
 @ThreadSafe
 public class SystemResourcesCounter extends Thread {
 
-	private static final Logger LOG = LoggerFactory.getLogger(SystemResourcesCounter.class);
+    private static final Logger LOG = LoggerFactory.getLogger(SystemResourcesCounter.class);
 
-	private final long probeIntervalMs;
-	private final SystemInfo systemInfo = new SystemInfo();
-	private final HardwareAbstractionLayer hardwareAbstractionLayer = systemInfo.getHardware();
+    private final long probeIntervalMs;
+    private final SystemInfo systemInfo = new SystemInfo();
+    private final HardwareAbstractionLayer hardwareAbstractionLayer = systemInfo.getHardware();
 
-	private volatile boolean running = true;
+    private volatile boolean running = true;
 
-	private long[] previousCpuTicks;
-	private long[] bytesReceivedPerInterface;
-	private long[] bytesSentPerInterface;
+    private long[] previousCpuTicks;
+    private long[][] previousProcCpuTicks;
+    private long[] bytesReceivedPerInterface;
+    private long[] bytesSentPerInterface;
 
-	private volatile double cpuUser;
-	private volatile double cpuNice;
-	private volatile double cpuSys;
-	private volatile double cpuIdle;
-	private volatile double cpuIOWait;
-	private volatile double cpuIrq;
-	private volatile double cpuSoftIrq;
-	private volatile double cpuUsage;
+    private volatile double cpuUser;
+    private volatile double cpuNice;
+    private volatile double cpuSys;
+    private volatile double cpuIdle;
+    private volatile double cpuIOWait;
+    private volatile double cpuIrq;
+    private volatile double cpuSoftIrq;
+    private volatile double cpuSteal;
+    private volatile double cpuUsage;
 
-	private volatile double cpuLoad1;
-	private volatile double cpuLoad5;
-	private volatile double cpuLoad15;
+    private volatile double cpuLoad1;
+    private volatile double cpuLoad5;
+    private volatile double cpuLoad15;
 
-	private AtomicReferenceArray<Double> cpuUsagePerProcessor;
+    private AtomicReferenceArray<Double> cpuUsagePerProcessor;
 
-	private final String[] networkInterfaceNames;
+    private final String[] networkInterfaceNames;
 
-	private AtomicLongArray receiveRatePerInterface;
-	private AtomicLongArray sendRatePerInterface;
+    private AtomicLongArray receiveRatePerInterface;
+    private AtomicLongArray sendRatePerInterface;
 
-	public SystemResourcesCounter(Time probeInterval) {
-		probeIntervalMs = probeInterval.toMilliseconds();
-		checkState(this.probeIntervalMs > 0);
+    public SystemResourcesCounter(Time probeInterval) {
+        probeIntervalMs = probeInterval.toMilliseconds();
+        checkState(this.probeIntervalMs > 0);
 
-		setName(SystemResourcesCounter.class.getSimpleName() + " probing thread");
+        setName(SystemResourcesCounter.class.getSimpleName() + " probing thread");
 
-		cpuUsagePerProcessor = new AtomicReferenceArray<>(hardwareAbstractionLayer.getProcessor().getLogicalProcessorCount());
+        cpuUsagePerProcessor =
+                new AtomicReferenceArray<>(
+                        hardwareAbstractionLayer.getProcessor().getLogicalProcessorCount());
 
-		NetworkIF[] networkIFs = hardwareAbstractionLayer.getNetworkIFs();
-		bytesReceivedPerInterface = new long[networkIFs.length];
-		bytesSentPerInterface = new long[networkIFs.length];
-		receiveRatePerInterface = new AtomicLongArray(networkIFs.length);
-		sendRatePerInterface = new AtomicLongArray(networkIFs.length);
-		networkInterfaceNames = new String[networkIFs.length];
+        List<NetworkIF> networkIFs = hardwareAbstractionLayer.getNetworkIFs();
+        bytesReceivedPerInterface = new long[networkIFs.size()];
+        bytesSentPerInterface = new long[networkIFs.size()];
+        receiveRatePerInterface = new AtomicLongArray(networkIFs.size());
+        sendRatePerInterface = new AtomicLongArray(networkIFs.size());
+        networkInterfaceNames = new String[networkIFs.size()];
 
-		for (int i = 0; i < networkInterfaceNames.length; i++) {
-			networkInterfaceNames[i] = networkIFs[i].getName();
-		}
-	}
+        for (int i = 0; i < networkIFs.size(); i++) {
+            networkInterfaceNames[i] = networkIFs.get(i).getName();
+        }
+    }
 
-	@Override
-	public void run() {
-		try {
-			while (running) {
-				calculateCPUUsage(hardwareAbstractionLayer.getProcessor());
-				calculateNetworkUsage(hardwareAbstractionLayer.getNetworkIFs());
-				Thread.sleep(probeIntervalMs);
-			}
-		} catch (InterruptedException e) {
-			if (running) {
-				LOG.warn("{} has failed", SystemResourcesCounter.class.getSimpleName(), e);
-			}
-		}
-	}
+    @Override
+    public void run() {
+        try {
+            while (running) {
+                calculateCPUUsage(hardwareAbstractionLayer.getProcessor());
+                calculateNetworkUsage(hardwareAbstractionLayer.getNetworkIFs());
+                Thread.sleep(probeIntervalMs);
+            }
+        } catch (InterruptedException e) {
+            if (running) {
+                LOG.warn("{} has failed", SystemResourcesCounter.class.getSimpleName(), e);
+            }
+        }
+    }
 
-	public void shutdown() throws InterruptedException {
-		running = false;
-		interrupt();
-		join();
-	}
+    public void shutdown() throws InterruptedException {
+        running = false;
+        interrupt();
+        join();
+    }
 
-	public double getCpuUser() {
-		return cpuUser;
-	}
+    public double getCpuUser() {
+        return cpuUser;
+    }
 
-	public double getCpuNice() {
-		return cpuNice;
-	}
+    public double getCpuNice() {
+        return cpuNice;
+    }
 
-	public double getCpuSys() {
-		return cpuSys;
-	}
+    public double getCpuSys() {
+        return cpuSys;
+    }
 
-	public double getCpuIdle() {
-		return cpuIdle;
-	}
+    public double getCpuIdle() {
+        return cpuIdle;
+    }
 
-	public double getIOWait() {
-		return cpuIOWait;
-	}
+    public double getIOWait() {
+        return cpuIOWait;
+    }
 
-	public double getCpuIrq() {
-		return cpuIrq;
-	}
+    public double getCpuIrq() {
+        return cpuIrq;
+    }
 
-	public double getCpuSoftIrq() {
-		return cpuSoftIrq;
-	}
+    public double getCpuSoftIrq() {
+        return cpuSoftIrq;
+    }
 
-	public double getCpuUsage() {
-		return cpuUsage;
-	}
+    public double getCpuSteal() {
+        return cpuSteal;
+    }
 
-	public double getCpuLoad1() {
-		return cpuLoad1;
-	}
+    public double getCpuUsage() {
+        return cpuUsage;
+    }
 
-	public double getCpuLoad5() {
-		return cpuLoad5;
-	}
+    public double getCpuLoad1() {
+        return cpuLoad1;
+    }
 
-	public double getCpuLoad15() {
-		return cpuLoad15;
-	}
+    public double getCpuLoad5() {
+        return cpuLoad5;
+    }
 
-	public int getProcessorsCount() {
-		return cpuUsagePerProcessor.length();
-	}
+    public double getCpuLoad15() {
+        return cpuLoad15;
+    }
 
-	public double getCpuUsagePerProcessor(int processor) {
-		return cpuUsagePerProcessor.get(processor);
-	}
+    public int getProcessorsCount() {
+        return cpuUsagePerProcessor.length();
+    }
 
-	public String[] getNetworkInterfaceNames() {
-		return networkInterfaceNames;
-	}
+    public double getCpuUsagePerProcessor(int processor) {
+        return cpuUsagePerProcessor.get(processor);
+    }
 
-	public long getReceiveRatePerInterface(int interfaceNo) {
-		return receiveRatePerInterface.get(interfaceNo);
-	}
+    public String[] getNetworkInterfaceNames() {
+        return networkInterfaceNames;
+    }
 
-	public long getSendRatePerInterface(int interfaceNo) {
-		return sendRatePerInterface.get(interfaceNo);
-	}
+    public long getReceiveRatePerInterface(int interfaceNo) {
+        return receiveRatePerInterface.get(interfaceNo);
+    }
 
-	private void calculateCPUUsage(CentralProcessor processor) {
-		long[] ticks = processor.getSystemCpuLoadTicks();
-		if (this.previousCpuTicks == null) {
-			this.previousCpuTicks = ticks;
-		}
+    public long getSendRatePerInterface(int interfaceNo) {
+        return sendRatePerInterface.get(interfaceNo);
+    }
 
-		long userTicks = ticks[TickType.USER.getIndex()] - previousCpuTicks[TickType.USER.getIndex()];
-		long niceTicks = ticks[TickType.NICE.getIndex()] - previousCpuTicks[TickType.NICE.getIndex()];
-		long sysTicks = ticks[TickType.SYSTEM.getIndex()] - previousCpuTicks[TickType.SYSTEM.getIndex()];
-		long idleTicks = ticks[TickType.IDLE.getIndex()] - previousCpuTicks[TickType.IDLE.getIndex()];
-		long iowaitTicks = ticks[TickType.IOWAIT.getIndex()] - previousCpuTicks[TickType.IOWAIT.getIndex()];
-		long irqTicks = ticks[TickType.IRQ.getIndex()] - previousCpuTicks[TickType.IRQ.getIndex()];
-		long softIrqTicks = ticks[TickType.SOFTIRQ.getIndex()] - previousCpuTicks[TickType.SOFTIRQ.getIndex()];
-		long totalCpuTicks = userTicks + niceTicks + sysTicks + idleTicks + iowaitTicks + irqTicks + softIrqTicks;
-		this.previousCpuTicks = ticks;
+    private long[] getSystemCpuLoadTicksDiff(CentralProcessor processor) {
+        long[] cpuTicks = processor.getSystemCpuLoadTicks();
+        if (previousCpuTicks == null) {
+            previousCpuTicks = cpuTicks;
+        }
+        long[] diffTicks = new long[cpuTicks.length];
+        for (int i = 0; i < cpuTicks.length; ++i) {
+            diffTicks[i] = cpuTicks[i] - previousCpuTicks[i];
+        }
+        return diffTicks;
+    }
 
-		cpuUser = 100d * userTicks / totalCpuTicks;
-		cpuNice = 100d * niceTicks / totalCpuTicks;
-		cpuSys = 100d * sysTicks / totalCpuTicks;
-		cpuIdle = 100d * idleTicks / totalCpuTicks;
-		cpuIOWait = 100d * iowaitTicks / totalCpuTicks;
-		cpuIrq = 100d * irqTicks / totalCpuTicks;
-		cpuSoftIrq = 100d * softIrqTicks / totalCpuTicks;
+    private double[] getProcessorCpuLoadTicksDiff(CentralProcessor processor) {
+        long[][] procCpuTicks = processor.getProcessorCpuLoadTicks();
+        if (previousProcCpuTicks == null) {
+            previousProcCpuTicks = procCpuTicks;
+        }
+        double[] procCpuLoad = processor.getProcessorCpuLoadBetweenTicks(previousProcCpuTicks);
+        previousProcCpuTicks = procCpuTicks;
+        return procCpuLoad;
+    }
 
-		cpuUsage = processor.getSystemCpuLoad() * 100;
+    private void calculateCPUUsage(CentralProcessor processor) {
+        long[] ticksDiff = getSystemCpuLoadTicksDiff(processor);
 
-		double[] loadAverage = processor.getSystemLoadAverage(3);
-		cpuLoad1 = (loadAverage[0] < 0 ? Double.NaN : loadAverage[0]);
-		cpuLoad5 = (loadAverage[1] < 0 ? Double.NaN : loadAverage[1]);
-		cpuLoad15 = (loadAverage[2] < 0 ? Double.NaN : loadAverage[2]);
+        long userTicks = ticksDiff[TickType.USER.getIndex()];
+        long niceTicks = ticksDiff[TickType.NICE.getIndex()];
+        long sysTicks = ticksDiff[TickType.SYSTEM.getIndex()];
+        long idleTicks = ticksDiff[TickType.IDLE.getIndex()];
+        long iowaitTicks = ticksDiff[TickType.IOWAIT.getIndex()];
+        long irqTicks = ticksDiff[TickType.IRQ.getIndex()];
+        long softIrqTicks = ticksDiff[TickType.SOFTIRQ.getIndex()];
+        long stealTicks = ticksDiff[TickType.STEAL.getIndex()];
 
-		double[] load = processor.getProcessorCpuLoadBetweenTicks();
-		checkState(load.length == cpuUsagePerProcessor.length());
-		for (int i = 0; i < load.length; i++) {
-			cpuUsagePerProcessor.set(i, load[i] * 100);
-		}
-	}
+        long totalCpuTicks =
+                userTicks
+                        + niceTicks
+                        + sysTicks
+                        + idleTicks
+                        + iowaitTicks
+                        + irqTicks
+                        + softIrqTicks
+                        + stealTicks;
 
-	private void calculateNetworkUsage(NetworkIF[] networkIFs) {
-		checkState(networkIFs.length == receiveRatePerInterface.length());
+        cpuUser = 100d * userTicks / totalCpuTicks;
+        cpuNice = 100d * niceTicks / totalCpuTicks;
+        cpuSys = 100d * sysTicks / totalCpuTicks;
+        cpuIdle = 100d * idleTicks / totalCpuTicks;
+        cpuIOWait = 100d * iowaitTicks / totalCpuTicks;
+        cpuIrq = 100d * irqTicks / totalCpuTicks;
+        cpuSoftIrq = 100d * softIrqTicks / totalCpuTicks;
+        cpuSteal = 100d * stealTicks / totalCpuTicks;
 
-		for (int i = 0; i < networkIFs.length; i++) {
-			NetworkIF networkIF = networkIFs[i];
-			networkIF.updateNetworkStats();
+        // Note: The docs of OSHI state: "To calculate overall Idle time using this method, include
+        // both Idle and IOWait ticks." (See here:
+        // https://oshi.github.io/oshi/oshi-core/apidocs/oshi/hardware/CentralProcessor.html )
+        // Therefore, we calculate CPU usage as the difference of total CPU time and Idle time.
+        cpuUsage = 100d * (totalCpuTicks - (idleTicks + iowaitTicks)) / totalCpuTicks;
 
-			receiveRatePerInterface.set(i, (networkIF.getBytesRecv() - bytesReceivedPerInterface[i]) * 1000 / probeIntervalMs);
-			sendRatePerInterface.set(i, (networkIF.getBytesSent() - bytesSentPerInterface[i]) * 1000 / probeIntervalMs);
+        double[] loadAverage = processor.getSystemLoadAverage(3);
+        cpuLoad1 = (loadAverage[0] < 0 ? Double.NaN : loadAverage[0]);
+        cpuLoad5 = (loadAverage[1] < 0 ? Double.NaN : loadAverage[1]);
+        cpuLoad15 = (loadAverage[2] < 0 ? Double.NaN : loadAverage[2]);
 
-			bytesReceivedPerInterface[i] = networkIF.getBytesRecv();
-			bytesSentPerInterface[i] = networkIF.getBytesSent();
-		}
-	}
+        double[] load = getProcessorCpuLoadTicksDiff(processor);
+        checkState(load.length == cpuUsagePerProcessor.length());
+        for (int i = 0; i < load.length; i++) {
+            cpuUsagePerProcessor.set(i, load[i] * 100);
+        }
+    }
+
+    private void calculateNetworkUsage(List<NetworkIF> networkIFs) {
+        checkState(networkIFs.size() == receiveRatePerInterface.length());
+
+        for (int i = 0; i < networkIFs.size(); i++) {
+            NetworkIF networkIF = networkIFs.get(i);
+            networkIF.updateAttributes();
+
+            receiveRatePerInterface.set(
+                    i,
+                    (networkIF.getBytesRecv() - bytesReceivedPerInterface[i])
+                            * 1000
+                            / probeIntervalMs);
+            sendRatePerInterface.set(
+                    i,
+                    (networkIF.getBytesSent() - bytesSentPerInterface[i]) * 1000 / probeIntervalMs);
+
+            bytesReceivedPerInterface[i] = networkIF.getBytesRecv();
+            bytesSentPerInterface[i] = networkIF.getBytesSent();
+        }
+    }
 }

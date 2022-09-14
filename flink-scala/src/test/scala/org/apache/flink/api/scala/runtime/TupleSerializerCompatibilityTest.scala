@@ -15,10 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.api.scala.runtime
-
-import java.io.InputStream
 
 import org.apache.flink.api.common.ExecutionConfig
 import org.apache.flink.api.common.typeutils.{TypeSerializer, TypeSerializerSerializationUtil, TypeSerializerSnapshot}
@@ -27,12 +24,13 @@ import org.apache.flink.api.scala.createTypeInformation
 import org.apache.flink.api.scala.runtime.TupleSerializerCompatibilityTestGenerator._
 import org.apache.flink.api.scala.typeutils.CaseClassSerializer
 import org.apache.flink.core.memory.DataInputViewStreamWrapper
+
 import org.junit.Assert.{assertEquals, assertNotNull, assertTrue}
 import org.junit.Test
 
-/**
-  * Test for ensuring backwards compatibility of tuples and case classes across Scala versions.
-  */
+import java.io.InputStream
+
+/** Test for ensuring backwards compatibility of tuples and case classes across Scala versions. */
 class TupleSerializerCompatibilityTest {
 
   @Test
@@ -64,9 +62,10 @@ class TupleSerializerCompatibilityTest {
 
       val currentSerializer = createTypeInformation[TestCaseClass]
         .createSerializer(new ExecutionConfig())
-      assertTrue(oldConfigSnapshot
-        .resolveSchemaCompatibility(currentSerializer)
-        .isCompatibleAsIs)
+      assertTrue(
+        oldConfigSnapshot
+          .resolveSchemaCompatibility(currentSerializer)
+          .isCompatibleAsIs)
 
       // test old data serialization
       is.close()

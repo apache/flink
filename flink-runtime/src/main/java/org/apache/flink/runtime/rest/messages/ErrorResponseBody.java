@@ -24,24 +24,21 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonPro
 import java.util.Collections;
 import java.util.List;
 
-/**
- * Generic response body for communicating errors on the server.
- */
+/** Generic response body for communicating errors on the server. */
 public final class ErrorResponseBody implements ResponseBody {
 
-	static final String FIELD_NAME_ERRORS = "errors";
+    static final String FIELD_NAME_ERRORS = "errors";
 
-	@JsonProperty(FIELD_NAME_ERRORS)
-	public final List<String> errors;
+    @JsonProperty(FIELD_NAME_ERRORS)
+    public final List<String> errors;
 
-	public ErrorResponseBody(String error) {
-		this(Collections.singletonList(error));
-	}
+    public ErrorResponseBody(String error) {
+        this(Collections.singletonList(error));
+    }
 
-	@JsonCreator
-	public ErrorResponseBody(
-		@JsonProperty(FIELD_NAME_ERRORS) List<String> errors) {
+    @JsonCreator
+    public ErrorResponseBody(@JsonProperty(FIELD_NAME_ERRORS) List<String> errors) {
 
-		this.errors = errors;
-	}
+        this.errors = errors;
+    }
 }

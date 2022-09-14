@@ -26,252 +26,268 @@ import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 
-/**
- * Tests for {@link GenericWriteAheadSink}.
- */
-public class GenericWriteAheadSinkTest extends WriteAheadSinkTestBase<Tuple1<Integer>, GenericWriteAheadSinkTest.ListSink> {
+import static org.assertj.core.api.Assertions.assertThat;
 
-	@Override
-	protected ListSink createSink() throws Exception {
-		return new ListSink();
-	}
+/** Tests for {@link GenericWriteAheadSink}. */
+class GenericWriteAheadSinkTest
+        extends WriteAheadSinkTestBase<Tuple1<Integer>, GenericWriteAheadSinkTest.ListSink> {
 
-	@Override
-	protected TupleTypeInfo<Tuple1<Integer>> createTypeInfo() {
-		return TupleTypeInfo.getBasicTupleTypeInfo(Integer.class);
-	}
+    @Override
+    protected ListSink createSink() throws Exception {
+        return new ListSink();
+    }
 
-	@Override
-	protected Tuple1<Integer> generateValue(int counter, int checkpointID) {
-		return new Tuple1<>(counter);
-	}
+    @Override
+    protected TupleTypeInfo<Tuple1<Integer>> createTypeInfo() {
+        return TupleTypeInfo.getBasicTupleTypeInfo(Integer.class);
+    }
 
-	@Override
-	protected void verifyResultsIdealCircumstances(ListSink sink) {
+    @Override
+    protected Tuple1<Integer> generateValue(int counter, int checkpointID) {
+        return new Tuple1<>(counter);
+    }
 
-		ArrayList<Integer> list = new ArrayList<>();
-		for (int x = 1; x <= 60; x++) {
-			list.add(x);
-		}
+    @Override
+    protected void verifyResultsIdealCircumstances(ListSink sink) {
 
-		for (Integer i : sink.values) {
-			list.remove(i);
-		}
-		Assert.assertTrue("The following ID's where not found in the result list: " + list.toString(), list.isEmpty());
-		Assert.assertTrue("The sink emitted to many values: " + (sink.values.size() - 60), sink.values.size() == 60);
-	}
+        ArrayList<Integer> list = new ArrayList<>();
+        for (int x = 1; x <= 60; x++) {
+            list.add(x);
+        }
 
-	@Override
-	protected void verifyResultsDataPersistenceUponMissedNotify(ListSink sink) {
+        for (Integer i : sink.values) {
+            list.remove(i);
+        }
+        assertThat(list)
+                .as("The following ID's where not found in the result list: " + list)
+                .isEmpty();
+        assertThat(sink.values)
+                .as("The sink emitted to many values: " + (sink.values.size() - 60))
+                .hasSize(60);
+    }
 
-		ArrayList<Integer> list = new ArrayList<>();
-		for (int x = 1; x <= 60; x++) {
-			list.add(x);
-		}
+    @Override
+    protected void verifyResultsDataPersistenceUponMissedNotify(ListSink sink) {
 
-		for (Integer i : sink.values) {
-			list.remove(i);
-		}
-		Assert.assertTrue("The following ID's where not found in the result list: " + list.toString(), list.isEmpty());
-		Assert.assertTrue("The sink emitted to many values: " + (sink.values.size() - 60), sink.values.size() == 60);
-	}
+        ArrayList<Integer> list = new ArrayList<>();
+        for (int x = 1; x <= 60; x++) {
+            list.add(x);
+        }
 
-	@Override
-	protected void verifyResultsDataDiscardingUponRestore(ListSink sink) {
+        for (Integer i : sink.values) {
+            list.remove(i);
+        }
+        assertThat(list)
+                .as("The following ID's where not found in the result list: " + list)
+                .isEmpty();
+        assertThat(sink.values)
+                .as("The sink emitted to many values: " + (sink.values.size() - 60))
+                .hasSize(60);
+    }
 
-		ArrayList<Integer> list = new ArrayList<>();
-		for (int x = 1; x <= 20; x++) {
-			list.add(x);
-		}
-		for (int x = 41; x <= 60; x++) {
-			list.add(x);
-		}
+    @Override
+    protected void verifyResultsDataDiscardingUponRestore(ListSink sink) {
 
-		for (Integer i : sink.values) {
-			list.remove(i);
-		}
-		Assert.assertTrue("The following ID's where not found in the result list: " + list.toString(), list.isEmpty());
-		Assert.assertTrue("The sink emitted to many values: " + (sink.values.size() - 40), sink.values.size() == 40);
-	}
+        ArrayList<Integer> list = new ArrayList<>();
+        for (int x = 1; x <= 20; x++) {
+            list.add(x);
+        }
+        for (int x = 41; x <= 60; x++) {
+            list.add(x);
+        }
 
-	@Override
-	protected void verifyResultsWhenReScaling(ListSink sink, int startElementCounter, int endElementCounter) throws Exception {
+        for (Integer i : sink.values) {
+            list.remove(i);
+        }
+        assertThat(list)
+                .as("The following ID's where not found in the result list: " + list)
+                .isEmpty();
+        assertThat(sink.values)
+                .as("The sink emitted to many values: " + (sink.values.size() - 40))
+                .hasSize(40);
+    }
 
-		ArrayList<Integer> list = new ArrayList<>();
-		for (int i = startElementCounter; i <= endElementCounter; i++) {
-			list.add(i);
-		}
+    @Override
+    protected void verifyResultsWhenReScaling(
+            ListSink sink, int startElementCounter, int endElementCounter) throws Exception {
 
-		Collections.sort(sink.values);
-		Assert.assertArrayEquals(list.toArray(), sink.values.toArray());
-	}
+        ArrayList<Integer> list = new ArrayList<>();
+        for (int i = startElementCounter; i <= endElementCounter; i++) {
+            list.add(i);
+        }
 
-	@Test
-	/**
-	 * Verifies that exceptions thrown by a committer do not fail a job and lead to an abort of notify()
-	 * and later retry of the affected checkpoints.
-	 */
-	public void testCommitterException() throws Exception {
+        assertThat(sink.values).containsExactlyInAnyOrderElementsOf(list);
+    }
 
-		ListSink2 sink = new ListSink2();
+    /**
+     * Verifies that exceptions thrown by a committer do not fail a job and lead to an abort of
+     * notify() and later retry of the affected checkpoints.
+     */
+    @Test
+    void testCommitterException() throws Exception {
 
-		OneInputStreamOperatorTestHarness<Tuple1<Integer>, Tuple1<Integer>> testHarness =
-				new OneInputStreamOperatorTestHarness<>(sink);
+        ListSink2 sink = new ListSink2();
 
-		testHarness.open();
+        OneInputStreamOperatorTestHarness<Tuple1<Integer>, Tuple1<Integer>> testHarness =
+                new OneInputStreamOperatorTestHarness<>(sink);
 
-		int elementCounter = 1;
+        testHarness.open();
 
-		for (int x = 0; x < 10; x++) {
-			testHarness.processElement(new StreamRecord<>(generateValue(elementCounter, 0)));
-			elementCounter++;
-		}
+        int elementCounter = 1;
 
-		testHarness.snapshot(0, 0);
-		testHarness.notifyOfCompletedCheckpoint(0);
+        for (int x = 0; x < 10; x++) {
+            testHarness.processElement(new StreamRecord<>(generateValue(elementCounter, 0)));
+            elementCounter++;
+        }
 
-		//isCommitted should have failed, thus sendValues() should never have been called
-		Assert.assertEquals(0, sink.values.size());
+        testHarness.snapshot(0, 0);
+        testHarness.notifyOfCompletedCheckpoint(0);
 
-		for (int x = 0; x < 11; x++) {
-			testHarness.processElement(new StreamRecord<>(generateValue(elementCounter, 1)));
-			elementCounter++;
-		}
+        // isCommitted should have failed, thus sendValues() should never have been called
+        assertThat(sink.values).isEmpty();
 
-		testHarness.snapshot(1, 0);
-		testHarness.notifyOfCompletedCheckpoint(1);
+        for (int x = 0; x < 11; x++) {
+            testHarness.processElement(new StreamRecord<>(generateValue(elementCounter, 1)));
+            elementCounter++;
+        }
 
-		//previous CP should be retried, but will fail the CP commit. Second CP should be skipped.
-		Assert.assertEquals(10, sink.values.size());
+        testHarness.snapshot(1, 0);
+        testHarness.notifyOfCompletedCheckpoint(1);
 
-		for (int x = 0; x < 12; x++) {
-			testHarness.processElement(new StreamRecord<>(generateValue(elementCounter, 2)));
-			elementCounter++;
-		}
+        // previous CP should be retried, but will fail the CP commit. Second CP should be skipped.
+        assertThat(sink.values).hasSize(10);
 
-		testHarness.snapshot(2, 0);
-		testHarness.notifyOfCompletedCheckpoint(2);
+        for (int x = 0; x < 12; x++) {
+            testHarness.processElement(new StreamRecord<>(generateValue(elementCounter, 2)));
+            elementCounter++;
+        }
 
-		//all CP's should be retried and succeed; since one CP was written twice we have 2 * 10 + 11 + 12 = 43 values
-		Assert.assertEquals(43, sink.values.size());
-	}
+        testHarness.snapshot(2, 0);
+        testHarness.notifyOfCompletedCheckpoint(2);
 
-	/**
-	 * Simple sink that stores all records in a public list.
-	 */
-	public static class ListSink extends GenericWriteAheadSink<Tuple1<Integer>> {
-		private static final long serialVersionUID = 1L;
+        // all CP's should be retried and succeed; since one CP was written twice we have 2 * 10 +
+        // 11 + 12 = 43 values
+        assertThat(sink.values).hasSize(43);
+    }
 
-		public List<Integer> values = new ArrayList<>();
+    /** Simple sink that stores all records in a public list. */
+    public static class ListSink extends GenericWriteAheadSink<Tuple1<Integer>> {
+        private static final long serialVersionUID = 1L;
 
-		public ListSink() throws Exception {
-			super(new SimpleCommitter(), TypeExtractor.getForObject(new Tuple1<>(1)).createSerializer(new ExecutionConfig()), "job");
-		}
+        public List<Integer> values = new ArrayList<>();
 
-		@Override
-		protected boolean sendValues(Iterable<Tuple1<Integer>> values, long checkpointId, long timestamp) throws Exception {
-			for (Tuple1<Integer> value : values) {
-				this.values.add(value.f0);
-			}
-			return true;
-		}
-	}
+        public ListSink() throws Exception {
+            super(
+                    new SimpleCommitter(),
+                    TypeExtractor.getForObject(new Tuple1<>(1))
+                            .createSerializer(new ExecutionConfig()),
+                    "job");
+        }
 
-	private static class SimpleCommitter extends CheckpointCommitter {
-		private static final long serialVersionUID = 1L;
+        @Override
+        protected boolean sendValues(
+                Iterable<Tuple1<Integer>> values, long checkpointId, long timestamp)
+                throws Exception {
+            for (Tuple1<Integer> value : values) {
+                this.values.add(value.f0);
+            }
+            return true;
+        }
+    }
 
-		private List<Tuple2<Long, Integer>> checkpoints;
+    private static class SimpleCommitter extends CheckpointCommitter {
+        private static final long serialVersionUID = 1L;
 
-		@Override
-		public void open() throws Exception {
-		}
+        private List<Tuple2<Long, Integer>> checkpoints;
 
-		@Override
-		public void close() throws Exception {
-		}
+        @Override
+        public void open() throws Exception {}
 
-		@Override
-		public void createResource() throws Exception {
-			checkpoints = new ArrayList<>();
-		}
+        @Override
+        public void close() throws Exception {}
 
-		@Override
-		public void commitCheckpoint(int subtaskIdx, long checkpointID) {
-			checkpoints.add(new Tuple2<>(checkpointID, subtaskIdx));
-		}
+        @Override
+        public void createResource() throws Exception {
+            checkpoints = new ArrayList<>();
+        }
 
-		@Override
-		public boolean isCheckpointCommitted(int subtaskIdx, long checkpointID) {
-			return checkpoints.contains(new Tuple2<>(checkpointID, subtaskIdx));
-		}
-	}
+        @Override
+        public void commitCheckpoint(int subtaskIdx, long checkpointID) {
+            checkpoints.add(new Tuple2<>(checkpointID, subtaskIdx));
+        }
 
-	/**
-	 * Simple sink that stores all records in a public list.
-	 */
-	public static class ListSink2 extends GenericWriteAheadSink<Tuple1<Integer>> {
-		private static final long serialVersionUID = 1L;
+        @Override
+        public boolean isCheckpointCommitted(int subtaskIdx, long checkpointID) {
+            return checkpoints.contains(new Tuple2<>(checkpointID, subtaskIdx));
+        }
+    }
 
-		public List<Integer> values = new ArrayList<>();
+    /** Simple sink that stores all records in a public list. */
+    public static class ListSink2 extends GenericWriteAheadSink<Tuple1<Integer>> {
+        private static final long serialVersionUID = 1L;
 
-		public ListSink2() throws Exception {
-			super(new FailingCommitter(), TypeExtractor.getForObject(new Tuple1<>(1)).createSerializer(new ExecutionConfig()), "job");
-		}
+        public List<Integer> values = new ArrayList<>();
 
-		@Override
-		protected boolean sendValues(Iterable<Tuple1<Integer>> values, long checkpointId, long timestamp) throws Exception {
-			for (Tuple1<Integer> value : values) {
-				this.values.add(value.f0);
-			}
-			return true;
-		}
-	}
+        public ListSink2() throws Exception {
+            super(
+                    new FailingCommitter(),
+                    TypeExtractor.getForObject(new Tuple1<>(1))
+                            .createSerializer(new ExecutionConfig()),
+                    "job");
+        }
 
-	private static class FailingCommitter extends CheckpointCommitter {
-		private static final long serialVersionUID = 1L;
+        @Override
+        protected boolean sendValues(
+                Iterable<Tuple1<Integer>> values, long checkpointId, long timestamp)
+                throws Exception {
+            for (Tuple1<Integer> value : values) {
+                this.values.add(value.f0);
+            }
+            return true;
+        }
+    }
 
-		private List<Tuple2<Long, Integer>> checkpoints;
-		private boolean failIsCommitted = true;
-		private boolean failCommit = true;
+    private static class FailingCommitter extends CheckpointCommitter {
+        private static final long serialVersionUID = 1L;
 
-		@Override
-		public void open() throws Exception {
-		}
+        private List<Tuple2<Long, Integer>> checkpoints;
+        private boolean failIsCommitted = true;
+        private boolean failCommit = true;
 
-		@Override
-		public void close() throws Exception {
-		}
+        @Override
+        public void open() throws Exception {}
 
-		@Override
-		public void createResource() throws Exception {
-			checkpoints = new ArrayList<>();
-		}
+        @Override
+        public void close() throws Exception {}
 
-		@Override
-		public void commitCheckpoint(int subtaskIdx, long checkpointID) {
-			if (failCommit) {
-				failCommit = false;
-				throw new RuntimeException("Expected exception");
-			} else {
-				checkpoints.add(new Tuple2<>(checkpointID, subtaskIdx));
-			}
-		}
+        @Override
+        public void createResource() throws Exception {
+            checkpoints = new ArrayList<>();
+        }
 
-		@Override
-		public boolean isCheckpointCommitted(int subtaskIdx, long checkpointID) {
-			if (failIsCommitted) {
-				failIsCommitted = false;
-				throw new RuntimeException("Expected exception");
-			} else {
-				return false;
-			}
-		}
-	}
+        @Override
+        public void commitCheckpoint(int subtaskIdx, long checkpointID) {
+            if (failCommit) {
+                failCommit = false;
+                throw new RuntimeException("Expected exception");
+            } else {
+                checkpoints.add(new Tuple2<>(checkpointID, subtaskIdx));
+            }
+        }
+
+        @Override
+        public boolean isCheckpointCommitted(int subtaskIdx, long checkpointID) {
+            if (failIsCommitted) {
+                failIsCommitted = false;
+                throw new RuntimeException("Expected exception");
+            } else {
+                return false;
+            }
+        }
+    }
 }

@@ -21,33 +21,31 @@ package org.apache.flink.runtime.rest.messages.checkpoints;
 import org.apache.flink.runtime.rest.messages.ConversionException;
 import org.apache.flink.runtime.rest.messages.MessagePathParameter;
 
-/**
- * Path parameter for the checkpoint id of type {@link Long}.
- */
+/** Path parameter for the checkpoint id of type {@link Long}. */
 public class CheckpointIdPathParameter extends MessagePathParameter<Long> {
 
-	public static final String KEY = "checkpointid";
+    public static final String KEY = "checkpointid";
 
-	protected CheckpointIdPathParameter() {
-		super(KEY);
-	}
+    protected CheckpointIdPathParameter() {
+        super(KEY);
+    }
 
-	@Override
-	protected Long convertFromString(String value) throws ConversionException {
-		try {
-			return Long.parseLong(value);
-		} catch (NumberFormatException nfe) {
-			throw new ConversionException("Could not parse long from " + value + '.', nfe);
-		}
-	}
+    @Override
+    protected Long convertFromString(String value) throws ConversionException {
+        try {
+            return Long.parseLong(value);
+        } catch (NumberFormatException nfe) {
+            throw new ConversionException("Could not parse long from " + value + '.', nfe);
+        }
+    }
 
-	@Override
-	protected String convertToString(Long value) {
-		return value.toString();
-	}
+    @Override
+    protected String convertToString(Long value) {
+        return value.toString();
+    }
 
-	@Override
-	public String getDescription() {
-		return "Long value that identifies a checkpoint.";
-	}
+    @Override
+    public String getDescription() {
+        return "Long value that identifies a checkpoint.";
+    }
 }

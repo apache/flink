@@ -21,40 +21,49 @@ package org.apache.flink.runtime.taskexecutor.slot;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
-import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.util.TestLogger;
+import org.apache.flink.util.concurrent.Executors;
+
 import org.junit.Test;
 
 import java.util.concurrent.CompletableFuture;
 
+import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.createExecutionAttemptId;
 import static org.hamcrest.CoreMatchers.is;
 import static org.junit.Assert.assertThat;
 
 public class TaskSlotTest extends TestLogger {
-	private static final JobID JOB_ID = new JobID();
-	private static final AllocationID ALLOCATION_ID = new AllocationID();
+    private static final JobID JOB_ID = new JobID();
+    private static final AllocationID ALLOCATION_ID = new AllocationID();
 
-	@Test
-	public void testTaskSlotClosedOnlyWhenAddedTasksTerminated() throws Exception {
-		try (TaskSlot<TaskSlotPayload> taskSlot = createTaskSlot()) {
-			taskSlot.markActive();
-			TestingTaskSlotPayload task = new TestingTaskSlotPayload(JOB_ID, new ExecutionAttemptID(), ALLOCATION_ID);
-			taskSlot.add(task);
+    @Test
+    public void testTaskSlotClosedOnlyWhenAddedTasksTerminated() throws Exception {
+        try (TaskSlot<TaskSlotPayload> taskSlot = createTaskSlot()) {
+            taskSlot.markActive();
+            TestingTaskSlotPayload task =
+                    new TestingTaskSlotPayload(JOB_ID, createExecutionAttemptId(), ALLOCATION_ID);
+            taskSlot.add(task);
 
-			CompletableFuture<Void> closingFuture = taskSlot.closeAsync();
-			task.waitForFailure();
-			MemoryManager memoryManager = taskSlot.getMemoryManager();
+            CompletableFuture<Void> closingFuture = taskSlot.closeAsync();
+            task.waitForFailure();
+            MemoryManager memoryManager = taskSlot.getMemoryManager();
 
-			assertThat(closingFuture.isDone(), is(false));
-			assertThat(memoryManager.isShutdown(), is(false));
-			task.terminate();
-			closingFuture.get();
-			assertThat(memoryManager.isShutdown(), is(true));
-		}
-	}
+            assertThat(closingFuture.isDone(), is(false));
+            assertThat(memoryManager.isShutdown(), is(false));
+            task.terminate();
+            closingFuture.get();
+            assertThat(memoryManager.isShutdown(), is(true));
+        }
+    }
 
-	private static <T extends TaskSlotPayload> TaskSlot<T> createTaskSlot() {
-		return new TaskSlot<>(0, ResourceProfile.ZERO, MemoryManager.MIN_PAGE_SIZE, JOB_ID, ALLOCATION_ID);
-	}
+    private static <T extends TaskSlotPayload> TaskSlot<T> createTaskSlot() {
+        return new TaskSlot<>(
+                0,
+                ResourceProfile.ZERO,
+                MemoryManager.MIN_PAGE_SIZE,
+                JOB_ID,
+                ALLOCATION_ID,
+                Executors.newDirectExecutorService());
+    }
 }

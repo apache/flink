@@ -23,7 +23,7 @@ import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.state.CheckpointMetadataOutputStream;
 import org.apache.flink.runtime.state.CheckpointStorageLocation;
 import org.apache.flink.runtime.state.CheckpointStorageLocationReference;
-import org.apache.flink.runtime.state.filesystem.AbstractFsCheckpointStorage;
+import org.apache.flink.runtime.state.filesystem.AbstractFsCheckpointStorageAccess;
 import org.apache.flink.runtime.state.filesystem.FsCheckpointMetadataOutputStream;
 
 import java.io.IOException;
@@ -31,54 +31,53 @@ import java.io.IOException;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
- * A checkpoint storage location for the {@link MemoryStateBackend} when it durably
- * persists the metadata in a file system.
+ * A checkpoint storage location for the {@link MemoryStateBackend} when it durably persists the
+ * metadata in a file system.
  */
-public class PersistentMetadataCheckpointStorageLocation
-		extends MemCheckpointStreamFactory
-		implements CheckpointStorageLocation {
+public class PersistentMetadataCheckpointStorageLocation extends MemCheckpointStreamFactory
+        implements CheckpointStorageLocation {
 
-	private final FileSystem fileSystem;
+    private final FileSystem fileSystem;
 
-	private final Path checkpointDirectory;
+    private final Path checkpointDirectory;
 
-	private final Path metadataFilePath;
+    private final Path metadataFilePath;
 
-	/**
-	 * Creates a checkpoint storage persists metadata to a file system and stores state
-	 * in line in state handles with the metadata.
-	 *
-	 * @param fileSystem The file system to which the metadata will be written.
-	 * @param checkpointDir The directory where the checkpoint metadata will be written.
-	 */
-	public PersistentMetadataCheckpointStorageLocation(
-			FileSystem fileSystem,
-			Path checkpointDir,
-			int maxStateSize) {
+    /**
+     * Creates a checkpoint storage persists metadata to a file system and stores state in line in
+     * state handles with the metadata.
+     *
+     * @param fileSystem The file system to which the metadata will be written.
+     * @param checkpointDir The directory where the checkpoint metadata will be written.
+     */
+    public PersistentMetadataCheckpointStorageLocation(
+            FileSystem fileSystem, Path checkpointDir, int maxStateSize) {
 
-		super(maxStateSize);
+        super(maxStateSize);
 
-		this.fileSystem = checkNotNull(fileSystem);
-		this.checkpointDirectory = checkNotNull(checkpointDir);
-		this.metadataFilePath = new Path(checkpointDir, AbstractFsCheckpointStorage.METADATA_FILE_NAME);
-	}
+        this.fileSystem = checkNotNull(fileSystem);
+        this.checkpointDirectory = checkNotNull(checkpointDir);
+        this.metadataFilePath =
+                new Path(checkpointDir, AbstractFsCheckpointStorageAccess.METADATA_FILE_NAME);
+    }
 
-	// ------------------------------------------------------------------------
+    // ------------------------------------------------------------------------
 
-	@Override
-	public CheckpointMetadataOutputStream createMetadataOutputStream() throws IOException {
-		return new FsCheckpointMetadataOutputStream(fileSystem, metadataFilePath, checkpointDirectory);
-	}
+    @Override
+    public CheckpointMetadataOutputStream createMetadataOutputStream() throws IOException {
+        return new FsCheckpointMetadataOutputStream(
+                fileSystem, metadataFilePath, checkpointDirectory);
+    }
 
-	@Override
-	public void disposeOnFailure() throws IOException {
-		// on a failure, no chunk in the checkpoint directory needs to be saved, so
-		// we can drop it as a whole
-		fileSystem.delete(checkpointDirectory, true);
-	}
+    @Override
+    public void disposeOnFailure() throws IOException {
+        // on a failure, no chunk in the checkpoint directory needs to be saved, so
+        // we can drop it as a whole
+        fileSystem.delete(checkpointDirectory, true);
+    }
 
-	@Override
-	public CheckpointStorageLocationReference getLocationReference() {
-		return CheckpointStorageLocationReference.getDefault();
-	}
+    @Override
+    public CheckpointStorageLocationReference getLocationReference() {
+        return CheckpointStorageLocationReference.getDefault();
+    }
 }

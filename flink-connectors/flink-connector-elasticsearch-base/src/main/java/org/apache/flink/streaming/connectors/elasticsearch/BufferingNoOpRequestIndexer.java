@@ -27,9 +27,8 @@ import org.elasticsearch.action.update.UpdateRequest;
 
 import javax.annotation.concurrent.NotThreadSafe;
 
-import java.util.ArrayList;
 import java.util.Collections;
-import java.util.List;
+import java.util.concurrent.ConcurrentLinkedQueue;
 
 /**
  * Implementation of a {@link RequestIndexer} that buffers {@link ActionRequest ActionRequests}
@@ -39,38 +38,38 @@ import java.util.List;
 @NotThreadSafe
 class BufferingNoOpRequestIndexer implements RequestIndexer {
 
-	private List<ActionRequest> bufferedRequests;
+    private ConcurrentLinkedQueue<ActionRequest> bufferedRequests;
 
-	BufferingNoOpRequestIndexer() {
-		this.bufferedRequests = new ArrayList<>(10);
-	}
+    BufferingNoOpRequestIndexer() {
+        this.bufferedRequests = new ConcurrentLinkedQueue<ActionRequest>();
+    }
 
-	@Override
-	public void add(DeleteRequest... deleteRequests) {
-		Collections.addAll(bufferedRequests, deleteRequests);
-	}
+    @Override
+    public void add(DeleteRequest... deleteRequests) {
+        Collections.addAll(bufferedRequests, deleteRequests);
+    }
 
-	@Override
-	public void add(IndexRequest... indexRequests) {
-		Collections.addAll(bufferedRequests, indexRequests);
-	}
+    @Override
+    public void add(IndexRequest... indexRequests) {
+        Collections.addAll(bufferedRequests, indexRequests);
+    }
 
-	@Override
-	public void add(UpdateRequest... updateRequests) {
-		Collections.addAll(bufferedRequests, updateRequests);
-	}
+    @Override
+    public void add(UpdateRequest... updateRequests) {
+        Collections.addAll(bufferedRequests, updateRequests);
+    }
 
-	void processBufferedRequests(RequestIndexer actualIndexer) {
-		for (ActionRequest request : bufferedRequests) {
-			if (request instanceof IndexRequest) {
-				actualIndexer.add((IndexRequest) request);
-			} else if (request instanceof DeleteRequest) {
-				actualIndexer.add((DeleteRequest) request);
-			} else if (request instanceof UpdateRequest) {
-				actualIndexer.add((UpdateRequest) request);
-			}
-		}
+    void processBufferedRequests(RequestIndexer actualIndexer) {
+        for (ActionRequest request : bufferedRequests) {
+            if (request instanceof IndexRequest) {
+                actualIndexer.add((IndexRequest) request);
+            } else if (request instanceof DeleteRequest) {
+                actualIndexer.add((DeleteRequest) request);
+            } else if (request instanceof UpdateRequest) {
+                actualIndexer.add((UpdateRequest) request);
+            }
+        }
 
-		bufferedRequests.clear();
-	}
+        bufferedRequests.clear();
+    }
 }

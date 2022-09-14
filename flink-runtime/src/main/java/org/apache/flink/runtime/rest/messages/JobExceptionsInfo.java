@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.rest.messages;
 
-import org.apache.flink.runtime.rest.handler.job.JobExceptionsHandler;
 import org.apache.flink.util.Preconditions;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
@@ -27,136 +26,180 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonPro
 
 import java.util.List;
 import java.util.Objects;
+import java.util.StringJoiner;
 
 /**
- * Response type of the {@link JobExceptionsHandler}.
+ * {@code JobExceptionInfo} holds the information for single failure which caused a (maybe partial)
+ * job restart.
  */
-public class JobExceptionsInfo implements ResponseBody {
+public class JobExceptionsInfo {
 
-	public static final String FIELD_NAME_ROOT_EXCEPTION = "root-exception";
-	public static final String FIELD_NAME_TIMESTAMP = "timestamp";
-	public static final String FIELD_NAME_ALL_EXCEPTIONS = "all-exceptions";
-	public static final String FIELD_NAME_TRUNCATED = "truncated";
+    public static final String FIELD_NAME_ROOT_EXCEPTION = "root-exception";
+    public static final String FIELD_NAME_TIMESTAMP = "timestamp";
+    public static final String FIELD_NAME_ALL_EXCEPTIONS = "all-exceptions";
+    public static final String FIELD_NAME_TRUNCATED = "truncated";
 
-	@JsonProperty(FIELD_NAME_ROOT_EXCEPTION)
-	private final String rootException;
+    /**
+     * @deprecated Use {@link JobExceptionsInfoWithHistory#getExceptionHistory()}'s entries instead.
+     */
+    @Deprecated
+    @JsonProperty(FIELD_NAME_ROOT_EXCEPTION)
+    private final String rootException;
 
-	@JsonProperty(FIELD_NAME_TIMESTAMP)
-	private final Long rootTimestamp;
+    /**
+     * @deprecated Use {@link JobExceptionsInfoWithHistory#getExceptionHistory()}'s entries instead.
+     */
+    @Deprecated
+    @JsonProperty(FIELD_NAME_TIMESTAMP)
+    private final Long rootTimestamp;
 
-	@JsonProperty(FIELD_NAME_ALL_EXCEPTIONS)
-	private final List<ExecutionExceptionInfo> allExceptions;
+    /**
+     * @deprecated Use {@link JobExceptionsInfoWithHistory#getExceptionHistory()}'s entries instead.
+     */
+    @Deprecated
+    @JsonProperty(FIELD_NAME_ALL_EXCEPTIONS)
+    private final List<ExecutionExceptionInfo> allExceptions;
 
-	@JsonProperty(FIELD_NAME_TRUNCATED)
-	private final boolean truncated;
+    /**
+     * @deprecated Use {@link JobExceptionsInfoWithHistory#getExceptionHistory()}'s entries instead.
+     */
+    @Deprecated
+    @JsonProperty(FIELD_NAME_TRUNCATED)
+    private final boolean truncated;
 
-	@JsonCreator
-	public JobExceptionsInfo(
-		@JsonProperty(FIELD_NAME_ROOT_EXCEPTION) String rootException,
-		@JsonProperty(FIELD_NAME_TIMESTAMP) Long rootTimestamp,
-		@JsonProperty(FIELD_NAME_ALL_EXCEPTIONS) List<ExecutionExceptionInfo> allExceptions,
-		@JsonProperty(FIELD_NAME_TRUNCATED) boolean truncated) {
-		this.rootException = rootException;
-		this.rootTimestamp = rootTimestamp;
-		this.allExceptions = Preconditions.checkNotNull(allExceptions);
-		this.truncated = truncated;
-	}
+    @JsonCreator
+    public JobExceptionsInfo(
+            @JsonProperty(FIELD_NAME_ROOT_EXCEPTION) String rootException,
+            @JsonProperty(FIELD_NAME_TIMESTAMP) Long rootTimestamp,
+            @JsonProperty(FIELD_NAME_ALL_EXCEPTIONS) List<ExecutionExceptionInfo> allExceptions,
+            @JsonProperty(FIELD_NAME_TRUNCATED) boolean truncated) {
+        this.rootException = rootException;
+        this.rootTimestamp = rootTimestamp;
+        this.allExceptions = Preconditions.checkNotNull(allExceptions);
+        this.truncated = truncated;
+    }
 
-	@Override
-	public boolean equals(Object o) {
-		if (this == o) {
-			return true;
-		}
-		if (o == null || getClass() != o.getClass()) {
-			return false;
-		}
-		JobExceptionsInfo that = (JobExceptionsInfo) o;
-		return truncated == that.truncated &&
-			Objects.equals(rootException, that.rootException) &&
-			Objects.equals(rootTimestamp, that.rootTimestamp) &&
-			Objects.equals(allExceptions, that.allExceptions);
-	}
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
+        JobExceptionsInfo that = (JobExceptionsInfo) o;
+        return truncated == that.truncated
+                && Objects.equals(rootException, that.rootException)
+                && Objects.equals(rootTimestamp, that.rootTimestamp)
+                && Objects.equals(allExceptions, that.allExceptions);
+    }
 
-	@Override
-	public int hashCode() {
-		return Objects.hash(rootException, rootTimestamp, allExceptions, truncated);
-	}
+    @Override
+    public int hashCode() {
+        return Objects.hash(rootException, rootTimestamp, allExceptions, truncated);
+    }
 
-	@JsonIgnore
-	public String getRootException() {
-		return rootException;
-	}
+    @Override
+    public String toString() {
+        return new StringJoiner(", ", JobExceptionsInfo.class.getSimpleName() + "[", "]")
+                .add("rootException='" + rootException + "'")
+                .add("rootTimestamp=" + rootTimestamp)
+                .add("allExceptions=" + allExceptions)
+                .add("truncated=" + truncated)
+                .toString();
+    }
 
-	@JsonIgnore
-	public Long getRootTimestamp() {
-		return rootTimestamp;
-	}
+    @JsonIgnore
+    public String getRootException() {
+        return rootException;
+    }
 
-	@JsonIgnore
-	public List<ExecutionExceptionInfo> getAllExceptions() {
-		return allExceptions;
-	}
+    @JsonIgnore
+    public Long getRootTimestamp() {
+        return rootTimestamp;
+    }
 
-	@JsonIgnore
-	public boolean isTruncated() {
-		return truncated;
-	}
+    @JsonIgnore
+    public List<ExecutionExceptionInfo> getAllExceptions() {
+        return allExceptions;
+    }
 
-	//---------------------------------------------------------------------------------
-	// Static helper classes
-	//---------------------------------------------------------------------------------
+    @JsonIgnore
+    public boolean isTruncated() {
+        return truncated;
+    }
 
-	/**
-	 * Nested class to encapsulate the task execution exception.
-	 */
-	public static final class ExecutionExceptionInfo {
-		public static final String FIELD_NAME_EXCEPTION = "exception";
-		public static final String FIELD_NAME_TASK = "task";
-		public static final String FIELD_NAME_LOCATION = "location";
-		public static final String FIELD_NAME_TIMESTAMP = "timestamp";
+    // ---------------------------------------------------------------------------------
+    // Static helper classes
+    // ---------------------------------------------------------------------------------
 
-		@JsonProperty(FIELD_NAME_EXCEPTION)
-		private final String exception;
+    /**
+     * Nested class to encapsulate the task execution exception.
+     *
+     * @deprecated {@code ExecutionExceptionInfo} will be replaced by {@link
+     *     JobExceptionsInfoWithHistory.ExceptionInfo} as part of the effort of deprecating {@link
+     *     JobExceptionsInfo#allExceptions}.
+     */
+    @Deprecated
+    public static final class ExecutionExceptionInfo {
+        public static final String FIELD_NAME_EXCEPTION = "exception";
+        public static final String FIELD_NAME_TASK = "task";
+        public static final String FIELD_NAME_LOCATION = "location";
+        public static final String FIELD_NAME_TIMESTAMP = "timestamp";
 
-		@JsonProperty(FIELD_NAME_TASK)
-		private final String task;
+        @JsonProperty(FIELD_NAME_EXCEPTION)
+        private final String exception;
 
-		@JsonProperty(FIELD_NAME_LOCATION)
-		private final String location;
+        @JsonProperty(FIELD_NAME_TASK)
+        private final String task;
 
-		@JsonProperty(FIELD_NAME_TIMESTAMP)
-		private final long timestamp;
+        @JsonProperty(FIELD_NAME_LOCATION)
+        private final String location;
 
-		@JsonCreator
-		public ExecutionExceptionInfo(
-			@JsonProperty(FIELD_NAME_EXCEPTION) String exception,
-			@JsonProperty(FIELD_NAME_TASK) String task,
-			@JsonProperty(FIELD_NAME_LOCATION) String location,
-			@JsonProperty(FIELD_NAME_TIMESTAMP) long timestamp) {
-			this.exception = Preconditions.checkNotNull(exception);
-			this.task = Preconditions.checkNotNull(task);
-			this.location = Preconditions.checkNotNull(location);
-			this.timestamp = timestamp;
-		}
+        @JsonProperty(FIELD_NAME_TIMESTAMP)
+        private final long timestamp;
 
-		@Override
-		public boolean equals(Object o) {
-			if (this == o) {
-				return true;
-			}
-			if (o == null || getClass() != o.getClass()) {
-				return false;
-			}
-			JobExceptionsInfo.ExecutionExceptionInfo that = (JobExceptionsInfo.ExecutionExceptionInfo) o;
-			return timestamp == that.timestamp &&
-				Objects.equals(exception, that.exception) &&
-				Objects.equals(task, that.task) &&
-				Objects.equals(location, that.location);
-		}
+        @JsonCreator
+        public ExecutionExceptionInfo(
+                @JsonProperty(FIELD_NAME_EXCEPTION) String exception,
+                @JsonProperty(FIELD_NAME_TASK) String task,
+                @JsonProperty(FIELD_NAME_LOCATION) String location,
+                @JsonProperty(FIELD_NAME_TIMESTAMP) long timestamp) {
+            this.exception = Preconditions.checkNotNull(exception);
+            this.task = Preconditions.checkNotNull(task);
+            this.location = Preconditions.checkNotNull(location);
+            this.timestamp = timestamp;
+        }
 
-		@Override
-		public int hashCode() {
-			return Objects.hash(timestamp, exception, task, location);
-		}
-	}
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) {
+                return true;
+            }
+            if (o == null || getClass() != o.getClass()) {
+                return false;
+            }
+            JobExceptionsInfo.ExecutionExceptionInfo that =
+                    (JobExceptionsInfo.ExecutionExceptionInfo) o;
+            return timestamp == that.timestamp
+                    && Objects.equals(exception, that.exception)
+                    && Objects.equals(task, that.task)
+                    && Objects.equals(location, that.location);
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(timestamp, exception, task, location);
+        }
+
+        @Override
+        public String toString() {
+            return new StringJoiner(", ", ExecutionExceptionInfo.class.getSimpleName() + "[", "]")
+                    .add("exception='" + exception + "'")
+                    .add("task='" + task + "'")
+                    .add("location='" + location + "'")
+                    .add("timestamp=" + timestamp)
+                    .toString();
+        }
+    }
 }

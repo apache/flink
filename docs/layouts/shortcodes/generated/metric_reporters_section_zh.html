@@ -1,0 +1,60 @@
+<table class="configuration table table-bordered">
+    <thead>
+        <tr>
+            <th class="text-left" style="width: 20%">键</th>
+            <th class="text-left" style="width: 15%">默认值</th>
+            <th class="text-left" style="width: 10%">数据类型</th>
+            <th class="text-left" style="width: 55%">描述</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td><h5>metrics.reporter.&lt;name&gt;.factory.class</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>String</td>
+            <td>命名为 &lt;name&gt; 发送器的工厂类名称。</td>
+        </tr>
+        <tr>
+            <td><h5>metrics.reporter.&lt;name&gt;.interval</h5></td>
+            <td style="word-wrap: break-word;">10 s</td>
+            <td>Duration</td>
+            <td>命名为 &lt;name&gt; 发送器的发送间隔，只支持 push 类型发送器。</td>
+        </tr>
+        <tr>
+            <td><h5>metrics.reporter.&lt;name&gt;.scope.delimiter</h5></td>
+            <td style="word-wrap: break-word;">"."</td>
+            <td>String</td>
+            <td>命名为 &lt;name&gt; 发送器的指标标识符中的间隔符。</td>
+        </tr>
+        <tr>
+            <td><h5>metrics.reporter.&lt;name&gt;.scope.variables.additional</h5></td>
+            <td style="word-wrap: break-word;"></td>
+            <td>Map</td>
+            <td>命名为 &lt;name&gt; 发送器的 map 形式的变量列表，只支持 tags 类型发送器。</td>
+        </tr>
+        <tr>
+            <td><h5>metrics.reporter.&lt;name&gt;.scope.variables.excludes</h5></td>
+            <td style="word-wrap: break-word;">"."</td>
+            <td>String</td>
+            <td>命名为 &lt;name&gt; 发送器应该忽略的一组变量，只支持 tags 类型发送器。</td>
+        </tr>
+        <tr>
+            <td><h5>metrics.reporter.&lt;name&gt;.filter.includes</h5></td>
+            <td style="word-wrap: break-word;">"*:*:*"</td>
+            <td>List&lt;String&gt;</td>
+            <td>命名为 &lt;name&gt; 发送器应包含的运行指标，其过滤条件以列表形式表示，该列表中每一个过滤条件都应遵循如下规范：<br /><code class="highlighter-rouge">&lt;scope&gt;[:&lt;name&gt;[,&lt;name&gt;][:&lt;type&gt;[,&lt;type&gt;]]]</code><br 当指标与过滤条件中的范围、名称（至少一个）、类型（至少一个）都匹配时，该指标才算符合过滤条件。<br /><ul><li>范围： 指过滤条件中指标所属的逻辑范围。<br />以如下模式进行匹配：<code class="highlighter-rouge">*</code> 代表所有字符都匹配。<code class="highlighter-rouge">.</code> 划分范围的层级。<br /><br />例如：<br /> "<code class="highlighter-rouge">jobmanager.job</code>" 匹配出 JobManager 上运行的所有 job 相关的指标，<br /> "<code class="highlighter-rouge">*.job</code>" 匹配出所有 job 相关的指标，<br /> "<code class="highlighter-rouge">*.job.*</code>" 匹配 job 级别下的指标（例如运行的作业、算子等）。<br /><br /></li><li>名称： 指过滤条件中指标的名称。<br />按照以逗号分割的模式列表作进行匹配，其中 <code class="highlighter-rouge">*</code> 匹配所有字符。<br /><br />例如， "<code class="highlighter-rouge">*Records*,*Bytes*</code>" 会匹配所有指标名字中带有 <code class="highlighter-rouge">"Records" 或者 "Bytes"</code> 的指标。<br /><br /></li><li>类型：指过滤条件中指标所属的指标类型。按照以逗号分割的指标类型列表作进行匹配：<code class="highlighter-rouge">[counter, meter, gauge, histogram]</code></li></ul>例如：<ul><li>"<code class="highlighter-rouge">*:numRecords*</code>" 会匹配带有 <code class="highlighter-rouge">numRecordsIn</code> 的指标。</li><li>"<code class="highlighter-rouge">*.job.task.operator:numRecords*</code>" 会在运行作业的算子级别匹配带有 <code class="highlighter-rouge">numRecordsIn</code> 的指标。</li><li>"<code class="highlighter-rouge">*.job.task.operator:numRecords*:meter</code>" 会在运行作业的算子级别匹配带有 <code class="highlighter-rouge">numRecordsInPerSecond</code> 的 meter 类型指标。</li><li>"<code class="highlighter-rouge">*:numRecords*,numBytes*:counter,meter</code>" 会匹配所有指标名字中带有 <code class="highlighter-rouge">numRecordsInPerSecond</code> 的 counter 或 meter 类型的指标。</li></ul></td>
+        </tr>
+        <tr>
+            <td><h5>metrics.reporter.&lt;name&gt;.filter.excludes</h5></td>
+            <td style="word-wrap: break-word;"></td>
+            <td>List&lt;String&gt;</td>
+            <td>命名为 &lt;name&gt; 发送器应排除掉的运行指标，形式与 <code class="highlighter-rouge">filter.includes</code> 类似。<br /></td>
+        </tr>
+        <tr>
+            <td><h5>metrics.reporter.&lt;name&gt;.&lt;parameter&gt;</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>String</td>
+            <td>配置命名为 &lt;name&gt; 发送器的 &lt;parameter&gt; 项</td>
+        </tr>
+    </tbody>
+</table>

@@ -23,8 +23,7 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-parent</artifactId>
-		<version>1.11-SNAPSHOT</version>
-		<relativePath>..</relativePath>
+		<version>1.17-SNAPSHOT</version>
 	</parent>
 
 	<!--
@@ -34,8 +33,12 @@ under the License.
 	-->
 	
 	<artifactId>flink-yarn-tests</artifactId>
-	<name>flink-yarn-tests</name>
+	<name>Flink : Yarn Tests</name>
 	<packaging>jar</packaging>
+
+	<properties>
+		<japicmp.skip>true</japicmp.skip>
+	</properties>
 
 	<dependencies>
 		
@@ -48,7 +51,7 @@ under the License.
 		
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-test-utils_${scala.binary.version}</artifactId>
+			<artifactId>flink-test-utils</artifactId>
 			<version>${project.version}</version>
 			<scope>test</scope>
 		</dependency>
@@ -63,57 +66,25 @@ under the License.
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-runtime_${scala.binary.version}</artifactId>
+			<artifactId>flink-runtime</artifactId>
 			<version>${project.version}</version>
 			<scope>test</scope>
 			<type>test-jar</type>
-		</dependency>
-
-		<dependency>
-			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-clients_${scala.binary.version}</artifactId>
-			<version>${project.version}</version>
-			<type>test-jar</type>
-			<scope>test</scope>
 		</dependency>
 
 		<!-- Needed for the streaming wordcount example -->
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-streaming-java_${scala.binary.version}</artifactId>
+			<artifactId>flink-streaming-java</artifactId>
 			<version>${project.version}</version>
 			<scope>test</scope>
 		</dependency>
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-yarn_${scala.binary.version}</artifactId>
+			<artifactId>flink-yarn</artifactId>
 			<version>${project.version}</version>
 			<scope>test</scope>
-			<exclusions>
-				<exclusion>
-					<!-- prevent flink-shaded-hadoop from being on the test classpath
-					 	to avoid conflicts with other dependencies -->
-					<groupId>org.apache.flink</groupId>
-					<artifactId>flink-shaded-hadoop-2</artifactId>
-				</exclusion>
-			</exclusions>
-		</dependency>
-
-		<dependency>
-			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-yarn_${scala.binary.version}</artifactId>
-			<version>${project.version}</version>
-			<type>test-jar</type>
-			<scope>test</scope>
-			<exclusions>
-				<exclusion>
-					<!-- prevent flink-shaded-hadoop from being on the test classpath
-					 	to avoid conflicts with other dependencies -->
-					<groupId>org.apache.flink</groupId>
-					<artifactId>flink-shaded-hadoop-2</artifactId>
-				</exclusion>
-			</exclusions>
 		</dependency>
 
 		<dependency>
@@ -135,9 +106,23 @@ under the License.
 		</dependency>
 
 		<dependency>
+			<groupId>org.apache.curator</groupId>
+			<artifactId>curator-test</artifactId>
+			<version>${curator.version}</version>
+			<scope>test</scope>
+			<exclusions>
+				<exclusion>
+					<!-- Use whatever guava version Hadoop pulls in. -->
+					<groupId>com.google.guava</groupId>
+					<artifactId>guava</artifactId>
+				</exclusion>
+			</exclusions>
+		</dependency>
+
+		<dependency>
 			<groupId>org.apache.hadoop</groupId>
 			<artifactId>hadoop-common</artifactId>
-			<version>${hadoop.version}</version>
+			<version>${flink.hadoop.version}</version>
 			<scope>test</scope>
 			<exclusions>
 				<exclusion>
@@ -159,7 +144,7 @@ under the License.
 		<dependency>
 			<groupId>org.apache.hadoop</groupId>
 			<artifactId>hadoop-yarn-client</artifactId>
-			<version>${hadoop.version}</version>
+			<version>${flink.hadoop.version}</version>
 			<scope>test</scope>
 			<exclusions>
 				<exclusion>
@@ -177,7 +162,7 @@ under the License.
 		<dependency>
 			<groupId>org.apache.hadoop</groupId>
 			<artifactId>hadoop-yarn-api</artifactId>
-			<version>${hadoop.version}</version>
+			<version>${flink.hadoop.version}</version>
 			<scope>test</scope>
 			<exclusions>
 				<exclusion>
@@ -191,7 +176,7 @@ under the License.
 		<dependency>
 			<groupId>org.apache.hadoop</groupId>
 			<artifactId>hadoop-minicluster</artifactId>
-			<version>${hadoop.version}</version>
+			<version>${flink.hadoop.version}</version>
 			<scope>test</scope>
 			<exclusions>
 				<exclusion>
@@ -360,15 +345,6 @@ under the License.
 				</executions>
 			</plugin>
 
-			<!-- Scala Code Style, most of the configuration done via plugin management -->
-			<plugin>
-				<groupId>org.scalastyle</groupId>
-				<artifactId>scalastyle-maven-plugin</artifactId>
-				<configuration>
-					<configLocation>${project.basedir}/../tools/maven/scalastyle-config.xml</configLocation>
-				</configuration>
-			</plugin>
-
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-jar-plugin</artifactId>
@@ -391,51 +367,57 @@ under the License.
 				<executions>
 					<execution>
 						<id>copy</id>
-						<phase>process-test-resources</phase>
+						<phase>pre-integration-test</phase>
 						<goals>
 							<goal>copy</goal>
 						</goals>
+						<configuration>
+							<artifactItems>
+								<artifactItem>
+									<groupId>org.apache.flink</groupId>
+									<artifactId>flink-examples-batch_${scala.binary.version}</artifactId>
+									<type>jar</type>
+									<classifier>WordCount</classifier>
+									<overWrite>true</overWrite>
+									<destFileName>BatchWordCount.jar</destFileName>
+								</artifactItem>
+								<artifactItem>
+									<groupId>org.apache.flink</groupId>
+									<artifactId>flink-examples-streaming_${scala.binary.version}</artifactId>
+									<type>jar</type>
+									<classifier>WordCount</classifier>
+									<overWrite>true</overWrite>
+									<destFileName>StreamingWordCount.jar</destFileName>
+								</artifactItem>
+								<artifactItem>
+									<groupId>org.apache.flink</groupId>
+									<artifactId>flink-examples-streaming_${scala.binary.version}</artifactId>
+									<type>jar</type>
+									<classifier>WindowJoin</classifier>
+									<overWrite>true</overWrite>
+									<destFileName>WindowJoin.jar</destFileName>
+								</artifactItem>
+							</artifactItems>
+							<outputDirectory>${project.build.directory}/programs</outputDirectory>
+							<overWriteReleases>false</overWriteReleases>
+							<overWriteSnapshots>true</overWriteSnapshots>
+						</configuration>
+					</execution>
+					<!-- Write classpath of flink-yarn-tests to a file, so that the yarn tests can use it as their classpath
+						for the YARN "containers".
+					-->
+					<execution>
+						<id>store-classpath-in-target-for-tests</id>
+						<phase>process-test-resources</phase>
+						<goals>
+							<goal>build-classpath</goal>
+						</goals>
+						<configuration>
+							<outputFile>${project.build.directory}/yarn.classpath</outputFile>
+							<excludeGroupIds>org.apache.flink</excludeGroupIds>
+						</configuration>
 					</execution>
 				</executions>
-				<configuration>
-					<artifactItems>
-						<artifactItem>
-							<groupId>org.apache.flink</groupId>
-							<artifactId>flink-shaded-hadoop-2-uber</artifactId>
-							<version>${hadoop.version}-${flink.shaded.version}</version>
-							<type>jar</type>
-							<overWrite>true</overWrite>
-							<outputDirectory>${project.build.directory}/shaded-hadoop</outputDirectory>
-						</artifactItem>
-						<artifactItem>
-							<groupId>org.apache.flink</groupId>
-							<artifactId>flink-examples-batch_${scala.binary.version}</artifactId>
-							<type>jar</type>
-							<classifier>WordCount</classifier>
-							<overWrite>true</overWrite>
-							<destFileName>BatchWordCount.jar</destFileName>
-						</artifactItem>
-						<artifactItem>
-							<groupId>org.apache.flink</groupId>
-							<artifactId>flink-examples-streaming_${scala.binary.version}</artifactId>
-							<type>jar</type>
-							<classifier>WordCount</classifier>
-							<overWrite>true</overWrite>
-							<destFileName>StreamingWordCount.jar</destFileName>
-						</artifactItem>
-						<artifactItem>
-							<groupId>org.apache.flink</groupId>
-							<artifactId>flink-examples-streaming_${scala.binary.version}</artifactId>
-							<type>jar</type>
-							<classifier>WindowJoin</classifier>
-							<overWrite>true</overWrite>
-							<destFileName>WindowJoin.jar</destFileName>
-						</artifactItem>
-					</artifactItems>
-					<outputDirectory>${project.build.directory}/programs</outputDirectory>
-					<overWriteReleases>false</overWriteReleases>
-					<overWriteSnapshots>true</overWriteSnapshots>
-				</configuration>
 			</plugin>
 		</plugins>
 	</build>

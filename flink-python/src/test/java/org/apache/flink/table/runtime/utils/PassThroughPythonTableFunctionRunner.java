@@ -18,82 +18,84 @@
 
 package org.apache.flink.table.runtime.utils;
 
-import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.core.memory.ByteArrayOutputStreamWithPos;
-import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
-import org.apache.flink.python.PythonFunctionRunner;
-import org.apache.flink.table.runtime.runners.python.table.PythonTableFunctionRunner;
-import org.apache.flink.util.Preconditions;
+import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.fnexecution.v1.FlinkFnApi;
+import org.apache.flink.python.env.process.ProcessPythonEnvironmentManager;
+import org.apache.flink.python.metric.process.FlinkMetricContainer;
+import org.apache.flink.table.runtime.runners.python.beam.BeamTablePythonFunctionRunner;
+import org.apache.flink.table.types.logical.RowType;
 
-import org.apache.beam.sdk.fn.data.FnDataReceiver;
+import org.apache.beam.runners.fnexecution.control.JobBundleFactory;
+import org.apache.beam.vendor.grpc.v1p43p2.com.google.protobuf.Struct;
 
-import java.util.ArrayList;
+import java.util.LinkedList;
 import java.util.List;
+import java.util.stream.Collectors;
+
+import static org.apache.flink.python.Constants.OUTPUT_COLLECTION_ID;
+import static org.apache.flink.python.util.ProtoUtils.createFlattenRowTypeCoderInfoDescriptorProto;
 
 /**
- * A {@link PythonTableFunctionRunner} that just emit each input element.
+ * A {@link BeamTablePythonFunctionRunner} that emit each input element in inner join and emit null
+ * in left join when certain test conditions are met.
  */
-public abstract class PassThroughPythonTableFunctionRunner<IN> implements PythonFunctionRunner<IN> {
-	private boolean bundleStarted;
-	private final List<IN> bufferedElements;
-	private final FnDataReceiver<byte[]> resultReceiver;
+public class PassThroughPythonTableFunctionRunner extends BeamTablePythonFunctionRunner {
 
-	/**
-	 * Reusable OutputStream used to holding the serialized input elements.
-	 */
-	private transient ByteArrayOutputStreamWithPos baos;
+    private int num = 0;
 
-	/**
-	 * OutputStream Wrapper.
-	 */
-	private transient DataOutputViewStreamWrapper baosWrapper;
+    private final List<byte[]> buffer;
 
-	public PassThroughPythonTableFunctionRunner(FnDataReceiver<byte[]> resultReceiver) {
-		this.resultReceiver = Preconditions.checkNotNull(resultReceiver);
-		bundleStarted = false;
-		bufferedElements = new ArrayList<>();
-	}
+    public PassThroughPythonTableFunctionRunner(
+            String taskName,
+            ProcessPythonEnvironmentManager environmentManager,
+            RowType inputType,
+            RowType outputType,
+            String functionUrn,
+            FlinkFnApi.UserDefinedFunctions userDefinedFunctions,
+            FlinkMetricContainer flinkMetricContainer) {
+        super(
+                taskName,
+                environmentManager,
+                functionUrn,
+                userDefinedFunctions,
+                flinkMetricContainer,
+                null,
+                null,
+                null,
+                null,
+                0.0,
+                createFlattenRowTypeCoderInfoDescriptorProto(
+                        inputType, FlinkFnApi.CoderInfoDescriptor.Mode.MULTIPLE, true),
+                createFlattenRowTypeCoderInfoDescriptorProto(
+                        outputType, FlinkFnApi.CoderInfoDescriptor.Mode.MULTIPLE, true));
+        this.buffer = new LinkedList<>();
+    }
 
-	@Override
-	public void open() {
-		baos = new ByteArrayOutputStreamWithPos();
-		baosWrapper = new DataOutputViewStreamWrapper(baos);
-	}
+    @Override
+    protected void startBundle() {
+        super.startBundle();
+        this.mainInputReceiver =
+                input -> {
+                    this.num++;
+                    if (num != 6 && num != 8) {
+                        this.buffer.add(input.getValue());
+                    }
+                    this.buffer.add(new byte[] {0});
+                };
+    }
 
-	@Override
-	public void close() {}
+    @Override
+    public void flush() throws Exception {
+        super.flush();
+        resultBuffer.addAll(
+                buffer.stream()
+                        .map(b -> Tuple2.of(OUTPUT_COLLECTION_ID, b))
+                        .collect(Collectors.toList()));
+        buffer.clear();
+    }
 
-	@Override
-	public void startBundle() {
-		Preconditions.checkState(!bundleStarted);
-		bundleStarted = true;
-	}
-
-	@Override
-	public void finishBundle() throws Exception {
-		Preconditions.checkState(bundleStarted);
-		bundleStarted = false;
-		int num = 0;
-
-		for (IN element : bufferedElements) {
-			num++;
-			baos.reset();
-			getInputTypeSerializer().serialize(element, baosWrapper);
-			// test for left join
-			if (num != 6 && num != 8) {
-				resultReceiver.accept(baos.toByteArray());
-			}
-			resultReceiver.accept(new byte[]{0});
-		}
-		bufferedElements.clear();
-	}
-
-	@Override
-	public void processElement(IN element) {
-		bufferedElements.add(copy(element));
-	}
-
-	public abstract IN copy(IN element);
-
-	public abstract TypeSerializer<IN> getInputTypeSerializer();
+    @Override
+    public JobBundleFactory createJobBundleFactory(Struct pipelineOptions) {
+        return PythonTestUtils.createMockJobBundleFactory();
+    }
 }

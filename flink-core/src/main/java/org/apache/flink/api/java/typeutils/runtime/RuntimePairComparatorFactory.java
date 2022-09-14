@@ -26,21 +26,19 @@ import org.apache.flink.api.common.typeutils.TypePairComparatorFactory;
 
 @Internal
 public final class RuntimePairComparatorFactory<T1, T2>
-		implements TypePairComparatorFactory<T1, T2>, java.io.Serializable {
+        implements TypePairComparatorFactory<T1, T2>, java.io.Serializable {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	@Override
-	public TypePairComparator<T1, T2> createComparator12(
-			TypeComparator<T1> comparator1,
-			TypeComparator<T2> comparator2) {
-		return new GenericPairComparator<T1, T2>(comparator1, comparator2);
-	}
+    @Override
+    public TypePairComparator<T1, T2> createComparator12(
+            TypeComparator<T1> comparator1, TypeComparator<T2> comparator2) {
+        return new GenericPairComparator<T1, T2>(comparator1, comparator2);
+    }
 
-	@Override
-	public TypePairComparator<T2, T1> createComparator21(
-			TypeComparator<T1> comparator1,
-			TypeComparator<T2> comparator2) {
-		return new GenericPairComparator<T2, T1>(comparator2, comparator1);
-	}
+    @Override
+    public TypePairComparator<T2, T1> createComparator21(
+            TypeComparator<T1> comparator1, TypeComparator<T2> comparator2) {
+        return new GenericPairComparator<T2, T1>(comparator2, comparator1);
+    }
 }

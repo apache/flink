@@ -27,25 +27,24 @@ import java.io.InputStream;
 import java.util.Collection;
 import java.util.Collections;
 
-/**
- * Factory for Bzip2 decompressors.
- */
+/** Factory for Bzip2 decompressors. */
 @Internal
-public class Bzip2InputStreamFactory implements InflaterInputStreamFactory<BZip2CompressorInputStream> {
+public class Bzip2InputStreamFactory
+        implements InflaterInputStreamFactory<BZip2CompressorInputStream> {
 
-	private static final Bzip2InputStreamFactory INSTANCE = new Bzip2InputStreamFactory();
+    private static final Bzip2InputStreamFactory INSTANCE = new Bzip2InputStreamFactory();
 
-	public static Bzip2InputStreamFactory getInstance() {
-		return INSTANCE;
-	}
+    public static Bzip2InputStreamFactory getInstance() {
+        return INSTANCE;
+    }
 
-	@Override
-	public BZip2CompressorInputStream create(InputStream in) throws IOException {
-		return new BZip2CompressorInputStream(in);
-	}
+    @Override
+    public BZip2CompressorInputStream create(InputStream in) throws IOException {
+        return new BZip2CompressorInputStream(in);
+    }
 
-	@Override
-	public Collection<String> getCommonFileExtensions() {
-		return Collections.singleton("bz2");
-	}
+    @Override
+    public Collection<String> getCommonFileExtensions() {
+        return Collections.singleton("bz2");
+    }
 }

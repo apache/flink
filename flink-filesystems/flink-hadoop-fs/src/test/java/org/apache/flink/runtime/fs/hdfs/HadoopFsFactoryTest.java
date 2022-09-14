@@ -30,35 +30,32 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
-/**
- * Tests that validate the behavior of the Hadoop File System Factory.
- */
+/** Tests that validate the behavior of the Hadoop File System Factory. */
 public class HadoopFsFactoryTest extends TestLogger {
 
-	@Test
-	public void testCreateHadoopFsWithoutConfig() throws Exception {
-		final URI uri = URI.create("hdfs://localhost:12345/");
+    @Test
+    public void testCreateHadoopFsWithoutConfig() throws Exception {
+        final URI uri = URI.create("hdfs://localhost:12345/");
 
-		HadoopFsFactory factory = new HadoopFsFactory();
-		FileSystem fs = factory.create(uri);
+        HadoopFsFactory factory = new HadoopFsFactory();
+        FileSystem fs = factory.create(uri);
 
-		assertEquals(uri.getScheme(), fs.getUri().getScheme());
-		assertEquals(uri.getAuthority(), fs.getUri().getAuthority());
-		assertEquals(uri.getPort(), fs.getUri().getPort());
-	}
+        assertEquals(uri.getScheme(), fs.getUri().getScheme());
+        assertEquals(uri.getAuthority(), fs.getUri().getAuthority());
+        assertEquals(uri.getPort(), fs.getUri().getPort());
+    }
 
-	@Test
-	public void testCreateHadoopFsWithMissingAuthority() throws Exception {
-		final URI uri = URI.create("hdfs:///my/path");
+    @Test
+    public void testCreateHadoopFsWithMissingAuthority() throws Exception {
+        final URI uri = URI.create("hdfs:///my/path");
 
-		HadoopFsFactory factory = new HadoopFsFactory();
+        HadoopFsFactory factory = new HadoopFsFactory();
 
-		try {
-			factory.create(uri);
-			fail("should have failed with an exception");
-		}
-		catch (IOException e) {
-			assertTrue(e.getMessage().contains("authority"));
-		}
-	}
+        try {
+            factory.create(uri);
+            fail("should have failed with an exception");
+        } catch (IOException e) {
+            assertTrue(e.getMessage().contains("authority"));
+        }
+    }
 }

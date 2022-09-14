@@ -25,12 +25,15 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-metrics</artifactId>
-		<version>1.11-SNAPSHOT</version>
-		<relativePath>..</relativePath>
+		<version>1.17-SNAPSHOT</version>
 	</parent>
 
-	<artifactId>flink-metrics-prometheus_${scala.binary.version}</artifactId>
-	<name>flink-metrics-prometheus</name>
+	<artifactId>flink-metrics-prometheus</artifactId>
+	<name>Flink : Metrics : Prometheus</name>
+
+	<properties>
+		<prometheus.version>0.8.1</prometheus.version>
+	</properties>
 
 	<dependencies>
 		<dependency>
@@ -43,13 +46,6 @@ under the License.
 		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-core</artifactId>
-			<version>${project.version}</version>
-			<scope>provided</scope>
-		</dependency>
-
-		<dependency>
-			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-runtime_${scala.binary.version}</artifactId>
 			<version>${project.version}</version>
 			<scope>provided</scope>
 		</dependency>
@@ -91,6 +87,13 @@ under the License.
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-runtime</artifactId>
+			<version>${project.version}</version>
+			<scope>test</scope>
+		</dependency>
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-test-utils-junit</artifactId>
 		</dependency>
 
@@ -120,12 +123,6 @@ under the License.
 									<include>io.prometheus:*</include>
 								</includes>
 							</artifactSet>
-							<relocations combine.children="append">
-								<relocation>
-									<pattern>io.prometheus.client</pattern>
-									<shadedPattern>org.apache.flink.shaded.io.prometheus.client</shadedPattern>
-								</relocation>
-							</relocations>
 						</configuration>
 					</execution>
 				</executions>

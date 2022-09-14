@@ -18,8 +18,6 @@
 
 package org.apache.flink.api.common.operators;
 
-import java.util.List;
-
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.ExecutionConfig;
@@ -28,299 +26,296 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.util.Visitable;
 
+import java.util.List;
+
 /**
-* Abstract base class for all operators. An operator is a source, sink, or it applies an operation to
-* one or more inputs, producing a result.
+ * Abstract base class for all operators. An operator is a source, sink, or it applies an operation
+ * to one or more inputs, producing a result.
  *
  * @param <OUT> Output type of the records output by this operator
-*/
+ */
 @Internal
 public abstract class Operator<OUT> implements Visitable<Operator<?>> {
-	
-	protected final Configuration parameters;			// the parameters to parameterize the UDF
-	
-	protected CompilerHints compilerHints;				// hints to the compiler
-	
-	protected String name;								// the name of the contract instance. optional.
-		
-	private int parallelism = ExecutionConfig.PARALLELISM_DEFAULT;  // the number of parallel instances to use
 
-	private ResourceSpec minResources = ResourceSpec.DEFAULT;          // the minimum resource of the contract instance.
+    protected final Configuration parameters; // the parameters to parameterize the UDF
 
-	private ResourceSpec preferredResources = ResourceSpec.DEFAULT;    // the preferred resource of the contract instance.
+    protected CompilerHints compilerHints; // hints to the compiler
 
-	/**
-	 * The return type of the user function.
-	 */
-	protected final OperatorInformation<OUT> operatorInfo;
+    protected String name; // the name of the contract instance. optional.
 
-	// --------------------------------------------------------------------------------------------
+    private int parallelism =
+            ExecutionConfig.PARALLELISM_DEFAULT; // the number of parallel instances to use
 
-	/**
-	 * Creates a new contract with the given name. The parameters are empty by default and
-	 * the compiler hints are not set.
-	 * 
-	 * @param name The name that is used to describe the contract.
-	 */
-	protected Operator(OperatorInformation<OUT> operatorInfo, String name) {
-		this.name = (name == null) ? "(null)" : name;
-		this.parameters = new Configuration();
-		this.compilerHints = new CompilerHints();
-		this.operatorInfo = operatorInfo;
-	}
+    private ResourceSpec minResources =
+            ResourceSpec.DEFAULT; // the minimum resource of the contract instance.
 
-	/**
-	 * Gets the information about the operators input/output types.
-	 */
-	public OperatorInformation<OUT> getOperatorInfo() {
-		return operatorInfo;
-	}
+    private ResourceSpec preferredResources =
+            ResourceSpec.DEFAULT; // the preferred resource of the contract instance.
 
-	/**
-	 * Gets the name of the contract instance. The name is only used to describe the contract instance
-	 * in logging output and graphical representations.
-	 * 
-	 * @return The contract instance's name.
-	 */
-	public String getName() {
-		return this.name;
-	}
-	
-	/**
-	 * Sets the name of the contract instance. The name is only used to describe the contract instance
-	 * in logging output and graphical representations.
-	 * 
-	 * @param name The operator's name.
-	 */
-	public void setName(String name) {
-		this.name = name;
-	}	
+    /** The return type of the user function. */
+    protected final OperatorInformation<OUT> operatorInfo;
 
-	/**
-	 * Gets the compiler hints for this contract instance. In the compiler hints, different fields may
-	 * be set (for example the selectivity) that will be evaluated by the pact compiler when generating
-	 * plan alternatives.
-	 * 
-	 * @return The compiler hints object.
-	 */
-	public CompilerHints getCompilerHints() {
-		return this.compilerHints;
-	}
+    // --------------------------------------------------------------------------------------------
 
-	/**
-	 * Gets the stub parameters of this contract. The stub parameters are a map that maps string keys to
-	 * string or integer values. The map is accessible by the user code at runtime. Parameters that the
-	 * user code needs to access at runtime to configure its behavior are typically stored in that configuration
-	 * object.
-	 * 
-	 * @return The configuration containing the stub parameters.
-	 */
-	public Configuration getParameters() {
-		return this.parameters;
-	}
+    /**
+     * Creates a new contract with the given name. The parameters are empty by default and the
+     * compiler hints are not set.
+     *
+     * @param name The name that is used to describe the contract.
+     */
+    protected Operator(OperatorInformation<OUT> operatorInfo, String name) {
+        this.name = (name == null) ? "(null)" : name;
+        this.parameters = new Configuration();
+        this.compilerHints = new CompilerHints();
+        this.operatorInfo = operatorInfo;
+    }
 
-	/**
-	 * Sets a stub parameters in the configuration of this contract. The stub parameters are accessible by the user
-	 * code at runtime. Parameters that the user code needs to access at runtime to configure its behavior are
-	 * typically stored as stub parameters.
-	 * 
-	 * @see #getParameters()
-	 * 
-	 * @param key
-	 *        The parameter key.
-	 * @param value
-	 *        The parameter value.
-	 */
-	public void setParameter(String key, String value) {
-		this.parameters.setString(key, value);
-	}
+    /** Gets the information about the operators input/output types. */
+    public OperatorInformation<OUT> getOperatorInfo() {
+        return operatorInfo;
+    }
 
-	/**
-	 * Sets a stub parameters in the configuration of this contract. The stub parameters are accessible by the user
-	 * code at runtime. Parameters that the user code needs to access at runtime to configure its behavior are
-	 * typically stored as stub parameters.
-	 * 
-	 * @see #getParameters()
-	 * 
-	 * @param key
-	 *        The parameter key.
-	 * @param value
-	 *        The parameter value.
-	 */
-	public void setParameter(String key, int value) {
-		this.parameters.setInteger(key, value);
-	}
+    /**
+     * Gets the name of the contract instance. The name is only used to describe the contract
+     * instance in logging output and graphical representations.
+     *
+     * @return The contract instance's name.
+     */
+    public String getName() {
+        return this.name;
+    }
 
-	/**
-	 * Sets a stub parameters in the configuration of this contract. The stub parameters are accessible by the user
-	 * code at runtime. Parameters that the user code needs to access at runtime to configure its behavior are
-	 * typically stored as stub parameters.
-	 * 
-	 * @see #getParameters()
-	 * @param key
-	 *        The parameter key.
-	 * @param value
-	 *        The parameter value.
-	 */
-	public void setParameter(String key, boolean value) {
-		this.parameters.setBoolean(key, value);
-	}
+    /**
+     * Sets the name of the contract instance. The name is only used to describe the contract
+     * instance in logging output and graphical representations.
+     *
+     * @param name The operator's name.
+     */
+    public void setName(String name) {
+        this.name = name;
+    }
 
-	/**
-	 * Gets the parallelism for this contract instance. The parallelism denotes how many
-	 * parallel instances of the user function will be spawned during the execution. If this
-	 * value is {@link ExecutionConfig#PARALLELISM_DEFAULT}, then the system will decide the
-	 * number of parallel instances by itself.
-	 *
-	 * @return The parallelism.
-	 */
-	public int getParallelism() {
-		return this.parallelism;
-	}
+    /**
+     * Gets the compiler hints for this contract instance. In the compiler hints, different fields
+     * may be set (for example the selectivity) that will be evaluated by the pact compiler when
+     * generating plan alternatives.
+     *
+     * @return The compiler hints object.
+     */
+    public CompilerHints getCompilerHints() {
+        return this.compilerHints;
+    }
 
-	/**
-	 * Sets the parallelism for this contract instance. The parallelism denotes
-	 * how many parallel instances of the user function will be spawned during the execution.
-	 *
-	 * @param parallelism The number of parallel instances to spawn. Set this value to
-	 *        {@link ExecutionConfig#PARALLELISM_DEFAULT} to let the system decide on its own.
-	 */
-	public void setParallelism(int parallelism) {
-		this.parallelism = parallelism;
-	}
+    /**
+     * Gets the stub parameters of this contract. The stub parameters are a map that maps string
+     * keys to string or integer values. The map is accessible by the user code at runtime.
+     * Parameters that the user code needs to access at runtime to configure its behavior are
+     * typically stored in that configuration object.
+     *
+     * @return The configuration containing the stub parameters.
+     */
+    public Configuration getParameters() {
+        return this.parameters;
+    }
 
-	/**
-	 * Gets the minimum resources for this operator. The minimum resources denotes how many
-	 * resources will be needed at least minimum for the operator or user function during the execution.
-	 *
-	 * @return The minimum resources of this operator.
-	 */
-	@PublicEvolving
-	public ResourceSpec getMinResources() {
-		return this.minResources;
-	}
+    /**
+     * Sets a stub parameters in the configuration of this contract. The stub parameters are
+     * accessible by the user code at runtime. Parameters that the user code needs to access at
+     * runtime to configure its behavior are typically stored as stub parameters.
+     *
+     * @see #getParameters()
+     * @param key The parameter key.
+     * @param value The parameter value.
+     */
+    public void setParameter(String key, String value) {
+        this.parameters.setString(key, value);
+    }
 
-	/**
-	 * Gets the preferred resources for this contract instance. The preferred resources denote how many
-	 * resources will be needed in the maximum for the user function during the execution.
-	 *
-	 * @return The preferred resource of this operator.
-	 */
-	@PublicEvolving
-	public ResourceSpec getPreferredResources() {
-		return this.preferredResources;
-	}
+    /**
+     * Sets a stub parameters in the configuration of this contract. The stub parameters are
+     * accessible by the user code at runtime. Parameters that the user code needs to access at
+     * runtime to configure its behavior are typically stored as stub parameters.
+     *
+     * @see #getParameters()
+     * @param key The parameter key.
+     * @param value The parameter value.
+     */
+    public void setParameter(String key, int value) {
+        this.parameters.setInteger(key, value);
+    }
 
-	/**
-	 * Sets the minimum and preferred resources for this contract instance. The resource denotes
-	 * how many memories and cpu cores of the user function will be consumed during the execution.
-	 *
-	 * @param minResources The minimum resource of this operator.
-	 * @param preferredResources The preferred resource of this operator.
-	 */
-	@PublicEvolving
-	public void setResources(ResourceSpec minResources, ResourceSpec preferredResources) {
-		this.minResources = minResources;
-		this.preferredResources = preferredResources;
-	}
-	
-	
-	/**
-	 * Gets the user code wrapper. In the case of a pact, that object will be the stub with the user function,
-	 * in the case of an input or output format, it will be the format object.  
-	 * 
-	 * @return The class with the user code.
-	 */
-	public UserCodeWrapper<?> getUserCodeWrapper() {
-		return null;
-	}
-	
-	// --------------------------------------------------------------------------------------------
-	
-	/**
-	 * Takes a list of operators and creates a cascade of unions of this inputs, if needed.
-	 * If not needed (there was only one operator in the list), then that operator is returned.
-	 * 
-	 * @param operators The operators.
-	 * @return The single operator or a cascade of unions of the operators.
-	 */
-	@SuppressWarnings("unchecked")
-	public static <T> Operator<T> createUnionCascade(List<? extends Operator<T>> operators) {
-		return createUnionCascade((Operator<T>[]) operators.toArray(new Operator[operators.size()]));
-	}
-	
-	/**
-	 * Takes a list of operators and creates a cascade of unions of this inputs, if needed.
-	 * If not needed (there was only one operator in the list), then that operator is returned.
-	 * 
-	 * @param operators The operators.
-	 * @return The single operator or a cascade of unions of the operators.
-	 */
-	public static <T> Operator<T> createUnionCascade(Operator<T>... operators) {
-		return createUnionCascade(null, operators);
-	}
-	
-	/**
-	 * Takes a single Operator and a list of operators and creates a cascade of unions of this inputs, if needed.
-	 * If not needed there was only one operator as input, then this operator is returned.
-	 * 
-	 * @param input1 The first input operator.
-	 * @param input2 The other input operators.
-	 * 
-	 * @return The single operator or a cascade of unions of the operators.
-	 */
-	public static <T> Operator<T> createUnionCascade(Operator<T> input1, Operator<T>... input2) {
-		// return cases where we don't need a union
-		if (input2 == null || input2.length == 0) {
-			return input1;
-		} else if (input2.length == 1 && input1 == null) {
-			return input2[0];
-		}
+    /**
+     * Sets a stub parameters in the configuration of this contract. The stub parameters are
+     * accessible by the user code at runtime. Parameters that the user code needs to access at
+     * runtime to configure its behavior are typically stored as stub parameters.
+     *
+     * @see #getParameters()
+     * @param key The parameter key.
+     * @param value The parameter value.
+     */
+    public void setParameter(String key, boolean value) {
+        this.parameters.setBoolean(key, value);
+    }
 
-		TypeInformation<T> type = null;
-		if (input1 != null) {
-			type = input1.getOperatorInfo().getOutputType();
-		} else if (input2.length > 0 && input2[0] != null) {
-			type = input2[0].getOperatorInfo().getOutputType();
-		} else {
-			throw new IllegalArgumentException("Could not determine type information from inputs.");
-		}
+    /**
+     * Gets the parallelism for this contract instance. The parallelism denotes how many parallel
+     * instances of the user function will be spawned during the execution. If this value is {@link
+     * ExecutionConfig#PARALLELISM_DEFAULT}, then the system will decide the number of parallel
+     * instances by itself.
+     *
+     * @return The parallelism.
+     */
+    public int getParallelism() {
+        return this.parallelism;
+    }
 
-		// Otherwise construct union cascade
-		Union<T> lastUnion = new Union<T>(new BinaryOperatorInformation<T, T, T>(type, type, type), "<unknown>");
+    /**
+     * Sets the parallelism for this contract instance. The parallelism denotes how many parallel
+     * instances of the user function will be spawned during the execution.
+     *
+     * @param parallelism The number of parallel instances to spawn. Set this value to {@link
+     *     ExecutionConfig#PARALLELISM_DEFAULT} to let the system decide on its own.
+     */
+    public void setParallelism(int parallelism) {
+        this.parallelism = parallelism;
+    }
 
-		int i;
-		if (input2[0] == null) {
-			throw new IllegalArgumentException("The input may not contain null elements.");
-		}
-		lastUnion.setFirstInput(input2[0]);
+    /**
+     * Gets the minimum resources for this operator. The minimum resources denotes how many
+     * resources will be needed at least minimum for the operator or user function during the
+     * execution.
+     *
+     * @return The minimum resources of this operator.
+     */
+    @PublicEvolving
+    public ResourceSpec getMinResources() {
+        return this.minResources;
+    }
 
-		if (input1 != null) {
-			lastUnion.setSecondInput(input1);
-			i = 1;
-		} else {
-			if (input2[1] == null) {
-				throw new IllegalArgumentException("The input may not contain null elements.");
-			}
-			lastUnion.setSecondInput(input2[1]);
-			i = 2;
-		}
-		for (; i < input2.length; i++) {
-			Union<T> tmpUnion = new Union<T>(new BinaryOperatorInformation<T, T, T>(type, type, type), "<unknown>");
-			tmpUnion.setSecondInput(lastUnion);
-			if (input2[i] == null) {
-				throw new IllegalArgumentException("The input may not contain null elements.");
-			}
-			tmpUnion.setFirstInput(input2[i]);
-			lastUnion = tmpUnion;
-		}
-		return lastUnion;
-	}
+    /**
+     * Gets the preferred resources for this contract instance. The preferred resources denote how
+     * many resources will be needed in the maximum for the user function during the execution.
+     *
+     * @return The preferred resource of this operator.
+     */
+    @PublicEvolving
+    public ResourceSpec getPreferredResources() {
+        return this.preferredResources;
+    }
 
-	// --------------------------------------------------------------------------------------------
+    /**
+     * Sets the minimum and preferred resources for this contract instance. The resource denotes how
+     * many memories and cpu cores of the user function will be consumed during the execution.
+     *
+     * @param minResources The minimum resource of this operator.
+     * @param preferredResources The preferred resource of this operator.
+     */
+    @PublicEvolving
+    public void setResources(ResourceSpec minResources, ResourceSpec preferredResources) {
+        this.minResources = minResources;
+        this.preferredResources = preferredResources;
+    }
 
-	@Override
-	public String toString() {
-		return getClass().getSimpleName() + " - " + getName();
-	}
+    /**
+     * Gets the user code wrapper. In the case of a pact, that object will be the stub with the user
+     * function, in the case of an input or output format, it will be the format object.
+     *
+     * @return The class with the user code.
+     */
+    public UserCodeWrapper<?> getUserCodeWrapper() {
+        return null;
+    }
+
+    // --------------------------------------------------------------------------------------------
+
+    /**
+     * Takes a list of operators and creates a cascade of unions of this inputs, if needed. If not
+     * needed (there was only one operator in the list), then that operator is returned.
+     *
+     * @param operators The operators.
+     * @return The single operator or a cascade of unions of the operators.
+     */
+    @SuppressWarnings("unchecked")
+    public static <T> Operator<T> createUnionCascade(List<? extends Operator<T>> operators) {
+        return createUnionCascade(
+                (Operator<T>[]) operators.toArray(new Operator[operators.size()]));
+    }
+
+    /**
+     * Takes a list of operators and creates a cascade of unions of this inputs, if needed. If not
+     * needed (there was only one operator in the list), then that operator is returned.
+     *
+     * @param operators The operators.
+     * @return The single operator or a cascade of unions of the operators.
+     */
+    public static <T> Operator<T> createUnionCascade(Operator<T>... operators) {
+        return createUnionCascade(null, operators);
+    }
+
+    /**
+     * Takes a single Operator and a list of operators and creates a cascade of unions of this
+     * inputs, if needed. If not needed there was only one operator as input, then this operator is
+     * returned.
+     *
+     * @param input1 The first input operator.
+     * @param input2 The other input operators.
+     * @return The single operator or a cascade of unions of the operators.
+     */
+    public static <T> Operator<T> createUnionCascade(Operator<T> input1, Operator<T>... input2) {
+        // return cases where we don't need a union
+        if (input2 == null || input2.length == 0) {
+            return input1;
+        } else if (input2.length == 1 && input1 == null) {
+            return input2[0];
+        }
+
+        TypeInformation<T> type = null;
+        if (input1 != null) {
+            type = input1.getOperatorInfo().getOutputType();
+        } else if (input2.length > 0 && input2[0] != null) {
+            type = input2[0].getOperatorInfo().getOutputType();
+        } else {
+            throw new IllegalArgumentException("Could not determine type information from inputs.");
+        }
+
+        // Otherwise construct union cascade
+        Union<T> lastUnion =
+                new Union<T>(new BinaryOperatorInformation<T, T, T>(type, type, type), "<unknown>");
+
+        int i;
+        if (input2[0] == null) {
+            throw new IllegalArgumentException("The input may not contain null elements.");
+        }
+        lastUnion.setFirstInput(input2[0]);
+
+        if (input1 != null) {
+            lastUnion.setSecondInput(input1);
+            i = 1;
+        } else {
+            if (input2[1] == null) {
+                throw new IllegalArgumentException("The input may not contain null elements.");
+            }
+            lastUnion.setSecondInput(input2[1]);
+            i = 2;
+        }
+        for (; i < input2.length; i++) {
+            Union<T> tmpUnion =
+                    new Union<T>(
+                            new BinaryOperatorInformation<T, T, T>(type, type, type), "<unknown>");
+            tmpUnion.setSecondInput(lastUnion);
+            if (input2[i] == null) {
+                throw new IllegalArgumentException("The input may not contain null elements.");
+            }
+            tmpUnion.setFirstInput(input2[i]);
+            lastUnion = tmpUnion;
+        }
+        return lastUnion;
+    }
+
+    // --------------------------------------------------------------------------------------------
+
+    @Override
+    public String toString() {
+        return getClass().getSimpleName() + " - " + getName();
+    }
 }

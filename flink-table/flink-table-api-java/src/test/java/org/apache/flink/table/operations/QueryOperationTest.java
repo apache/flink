@@ -19,93 +19,123 @@
 package org.apache.flink.table.operations;
 
 import org.apache.flink.table.api.DataTypes;
-import org.apache.flink.table.api.TableSchema;
+import org.apache.flink.table.api.Schema;
+import org.apache.flink.table.catalog.CatalogTable;
+import org.apache.flink.table.catalog.ContextResolvedTable;
 import org.apache.flink.table.catalog.ObjectIdentifier;
+import org.apache.flink.table.catalog.ResolvedCatalogTable;
+import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.expressions.CallExpression;
 import org.apache.flink.table.expressions.FieldReferenceExpression;
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.Collections;
 
 import static org.apache.flink.table.expressions.ApiExpressionUtils.intervalOfMillis;
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
-/**
- * Tests for describing {@link Operation}s.
- */
-public class QueryOperationTest {
+/** Tests for describing {@link Operation}s. */
+class QueryOperationTest {
 
-	@Test
-	public void testSummaryString() {
-		TableSchema schema = TableSchema.builder().field("a", DataTypes.INT()).build();
+    @Test
+    void testSummaryString() {
+        ResolvedSchema schema =
+                ResolvedSchema.physical(
+                        Collections.singletonList("a"), Collections.singletonList(DataTypes.INT()));
 
-		ProjectQueryOperation tableOperation = new ProjectQueryOperation(
-			Collections.singletonList(new FieldReferenceExpression("a", DataTypes.INT(), 0, 0)),
-			new CatalogQueryOperation(
-				ObjectIdentifier.of("cat1", "db1", "tab1"),
-				schema), schema);
+        ProjectQueryOperation tableOperation =
+                new ProjectQueryOperation(
+                        Collections.singletonList(
+                                new FieldReferenceExpression("a", DataTypes.INT(), 0, 0)),
+                        new SourceQueryOperation(
+                                ContextResolvedTable.temporary(
+                                        ObjectIdentifier.of("cat1", "db1", "tab1"),
+                                        new ResolvedCatalogTable(
+                                                CatalogTable.of(
+                                                        Schema.newBuilder().build(),
+                                                        null,
+                                                        Collections.emptyList(),
+                                                        Collections.emptyMap()),
+                                                schema))),
+                        schema);
 
-		SetQueryOperation unionQueryOperation = new SetQueryOperation(
-			tableOperation,
-			tableOperation,
-			SetQueryOperation.SetQueryOperationType.UNION,
-			true);
+        SetQueryOperation unionQueryOperation =
+                new SetQueryOperation(
+                        tableOperation,
+                        tableOperation,
+                        SetQueryOperation.SetQueryOperationType.UNION,
+                        true,
+                        schema);
 
-		assertEquals("Union: (all: [true])\n" +
-			"    Project: (projections: [a])\n" +
-			"        CatalogTable: (identifier: [`cat1`.`db1`.`tab1`], fields: [a])\n" +
-			"    Project: (projections: [a])\n" +
-			"        CatalogTable: (identifier: [`cat1`.`db1`.`tab1`], fields: [a])",
-			unionQueryOperation.asSummaryString());
-	}
+        assertThat(unionQueryOperation.asSummaryString())
+                .isEqualTo(
+                        "Union: (all: [true])\n"
+                                + "    Project: (projections: [a])\n"
+                                + "        CatalogTable: (identifier: [cat1.db1.tab1], fields: [a])\n"
+                                + "    Project: (projections: [a])\n"
+                                + "        CatalogTable: (identifier: [cat1.db1.tab1], fields: [a])");
+    }
 
-	@Test
-	public void testWindowAggregationSummaryString() {
-		TableSchema schema = TableSchema.builder().field("a", DataTypes.INT()).build();
-		FieldReferenceExpression field = new FieldReferenceExpression("a", DataTypes.INT(), 0, 0);
-		WindowAggregateQueryOperation tableOperation = new WindowAggregateQueryOperation(
-			Collections.singletonList(field),
-			Collections.singletonList(
-				new CallExpression(BuiltInFunctionDefinitions.SUM, Collections.singletonList(field), DataTypes.INT())),
-			Collections.emptyList(),
-			WindowAggregateQueryOperation.ResolvedGroupWindow.sessionWindow("w", field, intervalOfMillis(10)),
-			new CatalogQueryOperation(
-				ObjectIdentifier.of("cat1", "db1", "tab1"),
-				schema),
-			schema
-		);
+    @Test
+    void testWindowAggregationSummaryString() {
+        ResolvedSchema schema =
+                ResolvedSchema.physical(
+                        Collections.singletonList("a"), Collections.singletonList(DataTypes.INT()));
+        FieldReferenceExpression field = new FieldReferenceExpression("a", DataTypes.INT(), 0, 0);
+        WindowAggregateQueryOperation tableOperation =
+                new WindowAggregateQueryOperation(
+                        Collections.singletonList(field),
+                        Collections.singletonList(
+                                CallExpression.permanent(
+                                        BuiltInFunctionDefinitions.SUM,
+                                        Collections.singletonList(field),
+                                        DataTypes.INT())),
+                        Collections.emptyList(),
+                        WindowAggregateQueryOperation.ResolvedGroupWindow.sessionWindow(
+                                "w", field, intervalOfMillis(10)),
+                        new SourceQueryOperation(
+                                ContextResolvedTable.temporary(
+                                        ObjectIdentifier.of("cat1", "db1", "tab1"),
+                                        new ResolvedCatalogTable(
+                                                CatalogTable.of(
+                                                        Schema.newBuilder().build(),
+                                                        null,
+                                                        Collections.emptyList(),
+                                                        Collections.emptyMap()),
+                                                schema))),
+                        schema);
 
-		DistinctQueryOperation distinctQueryOperation = new DistinctQueryOperation(tableOperation);
+        DistinctQueryOperation distinctQueryOperation = new DistinctQueryOperation(tableOperation);
 
-		assertEquals(
-			"Distinct:\n" +
-			"    WindowAggregate: (group: [a], agg: [sum(a)], windowProperties: []," +
-				" window: [SessionWindow(field: [a], gap: [10])])\n" +
-				"        CatalogTable: (identifier: [`cat1`.`db1`.`tab1`], fields: [a])",
-			distinctQueryOperation.asSummaryString());
-	}
+        assertThat(distinctQueryOperation.asSummaryString())
+                .isEqualTo(
+                        "Distinct:\n"
+                                + "    WindowAggregate: (group: [a], agg: [sum(a)], windowProperties: [],"
+                                + " window: [SessionWindow(field: [a], gap: [10])])\n"
+                                + "        CatalogTable: (identifier: [cat1.db1.tab1], fields: [a])");
+    }
 
-	@Test
-	public void testIndentation() {
+    @Test
+    void testIndentation() {
 
-		String input =
-			"firstLevel\n" +
-			"    secondLevel0\n" +
-			"        thirdLevel0\n" +
-			"    secondLevel1\n" +
-			"        thirdLevel1";
+        String input =
+                "firstLevel\n"
+                        + "    secondLevel0\n"
+                        + "        thirdLevel0\n"
+                        + "    secondLevel1\n"
+                        + "        thirdLevel1";
 
-		String indentedInput = OperationUtils.indent(input);
+        String indentedInput = OperationUtils.indent(input);
 
-		assertEquals(
-			"\n" +
-			"    firstLevel\n" +
-			"        secondLevel0\n" +
-			"            thirdLevel0\n" +
-			"        secondLevel1\n" +
-			"            thirdLevel1",
-			indentedInput);
-	}
+        assertThat(indentedInput)
+                .isEqualTo(
+                        "\n"
+                                + "    firstLevel\n"
+                                + "        secondLevel0\n"
+                                + "            thirdLevel0\n"
+                                + "        secondLevel1\n"
+                                + "            thirdLevel1");
+    }
 }

@@ -30,19 +30,19 @@ package org.apache.flink.runtime.leaderretrieval;
  */
 public interface LeaderRetrievalService {
 
-	/**
-	 * Starts the leader retrieval service with the given listener to listen for new leaders. This
-	 * method can only be called once.
-	 *
-	 * @param listener The leader retrieval listener which will be notified about new leaders.
-	 * @throws Exception
-	 */
-	void start(LeaderRetrievalListener listener) throws Exception;
+    /**
+     * Starts the leader retrieval service with the given listener to listen for new leaders. This
+     * method can only be called once.
+     *
+     * @param listener The leader retrieval listener which will be notified about new leaders.
+     * @throws Exception
+     */
+    void start(LeaderRetrievalListener listener) throws Exception;
 
-	/**
-	 * Stops the leader retrieval service.
-	 *
-	 * @throws Exception
-	 */
-	void stop() throws Exception;
+    /**
+     * Stops the leader retrieval service.
+     *
+     * @throws Exception
+     */
+    void stop() throws Exception;
 }

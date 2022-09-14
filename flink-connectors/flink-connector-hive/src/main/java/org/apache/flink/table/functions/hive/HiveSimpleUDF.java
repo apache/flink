@@ -45,94 +45,103 @@ import java.util.List;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 
-/**
- *  A ScalarFunction implementation that calls Hive's {@link UDF}.
- */
+/** A ScalarFunction implementation that calls Hive's {@link UDF}. */
 @Internal
 public class HiveSimpleUDF extends HiveScalarFunction<UDF> {
 
-	private static final Logger LOG = LoggerFactory.getLogger(HiveSimpleUDF.class);
+    private static final Logger LOG = LoggerFactory.getLogger(HiveSimpleUDF.class);
 
-	private transient Method method;
-	private transient GenericUDFUtils.ConversionHelper conversionHelper;
-	private transient HiveObjectConversion[] conversions;
-	private transient boolean allIdentityConverter;
-	private HiveShim hiveShim;
+    private final HiveShim hiveShim;
 
-	public HiveSimpleUDF(HiveFunctionWrapper<UDF> hiveFunctionWrapper, HiveShim hiveShim) {
-		super(hiveFunctionWrapper);
-		this.hiveShim = hiveShim;
-		LOG.info("Creating HiveSimpleUDF from '{}'", this.hiveFunctionWrapper.getClassName());
-	}
+    private transient Method method;
+    private transient GenericUDFUtils.ConversionHelper conversionHelper;
+    private transient HiveObjectConversion[] conversions;
+    private transient boolean allIdentityConverter;
 
-	@Override
-	public void openInternal() {
-		LOG.info("Opening HiveSimpleUDF as '{}'", hiveFunctionWrapper.getClassName());
+    public HiveSimpleUDF(HiveFunctionWrapper<UDF> hiveFunctionWrapper, HiveShim hiveShim) {
+        super(hiveFunctionWrapper);
+        this.hiveShim = hiveShim;
+        LOG.info("Creating HiveSimpleUDF from '{}'", this.hiveFunctionWrapper.getUDFClassName());
+    }
 
-		function = hiveFunctionWrapper.createFunction();
+    @Override
+    public void openInternal() {
+        LOG.info("Opening HiveSimpleUDF as '{}'", hiveFunctionWrapper.getUDFClassName());
 
-		List<TypeInfo> typeInfos = new ArrayList<>();
+        function = hiveFunctionWrapper.createFunction();
 
-		for (DataType arg : argTypes) {
-			typeInfos.add(HiveTypeUtil.toHiveTypeInfo(arg, false));
-		}
+        List<TypeInfo> typeInfos = new ArrayList<>();
 
-		try {
-			method = function.getResolver().getEvalMethod(typeInfos);
-			returnInspector = ObjectInspectorFactory.getReflectionObjectInspector(method.getGenericReturnType(),
-				ObjectInspectorFactory.ObjectInspectorOptions.JAVA);
-			ObjectInspector[] argInspectors = new ObjectInspector[typeInfos.size()];
+        for (int i = 0; i < arguments.size(); i++) {
+            typeInfos.add(HiveTypeUtil.toHiveTypeInfo(arguments.getDataType(i), false));
+        }
 
-			for (int i = 0; i < argTypes.length; i++) {
-				argInspectors[i] = TypeInfoUtils.getStandardJavaObjectInspectorFromTypeInfo(typeInfos.get(i));
-			}
+        try {
+            method = function.getResolver().getEvalMethod(typeInfos);
+            returnInspector =
+                    ObjectInspectorFactory.getReflectionObjectInspector(
+                            method.getGenericReturnType(),
+                            ObjectInspectorFactory.ObjectInspectorOptions.JAVA);
+            ObjectInspector[] argInspectors = new ObjectInspector[typeInfos.size()];
 
-			conversionHelper = new GenericUDFUtils.ConversionHelper(method, argInspectors);
-			conversions = new HiveObjectConversion[argInspectors.length];
-			for (int i = 0; i < argInspectors.length; i++) {
-				conversions[i] = HiveInspectors.getConversion(argInspectors[i], argTypes[i].getLogicalType(), hiveShim);
-			}
+            for (int i = 0; i < arguments.size(); i++) {
+                argInspectors[i] =
+                        TypeInfoUtils.getStandardJavaObjectInspectorFromTypeInfo(typeInfos.get(i));
+            }
 
-			allIdentityConverter = Arrays.stream(conversions)
-				.allMatch(conv -> conv instanceof IdentityConversion);
-		} catch (Exception e) {
-			throw new FlinkHiveUDFException(
-				String.format("Failed to open HiveSimpleUDF from %s", hiveFunctionWrapper.getClassName()), e);
-		}
-	}
+            conversionHelper = new GenericUDFUtils.ConversionHelper(method, argInspectors);
+            conversions = new HiveObjectConversion[argInspectors.length];
+            for (int i = 0; i < argInspectors.length; i++) {
+                conversions[i] =
+                        HiveInspectors.getConversion(
+                                argInspectors[i],
+                                arguments.getDataType(i).getLogicalType(),
+                                hiveShim);
+            }
 
-	@Override
-	public Object evalInternal(Object[] args) {
-		checkArgument(args.length == conversions.length);
+            allIdentityConverter =
+                    Arrays.stream(conversions).allMatch(conv -> conv instanceof IdentityConversion);
+        } catch (Exception e) {
+            throw new FlinkHiveUDFException(
+                    String.format(
+                            "Failed to open HiveSimpleUDF from %s",
+                            hiveFunctionWrapper.getUDFClassName()),
+                    e);
+        }
+    }
 
-		if (!allIdentityConverter) {
-			for (int i = 0; i < args.length; i++) {
-				args[i] = conversions[i].toHiveObject(args[i]);
-			}
-		}
+    @Override
+    public Object evalInternal(Object[] args) {
+        checkArgument(args.length == conversions.length);
 
-		try {
-			Object result = FunctionRegistry.invoke(method, function, conversionHelper.convertIfNecessary(args));
-			return HiveInspectors.toFlinkObject(returnInspector, result, hiveShim);
-		} catch (HiveException e) {
-			throw new FlinkHiveUDFException(e);
-		}
-	}
+        if (!allIdentityConverter) {
+            for (int i = 0; i < args.length; i++) {
+                args[i] = conversions[i].toHiveObject(args[i]);
+            }
+        }
 
-	@Override
-	public DataType getHiveResultType(Object[] constantArguments, DataType[] argTypes) {
-		try {
-			List<TypeInfo> argTypeInfo = new ArrayList<>();
-			for (DataType argType : argTypes) {
-				argTypeInfo.add(HiveTypeUtil.toHiveTypeInfo(argType, false));
-			}
-			Class returnType = hiveFunctionWrapper.createFunction()
-				.getResolver().getEvalMethod(argTypeInfo).getReturnType();
+        try {
+            Object result =
+                    FunctionRegistry.invoke(
+                            method, function, conversionHelper.convertIfNecessary(args));
+            return HiveInspectors.toFlinkObject(returnInspector, result, hiveShim);
+        } catch (HiveException e) {
+            throw new FlinkHiveUDFException(e);
+        }
+    }
 
-			return HiveTypeUtil.toFlinkType(
-				HiveInspectors.getObjectInspector(hiveShim, returnType));
-		} catch (UDFArgumentException e) {
-			throw new FlinkHiveUDFException(e);
-		}
-	}
+    @Override
+    public DataType inferReturnType() throws UDFArgumentException {
+        List<TypeInfo> argTypeInfo = new ArrayList<>();
+        for (int i = 0; i < arguments.size(); i++) {
+            argTypeInfo.add(HiveTypeUtil.toHiveTypeInfo(arguments.getDataType(i), false));
+        }
+
+        Method evalMethod =
+                hiveFunctionWrapper.createFunction().getResolver().getEvalMethod(argTypeInfo);
+        return HiveTypeUtil.toFlinkType(
+                ObjectInspectorFactory.getReflectionObjectInspector(
+                        evalMethod.getGenericReturnType(),
+                        ObjectInspectorFactory.ObjectInspectorOptions.JAVA));
+    }
 }

@@ -30,8 +30,8 @@ import java.io.InputStreamReader;
 import java.net.URI;
 
 /**
- * This is used together with {@link FileMonitoringFunction} to read from files that the
- * monitoring functions discovers.
+ * This is used together with {@link FileMonitoringFunction} to read from files that the monitoring
+ * functions discovers.
  *
  * @deprecated Internal class deprecated in favour of {@link ContinuousFileMonitoringFunction}.
  */
@@ -39,22 +39,23 @@ import java.net.URI;
 @Deprecated
 public class FileReadFunction implements FlatMapFunction<Tuple3<String, Long, Long>, String> {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	@Override
-	public void flatMap(Tuple3<String, Long, Long> value, Collector<String> out) throws Exception {
-		FSDataInputStream stream = FileSystem.get(new URI(value.f0)).open(new Path(value.f0));
-		stream.seek(value.f1);
+    @Override
+    public void flatMap(Tuple3<String, Long, Long> value, Collector<String> out) throws Exception {
+        FSDataInputStream stream = FileSystem.get(new URI(value.f0)).open(new Path(value.f0));
+        stream.seek(value.f1);
 
-		BufferedReader reader = new BufferedReader(new InputStreamReader(stream));
-		String line;
+        BufferedReader reader = new BufferedReader(new InputStreamReader(stream));
+        String line;
 
-		try {
-			while ((line = reader.readLine()) != null && (value.f2 == -1L || stream.getPos() <= value.f2)) {
-				out.collect(line);
-			}
-		} finally {
-			reader.close();
-		}
-	}
+        try {
+            while ((line = reader.readLine()) != null
+                    && (value.f2 == -1L || stream.getPos() <= value.f2)) {
+                out.collect(line);
+            }
+        } finally {
+            reader.close();
+        }
+    }
 }

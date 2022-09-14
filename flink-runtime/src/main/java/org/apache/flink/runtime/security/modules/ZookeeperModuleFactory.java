@@ -20,13 +20,11 @@ package org.apache.flink.runtime.security.modules;
 
 import org.apache.flink.runtime.security.SecurityConfiguration;
 
-/**
- * A {@link SecurityModuleFactory} for {@link ZooKeeperModule}.
- */
+/** A {@link SecurityModuleFactory} for {@link ZooKeeperModule}. */
 public class ZookeeperModuleFactory implements SecurityModuleFactory {
 
-	@Override
-	public SecurityModule createModule(SecurityConfiguration securityConfig) {
-		return new ZooKeeperModule(securityConfig);
-	}
+    @Override
+    public SecurityModule createModule(SecurityConfiguration securityConfig) {
+        return new ZooKeeperModule(securityConfig);
+    }
 }

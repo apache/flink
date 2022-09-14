@@ -23,54 +23,54 @@ import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
 import org.apache.flink.runtime.rest.messages.JobIDPathParameter;
 import org.apache.flink.runtime.rest.messages.JobMessageParameters;
 import org.apache.flink.runtime.rest.messages.MessageHeaders;
+import org.apache.flink.runtime.rest.messages.RuntimeMessageHeaders;
 
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
 
-/**
- * {@link MessageHeaders} for {@link JobExecutionResultHeaders}.
- */
+/** {@link MessageHeaders} for {@link JobExecutionResultHeaders}. */
 public class JobExecutionResultHeaders
-	implements MessageHeaders<EmptyRequestBody, JobExecutionResultResponseBody, JobMessageParameters> {
+        implements RuntimeMessageHeaders<
+                EmptyRequestBody, JobExecutionResultResponseBody, JobMessageParameters> {
 
-	private static final JobExecutionResultHeaders INSTANCE = new JobExecutionResultHeaders();
+    private static final JobExecutionResultHeaders INSTANCE = new JobExecutionResultHeaders();
 
-	@Override
-	public Class<EmptyRequestBody> getRequestClass() {
-		return EmptyRequestBody.class;
-	}
+    @Override
+    public Class<EmptyRequestBody> getRequestClass() {
+        return EmptyRequestBody.class;
+    }
 
-	@Override
-	public Class<JobExecutionResultResponseBody> getResponseClass() {
-		return JobExecutionResultResponseBody.class;
-	}
+    @Override
+    public Class<JobExecutionResultResponseBody> getResponseClass() {
+        return JobExecutionResultResponseBody.class;
+    }
 
-	@Override
-	public HttpResponseStatus getResponseStatusCode() {
-		return HttpResponseStatus.OK;
-	}
+    @Override
+    public HttpResponseStatus getResponseStatusCode() {
+        return HttpResponseStatus.OK;
+    }
 
-	@Override
-	public JobMessageParameters getUnresolvedMessageParameters() {
-		return new JobMessageParameters();
-	}
+    @Override
+    public JobMessageParameters getUnresolvedMessageParameters() {
+        return new JobMessageParameters();
+    }
 
-	@Override
-	public HttpMethodWrapper getHttpMethod() {
-		return HttpMethodWrapper.GET;
-	}
+    @Override
+    public HttpMethodWrapper getHttpMethod() {
+        return HttpMethodWrapper.GET;
+    }
 
-	@Override
-	public String getTargetRestEndpointURL() {
-		return "/jobs/:" + JobIDPathParameter.KEY + "/execution-result";
-	}
+    @Override
+    public String getTargetRestEndpointURL() {
+        return "/jobs/:" + JobIDPathParameter.KEY + "/execution-result";
+    }
 
-	public static JobExecutionResultHeaders getInstance() {
-		return INSTANCE;
-	}
+    public static JobExecutionResultHeaders getInstance() {
+        return INSTANCE;
+    }
 
-	@Override
-	public String getDescription() {
-		return "Returns the result of a job execution. Gives access to the execution time of the job " +
-			"and to all accumulators created by this job.";
-	}
+    @Override
+    public String getDescription() {
+        return "Returns the result of a job execution. Gives access to the execution time of the job "
+                + "and to all accumulators created by this job.";
+    }
 }

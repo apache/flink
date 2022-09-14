@@ -23,36 +23,33 @@ import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
 import org.apache.flink.runtime.util.EnvironmentInformation;
 import org.apache.flink.types.LongValue;
 
-/**
- * {@link ReceiverThread} that deserialize incoming messages.
- */
+/** {@link ReceiverThread} that deserialize incoming messages. */
 public class SerializingLongReceiver extends ReceiverThread {
 
-	private final MutableRecordReader<LongValue> reader;
+    private final MutableRecordReader<LongValue> reader;
 
-	@SuppressWarnings("WeakerAccess")
-	public SerializingLongReceiver(InputGate inputGate, int expectedRepetitionsOfExpectedRecord) {
-		super(expectedRepetitionsOfExpectedRecord);
-		this.reader = new MutableRecordReader<>(
-			inputGate,
-			new String[]{
-				EnvironmentInformation.getTemporaryFileDirectory()
-			});
-	}
+    @SuppressWarnings("WeakerAccess")
+    public SerializingLongReceiver(InputGate inputGate, int expectedRepetitionsOfExpectedRecord) {
+        super(expectedRepetitionsOfExpectedRecord);
+        this.reader =
+                new MutableRecordReader<>(
+                        inputGate,
+                        new String[] {EnvironmentInformation.getTemporaryFileDirectory()});
+    }
 
-	@Override
-	protected void readRecords(long lastExpectedRecord) throws Exception {
-		LOG.debug("readRecords(lastExpectedRecord = {})", lastExpectedRecord);
-		final LongValue value = new LongValue();
+    @Override
+    protected void readRecords(long lastExpectedRecord) throws Exception {
+        LOG.debug("readRecords(lastExpectedRecord = {})", lastExpectedRecord);
+        final LongValue value = new LongValue();
 
-		while (running && reader.next(value)) {
-			final long ts = value.getValue();
-			if (ts == lastExpectedRecord) {
-				expectedRecordCounter++;
-				if (expectedRecordCounter == expectedRepetitionsOfExpectedRecord) {
-					break;
-				}
-			}
-		}
-	}
+        while (running && reader.next(value)) {
+            final long ts = value.getValue();
+            if (ts == lastExpectedRecord) {
+                expectedRecordCounter++;
+                if (expectedRecordCounter == expectedRepetitionsOfExpectedRecord) {
+                    break;
+                }
+            }
+        }
+    }
 }

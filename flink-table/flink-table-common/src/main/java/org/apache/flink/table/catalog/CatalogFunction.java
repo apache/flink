@@ -18,52 +18,65 @@
 
 package org.apache.flink.table.catalog;
 
+import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.table.resource.ResourceUri;
+
+import java.util.List;
 import java.util.Optional;
 
-/**
- * Interface for a function in a catalog.
- */
+/** Interface for a function in a catalog. */
+@PublicEvolving
 public interface CatalogFunction {
 
-	/**
-	 * Get the full name of the class backing the function.
-	 *
-	 * @return the full name of the class
-	 */
-	String getClassName();
+    /**
+     * Get the full name of the class backing the function.
+     *
+     * @return the full name of the class
+     */
+    String getClassName();
 
-	/**
-	 * Create a deep copy of the function.
-	 *
-	 * @return a deep copy of "this" instance
-	 */
-	CatalogFunction copy();
+    /**
+     * Create a deep copy of the function.
+     *
+     * @return a deep copy of "this" instance
+     */
+    CatalogFunction copy();
 
-	/**
-	 * Get a brief description of the function.
-	 *
-	 * @return an optional short description of the function
-	 */
-	Optional<String> getDescription();
+    /**
+     * Get a brief description of the function.
+     *
+     * @return an optional short description of the function
+     */
+    Optional<String> getDescription();
 
-	/**
-	 * Get a detailed description of the function.
-	 *
-	 * @return an optional long description of the function
-	 */
-	Optional<String> getDetailedDescription();
+    /**
+     * Get a detailed description of the function.
+     *
+     * @return an optional long description of the function
+     */
+    Optional<String> getDetailedDescription();
 
-	/**
-	 * Distinguish if the function is a generic function.
-	 *
-	 * @return whether the function is a generic function
-	 */
-	boolean isGeneric();
+    /**
+     * Distinguish if the function is a generic function.
+     *
+     * @return whether the function is a generic function
+     * @deprecated There is no replacement for this function, as now functions have type inference
+     *     strategies
+     */
+    @Deprecated
+    boolean isGeneric();
 
-	/**
-	 * Get the language used for the definition of function.
-	 *
-	 * @return  the language type of the function definition
-	 */
-	FunctionLanguage getFunctionLanguage();
+    /**
+     * Get the language used for the definition of function.
+     *
+     * @return the language type of the function definition
+     */
+    FunctionLanguage getFunctionLanguage();
+
+    /**
+     * Get a detailed resource description of the function.
+     *
+     * @return an {@link ResourceUri} list of the function
+     */
+    List<ResourceUri> getFunctionResources();
 }

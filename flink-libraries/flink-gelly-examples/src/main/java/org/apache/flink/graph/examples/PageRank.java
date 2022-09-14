@@ -32,94 +32,96 @@ import org.apache.flink.graph.spargel.ScatterGatherConfiguration;
 import org.apache.flink.types.LongValue;
 
 /**
- * This is an implementation of a simple PageRank algorithm, using a scatter-gather iteration.
- * The user can define the damping factor and the maximum number of iterations.
+ * This is an implementation of a simple PageRank algorithm, using a scatter-gather iteration. The
+ * user can define the damping factor and the maximum number of iterations.
  *
  * <p>The implementation assumes that each page has at least one incoming and one outgoing link.
  */
 public class PageRank<K> implements GraphAlgorithm<K, Double, Double, DataSet<Vertex<K, Double>>> {
 
-	private double beta;
-	private int maxIterations;
+    private double beta;
+    private int maxIterations;
 
-	/**
-	 * Creates an instance of the PageRank algorithm.
-	 *
-	 * <p>The implementation assumes that each page has at least one incoming and one outgoing link.
-	 *
-	 * @param beta the damping factor
-	 * @param maxIterations the maximum number of iterations
-	 */
-	public PageRank(double beta, int maxIterations) {
-		this.beta = beta;
-		this.maxIterations = maxIterations;
-	}
+    /**
+     * Creates an instance of the PageRank algorithm.
+     *
+     * <p>The implementation assumes that each page has at least one incoming and one outgoing link.
+     *
+     * @param beta the damping factor
+     * @param maxIterations the maximum number of iterations
+     */
+    public PageRank(double beta, int maxIterations) {
+        this.beta = beta;
+        this.maxIterations = maxIterations;
+    }
 
-	@Override
-	public DataSet<Vertex<K, Double>> run(Graph<K, Double, Double> network) throws Exception {
-		DataSet<Tuple2<K, LongValue>> vertexOutDegrees = network.outDegrees();
+    @Override
+    public DataSet<Vertex<K, Double>> run(Graph<K, Double, Double> network) throws Exception {
+        DataSet<Tuple2<K, LongValue>> vertexOutDegrees = network.outDegrees();
 
-		Graph<K, Double, Double> networkWithWeights = network
-				.joinWithEdgesOnSource(vertexOutDegrees, new InitWeights());
+        Graph<K, Double, Double> networkWithWeights =
+                network.joinWithEdgesOnSource(vertexOutDegrees, new InitWeights());
 
-		ScatterGatherConfiguration parameters = new ScatterGatherConfiguration();
-		parameters.setOptNumVertices(true);
+        ScatterGatherConfiguration parameters = new ScatterGatherConfiguration();
+        parameters.setOptNumVertices(true);
 
-		return networkWithWeights.runScatterGatherIteration(new RankMessenger<>(),
-			new VertexRankUpdater<>(beta), maxIterations, parameters)
-				.getVertices();
-	}
+        return networkWithWeights
+                .runScatterGatherIteration(
+                        new RankMessenger<>(),
+                        new VertexRankUpdater<>(beta),
+                        maxIterations,
+                        parameters)
+                .getVertices();
+    }
 
-	/**
-	 * Distributes the rank of a vertex among all target vertices according to
-	 * the transition probability, which is associated with an edge as the edge
-	 * value.
-	 */
-	@SuppressWarnings("serial")
-	public static final class RankMessenger<K> extends ScatterFunction<K, Double, Double, Double> {
-		@Override
-		public void sendMessages(Vertex<K, Double> vertex) {
-			if (getSuperstepNumber() == 1) {
-				// initialize vertex ranks
-				vertex.setValue(1.0 / this.getNumberOfVertices());
-			}
+    /**
+     * Distributes the rank of a vertex among all target vertices according to the transition
+     * probability, which is associated with an edge as the edge value.
+     */
+    @SuppressWarnings("serial")
+    public static final class RankMessenger<K> extends ScatterFunction<K, Double, Double, Double> {
+        @Override
+        public void sendMessages(Vertex<K, Double> vertex) {
+            if (getSuperstepNumber() == 1) {
+                // initialize vertex ranks
+                vertex.setValue(1.0 / this.getNumberOfVertices());
+            }
 
-			for (Edge<K, Double> edge : getEdges()) {
-				sendMessageTo(edge.getTarget(), vertex.getValue() * edge.getValue());
-			}
-		}
-	}
+            for (Edge<K, Double> edge : getEdges()) {
+                sendMessageTo(edge.getTarget(), vertex.getValue() * edge.getValue());
+            }
+        }
+    }
 
-	/**
-	 * Function that updates the rank of a vertex by summing up the partial
-	 * ranks from all incoming messages and then applying the dampening formula.
-	 */
-	@SuppressWarnings("serial")
-	public static final class VertexRankUpdater<K> extends GatherFunction<K, Double, Double> {
-		private final double beta;
+    /**
+     * Function that updates the rank of a vertex by summing up the partial ranks from all incoming
+     * messages and then applying the dampening formula.
+     */
+    @SuppressWarnings("serial")
+    public static final class VertexRankUpdater<K> extends GatherFunction<K, Double, Double> {
+        private final double beta;
 
-		public VertexRankUpdater(double beta) {
-			this.beta = beta;
-		}
+        public VertexRankUpdater(double beta) {
+            this.beta = beta;
+        }
 
-		@Override
-		public void updateVertex(Vertex<K, Double> vertex, MessageIterator<Double> inMessages) {
-			double rankSum = 0.0;
-			for (double msg : inMessages) {
-				rankSum += msg;
-			}
+        @Override
+        public void updateVertex(Vertex<K, Double> vertex, MessageIterator<Double> inMessages) {
+            double rankSum = 0.0;
+            for (double msg : inMessages) {
+                rankSum += msg;
+            }
 
-			// apply the dampening factor / random jump
-			double newRank = (beta * rankSum) + (1 - beta) / this.getNumberOfVertices();
-			setNewVertexValue(newRank);
-		}
-	}
+            // apply the dampening factor / random jump
+            double newRank = (beta * rankSum) + (1 - beta) / this.getNumberOfVertices();
+            setNewVertexValue(newRank);
+        }
+    }
 
-	@SuppressWarnings("serial")
-	private static final class InitWeights implements EdgeJoinFunction<Double, LongValue> {
-		public Double edgeJoin(Double edgeValue, LongValue inputValue) {
-			return edgeValue / (double) inputValue.getValue();
-		}
-	}
-
+    @SuppressWarnings("serial")
+    private static final class InitWeights implements EdgeJoinFunction<Double, LongValue> {
+        public Double edgeJoin(Double edgeValue, LongValue inputValue) {
+            return edgeValue / (double) inputValue.getValue();
+        }
+    }
 }

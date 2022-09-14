@@ -26,22 +26,21 @@ import java.io.IOException;
 import java.util.List;
 
 /**
- * A set of functions that together represent a feature in pods that are deployed for
- * the JobManager(s) or the TaskManager(s), which provides an extension to the way the
- * given Flink application works.
+ * A set of functions that together represent a feature in pods that are deployed for the
+ * JobManager(s) or the TaskManager(s), which provides an extension to the way the given Flink
+ * application works.
  */
 public interface KubernetesStepDecorator {
 
-	/**
-	 * Apply transformations to the given FlinkPod in accordance with this feature. This can include adding
-	 * labels/annotations, mounting volumes, and setting startup command or parameters, etc.
-	 */
-	FlinkPod decorateFlinkPod(FlinkPod flinkPod);
+    /**
+     * Apply transformations to the given FlinkPod in accordance with this feature. This can include
+     * adding labels/annotations, mounting volumes, and setting startup command or parameters, etc.
+     */
+    FlinkPod decorateFlinkPod(FlinkPod flinkPod);
 
-	/**
-	 * Build the accompanying Kubernetes resources that should be introduced to support this feature. This could
-	 * only be applicable on the client-side submission process.
-	 */
-	List<HasMetadata> buildAccompanyingKubernetesResources() throws IOException;
-
+    /**
+     * Build the accompanying Kubernetes resources that should be introduced to support this
+     * feature. This could only be applicable on the client-side submission process.
+     */
+    List<HasMetadata> buildAccompanyingKubernetesResources() throws IOException;
 }

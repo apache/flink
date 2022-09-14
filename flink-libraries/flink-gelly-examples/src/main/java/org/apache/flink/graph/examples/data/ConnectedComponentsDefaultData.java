@@ -27,31 +27,32 @@ import java.util.LinkedList;
 import java.util.List;
 
 /**
- * Provides the default data sets used for the connected components example program.
- * If no parameters are given to the program, the default data sets are used.
+ * Provides the default data sets used for the connected components example program. If no
+ * parameters are given to the program, the default data sets are used.
  */
 public class ConnectedComponentsDefaultData {
 
-	public static final Integer MAX_ITERATIONS = 4;
+    public static final Integer MAX_ITERATIONS = 4;
 
-	public static final String EDGES = "1	2\n" + "2	3\n" + "2	4\n" + "3	4";
+    public static final String EDGES = "1	2\n" + "2	3\n" + "2	4\n" + "3	4";
 
-	public static final Object[][] DEFAULT_EDGES = new Object[][] {
-		new Object[]{1L, 2L},
-		new Object[]{2L, 3L},
-		new Object[]{2L, 4L},
-		new Object[]{3L, 4L}
-	};
+    public static final Object[][] DEFAULT_EDGES =
+            new Object[][] {
+                new Object[] {1L, 2L},
+                new Object[] {2L, 3L},
+                new Object[] {2L, 4L},
+                new Object[] {3L, 4L}
+            };
 
-	public static DataSet<Edge<Long, NullValue>> getDefaultEdgeDataSet(ExecutionEnvironment env) {
-		List<Edge<Long, NullValue>> edgeList = new LinkedList<>();
-		for (Object[] edge : DEFAULT_EDGES) {
-			edgeList.add(new Edge<>((long) edge[0], (long) edge[1], NullValue.getInstance()));
-		}
-		return env.fromCollection(edgeList);
-	}
+    public static DataSet<Edge<Long, NullValue>> getDefaultEdgeDataSet(ExecutionEnvironment env) {
+        List<Edge<Long, NullValue>> edgeList = new LinkedList<>();
+        for (Object[] edge : DEFAULT_EDGES) {
+            edgeList.add(new Edge<>((long) edge[0], (long) edge[1], NullValue.getInstance()));
+        }
+        return env.fromCollection(edgeList);
+    }
 
-	public static final String VERTICES_WITH_MIN_ID = "1,1\n" + "2,1\n" + "3,1\n" + "4,1";
+    public static final String VERTICES_WITH_MIN_ID = "1,1\n" + "2,1\n" + "3,1\n" + "4,1";
 
-	private ConnectedComponentsDefaultData() {}
+    private ConnectedComponentsDefaultData() {}
 }

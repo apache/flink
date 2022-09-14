@@ -23,12 +23,11 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-table</artifactId>
-		<version>1.11-SNAPSHOT</version>
-		<relativePath>..</relativePath>
+		<version>1.17-SNAPSHOT</version>
 	</parent>
 
-	<artifactId>flink-sql-client_${scala.binary.version}</artifactId>
-	<name>flink-sql-client</name>
+	<artifactId>flink-sql-client</artifactId>
+	<name>Flink : Table : SQL Client</name>
 	<description>
 		This module contains the SQL Client for exploring and
 		submitting SQL programs to Flink.
@@ -38,61 +37,24 @@ under the License.
 
 	<dependencies>
 
-		<!-- core dependencies -->
-
-		<!-- Flink modules -->
+		<!-- Flink client to submit jobs -->
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-core</artifactId>
-			<version>${project.version}</version>
-		</dependency>
-
-		<dependency>
-			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-clients_${scala.binary.version}</artifactId>
-			<version>${project.version}</version>
-		</dependency>
-
-		<dependency>
-			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-streaming-scala_${scala.binary.version}</artifactId>
+			<artifactId>flink-clients</artifactId>
 			<version>${project.version}</version>
 		</dependency>
 
 		<!-- Table ecosystem -->
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-table-common</artifactId>
+			<artifactId>flink-table-api-java-bridge</artifactId>
 			<version>${project.version}</version>
 		</dependency>
 
+		<!-- SQL Gateway -->
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-table-api-java</artifactId>
-			<version>${project.version}</version>
-		</dependency>
-
-		<dependency>
-			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-table-api-java-bridge_${scala.binary.version}</artifactId>
-			<version>${project.version}</version>
-		</dependency>
-
-		<dependency>
-			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-table-planner_${scala.binary.version}</artifactId>
-			<version>${project.version}</version>
-		</dependency>
-
-		<dependency>
-			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-table-planner-blink_${scala.binary.version}</artifactId>
-			<version>${project.version}</version>
-		</dependency>
-
-		<dependency>
-			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-table-runtime-blink_${scala.binary.version}</artifactId>
+			<artifactId>flink-sql-gateway-api</artifactId>
 			<version>${project.version}</version>
 		</dependency>
 
@@ -100,13 +62,13 @@ under the License.
 		<dependency>
 			<groupId>org.jline</groupId>
 			<artifactId>jline-terminal</artifactId>
-			<version>3.9.0</version>
+			<version>3.21.0</version>
 		</dependency>
 
 		<dependency>
 			<groupId>org.jline</groupId>
 			<artifactId>jline-reader</artifactId>
-			<version>3.9.0</version>
+			<version>3.21.0</version>
 		</dependency>
 
 		<!-- configuration -->
@@ -119,7 +81,7 @@ under the License.
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-runtime_${scala.binary.version}</artifactId>
+			<artifactId>flink-streaming-java</artifactId>
 			<version>${project.version}</version>
 			<type>test-jar</type>
 			<scope>test</scope>
@@ -127,16 +89,23 @@ under the License.
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-test-utils_${scala.binary.version}</artifactId>
+			<artifactId>flink-csv</artifactId>
 			<version>${project.version}</version>
 			<scope>test</scope>
 		</dependency>
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-clients_${scala.binary.version}</artifactId>
+			<artifactId>flink-runtime</artifactId>
 			<version>${project.version}</version>
 			<type>test-jar</type>
+			<scope>test</scope>
+		</dependency>
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-test-utils</artifactId>
+			<version>${project.version}</version>
 			<scope>test</scope>
 		</dependency>
 
@@ -144,8 +113,50 @@ under the License.
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-connector-hive_${scala.binary.version}</artifactId>
 			<version>${project.version}</version>
-			<scope>provided</scope>
-			<optional>true</optional>
+			<scope>test</scope>
+			<exclusions>
+				<exclusion>
+					<groupId>org.apache.hadoop</groupId>
+					<artifactId>hadoop-hdfs</artifactId>
+				</exclusion>
+			</exclusions>
+		</dependency>
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-python</artifactId>
+			<version>${project.version}</version>
+			<scope>test</scope>
+		</dependency>
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-table-runtime</artifactId>
+			<version>${project.version}</version>
+			<scope>test</scope>
+		</dependency>
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-table-planner_${scala.binary.version}</artifactId>
+			<version>${project.version}</version>
+			<scope>test</scope>
+		</dependency>
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-table-api-java</artifactId>
+			<version>${project.version}</version>
+			<type>test-jar</type>
+			<scope>test</scope>
+		</dependency>
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-table-planner_${scala.binary.version}</artifactId>
+			<version>${project.version}</version>
+			<type>test-jar</type>
+			<scope>test</scope>
 		</dependency>
 
 		<!-- test dependencies for HiveCatalog. The exclusions should be in sync with those flink-connector-hive -->
@@ -416,6 +427,10 @@ under the License.
 					<groupId>com.google.guava</groupId>
 					<artifactId>guava</artifactId>
 				</exclusion>
+				<exclusion>
+					<groupId>commons-lang</groupId>
+					<artifactId>commons-lang</artifactId>
+				</exclusion>
 			</exclusions>
 		</dependency>
 
@@ -425,10 +440,6 @@ under the License.
 			<version>${hivemetastore.hadoop.version}</version>
 			<scope>test</scope>
 			<exclusions>
-				<exclusion>
-					<groupId>com.google.guava</groupId>
-					<artifactId>guava</artifactId>
-				</exclusion>
 				<exclusion>
 					<groupId>org.apache.curator</groupId>
 					<artifactId>curator-client</artifactId>
@@ -468,7 +479,7 @@ under the License.
 			<groupId>org.apache.hadoop</groupId>
 			<artifactId>hadoop-mapreduce-client-core</artifactId>
 			<version>${hivemetastore.hadoop.version}</version>
-			<scope>provided</scope>
+			<scope>test</scope>
 			<exclusions>
 				<exclusion>
 					<groupId>org.apache.curator</groupId>
@@ -523,28 +534,6 @@ under the License.
 									<include>org.jline:*</include>
 								</includes>
 							</artifactSet>
-						</configuration>
-					</execution>
-				</executions>
-			</plugin>
-
-			<!-- Test dependency classloading -->
-			<plugin>
-				<artifactId>maven-assembly-plugin</artifactId>
-				<version>2.4</version>
-				<executions>
-					<execution>
-						<id>create-table-factories-jar</id>
-						<phase>process-test-classes</phase>
-						<goals>
-							<goal>single</goal>
-						</goals>
-						<configuration>
-							<finalName>table-factories</finalName>
-							<attach>false</attach>
-							<descriptors>
-								<descriptor>src/test/assembly/test-table-factories.xml</descriptor>
-							</descriptors>
 						</configuration>
 					</execution>
 				</executions>

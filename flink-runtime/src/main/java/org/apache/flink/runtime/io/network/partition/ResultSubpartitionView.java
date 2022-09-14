@@ -25,39 +25,77 @@ import javax.annotation.Nullable;
 
 import java.io.IOException;
 
-/**
- * A view to consume a {@link ResultSubpartition} instance.
- */
+import static org.apache.flink.util.Preconditions.checkArgument;
+
+/** A view to consume a {@link ResultSubpartition} instance. */
 public interface ResultSubpartitionView {
 
-	/**
-	 * Returns the next {@link Buffer} instance of this queue iterator.
-	 *
-	 * <p>If there is currently no instance available, it will return <code>null</code>.
-	 * This might happen for example when a pipelined queue producer is slower
-	 * than the consumer or a spilled queue needs to read in more data.
-	 *
-	 * <p><strong>Important</strong>: The consumer has to make sure that each
-	 * buffer instance will eventually be recycled with {@link Buffer#recycleBuffer()}
-	 * after it has been consumed.
-	 */
-	@Nullable
-	BufferAndBacklog getNextBuffer() throws IOException, InterruptedException;
+    /**
+     * Returns the next {@link Buffer} instance of this queue iterator.
+     *
+     * <p>If there is currently no instance available, it will return <code>null</code>. This might
+     * happen for example when a pipelined queue producer is slower than the consumer or a spilled
+     * queue needs to read in more data.
+     *
+     * <p><strong>Important</strong>: The consumer has to make sure that each buffer instance will
+     * eventually be recycled with {@link Buffer#recycleBuffer()} after it has been consumed.
+     */
+    @Nullable
+    BufferAndBacklog getNextBuffer() throws IOException;
 
-	void notifyDataAvailable();
+    void notifyDataAvailable();
 
-	void releaseAllResources() throws IOException;
+    default void notifyPriorityEvent(int priorityBufferNumber) {}
 
-	boolean isReleased();
+    void releaseAllResources() throws IOException;
 
-	Throwable getFailureCause();
+    boolean isReleased();
 
-	/**
-	 * Returns whether the next buffer is an event or not.
-	 */
-	boolean nextBufferIsEvent();
+    void resumeConsumption();
 
-	boolean isAvailable();
+    void acknowledgeAllDataProcessed();
 
-	int unsynchronizedGetNumberOfQueuedBuffers();
+    /**
+     * {@link ResultSubpartitionView} can decide whether the failure cause should be reported to
+     * consumer as failure (primary failure) or {@link ProducerFailedException} (secondary failure).
+     * Secondary failure can be reported only if producer (upstream task) is guaranteed to failover.
+     *
+     * <p><strong>BEWARE:</strong> Incorrectly reporting failure cause as primary failure, can hide
+     * the root cause of the failure from the user.
+     */
+    Throwable getFailureCause();
+
+    AvailabilityWithBacklog getAvailabilityAndBacklog(int numCreditsAvailable);
+
+    int unsynchronizedGetNumberOfQueuedBuffers();
+
+    int getNumberOfQueuedBuffers();
+
+    void notifyNewBufferSize(int newBufferSize);
+
+    /**
+     * Availability of the {@link ResultSubpartitionView} and the backlog in the corresponding
+     * {@link ResultSubpartition}.
+     */
+    class AvailabilityWithBacklog {
+
+        private final boolean isAvailable;
+
+        private final int backlog;
+
+        public AvailabilityWithBacklog(boolean isAvailable, int backlog) {
+            checkArgument(backlog >= 0, "Backlog must be non-negative.");
+
+            this.isAvailable = isAvailable;
+            this.backlog = backlog;
+        }
+
+        public boolean isAvailable() {
+            return isAvailable;
+        }
+
+        public int getBacklog() {
+            return backlog;
+        }
+    }
 }

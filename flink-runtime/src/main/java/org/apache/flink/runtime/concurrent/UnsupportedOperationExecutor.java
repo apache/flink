@@ -21,15 +21,14 @@ package org.apache.flink.runtime.concurrent;
 import java.util.concurrent.Executor;
 
 /**
- * {@link Executor} implementation which fails when {@link #execute(Runnable)}
- * is called. This can be helpful if one wants to make sure that an executor
- * is never been used.
+ * {@link Executor} implementation which fails when {@link #execute(Runnable)} is called. This can
+ * be helpful if one wants to make sure that an executor is never been used.
  */
 public enum UnsupportedOperationExecutor implements Executor {
-	INSTANCE;
+    INSTANCE;
 
-	@Override
-	public void execute(Runnable command) {
-		throw new UnsupportedOperationException("This executor should never been used.");
-	}
+    @Override
+    public void execute(Runnable command) {
+        throw new UnsupportedOperationException("This executor should never been used.");
+    }
 }

@@ -20,74 +20,70 @@ package org.apache.flink.api.common.accumulators;
 
 import org.apache.flink.annotation.PublicEvolving;
 
-/**
- * An accumulator that sums up {@code long} values.
- */
+/** An accumulator that sums up {@code long} values. */
 @PublicEvolving
 public class LongCounter implements SimpleAccumulator<Long> {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	private long localValue;
+    private long localValue;
 
-	public LongCounter() {}
+    public LongCounter() {}
 
-	public LongCounter(long value) {
-		this.localValue = value;
-	}
+    public LongCounter(long value) {
+        this.localValue = value;
+    }
 
-	// ------------------------------------------------------------------------
-	//  Accumulator
-	// ------------------------------------------------------------------------
+    // ------------------------------------------------------------------------
+    //  Accumulator
+    // ------------------------------------------------------------------------
 
-	/**
-	 * Consider using {@link #add(long)} instead for primitive long values
-	 */
-	@Override
-	public void add(Long value) {
-		this.localValue += value;
-	}
+    /** Consider using {@link #add(long)} instead for primitive long values */
+    @Override
+    public void add(Long value) {
+        this.localValue += value;
+    }
 
-	@Override
-	public Long getLocalValue() {
-		return this.localValue;
-	}
+    @Override
+    public Long getLocalValue() {
+        return this.localValue;
+    }
 
-	@Override
-	public void merge(Accumulator<Long, Long> other) {
-		this.localValue += other.getLocalValue();
-	}
+    @Override
+    public void merge(Accumulator<Long, Long> other) {
+        this.localValue += other.getLocalValue();
+    }
 
-	@Override
-	public void resetLocal() {
-		this.localValue = 0;
-	}
+    @Override
+    public void resetLocal() {
+        this.localValue = 0;
+    }
 
-	@Override
-	public LongCounter clone() {
-		LongCounter result = new LongCounter();
-		result.localValue = localValue;
-		return result;
-	}
+    @Override
+    public LongCounter clone() {
+        LongCounter result = new LongCounter();
+        result.localValue = localValue;
+        return result;
+    }
 
-	// ------------------------------------------------------------------------
-	//  Primitive Specializations
-	// ------------------------------------------------------------------------
+    // ------------------------------------------------------------------------
+    //  Primitive Specializations
+    // ------------------------------------------------------------------------
 
-	public void add(long value){
-		this.localValue += value;
-	}
+    public void add(long value) {
+        this.localValue += value;
+    }
 
-	public long getLocalValuePrimitive() {
-		return this.localValue;
-	}
+    public long getLocalValuePrimitive() {
+        return this.localValue;
+    }
 
-	// ------------------------------------------------------------------------
-	//  Utilities
-	// ------------------------------------------------------------------------
+    // ------------------------------------------------------------------------
+    //  Utilities
+    // ------------------------------------------------------------------------
 
-	@Override
-	public String toString() {
-		return "LongCounter " + this.localValue;
-	}
+    @Override
+    public String toString() {
+        return "LongCounter " + this.localValue;
+    }
 }

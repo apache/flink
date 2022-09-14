@@ -22,13 +22,13 @@ under the License.
 	<parent>
 		<artifactId>flink-end-to-end-tests</artifactId>
 		<groupId>org.apache.flink</groupId>
-		<version>1.11-SNAPSHOT</version>
-		<relativePath>..</relativePath>
+		<version>1.17-SNAPSHOT</version>
 	</parent>
 
 	<modelVersion>4.0.0</modelVersion>
 
 	<artifactId>flink-metrics-availability-test</artifactId>
+	<name>Flink : E2E Tests : Metrics availability</name>
 
 	<dependencies>
 		<dependency>
@@ -39,7 +39,7 @@ under the License.
 		</dependency>
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-runtime_${scala.binary.version}</artifactId>
+			<artifactId>flink-runtime</artifactId>
 			<version>${project.version}</version>
 			<scope>test</scope>
 		</dependency>

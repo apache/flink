@@ -17,5 +17,15 @@
   -->
 
 <flink-overview-statistic></flink-overview-statistic>
-<flink-job-list [jobData$]="jobData$" [title]="'Running Job List'" [completed]="false"></flink-job-list>
-<flink-job-list [jobData$]="jobData$" [title]="'Completed Job List'" [completed]="true"></flink-job-list>
+<flink-job-list
+  [jobData$]="jobData$"
+  [title]="'Running Job List'"
+  [completed]="false"
+  (navigate)="navigateToJob(['job', 'running', $event.jid])"
+></flink-job-list>
+<flink-job-list
+  [jobData$]="jobData$"
+  [title]="'Completed Job List'"
+  [completed]="true"
+  (navigate)="navigateToJob(['job', 'completed', $event.jid])"
+></flink-job-list>

@@ -15,19 +15,20 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.graph.scala
 
 import org.apache.flink.graph.{Edge, Vertex}
 import org.apache.flink.util.Collector
 
-abstract class EdgesFunctionWithVertexValue[K, VV, EV, T] extends org.apache.flink.graph
-.EdgesFunctionWithVertexValue[K, VV, EV, T] {
+abstract class EdgesFunctionWithVertexValue[K, VV, EV, T]
+  extends org.apache.flink.graph.EdgesFunctionWithVertexValue[K, VV, EV, T] {
   @throws(classOf[Exception])
   def iterateEdges(v: Vertex[K, VV], edges: Iterable[Edge[K, EV]], out: Collector[T])
 
-  override def iterateEdges(v: Vertex[K, VV], edges: java.lang.Iterable[Edge[K, EV]], out:
-  Collector[T]) = {
+  override def iterateEdges(
+      v: Vertex[K, VV],
+      edges: java.lang.Iterable[Edge[K, EV]],
+      out: Collector[T]) = {
     iterateEdges(v, scala.collection.JavaConversions.iterableAsScalaIterable(edges), out)
   }
 }

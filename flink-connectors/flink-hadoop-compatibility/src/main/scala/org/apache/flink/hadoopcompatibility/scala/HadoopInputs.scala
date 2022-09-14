@@ -15,32 +15,31 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.hadoopcompatibility.scala
 
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.scala.hadoop.{mapred, mapreduce}
+
 import org.apache.hadoop.fs.{Path => HadoopPath}
-import org.apache.hadoop.mapred.{JobConf, FileInputFormat => MapredFileInputFormat, InputFormat => MapredInputFormat}
+import org.apache.hadoop.mapred.{FileInputFormat => MapredFileInputFormat, InputFormat => MapredInputFormat, JobConf}
+import org.apache.hadoop.mapreduce.{InputFormat => MapreduceInputFormat, Job}
 import org.apache.hadoop.mapreduce.lib.input.{FileInputFormat => MapreduceFileInputFormat}
-import org.apache.hadoop.mapreduce.{Job, InputFormat => MapreduceInputFormat}
 
 /**
-  * HadoopInputs is a utility class to use Apache Hadoop InputFormats with Apache Flink.
-  *
-  * It provides methods to create Flink InputFormat wrappers for Hadoop
-  * [[org.apache.hadoop.mapred.InputFormat]] and [[org.apache.hadoop.mapreduce.InputFormat]].
-  *
-  * Key value pairs produced by the Hadoop InputFormats are converted into [[Tuple2]] where
-  * the first field is the key and the second field is the value.
-  *
-  */
+ * HadoopInputs is a utility class to use Apache Hadoop InputFormats with Apache Flink.
+ *
+ * It provides methods to create Flink InputFormat wrappers for Hadoop
+ * [[org.apache.hadoop.mapred.InputFormat]] and [[org.apache.hadoop.mapreduce.InputFormat]].
+ *
+ * Key value pairs produced by the Hadoop InputFormats are converted into [[Tuple2]] where the first
+ * field is the key and the second field is the value.
+ */
 object HadoopInputs {
 
   /**
-    * Creates a Flink [[org.apache.flink.api.common.io.InputFormat]] that wraps the given Hadoop
-    * [[org.apache.hadoop.mapred.FileInputFormat]].
-    */
+   * Creates a Flink [[org.apache.flink.api.common.io.InputFormat]] that wraps the given Hadoop
+   * [[org.apache.hadoop.mapred.FileInputFormat]].
+   */
   def readHadoopFile[K, V](
       mapredInputFormat: MapredFileInputFormat[K, V],
       key: Class[K],
@@ -55,9 +54,9 @@ object HadoopInputs {
   }
 
   /**
-    * Creates a Flink [[org.apache.flink.api.common.io.InputFormat]] that wraps the given Hadoop
-    * [[org.apache.hadoop.mapred.FileInputFormat]].
-    */
+   * Creates a Flink [[org.apache.flink.api.common.io.InputFormat]] that wraps the given Hadoop
+   * [[org.apache.hadoop.mapred.FileInputFormat]].
+   */
   def readHadoopFile[K, V](
       mapredInputFormat: MapredFileInputFormat[K, V],
       key: Class[K],
@@ -68,26 +67,24 @@ object HadoopInputs {
   }
 
   /**
-    * Creates a Flink [[org.apache.flink.api.common.io.InputFormat]] that reads a Hadoop sequence
-    * file with the given key and value classes.
-    */
-  def readSequenceFile[K, V](
-      key: Class[K],
-      value: Class[V],
-      inputPath: String)(implicit tpe: TypeInformation[(K, V)]): mapred.HadoopInputFormat[K, V] = {
+   * Creates a Flink [[org.apache.flink.api.common.io.InputFormat]] that reads a Hadoop sequence
+   * file with the given key and value classes.
+   */
+  def readSequenceFile[K, V](key: Class[K], value: Class[V], inputPath: String)(implicit
+      tpe: TypeInformation[(K, V)]): mapred.HadoopInputFormat[K, V] = {
 
     readHadoopFile(
       new org.apache.hadoop.mapred.SequenceFileInputFormat[K, V],
       key,
       value,
       inputPath
-   )
+    )
   }
 
   /**
-    * Creates a Flink [[org.apache.flink.api.common.io.InputFormat]] that wraps the given Hadoop
-    * [[org.apache.hadoop.mapred.InputFormat]].
-    */
+   * Creates a Flink [[org.apache.flink.api.common.io.InputFormat]] that wraps the given Hadoop
+   * [[org.apache.hadoop.mapred.InputFormat]].
+   */
   def createHadoopInput[K, V](
       mapredInputFormat: MapredInputFormat[K, V],
       key: Class[K],
@@ -98,9 +95,9 @@ object HadoopInputs {
   }
 
   /**
-    * Creates a Flink [[org.apache.flink.api.common.io.InputFormat]] that wraps the given Hadoop
-    * [[org.apache.hadoop.mapreduce.lib.input.FileInputFormat]].
-    */
+   * Creates a Flink [[org.apache.flink.api.common.io.InputFormat]] that wraps the given Hadoop
+   * [[org.apache.hadoop.mapreduce.lib.input.FileInputFormat]].
+   */
   def readHadoopFile[K, V](
       mapreduceInputFormat: MapreduceFileInputFormat[K, V],
       key: Class[K],
@@ -115,22 +112,22 @@ object HadoopInputs {
   }
 
   /**
-    * Creates a Flink [[org.apache.flink.api.common.io.InputFormat]] that wraps the given Hadoop
-    * [[org.apache.hadoop.mapreduce.lib.input.FileInputFormat]].
-    */
+   * Creates a Flink [[org.apache.flink.api.common.io.InputFormat]] that wraps the given Hadoop
+   * [[org.apache.hadoop.mapreduce.lib.input.FileInputFormat]].
+   */
   def readHadoopFile[K, V](
       mapreduceInputFormat: MapreduceFileInputFormat[K, V],
       key: Class[K],
       value: Class[V],
-      inputPath: String)(implicit tpe: TypeInformation[(K, V)]): mapreduce.HadoopInputFormat[K, V] =
-  {
+      inputPath: String)(implicit
+      tpe: TypeInformation[(K, V)]): mapreduce.HadoopInputFormat[K, V] = {
     readHadoopFile(mapreduceInputFormat, key, value, inputPath, Job.getInstance)
   }
 
   /**
-    * Creates a Flink [[org.apache.flink.api.common.io.InputFormat]] that wraps the given Hadoop
-    * [[org.apache.hadoop.mapreduce.InputFormat]].
-    */
+   * Creates a Flink [[org.apache.flink.api.common.io.InputFormat]] that wraps the given Hadoop
+   * [[org.apache.hadoop.mapreduce.InputFormat]].
+   */
   def createHadoopInput[K, V](
       mapreduceInputFormat: MapreduceInputFormat[K, V],
       key: Class[K],
@@ -140,4 +137,3 @@ object HadoopInputs {
     new mapreduce.HadoopInputFormat[K, V](mapreduceInputFormat, key, value, job)
   }
 }
-

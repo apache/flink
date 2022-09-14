@@ -23,124 +23,169 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonPro
 
 import java.util.Objects;
 
-/**
- * IO metrics information.
- */
+/** IO metrics information. */
 public final class IOMetricsInfo {
 
-	private static final String FIELD_NAME_BYTES_READ = "read-bytes";
+    public static final String FIELD_NAME_BYTES_READ = "read-bytes";
 
-	private static final String FIELD_NAME_BYTES_READ_COMPLETE = "read-bytes-complete";
+    private static final String FIELD_NAME_BYTES_READ_COMPLETE = "read-bytes-complete";
 
-	private static final String FIELD_NAME_BYTES_WRITTEN = "write-bytes";
+    public static final String FIELD_NAME_BYTES_WRITTEN = "write-bytes";
 
-	private static final String FIELD_NAME_BYTES_WRITTEN_COMPLETE = "write-bytes-complete";
+    private static final String FIELD_NAME_BYTES_WRITTEN_COMPLETE = "write-bytes-complete";
 
-	private static final String FIELD_NAME_RECORDS_READ = "read-records";
+    public static final String FIELD_NAME_RECORDS_READ = "read-records";
 
-	private static final String FIELD_NAME_RECORDS_READ_COMPLETE = "read-records-complete";
+    private static final String FIELD_NAME_RECORDS_READ_COMPLETE = "read-records-complete";
 
-	private static final String FIELD_NAME_RECORDS_WRITTEN = "write-records";
+    public static final String FIELD_NAME_RECORDS_WRITTEN = "write-records";
 
-	private static final String FIELD_NAME_RECORDS_WRITTEN_COMPLETE = "write-records-complete";
+    private static final String FIELD_NAME_RECORDS_WRITTEN_COMPLETE = "write-records-complete";
 
-	@JsonProperty(FIELD_NAME_BYTES_READ)
-	private final long bytesRead;
+    public static final String FIELD_NAME_ACC_BACK_PRESSURE = "accumulated-backpressured-time";
 
-	@JsonProperty(FIELD_NAME_BYTES_READ_COMPLETE)
-	private final boolean bytesReadComplete;
+    public static final String FIELD_NAME_ACC_IDLE = "accumulated-idle-time";
 
-	@JsonProperty(FIELD_NAME_BYTES_WRITTEN)
-	private final long bytesWritten;
+    public static final String FIELD_NAME_ACC_BUSY = "accumulated-busy-time";
 
-	@JsonProperty(FIELD_NAME_BYTES_WRITTEN_COMPLETE)
-	private final boolean bytesWrittenComplete;
+    @JsonProperty(FIELD_NAME_BYTES_READ)
+    private final long bytesRead;
 
-	@JsonProperty(FIELD_NAME_RECORDS_READ)
-	private final long recordsRead;
+    @JsonProperty(FIELD_NAME_BYTES_READ_COMPLETE)
+    private final boolean bytesReadComplete;
 
-	@JsonProperty(FIELD_NAME_RECORDS_READ_COMPLETE)
-	private final boolean recordsReadComplete;
+    @JsonProperty(FIELD_NAME_BYTES_WRITTEN)
+    private final long bytesWritten;
 
-	@JsonProperty(FIELD_NAME_RECORDS_WRITTEN)
-	private final long recordsWritten;
+    @JsonProperty(FIELD_NAME_BYTES_WRITTEN_COMPLETE)
+    private final boolean bytesWrittenComplete;
 
-	@JsonProperty(FIELD_NAME_RECORDS_WRITTEN_COMPLETE)
-	private final boolean recordsWrittenComplete;
+    @JsonProperty(FIELD_NAME_RECORDS_READ)
+    private final long recordsRead;
 
-	@JsonCreator
-	public IOMetricsInfo(
-			@JsonProperty(FIELD_NAME_BYTES_READ) long bytesRead,
-			@JsonProperty(FIELD_NAME_BYTES_READ_COMPLETE) boolean bytesReadComplete,
-			@JsonProperty(FIELD_NAME_BYTES_WRITTEN) long bytesWritten,
-			@JsonProperty(FIELD_NAME_BYTES_WRITTEN_COMPLETE) boolean bytesWrittenComplete,
-			@JsonProperty(FIELD_NAME_RECORDS_READ) long recordsRead,
-			@JsonProperty(FIELD_NAME_RECORDS_READ_COMPLETE) boolean recordsReadComplete,
-			@JsonProperty(FIELD_NAME_RECORDS_WRITTEN) long recordsWritten,
-			@JsonProperty(FIELD_NAME_RECORDS_WRITTEN_COMPLETE) boolean recordsWrittenComplete) {
-		this.bytesRead = bytesRead;
-		this.bytesReadComplete = bytesReadComplete;
-		this.bytesWritten = bytesWritten;
-		this.bytesWrittenComplete = bytesWrittenComplete;
-		this.recordsRead = recordsRead;
-		this.recordsReadComplete = recordsReadComplete;
-		this.recordsWritten = recordsWritten;
-		this.recordsWrittenComplete = recordsWrittenComplete;
-	}
+    @JsonProperty(FIELD_NAME_RECORDS_READ_COMPLETE)
+    private final boolean recordsReadComplete;
 
-	public long getBytesRead() {
-		return bytesRead;
-	}
+    @JsonProperty(FIELD_NAME_RECORDS_WRITTEN)
+    private final long recordsWritten;
 
-	public boolean isBytesReadComplete() {
-		return bytesReadComplete;
-	}
+    @JsonProperty(FIELD_NAME_RECORDS_WRITTEN_COMPLETE)
+    private final boolean recordsWrittenComplete;
 
-	public long getBytesWritten() {
-		return bytesWritten;
-	}
+    @JsonProperty(FIELD_NAME_ACC_BACK_PRESSURE)
+    private final long accumulatedBackpressured;
 
-	public boolean isBytesWrittenComplete() {
-		return bytesWrittenComplete;
-	}
+    @JsonProperty(FIELD_NAME_ACC_IDLE)
+    private final long accumulatedIdle;
 
-	public long getRecordsRead() {
-		return recordsRead;
-	}
+    @JsonProperty(FIELD_NAME_ACC_BUSY)
+    private final double accumulatedBusy;
 
-	public boolean isRecordsReadComplete() {
-		return recordsReadComplete;
-	}
+    @JsonCreator
+    public IOMetricsInfo(
+            @JsonProperty(FIELD_NAME_BYTES_READ) long bytesRead,
+            @JsonProperty(FIELD_NAME_BYTES_READ_COMPLETE) boolean bytesReadComplete,
+            @JsonProperty(FIELD_NAME_BYTES_WRITTEN) long bytesWritten,
+            @JsonProperty(FIELD_NAME_BYTES_WRITTEN_COMPLETE) boolean bytesWrittenComplete,
+            @JsonProperty(FIELD_NAME_RECORDS_READ) long recordsRead,
+            @JsonProperty(FIELD_NAME_RECORDS_READ_COMPLETE) boolean recordsReadComplete,
+            @JsonProperty(FIELD_NAME_RECORDS_WRITTEN) long recordsWritten,
+            @JsonProperty(FIELD_NAME_RECORDS_WRITTEN_COMPLETE) boolean recordsWrittenComplete,
+            @JsonProperty(FIELD_NAME_ACC_BACK_PRESSURE) long accumulatedBackpressured,
+            @JsonProperty(FIELD_NAME_ACC_IDLE) long accumulatedIdle,
+            @JsonProperty(FIELD_NAME_ACC_BUSY) double accumulatedBusy) {
+        this.bytesRead = bytesRead;
+        this.bytesReadComplete = bytesReadComplete;
+        this.bytesWritten = bytesWritten;
+        this.bytesWrittenComplete = bytesWrittenComplete;
+        this.recordsRead = recordsRead;
+        this.recordsReadComplete = recordsReadComplete;
+        this.recordsWritten = recordsWritten;
+        this.recordsWrittenComplete = recordsWrittenComplete;
+        this.accumulatedBackpressured = accumulatedBackpressured;
+        this.accumulatedIdle = accumulatedIdle;
+        this.accumulatedBusy = accumulatedBusy;
+    }
 
-	public long getRecordsWritten() {
-		return recordsWritten;
-	}
+    public long getBytesRead() {
+        return bytesRead;
+    }
 
-	public boolean isRecordsWrittenComplete() {
-		return recordsWrittenComplete;
-	}
+    public boolean isBytesReadComplete() {
+        return bytesReadComplete;
+    }
 
-	@Override
-	public boolean equals(Object o) {
-		if (this == o) {
-			return true;
-		}
-		if (o == null || getClass() != o.getClass()) {
-			return false;
-		}
-		IOMetricsInfo that = (IOMetricsInfo) o;
-		return bytesRead == that.bytesRead &&
-			bytesReadComplete == that.bytesReadComplete &&
-			bytesWritten == that.bytesWritten &&
-			bytesWrittenComplete == that.bytesWrittenComplete &&
-			recordsRead == that.recordsRead &&
-			recordsReadComplete == that.recordsReadComplete &&
-			recordsWritten == that.recordsWritten &&
-			recordsWrittenComplete == that.recordsWrittenComplete;
-	}
+    public long getBytesWritten() {
+        return bytesWritten;
+    }
 
-	@Override
-	public int hashCode() {
-		return Objects.hash(bytesRead, bytesReadComplete, bytesWritten, bytesWrittenComplete, recordsRead, recordsReadComplete, recordsWritten, recordsWrittenComplete);
-	}
+    public boolean isBytesWrittenComplete() {
+        return bytesWrittenComplete;
+    }
+
+    public long getRecordsRead() {
+        return recordsRead;
+    }
+
+    public boolean isRecordsReadComplete() {
+        return recordsReadComplete;
+    }
+
+    public long getRecordsWritten() {
+        return recordsWritten;
+    }
+
+    public boolean isRecordsWrittenComplete() {
+        return recordsWrittenComplete;
+    }
+
+    public long getAccumulatedBackpressured() {
+        return accumulatedBackpressured;
+    }
+
+    public double getAccumulatedBusy() {
+        return accumulatedBusy;
+    }
+
+    public long getAccumulatedIdle() {
+        return accumulatedIdle;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
+        IOMetricsInfo that = (IOMetricsInfo) o;
+        return bytesRead == that.bytesRead
+                && bytesReadComplete == that.bytesReadComplete
+                && bytesWritten == that.bytesWritten
+                && bytesWrittenComplete == that.bytesWrittenComplete
+                && recordsRead == that.recordsRead
+                && recordsReadComplete == that.recordsReadComplete
+                && recordsWritten == that.recordsWritten
+                && recordsWrittenComplete == that.recordsWrittenComplete
+                && accumulatedBackpressured == that.accumulatedBackpressured
+                && accumulatedBusy == that.accumulatedBusy
+                && accumulatedIdle == that.accumulatedIdle;
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(
+                bytesRead,
+                bytesReadComplete,
+                bytesWritten,
+                bytesWrittenComplete,
+                recordsRead,
+                recordsReadComplete,
+                recordsWritten,
+                recordsWrittenComplete,
+                accumulatedBackpressured,
+                accumulatedBusy,
+                accumulatedIdle);
+    }
 }

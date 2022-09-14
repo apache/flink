@@ -15,12 +15,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.streaming.api.scala
 
-import java.util.concurrent.TimeUnit
-
-import org.apache.flink.api.common.state.{FoldingStateDescriptor, ListStateDescriptor, ReducingStateDescriptor}
+import org.apache.flink.api.common.state.{ListStateDescriptor, ReducingStateDescriptor}
 import org.apache.flink.api.java.tuple.Tuple
 import org.apache.flink.streaming.api.TimeCharacteristic
 import org.apache.flink.streaming.api.scala.function.WindowFunction
@@ -32,19 +29,22 @@ import org.apache.flink.streaming.api.windowing.windows.TimeWindow
 import org.apache.flink.streaming.runtime.operators.windowing.WindowOperator
 import org.apache.flink.test.util.AbstractTestBase
 import org.apache.flink.util.Collector
+
 import org.junit.Assert._
 import org.junit.Test
 
+import java.util.concurrent.TimeUnit
+
 /**
-  * These tests verify that the api calls on [[WindowedStream]] that use the "time" shortcut
-  * instantiate the correct window operator.
-  */
+ * These tests verify that the api calls on [[WindowedStream]] that use the "time" shortcut
+ * instantiate the correct window operator.
+ */
 class TimeWindowTranslationTest extends AbstractTestBase {
 
   /**
-    * Verifies that calls to timeWindow() instantiate a regular
-    * windowOperator instead of an aligned one.
-    */
+   * Verifies that calls to timeWindow() instantiate a regular windowOperator instead of an aligned
+   * one.
+   */
   @Test
   def testAlignedWindowDeprecation(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
@@ -71,10 +71,10 @@ class TimeWindowTranslationTest extends AbstractTestBase {
       .timeWindow(Time.minutes(1))
       .apply(new WindowFunction[(String, Int), (String, Int), Tuple, TimeWindow]() {
         def apply(
-                   key: Tuple,
-                   window: TimeWindow,
-                   values: Iterable[(String, Int)],
-                   out: Collector[(String, Int)]) { }
+            key: Tuple,
+            window: TimeWindow,
+            values: Iterable[(String, Int)],
+            out: Collector[(String, Int)]) {}
       })
 
     val transform2 = window2.javaStream.getTransformation
@@ -109,32 +109,6 @@ class TimeWindowTranslationTest extends AbstractTestBase {
     assertTrue(winOperator1.getTrigger.isInstanceOf[EventTimeTrigger])
     assertTrue(winOperator1.getWindowAssigner.isInstanceOf[SlidingEventTimeWindows])
     assertTrue(winOperator1.getStateDescriptor.isInstanceOf[ReducingStateDescriptor[_]])
-  }
-
-  @Test
-  def testFoldEventTimeWindows(): Unit = {
-    val env = StreamExecutionEnvironment.getExecutionEnvironment
-    env.setStreamTimeCharacteristic(TimeCharacteristic.IngestionTime)
-
-    val source = env.fromElements(("hello", 1), ("hello", 2))
-
-    val window1 = source
-      .keyBy(0)
-      .timeWindow(Time.of(1, TimeUnit.SECONDS), Time.of(100, TimeUnit.MILLISECONDS))
-      .fold(("", "", 1), new DummyFolder())
-
-    val transform1 = window1.javaStream.getTransformation
-      .asInstanceOf[OneInputTransformation[(String, Int), (String, Int)]]
-
-    val operator1 = transform1.getOperator
-
-    assertTrue(operator1.isInstanceOf[WindowOperator[_, _, _, _, _]])
-
-    val winOperator1 = operator1.asInstanceOf[WindowOperator[_, _, _, _, _]]
-
-    assertTrue(winOperator1.getTrigger.isInstanceOf[EventTimeTrigger])
-    assertTrue(winOperator1.getWindowAssigner.isInstanceOf[SlidingEventTimeWindows])
-    assertTrue(winOperator1.getStateDescriptor.isInstanceOf[FoldingStateDescriptor[_, _]])
   }
 
   @Test

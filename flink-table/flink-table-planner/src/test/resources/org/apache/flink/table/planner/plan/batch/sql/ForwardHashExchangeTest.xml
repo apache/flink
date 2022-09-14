@@ -1,0 +1,737 @@
+<?xml version="1.0" ?>
+<!--
+Licensed to the Apache Software Foundation (ASF) under one or more
+contributor license agreements.  See the NOTICE file distributed with
+this work for additional information regarding copyright ownership.
+The ASF licenses this file to you under the Apache License, Version 2.0
+(the "License"); you may not use this file except in compliance with
+the License.  You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+<Root>
+  <TestCase name="testAutoPhaseSortAggOnSortMergeJoinWithHashShuffle">
+    <Resource name="sql">
+      <![CDATA[WITH r AS (SELECT * FROM T1, T2 WHERE a1 = a2 AND c1 LIKE 'He%')
+SELECT sum(b1) FROM r group by a1]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(EXPR$0=[$1])
++- LogicalAggregate(group=[{0}], EXPR$0=[SUM($1)])
+   +- LogicalProject(a1=[$0], b1=[$1])
+      +- LogicalFilter(condition=[AND(=($0, $4), LIKE($2, _UTF-16LE'He%'))])
+         +- LogicalJoin(condition=[true], joinType=[inner])
+            :- LogicalTableScan(table=[[default_catalog, default_database, T1]])
+            +- LogicalTableScan(table=[[default_catalog, default_database, T2]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[EXPR$0])
++- SortAggregate(isMerge=[false], groupBy=[a1], select=[a1, SUM(b1) AS EXPR$0])
+   +- Exchange(distribution=[forward])
+      +- Calc(select=[a1, b1])
+         +- Exchange(distribution=[forward])
+            +- SortMergeJoin(joinType=[InnerJoin], where=[(a1 = a2)], select=[a1, b1, a2])
+               :- Exchange(distribution=[hash[a1]])
+               :  +- Calc(select=[a1, b1], where=[LIKE(c1, 'He%')])
+               :     +- TableSourceScan(table=[[default_catalog, default_database, T1, filter=[], project=[a1, b1, c1], metadata=[]]], fields=[a1, b1, c1])
+               +- Exchange(distribution=[hash[a2]])
+                  +- TableSourceScan(table=[[default_catalog, default_database, T2, project=[a2], metadata=[]]], fields=[a2])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testHashAggOnHashJoinWithHashShuffle">
+    <Resource name="sql">
+      <![CDATA[WITH r AS (SELECT * FROM T1, T2 WHERE a1 = a2 AND c1 LIKE 'He%')
+SELECT sum(b1) FROM r group by a1]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(EXPR$0=[$1])
++- LogicalAggregate(group=[{0}], EXPR$0=[SUM($1)])
+   +- LogicalProject(a1=[$0], b1=[$1])
+      +- LogicalFilter(condition=[AND(=($0, $4), LIKE($2, _UTF-16LE'He%'))])
+         +- LogicalJoin(condition=[true], joinType=[inner])
+            :- LogicalTableScan(table=[[default_catalog, default_database, T1]])
+            +- LogicalTableScan(table=[[default_catalog, default_database, T2]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[EXPR$0])
++- HashAggregate(isMerge=[false], groupBy=[a1], select=[a1, SUM(b1) AS EXPR$0])
+   +- Exchange(distribution=[keep_input_as_is[hash[a1]]])
+      +- Calc(select=[a1, b1])
+         +- Exchange(distribution=[keep_input_as_is[hash[a1]]])
+            +- HashJoin(joinType=[InnerJoin], where=[(a1 = a2)], select=[a1, b1, a2], build=[left])
+               :- Exchange(distribution=[hash[a1]])
+               :  +- Calc(select=[a1, b1], where=[LIKE(c1, 'He%')])
+               :     +- TableSourceScan(table=[[default_catalog, default_database, T1, filter=[], project=[a1, b1, c1], metadata=[]]], fields=[a1, b1, c1])
+               +- Exchange(distribution=[hash[a2]])
+                  +- TableSourceScan(table=[[default_catalog, default_database, T2, project=[a2], metadata=[]]], fields=[a2])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testHashAggOnNestedLoopJoinWithGlobalShuffle">
+    <Resource name="sql">
+      <![CDATA[WITH r AS (SELECT * FROM T1 FULL OUTER JOIN T2 ON true)
+SELECT sum(b1) FROM r]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalAggregate(group=[{}], EXPR$0=[SUM($0)])
++- LogicalProject(b1=[$1])
+   +- LogicalJoin(condition=[true], joinType=[full])
+      :- LogicalTableScan(table=[[default_catalog, default_database, T1]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, T2]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+HashAggregate(isMerge=[false], select=[SUM(b1) AS EXPR$0])
++- Exchange(distribution=[single])
+   +- Calc(select=[b1])
+      +- NestedLoopJoin(joinType=[FullOuterJoin], where=[true], select=[b1, a2], build=[left])
+         :- Exchange(distribution=[single])
+         :  +- TableSourceScan(table=[[default_catalog, default_database, T1, project=[b1], metadata=[]]], fields=[b1])
+         +- Exchange(distribution=[single])
+            +- TableSourceScan(table=[[default_catalog, default_database, T2, project=[a2], metadata=[]]], fields=[a2])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testHashJoinWithMultipleInputDisabled">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM
+  (SELECT a FROM T1 JOIN T ON a = a1) t1
+  INNER JOIN
+  (SELECT d2 FROM T JOIN T2 ON d2 = a) t2
+  ON t1.a = t2.d2]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], d2=[$1])
++- LogicalJoin(condition=[=($0, $1)], joinType=[inner])
+   :- LogicalProject(a=[$4])
+   :  +- LogicalJoin(condition=[=($4, $0)], joinType=[inner])
+   :     :- LogicalTableScan(table=[[default_catalog, default_database, T1]])
+   :     +- LogicalTableScan(table=[[default_catalog, default_database, T]])
+   +- LogicalProject(d2=[$7])
+      +- LogicalJoin(condition=[=($7, $0)], joinType=[inner])
+         :- LogicalTableScan(table=[[default_catalog, default_database, T]])
+         +- LogicalTableScan(table=[[default_catalog, default_database, T2]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+HashJoin(joinType=[InnerJoin], where=[(a = d2)], select=[a, d2], build=[right])
+:- Exchange(distribution=[keep_input_as_is[hash[a]]])
+:  +- Calc(select=[a])
+:     +- Exchange(distribution=[keep_input_as_is[hash[a1]]])
+:        +- HashJoin(joinType=[InnerJoin], where=[(a = a1)], select=[a1, a], build=[right])
+:           :- Exchange(distribution=[hash[a1]])
+:           :  +- TableSourceScan(table=[[default_catalog, default_database, T1, project=[a1], metadata=[]]], fields=[a1])
+:           +- Exchange(distribution=[hash[a]])(reuse_id=[1])
+:              +- TableSourceScan(table=[[default_catalog, default_database, T, project=[a], metadata=[]]], fields=[a])
++- Exchange(distribution=[keep_input_as_is[hash[d2]]])
+   +- Calc(select=[d2])
+      +- Exchange(distribution=[keep_input_as_is[hash[a]]])
+         +- HashJoin(joinType=[InnerJoin], where=[(d2 = a)], select=[a, d2], build=[right])
+            :- Reused(reference_id=[1])
+            +- Exchange(distribution=[hash[d2]])
+               +- TableSourceScan(table=[[default_catalog, default_database, T2, project=[d2], metadata=[]]], fields=[d2])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testMultipleInputs">
+    <Resource name="sql">
+      <![CDATA[WITH
+  v1 AS (
+    SELECT a, ny, nz FROM x
+      LEFT JOIN y ON x.a = y.ny
+      LEFT JOIN z ON x.a = z.nz),
+  v2 AS (
+    SELECT v1.a AS a, t.b AS b, d, v1.ny AS ny, nz FROM v1
+      LEFT JOIN t ON v1.a = t.a
+      INNER JOIN y ON v1.a = y.d),
+  v3 AS (
+    SELECT v1.a AS a, t.b AS b, d, v1.ny AS ny, nz FROM v1
+      LEFT JOIN y ON v1.a = y.d
+      INNER JOIN t ON v1.a = t.a),
+  v4 AS (SELECT b, SUM(d) AS sd, SUM(ny) AS sy, SUM(nz) AS sz FROM v2 GROUP BY b),
+  v5 AS (SELECT b, SUM(d) AS sd, SUM(ny) AS sy, SUM(nz) AS sz FROM v3 GROUP BY b)
+SELECT * FROM
+  (SELECT t.b, sd, sy, sz FROM v4 LEFT JOIN t ON v4.b = t.b)
+  UNION ALL
+  (SELECT y.e, sd, sy, sz FROM v5 LEFT JOIN y ON v5.b = y.e)]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalUnion(all=[true])
+:- LogicalProject(b=[$5], sd=[$1], sy=[$2], sz=[$3])
+:  +- LogicalJoin(condition=[=($0, $5)], joinType=[left])
+:     :- LogicalAggregate(group=[{0}], sd=[SUM($1)], sy=[SUM($2)], sz=[SUM($3)])
+:     :  +- LogicalProject(b=[$4], d=[$6], ny=[$1], nz=[$2])
+:     :     +- LogicalJoin(condition=[=($0, $6)], joinType=[inner])
+:     :        :- LogicalJoin(condition=[=($0, $3)], joinType=[left])
+:     :        :  :- LogicalProject(a=[$0], ny=[$7], nz=[$11])
+:     :        :  :  +- LogicalJoin(condition=[=($0, $11)], joinType=[left])
+:     :        :  :     :- LogicalJoin(condition=[=($0, $7)], joinType=[left])
+:     :        :  :     :  :- LogicalTableScan(table=[[default_catalog, default_database, x]])
+:     :        :  :     :  +- LogicalTableScan(table=[[default_catalog, default_database, y]])
+:     :        :  :     +- LogicalTableScan(table=[[default_catalog, default_database, z]])
+:     :        :  +- LogicalTableScan(table=[[default_catalog, default_database, t]])
+:     :        +- LogicalTableScan(table=[[default_catalog, default_database, y]])
+:     +- LogicalTableScan(table=[[default_catalog, default_database, t]])
++- LogicalProject(e=[$5], sd=[$1], sy=[$2], sz=[$3])
+   +- LogicalJoin(condition=[=($0, $5)], joinType=[left])
+      :- LogicalAggregate(group=[{0}], sd=[SUM($1)], sy=[SUM($2)], sz=[SUM($3)])
+      :  +- LogicalProject(b=[$8], d=[$3], ny=[$1], nz=[$2])
+      :     +- LogicalJoin(condition=[=($0, $7)], joinType=[inner])
+      :        :- LogicalJoin(condition=[=($0, $3)], joinType=[left])
+      :        :  :- LogicalProject(a=[$0], ny=[$7], nz=[$11])
+      :        :  :  +- LogicalJoin(condition=[=($0, $11)], joinType=[left])
+      :        :  :     :- LogicalJoin(condition=[=($0, $7)], joinType=[left])
+      :        :  :     :  :- LogicalTableScan(table=[[default_catalog, default_database, x]])
+      :        :  :     :  +- LogicalTableScan(table=[[default_catalog, default_database, y]])
+      :        :  :     +- LogicalTableScan(table=[[default_catalog, default_database, z]])
+      :        :  +- LogicalTableScan(table=[[default_catalog, default_database, y]])
+      :        +- LogicalTableScan(table=[[default_catalog, default_database, t]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, y]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+MultipleInput(readOrder=[1,1,0,0], members=[\nUnion(all=[true], union=[b, sd, sy, sz])\n:- Calc(select=[b0 AS b, sd, sy, sz])\n:  +- HashJoin(joinType=[LeftOuterJoin], where=[(b = b0)], select=[b, sd, sy, sz, b0], build=[left])\n:     :- HashAggregate(isMerge=[true], groupBy=[b], select=[b, Final_SUM(sum$0) AS sd, Final_SUM(sum$1) AS sy, Final_SUM(sum$2) AS sz])\n:     :  +- [#3] Exchange(distribution=[hash[b]])\n:     +- [#1] Exchange(distribution=[hash[b]])\n+- Calc(select=[e, sd, sy, sz])\n   +- HashJoin(joinType=[LeftOuterJoin], where=[(b = e)], select=[b, sd, sy, sz, e], build=[left])\n      :- HashAggregate(isMerge=[true], groupBy=[b], select=[b, Final_SUM(sum$0) AS sd, Final_SUM(sum$1) AS sy, Final_SUM(sum$2) AS sz])\n      :  +- [#4] Exchange(distribution=[hash[b]])\n      +- [#2] Exchange(distribution=[hash[e]])\n])
+:- Exchange(distribution=[hash[b]])
+:  +- TableSourceScan(table=[[default_catalog, default_database, t, project=[b], metadata=[]]], fields=[b])
+:- Exchange(distribution=[hash[e]])
+:  +- TableSourceScan(table=[[default_catalog, default_database, y, project=[e], metadata=[]]], fields=[e])
+:- Exchange(distribution=[hash[b]])
+:  +- LocalHashAggregate(groupBy=[b], select=[b, Partial_SUM(d) AS sum$0, Partial_SUM(ny) AS sum$1, Partial_SUM(nz) AS sum$2])
+:     +- Calc(select=[b, d, ny, nz])
+:        +- MultipleInput(readOrder=[0,1,0], members=[\nHashJoin(joinType=[InnerJoin], where=[(a = d)], select=[a, ny, nz, b, d], build=[right])\n:- Calc(select=[a, ny, nz, b])\n:  +- HashJoin(joinType=[LeftOuterJoin], where=[(a = a0)], select=[a, ny, nz, a0, b], build=[right])\n:     :- [#2] MultipleInput(readOrder=[0,1,0], members=[\nHashJoin(joinType=[LeftOuterJoin], where=[(a = nz)], select=[a, ny, nz], build=[right])\n:- HashJoin(joinType=[LeftOuterJoin], where=[(a = ny)], select=[a, ny], build=[right])\n:  :- [#2] Exchange(distribution=[hash[a]])\n:  +- [#3] Exchange(distribution=[hash[ny]])\n+- [#1] Exchange(distribution=[hash[nz]])\n])\n:     +- [#3] Exchange(distribution=[hash[a]])\n+- [#1] Exchange(distribution=[hash[d]])\n])
+:           :- Exchange(distribution=[hash[d]])(reuse_id=[3])
+:           :  +- TableSourceScan(table=[[default_catalog, default_database, y, project=[d], metadata=[]]], fields=[d])
+:           :- Exchange(distribution=[keep_input_as_is[hash[a]]])
+:           :  +- MultipleInput(readOrder=[0,1,0], members=[\nHashJoin(joinType=[LeftOuterJoin], where=[(a = nz)], select=[a, ny, nz], build=[right])\n:- HashJoin(joinType=[LeftOuterJoin], where=[(a = ny)], select=[a, ny], build=[right])\n:  :- [#2] Exchange(distribution=[hash[a]])\n:  +- [#3] Exchange(distribution=[hash[ny]])\n+- [#1] Exchange(distribution=[hash[nz]])\n])(reuse_id=[2])
+:           :     :- Exchange(distribution=[hash[nz]])
+:           :     :  +- TableSourceScan(table=[[default_catalog, default_database, z, project=[nz], metadata=[]]], fields=[nz])
+:           :     :- Exchange(distribution=[hash[a]])
+:           :     :  +- TableSourceScan(table=[[default_catalog, default_database, x, project=[a], metadata=[]]], fields=[a])
+:           :     +- Exchange(distribution=[hash[ny]])
+:           :        +- TableSourceScan(table=[[default_catalog, default_database, y, project=[ny], metadata=[]]], fields=[ny])
+:           +- Exchange(distribution=[hash[a]])(reuse_id=[1])
+:              +- TableSourceScan(table=[[default_catalog, default_database, t, project=[a, b], metadata=[]]], fields=[a, b])
++- Exchange(distribution=[hash[b]])
+   +- LocalHashAggregate(groupBy=[b], select=[b, Partial_SUM(d) AS sum$0, Partial_SUM(ny) AS sum$1, Partial_SUM(nz) AS sum$2])
+      +- Calc(select=[b, d, ny, nz])
+         +- MultipleInput(readOrder=[0,1,0], members=[\nHashJoin(joinType=[InnerJoin], where=[(a = a0)], select=[a, ny, nz, d, a0, b], build=[right])\n:- HashJoin(joinType=[LeftOuterJoin], where=[(a = d)], select=[a, ny, nz, d], build=[right])\n:  :- [#2] MultipleInput(readOrder=[0,1,0], members=[\nHashJoin(joinType=[LeftOuterJoin], where=[(a = nz)], select=[a, ny, nz], build=[right])\n:- HashJoin(joinType=[LeftOuterJoin], where=[(a = ny)], select=[a, ny], build=[right])\n:  :- [#2] Exchange(distribution=[hash[a]])\n:  +- [#3] Exchange(distribution=[hash[ny]])\n+- [#1] Exchange(distribution=[hash[nz]])\n])\n:  +- [#3] Exchange(distribution=[hash[d]])\n+- [#1] Exchange(distribution=[hash[a]])\n])
+            :- Reused(reference_id=[1])
+            :- Exchange(distribution=[keep_input_as_is[hash[a]]])
+            :  +- Reused(reference_id=[2])
+            +- Reused(reference_id=[3])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testOnePhaseSortAggOnSortMergeJoinWithHashShuffle">
+    <Resource name="sql">
+      <![CDATA[WITH r AS (SELECT * FROM T1, T2 WHERE a1 = a2 AND c1 LIKE 'He%')
+SELECT sum(b1) FROM r group by a1]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(EXPR$0=[$1])
++- LogicalAggregate(group=[{0}], EXPR$0=[SUM($1)])
+   +- LogicalProject(a1=[$0], b1=[$1])
+      +- LogicalFilter(condition=[AND(=($0, $4), LIKE($2, _UTF-16LE'He%'))])
+         +- LogicalJoin(condition=[true], joinType=[inner])
+            :- LogicalTableScan(table=[[default_catalog, default_database, T1]])
+            +- LogicalTableScan(table=[[default_catalog, default_database, T2]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[EXPR$0])
++- SortAggregate(isMerge=[false], groupBy=[a1], select=[a1, SUM(b1) AS EXPR$0])
+   +- Exchange(distribution=[forward])
+      +- Calc(select=[a1, b1])
+         +- Exchange(distribution=[forward])
+            +- SortMergeJoin(joinType=[InnerJoin], where=[(a1 = a2)], select=[a1, b1, a2])
+               :- Exchange(distribution=[hash[a1]])
+               :  +- Calc(select=[a1, b1], where=[LIKE(c1, 'He%')])
+               :     +- TableSourceScan(table=[[default_catalog, default_database, T1, filter=[], project=[a1, b1, c1], metadata=[]]], fields=[a1, b1, c1])
+               +- Exchange(distribution=[hash[a2]])
+                  +- TableSourceScan(table=[[default_catalog, default_database, T2, project=[a2], metadata=[]]], fields=[a2])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testOverAggOnHashAggWithGlobalShuffle">
+    <Resource name="sql">
+      <![CDATA[SELECT b, RANK() OVER (ORDER BY b) FROM (SELECT SUM(b) AS b FROM T)]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(b=[$0], EXPR$1=[RANK() OVER (ORDER BY $0 NULLS FIRST)])
++- LogicalAggregate(group=[{}], b=[SUM($0)])
+   +- LogicalProject(b=[$1])
+      +- LogicalTableScan(table=[[default_catalog, default_database, T]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+OverAggregate(orderBy=[b ASC], window#0=[RANK(*) AS w0$o0 RANG BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[b, w0$o0])
++- Exchange(distribution=[forward])
+   +- Sort(orderBy=[b ASC])
+      +- Exchange(distribution=[forward])
+         +- HashAggregate(isMerge=[true], select=[Final_SUM(sum$0) AS b])
+            +- Exchange(distribution=[single])
+               +- LocalHashAggregate(select=[Partial_SUM(b) AS sum$0])
+                  +- TableSourceScan(table=[[default_catalog, default_database, T, project=[b], metadata=[]]], fields=[b])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testOverAggOnHashAggWithHashShuffle">
+    <Resource name="sql">
+      <![CDATA[ SELECT
+   SUM(b) sum_b,
+   AVG(SUM(b)) OVER (PARTITION BY c) avg_b,
+   RANK() OVER (PARTITION BY c ORDER BY c) rn,
+   c
+ FROM T
+ GROUP BY c]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(sum_b=[$1], avg_b=[/(CASE(>(COUNT($1) OVER (PARTITION BY $0), 0), $SUM0($1) OVER (PARTITION BY $0), null:BIGINT), COUNT($1) OVER (PARTITION BY $0))], rn=[RANK() OVER (PARTITION BY $0 ORDER BY $0 NULLS FIRST)], c=[$0])
++- LogicalAggregate(group=[{0}], sum_b=[SUM($1)])
+   +- LogicalProject(c=[$2], b=[$1])
+      +- LogicalTableScan(table=[[default_catalog, default_database, T]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[sum_b, (CASE((w0$o0 > 0), w0$o1, null:BIGINT) / w0$o0) AS avg_b, w1$o0 AS rn, c])
++- OverAggregate(partitionBy=[c], window#0=[COUNT(sum_b) AS w0$o0, $SUM0(sum_b) AS w0$o1 RANG BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING], window#1=[RANK(*) AS w1$o0 RANG BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[c, sum_b, w0$o0, w0$o1, w1$o0])
+   +- Exchange(distribution=[forward])
+      +- Sort(orderBy=[c ASC])
+         +- Exchange(distribution=[keep_input_as_is[hash[c]]])
+            +- HashAggregate(isMerge=[true], groupBy=[c], select=[c, Final_SUM(sum$0) AS sum_b])
+               +- Exchange(distribution=[hash[c]])
+                  +- LocalHashAggregate(groupBy=[c], select=[c, Partial_SUM(b) AS sum$0])
+                     +- TableSourceScan(table=[[default_catalog, default_database, T, project=[c, b], metadata=[]]], fields=[c, b])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testOverAggOnSortAggWithGlobalShuffle">
+    <Resource name="sql">
+      <![CDATA[SELECT b, RANK() OVER (ORDER BY b) FROM (SELECT SUM(b) AS b FROM T)]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(b=[$0], EXPR$1=[RANK() OVER (ORDER BY $0 NULLS FIRST)])
++- LogicalAggregate(group=[{}], b=[SUM($0)])
+   +- LogicalProject(b=[$1])
+      +- LogicalTableScan(table=[[default_catalog, default_database, T]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+OverAggregate(orderBy=[b ASC], window#0=[RANK(*) AS w0$o0 RANG BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[b, w0$o0])
++- Exchange(distribution=[forward])
+   +- Sort(orderBy=[b ASC])
+      +- Exchange(distribution=[forward])
+         +- SortAggregate(isMerge=[true], select=[Final_SUM(sum$0) AS b])
+            +- Exchange(distribution=[single])
+               +- LocalSortAggregate(select=[Partial_SUM(b) AS sum$0])
+                  +- TableSourceScan(table=[[default_catalog, default_database, T, project=[b], metadata=[]]], fields=[b])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testOverAggOnSortAggWithHashShuffle">
+    <Resource name="sql">
+      <![CDATA[ SELECT
+   SUM(b) sum_b,
+   AVG(SUM(b)) OVER (PARTITION BY c) avg_b,
+   RANK() OVER (PARTITION BY c ORDER BY c) rn,
+   c
+ FROM T
+ GROUP BY c]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(sum_b=[$1], avg_b=[/(CASE(>(COUNT($1) OVER (PARTITION BY $0), 0), $SUM0($1) OVER (PARTITION BY $0), null:BIGINT), COUNT($1) OVER (PARTITION BY $0))], rn=[RANK() OVER (PARTITION BY $0 ORDER BY $0 NULLS FIRST)], c=[$0])
++- LogicalAggregate(group=[{0}], sum_b=[SUM($1)])
+   +- LogicalProject(c=[$2], b=[$1])
+      +- LogicalTableScan(table=[[default_catalog, default_database, T]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[sum_b, (CASE((w0$o0 > 0), w0$o1, null:BIGINT) / w0$o0) AS avg_b, w1$o0 AS rn, c])
++- OverAggregate(partitionBy=[c], window#0=[COUNT(sum_b) AS w0$o0, $SUM0(sum_b) AS w0$o1 RANG BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING], window#1=[RANK(*) AS w1$o0 RANG BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[c, sum_b, w0$o0, w0$o1, w1$o0])
+   +- Exchange(distribution=[forward])
+      +- SortAggregate(isMerge=[true], groupBy=[c], select=[c, Final_SUM(sum$0) AS sum_b])
+         +- Exchange(distribution=[forward])
+            +- Sort(orderBy=[c ASC])
+               +- Exchange(distribution=[hash[c]])
+                  +- LocalSortAggregate(groupBy=[c], select=[c, Partial_SUM(b) AS sum$0])
+                     +- Exchange(distribution=[forward])
+                        +- Sort(orderBy=[c ASC])
+                           +- TableSourceScan(table=[[default_catalog, default_database, T, project=[c, b], metadata=[]]], fields=[c, b])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testRankOnHashAggWithGlobalShuffle">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM (
+                SELECT b, RANK() OVER(ORDER BY b) rk FROM (
+                        SELECT SUM(b) AS b FROM T
+                )
+        ) WHERE rk <= 10]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(b=[$0], rk=[$1])
++- LogicalFilter(condition=[<=($1, 10)])
+   +- LogicalProject(b=[$0], rk=[RANK() OVER (ORDER BY $0 NULLS FIRST)])
+      +- LogicalAggregate(group=[{}], b=[SUM($0)])
+         +- LogicalProject(b=[$1])
+            +- LogicalTableScan(table=[[default_catalog, default_database, T]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Rank(rankType=[RANK], rankRange=[rankStart=1, rankEnd=10], partitionBy=[], orderBy=[b ASC], global=[true], select=[b, w0$o0])
++- Exchange(distribution=[forward])
+   +- Sort(orderBy=[b ASC])
+      +- Exchange(distribution=[forward])
+         +- HashAggregate(isMerge=[true], select=[Final_SUM(sum$0) AS b])
+            +- Exchange(distribution=[single])
+               +- LocalHashAggregate(select=[Partial_SUM(b) AS sum$0])
+                  +- TableSourceScan(table=[[default_catalog, default_database, T, project=[b], metadata=[]]], fields=[b])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testRankOnHashAggWithHashShuffle">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM (
+                SELECT a, b, RANK() OVER(PARTITION BY a ORDER BY b) rk FROM (
+                        SELECT a, SUM(b) AS b FROM T GROUP BY a
+                )
+        ) WHERE rk <= 10]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], rk=[$2])
++- LogicalFilter(condition=[<=($2, 10)])
+   +- LogicalProject(a=[$0], b=[$1], rk=[RANK() OVER (PARTITION BY $0 ORDER BY $1 NULLS FIRST)])
+      +- LogicalAggregate(group=[{0}], b=[SUM($1)])
+         +- LogicalProject(a=[$0], b=[$1])
+            +- LogicalTableScan(table=[[default_catalog, default_database, T]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Rank(rankType=[RANK], rankRange=[rankStart=1, rankEnd=10], partitionBy=[a], orderBy=[b ASC], global=[true], select=[a, b, w0$o0])
++- Exchange(distribution=[forward])
+   +- Sort(orderBy=[a ASC, b ASC])
+      +- Exchange(distribution=[keep_input_as_is[hash[a]]])
+         +- HashAggregate(isMerge=[true], groupBy=[a], select=[a, Final_SUM(sum$0) AS b])
+            +- Exchange(distribution=[hash[a]])
+               +- LocalHashAggregate(groupBy=[a], select=[a, Partial_SUM(b) AS sum$0])
+                  +- TableSourceScan(table=[[default_catalog, default_database, T, project=[a, b], metadata=[]]], fields=[a, b])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testRankOnOnePhaseSortAggWithGlobalShuffle">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM (
+                SELECT b, RANK() OVER(ORDER BY b) rk FROM (
+                        SELECT SUM(b) AS b FROM T
+                )
+        ) WHERE rk <= 10]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(b=[$0], rk=[$1])
++- LogicalFilter(condition=[<=($1, 10)])
+   +- LogicalProject(b=[$0], rk=[RANK() OVER (ORDER BY $0 NULLS FIRST)])
+      +- LogicalAggregate(group=[{}], b=[SUM($0)])
+         +- LogicalProject(b=[$1])
+            +- LogicalTableScan(table=[[default_catalog, default_database, T]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Rank(rankType=[RANK], rankRange=[rankStart=1, rankEnd=10], partitionBy=[], orderBy=[b ASC], global=[true], select=[b, w0$o0])
++- Exchange(distribution=[forward])
+   +- Sort(orderBy=[b ASC])
+      +- Exchange(distribution=[forward])
+         +- SortAggregate(isMerge=[false], select=[SUM(b) AS b])
+            +- Exchange(distribution=[single])
+               +- TableSourceScan(table=[[default_catalog, default_database, T, project=[b], metadata=[]]], fields=[b])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testRankOnOnePhaseSortAggWithHashShuffle">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM (
+                SELECT a, b, RANK() OVER(PARTITION BY a ORDER BY b) rk FROM (
+                        SELECT a, SUM(b) AS b FROM T GROUP BY a
+                )
+        ) WHERE rk <= 10]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], rk=[$2])
++- LogicalFilter(condition=[<=($2, 10)])
+   +- LogicalProject(a=[$0], b=[$1], rk=[RANK() OVER (PARTITION BY $0 ORDER BY $1 NULLS FIRST)])
+      +- LogicalAggregate(group=[{0}], b=[SUM($1)])
+         +- LogicalProject(a=[$0], b=[$1])
+            +- LogicalTableScan(table=[[default_catalog, default_database, T]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Rank(rankType=[RANK], rankRange=[rankStart=1, rankEnd=10], partitionBy=[a], orderBy=[b ASC], global=[true], select=[a, b, w0$o0])
++- Exchange(distribution=[forward])
+   +- Sort(orderBy=[a ASC, b ASC])
+      +- Exchange(distribution=[keep_input_as_is[hash[a]]])
+         +- SortAggregate(isMerge=[false], groupBy=[a], select=[a, SUM(b) AS b])
+            +- Exchange(distribution=[forward])
+               +- Sort(orderBy=[a ASC])
+                  +- Exchange(distribution=[hash[a]])
+                     +- TableSourceScan(table=[[default_catalog, default_database, T, project=[a, b], metadata=[]]], fields=[a, b])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testRankOnTwoPhaseSortAggWithGlobalShuffle">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM (
+                SELECT b, RANK() OVER(ORDER BY b) rk FROM (
+                        SELECT SUM(b) AS b FROM T
+                )
+        ) WHERE rk <= 10]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(b=[$0], rk=[$1])
++- LogicalFilter(condition=[<=($1, 10)])
+   +- LogicalProject(b=[$0], rk=[RANK() OVER (ORDER BY $0 NULLS FIRST)])
+      +- LogicalAggregate(group=[{}], b=[SUM($0)])
+         +- LogicalProject(b=[$1])
+            +- LogicalTableScan(table=[[default_catalog, default_database, T]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Rank(rankType=[RANK], rankRange=[rankStart=1, rankEnd=10], partitionBy=[], orderBy=[b ASC], global=[true], select=[b, w0$o0])
++- Exchange(distribution=[forward])
+   +- Sort(orderBy=[b ASC])
+      +- Exchange(distribution=[forward])
+         +- SortAggregate(isMerge=[true], select=[Final_SUM(sum$0) AS b])
+            +- Exchange(distribution=[single])
+               +- LocalSortAggregate(select=[Partial_SUM(b) AS sum$0])
+                  +- TableSourceScan(table=[[default_catalog, default_database, T, project=[b], metadata=[]]], fields=[b])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testRankOnTwoPhaseSortAggWithHashShuffle">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM (
+                SELECT a, b, RANK() OVER(PARTITION BY a ORDER BY b) rk FROM (
+                        SELECT a, SUM(b) AS b FROM T GROUP BY a
+                )
+        ) WHERE rk <= 10]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], rk=[$2])
++- LogicalFilter(condition=[<=($2, 10)])
+   +- LogicalProject(a=[$0], b=[$1], rk=[RANK() OVER (PARTITION BY $0 ORDER BY $1 NULLS FIRST)])
+      +- LogicalAggregate(group=[{0}], b=[SUM($1)])
+         +- LogicalProject(a=[$0], b=[$1])
+            +- LogicalTableScan(table=[[default_catalog, default_database, T]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Rank(rankType=[RANK], rankRange=[rankStart=1, rankEnd=10], partitionBy=[a], orderBy=[b ASC], global=[true], select=[a, b, w0$o0])
++- Exchange(distribution=[forward])
+   +- Sort(orderBy=[a ASC, b ASC])
+      +- Exchange(distribution=[keep_input_as_is[hash[a]]])
+         +- SortAggregate(isMerge=[true], groupBy=[a], select=[a, Final_SUM(sum$0) AS b])
+            +- Exchange(distribution=[forward])
+               +- Sort(orderBy=[a ASC])
+                  +- Exchange(distribution=[hash[a]])
+                     +- LocalSortAggregate(groupBy=[a], select=[a, Partial_SUM(b) AS sum$0])
+                        +- Exchange(distribution=[forward])
+                           +- Sort(orderBy=[a ASC])
+                              +- TableSourceScan(table=[[default_catalog, default_database, T, project=[a, b], metadata=[]]], fields=[a, b])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testRankWithHashShuffle">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM (SELECT a, b, RANK() OVER(PARTITION BY a ORDER BY b) rk FROM T) WHERE rk <= 10]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], rk=[$2])
++- LogicalFilter(condition=[<=($2, 10)])
+   +- LogicalProject(a=[$0], b=[$1], rk=[RANK() OVER (PARTITION BY $0 ORDER BY $1 NULLS FIRST)])
+      +- LogicalTableScan(table=[[default_catalog, default_database, T]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Rank(rankType=[RANK], rankRange=[rankStart=1, rankEnd=10], partitionBy=[a], orderBy=[b ASC], global=[true], select=[a, b, w0$o0])
++- Exchange(distribution=[forward])
+   +- Sort(orderBy=[a ASC, b ASC])
+      +- Exchange(distribution=[hash[a]])
+         +- Rank(rankType=[RANK], rankRange=[rankStart=1, rankEnd=10], partitionBy=[a], orderBy=[b ASC], global=[false], select=[a, b])
+            +- Exchange(distribution=[forward])
+               +- Sort(orderBy=[a ASC, b ASC])
+                  +- TableSourceScan(table=[[default_catalog, default_database, T, project=[a, b], metadata=[]]], fields=[a, b])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testSortAggOnNestedLoopJoinWithGlobalShuffle">
+    <Resource name="sql">
+      <![CDATA[WITH r AS (SELECT * FROM T1 FULL OUTER JOIN T2 ON true)
+SELECT sum(b1) FROM r]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalAggregate(group=[{}], EXPR$0=[SUM($0)])
++- LogicalProject(b1=[$1])
+   +- LogicalJoin(condition=[true], joinType=[full])
+      :- LogicalTableScan(table=[[default_catalog, default_database, T1]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, T2]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+SortAggregate(isMerge=[false], select=[SUM(b1) AS EXPR$0])
++- Exchange(distribution=[single])
+   +- Calc(select=[b1])
+      +- NestedLoopJoin(joinType=[FullOuterJoin], where=[true], select=[b1, a2], build=[left])
+         :- Exchange(distribution=[single])
+         :  +- TableSourceScan(table=[[default_catalog, default_database, T1, project=[b1], metadata=[]]], fields=[b1])
+         +- Exchange(distribution=[single])
+            +- TableSourceScan(table=[[default_catalog, default_database, T2, project=[a2], metadata=[]]], fields=[a2])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testSortAggregateWithHashShuffle">
+    <Resource name="sql">
+      <![CDATA[ SELECT a, SUM(b) AS b FROM T GROUP BY a]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalAggregate(group=[{0}], b=[SUM($1)])
++- LogicalProject(a=[$0], b=[$1])
+   +- LogicalTableScan(table=[[default_catalog, default_database, T]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+SortAggregate(isMerge=[true], groupBy=[a], select=[a, Final_SUM(sum$0) AS b])
++- Exchange(distribution=[forward])
+   +- Sort(orderBy=[a ASC])
+      +- Exchange(distribution=[hash[a]])
+         +- LocalSortAggregate(groupBy=[a], select=[a, Partial_SUM(b) AS sum$0])
+            +- Exchange(distribution=[forward])
+               +- Sort(orderBy=[a ASC])
+                  +- TableSourceScan(table=[[default_catalog, default_database, T, project=[a, b], metadata=[]]], fields=[a, b])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testTwoPhaseSortAggOnSortMergeJoinWithHashShuffle">
+    <Resource name="sql">
+      <![CDATA[WITH r AS (SELECT * FROM T1, T2 WHERE a1 = a2 AND c1 LIKE 'He%')
+SELECT sum(b1) FROM r group by a1]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(EXPR$0=[$1])
++- LogicalAggregate(group=[{0}], EXPR$0=[SUM($1)])
+   +- LogicalProject(a1=[$0], b1=[$1])
+      +- LogicalFilter(condition=[AND(=($0, $4), LIKE($2, _UTF-16LE'He%'))])
+         +- LogicalJoin(condition=[true], joinType=[inner])
+            :- LogicalTableScan(table=[[default_catalog, default_database, T1]])
+            +- LogicalTableScan(table=[[default_catalog, default_database, T2]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[EXPR$0])
++- SortAggregate(isMerge=[true], groupBy=[a1], select=[a1, Final_SUM(sum$0) AS EXPR$0])
+   +- Exchange(distribution=[forward])
+      +- Sort(orderBy=[a1 ASC])
+         +- Exchange(distribution=[hash[a1]])
+            +- LocalSortAggregate(groupBy=[a1], select=[a1, Partial_SUM(b1) AS sum$0])
+               +- Exchange(distribution=[forward])
+                  +- Sort(orderBy=[a1 ASC])
+                     +- Calc(select=[a1, b1])
+                        +- SortMergeJoin(joinType=[InnerJoin], where=[(a1 = a2)], select=[a1, b1, a2])
+                           :- Exchange(distribution=[hash[a1]])
+                           :  +- Calc(select=[a1, b1], where=[LIKE(c1, 'He%')])
+                           :     +- TableSourceScan(table=[[default_catalog, default_database, T1, filter=[], project=[a1, b1, c1], metadata=[]]], fields=[a1, b1, c1])
+                           +- Exchange(distribution=[hash[a2]])
+                              +- TableSourceScan(table=[[default_catalog, default_database, T2, project=[a2], metadata=[]]], fields=[a2])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testSortJoinWithMultipleInputDisabled">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM
+  (SELECT a FROM T1 JOIN T ON a = a1) t1
+  INNER JOIN
+  (SELECT d2 FROM T JOIN T2 ON d2 = a) t2
+  ON t1.a = t2.d2]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], d2=[$1])
++- LogicalJoin(condition=[=($0, $1)], joinType=[inner])
+   :- LogicalProject(a=[$4])
+   :  +- LogicalJoin(condition=[=($4, $0)], joinType=[inner])
+   :     :- LogicalTableScan(table=[[default_catalog, default_database, T1]])
+   :     +- LogicalTableScan(table=[[default_catalog, default_database, T]])
+   +- LogicalProject(d2=[$7])
+      +- LogicalJoin(condition=[=($7, $0)], joinType=[inner])
+         :- LogicalTableScan(table=[[default_catalog, default_database, T]])
+         +- LogicalTableScan(table=[[default_catalog, default_database, T2]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+SortMergeJoin(joinType=[InnerJoin], where=[(a = d2)], select=[a, d2])
+:- Exchange(distribution=[keep_input_as_is[hash[a]]])
+:  +- Calc(select=[a])
+:     +- Exchange(distribution=[keep_input_as_is[hash[a1]]])
+:        +- SortMergeJoin(joinType=[InnerJoin], where=[(a = a1)], select=[a1, a])
+:           :- Exchange(distribution=[hash[a1]])
+:           :  +- TableSourceScan(table=[[default_catalog, default_database, T1, project=[a1], metadata=[]]], fields=[a1])
+:           +- Exchange(distribution=[hash[a]])(reuse_id=[1])
+:              +- TableSourceScan(table=[[default_catalog, default_database, T, project=[a], metadata=[]]], fields=[a])
++- Exchange(distribution=[keep_input_as_is[hash[d2]]])
+   +- Calc(select=[d2])
+      +- Exchange(distribution=[keep_input_as_is[hash[a]]])
+         +- SortMergeJoin(joinType=[InnerJoin], where=[(d2 = a)], select=[a, d2])
+            :- Reused(reference_id=[1])
+            +- Exchange(distribution=[hash[d2]])
+               +- TableSourceScan(table=[[default_catalog, default_database, T2, project=[d2], metadata=[]]], fields=[d2])
+]]>
+    </Resource>
+  </TestCase>
+</Root>

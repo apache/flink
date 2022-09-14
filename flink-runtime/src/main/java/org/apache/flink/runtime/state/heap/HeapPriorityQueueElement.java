@@ -21,29 +21,30 @@ package org.apache.flink.runtime.state.heap;
 import org.apache.flink.annotation.Internal;
 
 /**
- * Interface for objects that can be managed by a {@link HeapPriorityQueue}. Such an object can only be contained in at
- * most one {@link HeapPriorityQueue} at a time.
+ * Interface for objects that can be managed by a {@link HeapPriorityQueue}. Such an object can only
+ * be contained in at most one {@link HeapPriorityQueue} at a time.
  */
 @Internal
 public interface HeapPriorityQueueElement {
 
-	/**
-	 * The index that indicates that a {@link HeapPriorityQueueElement} object is not contained in and managed by any
-	 * {@link HeapPriorityQueue}. We do not strictly enforce that internal indexes must be reset to this value when
-	 * elements are removed from a {@link HeapPriorityQueue}.
-	 */
-	int NOT_CONTAINED = Integer.MIN_VALUE;
+    /**
+     * The index that indicates that a {@link HeapPriorityQueueElement} object is not contained in
+     * and managed by any {@link HeapPriorityQueue}. We do not strictly enforce that internal
+     * indexes must be reset to this value when elements are removed from a {@link
+     * HeapPriorityQueue}.
+     */
+    int NOT_CONTAINED = Integer.MIN_VALUE;
 
-	/**
-	 * Returns the current index of this object in the internal array of {@link HeapPriorityQueue}.
-	 */
-	int getInternalIndex();
+    /**
+     * Returns the current index of this object in the internal array of {@link HeapPriorityQueue}.
+     */
+    int getInternalIndex();
 
-	/**
-	 * Sets the current index of this object in the {@link HeapPriorityQueue} and should only be called by the owning
-	 * {@link HeapPriorityQueue}.
-	 *
-	 * @param newIndex the new index in the timer heap.
-	 */
-	void setInternalIndex(int newIndex);
+    /**
+     * Sets the current index of this object in the {@link HeapPriorityQueue} and should only be
+     * called by the owning {@link HeapPriorityQueue}.
+     *
+     * @param newIndex the new index in the timer heap.
+     */
+    void setInternalIndex(int newIndex);
 }

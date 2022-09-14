@@ -19,9 +19,11 @@ package org.apache.flink.streaming.util;
 
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
+import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.OperatorID;
+import org.apache.flink.streaming.api.graph.NonChainedOutput;
 import org.apache.flink.streaming.api.graph.StreamConfig;
-import org.apache.flink.streaming.api.graph.StreamEdge;
 import org.apache.flink.streaming.api.graph.StreamNode;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.StreamOperator;
@@ -29,38 +31,46 @@ import org.apache.flink.streaming.runtime.partitioner.BroadcastPartitioner;
 import org.apache.flink.streaming.runtime.tasks.SourceStreamTask;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 
-/**
- * A dummy stream config implementation for specifying the number of outputs in tests.
- */
+/** A dummy stream config implementation for specifying the number of outputs in tests. */
 public class MockStreamConfig extends StreamConfig {
 
-	public MockStreamConfig(Configuration configuration, int numberOfOutputs) {
-		super(configuration);
+    public MockStreamConfig(Configuration configuration, int numberOfOutputs) {
+        super(configuration);
 
-		setChainStart();
-		setOutputSelectors(Collections.emptyList());
-		setNumberOfOutputs(numberOfOutputs);
-		setTypeSerializerOut(new StringSerializer());
-		setVertexID(0);
-		setStreamOperator(new TestSequentialReadingStreamOperator("test operator"));
-		setOperatorID(new OperatorID());
+        setChainStart();
+        setNumberOfOutputs(numberOfOutputs);
+        setTypeSerializerOut(new StringSerializer());
+        setVertexID(0);
+        setStreamOperator(new TestSequentialReadingStreamOperator("test operator"));
+        setOperatorID(new OperatorID());
 
-		StreamOperator dummyOperator = new AbstractStreamOperator() {
-			private static final long serialVersionUID = 1L;
-		};
+        StreamOperator dummyOperator =
+                new AbstractStreamOperator() {
+                    private static final long serialVersionUID = 1L;
+                };
 
-		StreamNode sourceVertex = new StreamNode(0, null, null, dummyOperator, "source", new ArrayList<>(), SourceStreamTask.class);
-		StreamNode targetVertex = new StreamNode(1, null, null, dummyOperator, "target", new ArrayList<>(), SourceStreamTask.class);
+        StreamNode sourceVertex =
+                new StreamNode(0, null, null, dummyOperator, "source", SourceStreamTask.class);
 
-		List<StreamEdge> outEdgesInOrder = new ArrayList<>(numberOfOutputs);
-		for (int i = 0; i < numberOfOutputs; i++) {
-			outEdgesInOrder.add(
-				new StreamEdge(sourceVertex, targetVertex, numberOfOutputs, new ArrayList<>(), new BroadcastPartitioner<>(), null));
-		}
-		setOutEdgesInOrder(outEdgesInOrder);
-		setNonChainedOutputs(outEdgesInOrder);
-	}
+        List<NonChainedOutput> streamOutputs = new ArrayList<>(numberOfOutputs);
+        for (int i = 0; i < numberOfOutputs; i++) {
+            streamOutputs.add(
+                    new NonChainedOutput(
+                            true,
+                            sourceVertex.getId(),
+                            1,
+                            1,
+                            100,
+                            false,
+                            new IntermediateDataSetID(),
+                            null,
+                            new BroadcastPartitioner<>(),
+                            ResultPartitionType.PIPELINED_BOUNDED));
+        }
+        setVertexNonChainedOutputs(streamOutputs);
+        setOperatorNonChainedOutputs(streamOutputs);
+        serializeAllConfigs();
+    }
 }

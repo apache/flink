@@ -23,34 +23,35 @@ import org.apache.flink.runtime.state.FunctionInitializationContext;
 import java.io.Serializable;
 
 /**
- * The state builder wraps the logic of registering state in user
- * functions, as well as how state is updated per input element..
+ * The state builder wraps the logic of registering state in user functions, as well as how state is
+ * updated per input element..
  */
 public abstract class ArtificialStateBuilder<T> implements Serializable {
 
-	private static final long serialVersionUID = -5887676929924485788L;
+    private static final long serialVersionUID = -5887676929924485788L;
 
-	final String stateName;
+    final String stateName;
 
-	ArtificialStateBuilder(String stateName) {
-		this.stateName = stateName;
-	}
+    ArtificialStateBuilder(String stateName) {
+        this.stateName = stateName;
+    }
 
-	public String getStateName() {
-		return stateName;
-	}
+    public String getStateName() {
+        return stateName;
+    }
 
-	/**
-	 * Manipulate the state for an input element.
-	 *
-	 * @param element the current input element.
-	 */
-	public abstract void artificialStateForElement(T element) throws Exception;
+    /**
+     * Manipulate the state for an input element.
+     *
+     * @param element the current input element.
+     */
+    public abstract void artificialStateForElement(T element) throws Exception;
 
-	/**
-	 * Registers the state.
-	 *
-	 * @param initializationContext the state initialization context, provided by the user function.
-	 */
-	public abstract void initialize(FunctionInitializationContext initializationContext) throws Exception;
+    /**
+     * Registers the state.
+     *
+     * @param initializationContext the state initialization context, provided by the user function.
+     */
+    public abstract void initialize(FunctionInitializationContext initializationContext)
+            throws Exception;
 }

@@ -23,12 +23,11 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-table</artifactId>
-		<version>1.11-SNAPSHOT</version>
-		<relativePath>..</relativePath>
+		<version>1.17-SNAPSHOT</version>
 	</parent>
 
 	<artifactId>flink-table-api-scala_${scala.binary.version}</artifactId>
-	<name>flink-table-api-scala</name>
+	<name>Flink : Table : API Scala</name>
 	<description>
 		This module contains the Table/SQL API for writing table programs
 		within the table ecosystem using the Scala programming language.
@@ -68,10 +67,7 @@ under the License.
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-core</artifactId>
-			<version>${project.version}</version>
-			<type>test-jar</type>
-			<scope>test</scope>
+			<artifactId>flink-test-utils-junit</artifactId>
 		</dependency>
 		<dependency>
 			<groupId>org.apache.flink</groupId>
@@ -80,10 +76,33 @@ under the License.
 			<type>test-jar</type>
 			<scope>test</scope>
 		</dependency>
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-table-api-java</artifactId>
+			<version>${project.version}</version>
+			<type>test-jar</type>
+			<scope>test</scope>
+		</dependency>
 	</dependencies>
 
 	<build>
 		<plugins>
+			<plugin>
+				<groupId>com.diffplug.spotless</groupId>
+				<artifactId>spotless-maven-plugin</artifactId>
+				<configuration>
+					<scala>
+						<scalafmt>
+							<version>${spotless.scalafmt.version}</version>
+							<file>${project.basedir}/../../.scalafmt.conf</file>
+						</scalafmt>
+						<licenseHeader>
+							<content>${spotless.license.header}</content>
+							<delimiter>${spotless.delimiter}</delimiter>
+						</licenseHeader>
+					</scala>
+				</configuration>
+			</plugin>
 			<!-- Scala Compiler -->
 			<plugin>
 				<groupId>net.alchim31.maven</groupId>
@@ -109,15 +128,6 @@ under the License.
 						</goals>
 					</execution>
 				</executions>
-			</plugin>
-
-			<!-- Scala Code Style -->
-			<plugin>
-				<groupId>org.scalastyle</groupId>
-				<artifactId>scalastyle-maven-plugin</artifactId>
-				<configuration>
-					<configLocation>${project.basedir}/../../tools/maven/scalastyle-config.xml</configLocation>
-				</configuration>
 			</plugin>
 		</plugins>
 	</build>

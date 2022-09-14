@@ -15,24 +15,21 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.streaming.api.scala
 
 import org.apache.flink.api.common.state.MapStateDescriptor
 import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation}
-import org.apache.flink.streaming.api.TimeCharacteristic
 import org.apache.flink.streaming.api.functions.AssignerWithPunctuatedWatermarks
 import org.apache.flink.streaming.api.functions.co.KeyedBroadcastProcessFunction
 import org.apache.flink.streaming.api.functions.sink.RichSinkFunction
 import org.apache.flink.streaming.api.watermark.Watermark
 import org.apache.flink.test.util.AbstractTestBase
 import org.apache.flink.util.Collector
+
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
-/**
-  * ITCase for the [[org.apache.flink.api.common.state.BroadcastState]].
-  */
+/** ITCase for the [[org.apache.flink.api.common.state.BroadcastState]]. */
 class BroadcastStateITCase extends AbstractTestBase {
 
   @Test
@@ -55,7 +52,6 @@ class BroadcastStateITCase extends AbstractTestBase {
       5L -> "test:5")
 
     val env = StreamExecutionEnvironment.getExecutionEnvironment
-    env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
 
     val srcOne = env
       .generateSequence(0L, 5L)
@@ -83,7 +79,8 @@ class BroadcastStateITCase extends AbstractTestBase {
 
     val broadcast = srcTwo.broadcast(DESCRIPTOR)
     // the timestamp should be high enough to trigger the timer after all the elements arrive.
-    val output = srcOne.connect(broadcast)
+    val output = srcOne
+      .connect(broadcast)
       .process(new TestBroadcastProcessFunction(100000L, expected))
 
     output
@@ -94,9 +91,9 @@ class BroadcastStateITCase extends AbstractTestBase {
 }
 
 class TestBroadcastProcessFunction(
-        expectedTimestamp: Long,
-        expectedBroadcastState: Map[Long, String])
-    extends KeyedBroadcastProcessFunction[Long, Long, String, String] {
+    expectedTimestamp: Long,
+    expectedBroadcastState: Map[Long, String])
+  extends KeyedBroadcastProcessFunction[Long, Long, String, String] {
 
   lazy val localDescriptor = new MapStateDescriptor[Long, String](
     "broadcast-state",
@@ -104,7 +101,7 @@ class TestBroadcastProcessFunction(
     BasicTypeInfo.STRING_TYPE_INFO)
 
   var timerToExpectedKey = Map[Long, Long]()
-  var nextTimerTimestamp :Long = expectedTimestamp
+  var nextTimerTimestamp: Long = expectedTimestamp
 
   @throws[Exception]
   override def processElement(

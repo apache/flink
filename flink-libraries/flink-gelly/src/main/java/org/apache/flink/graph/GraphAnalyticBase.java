@@ -31,54 +31,50 @@ import static org.apache.flink.api.common.ExecutionConfig.PARALLELISM_DEFAULT;
  * @param <EV> edge value type
  * @param <T> the return type
  */
-public abstract class GraphAnalyticBase<K, VV, EV, T>
-implements GraphAnalytic<K, VV, EV, T> {
+public abstract class GraphAnalyticBase<K, VV, EV, T> implements GraphAnalytic<K, VV, EV, T> {
 
-	protected ExecutionEnvironment env;
+    protected ExecutionEnvironment env;
 
-	protected int parallelism = PARALLELISM_DEFAULT;
+    protected int parallelism = PARALLELISM_DEFAULT;
 
-	@Override
-	public GraphAnalytic<K, VV, EV, T> run(Graph<K, VV, EV> input)
-			throws Exception {
-		env = input.getContext();
-		return this;
-	}
+    @Override
+    public GraphAnalytic<K, VV, EV, T> run(Graph<K, VV, EV> input) throws Exception {
+        env = input.getContext();
+        return this;
+    }
 
-	/**
-	 * Set the parallelism for this analytic's operators. This parameter is
-	 * necessary because processing a small amount of data with high operator
-	 * parallelism is slow and wasteful with memory and buffers.
-	 *
-	 * <p>Operator parallelism should be set to this given value unless
-	 * processing asymptotically more data, in which case the default job
-	 * parallelism should be inherited.
-	 *
-	 * @param parallelism operator parallelism
-	 * @return this
-	 */
-	public GraphAnalyticBase<K, VV, EV, T> setParallelism(int parallelism) {
-		Preconditions.checkArgument(parallelism > 0 || parallelism == PARALLELISM_DEFAULT,
-				"The parallelism must be at least one, or ExecutionConfig.PARALLELISM_DEFAULT (use system default).");
+    /**
+     * Set the parallelism for this analytic's operators. This parameter is necessary because
+     * processing a small amount of data with high operator parallelism is slow and wasteful with
+     * memory and buffers.
+     *
+     * <p>Operator parallelism should be set to this given value unless processing asymptotically
+     * more data, in which case the default job parallelism should be inherited.
+     *
+     * @param parallelism operator parallelism
+     * @return this
+     */
+    public GraphAnalyticBase<K, VV, EV, T> setParallelism(int parallelism) {
+        Preconditions.checkArgument(
+                parallelism > 0 || parallelism == PARALLELISM_DEFAULT,
+                "The parallelism must be at least one, or ExecutionConfig.PARALLELISM_DEFAULT (use system default).");
 
-		this.parallelism = parallelism;
+        this.parallelism = parallelism;
 
-		return this;
-	}
+        return this;
+    }
 
-	@Override
-	public T execute()
-			throws Exception {
-		env.execute();
-		return getResult();
-	}
+    @Override
+    public T execute() throws Exception {
+        env.execute();
+        return getResult();
+    }
 
-	@Override
-	public T execute(String jobName)
-			throws Exception {
-		Preconditions.checkNotNull(jobName);
+    @Override
+    public T execute(String jobName) throws Exception {
+        Preconditions.checkNotNull(jobName);
 
-		env.execute(jobName);
-		return getResult();
-	}
+        env.execute(jobName);
+        return getResult();
+    }
 }

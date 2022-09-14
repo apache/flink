@@ -15,11 +15,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.streaming.scala.examples.join
 
 import org.apache.flink.api.java.utils.ParameterTool
-import org.apache.flink.streaming.api.TimeCharacteristic
 import org.apache.flink.streaming.api.scala._
 import org.apache.flink.streaming.api.windowing.assigners.TumblingEventTimeWindows
 import org.apache.flink.streaming.api.windowing.time.Time
@@ -27,11 +25,11 @@ import org.apache.flink.streaming.api.windowing.time.Time
 /**
  * Example illustrating a windowed stream join between two data streams.
  *
- * The example works on two input streams with pairs (name, grade) and (name, salary)
- * respectively. It joins the steams based on "name" within a configurable window.
+ * The example works on two input streams with pairs (name, grade) and (name, salary) respectively.
+ * It joins the streams based on "name" within a configurable window.
  *
- * The example uses a built-in sample data generator that generates
- * the steams of pairs at a configurable rate.
+ * The example uses a built-in sample data generator that generates the streams of pairs at a
+ * configurable rate.
  */
 object WindowJoin {
 
@@ -40,28 +38,28 @@ object WindowJoin {
   // *************************************************************************
 
   case class Grade(name: String, grade: Int)
-  
+
   case class Salary(name: String, salary: Int)
-  
+
   case class Person(name: String, grade: Int, salary: Int)
 
   // *************************************************************************
   //  Program
   // *************************************************************************
 
-  def main(args: Array[String]) {
+  def main(args: Array[String]): Unit = {
     // parse the parameters
     val params = ParameterTool.fromArgs(args)
     val windowSize = params.getLong("windowSize", 2000)
     val rate = params.getLong("rate", 3)
 
     println("Using windowSize=" + windowSize + ", data rate=" + rate)
-    println("To customize example, use: WindowJoin " +
-      "[--windowSize <window-size-in-millis>] [--rate <elements-per-second>]")
+    println(
+      "To customize example, use: WindowJoin " +
+        "[--windowSize <window-size-in-millis>] [--rate <elements-per-second>]")
 
     // obtain execution environment, run this example in "ingestion time"
     val env = StreamExecutionEnvironment.getExecutionEnvironment
-    env.setStreamTimeCharacteristic(TimeCharacteristic.IngestionTime)
 
     // make parameters available in the web interface
     env.getConfig.setGlobalJobParameters(params)
@@ -81,16 +79,16 @@ object WindowJoin {
     env.execute("Windowed Join Example")
   }
 
-
   def joinStreams(
       grades: DataStream[Grade],
       salaries: DataStream[Salary],
-      windowSize: Long) : DataStream[Person] = {
+      windowSize: Long): DataStream[Person] = {
 
-    grades.join(salaries)
+    grades
+      .join(salaries)
       .where(_.name)
       .equalTo(_.name)
       .window(TumblingEventTimeWindows.of(Time.milliseconds(windowSize)))
-      .apply { (g, s) => Person(g.name, g.grade, s.salary) }
+      .apply((g, s) => Person(g.name, g.grade, s.salary))
   }
 }

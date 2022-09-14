@@ -18,8 +18,6 @@
 
 package org.apache.flink.api.common.typeutils.base;
 
-import java.io.IOException;
-
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeutils.SimpleTypeSerializerSnapshot;
 import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
@@ -27,75 +25,76 @@ import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.types.CharValue;
 
+import java.io.IOException;
+
 @Internal
 public class CharValueSerializer extends TypeSerializerSingleton<CharValue> {
 
-	private static final long serialVersionUID = 1L;
-	
-	public static final CharValueSerializer INSTANCE = new CharValueSerializer();
+    private static final long serialVersionUID = 1L;
 
-	@Override
-	public boolean isImmutableType() {
-		return false;
-	}
+    public static final CharValueSerializer INSTANCE = new CharValueSerializer();
 
-	@Override
-	public CharValue createInstance() {
-		return new CharValue();
-	}
-	
-	@Override
-	public CharValue copy(CharValue from) {
-		return copy(from, new CharValue());
-	}
+    @Override
+    public boolean isImmutableType() {
+        return false;
+    }
 
-	@Override
-	public CharValue copy(CharValue from, CharValue reuse) {
-		reuse.setValue(from.getValue());
-		return reuse;
-	}
+    @Override
+    public CharValue createInstance() {
+        return new CharValue();
+    }
 
-	@Override
-	public int getLength() {
-		return 2;
-	}
+    @Override
+    public CharValue copy(CharValue from) {
+        return copy(from, new CharValue());
+    }
 
-	@Override
-	public void serialize(CharValue record, DataOutputView target) throws IOException {
-		record.write(target);
-	}
-	
-	@Override
-	public CharValue deserialize(DataInputView source) throws IOException {
-		return deserialize(new CharValue(), source);
-	}
+    @Override
+    public CharValue copy(CharValue from, CharValue reuse) {
+        reuse.setValue(from.getValue());
+        return reuse;
+    }
 
-	@Override
-	public CharValue deserialize(CharValue reuse, DataInputView source) throws IOException {
-		reuse.read(source);
-		return reuse;
-	}
+    @Override
+    public int getLength() {
+        return 2;
+    }
 
-	@Override
-	public void copy(DataInputView source, DataOutputView target) throws IOException {
-		target.writeChar(source.readChar());
-	}
+    @Override
+    public void serialize(CharValue record, DataOutputView target) throws IOException {
+        record.write(target);
+    }
 
-	@Override
-	public TypeSerializerSnapshot<CharValue> snapshotConfiguration() {
-		return new CharValueSerializerSnapshot();
-	}
+    @Override
+    public CharValue deserialize(DataInputView source) throws IOException {
+        return deserialize(new CharValue(), source);
+    }
 
-	// ------------------------------------------------------------------------
+    @Override
+    public CharValue deserialize(CharValue reuse, DataInputView source) throws IOException {
+        reuse.read(source);
+        return reuse;
+    }
 
-	/**
-	 * Serializer configuration snapshot for compatibility and format evolution.
-	 */
-	@SuppressWarnings("WeakerAccess")
-	public static final class CharValueSerializerSnapshot extends SimpleTypeSerializerSnapshot<CharValue> {
+    @Override
+    public void copy(DataInputView source, DataOutputView target) throws IOException {
+        target.writeChar(source.readChar());
+    }
 
-		public CharValueSerializerSnapshot() {
-			super(() -> INSTANCE);
-		}
-	}
+    @Override
+    public TypeSerializerSnapshot<CharValue> snapshotConfiguration() {
+        return new CharValueSerializerSnapshot();
+    }
+
+    // ------------------------------------------------------------------------
+
+    /** Serializer configuration snapshot for compatibility and format evolution. */
+    @SuppressWarnings("WeakerAccess")
+    public static final class CharValueSerializerSnapshot
+            extends SimpleTypeSerializerSnapshot<CharValue> {
+
+        public CharValueSerializerSnapshot() {
+            super(() -> INSTANCE);
+        }
+    }
 }

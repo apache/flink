@@ -23,12 +23,11 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-filesystems</artifactId>
-		<version>1.11-SNAPSHOT</version>
-		<relativePath>..</relativePath>
+		<version>1.17-SNAPSHOT</version>
 	</parent>
 
 	<artifactId>flink-azure-fs-hadoop</artifactId>
-	<name>flink-azure-fs-hadoop</name>
+	<name>Flink : FileSystems : Azure FS Hadoop</name>
 
 	<packaging>jar</packaging>
 
@@ -116,7 +115,6 @@ under the License.
 							<goal>shade</goal>
 						</goals>
 						<configuration>
-							<shadeTestJar>false</shadeTestJar>
 							<artifactSet>
 								<includes>
 									<include>*:*</include>
@@ -192,11 +190,7 @@ under the License.
 										<exclude>properties.dtd</exclude>
 										<exclude>PropertyList-1.0.dtd</exclude>
 										<exclude>mozilla/**</exclude>
-										<exclude>META-INF/maven/**</exclude>
 										<exclude>META-INF/LICENSE.txt</exclude>
-										<exclude>META-INF/*.SF</exclude>
-										<exclude>META-INF/*.DSA</exclude>
-										<exclude>META-INF/*.RSA</exclude>
 									</excludes>
 								</filter>
 							</filters>

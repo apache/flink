@@ -18,62 +18,67 @@
 
 package org.apache.flink.runtime.taskexecutor;
 
-import org.apache.flink.runtime.blob.BlobCacheService;
+import org.apache.flink.runtime.blob.TaskExecutorBlobService;
+import org.apache.flink.runtime.externalresource.ExternalResourceInfoProvider;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.io.network.partition.TaskExecutorPartitionTracker;
 import org.apache.flink.runtime.metrics.groups.TaskManagerMetricGroup;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
+import org.apache.flink.runtime.rpc.MainThreadExecutable;
 import org.apache.flink.runtime.rpc.RpcService;
 
+import javax.annotation.Nullable;
 
 import java.util.concurrent.CompletableFuture;
 
-/**
- * {@link TaskExecutor} extension for testing purposes.
- */
+/** {@link TaskExecutor} extension for testing purposes. */
 class TestingTaskExecutor extends TaskExecutor {
-	private final CompletableFuture<Void> startFuture = new CompletableFuture<>();
+    private final CompletableFuture<Void> startFuture = new CompletableFuture<>();
 
-	public TestingTaskExecutor(
-			RpcService rpcService,
-			TaskManagerConfiguration taskManagerConfiguration,
-			HighAvailabilityServices haServices,
-			TaskManagerServices taskExecutorServices,
-			HeartbeatServices heartbeatServices,
-			TaskManagerMetricGroup taskManagerMetricGroup,
-			String metricQueryServiceAddress,
-			BlobCacheService blobCacheService,
-			FatalErrorHandler fatalErrorHandler,
-			TaskExecutorPartitionTracker partitionTracker,
-			BackPressureSampleService backPressureSampleService) {
-		super(
-			rpcService,
-			taskManagerConfiguration,
-			haServices,
-			taskExecutorServices,
-			heartbeatServices,
-			taskManagerMetricGroup,
-			metricQueryServiceAddress,
-			blobCacheService,
-			fatalErrorHandler,
-			partitionTracker,
-			backPressureSampleService);
-	}
+    public TestingTaskExecutor(
+            RpcService rpcService,
+            TaskManagerConfiguration taskManagerConfiguration,
+            HighAvailabilityServices haServices,
+            TaskManagerServices taskExecutorServices,
+            ExternalResourceInfoProvider externalResourceInfoProvider,
+            HeartbeatServices heartbeatServices,
+            TaskManagerMetricGroup taskManagerMetricGroup,
+            @Nullable String metricQueryServiceAddress,
+            TaskExecutorBlobService taskExecutorBlobService,
+            FatalErrorHandler fatalErrorHandler,
+            TaskExecutorPartitionTracker partitionTracker) {
+        super(
+                rpcService,
+                taskManagerConfiguration,
+                haServices,
+                taskExecutorServices,
+                externalResourceInfoProvider,
+                heartbeatServices,
+                taskManagerMetricGroup,
+                metricQueryServiceAddress,
+                taskExecutorBlobService,
+                fatalErrorHandler,
+                partitionTracker);
+    }
 
-	@Override
-	public void onStart() throws Exception {
-		try {
-			super.onStart();
-		} catch (Exception e) {
-			startFuture.completeExceptionally(e);
-			throw e;
-		}
+    @Override
+    public void onStart() throws Exception {
+        try {
+            super.onStart();
+        } catch (Exception e) {
+            startFuture.completeExceptionally(e);
+            throw e;
+        }
 
-		startFuture.complete(null);
-	}
+        startFuture.complete(null);
+    }
 
-	void waitUntilStarted() {
-		startFuture.join();
-	}
+    void waitUntilStarted() {
+        startFuture.join();
+    }
+
+    MainThreadExecutable getMainThreadExecutableForTesting() {
+        return this.rpcServer;
+    }
 }

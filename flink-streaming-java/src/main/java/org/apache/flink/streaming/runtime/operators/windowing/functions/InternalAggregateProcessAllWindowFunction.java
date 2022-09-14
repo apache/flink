@@ -30,8 +30,8 @@ import org.apache.flink.util.Collector;
 import java.util.Collections;
 
 /**
- * Internal window function for wrapping a {@link ProcessAllWindowFunction} that takes an
- * {@code Iterable} and an {@link AggregateFunction}.
+ * Internal window function for wrapping a {@link ProcessAllWindowFunction} that takes an {@code
+ * Iterable} and an {@link AggregateFunction}.
  *
  * @param <W> The window type
  * @param <T> The type of the input to the AggregateFunction
@@ -40,57 +40,63 @@ import java.util.Collections;
  * @param <R> The result type of the WindowFunction
  */
 public final class InternalAggregateProcessAllWindowFunction<T, ACC, V, R, W extends Window>
-		extends WrappingFunction<ProcessAllWindowFunction<V, R, W>>
-		implements InternalWindowFunction<Iterable<T>, R, Byte, W> {
+        extends WrappingFunction<ProcessAllWindowFunction<V, R, W>>
+        implements InternalWindowFunction<Iterable<T>, R, Byte, W> {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	private final AggregateFunction<T, ACC, V> aggFunction;
+    private final AggregateFunction<T, ACC, V> aggFunction;
 
-	private transient InternalProcessAllWindowContext<V, R, W> ctx;
+    private transient InternalProcessAllWindowContext<V, R, W> ctx;
 
-	public InternalAggregateProcessAllWindowFunction(
-			AggregateFunction<T, ACC, V> aggFunction,
-			ProcessAllWindowFunction<V, R, W> windowFunction) {
-		super(windowFunction);
-		this.aggFunction = aggFunction;
-	}
+    public InternalAggregateProcessAllWindowFunction(
+            AggregateFunction<T, ACC, V> aggFunction,
+            ProcessAllWindowFunction<V, R, W> windowFunction) {
+        super(windowFunction);
+        this.aggFunction = aggFunction;
+    }
 
-	@Override
-	public void open(Configuration parameters) throws Exception {
-		super.open(parameters);
-		ProcessAllWindowFunction<V, R, W> wrappedFunction = this.wrappedFunction;
-		this.ctx = new InternalProcessAllWindowContext<>(wrappedFunction);
-	}
+    @Override
+    public void open(Configuration parameters) throws Exception {
+        super.open(parameters);
+        ProcessAllWindowFunction<V, R, W> wrappedFunction = this.wrappedFunction;
+        this.ctx = new InternalProcessAllWindowContext<>(wrappedFunction);
+    }
 
-	@Override
-	public void process(Byte key, final W window, final InternalWindowContext context, Iterable<T> input, Collector<R> out) throws Exception {
-		ACC acc = aggFunction.createAccumulator();
+    @Override
+    public void process(
+            Byte key,
+            final W window,
+            final InternalWindowContext context,
+            Iterable<T> input,
+            Collector<R> out)
+            throws Exception {
+        ACC acc = aggFunction.createAccumulator();
 
-		for (T val : input) {
-			acc = aggFunction.add(val, acc);
-		}
+        for (T val : input) {
+            acc = aggFunction.add(val, acc);
+        }
 
-		this.ctx.window = window;
-		this.ctx.internalContext = context;
-		ProcessAllWindowFunction<V, R, W> wrappedFunction = this.wrappedFunction;
-		wrappedFunction.process(ctx, Collections.singletonList(aggFunction.getResult(acc)), out);
-	}
+        this.ctx.window = window;
+        this.ctx.internalContext = context;
+        ProcessAllWindowFunction<V, R, W> wrappedFunction = this.wrappedFunction;
+        wrappedFunction.process(ctx, Collections.singletonList(aggFunction.getResult(acc)), out);
+    }
 
-	@Override
-	public void clear(final W window, final InternalWindowContext context) throws Exception {
-		this.ctx.window = window;
-		this.ctx.internalContext = context;
-		wrappedFunction.clear(ctx);
-	}
+    @Override
+    public void clear(final W window, final InternalWindowContext context) throws Exception {
+        this.ctx.window = window;
+        this.ctx.internalContext = context;
+        wrappedFunction.clear(ctx);
+    }
 
-	@Override
-	public RuntimeContext getRuntimeContext() {
-		throw new RuntimeException("This should never be called.");
-	}
+    @Override
+    public RuntimeContext getRuntimeContext() {
+        throw new RuntimeException("This should never be called.");
+    }
 
-	@Override
-	public IterationRuntimeContext getIterationRuntimeContext() {
-		throw new RuntimeException("This should never be called.");
-	}
+    @Override
+    public IterationRuntimeContext getIterationRuntimeContext() {
+        throw new RuntimeException("This should never be called.");
+    }
 }

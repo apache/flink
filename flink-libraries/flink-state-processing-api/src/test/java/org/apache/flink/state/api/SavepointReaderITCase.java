@@ -21,37 +21,39 @@ package org.apache.flink.state.api;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.state.MapStateDescriptor;
 import org.apache.flink.api.common.typeinfo.Types;
-import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.streaming.api.datastream.DataStream;
 
 import java.io.IOException;
 
-/**
- * IT case for reading state.
- */
+/** IT case for reading state. */
 public class SavepointReaderITCase extends SavepointReaderITTestBase {
-	private static ListStateDescriptor<Integer> list = new ListStateDescriptor<>(LIST_NAME, Types.INT);
+    private static final ListStateDescriptor<Integer> list =
+            new ListStateDescriptor<>(LIST_NAME, Types.INT);
 
-	private static ListStateDescriptor<Integer> union = new ListStateDescriptor<>(UNION_NAME, Types.INT);
+    private static final ListStateDescriptor<Integer> union =
+            new ListStateDescriptor<>(UNION_NAME, Types.INT);
 
-	private static MapStateDescriptor<Integer, String> broadcast = new MapStateDescriptor<>(BROADCAST_NAME, Types.INT, Types.STRING);
+    private static final MapStateDescriptor<Integer, String> broadcast =
+            new MapStateDescriptor<>(BROADCAST_NAME, Types.INT, Types.STRING);
 
-	public SavepointReaderITCase() {
-		super(list, union, broadcast);
-	}
+    public SavepointReaderITCase() {
+        super(list, union, broadcast);
+    }
 
-	@Override
-	public DataSet<Integer> readListState(ExistingSavepoint savepoint) throws IOException {
-		return savepoint.readListState(UID, LIST_NAME, Types.INT);
-	}
+    @Override
+    public DataStream<Integer> readListState(SavepointReader savepoint) throws IOException {
+        return savepoint.readListState(UID, LIST_NAME, Types.INT);
+    }
 
-	@Override
-	public DataSet<Integer> readUnionState(ExistingSavepoint savepoint) throws IOException {
-		return savepoint.readUnionState(UID, UNION_NAME, Types.INT);
-	}
+    @Override
+    public DataStream<Integer> readUnionState(SavepointReader savepoint) throws IOException {
+        return savepoint.readUnionState(UID, UNION_NAME, Types.INT);
+    }
 
-	@Override
-	public DataSet<Tuple2<Integer, String>> readBroadcastState(ExistingSavepoint savepoint) throws IOException {
-		return savepoint.readBroadcastState(UID, BROADCAST_NAME, Types.INT, Types.STRING);
-	}
+    @Override
+    public DataStream<Tuple2<Integer, String>> readBroadcastState(SavepointReader savepoint)
+            throws IOException {
+        return savepoint.readBroadcastState(UID, BROADCAST_NAME, Types.INT, Types.STRING);
+    }
 }

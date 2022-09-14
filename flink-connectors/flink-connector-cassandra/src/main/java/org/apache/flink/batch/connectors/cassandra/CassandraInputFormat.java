@@ -33,36 +33,36 @@ import java.io.IOException;
  */
 public class CassandraInputFormat<OUT extends Tuple> extends CassandraInputFormatBase<OUT> {
 
-	private static final long serialVersionUID = 3642323148032444264L;
-	private transient ResultSet resultSet;
+    private static final long serialVersionUID = 3642323148032444264L;
+    private transient ResultSet resultSet;
 
-	public CassandraInputFormat(String query, ClusterBuilder builder) {
-		super(query, builder);
-	}
+    public CassandraInputFormat(String query, ClusterBuilder builder) {
+        super(query, builder);
+    }
 
-	/**
-	 * Opens a Session and executes the query.
-	 *
-	 * @param ignored because parameter is not parallelizable.
-	 * @throws IOException
-	 */
-	@Override
-	public void open(InputSplit ignored) throws IOException {
-		this.session = cluster.connect();
-		this.resultSet = session.execute(query);
-	}
+    /**
+     * Opens a Session and executes the query.
+     *
+     * @param ignored because parameter is not parallelizable.
+     * @throws IOException
+     */
+    @Override
+    public void open(InputSplit ignored) throws IOException {
+        this.session = cluster.connect();
+        this.resultSet = session.execute(query);
+    }
 
-	@Override
-	public boolean reachedEnd() throws IOException {
-		return resultSet.isExhausted();
-	}
+    @Override
+    public boolean reachedEnd() throws IOException {
+        return resultSet.isExhausted();
+    }
 
-	@Override
-	public OUT nextRecord(OUT reuse) throws IOException {
-		final Row item = resultSet.one();
-		for (int i = 0; i < reuse.getArity(); i++) {
-			reuse.setField(item.getObject(i), i);
-		}
-		return reuse;
-	}
+    @Override
+    public OUT nextRecord(OUT reuse) throws IOException {
+        final Row item = resultSet.one();
+        for (int i = 0; i < reuse.getArity(); i++) {
+            reuse.setField(item.getObject(i), i);
+        }
+        return reuse;
+    }
 }

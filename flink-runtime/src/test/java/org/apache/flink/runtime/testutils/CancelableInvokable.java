@@ -24,27 +24,38 @@ import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 /**
  * An {@link AbstractInvokable} that blocks at some point until cancelled.
  *
- * <p>Subclasses typically call the {@link #waitUntilCancelled()} method somewhere in their
- * {@link #invoke()} method.
+ * <p>Subclasses typically call the {@link #waitUntilCancelled()} method somewhere in their {@link
+ * #invoke()} method.
  */
 public abstract class CancelableInvokable extends AbstractInvokable {
 
-	private volatile boolean canceled;
+    private volatile boolean canceled;
 
-	protected CancelableInvokable(Environment environment) {
-		super(environment);
-	}
+    protected CancelableInvokable(Environment environment) {
+        super(environment);
+    }
 
-	@Override
-	public void cancel() {
-		canceled = true;
-	}
+    @Override
+    public void invoke() throws Exception {
+        try {
+            doInvoke();
+        } catch (Exception e) {
+            throw e;
+        }
+    }
 
-	protected void waitUntilCancelled() throws InterruptedException {
-		synchronized (this) {
-			while (!canceled) {
-				wait();
-			}
-		}
-	}
+    protected abstract void doInvoke() throws Exception;
+
+    @Override
+    public void cancel() {
+        canceled = true;
+    }
+
+    protected void waitUntilCancelled() throws InterruptedException {
+        synchronized (this) {
+            while (!canceled) {
+                wait();
+            }
+        }
+    }
 }

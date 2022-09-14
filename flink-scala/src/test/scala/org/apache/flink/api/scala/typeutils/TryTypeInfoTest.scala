@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.api.scala.typeutils
 
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo
@@ -23,9 +22,7 @@ import org.apache.flink.api.common.typeutils.TypeInformationTestBase
 
 import scala.util.Try
 
-/**
-  * Test for [[TryTypeInfo]].
-  */
+/** Test for [[TryTypeInfo]]. */
 class TryTypeInfoTest extends TypeInformationTestBase[TryTypeInfo[_, _]] {
 
   override protected def getTestData: Array[TryTypeInfo[_, _]] = Array(

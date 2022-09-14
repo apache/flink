@@ -23,20 +23,29 @@
 
 set -Eeuo pipefail
 
-if [ $# -lt 3 ]; then
-	echo "[ERROR] `date +%H:%M:%S` Insufficient params, need 3 parameters: <generatorDir> <scaleFactor>  <outputDataDir>"
+if [ $# -lt 4 ]; then
+	echo "[ERROR] `date +%H:%M:%S` Insufficient params, need 4 parameters: <generatorDir> <scaleFactor> <outputDataDir> <commonScriptsDir>"
 	exit 127
 fi
 
 generator_dir=$1
 scale_factor=$2
 data_dir=$3
+common_scripts_dir=$4
 
+source "$common_scripts_dir"/common.sh
+
+# download urls
 dsdgen_linux_url=https://raw.githubusercontent.com/ververica/tpc-ds-generators/f5d6c11681637908ce15d697ae683676a5383641/generators/dsdgen_linux
 dsdgen_linux_url_aarch64=https://raw.githubusercontent.com/ververica/tpc-ds-generators/master/generators/dsdgen_linux_aarch64
 dsdgen_macos_url=https://raw.githubusercontent.com/ververica/tpc-ds-generators/f5d6c11681637908ce15d697ae683676a5383641/generators/dsdgen_macos
 tpcds_idx_url=https://raw.githubusercontent.com/ververica/tpc-ds-generators/f5d6c11681637908ce15d697ae683676a5383641/generators/tpcds.idx
 
+# file md5sums
+dsdgen_linux_md5="299216f04d490a154f632b0b9b842241"
+dsdgen_linux_aarch64_md5="faf26047d0bea5017b99e6f53ceaf5e5"
+dsdgen_macos_md5="a1019fc63e43324decac1b68d14ff4da"
+tpcds_idx_md5="376152c9aa150c59a386b148f954c47d"
 
 case "$(uname -s)" in
     Linux*)     OS_TYPE=linux;;
@@ -48,39 +57,81 @@ workDir=`dirname $0`
 cd $workDir
 workDir=`pwd`
 
+function download_and_validate() {
+  fileName=$1
+  destDir=$2
+  url=$3
+  expectedMd5=$4
+  osType=$5
+  curl -o $destDir/$fileName $url
+  if [[ -e $generator_dir/$fileName ]]; then
+      if [[ ${osType} == "mac" ]]; then
+        actualMd5=`md5 $generator_dir/$fileName`
+      else
+        actualMd5=`md5sum $generator_dir/$fileName`
+      fi
+      if [[ ${actualMd5} == *${expectedMd5}* ]]; then
+        echo "[INFO] Download and validate ${fileName} success."
+        return 0
+      else
+        return 1
+      fi
+  fi
+}
+
+function cleanup() {
+  fileName=$1
+  destDir=$2
+  echo "[WARN] Download file ${fileName} failed."
+  if [[ -e $destDir/$fileName ]]; then
+    rm $destDir/$fileName
+  fi
+}
+
+errCode_download_dsgen=0
+errCode_download_idx=0
 # Obtain OS from shell
 if [[ "$OS_TYPE" == "mac" ]]; then
     echo "[INFO] Current OS: Mac OS X OS"
     echo "[INFO] Download data generator from github..."
-    curl -o $generator_dir/dsdgen_macos $dsdgen_macos_url
-    curl -o $generator_dir/tpcds.idx $tpcds_idx_url
-    if [[ -e $generator_dir/dsdgen_macos ]] && [[ -e $generator_dir/tpcds.idx ]]; then
-        echo "[INFO] Download data generator success."
+
+    retry_times_with_backoff_and_cleanup 3 5 "download_and_validate "dsdgen_macos" $generator_dir $dsdgen_macos_url $dsdgen_macos_md5 $OS_TYPE" \
+    "cleanup "dsdgen_macos" $generator_dir" || errCode_download_dsgen=$?
+
+    retry_times_with_backoff_and_cleanup 3 5 "download_and_validate "tpcds.idx" $generator_dir $tpcds_idx_url $tpcds_idx_md5 $OS_TYPE" \
+    "cleanup "tpcds.idx" $generator_dir" || errCode_download_idx=$?
+
+    if [[ "$errCode_download_dsgen" == "0" ]] && [[ "$errCode_download_idx" == "0" ]]; then
+        echo "[INFO] Download and validate data generator files success."
         echo "[INFO] `date +%H:%M:%S` Generating TPC-DS qualification data, this need several minutes, please wait..."
         chmod +x  $generator_dir/dsdgen_macos
         cd  $generator_dir
         ./dsdgen_macos -SCALE $scale_factor -FORCE Y -DIR $data_dir
     else
-        echo "[ERROR] Download data generator fail, please check your network."
+        echo "[ERROR] Download and validate data generator files fail, please check the network."
         exit 127
     fi
 elif  [[ "$OS_TYPE" == "linux" ]]; then
     echo "[INFO] `date +%H:%M:%S` Current OS: GNU/Linux OS"
     echo "[INFO] `date +%H:%M:%S` Download data generator from github..."
     if [[ `uname -i` == 'aarch64' ]]; then
-      curl -o $generator_dir/dsdgen_linux $dsdgen_linux_url_aarch64
+      retry_times_with_backoff_and_cleanup 3 5 "download_and_validate "dsdgen_linux" $generator_dir $dsdgen_linux_url_aarch64 $dsdgen_linux_aarch64_md5 $OS_TYPE" \
+      "cleanup "dsdgen_linux" $generator_dir" || errCode_download_dsgen=$?
     else
-      curl -o $generator_dir/dsdgen_linux $dsdgen_linux_url
+      retry_times_with_backoff_and_cleanup 3 5 "download_and_validate "dsdgen_linux" $generator_dir $dsdgen_linux_url $dsdgen_linux_md5 $OS_TYPE" \
+      "cleanup "dsdgen_linux" $generator_dir" || errCode_download_dsgen=$?
     fi
-    curl -o $generator_dir/tpcds.idx $tpcds_idx_url
-    if [[ -e $generator_dir/dsdgen_linux ]] && [[ -e $generator_dir/tpcds.idx ]]; then
-        echo "[INFO] Download data generator success."
+    retry_times_with_backoff_and_cleanup 3 5 "download_and_validate "tpcds.idx" $generator_dir $tpcds_idx_url $tpcds_idx_md5 $OS_TYPE" \
+    "cleanup "tpcds.idx" $generator_dir" || errCode_download_idx=$?
+
+    if [[ "$errCode_download_dsgen" == "0" ]] && [[ "$errCode_download_idx" == "0" ]]; then
+        echo "[INFO] Download and validate data generator files success."
         echo "[INFO] `date +%H:%M:%S` Generating TPC-DS qualification data, this need several minutes, please wait..."
         chmod +x  $generator_dir/dsdgen_linux
         cd  $generator_dir
         ./dsdgen_linux -SCALE $scale_factor -FORCE Y -DIR $data_dir
     else
-        echo "[ERROR] Download data generator fail, please check your network."
+        echo "[ERROR] Download and validate data generator files fail, please check the network."
         exit 127
     fi
 else

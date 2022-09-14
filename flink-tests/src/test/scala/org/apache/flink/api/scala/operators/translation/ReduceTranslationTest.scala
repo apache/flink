@@ -17,19 +17,18 @@
  */
 package org.apache.flink.api.scala.operators.translation
 
-import org.apache.flink.api.common.operators.{GenericDataSourceBase, GenericDataSinkBase}
-import org.apache.flink.api.java.io.DiscardingOutputFormat
-import org.apache.flink.api.java.operators.translation.{KeyExtractingMapper,
-PlanUnwrappingReduceOperator}
-import org.apache.flink.api.common.typeinfo.BasicTypeInfo
-import org.apache.flink.api.java.typeutils.TupleTypeInfo
-import org.junit.Assert._
+import org.apache.flink.api.common.ExecutionConfig
+import org.apache.flink.api.common.operators.{GenericDataSinkBase, GenericDataSourceBase}
 import org.apache.flink.api.common.operators.base.MapOperatorBase
 import org.apache.flink.api.common.operators.base.ReduceOperatorBase
-import org.junit.Test
-
+import org.apache.flink.api.common.typeinfo.BasicTypeInfo
+import org.apache.flink.api.java.io.DiscardingOutputFormat
+import org.apache.flink.api.java.operators.translation.{KeyExtractingMapper, PlanUnwrappingReduceOperator}
+import org.apache.flink.api.java.typeutils.TupleTypeInfo
 import org.apache.flink.api.scala._
-import org.apache.flink.api.common.ExecutionConfig
+
+import org.junit.Assert._
+import org.junit.Test
 
 class ReduceTranslationTest {
   @Test
@@ -40,24 +39,23 @@ class ReduceTranslationTest {
 
       val initialData = env.fromElements((3.141592, "foobar", 77L)).setParallelism(1)
 
-
-      initialData reduce { (v1, v2) => v1 } output(
-        new DiscardingOutputFormat[(Double, String, Long)])
+      initialData
+        .reduce((v1, v2) => v1)
+        .output(new DiscardingOutputFormat[(Double, String, Long)])
 
       val p = env.createProgramPlan(
-
-)
+      )
       val sink: GenericDataSinkBase[_] = p.getDataSinks.iterator.next
       val reducer: ReduceOperatorBase[_, _] = sink.getInput.asInstanceOf[ReduceOperatorBase[_, _]]
 
       assertEquals(initialData.javaSet.getType, reducer.getOperatorInfo.getInputType)
       assertEquals(initialData.javaSet.getType, reducer.getOperatorInfo.getOutputType)
       assertTrue(reducer.getKeyColumns(0) == null || reducer.getKeyColumns(0).length == 0)
-      assertTrue(reducer.getParallelism == 1 ||
-        reducer.getParallelism == ExecutionConfig.PARALLELISM_DEFAULT)
+      assertTrue(
+        reducer.getParallelism == 1 ||
+          reducer.getParallelism == ExecutionConfig.PARALLELISM_DEFAULT)
       assertTrue(reducer.getInput.isInstanceOf[GenericDataSourceBase[_, _]])
-    }
-    catch {
+    } catch {
       case e: Exception => {
         System.err.println(e.getMessage)
         e.printStackTrace()
@@ -74,8 +72,10 @@ class ReduceTranslationTest {
 
       val initialData = env.fromElements((3.141592, "foobar", 77L)).setParallelism(1)
 
-      initialData.groupBy(2) reduce { (v1, v2) => v1 } output(
-        new DiscardingOutputFormat[(Double, String, Long)])
+      initialData
+        .groupBy(2)
+        .reduce((v1, v2) => v1)
+        .output(new DiscardingOutputFormat[(Double, String, Long)])
 
       val p = env.createProgramPlan()
 
@@ -83,12 +83,12 @@ class ReduceTranslationTest {
       val reducer: ReduceOperatorBase[_, _] = sink.getInput.asInstanceOf[ReduceOperatorBase[_, _]]
       assertEquals(initialData.javaSet.getType, reducer.getOperatorInfo.getInputType)
       assertEquals(initialData.javaSet.getType, reducer.getOperatorInfo.getOutputType)
-      assertTrue(reducer.getParallelism == parallelism ||
-        reducer.getParallelism == ExecutionConfig.PARALLELISM_DEFAULT)
+      assertTrue(
+        reducer.getParallelism == parallelism ||
+          reducer.getParallelism == ExecutionConfig.PARALLELISM_DEFAULT)
       assertArrayEquals(Array[Int](2), reducer.getKeyColumns(0))
       assertTrue(reducer.getInput.isInstanceOf[GenericDataSourceBase[_, _]])
-    }
-    catch {
+    } catch {
       case e: Exception => {
         System.err.println(e.getMessage)
         e.printStackTrace()
@@ -105,13 +105,16 @@ class ReduceTranslationTest {
 
       val initialData = env.fromElements((3.141592, "foobar", 77L)).setParallelism(1)
 
-      initialData.groupBy { _._2 }. reduce { (v1, v2) => v1 } setParallelism(4) output(
-        new DiscardingOutputFormat[(Double, String, Long)])
+      initialData
+        .groupBy(_._2)
+        .reduce((v1, v2) => v1)
+        .setParallelism(4)
+        .output(new DiscardingOutputFormat[(Double, String, Long)])
 
       val p = env.createProgramPlan()
       val sink: GenericDataSinkBase[_] = p.getDataSinks.iterator.next
-      val keyProjector: MapOperatorBase[_, _, _] = sink.getInput.asInstanceOf[MapOperatorBase[_,
-        _, _]]
+      val keyProjector: MapOperatorBase[_, _, _] =
+        sink.getInput.asInstanceOf[MapOperatorBase[_, _, _]]
       val reducer: PlanUnwrappingReduceOperator[_, _] = keyProjector.getInput
         .asInstanceOf[PlanUnwrappingReduceOperator[_, _]]
       val keyExtractor: MapOperatorBase[_, _, _] = reducer.getInput
@@ -132,8 +135,7 @@ class ReduceTranslationTest {
         classOf[KeyExtractingMapper[_, _]],
         keyExtractor.getUserCodeWrapper.getUserCodeClass)
       assertTrue(keyExtractor.getInput.isInstanceOf[GenericDataSourceBase[_, _]])
-    }
-    catch {
+    } catch {
       case e: Exception => {
         System.err.println(e.getMessage)
         e.printStackTrace()
@@ -142,4 +144,3 @@ class ReduceTranslationTest {
     }
   }
 }
-

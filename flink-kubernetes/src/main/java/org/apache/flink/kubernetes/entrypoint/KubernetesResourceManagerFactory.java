@@ -19,65 +19,56 @@
 package org.apache.flink.kubernetes.entrypoint;
 
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.kubernetes.KubernetesResourceManager;
+import org.apache.flink.kubernetes.KubernetesResourceManagerDriver;
 import org.apache.flink.kubernetes.KubernetesWorkerNode;
-import org.apache.flink.runtime.clusterframework.types.ResourceID;
-import org.apache.flink.runtime.entrypoint.ClusterInformation;
-import org.apache.flink.runtime.heartbeat.HeartbeatServices;
-import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
-import org.apache.flink.runtime.metrics.groups.ResourceManagerMetricGroup;
-import org.apache.flink.runtime.resourcemanager.ActiveResourceManagerFactory;
-import org.apache.flink.runtime.resourcemanager.ResourceManager;
-import org.apache.flink.runtime.resourcemanager.ResourceManagerFactory;
-import org.apache.flink.runtime.resourcemanager.ResourceManagerRuntimeServices;
+import org.apache.flink.kubernetes.configuration.KubernetesConfigOptions;
+import org.apache.flink.kubernetes.configuration.KubernetesResourceManagerDriverConfiguration;
+import org.apache.flink.kubernetes.kubeclient.FlinkKubeClientFactory;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerRuntimeServicesConfiguration;
-import org.apache.flink.runtime.rpc.FatalErrorHandler;
-import org.apache.flink.runtime.rpc.RpcService;
+import org.apache.flink.runtime.resourcemanager.active.ActiveResourceManager;
+import org.apache.flink.runtime.resourcemanager.active.ActiveResourceManagerFactory;
+import org.apache.flink.runtime.resourcemanager.active.ResourceManagerDriver;
+import org.apache.flink.util.ConfigurationException;
 
 import javax.annotation.Nullable;
 
 /**
- * {@link ResourceManagerFactory} implementation which creates a {@link KubernetesResourceManager}.
+ * {@link ActiveResourceManagerFactory} implementation which creates {@link ActiveResourceManager}
+ * with {@link KubernetesResourceManagerDriver}.
  */
-public class KubernetesResourceManagerFactory extends ActiveResourceManagerFactory<KubernetesWorkerNode> {
+public class KubernetesResourceManagerFactory
+        extends ActiveResourceManagerFactory<KubernetesWorkerNode> {
 
-	private static final KubernetesResourceManagerFactory INSTANCE = new KubernetesResourceManagerFactory();
+    private static final KubernetesResourceManagerFactory INSTANCE =
+            new KubernetesResourceManagerFactory();
 
-	private KubernetesResourceManagerFactory() {}
+    private KubernetesResourceManagerFactory() {}
 
-	public static KubernetesResourceManagerFactory getInstance() {
-		return INSTANCE;
-	}
+    public static KubernetesResourceManagerFactory getInstance() {
+        return INSTANCE;
+    }
 
-	@Override
-	public ResourceManager<KubernetesWorkerNode> createActiveResourceManager(
-			Configuration configuration,
-			ResourceID resourceId,
-			RpcService rpcService,
-			HighAvailabilityServices highAvailabilityServices,
-			HeartbeatServices heartbeatServices,
-			FatalErrorHandler fatalErrorHandler,
-			ClusterInformation clusterInformation,
-			@Nullable String webInterfaceUrl,
-			ResourceManagerMetricGroup resourceManagerMetricGroup) throws Exception {
-		final ResourceManagerRuntimeServicesConfiguration rmServicesConfiguration =
-			ResourceManagerRuntimeServicesConfiguration.fromConfiguration(configuration);
-		final ResourceManagerRuntimeServices rmRuntimeServices = ResourceManagerRuntimeServices.fromConfiguration(
-			rmServicesConfiguration,
-			highAvailabilityServices,
-			rpcService.getScheduledExecutor());
+    @Override
+    protected ResourceManagerDriver<KubernetesWorkerNode> createResourceManagerDriver(
+            Configuration configuration, @Nullable String webInterfaceUrl, String rpcAddress) {
+        final KubernetesResourceManagerDriverConfiguration
+                kubernetesResourceManagerDriverConfiguration =
+                        new KubernetesResourceManagerDriverConfiguration(
+                                configuration.getString(KubernetesConfigOptions.CLUSTER_ID),
+                                webInterfaceUrl);
 
-		return new KubernetesResourceManager(
-			rpcService,
-			getEndpointId(),
-			resourceId,
-			configuration,
-			highAvailabilityServices,
-			heartbeatServices,
-			rmRuntimeServices.getSlotManager(),
-			rmRuntimeServices.getJobLeaderIdService(),
-			clusterInformation,
-			fatalErrorHandler,
-			resourceManagerMetricGroup);
-	}
+        return new KubernetesResourceManagerDriver(
+                configuration,
+                FlinkKubeClientFactory.getInstance()
+                        .fromConfiguration(configuration, "resourcemanager"),
+                kubernetesResourceManagerDriverConfiguration);
+    }
+
+    @Override
+    protected ResourceManagerRuntimeServicesConfiguration
+            createResourceManagerRuntimeServicesConfiguration(Configuration configuration)
+                    throws ConfigurationException {
+        return ResourceManagerRuntimeServicesConfiguration.fromConfiguration(
+                configuration, KubernetesWorkerResourceSpecFactory.INSTANCE);
+    }
 }

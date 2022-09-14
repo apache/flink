@@ -27,7 +27,7 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 @Internal
 abstract class UnknownSerializer extends TypeSerializer<Object> {
 
-	private UnknownSerializer() {
-		// no instantiation
-	}
+    private UnknownSerializer() {
+        // no instantiation
+    }
 }

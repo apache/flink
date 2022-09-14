@@ -21,7 +21,6 @@ package org.apache.flink.runtime.taskexecutor;
 
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
-import org.apache.flink.runtime.concurrent.Executors;
 import org.apache.flink.runtime.entrypoint.ClusterInformation;
 import org.apache.flink.runtime.instance.HardwareDescription;
 import org.apache.flink.runtime.instance.InstanceID;
@@ -33,123 +32,168 @@ import org.apache.flink.runtime.resourcemanager.ResourceManagerId;
 import org.apache.flink.runtime.resourcemanager.TaskExecutorRegistration;
 import org.apache.flink.runtime.resourcemanager.utils.TestingResourceManagerGateway;
 import org.apache.flink.runtime.rpc.TestingRpcService;
-import org.apache.flink.util.TestLogger;
+import org.apache.flink.util.concurrent.Executors;
 
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
-import static org.hamcrest.Matchers.equalTo;
-import static org.hamcrest.Matchers.is;
-import static org.junit.Assert.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
 
-/**
- * Tests for {@link TaskExecutorToResourceManagerConnection}.
- */
-public class TaskExecutorToResourceManagerConnectionTest extends TestLogger {
+/** Tests for {@link TaskExecutorToResourceManagerConnection}. */
+class TaskExecutorToResourceManagerConnectionTest {
 
-	private static final Logger LOGGER = LoggerFactory.getLogger(TaskExecutorToResourceManagerConnectionTest.class);
+    private static final Logger LOGGER =
+            LoggerFactory.getLogger(TaskExecutorToResourceManagerConnectionTest.class);
 
-	private static final int TEST_TIMEOUT_MILLIS = 10000;
+    private static final int TEST_TIMEOUT_MILLIS = 10000;
 
-	private static final String RESOURCE_MANAGER_ADDRESS = "localhost";
+    private static final String RESOURCE_MANAGER_ADDRESS = "localhost";
 
-	private static final ResourceManagerId RESOURCE_MANAGER_ID = ResourceManagerId.generate();
+    private static final ResourceManagerId RESOURCE_MANAGER_ID = ResourceManagerId.generate();
 
-	private static final String TASK_MANAGER_ADDRESS = "localhost";
+    private static final String TASK_MANAGER_ADDRESS = "localhost";
 
-	private static final ResourceID TASK_MANAGER_RESOURCE_ID = ResourceID.generate();
+    private static final ResourceID TASK_MANAGER_RESOURCE_ID = ResourceID.generate();
 
-	private static final int TASK_MANAGER_DATA_PORT = 12345;
+    private static final int TASK_MANAGER_DATA_PORT = 12345;
 
-	private static final HardwareDescription TASK_MANAGER_HARDWARE_DESCRIPTION = HardwareDescription.extractFromSystem(Long.MAX_VALUE);
+    private static final int TASK_MANAGER_JMX_PORT = 23456;
 
-	private TestingRpcService rpcService;
+    private static final String TASK_MANAGER_NODE_ID = "local";
 
-	private TestingResourceManagerGateway testingResourceManagerGateway;
+    private static final HardwareDescription TASK_MANAGER_HARDWARE_DESCRIPTION =
+            HardwareDescription.extractFromSystem(Long.MAX_VALUE);
 
-	private CompletableFuture<Void> registrationSuccessFuture;
+    private static final TaskExecutorMemoryConfiguration TASK_MANAGER_MEMORY_CONFIGURATION =
+            new TaskExecutorMemoryConfiguration(1L, 2L, 3L, 4L, 5L, 6L, 7L, 8L, 9L, 10L);
 
-	@Test
-	public void testResourceManagerRegistration() throws Exception {
-		final TaskExecutorToResourceManagerConnection resourceManagerRegistration = createTaskExecutorToResourceManagerConnection();
+    private TestingRpcService rpcService;
 
-		testingResourceManagerGateway.setRegisterTaskExecutorFunction(taskExecutorRegistration -> {
-			final String actualAddress = taskExecutorRegistration.getTaskExecutorAddress();
-			final ResourceID actualResourceId = taskExecutorRegistration.getResourceId();
-			final Integer actualDataPort = taskExecutorRegistration.getDataPort();
-			final HardwareDescription actualHardwareDescription = taskExecutorRegistration.getHardwareDescription();
+    private TestingResourceManagerGateway testingResourceManagerGateway;
 
-			assertThat(actualAddress, is(equalTo(TASK_MANAGER_ADDRESS)));
-			assertThat(actualResourceId, is(equalTo(TASK_MANAGER_RESOURCE_ID)));
-			assertThat(actualDataPort, is(equalTo(TASK_MANAGER_DATA_PORT)));
-			assertThat(actualHardwareDescription, is(equalTo(TASK_MANAGER_HARDWARE_DESCRIPTION)));
+    private CompletableFuture<Void> registrationSuccessFuture;
 
-			return CompletableFuture.completedFuture(successfulRegistration());
-		});
+    private CompletableFuture<Void> registrationRejectionFuture;
 
-		resourceManagerRegistration.start();
-		registrationSuccessFuture.get(TEST_TIMEOUT_MILLIS, TimeUnit.MILLISECONDS);
-	}
+    @Test
+    void testResourceManagerRegistration() throws Exception {
+        final TaskExecutorToResourceManagerConnection resourceManagerRegistration =
+                createTaskExecutorToResourceManagerConnection();
 
-	private TaskExecutorToResourceManagerConnection createTaskExecutorToResourceManagerConnection() {
-		final TaskExecutorRegistration taskExecutorRegistration = new TaskExecutorRegistration(
-			TASK_MANAGER_ADDRESS,
-			TASK_MANAGER_RESOURCE_ID,
-			TASK_MANAGER_DATA_PORT,
-			TASK_MANAGER_HARDWARE_DESCRIPTION,
-			ResourceProfile.ZERO,
-			ResourceProfile.ZERO
-		);
-		return new TaskExecutorToResourceManagerConnection(
-			LOGGER,
-			rpcService,
-			RetryingRegistrationConfiguration.defaultConfiguration(),
-			RESOURCE_MANAGER_ADDRESS,
-			RESOURCE_MANAGER_ID,
-			Executors.directExecutor(),
-			new TestRegistrationConnectionListener<>(),
-			taskExecutorRegistration);
-	}
+        testingResourceManagerGateway.setRegisterTaskExecutorFunction(
+                taskExecutorRegistration -> {
+                    final String actualAddress = taskExecutorRegistration.getTaskExecutorAddress();
+                    final ResourceID actualResourceId = taskExecutorRegistration.getResourceId();
+                    final Integer actualDataPort = taskExecutorRegistration.getDataPort();
+                    final HardwareDescription actualHardwareDescription =
+                            taskExecutorRegistration.getHardwareDescription();
+                    final TaskExecutorMemoryConfiguration actualMemoryConfiguration =
+                            taskExecutorRegistration.getMemoryConfiguration();
+                    final String nodeID = taskExecutorRegistration.getNodeId();
 
-	private static TaskExecutorRegistrationSuccess successfulRegistration() {
-		return new TaskExecutorRegistrationSuccess(
-			new InstanceID(),
-			ResourceID.generate(),
-			new ClusterInformation("blobServerHost", 55555));
-	}
+                    assertThat(actualAddress).isEqualTo(TASK_MANAGER_ADDRESS);
+                    assertThat(actualResourceId).isEqualTo(TASK_MANAGER_RESOURCE_ID);
+                    assertThat(actualDataPort).isEqualTo(TASK_MANAGER_DATA_PORT);
+                    assertThat(actualHardwareDescription)
+                            .isEqualTo(TASK_MANAGER_HARDWARE_DESCRIPTION);
+                    assertThat(actualMemoryConfiguration)
+                            .isEqualTo(TASK_MANAGER_MEMORY_CONFIGURATION);
+                    assertThat(nodeID).isEqualTo(TASK_MANAGER_NODE_ID);
 
-	@Before
-	public void setUp() {
-		rpcService = new TestingRpcService();
+                    return CompletableFuture.completedFuture(successfulRegistration());
+                });
 
-		testingResourceManagerGateway = new TestingResourceManagerGateway();
-		rpcService.registerGateway(RESOURCE_MANAGER_ADDRESS, testingResourceManagerGateway);
+        resourceManagerRegistration.start();
+        registrationSuccessFuture.get(TEST_TIMEOUT_MILLIS, TimeUnit.MILLISECONDS);
+    }
 
-		registrationSuccessFuture = new CompletableFuture<>();
-	}
+    @Test
+    void testResourceManagerRegistrationIsRejected() {
+        final TaskExecutorToResourceManagerConnection resourceManagerRegistration =
+                createTaskExecutorToResourceManagerConnection();
 
-	@After
-	public void tearDown() throws Exception {
-		rpcService.stopService().get(TEST_TIMEOUT_MILLIS, TimeUnit.MILLISECONDS);
-	}
+        testingResourceManagerGateway.setRegisterTaskExecutorFunction(
+                taskExecutorRegistration -> {
+                    return CompletableFuture.completedFuture(
+                            new TaskExecutorRegistrationRejection("Foobar"));
+                });
 
-	private class TestRegistrationConnectionListener<T extends RegisteredRpcConnection<?, ?, S>, S extends RegistrationResponse.Success>
-		implements RegistrationConnectionListener<T, S> {
+        resourceManagerRegistration.start();
+        registrationRejectionFuture.join();
+    }
 
-		@Override
-		public void onRegistrationSuccess(final T connection, final S success) {
-			registrationSuccessFuture.complete(null);
-		}
+    private TaskExecutorToResourceManagerConnection
+            createTaskExecutorToResourceManagerConnection() {
+        final TaskExecutorRegistration taskExecutorRegistration =
+                new TaskExecutorRegistration(
+                        TASK_MANAGER_ADDRESS,
+                        TASK_MANAGER_RESOURCE_ID,
+                        TASK_MANAGER_DATA_PORT,
+                        TASK_MANAGER_JMX_PORT,
+                        TASK_MANAGER_HARDWARE_DESCRIPTION,
+                        TASK_MANAGER_MEMORY_CONFIGURATION,
+                        ResourceProfile.ZERO,
+                        ResourceProfile.ZERO,
+                        TASK_MANAGER_NODE_ID);
+        return new TaskExecutorToResourceManagerConnection(
+                LOGGER,
+                rpcService,
+                RetryingRegistrationConfiguration.defaultConfiguration(),
+                RESOURCE_MANAGER_ADDRESS,
+                RESOURCE_MANAGER_ID,
+                Executors.directExecutor(),
+                new TestRegistrationConnectionListener<>(),
+                taskExecutorRegistration);
+    }
 
-		@Override
-		public void onRegistrationFailure(final Throwable failure) {
-			registrationSuccessFuture.completeExceptionally(failure);
-		}
-	}
+    private static TaskExecutorRegistrationSuccess successfulRegistration() {
+        return new TaskExecutorRegistrationSuccess(
+                new InstanceID(),
+                ResourceID.generate(),
+                new ClusterInformation("blobServerHost", 55555));
+    }
+
+    @BeforeEach
+    void setUp() {
+        rpcService = new TestingRpcService();
+
+        testingResourceManagerGateway = new TestingResourceManagerGateway();
+        rpcService.registerGateway(RESOURCE_MANAGER_ADDRESS, testingResourceManagerGateway);
+
+        registrationSuccessFuture = new CompletableFuture<>();
+        registrationRejectionFuture = new CompletableFuture<>();
+    }
+
+    @AfterEach
+    void tearDown() throws Exception {
+        rpcService.stopService().get(TEST_TIMEOUT_MILLIS, TimeUnit.MILLISECONDS);
+    }
+
+    private class TestRegistrationConnectionListener<
+                    T extends RegisteredRpcConnection<?, ?, S, ?>,
+                    S extends RegistrationResponse.Success,
+                    R extends RegistrationResponse.Rejection>
+            implements RegistrationConnectionListener<T, S, R> {
+
+        @Override
+        public void onRegistrationSuccess(final T connection, final S success) {
+            registrationSuccessFuture.complete(null);
+        }
+
+        @Override
+        public void onRegistrationFailure(final Throwable failure) {
+            registrationSuccessFuture.completeExceptionally(failure);
+        }
+
+        @Override
+        public void onRegistrationRejection(String targetAddress, R rejection) {
+            registrationRejectionFuture.complete(null);
+        }
+    }
 }

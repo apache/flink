@@ -20,9 +20,12 @@ package org.apache.flink.runtime.state.heap;
 
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.core.memory.DataInputDeserializer;
 import org.apache.flink.core.memory.DataOutputView;
+import org.apache.flink.runtime.state.StateEntry;
 import org.apache.flink.runtime.state.StateSnapshotTransformer;
 import org.apache.flink.util.ResourceGuard;
+import org.apache.flink.util.WrappingRuntimeException;
 
 import javax.annotation.Nonnegative;
 import javax.annotation.Nonnull;
@@ -31,6 +34,9 @@ import javax.annotation.Nullable;
 import java.io.IOException;
 import java.util.Iterator;
 import java.util.NoSuchElementException;
+import java.util.Objects;
+import java.util.Spliterators;
+import java.util.stream.StreamSupport;
 
 import static org.apache.flink.runtime.state.heap.SkipListUtils.HEAD_NODE;
 import static org.apache.flink.runtime.state.heap.SkipListUtils.NIL_NODE;
@@ -44,186 +50,240 @@ import static org.apache.flink.runtime.state.heap.SkipListUtils.NIL_VALUE_POINTE
  * @param <S> type of state
  */
 public class CopyOnWriteSkipListStateMapSnapshot<K, N, S>
-	extends StateMapSnapshot<K, N, S, CopyOnWriteSkipListStateMap<K, N, S>> {
+        extends StateMapSnapshot<K, N, S, CopyOnWriteSkipListStateMap<K, N, S>> {
 
-	/**
-	 * Version of the {@link CopyOnWriteSkipListStateMap} when this snapshot was created. This can be used to release the snapshot.
-	 */
-	private final int snapshotVersion;
+    /**
+     * Version of the {@link CopyOnWriteSkipListStateMap} when this snapshot was created. This can
+     * be used to release the snapshot.
+     */
+    private final int snapshotVersion;
 
-	/** The number of (non-null) entries in snapshotData. */
-	@Nonnegative
-	private final int numberOfEntriesInSnapshotData;
+    /** The number of (non-null) entries in snapshotData. */
+    @Nonnegative private final int numberOfEntriesInSnapshotData;
 
-	/**
-	 * This lease protects the state map resources.
-	 */
-	private final ResourceGuard.Lease lease;
+    /** This lease protects the state map resources. */
+    private final ResourceGuard.Lease lease;
 
-	/**
-	 * Creates a new {@link CopyOnWriteSkipListStateMap}.
-	 *
-	 * @param owningStateMap the {@link CopyOnWriteSkipListStateMap} for which this object represents a snapshot.
-	 * @param lease the lease protects the state map resources.
-	 */
-	CopyOnWriteSkipListStateMapSnapshot(
-		CopyOnWriteSkipListStateMap<K, N, S> owningStateMap,
-		ResourceGuard.Lease lease) {
-		super(owningStateMap);
+    /**
+     * Creates a new {@link CopyOnWriteSkipListStateMap}.
+     *
+     * @param owningStateMap the {@link CopyOnWriteSkipListStateMap} for which this object
+     *     represents a snapshot.
+     * @param lease the lease protects the state map resources.
+     */
+    CopyOnWriteSkipListStateMapSnapshot(
+            CopyOnWriteSkipListStateMap<K, N, S> owningStateMap, ResourceGuard.Lease lease) {
+        super(owningStateMap);
 
-		this.snapshotVersion = owningStateMap.getStateMapVersion();
-		this.numberOfEntriesInSnapshotData = owningStateMap.size();
-		this.lease = lease;
-	}
+        this.snapshotVersion = owningStateMap.getStateMapVersion();
+        this.numberOfEntriesInSnapshotData = owningStateMap.size();
+        this.lease = lease;
+    }
 
-	/**
-	 * Returns the internal version of the when this snapshot was created.
-	 */
-	int getSnapshotVersion() {
-		return snapshotVersion;
-	}
+    /** Returns the internal version of the when this snapshot was created. */
+    int getSnapshotVersion() {
+        return snapshotVersion;
+    }
 
-	@Override
-	public void release() {
-		owningStateMap.releaseSnapshot(this);
-		lease.close();
-	}
+    @Override
+    public void release() {
+        owningStateMap.releaseSnapshot(this);
+        lease.close();
+    }
 
-	@Override
-	public void writeState(
-		TypeSerializer<K> keySerializer,
-		TypeSerializer<N> namespaceSerializer,
-		TypeSerializer<S> stateSerializer,
-		@Nonnull DataOutputView dov,
-		@Nullable StateSnapshotTransformer<S> stateSnapshotTransformer) throws IOException {
-		if (stateSnapshotTransformer == null) {
-			writeStateWithNoTransform(dov);
-		} else {
-			writeStateWithTransform(stateSerializer, dov, stateSnapshotTransformer);
-		}
-	}
+    @Override
+    public Iterator<StateEntry<K, N, S>> getIterator(
+            @Nonnull TypeSerializer<K> keySerializer,
+            @Nonnull TypeSerializer<N> namespaceSerializer,
+            @Nonnull TypeSerializer<S> stateSerializer,
+            @Nullable StateSnapshotTransformer<S> stateSnapshotTransformer) {
+        SkipListValueSerializer<S> skipListValueSerializer =
+                new SkipListValueSerializer<>(stateSerializer);
 
-	private void writeStateWithNoTransform(@Nonnull DataOutputView dov) throws IOException {
-		dov.writeInt(numberOfEntriesInSnapshotData);
-		SnapshotNodeIterator nodeIterator = new SnapshotNodeIterator(true);
-		while (nodeIterator.hasNext()) {
-			Tuple2<Long, Long> tuple = nodeIterator.next();
-			writeKeyAndNamespace(tuple.f0, dov);
-			writeValue(tuple.f1, dov);
-		}
-	}
+        DataInputDeserializer inputDeserializer = new DataInputDeserializer();
+        // 1. iterates nodes to get size after transform
+        Iterator<Tuple2<Long, Long>> transformNodeIterator = new SnapshotNodeIterator(true);
+        return StreamSupport.stream(
+                        Spliterators.spliteratorUnknownSize(transformNodeIterator, 0), false)
+                .map(
+                        tuple ->
+                                transformEntry(
+                                        keySerializer,
+                                        namespaceSerializer,
+                                        stateSnapshotTransformer,
+                                        skipListValueSerializer,
+                                        inputDeserializer,
+                                        tuple))
+                .filter(Objects::nonNull)
+                .iterator();
+    }
 
-	private void writeStateWithTransform(
-		TypeSerializer<S> stateSerializer,
-		@Nonnull DataOutputView dov,
-		@Nonnull StateSnapshotTransformer<S> stateSnapshotTransformer) throws IOException {
-		SkipListValueSerializer<S> skipListValueSerializer =
-			new SkipListValueSerializer<>(stateSerializer);
+    private StateEntry<K, N, S> transformEntry(
+            TypeSerializer<K> keySerializer,
+            TypeSerializer<N> namespaceSerializer,
+            StateSnapshotTransformer<S> stateSnapshotTransformer,
+            SkipListValueSerializer<S> skipListValueSerializer,
+            DataInputDeserializer inputDeserializer,
+            Tuple2<Long, Long> pointers) {
+        try {
+            final S oldState = owningStateMap.helpGetState(pointers.f1, skipListValueSerializer);
+            final S newState;
+            if (stateSnapshotTransformer != null) {
+                newState = stateSnapshotTransformer.filterOrTransform(oldState);
+            } else {
+                newState = oldState;
+            }
+            Tuple2<byte[], byte[]> keyAndNamespace =
+                    owningStateMap.helpGetBytesForKeyAndNamespace(pointers.f0);
+            if (newState == null) {
+                return null;
+            } else {
+                inputDeserializer.setBuffer(keyAndNamespace.f0);
+                K key = keySerializer.deserialize(inputDeserializer);
+                inputDeserializer.setBuffer(keyAndNamespace.f1);
+                N namespace = namespaceSerializer.deserialize(inputDeserializer);
+                return new StateEntry.SimpleStateEntry<>(key, namespace, newState);
+            }
+        } catch (IOException e) {
+            throw new WrappingRuntimeException(e);
+        }
+    }
 
-		// 1. iterates nodes to get size after transform
-		SnapshotNodeIterator transformNodeIterator = new SnapshotNodeIterator(true);
-		int size = 0;
-		while (transformNodeIterator.hasNext()) {
-			Tuple2<Long, Long> tuple = transformNodeIterator.next();
-			S oldState = owningStateMap.helpGetState(tuple.f1, skipListValueSerializer);
-			S newState = stateSnapshotTransformer.filterOrTransform(oldState);
-			if (newState != null) {
-				size++;
-			}
-		}
+    @Override
+    public void writeState(
+            TypeSerializer<K> keySerializer,
+            TypeSerializer<N> namespaceSerializer,
+            TypeSerializer<S> stateSerializer,
+            @Nonnull DataOutputView dov,
+            @Nullable StateSnapshotTransformer<S> stateSnapshotTransformer)
+            throws IOException {
+        if (stateSnapshotTransformer == null) {
+            writeStateWithNoTransform(dov);
+        } else {
+            writeStateWithTransform(stateSerializer, dov, stateSnapshotTransformer);
+        }
+    }
 
-		dov.writeInt(size);
+    private void writeStateWithNoTransform(@Nonnull DataOutputView dov) throws IOException {
+        dov.writeInt(numberOfEntriesInSnapshotData);
+        SnapshotNodeIterator nodeIterator = new SnapshotNodeIterator(true);
+        while (nodeIterator.hasNext()) {
+            Tuple2<Long, Long> tuple = nodeIterator.next();
+            writeKeyAndNamespace(tuple.f0, dov);
+            writeValue(tuple.f1, dov);
+        }
+    }
 
-		// 2. iterates nodes again to write them to output, and there is no need to prune
-		SnapshotNodeIterator writeNodeIterator = new SnapshotNodeIterator(false);
-		while (writeNodeIterator.hasNext()) {
-			Tuple2<Long, Long> tuple = writeNodeIterator.next();
-			S oldState = owningStateMap.helpGetState(tuple.f1, skipListValueSerializer);
-			S newState = stateSnapshotTransformer.filterOrTransform(oldState);
-			if (newState != null) {
-				writeKeyAndNamespace(tuple.f0, dov);
-				stateSerializer.serialize(newState, dov);
-			}
-		}
-	}
+    private void writeStateWithTransform(
+            TypeSerializer<S> stateSerializer,
+            @Nonnull DataOutputView dov,
+            @Nonnull StateSnapshotTransformer<S> stateSnapshotTransformer)
+            throws IOException {
+        SkipListValueSerializer<S> skipListValueSerializer =
+                new SkipListValueSerializer<>(stateSerializer);
 
-	/**
-	 * Write key and namespace from bytes.
-	 */
-	private void writeKeyAndNamespace(long nodeId, DataOutputView outputView) throws IOException {
-		// tuple of byte arrays for key and namespace
-		Tuple2<byte[], byte[]> tuple = owningStateMap.helpGetBytesForKeyAndNamespace(nodeId);
-		// write namespace first
-		outputView.write(tuple.f1);
-		outputView.write(tuple.f0);
-	}
+        // 1. iterates nodes to get size after transform
+        SnapshotNodeIterator transformNodeIterator = new SnapshotNodeIterator(true);
+        int size = 0;
+        while (transformNodeIterator.hasNext()) {
+            Tuple2<Long, Long> tuple = transformNodeIterator.next();
+            S oldState = owningStateMap.helpGetState(tuple.f1, skipListValueSerializer);
+            S newState = stateSnapshotTransformer.filterOrTransform(oldState);
+            if (newState != null) {
+                size++;
+            }
+        }
 
-	/**
-	 * Write value from bytes.
-	 */
-	private void writeValue(long valuePointer, DataOutputView outputView) throws IOException {
-		outputView.write(owningStateMap.helpGetBytesForState(valuePointer));
-	}
+        dov.writeInt(size);
 
-	/**
-	 * Iterates over all nodes used by this snapshot. The iterator will return
-	 * a tuple, and f0 is the node and f1 is the value pointer.
-	 */
-	class SnapshotNodeIterator implements Iterator<Tuple2<Long, Long>> {
+        // 2. iterates nodes again to write them to output, and there is no need to prune
+        SnapshotNodeIterator writeNodeIterator = new SnapshotNodeIterator(false);
+        while (writeNodeIterator.hasNext()) {
+            Tuple2<Long, Long> tuple = writeNodeIterator.next();
+            S oldState = owningStateMap.helpGetState(tuple.f1, skipListValueSerializer);
+            S newState = stateSnapshotTransformer.filterOrTransform(oldState);
+            if (newState != null) {
+                writeKeyAndNamespace(tuple.f0, dov);
+                stateSerializer.serialize(newState, dov);
+            }
+        }
+    }
 
-		/**
-		 * Whether to prune values during iteration.
-		 */
-		private boolean isPrune;
-		private long nextNode;
-		private long nextValuePointer;
+    /** Write key and namespace from bytes. */
+    private void writeKeyAndNamespace(long nodeId, DataOutputView outputView) throws IOException {
+        // tuple of byte arrays for key and namespace
+        Tuple2<byte[], byte[]> tuple = owningStateMap.helpGetBytesForKeyAndNamespace(nodeId);
+        // write namespace first
+        outputView.write(tuple.f1);
+        outputView.write(tuple.f0);
+    }
 
-		SnapshotNodeIterator(boolean isPrune) {
-			this.isPrune = isPrune;
-			this.nextNode = HEAD_NODE;
-			advance();
-		}
+    /** Write value from bytes. */
+    private void writeValue(long valuePointer, DataOutputView outputView) throws IOException {
+        outputView.write(owningStateMap.helpGetBytesForState(valuePointer));
+    }
 
-		private void advance() {
-			if (nextNode == NIL_NODE) {
-				return;
-			}
+    /**
+     * Iterates over all nodes used by this snapshot. The iterator will return a tuple, and f0 is
+     * the node and f1 is the value pointer.
+     */
+    class SnapshotNodeIterator implements Iterator<Tuple2<Long, Long>> {
 
-			long node = owningStateMap.helpGetNextNode(nextNode, 0);
-			long valuePointer = NIL_VALUE_POINTER;
-			while (node != NIL_NODE) {
-				valuePointer = isPrune ?
-					owningStateMap.getAndPruneValueForSnapshot(node, snapshotVersion) :
-					owningStateMap.getValueForSnapshot(node, snapshotVersion);
-				int valueLen = valuePointer == NIL_VALUE_POINTER ? 0 :
-					owningStateMap.helpGetValueLen(valuePointer);
-				// for a logically removed node, it's value length will be 0
-				if (valueLen != 0) {
-					break;
-				}
-				node = owningStateMap.helpGetNextNode(node, 0);
-			}
+        /** Whether to prune values during iteration. */
+        private boolean isPrune;
 
-			nextNode = node;
-			nextValuePointer = valuePointer;
-		}
+        private long nextNode;
+        private long nextValuePointer;
 
-		@Override
-		public boolean hasNext() {
-			return nextNode != NIL_NODE;
-		}
+        SnapshotNodeIterator(boolean isPrune) {
+            this.isPrune = isPrune;
+            this.nextNode = HEAD_NODE;
+            advance();
+        }
 
-		@Override
-		public Tuple2<Long, Long> next() {
-			if (!hasNext()) {
-				throw new NoSuchElementException();
-			}
+        private void advance() {
+            if (nextNode == NIL_NODE) {
+                return;
+            }
 
-			long node = nextNode;
-			long valuePointer = nextValuePointer;
-			advance();
+            long node = owningStateMap.helpGetNextNode(nextNode, 0);
+            long valuePointer = NIL_VALUE_POINTER;
+            while (node != NIL_NODE) {
+                valuePointer =
+                        isPrune
+                                ? owningStateMap.getAndPruneValueForSnapshot(node, snapshotVersion)
+                                : owningStateMap.getValueForSnapshot(node, snapshotVersion);
+                int valueLen =
+                        valuePointer == NIL_VALUE_POINTER
+                                ? 0
+                                : owningStateMap.helpGetValueLen(valuePointer);
+                // for a logically removed node, it's value length will be 0
+                if (valueLen != 0) {
+                    break;
+                }
+                node = owningStateMap.helpGetNextNode(node, 0);
+            }
 
-			return Tuple2.of(node, valuePointer);
-		}
-	}
+            nextNode = node;
+            nextValuePointer = valuePointer;
+        }
+
+        @Override
+        public boolean hasNext() {
+            return nextNode != NIL_NODE;
+        }
+
+        @Override
+        public Tuple2<Long, Long> next() {
+            if (!hasNext()) {
+                throw new NoSuchElementException();
+            }
+
+            long node = nextNode;
+            long valuePointer = nextValuePointer;
+            advance();
+
+            return Tuple2.of(node, valuePointer);
+        }
+    }
 }

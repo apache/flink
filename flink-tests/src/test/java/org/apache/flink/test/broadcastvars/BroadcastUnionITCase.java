@@ -29,52 +29,50 @@ import org.junit.Assert;
 
 import java.util.List;
 
-/**
- * Test broadcast input after union.
- */
+/** Test broadcast input after union. */
 public class BroadcastUnionITCase extends JavaProgramTestBase {
-	private static final String BC_NAME = "bc";
+    private static final String BC_NAME = "bc";
 
-	@Override
-	protected void testProgram() throws Exception {
-		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		env.setParallelism(4);
+    @Override
+    protected void testProgram() throws Exception {
+        ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+        env.setParallelism(4);
 
-		DataSet<Long> input = env.generateSequence(1, 10);
-		DataSet<Long> bc1 = env.generateSequence(1, 5);
-		DataSet<Long> bc2 = env.generateSequence(6, 10);
+        DataSet<Long> input = env.generateSequence(1, 10);
+        DataSet<Long> bc1 = env.generateSequence(1, 5);
+        DataSet<Long> bc2 = env.generateSequence(6, 10);
 
-		List<Long> result = input
-				.map(new Mapper())
-				.withBroadcastSet(bc1.union(bc2), BC_NAME)
-				.reduce(new Reducer())
-				.collect();
+        List<Long> result =
+                input.map(new Mapper())
+                        .withBroadcastSet(bc1.union(bc2), BC_NAME)
+                        .reduce(new Reducer())
+                        .collect();
 
-		Assert.assertEquals(Long.valueOf(3025), result.get(0));
-	}
+        Assert.assertEquals(Long.valueOf(3025), result.get(0));
+    }
 
-	private static class Mapper extends RichMapFunction<Long, Long> {
-		private List<Long> values;
+    private static class Mapper extends RichMapFunction<Long, Long> {
+        private List<Long> values;
 
-		@Override
-		public void open(Configuration config) {
-			values = getRuntimeContext().getBroadcastVariable(BC_NAME);
-		}
+        @Override
+        public void open(Configuration config) {
+            values = getRuntimeContext().getBroadcastVariable(BC_NAME);
+        }
 
-		@Override
-		public Long map(Long value) throws Exception {
-			long sum = 0;
-			for (Long v : values) {
-				sum += value * v;
-			}
-			return sum;
-		}
-	}
+        @Override
+        public Long map(Long value) throws Exception {
+            long sum = 0;
+            for (Long v : values) {
+                sum += value * v;
+            }
+            return sum;
+        }
+    }
 
-	private static class Reducer implements ReduceFunction<Long> {
-		@Override
-		public Long reduce(Long value1, Long value2) throws Exception {
-			return value1 + value2;
-		}
-	}
+    private static class Reducer implements ReduceFunction<Long> {
+        @Override
+        public Long reduce(Long value1, Long value2) throws Exception {
+            return value1 + value2;
+        }
+    }
 }

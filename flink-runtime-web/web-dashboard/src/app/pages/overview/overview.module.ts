@@ -16,15 +16,20 @@
  * limitations under the License.
  */
 
-import { NgModule } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { ShareModule } from 'share/share.module';
+import { NgModule } from '@angular/core';
+
+import { ShareModule } from '@flink-runtime-web/share/share.module';
+import { NzCardModule } from 'ng-zorro-antd/card';
+import { NzDividerModule } from 'ng-zorro-antd/divider';
+import { NzGridModule } from 'ng-zorro-antd/grid';
+
 import { OverviewRoutingModule } from './overview-routing.module';
 import { OverviewComponent } from './overview.component';
 import { OverviewStatisticComponent } from './statistic/overview-statistic.component';
 
 @NgModule({
-  imports: [CommonModule, ShareModule, OverviewRoutingModule],
+  imports: [CommonModule, ShareModule, OverviewRoutingModule, NzDividerModule, NzCardModule, NzGridModule],
   declarations: [OverviewComponent, OverviewStatisticComponent]
 })
 export class OverviewModule {}

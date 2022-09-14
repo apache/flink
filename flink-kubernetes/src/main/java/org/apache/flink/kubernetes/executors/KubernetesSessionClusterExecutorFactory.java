@@ -26,25 +26,24 @@ import org.apache.flink.core.execution.PipelineExecutorFactory;
 
 import javax.annotation.Nonnull;
 
-/**
- * An {@link PipelineExecutorFactory} for executing jobs on an existing (session) cluster.
- */
+/** An {@link PipelineExecutorFactory} for executing jobs on an existing (session) cluster. */
 @Internal
 public class KubernetesSessionClusterExecutorFactory implements PipelineExecutorFactory {
 
-	@Override
-	public String getName() {
-		return KubernetesSessionClusterExecutor.NAME;
-	}
+    @Override
+    public String getName() {
+        return KubernetesSessionClusterExecutor.NAME;
+    }
 
-	@Override
-	public boolean isCompatibleWith(@Nonnull final Configuration configuration) {
-		return configuration.get(DeploymentOptions.TARGET)
-				.equalsIgnoreCase(KubernetesSessionClusterExecutor.NAME);
-	}
+    @Override
+    public boolean isCompatibleWith(@Nonnull final Configuration configuration) {
+        return configuration
+                .get(DeploymentOptions.TARGET)
+                .equalsIgnoreCase(KubernetesSessionClusterExecutor.NAME);
+    }
 
-	@Override
-	public PipelineExecutor getExecutor(@Nonnull final Configuration configuration) {
-		return new KubernetesSessionClusterExecutor();
-	}
+    @Override
+    public PipelineExecutor getExecutor(@Nonnull final Configuration configuration) {
+        return new KubernetesSessionClusterExecutor();
+    }
 }

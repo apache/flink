@@ -33,106 +33,106 @@ import java.io.File;
 import java.nio.file.Paths;
 import java.util.Arrays;
 
-/**
- * Implementation of {@link LocalRecoveryDirectoryProvider}.
- */
+/** Implementation of {@link LocalRecoveryDirectoryProvider}. */
 public class LocalRecoveryDirectoryProviderImpl implements LocalRecoveryDirectoryProvider {
 
-	/** Serial version. */
-	private static final long serialVersionUID = 1L;
+    /** Serial version. */
+    private static final long serialVersionUID = 1L;
 
-	/** Logger for this class. */
-	private static final Logger LOG = LoggerFactory.getLogger(LocalRecoveryDirectoryProviderImpl.class);
+    /** Logger for this class. */
+    private static final Logger LOG =
+            LoggerFactory.getLogger(LocalRecoveryDirectoryProviderImpl.class);
 
-	/** All available root directories that this can potentially deliver. */
-	@Nonnull
-	private final File[] allocationBaseDirs;
+    /** All available root directories that this can potentially deliver. */
+    @Nonnull private final File[] allocationBaseDirs;
 
-	/** JobID of the owning job. */
-	@Nonnull
-	private final JobID jobID;
+    /** JobID of the owning job. */
+    @Nonnull private final JobID jobID;
 
-	/** JobVertexID of the owning task. */
-	@Nonnull
-	private final JobVertexID jobVertexID;
+    /** JobVertexID of the owning task. */
+    @Nonnull private final JobVertexID jobVertexID;
 
-	/** Index of the owning subtask. */
-	@Nonnegative
-	private final int subtaskIndex;
+    /** Index of the owning subtask. */
+    @Nonnegative private final int subtaskIndex;
 
-	public LocalRecoveryDirectoryProviderImpl(
-		File allocationBaseDir,
-		@Nonnull JobID jobID,
-		@Nonnull JobVertexID jobVertexID,
-		@Nonnegative int subtaskIndex) {
-		this(new File[]{allocationBaseDir}, jobID, jobVertexID, subtaskIndex);
-	}
+    public LocalRecoveryDirectoryProviderImpl(
+            File allocationBaseDir,
+            @Nonnull JobID jobID,
+            @Nonnull JobVertexID jobVertexID,
+            @Nonnegative int subtaskIndex) {
+        this(new File[] {allocationBaseDir}, jobID, jobVertexID, subtaskIndex);
+    }
 
-	public LocalRecoveryDirectoryProviderImpl(
-		@Nonnull File[] allocationBaseDirs,
-		@Nonnull JobID jobID,
-		@Nonnull JobVertexID jobVertexID,
-		@Nonnegative int subtaskIndex) {
+    public LocalRecoveryDirectoryProviderImpl(
+            @Nonnull File[] allocationBaseDirs,
+            @Nonnull JobID jobID,
+            @Nonnull JobVertexID jobVertexID,
+            @Nonnegative int subtaskIndex) {
 
-		Preconditions.checkArgument(allocationBaseDirs.length > 0);
-		this.allocationBaseDirs = allocationBaseDirs;
-		this.jobID = jobID;
-		this.jobVertexID = jobVertexID;
-		this.subtaskIndex = subtaskIndex;
+        Preconditions.checkArgument(allocationBaseDirs.length > 0);
+        this.allocationBaseDirs = allocationBaseDirs;
+        this.jobID = jobID;
+        this.jobVertexID = jobVertexID;
+        this.subtaskIndex = subtaskIndex;
 
-		for (File allocationBaseDir : allocationBaseDirs) {
-			Preconditions.checkNotNull(allocationBaseDir);
-			allocationBaseDir.mkdirs();
-		}
-	}
+        for (File allocationBaseDir : allocationBaseDirs) {
+            Preconditions.checkNotNull(allocationBaseDir);
+            allocationBaseDir.mkdirs();
+        }
+    }
 
-	@Override
-	public File allocationBaseDirectory(long checkpointId) {
-		return selectAllocationBaseDirectory((((int) checkpointId) & Integer.MAX_VALUE) % allocationBaseDirs.length);
-	}
+    @Override
+    public File allocationBaseDirectory(long checkpointId) {
+        return selectAllocationBaseDirectory(
+                (((int) checkpointId) & Integer.MAX_VALUE) % allocationBaseDirs.length);
+    }
 
-	@Override
-	public File subtaskBaseDirectory(long checkpointId) {
-		return new File(allocationBaseDirectory(checkpointId), subtaskDirString());
-	}
+    @Override
+    public File subtaskBaseDirectory(long checkpointId) {
+        return new File(allocationBaseDirectory(checkpointId), subtaskDirString());
+    }
 
-	@Override
-	public File subtaskSpecificCheckpointDirectory(long checkpointId) {
-		return new File(subtaskBaseDirectory(checkpointId), checkpointDirString(checkpointId));
-	}
+    @Override
+    public File subtaskSpecificCheckpointDirectory(long checkpointId) {
+        return new File(subtaskBaseDirectory(checkpointId), checkpointDirString(checkpointId));
+    }
 
-	@Override
-	public File selectAllocationBaseDirectory(int idx) {
-		return allocationBaseDirs[idx];
-	}
+    @Override
+    public File selectAllocationBaseDirectory(int idx) {
+        return allocationBaseDirs[idx];
+    }
 
-	@Override
-	public File selectSubtaskBaseDirectory(int idx) {
-		return new File(selectAllocationBaseDirectory(idx), subtaskDirString());
-	}
+    @Override
+    public File selectSubtaskBaseDirectory(int idx) {
+        return new File(selectAllocationBaseDirectory(idx), subtaskDirString());
+    }
 
-	@Override
-	public int allocationBaseDirsCount() {
-		return allocationBaseDirs.length;
-	}
+    @Override
+    public int allocationBaseDirsCount() {
+        return allocationBaseDirs.length;
+    }
 
-	@Override
-	public String toString() {
-		return "LocalRecoveryDirectoryProvider{" +
-			"rootDirectories=" + Arrays.toString(allocationBaseDirs) +
-			", jobID=" + jobID +
-			", jobVertexID=" + jobVertexID +
-			", subtaskIndex=" + subtaskIndex +
-			'}';
-	}
+    @Override
+    public String toString() {
+        return "LocalRecoveryDirectoryProvider{"
+                + "rootDirectories="
+                + Arrays.toString(allocationBaseDirs)
+                + ", jobID="
+                + jobID
+                + ", jobVertexID="
+                + jobVertexID
+                + ", subtaskIndex="
+                + subtaskIndex
+                + '}';
+    }
 
-	@VisibleForTesting
-	String subtaskDirString() {
-		return Paths.get("jid_" + jobID, "vtx_" + jobVertexID + "_sti_" + subtaskIndex).toString();
-	}
+    @VisibleForTesting
+    String subtaskDirString() {
+        return Paths.get("jid_" + jobID, "vtx_" + jobVertexID + "_sti_" + subtaskIndex).toString();
+    }
 
-	@VisibleForTesting
-	String checkpointDirString(long checkpointId) {
-		return "chk_" + checkpointId;
-	}
+    @VisibleForTesting
+    String checkpointDirString(long checkpointId) {
+        return "chk_" + checkpointId;
+    }
 }

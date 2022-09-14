@@ -29,8 +29,6 @@ import org.apache.flink.core.io.InputSplit;
 @Internal
 public interface InputFormatOperatorFactory<OUT> extends StreamOperatorFactory<OUT> {
 
-	/**
-	 * @return input format of this operator factory.
-	 */
-	InputFormat<OUT, InputSplit> getInputFormat();
+    /** @return input format of this operator factory. */
+    InputFormat<OUT, InputSplit> getInputFormat();
 }

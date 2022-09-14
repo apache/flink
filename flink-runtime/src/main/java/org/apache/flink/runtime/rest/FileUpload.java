@@ -20,23 +20,21 @@ package org.apache.flink.runtime.rest;
 
 import java.nio.file.Path;
 
-/**
- * Client uploading a file.
- */
+/** Client uploading a file. */
 public final class FileUpload {
-	private final Path file;
-	private final String contentType;
+    private final Path file;
+    private final String contentType;
 
-	public FileUpload(Path file, String contentType) {
-		this.file = file;
-		this.contentType = contentType;
-	}
+    public FileUpload(Path file, String contentType) {
+        this.file = file;
+        this.contentType = contentType;
+    }
 
-	public Path getFile() {
-		return file;
-	}
+    public Path getFile() {
+        return file;
+    }
 
-	public String getContentType() {
-		return contentType;
-	}
+    public String getContentType() {
+        return contentType;
+    }
 }

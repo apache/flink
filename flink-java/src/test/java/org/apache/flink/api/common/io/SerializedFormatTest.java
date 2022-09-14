@@ -26,79 +26,73 @@ import org.apache.flink.types.IntValue;
 import org.apache.flink.types.Record;
 import org.apache.flink.types.StringValue;
 
-import org.junit.Assert;
-import org.junit.Before;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
+import org.junit.jupiter.api.BeforeEach;
 
 import java.io.IOException;
 
-/**
- * Tests for serialized formats.
- */
-@RunWith(Parameterized.class)
-public class SerializedFormatTest extends SequentialFormatTestBase<Record> {
+import static org.assertj.core.api.Assertions.assertThat;
 
-	private BlockInfo info;
+/** Tests for serialized formats. */
+class SerializedFormatTest extends SequentialFormatTestBase<Record> {
 
-	public SerializedFormatTest(int numberOfRecords, long blockSize, int parallelism){
-		super(numberOfRecords, blockSize, parallelism);
-	}
+    private BlockInfo info;
 
-	@Before
-	public void setup(){
-		info = createInputFormat().createBlockInfo();
-	}
+    @BeforeEach
+    void setup() {
+        info = createInputFormat().createBlockInfo();
+    }
 
-	@Override
-	protected BinaryInputFormat<Record> createInputFormat() {
-		Configuration configuration = new Configuration();
+    @Override
+    protected BinaryInputFormat<Record> createInputFormat() {
+        Configuration configuration = new Configuration();
 
-		final SerializedInputFormat<Record> inputFormat = new SerializedInputFormat<Record>();
-		inputFormat.setFilePath(this.tempFile.toURI().toString());
-		inputFormat.setBlockSize(this.blockSize);
+        final SerializedInputFormat<Record> inputFormat = new SerializedInputFormat<Record>();
+        inputFormat.setFilePath(this.tempFile.toURI().toString());
+        inputFormat.setBlockSize(this.blockSize);
 
-		inputFormat.configure(configuration);
-		return inputFormat;
-	}
+        inputFormat.configure(configuration);
+        return inputFormat;
+    }
 
-	@Override
-	protected BinaryOutputFormat<Record> createOutputFormat(String path, Configuration configuration)
-			throws IOException {
-		final SerializedOutputFormat<Record> outputFormat = new SerializedOutputFormat<Record>();
-		outputFormat.setOutputFilePath(new Path(path));
-		outputFormat.setWriteMode(FileSystem.WriteMode.OVERWRITE);
+    @Override
+    protected BinaryOutputFormat<Record> createOutputFormat(
+            String path, Configuration configuration) throws IOException {
+        final SerializedOutputFormat<Record> outputFormat = new SerializedOutputFormat<Record>();
+        outputFormat.setOutputFilePath(new Path(path));
+        outputFormat.setWriteMode(FileSystem.WriteMode.OVERWRITE);
 
-		configuration = configuration == null ? new Configuration() : configuration;
-		outputFormat.configure(configuration);
-		outputFormat.open(0, 1);
-		return outputFormat;
-	}
+        configuration = configuration == null ? new Configuration() : configuration;
+        outputFormat.configure(configuration);
+        outputFormat.open(0, 1);
+        return outputFormat;
+    }
 
-	@Override
-	protected int getInfoSize() {
-		return info.getInfoSize();
-	}
+    @Override
+    protected int getInfoSize() {
+        return info.getInfoSize();
+    }
 
-	@Override
-	protected Record getRecord(int index) {
-		return new Record(new IntValue(index), new StringValue(String.valueOf(index)));
-	}
+    @Override
+    protected Record getRecord(int index) {
+        return new Record(new IntValue(index), new StringValue(String.valueOf(index)));
+    }
 
-	@Override
-	protected Record createInstance() {
-		return new Record();
-	}
+    @Override
+    protected Record createInstance() {
+        return new Record();
+    }
 
-	@Override
-	protected void writeRecord(Record record, DataOutputView outputView) throws IOException{
-		record.write(outputView);
-	}
+    @Override
+    protected void writeRecord(Record record, DataOutputView outputView) throws IOException {
+        record.write(outputView);
+    }
 
-	@Override
-	protected void checkEquals(Record expected, Record actual) {
-		Assert.assertEquals(expected.getNumFields(), actual.getNumFields());
-		Assert.assertEquals(expected.getField(0, IntValue.class), actual.getField(0, IntValue.class));
-		Assert.assertEquals(expected.getField(1, StringValue.class), actual.getField(1, StringValue.class));
-	}
+    @Override
+    protected void checkEquals(Record expected, Record actual) {
+        assertThat(actual.getNumFields()).isEqualTo(expected.getNumFields());
+        assertThat(actual.getField(0, IntValue.class))
+                .isEqualTo(expected.getField(0, IntValue.class));
+        assertThat((CharSequence) actual.getField(1, StringValue.class))
+                .isEqualTo(expected.getField(1, StringValue.class));
+    }
 }

@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.security.contexts;
 
 import org.apache.flink.runtime.security.SecurityConfiguration;
+import org.apache.flink.runtime.security.SecurityContextInitializeException;
 
 import java.util.concurrent.Callable;
 
@@ -28,24 +29,23 @@ import java.util.concurrent.Callable;
  */
 public class AnotherCompatibleTestSecurityContextFactory implements SecurityContextFactory {
 
-	@Override
-	public boolean isCompatibleWith(SecurityConfiguration securityConfig) {
-		return true;
-	}
+    @Override
+    public boolean isCompatibleWith(SecurityConfiguration securityConfig) {
+        return true;
+    }
 
-	@Override
-	public SecurityContext createContext(SecurityConfiguration securityConfig) {
-		return new TestSecurityContext();
-	}
+    @Override
+    public SecurityContext createContext(SecurityConfiguration securityConfig)
+            throws SecurityContextInitializeException {
+        return new TestSecurityContext();
+    }
 
-	/**
-	 * Test security context class.
-	 */
-	public static class TestSecurityContext implements SecurityContext {
+    /** Test security context class. */
+    public static class TestSecurityContext implements SecurityContext {
 
-		@Override
-		public <T> T runSecured(Callable<T> securedCallable) {
-			return null;
-		}
-	}
+        @Override
+        public <T> T runSecured(Callable<T> securedCallable) {
+            return null;
+        }
+    }
 }

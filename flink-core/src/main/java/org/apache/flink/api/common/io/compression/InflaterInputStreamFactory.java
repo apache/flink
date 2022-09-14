@@ -24,23 +24,23 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.util.Collection;
 
-/**
- * Creates a new instance of a certain subclass of {@link java.util.zip.InflaterInputStream}.
- */
+/** Creates a new instance of a certain subclass of {@link java.util.zip.InflaterInputStream}. */
 @Internal
 public interface InflaterInputStreamFactory<T extends InputStream> {
 
-	/**
-	 * Creates a {@link java.util.zip.InflaterInputStream} that wraps the given input stream.
-	 * @param in is the compressed input stream
-	 * @return the inflated input stream
-	 */
-	T create(InputStream in) throws IOException;
+    /**
+     * Creates a {@link java.util.zip.InflaterInputStream} that wraps the given input stream.
+     *
+     * @param in is the compressed input stream
+     * @return the inflated input stream
+     */
+    T create(InputStream in) throws IOException;
 
-	/**
-	 * Lists a collection of typical file extensions (e.g., "gz", "gzip") that are associated with the compression
-	 * algorithm in the {@link java.util.zip.InflaterInputStream} {@code T}.
-	 * @return a (possibly empty) collection of lower-case file extensions, without the period
-	 */
-	Collection<String> getCommonFileExtensions();
+    /**
+     * Lists a collection of typical file extensions (e.g., "gz", "gzip") that are associated with
+     * the compression algorithm in the {@link java.util.zip.InflaterInputStream} {@code T}.
+     *
+     * @return a (possibly empty) collection of lower-case file extensions, without the period
+     */
+    Collection<String> getCommonFileExtensions();
 }

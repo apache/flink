@@ -20,7 +20,7 @@ package org.apache.flink.table.functions.hive;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
-import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.table.catalog.DataTypeFactory;
 import org.apache.flink.table.catalog.hive.client.HiveShim;
 import org.apache.flink.table.catalog.hive.util.HiveTypeUtil;
 import org.apache.flink.table.functions.FunctionContext;
@@ -29,8 +29,9 @@ import org.apache.flink.table.functions.hive.conversion.HiveInspectors;
 import org.apache.flink.table.functions.hive.conversion.HiveObjectConversion;
 import org.apache.flink.table.functions.hive.conversion.IdentityConversion;
 import org.apache.flink.table.functions.hive.util.HiveFunctionUtil;
-import org.apache.flink.table.runtime.types.TypeInfoLogicalTypeConverter;
 import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.types.inference.CallContext;
+import org.apache.flink.table.types.inference.TypeInference;
 import org.apache.flink.types.Row;
 
 import org.apache.hadoop.hive.ql.exec.UDFArgumentException;
@@ -38,116 +39,142 @@ import org.apache.hadoop.hive.ql.metadata.HiveException;
 import org.apache.hadoop.hive.ql.udf.generic.Collector;
 import org.apache.hadoop.hive.ql.udf.generic.GenericUDTF;
 import org.apache.hadoop.hive.serde2.objectinspector.ObjectInspector;
+import org.apache.hadoop.hive.serde2.objectinspector.ObjectInspectorFactory;
+import org.apache.hadoop.hive.serde2.objectinspector.StandardStructObjectInspector;
 import org.apache.hadoop.hive.serde2.objectinspector.StructObjectInspector;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 
-/**
- * A TableFunction implementation that calls Hive's {@link GenericUDTF}.
- */
+/** A TableFunction implementation that calls Hive's {@link GenericUDTF}. */
 @Internal
-public class HiveGenericUDTF extends TableFunction<Row> implements HiveFunction {
-	private static final Logger LOG = LoggerFactory.getLogger(HiveGenericUDTF.class);
+public class HiveGenericUDTF extends TableFunction<Row> implements HiveFunction<GenericUDTF> {
+    private static final Logger LOG = LoggerFactory.getLogger(HiveGenericUDTF.class);
 
-	private final HiveFunctionWrapper<GenericUDTF> hiveFunctionWrapper;
+    private final HiveFunctionWrapper<GenericUDTF> hiveFunctionWrapper;
+    private final HiveShim hiveShim;
 
-	private Object[] constantArguments;
-	private DataType[] argTypes;
+    private HiveFunctionArguments arguments;
 
-	private transient GenericUDTF function;
-	private transient StructObjectInspector returnInspector;
-	private transient boolean isArgsSingleArray;
+    private transient GenericUDTF function;
+    private transient StructObjectInspector returnInspector;
+    private transient boolean isArgsSingleArray;
 
-	private transient boolean allIdentityConverter;
-	private transient HiveObjectConversion[] conversions;
-	private HiveShim hiveShim;
+    private transient boolean allIdentityConverter;
+    private transient HiveObjectConversion[] conversions;
 
-	public HiveGenericUDTF(HiveFunctionWrapper<GenericUDTF> hiveFunctionWrapper, HiveShim hiveShim) {
-		this.hiveFunctionWrapper = hiveFunctionWrapper;
-		this.hiveShim = hiveShim;
-	}
+    public HiveGenericUDTF(
+            HiveFunctionWrapper<GenericUDTF> hiveFunctionWrapper, HiveShim hiveShim) {
+        this.hiveFunctionWrapper = hiveFunctionWrapper;
+        this.hiveShim = hiveShim;
+    }
 
-	@Override
-	public void open(FunctionContext context) throws Exception {
-		function = hiveFunctionWrapper.createFunction();
+    @Override
+    public void open(FunctionContext context) throws Exception {
+        function = hiveFunctionWrapper.createFunction();
 
-		function.setCollector(input -> {
-			Row row = (Row) HiveInspectors.toFlinkObject(returnInspector, input, hiveShim);
-			HiveGenericUDTF.this.collect(row);
-		});
+        function.setCollector(
+                input -> {
+                    Row row = (Row) HiveInspectors.toFlinkObject(returnInspector, input, hiveShim);
+                    HiveGenericUDTF.this.collect(row);
+                });
 
-		ObjectInspector[] argumentInspectors = HiveInspectors.toInspectors(hiveShim, constantArguments, argTypes);
-		returnInspector = function.initialize(argumentInspectors);
+        ObjectInspector[] argumentInspectors = HiveInspectors.getArgInspectors(hiveShim, arguments);
 
-		isArgsSingleArray = HiveFunctionUtil.isSingleBoxedArray(argTypes);
+        StandardStructObjectInspector standardStructObjectInspector =
+                getStandardStructObjectInspector(argumentInspectors);
+        returnInspector = function.initialize(standardStructObjectInspector);
 
-		conversions = new HiveObjectConversion[argumentInspectors.length];
-		for (int i = 0; i < argumentInspectors.length; i++) {
-			conversions[i] = HiveInspectors.getConversion(argumentInspectors[i], argTypes[i].getLogicalType(), hiveShim);
-		}
+        isArgsSingleArray = HiveFunctionUtil.isSingleBoxedArray(arguments);
 
-		allIdentityConverter = Arrays.stream(conversions)
-			.allMatch(conv -> conv instanceof IdentityConversion);
-	}
+        conversions = new HiveObjectConversion[argumentInspectors.length];
+        for (int i = 0; i < argumentInspectors.length; i++) {
+            conversions[i] =
+                    HiveInspectors.getConversion(
+                            argumentInspectors[i],
+                            arguments.getDataType(i).getLogicalType(),
+                            hiveShim);
+        }
 
-	// Will only take effect after calling open()
-	@VisibleForTesting
-	protected final void setCollector(Collector collector) {
-		function.setCollector(collector);
-	}
+        allIdentityConverter =
+                Arrays.stream(conversions).allMatch(conv -> conv instanceof IdentityConversion);
+    }
 
-	public void eval(Object... args) throws HiveException {
+    // Will only take effect after calling open()
+    @VisibleForTesting
+    protected final void setCollector(Collector collector) {
+        function.setCollector(collector);
+    }
 
-		// When the parameter is (Integer, Array[Double]), Flink calls udf.eval(Integer, Array[Double]), which is not a problem.
-		// But when the parameter is an single array, Flink calls udf.eval(Array[Double]),
-		// at this point java's var-args will cast Array[Double] to Array[Object] and let it be
-		// Object... args, So we need wrap it.
-		if (isArgsSingleArray) {
-			args = new Object[] {args};
-		}
+    public void eval(Object... args) throws HiveException {
 
-		checkArgument(args.length == conversions.length);
+        // When the parameter is (Integer, Array[Double]), Flink calls udf.eval(Integer,
+        // Array[Double]), which is not a problem.
+        // But when the parameter is a single array, Flink calls udf.eval(Array[Double]),
+        // at this point java's var-args will cast Array[Double] to Array[Object] and let it be
+        // Object... args, So we need wrap it.
+        if (isArgsSingleArray) {
+            args = new Object[] {args};
+        }
 
-		if (!allIdentityConverter) {
-			for (int i = 0; i < args.length; i++) {
-				args[i] = conversions[i].toHiveObject(args[i]);
-			}
-		}
+        checkArgument(args.length == conversions.length);
 
-		function.process(args);
-	}
+        if (!allIdentityConverter) {
+            for (int i = 0; i < args.length; i++) {
+                args[i] = conversions[i].toHiveObject(args[i]);
+            }
+        }
 
-	@Override
-	public void setArgumentTypesAndConstants(Object[] constantArguments, DataType[] argTypes) {
-		this.constantArguments = constantArguments;
-		this.argTypes = argTypes;
-	}
+        function.process(args);
+    }
 
-	@Override
-	public DataType getHiveResultType(Object[] constantArguments, DataType[] argTypes) {
-		LOG.info("Getting result type of HiveGenericUDTF with {}", hiveFunctionWrapper.getClassName());
+    @Override
+    public void close() throws Exception {
+        function.close();
+    }
 
-		try {
-			ObjectInspector[] argumentInspectors = HiveInspectors.toInspectors(hiveShim, constantArguments, argTypes);
-			return HiveTypeUtil.toFlinkType(
-				hiveFunctionWrapper.createFunction().initialize(argumentInspectors));
-		} catch (UDFArgumentException e) {
-			throw new FlinkHiveUDFException(e);
-		}
-	}
+    @Override
+    public TypeInference getTypeInference(DataTypeFactory typeFactory) {
+        return createTypeInference();
+    }
 
-	@Override
-	public TypeInformation getResultType() {
-		return TypeInfoLogicalTypeConverter.fromLogicalTypeToTypeInfo(
-			getHiveResultType(this.constantArguments, this.argTypes).getLogicalType());
-	}
+    @Override
+    public void setArguments(CallContext callContext) {
+        arguments = HiveFunctionArguments.create(callContext);
+    }
 
-	@Override
-	public void close() throws Exception {
-		function.close();
-	}
+    @Override
+    public DataType inferReturnType() throws UDFArgumentException {
+        LOG.info(
+                "Getting result type of HiveGenericUDTF with {}",
+                hiveFunctionWrapper.getUDFClassName());
+        ObjectInspector[] argumentInspectors = HiveInspectors.getArgInspectors(hiveShim, arguments);
+        StandardStructObjectInspector standardStructObjectInspector =
+                getStandardStructObjectInspector(argumentInspectors);
+        return HiveTypeUtil.toFlinkType(
+                hiveFunctionWrapper.createFunction().initialize(standardStructObjectInspector));
+    }
+
+    @Override
+    public HiveFunctionWrapper<GenericUDTF> getFunctionWrapper() {
+        return hiveFunctionWrapper;
+    }
+
+    public static StandardStructObjectInspector getStandardStructObjectInspector(
+            ObjectInspector[] argumentInspectors) {
+        List<String> dummyStructFieldNames = new ArrayList<>();
+        for (int i = 0; i < argumentInspectors.length; i++) {
+            // dummy column name just for place holder
+            dummyStructFieldNames.add("dummy_col_" + i);
+        }
+        StandardStructObjectInspector standardStructObjectInspector =
+                ObjectInspectorFactory.getStandardStructObjectInspector(
+                        dummyStructFieldNames, Arrays.asList(argumentInspectors));
+        return standardStructObjectInspector;
+    }
 }

@@ -18,21 +18,23 @@
 
 package org.apache.flink.api.java.typeutils;
 
-import java.util.ArrayList;
 import org.apache.flink.api.common.typeutils.TypeInformationTestBase;
 
-/**
- * Test for {@link ObjectArrayTypeInfo}.
- */
-public class ObjectArrayTypeInfoTest extends TypeInformationTestBase<ObjectArrayTypeInfo<?, ?>> {
+import java.util.ArrayList;
 
-	@Override
-	protected ObjectArrayTypeInfo<?, ?>[] getTestData() {
-		return new ObjectArrayTypeInfo<?, ?>[] {
-			ObjectArrayTypeInfo.getInfoFor(TestClass[].class, new GenericTypeInfo<>(TestClass.class)),
-			ObjectArrayTypeInfo.getInfoFor(TestClass[].class, new PojoTypeInfo<>(TestClass.class, new ArrayList<PojoField>()))
-		};
-	}
+/** Test for {@link ObjectArrayTypeInfo}. */
+class ObjectArrayTypeInfoTest extends TypeInformationTestBase<ObjectArrayTypeInfo<?, ?>> {
 
-	public static class TestClass {}
+    @Override
+    protected ObjectArrayTypeInfo<?, ?>[] getTestData() {
+        return new ObjectArrayTypeInfo<?, ?>[] {
+            ObjectArrayTypeInfo.getInfoFor(
+                    TestClass[].class, new GenericTypeInfo<>(TestClass.class)),
+            ObjectArrayTypeInfo.getInfoFor(
+                    TestClass[].class,
+                    new PojoTypeInfo<>(TestClass.class, new ArrayList<PojoField>()))
+        };
+    }
+
+    public static class TestClass {}
 }

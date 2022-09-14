@@ -17,117 +17,81 @@
 ################################################################################
 from pyflink.java_gateway import get_gateway
 
+from pyflink.common import Configuration
 from pyflink.table import EnvironmentSettings
-from pyflink.testing.test_case_utils import PyFlinkTestCase, get_private_field
+from pyflink.testing.test_case_utils import PyFlinkTestCase
 
 
 class EnvironmentSettingsTests(PyFlinkTestCase):
-
-    def test_planner_selection(self):
-
-        gateway = get_gateway()
-
-        CLASS_NAME = gateway.jvm.EnvironmentSettings.CLASS_NAME
-
-        builder = EnvironmentSettings.new_instance()
-
-        OLD_PLANNER_FACTORY = get_private_field(builder._j_builder, "OLD_PLANNER_FACTORY")
-        OLD_EXECUTOR_FACTORY = get_private_field(builder._j_builder, "OLD_EXECUTOR_FACTORY")
-        BLINK_PLANNER_FACTORY = get_private_field(builder._j_builder, "BLINK_PLANNER_FACTORY")
-        BLINK_EXECUTOR_FACTORY = get_private_field(builder._j_builder, "BLINK_EXECUTOR_FACTORY")
-
-        # test the default behaviour to make sure it is consistent with the python doc
-        envrionment_settings = builder.build()
-
-        self.assertEqual(
-            envrionment_settings._j_environment_settings.toPlannerProperties()[CLASS_NAME],
-            OLD_PLANNER_FACTORY)
-
-        self.assertEqual(
-            envrionment_settings._j_environment_settings.toExecutorProperties()[CLASS_NAME],
-            OLD_EXECUTOR_FACTORY)
-
-        # test use_old_planner
-        envrionment_settings = builder.use_old_planner().build()
-
-        self.assertEqual(
-            envrionment_settings._j_environment_settings.toPlannerProperties()[CLASS_NAME],
-            OLD_PLANNER_FACTORY)
-
-        self.assertEqual(
-            envrionment_settings._j_environment_settings.toExecutorProperties()[CLASS_NAME],
-            OLD_EXECUTOR_FACTORY)
-
-        # test use_blink_planner
-        envrionment_settings = builder.use_blink_planner().build()
-
-        self.assertEqual(
-            envrionment_settings._j_environment_settings.toPlannerProperties()[CLASS_NAME],
-            BLINK_PLANNER_FACTORY)
-
-        self.assertEqual(
-            envrionment_settings._j_environment_settings.toExecutorProperties()[CLASS_NAME],
-            BLINK_EXECUTOR_FACTORY)
-
-        # test use_any_planner
-        envrionment_settings = builder.use_any_planner().build()
-
-        self.assertTrue(
-            CLASS_NAME not in envrionment_settings._j_environment_settings.toPlannerProperties())
-
-        self.assertTrue(
-            CLASS_NAME not in envrionment_settings._j_environment_settings.toExecutorProperties())
 
     def test_mode_selection(self):
 
         builder = EnvironmentSettings.new_instance()
 
         # test the default behaviour to make sure it is consistent with the python doc
-        envrionment_settings = builder.build()
-
-        self.assertTrue(envrionment_settings.is_streaming_mode())
+        environment_settings = builder.build()
+        self.assertTrue(environment_settings.is_streaming_mode())
 
         # test in_streaming_mode
-        envrionment_settings = builder.in_streaming_mode().build()
+        environment_settings = builder.in_streaming_mode().build()
+        self.assertTrue(environment_settings.is_streaming_mode())
 
-        self.assertTrue(envrionment_settings.is_streaming_mode())
+        environment_settings = EnvironmentSettings.in_streaming_mode()
+        self.assertTrue(environment_settings.is_streaming_mode())
 
         # test in_batch_mode
-        envrionment_settings = builder.in_batch_mode().build()
+        environment_settings = builder.in_batch_mode().build()
+        self.assertFalse(environment_settings.is_streaming_mode())
 
-        self.assertFalse(envrionment_settings.is_streaming_mode())
+        environment_settings = EnvironmentSettings.in_batch_mode()
+        self.assertFalse(environment_settings.is_streaming_mode())
 
     def test_with_built_in_catalog_name(self):
 
         gateway = get_gateway()
 
-        DEFAULT_BUILTIN_CATALOG = gateway.jvm.EnvironmentSettings.DEFAULT_BUILTIN_CATALOG
+        DEFAULT_BUILTIN_CATALOG = gateway.jvm.TableConfigOptions.TABLE_CATALOG_NAME.defaultValue()
 
         builder = EnvironmentSettings.new_instance()
 
         # test the default behaviour to make sure it is consistent with the python doc
-        envrionment_settings = builder.build()
+        environment_settings = builder.build()
 
-        self.assertEqual(envrionment_settings.get_built_in_catalog_name(), DEFAULT_BUILTIN_CATALOG)
+        self.assertEqual(environment_settings.get_built_in_catalog_name(), DEFAULT_BUILTIN_CATALOG)
 
-        envrionment_settings = builder.with_built_in_catalog_name("my_catalog").build()
+        environment_settings = builder.with_built_in_catalog_name("my_catalog").build()
 
-        self.assertEqual(envrionment_settings.get_built_in_catalog_name(), "my_catalog")
+        self.assertEqual(environment_settings.get_built_in_catalog_name(), "my_catalog")
 
     def test_with_built_in_database_name(self):
 
         gateway = get_gateway()
 
-        DEFAULT_BUILTIN_DATABASE = gateway.jvm.EnvironmentSettings.DEFAULT_BUILTIN_DATABASE
+        DEFAULT_BUILTIN_DATABASE = gateway.jvm.TableConfigOptions.TABLE_DATABASE_NAME.defaultValue()
 
         builder = EnvironmentSettings.new_instance()
 
         # test the default behaviour to make sure it is consistent with the python doc
-        envrionment_settings = builder.build()
+        environment_settings = builder.build()
 
-        self.assertEqual(envrionment_settings.get_built_in_database_name(),
+        self.assertEqual(environment_settings.get_built_in_database_name(),
                          DEFAULT_BUILTIN_DATABASE)
 
-        envrionment_settings = builder.with_built_in_database_name("my_database").build()
+        environment_settings = builder.with_built_in_database_name("my_database").build()
 
-        self.assertEqual(envrionment_settings.get_built_in_database_name(), "my_database")
+        self.assertEqual(environment_settings.get_built_in_database_name(), "my_database")
+
+    def test_to_configuration(self):
+
+        expected_settings = EnvironmentSettings.new_instance().in_batch_mode().build()
+        config = expected_settings.get_configuration()
+
+        self.assertEqual("BATCH", config.get_string("execution.runtime-mode", "stream"))
+
+    def test_from_configuration(self):
+
+        config = Configuration()
+        config.set_string("execution.runtime-mode", "batch")
+
+        actual_setting = EnvironmentSettings.new_instance().with_configuration(config).build()
+        self.assertFalse(actual_setting.is_streaming_mode(), "Use batch mode.")

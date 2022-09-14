@@ -23,6 +23,7 @@ import org.apache.flink.table.catalog.hive.client.HiveShim;
 import org.apache.flink.table.catalog.hive.client.HiveShimLoader;
 import org.apache.flink.table.functions.hive.conversion.HiveInspectors;
 import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.types.inference.utils.CallContextMock;
 import org.apache.flink.types.Row;
 
 import org.apache.hadoop.hive.ql.exec.UDFArgumentException;
@@ -35,6 +36,7 @@ import org.apache.hadoop.hive.ql.udf.generic.GenericUDTFStack;
 import org.apache.hadoop.hive.serde2.objectinspector.ObjectInspector;
 import org.apache.hadoop.hive.serde2.objectinspector.ObjectInspectorConverters;
 import org.apache.hadoop.hive.serde2.objectinspector.ObjectInspectorFactory;
+import org.apache.hadoop.hive.serde2.objectinspector.StandardStructObjectInspector;
 import org.apache.hadoop.hive.serde2.objectinspector.StructObjectInspector;
 import org.apache.hadoop.hive.serde2.objectinspector.primitive.PrimitiveObjectInspectorFactory;
 import org.junit.Test;
@@ -43,248 +45,212 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.stream.Collectors;
 
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
-/**
- * Test for {@link HiveGenericUDTF}.
- */
+/** Test for {@link HiveGenericUDTF}. */
 public class HiveGenericUDTFTest {
-	private static HiveShim hiveShim = HiveShimLoader.loadHiveShim(HiveShimLoader.getHiveVersion());
+    private static HiveShim hiveShim = HiveShimLoader.loadHiveShim(HiveShimLoader.getHiveVersion());
 
-	private static TestCollector collector;
+    private static TestCollector collector;
 
-	@Test
-	public void testOverSumInt() throws Exception {
-		Object[] constantArgs = new Object[] {
-			null,
-			4
-		};
+    @Test
+    public void testOverSumInt() throws Exception {
+        Object[] constantArgs = new Object[] {null, 4};
 
-		DataType[] dataTypes = new DataType[] {
-			DataTypes.INT(),
-			DataTypes.INT()
-		};
+        DataType[] dataTypes = new DataType[] {DataTypes.INT(), DataTypes.INT()};
 
-		HiveGenericUDTF udf = init(
-			TestOverSumIntUDTF.class,
-			constantArgs,
-			dataTypes
-		);
+        HiveGenericUDTF udf = init(TestOverSumIntUDTF.class, constantArgs, dataTypes);
 
-		udf.eval(5, 4);
+        udf.eval(5, 4);
 
-		assertEquals(Arrays.asList(Row.of(9), Row.of(9)), collector.result);
+        assertThat(collector.result).isEqualTo(Arrays.asList(Row.of(9), Row.of(9)));
 
-		// Test empty input and empty output
-		constantArgs = new Object[] {};
+        // Test empty input and empty output
+        constantArgs = new Object[] {};
 
-		dataTypes = new DataType[] {};
+        dataTypes = new DataType[] {};
 
-		udf = init(
-			TestOverSumIntUDTF.class,
-			constantArgs,
-			dataTypes
-		);
+        udf = init(TestOverSumIntUDTF.class, constantArgs, dataTypes);
 
-		udf.eval();
+        udf.eval();
 
-		assertEquals(Arrays.asList(), collector.result);
-	}
+        assertThat(collector.result).isEqualTo(Arrays.asList());
+    }
 
-	@Test
-	public void testSplit() throws Exception {
-		Object[] constantArgs = new Object[] {
-			null
-		};
+    @Test
+    public void testSplit() throws Exception {
+        Object[] constantArgs = new Object[] {null};
 
-		DataType[] dataTypes = new DataType[] {
-			DataTypes.STRING()
-		};
+        DataType[] dataTypes = new DataType[] {DataTypes.STRING()};
 
-		HiveGenericUDTF udf = init(
-			TestSplitUDTF.class,
-			constantArgs,
-			dataTypes
-		);
+        HiveGenericUDTF udf = init(TestSplitUDTF.class, constantArgs, dataTypes);
 
-		udf.eval("1,2,3,5");
+        udf.eval("1,2,3,5");
 
-		assertEquals(Arrays.asList(Row.of("1"), Row.of("2"), Row.of("3"), Row.of("5")), collector.result);
-	}
+        assertThat(collector.result)
+                .isEqualTo(Arrays.asList(Row.of("1"), Row.of("2"), Row.of("3"), Row.of("5")));
+    }
 
-	@Test
-	public void testStack() throws Exception {
-		Object[] constantArgs = new Object[] {
-			2,
-			null,
-			null,
-			null,
-			null
-		};
+    @Test
+    public void testStack() throws Exception {
+        Object[] constantArgs = new Object[] {2, null, null, null, null};
 
-		DataType[] dataTypes = new DataType[] {
-			DataTypes.INT(),
-			DataTypes.STRING(),
-			DataTypes.STRING(),
-			DataTypes.STRING(),
-			DataTypes.STRING()
-		};
+        DataType[] dataTypes =
+                new DataType[] {
+                    DataTypes.INT(),
+                    DataTypes.STRING(),
+                    DataTypes.STRING(),
+                    DataTypes.STRING(),
+                    DataTypes.STRING()
+                };
 
-		HiveGenericUDTF udf = init(
-			GenericUDTFStack.class,
-			constantArgs,
-			dataTypes
-		);
+        HiveGenericUDTF udf = init(GenericUDTFStack.class, constantArgs, dataTypes);
 
-		udf.eval(2, "a", "b", "c", "d");
+        udf.eval(2, "a", "b", "c", "d");
 
-		assertEquals(Arrays.asList(Row.of("a", "b"), Row.of("c", "d")), collector.result);
-	}
+        assertThat(collector.result).isEqualTo(Arrays.asList(Row.of("a", "b"), Row.of("c", "d")));
+    }
 
-	@Test
-	public void testArray() throws Exception {
-		Object[] constantArgs = new Object[] {
-			null
-		};
+    @Test
+    public void testArray() throws Exception {
+        Object[] constantArgs = new Object[] {null};
 
-		DataType[] dataTypes = new DataType[] {
-			DataTypes.ARRAY(DataTypes.INT())
-		};
+        DataType[] dataTypes = new DataType[] {DataTypes.ARRAY(DataTypes.INT())};
 
-		HiveGenericUDTF udf = init(
-			GenericUDTFPosExplode.class,
-			constantArgs,
-			dataTypes
-		);
+        HiveGenericUDTF udf = init(GenericUDTFPosExplode.class, constantArgs, dataTypes);
 
-		udf.eval(new Integer[] { 1, 2, 3});
+        udf.eval(new Integer[] {1, 2, 3});
 
-		assertEquals(Arrays.asList(Row.of(0, 1), Row.of(1, 2), Row.of(2, 3)), collector.result);
-	}
+        assertThat(collector.result)
+                .isEqualTo(Arrays.asList(Row.of(0, 1), Row.of(1, 2), Row.of(2, 3)));
+    }
 
-	@Test
-	public void testStruct() throws Exception {
-		Object[] constantArgs = new Object[] {
-			null
-		};
+    @Test
+    public void testStruct() throws Exception {
+        Object[] constantArgs = new Object[] {null};
 
-		DataType[] dataTypes = new DataType[] {
-			DataTypes.ARRAY(
-				DataTypes.ROW(
-					DataTypes.FIELD("1", DataTypes.INT()),
-					DataTypes.FIELD("2", DataTypes.DOUBLE())
-				)
-			)
-		};
+        DataType[] dataTypes =
+                new DataType[] {
+                    DataTypes.ARRAY(
+                            DataTypes.ROW(
+                                    DataTypes.FIELD("1", DataTypes.INT()),
+                                    DataTypes.FIELD("2", DataTypes.DOUBLE())))
+                };
 
-		HiveGenericUDTF udf = init(
-			GenericUDTFInline.class,
-			constantArgs,
-			dataTypes
-		);
+        HiveGenericUDTF udf = init(GenericUDTFInline.class, constantArgs, dataTypes);
 
-		udf.eval(
-			new Row[]{
-				Row.of(1, 2.2d),
-				Row.of(3, 4.4d)
-			}
-		);
+        udf.eval(new Row[] {Row.of(1, 2.2d), Row.of(3, 4.4d)});
 
-		assertEquals(Arrays.asList(Row.of(1, 2.2), Row.of(3, 4.4)), collector.result);
-	}
+        assertThat(collector.result).isEqualTo(Arrays.asList(Row.of(1, 2.2), Row.of(3, 4.4)));
+    }
 
-	private static HiveGenericUDTF init(Class hiveUdfClass, Object[] constantArgs, DataType[] argTypes) throws Exception {
-		HiveFunctionWrapper<GenericUDTF> wrapper = new HiveFunctionWrapper(hiveUdfClass.getName());
+    private static HiveGenericUDTF init(
+            Class<?> hiveUdfClass, Object[] constantArgs, DataType[] argTypes) throws Exception {
+        HiveFunctionWrapper<GenericUDTF> wrapper = new HiveFunctionWrapper<>(hiveUdfClass);
 
-		HiveGenericUDTF udf = new HiveGenericUDTF(wrapper, hiveShim);
+        CallContextMock callContext = new CallContextMock();
+        callContext.argumentDataTypes = Arrays.asList(argTypes);
+        callContext.argumentValues =
+                Arrays.stream(constantArgs).map(Optional::ofNullable).collect(Collectors.toList());
+        callContext.argumentLiterals =
+                Arrays.stream(constantArgs).map(Objects::nonNull).collect(Collectors.toList());
 
-		udf.setArgumentTypesAndConstants(constantArgs, argTypes);
-		udf.getHiveResultType(constantArgs, argTypes);
+        HiveGenericUDTF udf = new HiveGenericUDTF(wrapper, hiveShim);
+        udf.setArguments(callContext);
+        udf.inferReturnType();
 
-		ObjectInspector[] argumentInspectors = HiveInspectors.toInspectors(hiveShim, constantArgs, argTypes);
-		ObjectInspector returnInspector = wrapper.createFunction().initialize(argumentInspectors);
+        ObjectInspector[] argumentInspectors =
+                HiveInspectors.getArgInspectors(
+                        hiveShim, HiveFunctionArguments.create(callContext));
+        StandardStructObjectInspector standardStructObjectInspector =
+                HiveGenericUDTF.getStandardStructObjectInspector(argumentInspectors);
+        ObjectInspector returnInspector =
+                wrapper.createFunction().initialize(standardStructObjectInspector);
 
-		udf.open(null);
+        udf.open(null);
 
-		collector = new TestCollector(returnInspector);
-		udf.setCollector(collector);
+        collector = new TestCollector(returnInspector);
+        udf.setCollector(collector);
 
-		return udf;
-	}
+        return udf;
+    }
 
-	private static class TestCollector implements Collector {
-		List<Row> result = new ArrayList<>();
-		ObjectInspector returnInspector;
+    private static class TestCollector implements Collector {
+        List<Row> result = new ArrayList<>();
+        ObjectInspector returnInspector;
 
-		public TestCollector(ObjectInspector returnInspector) {
-			this.returnInspector = returnInspector;
-		}
+        public TestCollector(ObjectInspector returnInspector) {
+            this.returnInspector = returnInspector;
+        }
 
-		@Override
-		public void collect(Object o) {
-			Row row = (Row) HiveInspectors.toFlinkObject(returnInspector, o, hiveShim);
+        @Override
+        public void collect(Object o) {
+            Row row = (Row) HiveInspectors.toFlinkObject(returnInspector, o, hiveShim);
 
-			result.add(row);
-		}
-	}
+            result.add(row);
+        }
+    }
 
-	/**
-	 * Test over sum int udtf.
-	 */
-	public static class TestOverSumIntUDTF extends GenericUDTF {
+    /** Test over sum int udtf. */
+    public static class TestOverSumIntUDTF extends GenericUDTF {
 
-		ObjectInspectorConverters.Converter[] converters;
+        ObjectInspectorConverters.Converter[] converters;
 
-		@Override
-		public StructObjectInspector initialize(ObjectInspector[] argOIs) throws UDFArgumentException {
-			converters = new ObjectInspectorConverters.Converter[argOIs.length];
-			for (int i = 0; i < converters.length; i++) {
-				converters[i] = ObjectInspectorConverters.getConverter(argOIs[i], PrimitiveObjectInspectorFactory.javaIntObjectInspector);
-			}
-			return ObjectInspectorFactory.getStandardStructObjectInspector(
-				Collections.singletonList("col1"),
-				Collections.singletonList(PrimitiveObjectInspectorFactory.javaIntObjectInspector));
-		}
+        @Override
+        public StructObjectInspector initialize(ObjectInspector[] argOIs)
+                throws UDFArgumentException {
+            converters = new ObjectInspectorConverters.Converter[argOIs.length];
+            for (int i = 0; i < converters.length; i++) {
+                converters[i] =
+                        ObjectInspectorConverters.getConverter(
+                                argOIs[i], PrimitiveObjectInspectorFactory.javaIntObjectInspector);
+            }
+            return ObjectInspectorFactory.getStandardStructObjectInspector(
+                    Collections.singletonList("col1"),
+                    Collections.singletonList(
+                            PrimitiveObjectInspectorFactory.javaIntObjectInspector));
+        }
 
-		@Override
-		public void process(Object[] args) throws HiveException {
-			int total = 0;
-			for (int i = 0; i < args.length; i++) {
-				total += (int) converters[i].convert(args[i]);
-			}
-			for (Object ignored : args) {
-				forward(total);
-			}
-		}
+        @Override
+        public void process(Object[] args) throws HiveException {
+            int total = 0;
+            for (int i = 0; i < args.length; i++) {
+                total += (int) converters[i].convert(args[i]);
+            }
+            for (Object ignored : args) {
+                forward(total);
+            }
+        }
 
-		@Override
-		public void close() {
-		}
-	}
+        @Override
+        public void close() {}
+    }
 
-	/**
-	 * Test split udtf.
-	 */
-	public static class TestSplitUDTF extends GenericUDTF {
+    /** Test split udtf. */
+    public static class TestSplitUDTF extends GenericUDTF {
 
-		@Override
-		public StructObjectInspector initialize(ObjectInspector[] argOIs) throws UDFArgumentException {
-			return ObjectInspectorFactory.getStandardStructObjectInspector(
-				Collections.singletonList("col1"),
-				Collections.singletonList(PrimitiveObjectInspectorFactory.javaStringObjectInspector));
-		}
+        @Override
+        public StructObjectInspector initialize(ObjectInspector[] argOIs)
+                throws UDFArgumentException {
+            return ObjectInspectorFactory.getStandardStructObjectInspector(
+                    Collections.singletonList("col1"),
+                    Collections.singletonList(
+                            PrimitiveObjectInspectorFactory.javaStringObjectInspector));
+        }
 
-		@Override
-		public void process(Object[] args) throws HiveException {
-			String str = (String) args[0];
-			for (String s : str.split(",")) {
-				forward(s);
-			}
-		}
+        @Override
+        public void process(Object[] args) throws HiveException {
+            String str = (String) args[0];
+            for (String s : str.split(",")) {
+                forward(s);
+            }
+        }
 
-		@Override
-		public void close() {
-		}
-	}
+        @Override
+        public void close() {}
+    }
 }

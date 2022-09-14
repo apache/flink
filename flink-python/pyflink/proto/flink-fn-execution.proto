@@ -25,14 +25,79 @@ package org.apache.flink.fn_execution.v1;
 option java_package = "org.apache.flink.fnexecution.v1";
 option java_outer_classname = "FlinkFnApi";
 
+// ------------------------------------------------------------------------
+// Table API & SQL
+// ------------------------------------------------------------------------
+
+message Input {
+  oneof input {
+    UserDefinedFunction udf = 1;
+    int32 inputOffset = 2;
+    bytes inputConstant = 3;
+  }
+}
+
 // User-defined function definition. It supports chaining functions, that's, the execution
 // result of one user-defined function as the input of another user-defined function.
 message UserDefinedFunction {
-  message Input {
-    oneof input {
-      UserDefinedFunction udf = 1;
-      int32 inputOffset = 2;
-      bytes inputConstant = 3;
+  // The serialized representation of the user-defined function
+  bytes payload = 1;
+
+  // The input arguments of the user-defined function, it could be one of the following:
+  // 1. A column from the input row
+  // 2. The result of another user-defined function
+  // 3. The constant value of the column
+  repeated Input inputs = 2;
+
+  // The index of the over window used in pandas batch over window aggregation
+  int32 window_index = 3;
+
+  // Whether the UDF takes row as input instead of each columns of a row
+  bool takes_row_as_input = 4;
+
+  // Whether it's pandas UDF
+  bool is_pandas_udf = 5;
+}
+
+// A list of user-defined functions to be executed in a batch.
+message UserDefinedFunctions {
+  repeated UserDefinedFunction udfs = 1;
+  bool metric_enabled = 2;
+  repeated OverWindow windows = 3;
+  bool profile_enabled = 4;
+}
+
+// Used to describe the info of over window in pandas batch over window aggregation
+message OverWindow {
+  enum WindowType {
+    RANGE_UNBOUNDED = 0;
+    RANGE_UNBOUNDED_PRECEDING = 1;
+    RANGE_UNBOUNDED_FOLLOWING = 2;
+    RANGE_SLIDING = 3;
+    ROW_UNBOUNDED = 4;
+    ROW_UNBOUNDED_PRECEDING = 5;
+    ROW_UNBOUNDED_FOLLOWING = 6;
+    ROW_SLIDING = 7;
+  }
+  WindowType window_type = 1;
+  int64 lower_boundary = 2;
+  int64 upper_boundary = 3;
+}
+
+message UserDefinedAggregateFunction {
+  message DataViewSpec {
+    message ListView {
+      Schema.FieldType element_type = 1;
+    }
+    message MapView {
+      Schema.FieldType key_type = 1;
+      Schema.FieldType value_type = 2;
+    }
+    string name = 1;
+    int32 field_index = 2;
+    oneof data_view {
+      ListView list_view = 3;
+      MapView map_view = 4;
     }
   }
 
@@ -44,11 +109,79 @@ message UserDefinedFunction {
   // 2. The result of another user-defined function
   // 3. The constant value of the column
   repeated Input inputs = 2;
+
+  repeated DataViewSpec specs = 3;
+
+  int32 filter_arg = 4;
+
+  bool distinct = 5;
+
+  // Whether the UDF takes row as input instead of each columns of a row
+  bool takes_row_as_input = 6;
 }
 
-// A list of user-defined functions to be executed in a batch.
-message UserDefinedFunctions {
-  repeated UserDefinedFunction udfs = 1;
+message GroupWindow {
+  enum WindowType {
+    TUMBLING_GROUP_WINDOW = 0;
+    SLIDING_GROUP_WINDOW = 1;
+    SESSION_GROUP_WINDOW = 2;
+  }
+
+  enum WindowProperty {
+    WINDOW_START = 0;
+    WINDOW_END = 1;
+    ROW_TIME_ATTRIBUTE = 2;
+    PROC_TIME_ATTRIBUTE = 3;
+  }
+
+  WindowType window_type = 1;
+
+  bool is_time_window = 2;
+
+  int64 window_slide = 3;
+
+  int64 window_size = 4;
+
+  int64 window_gap = 5;
+
+  bool is_row_time = 6;
+
+  int32 time_field_index = 7;
+
+  int64 allowedLateness = 8;
+
+  repeated WindowProperty namedProperties = 9;
+
+  string shift_timezone = 10;
+}
+
+// A list of the user-defined aggregate functions to be executed in a group aggregate operation.
+message UserDefinedAggregateFunctions {
+  repeated UserDefinedAggregateFunction udfs = 1;
+  bool metric_enabled = 2;
+  // The array of the key indexes.
+  repeated int32 grouping = 3;
+  // Generate retract messages if true.
+  bool generate_update_before = 4;
+  // The schema of the grouping keys.
+  Schema.FieldType key_type = 5;
+  // The index of a count aggregate used to calculate the number of accumulated rows.
+  int32 index_of_count_star = 6;
+  // Cleanup the expired state if true.
+  bool state_cleaning_enabled = 7;
+  // The state cache size.
+  int32 state_cache_size = 8;
+  // The map state read cache size.
+  int32 map_state_read_cache_size = 9;
+  // The map_state_write_cache_size.
+  int32 map_state_write_cache_size = 10;
+  // True if the count(*) agg is inserted by the planner.
+  bool count_star_inserted = 11;
+
+  // Group Window.
+  GroupWindow group_window = 12;
+
+  bool profile_enabled = 13;
 }
 
 // A representation of the data schema.
@@ -64,29 +197,59 @@ message Schema {
     DOUBLE = 7;
     DATE = 8;
     TIME = 9;
-    DATETIME = 10;
+    TIMESTAMP = 10;
     BOOLEAN = 11;
     BINARY = 12;
     VARBINARY = 13;
     CHAR = 14;
     VARCHAR = 15;
-    ARRAY = 16;
+    BASIC_ARRAY = 16;
     MAP = 17;
     MULTISET = 18;
+    LOCAL_ZONED_TIMESTAMP = 19;
+    ZONED_TIMESTAMP = 20;
   }
 
-  message MapType {
+  message MapInfo {
     FieldType key_type = 1;
     FieldType value_type = 2;
   }
 
-  message DateTimeType {
+  message TimeInfo {
     int32 precision = 1;
   }
 
-  message DecimalType {
+  message TimestampInfo {
+    int32 precision = 1;
+  }
+
+  message LocalZonedTimestampInfo {
+    int32 precision = 1;
+  }
+
+  message ZonedTimestampInfo {
+    int32 precision = 1;
+  }
+
+  message DecimalInfo {
     int32 precision = 1;
     int32 scale = 2;
+  }
+
+  message BinaryInfo {
+    int32 length = 1;
+  }
+
+  message VarBinaryInfo {
+    int32 length = 1;
+  }
+
+  message CharInfo {
+    int32 length = 1;
+  }
+
+  message VarCharInfo {
+    int32 length = 1;
   }
 
   message FieldType {
@@ -94,10 +257,17 @@ message Schema {
     bool nullable = 2;
     oneof type_info {
       FieldType collection_element_type = 3;
-      MapType map_type = 4;
+      MapInfo map_info = 4;
       Schema row_schema = 5;
-      DateTimeType date_time_type = 6;
-      DecimalType decimal_type = 7;
+      DecimalInfo decimal_info = 6;
+      TimeInfo time_info = 7;
+      TimestampInfo timestamp_info = 8;
+      LocalZonedTimestampInfo local_zoned_timestamp_info = 9;
+      ZonedTimestampInfo zoned_timestamp_info = 10;
+      BinaryInfo binary_info = 11;
+      VarBinaryInfo var_binary_info = 12;
+      CharInfo char_info = 13;
+      VarCharInfo var_char_info = 14;
     }
   }
 
@@ -108,4 +278,260 @@ message Schema {
   }
 
   repeated Field fields = 1;
+}
+
+// ------------------------------------------------------------------------
+// DataStream API
+// ------------------------------------------------------------------------
+
+// A representation of the data type information in DataStream.
+message TypeInfo {
+  enum TypeName {
+    ROW = 0;
+    STRING = 1;
+    BYTE = 2;
+    BOOLEAN = 3;
+    SHORT = 4;
+    INT = 5;
+    LONG = 6;
+    FLOAT = 7;
+    DOUBLE = 8;
+    CHAR = 9;
+    BIG_INT = 10;
+    BIG_DEC = 11;
+    SQL_DATE = 12;
+    SQL_TIME = 13;
+    SQL_TIMESTAMP = 14;
+    BASIC_ARRAY = 15;
+    PRIMITIVE_ARRAY = 16;
+    TUPLE = 17;
+    LIST = 18;
+    MAP = 19;
+    PICKLED_BYTES = 20;
+    OBJECT_ARRAY = 21;
+    INSTANT = 22;
+    AVRO = 23;
+    LOCAL_DATE = 24;
+    LOCAL_TIME = 25;
+    LOCAL_DATETIME = 26;
+    LOCAL_ZONED_TIMESTAMP = 27;
+  }
+
+  message MapTypeInfo {
+    TypeInfo key_type = 1;
+    TypeInfo value_type = 2;
+  }
+
+  message RowTypeInfo {
+    message Field {
+      string field_name = 1;
+      TypeInfo field_type = 2;
+    }
+    repeated Field fields = 1;
+  }
+
+  message TupleTypeInfo {
+    repeated TypeInfo field_types = 1;
+  }
+
+  message AvroTypeInfo {
+    string schema = 1;
+  }
+
+  TypeName type_name = 1;
+  oneof type_info {
+    TypeInfo collection_element_type = 2;
+    RowTypeInfo row_type_info = 3;
+    TupleTypeInfo tuple_type_info = 4;
+    MapTypeInfo map_type_info = 5;
+    AvroTypeInfo avro_type_info = 6;
+  }
+}
+
+// User defined DataStream function definition.
+message UserDefinedDataStreamFunction {
+  enum FunctionType {
+    PROCESS = 0;
+    CO_PROCESS = 1;
+    KEYED_PROCESS = 2;
+    KEYED_CO_PROCESS = 3;
+    WINDOW = 4;
+    CO_BROADCAST_PROCESS = 5;
+    KEYED_CO_BROADCAST_PROCESS = 6;
+    REVISE_OUTPUT = 100;
+  }
+
+  message JobParameter {
+    string key = 1;
+    string value = 2;
+  }
+
+  message RuntimeContext {
+    string task_name = 1;
+    string task_name_with_subtasks = 2;
+    int32 number_of_parallel_subtasks = 3;
+    int32 max_number_of_parallel_subtasks = 4;
+    int32 index_of_this_subtask = 5;
+    int32 attempt_number = 6;
+    repeated JobParameter job_parameters = 7;
+    bool in_batch_execution_mode = 8;
+  }
+
+  FunctionType function_type = 1;
+  RuntimeContext runtime_context = 2;
+  bytes payload = 3;
+  bool metric_enabled = 4;
+  TypeInfo key_type_info = 5;
+  bool profile_enabled = 6;
+  bool has_side_output = 7;
+
+  // The state cache size.
+  int32 state_cache_size = 8;
+  // The map state read cache size.
+  int32 map_state_read_cache_size = 9;
+  // The map_state_write_cache_size.
+  int32 map_state_write_cache_size = 10;
+}
+
+// A representation of State
+message StateDescriptor {
+  message StateTTLConfig {
+    // This option value configures when to update last access timestamp which prolongs state TTL.
+    enum UpdateType {
+      // TTL is disabled. State does not expire.
+      Disabled = 0;
+
+      // Last access timestamp is initialised when state is created and updated on every write operation.
+      OnCreateAndWrite = 1;
+
+      // The same as OnCreateAndWrite but also updated on read.
+      OnReadAndWrite = 2;
+    }
+
+    // This option configures whether expired user value can be returned or not.
+    enum StateVisibility {
+      // Return expired user value if it is not cleaned up yet.
+      ReturnExpiredIfNotCleanedUp = 0;
+
+      // Never return expired user value.
+      NeverReturnExpired = 1;
+    }
+
+    // This option configures time scale to use for ttl.
+    enum TtlTimeCharacteristic {
+      // Processing time
+      ProcessingTime = 0;
+    }
+
+    // TTL cleanup strategies.
+    message CleanupStrategies {
+      // Fixed strategies ordinals in strategies config field.
+      enum Strategies {
+        FULL_STATE_SCAN_SNAPSHOT = 0;
+        INCREMENTAL_CLEANUP = 1;
+        ROCKSDB_COMPACTION_FILTER = 2;
+      }
+
+      enum EmptyCleanupStrategy {
+        EMPTY_STRATEGY = 0;
+      }
+
+      // Configuration of cleanup strategy while taking the full snapshot.
+      message IncrementalCleanupStrategy {
+        // Max number of keys pulled from queue for clean up upon state touch for any key.
+        int32 cleanup_size = 1;
+
+        // Whether to run incremental cleanup per each processed record.
+        bool run_cleanup_for_every_record = 2;
+      }
+
+      // Configuration of cleanup strategy using custom compaction filter in RocksDB.
+      message RocksdbCompactFilterCleanupStrategy {
+        // Number of state entries to process by compaction filter before updating current timestamp.
+        int64 query_time_after_num_entries = 1;
+      }
+
+      message MapStrategiesEntry {
+        Strategies strategy = 1;
+
+        oneof CleanupStrategy {
+          EmptyCleanupStrategy empty_strategy = 2;
+          IncrementalCleanupStrategy incremental_cleanup_strategy = 3;
+          RocksdbCompactFilterCleanupStrategy rocksdb_compact_filter_cleanup_strategy = 4;
+        }
+      }
+
+      bool is_cleanup_in_background = 1;
+
+      repeated MapStrategiesEntry strategies = 2;
+    }
+
+    UpdateType update_type = 1;
+
+    StateVisibility state_visibility = 2;
+
+    TtlTimeCharacteristic ttl_time_characteristic = 3;
+
+    int64 ttl = 4;
+
+    CleanupStrategies cleanup_strategies = 5;
+  }
+
+  string state_name = 1;
+
+  StateTTLConfig state_ttl_config = 2;
+}
+
+// ------------------------------------------------------------------------
+// Common of Table API and DataStream API
+// ------------------------------------------------------------------------
+
+// A representation of the coder
+message CoderInfoDescriptor {
+  // for Table & SQL
+  message FlattenRowType {
+    Schema schema = 1;
+  }
+
+  message RowType {
+    Schema schema = 1;
+  }
+
+  message ArrowType {
+    Schema schema = 1;
+  }
+
+  // only used in batch over window
+  // the data consists of [window data][arrow data]
+  message OverWindowArrowType {
+    Schema schema = 1;
+  }
+
+  // for DataStream
+  message RawType {
+    TypeInfo type_info = 1;
+  }
+
+  enum Mode {
+    // process one record at a time
+    SINGLE = 0;
+    // process multiple records at a time
+    MULTIPLE = 1;
+  }
+
+  oneof data_type {
+    // for Table & SQL
+    FlattenRowType flatten_row_type = 1;
+    RowType row_type = 2;
+    ArrowType arrow_type = 3;
+    OverWindowArrowType over_window_arrow_type = 4;
+
+    // for DataStream
+    RawType raw_type = 5;
+  }
+
+  Mode mode = 6;
+
+  // append an end message (0x00) after serializing the records belonging to the same batch.
+  bool separated_with_end_message = 7;
 }

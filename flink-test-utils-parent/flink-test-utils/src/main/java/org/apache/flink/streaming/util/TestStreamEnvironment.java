@@ -18,116 +18,150 @@
 
 package org.apache.flink.streaming.util;
 
-import org.apache.flink.api.common.JobExecutionResult;
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.ReadableConfig;
+import org.apache.flink.configuration.StateChangelogOptions;
 import org.apache.flink.core.fs.Path;
-import org.apache.flink.runtime.jobgraph.JobGraph;
-import org.apache.flink.runtime.minicluster.JobExecutor;
 import org.apache.flink.runtime.minicluster.MiniCluster;
+import org.apache.flink.streaming.api.environment.ExecutionCheckpointingOptions;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironmentFactory;
-import org.apache.flink.streaming.api.graph.StreamGraph;
-import org.apache.flink.util.Preconditions;
+import org.apache.flink.test.util.MiniClusterPipelineExecutorServiceLoader;
 
 import java.net.URL;
-import java.util.ArrayList;
+import java.time.Duration;
 import java.util.Collection;
 import java.util.Collections;
 
-/**
- * A {@link StreamExecutionEnvironment} that executes its jobs on {@link MiniCluster}.
- */
+import static org.apache.flink.configuration.CheckpointingOptions.LOCAL_RECOVERY;
+import static org.apache.flink.runtime.testutils.PseudoRandomValueSelector.randomize;
+
+/** A {@link StreamExecutionEnvironment} that executes its jobs on {@link MiniCluster}. */
 public class TestStreamEnvironment extends StreamExecutionEnvironment {
+    private static final String STATE_CHANGE_LOG_CONFIG_ON = "on";
+    private static final String STATE_CHANGE_LOG_CONFIG_UNSET = "unset";
+    private static final String STATE_CHANGE_LOG_CONFIG_RAND = "random";
+    private static final boolean RANDOMIZE_CHECKPOINTING_CONFIG =
+            Boolean.parseBoolean(System.getProperty("checkpointing.randomization", "false"));
+    private static final String STATE_CHANGE_LOG_CONFIG =
+            System.getProperty("checkpointing.changelog", STATE_CHANGE_LOG_CONFIG_UNSET).trim();
 
-	/** The job executor to use to execute environment's jobs. */
-	private final JobExecutor jobExecutor;
+    public TestStreamEnvironment(
+            MiniCluster miniCluster,
+            Configuration config,
+            int parallelism,
+            Collection<Path> jarFiles,
+            Collection<URL> classPaths) {
+        super(
+                new MiniClusterPipelineExecutorServiceLoader(miniCluster),
+                MiniClusterPipelineExecutorServiceLoader.updateConfigurationForMiniCluster(
+                        config, jarFiles, classPaths),
+                null);
 
-	private final Collection<Path> jarFiles;
+        setParallelism(parallelism);
+    }
 
-	private final Collection<URL> classPaths;
+    public TestStreamEnvironment(MiniCluster miniCluster, int parallelism) {
+        this(
+                miniCluster,
+                new Configuration(),
+                parallelism,
+                Collections.emptyList(),
+                Collections.emptyList());
+    }
 
-	public TestStreamEnvironment(
-			JobExecutor jobExecutor,
-			int parallelism,
-			Collection<Path> jarFiles,
-			Collection<URL> classPaths) {
+    /**
+     * Sets the streaming context environment to a TestStreamEnvironment that runs its programs on
+     * the given cluster with the given default parallelism and the specified jar files and class
+     * paths.
+     *
+     * @param miniCluster The MiniCluster to execute jobs on.
+     * @param parallelism The default parallelism for the test programs.
+     * @param jarFiles Additional jar files to execute the job with
+     * @param classpaths Additional class paths to execute the job with
+     */
+    public static void setAsContext(
+            final MiniCluster miniCluster,
+            final int parallelism,
+            final Collection<Path> jarFiles,
+            final Collection<URL> classpaths) {
 
-		this.jobExecutor = Preconditions.checkNotNull(jobExecutor);
-		this.jarFiles = Preconditions.checkNotNull(jarFiles);
-		this.classPaths = Preconditions.checkNotNull(classPaths);
+        StreamExecutionEnvironmentFactory factory =
+                conf -> {
+                    TestStreamEnvironment env =
+                            new TestStreamEnvironment(
+                                    miniCluster, conf, parallelism, jarFiles, classpaths);
 
-		setParallelism(parallelism);
-	}
+                    randomizeConfiguration(miniCluster, conf);
 
-	public TestStreamEnvironment(
-			JobExecutor jobExecutor,
-			int parallelism) {
-		this(jobExecutor, parallelism, Collections.emptyList(), Collections.emptyList());
-	}
+                    env.configure(conf, env.getUserClassloader());
+                    return env;
+                };
 
-	@Override
-	public JobExecutionResult execute(StreamGraph streamGraph) throws Exception {
-		final JobGraph jobGraph = streamGraph.getJobGraph();
+        initializeContextEnvironment(factory);
+    }
 
-		for (Path jarFile : jarFiles) {
-			jobGraph.addJar(jarFile);
-		}
+    /**
+     * This is the place for randomization the configuration that relates to DataStream API such as
+     * ExecutionConf, CheckpointConf, StreamExecutionEnvironment. List of the configurations can be
+     * found here {@link StreamExecutionEnvironment#configure(ReadableConfig, ClassLoader)}. All
+     * other configuration should be randomized here {@link
+     * org.apache.flink.runtime.testutils.MiniClusterResource#randomizeConfiguration(Configuration)}.
+     */
+    private static void randomizeConfiguration(MiniCluster miniCluster, Configuration conf) {
+        // randomize ITTests for enabling unaligned checkpoint
+        if (RANDOMIZE_CHECKPOINTING_CONFIG) {
+            randomize(conf, ExecutionCheckpointingOptions.ENABLE_UNALIGNED, true, false);
+            randomize(
+                    conf,
+                    ExecutionCheckpointingOptions.ALIGNMENT_TIMEOUT,
+                    Duration.ofSeconds(0),
+                    Duration.ofMillis(100),
+                    Duration.ofSeconds(2));
+        }
 
-		jobGraph.setClasspaths(new ArrayList<>(classPaths));
+        // randomize ITTests for enabling state change log
+        if (isConfigurationSupportedByChangelog(miniCluster.getConfiguration())) {
+            if (STATE_CHANGE_LOG_CONFIG.equalsIgnoreCase(STATE_CHANGE_LOG_CONFIG_ON)) {
+                if (!conf.contains(StateChangelogOptions.ENABLE_STATE_CHANGE_LOG)) {
+                    conf.set(StateChangelogOptions.ENABLE_STATE_CHANGE_LOG, true);
+                    miniCluster.overrideRestoreModeForChangelogStateBackend();
+                }
+            } else if (STATE_CHANGE_LOG_CONFIG.equalsIgnoreCase(STATE_CHANGE_LOG_CONFIG_RAND)) {
+                boolean enabled =
+                        randomize(conf, StateChangelogOptions.ENABLE_STATE_CHANGE_LOG, true, false);
+                if (enabled) {
+                    randomize(
+                            conf,
+                            StateChangelogOptions.PERIODIC_MATERIALIZATION_INTERVAL,
+                            Duration.ofMillis(100),
+                            Duration.ofMillis(500),
+                            Duration.ofSeconds(1),
+                            Duration.ofSeconds(5),
+                            Duration.ofSeconds(-1));
+                    miniCluster.overrideRestoreModeForChangelogStateBackend();
+                }
+            }
+        }
+    }
 
-		return jobExecutor.executeJobBlocking(jobGraph);
-	}
+    private static boolean isConfigurationSupportedByChangelog(Configuration configuration) {
+        return !configuration.get(LOCAL_RECOVERY);
+    }
 
-	// ------------------------------------------------------------------------
+    /**
+     * Sets the streaming context environment to a TestStreamEnvironment that runs its programs on
+     * the given cluster with the given default parallelism.
+     *
+     * @param miniCluster The MiniCluster to execute jobs on.
+     * @param parallelism The default parallelism for the test programs.
+     */
+    public static void setAsContext(final MiniCluster miniCluster, final int parallelism) {
+        setAsContext(miniCluster, parallelism, Collections.emptyList(), Collections.emptyList());
+    }
 
-	/**
-	 * Sets the streaming context environment to a TestStreamEnvironment that runs its programs on
-	 * the given cluster with the given default parallelism and the specified jar files and class
-	 * paths.
-	 *
-	 * @param jobExecutor The executor to execute the jobs on
-	 * @param parallelism The default parallelism for the test programs.
-	 * @param jarFiles Additional jar files to execute the job with
-	 * @param classpaths Additional class paths to execute the job with
-	 */
-	public static void setAsContext(
-			final JobExecutor jobExecutor,
-			final int parallelism,
-			final Collection<Path> jarFiles,
-			final Collection<URL> classpaths) {
-
-		StreamExecutionEnvironmentFactory factory = new StreamExecutionEnvironmentFactory() {
-			@Override
-			public StreamExecutionEnvironment createExecutionEnvironment() {
-				return new TestStreamEnvironment(
-					jobExecutor,
-					parallelism,
-					jarFiles,
-					classpaths);
-			}
-		};
-
-		initializeContextEnvironment(factory);
-	}
-
-	/**
-	 * Sets the streaming context environment to a TestStreamEnvironment that runs its programs on
-	 * the given cluster with the given default parallelism.
-	 *
-	 * @param jobExecutor The executor to execute the jobs on
-	 * @param parallelism The default parallelism for the test programs.
-	 */
-	public static void setAsContext(final JobExecutor jobExecutor, final int parallelism) {
-		setAsContext(
-			jobExecutor,
-			parallelism,
-			Collections.emptyList(),
-			Collections.emptyList());
-	}
-
-	/**
-	 * Resets the streaming context environment to null.
-	 */
-	public static void unsetAsContext() {
-		resetContextEnvironment();
-	}
+    /** Resets the streaming context environment to null. */
+    public static void unsetAsContext() {
+        resetContextEnvironment();
+    }
 }

@@ -26,15 +26,14 @@ under the License.
 	<packaging>jar</packaging>
 
 	<name>Flink Quickstart Job</name>
-	<url>http://www.myorganization.org</url>
 
 	<properties>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 		<flink.version>@project.version@</flink.version>
-		<java.version>1.8</java.version>
-		<scala.binary.version>2.11</scala.binary.version>
-		<maven.compiler.source>${java.version}</maven.compiler.source>
-		<maven.compiler.target>${java.version}</maven.compiler.target>
+		<target.java.version>@target.java.version@</target.java.version>
+		<scala.binary.version>2.12</scala.binary.version>
+		<maven.compiler.source>${target.java.version}</maven.compiler.source>
+		<maven.compiler.target>${target.java.version}</maven.compiler.target>
 		<log4j.version>@log4j.version@</log4j.version>
 	</properties>
 
@@ -57,13 +56,13 @@ under the License.
 		<!-- These dependencies are provided, because they should not be packaged into the JAR file. -->
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-java</artifactId>
+			<artifactId>flink-streaming-java</artifactId>
 			<version>${flink.version}</version>
 			<scope>provided</scope>
 		</dependency>
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-streaming-java_${scala.binary.version}</artifactId>
+			<artifactId>flink-clients</artifactId>
 			<version>${flink.version}</version>
 			<scope>provided</scope>
 		</dependency>
@@ -74,7 +73,7 @@ under the License.
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-connector-kafka-0.10_${scala.binary.version}</artifactId>
+			<artifactId>flink-connector-kafka</artifactId>
 			<version>${flink.version}</version>
 		</dependency>
 		-->
@@ -110,8 +109,8 @@ under the License.
 				<artifactId>maven-compiler-plugin</artifactId>
 				<version>3.1</version>
 				<configuration>
-					<source>${java.version}</source>
-					<target>${java.version}</target>
+					<source>${target.java.version}</source>
+					<target>${target.java.version}</target>
 				</configuration>
 			</plugin>
 
@@ -129,9 +128,10 @@ under the License.
 							<goal>shade</goal>
 						</goals>
 						<configuration>
+							<createDependencyReducedPom>false</createDependencyReducedPom>
 							<artifactSet>
 								<excludes>
-									<exclude>org.apache.flink:force-shading</exclude>
+									<exclude>org.apache.flink:flink-shaded-force-shading</exclude>
 									<exclude>com.google.code.findbugs:jsr305</exclude>
 									<exclude>org.slf4j:*</exclude>
 									<exclude>org.apache.logging.log4j:*</exclude>
@@ -150,8 +150,9 @@ under the License.
 								</filter>
 							</filters>
 							<transformers>
+								<transformer implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer"/>
 								<transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
-									<mainClass>${package}.StreamingJob</mainClass>
+									<mainClass>${package}.DataStreamJob</mainClass>
 								</transformer>
 							</transformers>
 						</configuration>

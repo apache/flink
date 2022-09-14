@@ -25,42 +25,39 @@ import org.apache.flink.runtime.metrics.dump.QueryScopeInfo;
 import java.util.HashMap;
 import java.util.Map;
 
-/**
- * Tests for {@link JobVertexMetricsHandler}.
- */
+/** Tests for {@link JobVertexMetricsHandler}. */
 public class JobVertexMetricsHandlerTest extends MetricsHandlerTestBase<JobVertexMetricsHandler> {
 
-	private static final String TEST_JOB_ID = new JobID().toString();
+    private static final String TEST_JOB_ID = new JobID().toString();
 
-	private static final String TEST_VERTEX_ID = new JobVertexID().toString();
+    private static final String TEST_VERTEX_ID = new JobVertexID().toString();
 
-	private static final int TEST_SUBTASK_INDEX = 1;
+    private static final int TEST_SUBTASK_INDEX = 1;
 
-	@Override
-	JobVertexMetricsHandler getMetricsHandler() {
-		return new JobVertexMetricsHandler(
-			leaderRetriever,
-			TIMEOUT,
-			TEST_HEADERS,
-			mockMetricFetcher);
-	}
+    private static final int TEST_ATTEMPT_NUMBER = 0;
 
-	@Override
-	QueryScopeInfo getQueryScopeInfo() {
-		return new QueryScopeInfo.TaskQueryScopeInfo(TEST_JOB_ID, TEST_VERTEX_ID, TEST_SUBTASK_INDEX);
-	}
+    @Override
+    JobVertexMetricsHandler getMetricsHandler() {
+        return new JobVertexMetricsHandler(
+                leaderRetriever, TIMEOUT, TEST_HEADERS, mockMetricFetcher);
+    }
 
-	@Override
-	Map<String, String> getPathParameters() {
-		final HashMap<String, String> pathParameters = new HashMap<>();
-		pathParameters.put("jobid", TEST_JOB_ID);
-		pathParameters.put("vertexid", TEST_VERTEX_ID);
-		return pathParameters;
-	}
+    @Override
+    QueryScopeInfo getQueryScopeInfo() {
+        return new QueryScopeInfo.TaskQueryScopeInfo(
+                TEST_JOB_ID, TEST_VERTEX_ID, TEST_SUBTASK_INDEX, TEST_ATTEMPT_NUMBER);
+    }
 
-	@Override
-	String getExpectedIdForMetricName(final String metricName) {
-		return String.format("%s.%s", TEST_SUBTASK_INDEX, metricName);
-	}
+    @Override
+    Map<String, String> getPathParameters() {
+        final HashMap<String, String> pathParameters = new HashMap<>();
+        pathParameters.put("jobid", TEST_JOB_ID);
+        pathParameters.put("vertexid", TEST_VERTEX_ID);
+        return pathParameters;
+    }
 
+    @Override
+    String getExpectedIdForMetricName(final String metricName) {
+        return String.format("%s.%s", TEST_SUBTASK_INDEX, metricName);
+    }
 }

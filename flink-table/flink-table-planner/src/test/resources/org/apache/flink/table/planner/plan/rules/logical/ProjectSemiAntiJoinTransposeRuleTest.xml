@@ -1,0 +1,463 @@
+<?xml version="1.0" ?>
+<!--
+Licensed to the Apache Software Foundation (ASF) under one or more
+contributor license agreements.  See the NOTICE file distributed with
+this work for additional information regarding copyright ownership.
+The ASF licenses this file to you under the Apache License, Version 2.0
+(the "License"); you may not use this file except in compliance with
+the License.  You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+<Root>
+  <TestCase name="testNotNeedTransposeProject_Anti1">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM MyTable1 WHERE a NOT IN (SELECT d FROM MyTable2)]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2])
++- LogicalFilter(condition=[NOT(IN($0, {
+LogicalProject(d=[$0])
+  LogicalTableScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(d, e, f)]]])
+}))])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2])
++- LogicalJoin(condition=[OR(IS NULL($0), IS NULL($3), =($0, $3))], joinType=[anti])
+   :- LogicalTableScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(a, b, c)]]])
+   +- LogicalProject(d=[$0])
+      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(d, e, f)]]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testNotNeedTransposeProject_Anti2">
+    <Resource name="sql">
+      <![CDATA[SELECT b + 1, c FROM MyTable1 WHERE a NOT IN (SELECT d FROM MyTable2)]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(EXPR$0=[+($1, 1)], c=[$2])
++- LogicalFilter(condition=[NOT(IN($0, {
+LogicalProject(d=[$0])
+  LogicalTableScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(d, e, f)]]])
+}))])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+LogicalProject(EXPR$0=[+($1, 1)], c=[$2])
++- LogicalJoin(condition=[OR(IS NULL($0), IS NULL($3), =($0, $3))], joinType=[anti])
+   :- LogicalTableScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(a, b, c)]]])
+   +- LogicalProject(d=[$0])
+      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(d, e, f)]]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testNotNeedTransposeProject_Anti3">
+    <Resource name="sql">
+      <![CDATA[SELECT c FROM MyTable1 WHERE a NOT IN (SELECT d FROM MyTable2 WHERE b = e)]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(c=[$2])
++- LogicalFilter(condition=[NOT(IN($0, {
+LogicalProject(d=[$0])
+  LogicalFilter(condition=[=($cor0.b, $1)])
+    LogicalTableScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(d, e, f)]]])
+}))], variablesSet=[[$cor0]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+LogicalProject(c=[$2])
++- LogicalJoin(condition=[AND(OR(IS NULL($0), IS NULL($3), =($0, $3)), =($1, $4))], joinType=[anti])
+   :- LogicalTableScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(a, b, c)]]])
+   +- LogicalProject(d=[$0], e=[$1])
+      +- LogicalFilter(condition=[true])
+         +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(d, e, f)]]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testNotNeedTransposeProject_Semi1">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM MyTable1 WHERE a IN (SELECT d FROM MyTable2)]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2])
++- LogicalFilter(condition=[IN($0, {
+LogicalProject(d=[$0])
+  LogicalTableScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(d, e, f)]]])
+})])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2])
++- LogicalJoin(condition=[=($0, $3)], joinType=[semi])
+   :- LogicalTableScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(a, b, c)]]])
+   +- LogicalProject(d=[$0])
+      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(d, e, f)]]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testNotNeedTransposeProject_Semi2">
+    <Resource name="sql">
+      <![CDATA[SELECT b + 1, c FROM MyTable1 WHERE a IN (SELECT d FROM MyTable2)]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(EXPR$0=[+($1, 1)], c=[$2])
++- LogicalFilter(condition=[IN($0, {
+LogicalProject(d=[$0])
+  LogicalTableScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(d, e, f)]]])
+})])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+LogicalProject(EXPR$0=[+($1, 1)], c=[$2])
++- LogicalJoin(condition=[=($0, $3)], joinType=[semi])
+   :- LogicalTableScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(a, b, c)]]])
+   +- LogicalProject(d=[$0])
+      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(d, e, f)]]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testNotNeedTransposeProject_Semi3">
+    <Resource name="sql">
+      <![CDATA[SELECT c FROM MyTable1 WHERE a IN (SELECT d FROM MyTable2 WHERE b = e)]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(c=[$2])
++- LogicalFilter(condition=[IN($0, {
+LogicalProject(d=[$0])
+  LogicalFilter(condition=[=($cor0.b, $1)])
+    LogicalTableScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(d, e, f)]]])
+})], variablesSet=[[$cor0]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+LogicalProject(c=[$2])
++- LogicalJoin(condition=[AND(=($0, $3), =($1, $4))], joinType=[semi])
+   :- LogicalTableScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(a, b, c)]]])
+   +- LogicalProject(d=[$0], e=[$1])
+      +- LogicalFilter(condition=[true])
+         +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(d, e, f)]]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testTransposeProject_Anti1">
+    <Resource name="sql">
+      <![CDATA[SELECT a FROM MyTable1 WHERE a NOT IN (SELECT d FROM MyTable2)]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0])
++- LogicalFilter(condition=[NOT(IN($0, {
+LogicalProject(d=[$0])
+  LogicalTableScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(d, e, f)]]])
+}))])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+LogicalJoin(condition=[OR(IS NULL($0), IS NULL($1), =($0, $1))], joinType=[anti])
+:- LogicalProject(a=[$0])
+:  +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(a, b, c)]]])
++- LogicalProject(d=[$0])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(d, e, f)]]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testTransposeProject_Anti2">
+    <Resource name="sql">
+      <![CDATA[SELECT a + 1 FROM MyTable1 WHERE a NOT IN (SELECT d FROM MyTable2)]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(EXPR$0=[+($0, 1)])
++- LogicalFilter(condition=[NOT(IN($0, {
+LogicalProject(d=[$0])
+  LogicalTableScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(d, e, f)]]])
+}))])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+LogicalProject(EXPR$0=[+($0, 1)])
++- LogicalJoin(condition=[OR(IS NULL($0), IS NULL($1), =($0, $1))], joinType=[anti])
+   :- LogicalProject(a=[$0])
+   :  +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(a, b, c)]]])
+   +- LogicalProject(d=[$0])
+      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(d, e, f)]]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testTransposeProject_Anti3">
+    <Resource name="sql">
+      <![CDATA[SELECT a, b FROM MyTable1 WHERE a NOT IN (SELECT d FROM MyTable2)]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1])
++- LogicalFilter(condition=[NOT(IN($0, {
+LogicalProject(d=[$0])
+  LogicalTableScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(d, e, f)]]])
+}))])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+LogicalJoin(condition=[OR(IS NULL($0), IS NULL($2), =($0, $2))], joinType=[anti])
+:- LogicalProject(a=[$0], b=[$1])
+:  +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(a, b, c)]]])
++- LogicalProject(d=[$0])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(d, e, f)]]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testTransposeProject_Anti4">
+    <Resource name="sql">
+      <![CDATA[SELECT b, a FROM MyTable1 WHERE a NOT IN (SELECT d FROM MyTable2)]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(b=[$1], a=[$0])
++- LogicalFilter(condition=[NOT(IN($0, {
+LogicalProject(d=[$0])
+  LogicalTableScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(d, e, f)]]])
+}))])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+LogicalProject(b=[$1], a=[$0])
++- LogicalJoin(condition=[OR(IS NULL($0), IS NULL($2), =($0, $2))], joinType=[anti])
+   :- LogicalProject(a=[$0], b=[$1])
+   :  +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(a, b, c)]]])
+   +- LogicalProject(d=[$0])
+      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(d, e, f)]]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testTransposeProject_Anti5">
+    <Resource name="sql">
+      <![CDATA[SELECT d FROM (SELECT a, b, c, d FROM MyTable1, MyTable2) t WHERE a NOT IN (SELECT d FROM MyTable2)]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(d=[$3])
++- LogicalFilter(condition=[NOT(IN($0, {
+LogicalProject(d=[$0])
+  LogicalTableScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(d, e, f)]]])
+}))])
+   +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3])
+      +- LogicalJoin(condition=[true], joinType=[inner])
+         :- LogicalTableScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(a, b, c)]]])
+         +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(d, e, f)]]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+LogicalProject(d=[$1])
++- LogicalJoin(condition=[OR(IS NULL($0), IS NULL($2), =($0, $2))], joinType=[anti])
+   :- LogicalProject(a=[$0], d=[$3])
+   :  +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3])
+   :     +- LogicalJoin(condition=[true], joinType=[inner])
+   :        :- LogicalTableScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(a, b, c)]]])
+   :        +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(d, e, f)]]])
+   +- LogicalProject(d=[$0])
+      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(d, e, f)]]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testTransposeProject_EmptyProject">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM MyTable1 WHERE EXISTS (SELECT * FROM MyTable2, LATERAL TABLE(table_func(f)) AS T(f1) WHERE EXISTS (SELECT * FROM MyTable3))]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2])
++- LogicalFilter(condition=[EXISTS({
+LogicalFilter(condition=[EXISTS({
+LogicalTableScan(table=[[default_catalog, default_database, MyTable3, source: [TestTableSource(i, j, k)]]])
+})])
+  LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{2}])
+    LogicalTableScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(d, e, f)]]])
+    LogicalTableFunctionScan(invocation=[table_func($cor0.f)], rowType=[RecordType(VARCHAR(2147483647) f0)], elementType=[class [Ljava.lang.Object;])
+})])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2])
++- LogicalJoin(condition=[$3], joinType=[semi])
+   :- LogicalTableScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(a, b, c)]]])
+   +- LogicalProject($f0=[IS NOT NULL($0)])
+      +- LogicalAggregate(group=[{}], m=[MIN($0)])
+         +- LogicalProject(i=[true])
+            +- LogicalJoin(condition=[$1], joinType=[semi])
+               :- LogicalProject(d=[$0])
+               :  +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{2}])
+               :     :- LogicalTableScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(d, e, f)]]])
+               :     +- LogicalTableFunctionScan(invocation=[table_func($cor0.f)], rowType=[RecordType(VARCHAR(2147483647) f0)], elementType=[class [Ljava.lang.Object;])
+               +- LogicalProject($f0=[IS NOT NULL($0)])
+                  +- LogicalAggregate(group=[{}], m=[MIN($0)])
+                     +- LogicalProject(i=[true])
+                        +- LogicalTableScan(table=[[default_catalog, default_database, MyTable3, source: [TestTableSource(i, j, k)]]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testTransposeProject_Semi1">
+    <Resource name="sql">
+      <![CDATA[SELECT a FROM MyTable1 WHERE a IN (SELECT d FROM MyTable2)]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0])
++- LogicalFilter(condition=[IN($0, {
+LogicalProject(d=[$0])
+  LogicalTableScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(d, e, f)]]])
+})])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+LogicalJoin(condition=[=($0, $1)], joinType=[semi])
+:- LogicalProject(a=[$0])
+:  +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(a, b, c)]]])
++- LogicalProject(d=[$0])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(d, e, f)]]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testTransposeProject_Semi2">
+    <Resource name="sql">
+      <![CDATA[SELECT a + 1 FROM MyTable1 WHERE a IN (SELECT d FROM MyTable2)]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(EXPR$0=[+($0, 1)])
++- LogicalFilter(condition=[IN($0, {
+LogicalProject(d=[$0])
+  LogicalTableScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(d, e, f)]]])
+})])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+LogicalProject(EXPR$0=[+($0, 1)])
++- LogicalJoin(condition=[=($0, $1)], joinType=[semi])
+   :- LogicalProject(a=[$0])
+   :  +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(a, b, c)]]])
+   +- LogicalProject(d=[$0])
+      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(d, e, f)]]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testTransposeProject_Semi3">
+    <Resource name="sql">
+      <![CDATA[SELECT a, b FROM MyTable1 WHERE a IN (SELECT d FROM MyTable2)]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1])
++- LogicalFilter(condition=[IN($0, {
+LogicalProject(d=[$0])
+  LogicalTableScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(d, e, f)]]])
+})])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+LogicalJoin(condition=[=($0, $2)], joinType=[semi])
+:- LogicalProject(a=[$0], b=[$1])
+:  +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(a, b, c)]]])
++- LogicalProject(d=[$0])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(d, e, f)]]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testTransposeProject_Semi4">
+    <Resource name="sql">
+      <![CDATA[SELECT b, a FROM MyTable1 WHERE a IN (SELECT d FROM MyTable2)]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(b=[$1], a=[$0])
++- LogicalFilter(condition=[IN($0, {
+LogicalProject(d=[$0])
+  LogicalTableScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(d, e, f)]]])
+})])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+LogicalProject(b=[$1], a=[$0])
++- LogicalJoin(condition=[=($0, $2)], joinType=[semi])
+   :- LogicalProject(a=[$0], b=[$1])
+   :  +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(a, b, c)]]])
+   +- LogicalProject(d=[$0])
+      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(d, e, f)]]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testTransposeProject_Semi5">
+    <Resource name="sql">
+      <![CDATA[SELECT d FROM (SELECT a, b, c, d FROM MyTable1, MyTable2) t WHERE a IN (SELECT d FROM MyTable2)]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(d=[$3])
++- LogicalFilter(condition=[IN($0, {
+LogicalProject(d=[$0])
+  LogicalTableScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(d, e, f)]]])
+})])
+   +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3])
+      +- LogicalJoin(condition=[true], joinType=[inner])
+         :- LogicalTableScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(a, b, c)]]])
+         +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(d, e, f)]]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+LogicalProject(d=[$1])
++- LogicalJoin(condition=[=($0, $2)], joinType=[semi])
+   :- LogicalProject(a=[$0], d=[$3])
+   :  +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3])
+   :     +- LogicalJoin(condition=[true], joinType=[inner])
+   :        :- LogicalTableScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(a, b, c)]]])
+   :        +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(d, e, f)]]])
+   +- LogicalProject(d=[$0])
+      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(d, e, f)]]])
+]]>
+    </Resource>
+  </TestCase>
+</Root>

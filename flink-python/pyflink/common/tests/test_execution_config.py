@@ -15,17 +15,17 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 ################################################################################
-from pyflink.dataset import ExecutionEnvironment
-from pyflink.common import (ExecutionConfig, RestartStrategies, ExecutionMode,
-                            InputDependencyConstraint)
+from pyflink.datastream import StreamExecutionEnvironment
+from pyflink.common import (ExecutionConfig, RestartStrategies, ExecutionMode, Configuration)
 from pyflink.java_gateway import get_gateway
 from pyflink.testing.test_case_utils import PyFlinkTestCase
+from pyflink.util.java_utils import get_j_env_configuration
 
 
 class ExecutionConfigTests(PyFlinkTestCase):
 
     def setUp(self):
-        self.env = ExecutionEnvironment.get_execution_environment()
+        self.env = StreamExecutionEnvironment.get_execution_environment()
         self.execution_config = self.env.get_config()
 
     def test_constant(self):
@@ -49,7 +49,7 @@ class ExecutionConfigTests(PyFlinkTestCase):
 
     def test_get_set_auto_watermark_interval(self):
 
-        self.assertEqual(self.execution_config.get_auto_watermark_interval(), 0)
+        self.assertEqual(self.execution_config.get_auto_watermark_interval(), 200)
 
         self.execution_config.set_auto_watermark_interval(1000)
 
@@ -131,20 +131,6 @@ class ExecutionConfigTests(PyFlinkTestCase):
         self.execution_config.set_execution_mode(ExecutionMode.PIPELINED_FORCED)
 
         self.assertEqual(self.execution_config.get_execution_mode(), ExecutionMode.PIPELINED_FORCED)
-
-    def test_get_set_default_input_dependency_constraint(self):
-
-        self.execution_config.set_default_input_dependency_constraint(
-            InputDependencyConstraint.ALL)
-
-        self.assertEqual(self.execution_config.get_default_input_dependency_constraint(),
-                         InputDependencyConstraint.ALL)
-
-        self.execution_config.set_default_input_dependency_constraint(
-            InputDependencyConstraint.ANY)
-
-        self.assertEqual(self.execution_config.get_default_input_dependency_constraint(),
-                         InputDependencyConstraint.ANY)
 
     def test_disable_enable_force_kryo(self):
 
@@ -268,9 +254,9 @@ class ExecutionConfigTests(PyFlinkTestCase):
 
     def test_equals_and_hash(self):
 
-        config1 = ExecutionEnvironment.get_execution_environment().get_config()
+        config1 = StreamExecutionEnvironment.get_execution_environment().get_config()
 
-        config2 = ExecutionEnvironment.get_execution_environment().get_config()
+        config2 = StreamExecutionEnvironment.get_execution_environment().get_config()
 
         self.assertEqual(config1, config2)
 
@@ -288,3 +274,15 @@ class ExecutionConfigTests(PyFlinkTestCase):
         self.assertEqual(config1, config2)
 
         self.assertEqual(hash(config1), hash(config2))
+
+    def test_get_execution_environment_with_config(self):
+        configuration = Configuration()
+        configuration.set_integer('parallelism.default', 12)
+        configuration.set_string('pipeline.name', 'haha')
+        env = StreamExecutionEnvironment.get_execution_environment(configuration)
+        execution_config = env.get_config()
+
+        self.assertEqual(execution_config.get_parallelism(), 12)
+        config = Configuration(
+            j_configuration=get_j_env_configuration(env._j_stream_execution_environment))
+        self.assertEqual(config.get_string('pipeline.name', ''), 'haha')

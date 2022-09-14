@@ -43,25 +43,27 @@ import org.apache.flink.table.types.logical.SmallIntType;
 import org.apache.flink.table.types.logical.TimeType;
 import org.apache.flink.table.types.logical.TimestampType;
 import org.apache.flink.table.types.logical.TinyIntType;
-import org.apache.flink.table.types.logical.TypeInformationRawType;
 import org.apache.flink.table.types.logical.VarBinaryType;
 import org.apache.flink.table.types.logical.VarCharType;
 import org.apache.flink.table.types.logical.YearMonthIntervalType;
 import org.apache.flink.table.types.logical.YearMonthIntervalType.YearMonthResolution;
 import org.apache.flink.table.types.logical.ZonedTimestampType;
+import org.apache.flink.table.types.utils.DataTypeFactoryMock;
 import org.apache.flink.table.types.utils.LogicalTypeDataTypeConverter;
 import org.apache.flink.types.Row;
 
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
-import org.junit.runners.Parameterized.Parameter;
-import org.junit.runners.Parameterized.Parameters;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.MethodSource;
+
+import javax.annotation.Nullable;
 
 import java.math.BigDecimal;
+import java.time.DayOfWeek;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
+import java.util.stream.Stream;
 
 import static org.apache.flink.table.api.DataTypes.ARRAY;
 import static org.apache.flink.table.api.DataTypes.BIGINT;
@@ -88,150 +90,335 @@ import static org.apache.flink.table.api.DataTypes.SMALLINT;
 import static org.apache.flink.table.api.DataTypes.STRING;
 import static org.apache.flink.table.api.DataTypes.TIME;
 import static org.apache.flink.table.api.DataTypes.TIMESTAMP;
+import static org.apache.flink.table.api.DataTypes.TIMESTAMP_LTZ;
 import static org.apache.flink.table.api.DataTypes.TIMESTAMP_WITH_LOCAL_TIME_ZONE;
 import static org.apache.flink.table.api.DataTypes.TIMESTAMP_WITH_TIME_ZONE;
 import static org.apache.flink.table.api.DataTypes.TINYINT;
 import static org.apache.flink.table.api.DataTypes.VARBINARY;
 import static org.apache.flink.table.api.DataTypes.VARCHAR;
-import static org.apache.flink.table.types.TypeTestingUtils.hasConversionClass;
-import static org.apache.flink.table.types.TypeTestingUtils.hasLogicalType;
+import static org.apache.flink.table.test.TableAssertions.assertThat;
 import static org.apache.flink.table.types.logical.DayTimeIntervalType.DEFAULT_DAY_PRECISION;
 import static org.apache.flink.table.types.logical.DayTimeIntervalType.DayTimeResolution.MINUTE_TO_SECOND;
-import static org.apache.flink.table.types.utils.LogicalTypeDataTypeConverter.toDataType;
-import static org.apache.flink.table.types.utils.LogicalTypeDataTypeConverter.toLogicalType;
-import static org.hamcrest.CoreMatchers.equalTo;
-import static org.junit.Assert.assertThat;
+import static org.apache.flink.table.types.utils.DataTypeFactoryMock.dummyRaw;
+import static org.assertj.core.api.Assertions.assertThat;
 
-/**
- * Tests for {@link DataTypes} and {@link LogicalTypeDataTypeConverter}.
- */
-@RunWith(Parameterized.class)
-public class DataTypesTest {
+/** Tests for {@link DataTypes} and {@link LogicalTypeDataTypeConverter}. */
+class DataTypesTest {
 
-	@Parameters(name = "{index}: {0}=[Logical: {1}, Class: {2}]")
-	public static List<Object[]> dataTypes() {
-		return Arrays.asList(
-			new Object[][]{
-				{CHAR(2), new CharType(2), String.class},
+    private static Stream<TestSpec> testData() {
+        return Stream.of(
+                TestSpec.forDataType(CHAR(2))
+                        .expectLogicalType(new CharType(2))
+                        .expectConversionClass(String.class),
+                TestSpec.forDataType(VARCHAR(2))
+                        .expectLogicalType(new VarCharType(2))
+                        .expectConversionClass(String.class),
+                TestSpec.forDataType(STRING())
+                        .expectLogicalType(VarCharType.STRING_TYPE)
+                        .expectConversionClass(String.class),
+                TestSpec.forDataType(BOOLEAN())
+                        .expectLogicalType(new BooleanType())
+                        .expectConversionClass(Boolean.class),
+                TestSpec.forDataType(BINARY(42))
+                        .expectLogicalType(new BinaryType(42))
+                        .expectConversionClass(byte[].class),
+                TestSpec.forDataType(VARBINARY(42))
+                        .expectLogicalType(new VarBinaryType(42))
+                        .expectConversionClass(byte[].class),
+                TestSpec.forDataType(BYTES())
+                        .expectLogicalType(new VarBinaryType(VarBinaryType.MAX_LENGTH))
+                        .expectConversionClass(byte[].class),
+                TestSpec.forDataType(DECIMAL(10, 10))
+                        .expectLogicalType(new DecimalType(10, 10))
+                        .expectConversionClass(BigDecimal.class),
+                TestSpec.forDataType(TINYINT())
+                        .expectLogicalType(new TinyIntType())
+                        .expectConversionClass(Byte.class),
+                TestSpec.forDataType(SMALLINT())
+                        .expectLogicalType(new SmallIntType())
+                        .expectConversionClass(Short.class),
+                TestSpec.forDataType(INT())
+                        .expectLogicalType(new IntType())
+                        .expectConversionClass(Integer.class),
+                TestSpec.forDataType(BIGINT())
+                        .expectLogicalType(new BigIntType())
+                        .expectConversionClass(Long.class),
+                TestSpec.forDataType(FLOAT())
+                        .expectLogicalType(new FloatType())
+                        .expectConversionClass(Float.class),
+                TestSpec.forDataType(DOUBLE())
+                        .expectLogicalType(new DoubleType())
+                        .expectConversionClass(Double.class),
+                TestSpec.forDataType(DATE())
+                        .expectLogicalType(new DateType())
+                        .expectConversionClass(java.time.LocalDate.class),
+                TestSpec.forDataType(TIME(3))
+                        .expectLogicalType(new TimeType(3))
+                        .expectConversionClass(java.time.LocalTime.class),
+                TestSpec.forDataType(TIME())
+                        .expectLogicalType(new TimeType(0))
+                        .expectConversionClass(java.time.LocalTime.class),
+                TestSpec.forDataType(TIMESTAMP(3))
+                        .expectLogicalType(new TimestampType(3))
+                        .expectConversionClass(java.time.LocalDateTime.class),
+                TestSpec.forDataType(TIMESTAMP())
+                        .expectLogicalType(new TimestampType(6))
+                        .expectConversionClass(java.time.LocalDateTime.class),
+                TestSpec.forDataType(TIMESTAMP_WITH_TIME_ZONE(3))
+                        .expectLogicalType(new ZonedTimestampType(3))
+                        .expectConversionClass(java.time.OffsetDateTime.class),
+                TestSpec.forDataType(TIMESTAMP_WITH_TIME_ZONE())
+                        .expectLogicalType(new ZonedTimestampType(6))
+                        .expectConversionClass(java.time.OffsetDateTime.class),
+                TestSpec.forDataType(TIMESTAMP_WITH_LOCAL_TIME_ZONE(3))
+                        .expectLogicalType(new LocalZonedTimestampType(3))
+                        .expectConversionClass(java.time.Instant.class),
+                TestSpec.forDataType(TIMESTAMP_WITH_LOCAL_TIME_ZONE())
+                        .expectLogicalType(new LocalZonedTimestampType(6))
+                        .expectConversionClass(java.time.Instant.class),
+                TestSpec.forDataType(TIMESTAMP_LTZ(3))
+                        .expectLogicalType(new LocalZonedTimestampType(3))
+                        .expectConversionClass(java.time.Instant.class),
+                TestSpec.forDataType(TIMESTAMP_LTZ())
+                        .expectLogicalType(new LocalZonedTimestampType(6))
+                        .expectConversionClass(java.time.Instant.class),
+                TestSpec.forDataType(INTERVAL(MINUTE(), SECOND(3)))
+                        .expectLogicalType(
+                                new DayTimeIntervalType(MINUTE_TO_SECOND, DEFAULT_DAY_PRECISION, 3))
+                        .expectConversionClass(java.time.Duration.class),
+                TestSpec.forDataType(INTERVAL(MONTH()))
+                        .expectLogicalType(new YearMonthIntervalType(YearMonthResolution.MONTH))
+                        .expectConversionClass(java.time.Period.class),
+                TestSpec.forDataType(ARRAY(ARRAY(INT())))
+                        .expectLogicalType(new ArrayType(new ArrayType(new IntType())))
+                        .expectConversionClass(Integer[][].class),
+                TestSpec.forDataType(ARRAY(ARRAY(INT().notNull())).bridgedTo(int[][].class))
+                        .expectLogicalType(new ArrayType(new ArrayType(new IntType(false))))
+                        .expectConversionClass(int[][].class)
+                        .expectChildren(DataTypes.ARRAY(INT().notNull()).bridgedTo(int[].class)),
+                TestSpec.forDataType(MULTISET(MULTISET(INT())))
+                        .expectLogicalType(new MultisetType(new MultisetType(new IntType())))
+                        .expectConversionClass(Map.class),
+                TestSpec.forDataType(MAP(INT(), SMALLINT()))
+                        .expectLogicalType(new MapType(new IntType(), new SmallIntType()))
+                        .expectConversionClass(Map.class),
+                TestSpec.forDataType(ROW(FIELD("field1", CHAR(2)), FIELD("field2", BOOLEAN())))
+                        .expectLogicalType(
+                                new RowType(
+                                        Arrays.asList(
+                                                new RowType.RowField("field1", new CharType(2)),
+                                                new RowType.RowField("field2", new BooleanType()))))
+                        .expectConversionClass(Row.class),
+                TestSpec.forDataType(ROW(DataTypes.INT(), DataTypes.FLOAT()))
+                        .expectResolvedDataType(
+                                DataTypes.ROW(FIELD("f0", INT()), FIELD("f1", FLOAT()))),
+                TestSpec.forDataType(NULL())
+                        .expectLogicalType(new NullType())
+                        .expectConversionClass(Object.class),
+                TestSpec.forDataType(RAW(Void.class, VoidSerializer.INSTANCE))
+                        .expectLogicalType(new RawType<>(Void.class, VoidSerializer.INSTANCE))
+                        .expectConversionClass(Void.class),
+                TestSpec.forUnresolvedDataType(RAW(Types.VOID))
+                        .expectUnresolvedString("[RAW('java.lang.Void', '?')]")
+                        .lookupReturns(dummyRaw(Void.class))
+                        .expectResolvedDataType(dummyRaw(Void.class)),
+                TestSpec.forUnresolvedDataType(DataTypes.of("INT"))
+                        .expectUnresolvedString("[INT]")
+                        .lookupReturns(INT())
+                        .expectLogicalType(new IntType()),
+                TestSpec.forUnresolvedDataType(DataTypes.of(Integer.class))
+                        .expectUnresolvedString("['java.lang.Integer']")
+                        .expectResolvedDataType(INT()),
+                TestSpec.forUnresolvedDataType(DataTypes.of(java.sql.Timestamp.class).notNull())
+                        .expectUnresolvedString("['java.sql.Timestamp']")
+                        .expectResolvedDataType(
+                                TIMESTAMP(9).notNull().bridgedTo(java.sql.Timestamp.class)),
+                TestSpec.forUnresolvedDataType(
+                                DataTypes.of(java.sql.Timestamp.class)
+                                        .bridgedTo(java.time.LocalDateTime.class))
+                        .expectUnresolvedString("['java.sql.Timestamp']")
+                        .expectResolvedDataType(
+                                TIMESTAMP(9).bridgedTo(java.time.LocalDateTime.class)),
+                TestSpec.forUnresolvedDataType(MAP(DataTypes.of("INT"), DataTypes.of("STRING")))
+                        .expectUnresolvedString("[MAP<[INT], [STRING]>]")
+                        .expectResolvedDataType(MAP(DataTypes.INT(), DataTypes.STRING())),
+                TestSpec.forUnresolvedDataType(MAP(DataTypes.of("INT"), STRING().notNull()))
+                        .expectUnresolvedString("[MAP<[INT], STRING NOT NULL>]")
+                        .expectResolvedDataType(MAP(INT(), STRING().notNull())),
+                TestSpec.forUnresolvedDataType(MULTISET(DataTypes.of("STRING")))
+                        .expectUnresolvedString("[MULTISET<[STRING]>]")
+                        .expectResolvedDataType(MULTISET(DataTypes.STRING())),
+                TestSpec.forUnresolvedDataType(ARRAY(DataTypes.of("STRING")))
+                        .expectUnresolvedString("[ARRAY<[STRING]>]")
+                        .expectResolvedDataType(ARRAY(DataTypes.STRING())),
+                TestSpec.forUnresolvedDataType(
+                                ARRAY(DataTypes.of("INT").notNull()).bridgedTo(int[].class))
+                        .expectUnresolvedString("[ARRAY<[INT]>]")
+                        .expectResolvedDataType(ARRAY(INT().notNull()).bridgedTo(int[].class)),
+                TestSpec.forUnresolvedDataType(
+                                ROW(
+                                        FIELD("field1", DataTypes.of("CHAR(2)")),
+                                        FIELD("field2", BOOLEAN())))
+                        .expectUnresolvedString("[ROW<field1 [CHAR(2)], field2 BOOLEAN>]")
+                        .expectResolvedDataType(
+                                ROW(FIELD("field1", CHAR(2)), FIELD("field2", BOOLEAN()))),
+                TestSpec.forUnresolvedDataType(ROW(DataTypes.of("CHAR(2)"), BOOLEAN()))
+                        .expectResolvedDataType(ROW(FIELD("f0", CHAR(2)), FIELD("f1", BOOLEAN()))),
+                TestSpec.forUnresolvedDataType(
+                                ARRAY(
+                                        ROW(
+                                                FIELD("f0", DataTypes.of("ARRAY<INT>")),
+                                                FIELD("f1", ARRAY(INT())))))
+                        .expectUnresolvedString("[ARRAY<[ROW<f0 [ARRAY<INT>], f1 ARRAY<INT>>]>]")
+                        .expectResolvedDataType(
+                                ARRAY(ROW(FIELD("f0", ARRAY(INT())), FIELD("f1", ARRAY(INT()))))),
+                TestSpec.forUnresolvedDataType(RAW(Object.class))
+                        .expectUnresolvedString("[RAW('java.lang.Object', '?')]")
+                        .lookupReturns(dummyRaw(Object.class))
+                        .expectResolvedDataType(dummyRaw(Object.class)),
+                TestSpec.forUnresolvedDataType(DataTypes.of(SimplePojo.class))
+                        .expectResolvedDataType(
+                                DataTypes.STRUCTURED(
+                                        SimplePojo.class,
+                                        DataTypes.FIELD("name", DataTypes.STRING()),
+                                        DataTypes.FIELD(
+                                                "count",
+                                                DataTypes.INT().notNull().bridgedTo(int.class)))),
+                TestSpec.forUnresolvedDataType(DataTypes.of(Types.ENUM(DayOfWeek.class)))
+                        .expectUnresolvedString("['EnumTypeInfo<java.time.DayOfWeek>']")
+                        .lookupReturns(dummyRaw(DayOfWeek.class))
+                        .expectResolvedDataType(dummyRaw(DayOfWeek.class)));
+    }
 
-				{VARCHAR(2), new VarCharType(2), String.class},
+    @ParameterizedTest(name = "{index}: {0}")
+    @MethodSource("testData")
+    void testLogicalType(TestSpec testSpec) {
+        if (testSpec.expectedLogicalType != null) {
+            final DataType dataType =
+                    testSpec.typeFactory.createDataType(testSpec.abstractDataType);
+            assertThat(dataType).hasLogicalType(testSpec.expectedLogicalType);
+            assertThat(
+                            DataTypes.of(testSpec.expectedLogicalType)
+                                    .bridgedTo(dataType.getConversionClass()))
+                    .isEqualTo(dataType);
+        }
+    }
 
-				{STRING(), new VarCharType(VarCharType.MAX_LENGTH), String.class},
+    @ParameterizedTest(name = "{index}: {0}")
+    @MethodSource("testData")
+    void testConversionClass(TestSpec testSpec) {
+        if (testSpec.expectedConversionClass != null) {
+            assertThat(testSpec.typeFactory.createDataType(testSpec.abstractDataType))
+                    .hasConversionClass(testSpec.expectedConversionClass);
+        }
+    }
 
-				{BOOLEAN(), new BooleanType(), Boolean.class},
+    @ParameterizedTest(name = "{index}: {0}")
+    @MethodSource("testData")
+    void testChildren(TestSpec testSpec) {
+        if (testSpec.expectedChildren != null) {
+            assertThat(testSpec.typeFactory.createDataType(testSpec.abstractDataType))
+                    .getChildren()
+                    .isEqualTo(testSpec.expectedChildren);
+        }
+    }
 
-				{BINARY(42), new BinaryType(42), byte[].class},
+    @ParameterizedTest(name = "{index}: {0}")
+    @MethodSource("testData")
+    void testUnresolvedString(TestSpec testSpec) {
+        if (testSpec.expectedUnresolvedString != null) {
+            assertThat(testSpec.abstractDataType.toString())
+                    .isEqualTo(testSpec.expectedUnresolvedString);
+        }
+    }
 
-				{VARBINARY(42), new VarBinaryType(42), byte[].class},
+    @ParameterizedTest(name = "{index}: {0}")
+    @MethodSource("testData")
+    void testResolvedDataType(TestSpec testSpec) {
+        if (testSpec.expectedResolvedDataType != null) {
+            assertThat(testSpec.typeFactory.createDataType(testSpec.abstractDataType))
+                    .isEqualTo(testSpec.expectedResolvedDataType);
+        }
+    }
 
-				{BYTES(), new VarBinaryType(VarBinaryType.MAX_LENGTH), byte[].class},
+    // --------------------------------------------------------------------------------------------
 
-				{DECIMAL(10, 10), new DecimalType(10, 10), BigDecimal.class},
+    private static class TestSpec {
 
-				{TINYINT(), new TinyIntType(), Byte.class},
+        private final DataTypeFactoryMock typeFactory = new DataTypeFactoryMock();
 
-				{SMALLINT(), new SmallIntType(), Short.class},
+        private final AbstractDataType<?> abstractDataType;
 
-				{INT(), new IntType(), Integer.class},
+        private @Nullable LogicalType expectedLogicalType;
 
-				{BIGINT(), new BigIntType(), Long.class},
+        private @Nullable Class<?> expectedConversionClass;
 
-				{FLOAT(), new FloatType(), Float.class},
+        private @Nullable List<DataType> expectedChildren;
 
-				{DOUBLE(), new DoubleType(), Double.class},
+        private @Nullable String expectedUnresolvedString;
 
-				{DATE(), new DateType(), java.time.LocalDate.class},
+        private @Nullable DataType expectedResolvedDataType;
 
-				{TIME(3), new TimeType(3), java.time.LocalTime.class},
+        private TestSpec(AbstractDataType<?> abstractDataType) {
+            this.abstractDataType = abstractDataType;
+        }
 
-				{TIME(), new TimeType(0), java.time.LocalTime.class},
+        static TestSpec forDataType(DataType dataType) {
+            return new TestSpec(dataType);
+        }
 
-				{TIMESTAMP(3), new TimestampType(3), java.time.LocalDateTime.class},
+        static TestSpec forUnresolvedDataType(UnresolvedDataType unresolvedDataType) {
+            return new TestSpec(unresolvedDataType);
+        }
 
-				{TIMESTAMP(), new TimestampType(6), java.time.LocalDateTime.class},
+        TestSpec expectLogicalType(LogicalType expectedLogicalType) {
+            this.expectedLogicalType = expectedLogicalType;
+            return this;
+        }
 
-				{TIMESTAMP_WITH_TIME_ZONE(3),
-					new ZonedTimestampType(3),
-					java.time.OffsetDateTime.class},
+        TestSpec expectConversionClass(Class<?> expectedConversionClass) {
+            this.expectedConversionClass = expectedConversionClass;
+            return this;
+        }
 
-				{TIMESTAMP_WITH_TIME_ZONE(),
-					new ZonedTimestampType(6),
-					java.time.OffsetDateTime.class},
+        TestSpec expectChildren(DataType... expectedChildren) {
+            this.expectedChildren = Arrays.asList(expectedChildren);
+            return this;
+        }
 
-				{TIMESTAMP_WITH_LOCAL_TIME_ZONE(3),
-					new LocalZonedTimestampType(3),
-					java.time.Instant.class},
+        TestSpec expectUnresolvedString(String expectedUnresolvedString) {
+            this.expectedUnresolvedString = expectedUnresolvedString;
+            return this;
+        }
 
-				{TIMESTAMP_WITH_LOCAL_TIME_ZONE(),
-					new LocalZonedTimestampType(6),
-					java.time.Instant.class},
+        TestSpec expectResolvedDataType(DataType expectedResolvedDataType) {
+            this.expectedResolvedDataType = expectedResolvedDataType;
+            return this;
+        }
 
-				{INTERVAL(MINUTE(), SECOND(3)),
-					new DayTimeIntervalType(MINUTE_TO_SECOND, DEFAULT_DAY_PRECISION, 3),
-					java.time.Duration.class},
+        TestSpec lookupReturns(DataType dataType) {
+            this.typeFactory.dataType = Optional.of(dataType);
+            return this;
+        }
 
-				{INTERVAL(MONTH()),
-					new YearMonthIntervalType(YearMonthResolution.MONTH),
-					java.time.Period.class},
+        @Override
+        public String toString() {
+            return abstractDataType.toString();
+        }
+    }
 
-				{ARRAY(ARRAY(INT())),
-					new ArrayType(new ArrayType(new IntType())),
-					Integer[][].class},
+    // --------------------------------------------------------------------------------------------
+    // Helper classes
+    // --------------------------------------------------------------------------------------------
 
-				{MULTISET(MULTISET(INT())),
-					new MultisetType(new MultisetType(new IntType())),
-					Map.class},
+    /** Simple POJO for testing. */
+    public static class SimplePojo {
+        public final String name;
+        public final int count;
 
-				{MAP(INT(), SMALLINT()),
-					new MapType(new IntType(), new SmallIntType()),
-					Map.class},
-
-				{ROW(FIELD("field1", CHAR(2)), FIELD("field2", BOOLEAN())),
-					new RowType(
-						Arrays.asList(
-							new RowType.RowField("field1", new CharType(2)),
-							new RowType.RowField("field2", new BooleanType()))),
-					Row.class},
-
-				{NULL(), new NullType(), Object.class},
-
-				{RAW(Types.GENERIC(DataTypesTest.class)),
-					new TypeInformationRawType<>(Types.GENERIC(DataTypesTest.class)),
-					DataTypesTest.class},
-
-				{RAW(Void.class, VoidSerializer.INSTANCE),
-					new RawType<>(Void.class, VoidSerializer.INSTANCE),
-					Void.class}
-			}
-		);
-	}
-
-	@Parameter
-	public DataType dataType;
-
-	@Parameter(1)
-	public LogicalType expectedLogicalType;
-
-	@Parameter(2)
-	public Class<?> expectedConversionClass;
-
-	@Test
-	public void testLogicalType() {
-		assertThat(dataType, hasLogicalType(expectedLogicalType));
-	}
-
-	@Test
-	public void testConversionClass() {
-		assertThat(dataType, hasConversionClass(expectedConversionClass));
-	}
-
-	@Test
-	public void testLogicalTypeToDataTypeConversion() {
-		assertThat(toDataType(expectedLogicalType), equalTo(dataType));
-	}
-
-	@Test
-	public void testDataTypeToLogicalTypeConversion() {
-		assertThat(toLogicalType(dataType), equalTo(expectedLogicalType));
-	}
+        public SimplePojo(String name, int count) {
+            this.name = name;
+            this.count = count;
+        }
+    }
 }

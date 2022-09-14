@@ -23,62 +23,55 @@ import org.apache.flink.table.functions.FunctionDefinition;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.inference.ArgumentTypeStrategy;
 import org.apache.flink.table.types.inference.CallContext;
-import org.apache.flink.table.types.inference.Signature;
+import org.apache.flink.table.types.inference.Signature.Argument;
 
 import java.util.Objects;
 import java.util.Optional;
 
-/**
- * Strategy that checks if an argument is a literal.
- */
+/** Strategy that checks if an argument is a literal. */
 @Internal
 public final class LiteralArgumentTypeStrategy implements ArgumentTypeStrategy {
 
-	private final boolean allowNull;
+    private final boolean allowNull;
 
-	public LiteralArgumentTypeStrategy(boolean allowNull) {
-		this.allowNull = allowNull;
-	}
+    public LiteralArgumentTypeStrategy(boolean allowNull) {
+        this.allowNull = allowNull;
+    }
 
-	@Override
-	public Optional<DataType> inferArgumentType(CallContext callContext, int argumentPos, boolean throwOnFailure) {
-		if (!callContext.isArgumentLiteral(argumentPos)) {
-			if (throwOnFailure) {
-				throw callContext.newValidationError("Literal expected.");
-			}
-			return Optional.empty();
-		}
-		if (callContext.isArgumentNull(argumentPos) && !allowNull) {
-			if (throwOnFailure) {
-				throw callContext.newValidationError("Literal must not be NULL.");
-			}
-			return Optional.empty();
-		}
-		return Optional.of(callContext.getArgumentDataTypes().get(argumentPos));
-	}
+    @Override
+    public Optional<DataType> inferArgumentType(
+            CallContext callContext, int argumentPos, boolean throwOnFailure) {
+        if (!callContext.isArgumentLiteral(argumentPos)) {
+            return callContext.fail(throwOnFailure, "Literal expected.");
+        }
+        if (callContext.isArgumentNull(argumentPos) && !allowNull) {
+            return callContext.fail(throwOnFailure, "Literal must not be NULL.");
+        }
+        return Optional.of(callContext.getArgumentDataTypes().get(argumentPos));
+    }
 
-	@Override
-	public Signature.Argument getExpectedArgument(FunctionDefinition functionDefinition, int argumentPos) {
-		if (allowNull) {
-			return Signature.Argument.of("<LITERAL>");
-		}
-		return Signature.Argument.of("<LITERAL NOT NULL>");
-	}
+    @Override
+    public Argument getExpectedArgument(FunctionDefinition functionDefinition, int argumentPos) {
+        if (allowNull) {
+            return Argument.ofGroup("LITERAL");
+        }
+        return Argument.ofGroup("LITERAL NOT NULL");
+    }
 
-	@Override
-	public boolean equals(Object o) {
-		if (this == o) {
-			return true;
-		}
-		if (o == null || getClass() != o.getClass()) {
-			return false;
-		}
-		LiteralArgumentTypeStrategy that = (LiteralArgumentTypeStrategy) o;
-		return allowNull == that.allowNull;
-	}
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
+        LiteralArgumentTypeStrategy that = (LiteralArgumentTypeStrategy) o;
+        return allowNull == that.allowNull;
+    }
 
-	@Override
-	public int hashCode() {
-		return Objects.hash(allowNull);
-	}
+    @Override
+    public int hashCode() {
+        return Objects.hash(allowNull);
+    }
 }

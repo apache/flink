@@ -20,162 +20,204 @@ package org.apache.flink.api.java.summarize.aggregation;
 
 import org.apache.flink.api.java.summarize.NumericColumnSummary;
 
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-/**
- * Tests for {@link DoubleSummaryAggregator}.
- */
-public class DoubleSummaryAggregatorTest {
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.data.Offset.offset;
 
-	/**
-	 * Use some values from Anscombe's Quartet for testing.
-	 *
-	 * <p>There was no particular reason to use these except they have known means and variance.
-	 *
-	 * <p>https://en.wikipedia.org/wiki/Anscombe%27s_quartet
-	 */
-	@Test
-	public void testAnscomesQuartetXValues() throws Exception {
+/** Tests for {@link DoubleSummaryAggregator}. */
+class DoubleSummaryAggregatorTest {
 
-		final Double[] q1x = { 10.0, 8.0, 13.0, 9.0, 11.0, 14.0, 6.0, 4.0, 12.0, 7.0, 5.0 };
-		final Double[] q4x = { 8.0, 8.0, 8.0, 8.0, 8.0, 8.0, 8.0, 19.0, 8.0, 8.0, 8.0 };
+    /**
+     * Use some values from Anscombe's Quartet for testing.
+     *
+     * <p>There was no particular reason to use these except they have known means and variance.
+     *
+     * <p>https://en.wikipedia.org/wiki/Anscombe%27s_quartet
+     */
+    @Test
+    void testAnscomesQuartetXValues() {
 
-		NumericColumnSummary<Double> q1 = summarize(q1x);
-		NumericColumnSummary<Double> q4 = summarize(q4x);
+        final Double[] q1x = {10.0, 8.0, 13.0, 9.0, 11.0, 14.0, 6.0, 4.0, 12.0, 7.0, 5.0};
+        final Double[] q4x = {8.0, 8.0, 8.0, 8.0, 8.0, 8.0, 8.0, 19.0, 8.0, 8.0, 8.0};
 
-		Assert.assertEquals(9.0, q1.getMean().doubleValue(), 0.0);
-		Assert.assertEquals(9.0, q4.getMean().doubleValue(), 0.0);
+        NumericColumnSummary<Double> q1 = summarize(q1x);
+        NumericColumnSummary<Double> q4 = summarize(q4x);
 
-		Assert.assertEquals(11.0, q1.getVariance().doubleValue(), 1e-10d);
-		Assert.assertEquals(11.0, q4.getVariance().doubleValue(), 1e-10d);
+        assertThat(q1.getMean().doubleValue()).isCloseTo(9.0, offset(0.0));
+        assertThat(q4.getMean().doubleValue()).isCloseTo(9.0, offset(0.0));
 
-		double stddev = Math.sqrt(11.0);
-		Assert.assertEquals(stddev, q1.getStandardDeviation().doubleValue(), 1e-10d);
-		Assert.assertEquals(stddev, q4.getStandardDeviation().doubleValue(), 1e-10d);
-	}
+        assertThat(q1.getVariance().doubleValue()).isCloseTo(11.0, offset(1e-10d));
+        assertThat(q4.getVariance().doubleValue()).isCloseTo(11.0, offset(1e-10d));
 
-	/**
-	 * Use some values from Anscombe's Quartet for testing.
-	 *
-	 * <p>There was no particular reason to use these except they have known means and variance.
-	 *
-	 * <p>https://en.wikipedia.org/wiki/Anscombe%27s_quartet
-	 */
-	@Test
-	public void testAnscomesQuartetYValues() throws Exception {
-		final Double[] q1y = { 8.04, 6.95, 7.58, 8.81, 8.33, 9.96, 7.24, 4.26, 10.84, 4.82, 5.68 };
-		final Double[] q2y = { 9.14, 8.14, 8.74, 8.77, 9.26, 8.1, 6.13, 3.1, 9.13, 7.26, 4.74 };
-		final Double[] q3y = { 7.46, 6.77, 12.74, 7.11, 7.81, 8.84, 6.08, 5.39, 8.15, 6.42, 5.73 };
-		final Double[] q4y = { 6.58, 5.76, 7.71, 8.84, 8.47, 7.04, 5.25, 12.5, 5.56, 7.91, 6.89 };
+        double stddev = Math.sqrt(11.0);
+        assertThat(q1.getStandardDeviation().doubleValue()).isCloseTo(stddev, offset(1e-10d));
+        assertThat(q4.getStandardDeviation().doubleValue()).isCloseTo(stddev, offset(1e-10d));
+    }
 
-		NumericColumnSummary<Double> q1 = summarize(q1y);
-		NumericColumnSummary<Double> q2 = summarize(q2y);
-		NumericColumnSummary<Double> q3 = summarize(q3y);
-		NumericColumnSummary<Double> q4 = summarize(q4y);
+    /**
+     * Use some values from Anscombe's Quartet for testing.
+     *
+     * <p>There was no particular reason to use these except they have known means and variance.
+     *
+     * <p>https://en.wikipedia.org/wiki/Anscombe%27s_quartet
+     */
+    @Test
+    void testAnscomesQuartetYValues() {
+        final Double[] q1y = {8.04, 6.95, 7.58, 8.81, 8.33, 9.96, 7.24, 4.26, 10.84, 4.82, 5.68};
+        final Double[] q2y = {9.14, 8.14, 8.74, 8.77, 9.26, 8.1, 6.13, 3.1, 9.13, 7.26, 4.74};
+        final Double[] q3y = {7.46, 6.77, 12.74, 7.11, 7.81, 8.84, 6.08, 5.39, 8.15, 6.42, 5.73};
+        final Double[] q4y = {6.58, 5.76, 7.71, 8.84, 8.47, 7.04, 5.25, 12.5, 5.56, 7.91, 6.89};
 
-		// the y values are have less precisely matching means and variances
+        NumericColumnSummary<Double> q1 = summarize(q1y);
+        NumericColumnSummary<Double> q2 = summarize(q2y);
+        NumericColumnSummary<Double> q3 = summarize(q3y);
+        NumericColumnSummary<Double> q4 = summarize(q4y);
 
-		Assert.assertEquals(7.5, q1.getMean().doubleValue(), 0.001);
-		Assert.assertEquals(7.5, q2.getMean().doubleValue(), 0.001);
-		Assert.assertEquals(7.5, q3.getMean().doubleValue(), 0.001);
-		Assert.assertEquals(7.5, q4.getMean().doubleValue(), 0.001);
+        // the y values are have less precisely matching means and variances
 
-		Assert.assertEquals(4.12, q1.getVariance().doubleValue(), 0.01);
-		Assert.assertEquals(4.12, q2.getVariance().doubleValue(), 0.01);
-		Assert.assertEquals(4.12, q3.getVariance().doubleValue(), 0.01);
-		Assert.assertEquals(4.12, q4.getVariance().doubleValue(), 0.01);
-	}
+        assertThat(q1.getMean().doubleValue()).isCloseTo(7.5, offset(0.001));
+        assertThat(q2.getMean().doubleValue()).isCloseTo(7.5, offset(0.001));
+        assertThat(q3.getMean().doubleValue()).isCloseTo(7.5, offset(0.001));
+        assertThat(q4.getMean().doubleValue()).isCloseTo(7.5, offset(0.001));
 
-	@Test
-	public void testIsNan() throws Exception {
-		DoubleSummaryAggregator ag = new DoubleSummaryAggregator();
-		Assert.assertFalse(ag.isNan(-1.0));
-		Assert.assertFalse(ag.isNan(0.0));
-		Assert.assertFalse(ag.isNan(23.0));
-		Assert.assertFalse(ag.isNan(Double.MAX_VALUE));
-		Assert.assertFalse(ag.isNan(Double.MIN_VALUE));
-		Assert.assertTrue(ag.isNan(Double.NaN));
-	}
+        assertThat(q1.getVariance().doubleValue()).isCloseTo(4.12, offset(0.01));
+        assertThat(q2.getVariance().doubleValue()).isCloseTo(4.12, offset(0.01));
+        assertThat(q3.getVariance().doubleValue()).isCloseTo(4.12, offset(0.01));
+        assertThat(q4.getVariance().doubleValue()).isCloseTo(4.12, offset(0.01));
+    }
 
-	@Test
-	public void testIsInfinite() throws Exception {
-		DoubleSummaryAggregator ag = new DoubleSummaryAggregator();
-		Assert.assertFalse(ag.isInfinite(-1.0));
-		Assert.assertFalse(ag.isInfinite(0.0));
-		Assert.assertFalse(ag.isInfinite(23.0));
-		Assert.assertFalse(ag.isInfinite(Double.MAX_VALUE));
-		Assert.assertFalse(ag.isInfinite(Double.MIN_VALUE));
-		Assert.assertTrue(ag.isInfinite(Double.POSITIVE_INFINITY));
-		Assert.assertTrue(ag.isInfinite(Double.NEGATIVE_INFINITY));
-	}
+    @Test
+    void testIsNan() {
+        DoubleSummaryAggregator ag = new DoubleSummaryAggregator();
+        assertThat(ag.isNan(-1.0)).isFalse();
+        assertThat(ag.isNan(0.0)).isFalse();
+        assertThat(ag.isNan(23.0)).isFalse();
+        assertThat(ag.isNan(Double.MAX_VALUE)).isFalse();
+        assertThat(ag.isNan(Double.MIN_VALUE)).isFalse();
+        assertThat(ag.isNan(Double.NaN)).isTrue();
+    }
 
-	@Test
-	public void testMean() throws Exception {
-		Assert.assertEquals(50.0, summarize(0.0, 100.0).getMean(), 0.0);
-		Assert.assertEquals(33.333333, summarize(0.0, 0.0, 100.0).getMean(), 0.00001);
-		Assert.assertEquals(50.0, summarize(0.0, 0.0, 100.0, 100.0).getMean(), 0.0);
-		Assert.assertEquals(50.0, summarize(0.0, 100.0, null).getMean(), 0.0);
-		Assert.assertNull(summarize().getMean());
-	}
+    @Test
+    void testIsInfinite() {
+        DoubleSummaryAggregator ag = new DoubleSummaryAggregator();
+        assertThat(ag.isInfinite(-1.0)).isFalse();
+        assertThat(ag.isInfinite(0.0)).isFalse();
+        assertThat(ag.isInfinite(23.0)).isFalse();
+        assertThat(ag.isInfinite(Double.MAX_VALUE)).isFalse();
+        assertThat(ag.isInfinite(Double.MIN_VALUE)).isFalse();
+        assertThat(ag.isInfinite(Double.POSITIVE_INFINITY)).isTrue();
+        assertThat(ag.isInfinite(Double.NEGATIVE_INFINITY)).isTrue();
+    }
 
-	@Test
-	public void testSum() throws Exception {
-		Assert.assertEquals(100.0, summarize(0.0, 100.0).getSum().doubleValue(), 0.0);
-		Assert.assertEquals(15, summarize(1.0, 2.0, 3.0, 4.0, 5.0).getSum().doubleValue(), 0.0);
-		Assert.assertEquals(0, summarize(-100.0, 0.0, 100.0, null).getSum().doubleValue(), 0.0);
-		Assert.assertEquals(90, summarize(-10.0, 100.0, null).getSum().doubleValue(), 0.0);
-		Assert.assertNull(summarize().getSum());
-	}
+    @Test
+    void testMean() {
+        assertThat(summarize(0.0, 100.0).getMean()).isCloseTo(50.0, offset(0.0));
+        assertThat(summarize(0.0, 0.0, 100.0).getMean()).isCloseTo(33.333333, offset(0.00001));
+        assertThat(summarize(0.0, 0.0, 100.0, 100.0).getMean()).isCloseTo(50.0, offset(0.0));
+        assertThat(summarize(0.0, 100.0, null).getMean()).isCloseTo(50.0, offset(0.0));
+        assertThat(summarize().getMean()).isNull();
+    }
 
-	@Test
-	public void testMax() throws Exception {
-		Assert.assertEquals(1001.0, summarize(-1000.0, 0.0, 1.0, 50.0, 999.0, 1001.0).getMax().doubleValue(), 0.0);
-		Assert.assertEquals(11.0, summarize(1.0, 8.0, 7.0, 6.0, 9.0, 10.0, 2.0, 3.0, 5.0, 0.0, 11.0, -2.0, 3.0).getMax().doubleValue(), 0.0);
-		Assert.assertEquals(11.0, summarize(1.0, 8.0, 7.0, 6.0, 9.0, null, 10.0, 2.0, 3.0, 5.0, null, 0.0, 11.0, -2.0, 3.0).getMax().doubleValue(), 0.0);
-		Assert.assertEquals(-1.0, summarize(-1.0, -8.0, -7.0, null, -11.0).getMax().doubleValue(), 0.0);
-		Assert.assertNull(summarize().getMax());
-	}
+    @Test
+    void testSum() throws Exception {
+        assertThat(summarize(0.0, 100.0).getSum().doubleValue()).isCloseTo(100.0, offset(0.0));
+        assertThat(summarize(1.0, 2.0, 3.0, 4.0, 5.0).getSum().doubleValue())
+                .isCloseTo(15, offset(0.0));
+        assertThat(summarize(-100.0, 0.0, 100.0, null).getSum().doubleValue())
+                .isCloseTo(0, offset(0.0));
+        assertThat(summarize(-10.0, 100.0, null).getSum().doubleValue()).isCloseTo(90, offset(0.0));
+        assertThat(summarize().getSum()).isNull();
+    }
 
-	@Test
-	public void testMin() throws Exception {
-		Assert.assertEquals(-1000, summarize(-1000.0, 0.0, 1.0, 50.0, 999.0, 1001.0).getMin().doubleValue(), 0.0);
-		Assert.assertEquals(-2.0, summarize(1.0, 8.0, 7.0, 6.0, 9.0, 10.0, 2.0, 3.0, 5.0, 0.0, 11.0, -2.0, 3.0).getMin().doubleValue(), 0.0);
-		Assert.assertEquals(-2.0, summarize(1.0, 8.0, 7.0, 6.0, 9.0, null, 10.0, 2.0, 3.0, 5.0, null, 0.0, 11.0, -2.0, 3.0).getMin().doubleValue(), 0.0);
-		Assert.assertNull(summarize().getMin());
-	}
+    @Test
+    void testMax() {
+        assertThat(summarize(-1000.0, 0.0, 1.0, 50.0, 999.0, 1001.0).getMax().doubleValue())
+                .isCloseTo(1001.0, offset(0.0));
+        assertThat(
+                        summarize(
+                                        1.0, 8.0, 7.0, 6.0, 9.0, 10.0, 2.0, 3.0, 5.0, 0.0, 11.0,
+                                        -2.0, 3.0)
+                                .getMax()
+                                .doubleValue())
+                .isCloseTo(11.0, offset(0.0));
+        assertThat(
+                        summarize(
+                                        1.0, 8.0, 7.0, 6.0, 9.0, null, 10.0, 2.0, 3.0, 5.0, null,
+                                        0.0, 11.0, -2.0, 3.0)
+                                .getMax()
+                                .doubleValue())
+                .isCloseTo(11.0, offset(0.0));
+        assertThat(summarize(-1.0, -8.0, -7.0, null, -11.0).getMax().doubleValue())
+                .isCloseTo(-1.0, offset(0.0));
+        assertThat(summarize().getMax()).isNull();
+    }
 
-	@Test
-	public void testCounts() throws Exception {
-		NumericColumnSummary<Double> summary = summarize(Double.NaN, 1.0, null, 123.0, -44.00001, Double.POSITIVE_INFINITY, 55.0, Double.NEGATIVE_INFINITY, Double.NEGATIVE_INFINITY, null, Double.NaN);
-		Assert.assertEquals(11, summary.getTotalCount());
-		Assert.assertEquals(2, summary.getNullCount());
-		Assert.assertEquals(9, summary.getNonNullCount());
-		Assert.assertEquals(7, summary.getMissingCount());
-		Assert.assertEquals(4, summary.getNonMissingCount());
-		Assert.assertEquals(2, summary.getNanCount());
-		Assert.assertEquals(3, summary.getInfinityCount());
-	}
+    @Test
+    void testMin() {
+        assertThat(summarize(-1000.0, 0.0, 1.0, 50.0, 999.0, 1001.0).getMin().doubleValue())
+                .isCloseTo(-1000, offset(0.0));
+        assertThat(
+                        summarize(
+                                        1.0, 8.0, 7.0, 6.0, 9.0, 10.0, 2.0, 3.0, 5.0, 0.0, 11.0,
+                                        -2.0, 3.0)
+                                .getMin()
+                                .doubleValue())
+                .isCloseTo(-2.0, offset(0.0));
+        assertThat(
+                        summarize(
+                                        1.0, 8.0, 7.0, 6.0, 9.0, null, 10.0, 2.0, 3.0, 5.0, null,
+                                        0.0, 11.0, -2.0, 3.0)
+                                .getMin()
+                                .doubleValue())
+                .isCloseTo(-2.0, offset(0.0));
+        assertThat(summarize().getMin()).isNull();
+    }
 
-	/**
-	 * Helper method for summarizing a list of values.
-	 *
-	 * <p>This method breaks the rule of "testing only one thing" by aggregating and combining
-	 * a bunch of different ways.
-	 */
-	protected NumericColumnSummary<Double> summarize(Double... values) {
-		return new AggregateCombineHarness<Double, NumericColumnSummary<Double>, DoubleSummaryAggregator>() {
+    @Test
+    void testCounts() {
+        NumericColumnSummary<Double> summary =
+                summarize(
+                        Double.NaN,
+                        1.0,
+                        null,
+                        123.0,
+                        -44.00001,
+                        Double.POSITIVE_INFINITY,
+                        55.0,
+                        Double.NEGATIVE_INFINITY,
+                        Double.NEGATIVE_INFINITY,
+                        null,
+                        Double.NaN);
+        assertThat(summary.getTotalCount()).isEqualTo(11);
+        assertThat(summary.getNullCount()).isEqualTo(2);
+        assertThat(summary.getNonNullCount()).isEqualTo(9);
+        assertThat(summary.getMissingCount()).isEqualTo(7);
+        assertThat(summary.getNonMissingCount()).isEqualTo(4);
+        assertThat(summary.getNanCount()).isEqualTo(2);
+        assertThat(summary.getInfinityCount()).isEqualTo(3);
+    }
 
-			@Override
-			protected void compareResults(NumericColumnSummary<Double> result1, NumericColumnSummary<Double> result2) {
-				Assert.assertEquals(result1.getMin(), result2.getMin(), 0.0);
-				Assert.assertEquals(result1.getMax(), result2.getMax(), 0.0);
-				Assert.assertEquals(result1.getMean(), result2.getMean(), 1e-12d);
-				Assert.assertEquals(result1.getVariance(), result2.getVariance(), 1e-9d);
-				Assert.assertEquals(result1.getStandardDeviation(), result2.getStandardDeviation(), 1e-12d);
-			}
+    /**
+     * Helper method for summarizing a list of values.
+     *
+     * <p>This method breaks the rule of "testing only one thing" by aggregating and combining a
+     * bunch of different ways.
+     */
+    protected NumericColumnSummary<Double> summarize(Double... values) {
+        return new AggregateCombineHarness<
+                Double, NumericColumnSummary<Double>, DoubleSummaryAggregator>() {
 
-		}.summarize(values);
-	}
-
+            @Override
+            protected void compareResults(
+                    NumericColumnSummary<Double> result1, NumericColumnSummary<Double> result2) {
+                assertThat(result2.getMin()).isCloseTo(result1.getMin(), offset(0.0));
+                assertThat(result2.getMax()).isCloseTo(result1.getMax(), offset(0.0));
+                assertThat(result2.getMean()).isCloseTo(result1.getMean(), offset(1e-12d));
+                assertThat(result2.getVariance()).isCloseTo(result1.getVariance(), offset(1e-9d));
+                assertThat(result2.getStandardDeviation())
+                        .isCloseTo(result1.getStandardDeviation(), offset(1e-12d));
+            }
+        }.summarize(values);
+    }
 }

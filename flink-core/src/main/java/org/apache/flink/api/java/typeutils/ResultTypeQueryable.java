@@ -22,18 +22,18 @@ import org.apache.flink.annotation.Public;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 
 /**
- * This interface can be implemented by functions and input formats to tell the framework
- * about their produced data type. This method acts as an alternative to the reflection analysis
- * that is otherwise performed and is useful in situations where the produced data type may vary
- * depending on parametrization.
+ * This interface can be implemented by functions and input formats to tell the framework about
+ * their produced data type. This method acts as an alternative to the reflection analysis that is
+ * otherwise performed and is useful in situations where the produced data type may vary depending
+ * on parametrization.
  */
 @Public
 public interface ResultTypeQueryable<T> {
 
-	/**
-	 * Gets the data type (as a {@link TypeInformation}) produced by this function or input format.
-	 * 
-	 * @return The data type produced by this function or input format.
-	 */
-	TypeInformation<T> getProducedType();
+    /**
+     * Gets the data type (as a {@link TypeInformation}) produced by this function or input format.
+     *
+     * @return The data type produced by this function or input format.
+     */
+    TypeInformation<T> getProducedType();
 }

@@ -20,6 +20,8 @@ package org.apache.flink.table.types.logical;
 
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.table.catalog.ObjectIdentifier;
+import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.types.DataType;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.Preconditions;
 
@@ -34,6 +36,9 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import static org.apache.flink.table.utils.EncodingUtils.escapeIdentifier;
+import static org.apache.flink.table.utils.EncodingUtils.escapeSingleQuotes;
+
 /**
  * Logical type of a user-defined object structured type. Structured types contain zero, one or more
  * attributes. Each attribute consists of a name and a type. A type cannot be defined so that one of
@@ -43,373 +48,437 @@ import java.util.stream.Collectors;
  * by an {@link ObjectIdentifier} or anonymously defined, unregistered types (usually reflectively
  * extracted) that are identified by an implementation {@link Class}.
  *
+ * <h1>Logical properties</h1>
+ *
  * <p>A structured type can declare a super type and allows single inheritance for more complex type
  * hierarchies, similar to JVM-based languages.
  *
  * <p>A structured type can be declared {@code final} for preventing further inheritance (default
  * behavior) or {@code not final} for allowing subtypes.
  *
- * <p>A structured type must offer a default constructor with zero arguments or a full constructor
- * that assigns all attributes.
+ * <p>A structured type can be declared {@code not instantiable} if a more specific type is required
+ * or {@code instantiable} if instances can be created from this type (default behavior).
  *
- * <p>A structured type can be declared {@code not instantiable} if a more specific type is
- * required or {@code instantiable} if instances can be created from this type (default behavior).
- *
- * <p>A structured type declares comparision properties of either {@code none} (no equality),
- * {@code equals} (only equality and inequality), or {@code full} (greater, equals, less).
+ * <p>A structured type declares comparison properties of either {@code none} (no equality), {@code
+ * equals} (only equality and inequality), or {@code full} (greater, equals, less).
  *
  * <p>NOTE: Compared to the SQL standard, this class is incomplete. We might add new features such
  * as method declarations in the future. Also ordering is not supported yet.
+ *
+ * <h1>Physical properties</h1>
+ *
+ * <p>A structured type can be defined fully logically (e.g. by using a {@code CREATE TYPE} DDL).
+ * The implementation class is optional and only used at the edges of the table ecosystem (e.g. when
+ * bridging to a function or connector). Serialization and equality ({@code hashCode/equals}) are
+ * handled by the runtime based on the logical type. In other words: {@code hashCode/equals} of an
+ * implementation class are not used. Custom equality, casting logic, and further overloaded
+ * operators will be supported once we allow defining methods on structured types.
+ *
+ * <p>An implementation class must offer a default constructor with zero arguments or a full
+ * constructor that assigns all attributes. Other physical properties such as the conversion classes
+ * of attributes are defined by a {@link DataType} when a structured type is used.
  */
 @PublicEvolving
 public final class StructuredType extends UserDefinedType {
+    private static final long serialVersionUID = 1L;
 
-	private static final Set<String> INPUT_OUTPUT_CONVERSION = conversionSet(
-		Row.class.getName(),
-		"org.apache.flink.table.dataformat.BaseRow");
+    public static final String FORMAT = "*%s<%s>*";
 
-	private static final Class<?> FALLBACK_CONVERSION = Row.class;
+    private static final Set<String> INPUT_OUTPUT_CONVERSION =
+            conversionSet(Row.class.getName(), RowData.class.getName());
 
-	/**
-	 * Defines an attribute of a {@link StructuredType}.
-	 */
-	public static final class StructuredAttribute implements Serializable {
+    private static final Class<?> FALLBACK_CONVERSION = Row.class;
 
-		private final String name;
+    /** Defines an attribute of a {@link StructuredType}. */
+    @PublicEvolving
+    public static final class StructuredAttribute implements Serializable {
+        private static final long serialVersionUID = 1L;
 
-		private final LogicalType type;
+        public static final String FIELD_FORMAT_WITH_DESCRIPTION = "%s %s '%s'";
 
-		private final @Nullable String description;
+        public static final String FIELD_FORMAT_NO_DESCRIPTION = "%s %s";
 
-		public StructuredAttribute(String name, LogicalType type, @Nullable String description) {
-			this.name = Preconditions.checkNotNull(name, "Attribute name must not be null.");
-			this.type = Preconditions.checkNotNull(type, "Attribute type must not be null.");
-			this.description = description;
-		}
+        private final String name;
 
-		public StructuredAttribute(String name, LogicalType type) {
-			this(name, type, null);
-		}
+        private final LogicalType type;
 
-		public String getName() {
-			return name;
-		}
+        private final @Nullable String description;
 
-		public LogicalType getType() {
-			return type;
-		}
+        public StructuredAttribute(String name, LogicalType type, @Nullable String description) {
+            this.name = Preconditions.checkNotNull(name, "Attribute name must not be null.");
+            this.type = Preconditions.checkNotNull(type, "Attribute type must not be null.");
+            this.description = description;
+        }
 
-		public Optional<String> getDescription() {
-			return Optional.ofNullable(description);
-		}
+        public StructuredAttribute(String name, LogicalType type) {
+            this(name, type, null);
+        }
 
-		public StructuredAttribute copy() {
-			return new StructuredAttribute(name, type.copy(), description);
-		}
+        public String getName() {
+            return name;
+        }
 
-		@Override
-		public boolean equals(Object o) {
-			if (this == o) {
-				return true;
-			}
-			if (o == null || getClass() != o.getClass()) {
-				return false;
-			}
-			StructuredAttribute that = (StructuredAttribute) o;
-			return name.equals(that.name) &&
-				type.equals(that.type) &&
-				Objects.equals(description, that.description);
-		}
+        public LogicalType getType() {
+            return type;
+        }
 
-		@Override
-		public int hashCode() {
-			return Objects.hash(name, type, description);
-		}
-	}
+        public Optional<String> getDescription() {
+            return Optional.ofNullable(description);
+        }
 
-	/**
-	 * Defines equality properties for scalar evaluation.
-	 */
-	public enum StructuredComparision {
-		EQUALS,
-		FULL,
-		NONE
-	}
+        public StructuredAttribute copy() {
+            return new StructuredAttribute(name, type.copy(), description);
+        }
 
-	/**
-	 * A builder for a {@link StructuredType}. Intended for future extensibility.
-	 */
-	public static final class Builder {
+        public String asSummaryString() {
+            return formatString(type.asSummaryString(), true);
+        }
 
-		private final @Nullable ObjectIdentifier objectIdentifier;
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) {
+                return true;
+            }
+            if (o == null || getClass() != o.getClass()) {
+                return false;
+            }
+            StructuredAttribute that = (StructuredAttribute) o;
+            return name.equals(that.name)
+                    && type.equals(that.type)
+                    && Objects.equals(description, that.description);
+        }
 
-		private final @Nullable Class<?> implementationClass;
+        @Override
+        public int hashCode() {
+            return Objects.hash(name, type, description);
+        }
 
-		private List<StructuredAttribute> attributes = new ArrayList<>();
+        private String formatString(String typeString, boolean excludeDescription) {
+            if (description == null) {
+                return String.format(
+                        FIELD_FORMAT_NO_DESCRIPTION, escapeIdentifier(name), typeString);
+            } else if (excludeDescription) {
+                return String.format(
+                        FIELD_FORMAT_WITH_DESCRIPTION, escapeIdentifier(name), typeString, "...");
+            } else {
+                return String.format(
+                        FIELD_FORMAT_WITH_DESCRIPTION,
+                        escapeIdentifier(name),
+                        typeString,
+                        escapeSingleQuotes(description));
+            }
+        }
+    }
 
-		private boolean isNullable = true;
+    /** Defines equality properties for scalar evaluation. */
+    @PublicEvolving
+    public enum StructuredComparison {
+        EQUALS(true, false),
+        FULL(true, true),
+        NONE(false, false);
+        private final boolean equality;
+        private final boolean comparison;
 
-		private boolean isFinal = true;
+        StructuredComparison(boolean equality, boolean comparison) {
+            this.equality = equality;
+            this.comparison = comparison;
+        }
 
-		private boolean isInstantiable = true;
+        public boolean isEquality() {
+            return equality;
+        }
 
-		private StructuredComparision comparision = StructuredComparision.NONE;
+        public boolean isComparison() {
+            return comparison;
+        }
+    }
 
-		private @Nullable StructuredType superType;
+    /** A builder for a {@link StructuredType}. Intended for future extensibility. */
+    @PublicEvolving
+    public static final class Builder {
 
-		private @Nullable String description;
+        private final @Nullable ObjectIdentifier objectIdentifier;
 
-		public Builder(Class<?> implementationClass) {
-			this.objectIdentifier = null;
-			this.implementationClass =
-				Preconditions.checkNotNull(implementationClass, "Implementation class must not be null.");
-		}
+        private final @Nullable Class<?> implementationClass;
 
-		public Builder(ObjectIdentifier objectIdentifier) {
-			this.objectIdentifier =
-				Preconditions.checkNotNull(objectIdentifier, "Object identifier must not be null.");
-			this.implementationClass = null;
-		}
+        private List<StructuredAttribute> attributes = new ArrayList<>();
 
-		public Builder(ObjectIdentifier objectIdentifier, Class<?> implementationClass) {
-			this.objectIdentifier =
-				Preconditions.checkNotNull(objectIdentifier, "Object identifier must not be null.");
-			this.implementationClass =
-				Preconditions.checkNotNull(implementationClass, "Implementation class must not be null.");
-		}
+        private boolean isNullable = true;
 
-		public Builder attributes(List<StructuredAttribute> attributes) {
-			this.attributes = Collections.unmodifiableList(
-				new ArrayList<>(
-					Preconditions.checkNotNull(attributes, "Attributes must not be null.")));
-			return this;
-		}
+        private boolean isFinal = true;
 
-		public Builder setNullable(boolean isNullable) {
-			this.isNullable = isNullable;
-			return this;
-		}
+        private boolean isInstantiable = true;
 
-		public Builder description(String description) {
-			this.description = Preconditions.checkNotNull(description, "Description must not be null.");
-			return this;
-		}
+        private StructuredComparison comparison = StructuredComparison.NONE;
 
-		public Builder setFinal(boolean isFinal) {
-			this.isFinal = isFinal;
-			return this;
-		}
+        private @Nullable StructuredType superType;
 
-		public Builder setInstantiable(boolean isInstantiable) {
-			this.isInstantiable = isInstantiable;
-			return this;
-		}
+        private @Nullable String description;
 
-		public Builder comparision(StructuredComparision comparision) {
-			this.comparision = Preconditions.checkNotNull(comparision, "Comparision must not be null.");
-			return this;
-		}
+        public Builder(Class<?> implementationClass) {
+            this.objectIdentifier = null;
+            this.implementationClass =
+                    Preconditions.checkNotNull(
+                            implementationClass, "Implementation class must not be null.");
+        }
 
-		public Builder superType(StructuredType superType) {
-			this.superType = Preconditions.checkNotNull(superType, "Super type must not be null.");
-			return this;
-		}
+        public Builder(ObjectIdentifier objectIdentifier) {
+            this.objectIdentifier =
+                    Preconditions.checkNotNull(
+                            objectIdentifier, "Object identifier must not be null.");
+            this.implementationClass = null;
+        }
 
-		public StructuredType build() {
-			return new StructuredType(
-				isNullable,
-				objectIdentifier,
-				attributes,
-				isFinal,
-				isInstantiable,
-				comparision,
-				superType,
-				description,
-				implementationClass);
-		}
-	}
+        public Builder(ObjectIdentifier objectIdentifier, Class<?> implementationClass) {
+            this.objectIdentifier =
+                    Preconditions.checkNotNull(
+                            objectIdentifier, "Object identifier must not be null.");
+            this.implementationClass =
+                    Preconditions.checkNotNull(
+                            implementationClass, "Implementation class must not be null.");
+        }
 
-	private final List<StructuredAttribute> attributes;
+        public Builder attributes(List<StructuredAttribute> attributes) {
+            this.attributes =
+                    Collections.unmodifiableList(
+                            new ArrayList<>(
+                                    Preconditions.checkNotNull(
+                                            attributes, "Attributes must not be null.")));
+            return this;
+        }
 
-	private final boolean isInstantiable;
+        public Builder setNullable(boolean isNullable) {
+            this.isNullable = isNullable;
+            return this;
+        }
 
-	private final StructuredComparision comparision;
+        public Builder description(String description) {
+            this.description =
+                    Preconditions.checkNotNull(description, "Description must not be null.");
+            return this;
+        }
 
-	private final @Nullable StructuredType superType;
+        public Builder setFinal(boolean isFinal) {
+            this.isFinal = isFinal;
+            return this;
+        }
 
-	private final @Nullable Class<?> implementationClass;
+        public Builder setInstantiable(boolean isInstantiable) {
+            this.isInstantiable = isInstantiable;
+            return this;
+        }
 
-	private StructuredType(
-			boolean isNullable,
-			ObjectIdentifier objectIdentifier,
-			List<StructuredAttribute> attributes,
-			boolean isFinal,
-			boolean isInstantiable,
-			StructuredComparision comparision,
-			@Nullable StructuredType superType,
-			@Nullable String description,
-			@Nullable Class<?> implementationClass) {
-		super(
-			isNullable,
-			LogicalTypeRoot.STRUCTURED_TYPE,
-			objectIdentifier,
-			isFinal,
-			description);
+        public Builder comparison(StructuredComparison comparison) {
+            this.comparison =
+                    Preconditions.checkNotNull(comparison, "Comparison must not be null.");
+            return this;
+        }
 
-		Preconditions.checkArgument(
-			objectIdentifier != null || implementationClass != null,
-			"An identifier is missing.");
+        public Builder superType(StructuredType superType) {
+            this.superType = Preconditions.checkNotNull(superType, "Super type must not be null.");
+            return this;
+        }
 
-		this.attributes = attributes;
-		this.isInstantiable = isInstantiable;
-		this.comparision = comparision;
-		this.superType = superType;
-		this.implementationClass = implementationClass;
-	}
+        public StructuredType build() {
+            return new StructuredType(
+                    isNullable,
+                    objectIdentifier,
+                    attributes,
+                    isFinal,
+                    isInstantiable,
+                    comparison,
+                    superType,
+                    description,
+                    implementationClass);
+        }
+    }
 
-	/**
-	 * Creates a builder for a {@link StructuredType} that has been stored in a catalog and is
-	 * identified by an {@link ObjectIdentifier}.
-	 */
-	public static StructuredType.Builder newBuilder(ObjectIdentifier objectIdentifier) {
-		return new StructuredType.Builder(objectIdentifier);
-	}
+    private final List<StructuredAttribute> attributes;
 
-	/**
-	 * Creates a builder for a {@link StructuredType} that has been stored in a catalog and is
-	 * identified by an {@link ObjectIdentifier}. The optional implementation class defines supported
-	 * conversions.
-	 */
-	public static StructuredType.Builder newBuilder(
-			ObjectIdentifier objectIdentifier,
-			Class<?> implementationClass) {
-		return new StructuredType.Builder(objectIdentifier, implementationClass);
-	}
+    private final boolean isInstantiable;
 
-	/**
-	 * Creates a builder for a {@link StructuredType} that is not stored in a catalog and is
-	 * identified by an implementation {@link Class}.
-	 */
-	public static StructuredType.Builder newBuilder(Class<?> implementationClass) {
-		return new StructuredType.Builder(implementationClass);
-	}
+    private final StructuredComparison comparison;
 
-	public List<StructuredAttribute> getAttributes() {
-		return attributes;
-	}
+    private final @Nullable StructuredType superType;
 
-	public boolean isInstantiable() {
-		return isInstantiable;
-	}
+    private final @Nullable Class<?> implementationClass;
 
-	public StructuredComparision getComparision() {
-		return comparision;
-	}
+    private StructuredType(
+            boolean isNullable,
+            ObjectIdentifier objectIdentifier,
+            List<StructuredAttribute> attributes,
+            boolean isFinal,
+            boolean isInstantiable,
+            StructuredComparison comparison,
+            @Nullable StructuredType superType,
+            @Nullable String description,
+            @Nullable Class<?> implementationClass) {
+        super(isNullable, LogicalTypeRoot.STRUCTURED_TYPE, objectIdentifier, isFinal, description);
 
-	public Optional<StructuredType> getSuperType() {
-		return Optional.ofNullable(superType);
-	}
+        Preconditions.checkArgument(
+                objectIdentifier != null || implementationClass != null,
+                "An identifier is missing.");
 
-	public Optional<Class<?>> getImplementationClass() {
-		return Optional.ofNullable(implementationClass);
-	}
+        this.attributes = attributes;
+        this.isInstantiable = isInstantiable;
+        this.comparison = comparison;
+        this.superType = superType;
+        this.implementationClass = implementationClass;
+    }
 
-	@Override
-	public LogicalType copy(boolean isNullable) {
-		return new StructuredType(
-			isNullable,
-			getOptionalObjectIdentifier().orElse(null),
-			attributes.stream().map(StructuredAttribute::copy).collect(Collectors.toList()),
-			isFinal(),
-			isInstantiable,
-			comparision,
-			superType == null ? null : (StructuredType) superType.copy(),
-			getDescription().orElse(null),
-			implementationClass);
-	}
+    /**
+     * Creates a builder for a {@link StructuredType} that has been stored in a catalog and is
+     * identified by an {@link ObjectIdentifier}.
+     */
+    public static StructuredType.Builder newBuilder(ObjectIdentifier objectIdentifier) {
+        return new StructuredType.Builder(objectIdentifier);
+    }
 
-	@Override
-	public String asSummaryString() {
-		if (getOptionalObjectIdentifier().isPresent()) {
-			return asSerializableString();
-		}
-		assert implementationClass != null;
-		return implementationClass.getName();
-	}
+    /**
+     * Creates a builder for a {@link StructuredType} that has been stored in a catalog and is
+     * identified by an {@link ObjectIdentifier}. The optional implementation class defines
+     * supported conversions.
+     */
+    public static StructuredType.Builder newBuilder(
+            ObjectIdentifier objectIdentifier, Class<?> implementationClass) {
+        return new StructuredType.Builder(objectIdentifier, implementationClass);
+    }
 
-	@Override
-	public boolean supportsInputConversion(Class<?> clazz) {
-		return (implementationClass != null && implementationClass.isAssignableFrom(clazz)) ||
-			INPUT_OUTPUT_CONVERSION.contains(clazz.getName());
-	}
+    /**
+     * Creates a builder for a {@link StructuredType} that is not stored in a catalog and is
+     * identified by an implementation {@link Class}.
+     */
+    public static StructuredType.Builder newBuilder(Class<?> implementationClass) {
+        return new StructuredType.Builder(implementationClass);
+    }
 
-	@Override
-	public boolean supportsOutputConversion(Class<?> clazz) {
-		StructuredType currentType = this;
-		while (currentType != null) {
-			if (currentType.implementationClass != null && clazz.isAssignableFrom(currentType.implementationClass)) {
-				return true;
-			}
-			currentType = currentType.superType;
-		}
-		return INPUT_OUTPUT_CONVERSION.contains(clazz.getName());
-	}
+    public List<StructuredAttribute> getAttributes() {
+        return attributes;
+    }
 
-	@Override
-	public Class<?> getDefaultConversion() {
-		if (implementationClass != null) {
-			return implementationClass;
-		}
-		return FALLBACK_CONVERSION;
-	}
+    public boolean isInstantiable() {
+        return isInstantiable;
+    }
 
-	@Override
-	public List<LogicalType> getChildren() {
-		final ArrayList<LogicalType> children = new ArrayList<>();
-		StructuredType currentType = this;
-		while (currentType != null) {
-			children.addAll(
-				currentType.attributes.stream()
-					.map(StructuredAttribute::getType)
-					.collect(Collectors.toList()));
-			currentType = currentType.superType;
-		}
-		Collections.reverse(children);
-		return Collections.unmodifiableList(children);
-	}
+    public StructuredComparison getComparison() {
+        return comparison;
+    }
 
-	@Override
-	public <R> R accept(LogicalTypeVisitor<R> visitor) {
-		return visitor.visit(this);
-	}
+    public Optional<StructuredType> getSuperType() {
+        return Optional.ofNullable(superType);
+    }
 
-	@Override
-	public boolean equals(Object o) {
-		if (this == o) {
-			return true;
-		}
-		if (o == null || getClass() != o.getClass()) {
-			return false;
-		}
-		if (!super.equals(o)) {
-			return false;
-		}
-		StructuredType that = (StructuredType) o;
-		return isInstantiable == that.isInstantiable &&
-			attributes.equals(that.attributes) &&
-			comparision == that.comparision &&
-			Objects.equals(superType, that.superType) &&
-			Objects.equals(implementationClass, that.implementationClass);
-	}
+    public Optional<Class<?>> getImplementationClass() {
+        return Optional.ofNullable(implementationClass);
+    }
 
-	@Override
-	public int hashCode() {
-		return Objects.hash(
-			super.hashCode(),
-			attributes,
-			isInstantiable,
-			comparision,
-			superType,
-			implementationClass);
-	}
+    @Override
+    public LogicalType copy(boolean isNullable) {
+        return new StructuredType(
+                isNullable,
+                getObjectIdentifier().orElse(null),
+                attributes,
+                isFinal(),
+                isInstantiable,
+                comparison,
+                superType == null ? null : (StructuredType) superType.copy(),
+                getDescription().orElse(null),
+                implementationClass);
+    }
+
+    @Override
+    public String asSummaryString() {
+        if (getObjectIdentifier().isPresent()) {
+            return asSerializableString();
+        }
+        assert implementationClass != null;
+        // we use *class<...>* to make it visible that this type is unregistered and not confuse it
+        // with catalog types
+        return withNullability(
+                FORMAT,
+                implementationClass.getName(),
+                getAllAttributes().stream()
+                        .map(StructuredAttribute::asSummaryString)
+                        .collect(Collectors.joining(", ")));
+    }
+
+    @Override
+    public boolean supportsInputConversion(Class<?> clazz) {
+        return (implementationClass != null && implementationClass.isAssignableFrom(clazz))
+                || INPUT_OUTPUT_CONVERSION.contains(clazz.getName());
+    }
+
+    @Override
+    public boolean supportsOutputConversion(Class<?> clazz) {
+        StructuredType currentType = this;
+        while (currentType != null) {
+            if (currentType.implementationClass != null
+                    && clazz.isAssignableFrom(currentType.implementationClass)) {
+                return true;
+            }
+            currentType = currentType.superType;
+        }
+        return INPUT_OUTPUT_CONVERSION.contains(clazz.getName());
+    }
+
+    @Override
+    public Class<?> getDefaultConversion() {
+        if (implementationClass != null) {
+            return implementationClass;
+        }
+        return FALLBACK_CONVERSION;
+    }
+
+    @Override
+    public List<LogicalType> getChildren() {
+        return getAllAttributes().stream()
+                .map(StructuredAttribute::getType)
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    public <R> R accept(LogicalTypeVisitor<R> visitor) {
+        return visitor.visit(this);
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
+        if (!super.equals(o)) {
+            return false;
+        }
+        StructuredType that = (StructuredType) o;
+        return isInstantiable == that.isInstantiable
+                && attributes.equals(that.attributes)
+                && comparison == that.comparison
+                && Objects.equals(superType, that.superType)
+                && Objects.equals(implementationClass, that.implementationClass);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(
+                super.hashCode(),
+                attributes,
+                isInstantiable,
+                comparison,
+                superType,
+                implementationClass);
+    }
+
+    private List<StructuredAttribute> getAllAttributes() {
+        final List<StructuredAttribute> allAttributes = new ArrayList<>();
+        // add super fields first
+        if (superType != null) {
+            allAttributes.addAll(superType.getAllAttributes());
+        }
+        // then specific fields
+        allAttributes.addAll(attributes);
+        return allAttributes;
+    }
 }

@@ -29,56 +29,58 @@ import java.util.List;
 
 /** Test suite for {@link TtlReducingState}. */
 class TtlReducingStateTestContext
-	extends TtlMergingStateTestContext.TtlIntegerMergingStateTestContext<TtlReducingState<?, String, Integer>, Integer, Integer> {
-	@Override
-	void initTestValues() {
-		updateEmpty = 5;
-		updateUnexpired = 7;
-		updateExpired = 6;
+        extends TtlMergingStateTestContext.TtlIntegerMergingStateTestContext<
+                TtlReducingState<?, String, Integer>, Integer, Integer> {
+    @Override
+    void initTestValues() {
+        updateEmpty = 5;
+        updateUnexpired = 7;
+        updateExpired = 6;
 
-		getUpdateEmpty = 5;
-		getUnexpired = 12;
-		getUpdateExpired = 6;
-	}
+        getUpdateEmpty = 5;
+        getUnexpired = 12;
+        getUpdateExpired = 6;
+    }
 
-	@SuppressWarnings("unchecked")
-	@Override
-	public <US extends State, SV> StateDescriptor<US, SV> createStateDescriptor() {
-		return (StateDescriptor<US, SV>) new ReducingStateDescriptor<>(
-			getName(), REDUCE, IntSerializer.INSTANCE);
-	}
+    @SuppressWarnings("unchecked")
+    @Override
+    public <US extends State, SV> StateDescriptor<US, SV> createStateDescriptor() {
+        return (StateDescriptor<US, SV>)
+                new ReducingStateDescriptor<>(getName(), REDUCE, IntSerializer.INSTANCE);
+    }
 
-	@Override
-	public void update(Integer value) throws Exception {
-		ttlState.add(value);
-	}
+    @Override
+    public void update(Integer value) throws Exception {
+        ttlState.add(value);
+    }
 
-	@Override
-	public Integer get() throws Exception {
-		return ttlState.get();
-	}
+    @Override
+    public Integer get() throws Exception {
+        return ttlState.get();
+    }
 
-	@Override
-	public Object getOriginal() throws Exception {
-		return ttlState.original.get();
-	}
+    @Override
+    public Object getOriginal() throws Exception {
+        return ttlState.original.get();
+    }
 
-	@Override
-	Integer getMergeResult(
-		List<Tuple2<String, Integer>> unexpiredUpdatesToMerge,
-		List<Tuple2<String, Integer>> finalUpdatesToMerge) {
-		return getIntegerMergeResult(unexpiredUpdatesToMerge, finalUpdatesToMerge);
-	}
+    @Override
+    Integer getMergeResult(
+            List<Tuple2<String, Integer>> unexpiredUpdatesToMerge,
+            List<Tuple2<String, Integer>> finalUpdatesToMerge) {
+        return getIntegerMergeResult(unexpiredUpdatesToMerge, finalUpdatesToMerge);
+    }
 
-	private static final ReduceFunction<Integer> REDUCE = (v1, v2) -> {
-		if (v1 == null && v2 == null) {
-			return null;
-		} else if (v1 == null) {
-			return v2;
-		} else if (v2 == null) {
-			return v1;
-		} else {
-			return v1 + v2;
-		}
-	};
+    private static final ReduceFunction<Integer> REDUCE =
+            (v1, v2) -> {
+                if (v1 == null && v2 == null) {
+                    return null;
+                } else if (v1 == null) {
+                    return v2;
+                } else if (v2 == null) {
+                    return v1;
+                } else {
+                    return v1 + v2;
+                }
+            };
 }

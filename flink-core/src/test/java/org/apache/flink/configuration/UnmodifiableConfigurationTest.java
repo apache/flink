@@ -38,65 +38,62 @@ import static org.junit.Assert.fail;
  */
 public class UnmodifiableConfigurationTest extends TestLogger {
 
-	@Test
-	public void testOverrideAddMethods() {
-		try {
-			Class<UnmodifiableConfiguration> clazz = UnmodifiableConfiguration.class;
-			for (Method m : clazz.getMethods()) {
-				if (m.getName().startsWith("add")) {
-					assertEquals(clazz, m.getDeclaringClass());
-				}
-			}
-		}
-		catch (Exception e) {
-			e.printStackTrace();
-			fail(e.getMessage());
-		}
-	}
+    @Test
+    public void testOverrideAddMethods() {
+        try {
+            Class<UnmodifiableConfiguration> clazz = UnmodifiableConfiguration.class;
+            for (Method m : clazz.getMethods()) {
+                if (m.getName().startsWith("add")) {
+                    assertEquals(clazz, m.getDeclaringClass());
+                }
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+            fail(e.getMessage());
+        }
+    }
 
-	@Test
-	public void testExceptionOnSet() {
-		try {
-			@SuppressWarnings("rawtypes")
-			final ConfigOption rawOption = ConfigOptions.key("testkey").defaultValue("value");
+    @Test
+    public void testExceptionOnSet() {
+        try {
+            @SuppressWarnings("rawtypes")
+            final ConfigOption rawOption = ConfigOptions.key("testkey").defaultValue("value");
 
-			Map<Class<?>, Object> parameters = new HashMap<>();
-			parameters.put(byte[].class, new byte[0]);
-			parameters.put(Class.class, Object.class);
-			parameters.put(int.class, 0);
-			parameters.put(long.class, 0L);
-			parameters.put(float.class, 0.0f);
-			parameters.put(double.class, 0.0);
-			parameters.put(String.class, "");
-			parameters.put(boolean.class, false);
+            Map<Class<?>, Object> parameters = new HashMap<>();
+            parameters.put(byte[].class, new byte[0]);
+            parameters.put(Class.class, Object.class);
+            parameters.put(int.class, 0);
+            parameters.put(long.class, 0L);
+            parameters.put(float.class, 0.0f);
+            parameters.put(double.class, 0.0);
+            parameters.put(String.class, "");
+            parameters.put(boolean.class, false);
 
-			Class<UnmodifiableConfiguration> clazz = UnmodifiableConfiguration.class;
-			UnmodifiableConfiguration config = new UnmodifiableConfiguration(new Configuration());
+            Class<UnmodifiableConfiguration> clazz = UnmodifiableConfiguration.class;
+            UnmodifiableConfiguration config = new UnmodifiableConfiguration(new Configuration());
 
-			for (Method m : clazz.getMethods()) {
-				// ignore WritableConfig#set as it is covered in ReadableWritableConfigurationTest
-				if (m.getName().startsWith("set") && !m.getName().equals("set")) {
+            for (Method m : clazz.getMethods()) {
+                // ignore WritableConfig#set as it is covered in ReadableWritableConfigurationTest
+                if (m.getName().startsWith("set") && !m.getName().equals("set")) {
 
-					Class<?> keyClass = m.getParameterTypes()[0];
-					Class<?> parameterClass = m.getParameterTypes()[1];
-					Object key = keyClass == String.class ? "key" : rawOption;
+                    Class<?> keyClass = m.getParameterTypes()[0];
+                    Class<?> parameterClass = m.getParameterTypes()[1];
+                    Object key = keyClass == String.class ? "key" : rawOption;
 
-					Object parameter = parameters.get(parameterClass);
-					assertNotNull("method " + m + " not covered by test", parameter);
+                    Object parameter = parameters.get(parameterClass);
+                    assertNotNull("method " + m + " not covered by test", parameter);
 
-					try {
-						m.invoke(config, key, parameter);
-						fail("should fail with an exception");
-					}
-					catch (InvocationTargetException e) {
-						assertTrue(e.getTargetException() instanceof UnsupportedOperationException);
-					}
-				}
-			}
-		}
-		catch (Exception e) {
-			e.printStackTrace();
-			fail(e.getMessage());
-		}
-	}
+                    try {
+                        m.invoke(config, key, parameter);
+                        fail("should fail with an exception");
+                    } catch (InvocationTargetException e) {
+                        assertTrue(e.getTargetException() instanceof UnsupportedOperationException);
+                    }
+                }
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+            fail(e.getMessage());
+        }
+    }
 }

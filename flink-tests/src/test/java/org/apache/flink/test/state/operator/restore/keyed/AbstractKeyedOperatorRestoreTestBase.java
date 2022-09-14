@@ -18,59 +18,51 @@
 
 package org.apache.flink.test.state.operator.restore.keyed;
 
+import org.apache.flink.FlinkVersion;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.test.state.operator.restore.AbstractOperatorRestoreTestBase;
 import org.apache.flink.test.state.operator.restore.ExecutionMode;
-import org.apache.flink.testutils.migration.MigrationVersion;
 
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
-import java.util.Arrays;
 import java.util.Collection;
 
-/**
- * Base class for all keyed operator restore tests.
- */
+/** Base class for all keyed operator restore tests. */
 @RunWith(Parameterized.class)
 public abstract class AbstractKeyedOperatorRestoreTestBase extends AbstractOperatorRestoreTestBase {
 
-	private final MigrationVersion migrationVersion;
+    private final FlinkVersion flinkVersion;
 
-	@Parameterized.Parameters(name = "Migrate Savepoint: {0}")
-	public static Collection<MigrationVersion> parameters () {
-		return Arrays.asList(
-			MigrationVersion.v1_3,
-			MigrationVersion.v1_4,
-			MigrationVersion.v1_5,
-			MigrationVersion.v1_6,
-			MigrationVersion.v1_7,
-			MigrationVersion.v1_8,
-			MigrationVersion.v1_9);
-	}
+    @Parameterized.Parameters(name = "Migrate Savepoint: {0}")
+    public static Collection<FlinkVersion> parameters() {
+        return FlinkVersion.rangeOf(FlinkVersion.v1_3, FlinkVersion.v1_15);
+    }
 
-	public AbstractKeyedOperatorRestoreTestBase(MigrationVersion migrationVersion) {
-		this.migrationVersion = migrationVersion;
-	}
+    public AbstractKeyedOperatorRestoreTestBase(FlinkVersion flinkVersion) {
+        this.flinkVersion = flinkVersion;
+    }
 
-	@Override
-	public void createMigrationJob(StreamExecutionEnvironment env) {
-		/**
-		 * Source -> keyBy -> C(Window -> StatefulMap1 -> StatefulMap2)
-		 */
-		SingleOutputStreamOperator<Tuple2<Integer, Integer>> source = KeyedJob.createIntegerTupleSource(env, ExecutionMode.MIGRATE);
+    @Override
+    public void createMigrationJob(StreamExecutionEnvironment env) {
+        /** Source -> keyBy -> C(Window -> StatefulMap1 -> StatefulMap2) */
+        SingleOutputStreamOperator<Tuple2<Integer, Integer>> source =
+                KeyedJob.createIntegerTupleSource(env, ExecutionMode.MIGRATE);
 
-		SingleOutputStreamOperator<Integer> window = KeyedJob.createWindowFunction(ExecutionMode.MIGRATE, source);
+        SingleOutputStreamOperator<Integer> window =
+                KeyedJob.createWindowFunction(ExecutionMode.MIGRATE, source);
 
-		SingleOutputStreamOperator<Integer> first = KeyedJob.createFirstStatefulMap(ExecutionMode.MIGRATE, window);
+        SingleOutputStreamOperator<Integer> first =
+                KeyedJob.createFirstStatefulMap(ExecutionMode.MIGRATE, window);
 
-		SingleOutputStreamOperator<Integer> second = KeyedJob.createSecondStatefulMap(ExecutionMode.MIGRATE, first);
-	}
+        SingleOutputStreamOperator<Integer> second =
+                KeyedJob.createSecondStatefulMap(ExecutionMode.MIGRATE, first);
+    }
 
-	@Override
-	protected String getMigrationSavepointName() {
-		return "complexKeyed-flink" + migrationVersion;
-	}
+    @Override
+    protected String getMigrationSavepointName() {
+        return "complexKeyed-flink" + flinkVersion;
+    }
 }

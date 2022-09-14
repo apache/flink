@@ -27,118 +27,123 @@ import java.util.function.Consumer;
 import java.util.function.Supplier;
 
 class TestingDispatcherLeaderProcess implements DispatcherLeaderProcess {
-	private final UUID leaderSessionId;
+    private final UUID leaderSessionId;
 
-	private final CompletableFuture<DispatcherGateway> dispatcherGatewayFuture;
-	private final Consumer<Void> startConsumer;
-	private final Supplier<CompletableFuture<Void>> closeAsyncSupplier;
-	private final CompletableFuture<String> confirmLeaderSessionFuture;
-	private final CompletableFuture<ApplicationStatus> shutDownFuture;
+    private final CompletableFuture<DispatcherGateway> dispatcherGatewayFuture;
+    private final Consumer<Void> startConsumer;
+    private final Supplier<CompletableFuture<Void>> closeAsyncSupplier;
+    private final CompletableFuture<String> confirmLeaderSessionFuture;
+    private final CompletableFuture<ApplicationStatus> shutDownFuture;
 
-	private CompletableFuture<Void> terminationFuture = null;
+    private CompletableFuture<Void> terminationFuture = null;
 
-	private TestingDispatcherLeaderProcess(
-			UUID leaderSessionId,
-			CompletableFuture<DispatcherGateway> dispatcherGatewayFuture,
-			Consumer<Void> startConsumer,
-			Supplier<CompletableFuture<Void>> closeAsyncSupplier,
-			CompletableFuture<String> confirmLeaderSessionFuture,
-			CompletableFuture<ApplicationStatus> shutDownFuture) {
-		this.leaderSessionId = leaderSessionId;
-		this.dispatcherGatewayFuture = dispatcherGatewayFuture;
-		this.startConsumer = startConsumer;
-		this.closeAsyncSupplier = closeAsyncSupplier;
-		this.confirmLeaderSessionFuture = confirmLeaderSessionFuture;
-		this.shutDownFuture = shutDownFuture;
-	}
+    private TestingDispatcherLeaderProcess(
+            UUID leaderSessionId,
+            CompletableFuture<DispatcherGateway> dispatcherGatewayFuture,
+            Consumer<Void> startConsumer,
+            Supplier<CompletableFuture<Void>> closeAsyncSupplier,
+            CompletableFuture<String> confirmLeaderSessionFuture,
+            CompletableFuture<ApplicationStatus> shutDownFuture) {
+        this.leaderSessionId = leaderSessionId;
+        this.dispatcherGatewayFuture = dispatcherGatewayFuture;
+        this.startConsumer = startConsumer;
+        this.closeAsyncSupplier = closeAsyncSupplier;
+        this.confirmLeaderSessionFuture = confirmLeaderSessionFuture;
+        this.shutDownFuture = shutDownFuture;
+    }
 
-	@Override
-	public void start() {
-		startConsumer.accept(null);
-	}
+    @Override
+    public void start() {
+        startConsumer.accept(null);
+    }
 
-	@Override
-	public UUID getLeaderSessionId() {
-		return leaderSessionId;
-	}
+    @Override
+    public UUID getLeaderSessionId() {
+        return leaderSessionId;
+    }
 
-	@Override
-	public CompletableFuture<DispatcherGateway> getDispatcherGateway() {
-		return dispatcherGatewayFuture;
-	}
+    @Override
+    public CompletableFuture<DispatcherGateway> getDispatcherGateway() {
+        return dispatcherGatewayFuture;
+    }
 
-	@Override
-	public CompletableFuture<String> getLeaderAddressFuture() {
-		return confirmLeaderSessionFuture;
-	}
+    @Override
+    public CompletableFuture<String> getLeaderAddressFuture() {
+        return confirmLeaderSessionFuture;
+    }
 
-	@Override
-	public CompletableFuture<ApplicationStatus> getShutDownFuture() {
-		return shutDownFuture;
-	}
+    @Override
+    public CompletableFuture<ApplicationStatus> getShutDownFuture() {
+        return shutDownFuture;
+    }
 
-	@Override
-	public CompletableFuture<Void> closeAsync() {
-		if (terminationFuture == null) {
-			terminationFuture = closeAsyncSupplier.get();
-		}
+    @Override
+    public CompletableFuture<Void> closeAsync() {
+        if (terminationFuture == null) {
+            terminationFuture = closeAsyncSupplier.get();
+        }
 
-		return terminationFuture;
-	}
+        return terminationFuture;
+    }
 
-	public static Builder newBuilder(UUID leaderSessionId) {
-		return new Builder(leaderSessionId);
-	}
+    public static Builder newBuilder(UUID leaderSessionId) {
+        return new Builder(leaderSessionId);
+    }
 
-	public static class Builder {
-		private final UUID leaderSessionId;
+    public static class Builder {
+        private final UUID leaderSessionId;
 
-		private CompletableFuture<DispatcherGateway> dispatcherGatewayFuture = new CompletableFuture<>();
+        private CompletableFuture<DispatcherGateway> dispatcherGatewayFuture =
+                new CompletableFuture<>();
 
-		private Consumer<Void> startConsumer = (ignored) -> {};
+        private Consumer<Void> startConsumer = (ignored) -> {};
 
-		private Supplier<CompletableFuture<Void>> closeAsyncSupplier = () -> CompletableFuture.completedFuture(null);
+        private Supplier<CompletableFuture<Void>> closeAsyncSupplier =
+                () -> CompletableFuture.completedFuture(null);
 
-		private CompletableFuture<String> confirmLeaderSessionFuture = CompletableFuture.completedFuture("Unknown address");
-		private CompletableFuture<ApplicationStatus> shutDownFuture = new CompletableFuture<>();
+        private CompletableFuture<String> confirmLeaderSessionFuture =
+                CompletableFuture.completedFuture("Unknown address");
+        private CompletableFuture<ApplicationStatus> shutDownFuture = new CompletableFuture<>();
 
-		private Builder(UUID leaderSessionId) {
-			this.leaderSessionId = leaderSessionId;
-		}
+        private Builder(UUID leaderSessionId) {
+            this.leaderSessionId = leaderSessionId;
+        }
 
-		public Builder setDispatcherGatewayFuture(CompletableFuture<DispatcherGateway> dispatcherGatewayFuture) {
-			this.dispatcherGatewayFuture = dispatcherGatewayFuture;
-			return this;
-		}
+        public Builder setDispatcherGatewayFuture(
+                CompletableFuture<DispatcherGateway> dispatcherGatewayFuture) {
+            this.dispatcherGatewayFuture = dispatcherGatewayFuture;
+            return this;
+        }
 
-		public Builder setStartConsumer(Consumer<Void> startConsumer) {
-			this.startConsumer = startConsumer;
-			return this;
-		}
+        public Builder setStartConsumer(Consumer<Void> startConsumer) {
+            this.startConsumer = startConsumer;
+            return this;
+        }
 
-		public Builder setCloseAsyncSupplier(Supplier<CompletableFuture<Void>> closeAsyncSupplier) {
-			this.closeAsyncSupplier = closeAsyncSupplier;
-			return this;
-		}
+        public Builder setCloseAsyncSupplier(Supplier<CompletableFuture<Void>> closeAsyncSupplier) {
+            this.closeAsyncSupplier = closeAsyncSupplier;
+            return this;
+        }
 
-		public Builder setConfirmLeaderSessionFuture(CompletableFuture<String> confirmLeaderSessionFuture) {
-			this.confirmLeaderSessionFuture = confirmLeaderSessionFuture;
-			return this;
-		}
+        public Builder setConfirmLeaderSessionFuture(
+                CompletableFuture<String> confirmLeaderSessionFuture) {
+            this.confirmLeaderSessionFuture = confirmLeaderSessionFuture;
+            return this;
+        }
 
-		public Builder setShutDownFuture(CompletableFuture<ApplicationStatus> shutDownFuture) {
-			this.shutDownFuture = shutDownFuture;
-			return this;
-		}
+        public Builder setShutDownFuture(CompletableFuture<ApplicationStatus> shutDownFuture) {
+            this.shutDownFuture = shutDownFuture;
+            return this;
+        }
 
-		public TestingDispatcherLeaderProcess build() {
-			return new TestingDispatcherLeaderProcess(
-				leaderSessionId,
-				dispatcherGatewayFuture,
-				startConsumer,
-				closeAsyncSupplier,
-				confirmLeaderSessionFuture,
-				shutDownFuture);
-		}
-	}
+        public TestingDispatcherLeaderProcess build() {
+            return new TestingDispatcherLeaderProcess(
+                    leaderSessionId,
+                    dispatcherGatewayFuture,
+                    startConsumer,
+                    closeAsyncSupplier,
+                    confirmLeaderSessionFuture,
+                    shutDownFuture);
+        }
+    }
 }

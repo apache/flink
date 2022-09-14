@@ -28,44 +28,38 @@ import org.slf4j.LoggerFactory;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
-
-/**
- * Main accumulator registry which encapsulates user-defined accumulators.
- */
+/** Main accumulator registry which encapsulates user-defined accumulators. */
 public class AccumulatorRegistry {
 
-	protected static final Logger LOG = LoggerFactory.getLogger(AccumulatorRegistry.class);
+    protected static final Logger LOG = LoggerFactory.getLogger(AccumulatorRegistry.class);
 
-	protected final JobID jobID;
-	protected final ExecutionAttemptID taskID;
+    protected final JobID jobID;
+    protected final ExecutionAttemptID taskID;
 
-	/* User-defined Accumulator values stored for the executing task. */
-	private final Map<String, Accumulator<?, ?>> userAccumulators =
-			new ConcurrentHashMap<>(4);
+    /* User-defined Accumulator values stored for the executing task. */
+    private final Map<String, Accumulator<?, ?>> userAccumulators = new ConcurrentHashMap<>(4);
 
-	public AccumulatorRegistry(JobID jobID, ExecutionAttemptID taskID) {
-		this.jobID = jobID;
-		this.taskID = taskID;
-	}
+    public AccumulatorRegistry(JobID jobID, ExecutionAttemptID taskID) {
+        this.jobID = jobID;
+        this.taskID = taskID;
+    }
 
-	/**
-	 * Creates a snapshot of this accumulator registry.
-	 * @return a serialized accumulator map
-	 */
-	public AccumulatorSnapshot getSnapshot() {
-		try {
-			return new AccumulatorSnapshot(jobID, taskID, userAccumulators);
-		} catch (Throwable e) {
-			LOG.warn("Failed to serialize accumulators for task.", e);
-			return null;
-		}
-	}
+    /**
+     * Creates a snapshot of this accumulator registry.
+     *
+     * @return a serialized accumulator map
+     */
+    public AccumulatorSnapshot getSnapshot() {
+        try {
+            return new AccumulatorSnapshot(jobID, taskID, userAccumulators);
+        } catch (Throwable e) {
+            LOG.warn("Failed to serialize accumulators for task.", e);
+            return null;
+        }
+    }
 
-	/**
-	 * Gets the map for user-defined accumulators.
-	 */
-	public Map<String, Accumulator<?, ?>> getUserMap() {
-		return userAccumulators;
-	}
-
+    /** Gets the map for user-defined accumulators. */
+    public Map<String, Accumulator<?, ?>> getUserMap() {
+        return userAccumulators;
+    }
 }

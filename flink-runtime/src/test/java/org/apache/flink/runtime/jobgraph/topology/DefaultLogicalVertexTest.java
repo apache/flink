@@ -20,6 +20,7 @@ package org.apache.flink.runtime.jobgraph.topology;
 
 import org.apache.flink.runtime.jobgraph.IntermediateDataSet;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
+import org.apache.flink.runtime.jobgraph.JobEdge;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.util.IterableUtils;
@@ -36,98 +37,99 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.createNoOpVertex;
-import static org.apache.flink.runtime.io.network.partition.ResultPartitionType.BLOCKING;
 import static org.apache.flink.runtime.io.network.partition.ResultPartitionType.PIPELINED;
 import static org.apache.flink.runtime.jobgraph.DistributionPattern.ALL_TO_ALL;
 import static org.apache.flink.runtime.jobgraph.topology.DefaultLogicalResultTest.assertResultsEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 
-/**
- * Unit tests for {@link DefaultLogicalVertex}.
- */
+/** Unit tests for {@link DefaultLogicalVertex}. */
 public class DefaultLogicalVertexTest extends TestLogger {
 
-	private JobVertex jobVertex;
+    private JobVertex upstreamJobVertex;
 
-	private DefaultLogicalVertex logicalVertex;
+    private DefaultLogicalVertex upstreamLogicalVertex;
 
-	private Map<IntermediateDataSetID, IntermediateDataSet> resultMap;
+    private JobVertex downstreamJobVertex;
 
-	private Set<IntermediateDataSet> consumedResults;
+    private DefaultLogicalVertex downstreamLogicalVertex;
 
-	private Set<IntermediateDataSet> producedResults;
+    private Map<IntermediateDataSetID, IntermediateDataSet> resultMap;
 
-	@Before
-	public void setUp() throws Exception {
-		buildVerticesAndResults();
+    private Set<IntermediateDataSet> results;
 
-		logicalVertex = new DefaultLogicalVertex(
-			jobVertex,
-			rid -> new DefaultLogicalResult(resultMap.get(rid), vid -> null));
-	}
+    @Before
+    public void setUp() throws Exception {
+        buildVerticesAndResults();
 
-	@Test
-	public void testConstructor() {
-		assertVertexInfoEquals(jobVertex, logicalVertex);
-	}
+        upstreamLogicalVertex =
+                new DefaultLogicalVertex(
+                        upstreamJobVertex,
+                        rid -> new DefaultLogicalResult(resultMap.get(rid), vid -> null));
 
-	@Test
-	public void testGetConsumedResults() {
-		assertResultsEquals(consumedResults, logicalVertex.getConsumedResults());
-	}
+        downstreamLogicalVertex =
+                new DefaultLogicalVertex(
+                        downstreamJobVertex,
+                        rid -> new DefaultLogicalResult(resultMap.get(rid), vid -> null));
+    }
 
-	@Test
-	public void testGetProducedResults() {
-		assertResultsEquals(producedResults, logicalVertex.getProducedResults());
-	}
+    @Test
+    public void testConstructor() {
+        assertVertexInfoEquals(upstreamJobVertex, upstreamLogicalVertex);
+        assertVertexInfoEquals(downstreamJobVertex, downstreamLogicalVertex);
+    }
 
-	private void buildVerticesAndResults() {
-		resultMap = new HashMap<>();
-		producedResults = new HashSet<>();
-		consumedResults = new HashSet<>();
+    @Test
+    public void testGetConsumedResults() {
+        assertResultsEquals(results, downstreamLogicalVertex.getConsumedResults());
+    }
 
-		final int parallelism = 3;
-		jobVertex = createNoOpVertex(parallelism);
+    @Test
+    public void testGetProducedResults() {
+        assertResultsEquals(results, upstreamLogicalVertex.getProducedResults());
+    }
 
-		for (int i = 0; i < 5; i++) {
-			final IntermediateDataSet producedDataSet = jobVertex.createAndAddResultDataSet(BLOCKING);
-			producedResults.add(producedDataSet);
-			resultMap.put(producedDataSet.getId(), producedDataSet);
-		}
+    private void buildVerticesAndResults() {
+        resultMap = new HashMap<>();
+        results = new HashSet<>();
 
-		final JobVertex upStreamJobVertex = createNoOpVertex(parallelism);
-		for (int i = 0; i < 5; i++) {
-			final IntermediateDataSet consumedDataSet = upStreamJobVertex.createAndAddResultDataSet(PIPELINED);
-			jobVertex.connectDataSetAsInput(consumedDataSet, ALL_TO_ALL);
-			consumedResults.add(consumedDataSet);
-			resultMap.put(consumedDataSet.getId(), consumedDataSet);
-		}
-	}
+        final int parallelism = 3;
+        upstreamJobVertex = createNoOpVertex(parallelism);
+        downstreamJobVertex = createNoOpVertex(parallelism);
 
-	static void assertVerticesEquals(
-		final Iterable<JobVertex> jobVertices,
-		final Iterable<DefaultLogicalVertex> logicalVertices) {
+        for (int i = 0; i < 5; i++) {
+            final JobEdge edge =
+                    downstreamJobVertex.connectNewDataSetAsInput(
+                            upstreamJobVertex, ALL_TO_ALL, PIPELINED);
+            final IntermediateDataSet consumedDataSet = edge.getSource();
+            results.add(consumedDataSet);
+            resultMap.put(consumedDataSet.getId(), consumedDataSet);
+        }
+    }
 
-		final Map<JobVertexID, DefaultLogicalVertex> logicalVertextMap = IterableUtils
-			.toStream(logicalVertices)
-			.collect(Collectors.toMap(DefaultLogicalVertex::getId, Function.identity()));
+    static void assertVerticesEquals(
+            final Iterable<JobVertex> jobVertices,
+            final Iterable<DefaultLogicalVertex> logicalVertices) {
 
-		for (JobVertex jobVertex : jobVertices) {
-			final DefaultLogicalVertex logicalVertex = logicalVertextMap.remove(jobVertex.getID());
+        final Map<JobVertexID, DefaultLogicalVertex> logicalVertextMap =
+                IterableUtils.toStream(logicalVertices)
+                        .collect(
+                                Collectors.toMap(DefaultLogicalVertex::getId, Function.identity()));
 
-			assertNotNull(logicalVertex);
-			assertVertexInfoEquals(jobVertex, logicalVertex);
-		}
+        for (JobVertex jobVertex : jobVertices) {
+            final DefaultLogicalVertex logicalVertex = logicalVertextMap.remove(jobVertex.getID());
 
-		// this ensures the two collections exactly matches
-		assertEquals(0, logicalVertextMap.size());
-	}
+            assertNotNull(logicalVertex);
+            assertVertexInfoEquals(jobVertex, logicalVertex);
+        }
 
-	static void assertVertexInfoEquals(
-		final JobVertex jobVertex,
-		final DefaultLogicalVertex logicalVertex) {
+        // this ensures the two collections exactly matches
+        assertEquals(0, logicalVertextMap.size());
+    }
 
-		assertEquals(jobVertex.getID(), logicalVertex.getId());
-	}
+    static void assertVertexInfoEquals(
+            final JobVertex jobVertex, final DefaultLogicalVertex logicalVertex) {
+
+        assertEquals(jobVertex.getID(), logicalVertex.getId());
+    }
 }

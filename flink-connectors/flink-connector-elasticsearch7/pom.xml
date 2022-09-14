@@ -26,42 +26,54 @@ under the License.
 	<parent>
 		<artifactId>flink-connectors</artifactId>
 		<groupId>org.apache.flink</groupId>
-		<version>1.11-SNAPSHOT</version>
-		<relativePath>..</relativePath>
+		<version>1.17-SNAPSHOT</version>
 	</parent>
 
-	<artifactId>flink-connector-elasticsearch7_${scala.binary.version}</artifactId>
-	<name>flink-connector-elasticsearch7</name>
+	<artifactId>flink-connector-elasticsearch7</artifactId>
+	<name>Flink : Connectors : Elasticsearch 7</name>
 
 	<packaging>jar</packaging>
 
 	<!-- Allow users to pass custom connector versions -->
 	<properties>
-		<elasticsearch.version>7.5.1</elasticsearch.version>
+		<elasticsearch.version>7.10.2</elasticsearch.version>
 	</properties>
 
 	<dependencies>
 
-		<!-- core dependencies -->
+		<!-- Core -->
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-streaming-java_${scala.binary.version}</artifactId>
+			<artifactId>flink-streaming-java</artifactId>
 			<version>${project.version}</version>
 			<scope>provided</scope>
 		</dependency>
 
+		<!-- Flink Elasticsearch -->
+
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-connector-elasticsearch-base_${scala.binary.version}</artifactId>
+			<artifactId>flink-connector-elasticsearch-base</artifactId>
 			<version>${project.version}</version>
 			<exclusions>
-				<!-- Elasticsearch Java Client has been moved to a different module in 5.x -->
+				<!-- Exclude the base module elasticsearch -->
 				<exclusion>
 					<groupId>org.elasticsearch</groupId>
 					<artifactId>elasticsearch</artifactId>
 				</exclusion>
 			</exclusions>
+		</dependency>
+
+		<!-- Table ecosystem -->
+
+		<!-- Projects depending on this project won't depend on flink-table-*. -->
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-table-api-java-bridge</artifactId>
+			<version>${project.version}</version>
+			<scope>provided</scope>
+			<optional>true</optional>
 		</dependency>
 
 		<!-- Dependency for Elasticsearch 7.x REST Client -->
@@ -69,30 +81,40 @@ under the License.
 			<groupId>org.elasticsearch.client</groupId>
 			<artifactId>elasticsearch-rest-high-level-client</artifactId>
 			<version>${elasticsearch.version}</version>
+			<!-- elasticsearch-rest-client includes two different versions of httpcore-nio -->
+			<exclusions>
+				<exclusion>
+					<groupId>org.apache.httpcomponents</groupId>
+					<artifactId>httpcore-nio</artifactId>
+				</exclusion>
+			</exclusions>
 		</dependency>
 
-		<!-- Table ecosystem -->
-		<!-- Projects depending on this project won't depend on flink-table-*. -->
+		<!-- We need to include httpcore-nio again in the correct version due to the exclusion above -->
 		<dependency>
-			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-table-api-java-bridge_${scala.binary.version}</artifactId>
-			<version>${project.version}</version>
-			<scope>provided</scope>
-			<optional>true</optional>
+			<groupId>org.apache.httpcomponents</groupId>
+			<artifactId>httpcore-nio</artifactId>
+			<version>4.4.12</version>
 		</dependency>
 
-		<!-- test dependencies -->
+		<!-- Tests -->
+
+		<dependency>
+			<groupId>org.testcontainers</groupId>
+			<artifactId>elasticsearch</artifactId>
+			<scope>test</scope>
+		</dependency>
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-test-utils_${scala.binary.version}</artifactId>
+			<artifactId>flink-test-utils</artifactId>
 			<version>${project.version}</version>
 			<scope>test</scope>
 		</dependency>
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-streaming-java_${scala.binary.version}</artifactId>
+			<artifactId>flink-streaming-java</artifactId>
 			<version>${project.version}</version>
 			<scope>test</scope>
 			<type>test-jar</type>
@@ -100,7 +122,7 @@ under the License.
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-connector-elasticsearch-base_${scala.binary.version}</artifactId>
+			<artifactId>flink-connector-elasticsearch-base</artifactId>
 			<version>${project.version}</version>
 			<exclusions>
 				<exclusion>
@@ -112,30 +134,25 @@ under the License.
 			<scope>test</scope>
 		</dependency>
 
-		<!--
-   			 Including elasticsearch transport dependency for tests. Netty3 is not here anymore in 7.x
-		-->
-
-		<dependency>
-			<groupId>org.elasticsearch.client</groupId>
-			<artifactId>transport</artifactId>
-			<version>${elasticsearch.version}</version>
-			<scope>test</scope>
-		</dependency>
-
-		<dependency>
-			<groupId>org.elasticsearch.plugin</groupId>
-			<artifactId>transport-netty4-client</artifactId>
-			<version>${elasticsearch.version}</version>
-			<scope>test</scope>
-		</dependency>
-
-		<!-- Elasticsearch table descriptor testing -->
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-table-planner_${scala.binary.version}</artifactId>
+			<artifactId>flink-connector-test-utils</artifactId>
 			<version>${project.version}</version>
-			<type>test-jar</type>
+			<scope>test</scope>
+		</dependency>
+
+		<!-- Table API integration tests -->
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-table-planner-loader</artifactId>
+			<version>${project.version}</version>
+			<scope>test</scope>
+		</dependency>
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-table-runtime</artifactId>
+			<version>${project.version}</version>
 			<scope>test</scope>
 		</dependency>
 
@@ -147,5 +164,12 @@ under the License.
 			<scope>test</scope>
 		</dependency>
 
+		<!-- ArchUit test dependencies -->
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-architecture-tests-test</artifactId>
+			<scope>test</scope>
+		</dependency>
 	</dependencies>
 </project>

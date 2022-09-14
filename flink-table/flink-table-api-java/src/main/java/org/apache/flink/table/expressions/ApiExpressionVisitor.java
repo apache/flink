@@ -20,48 +20,55 @@ package org.apache.flink.table.expressions;
 
 import org.apache.flink.annotation.Internal;
 
-/**
- * A visitor for all {@link Expression}s that might be created during API translation.
- */
+/** A visitor for all {@link Expression}s that might be created during API translation. */
 @Internal
 public abstract class ApiExpressionVisitor<R> implements ExpressionVisitor<R> {
 
-	public final R visit(Expression other) {
-		if (other instanceof UnresolvedReferenceExpression) {
-			return visit((UnresolvedReferenceExpression) other);
-		} else if (other instanceof TableReferenceExpression) {
-			return visit((TableReferenceExpression) other);
-		} else if (other instanceof LocalReferenceExpression) {
-			return visit((LocalReferenceExpression) other);
-		} else if (other instanceof LookupCallExpression) {
-			return visit((LookupCallExpression) other);
-		} else if (other instanceof UnresolvedCallExpression) {
-			return visit((UnresolvedCallExpression) other);
-		}
-		return visitNonApiExpression(other);
-	}
+    public final R visit(Expression other) {
+        if (other instanceof UnresolvedReferenceExpression) {
+            return visit((UnresolvedReferenceExpression) other);
+        } else if (other instanceof TableReferenceExpression) {
+            return visit((TableReferenceExpression) other);
+        } else if (other instanceof LocalReferenceExpression) {
+            return visit((LocalReferenceExpression) other);
+        } else if (other instanceof LookupCallExpression) {
+            return visit((LookupCallExpression) other);
+        } else if (other instanceof UnresolvedCallExpression) {
+            return visit((UnresolvedCallExpression) other);
+        } else if (other instanceof SqlCallExpression) {
+            return visit((SqlCallExpression) other);
+        } else if (other instanceof ResolvedExpression) {
+            return visit((ResolvedExpression) other);
+        }
+        return visitNonApiExpression(other);
+    }
 
-	// --------------------------------------------------------------------------------------------
-	// resolved API expressions
-	// --------------------------------------------------------------------------------------------
+    // --------------------------------------------------------------------------------------------
+    // resolved API expressions
+    // --------------------------------------------------------------------------------------------
 
-	public abstract R visit(TableReferenceExpression tableReference);
+    public abstract R visit(TableReferenceExpression tableReference);
 
-	public abstract R visit(LocalReferenceExpression localReference);
+    public abstract R visit(LocalReferenceExpression localReference);
 
-	// --------------------------------------------------------------------------------------------
-	// unresolved API expressions
-	// --------------------------------------------------------------------------------------------
+    /** For resolved expressions created by the planner. */
+    public abstract R visit(ResolvedExpression other);
 
-	public abstract R visit(UnresolvedReferenceExpression unresolvedReference);
+    // --------------------------------------------------------------------------------------------
+    // unresolved API expressions
+    // --------------------------------------------------------------------------------------------
 
-	public abstract R visit(LookupCallExpression lookupCall);
+    public abstract R visit(UnresolvedReferenceExpression unresolvedReference);
 
-	public abstract R visit(UnresolvedCallExpression unresolvedCallExpression);
+    public abstract R visit(LookupCallExpression lookupCall);
 
-	// --------------------------------------------------------------------------------------------
-	// other expressions
-	// --------------------------------------------------------------------------------------------
+    public abstract R visit(UnresolvedCallExpression unresolvedCallExpression);
 
-	public abstract R visitNonApiExpression(Expression other);
+    public abstract R visit(SqlCallExpression sqlCall);
+
+    // --------------------------------------------------------------------------------------------
+    // other expressions
+    // --------------------------------------------------------------------------------------------
+
+    public abstract R visitNonApiExpression(Expression other);
 }

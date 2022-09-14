@@ -21,40 +21,41 @@ package org.apache.flink.runtime.rest.messages.taskmanager;
 import org.apache.flink.runtime.rest.HttpMethodWrapper;
 import org.apache.flink.runtime.rest.handler.taskmanager.TaskManagerStdoutFileHandler;
 import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
-import org.apache.flink.runtime.rest.messages.UntypedResponseMessageHeaders;
+import org.apache.flink.runtime.rest.messages.RuntimeUntypedResponseMessageHeaders;
 
-/**
- * Headers for the {@link TaskManagerStdoutFileHandler}.
- */
-public class TaskManagerStdoutFileHeaders implements UntypedResponseMessageHeaders<EmptyRequestBody, TaskManagerMessageParameters> {
+/** Headers for the {@link TaskManagerStdoutFileHandler}. */
+public class TaskManagerStdoutFileHeaders
+        implements RuntimeUntypedResponseMessageHeaders<
+                EmptyRequestBody, TaskManagerMessageParameters> {
 
-	private static final TaskManagerStdoutFileHeaders INSTANCE = new TaskManagerStdoutFileHeaders();
+    private static final TaskManagerStdoutFileHeaders INSTANCE = new TaskManagerStdoutFileHeaders();
 
-	private static final String URL = String.format("/taskmanagers/:%s/stdout", TaskManagerIdPathParameter.KEY);
+    private static final String URL =
+            String.format("/taskmanagers/:%s/stdout", TaskManagerIdPathParameter.KEY);
 
-	private TaskManagerStdoutFileHeaders() {}
+    private TaskManagerStdoutFileHeaders() {}
 
-	@Override
-	public Class<EmptyRequestBody> getRequestClass() {
-		return EmptyRequestBody.class;
-	}
+    @Override
+    public Class<EmptyRequestBody> getRequestClass() {
+        return EmptyRequestBody.class;
+    }
 
-	@Override
-	public TaskManagerMessageParameters getUnresolvedMessageParameters() {
-		return new TaskManagerMessageParameters();
-	}
+    @Override
+    public TaskManagerMessageParameters getUnresolvedMessageParameters() {
+        return new TaskManagerMessageParameters();
+    }
 
-	@Override
-	public HttpMethodWrapper getHttpMethod() {
-		return HttpMethodWrapper.GET;
-	}
+    @Override
+    public HttpMethodWrapper getHttpMethod() {
+        return HttpMethodWrapper.GET;
+    }
 
-	@Override
-	public String getTargetRestEndpointURL() {
-		return URL;
-	}
+    @Override
+    public String getTargetRestEndpointURL() {
+        return URL;
+    }
 
-	public static TaskManagerStdoutFileHeaders getInstance() {
-		return INSTANCE;
-	}
+    public static TaskManagerStdoutFileHeaders getInstance() {
+        return INSTANCE;
+    }
 }

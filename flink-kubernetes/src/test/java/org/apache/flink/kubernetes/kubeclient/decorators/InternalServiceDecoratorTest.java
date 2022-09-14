@@ -18,74 +18,83 @@
 
 package org.apache.flink.kubernetes.kubeclient.decorators;
 
+import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.kubernetes.kubeclient.KubernetesJobManagerTestBase;
 import org.apache.flink.kubernetes.utils.Constants;
-import org.apache.flink.kubernetes.utils.KubernetesUtils;
+import org.apache.flink.runtime.jobmanager.HighAvailabilityMode;
 
 import io.fabric8.kubernetes.api.model.HasMetadata;
 import io.fabric8.kubernetes.api.model.Service;
 import io.fabric8.kubernetes.api.model.ServicePort;
 import io.fabric8.kubernetes.api.model.ServicePortBuilder;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
-/**
- * General tests for the {@link InternalServiceDecorator}.
- */
-public class InternalServiceDecoratorTest extends KubernetesJobManagerTestBase {
+/** General tests for the {@link InternalServiceDecorator}. */
+class InternalServiceDecoratorTest extends KubernetesJobManagerTestBase {
 
-	private InternalServiceDecorator internalServiceDecorator;
+    private InternalServiceDecorator internalServiceDecorator;
 
-	@Before
-	public void setup() throws Exception {
-		super.setup();
-		this.internalServiceDecorator = new InternalServiceDecorator(this.kubernetesJobManagerParameters);
-	}
+    @Override
+    protected void onSetup() throws Exception {
+        super.onSetup();
 
-	@Test
-	public void testBuildAccompanyingKubernetesResources() throws IOException {
-		final List<HasMetadata> resources = this.internalServiceDecorator.buildAccompanyingKubernetesResources();
-		assertEquals(1, resources.size());
+        this.internalServiceDecorator =
+                new InternalServiceDecorator(this.kubernetesJobManagerParameters);
+    }
 
-		assertEquals(
-			KubernetesUtils.getInternalServiceName(CLUSTER_ID) + "." + NAMESPACE,
-			this.flinkConfig.getString(JobManagerOptions.ADDRESS));
+    @Test
+    void testBuildAccompanyingKubernetesResources() throws IOException {
+        final List<HasMetadata> resources =
+                this.internalServiceDecorator.buildAccompanyingKubernetesResources();
+        assertThat(resources).hasSize(1);
 
-		final Service internalService = (Service) resources.get(0);
+        assertThat(InternalServiceDecorator.getNamespacedInternalServiceName(CLUSTER_ID, NAMESPACE))
+                .isEqualTo(this.flinkConfig.getString(JobManagerOptions.ADDRESS));
 
-		assertEquals(Constants.API_VERSION, internalService.getApiVersion());
+        final Service internalService = (Service) resources.get(0);
 
-		assertEquals(KubernetesUtils.getInternalServiceName(CLUSTER_ID), internalService.getMetadata().getName());
+        assertThat(internalService.getApiVersion()).isEqualTo(Constants.API_VERSION);
 
-		final Map<String, String> expectedLabels = getCommonLabels();
-		assertEquals(expectedLabels, internalService.getMetadata().getLabels());
+        assertThat(internalService.getMetadata().getName())
+                .isEqualTo(InternalServiceDecorator.getInternalServiceName(CLUSTER_ID));
 
-		assertEquals("ClusterIP", internalService.getSpec().getType());
+        final Map<String, String> expectedLabels = getCommonLabels();
+        assertThat(internalService.getMetadata().getLabels()).isEqualTo(expectedLabels);
 
-		List<ServicePort> expectedServicePorts = Arrays.asList(
-			new ServicePortBuilder()
-				.withName("rest-port")
-				.withPort(REST_PORT)
-				.build(),
-			new ServicePortBuilder()
-				.withName("jobmanager-rpc-port")
-				.withPort(RPC_PORT)
-				.build(),
-			new ServicePortBuilder()
-				.withName("blob-server-port")
-				.withPort(BLOB_SERVER_PORT)
-				.build());
-		assertEquals(expectedServicePorts, internalService.getSpec().getPorts());
+        assertThat(internalService.getSpec().getType()).isNull();
+        assertThat(internalService.getSpec().getClusterIP()).isEqualTo("None");
 
-		expectedLabels.put(Constants.LABEL_COMPONENT_KEY, Constants.LABEL_COMPONENT_JOB_MANAGER);
-		assertEquals(expectedLabels, internalService.getSpec().getSelector());
-	}
+        List<ServicePort> expectedServicePorts =
+                Arrays.asList(
+                        new ServicePortBuilder()
+                                .withName(Constants.JOB_MANAGER_RPC_PORT_NAME)
+                                .withPort(RPC_PORT)
+                                .build(),
+                        new ServicePortBuilder()
+                                .withName(Constants.BLOB_SERVER_PORT_NAME)
+                                .withPort(BLOB_SERVER_PORT)
+                                .build());
+        assertThat(internalService.getSpec().getPorts()).isEqualTo(expectedServicePorts);
+
+        expectedLabels.put(Constants.LABEL_COMPONENT_KEY, Constants.LABEL_COMPONENT_JOB_MANAGER);
+        assertThat(internalService.getSpec().getSelector()).isEqualTo(expectedLabels);
+    }
+
+    @Test
+    void testDisableInternalService() throws IOException {
+        this.flinkConfig.setString(
+                HighAvailabilityOptions.HA_MODE, HighAvailabilityMode.ZOOKEEPER.name());
+
+        final List<HasMetadata> resources =
+                this.internalServiceDecorator.buildAccompanyingKubernetesResources();
+        assertThat(resources).isEmpty();
+    }
 }

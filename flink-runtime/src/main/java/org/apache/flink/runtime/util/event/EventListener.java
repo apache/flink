@@ -20,6 +20,5 @@ package org.apache.flink.runtime.util.event;
 
 public interface EventListener<T> {
 
-	void onEvent(T event);
-
+    void onEvent(T event);
 }

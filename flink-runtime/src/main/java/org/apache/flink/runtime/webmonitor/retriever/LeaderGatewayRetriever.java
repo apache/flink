@@ -33,79 +33,87 @@ import java.util.concurrent.atomic.AtomicReference;
  *
  * @param <T> type of the gateway to retrieve
  */
-public abstract class LeaderGatewayRetriever<T extends RpcGateway> extends LeaderRetriever implements GatewayRetriever<T> {
+public abstract class LeaderGatewayRetriever<T extends RpcGateway> extends LeaderRetriever
+        implements GatewayRetriever<T> {
 
-	private final AtomicReference<CompletableFuture<T>> atomicGatewayFuture;
+    private final AtomicReference<CompletableFuture<T>> atomicGatewayFuture;
 
-	private volatile CompletableFuture<T> initialGatewayFuture;
+    private volatile CompletableFuture<T> initialGatewayFuture;
 
-	public LeaderGatewayRetriever() {
-		initialGatewayFuture = new CompletableFuture<>();
-		atomicGatewayFuture = new AtomicReference<>(initialGatewayFuture);
-	}
+    public LeaderGatewayRetriever() {
+        initialGatewayFuture = new CompletableFuture<>();
+        atomicGatewayFuture = new AtomicReference<>(initialGatewayFuture);
+    }
 
-	@Override
-	public CompletableFuture<T> getFuture() {
-		final CompletableFuture<T> currentGatewayFuture = atomicGatewayFuture.get();
+    @Override
+    public CompletableFuture<T> getFuture() {
+        final CompletableFuture<T> currentGatewayFuture = atomicGatewayFuture.get();
 
-		if (currentGatewayFuture.isCompletedExceptionally()) {
-			try {
-				currentGatewayFuture.get();
-			} catch (ExecutionException | InterruptedException executionException) {
-				String leaderAddress;
+        if (currentGatewayFuture.isCompletedExceptionally()) {
+            try {
+                currentGatewayFuture.get();
+            } catch (ExecutionException | InterruptedException executionException) {
+                String leaderAddress;
 
-				try {
-					Tuple2<String, UUID> leaderAddressSessionId = getLeaderNow()
-						.orElse(Tuple2.of("unknown address", HighAvailabilityServices.DEFAULT_LEADER_ID));
+                try {
+                    Tuple2<String, UUID> leaderAddressSessionId =
+                            getLeaderNow()
+                                    .orElse(
+                                            Tuple2.of(
+                                                    "unknown address",
+                                                    HighAvailabilityServices.DEFAULT_LEADER_ID));
 
-					leaderAddress = leaderAddressSessionId.f0;
-				} catch (Exception e) {
-					log.warn("Could not obtain the current leader.", e);
-					leaderAddress = "unknown leader address";
-				}
+                    leaderAddress = leaderAddressSessionId.f0;
+                } catch (Exception e) {
+                    log.warn("Could not obtain the current leader.", e);
+                    leaderAddress = "unknown leader address";
+                }
 
-				if (log.isDebugEnabled() || log.isTraceEnabled()) {
-					// only log exceptions on debug or trace level
-					log.warn(
-						"Error while retrieving the leader gateway. Retrying to connect to {}.",
-						leaderAddress,
-						ExceptionUtils.stripExecutionException(executionException));
-				} else {
-					log.warn(
-						"Error while retrieving the leader gateway. Retrying to connect to {}.",
-						leaderAddress);
-				}
-			}
+                if (log.isDebugEnabled() || log.isTraceEnabled()) {
+                    // only log exceptions on debug or trace level
+                    log.warn(
+                            "Error while retrieving the leader gateway. Retrying to connect to {}.",
+                            leaderAddress,
+                            ExceptionUtils.stripExecutionException(executionException));
+                } else {
+                    log.warn(
+                            "Error while retrieving the leader gateway. Retrying to connect to {}.",
+                            leaderAddress);
+                }
+            }
 
-			// we couldn't resolve the gateway --> let's try again
-			final CompletableFuture<T> newGatewayFuture = createGateway(getLeaderFuture());
+            // we couldn't resolve the gateway --> let's try again
+            final CompletableFuture<T> newGatewayFuture = createGateway(getLeaderFuture());
 
-			// let's check if there was a concurrent createNewFuture call
-			if (atomicGatewayFuture.compareAndSet(currentGatewayFuture, newGatewayFuture)) {
-				return newGatewayFuture;
-			} else {
-				return atomicGatewayFuture.get();
-			}
-		} else {
-			return atomicGatewayFuture.get();
-		}
-	}
+            // let's check if there was a concurrent createNewFuture call
+            if (atomicGatewayFuture.compareAndSet(currentGatewayFuture, newGatewayFuture)) {
+                return newGatewayFuture;
+            } else {
+                return atomicGatewayFuture.get();
+            }
+        } else {
+            return atomicGatewayFuture.get();
+        }
+    }
 
-	@Override
-	public void notifyNewLeaderAddress(CompletableFuture<Tuple2<String, UUID>> newLeaderAddressFuture) {
-		final CompletableFuture<T> newGatewayFuture = createGateway(newLeaderAddressFuture);
+    @Override
+    public void notifyNewLeaderAddress(
+            CompletableFuture<Tuple2<String, UUID>> newLeaderAddressFuture) {
+        final CompletableFuture<T> newGatewayFuture = createGateway(newLeaderAddressFuture);
 
-		final CompletableFuture<T> oldGatewayFuture = atomicGatewayFuture.getAndSet(newGatewayFuture);
+        final CompletableFuture<T> oldGatewayFuture =
+                atomicGatewayFuture.getAndSet(newGatewayFuture);
 
-		newGatewayFuture.whenComplete(
-			(t, throwable) -> {
-				if (throwable != null) {
-					oldGatewayFuture.completeExceptionally(throwable);
-				} else {
-					oldGatewayFuture.complete(t);
-				}
-			});
-	}
+        newGatewayFuture.whenComplete(
+                (t, throwable) -> {
+                    if (throwable != null) {
+                        oldGatewayFuture.completeExceptionally(throwable);
+                    } else {
+                        oldGatewayFuture.complete(t);
+                    }
+                });
+    }
 
-	protected abstract CompletableFuture<T> createGateway(CompletableFuture<Tuple2<String, UUID>> leaderFuture);
+    protected abstract CompletableFuture<T> createGateway(
+            CompletableFuture<Tuple2<String, UUID>> leaderFuture);
 }

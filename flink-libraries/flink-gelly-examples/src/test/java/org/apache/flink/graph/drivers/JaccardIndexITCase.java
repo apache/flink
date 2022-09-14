@@ -27,53 +27,64 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
-/**
- * Tests for {@link JaccardIndex}.
- */
+/** Tests for {@link JaccardIndex}. */
 @RunWith(Parameterized.class)
 public class JaccardIndexITCase extends CopyableValueDriverBaseITCase {
 
-	public JaccardIndexITCase(String idType, TestExecutionMode mode) {
-		super(idType, mode);
-	}
+    public JaccardIndexITCase(String idType, TestExecutionMode mode) {
+        super(idType, mode);
+    }
 
-	private String[] parameters(int scale, String output, String... additionalParameters) {
-		String[] parameters = new String[] {
-			"--algorithm", "JaccardIndex", "--mirror_results",
-			"--input", "RMatGraph", "--scale", Integer.toString(scale), "--type", idType, "--simplify", "undirected",
-			"--output", output};
+    private String[] parameters(int scale, String output, String... additionalParameters) {
+        String[] parameters =
+                new String[] {
+                    "--algorithm",
+                    "JaccardIndex",
+                    "--mirror_results",
+                    "--input",
+                    "RMatGraph",
+                    "--scale",
+                    Integer.toString(scale),
+                    "--type",
+                    idType,
+                    "--simplify",
+                    "undirected",
+                    "--output",
+                    output
+                };
 
-		return ArrayUtils.addAll(parameters, additionalParameters);
-	}
+        return ArrayUtils.addAll(parameters, additionalParameters);
+    }
 
-	@Test
-	public void testLongDescription() throws Exception {
-		String expected = regexSubstring(new JaccardIndex().getLongDescription());
+    @Test
+    public void testLongDescription() throws Exception {
+        String expected = regexSubstring(new JaccardIndex().getLongDescription());
 
-		expectedOutputFromException(
-			new String[]{"--algorithm", "JaccardIndex"},
-			expected,
-			ProgramParametrizationException.class);
-	}
+        expectedOutputFromException(
+                new String[] {"--algorithm", "JaccardIndex"},
+                expected,
+                ProgramParametrizationException.class);
+    }
 
-	@Test
-	public void testHashWithRMatGraph() throws Exception {
-		expectedChecksum(parameters(8, "hash"), 39276, 0x00004caba2e663d5L);
-	}
+    @Test
+    public void testHashWithRMatGraph() throws Exception {
+        expectedChecksum(parameters(8, "hash"), 39276, 0x00004caba2e663d5L);
+    }
 
-	@Test
-	public void testPrintWithRMatGraph() throws Exception {
-		// skip 'char' since it is not printed as a number
-		Assume.assumeFalse(idType.equals("char") || idType.equals("nativeChar"));
+    @Test
+    public void testPrintWithRMatGraph() throws Exception {
+        // skip 'char' since it is not printed as a number
+        Assume.assumeFalse(idType.equals("char") || idType.equals("nativeChar"));
 
-		expectedOutputChecksum(parameters(8, "print"), new Checksum(39276, 0x00004c5a726220c0L));
-	}
+        expectedOutputChecksum(parameters(8, "print"), new Checksum(39276, 0x00004c5a726220c0L));
+    }
 
-	@Test
-	public void testParallelism() throws Exception {
-		TestUtils.verifyParallelism(parameters(8, "print"),
-			"FlatMap \\(Mirror results\\)",
-			"GroupReduce \\(Compute scores\\)",
-			"GroupReduce \\(Generate group pairs\\)");
-	}
+    @Test
+    public void testParallelism() throws Exception {
+        TestUtils.verifyParallelism(
+                parameters(8, "print"),
+                "FlatMap \\(Mirror results\\)",
+                "GroupReduce \\(Compute scores\\)",
+                "GroupReduce \\(Generate group pairs\\)");
+    }
 }

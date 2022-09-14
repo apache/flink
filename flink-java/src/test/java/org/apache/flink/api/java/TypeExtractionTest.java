@@ -22,105 +22,105 @@ import org.apache.flink.api.common.functions.RichMapFunction;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeinfo.Types;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
-/**
- * Tests concerning type extraction by ExecutionEnvironment methods.
- */
+/** Tests concerning type extraction by ExecutionEnvironment methods. */
 @SuppressWarnings("serial")
-public class TypeExtractionTest {
+class TypeExtractionTest {
 
-	@SuppressWarnings({"unchecked", "rawtypes"})
-	@Test
-	public void testFunctionWithMissingGenericsAndReturns() {
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    @Test
+    void testFunctionWithMissingGenericsAndReturns() {
 
-		RichMapFunction function = new RichMapFunction() {
-			private static final long serialVersionUID = 1L;
+        RichMapFunction function =
+                new RichMapFunction() {
+                    private static final long serialVersionUID = 1L;
 
-			@Override
-			public Object map(Object value) throws Exception {
-				return null;
-			}
-		};
+                    @Override
+                    public Object map(Object value) throws Exception {
+                        return null;
+                    }
+                };
 
-		TypeInformation<?> info = ExecutionEnvironment.getExecutionEnvironment()
-				.fromElements("arbitrary", "data")
-				.map(function).returns(Types.STRING).getResultType();
+        TypeInformation<?> info =
+                ExecutionEnvironment.getExecutionEnvironment()
+                        .fromElements("arbitrary", "data")
+                        .map(function)
+                        .returns(Types.STRING)
+                        .getResultType();
 
-		assertEquals(Types.STRING, info);
-	}
+        assertThat(info).isEqualTo(Types.STRING);
+    }
 
-	@Test
-	public void testGetterSetterWithVertex() {
-		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		env.fromElements(new VertexTyped(0L, 3.0), new VertexTyped(1L, 1.0));
-	}
+    @Test
+    void testGetterSetterWithVertex() {
+        ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+        env.fromElements(new VertexTyped(0L, 3.0), new VertexTyped(1L, 1.0));
+    }
 
-	// ------------------------------------------------------------------------
-	//  Test types
-	// ------------------------------------------------------------------------
+    // ------------------------------------------------------------------------
+    //  Test types
+    // ------------------------------------------------------------------------
 
-	/**
-	 * Representation of Vertex with maximum of 2 keys and a value.
-	 * @param <K> keys type
-	 * @param <V> value type
-	 */
-	public static class Vertex<K, V> {
+    /**
+     * Representation of Vertex with maximum of 2 keys and a value.
+     *
+     * @param <K> keys type
+     * @param <V> value type
+     */
+    public static class Vertex<K, V> {
 
-		private K key1;
-		private K key2;
-		private V value;
+        private K key1;
+        private K key2;
+        private V value;
 
-		public Vertex() {}
+        public Vertex() {}
 
-		public Vertex(K key, V value) {
-			this.key1 = key;
-			this.key2 = key;
-			this.value = value;
-		}
+        public Vertex(K key, V value) {
+            this.key1 = key;
+            this.key2 = key;
+            this.value = value;
+        }
 
-		public Vertex(K key1, K key2, V value) {
-			this.key1 = key1;
-			this.key2 = key2;
-			this.value = value;
-		}
+        public Vertex(K key1, K key2, V value) {
+            this.key1 = key1;
+            this.key2 = key2;
+            this.value = value;
+        }
 
-		public void setKey1(K key1) {
-			this.key1 = key1;
-		}
+        public void setKey1(K key1) {
+            this.key1 = key1;
+        }
 
-		public void setKey2(K key2) {
-			this.key2 = key2;
-		}
+        public void setKey2(K key2) {
+            this.key2 = key2;
+        }
 
-		public K getKey1() {
-			return key1;
-		}
+        public K getKey1() {
+            return key1;
+        }
 
-		public K getKey2() {
-			return key2;
-		}
+        public K getKey2() {
+            return key2;
+        }
 
-		public void setValue(V value) {
-			this.value = value;
-		}
+        public void setValue(V value) {
+            this.value = value;
+        }
 
-		public V getValue() {
-			return value;
-		}
-	}
+        public V getValue() {
+            return value;
+        }
+    }
 
-	/**
-	 * A {@link Vertex} with {@link Long} as key and {@link Double} as value.
-	 */
-	public static class VertexTyped extends Vertex<Long, Double>{
-		public VertexTyped(Long l, Double d) {
-			super(l, d);
-		}
+    /** A {@link Vertex} with {@link Long} as key and {@link Double} as value. */
+    public static class VertexTyped extends Vertex<Long, Double> {
+        public VertexTyped(Long l, Double d) {
+            super(l, d);
+        }
 
-		public VertexTyped() {
-		}
-	}
+        public VertexTyped() {}
+    }
 }

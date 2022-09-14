@@ -26,25 +26,25 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.zip.InflaterInputStream;
 
-/**
- * Factory for input streams that decompress the "deflate" compression format.
- */
+/** Factory for input streams that decompress the "deflate" compression format. */
 @Internal
-public class DeflateInflaterInputStreamFactory implements InflaterInputStreamFactory<InflaterInputStream> {
+public class DeflateInflaterInputStreamFactory
+        implements InflaterInputStreamFactory<InflaterInputStream> {
 
-	private static final DeflateInflaterInputStreamFactory INSTANCE = new DeflateInflaterInputStreamFactory();
+    private static final DeflateInflaterInputStreamFactory INSTANCE =
+            new DeflateInflaterInputStreamFactory();
 
-	public static DeflateInflaterInputStreamFactory getInstance() {
-		return INSTANCE;
-	}
+    public static DeflateInflaterInputStreamFactory getInstance() {
+        return INSTANCE;
+    }
 
-	@Override
-	public InflaterInputStream create(InputStream in) throws IOException {
-		return new InflaterInputStream(in);
-	}
+    @Override
+    public InflaterInputStream create(InputStream in) throws IOException {
+        return new InflaterInputStream(in);
+    }
 
-	@Override
-	public Collection<String> getCommonFileExtensions() {
-		return Collections.singleton("deflate");
-	}
+    @Override
+    public Collection<String> getCommonFileExtensions() {
+        return Collections.singleton("deflate");
+    }
 }

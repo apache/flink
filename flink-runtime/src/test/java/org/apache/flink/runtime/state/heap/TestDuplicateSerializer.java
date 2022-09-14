@@ -28,91 +28,91 @@ import org.junit.Assert;
 import java.io.IOException;
 
 /**
- * This serializer can be used to test serializer duplication. The serializer that can be disabled. Duplicates are still
- * enabled, so we can check that serializers are duplicated.
+ * This serializer can be used to test serializer duplication. The serializer that can be disabled.
+ * Duplicates are still enabled, so we can check that serializers are duplicated.
  */
 public class TestDuplicateSerializer extends TypeSerializer<Integer> {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	private static final Integer ZERO = 0;
+    private static final Integer ZERO = 0;
 
-	private boolean disabled;
+    private boolean disabled;
 
-	public TestDuplicateSerializer() {
-		this.disabled = false;
-	}
+    public TestDuplicateSerializer() {
+        this.disabled = false;
+    }
 
-	@Override
-	public boolean isImmutableType() {
-		return true;
-	}
+    @Override
+    public boolean isImmutableType() {
+        return true;
+    }
 
-	@Override
-	public TypeSerializer<Integer> duplicate() {
-		return new TestDuplicateSerializer();
-	}
+    @Override
+    public TypeSerializer<Integer> duplicate() {
+        return new TestDuplicateSerializer();
+    }
 
-	@Override
-	public Integer createInstance() {
-		return ZERO;
-	}
+    @Override
+    public Integer createInstance() {
+        return ZERO;
+    }
 
-	@Override
-	public Integer copy(Integer from) {
-		return from;
-	}
+    @Override
+    public Integer copy(Integer from) {
+        return from;
+    }
 
-	@Override
-	public Integer copy(Integer from, Integer reuse) {
-		return from;
-	}
+    @Override
+    public Integer copy(Integer from, Integer reuse) {
+        return from;
+    }
 
-	@Override
-	public int getLength() {
-		return 4;
-	}
+    @Override
+    public int getLength() {
+        return 4;
+    }
 
-	@Override
-	public void serialize(Integer record, DataOutputView target) throws IOException {
-		Assert.assertFalse(disabled);
-		target.writeInt(record);
-	}
+    @Override
+    public void serialize(Integer record, DataOutputView target) throws IOException {
+        Assert.assertFalse(disabled);
+        target.writeInt(record);
+    }
 
-	@Override
-	public Integer deserialize(DataInputView source) throws IOException {
-		Assert.assertFalse(disabled);
-		return source.readInt();
-	}
+    @Override
+    public Integer deserialize(DataInputView source) throws IOException {
+        Assert.assertFalse(disabled);
+        return source.readInt();
+    }
 
-	@Override
-	public Integer deserialize(Integer reuse, DataInputView source) throws IOException {
-		Assert.assertFalse(disabled);
-		return deserialize(source);
-	}
+    @Override
+    public Integer deserialize(Integer reuse, DataInputView source) throws IOException {
+        Assert.assertFalse(disabled);
+        return deserialize(source);
+    }
 
-	@Override
-	public void copy(DataInputView source, DataOutputView target) throws IOException {
-		Assert.assertFalse(disabled);
-		target.writeInt(source.readInt());
-	}
+    @Override
+    public void copy(DataInputView source, DataOutputView target) throws IOException {
+        Assert.assertFalse(disabled);
+        target.writeInt(source.readInt());
+    }
 
-	@Override
-	public boolean equals(Object obj) {
-		return obj instanceof TestDuplicateSerializer;
-	}
+    @Override
+    public boolean equals(Object obj) {
+        return obj instanceof TestDuplicateSerializer;
+    }
 
-	@Override
-	public int hashCode() {
-		return getClass().hashCode();
-	}
+    @Override
+    public int hashCode() {
+        return getClass().hashCode();
+    }
 
-	public void disable() {
-		this.disabled = true;
-	}
+    public void disable() {
+        this.disabled = true;
+    }
 
-	@Override
-	public TypeSerializerSnapshot<Integer> snapshotConfiguration() {
-		throw new UnsupportedOperationException();
-	}
+    @Override
+    public TypeSerializerSnapshot<Integer> snapshotConfiguration() {
+        throw new UnsupportedOperationException();
+    }
 }

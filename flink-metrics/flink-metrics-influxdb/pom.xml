@@ -25,24 +25,16 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-metrics</artifactId>
-		<version>1.11-SNAPSHOT</version>
-		<relativePath>..</relativePath>
+		<version>1.17-SNAPSHOT</version>
 	</parent>
 
-	<artifactId>flink-metrics-influxdb_${scala.binary.version}</artifactId>
-	<name>flink-metrics-influxdb</name>
+	<artifactId>flink-metrics-influxdb</artifactId>
+	<name>Flink : Metrics : InfluxDB</name>
 
 	<dependencies>
 		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-core</artifactId>
-			<version>${project.version}</version>
-			<scope>provided</scope>
-		</dependency>
-
-		<dependency>
-			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-runtime_${scala.binary.version}</artifactId>
 			<version>${project.version}</version>
 			<scope>provided</scope>
 		</dependency>
@@ -57,7 +49,7 @@ under the License.
 		<dependency>
 			<groupId>org.influxdb</groupId>
 			<artifactId>influxdb-java</artifactId>
-			<version>2.16</version>
+			<version>2.17</version>
 		</dependency>
 
 		<!-- test dependencies -->
@@ -77,32 +69,11 @@ under the License.
 
 		<dependency>
 			<groupId>com.github.tomakehurst</groupId>
-			<artifactId>wiremock</artifactId>
-			<version>2.19.0</version>
+			<artifactId>wiremock-jre8</artifactId>
+			<version>2.32.0</version>
 			<scope>test</scope>
-			<exclusions>
-				<exclusion>
-					<groupId>org.slf4j</groupId>
-					<artifactId>slf4j-log4j12</artifactId>
-				</exclusion>
-			</exclusions>
 		</dependency>
 	</dependencies>
-
-	<dependencyManagement>
-		<dependencies>
-			<dependency>
-				<groupId>com.squareup.okhttp3</groupId>
-				<artifactId>okhttp</artifactId>
-				<version>3.11.0</version>
-			</dependency>
-			<dependency>
-				<groupId>com.squareup.okio</groupId>
-				<artifactId>okio</artifactId>
-				<version>1.14.0</version>
-			</dependency>
-		</dependencies>
-	</dependencyManagement>
 
 	<build>
 		<plugins>
@@ -127,28 +98,14 @@ under the License.
 									<!-- org.msgpack:msgpack-core is not required -->
 								</includes>
 							</artifactSet>
-							<relocations combine.children="append">
-								<relocation>
-									<pattern>org.influxdb</pattern>
-									<shadedPattern>org.apache.flink.metrics.influxdb.shaded.org.influxdb</shadedPattern>
-								</relocation>
-								<relocation>
-									<pattern>com.squareup.moshi</pattern>
-									<shadedPattern>org.apache.flink.metrics.influxdb.shaded.com.squareup.moshi</shadedPattern>
-								</relocation>
-								<relocation>
-									<pattern>okhttp3</pattern>
-									<shadedPattern>org.apache.flink.metrics.influxdb.shaded.okhttp3</shadedPattern>
-								</relocation>
-								<relocation>
-									<pattern>okio</pattern>
-									<shadedPattern>org.apache.flink.metrics.influxdb.shaded.okio</shadedPattern>
-								</relocation>
-								<relocation>
-									<pattern>retrofit2</pattern>
-									<shadedPattern>org.apache.flink.metrics.influxdb.shaded.retrofit2</shadedPattern>
-								</relocation>
-							</relocations>
+							<filters>
+								<filter>
+									<artifact>*</artifact>
+									<excludes>
+										<exclude>okhttp3/internal/publicsuffix/NOTICE</exclude>
+									</excludes>
+								</filter>
+							</filters>
 						</configuration>
 					</execution>
 				</executions>

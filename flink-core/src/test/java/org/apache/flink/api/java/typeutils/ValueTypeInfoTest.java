@@ -23,58 +23,50 @@ import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.types.Record;
 import org.apache.flink.types.Value;
-import org.junit.Assert;
-import org.junit.Test;
+
+import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 
-/**
- * Test for {@link ListTypeInfo}.
- */
-public class ValueTypeInfoTest extends TypeInformationTestBase<ValueTypeInfo<?>> {
+import static org.assertj.core.api.Assertions.assertThat;
 
-	@Override
-	protected ValueTypeInfo<?>[] getTestData() {
-		return new ValueTypeInfo<?>[] {
-			new ValueTypeInfo<>(TestClass.class),
-			new ValueTypeInfo<>(AlternativeClass.class),
-			new ValueTypeInfo<>(Record.class),
-		};
-	}
+/** Test for {@link ListTypeInfo}. */
+class ValueTypeInfoTest extends TypeInformationTestBase<ValueTypeInfo<?>> {
 
-	@Test
-	public void testValueTypeEqualsWithNull() throws Exception {
-		ValueTypeInfo<Record> tpeInfo = new ValueTypeInfo<>(Record.class);
+    @Override
+    protected ValueTypeInfo<?>[] getTestData() {
+        return new ValueTypeInfo<?>[] {
+            new ValueTypeInfo<>(TestClass.class),
+            new ValueTypeInfo<>(AlternativeClass.class),
+            new ValueTypeInfo<>(Record.class),
+        };
+    }
 
-		Assert.assertFalse(tpeInfo.equals(null));
-	}
+    @Test
+    void testValueTypeEqualsWithNull() {
+        ValueTypeInfo<Record> tpeInfo = new ValueTypeInfo<>(Record.class);
 
-	public static class TestClass implements Value {
-		private static final long serialVersionUID = -492760806806568285L;
+        assertThat(tpeInfo).isNotNull();
+    }
 
-		@Override
-		public void write(DataOutputView out) throws IOException {
+    public static class TestClass implements Value {
+        private static final long serialVersionUID = -492760806806568285L;
 
-		}
+        @Override
+        public void write(DataOutputView out) throws IOException {}
 
-		@Override
-		public void read(DataInputView in) throws IOException {
+        @Override
+        public void read(DataInputView in) throws IOException {}
+    }
 
-		}
-	}
+    public static class AlternativeClass implements Value {
 
-	public static class AlternativeClass implements Value {
+        private static final long serialVersionUID = -163437084575260172L;
 
-		private static final long serialVersionUID = -163437084575260172L;
+        @Override
+        public void write(DataOutputView out) throws IOException {}
 
-		@Override
-		public void write(DataOutputView out) throws IOException {
-
-		}
-
-		@Override
-		public void read(DataInputView in) throws IOException {
-
-		}
-	}
+        @Override
+        public void read(DataInputView in) throws IOException {}
+    }
 }

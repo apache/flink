@@ -28,63 +28,64 @@ import org.apache.flink.util.Preconditions;
  */
 public final class SessionEvent<K, V> {
 
-	// key of the session this event belongs to
-	private K sessionKey;
+    // key of the session this event belongs to
+    private K sessionKey;
 
-	// value of the event (payload)
-	private V eventValue;
+    // value of the event (payload)
+    private V eventValue;
 
-	// event timestamp (in ms)
-	private long eventTimestamp;
+    // event timestamp (in ms)
+    private long eventTimestamp;
 
-	public SessionEvent() {
-	}
+    public SessionEvent() {}
 
-	public SessionEvent(K sessionKey, V eventValue, long eventTimestamp) {
-		Preconditions.checkNotNull(sessionKey);
-		Preconditions.checkNotNull(eventValue);
-		setSessionKey(sessionKey);
-		setEventValue(eventValue);
-		setEventTimestamp(eventTimestamp);
-	}
+    public SessionEvent(K sessionKey, V eventValue, long eventTimestamp) {
+        Preconditions.checkNotNull(sessionKey);
+        Preconditions.checkNotNull(eventValue);
+        setSessionKey(sessionKey);
+        setEventValue(eventValue);
+        setEventTimestamp(eventTimestamp);
+    }
 
-	public K getSessionKey() {
-		return sessionKey;
-	}
+    public K getSessionKey() {
+        return sessionKey;
+    }
 
-	public void setSessionKey(K sessionKey) {
-		Preconditions.checkNotNull(sessionKey);
-		this.sessionKey = sessionKey;
-	}
+    public void setSessionKey(K sessionKey) {
+        Preconditions.checkNotNull(sessionKey);
+        this.sessionKey = sessionKey;
+    }
 
-	public V getEventValue() {
-		return eventValue;
-	}
+    public V getEventValue() {
+        return eventValue;
+    }
 
-	public void setEventValue(V eventValue) {
-		Preconditions.checkNotNull(eventValue);
-		this.eventValue = eventValue;
-	}
+    public void setEventValue(V eventValue) {
+        Preconditions.checkNotNull(eventValue);
+        this.eventValue = eventValue;
+    }
 
-	public long getEventTimestamp() {
-		return eventTimestamp;
-	}
+    public long getEventTimestamp() {
+        return eventTimestamp;
+    }
 
-	public void setEventTimestamp(long eventTimestamp) {
-		this.eventTimestamp = eventTimestamp;
-	}
+    public void setEventTimestamp(long eventTimestamp) {
+        this.eventTimestamp = eventTimestamp;
+    }
 
-	@Override
-	public String toString() {
-		return "SessionEvent{" +
-				"sessionKey=" + sessionKey +
-				", eventValue=" + eventValue +
-				", eventTimestamp=" + eventTimestamp +
-				'}';
-	}
+    @Override
+    public String toString() {
+        return "SessionEvent{"
+                + "sessionKey="
+                + sessionKey
+                + ", eventValue="
+                + eventValue
+                + ", eventTimestamp="
+                + eventTimestamp
+                + '}';
+    }
 
-	public static <K, V> SessionEvent<K, V> of(K sessionKey, V eventValue, long eventTimestamp) {
-		return new SessionEvent<>(sessionKey, eventValue, eventTimestamp);
-	}
-
+    public static <K, V> SessionEvent<K, V> of(K sessionKey, V eventValue, long eventTimestamp) {
+        return new SessionEvent<>(sessionKey, eventValue, eventTimestamp);
+    }
 }

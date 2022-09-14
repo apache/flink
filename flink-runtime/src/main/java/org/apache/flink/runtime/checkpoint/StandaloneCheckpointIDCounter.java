@@ -20,45 +20,50 @@ package org.apache.flink.runtime.checkpoint;
 
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.runtime.jobmanager.HighAvailabilityMode;
+import org.apache.flink.util.concurrent.FutureUtils;
 
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicLong;
 
 /**
- * {@link CheckpointIDCounter} instances for JobManagers running in {@link HighAvailabilityMode#NONE}.
+ * {@link CheckpointIDCounter} instances for JobManagers running in {@link
+ * HighAvailabilityMode#NONE}.
  *
  * <p>Simple wrapper around an {@link AtomicLong}.
  */
 public class StandaloneCheckpointIDCounter implements CheckpointIDCounter {
 
-	private final AtomicLong checkpointIdCounter = new AtomicLong(1);
+    private final AtomicLong checkpointIdCounter = new AtomicLong(INITIAL_CHECKPOINT_ID);
 
-	@Override
-	public void start() throws Exception {}
+    @Override
+    public void start() throws Exception {}
 
-	@Override
-	public void shutdown(JobStatus jobStatus) throws Exception {}
+    @Override
+    public CompletableFuture<Void> shutdown(JobStatus jobStatus) {
+        return FutureUtils.completedVoidFuture();
+    }
 
-	@Override
-	public long getAndIncrement() throws Exception {
-		return checkpointIdCounter.getAndIncrement();
-	}
+    @Override
+    public long getAndIncrement() throws Exception {
+        return checkpointIdCounter.getAndIncrement();
+    }
 
-	@Override
-	public long get() {
-		return checkpointIdCounter.get();
-	}
+    @Override
+    public long get() {
+        return checkpointIdCounter.get();
+    }
 
-	@Override
-	public void setCount(long newCount) {
-		checkpointIdCounter.set(newCount);
-	}
+    @Override
+    public void setCount(long newCount) {
+        checkpointIdCounter.set(newCount);
+    }
 
-	/**
-	 * Returns the last checkpoint ID (current - 1).
-	 *
-	 * @return Last checkpoint ID.
-	 */
-	public long getLast() {
-		return checkpointIdCounter.get() - 1;
-	}
+    /**
+     * Returns the last checkpoint ID (current - 1).
+     *
+     * @return Last checkpoint ID.
+     */
+    public long getLast() {
+        return checkpointIdCounter.get() - 1;
+    }
 }

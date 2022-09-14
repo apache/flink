@@ -16,35 +16,33 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.api.common.operators.util;
 
 import org.apache.flink.api.common.io.NonParallelInput;
 
 import java.io.IOException;
 
-/**
- * Test Non rich input format class which emits just five elements.
- */
-public class TestNonRichInputFormat extends NonRichGenericInputFormat<String> implements NonParallelInput{
+/** Test Non rich input format class which emits just five elements. */
+public class TestNonRichInputFormat extends NonRichGenericInputFormat<String>
+        implements NonParallelInput {
 
-	private static final long serialVersionUID = 1L;
-	private static final int NUM = 5;
-	private static final String[] NAMES = TestIOData.NAMES;
-	private int count = 0;
+    private static final long serialVersionUID = 1L;
+    private static final int NUM = 5;
+    private static final String[] NAMES = TestIOData.NAMES;
+    private int count = 0;
 
-	@Override
-	public boolean reachedEnd() throws IOException {
-		return count >= NUM;
-	}
+    @Override
+    public boolean reachedEnd() throws IOException {
+        return count >= NUM;
+    }
 
-	@Override
-	public String nextRecord(String reuse) throws IOException {
-		count++;
-		return NAMES[count - 1];
-	}
+    @Override
+    public String nextRecord(String reuse) throws IOException {
+        count++;
+        return NAMES[count - 1];
+    }
 
-	public void reset(){
-		count = 0;
-	}
+    public void reset() {
+        count = 0;
+    }
 }

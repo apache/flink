@@ -51,17 +51,40 @@ import java.util.List;
  * @param <T16> The type of field 16
  */
 @Public
-public class Tuple17Builder<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16> {
+public class Tuple17Builder<
+        T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16> {
 
-	private List<Tuple17<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16>> tuples = new ArrayList<>();
+    private List<Tuple17<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16>>
+            tuples = new ArrayList<>();
 
-	public Tuple17Builder<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16> add(T0 value0, T1 value1, T2 value2, T3 value3, T4 value4, T5 value5, T6 value6, T7 value7, T8 value8, T9 value9, T10 value10, T11 value11, T12 value12, T13 value13, T14 value14, T15 value15, T16 value16){
-		tuples.add(new Tuple17<>(value0, value1, value2, value3, value4, value5, value6, value7, value8, value9, value10, value11, value12, value13, value14, value15, value16));
-		return this;
-	}
+    public Tuple17Builder<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16>
+            add(
+                    T0 f0,
+                    T1 f1,
+                    T2 f2,
+                    T3 f3,
+                    T4 f4,
+                    T5 f5,
+                    T6 f6,
+                    T7 f7,
+                    T8 f8,
+                    T9 f9,
+                    T10 f10,
+                    T11 f11,
+                    T12 f12,
+                    T13 f13,
+                    T14 f14,
+                    T15 f15,
+                    T16 f16) {
+        tuples.add(
+                new Tuple17<>(
+                        f0, f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, f15, f16));
+        return this;
+    }
 
-	@SuppressWarnings("unchecked")
-	public Tuple17<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16>[] build(){
-		return tuples.toArray(new Tuple17[tuples.size()]);
-	}
+    @SuppressWarnings("unchecked")
+    public Tuple17<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16>[]
+            build() {
+        return tuples.toArray(new Tuple17[tuples.size()]);
+    }
 }

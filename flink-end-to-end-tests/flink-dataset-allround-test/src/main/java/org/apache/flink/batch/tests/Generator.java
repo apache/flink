@@ -31,118 +31,114 @@ import java.io.IOException;
 
 /**
  * InputFormat that generates a deterministic DataSet of Tuple2(String, Integer)
+ *
  * <ul>
- *     <li>String: key, can be repeated.</li>
- *     <li>Integer: uniformly distributed int between 0 and 127</li>
+ *   <li>String: key, can be repeated.
+ *   <li>Integer: uniformly distributed int between 0 and 127
  * </ul>
  */
 public class Generator implements InputFormat<Tuple2<String, Integer>, GenericInputSplit> {
 
-	// total number of records
-	private final long numRecords;
-	// total number of keys
-	private final long numKeys;
+    // total number of records
+    private final long numRecords;
+    // total number of keys
+    private final long numKeys;
 
-	// records emitted per partition
-	private long recordsPerPartition;
-	// number of keys per partition
-	private long keysPerPartition;
+    // records emitted per partition
+    private long recordsPerPartition;
+    // number of keys per partition
+    private long keysPerPartition;
 
-	// number of currently emitted records
-	private long recordCnt;
+    // number of currently emitted records
+    private long recordCnt;
 
-	// id of current partition
-	private int partitionId;
+    // id of current partition
+    private int partitionId;
 
-	private final boolean infinite;
+    private final boolean infinite;
 
-	public static Generator generate(long numKeys, int recordsPerKey) {
-		return new Generator(numKeys, recordsPerKey, false);
-	}
+    public static Generator generate(long numKeys, int recordsPerKey) {
+        return new Generator(numKeys, recordsPerKey, false);
+    }
 
-	public static Generator generateInfinitely(long numKeys) {
-		return new Generator(numKeys, 0, true);
-	}
+    public static Generator generateInfinitely(long numKeys) {
+        return new Generator(numKeys, 0, true);
+    }
 
-	private Generator(long numKeys, int recordsPerKey, boolean infinite) {
-		this.numKeys = numKeys;
-		if (infinite) {
-			this.numRecords = Long.MAX_VALUE;
-		} else {
-			this.numRecords = numKeys * recordsPerKey;
-		}
-		this.infinite = infinite;
-	}
+    private Generator(long numKeys, int recordsPerKey, boolean infinite) {
+        this.numKeys = numKeys;
+        if (infinite) {
+            this.numRecords = Long.MAX_VALUE;
+        } else {
+            this.numRecords = numKeys * recordsPerKey;
+        }
+        this.infinite = infinite;
+    }
 
-	@Override
-	public void configure(Configuration parameters) {
-	}
+    @Override
+    public void configure(Configuration parameters) {}
 
-	@Override
-	public BaseStatistics getStatistics(BaseStatistics cachedStatistics) {
-		return null;
-	}
+    @Override
+    public BaseStatistics getStatistics(BaseStatistics cachedStatistics) {
+        return null;
+    }
 
-	@Override
-	public GenericInputSplit[] createInputSplits(int minNumSplits) {
+    @Override
+    public GenericInputSplit[] createInputSplits(int minNumSplits) {
 
-		GenericInputSplit[] splits = new GenericInputSplit[minNumSplits];
-		for (int i = 0; i < minNumSplits; i++) {
-			splits[i] = new GenericInputSplit(i, minNumSplits);
-		}
-		return splits;
-	}
+        GenericInputSplit[] splits = new GenericInputSplit[minNumSplits];
+        for (int i = 0; i < minNumSplits; i++) {
+            splits[i] = new GenericInputSplit(i, minNumSplits);
+        }
+        return splits;
+    }
 
-	@Override
-	public InputSplitAssigner getInputSplitAssigner(GenericInputSplit[] inputSplits) {
-		return new DefaultInputSplitAssigner(inputSplits);
-	}
+    @Override
+    public InputSplitAssigner getInputSplitAssigner(GenericInputSplit[] inputSplits) {
+        return new DefaultInputSplitAssigner(inputSplits);
+    }
 
-	@Override
-	public void open(GenericInputSplit split) throws IOException {
-		this.partitionId = split.getSplitNumber();
-		// total number of partitions
-		int numPartitions = split.getTotalNumberOfSplits();
+    @Override
+    public void open(GenericInputSplit split) throws IOException {
+        this.partitionId = split.getSplitNumber();
+        // total number of partitions
+        int numPartitions = split.getTotalNumberOfSplits();
 
-		// ensure even distribution of records and keys
-		Preconditions.checkArgument(
-			numRecords % numPartitions == 0,
-			"Records cannot be evenly distributed among partitions");
-		Preconditions.checkArgument(
-			numKeys % numPartitions == 0,
-			"Keys cannot be evenly distributed among partitions");
+        // ensure even distribution of records and keys
+        Preconditions.checkArgument(
+                numRecords % numPartitions == 0,
+                "Records cannot be evenly distributed among partitions");
+        Preconditions.checkArgument(
+                numKeys % numPartitions == 0, "Keys cannot be evenly distributed among partitions");
 
-		this.recordsPerPartition = numRecords / numPartitions;
-		this.keysPerPartition = numKeys / numPartitions;
+        this.recordsPerPartition = numRecords / numPartitions;
+        this.keysPerPartition = numKeys / numPartitions;
 
-		this.recordCnt = 0;
-	}
+        this.recordCnt = 0;
+    }
 
-	@Override
-	public boolean reachedEnd() {
-		return !infinite && this.recordCnt >= this.recordsPerPartition;
-	}
+    @Override
+    public boolean reachedEnd() {
+        return !infinite && this.recordCnt >= this.recordsPerPartition;
+    }
 
-	@Override
-	public Tuple2<String, Integer> nextRecord(Tuple2<String, Integer> reuse) throws IOException {
+    @Override
+    public Tuple2<String, Integer> nextRecord(Tuple2<String, Integer> reuse) throws IOException {
 
-		// build key from partition id and count per partition
-		String key = String.format(
-			"%d-%d",
-			this.partitionId,
-			this.recordCnt % this.keysPerPartition);
+        // build key from partition id and count per partition
+        String key =
+                String.format("%d-%d", this.partitionId, this.recordCnt % this.keysPerPartition);
 
-		// 128 values to filter on
-		int filterVal = (int) this.recordCnt % 128;
+        // 128 values to filter on
+        int filterVal = (int) this.recordCnt % 128;
 
-		this.recordCnt++;
+        this.recordCnt++;
 
-		reuse.f0 = key;
-		reuse.f1 = filterVal;
-		return reuse;
-	}
+        reuse.f0 = key;
+        reuse.f1 = filterVal;
+        return reuse;
+    }
 
-	@Override
-	public void close() {
-	}
+    @Override
+    public void close() {}
 }

@@ -17,30 +17,36 @@
  */
 package org.apache.flink.streaming.api.scala.function
 
-import java.io.Serializable
-
 import org.apache.flink.annotation.Public
 import org.apache.flink.api.common.functions.Function
 import org.apache.flink.streaming.api.windowing.windows.Window
 import org.apache.flink.util.Collector
 
+import java.io.Serializable
+
 /**
  * Base interface for functions that are evaluated over non-grouped windows,
  * i.e., windows over all stream partitions.
  *
- * @tparam IN The type of the input value.
- * @tparam OUT The type of the output value.
+ * @tparam IN
+ *   The type of the input value.
+ * @tparam OUT
+ *   The type of the output value.
  */
 @Public
 trait AllWindowFunction[IN, OUT, W <: Window] extends Function with Serializable {
 
   /**
-    * Evaluates the window and outputs none or several elements.
-    *
-    * @param window The window that is being evaluated.
-    * @param input  The elements in the window being evaluated.
-    * @param out    A collector for emitting elements.
-    * @throws Exception The function may throw exceptions to fail the program and trigger recovery.
-    */
+   * Evaluates the window and outputs none or several elements.
+   *
+   * @param window
+   *   The window that is being evaluated.
+   * @param input
+   *   The elements in the window being evaluated.
+   * @param out
+   *   A collector for emitting elements.
+   * @throws Exception
+   *   The function may throw exceptions to fail the program and trigger recovery.
+   */
   def apply(window: W, input: Iterable[IN], out: Collector[OUT])
 }

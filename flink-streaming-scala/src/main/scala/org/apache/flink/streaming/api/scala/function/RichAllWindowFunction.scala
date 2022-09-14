@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.streaming.api.scala.function
 
 import org.apache.flink.api.common.functions.AbstractRichFunction
@@ -25,12 +24,15 @@ import org.apache.flink.streaming.api.windowing.windows.Window
  * Rich variant of the [[org.apache.flink.streaming.api.scala.function.AllWindowFunction]].
  *
  * As a [[org.apache.flink.api.common.functions.RichFunction]], it gives access to the
- * [[org.apache.flink.api.common.functions.RuntimeContext]] and provides setup
- * and tear-down methods.
+ * [[org.apache.flink.api.common.functions.RuntimeContext]] and provides setup and tear-down
+ * methods.
  *
- * @tparam IN The type of the input value.
- * @tparam OUT The type of the output value.
- * @tparam W The type of Window that this window function can be applied on.
+ * @tparam IN
+ *   The type of the input value.
+ * @tparam OUT
+ *   The type of the output value.
+ * @tparam W
+ *   The type of Window that this window function can be applied on.
  */
 abstract class RichAllWindowFunction[IN, OUT, W <: Window]
   extends AbstractRichFunction

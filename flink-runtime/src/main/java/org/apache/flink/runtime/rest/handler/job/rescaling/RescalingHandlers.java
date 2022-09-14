@@ -35,84 +35,93 @@ import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseSt
 
 import javax.annotation.Nonnull;
 
+import java.time.Duration;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
-/**
- * Rest handler to trigger and poll the rescaling of a running job.
- */
-public class RescalingHandlers extends AbstractAsynchronousOperationHandlers<AsynchronousJobOperationKey, Acknowledge> {
+/** Rest handler to trigger and poll the rescaling of a running job. */
+public class RescalingHandlers
+        extends AbstractAsynchronousOperationHandlers<AsynchronousJobOperationKey, Acknowledge> {
 
-	private static RestHandlerException featureDisabledException() {
-		return new RestHandlerException("Rescaling is temporarily disabled. See FLINK-12312.", HttpResponseStatus.SERVICE_UNAVAILABLE);
-	}
+    public RescalingHandlers(Duration cacheDuration) {
+        super(cacheDuration);
+    }
 
-	/**
-	 * Handler which triggers the rescaling of the specified job.
-	 */
-	public class RescalingTriggerHandler extends TriggerHandler<RestfulGateway, EmptyRequestBody, RescalingTriggerMessageParameters> {
+    private static RestHandlerException featureDisabledException() {
+        return new RestHandlerException(
+                "Rescaling is temporarily disabled. See FLINK-12312.",
+                HttpResponseStatus.SERVICE_UNAVAILABLE);
+    }
 
-		public RescalingTriggerHandler(
-				GatewayRetriever<? extends RestfulGateway> leaderRetriever,
-				Time timeout,
-				Map<String, String> responseHeaders) {
-			super(
-				leaderRetriever,
-				timeout,
-				responseHeaders,
-				RescalingTriggerHeaders.getInstance());
-		}
+    /** Handler which triggers the rescaling of the specified job. */
+    public class RescalingTriggerHandler
+            extends TriggerHandler<
+                    RestfulGateway, EmptyRequestBody, RescalingTriggerMessageParameters> {
 
-		@Override
-		public CompletableFuture<TriggerResponse> handleRequest(@Nonnull final HandlerRequest<EmptyRequestBody, RescalingTriggerMessageParameters> request, @Nonnull final RestfulGateway gateway) throws RestHandlerException {
-			throw featureDisabledException();
-		}
+        public RescalingTriggerHandler(
+                GatewayRetriever<? extends RestfulGateway> leaderRetriever,
+                Time timeout,
+                Map<String, String> responseHeaders) {
+            super(leaderRetriever, timeout, responseHeaders, RescalingTriggerHeaders.getInstance());
+        }
 
-		@Override
-		protected CompletableFuture<Acknowledge> triggerOperation(HandlerRequest<EmptyRequestBody, RescalingTriggerMessageParameters> request, RestfulGateway gateway) {
-			throw new UnsupportedOperationException();
-		}
+        @Override
+        public CompletableFuture<TriggerResponse> handleRequest(
+                @Nonnull final HandlerRequest<EmptyRequestBody> request,
+                @Nonnull final RestfulGateway gateway)
+                throws RestHandlerException {
+            throw featureDisabledException();
+        }
 
-		@Override
-		protected AsynchronousJobOperationKey createOperationKey(HandlerRequest<EmptyRequestBody, RescalingTriggerMessageParameters> request) {
-			throw new UnsupportedOperationException();
-		}
-	}
+        @Override
+        protected CompletableFuture<Acknowledge> triggerOperation(
+                HandlerRequest<EmptyRequestBody> request, RestfulGateway gateway) {
+            throw new UnsupportedOperationException();
+        }
 
-	/**
-	 * Handler which reports the status of the rescaling operation.
-	 */
-	public class RescalingStatusHandler extends StatusHandler<RestfulGateway, AsynchronousOperationInfo, RescalingStatusMessageParameters> {
+        @Override
+        protected AsynchronousJobOperationKey createOperationKey(
+                HandlerRequest<EmptyRequestBody> request) {
+            throw new UnsupportedOperationException();
+        }
+    }
 
-		public RescalingStatusHandler(
-			GatewayRetriever<? extends RestfulGateway> leaderRetriever,
-			Time timeout,
-			Map<String, String> responseHeaders) {
-			super(
-				leaderRetriever,
-				timeout,
-				responseHeaders,
-				RescalingStatusHeaders.getInstance());
-		}
+    /** Handler which reports the status of the rescaling operation. */
+    public class RescalingStatusHandler
+            extends StatusHandler<
+                    RestfulGateway, AsynchronousOperationInfo, RescalingStatusMessageParameters> {
 
-		@Override
-		public CompletableFuture<AsynchronousOperationResult<AsynchronousOperationInfo>> handleRequest(@Nonnull final HandlerRequest<EmptyRequestBody, RescalingStatusMessageParameters> request, @Nonnull final RestfulGateway gateway) throws RestHandlerException {
-			throw featureDisabledException();
-		}
+        public RescalingStatusHandler(
+                GatewayRetriever<? extends RestfulGateway> leaderRetriever,
+                Time timeout,
+                Map<String, String> responseHeaders) {
+            super(leaderRetriever, timeout, responseHeaders, RescalingStatusHeaders.getInstance());
+        }
 
-		@Override
-		protected AsynchronousJobOperationKey getOperationKey(HandlerRequest<EmptyRequestBody, RescalingStatusMessageParameters> request) {
-			throw new UnsupportedOperationException();
-		}
+        @Override
+        public CompletableFuture<AsynchronousOperationResult<AsynchronousOperationInfo>>
+                handleRequest(
+                        @Nonnull final HandlerRequest<EmptyRequestBody> request,
+                        @Nonnull final RestfulGateway gateway)
+                        throws RestHandlerException {
+            throw featureDisabledException();
+        }
 
-		@Override
-		protected AsynchronousOperationInfo exceptionalOperationResultResponse(Throwable throwable) {
-			throw new UnsupportedOperationException();
-		}
+        @Override
+        protected AsynchronousJobOperationKey getOperationKey(
+                HandlerRequest<EmptyRequestBody> request) {
+            throw new UnsupportedOperationException();
+        }
 
-		@Override
-		protected AsynchronousOperationInfo operationResultResponse(Acknowledge operationResult) {
-			throw new UnsupportedOperationException();
-		}
-	}
+        @Override
+        protected AsynchronousOperationInfo exceptionalOperationResultResponse(
+                Throwable throwable) {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        protected AsynchronousOperationInfo operationResultResponse(Acknowledge operationResult) {
+            throw new UnsupportedOperationException();
+        }
+    }
 }

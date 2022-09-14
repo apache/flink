@@ -19,14 +19,24 @@
 package org.apache.flink.runtime.io.network.api.reader;
 
 import org.apache.flink.core.io.IOReadableWritable;
+import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriter;
+import org.apache.flink.runtime.checkpoint.channel.InputChannelInfo;
 import org.apache.flink.runtime.io.network.api.serialization.RecordDeserializer;
 import org.apache.flink.runtime.io.network.api.serialization.RecordDeserializer.DeserializationResult;
 import org.apache.flink.runtime.io.network.api.serialization.SpillingAdaptiveSpanningRecordDeserializer;
-import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.partition.consumer.BufferOrEvent;
 import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
+import org.apache.flink.util.Preconditions;
+
+import javax.annotation.Nullable;
 
 import java.io.IOException;
+import java.util.IdentityHashMap;
+import java.util.Map;
+import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 /**
  * A record-oriented reader.
@@ -35,92 +45,124 @@ import java.io.IOException;
  *
  * @param <T> The type of the record that can be read with this record reader.
  */
-abstract class AbstractRecordReader<T extends IOReadableWritable> extends AbstractReader implements ReaderBase {
+abstract class AbstractRecordReader<T extends IOReadableWritable> extends AbstractReader
+        implements ReaderBase {
 
-	private final RecordDeserializer<T>[] recordDeserializers;
+    private final Map<InputChannelInfo, RecordDeserializer<T>> recordDeserializers;
 
-	private RecordDeserializer<T> currentRecordDeserializer;
+    private final Map<RecordDeserializer<T>, Boolean> partialData = new IdentityHashMap<>();
 
-	private boolean isFinished;
+    @Nullable private RecordDeserializer<T> currentRecordDeserializer;
 
-	/**
-	 * Creates a new AbstractRecordReader that de-serializes records from the given input gate and
-	 * can spill partial records to disk, if they grow large.
-	 *
-	 * @param inputGate The input gate to read from.
-	 * @param tmpDirectories The temp directories. USed for spilling if the reader concurrently
-	 *                       reconstructs multiple large records.
-	 */
-	@SuppressWarnings("unchecked")
-	protected AbstractRecordReader(InputGate inputGate, String[] tmpDirectories) {
-		super(inputGate);
+    private boolean finishedStateReading;
 
-		// Initialize one deserializer per input channel
-		this.recordDeserializers = new SpillingAdaptiveSpanningRecordDeserializer[inputGate.getNumberOfInputChannels()];
-		for (int i = 0; i < recordDeserializers.length; i++) {
-			recordDeserializers[i] = new SpillingAdaptiveSpanningRecordDeserializer<T>(tmpDirectories);
-		}
-	}
+    private boolean requestedPartitions;
 
-	protected boolean getNextRecord(T target) throws IOException, InterruptedException {
-		if (isFinished) {
-			return false;
-		}
+    private boolean isFinished;
 
-		while (true) {
-			if (currentRecordDeserializer != null) {
-				DeserializationResult result = currentRecordDeserializer.getNextRecord(target);
+    /**
+     * Creates a new AbstractRecordReader that de-serializes records from the given input gate and
+     * can spill partial records to disk, if they grow large.
+     *
+     * @param inputGate The input gate to read from.
+     * @param tmpDirectories The temp directories. USed for spilling if the reader concurrently
+     *     reconstructs multiple large records.
+     */
+    @SuppressWarnings("unchecked")
+    protected AbstractRecordReader(InputGate inputGate, String[] tmpDirectories) {
+        super(inputGate);
 
-				if (result.isBufferConsumed()) {
-					final Buffer currentBuffer = currentRecordDeserializer.getCurrentBuffer();
+        // Initialize one deserializer per input channel
+        recordDeserializers =
+                inputGate.getChannelInfos().stream()
+                        .collect(
+                                Collectors.toMap(
+                                        Function.identity(),
+                                        channelInfo ->
+                                                new SpillingAdaptiveSpanningRecordDeserializer<>(
+                                                        tmpDirectories)));
+        for (RecordDeserializer<T> serializer : recordDeserializers.values()) {
+            partialData.put(serializer, Boolean.FALSE);
+        }
+    }
 
-					currentBuffer.recycleBuffer();
-					currentRecordDeserializer = null;
-				}
+    protected boolean getNextRecord(T target) throws IOException, InterruptedException {
+        // The action of partition request was removed from InputGate#setup since FLINK-16536, and
+        // this is the only
+        // unified way for launching partition request for batch jobs. In order to avoid potential
+        // performance concern,
+        // we might consider migrating this action back to the setup based on some condition
+        // judgement future.
+        if (!finishedStateReading) {
+            inputGate.finishReadRecoveredState();
+            finishedStateReading = true;
+        }
 
-				if (result.isFullRecord()) {
-					return true;
-				}
-			}
+        if (!requestedPartitions) {
+            CompletableFuture<Void> stateConsumedFuture = inputGate.getStateConsumedFuture();
+            while (!stateConsumedFuture.isDone()) {
+                Optional<BufferOrEvent> polled = inputGate.pollNext();
+                Preconditions.checkState(!polled.isPresent());
+            }
+            inputGate.setChannelStateWriter(ChannelStateWriter.NO_OP);
+            inputGate.requestPartitions();
+            requestedPartitions = true;
+        }
 
-			final BufferOrEvent bufferOrEvent = inputGate.getNext().orElseThrow(IllegalStateException::new);
+        if (isFinished) {
+            return false;
+        }
 
-			if (bufferOrEvent.isBuffer()) {
-				currentRecordDeserializer = recordDeserializers[bufferOrEvent.getChannelIndex()];
-				currentRecordDeserializer.setNextBuffer(bufferOrEvent.getBuffer());
-			}
-			else {
-				// sanity check for leftover data in deserializers. events should only come between
-				// records, not in the middle of a fragment
-				if (recordDeserializers[bufferOrEvent.getChannelIndex()].hasUnfinishedData()) {
-					throw new IOException(
-							"Received an event in channel " + bufferOrEvent.getChannelIndex() + " while still having "
-							+ "data from a record. This indicates broken serialization logic. "
-							+ "If you are using custom serialization code (Writable or Value types), check their "
-							+ "serialization routines. In the case of Kryo, check the respective Kryo serializer.");
-				}
+        while (true) {
+            if (currentRecordDeserializer != null) {
+                DeserializationResult result = currentRecordDeserializer.getNextRecord(target);
 
-				if (handleEvent(bufferOrEvent.getEvent())) {
-					if (inputGate.isFinished()) {
-						isFinished = true;
-						return false;
-					}
-					else if (hasReachedEndOfSuperstep()) {
-						return false;
-					}
-					// else: More data is coming...
-				}
-			}
-		}
-	}
+                if (result.isBufferConsumed()) {
+                    partialData.put(currentRecordDeserializer, Boolean.FALSE);
+                    currentRecordDeserializer = null;
+                }
 
-	public void clearBuffers() {
-		for (RecordDeserializer<?> deserializer : recordDeserializers) {
-			Buffer buffer = deserializer.getCurrentBuffer();
-			if (buffer != null && !buffer.isRecycled()) {
-				buffer.recycleBuffer();
-			}
-			deserializer.clear();
-		}
-	}
+                if (result.isFullRecord()) {
+                    return true;
+                }
+            }
+
+            final BufferOrEvent bufferOrEvent =
+                    inputGate.getNext().orElseThrow(IllegalStateException::new);
+
+            if (bufferOrEvent.isBuffer()) {
+                currentRecordDeserializer = recordDeserializers.get(bufferOrEvent.getChannelInfo());
+                currentRecordDeserializer.setNextBuffer(bufferOrEvent.getBuffer());
+                partialData.put(currentRecordDeserializer, Boolean.TRUE);
+            } else {
+                // sanity check for leftover data in deserializers. events should only come between
+                // records, not in the middle of a fragment
+                if (partialData.get(recordDeserializers.get(bufferOrEvent.getChannelInfo()))) {
+                    throw new IOException(
+                            "Received an event in channel "
+                                    + bufferOrEvent.getChannelInfo()
+                                    + " while still having "
+                                    + "data from a record. This indicates broken serialization logic. "
+                                    + "If you are using custom serialization code (Writable or Value types), check their "
+                                    + "serialization routines. In the case of Kryo, check the respective Kryo serializer.");
+                }
+
+                if (handleEvent(bufferOrEvent.getEvent())) {
+                    if (inputGate.isFinished()) {
+                        isFinished = true;
+                        return false;
+                    } else if (hasReachedEndOfSuperstep()) {
+                        return false;
+                    }
+                    // else: More data is coming...
+                }
+            }
+        }
+    }
+
+    public void clearBuffers() {
+        for (RecordDeserializer<?> deserializer : recordDeserializers.values()) {
+            deserializer.clear();
+        }
+    }
 }

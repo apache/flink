@@ -15,70 +15,59 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.types.extraction
-
-import java.util.Optional
 
 import org.apache.flink.table.annotation.{DataTypeHint, FunctionHint}
 import org.apache.flink.table.api.DataTypes
 import org.apache.flink.table.functions.ScalarFunction
 import org.apache.flink.table.types.extraction.TypeInferenceExtractorTest.TestSpec
 import org.apache.flink.table.types.inference.{ArgumentTypeStrategy, InputTypeStrategies, TypeStrategies}
-import org.hamcrest.CoreMatchers.equalTo
-import org.junit.Assert.assertThat
-import org.junit.rules.ExpectedException
-import org.junit.runner.RunWith
-import org.junit.runners.Parameterized
-import org.junit.runners.Parameterized.Parameters
-import org.junit.{Rule, Test}
 
-import scala.annotation.meta.getter
+import org.assertj.core.api.AssertionsForClassTypes.assertThat
+import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.MethodSource
 
-/**
- * Scala tests for [[TypeInferenceExtractor]].
- */
-@RunWith(classOf[Parameterized])
-class TypeInferenceExtractorScalaTest(testSpec: TestSpec) {
+import java.util.{stream, Optional}
 
-  @(Rule @getter)
-  var thrown: ExpectedException = ExpectedException.none
+import scala.annotation.varargs
 
-  @Test
-  def testArgumentNames(): Unit = {
+/** Scala tests for [[TypeInferenceExtractor]]. */
+class TypeInferenceExtractorScalaTest {
+
+  @ParameterizedTest
+  @MethodSource(Array("testData"))
+  def testArgumentNames(testSpec: TestSpec): Unit = {
     if (testSpec.expectedArgumentNames != null) {
-      assertThat(
-        testSpec.typeInferenceExtraction.get.getNamedArguments,
-        equalTo(Optional.of(testSpec.expectedArgumentNames)))
+      assertThat(testSpec.typeInferenceExtraction.get.getNamedArguments)
+        .isEqualTo(Optional.of(testSpec.expectedArgumentNames))
     }
   }
 
-  @Test
-  def testArgumentTypes(): Unit = {
+  @ParameterizedTest
+  @MethodSource(Array("testData"))
+  def testArgumentTypes(testSpec: TestSpec): Unit = {
     if (testSpec.expectedArgumentTypes != null) {
-      assertThat(
-        testSpec.typeInferenceExtraction.get.getTypedArguments,
-        equalTo(Optional.of(testSpec.expectedArgumentTypes)))
+      assertThat(testSpec.typeInferenceExtraction.get.getTypedArguments)
+        .isEqualTo(Optional.of(testSpec.expectedArgumentTypes))
     }
   }
 
-  @Test
-  def testOutputTypeStrategy(): Unit = {
+  @ParameterizedTest
+  @MethodSource(Array("testData"))
+  def testOutputTypeStrategy(testSpec: TestSpec): Unit = {
     if (!testSpec.expectedOutputStrategies.isEmpty) {
-      assertThat(
-        testSpec.typeInferenceExtraction.get.getOutputTypeStrategy,
-        equalTo(TypeStrategies.mapping(testSpec.expectedOutputStrategies)))
+      assertThat(testSpec.typeInferenceExtraction.get.getOutputTypeStrategy)
+        .isEqualTo(TypeStrategies.mapping(testSpec.expectedOutputStrategies))
     }
   }
 }
 
 object TypeInferenceExtractorScalaTest {
 
-  @Parameters
-  def testData: Array[TestSpec] = Array(
-
+  def testData: stream.Stream[TestSpec] = java.util.stream.Stream.of(
     // Scala function with data type hint
-    TestSpec.forScalarFunction(classOf[ScalaScalarFunction])
+    TestSpec
+      .forScalarFunction(classOf[ScalaScalarFunction])
       .expectNamedArguments("i", "s", "d")
       .expectTypedArguments(
         DataTypes.INT.notNull().bridgedTo(classOf[Int]),
@@ -90,11 +79,54 @@ object TypeInferenceExtractorScalaTest {
           Array[ArgumentTypeStrategy](
             InputTypeStrategies.explicit(DataTypes.INT.notNull().bridgedTo(classOf[Int])),
             InputTypeStrategies.explicit(DataTypes.STRING),
-            InputTypeStrategies.explicit(DataTypes.DECIMAL(10, 4)))),
-        TypeStrategies.explicit(DataTypes.BOOLEAN.notNull().bridgedTo(classOf[Boolean]))),
+            InputTypeStrategies.explicit(DataTypes.DECIMAL(10, 4))
+          )
+        ),
+        TypeStrategies.explicit(DataTypes.BOOLEAN.notNull().bridgedTo(classOf[Boolean]))
+      ),
+    TestSpec
+      .forScalarFunction(classOf[ScalaPrimitiveVarArgScalarFunction])
+      .expectOutputMapping(
+        InputTypeStrategies.varyingSequence(
+          Array[String]("i", "s", "d"),
+          Array[ArgumentTypeStrategy](
+            InputTypeStrategies.explicit(DataTypes.INT.notNull().bridgedTo(classOf[Int])),
+            InputTypeStrategies.explicit(DataTypes.STRING),
+            InputTypeStrategies.explicit(DataTypes.DOUBLE().notNull().bridgedTo(classOf[Double]))
+          )
+        ),
+        TypeStrategies.explicit(DataTypes.BOOLEAN.notNull().bridgedTo(classOf[Boolean]))
+      ),
+    TestSpec
+      .forScalarFunction(classOf[ScalaBoxedVarArgScalarFunction])
+      .expectOutputMapping(
+        InputTypeStrategies.varyingSequence(
+          Array[String]("i", "s", "d"),
+          Array[ArgumentTypeStrategy](
+            InputTypeStrategies.explicit(DataTypes.INT.notNull().bridgedTo(classOf[Int])),
+            InputTypeStrategies.explicit(DataTypes.STRING),
+            InputTypeStrategies.explicit(DataTypes.DOUBLE())
+          )
+        ),
+        TypeStrategies.explicit(DataTypes.BOOLEAN.notNull().bridgedTo(classOf[Boolean]))
+      ),
+    TestSpec
+      .forScalarFunction(classOf[ScalaHintVarArgScalarFunction])
+      .expectOutputMapping(
+        InputTypeStrategies.varyingSequence(
+          Array[String]("i", "s", "d"),
+          Array[ArgumentTypeStrategy](
+            InputTypeStrategies.explicit(DataTypes.INT.notNull().bridgedTo(classOf[Int])),
+            InputTypeStrategies.explicit(DataTypes.STRING),
+            InputTypeStrategies.explicit(DataTypes.DECIMAL(10, 4))
+          )
+        ),
+        TypeStrategies.explicit(DataTypes.BOOLEAN.notNull().bridgedTo(classOf[Boolean]))
+      ),
 
     // global output hint with local input overloading
-    TestSpec.forScalarFunction(classOf[ScalaGlobalOutputFunctionHint])
+    TestSpec
+      .forScalarFunction(classOf[ScalaGlobalOutputFunctionHint])
       .expectOutputMapping(
         InputTypeStrategies.sequence(InputTypeStrategies.explicit(DataTypes.INT)),
         TypeStrategies.explicit(DataTypes.INT))
@@ -108,10 +140,8 @@ object TypeInferenceExtractorScalaTest {
   // ----------------------------------------------------------------------------------------------
 
   private class ScalaScalarFunction extends ScalarFunction {
-    def eval(
-      i: Int,
-      s: String,
-      @DataTypeHint("DECIMAL(10, 4)") d: java.math.BigDecimal): Boolean = false
+    def eval(i: Int, s: String, @DataTypeHint("DECIMAL(10, 4)") d: java.math.BigDecimal): Boolean =
+      false
   }
 
   @FunctionHint(output = new DataTypeHint("INT"))
@@ -121,5 +151,23 @@ object TypeInferenceExtractorScalaTest {
 
     @FunctionHint(input = Array(new DataTypeHint("STRING")))
     def eval(n: String): Integer = null
+  }
+
+  private class ScalaPrimitiveVarArgScalarFunction extends ScalarFunction {
+    @varargs
+    def eval(i: Int, s: String, d: Double*): Boolean = false
+  }
+
+  private class ScalaBoxedVarArgScalarFunction extends ScalarFunction {
+    @varargs
+    def eval(i: Int, s: String, d: java.lang.Double*): Boolean = false
+  }
+
+  private class ScalaHintVarArgScalarFunction extends ScalarFunction {
+    @varargs
+    def eval(
+        i: Int,
+        s: String,
+        @DataTypeHint("ARRAY<DECIMAL(10, 4)>") d: java.math.BigDecimal*): Boolean = false
   }
 }

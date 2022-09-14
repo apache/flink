@@ -27,12 +27,11 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-state-backends</artifactId>
-		<version>1.11-SNAPSHOT</version>
-		<relativePath>..</relativePath>
+		<version>1.17-SNAPSHOT</version>
 	</parent>
 
-	<artifactId>flink-statebackend-rocksdb_${scala.binary.version}</artifactId>
-	<name>flink-statebackend-rocksdb</name>
+	<artifactId>flink-statebackend-rocksdb</artifactId>
+	<name>Flink : State backends : RocksDB</name>
 
 	<packaging>jar</packaging>
 
@@ -42,22 +41,22 @@ under the License.
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-streaming-java_${scala.binary.version}</artifactId>
+			<artifactId>flink-streaming-java</artifactId>
 			<version>${project.version}</version>
 			<scope>provided</scope>
 		</dependency>
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-clients_${scala.binary.version}</artifactId>
+			<artifactId>flink-clients</artifactId>
 			<version>${project.version}</version>
 			<scope>provided</scope>
 		</dependency>
 
 		<dependency>
-			<groupId>com.data-artisans</groupId>
+			<groupId>com.ververica</groupId>
 			<artifactId>frocksdbjni</artifactId>
-			<version>5.17.2-artisans-2.0</version>
+			<version>6.20.3-ververica-1.0</version>
 		</dependency>
 
 		<!-- test dependencies -->
@@ -69,14 +68,14 @@ under the License.
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-streaming-java_${scala.binary.version}</artifactId>
+			<artifactId>flink-streaming-java</artifactId>
 			<version>${project.version}</version>
 			<type>test-jar</type>
 			<scope>test</scope>
 		</dependency>
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-runtime_${scala.binary.version}</artifactId>
+			<artifactId>flink-runtime</artifactId>
 			<version>${project.version}</version>
 			<type>test-jar</type>
 			<scope>test</scope>
@@ -97,7 +96,12 @@ under the License.
 						<configuration>
 							<includes>
 								<include>**/org/apache/flink/contrib/streaming/state/RocksDBTestUtils*</include>
-								<include>**/org/apache/flink/contrib/streaming/state/benchmark/StateBackendBenchmarkUtils*</include>
+								<include>**/org/apache/flink/contrib/streaming/state/EmbeddedRocksDBStateBackendTest*</include>
+								<!-- Exporting RocksDBStateBackendConfigTest$TestOptionsFactory for pyflink tests -->
+								<include>**/org/apache/flink/contrib/streaming/state/RocksDBStateBackendConfigTest*</include>
+								<include>**/org/apache/flink/contrib/streaming/state/benchmark/*</include>
+								<include>META-INF/LICENSE</include>
+								<include>META-INF/NOTICE</include>
 							</includes>
 						</configuration>
 					</execution>

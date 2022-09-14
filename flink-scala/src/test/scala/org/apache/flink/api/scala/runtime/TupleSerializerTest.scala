@@ -17,9 +17,6 @@
  */
 package org.apache.flink.api.scala.runtime
 
-import java.util
-import java.util.Random
-
 import org.apache.flink.api.common.ExecutionConfig
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.typeutils.TupleTypeInfoBase
@@ -27,9 +24,13 @@ import org.apache.flink.api.java.typeutils.runtime.AbstractGenericTypeSerializer
 import org.apache.flink.api.scala._
 import org.apache.flink.api.scala.typeutils.CaseClassSerializer
 import org.apache.flink.util.StringUtils
+
 import org.joda.time.LocalDate
-import org.junit.Assert._
 import org.junit.{Assert, Test}
+import org.junit.Assert._
+
+import java.util
+import java.util.Random
 
 import scala.collection.JavaConverters._
 
@@ -40,7 +41,8 @@ class TupleSerializerTest {
     val tpe = createTypeInformation[((String, Int), (Int, String))]
 
     val originalSerializer =
-      tpe.createSerializer(new ExecutionConfig)
+      tpe
+        .createSerializer(new ExecutionConfig)
         .asInstanceOf[CaseClassSerializer[((String, Int), (Int, String))]]
     val duplicateSerializer = originalSerializer.duplicate()
 
@@ -59,7 +61,12 @@ class TupleSerializerTest {
 
   @Test
   def testTuple1Int(): Unit = {
-    val testTuples = Array(Tuple1(42), Tuple1(1), Tuple1(0), Tuple1(-1), Tuple1(Int.MaxValue),
+    val testTuples = Array(
+      Tuple1(42),
+      Tuple1(1),
+      Tuple1(0),
+      Tuple1(-1),
+      Tuple1(Int.MaxValue),
       Tuple1(Int.MinValue))
     runTests(testTuples, 4)
   }
@@ -73,7 +80,8 @@ class TupleSerializerTest {
       Tuple1(""),
       Tuple1(StringUtils.getRandomString(rnd, 30, 170)),
       Tuple1(StringUtils.getRandomString(rnd, 15, 50)),
-      Tuple1(""))
+      Tuple1("")
+    )
     runTests(testTuples, -1)
   }
 
@@ -88,7 +96,8 @@ class TupleSerializerTest {
       StringUtils.getRandomString(rnd, 15, 50),
       StringUtils.getRandomString(rnd, 30, 170),
       StringUtils.getRandomString(rnd, 14, 15),
-      "")
+      ""
+    )
     val arr2 = Array(
       "foo",
       "",
@@ -96,7 +105,8 @@ class TupleSerializerTest {
       StringUtils.getRandomString(rnd, 1000, 5000),
       StringUtils.getRandomString(rnd, 30000, 35000),
       StringUtils.getRandomString(rnd, 100 * 1024, 105 * 1024),
-      "bar")
+      "bar"
+    )
     val testTuples = Array(Tuple1(arr1), Tuple1(arr2))
     runTests(testTuples, -1)
   }
@@ -111,7 +121,8 @@ class TupleSerializerTest {
       (StringUtils.getRandomString(rnd, 10, 100), rnd.nextDouble),
       ("", rnd.nextDouble),
       (StringUtils.getRandomString(rnd, 10, 100), rnd.nextDouble),
-      (StringUtils.getRandomString(rnd, 10, 100), rnd.nextDouble))
+      (StringUtils.getRandomString(rnd, 10, 100), rnd.nextDouble)
+    )
     runTests(testTuples, -1)
   }
 
@@ -125,8 +136,9 @@ class TupleSerializerTest {
       (StringUtils.getRandomString(rnd, 10, 100), new LocalDate(rnd.nextInt)),
       ("", rnd.nextDouble),
       (StringUtils.getRandomString(rnd, 10, 100), new LocalDate(rnd.nextInt)),
-      (StringUtils.getRandomString(rnd, 10, 100), new LocalDate(rnd.nextInt)))
-      
+      (StringUtils.getRandomString(rnd, 10, 100), new LocalDate(rnd.nextInt))
+    )
+
     runTests(testTuples, -1)
   }
 
@@ -140,7 +152,9 @@ class TupleSerializerTest {
       StringUtils.getRandomString(rnd, 10, 100),
       StringUtils.getRandomString(rnd, 15, 50),
       StringUtils.getRandomString(rnd, 30, 170),
-      StringUtils.getRandomString(rnd, 14, 15), "")
+      StringUtils.getRandomString(rnd, 14, 15),
+      ""
+    )
     val arr2 = Array(
       "foo",
       "",
@@ -148,13 +162,15 @@ class TupleSerializerTest {
       StringUtils.getRandomString(rnd, 1000, 5000),
       StringUtils.getRandomString(rnd, 30000, 35000),
       StringUtils.getRandomString(rnd, 100 * 1024, 105 * 1024),
-      "bar")
+      "bar"
+    )
     val testTuples = Array(
       (StringUtils.getRandomString(rnd, 30, 170), arr1),
       (StringUtils.getRandomString(rnd, 30, 170), arr2),
       (StringUtils.getRandomString(rnd, 30, 170), arr1),
       (StringUtils.getRandomString(rnd, 30, 170), arr2),
-      (StringUtils.getRandomString(rnd, 30, 170), arr2))
+      (StringUtils.getRandomString(rnd, 30, 170), arr2)
+    )
     runTests(testTuples, -1)
   }
 
@@ -163,18 +179,48 @@ class TupleSerializerTest {
     val rnd: Random = new Random(807346528946L)
 
     val a = new SimpleTypes
-    val b =  new SimpleTypes(rnd.nextInt, rnd.nextLong, rnd.nextInt.asInstanceOf[Byte],
-        StringUtils.getRandomString(rnd, 10, 100), rnd.nextInt.asInstanceOf[Short], rnd.nextDouble)
-    val c = new SimpleTypes(rnd.nextInt, rnd.nextLong, rnd.nextInt.asInstanceOf[Byte],
-        StringUtils.getRandomString(rnd, 10, 100), rnd.nextInt.asInstanceOf[Short], rnd.nextDouble)
-    val d = new SimpleTypes(rnd.nextInt, rnd.nextLong, rnd.nextInt.asInstanceOf[Byte],
-        StringUtils.getRandomString(rnd, 10, 100), rnd.nextInt.asInstanceOf[Short], rnd.nextDouble)
-    val e = new SimpleTypes(rnd.nextInt, rnd.nextLong, rnd.nextInt.asInstanceOf[Byte],
-        StringUtils.getRandomString(rnd, 10, 100), rnd.nextInt.asInstanceOf[Short], rnd.nextDouble)
-    val f = new SimpleTypes(rnd.nextInt, rnd.nextLong, rnd.nextInt.asInstanceOf[Byte],
-        StringUtils.getRandomString(rnd, 10, 100), rnd.nextInt.asInstanceOf[Short], rnd.nextDouble)
-    val g = new SimpleTypes(rnd.nextInt, rnd.nextLong, rnd.nextInt.asInstanceOf[Byte],
-        StringUtils.getRandomString(rnd, 10, 100), rnd.nextInt.asInstanceOf[Short], rnd.nextDouble)
+    val b = new SimpleTypes(
+      rnd.nextInt,
+      rnd.nextLong,
+      rnd.nextInt.asInstanceOf[Byte],
+      StringUtils.getRandomString(rnd, 10, 100),
+      rnd.nextInt.asInstanceOf[Short],
+      rnd.nextDouble)
+    val c = new SimpleTypes(
+      rnd.nextInt,
+      rnd.nextLong,
+      rnd.nextInt.asInstanceOf[Byte],
+      StringUtils.getRandomString(rnd, 10, 100),
+      rnd.nextInt.asInstanceOf[Short],
+      rnd.nextDouble)
+    val d = new SimpleTypes(
+      rnd.nextInt,
+      rnd.nextLong,
+      rnd.nextInt.asInstanceOf[Byte],
+      StringUtils.getRandomString(rnd, 10, 100),
+      rnd.nextInt.asInstanceOf[Short],
+      rnd.nextDouble)
+    val e = new SimpleTypes(
+      rnd.nextInt,
+      rnd.nextLong,
+      rnd.nextInt.asInstanceOf[Byte],
+      StringUtils.getRandomString(rnd, 10, 100),
+      rnd.nextInt.asInstanceOf[Short],
+      rnd.nextDouble)
+    val f = new SimpleTypes(
+      rnd.nextInt,
+      rnd.nextLong,
+      rnd.nextInt.asInstanceOf[Byte],
+      StringUtils.getRandomString(rnd, 10, 100),
+      rnd.nextInt.asInstanceOf[Short],
+      rnd.nextDouble)
+    val g = new SimpleTypes(
+      rnd.nextInt,
+      rnd.nextLong,
+      rnd.nextInt.asInstanceOf[Byte],
+      StringUtils.getRandomString(rnd, 10, 100),
+      rnd.nextInt.asInstanceOf[Short],
+      rnd.nextDouble)
 
     val o1 = new ComplexNestedObject1(5626435)
     val o2 = new ComplexNestedObject1(76923)
@@ -189,10 +235,10 @@ class TupleSerializerTest {
 
     val b1 = new Book(976243875L, "The Serialization Odysse", 42)
     val b2 = new Book(0L, "Debugging byte streams", 1337)
-    val b3 = new Book(-1L, "Low level interfaces", 0xC0FFEE)
-    val b4 = new Book(Long.MaxValue, "The joy of bits and bytes", 0xDEADBEEF)
-    val b5 = new Book(Long.MaxValue, "Winnign a prize for creative test strings", 0xBADF00)
-    val b6 = new Book(-2L, "Distributed Systems", 0xABCDEF0123456789L)
+    val b3 = new Book(-1L, "Low level interfaces", 0xc0ffee)
+    val b4 = new Book(Long.MaxValue, "The joy of bits and bytes", 0xdeadbeef)
+    val b5 = new Book(Long.MaxValue, "Winnign a prize for creative test strings", 0xbadf00)
+    val b6 = new Book(-2L, "Distributed Systems", 0xabcdef0123456789L)
 
     // We need to use actual java Lists here, to make them serializable by the GenericSerializer
     val list = new util.LinkedList[String]()
@@ -213,12 +259,12 @@ class TupleSerializerTest {
     runTests(testTuples, -1)
   }
 
-  private final def runTests[T <: Product : TypeInformation](instances: Array[T], length: Int) {
+  final private def runTests[T <: Product: TypeInformation](instances: Array[T], length: Int) {
     try {
       // Register the custom Kryo Serializer
       val conf = new ExecutionConfig()
       conf.registerTypeWithKryoSerializer(classOf[LocalDate], classOf[LocalDateSerializer])
-      
+
       val tupleTypeInfo = implicitly[TypeInformation[T]].asInstanceOf[TupleTypeInfoBase[T]]
       val serializer = tupleTypeInfo.createSerializer(conf)
       val tupleClass = tupleTypeInfo.getTypeClass
@@ -233,4 +279,3 @@ class TupleSerializerTest {
     }
   }
 }
-

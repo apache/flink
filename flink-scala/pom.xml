@@ -24,12 +24,11 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-parent</artifactId>
-		<version>1.11-SNAPSHOT</version>
-		<relativePath>..</relativePath>
+		<version>1.17-SNAPSHOT</version>
 	</parent>
 
 	<artifactId>flink-scala_${scala.binary.version}</artifactId>
-	<name>flink-scala</name>
+	<name>Flink : Scala</name>
 	<packaging>jar</packaging>
 
 	<dependencies>
@@ -47,7 +46,7 @@ under the License.
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-shaded-asm-7</artifactId>
+			<artifactId>flink-shaded-asm-9</artifactId>
 		</dependency>
 
 		<dependency>
@@ -78,19 +77,25 @@ under the License.
 			<artifactId>flink-test-utils-junit</artifactId>
 		</dependency>
 
+		<!--
+		The KryoSerializer dynamically loads Kryo instances via Chill and requires that Chill
+		is in the classpath.
+		-->
 		<dependency>
 			<groupId>com.twitter</groupId>
 			<artifactId>chill_${scala.binary.version}</artifactId>
 			<version>${chill.version}</version>
-			<scope>test</scope>
-		</dependency>
-
-		<!-- We need this for the patched FlinkScalaKryoInstantiator -->
-		<dependency>
-			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-runtime_${scala.binary.version}</artifactId>
-			<version>${project.version}</version>
-			<scope>test</scope>
+			<!-- exclusions for dependency conversion -->
+			<exclusions>
+				<exclusion>
+					<groupId>com.esotericsoftware.kryo</groupId>
+					<artifactId>kryo</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.scala-lang</groupId>
+					<artifactId>scala-library</artifactId>
+				</exclusion>
+			</exclusions>
 		</dependency>
 
 		<dependency>
@@ -133,10 +138,21 @@ under the License.
 				</executions>
 			</plugin>
 
-			<!-- activate API compatibility checks -->
 			<plugin>
-				<groupId>com.github.siom79.japicmp</groupId>
-				<artifactId>japicmp-maven-plugin</artifactId>
+				<groupId>com.diffplug.spotless</groupId>
+				<artifactId>spotless-maven-plugin</artifactId>
+				<configuration>
+					<scala>
+						<scalafmt>
+							<version>${spotless.scalafmt.version}</version>
+							<file>${project.basedir}/../.scalafmt.conf</file>
+						</scalafmt>
+						<licenseHeader>
+							<content>${spotless.license.header}</content>
+							<delimiter>${spotless.delimiter}</delimiter>
+						</licenseHeader>
+					</scala>
+				</configuration>
 			</plugin>
 
 			<plugin>
@@ -244,15 +260,6 @@ under the License.
 						</configuration>
 					</execution>
 				</executions>
-			</plugin>
-
-			<!-- Scala Code Style, most of the configuration done via plugin management -->
-			<plugin>
-				<groupId>org.scalastyle</groupId>
-				<artifactId>scalastyle-maven-plugin</artifactId>
-				<configuration>
-					<configLocation>${project.basedir}/../tools/maven/scalastyle-config.xml</configLocation>
-				</configuration>
 			</plugin>
 
 			<!-- Add Scala test classes to test jar in order to test Scala type information. -->

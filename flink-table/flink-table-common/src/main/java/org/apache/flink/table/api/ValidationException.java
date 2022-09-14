@@ -21,18 +21,18 @@ package org.apache.flink.table.api;
 import org.apache.flink.annotation.PublicEvolving;
 
 /**
-  * Exception for all errors occurring during validation phase.
-  *
-  * <p>This exception indicates that the user did something wrong.
-  */
+ * Exception for all errors occurring during validation phase.
+ *
+ * <p>This exception indicates that the user did something wrong.
+ */
 @PublicEvolving
 public class ValidationException extends RuntimeException {
 
-	public ValidationException(String message, Throwable cause) {
-		super(message, cause);
-	}
+    public ValidationException(String message, Throwable cause) {
+        super(message, cause);
+    }
 
-	public ValidationException(String message) {
-		super(message);
-	}
+    public ValidationException(String message) {
+        super(message);
+    }
 }

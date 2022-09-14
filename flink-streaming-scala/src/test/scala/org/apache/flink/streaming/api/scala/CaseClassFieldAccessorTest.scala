@@ -15,12 +15,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.streaming.api.scala
 
 import org.apache.flink.api.common.ExecutionConfig
 import org.apache.flink.streaming.util.typeutils.{FieldAccessorFactory, FieldAccessorTest}
 import org.apache.flink.util.TestLogger
+
 import org.junit.Test
 import org.scalatest.junit.JUnitSuiteLike
 

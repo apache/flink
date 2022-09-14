@@ -1,0 +1,247 @@
+<?xml version="1.0" ?>
+<!--
+Licensed to the Apache Software Foundation (ASF) under one or more
+contributor license agreements.  See the NOTICE file distributed with
+this work for additional information regarding copyright ownership.
+The ASF licenses this file to you under the Apache License, Version 2.0
+(the "License"); you may not use this file except in compliance with
+the License.  You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+<Root>
+  <TestCase name="complicatedTranspose">
+    <Resource name="sql">
+      <![CDATA[SELECT d.d1, d.d2 + b FROM SimpleTable]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(d1=[$3.d1], EXPR$1=[+($3.d2, $1)])
++- LogicalWatermarkAssigner(rowtime=[c], watermark=[$2])
+   +- LogicalTableScan(table=[[default_catalog, default_database, SimpleTable]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+LogicalProject(d1=[$0.d1], EXPR$1=[+($0.d2, $1)])
++- LogicalWatermarkAssigner(rowtime=[c], watermark=[$2])
+   +- LogicalProject(d=[$3], b=[$1], c=[$2])
+      +- LogicalTableScan(table=[[default_catalog, default_database, SimpleTable]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="simpleTranspose">
+    <Resource name="sql">
+      <![CDATA[SELECT a, c FROM SimpleTable]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], c=[$2])
++- LogicalWatermarkAssigner(rowtime=[c], watermark=[$2])
+   +- LogicalTableScan(table=[[default_catalog, default_database, SimpleTable]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+LogicalWatermarkAssigner(rowtime=[c], watermark=[$1])
++- LogicalProject(a=[$0], c=[$2])
+   +- LogicalTableScan(table=[[default_catalog, default_database, SimpleTable]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="transposeExcludeRowTime">
+    <Resource name="sql">
+      <![CDATA[SELECT SECOND(c) FROM SimpleTable]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(EXPR$0=[EXTRACT(FLAG(SECOND), $2)])
++- LogicalWatermarkAssigner(rowtime=[c], watermark=[$2])
+   +- LogicalTableScan(table=[[default_catalog, default_database, SimpleTable]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+LogicalProject(EXPR$0=[EXTRACT(FLAG(SECOND), $0)])
++- LogicalWatermarkAssigner(rowtime=[c], watermark=[$0])
+   +- LogicalProject(c=[$2])
+      +- LogicalTableScan(table=[[default_catalog, default_database, SimpleTable]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="transposeWithDuplicateColumns">
+    <Resource name="sql">
+      <![CDATA[SELECT a, b, b as e FROM VirtualTable]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], e=[$1])
++- LogicalWatermarkAssigner(rowtime=[d], watermark=[-($3, 5000:INTERVAL SECOND)])
+   +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[+($2.c1, 5000:INTERVAL SECOND)])
+      +- LogicalTableScan(table=[[default_catalog, default_database, VirtualTable]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], e=[$1])
++- LogicalWatermarkAssigner(rowtime=[d], watermark=[-($2, 5000:INTERVAL SECOND)])
+   +- LogicalProject(a=[$0], b=[$1], d=[$3])
+      +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[+($2.c1, 5000:INTERVAL SECOND)])
+         +- LogicalTableScan(table=[[default_catalog, default_database, VirtualTable]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="transposeWithExcludeComputedRowTime">
+    <Resource name="sql">
+      <![CDATA[SELECT a, b FROM VirtualTable]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1])
++- LogicalWatermarkAssigner(rowtime=[d], watermark=[-($3, 5000:INTERVAL SECOND)])
+   +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[+($2.c1, 5000:INTERVAL SECOND)])
+      +- LogicalTableScan(table=[[default_catalog, default_database, VirtualTable]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1])
++- LogicalWatermarkAssigner(rowtime=[d], watermark=[-($2, 5000:INTERVAL SECOND)])
+   +- LogicalProject(a=[$0], b=[$1], d=[$3])
+      +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[+($2.c1, 5000:INTERVAL SECOND)])
+         +- LogicalTableScan(table=[[default_catalog, default_database, VirtualTable]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="transposeWithExcludeComputedRowTime2">
+    <Resource name="sql">
+      <![CDATA[SELECT a, b, SECOND(d) FROM VirtualTable]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], EXPR$2=[EXTRACT(FLAG(SECOND), $3)])
++- LogicalWatermarkAssigner(rowtime=[d], watermark=[-($3, 5000:INTERVAL SECOND)])
+   +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[+($2.c1, 5000:INTERVAL SECOND)])
+      +- LogicalTableScan(table=[[default_catalog, default_database, VirtualTable]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], EXPR$2=[EXTRACT(FLAG(SECOND), $2)])
++- LogicalWatermarkAssigner(rowtime=[d], watermark=[-($2, 5000:INTERVAL SECOND)])
+   +- LogicalProject(a=[$0], b=[$1], d=[$3])
+      +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[+($2.c1, 5000:INTERVAL SECOND)])
+         +- LogicalTableScan(table=[[default_catalog, default_database, VirtualTable]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="transposeWithExcludeComputedRowTime3">
+    <Resource name="sql">
+      <![CDATA[SELECT a, SECOND(d) FROM NestedTable]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], EXPR$1=[EXTRACT(FLAG(SECOND), $3)])
++- LogicalWatermarkAssigner(rowtime=[d], watermark=[myFunc($3, $2.c2)])
+   +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[+($2.c1, 5000:INTERVAL SECOND)])
+      +- LogicalTableScan(table=[[default_catalog, default_database, NestedTable]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+LogicalProject(a=[$0], EXPR$1=[EXTRACT(FLAG(SECOND), $1)])
++- LogicalWatermarkAssigner(rowtime=[d], watermark=[myFunc($1, $2.c2)])
+   +- LogicalProject(a=[$0], d=[$3], c=[$2])
+      +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[+($2.c1, 5000:INTERVAL SECOND)])
+         +- LogicalTableScan(table=[[default_catalog, default_database, NestedTable]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="transposeWithWatermarkWithMultipleInput">
+    <Resource name="sql">
+      <![CDATA[SELECT a FROM UdfTable]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0])
++- LogicalWatermarkAssigner(rowtime=[b], watermark=[myFunc($1, $2)])
+   +- LogicalTableScan(table=[[default_catalog, default_database, UdfTable]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+LogicalProject(a=[$0])
++- LogicalWatermarkAssigner(rowtime=[b], watermark=[myFunc($1, $2)])
+   +- LogicalProject(a=[$0], b=[$1], c=[$2])
+      +- LogicalTableScan(table=[[default_catalog, default_database, UdfTable]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="transposeWithIncludeComputedRowTime">
+    <Resource name="sql">
+      <![CDATA[SELECT a, b, d FROM VirtualTable]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], d=[$3])
++- LogicalWatermarkAssigner(rowtime=[d], watermark=[-($3, 5000:INTERVAL SECOND)])
+   +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[+($2.c1, 5000:INTERVAL SECOND)])
+      +- LogicalTableScan(table=[[default_catalog, default_database, VirtualTable]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+LogicalWatermarkAssigner(rowtime=[d], watermark=[-($2, 5000:INTERVAL SECOND)])
++- LogicalProject(a=[$0], b=[$1], d=[$3])
+   +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[+($2.c1, 5000:INTERVAL SECOND)])
+      +- LogicalTableScan(table=[[default_catalog, default_database, VirtualTable]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="transposeWithReorder">
+    <Resource name="sql">
+      <![CDATA[SELECT b, a FROM SimpleTable]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(b=[$1], a=[$0])
++- LogicalWatermarkAssigner(rowtime=[c], watermark=[$2])
+   +- LogicalTableScan(table=[[default_catalog, default_database, SimpleTable]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+LogicalProject(b=[$0], a=[$1])
++- LogicalWatermarkAssigner(rowtime=[c], watermark=[$2])
+   +- LogicalProject(b=[$1], a=[$0], c=[$2])
+      +- LogicalTableScan(table=[[default_catalog, default_database, SimpleTable]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="transposeWithNestedField">
+    <Resource name="sql">
+      <![CDATA[SELECT b, d.d1, d.d2 FROM SimpleTable]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(b=[$1], d1=[$3.d1], d2=[$3.d2])
++- LogicalWatermarkAssigner(rowtime=[c], watermark=[$2])
+   +- LogicalTableScan(table=[[default_catalog, default_database, SimpleTable]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+LogicalProject(b=[$0], d1=[$1.d1], d2=[$1.d2])
++- LogicalWatermarkAssigner(rowtime=[c], watermark=[$2])
+   +- LogicalProject(b=[$1], d=[$3], c=[$2])
+      +- LogicalTableScan(table=[[default_catalog, default_database, SimpleTable]])
+]]>
+    </Resource>
+  </TestCase>
+</Root>

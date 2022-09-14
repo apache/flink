@@ -26,25 +26,23 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonPro
 
 import javax.annotation.Nullable;
 
-/**
- * Request body for a savepoint disposal call.
- */
+/** Request body for a savepoint disposal call. */
 public class SavepointDisposalRequest implements RequestBody {
 
-	public static final String FIELD_NAME_SAVEPOINT_PATH = "savepoint-path";
+    public static final String FIELD_NAME_SAVEPOINT_PATH = "savepoint-path";
 
-	@JsonProperty(FIELD_NAME_SAVEPOINT_PATH)
-	@Nullable
-	private final String savepointPath;
+    @JsonProperty(FIELD_NAME_SAVEPOINT_PATH)
+    @Nullable
+    private final String savepointPath;
 
-	@JsonCreator
-	public SavepointDisposalRequest(
-			@Nullable @JsonProperty(FIELD_NAME_SAVEPOINT_PATH) String savepointPath) {
-		this.savepointPath = savepointPath;
-	}
+    @JsonCreator
+    public SavepointDisposalRequest(
+            @Nullable @JsonProperty(FIELD_NAME_SAVEPOINT_PATH) String savepointPath) {
+        this.savepointPath = savepointPath;
+    }
 
-	@JsonIgnore
-	public String getSavepointPath() {
-		return savepointPath;
-	}
+    @JsonIgnore
+    public String getSavepointPath() {
+        return savepointPath;
+    }
 }

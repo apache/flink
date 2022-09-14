@@ -23,15 +23,32 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-filesystems</artifactId>
-		<version>1.11-SNAPSHOT</version>
-		<relativePath>..</relativePath>
+		<version>1.17-SNAPSHOT</version>
 	</parent>
 
 	<artifactId>flink-s3-fs-hadoop</artifactId>
-	<name>flink-s3-fs-hadoop</name>
+	<name>Flink : FileSystems : S3 FS Hadoop</name>
 
 	<packaging>jar</packaging>
 
+	<dependencyManagement>
+		<dependencies>
+			<!-- Override the flink-parent dependencyManagement definition for hadoop-common to ensure
+				${fs.hadoopshaded.version} is used for this file system -->
+			<dependency>
+				<groupId>org.apache.hadoop</groupId>
+				<artifactId>hadoop-common</artifactId>
+				<version>${fs.hadoopshaded.version}</version>
+			</dependency>
+
+			<dependency>
+				<!-- Bumped for security purposes -->
+				<groupId>commons-beanutils</groupId>
+				<artifactId>commons-beanutils</artifactId>
+				<version>1.9.4</version>
+			</dependency>
+		</dependencies>
+	</dependencyManagement>
 	<dependencies>
 
 		<!-- Flink's file system abstraction (compiled against, not bundled) -->
@@ -73,6 +90,50 @@ under the License.
 			<version>${project.version}</version>
 			<scope>test</scope>
 			<type>test-jar</type>
+		</dependency>
+
+		<!-- for the HAJobRunOnHadoopS3FileSystemITCase -->
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-s3-fs-base</artifactId>
+			<version>${project.version}</version>
+			<type>test-jar</type>
+			<scope>test</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-test-utils</artifactId>
+			<version>${project.version}</version>
+			<scope>test</scope>
+		</dependency>
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-runtime</artifactId>
+			<version>${project.version}</version>
+			<type>test-jar</type>
+			<scope>test</scope>
+		</dependency>
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-runtime</artifactId>
+			<version>${project.version}</version>
+			<scope>test</scope>
+		</dependency>
+
+		<dependency>
+			<groupId>org.apache.curator</groupId>
+			<artifactId>curator-test</artifactId>
+			<version>${curator.version}</version>
+			<scope>test</scope>
+			<exclusions>
+				<!-- This transitive dependency causes version conflicts on the classpath. -->
+				<exclusion>
+					<groupId>com.google.guava</groupId>
+					<artifactId>guava</artifactId>
+				</exclusion>
+			</exclusions>
 		</dependency>
 	</dependencies>
 
@@ -159,7 +220,6 @@ under the License.
 							<goal>shade</goal>
 						</goals>
 						<configuration>
-							<shadeTestJar>false</shadeTestJar>
 							<artifactSet>
 								<includes>
 									<include>*:*</include>
@@ -181,12 +241,6 @@ under the License.
 								<filter>
 									<artifact>*</artifact>
 									<excludes>
-										<exclude>META-INF/maven/org.apache.flink/force-shading/**</exclude>
-									</excludes>
-								</filter>
-								<filter>
-									<artifact>*</artifact>
-									<excludes>
 										<exclude>.gitkeep</exclude>
 										<exclude>mime.types</exclude>
 										<exclude>mozilla/**</exclude>
@@ -199,9 +253,17 @@ under the License.
 									<excludes>
 										<exclude>properties.dtd</exclude>
 										<exclude>PropertyList-1.0.dtd</exclude>
-										<exclude>META-INF/maven/**</exclude>
 										<exclude>META-INF/services/javax.xml.stream.*</exclude>
 										<exclude>META-INF/LICENSE.txt</exclude>
+									</excludes>
+								</filter>
+								<filter>
+									<artifact>com.amazonaws:aws-java-sdk-s3</artifact>
+									<!-- Make sure we are using the overridden XmlResponsesSaxParser of flink-s3-fs-base.
+										Filter must be removed as soon as XmlResponsesSaxParser of this module is
+										dropped, for example when discontinuing support for Java 8. -->
+									<excludes>
+										<exclude>com/amazonaws/services/s3/model/transform/XmlResponsesSaxParser**</exclude>
 									</excludes>
 								</filter>
 							</filters>

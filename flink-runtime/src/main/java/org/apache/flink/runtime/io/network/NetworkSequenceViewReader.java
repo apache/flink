@@ -20,54 +20,68 @@ package org.apache.flink.runtime.io.network;
 
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionProvider;
+import org.apache.flink.runtime.io.network.partition.ResultSubpartitionView;
 import org.apache.flink.runtime.io.network.partition.consumer.InputChannel.BufferAndAvailability;
 import org.apache.flink.runtime.io.network.partition.consumer.InputChannelID;
+
+import javax.annotation.Nullable;
 
 import java.io.IOException;
 
 /**
- * Simple wrapper for the partition readerQueue iterator, which increments a
- * sequence number for each returned buffer and remembers the receiver ID.
+ * Simple wrapper for the partition readerQueue iterator, which increments a sequence number for
+ * each returned buffer and remembers the receiver ID.
  */
 public interface NetworkSequenceViewReader {
 
-	void requestSubpartitionView(
-		ResultPartitionProvider partitionProvider,
-		ResultPartitionID resultPartitionId,
-		int subPartitionIndex) throws IOException;
+    void requestSubpartitionView(
+            ResultPartitionProvider partitionProvider,
+            ResultPartitionID resultPartitionId,
+            int subPartitionIndex)
+            throws IOException;
 
-	BufferAndAvailability getNextBuffer() throws IOException, InterruptedException;
+    @Nullable
+    BufferAndAvailability getNextBuffer() throws IOException;
 
-	/**
-	 * The credits from consumer are added in incremental way.
-	 *
-	 * @param creditDeltas The credit deltas
-	 */
-	void addCredit(int creditDeltas);
+    /** Returns true if the producer backlog need to be announced to the consumer. */
+    boolean needAnnounceBacklog();
 
-	/**
-	 * Checks whether this reader is available or not.
-	 *
-	 * @return True if the reader is available.
-	 */
-	boolean isAvailable();
+    /**
+     * The credits from consumer are added in incremental way.
+     *
+     * @param creditDeltas The credit deltas
+     */
+    void addCredit(int creditDeltas);
 
-	boolean isRegisteredAsAvailable();
+    /** Resumes data consumption after an exactly once checkpoint. */
+    void resumeConsumption();
 
-	/**
-	 * Updates the value to indicate whether the reader is enqueued in the pipeline or not.
-	 *
-	 * @param isRegisteredAvailable True if this reader is already enqueued in the pipeline.
-	 */
-	void setRegisteredAsAvailable(boolean isRegisteredAvailable);
+    /** Acknowledges all the user records are processed. */
+    void acknowledgeAllRecordsProcessed();
 
-	boolean isReleased();
+    /**
+     * Checks whether this reader is available or not and returns the backlog at the same time.
+     *
+     * @return A boolean flag indicating whether the reader is available together with the backlog.
+     */
+    ResultSubpartitionView.AvailabilityWithBacklog getAvailabilityAndBacklog();
 
-	void releaseAllResources() throws IOException;
+    boolean isRegisteredAsAvailable();
 
-	Throwable getFailureCause();
+    /**
+     * Updates the value to indicate whether the reader is enqueued in the pipeline or not.
+     *
+     * @param isRegisteredAvailable True if this reader is already enqueued in the pipeline.
+     */
+    void setRegisteredAsAvailable(boolean isRegisteredAvailable);
 
-	InputChannelID getReceiverId();
+    boolean isReleased();
 
-	int getSequenceNumber();
+    void releaseAllResources() throws IOException;
+
+    Throwable getFailureCause();
+
+    InputChannelID getReceiverId();
+
+    void notifyNewBufferSize(int newBufferSize);
 }

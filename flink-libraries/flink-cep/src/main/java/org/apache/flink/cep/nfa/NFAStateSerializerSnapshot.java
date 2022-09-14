@@ -22,54 +22,87 @@ import org.apache.flink.api.common.typeutils.CompositeTypeSerializerSnapshot;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.cep.nfa.sharedbuffer.EventId;
 import org.apache.flink.cep.nfa.sharedbuffer.NodeId;
+import org.apache.flink.core.memory.DataInputView;
+import org.apache.flink.core.memory.DataOutputView;
 
-/**
- * Snapshot class for {@link NFAStateSerializer}.
- */
-public class NFAStateSerializerSnapshot extends CompositeTypeSerializerSnapshot<NFAState, NFAStateSerializer> {
+import java.io.IOException;
 
-	private static final int CURRENT_VERSION = 1;
+/** Snapshot class for {@link NFAStateSerializer}. */
+public class NFAStateSerializerSnapshot
+        extends CompositeTypeSerializerSnapshot<NFAState, NFAStateSerializer> {
 
-	/**
-	 * Constructor for read instantiation.
-	 */
-	public NFAStateSerializerSnapshot() {
-		super(NFAStateSerializer.class);
-	}
+    private static final int CURRENT_VERSION = 2;
 
-	/**
-	 * Constructor to create the snapshot for writing.
-	 */
-	public NFAStateSerializerSnapshot(NFAStateSerializer serializerInstance) {
-		super(serializerInstance);
-	}
+    private static final int FIRST_VERSION_WITH_PREVIOUS_TIMESTAMP = 2;
 
-	@Override
-	protected int getCurrentOuterSnapshotVersion() {
-		return CURRENT_VERSION;
-	}
+    private boolean supportsPreviousTimestamp = true;
 
-	@Override
-	protected TypeSerializer<?>[] getNestedSerializers(NFAStateSerializer outerSerializer) {
-		TypeSerializer<DeweyNumber> versionSerializer = outerSerializer.getVersionSerializer();
-		TypeSerializer<NodeId> nodeIdSerializer = outerSerializer.getNodeIdSerializer();
-		TypeSerializer<EventId> eventIdSerializer = outerSerializer.getEventIdSerializer();
+    /** Constructor for read instantiation. */
+    public NFAStateSerializerSnapshot() {
+        super(NFAStateSerializer.class);
+    }
 
-		return new TypeSerializer[]{versionSerializer, nodeIdSerializer, eventIdSerializer};
-	}
+    /** Constructor to create the snapshot for writing. */
+    public NFAStateSerializerSnapshot(NFAStateSerializer serializerInstance) {
+        super(serializerInstance);
+        supportsPreviousTimestamp = serializerInstance.isSupportsPreviousTimestamp();
+    }
 
-	@Override
-	protected NFAStateSerializer createOuterSerializerWithNestedSerializers(TypeSerializer<?>[] nestedSerializers) {
+    @Override
+    protected int getCurrentOuterSnapshotVersion() {
+        return CURRENT_VERSION;
+    }
 
-		@SuppressWarnings("unchecked")
-		TypeSerializer<DeweyNumber> versionSerializer = (TypeSerializer<DeweyNumber>) nestedSerializers[0];
+    @Override
+    protected void readOuterSnapshot(
+            int readOuterSnapshotVersion, DataInputView in, ClassLoader userCodeClassLoader)
+            throws IOException {
+        if (readOuterSnapshotVersion < FIRST_VERSION_WITH_PREVIOUS_TIMESTAMP) {
+            supportsPreviousTimestamp = false;
+        } else {
+            supportsPreviousTimestamp = in.readBoolean();
+        }
+    }
 
-		@SuppressWarnings("unchecked")
-		TypeSerializer<NodeId> nodeIdSerializer = (TypeSerializer<NodeId>) nestedSerializers[1];
+    @Override
+    protected void writeOuterSnapshot(DataOutputView out) throws IOException {
+        out.writeBoolean(supportsPreviousTimestamp);
+    }
 
-		@SuppressWarnings("unchecked")
-		TypeSerializer<EventId> eventIdSerializer = (TypeSerializer<EventId>) nestedSerializers[2];
+    @Override
+    protected OuterSchemaCompatibility resolveOuterSchemaCompatibility(
+            NFAStateSerializer newSerializer) {
+        if (supportsPreviousTimestamp != newSerializer.isSupportsPreviousTimestamp()) {
+            return OuterSchemaCompatibility.COMPATIBLE_AFTER_MIGRATION;
+        }
 
-		return new NFAStateSerializer(versionSerializer, nodeIdSerializer, eventIdSerializer);
-	}
+        return OuterSchemaCompatibility.COMPATIBLE_AS_IS;
+    }
+
+    @Override
+    protected TypeSerializer<?>[] getNestedSerializers(NFAStateSerializer outerSerializer) {
+        TypeSerializer<DeweyNumber> versionSerializer = outerSerializer.getVersionSerializer();
+        TypeSerializer<NodeId> nodeIdSerializer = outerSerializer.getNodeIdSerializer();
+        TypeSerializer<EventId> eventIdSerializer = outerSerializer.getEventIdSerializer();
+
+        return new TypeSerializer[] {versionSerializer, nodeIdSerializer, eventIdSerializer};
+    }
+
+    @Override
+    protected NFAStateSerializer createOuterSerializerWithNestedSerializers(
+            TypeSerializer<?>[] nestedSerializers) {
+
+        @SuppressWarnings("unchecked")
+        TypeSerializer<DeweyNumber> versionSerializer =
+                (TypeSerializer<DeweyNumber>) nestedSerializers[0];
+
+        @SuppressWarnings("unchecked")
+        TypeSerializer<NodeId> nodeIdSerializer = (TypeSerializer<NodeId>) nestedSerializers[1];
+
+        @SuppressWarnings("unchecked")
+        TypeSerializer<EventId> eventIdSerializer = (TypeSerializer<EventId>) nestedSerializers[2];
+
+        return new NFAStateSerializer(
+                versionSerializer, nodeIdSerializer, eventIdSerializer, supportsPreviousTimestamp);
+    }
 }

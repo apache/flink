@@ -16,13 +16,13 @@
  * limitations under the License.
  */
 
-export interface JarListInterface {
+export interface JarList {
   address: string;
-  files: JarFilesItemInterface[];
+  files: JarFilesItem[];
   error?: boolean;
 }
 
-export interface JarFilesItemInterface {
+export interface JarFilesItem {
   id: string;
   name: string;
   uploaded: number;

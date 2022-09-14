@@ -19,9 +19,9 @@ package org.apache.flink.streaming.connectors.kinesis.util;
 
 import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.streaming.runtime.operators.windowing.TimestampedValue;
+import org.apache.flink.testutils.executor.TestExecutorResource;
 
-import org.hamcrest.Matchers;
-import org.junit.Assert;
+import org.junit.ClassRule;
 import org.junit.Test;
 
 import java.time.Duration;
@@ -31,105 +31,106 @@ import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 /** Test for {@link RecordEmitter}. */
 public class RecordEmitterTest {
 
-	private class TestRecordEmitter extends RecordEmitter<TimestampedValue> {
+    @ClassRule
+    public static final TestExecutorResource<ExecutorService> EXECUTOR_RESOURCE =
+            new TestExecutorResource<>(() -> Executors.newSingleThreadExecutor());
 
-		private List<TimestampedValue> results = Collections.synchronizedList(new ArrayList<>());
+    private class TestRecordEmitter extends RecordEmitter<TimestampedValue> {
 
-		private TestRecordEmitter() {
-			super(DEFAULT_QUEUE_CAPACITY);
-		}
+        private List<TimestampedValue> results = Collections.synchronizedList(new ArrayList<>());
 
-		@Override
-		public void emit(TimestampedValue record, RecordQueue<TimestampedValue> queue) {
-			results.add(record);
-		}
-	}
+        private TestRecordEmitter() {
+            super(DEFAULT_QUEUE_CAPACITY);
+        }
 
-	@Test
-	public void test() throws Exception {
+        @Override
+        public void emit(TimestampedValue record, RecordQueue<TimestampedValue> queue) {
+            results.add(record);
+        }
+    }
 
-		TestRecordEmitter emitter = new TestRecordEmitter();
+    @Test
+    public void test() throws Exception {
 
-		final TimestampedValue<String> one = new TimestampedValue<>("one", 1);
-		final TimestampedValue<String> two = new TimestampedValue<>("two", 2);
-		final TimestampedValue<String> five = new TimestampedValue<>("five", 5);
-		final TimestampedValue<String> ten = new TimestampedValue<>("ten", 10);
+        TestRecordEmitter emitter = new TestRecordEmitter();
 
-		final RecordEmitter.RecordQueue<TimestampedValue> queue0 = emitter.getQueue(0);
-		final RecordEmitter.RecordQueue<TimestampedValue> queue1 = emitter.getQueue(1);
+        final TimestampedValue<String> one = new TimestampedValue<>("one", 1);
+        final TimestampedValue<String> two = new TimestampedValue<>("two", 2);
+        final TimestampedValue<String> five = new TimestampedValue<>("five", 5);
+        final TimestampedValue<String> ten = new TimestampedValue<>("ten", 10);
 
-		queue0.put(one);
-		queue0.put(five);
-		queue0.put(ten);
+        final RecordEmitter.RecordQueue<TimestampedValue> queue0 = emitter.getQueue(0);
+        final RecordEmitter.RecordQueue<TimestampedValue> queue1 = emitter.getQueue(1);
 
-		queue1.put(two);
+        queue0.put(one);
+        queue0.put(five);
+        queue0.put(ten);
 
-		ExecutorService executor = Executors.newSingleThreadExecutor();
-		executor.submit(emitter);
+        queue1.put(two);
 
-		Deadline dl = Deadline.fromNow(Duration.ofSeconds(10));
-		while (emitter.results.size() != 4 && dl.hasTimeLeft()) {
-			Thread.sleep(10);
-		}
-		emitter.stop();
-		executor.shutdownNow();
+        EXECUTOR_RESOURCE.getExecutor().submit(emitter);
 
-		Assert.assertThat(emitter.results, Matchers.contains(one, five, two, ten));
-	}
+        Deadline dl = Deadline.fromNow(Duration.ofSeconds(10));
+        while (emitter.results.size() != 4 && dl.hasTimeLeft()) {
+            Thread.sleep(10);
+        }
+        emitter.stop();
 
-	@Test
-	public void testRetainMinAfterReachingLimit() throws Exception {
+        assertThat(emitter.results).contains(one, five, two, ten);
+    }
 
-		TestRecordEmitter emitter = new TestRecordEmitter();
+    @Test
+    public void testRetainMinAfterReachingLimit() throws Exception {
 
-		final TimestampedValue<String> one = new TimestampedValue<>("1", 1);
-		final TimestampedValue<String> two = new TimestampedValue<>("2", 2);
-		final TimestampedValue<String> three = new TimestampedValue<>("3", 3);
-		final TimestampedValue<String> ten = new TimestampedValue<>("10", 10);
-		final TimestampedValue<String> eleven = new TimestampedValue<>("11", 11);
+        TestRecordEmitter emitter = new TestRecordEmitter();
 
-		final TimestampedValue<String> twenty = new TimestampedValue<>("20", 20);
-		final TimestampedValue<String> thirty = new TimestampedValue<>("30", 30);
+        final TimestampedValue<String> one = new TimestampedValue<>("1", 1);
+        final TimestampedValue<String> two = new TimestampedValue<>("2", 2);
+        final TimestampedValue<String> three = new TimestampedValue<>("3", 3);
+        final TimestampedValue<String> ten = new TimestampedValue<>("10", 10);
+        final TimestampedValue<String> eleven = new TimestampedValue<>("11", 11);
 
-		final RecordEmitter.RecordQueue<TimestampedValue> queue0 = emitter.getQueue(0);
-		final RecordEmitter.RecordQueue<TimestampedValue> queue1 = emitter.getQueue(1);
+        final TimestampedValue<String> twenty = new TimestampedValue<>("20", 20);
+        final TimestampedValue<String> thirty = new TimestampedValue<>("30", 30);
 
-		queue0.put(one);
-		queue0.put(two);
-		queue0.put(three);
-		queue0.put(ten);
-		queue0.put(eleven);
+        final RecordEmitter.RecordQueue<TimestampedValue> queue0 = emitter.getQueue(0);
+        final RecordEmitter.RecordQueue<TimestampedValue> queue1 = emitter.getQueue(1);
 
-		queue1.put(twenty);
-		queue1.put(thirty);
+        queue0.put(one);
+        queue0.put(two);
+        queue0.put(three);
+        queue0.put(ten);
+        queue0.put(eleven);
 
-		emitter.setMaxLookaheadMillis(1);
-		emitter.setCurrentWatermark(5);
+        queue1.put(twenty);
+        queue1.put(thirty);
 
-		ExecutorService executor = Executors.newSingleThreadExecutor();
-		executor.submit(emitter);
-		try {
-			// emits one record past the limit
-			Deadline dl = Deadline.fromNow(Duration.ofSeconds(10));
-			while (emitter.results.size() != 4 && dl.hasTimeLeft()) {
-				Thread.sleep(10);
-			}
-			Assert.assertThat(emitter.results, Matchers.contains(one, two, three, ten));
+        emitter.setMaxLookaheadMillis(1);
+        emitter.setCurrentWatermark(5);
 
-			// advance watermark, emits remaining record from queue0
-			emitter.setCurrentWatermark(10);
-			dl = Deadline.fromNow(Duration.ofSeconds(10));
-			while (emitter.results.size() != 5 && dl.hasTimeLeft()) {
-				Thread.sleep(10);
-			}
-			Assert.assertThat(emitter.results, Matchers.contains(one, two, three, ten, eleven));
-		}
-		finally {
-			emitter.stop();
-			executor.shutdownNow();
-		}
-	}
+        EXECUTOR_RESOURCE.getExecutor().submit(emitter);
+        try {
+            // emits one record past the limit
+            Deadline dl = Deadline.fromNow(Duration.ofSeconds(10));
+            while (emitter.results.size() != 4 && dl.hasTimeLeft()) {
+                Thread.sleep(10);
+            }
+            assertThat(emitter.results).contains(one, two, three, ten);
+
+            // advance watermark, emits remaining record from queue0
+            emitter.setCurrentWatermark(10);
+            dl = Deadline.fromNow(Duration.ofSeconds(10));
+            while (emitter.results.size() != 5 && dl.hasTimeLeft()) {
+                Thread.sleep(10);
+            }
+            assertThat(emitter.results).contains(one, two, three, ten, eleven);
+        } finally {
+            emitter.stop();
+        }
+    }
 }

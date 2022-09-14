@@ -22,78 +22,89 @@ import org.apache.flink.runtime.io.PullingAsyncDataInput;
 import org.apache.flink.runtime.io.network.NettyShuffleEnvironment;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 
+import org.junit.Before;
+
 import java.util.concurrent.CompletableFuture;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
-/**
- * Test base for {@link InputGate}.
- */
+/** Test base for {@link InputGate}. */
 public abstract class InputGateTestBase {
 
-	protected void testIsAvailable(
-			InputGate inputGateToTest,
-			SingleInputGate inputGateToNotify,
-			TestInputChannel inputChannelWithNewData) throws Exception {
+    int gateIndex;
 
-		assertFalse(inputGateToTest.getAvailableFuture().isDone());
-		assertFalse(inputGateToTest.pollNext().isPresent());
+    @Before
+    public void resetGateIndex() {
+        gateIndex = 0;
+    }
 
-		CompletableFuture<?> future = inputGateToTest.getAvailableFuture();
+    protected void testIsAvailable(
+            InputGate inputGateToTest,
+            SingleInputGate inputGateToNotify,
+            TestInputChannel inputChannelWithNewData)
+            throws Exception {
 
-		assertFalse(inputGateToTest.getAvailableFuture().isDone());
-		assertFalse(inputGateToTest.pollNext().isPresent());
+        assertFalse(inputGateToTest.getAvailableFuture().isDone());
+        assertFalse(inputGateToTest.pollNext().isPresent());
 
-		assertEquals(future, inputGateToTest.getAvailableFuture());
+        CompletableFuture<?> future = inputGateToTest.getAvailableFuture();
 
-		inputChannelWithNewData.readBuffer();
-		inputGateToNotify.notifyChannelNonEmpty(inputChannelWithNewData);
+        assertFalse(inputGateToTest.getAvailableFuture().isDone());
+        assertFalse(inputGateToTest.pollNext().isPresent());
 
-		assertTrue(future.isDone());
-		assertTrue(inputGateToTest.getAvailableFuture().isDone());
-		assertEquals(PullingAsyncDataInput.AVAILABLE, inputGateToTest.getAvailableFuture());
-	}
+        assertEquals(future, inputGateToTest.getAvailableFuture());
 
-	protected void testIsAvailableAfterFinished(
-		InputGate inputGateToTest,
-		Runnable endOfPartitionEvent) throws Exception {
+        inputChannelWithNewData.readBuffer();
+        inputGateToNotify.notifyChannelNonEmpty(inputChannelWithNewData);
 
-		CompletableFuture<?> available = inputGateToTest.getAvailableFuture();
-		assertFalse(available.isDone());
-		assertFalse(inputGateToTest.pollNext().isPresent());
+        assertTrue(future.isDone());
+        assertTrue(inputGateToTest.getAvailableFuture().isDone());
+        assertEquals(PullingAsyncDataInput.AVAILABLE, inputGateToTest.getAvailableFuture());
+    }
 
-		endOfPartitionEvent.run();
+    protected void testIsAvailableAfterFinished(
+            InputGate inputGateToTest, Runnable endOfPartitionEvent) throws Exception {
 
-		assertTrue(inputGateToTest.pollNext().isPresent()); // EndOfPartitionEvent
+        CompletableFuture<?> available = inputGateToTest.getAvailableFuture();
+        assertFalse(available.isDone());
+        assertFalse(inputGateToTest.pollNext().isPresent());
 
-		assertTrue(available.isDone());
-		assertTrue(inputGateToTest.getAvailableFuture().isDone());
-		assertEquals(PullingAsyncDataInput.AVAILABLE, inputGateToTest.getAvailableFuture());
-	}
+        endOfPartitionEvent.run();
 
-	protected SingleInputGate createInputGate() {
-		return createInputGate(2);
-	}
+        assertTrue(inputGateToTest.pollNext().isPresent()); // EndOfPartitionEvent
 
-	protected SingleInputGate createInputGate(int numberOfInputChannels) {
-		return createInputGate(null, numberOfInputChannels, ResultPartitionType.PIPELINED);
-	}
+        assertTrue(available.isDone());
+        assertTrue(inputGateToTest.getAvailableFuture().isDone());
+        assertEquals(PullingAsyncDataInput.AVAILABLE, inputGateToTest.getAvailableFuture());
+    }
 
-	protected SingleInputGate createInputGate(
-		NettyShuffleEnvironment environment, int numberOfInputChannels, ResultPartitionType partitionType) {
+    protected SingleInputGate createInputGate() {
+        return createInputGate(2);
+    }
 
-		SingleInputGateBuilder builder = new SingleInputGateBuilder()
-			.setNumberOfChannels(numberOfInputChannels)
-			.setResultPartitionType(partitionType);
+    protected SingleInputGate createInputGate(int numberOfInputChannels) {
+        return createInputGate(null, numberOfInputChannels, ResultPartitionType.PIPELINED);
+    }
 
-		if (environment != null) {
-			builder = builder.setupBufferPoolFactory(environment);
-		}
+    protected SingleInputGate createInputGate(
+            NettyShuffleEnvironment environment,
+            int numberOfInputChannels,
+            ResultPartitionType partitionType) {
 
-		SingleInputGate inputGate = builder.build();
-		assertEquals(partitionType, inputGate.getConsumedPartitionType());
-		return inputGate;
-	}
+        SingleInputGateBuilder builder =
+                new SingleInputGateBuilder()
+                        .setNumberOfChannels(numberOfInputChannels)
+                        .setSingleInputGateIndex(gateIndex++)
+                        .setResultPartitionType(partitionType);
+
+        if (environment != null) {
+            builder = builder.setupBufferPoolFactory(environment);
+        }
+
+        SingleInputGate inputGate = builder.build();
+        assertEquals(partitionType, inputGate.getConsumedPartitionType());
+        return inputGate;
+    }
 }

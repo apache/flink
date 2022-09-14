@@ -16,34 +16,28 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.types.parser;
-
 
 public class UnquotedStringParserTest extends ParserTestBase<String> {
 
     @Override
     public String[] getValidTestValues() {
-        return new String[] {
-                "abcdefgh", "i", "jklmno", "\"abc\"defgh\"", "\"i\"", "Hello9"
-        };
+        return new String[] {"abcdefgh", "i", "jklmno", "\"abc\"defgh\"", "\"i\"", "Hello9"};
     }
 
     @Override
     public String[] getValidTestResults() {
-        return new String[] {
-                "abcdefgh", "i", "jklmno", "\"abc\"defgh\"", "\"i\"", "Hello9"
-        };
+        return new String[] {"abcdefgh", "i", "jklmno", "\"abc\"defgh\"", "\"i\"", "Hello9"};
     }
 
-	@Override
-	public boolean allowsEmptyField() {
-		return true;
-	}
+    @Override
+    public boolean allowsEmptyField() {
+        return true;
+    }
 
     @Override
     public String[] getInvalidTestValues() {
-        return new String[] { };
+        return new String[] {};
     }
 
     @Override

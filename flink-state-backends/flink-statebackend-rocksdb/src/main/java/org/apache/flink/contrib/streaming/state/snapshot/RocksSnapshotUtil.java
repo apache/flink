@@ -7,7 +7,7 @@
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
  *
- * http://www.apache.org/licenses/LICENSE-2.0
+ *    http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -18,34 +18,29 @@
 
 package org.apache.flink.contrib.streaming.state.snapshot;
 
+import org.apache.flink.runtime.state.PlaceholderStreamStateHandle;
+import org.apache.flink.runtime.state.StateObject;
+import org.apache.flink.runtime.state.StreamStateHandle;
+
+import java.util.Collection;
+
 /**
- * Utility methods and constants around RocksDB creating and restoring snapshots for
- * {@link org.apache.flink.contrib.streaming.state.RocksDBKeyedStateBackend}.
+ * Utility methods and constants around RocksDB creating and restoring snapshots for {@link
+ * org.apache.flink.contrib.streaming.state.RocksDBKeyedStateBackend}.
  */
 public class RocksSnapshotUtil {
 
-	/**
-	 * File suffix of sstable files.
-	 */
-	public static final String SST_FILE_SUFFIX = ".sst";
+    /** File suffix of sstable files. */
+    public static final String SST_FILE_SUFFIX = ".sst";
 
-	public static final int FIRST_BIT_IN_BYTE_MASK = 0x80;
+    private RocksSnapshotUtil() {
+        throw new AssertionError();
+    }
 
-	public static final int END_OF_KEY_GROUP_MARK = 0xFFFF;
-
-	public static void setMetaDataFollowsFlagInKey(byte[] key) {
-		key[0] |= FIRST_BIT_IN_BYTE_MASK;
-	}
-
-	public static void clearMetaDataFollowsFlag(byte[] key) {
-		key[0] &= (~FIRST_BIT_IN_BYTE_MASK);
-	}
-
-	public static boolean hasMetaDataFollowsFlag(byte[] key) {
-		return 0 != (key[0] & FIRST_BIT_IN_BYTE_MASK);
-	}
-
-	private RocksSnapshotUtil() {
-		throw new AssertionError();
-	}
+    public static long getUploadedStateSize(Collection<StreamStateHandle> streamStateHandles) {
+        return streamStateHandles.stream()
+                .filter(s -> !(s instanceof PlaceholderStreamStateHandle))
+                .mapToLong(StateObject::getStateSize)
+                .sum();
+    }
 }

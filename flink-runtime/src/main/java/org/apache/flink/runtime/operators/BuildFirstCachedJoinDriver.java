@@ -16,12 +16,12 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.runtime.operators;
 
-public class BuildFirstCachedJoinDriver<IT1, IT2, OT> extends AbstractCachedBuildSideJoinDriver<IT1, IT2, OT> {
+public class BuildFirstCachedJoinDriver<IT1, IT2, OT>
+        extends AbstractCachedBuildSideJoinDriver<IT1, IT2, OT> {
 
-	public BuildFirstCachedJoinDriver() {
-		super(0, 1);
-	}
+    public BuildFirstCachedJoinDriver() {
+        super(0, 1);
+    }
 }

@@ -22,12 +22,7 @@
 ##
 MVN=${MVN:-mvn}
 
-if [ -z "${OLD_VERSION}" ]; then
-    echo "OLD_VERSION was not set."
-    exit 1
-fi
-
-if [ -z "${NEW_VERSION}" ]; then
+if [ -z "${NEW_VERSION:-}" ]; then
     echo "NEW_VERSION was not set."
     exit 1
 fi
@@ -49,12 +44,13 @@ fi
 cd ..
 
 #change version in all pom files
-find . -name 'pom.xml' -type f -exec perl -pi -e 's#<version>(.*)'$OLD_VERSION'(.*)</version>#<version>${1}'$NEW_VERSION'${2}</version>#' {} \;
+$MVN org.codehaus.mojo:versions-maven-plugin:2.8.1:set -DnewVersion=$NEW_VERSION -DgenerateBackupPoms=false --quiet
+
 
 #change version of documentation
 cd docs
-perl -pi -e "s#^version: .*#version: \"${NEW_VERSION}\"#" _config.yml
-perl -pi -e "s#^version_title: .*#version_title: \"${NEW_VERSION}\"#" _config.yml
+perl -pi -e "s#^  Version = .*#  Version = \"${NEW_VERSION}\"#" config.toml
+perl -pi -e "s#^  VersionTitle = .*#  VersionTitle = \"${NEW_VERSION}\"#" config.toml
 cd ..
 
 #change version of pyflink

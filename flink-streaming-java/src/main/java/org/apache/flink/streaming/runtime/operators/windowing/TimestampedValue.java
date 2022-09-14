@@ -29,85 +29,77 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 @PublicEvolving
 public class TimestampedValue<T> {
 
-	/** The actual value held by this record. */
-	private T value;
+    /** The actual value held by this record. */
+    private T value;
 
-	/** The timestamp of the record. */
-	private long timestamp;
+    /** The timestamp of the record. */
+    private long timestamp;
 
-	/** Flag whether the timestamp is actually set. */
-	private boolean hasTimestamp;
+    /** Flag whether the timestamp is actually set. */
+    private boolean hasTimestamp;
 
-	/**
-	 * Creates a new TimestampedValue. The record does not have a timestamp.
-	 */
-	public TimestampedValue(T value) {
-		this.value = value;
-	}
+    /** Creates a new TimestampedValue. The record does not have a timestamp. */
+    public TimestampedValue(T value) {
+        this.value = value;
+    }
 
-	/**
-	 * Creates a new TimestampedValue wrapping the given value. The timestamp is set to the
-	 * given timestamp.
-	 *
-	 * @param value The value to wrap in this {@link TimestampedValue}
-	 * @param timestamp The timestamp in milliseconds
-	 */
-	public TimestampedValue(T value, long timestamp) {
-		this.value = value;
-		this.timestamp = timestamp;
-		this.hasTimestamp = true;
-	}
-
-	/**
-	 * @return The value wrapped in this {@link TimestampedValue}.
-	 */
-	public T getValue() {
-		return value;
-	}
-
-	/**
-	 * @return The timestamp associated with this stream value in milliseconds.
+    /**
+     * Creates a new TimestampedValue wrapping the given value. The timestamp is set to the given
+     * timestamp.
+     *
+     * @param value The value to wrap in this {@link TimestampedValue}
+     * @param timestamp The timestamp in milliseconds
      */
-	public long getTimestamp() {
-		if (hasTimestamp) {
-			return timestamp;
-		} else {
-			throw new IllegalStateException(
-					"Record has no timestamp. Is the time characteristic set to 'ProcessingTime', or " +
-							"did you forget to call 'DataStream.assignTimestampsAndWatermarks(...)'?");
-		}
-	}
+    public TimestampedValue(T value, long timestamp) {
+        this.value = value;
+        this.timestamp = timestamp;
+        this.hasTimestamp = true;
+    }
 
-	/**
-	 * Checks whether this record has a timestamp.
-	 *
-	 * @return True if the record has a timestamp, false if not.
-	 */
-	public boolean hasTimestamp() {
-		return hasTimestamp;
-	}
+    /** @return The value wrapped in this {@link TimestampedValue}. */
+    public T getValue() {
+        return value;
+    }
 
-	/**
-	 * Creates a {@link StreamRecord} from this TimestampedValue.
+    /** @return The timestamp associated with this stream value in milliseconds. */
+    public long getTimestamp() {
+        if (hasTimestamp) {
+            return timestamp;
+        } else {
+            throw new IllegalStateException(
+                    "Record has no timestamp. Is the time characteristic set to 'ProcessingTime', or "
+                            + "did you forget to call 'DataStream.assignTimestampsAndWatermarks(...)'?");
+        }
+    }
+
+    /**
+     * Checks whether this record has a timestamp.
+     *
+     * @return True if the record has a timestamp, false if not.
      */
-	public StreamRecord<T> getStreamRecord() {
-		StreamRecord<T> streamRecord = new StreamRecord<>(value);
-		if (hasTimestamp) {
-			streamRecord.setTimestamp(timestamp);
-		}
-		return streamRecord;
-	}
+    public boolean hasTimestamp() {
+        return hasTimestamp;
+    }
 
-	/**
-	 * Creates a TimestampedValue from given {@link StreamRecord}.
-	 *
-	 * @param streamRecord The StreamRecord object from which TimestampedValue is to be created.
+    /** Creates a {@link StreamRecord} from this TimestampedValue. */
+    public StreamRecord<T> getStreamRecord() {
+        StreamRecord<T> streamRecord = new StreamRecord<>(value);
+        if (hasTimestamp) {
+            streamRecord.setTimestamp(timestamp);
+        }
+        return streamRecord;
+    }
+
+    /**
+     * Creates a TimestampedValue from given {@link StreamRecord}.
+     *
+     * @param streamRecord The StreamRecord object from which TimestampedValue is to be created.
      */
-	public static <T> TimestampedValue<T> from(StreamRecord<T> streamRecord) {
-		if (streamRecord.hasTimestamp()) {
-			return new TimestampedValue<>(streamRecord.getValue(), streamRecord.getTimestamp());
-		} else {
-			return new TimestampedValue<>(streamRecord.getValue());
-		}
-	}
+    public static <T> TimestampedValue<T> from(StreamRecord<T> streamRecord) {
+        if (streamRecord.hasTimestamp()) {
+            return new TimestampedValue<>(streamRecord.getValue(), streamRecord.getTimestamp());
+        } else {
+            return new TimestampedValue<>(streamRecord.getValue());
+        }
+    }
 }

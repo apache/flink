@@ -19,49 +19,58 @@
 package org.apache.flink.core.fs;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.util.AbstractCloseableRegistry;
+import org.apache.flink.util.AbstractAutoCloseableRegistry;
+import org.apache.flink.util.IOUtils;
 
 import javax.annotation.Nonnull;
 
 import java.io.Closeable;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Collections;
+import java.io.IOException;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 
+import static org.apache.flink.shaded.guava30.com.google.common.collect.Lists.reverse;
+
 /**
- * This class allows to register instances of {@link Closeable}, which are all closed if this registry is closed.
+ * This class allows to register instances of {@link Closeable}, which are all closed if this
+ * registry is closed.
  *
- * <p>Registering to an already closed registry will throw an exception and close the provided {@link Closeable}
+ * <p>Registering to an already closed registry will throw an exception and close the provided
+ * {@link Closeable}
  *
  * <p>All methods in this class are thread-safe.
  *
  * <p>This class closes all registered {@link Closeable}s in the reverse registration order.
  */
 @Internal
-public class CloseableRegistry extends AbstractCloseableRegistry<Closeable, Object> {
+public class CloseableRegistry
+        extends AbstractAutoCloseableRegistry<Closeable, Closeable, Object, IOException>
+        implements Closeable {
 
-	private static final Object DUMMY = new Object();
+    private static final Object DUMMY = new Object();
 
-	public CloseableRegistry() {
-		super(new LinkedHashMap<>());
-	}
+    public CloseableRegistry() {
+        super(new LinkedHashMap<>());
+    }
 
-	@Override
-	protected void doRegister(@Nonnull Closeable closeable, @Nonnull Map<Closeable, Object> closeableMap) {
-		closeableMap.put(closeable, DUMMY);
-	}
+    @Override
+    protected void doRegister(
+            @Nonnull Closeable closeable, @Nonnull Map<Closeable, Object> closeableMap) {
+        closeableMap.put(closeable, DUMMY);
+    }
 
-	@Override
-	protected boolean doUnRegister(@Nonnull Closeable closeable, @Nonnull Map<Closeable, Object> closeableMap) {
-		return closeableMap.remove(closeable) != null;
-	}
+    @Override
+    protected boolean doUnRegister(
+            @Nonnull Closeable closeable, @Nonnull Map<Closeable, Object> closeableMap) {
+        return closeableMap.remove(closeable) != null;
+    }
 
-	@Override
-	protected Collection<Closeable> getReferencesToClose() {
-		ArrayList<Closeable> closeablesToClose = new ArrayList<>(closeableToRef.keySet());
-		Collections.reverse(closeablesToClose);
-		return closeablesToClose;
-	}
+    /**
+     * This implementation doesn't imply any exception during closing due to backward compatibility.
+     */
+    @Override
+    public void doClose(List<Closeable> toClose) throws IOException {
+        IOUtils.closeAllQuietly(reverse(toClose));
+    }
 }

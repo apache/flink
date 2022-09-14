@@ -18,21 +18,17 @@
 
 package org.apache.flink.test.checkpointing.utils;
 
-/**
- * Test type that wraps an int.
- */
+/** Test type that wraps an int. */
 public class IntType {
 
-	public int value;
+    public int value;
 
-	public IntType(int value) {
-		this.value = value;
-	}
+    public IntType(int value) {
+        this.value = value;
+    }
 
-	@Override
-	public String toString() {
-		return "IntType{" +
-			"value=" + value +
-			'}';
-	}
+    @Override
+    public String toString() {
+        return "IntType{" + "value=" + value + '}';
+    }
 }

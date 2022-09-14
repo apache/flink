@@ -18,8 +18,6 @@
 
 package org.apache.flink.api.common.typeutils.base.array;
 
-import java.io.IOException;
-
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeutils.SimpleTypeSerializerSnapshot;
 import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
@@ -27,99 +25,97 @@ import org.apache.flink.api.common.typeutils.base.TypeSerializerSingleton;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 
-/**
- * A serializer for boolean arrays.
- */
+import java.io.IOException;
+
+/** A serializer for boolean arrays. */
 @Internal
-public final class BooleanPrimitiveArraySerializer extends TypeSerializerSingleton<boolean[]>{
+public final class BooleanPrimitiveArraySerializer extends TypeSerializerSingleton<boolean[]> {
 
-	private static final long serialVersionUID = 1L;
-	
-	private static final boolean[] EMPTY = new boolean[0];
+    private static final long serialVersionUID = 1L;
 
-	public static final BooleanPrimitiveArraySerializer INSTANCE = new BooleanPrimitiveArraySerializer();
+    private static final boolean[] EMPTY = new boolean[0];
 
-	@Override
-	public boolean isImmutableType() {
-		return false;
-	}
-	
-	@Override
-	public boolean[] createInstance() {
-		return EMPTY;
-	}
+    public static final BooleanPrimitiveArraySerializer INSTANCE =
+            new BooleanPrimitiveArraySerializer();
 
-	@Override
-	public boolean[] copy(boolean[] from) {
-		boolean[] copy = new boolean[from.length];
-		System.arraycopy(from, 0, copy, 0, from.length);
-		return copy;
-	}
+    @Override
+    public boolean isImmutableType() {
+        return false;
+    }
 
-	@Override
-	public boolean[] copy(boolean[] from, boolean[] reuse) {
-		return copy(from);
-	}
+    @Override
+    public boolean[] createInstance() {
+        return EMPTY;
+    }
 
-	@Override
-	public int getLength() {
-		return -1;
-	}
+    @Override
+    public boolean[] copy(boolean[] from) {
+        boolean[] copy = new boolean[from.length];
+        System.arraycopy(from, 0, copy, 0, from.length);
+        return copy;
+    }
 
+    @Override
+    public boolean[] copy(boolean[] from, boolean[] reuse) {
+        return copy(from);
+    }
 
-	@Override
-	public void serialize(boolean[] record, DataOutputView target) throws IOException {
-		if (record == null) {
-			throw new IllegalArgumentException("The record must not be null.");
-		}
-		
-		final int len = record.length;
-		target.writeInt(len);
-		for (int i = 0; i < len; i++) {
-			target.writeBoolean(record[i]);
-		}
-	}
+    @Override
+    public int getLength() {
+        return -1;
+    }
 
+    @Override
+    public void serialize(boolean[] record, DataOutputView target) throws IOException {
+        if (record == null) {
+            throw new IllegalArgumentException("The record must not be null.");
+        }
 
-	@Override
-	public boolean[] deserialize(DataInputView source) throws IOException {
-		final int len = source.readInt();
-		boolean[] result = new boolean[len];
-		
-		for (int i = 0; i < len; i++) {
-			result[i] = source.readBoolean();
-		}
-		
-		return result;
-	}
-	
-	@Override
-	public boolean[] deserialize(boolean[] reuse, DataInputView source) throws IOException {
-		return deserialize(source);
-	}
+        final int len = record.length;
+        target.writeInt(len);
+        for (int i = 0; i < len; i++) {
+            target.writeBoolean(record[i]);
+        }
+    }
 
-	@Override
-	public void copy(DataInputView source, DataOutputView target) throws IOException {
-		final int len = source.readInt();
-		target.writeInt(len);
-		target.write(source, len);
-	}
+    @Override
+    public boolean[] deserialize(DataInputView source) throws IOException {
+        final int len = source.readInt();
+        boolean[] result = new boolean[len];
 
-	@Override
-	public TypeSerializerSnapshot<boolean[]> snapshotConfiguration() {
-		return new BooleanPrimitiveArraySerializerSnapshot();
-	}
+        for (int i = 0; i < len; i++) {
+            result[i] = source.readBoolean();
+        }
 
-	// ------------------------------------------------------------------------
+        return result;
+    }
 
-	/**
-	 * Serializer configuration snapshot for compatibility and format evolution.
-	 */
-	@SuppressWarnings("WeakerAccess")
-	public static final class BooleanPrimitiveArraySerializerSnapshot extends SimpleTypeSerializerSnapshot<boolean[]> {
+    @Override
+    public boolean[] deserialize(boolean[] reuse, DataInputView source) throws IOException {
+        return deserialize(source);
+    }
 
-		public BooleanPrimitiveArraySerializerSnapshot() {
-			super(() -> INSTANCE);
-		}
-	}
+    @Override
+    public void copy(DataInputView source, DataOutputView target) throws IOException {
+        final int len = source.readInt();
+        target.writeInt(len);
+        target.write(source, len);
+    }
+
+    @Override
+    public TypeSerializerSnapshot<boolean[]> snapshotConfiguration() {
+        return new BooleanPrimitiveArraySerializerSnapshot();
+    }
+
+    // ------------------------------------------------------------------------
+
+    /** Serializer configuration snapshot for compatibility and format evolution. */
+    @SuppressWarnings("WeakerAccess")
+    public static final class BooleanPrimitiveArraySerializerSnapshot
+            extends SimpleTypeSerializerSnapshot<boolean[]> {
+
+        public BooleanPrimitiveArraySerializerSnapshot() {
+            super(() -> INSTANCE);
+        }
+    }
 }

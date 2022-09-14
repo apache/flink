@@ -19,16 +19,24 @@
 package org.apache.flink.table.types.inference;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.table.catalog.DataTypeFactory;
 import org.apache.flink.table.types.DataType;
 
-/**
- * Transforms one data type to another.
- */
+import javax.annotation.Nullable;
+
+/** Transforms one data type to another. */
 @PublicEvolving
 public interface TypeTransformation {
 
-	/**
-	 * Transforms the given data type to a different data type.
-	 */
-	DataType transform(DataType typeToTransform);
+    /** Transforms the given data type to a different data type. */
+    DataType transform(DataType typeToTransform);
+
+    /**
+     * Transforms the given data type to a different data type.
+     *
+     * <p>This method provides a {@link DataTypeFactory} if available.
+     */
+    default DataType transform(@Nullable DataTypeFactory factory, DataType typeToTransform) {
+        return transform(typeToTransform);
+    }
 }

@@ -18,54 +18,88 @@
 
 package org.apache.flink.table.catalog.stats;
 
+import org.apache.flink.annotation.PublicEvolving;
+
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Objects;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
-/**
- * Column statistics of a table or partition.
- */
+/** Column statistics of a table or partition. */
+@PublicEvolving
 public class CatalogColumnStatistics {
-	public static final CatalogColumnStatistics UNKNOWN = new CatalogColumnStatistics(new HashMap<>());
+    public static final CatalogColumnStatistics UNKNOWN =
+            new CatalogColumnStatistics(new HashMap<>());
 
-	/**
-	 * A map of column name and column statistic data.
-	 */
-	private final Map<String, CatalogColumnStatisticsDataBase> columnStatisticsData;
+    /** A map of column name and column statistic data. */
+    private final Map<String, CatalogColumnStatisticsDataBase> columnStatisticsData;
 
-	private final Map<String, String> properties;
+    private final Map<String, String> properties;
 
-	public CatalogColumnStatistics(Map<String, CatalogColumnStatisticsDataBase> columnStatisticsData) {
-		this(columnStatisticsData, new HashMap<>());
-	}
+    public CatalogColumnStatistics(
+            Map<String, CatalogColumnStatisticsDataBase> columnStatisticsData) {
+        this(columnStatisticsData, new HashMap<>());
+    }
 
-	public CatalogColumnStatistics(Map<String, CatalogColumnStatisticsDataBase> columnStatisticsData, Map<String, String> properties) {
-		checkNotNull(columnStatisticsData);
-		checkNotNull(properties);
+    public CatalogColumnStatistics(
+            Map<String, CatalogColumnStatisticsDataBase> columnStatisticsData,
+            Map<String, String> properties) {
+        checkNotNull(columnStatisticsData);
+        checkNotNull(properties);
 
-		this.columnStatisticsData = columnStatisticsData;
-		this.properties = properties;
-	}
+        this.columnStatisticsData = columnStatisticsData;
+        this.properties = properties;
+    }
 
-	public Map<String, CatalogColumnStatisticsDataBase> getColumnStatisticsData() {
-		return columnStatisticsData;
-	}
+    public Map<String, CatalogColumnStatisticsDataBase> getColumnStatisticsData() {
+        return columnStatisticsData;
+    }
 
-	public Map<String, String> getProperties() {
-		return this.properties;
-	}
+    public Map<String, String> getProperties() {
+        return this.properties;
+    }
 
-	/**
-	 * Create a deep copy of "this" instance.
-	 * @return a deep copy
-	 */
-	public CatalogColumnStatistics copy() {
-		Map<String, CatalogColumnStatisticsDataBase> copy = new HashMap<>(columnStatisticsData.size());
-		for (Map.Entry<String, CatalogColumnStatisticsDataBase> entry : columnStatisticsData.entrySet()) {
-			copy.put(entry.getKey(), entry.getValue().copy());
-		}
-		return new CatalogColumnStatistics(copy, new HashMap<>(this.properties));
-	}
+    /**
+     * Create a deep copy of "this" instance.
+     *
+     * @return a deep copy
+     */
+    public CatalogColumnStatistics copy() {
+        Map<String, CatalogColumnStatisticsDataBase> copy =
+                new HashMap<>(columnStatisticsData.size());
+        for (Map.Entry<String, CatalogColumnStatisticsDataBase> entry :
+                columnStatisticsData.entrySet()) {
+            copy.put(entry.getKey(), entry.getValue().copy());
+        }
+        return new CatalogColumnStatistics(copy, new HashMap<>(this.properties));
+    }
 
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
+        CatalogColumnStatistics that = (CatalogColumnStatistics) o;
+        return columnStatisticsData.equals(that.columnStatisticsData)
+                && properties.equals(that.properties);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(columnStatisticsData, properties);
+    }
+
+    @Override
+    public String toString() {
+        return "CatalogColumnStatistics{"
+                + "columnStatisticsData="
+                + columnStatisticsData
+                + ", properties="
+                + properties
+                + '}';
+    }
 }

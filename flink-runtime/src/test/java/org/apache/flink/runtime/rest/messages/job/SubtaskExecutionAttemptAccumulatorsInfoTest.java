@@ -19,35 +19,38 @@
 package org.apache.flink.runtime.rest.messages.job;
 
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
+import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.rest.messages.RestResponseMarshallingTestBase;
 
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * Tests (un)marshalling of the {@link SubtaskExecutionAttemptAccumulatorsInfo}.
- */
-public class SubtaskExecutionAttemptAccumulatorsInfoTest extends RestResponseMarshallingTestBase<SubtaskExecutionAttemptAccumulatorsInfo> {
+import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.createExecutionAttemptId;
 
-	@Override
-	protected Class<SubtaskExecutionAttemptAccumulatorsInfo> getTestResponseClass() {
-		return SubtaskExecutionAttemptAccumulatorsInfo.class;
-	}
+/** Tests (un)marshalling of the {@link SubtaskExecutionAttemptAccumulatorsInfo}. */
+public class SubtaskExecutionAttemptAccumulatorsInfoTest
+        extends RestResponseMarshallingTestBase<SubtaskExecutionAttemptAccumulatorsInfo> {
 
-	@Override
-	protected SubtaskExecutionAttemptAccumulatorsInfo getTestResponseInstance() throws Exception {
+    @Override
+    protected Class<SubtaskExecutionAttemptAccumulatorsInfo> getTestResponseClass() {
+        return SubtaskExecutionAttemptAccumulatorsInfo.class;
+    }
 
-		final List<UserAccumulator> userAccumulatorList = new ArrayList<>();
+    @Override
+    protected SubtaskExecutionAttemptAccumulatorsInfo getTestResponseInstance() throws Exception {
 
-		userAccumulatorList.add(new UserAccumulator("name1", "type1", "value1"));
-		userAccumulatorList.add(new UserAccumulator("name2", "type1", "value1"));
-		userAccumulatorList.add(new UserAccumulator("name3", "type2", "value3"));
+        final List<UserAccumulator> userAccumulatorList = new ArrayList<>();
 
-		return new SubtaskExecutionAttemptAccumulatorsInfo(
-			1,
-			2,
-			new ExecutionAttemptID().toString(),
-			userAccumulatorList
-		);
-	}
+        userAccumulatorList.add(new UserAccumulator("name1", "type1", "value1"));
+        userAccumulatorList.add(new UserAccumulator("name2", "type1", "value1"));
+        userAccumulatorList.add(new UserAccumulator("name3", "type2", "value3"));
+
+        final ExecutionAttemptID executionAttemptId =
+                createExecutionAttemptId(new JobVertexID(), 1, 2);
+        return new SubtaskExecutionAttemptAccumulatorsInfo(
+                executionAttemptId.getSubtaskIndex(),
+                executionAttemptId.getAttemptNumber(),
+                executionAttemptId.toString(),
+                userAccumulatorList);
+    }
 }

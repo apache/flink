@@ -19,8 +19,8 @@
 package org.apache.flink.table.operations;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.table.api.TableSchema;
+import org.apache.flink.table.catalog.ContextResolvedFunction;
+import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.expressions.ResolvedExpression;
 import org.apache.flink.table.functions.TableFunction;
 
@@ -29,61 +29,53 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-/**
- * Describes a relational operation that was created from applying a {@link TableFunction}.
- */
+/** Describes a relational operation that was created from applying a {@link TableFunction}. */
 @Internal
-public class CalculatedQueryOperation<T> implements QueryOperation {
+public class CalculatedQueryOperation implements QueryOperation {
 
-	private final TableFunction<T> tableFunction;
-	private final List<ResolvedExpression> parameters;
-	private final TypeInformation<T> resultType;
-	private final TableSchema tableSchema;
+    private final ContextResolvedFunction resolvedFunction;
+    private final List<ResolvedExpression> arguments;
+    private final ResolvedSchema resolvedSchema;
 
-	public CalculatedQueryOperation(
-			TableFunction<T> tableFunction,
-			List<ResolvedExpression> parameters,
-			TypeInformation<T> resultType,
-			TableSchema tableSchema) {
-		this.tableFunction = tableFunction;
-		this.parameters = parameters;
-		this.resultType = resultType;
-		this.tableSchema = tableSchema;
-	}
+    public CalculatedQueryOperation(
+            ContextResolvedFunction resolvedFunction,
+            List<ResolvedExpression> arguments,
+            ResolvedSchema resolvedSchema) {
+        this.resolvedFunction = resolvedFunction;
+        this.arguments = arguments;
+        this.resolvedSchema = resolvedSchema;
+    }
 
-	public TableFunction<T> getTableFunction() {
-		return tableFunction;
-	}
+    public ContextResolvedFunction getResolvedFunction() {
+        return resolvedFunction;
+    }
 
-	public List<ResolvedExpression> getParameters() {
-		return parameters;
-	}
+    public List<ResolvedExpression> getArguments() {
+        return arguments;
+    }
 
-	public TypeInformation<T> getResultType() {
-		return resultType;
-	}
+    @Override
+    public ResolvedSchema getResolvedSchema() {
+        return resolvedSchema;
+    }
 
-	@Override
-	public TableSchema getTableSchema() {
-		return tableSchema;
-	}
+    @Override
+    public String asSummaryString() {
+        Map<String, Object> args = new LinkedHashMap<>();
+        args.put("function", resolvedFunction);
+        args.put("arguments", arguments);
 
-	@Override
-	public String asSummaryString() {
-		Map<String, Object> args = new LinkedHashMap<>();
-		args.put("function", tableFunction);
-		args.put("parameters", parameters);
+        return OperationUtils.formatWithChildren(
+                "CalculatedTable", args, getChildren(), Operation::asSummaryString);
+    }
 
-		return OperationUtils.formatWithChildren("CalculatedTable", args, getChildren(), Operation::asSummaryString);
-	}
+    @Override
+    public List<QueryOperation> getChildren() {
+        return Collections.emptyList();
+    }
 
-	@Override
-	public List<QueryOperation> getChildren() {
-		return Collections.emptyList();
-	}
-
-	@Override
-	public <U> U accept(QueryOperationVisitor<U> visitor) {
-		return visitor.visit(this);
-	}
+    @Override
+    public <U> U accept(QueryOperationVisitor<U> visitor) {
+        return visitor.visit(this);
+    }
 }

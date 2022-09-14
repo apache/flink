@@ -17,6 +17,7 @@
 
 package org.apache.flink.contrib.streaming.state;
 
+import org.apache.flink.runtime.state.CompositeKeySerializationUtils;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyedStateHandle;
 
@@ -29,148 +30,168 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import java.util.Collection;
+import java.util.Comparator;
 import java.util.List;
-import java.util.function.BiFunction;
 
-/**
- * Utils for RocksDB Incremental Checkpoint.
- */
+/** Utils for RocksDB Incremental Checkpoint. */
 public class RocksDBIncrementalCheckpointUtils {
+    /**
+     * Evaluates state handle's "score" regarding to the target range when choosing the best state
+     * handle to init the initial db for recovery, if the overlap fraction is less than
+     * overlapFractionThreshold, then just return {@code Score.MIN} to mean the handle has no chance
+     * to be the initial handle.
+     */
+    private static Score stateHandleEvaluator(
+            KeyedStateHandle stateHandle,
+            KeyGroupRange targetKeyGroupRange,
+            double overlapFractionThreshold) {
+        final KeyGroupRange handleKeyGroupRange = stateHandle.getKeyGroupRange();
+        final KeyGroupRange intersectGroup =
+                handleKeyGroupRange.getIntersection(targetKeyGroupRange);
 
-	/**
-	 * The threshold of the overlap fraction of the handle's key-group range with target key-group range to
-	 * be an initial handle.
-	 */
-	private static final double OVERLAP_FRACTION_THRESHOLD = 0.75;
+        final double overlapFraction =
+                (double) intersectGroup.getNumberOfKeyGroups()
+                        / handleKeyGroupRange.getNumberOfKeyGroups();
 
-	/**
-	 * Evaluates state handle's "score" regarding to the target range when choosing
-	 * the best state handle to init the initial db for recovery, if the overlap fraction
-	 * is less than {@link #OVERLAP_FRACTION_THRESHOLD}, then just return -1 to mean the handle
-	 * has not chance to be the initial handle.
-	 */
-	private static final BiFunction<KeyedStateHandle, KeyGroupRange, Double> STATE_HANDLE_EVALUATOR = (stateHandle, targetKeyGroupRange) -> {
-		final KeyGroupRange handleKeyGroupRange = stateHandle.getKeyGroupRange();
-		final KeyGroupRange intersectGroup = handleKeyGroupRange.getIntersection(targetKeyGroupRange);
+        if (overlapFraction < overlapFractionThreshold) {
+            return Score.MIN;
+        }
+        return new Score(intersectGroup.getNumberOfKeyGroups(), overlapFraction);
+    }
 
-		final double overlapFraction = (double) intersectGroup.getNumberOfKeyGroups() / handleKeyGroupRange.getNumberOfKeyGroups();
+    /**
+     * Score of the state handle, intersect group range is compared first, and then compare the
+     * overlap fraction.
+     */
+    private static class Score implements Comparable<Score> {
 
-		if (overlapFraction < OVERLAP_FRACTION_THRESHOLD) {
-			return -1.0;
-		}
+        public static final Score MIN = new Score(Integer.MIN_VALUE, -1.0);
 
-		return intersectGroup.getNumberOfKeyGroups() * overlapFraction * overlapFraction;
-	};
+        private final int intersectGroupRange;
 
-	/**
-	 * The method to clip the db instance according to the target key group range using
-	 * the {@link RocksDB#delete(ColumnFamilyHandle, byte[])}.
-	 *
-	 * @param db the RocksDB instance to be clipped.
-	 * @param columnFamilyHandles the column families in the db instance.
-	 * @param targetKeyGroupRange the target key group range.
-	 * @param currentKeyGroupRange the key group range of the db instance.
-	 * @param keyGroupPrefixBytes Number of bytes required to prefix the key groups.
-	 */
-	public static void clipDBWithKeyGroupRange(
-		@Nonnull RocksDB db,
-		@Nonnull List<ColumnFamilyHandle> columnFamilyHandles,
-		@Nonnull KeyGroupRange targetKeyGroupRange,
-		@Nonnull KeyGroupRange currentKeyGroupRange,
-		@Nonnegative int keyGroupPrefixBytes,
-		@Nonnegative long writeBatchSize) throws RocksDBException {
+        private final double overlapFraction;
 
-		final byte[] beginKeyGroupBytes = new byte[keyGroupPrefixBytes];
-		final byte[] endKeyGroupBytes = new byte[keyGroupPrefixBytes];
+        public Score(int intersectGroupRange, double overlapFraction) {
+            this.intersectGroupRange = intersectGroupRange;
+            this.overlapFraction = overlapFraction;
+        }
 
-		if (currentKeyGroupRange.getStartKeyGroup() < targetKeyGroupRange.getStartKeyGroup()) {
-			RocksDBKeySerializationUtils.serializeKeyGroup(
-				currentKeyGroupRange.getStartKeyGroup(), beginKeyGroupBytes);
-			RocksDBKeySerializationUtils.serializeKeyGroup(
-				targetKeyGroupRange.getStartKeyGroup(), endKeyGroupBytes);
-			deleteRange(db, columnFamilyHandles, beginKeyGroupBytes, endKeyGroupBytes, writeBatchSize);
-		}
+        public int getIntersectGroupRange() {
+            return intersectGroupRange;
+        }
 
-		if (currentKeyGroupRange.getEndKeyGroup() > targetKeyGroupRange.getEndKeyGroup()) {
-			RocksDBKeySerializationUtils.serializeKeyGroup(
-				targetKeyGroupRange.getEndKeyGroup() + 1, beginKeyGroupBytes);
-			RocksDBKeySerializationUtils.serializeKeyGroup(
-				currentKeyGroupRange.getEndKeyGroup() + 1, endKeyGroupBytes);
-			deleteRange(db, columnFamilyHandles, beginKeyGroupBytes, endKeyGroupBytes, writeBatchSize);
-		}
-	}
+        public double getOverlapFraction() {
+            return overlapFraction;
+        }
 
-	/**
-	 * Delete the record falls into [beginKeyBytes, endKeyBytes) of the db.
-	 *
-	 * @param db the target need to be clipped.
-	 * @param columnFamilyHandles the column family need to be clipped.
-	 * @param beginKeyBytes the begin key bytes
-	 * @param endKeyBytes the end key bytes
-	 */
-	private static void deleteRange(
-		RocksDB db,
-		List<ColumnFamilyHandle> columnFamilyHandles,
-		byte[] beginKeyBytes,
-		byte[] endKeyBytes,
-		@Nonnegative long writeBatchSize) throws RocksDBException {
+        @Override
+        public int compareTo(@Nonnull Score other) {
+            return Comparator.comparing(Score::getIntersectGroupRange)
+                    .thenComparing(Score::getOverlapFraction)
+                    .compare(this, other);
+        }
+    }
 
-		for (ColumnFamilyHandle columnFamilyHandle : columnFamilyHandles) {
-			try (RocksIteratorWrapper iteratorWrapper = RocksDBOperationUtils.getRocksIterator(db, columnFamilyHandle);
-				RocksDBWriteBatchWrapper writeBatchWrapper = new RocksDBWriteBatchWrapper(db, writeBatchSize)) {
+    /**
+     * The method to clip the db instance according to the target key group range using the {@link
+     * RocksDB#delete(ColumnFamilyHandle, byte[])}.
+     *
+     * @param db the RocksDB instance to be clipped.
+     * @param columnFamilyHandles the column families in the db instance.
+     * @param targetKeyGroupRange the target key group range.
+     * @param currentKeyGroupRange the key group range of the db instance.
+     * @param keyGroupPrefixBytes Number of bytes required to prefix the key groups.
+     */
+    public static void clipDBWithKeyGroupRange(
+            @Nonnull RocksDB db,
+            @Nonnull List<ColumnFamilyHandle> columnFamilyHandles,
+            @Nonnull KeyGroupRange targetKeyGroupRange,
+            @Nonnull KeyGroupRange currentKeyGroupRange,
+            @Nonnegative int keyGroupPrefixBytes)
+            throws RocksDBException {
 
-				iteratorWrapper.seek(beginKeyBytes);
+        final byte[] beginKeyGroupBytes = new byte[keyGroupPrefixBytes];
+        final byte[] endKeyGroupBytes = new byte[keyGroupPrefixBytes];
 
-				while (iteratorWrapper.isValid()) {
-					final byte[] currentKey = iteratorWrapper.key();
-					if (beforeThePrefixBytes(currentKey, endKeyBytes)) {
-						writeBatchWrapper.remove(columnFamilyHandle, currentKey);
-					} else {
-						break;
-					}
-					iteratorWrapper.next();
-				}
-			}
-		}
-	}
+        if (currentKeyGroupRange.getStartKeyGroup() < targetKeyGroupRange.getStartKeyGroup()) {
+            CompositeKeySerializationUtils.serializeKeyGroup(
+                    currentKeyGroupRange.getStartKeyGroup(), beginKeyGroupBytes);
+            CompositeKeySerializationUtils.serializeKeyGroup(
+                    targetKeyGroupRange.getStartKeyGroup(), endKeyGroupBytes);
+            deleteRange(db, columnFamilyHandles, beginKeyGroupBytes, endKeyGroupBytes);
+        }
 
-	/**
-	 * check whether the bytes is before prefixBytes in the character order.
-	 */
-	public static boolean beforeThePrefixBytes(@Nonnull byte[] bytes, @Nonnull byte[] prefixBytes) {
-		final int prefixLength = prefixBytes.length;
-		for (int i = 0; i < prefixLength; ++i) {
-			int r = (char) prefixBytes[i] - (char) bytes[i];
-			if (r != 0) {
-				return r > 0;
-			}
-		}
-		return false;
-	}
+        if (currentKeyGroupRange.getEndKeyGroup() > targetKeyGroupRange.getEndKeyGroup()) {
+            CompositeKeySerializationUtils.serializeKeyGroup(
+                    targetKeyGroupRange.getEndKeyGroup() + 1, beginKeyGroupBytes);
+            CompositeKeySerializationUtils.serializeKeyGroup(
+                    currentKeyGroupRange.getEndKeyGroup() + 1, endKeyGroupBytes);
+            deleteRange(db, columnFamilyHandles, beginKeyGroupBytes, endKeyGroupBytes);
+        }
+    }
 
-	/**
-	 * Choose the best state handle according to the {@link #STATE_HANDLE_EVALUATOR}
-	 * to init the initial db.
-	 *
-	 * @param restoreStateHandles The candidate state handles.
-	 * @param targetKeyGroupRange The target key group range.
-	 * @return The best candidate or null if no candidate was a good fit.
-	 */
-	@Nullable
-	public static KeyedStateHandle chooseTheBestStateHandleForInitial(
-		@Nonnull Collection<KeyedStateHandle> restoreStateHandles,
-		@Nonnull KeyGroupRange targetKeyGroupRange) {
+    /**
+     * Delete the record falls into [beginKeyBytes, endKeyBytes) of the db.
+     *
+     * @param db the target need to be clipped.
+     * @param columnFamilyHandles the column family need to be clipped.
+     * @param beginKeyBytes the begin key bytes
+     * @param endKeyBytes the end key bytes
+     */
+    private static void deleteRange(
+            RocksDB db,
+            List<ColumnFamilyHandle> columnFamilyHandles,
+            byte[] beginKeyBytes,
+            byte[] endKeyBytes)
+            throws RocksDBException {
 
-		KeyedStateHandle bestStateHandle = null;
-		double bestScore = 0;
-		for (KeyedStateHandle rawStateHandle : restoreStateHandles) {
-			double handleScore = STATE_HANDLE_EVALUATOR.apply(rawStateHandle, targetKeyGroupRange);
-			if (handleScore > bestScore) {
-				bestStateHandle = rawStateHandle;
-				bestScore = handleScore;
-			}
-		}
+        for (ColumnFamilyHandle columnFamilyHandle : columnFamilyHandles) {
+            // Using RocksDB's deleteRange will take advantage of delete
+            // tombstones, which mark the range as deleted.
+            //
+            // https://github.com/ververica/frocksdb/blob/FRocksDB-6.20.3/include/rocksdb/db.h#L363-L377
+            db.deleteRange(columnFamilyHandle, beginKeyBytes, endKeyBytes);
+        }
+    }
 
-		return bestStateHandle;
-	}
+    /** check whether the bytes is before prefixBytes in the character order. */
+    public static boolean beforeThePrefixBytes(@Nonnull byte[] bytes, @Nonnull byte[] prefixBytes) {
+        final int prefixLength = prefixBytes.length;
+        for (int i = 0; i < prefixLength; ++i) {
+            int r = (char) prefixBytes[i] - (char) bytes[i];
+            if (r != 0) {
+                return r > 0;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Choose the best state handle according to the {@link #stateHandleEvaluator(KeyedStateHandle,
+     * KeyGroupRange, double)} to init the initial db.
+     *
+     * @param restoreStateHandles The candidate state handles.
+     * @param targetKeyGroupRange The target key group range.
+     * @return The best candidate or null if no candidate was a good fit.
+     */
+    @Nullable
+    public static KeyedStateHandle chooseTheBestStateHandleForInitial(
+            @Nonnull Collection<KeyedStateHandle> restoreStateHandles,
+            @Nonnull KeyGroupRange targetKeyGroupRange,
+            double overlapFractionThreshold) {
+
+        KeyedStateHandle bestStateHandle = null;
+        Score bestScore = Score.MIN;
+        for (KeyedStateHandle rawStateHandle : restoreStateHandles) {
+            Score handleScore =
+                    stateHandleEvaluator(
+                            rawStateHandle, targetKeyGroupRange, overlapFractionThreshold);
+            if (handleScore.compareTo(bestScore) > 0) {
+                bestStateHandle = rawStateHandle;
+                bestScore = handleScore;
+            }
+        }
+
+        return bestStateHandle;
+    }
 }

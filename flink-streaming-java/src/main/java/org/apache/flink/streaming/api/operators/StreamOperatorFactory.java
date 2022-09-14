@@ -17,12 +17,10 @@
 
 package org.apache.flink.streaming.api.operators;
 
-import org.apache.flink.annotation.Internal;
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.graph.StreamGraph;
-import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.StreamTask;
 
 import java.io.Serializable;
@@ -32,69 +30,61 @@ import java.io.Serializable;
  *
  * @param <OUT> The output type of the operator
  */
-@Internal
+@PublicEvolving
 public interface StreamOperatorFactory<OUT> extends Serializable {
 
-	/**
-	 * Create the operator. Sets access to the context and the output.
-	 */
-	<T extends StreamOperator<OUT>> T createStreamOperator(
-			StreamTask<?, ?> containingTask, StreamConfig config, Output<StreamRecord<OUT>> output);
+    /** Create the operator. Sets access to the context and the output. */
+    <T extends StreamOperator<OUT>> T createStreamOperator(
+            StreamOperatorParameters<OUT> parameters);
 
-	/**
-	 * Set the chaining strategy for operator factory.
-	 */
-	void setChainingStrategy(ChainingStrategy strategy);
+    /** Set the chaining strategy for operator factory. */
+    void setChainingStrategy(ChainingStrategy strategy);
 
-	/**
-	 * Get the chaining strategy of operator factory.
-	 */
-	ChainingStrategy getChainingStrategy();
+    /** Get the chaining strategy of operator factory. */
+    ChainingStrategy getChainingStrategy();
 
-	/**
-	 * Is this factory for {@link StreamSource}.
-	 */
-	default boolean isStreamSource() {
-		return false;
-	}
+    /** Is this factory for {@link StreamSource}. */
+    default boolean isStreamSource() {
+        return false;
+    }
 
-	/**
-	 * If the stream operator need access to the output type information at {@link StreamGraph}
-	 * generation. This can be useful for cases where the output type is specified by the returns
-	 * method and, thus, after the stream operator has been created.
-	 */
-	default boolean isOutputTypeConfigurable() {
-		return false;
-	}
+    default boolean isLegacySource() {
+        return false;
+    }
 
-	/**
-	 * Is called by the {@link StreamGraph#addOperator} method when the {@link StreamGraph} is
-	 * generated. The method is called with the output {@link TypeInformation} which is also used
-	 * for the {@link StreamTask} output serializer.
-	 *
-	 * @param type Output type information of the {@link StreamTask}
-	 * @param executionConfig Execution configuration
-	 */
-	default void setOutputType(TypeInformation<OUT> type, ExecutionConfig executionConfig) {}
+    /**
+     * If the stream operator need access to the output type information at {@link StreamGraph}
+     * generation. This can be useful for cases where the output type is specified by the returns
+     * method and, thus, after the stream operator has been created.
+     */
+    default boolean isOutputTypeConfigurable() {
+        return false;
+    }
 
-	/**
-	 * If the stream operator need to be configured with the data type they will operate on.
-	 */
-	default boolean isInputTypeConfigurable() {
-		return false;
-	}
+    /**
+     * Is called by the {@link StreamGraph#addOperator} method when the {@link StreamGraph} is
+     * generated. The method is called with the output {@link TypeInformation} which is also used
+     * for the {@link StreamTask} output serializer.
+     *
+     * @param type Output type information of the {@link StreamTask}
+     * @param executionConfig Execution configuration
+     */
+    default void setOutputType(TypeInformation<OUT> type, ExecutionConfig executionConfig) {}
 
-	/**
-	 * Is called by the {@link StreamGraph#addOperator} method when the {@link StreamGraph} is
-	 * generated.
-	 *
-	 * @param type The data type of the input.
-	 * @param executionConfig The execution config for this parallel execution.
-	 */
-	default void setInputType(TypeInformation<?> type, ExecutionConfig executionConfig) {}
+    /** If the stream operator need to be configured with the data type they will operate on. */
+    default boolean isInputTypeConfigurable() {
+        return false;
+    }
 
-	/**
-	 * Returns the runtime class of the stream operator.
-	 */
-	Class<? extends StreamOperator> getStreamOperatorClass(ClassLoader classLoader);
+    /**
+     * Is called by the {@link StreamGraph#addOperator} method when the {@link StreamGraph} is
+     * generated.
+     *
+     * @param type The data type of the input.
+     * @param executionConfig The execution config for this parallel execution.
+     */
+    default void setInputType(TypeInformation<?> type, ExecutionConfig executionConfig) {}
+
+    /** Returns the runtime class of the stream operator. */
+    Class<? extends StreamOperator> getStreamOperatorClass(ClassLoader classLoader);
 }

@@ -21,29 +21,30 @@ package org.apache.flink.runtime.io.network;
 import java.io.IOException;
 
 /**
- * A dummy implementation of the {@link ConnectionManager} which is mainly used for creating
- * {@link PartitionRequestClient} instance in tests.
+ * A dummy implementation of the {@link ConnectionManager} which is mainly used for creating {@link
+ * PartitionRequestClient} instance in tests.
  */
 public class TestingConnectionManager implements ConnectionManager {
 
-	@Override
-	public int start() {
-		return -1;
-	}
+    @Override
+    public int start() {
+        return -1;
+    }
 
-	@Override
-	public PartitionRequestClient createPartitionRequestClient(ConnectionID connectionId) throws IOException {
-		return new TestingPartitionRequestClient();
-	}
+    @Override
+    public PartitionRequestClient createPartitionRequestClient(ConnectionID connectionId)
+            throws IOException {
+        return new TestingPartitionRequestClient();
+    }
 
-	@Override
-	public void closeOpenChannelConnections(ConnectionID connectionId) {}
+    @Override
+    public void closeOpenChannelConnections(ConnectionID connectionId) {}
 
-	@Override
-	public int getNumberOfActiveConnections() {
-		return 0;
-	}
+    @Override
+    public int getNumberOfActiveConnections() {
+        return 0;
+    }
 
-	@Override
-	public void shutdown() {}
+    @Override
+    public void shutdown() {}
 }

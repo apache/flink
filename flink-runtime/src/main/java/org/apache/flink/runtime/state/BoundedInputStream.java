@@ -25,88 +25,94 @@ import java.io.InputStream;
 /**
  * Wrapper around a FSDataInputStream to limit the maximum read offset.
  *
- * Based on the implementation from org.apache.commons.io.input.BoundedInputStream
+ * <p>Based on the implementation from org.apache.commons.io.input.BoundedInputStream
  */
 public class BoundedInputStream extends InputStream {
-	private final FSDataInputStream delegate;
-	private long endOffsetExclusive;
-	private long position;
-	private long mark;
+    private final FSDataInputStream delegate;
+    private long endOffsetExclusive;
+    private long position;
+    private long mark;
 
-	public BoundedInputStream(FSDataInputStream delegate, long endOffsetExclusive) throws IOException {
-		this.position = delegate.getPos();
-		this.mark = -1L;
-		this.endOffsetExclusive = endOffsetExclusive;
-		this.delegate = delegate;
-	}
+    public BoundedInputStream(FSDataInputStream delegate, long endOffsetExclusive)
+            throws IOException {
+        this.position = delegate.getPos();
+        this.mark = -1L;
+        this.endOffsetExclusive = endOffsetExclusive;
+        this.delegate = delegate;
+    }
 
-	public int read() throws IOException {
-		if (endOffsetExclusive >= 0L && position >= endOffsetExclusive) {
-			return -1;
-		} else {
-			int result = delegate.read();
-			++position;
-			return result;
-		}
-	}
+    public int read() throws IOException {
+        if (endOffsetExclusive >= 0L && position >= endOffsetExclusive) {
+            return -1;
+        } else {
+            int result = delegate.read();
+            ++position;
+            return result;
+        }
+    }
 
-	public int read(byte[] b) throws IOException {
-		return read(b, 0, b.length);
-	}
+    public int read(byte[] b) throws IOException {
+        return read(b, 0, b.length);
+    }
 
-	public int read(byte[] b, int off, int len) throws IOException {
-		if (endOffsetExclusive >= 0L && position >= endOffsetExclusive) {
-			return -1;
-		} else {
-			long maxRead = endOffsetExclusive >= 0L ? Math.min((long) len, endOffsetExclusive - position) : (long) len;
-			int bytesRead = delegate.read(b, off, (int) maxRead);
-			if (bytesRead == -1) {
-				return -1;
-			} else {
-				position += (long) bytesRead;
-				return bytesRead;
-			}
-		}
-	}
+    public int read(byte[] b, int off, int len) throws IOException {
+        if (endOffsetExclusive >= 0L && position >= endOffsetExclusive) {
+            return -1;
+        } else {
+            long maxRead =
+                    endOffsetExclusive >= 0L
+                            ? Math.min((long) len, endOffsetExclusive - position)
+                            : (long) len;
+            int bytesRead = delegate.read(b, off, (int) maxRead);
+            if (bytesRead == -1) {
+                return -1;
+            } else {
+                position += (long) bytesRead;
+                return bytesRead;
+            }
+        }
+    }
 
-	public long skip(long n) throws IOException {
-		long toSkip = endOffsetExclusive >= 0L ? Math.min(n, endOffsetExclusive - position) : n;
-		long skippedBytes = delegate.skip(toSkip);
-		position += skippedBytes;
-		return skippedBytes;
-	}
+    public long skip(long n) throws IOException {
+        long toSkip = endOffsetExclusive >= 0L ? Math.min(n, endOffsetExclusive - position) : n;
+        long skippedBytes = delegate.skip(toSkip);
+        position += skippedBytes;
+        return skippedBytes;
+    }
 
-	public int available() throws IOException {
-		return endOffsetExclusive >= 0L && position >= endOffsetExclusive ? 0 : delegate.available();
-	}
+    public int available() throws IOException {
+        return endOffsetExclusive >= 0L && position >= endOffsetExclusive
+                ? 0
+                : delegate.available();
+    }
 
-	public String toString() {
-		return delegate.toString();
-	}
+    public String toString() {
+        return delegate.toString();
+    }
 
-	public void close() throws IOException {
-		delegate.close();
-	}
+    public void close() throws IOException {
+        delegate.close();
+    }
 
-	public synchronized void reset() throws IOException {
-		delegate.reset();
-		position = mark;
-	}
+    public synchronized void reset() throws IOException {
+        delegate.reset();
+        position = mark;
+    }
 
-	public synchronized void mark(int readlimit) {
-		delegate.mark(readlimit);
-		mark = position;
-	}
+    public synchronized void mark(int readlimit) {
+        delegate.mark(readlimit);
+        mark = position;
+    }
 
-	public long getEndOffsetExclusive() {
-		return endOffsetExclusive;
-	}
+    public long getEndOffsetExclusive() {
+        return endOffsetExclusive;
+    }
 
-	public void setEndOffsetExclusive(long endOffsetExclusive) {
-		this.endOffsetExclusive = endOffsetExclusive;
-	}
+    public void setEndOffsetExclusive(long endOffsetExclusive) {
+        this.endOffsetExclusive = endOffsetExclusive;
+    }
 
-	public boolean markSupported() {
-		return delegate.markSupported();
-	}
+    public boolean markSupported() {
+        return delegate.markSupported();
+    }
 }

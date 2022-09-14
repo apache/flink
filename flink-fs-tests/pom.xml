@@ -23,12 +23,11 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-parent</artifactId>
-		<version>1.11-SNAPSHOT</version>
-		<relativePath>..</relativePath>
+		<version>1.17-SNAPSHOT</version>
 	</parent>
 
 	<artifactId>flink-fs-tests</artifactId>
-	<name>flink-fs-tests</name>
+	<name>Flink : FileSystems : Tests</name>
 
 	<packaging>jar</packaging>
 
@@ -37,19 +36,25 @@ under the License.
 	-->
 	<dependencies>
 		<dependency>
-			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-shaded-hadoop-2</artifactId>
+			<groupId>org.apache.hadoop</groupId>
+			<artifactId>hadoop-common</artifactId>
+			<scope>test</scope>
+		</dependency>
+
+		<dependency>
+			<groupId>org.apache.hadoop</groupId>
+			<artifactId>hadoop-hdfs</artifactId>
 			<scope>test</scope>
 		</dependency>
 		
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-streaming-java_${scala.binary.version}</artifactId>
+			<artifactId>flink-streaming-java</artifactId>
 			<version>${project.version}</version>
 			<type>test-jar</type>
 			<scope>test</scope>
 		</dependency>
-		
+
 		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-examples-batch_${scala.binary.version}</artifactId>
@@ -71,14 +76,14 @@ under the License.
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-test-utils_${scala.binary.version}</artifactId>
+			<artifactId>flink-test-utils</artifactId>
 			<version>${project.version}</version>
 			<scope>test</scope>
 		</dependency>
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-runtime_${scala.binary.version}</artifactId>
+			<artifactId>flink-runtime</artifactId>
 			<version>${project.version}</version>
 			<scope>test</scope>
 			<type>test-jar</type>
@@ -97,7 +102,7 @@ under the License.
 			<artifactId>hadoop-hdfs</artifactId>
 			<scope>test</scope>
 			<type>test-jar</type>
-			<version>${hadoop.version}</version><!--$NO-MVN-MAN-VER$-->
+			<version>${flink.hadoop.version}</version><!--$NO-MVN-MAN-VER$-->
 			<exclusions>
 				<exclusion>
 					<groupId>log4j</groupId>
@@ -111,7 +116,7 @@ under the License.
 			<artifactId>hadoop-common</artifactId>
 			<scope>test</scope>
 			<type>test-jar</type>
-			<version>${hadoop.version}</version><!--$NO-MVN-MAN-VER$-->
+			<version>${flink.hadoop.version}</version><!--$NO-MVN-MAN-VER$-->
 			<exclusions>
 				<exclusion>
 					<groupId>log4j</groupId>
@@ -129,6 +134,22 @@ under the License.
 			</exclusions>
 		</dependency>
 	</dependencies>
+
+	<profiles>
+		<profile>
+			<!-- This profile adds dependencies needed to execute the tests
+			with Hadoop 3 -->
+			<id>hadoop3-tests</id>
+			<dependencies>
+				<dependency>
+					<groupId>org.apache.hadoop</groupId>
+					<artifactId>hadoop-hdfs-client</artifactId>
+					<version>${flink.hadoop.version}</version>
+					<scope>test</scope>
+				</dependency>
+			</dependencies>
+		</profile>
+	</profiles>
 
 	<build>
 		<plugins>

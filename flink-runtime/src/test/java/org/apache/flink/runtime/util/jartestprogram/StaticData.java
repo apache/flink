@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -21,15 +21,13 @@ package org.apache.flink.runtime.util.jartestprogram;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 
-
 public class StaticData {
-	public static DataSet<String> getDefaultTextLineDataSet(ExecutionEnvironment env) {
+    public static DataSet<String> getDefaultTextLineDataSet(ExecutionEnvironment env) {
 
-		return env.fromElements(
-			"To be, or not to be,--that is the question:--",
-			"Whether 'tis nobler in the mind to suffer",
-			"The slings and arrows of outrageous fortune",
-			"Or to take arms against a sea of troubles,"
-		);
-	}
+        return env.fromElements(
+                "To be, or not to be,--that is the question:--",
+                "Whether 'tis nobler in the mind to suffer",
+                "The slings and arrows of outrageous fortune",
+                "Or to take arms against a sea of troubles,");
+    }
 }

@@ -18,19 +18,17 @@
 
 package org.apache.flink.runtime.dispatcher;
 
-import org.apache.flink.runtime.executiongraph.AccessExecutionGraph;
 import org.apache.flink.runtime.messages.Acknowledge;
+import org.apache.flink.runtime.scheduler.ExecutionGraphInfo;
 
 import java.util.concurrent.CompletableFuture;
 
-/**
- * No-op implementation of the {@link HistoryServerArchivist}.
- */
+/** No-op implementation of the {@link HistoryServerArchivist}. */
 public enum VoidHistoryServerArchivist implements HistoryServerArchivist {
-	INSTANCE;
+    INSTANCE;
 
-	@Override
-	public CompletableFuture<Acknowledge> archiveExecutionGraph(AccessExecutionGraph executionGraph) {
-		return CompletableFuture.completedFuture(Acknowledge.get());
-	}
+    @Override
+    public CompletableFuture<Acknowledge> archiveExecutionGraph(ExecutionGraphInfo executionGraph) {
+        return CompletableFuture.completedFuture(Acknowledge.get());
+    }
 }

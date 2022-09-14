@@ -20,12 +20,11 @@ package org.apache.flink.api.scala.extensions.base
 import org.apache.flink.api.scala._
 import org.apache.flink.api.scala.extensions.data.KeyValuePair
 import org.apache.flink.util.TestLogger
+
 import org.scalatest.junit.JUnitSuiteLike
 
-/**
-  * Common facilities to test the `acceptPartialFunctions` extension
-  */
-private[extensions] abstract class AcceptPFTestBase extends TestLogger with JUnitSuiteLike {
+/** Common facilities to test the `acceptPartialFunctions` extension */
+abstract private[extensions] class AcceptPFTestBase extends TestLogger with JUnitSuiteLike {
 
   private val env = ExecutionEnvironment.getExecutionEnvironment
 

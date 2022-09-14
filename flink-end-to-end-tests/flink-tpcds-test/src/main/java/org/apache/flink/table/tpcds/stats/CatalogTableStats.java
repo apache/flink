@@ -24,34 +24,45 @@ import org.apache.flink.table.catalog.stats.CatalogColumnStatistics;
 import org.apache.flink.table.catalog.stats.CatalogTableStatistics;
 
 /**
- * Class to describe catalog table statistics.
- * Consists of {@link CatalogTableStatistics} and {@link CatalogColumnStatistics}.
+ * Class to describe catalog table statistics. Consists of {@link CatalogTableStatistics} and {@link
+ * CatalogColumnStatistics}.
  */
 public class CatalogTableStats {
-	private final CatalogTableStatistics catalogTableStatistics;
-	private final CatalogColumnStatistics catalogColumnStatistics;
+    private final CatalogTableStatistics catalogTableStatistics;
+    private final CatalogColumnStatistics catalogColumnStatistics;
 
-	public CatalogTableStats(CatalogTableStatistics catalogTableStatistics, CatalogColumnStatistics catalogColumnStatistics) {
-		this.catalogTableStatistics = catalogTableStatistics;
-		this.catalogColumnStatistics = catalogColumnStatistics;
-	}
+    public CatalogTableStats(
+            CatalogTableStatistics catalogTableStatistics,
+            CatalogColumnStatistics catalogColumnStatistics) {
+        this.catalogTableStatistics = catalogTableStatistics;
+        this.catalogColumnStatistics = catalogColumnStatistics;
+    }
 
-	public void register2Catalog(TableEnvironment tEnv, String table) {
+    public void register2Catalog(TableEnvironment tEnv, String table) {
 
-		tEnv.getCatalog(tEnv.getCurrentCatalog()).ifPresent(catalog -> {
-			try {
-				catalog.alterTableStatistics(new ObjectPath(tEnv.getCurrentDatabase(), table), catalogTableStatistics, false);
-			} catch (Exception e) {
-				throw new RuntimeException(e);
-			}
-		});
-		tEnv.getCatalog(tEnv.getCurrentCatalog()).ifPresent(catalog -> {
-			try {
-				catalog.alterTableColumnStatistics(new ObjectPath(tEnv.getCurrentDatabase(), table), catalogColumnStatistics, false);
-			} catch (Exception e) {
-				throw new RuntimeException(e);
-			}
-		});
-	}
+        tEnv.getCatalog(tEnv.getCurrentCatalog())
+                .ifPresent(
+                        catalog -> {
+                            try {
+                                catalog.alterTableStatistics(
+                                        new ObjectPath(tEnv.getCurrentDatabase(), table),
+                                        catalogTableStatistics,
+                                        false);
+                            } catch (Exception e) {
+                                throw new RuntimeException(e);
+                            }
+                        });
+        tEnv.getCatalog(tEnv.getCurrentCatalog())
+                .ifPresent(
+                        catalog -> {
+                            try {
+                                catalog.alterTableColumnStatistics(
+                                        new ObjectPath(tEnv.getCurrentDatabase(), table),
+                                        catalogColumnStatistics,
+                                        false);
+                            } catch (Exception e) {
+                                throw new RuntimeException(e);
+                            }
+                        });
+    }
 }
-

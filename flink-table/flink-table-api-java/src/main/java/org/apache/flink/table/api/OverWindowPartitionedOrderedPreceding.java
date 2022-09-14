@@ -20,69 +20,56 @@ package org.apache.flink.table.api;
 
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.table.expressions.Expression;
-import org.apache.flink.table.expressions.ExpressionParser;
 
 import java.util.List;
 import java.util.Optional;
 
-/**
- * Partially defined over window with (optional) partitioning, order, and preceding.
- */
+import static org.apache.flink.table.expressions.ApiExpressionUtils.unresolvedRef;
+
+/** Partially defined over window with (optional) partitioning, order, and preceding. */
 @PublicEvolving
 public final class OverWindowPartitionedOrderedPreceding {
 
-	private final List<Expression> partitionBy;
-	private final Expression orderBy;
-	private final Expression preceding;
-	private Optional<Expression> optionalFollowing = Optional.empty();
+    private final List<Expression> partitionBy;
+    private final Expression orderBy;
+    private final Expression preceding;
+    private Optional<Expression> optionalFollowing = Optional.empty();
 
-	OverWindowPartitionedOrderedPreceding(
-		List<Expression> partitionBy,
-		Expression orderBy,
-		Expression preceding) {
-		this.partitionBy = partitionBy;
-		this.orderBy = orderBy;
-		this.preceding = preceding;
-	}
+    OverWindowPartitionedOrderedPreceding(
+            List<Expression> partitionBy, Expression orderBy, Expression preceding) {
+        this.partitionBy = partitionBy;
+        this.orderBy = orderBy;
+        this.preceding = preceding;
+    }
 
-	/**
-	 * Assigns an alias for this window that the following {@code select()} clause can refer to.
-	 *
-	 * @param alias alias for this over window
-	 * @return the fully defined over window
-	 */
-	public OverWindow as(String alias) {
-		return as(ExpressionParser.parseExpression(alias));
-	}
+    /**
+     * Assigns an alias for this window that the following {@code select()} clause can refer to.
+     *
+     * @param alias alias for this over window
+     * @return the fully defined over window
+     */
+    public OverWindow as(String alias) {
+        return as(unresolvedRef(alias));
+    }
 
-	/**
-	 * Assigns an alias for this window that the following {@code select()} clause can refer to.
-	 *
-	 * @param alias alias for this over window
-	 * @return the fully defined over window
-	 */
-	public OverWindow as(Expression alias) {
-		return new OverWindow(alias, partitionBy, orderBy, preceding, optionalFollowing);
-	}
+    /**
+     * Assigns an alias for this window that the following {@code select()} clause can refer to.
+     *
+     * @param alias alias for this over window
+     * @return the fully defined over window
+     */
+    public OverWindow as(Expression alias) {
+        return new OverWindow(alias, partitionBy, orderBy, preceding, optionalFollowing);
+    }
 
-	/**
-	 * Set the following offset (based on time or row-count intervals) for over window.
-	 *
-	 * @param following following offset that relative to the current row.
-	 * @return an over window with defined following
-	 */
-	public OverWindowPartitionedOrderedPreceding following(String following) {
-		return this.following(ExpressionParser.parseExpression(following));
-	}
-
-	/**
-	 * Set the following offset (based on time or row-count intervals) for over window.
-	 *
-	 * @param following following offset that relative to the current row.
-	 * @return an over window with defined following
-	 */
-	public OverWindowPartitionedOrderedPreceding following(Expression following) {
-		optionalFollowing = Optional.of(following);
-		return this;
-	}
+    /**
+     * Set the following offset (based on time or row-count intervals) for over window.
+     *
+     * @param following following offset that relative to the current row.
+     * @return an over window with defined following
+     */
+    public OverWindowPartitionedOrderedPreceding following(Expression following) {
+        optionalFollowing = Optional.of(following);
+        return this;
+    }
 }

@@ -18,76 +18,76 @@
 
 package org.apache.flink.table.utils;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.io.Serializable;
 import java.util.Objects;
 
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
-/**
- * Tests for {@link org.apache.flink.table.utils.EncodingUtils}.
- */
-public class EncodingUtilsTest {
+/** Tests for {@link org.apache.flink.table.utils.EncodingUtils}. */
+class EncodingUtilsTest {
 
-	@Test
-	public void testObjectStringEncoding() {
-		final MyPojo pojo = new MyPojo(33, "Hello");
-		final String base64 = EncodingUtils.encodeObjectToString(pojo);
-		assertEquals(pojo, EncodingUtils.decodeStringToObject(base64, Serializable.class));
-	}
+    @Test
+    void testObjectStringEncoding() {
+        final MyPojo pojo = new MyPojo(33, "Hello");
+        final String base64 = EncodingUtils.encodeObjectToString(pojo);
+        assertThat(EncodingUtils.decodeStringToObject(base64, Serializable.class)).isEqualTo(pojo);
+    }
 
-	@Test
-	public void testStringBase64Encoding() {
-		final String string = "Hello, this is apache flink.";
-		final String base64 = EncodingUtils.encodeStringToBase64(string);
-		assertEquals("SGVsbG8sIHRoaXMgaXMgYXBhY2hlIGZsaW5rLg==", base64);
-		assertEquals(string, EncodingUtils.decodeBase64ToString(base64));
-	}
+    @Test
+    void testStringBase64Encoding() {
+        final String string = "Hello, this is apache flink.";
+        final String base64 = EncodingUtils.encodeStringToBase64(string);
+        assertThat(base64).isEqualTo("SGVsbG8sIHRoaXMgaXMgYXBhY2hlIGZsaW5rLg==");
+        assertThat(EncodingUtils.decodeBase64ToString(base64)).isEqualTo(string);
+    }
 
-	@Test
-	public void testMd5Hex() {
-		final String string = "Hello, world! How are you? 高精确";
-		assertEquals("983abac84e994b4ba73be177e5cc298b", EncodingUtils.hex(EncodingUtils.md5(string)));
-	}
+    @Test
+    void testMd5Hex() {
+        final String string = "Hello, world! How are you? 高精确";
+        assertThat(EncodingUtils.hex(EncodingUtils.md5(string)))
+                .isEqualTo("983abac84e994b4ba73be177e5cc298b");
+    }
 
-	@Test
-	public void testJavaEscaping() {
-		assertEquals("\\\\hello\\\"world'space/", EncodingUtils.escapeJava("\\hello\"world'space/"));
-	}
+    @Test
+    void testJavaEscaping() {
+        assertThat(EncodingUtils.escapeJava("\\hello\"world'space/"))
+                .isEqualTo("\\\\hello\\\"world'space/");
+    }
 
-	@Test
-	public void testRepetition() {
-		assertEquals("wewewe", EncodingUtils.repeat("we", 3));
-	}
+    @Test
+    void testRepetition() {
+        assertThat(EncodingUtils.repeat("we", 3)).isEqualTo("wewewe");
+    }
 
-	// --------------------------------------------------------------------------------------------
+    // --------------------------------------------------------------------------------------------
 
-	private static class MyPojo implements Serializable {
+    private static class MyPojo implements Serializable {
 
-		private int number;
-		private String string;
+        private int number;
+        private String string;
 
-		public MyPojo(int number, String string) {
-			this.number = number;
-			this.string = string;
-		}
+        public MyPojo(int number, String string) {
+            this.number = number;
+            this.string = string;
+        }
 
-		@Override
-		public boolean equals(Object o) {
-			if (this == o) {
-				return true;
-			}
-			if (o == null || getClass() != o.getClass()) {
-				return false;
-			}
-			MyPojo myPojo = (MyPojo) o;
-			return number == myPojo.number && Objects.equals(string, myPojo.string);
-		}
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) {
+                return true;
+            }
+            if (o == null || getClass() != o.getClass()) {
+                return false;
+            }
+            MyPojo myPojo = (MyPojo) o;
+            return number == myPojo.number && Objects.equals(string, myPojo.string);
+        }
 
-		@Override
-		public int hashCode() {
-			return Objects.hash(number, string);
-		}
-	}
+        @Override
+        public int hashCode() {
+            return Objects.hash(number, string);
+        }
+    }
 }

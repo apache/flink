@@ -25,16 +25,22 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-test-utils-parent</artifactId>
-		<version>1.11-SNAPSHOT</version>
-		<relativePath>..</relativePath>
+		<version>1.17-SNAPSHOT</version>
 	</parent>
 
-	<artifactId>flink-test-utils_${scala.binary.version}</artifactId>
-	<name>flink-test-utils</name>
+	<artifactId>flink-test-utils</artifactId>
+	<name>Flink : Test utils : Utils</name>
 
 	<packaging>jar</packaging>
 
 	<dependencies>
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-table-common</artifactId>
+			<version>${project.version}</version>
+			<scope>compile</scope>
+		</dependency>
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
@@ -44,14 +50,14 @@ under the License.
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-runtime_${scala.binary.version}</artifactId>
+			<artifactId>flink-runtime</artifactId>
 			<version>${project.version}</version>
 			<scope>compile</scope>
 		</dependency>
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-runtime_${scala.binary.version}</artifactId>
+			<artifactId>flink-runtime</artifactId>
 			<version>${project.version}</version>
 			<type>test-jar</type>
 			<scope>compile</scope>
@@ -59,36 +65,43 @@ under the License.
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-clients_${scala.binary.version}</artifactId>
+			<artifactId>flink-core</artifactId>
+			<version>${project.version}</version>
+			<type>test-jar</type>
+			<scope>compile</scope>
+		</dependency>
+
+		<dependency>
+			<!-- provides fallback AkkaRpcSystem loader for the IDE -->
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-rpc-akka-loader</artifactId>
+			<version>${project.version}</version>
+			<type>test-jar</type>
+		</dependency>
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-clients</artifactId>
 			<version>${project.version}</version>
 			<scope>compile</scope>
 		</dependency>
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-streaming-java_${scala.binary.version}</artifactId>
+			<artifactId>flink-streaming-java</artifactId>
 			<version>${project.version}</version>
 			<scope>compile</scope>
 		</dependency>
 
 		<dependency>
-			<groupId>io.netty</groupId>
-			<artifactId>netty</artifactId>
-			<version>3.10.6.Final</version>
+			<groupId>org.junit.jupiter</groupId>
+			<artifactId>junit-jupiter</artifactId>
 			<scope>compile</scope>
 		</dependency>
 
 		<dependency>
-			<groupId>junit</groupId>
-			<artifactId>junit</artifactId>
-			<version>${junit.version}</version>
-			<scope>compile</scope>
-		</dependency>
-
-		<dependency>
-			<groupId>org.apache.curator</groupId>
-			<artifactId>curator-test</artifactId>
-			<version>${curator.version}</version>
+			<groupId>org.assertj</groupId>
+			<artifactId>assertj-core</artifactId>
 			<scope>compile</scope>
 		</dependency>
 
@@ -116,51 +129,14 @@ under the License.
 			</exclusions>
 		</dependency>
 
-	</dependencies>
+        <dependency>
+            <groupId>org.apache.flink</groupId>
+            <artifactId>flink-statebackend-changelog</artifactId>
+            <version>${project.version}</version>
+            <!-- the dependency should be transitive -->
+            <scope>runtime</scope>
+        </dependency>
 
-	<build>
-		<plugins>
-			<plugin>
-				<groupId>org.apache.maven.plugins</groupId>
-				<artifactId>maven-shade-plugin</artifactId>
-				<executions>
-					<execution>
-						<id>shade-flink</id>
-						<phase>package</phase>
-						<goals>
-							<goal>shade</goal>
-						</goals>
-						<configuration>
-							<artifactSet>
-								<includes combine.children="append">
-									<include>io.netty:netty</include>
-								</includes>
-							</artifactSet>
-							<relocations combine.children="append">
-								<relocation>
-									<pattern>org.jboss.netty</pattern>
-									<shadedPattern>org.apache.flink.shaded.testutils.org.jboss.netty</shadedPattern>
-								</relocation>
-							</relocations>
-							<filters combine.children="append">
-								<filter>
-									<artifact>io.netty:netty</artifact>
-									<excludes>
-										<exclude>META-INF/maven/io.netty/**</exclude>
-										<!-- Only some of these licenses actually apply to the JAR and have been manually
-										 	placed in this module's resources directory. -->
-										<exclude>META-INF/license/**</exclude>
-										<!-- Only parts of NOTICE file actually apply to the netty JAR and have been manually
-										 	copied into this modules's NOTICE file. -->
-										<exclude>META-INF/NOTICE.txt</exclude>
-									</excludes>
-								</filter>
-							</filters>
-						</configuration>
-					</execution>
-				</executions>
-			</plugin>
-		</plugins>
-	</build>
+	</dependencies>
 
 </project>

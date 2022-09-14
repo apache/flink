@@ -20,32 +20,30 @@ package org.apache.flink.runtime.state.heap.space;
 
 import java.io.Closeable;
 
-/**
- * Implementations are responsible for allocate space.
- */
+/** Implementations are responsible for allocate space. */
 public interface Allocator extends Closeable {
 
-	/**
-	 * Allocate space with the given size.
-	 *
-	 * @param size size of space to allocate.
-	 * @return address of the allocated space.
-	 * @throws Exception This method will throw exception if failed to allocate space.
-	 */
-	long allocate(int size) throws Exception;
+    /**
+     * Allocate space with the given size.
+     *
+     * @param size size of space to allocate.
+     * @return address of the allocated space.
+     * @throws Exception This method will throw exception if failed to allocate space.
+     */
+    long allocate(int size) throws Exception;
 
-	/**
-	 * Free the space with the given address.
-	 *
-	 * @param address address of the space to free.
-	 */
-	void free(long address);
+    /**
+     * Free the space with the given address.
+     *
+     * @param address address of the space to free.
+     */
+    void free(long address);
 
-	/**
-	 * Returns the chunk with the given chunk id.
-	 *
-	 * @param chunkId id of the chunk.
-	 * @return chunk with the given id.
-	 */
-	Chunk getChunkById(int chunkId);
+    /**
+     * Returns the chunk with the given chunk id.
+     *
+     * @param chunkId id of the chunk.
+     * @return chunk with the given id.
+     */
+    Chunk getChunkById(int chunkId);
 }

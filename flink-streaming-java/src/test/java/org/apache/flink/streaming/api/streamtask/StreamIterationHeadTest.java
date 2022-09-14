@@ -26,24 +26,21 @@ import org.junit.Test;
 
 import static org.junit.Assert.assertEquals;
 
-/**
- * Tests for {@link StreamIterationHead}.
- */
+/** Tests for {@link StreamIterationHead}. */
 public class StreamIterationHeadTest {
 
-	@Test
-	public void testIterationHeadWatermarkEmission() throws Exception {
-		StreamTaskTestHarness<Integer> harness = new StreamTaskTestHarness<>(
-				StreamIterationHead::new,
-				BasicTypeInfo.INT_TYPE_INFO);
-		harness.setupOutputForSingletonOperatorChain();
-		harness.getStreamConfig().setIterationId("1");
-		harness.getStreamConfig().setIterationWaitTime(1);
+    @Test
+    public void testIterationHeadWatermarkEmission() throws Exception {
+        StreamTaskTestHarness<Integer> harness =
+                new StreamTaskTestHarness<>(StreamIterationHead::new, BasicTypeInfo.INT_TYPE_INFO);
+        harness.setupOutputForSingletonOperatorChain();
+        harness.getStreamConfig().setIterationId("1");
+        harness.getStreamConfig().setIterationWaitTime(1);
 
-		harness.invoke();
-		harness.waitForTaskCompletion();
+        harness.invoke();
+        harness.waitForTaskCompletion();
 
-		assertEquals(1, harness.getOutput().size());
-		assertEquals(new Watermark(Long.MAX_VALUE), harness.getOutput().peek());
-	}
+        assertEquals(1, harness.getOutput().size());
+        assertEquals(new Watermark(Long.MAX_VALUE), harness.getOutput().peek());
+    }
 }

@@ -19,8 +19,8 @@
 package org.apache.flink.runtime.rest.handler.async;
 
 import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
-import org.apache.flink.runtime.rest.messages.MessageHeaders;
 import org.apache.flink.runtime.rest.messages.MessageParameters;
+import org.apache.flink.runtime.rest.messages.RuntimeMessageHeaders;
 
 import java.util.Collection;
 import java.util.Collections;
@@ -31,22 +31,23 @@ import java.util.Collections;
  * @param <V> type of the operation result
  * @param <M> type of the message parameters
  */
-public abstract class AsynchronousOperationStatusMessageHeaders<V, M extends MessageParameters> implements MessageHeaders<EmptyRequestBody, AsynchronousOperationResult<V>, M> {
+public abstract class AsynchronousOperationStatusMessageHeaders<V, M extends MessageParameters>
+        implements RuntimeMessageHeaders<EmptyRequestBody, AsynchronousOperationResult<V>, M> {
 
-	/**
-	 * Returns the class of the value wrapped in the {@link AsynchronousOperationResult}.
-	 *
-	 * @return value class
-	 */
-	protected abstract Class<V> getValueClass();
+    /**
+     * Returns the class of the value wrapped in the {@link AsynchronousOperationResult}.
+     *
+     * @return value class
+     */
+    public abstract Class<V> getValueClass();
 
-	@Override
-	public Class<AsynchronousOperationResult<V>> getResponseClass() {
-		return (Class<AsynchronousOperationResult<V>>) (Class<?>) AsynchronousOperationResult.class;
-	}
+    @Override
+    public Class<AsynchronousOperationResult<V>> getResponseClass() {
+        return (Class<AsynchronousOperationResult<V>>) (Class<?>) AsynchronousOperationResult.class;
+    }
 
-	@Override
-	public Collection<Class<?>> getResponseTypeParameters() {
-		return Collections.singleton(getValueClass());
-	}
+    @Override
+    public Collection<Class<?>> getResponseTypeParameters() {
+        return Collections.singleton(getValueClass());
+    }
 }

@@ -1,0 +1,78 @@
+<!--
+Licensed to the Apache Software Foundation (ASF) under one
+or more contributor license agreements.  See the NOTICE file
+distributed with this work for additional information
+regarding copyright ownership.  The ASF licenses this file
+to you under the Apache License, Version 2.0 (the
+"License"); you may not use this file except in compliance
+with the License.  You may obtain a copy of the License at
+
+  http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing,
+software distributed under the License is distributed on an
+"AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+KIND, either express or implied.  See the License for the
+specific language governing permissions and limitations
+under the License.
+-->
+<!--
+    Content written at the bottom of the menu
+-->
+<br/>
+<hr class="menu-break">
+{{ range $links := .Site.Params.MenuLinks }}
+<a href="{{ index $links 1 }}" style="color:black;margin-bottom:0.5em"><i class="link fa fa-external-link title" aria-hidden="true"></i> {{ index $links 0 }}</a>
+<br/>
+{{ end }}
+<hr class="menu-break">
+<li style="list-style-type: none">
+  <br>
+  <input type="checkbox" id="section-version-picker" class="toggle">
+  <label for="section-version-picker" class="flex justify-between">
+     <div style="font-weight:450;margin-bottom:0.5em">Pick Docs Version</div>
+     <span>▾</span>
+  </label>
+  <ul>
+    <a href="{{.Site.BaseURL}}{{.Site.LanguagePrefix}}">
+      {{ .Site.Params.VersionTitle }} (✓)
+    </a>
+    <hr class="menu-break">
+    {{ range $docs := first 2 .Site.Params.PreviousDocs }}
+      <li>
+        <a href="{{ index $docs 1 }}">
+          v{{ index $docs 0}}
+        </a>
+      </li>
+    {{ end }}
+    <hr class="menu-break">
+    <li>
+      <a href="{{.Site.BaseURL}}{{.Site.LanguagePrefix}}/versions">
+          All Versions
+      </a>
+    </li>
+  </ul>
+</li>
+
+<!-- merge languages into a single dictonary -->
+{{ $translations := dict }}
+{{ range .Site.Home.AllTranslations }}
+  {{ $translations = merge $translations (dict .Language.Lang .) }}
+{{ end }}
+{{ range .Translations }}
+  {{ $translations = merge $translations (dict .Language.Lang .) }}
+{{ end }}
+
+<!-- 
+iterate over the languages and create a button 
+for the one that is not currently active
+-->
+{{ range .Site.Languages }}{{ with index $translations .Lang }}
+{{ if (ne $.Site.Language .Language) }}
+<a  href="{{ .Permalink }}" class="flex align-center">
+  <i class="fa fa-globe" aria-hidden="true"></i>&nbsp;&nbsp;
+  {{ .Language.LanguageName }}
+</a>
+{{ end }}{{ end }}{{ end }}
+<script src="{{.Site.BaseURL}}/js/track-search-terms.js"></script>
+

@@ -18,18 +18,26 @@
 
 package org.apache.flink.metrics.reporter;
 
+import org.apache.flink.annotation.Public;
+
 import java.util.Properties;
 
 /**
  * {@link MetricReporter} factory.
+ *
+ * <p>Reporters that can be instantiated with a factory automatically qualify for being loaded as a
+ * plugin, so long as the reporter jar is self-contained (excluding Flink dependencies) and contains
+ * a {@code META-INF/services/org.apache.flink.metrics.reporter.MetricReporterFactory} file
+ * containing the qualified class name of the factory.
  */
+@Public
 public interface MetricReporterFactory {
 
-	/**
-	 * Creates a new metric reporter.
-	 *
-	 * @param properties configured properties for the reporter
-	 * @return created metric reporter
-	 */
-	MetricReporter createMetricReporter(final Properties properties);
+    /**
+     * Creates a new metric reporter.
+     *
+     * @param properties configured properties for the reporter
+     * @return created metric reporter
+     */
+    MetricReporter createMetricReporter(final Properties properties);
 }

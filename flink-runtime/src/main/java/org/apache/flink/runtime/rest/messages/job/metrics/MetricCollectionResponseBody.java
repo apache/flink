@@ -39,14 +39,13 @@ import static java.util.Objects.requireNonNull;
 /**
  * Response type for a collection of metrics.
  *
- * <p>As JSON this type will be represented as an array of
- * metrics, i.e., the field <code>metrics</code> will not show up. For example, a collection with a
- * single metric will be represented as follows:
- * <pre>
- * {@code
+ * <p>As JSON this type will be represented as an array of metrics, i.e., the field <code>metrics
+ * </code> will not show up. For example, a collection with a single metric will be represented as
+ * follows:
+ *
+ * <pre>{@code
  * [{"id": "metricName", "value": "1"}]
- * }
- * </pre>
+ * }</pre>
  *
  * @see Serializer
  * @see Deserializer
@@ -56,58 +55,52 @@ import static java.util.Objects.requireNonNull;
 @JsonDeserialize(using = MetricCollectionResponseBody.Deserializer.class)
 public final class MetricCollectionResponseBody implements ResponseBody {
 
-	private final Collection<Metric> metrics;
+    private final Collection<Metric> metrics;
 
-	public MetricCollectionResponseBody(Collection<Metric> metrics) {
-		this.metrics = requireNonNull(metrics, "metrics must not be null");
-	}
+    public MetricCollectionResponseBody(Collection<Metric> metrics) {
+        this.metrics = requireNonNull(metrics, "metrics must not be null");
+    }
 
-	public Collection<Metric> getMetrics() {
-		return metrics;
-	}
+    public Collection<Metric> getMetrics() {
+        return metrics;
+    }
 
-	/**
-	 * JSON serializer for {@link MetricCollectionResponseBody}.
-	 */
-	public static class Serializer extends StdSerializer<MetricCollectionResponseBody> {
+    /** JSON serializer for {@link MetricCollectionResponseBody}. */
+    public static class Serializer extends StdSerializer<MetricCollectionResponseBody> {
 
-		private static final long serialVersionUID = 1L;
+        private static final long serialVersionUID = 1L;
 
-		protected Serializer() {
-			super(MetricCollectionResponseBody.class);
-		}
+        protected Serializer() {
+            super(MetricCollectionResponseBody.class);
+        }
 
-		@Override
-		public void serialize(
-				MetricCollectionResponseBody metricCollectionResponseBody,
-				JsonGenerator jsonGenerator,
-				SerializerProvider serializerProvider) throws IOException {
+        @Override
+        public void serialize(
+                MetricCollectionResponseBody metricCollectionResponseBody,
+                JsonGenerator jsonGenerator,
+                SerializerProvider serializerProvider)
+                throws IOException {
 
-			jsonGenerator.writeObject(metricCollectionResponseBody.getMetrics());
-		}
-	}
+            jsonGenerator.writeObject(metricCollectionResponseBody.getMetrics());
+        }
+    }
 
-	/**
-	 * JSON deserializer for {@link MetricCollectionResponseBody}.
-	 */
-	public static class Deserializer extends StdDeserializer<MetricCollectionResponseBody> {
+    /** JSON deserializer for {@link MetricCollectionResponseBody}. */
+    public static class Deserializer extends StdDeserializer<MetricCollectionResponseBody> {
 
-		private static final long serialVersionUID = 1L;
+        private static final long serialVersionUID = 1L;
 
-		protected Deserializer() {
-			super(MetricCollectionResponseBody.class);
-		}
+        protected Deserializer() {
+            super(MetricCollectionResponseBody.class);
+        }
 
-		@Override
-		public MetricCollectionResponseBody deserialize(
-				JsonParser jsonParser,
-				DeserializationContext deserializationContext) throws IOException {
+        @Override
+        public MetricCollectionResponseBody deserialize(
+                JsonParser jsonParser, DeserializationContext deserializationContext)
+                throws IOException {
 
-			return new MetricCollectionResponseBody(jsonParser.readValueAs(
-				new TypeReference<List<Metric>>() {
-				}));
-		}
-	}
-
+            return new MetricCollectionResponseBody(
+                    jsonParser.readValueAs(new TypeReference<List<Metric>>() {}));
+        }
+    }
 }
-

@@ -18,22 +18,20 @@
 
 package org.apache.flink.table.client;
 
-/**
- * General exception for SQL client related errors.
- */
+/** General exception for SQL client related errors. */
 public class SqlClientException extends RuntimeException {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	public SqlClientException(String message) {
-		super(message);
-	}
+    public SqlClientException(String message) {
+        super(message);
+    }
 
-	public SqlClientException(String message, Throwable e) {
-		super(message, e);
-	}
+    public SqlClientException(String message, Throwable e) {
+        super(message, e);
+    }
 
-	public SqlClientException(Throwable e) {
-		super(e);
-	}
+    public SqlClientException(Throwable e) {
+        super(e);
+    }
 }

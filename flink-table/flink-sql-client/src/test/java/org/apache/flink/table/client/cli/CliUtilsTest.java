@@ -18,26 +18,47 @@
 
 package org.apache.flink.table.client.cli;
 
-import org.apache.flink.types.Row;
-
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
 
-import java.util.Arrays;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
-/**
- * Tests {@link CliUtils}.
- */
+/** Test {@link CliUtils}. */
 public class CliUtilsTest {
 
-	@Test
-	public void testArrayToString() {
-		Row row = new Row(4);
-		row.setField(0, new int[]{1, 2});
-		row.setField(1, new Integer[]{3, 4});
-		row.setField(2, new Object[]{new int[]{5, 6}, new int[]{7, 8}});
-		row.setField(3, new Integer[][]{new Integer[]{9, 10}, new Integer[]{11, 12}});
-		assertEquals("[[1, 2], [3, 4], [[5, 6], [7, 8]], [[9, 10], [11, 12]]]", Arrays.toString(CliUtils.rowToString(row)));
-	}
+    @Rule public TemporaryFolder realFolder = new TemporaryFolder();
+
+    @Rule public TemporaryFolder linkFolder = new TemporaryFolder();
+
+    @Test
+    public void testCreateFileRealDir() {
+        Path realDirHistoryFile = Paths.get(realFolder.getRoot().toString(), "history.file");
+        CliUtils.createFile(realDirHistoryFile);
+        assertThat(Files.exists(realDirHistoryFile)).isTrue();
+    }
+
+    @Test
+    public void testCreateFileLinkDir() throws IOException {
+        Path link = Paths.get(linkFolder.getRoot().getAbsolutePath(), "link");
+        Files.createSymbolicLink(link, realFolder.getRoot().toPath());
+        Path linkDirHistoryFile = Paths.get(link.toAbsolutePath().toString(), "history.file");
+        Path realLinkDirHistoryFile = Paths.get(realFolder.getRoot().toString(), "history.file");
+        CliUtils.createFile(linkDirHistoryFile);
+        assertThat(Files.exists(linkDirHistoryFile)).isTrue();
+        assertThat(Files.exists(realLinkDirHistoryFile)).isTrue();
+    }
+
+    @Test
+    public void testCreateFileSubDir() {
+        Path subDirHistoryFile =
+                Paths.get(realFolder.getRoot().toString(), "subdir", "history.file");
+        CliUtils.createFile(subDirHistoryFile);
+        assertThat(Files.exists(subDirHistoryFile)).isTrue();
+    }
 }

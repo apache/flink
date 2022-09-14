@@ -20,90 +20,98 @@ package org.apache.flink.client.cli;
 
 import org.apache.flink.configuration.Configuration;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.io.ByteArrayOutputStream;
 import java.io.PrintStream;
 import java.util.Collections;
 
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.fail;
 
-/**
- * Tests for the "info" command.
- */
-public class CliFrontendInfoTest extends CliFrontendTestBase {
+/** Tests for the "info" command. */
+class CliFrontendInfoTest extends CliFrontendTestBase {
 
-	private static PrintStream stdOut;
-	private static PrintStream capture;
-	private static ByteArrayOutputStream buffer;
+    private static PrintStream stdOut;
+    private static PrintStream capture;
+    private static ByteArrayOutputStream buffer;
 
-	@Test(expected = CliArgsException.class)
-	public void testMissingOption() throws Exception {
-		String[] parameters = {};
-		Configuration configuration = getConfiguration();
-		CliFrontend testFrontend = new CliFrontend(
-			configuration,
-			Collections.singletonList(getCli(configuration)));
-		testFrontend.cancel(parameters);
-	}
+    @Test
+    void testMissingOption() {
+        assertThatThrownBy(
+                        () -> {
+                            String[] parameters = {};
+                            Configuration configuration = getConfiguration();
+                            CliFrontend testFrontend =
+                                    new CliFrontend(
+                                            configuration, Collections.singletonList(getCli()));
+                            testFrontend.info(parameters);
+                        })
+                .isInstanceOf(CliArgsException.class);
+    }
 
-	@Test(expected = CliArgsException.class)
-	public void testUnrecognizedOption() throws Exception {
-		String[] parameters = {"-v", "-l"};
-		Configuration configuration = getConfiguration();
-		CliFrontend testFrontend = new CliFrontend(
-			configuration,
-			Collections.singletonList(getCli(configuration)));
-		testFrontend.cancel(parameters);
-	}
+    @Test
+    void testUnrecognizedOption() {
+        assertThatThrownBy(
+                        () -> {
+                            String[] parameters = {"-v", "-l"};
+                            Configuration configuration = getConfiguration();
+                            CliFrontend testFrontend =
+                                    new CliFrontend(
+                                            configuration, Collections.singletonList(getCli()));
+                            testFrontend.info(parameters);
+                        })
+                .isInstanceOf(CliArgsException.class);
+    }
 
-	@Test
-	public void testShowExecutionPlan() throws Exception {
-		replaceStdOut();
-		try {
+    @Test
+    void testShowExecutionPlan() throws Exception {
+        replaceStdOut();
+        try {
 
-			String[] parameters = new String[]{CliFrontendTestUtils.getTestJarPath(), "-f", "true"};
-			Configuration configuration = getConfiguration();
-			CliFrontend testFrontend = new CliFrontend(
-				configuration,
-				Collections.singletonList(getCli(configuration)));
-			testFrontend.info(parameters);
-			assertTrue(buffer.toString().contains("\"parallelism\": \"4\""));
-		}
-		finally {
-			restoreStdOut();
-		}
-	}
+            String[] parameters =
+                    new String[] {
+                        CliFrontendTestUtils.getTestJarPath(), "-f", "true", "--arg", "suffix"
+                    };
+            Configuration configuration = getConfiguration();
+            CliFrontend testFrontend =
+                    new CliFrontend(configuration, Collections.singletonList(getCli()));
+            testFrontend.info(parameters);
+            assertThat(buffer.toString()).contains("\"parallelism\" : 4");
+        } finally {
+            restoreStdOut();
+        }
+    }
 
-	@Test
-	public void testShowExecutionPlanWithParallelism() {
-		replaceStdOut();
-		try {
-			String[] parameters = {"-p", "17", CliFrontendTestUtils.getTestJarPath()};
-			Configuration configuration = getConfiguration();
-			CliFrontend testFrontend = new CliFrontend(
-				configuration,
-				Collections.singletonList(getCli(configuration)));
-			testFrontend.info(parameters);
-			assertTrue(buffer.toString().contains("\"parallelism\": \"17\""));
-		}
-		catch (Exception e) {
-			e.printStackTrace();
-			fail("Program caused an exception: " + e.getMessage());
-		} finally {
-			restoreStdOut();
-		}
-	}
+    @Test
+    void testShowExecutionPlanWithParallelism() {
+        replaceStdOut();
+        try {
+            String[] parameters = {
+                "-p", "17", CliFrontendTestUtils.getTestJarPath(), "--arg", "suffix"
+            };
+            Configuration configuration = getConfiguration();
+            CliFrontend testFrontend =
+                    new CliFrontend(configuration, Collections.singletonList(getCli()));
+            testFrontend.info(parameters);
+            assertThat(buffer.toString()).contains("\"parallelism\" : 17");
+        } catch (Exception e) {
+            e.printStackTrace();
+            fail("Program caused an exception: " + e.getMessage());
+        } finally {
+            restoreStdOut();
+        }
+    }
 
-	private static void replaceStdOut() {
-		stdOut = System.out;
-		buffer = new ByteArrayOutputStream();
-		capture = new PrintStream(buffer);
-		System.setOut(capture);
-	}
+    private static void replaceStdOut() {
+        stdOut = System.out;
+        buffer = new ByteArrayOutputStream();
+        capture = new PrintStream(buffer);
+        System.setOut(capture);
+    }
 
-	private static void restoreStdOut() {
-		System.setOut(stdOut);
-	}
+    private static void restoreStdOut() {
+        System.setOut(stdOut);
+    }
 }

@@ -20,99 +20,119 @@ package org.apache.flink.api.java.summarize.aggregation;
 
 import org.apache.flink.api.java.summarize.NumericColumnSummary;
 
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-/**
- * Tests for {@link LongSummaryAggregator}.
- */
-public class LongSummaryAggregatorTest {
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.data.Offset.offset;
 
-	@Test
-	public void testIsNan() throws Exception {
-		LongSummaryAggregator ag = new LongSummaryAggregator();
-		// always false for Long
-		Assert.assertFalse(ag.isNan(-1L));
-		Assert.assertFalse(ag.isNan(0L));
-		Assert.assertFalse(ag.isNan(23L));
-		Assert.assertFalse(ag.isNan(Long.MAX_VALUE));
-		Assert.assertFalse(ag.isNan(Long.MIN_VALUE));
-		Assert.assertFalse(ag.isNan(null));
-	}
+/** Tests for {@link LongSummaryAggregator}. */
+class LongSummaryAggregatorTest {
 
-	@Test
-	public void testIsInfinite() throws Exception {
-		LongSummaryAggregator ag = new LongSummaryAggregator();
-		// always false for Long
-		Assert.assertFalse(ag.isInfinite(-1L));
-		Assert.assertFalse(ag.isInfinite(0L));
-		Assert.assertFalse(ag.isInfinite(23L));
-		Assert.assertFalse(ag.isInfinite(Long.MAX_VALUE));
-		Assert.assertFalse(ag.isInfinite(Long.MIN_VALUE));
-		Assert.assertFalse(ag.isInfinite(null));
-	}
+    @Test
+    void testIsNan() {
+        LongSummaryAggregator ag = new LongSummaryAggregator();
+        // always false for Long
+        assertThat(ag.isNan(-1L)).isFalse();
+        assertThat(ag.isNan(0L)).isFalse();
+        assertThat(ag.isNan(23L)).isFalse();
+        assertThat(ag.isNan(Long.MAX_VALUE)).isFalse();
+        assertThat(ag.isNan(Long.MIN_VALUE)).isFalse();
+        assertThat(ag.isNan(null)).isFalse();
+    }
 
-	@Test
-	public void testMean() throws Exception {
-		Assert.assertEquals(50.0, summarize(0L, 100L).getMean(), 0.0);
-		Assert.assertEquals(33.333333, summarize(0L, 0L, 100L).getMean(), 0.00001);
-		Assert.assertEquals(50.0, summarize(0L, 0L, 100L, 100L).getMean(), 0.0);
-		Assert.assertEquals(50.0, summarize(0L, 100L, null).getMean(), 0.0);
-		Assert.assertNull(summarize().getMean());
-	}
+    @Test
+    void testIsInfinite() {
+        LongSummaryAggregator ag = new LongSummaryAggregator();
+        // always false for Long
+        assertThat(ag.isInfinite(-1L)).isFalse();
+        assertThat(ag.isInfinite(0L)).isFalse();
+        assertThat(ag.isInfinite(23L)).isFalse();
+        assertThat(ag.isInfinite(Long.MAX_VALUE)).isFalse();
+        assertThat(ag.isInfinite(Long.MIN_VALUE)).isFalse();
+        assertThat(ag.isInfinite(null)).isFalse();
+    }
 
-	@Test
-	public void testSum() throws Exception {
-		Assert.assertEquals(100L, summarize(0L, 100L).getSum().longValue());
-		Assert.assertEquals(15L, summarize(1L, 2L, 3L, 4L, 5L).getSum().longValue());
-		Assert.assertEquals(0L, summarize(-100L, 0L, 100L, null).getSum().longValue());
-		Assert.assertEquals(90L, summarize(-10L, 100L, null).getSum().longValue());
-		Assert.assertNull(summarize().getSum());
-	}
+    @Test
+    void testMean() {
+        assertThat(summarize(0L, 100L).getMean()).isCloseTo(50.0, offset(0.0));
+        assertThat(summarize(0L, 0L, 100L).getMean()).isCloseTo(33.333333, offset(0.00001));
+        assertThat(summarize(0L, 0L, 100L, 100L).getMean()).isCloseTo(50.0, offset(0.0));
+        assertThat(summarize(0L, 100L, null).getMean()).isCloseTo(50.0, offset(0.0));
+        assertThat(summarize().getMean()).isNull();
+    }
 
-	@Test
-	public void testMax() throws Exception {
-		Assert.assertEquals(1001L, summarize(-1000L, 0L, 1L, 50L, 999L, 1001L).getMax().longValue());
-		Assert.assertEquals(11L, summarize(1L, 8L, 7L, 6L, 9L, 10L, 2L, 3L, 5L, 0L, 11L, -2L, 3L).getMax().longValue());
-		Assert.assertEquals(11L, summarize(1L, 8L, 7L, 6L, 9L, null, 10L, 2L, 3L, 5L, null, 0L, 11L, -2L, 3L).getMax().longValue());
-		Assert.assertNull(summarize().getMax());
-	}
+    @Test
+    void testSum() throws Exception {
+        assertThat(summarize(0L, 100L).getSum().longValue()).isEqualTo(100L);
+        assertThat(summarize(1L, 2L, 3L, 4L, 5L).getSum().longValue()).isEqualTo(15L);
+        assertThat(summarize(-100L, 0L, 100L, null).getSum().longValue()).isZero();
+        assertThat(summarize(-10L, 100L, null).getSum().longValue()).isEqualTo(90L);
+        assertThat(summarize().getSum()).isNull();
+    }
 
-	@Test
-	public void testMin() throws Exception {
-		Assert.assertEquals(-1000L, summarize(-1000L, 0L, 1L, 50L, 999L, 1001L).getMin().longValue());
-		Assert.assertEquals(-2L, summarize(1L, 8L, 7L, 6L, 9L, 10L, 2L, 3L, 5L, 0L, 11L, -2L, 3L).getMin().longValue());
-		Assert.assertEquals(-2L, summarize(1L, 8L, 7L, 6L, 9L, null, 10L, 2L, 3L, 5L, null, 0L, 11L, -2L, 3L).getMin().longValue());
-		Assert.assertNull(summarize().getMin());
-	}
+    @Test
+    void testMax() {
+        assertThat(summarize(-1000L, 0L, 1L, 50L, 999L, 1001L).getMax().longValue())
+                .isEqualTo(1001L);
+        assertThat(
+                        summarize(1L, 8L, 7L, 6L, 9L, 10L, 2L, 3L, 5L, 0L, 11L, -2L, 3L)
+                                .getMax()
+                                .longValue())
+                .isEqualTo(11L);
+        assertThat(
+                        summarize(1L, 8L, 7L, 6L, 9L, null, 10L, 2L, 3L, 5L, null, 0L, 11L, -2L, 3L)
+                                .getMax()
+                                .longValue())
+                .isEqualTo(11L);
+        assertThat(summarize().getMax()).isNull();
+    }
 
-	/**
-	 * Helper method for summarizing a list of values.
-	 */
-	protected NumericColumnSummary<Long> summarize(Long... values) {
-		return new AggregateCombineHarness<Long, NumericColumnSummary<Long>, LongSummaryAggregator>() {
+    @Test
+    void testMin() {
+        assertThat(summarize(-1000L, 0L, 1L, 50L, 999L, 1001L).getMin().longValue())
+                .isEqualTo(-1000L);
+        assertThat(
+                        summarize(1L, 8L, 7L, 6L, 9L, 10L, 2L, 3L, 5L, 0L, 11L, -2L, 3L)
+                                .getMin()
+                                .longValue())
+                .isEqualTo(-2L);
+        assertThat(
+                        summarize(1L, 8L, 7L, 6L, 9L, null, 10L, 2L, 3L, 5L, null, 0L, 11L, -2L, 3L)
+                                .getMin()
+                                .longValue())
+                .isEqualTo(-2L);
+        assertThat(summarize().getMin()).isNull();
+    }
 
-			@Override
-			protected void compareResults(NumericColumnSummary<Long> result1, NumericColumnSummary<Long> result2) {
+    /** Helper method for summarizing a list of values. */
+    protected NumericColumnSummary<Long> summarize(Long... values) {
+        return new AggregateCombineHarness<
+                Long, NumericColumnSummary<Long>, LongSummaryAggregator>() {
 
-				Assert.assertEquals(result1.getTotalCount(), result2.getTotalCount());
-				Assert.assertEquals(result1.getNullCount(), result2.getNullCount());
-				Assert.assertEquals(result1.getMissingCount(), result2.getMissingCount());
-				Assert.assertEquals(result1.getNonMissingCount(), result2.getNonMissingCount());
-				Assert.assertEquals(result1.getInfinityCount(), result2.getInfinityCount());
-				Assert.assertEquals(result1.getNanCount(), result2.getNanCount());
+            @Override
+            protected void compareResults(
+                    NumericColumnSummary<Long> result1, NumericColumnSummary<Long> result2) {
 
-				Assert.assertEquals(result1.containsNull(), result2.containsNull());
-				Assert.assertEquals(result1.containsNonNull(), result2.containsNonNull());
+                assertThat(result2.getTotalCount()).isEqualTo(result1.getTotalCount());
+                assertThat(result2.getNullCount()).isEqualTo(result1.getNullCount());
+                assertThat(result2.getMissingCount()).isEqualTo(result1.getMissingCount());
+                assertThat(result2.getNonMissingCount()).isEqualTo(result1.getNonMissingCount());
+                assertThat(result2.getInfinityCount()).isEqualTo(result1.getInfinityCount());
+                assertThat(result2.getNanCount()).isEqualTo(result1.getNanCount());
 
-				Assert.assertEquals(result1.getMin().longValue(), result2.getMin().longValue());
-				Assert.assertEquals(result1.getMax().longValue(), result2.getMax().longValue());
-				Assert.assertEquals(result1.getSum().longValue(), result2.getSum().longValue());
-				Assert.assertEquals(result1.getMean().doubleValue(), result2.getMean().doubleValue(), 1e-12d);
-				Assert.assertEquals(result1.getVariance().doubleValue(), result2.getVariance().doubleValue(), 1e-9d);
-				Assert.assertEquals(result1.getStandardDeviation().doubleValue(), result2.getStandardDeviation().doubleValue(), 1e-12d);
-			}
-		}.summarize(values);
-	}
+                assertThat(result2.containsNull()).isEqualTo(result1.containsNull());
+                assertThat(result2.containsNonNull()).isEqualTo(result1.containsNonNull());
 
+                assertThat(result2.getMin().longValue()).isEqualTo(result1.getMin().longValue());
+                assertThat(result2.getMax().longValue()).isEqualTo(result1.getMax().longValue());
+                assertThat(result2.getSum().longValue()).isEqualTo(result1.getSum().longValue());
+                assertThat(result2.getMean().doubleValue())
+                        .isCloseTo(result1.getMean().doubleValue(), offset(1e-12d));
+                assertThat(result2.getVariance().doubleValue())
+                        .isCloseTo(result1.getVariance().doubleValue(), offset(1e-9d));
+                assertThat(result2.getStandardDeviation().doubleValue())
+                        .isCloseTo(result1.getStandardDeviation().doubleValue(), offset(1e-12d));
+            }
+        }.summarize(values);
+    }
 }

@@ -20,38 +20,34 @@ package org.apache.flink.streaming.connectors.cassandra;
 import org.apache.flink.api.java.tuple.Tuple;
 
 /**
- * Sink to write Flink {@link Tuple}s into a Cassandra cluster.
+ * Sink to write Flink {@link Tuple}s into a Cassandra cluster. Please read the recommendations in
+ * {@linkplain CassandraSinkBase}.
  *
  * @param <IN> Type of the elements emitted by this sink, it must extend {@link Tuple}
  */
 public class CassandraTupleSink<IN extends Tuple> extends AbstractCassandraTupleSink<IN> {
-	public CassandraTupleSink(
-			String insertQuery,
-			ClusterBuilder builder) {
-		this(insertQuery, builder, CassandraSinkBaseConfig.newBuilder().build());
-	}
+    public CassandraTupleSink(String insertQuery, ClusterBuilder builder) {
+        this(insertQuery, builder, CassandraSinkBaseConfig.newBuilder().build());
+    }
 
-	CassandraTupleSink(
-			String insertQuery,
-			ClusterBuilder builder,
-			CassandraSinkBaseConfig config) {
-		this(insertQuery, builder, config, new NoOpCassandraFailureHandler());
-	}
+    CassandraTupleSink(String insertQuery, ClusterBuilder builder, CassandraSinkBaseConfig config) {
+        this(insertQuery, builder, config, new NoOpCassandraFailureHandler());
+    }
 
-	CassandraTupleSink(
-			String insertQuery,
-			ClusterBuilder builder,
-			CassandraSinkBaseConfig config,
-			CassandraFailureHandler failureHandler) {
-		super(insertQuery, builder, config, failureHandler);
-	}
+    CassandraTupleSink(
+            String insertQuery,
+            ClusterBuilder builder,
+            CassandraSinkBaseConfig config,
+            CassandraFailureHandler failureHandler) {
+        super(insertQuery, builder, config, failureHandler);
+    }
 
-	@Override
-	protected Object[] extract(IN record) {
-		Object[] al = new Object[record.getArity()];
-		for (int i = 0; i < record.getArity(); i++) {
-			al[i] = record.getField(i);
-		}
-		return al;
-	}
+    @Override
+    protected Object[] extract(IN record) {
+        Object[] al = new Object[record.getArity()];
+        for (int i = 0; i < record.getArity(); i++) {
+            al[i] = record.getField(i);
+        }
+        return al;
+    }
 }

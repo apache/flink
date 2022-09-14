@@ -35,248 +35,244 @@ import org.apache.flink.api.java.typeutils.ValueTypeInfo;
 import org.apache.flink.types.LongValue;
 import org.apache.flink.types.StringValue;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
 
-import static org.junit.Assert.assertArrayEquals;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.fail;
 
-/**
- * Tests for translation of distinct operation.
- */
+/** Tests for translation of distinct operation. */
 @SuppressWarnings("serial")
-public class DistinctTranslationTest {
+class DistinctTranslationTest {
 
-	@Test
-	public void translateDistinctPlain() {
-		try {
-			final int parallelism = 8;
-			ExecutionEnvironment env = ExecutionEnvironment.createLocalEnvironment(parallelism);
+    @Test
+    void translateDistinctPlain() {
+        try {
+            final int parallelism = 8;
+            ExecutionEnvironment env = ExecutionEnvironment.createLocalEnvironment(parallelism);
 
-			DataSet<Tuple3<Double, StringValue, LongValue>> initialData = getSourceDataSet(env);
+            DataSet<Tuple3<Double, StringValue, LongValue>> initialData = getSourceDataSet(env);
 
-			initialData.distinct().output(new DiscardingOutputFormat<Tuple3<Double, StringValue, LongValue>>());
+            initialData.distinct().output(new DiscardingOutputFormat<>());
 
-			Plan p = env.createProgramPlan();
+            Plan p = env.createProgramPlan();
 
-			GenericDataSinkBase<?> sink = p.getDataSinks().iterator().next();
+            GenericDataSinkBase<?> sink = p.getDataSinks().iterator().next();
 
-			// currently distinct is translated to a Reduce
-			ReduceOperatorBase<?, ?> reducer = (ReduceOperatorBase<?, ?>) sink.getInput();
+            // currently distinct is translated to a Reduce
+            ReduceOperatorBase<?, ?> reducer = (ReduceOperatorBase<?, ?>) sink.getInput();
 
-			// check types
-			assertEquals(initialData.getType(), reducer.getOperatorInfo().getInputType());
-			assertEquals(initialData.getType(), reducer.getOperatorInfo().getOutputType());
+            // check types
+            assertThat(reducer.getOperatorInfo().getInputType()).isEqualTo(initialData.getType());
+            assertThat(reducer.getOperatorInfo().getOutputType()).isEqualTo(initialData.getType());
 
-			// check keys
-			assertArrayEquals(new int[] {0, 1, 2}, reducer.getKeyColumns(0));
+            // check keys
+            assertThat(reducer.getKeyColumns(0)).containsExactly(0, 1, 2);
 
-			// parallelism was not configured on the operator
-			assertTrue(reducer.getParallelism() == 1 || reducer.getParallelism() == -1);
+            // parallelism was not configured on the operator
+            assertThat(reducer.getParallelism()).isIn(-1, 1);
 
-			assertTrue(reducer.getInput() instanceof GenericDataSourceBase<?, ?>);
-		}
-		catch (Exception e) {
-			System.err.println(e.getMessage());
-			e.printStackTrace();
-			fail("Test caused an error: " + e.getMessage());
-		}
-	}
+            assertThat(reducer.getInput()).isInstanceOf(GenericDataSourceBase.class);
+        } catch (Exception e) {
+            System.err.println(e.getMessage());
+            e.printStackTrace();
+            fail("Test caused an error: " + e.getMessage());
+        }
+    }
 
-	@Test
-	public void translateDistinctPlain2() {
-		try {
-			final int parallelism = 8;
-			ExecutionEnvironment env = ExecutionEnvironment.createLocalEnvironment(parallelism);
+    @Test
+    void translateDistinctPlain2() {
+        try {
+            final int parallelism = 8;
+            ExecutionEnvironment env = ExecutionEnvironment.createLocalEnvironment(parallelism);
 
-			DataSet<CustomType> initialData = getSourcePojoDataSet(env);
+            DataSet<CustomType> initialData = getSourcePojoDataSet(env);
 
-			initialData.distinct().output(new DiscardingOutputFormat<CustomType>());
+            initialData.distinct().output(new DiscardingOutputFormat<>());
 
-			Plan p = env.createProgramPlan();
+            Plan p = env.createProgramPlan();
 
-			GenericDataSinkBase<?> sink = p.getDataSinks().iterator().next();
+            GenericDataSinkBase<?> sink = p.getDataSinks().iterator().next();
 
-			// currently distinct is translated to a Reduce
-			ReduceOperatorBase<?, ?> reducer = (ReduceOperatorBase<?, ?>) sink.getInput();
+            // currently distinct is translated to a Reduce
+            ReduceOperatorBase<?, ?> reducer = (ReduceOperatorBase<?, ?>) sink.getInput();
 
-			// check types
-			assertEquals(initialData.getType(), reducer.getOperatorInfo().getInputType());
-			assertEquals(initialData.getType(), reducer.getOperatorInfo().getOutputType());
+            // check types
+            assertThat(reducer.getOperatorInfo().getInputType()).isEqualTo(initialData.getType());
+            assertThat(reducer.getOperatorInfo().getOutputType()).isEqualTo(initialData.getType());
 
-			// check keys
-			assertArrayEquals(new int[] {0}, reducer.getKeyColumns(0));
+            // check keys
+            assertThat(reducer.getKeyColumns(0)).containsExactly(0);
 
-			// parallelism was not configured on the operator
-			assertTrue(reducer.getParallelism() == 1 || reducer.getParallelism() == -1);
+            // parallelism was not configured on the operator
+            assertThat(reducer.getParallelism()).isIn(-1, 1);
 
-			assertTrue(reducer.getInput() instanceof GenericDataSourceBase<?, ?>);
-		}
-		catch (Exception e) {
-			System.err.println(e.getMessage());
-			e.printStackTrace();
-			fail("Test caused an error: " + e.getMessage());
-		}
-	}
+            assertThat(reducer.getInput()).isInstanceOf(GenericDataSourceBase.class);
+        } catch (Exception e) {
+            System.err.println(e.getMessage());
+            e.printStackTrace();
+            fail("Test caused an error: " + e.getMessage());
+        }
+    }
 
-	@Test
-	public void translateDistinctPosition() {
-		try {
-			final int parallelism = 8;
-			ExecutionEnvironment env = ExecutionEnvironment.createLocalEnvironment(parallelism);
+    @Test
+    void translateDistinctPosition() {
+        try {
+            final int parallelism = 8;
+            ExecutionEnvironment env = ExecutionEnvironment.createLocalEnvironment(parallelism);
 
-			DataSet<Tuple3<Double, StringValue, LongValue>> initialData = getSourceDataSet(env);
+            DataSet<Tuple3<Double, StringValue, LongValue>> initialData = getSourceDataSet(env);
 
-			initialData.distinct(1, 2).output(new DiscardingOutputFormat<Tuple3<Double, StringValue, LongValue>>());
+            initialData.distinct(1, 2).output(new DiscardingOutputFormat<>());
 
-			Plan p = env.createProgramPlan();
+            Plan p = env.createProgramPlan();
 
-			GenericDataSinkBase<?> sink = p.getDataSinks().iterator().next();
+            GenericDataSinkBase<?> sink = p.getDataSinks().iterator().next();
 
-			// currently distinct is translated to a Reduce
-			ReduceOperatorBase<?, ?> reducer = (ReduceOperatorBase<?, ?>) sink.getInput();
+            // currently distinct is translated to a Reduce
+            ReduceOperatorBase<?, ?> reducer = (ReduceOperatorBase<?, ?>) sink.getInput();
 
-			// check types
-			assertEquals(initialData.getType(), reducer.getOperatorInfo().getInputType());
-			assertEquals(initialData.getType(), reducer.getOperatorInfo().getOutputType());
+            // check types
+            assertThat(reducer.getOperatorInfo().getInputType()).isEqualTo(initialData.getType());
+            assertThat(reducer.getOperatorInfo().getOutputType()).isEqualTo(initialData.getType());
 
-			// check keys
-			assertArrayEquals(new int[] {1, 2}, reducer.getKeyColumns(0));
+            // check keys
+            assertThat(reducer.getKeyColumns(0)).containsExactly(1, 2);
 
-			// parallelism was not configured on the operator
-			assertTrue(reducer.getParallelism() == 1 || reducer.getParallelism() == -1);
+            // parallelism was not configured on the operator
+            assertThat(reducer.getParallelism()).isIn(-1, 1);
 
-			assertTrue(reducer.getInput() instanceof GenericDataSourceBase<?, ?>);
-		}
-		catch (Exception e) {
-			System.err.println(e.getMessage());
-			e.printStackTrace();
-			fail("Test caused an error: " + e.getMessage());
-		}
-	}
+            assertThat(reducer.getInput()).isInstanceOf(GenericDataSourceBase.class);
+        } catch (Exception e) {
+            System.err.println(e.getMessage());
+            e.printStackTrace();
+            fail("Test caused an error: " + e.getMessage());
+        }
+    }
 
-	@Test
-	public void translateDistinctKeySelector() {
-		try {
-			final int parallelism = 8;
-			ExecutionEnvironment env = ExecutionEnvironment.createLocalEnvironment(parallelism);
+    @Test
+    void translateDistinctKeySelector() {
+        try {
+            final int parallelism = 8;
+            ExecutionEnvironment env = ExecutionEnvironment.createLocalEnvironment(parallelism);
 
-			DataSet<Tuple3<Double, StringValue, LongValue>> initialData = getSourceDataSet(env);
+            DataSet<Tuple3<Double, StringValue, LongValue>> initialData = getSourceDataSet(env);
 
-			initialData.distinct(new KeySelector<Tuple3<Double, StringValue, LongValue>, StringValue>() {
-				public StringValue getKey(Tuple3<Double, StringValue, LongValue> value) {
-					return value.f1;
-				}
-			}).setParallelism(4).output(new DiscardingOutputFormat<Tuple3<Double, StringValue, LongValue>>());
+            initialData
+                    .distinct(
+                            (KeySelector<Tuple3<Double, StringValue, LongValue>, StringValue>)
+                                    value -> value.f1)
+                    .setParallelism(4)
+                    .output(new DiscardingOutputFormat<>());
 
-			Plan p = env.createProgramPlan();
+            Plan p = env.createProgramPlan();
 
-			GenericDataSinkBase<?> sink = p.getDataSinks().iterator().next();
+            GenericDataSinkBase<?> sink = p.getDataSinks().iterator().next();
 
-			MapOperatorBase<?, ?, ?> keyRemover = (MapOperatorBase<?, ?, ?>) sink.getInput();
-			PlanUnwrappingReduceOperator<?, ?> reducer = (PlanUnwrappingReduceOperator<?, ?>) keyRemover.getInput();
-			MapOperatorBase<?, ?, ?> keyExtractor = (MapOperatorBase<?, ?, ?>) reducer.getInput();
+            MapOperatorBase<?, ?, ?> keyRemover = (MapOperatorBase<?, ?, ?>) sink.getInput();
+            PlanUnwrappingReduceOperator<?, ?> reducer =
+                    (PlanUnwrappingReduceOperator<?, ?>) keyRemover.getInput();
+            MapOperatorBase<?, ?, ?> keyExtractor = (MapOperatorBase<?, ?, ?>) reducer.getInput();
 
-			// check the parallelisms
-			assertEquals(1, keyExtractor.getParallelism());
-			assertEquals(4, reducer.getParallelism());
+            // check the parallelisms
+            assertThat(keyExtractor.getParallelism()).isOne();
+            assertThat(reducer.getParallelism()).isEqualTo(4);
 
-			// check types
-			TypeInformation<?> keyValueInfo = new TupleTypeInfo<Tuple2<StringValue, Tuple3<Double, StringValue, LongValue>>>(
-					new ValueTypeInfo<StringValue>(StringValue.class),
-					initialData.getType());
+            // check types
+            TypeInformation<?> keyValueInfo =
+                    new TupleTypeInfo<Tuple2<StringValue, Tuple3<Double, StringValue, LongValue>>>(
+                            new ValueTypeInfo<>(StringValue.class), initialData.getType());
 
-			assertEquals(initialData.getType(), keyExtractor.getOperatorInfo().getInputType());
-			assertEquals(keyValueInfo, keyExtractor.getOperatorInfo().getOutputType());
+            assertThat(keyExtractor.getOperatorInfo().getInputType())
+                    .isEqualTo(initialData.getType());
+            assertThat(keyExtractor.getOperatorInfo().getOutputType()).isEqualTo(keyValueInfo);
 
-			assertEquals(keyValueInfo, reducer.getOperatorInfo().getInputType());
-			assertEquals(keyValueInfo, reducer.getOperatorInfo().getOutputType());
+            assertThat(reducer.getOperatorInfo().getInputType()).isEqualTo(keyValueInfo);
+            assertThat(reducer.getOperatorInfo().getOutputType()).isEqualTo(keyValueInfo);
 
-			assertEquals(keyValueInfo, keyRemover.getOperatorInfo().getInputType());
-			assertEquals(initialData.getType(), keyRemover.getOperatorInfo().getOutputType());
+            assertThat(keyRemover.getOperatorInfo().getInputType()).isEqualTo(keyValueInfo);
+            assertThat(keyRemover.getOperatorInfo().getOutputType())
+                    .isEqualTo(initialData.getType());
 
-			// check keys
-			assertEquals(KeyExtractingMapper.class, keyExtractor.getUserCodeWrapper().getUserCodeClass());
+            // check keys
+            assertThat(keyExtractor.getUserCodeWrapper().getUserCodeClass())
+                    .isEqualTo(KeyExtractingMapper.class);
 
-			assertTrue(keyExtractor.getInput() instanceof GenericDataSourceBase<?, ?>);
-		}
-		catch (Exception e) {
-			System.err.println(e.getMessage());
-			e.printStackTrace();
-			fail("Test caused an error: " + e.getMessage());
-		}
-	}
+            assertThat(keyExtractor.getInput()).isInstanceOf(GenericDataSourceBase.class);
+        } catch (Exception e) {
+            System.err.println(e.getMessage());
+            e.printStackTrace();
+            fail("Test caused an error: " + e.getMessage());
+        }
+    }
 
-	@Test
-	public void translateDistinctExpressionKey() {
-		try {
-			final int parallelism = 8;
-			ExecutionEnvironment env = ExecutionEnvironment.createLocalEnvironment(parallelism);
+    @Test
+    void translateDistinctExpressionKey() {
+        try {
+            final int parallelism = 8;
+            ExecutionEnvironment env = ExecutionEnvironment.createLocalEnvironment(parallelism);
 
-			DataSet<CustomType> initialData = getSourcePojoDataSet(env);
+            DataSet<CustomType> initialData = getSourcePojoDataSet(env);
 
-			initialData.distinct("myInt").output(new DiscardingOutputFormat<CustomType>());
+            initialData.distinct("myInt").output(new DiscardingOutputFormat<>());
 
-			Plan p = env.createProgramPlan();
+            Plan p = env.createProgramPlan();
 
-			GenericDataSinkBase<?> sink = p.getDataSinks().iterator().next();
+            GenericDataSinkBase<?> sink = p.getDataSinks().iterator().next();
 
-			// currently distinct is translated to a Reduce
-			ReduceOperatorBase<?, ?> reducer = (ReduceOperatorBase<?, ?>) sink.getInput();
+            // currently distinct is translated to a Reduce
+            ReduceOperatorBase<?, ?> reducer = (ReduceOperatorBase<?, ?>) sink.getInput();
 
-			// check types
-			assertEquals(initialData.getType(), reducer.getOperatorInfo().getInputType());
-			assertEquals(initialData.getType(), reducer.getOperatorInfo().getOutputType());
+            // check types
+            assertThat(reducer.getOperatorInfo().getInputType()).isEqualTo(initialData.getType());
+            assertThat(reducer.getOperatorInfo().getOutputType()).isEqualTo(initialData.getType());
 
-			// check keys
-			assertArrayEquals(new int[] {0}, reducer.getKeyColumns(0));
+            // check keys
+            assertThat(reducer.getKeyColumns(0)).containsExactly(0);
 
-			// parallelism was not configured on the operator
-			assertTrue(reducer.getParallelism() == 1 || reducer.getParallelism() == -1);
+            // parallelism was not configured on the operator
+            assertThat(reducer.getParallelism()).isIn(-1, 1);
 
-			assertTrue(reducer.getInput() instanceof GenericDataSourceBase<?, ?>);
-		}
-		catch (Exception e) {
-			System.err.println(e.getMessage());
-			e.printStackTrace();
-			fail("Test caused an error: " + e.getMessage());
-		}
-	}
+            assertThat(reducer.getInput()).isInstanceOf(GenericDataSourceBase.class);
+        } catch (Exception e) {
+            System.err.println(e.getMessage());
+            e.printStackTrace();
+            fail("Test caused an error: " + e.getMessage());
+        }
+    }
 
-	@SuppressWarnings("unchecked")
-	private static DataSet<Tuple3<Double, StringValue, LongValue>> getSourceDataSet(ExecutionEnvironment env) {
-		return env.fromElements(new Tuple3<Double, StringValue, LongValue>(3.141592, new StringValue("foobar"), new LongValue(77)))
-				.setParallelism(1);
-	}
+    @SuppressWarnings("unchecked")
+    private static DataSet<Tuple3<Double, StringValue, LongValue>> getSourceDataSet(
+            ExecutionEnvironment env) {
+        return env.fromElements(
+                        new Tuple3<>(3.141592, new StringValue("foobar"), new LongValue(77)))
+                .setParallelism(1);
+    }
 
-	private static DataSet<CustomType> getSourcePojoDataSet(ExecutionEnvironment env) {
-		List<CustomType> data = new ArrayList<CustomType>();
-		data.add(new CustomType(1));
-		return env.fromCollection(data);
-	}
+    private static DataSet<CustomType> getSourcePojoDataSet(ExecutionEnvironment env) {
+        List<CustomType> data = new ArrayList<>();
+        data.add(new CustomType(1));
+        return env.fromCollection(data);
+    }
 
-	/**
-	 * Custom data type, for testing purposes.
-	 */
-	public static class CustomType implements Serializable {
+    /** Custom data type, for testing purposes. */
+    public static class CustomType implements Serializable {
 
-		private static final long serialVersionUID = 1L;
-		public int myInt;
+        private static final long serialVersionUID = 1L;
+        public int myInt;
 
-		public CustomType() {}
+        public CustomType() {}
 
-		public CustomType(int i) {
-			myInt = i;
-		}
+        public CustomType(int i) {
+            myInt = i;
+        }
 
-		@Override
-		public String toString() {
-			return "" + myInt;
-		}
-	}
+        @Override
+        public String toString() {
+            return "" + myInt;
+        }
+    }
 }

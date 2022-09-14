@@ -29,17 +29,16 @@ import java.lang.annotation.Target;
 import java.lang.reflect.Type;
 
 /**
- * Annotation for specifying a corresponding {@link TypeInfoFactory} that can produce
- * {@link TypeInformation} for the annotated type. In a hierarchy of types the closest annotation
- * that defines a factory will be chosen while traversing upwards, however, a globally registered
- * factory has highest precedence (see {@link TypeExtractor#registerFactory(Type, Class)}).
+ * Annotation for specifying a corresponding {@link TypeInfoFactory} that can produce {@link
+ * TypeInformation} for the annotated type. In a hierarchy of types the closest annotation that
+ * defines a factory will be chosen while traversing upwards, however, a globally registered factory
+ * has highest precedence (see {@link TypeExtractor#registerFactory(Type, Class)}).
  */
 @Documented
-@Target(ElementType.TYPE)
+@Target({ElementType.TYPE, ElementType.FIELD})
 @Retention(RetentionPolicy.RUNTIME)
 @Public
 public @interface TypeInfo {
 
-	Class<? extends TypeInfoFactory> value();
-
+    Class<? extends TypeInfoFactory> value();
 }

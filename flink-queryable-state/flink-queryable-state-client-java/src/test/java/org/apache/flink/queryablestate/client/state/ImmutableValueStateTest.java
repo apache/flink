@@ -31,41 +31,38 @@ import java.nio.ByteBuffer;
 
 import static org.junit.Assert.assertEquals;
 
-/**
- * Tests the {@link ImmutableValueState}.
- */
+/** Tests the {@link ImmutableValueState}. */
 public class ImmutableValueStateTest {
 
-	private final ValueStateDescriptor<Long> valueStateDesc =
-			new ValueStateDescriptor<>("test", BasicTypeInfo.LONG_TYPE_INFO);
+    private final ValueStateDescriptor<Long> valueStateDesc =
+            new ValueStateDescriptor<>("test", BasicTypeInfo.LONG_TYPE_INFO);
 
-	private ValueState<Long> valueState;
+    private ValueState<Long> valueState;
 
-	@Before
-	public void setUp() throws Exception {
-		if (!valueStateDesc.isSerializerInitialized()) {
-			valueStateDesc.initializeSerializerUnlessSet(new ExecutionConfig());
-		}
+    @Before
+    public void setUp() throws Exception {
+        if (!valueStateDesc.isSerializerInitialized()) {
+            valueStateDesc.initializeSerializerUnlessSet(new ExecutionConfig());
+        }
 
-		valueState = ImmutableValueState.createState(
-				valueStateDesc,
-				ByteBuffer.allocate(Long.BYTES).putLong(42L).array()
-		);
-	}
+        valueState =
+                ImmutableValueState.createState(
+                        valueStateDesc, ByteBuffer.allocate(Long.BYTES).putLong(42L).array());
+    }
 
-	@Test(expected = UnsupportedOperationException.class)
-	public void testUpdate() throws IOException {
-		long value = valueState.value();
-		assertEquals(42L, value);
+    @Test(expected = UnsupportedOperationException.class)
+    public void testUpdate() throws IOException {
+        long value = valueState.value();
+        assertEquals(42L, value);
 
-		valueState.update(54L);
-	}
+        valueState.update(54L);
+    }
 
-	@Test(expected = UnsupportedOperationException.class)
-	public void testClear() throws IOException {
-		long value = valueState.value();
-		assertEquals(42L, value);
+    @Test(expected = UnsupportedOperationException.class)
+    public void testClear() throws IOException {
+        long value = valueState.value();
+        assertEquals(42L, value);
 
-		valueState.clear();
-	}
+        valueState.clear();
+    }
 }

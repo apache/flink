@@ -19,13 +19,14 @@
 package org.apache.flink.streaming.api.operators;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.accumulators.Accumulator;
+import org.apache.flink.api.common.externalresource.ExternalResourceInfo;
 import org.apache.flink.api.common.functions.BroadcastVariableInitializer;
 import org.apache.flink.api.common.functions.util.AbstractRuntimeUDFContext;
 import org.apache.flink.api.common.state.AggregatingState;
 import org.apache.flink.api.common.state.AggregatingStateDescriptor;
-import org.apache.flink.api.common.state.FoldingState;
-import org.apache.flink.api.common.state.FoldingStateDescriptor;
 import org.apache.flink.api.common.state.KeyedStateStore;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
@@ -36,183 +37,227 @@ import org.apache.flink.api.common.state.ReducingStateDescriptor;
 import org.apache.flink.api.common.state.StateDescriptor;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
+import org.apache.flink.metrics.groups.OperatorMetricGroup;
 import org.apache.flink.runtime.execution.Environment;
+import org.apache.flink.runtime.externalresource.ExternalResourceInfoProvider;
+import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobgraph.tasks.InputSplitProvider;
 import org.apache.flink.runtime.taskexecutor.GlobalAggregateManager;
+import org.apache.flink.runtime.taskmanager.TaskManagerRuntimeInfo;
 import org.apache.flink.streaming.api.CheckpointingMode;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
-import org.apache.flink.util.Preconditions;
+
+import javax.annotation.Nullable;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
- * Implementation of the {@link org.apache.flink.api.common.functions.RuntimeContext},
- * for streaming operators.
+ * Implementation of the {@link org.apache.flink.api.common.functions.RuntimeContext}, for streaming
+ * operators.
  */
 @Internal
 public class StreamingRuntimeContext extends AbstractRuntimeUDFContext {
 
-	/** The operator to which this function belongs. */
-	private final AbstractStreamOperator<?> operator;
+    /** The task environment running the operator. */
+    private final Environment taskEnvironment;
 
-	/** The task environment running the operator. */
-	private final Environment taskEnvironment;
+    private final StreamConfig streamConfig;
+    private final String operatorUniqueID;
+    private final ProcessingTimeService processingTimeService;
+    private @Nullable KeyedStateStore keyedStateStore;
+    private final ExternalResourceInfoProvider externalResourceInfoProvider;
 
-	private final StreamConfig streamConfig;
+    @VisibleForTesting
+    public StreamingRuntimeContext(
+            AbstractStreamOperator<?> operator,
+            Environment env,
+            Map<String, Accumulator<?, ?>> accumulators) {
+        this(
+                env,
+                accumulators,
+                operator.getMetricGroup(),
+                operator.getOperatorID(),
+                operator.getProcessingTimeService(),
+                operator.getKeyedStateStore(),
+                env.getExternalResourceInfoProvider());
+    }
 
-	private final String operatorUniqueID;
+    public StreamingRuntimeContext(
+            Environment env,
+            Map<String, Accumulator<?, ?>> accumulators,
+            OperatorMetricGroup operatorMetricGroup,
+            OperatorID operatorID,
+            ProcessingTimeService processingTimeService,
+            @Nullable KeyedStateStore keyedStateStore,
+            ExternalResourceInfoProvider externalResourceInfoProvider) {
+        super(
+                checkNotNull(env).getTaskInfo(),
+                env.getUserCodeClassLoader(),
+                env.getExecutionConfig(),
+                accumulators,
+                env.getDistributedCacheEntries(),
+                operatorMetricGroup);
+        this.taskEnvironment = env;
+        this.streamConfig = new StreamConfig(env.getTaskConfiguration());
+        this.operatorUniqueID = checkNotNull(operatorID).toString();
+        this.processingTimeService = processingTimeService;
+        this.keyedStateStore = keyedStateStore;
+        this.externalResourceInfoProvider = externalResourceInfoProvider;
+    }
 
-	public StreamingRuntimeContext(AbstractStreamOperator<?> operator,
-									Environment env, Map<String, Accumulator<?, ?>> accumulators) {
-		super(env.getTaskInfo(),
-				env.getUserClassLoader(),
-				operator.getExecutionConfig(),
-				accumulators,
-				env.getDistributedCacheEntries(),
-				operator.getMetricGroup());
+    public void setKeyedStateStore(@Nullable KeyedStateStore keyedStateStore) {
+        this.keyedStateStore = keyedStateStore;
+    }
 
-		this.operator = operator;
-		this.taskEnvironment = env;
-		this.streamConfig = new StreamConfig(env.getTaskConfiguration());
-		this.operatorUniqueID = operator.getOperatorID().toString();
-	}
+    // ------------------------------------------------------------------------
 
-	// ------------------------------------------------------------------------
+    /**
+     * Returns the input split provider associated with the operator.
+     *
+     * @return The input split provider.
+     */
+    public InputSplitProvider getInputSplitProvider() {
+        return taskEnvironment.getInputSplitProvider();
+    }
 
-	/**
-	 * Returns the input split provider associated with the operator.
-	 *
-	 * @return The input split provider.
-	 */
-	public InputSplitProvider getInputSplitProvider() {
-		return taskEnvironment.getInputSplitProvider();
-	}
+    public ProcessingTimeService getProcessingTimeService() {
+        return processingTimeService;
+    }
 
-	public ProcessingTimeService getProcessingTimeService() {
-		return operator.getProcessingTimeService();
-	}
+    /**
+     * Returns the global aggregate manager for the current job.
+     *
+     * @return The global aggregate manager.
+     */
+    public GlobalAggregateManager getGlobalAggregateManager() {
+        return taskEnvironment.getGlobalAggregateManager();
+    }
 
-	/**
-	 * Returns the global aggregate manager for the current job.
-	 * @return The global aggregate manager.
-	 */
-	public GlobalAggregateManager getGlobalAggregateManager() {
-		return taskEnvironment.getGlobalAggregateManager();
-	}
+    /**
+     * Returned value is guaranteed to be unique between operators within the same job and to be
+     * stable and the same across job submissions.
+     *
+     * <p>This operation is currently only supported in Streaming (DataStream) contexts.
+     *
+     * @return String representation of the operator's unique id.
+     */
+    public String getOperatorUniqueID() {
+        return operatorUniqueID;
+    }
 
-	/**
-	 * Returned value is guaranteed to be unique between operators within the same job and to be
-	 * stable and the same across job submissions.
-	 *
-	 * <p>This operation is currently only supported in Streaming (DataStream) contexts.
-	 *
-	 * @return String representation of the operator's unique id.
-	 */
-	public String getOperatorUniqueID() {
-		return operatorUniqueID;
-	}
+    /**
+     * Returns the task manager runtime info of the task manager running this stream task.
+     *
+     * @return The task manager runtime info.
+     */
+    public TaskManagerRuntimeInfo getTaskManagerRuntimeInfo() {
+        return taskEnvironment.getTaskManagerInfo();
+    }
 
-	// ------------------------------------------------------------------------
-	//  broadcast variables
-	// ------------------------------------------------------------------------
+    @Override
+    public JobID getJobId() {
+        return taskEnvironment.getJobID();
+    }
 
-	@Override
-	public boolean hasBroadcastVariable(String name) {
-		throw new UnsupportedOperationException("Broadcast variables can only be used in DataSet programs");
-	}
+    @Override
+    public Set<ExternalResourceInfo> getExternalResourceInfos(String resourceName) {
+        return externalResourceInfoProvider.getExternalResourceInfos(resourceName);
+    }
 
-	@Override
-	public <RT> List<RT> getBroadcastVariable(String name) {
-		throw new UnsupportedOperationException("Broadcast variables can only be used in DataSet programs");
-	}
+    // ------------------------------------------------------------------------
+    //  broadcast variables
+    // ------------------------------------------------------------------------
 
-	@Override
-	public <T, C> C getBroadcastVariableWithInitializer(String name, BroadcastVariableInitializer<T, C> initializer) {
-		throw new UnsupportedOperationException("Broadcast variables can only be used in DataSet programs");
-	}
+    @Override
+    public boolean hasBroadcastVariable(String name) {
+        throw new UnsupportedOperationException(
+                "Broadcast variables can only be used in DataSet programs");
+    }
 
-	// ------------------------------------------------------------------------
-	//  key/value state
-	// ------------------------------------------------------------------------
+    @Override
+    public <RT> List<RT> getBroadcastVariable(String name) {
+        throw new UnsupportedOperationException(
+                "Broadcast variables can only be used in DataSet programs");
+    }
 
-	@Override
-	public <T> ValueState<T> getState(ValueStateDescriptor<T> stateProperties) {
-		KeyedStateStore keyedStateStore = checkPreconditionsAndGetKeyedStateStore(stateProperties);
-		stateProperties.initializeSerializerUnlessSet(getExecutionConfig());
-		return keyedStateStore.getState(stateProperties);
-	}
+    @Override
+    public <T, C> C getBroadcastVariableWithInitializer(
+            String name, BroadcastVariableInitializer<T, C> initializer) {
+        throw new UnsupportedOperationException(
+                "Broadcast variables can only be used in DataSet programs");
+    }
 
-	@Override
-	public <T> ListState<T> getListState(ListStateDescriptor<T> stateProperties) {
-		KeyedStateStore keyedStateStore = checkPreconditionsAndGetKeyedStateStore(stateProperties);
-		stateProperties.initializeSerializerUnlessSet(getExecutionConfig());
-		return keyedStateStore.getListState(stateProperties);
-	}
+    // ------------------------------------------------------------------------
+    //  key/value state
+    // ------------------------------------------------------------------------
 
-	@Override
-	public <T> ReducingState<T> getReducingState(ReducingStateDescriptor<T> stateProperties) {
-		KeyedStateStore keyedStateStore = checkPreconditionsAndGetKeyedStateStore(stateProperties);
-		stateProperties.initializeSerializerUnlessSet(getExecutionConfig());
-		return keyedStateStore.getReducingState(stateProperties);
-	}
+    @Override
+    public <T> ValueState<T> getState(ValueStateDescriptor<T> stateProperties) {
+        KeyedStateStore keyedStateStore = checkPreconditionsAndGetKeyedStateStore(stateProperties);
+        stateProperties.initializeSerializerUnlessSet(getExecutionConfig());
+        return keyedStateStore.getState(stateProperties);
+    }
 
-	@Override
-	public <IN, ACC, OUT> AggregatingState<IN, OUT> getAggregatingState(AggregatingStateDescriptor<IN, ACC, OUT> stateProperties) {
-		KeyedStateStore keyedStateStore = checkPreconditionsAndGetKeyedStateStore(stateProperties);
-		stateProperties.initializeSerializerUnlessSet(getExecutionConfig());
-		return keyedStateStore.getAggregatingState(stateProperties);
-	}
+    @Override
+    public <T> ListState<T> getListState(ListStateDescriptor<T> stateProperties) {
+        KeyedStateStore keyedStateStore = checkPreconditionsAndGetKeyedStateStore(stateProperties);
+        stateProperties.initializeSerializerUnlessSet(getExecutionConfig());
+        return keyedStateStore.getListState(stateProperties);
+    }
 
-	@Override
-	public <T, ACC> FoldingState<T, ACC> getFoldingState(FoldingStateDescriptor<T, ACC> stateProperties) {
-		KeyedStateStore keyedStateStore = checkPreconditionsAndGetKeyedStateStore(stateProperties);
-		stateProperties.initializeSerializerUnlessSet(getExecutionConfig());
-		return keyedStateStore.getFoldingState(stateProperties);
-	}
+    @Override
+    public <T> ReducingState<T> getReducingState(ReducingStateDescriptor<T> stateProperties) {
+        KeyedStateStore keyedStateStore = checkPreconditionsAndGetKeyedStateStore(stateProperties);
+        stateProperties.initializeSerializerUnlessSet(getExecutionConfig());
+        return keyedStateStore.getReducingState(stateProperties);
+    }
 
-	@Override
-	public <UK, UV> MapState<UK, UV> getMapState(MapStateDescriptor<UK, UV> stateProperties) {
-		KeyedStateStore keyedStateStore = checkPreconditionsAndGetKeyedStateStore(stateProperties);
-		stateProperties.initializeSerializerUnlessSet(getExecutionConfig());
-		return keyedStateStore.getMapState(stateProperties);
-	}
+    @Override
+    public <IN, ACC, OUT> AggregatingState<IN, OUT> getAggregatingState(
+            AggregatingStateDescriptor<IN, ACC, OUT> stateProperties) {
+        KeyedStateStore keyedStateStore = checkPreconditionsAndGetKeyedStateStore(stateProperties);
+        stateProperties.initializeSerializerUnlessSet(getExecutionConfig());
+        return keyedStateStore.getAggregatingState(stateProperties);
+    }
 
-	private KeyedStateStore checkPreconditionsAndGetKeyedStateStore(StateDescriptor<?, ?> stateDescriptor) {
-		Preconditions.checkNotNull(stateDescriptor, "The state properties must not be null");
-		KeyedStateStore keyedStateStore = operator.getKeyedStateStore();
-		Preconditions.checkNotNull(keyedStateStore, "Keyed state can only be used on a 'keyed stream', i.e., after a 'keyBy()' operation.");
-		return keyedStateStore;
-	}
+    @Override
+    public <UK, UV> MapState<UK, UV> getMapState(MapStateDescriptor<UK, UV> stateProperties) {
+        KeyedStateStore keyedStateStore = checkPreconditionsAndGetKeyedStateStore(stateProperties);
+        stateProperties.initializeSerializerUnlessSet(getExecutionConfig());
+        return keyedStateStore.getMapState(stateProperties);
+    }
 
-	// ------------------ expose (read only) relevant information from the stream config -------- //
+    private KeyedStateStore checkPreconditionsAndGetKeyedStateStore(
+            StateDescriptor<?, ?> stateDescriptor) {
+        checkNotNull(stateDescriptor, "The state properties must not be null");
+        checkNotNull(
+                keyedStateStore,
+                "Keyed state can only be used on a 'keyed stream', i.e., after a 'keyBy()' operation.");
+        return keyedStateStore;
+    }
 
-	/**
-	 * Returns true if checkpointing is enabled for the running job.
-	 *
-	 * @return true if checkpointing is enabled.
-	 */
-	public boolean isCheckpointingEnabled() {
-		return streamConfig.isCheckpointingEnabled();
-	}
+    // ------------------ expose (read only) relevant information from the stream config -------- //
 
-	/**
-	 * Returns the checkpointing mode.
-	 *
-	 * @return checkpointing mode
-	 */
-	public CheckpointingMode getCheckpointMode() {
-		return streamConfig.getCheckpointMode();
-	}
+    /**
+     * Returns true if checkpointing is enabled for the running job.
+     *
+     * @return true if checkpointing is enabled.
+     */
+    public boolean isCheckpointingEnabled() {
+        return streamConfig.isCheckpointingEnabled();
+    }
 
-	/**
-	 * Returns the buffer timeout of the job.
-	 *
-	 * @return buffer timeout (in milliseconds)
-	 */
-	public long getBufferTimeout() {
-		return streamConfig.getBufferTimeout();
-	}
-
+    /**
+     * Returns the checkpointing mode.
+     *
+     * @return checkpointing mode
+     */
+    public CheckpointingMode getCheckpointMode() {
+        return streamConfig.getCheckpointMode();
+    }
 }

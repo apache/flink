@@ -21,49 +21,52 @@ package org.apache.flink.api.java.summarize.aggregation;
 import org.apache.flink.api.java.summarize.NumericColumnSummary;
 import org.apache.flink.types.LongValue;
 
-import org.junit.Assert;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.data.Offset.offset;
 
-/**
- * Tests for {@link ValueSummaryAggregator.LongValueSummaryAggregator}.
- */
-public class LongValueSummaryAggregatorTest extends LongSummaryAggregatorTest {
+/** Tests for {@link ValueSummaryAggregator.LongValueSummaryAggregator}. */
+class LongValueSummaryAggregatorTest extends LongSummaryAggregatorTest {
 
-	/**
-	 * Helper method for summarizing a list of values.
-	 */
-	@Override
-	protected NumericColumnSummary<Long> summarize(Long... values) {
+    /** Helper method for summarizing a list of values. */
+    @Override
+    protected NumericColumnSummary<Long> summarize(Long... values) {
 
-		LongValue[] longValues = new LongValue[values.length];
-		for (int i = 0; i < values.length; i++) {
-			if (values[i] != null) {
-				longValues[i] = new LongValue(values[i]);
-			}
-		}
+        LongValue[] longValues = new LongValue[values.length];
+        for (int i = 0; i < values.length; i++) {
+            if (values[i] != null) {
+                longValues[i] = new LongValue(values[i]);
+            }
+        }
 
-		return new AggregateCombineHarness<LongValue, NumericColumnSummary<Long>, ValueSummaryAggregator.LongValueSummaryAggregator>() {
+        return new AggregateCombineHarness<
+                LongValue,
+                NumericColumnSummary<Long>,
+                ValueSummaryAggregator.LongValueSummaryAggregator>() {
 
-			@Override
-			protected void compareResults(NumericColumnSummary<Long> result1, NumericColumnSummary<Long> result2) {
+            @Override
+            protected void compareResults(
+                    NumericColumnSummary<Long> result1, NumericColumnSummary<Long> result2) {
 
-				Assert.assertEquals(result1.getTotalCount(), result2.getTotalCount());
-				Assert.assertEquals(result1.getNullCount(), result2.getNullCount());
-				Assert.assertEquals(result1.getMissingCount(), result2.getMissingCount());
-				Assert.assertEquals(result1.getNonMissingCount(), result2.getNonMissingCount());
-				Assert.assertEquals(result1.getInfinityCount(), result2.getInfinityCount());
-				Assert.assertEquals(result1.getNanCount(), result2.getNanCount());
+                assertThat(result2.getTotalCount()).isEqualTo(result1.getTotalCount());
+                assertThat(result2.getNullCount()).isEqualTo(result1.getNullCount());
+                assertThat(result2.getMissingCount()).isEqualTo(result1.getMissingCount());
+                assertThat(result2.getNonMissingCount()).isEqualTo(result1.getNonMissingCount());
+                assertThat(result2.getInfinityCount()).isEqualTo(result1.getInfinityCount());
+                assertThat(result2.getNanCount()).isEqualTo(result1.getNanCount());
 
-				Assert.assertEquals(result1.containsNull(), result2.containsNull());
-				Assert.assertEquals(result1.containsNonNull(), result2.containsNonNull());
+                assertThat(result2.containsNull()).isEqualTo(result1.containsNull());
+                assertThat(result2.containsNonNull()).isEqualTo(result1.containsNonNull());
 
-				Assert.assertEquals(result1.getMin().longValue(), result2.getMin().longValue());
-				Assert.assertEquals(result1.getMax().longValue(), result2.getMax().longValue());
-				Assert.assertEquals(result1.getSum().longValue(), result2.getSum().longValue());
-				Assert.assertEquals(result1.getMean().doubleValue(), result2.getMean().doubleValue(), 1e-12d);
-				Assert.assertEquals(result1.getVariance().doubleValue(), result2.getVariance().doubleValue(), 1e-9d);
-				Assert.assertEquals(result1.getStandardDeviation().doubleValue(), result2.getStandardDeviation().doubleValue(), 1e-12d);
-			}
-		}.summarize(longValues);
-	}
-
+                assertThat(result2.getMin().longValue()).isEqualTo(result1.getMin().longValue());
+                assertThat(result2.getMax().longValue()).isEqualTo(result1.getMax().longValue());
+                assertThat(result2.getSum().longValue()).isEqualTo(result1.getSum().longValue());
+                assertThat(result2.getMean().doubleValue())
+                        .isCloseTo(result1.getMean().doubleValue(), offset(1e-12d));
+                assertThat(result2.getVariance().doubleValue())
+                        .isCloseTo(result1.getVariance().doubleValue(), offset(1e-9d));
+                assertThat(result2.getStandardDeviation().doubleValue())
+                        .isCloseTo(result1.getStandardDeviation().doubleValue(), offset(1e-12d));
+            }
+        }.summarize(longValues);
+    }
 }

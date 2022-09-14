@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.examples.scala.graph
 
 import org.apache.flink.api.java.utils.ParameterTool
@@ -25,7 +24,7 @@ import org.apache.flink.util.Collector
 
 object TransitiveClosureNaive {
 
-  def main (args: Array[String]): Unit = {
+  def main(args: Array[String]): Unit = {
 
     val params: ParameterTool = ParameterTool.fromArgs(args)
 
@@ -37,15 +36,16 @@ object TransitiveClosureNaive {
 
     val edges =
       if (params.has("edges")) {
-        env.readCsvFile[(Long, Long)](
-          filePath = params.get("edges"),
-          fieldDelimiter = " ",
-          includedFields = Array(0, 1))
-          .map { x => (x._1, x._2)}
+        env
+          .readCsvFile[(Long, Long)](
+            filePath = params.get("edges"),
+            fieldDelimiter = " ",
+            includedFields = Array(0, 1))
+          .map(x => (x._1, x._2))
       } else {
         println("Executing TransitiveClosure example with default edges data set.")
         println("Use --edges to specify file input.")
-        val edgeData = ConnectedComponentsData.EDGES map {
+        val edgeData = ConnectedComponentsData.EDGES.map {
           case Array(x, y) => (x.asInstanceOf[Long], y.asInstanceOf[Long])
         }
         env.fromCollection(edgeData)
@@ -53,30 +53,35 @@ object TransitiveClosureNaive {
 
     val maxIterations = params.getInt("iterations", 10)
 
-    val paths = edges.iterateWithTermination(maxIterations) { prevPaths: DataSet[(Long, Long)] =>
+    val paths = edges.iterateWithTermination(maxIterations) {
+      prevPaths: DataSet[(Long, Long)] =>
+        val nextPaths = prevPaths
+          .join(edges)
+          .where(1)
+          .equalTo(0)((left, right) => (left._1, right._2))
+          .withForwardedFieldsFirst("_1")
+          .withForwardedFieldsSecond("_2")
+          .union(prevPaths)
+          .groupBy(0, 1)
+          .reduce((l, r) => l)
+          .withForwardedFields("_1; _2")
 
-      val nextPaths = prevPaths
-        .join(edges)
-        .where(1).equalTo(0) {
-          (left, right) => (left._1,right._2)
-        }.withForwardedFieldsFirst("_1").withForwardedFieldsSecond("_2")
-        .union(prevPaths)
-        .groupBy(0, 1)
-        .reduce((l, r) => l).withForwardedFields("_1; _2")
-
-      val terminate = prevPaths
-        .coGroup(nextPaths)
-        .where(0).equalTo(0) {
-          (
-            prev: Iterator[(Long, Long)],
-            next: Iterator[(Long, Long)],
-            out: Collector[(Long, Long)]) => {
-              val prevPaths = prev.toSet
-              for (n <- next)
-                if (!prevPaths.contains(n)) out.collect(n)
-            }
-      }.withForwardedFieldsSecond("*")
-      (nextPaths, terminate)
+        val terminate = prevPaths
+          .coGroup(nextPaths)
+          .where(0)
+          .equalTo(0) {
+            (
+                prev: Iterator[(Long, Long)],
+                next: Iterator[(Long, Long)],
+                out: Collector[(Long, Long)]) =>
+              {
+                val prevPaths = prev.toSet
+                for (n <- next)
+                  if (!prevPaths.contains(n)) out.collect(n)
+              }
+          }
+          .withForwardedFieldsSecond("*")
+        (nextPaths, terminate)
     }
 
     if (params.has("output")) {

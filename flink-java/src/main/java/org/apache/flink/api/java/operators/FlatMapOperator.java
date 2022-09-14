@@ -27,48 +27,58 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.DataSet;
 
 /**
- * This operator represents the application of a "flatMap" function on a data set, and the
- * result data set produced by the function.
+ * This operator represents the application of a "flatMap" function on a data set, and the result
+ * data set produced by the function.
  *
  * @param <IN> The type of the data set consumed by the operator.
  * @param <OUT> The type of the data set created by the operator.
  */
 @Public
-public class FlatMapOperator<IN, OUT> extends SingleInputUdfOperator<IN, OUT, FlatMapOperator<IN, OUT>> {
+public class FlatMapOperator<IN, OUT>
+        extends SingleInputUdfOperator<IN, OUT, FlatMapOperator<IN, OUT>> {
 
-	protected final FlatMapFunction<IN, OUT> function;
+    protected final FlatMapFunction<IN, OUT> function;
 
-	protected final String defaultName;
+    protected final String defaultName;
 
-	public FlatMapOperator(DataSet<IN> input, TypeInformation<OUT> resultType, FlatMapFunction<IN, OUT> function, String defaultName) {
-		super(input, resultType);
+    public FlatMapOperator(
+            DataSet<IN> input,
+            TypeInformation<OUT> resultType,
+            FlatMapFunction<IN, OUT> function,
+            String defaultName) {
+        super(input, resultType);
 
-		this.function = function;
-		this.defaultName = defaultName;
-	}
+        this.function = function;
+        this.defaultName = defaultName;
+    }
 
-	@Override
-	protected FlatMapFunction<IN, OUT> getFunction() {
-		return function;
-	}
+    @Override
+    protected FlatMapFunction<IN, OUT> getFunction() {
+        return function;
+    }
 
-	@Override
-	protected FlatMapOperatorBase<IN, OUT, FlatMapFunction<IN, OUT>> translateToDataFlow(Operator<IN> input) {
-		String name = getName() != null ? getName() : "FlatMap at " + defaultName;
-		// create operator
-		FlatMapOperatorBase<IN, OUT, FlatMapFunction<IN, OUT>> po = new FlatMapOperatorBase<IN, OUT, FlatMapFunction<IN, OUT>>(function,
-			new UnaryOperatorInformation<IN, OUT>(getInputType(), getResultType()), name);
-		// set input
-		po.setInput(input);
-		// set parallelism
-		if (this.getParallelism() > 0) {
-			// use specified parallelism
-			po.setParallelism(this.getParallelism());
-		} else {
-			// if no parallelism has been specified, use parallelism of input operator to enable chaining
-			po.setParallelism(input.getParallelism());
-		}
+    @Override
+    protected FlatMapOperatorBase<IN, OUT, FlatMapFunction<IN, OUT>> translateToDataFlow(
+            Operator<IN> input) {
+        String name = getName() != null ? getName() : "FlatMap at " + defaultName;
+        // create operator
+        FlatMapOperatorBase<IN, OUT, FlatMapFunction<IN, OUT>> po =
+                new FlatMapOperatorBase<IN, OUT, FlatMapFunction<IN, OUT>>(
+                        function,
+                        new UnaryOperatorInformation<IN, OUT>(getInputType(), getResultType()),
+                        name);
+        // set input
+        po.setInput(input);
+        // set parallelism
+        if (this.getParallelism() > 0) {
+            // use specified parallelism
+            po.setParallelism(this.getParallelism());
+        } else {
+            // if no parallelism has been specified, use parallelism of input operator to enable
+            // chaining
+            po.setParallelism(input.getParallelism());
+        }
 
-		return po;
-	}
+        return po;
+    }
 }

@@ -34,6 +34,7 @@ import org.apache.flink.runtime.testutils.recordutils.RecordComparatorFactory;
 import org.apache.flink.runtime.testutils.recordutils.RecordSerializerFactory;
 import org.apache.flink.types.IntValue;
 import org.apache.flink.types.Record;
+
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -42,82 +43,85 @@ import java.util.List;
 
 public class ChainedAllReduceDriverTest extends TaskTestBase {
 
-	private static final int MEMORY_MANAGER_SIZE = 1024 * 1024 * 3;
+    private static final int MEMORY_MANAGER_SIZE = 1024 * 1024 * 3;
 
-	private static final int NETWORK_BUFFER_SIZE = 1024;
+    private static final int NETWORK_BUFFER_SIZE = 1024;
 
-	private final List<Record> outList = new ArrayList<>();
+    private final List<Record> outList = new ArrayList<>();
 
-	@SuppressWarnings("unchecked")
-	private final RecordComparatorFactory compFact = new RecordComparatorFactory(new int[]{0}, new Class[]{IntValue.class}, new boolean[] {true});
-	private final RecordSerializerFactory serFact = RecordSerializerFactory.get();
+    @SuppressWarnings("unchecked")
+    private final RecordComparatorFactory compFact =
+            new RecordComparatorFactory(
+                    new int[] {0}, new Class[] {IntValue.class}, new boolean[] {true});
 
-	@Test
-	public void testMapTask() throws Exception {
-		final int keyCnt = 100;
-		final int valCnt = 20;
+    private final RecordSerializerFactory serFact = RecordSerializerFactory.get();
 
-		final double memoryFraction = 1.0;
+    @Test
+    public void testMapTask() throws Exception {
+        final int keyCnt = 100;
+        final int valCnt = 20;
 
-		// environment
-		initEnvironment(MEMORY_MANAGER_SIZE, NETWORK_BUFFER_SIZE);
-		mockEnv.getExecutionConfig().enableObjectReuse();
-		addInput(new UniformRecordGenerator(keyCnt, valCnt, false), 0);
-		addOutput(this.outList);
+        final double memoryFraction = 1.0;
 
-		// chained reduce config
-		{
-			final TaskConfig reduceConfig = new TaskConfig(new Configuration());
+        // environment
+        initEnvironment(MEMORY_MANAGER_SIZE, NETWORK_BUFFER_SIZE);
+        mockEnv.getExecutionConfig().enableObjectReuse();
+        addInput(new UniformRecordGenerator(keyCnt, valCnt, false), 0);
+        addOutput(this.outList);
 
-			// input
-			reduceConfig.addInputToGroup(0);
-			reduceConfig.setInputSerializer(serFact, 0);
+        // chained reduce config
+        {
+            final TaskConfig reduceConfig = new TaskConfig(new Configuration());
 
-			// output
-			reduceConfig.addOutputShipStrategy(ShipStrategyType.FORWARD);
-			reduceConfig.setOutputSerializer(serFact);
+            // input
+            reduceConfig.addInputToGroup(0);
+            reduceConfig.setInputSerializer(serFact, 0);
 
-			// driver
-			reduceConfig.setDriverStrategy(DriverStrategy.ALL_REDUCE);
-			reduceConfig.setDriverComparator(compFact, 0);
-			reduceConfig.setDriverComparator(compFact, 1);
-			reduceConfig.setRelativeMemoryDriver(memoryFraction);
+            // output
+            reduceConfig.addOutputShipStrategy(ShipStrategyType.FORWARD);
+            reduceConfig.setOutputSerializer(serFact);
 
-			// udf
-			reduceConfig.setStubWrapper(new UserCodeClassWrapper<>(MockReduceStub.class));
+            // driver
+            reduceConfig.setDriverStrategy(DriverStrategy.ALL_REDUCE);
+            reduceConfig.setDriverComparator(compFact, 0);
+            reduceConfig.setDriverComparator(compFact, 1);
+            reduceConfig.setRelativeMemoryDriver(memoryFraction);
 
-			getTaskConfig().addChainedTask(ChainedAllReduceDriver.class, reduceConfig, "reduce");
-		}
+            // udf
+            reduceConfig.setStubWrapper(new UserCodeClassWrapper<>(MockReduceStub.class));
 
-		// chained map+reduce
-		{
-			registerTask(FlatMapDriver.class, MockMapStub.class);
-			BatchTask<FlatMapFunction<Record, Record>, Record> testTask = new BatchTask<>(mockEnv);
+            getTaskConfig().addChainedTask(ChainedAllReduceDriver.class, reduceConfig, "reduce");
+        }
 
-			testTask.invoke();
-		}
+        // chained map+reduce
+        {
+            registerTask(FlatMapDriver.class, MockMapStub.class);
+            BatchTask<FlatMapFunction<Record, Record>, Record> testTask = new BatchTask<>(mockEnv);
 
-		int sumTotal = valCnt * keyCnt * (keyCnt - 1) / 2;
+            testTask.invoke();
+        }
 
-		Assert.assertEquals(1, this.outList.size());
-		Assert.assertEquals(sumTotal, this.outList.get(0).getField(0, IntValue.class).getValue());
-	}
+        int sumTotal = valCnt * keyCnt * (keyCnt - 1) / 2;
 
-	public static class MockReduceStub implements ReduceFunction<Record> {
-		private static final long serialVersionUID = 1047525105526690165L;
+        Assert.assertEquals(1, this.outList.size());
+        Assert.assertEquals(sumTotal, this.outList.get(0).getField(0, IntValue.class).getValue());
+    }
 
-		@Override
-		public Record reduce(Record value1, Record value2) throws Exception {
-			IntValue v1 = value1.getField(0, IntValue.class);
-			IntValue v2 = value2.getField(0, IntValue.class);
+    public static class MockReduceStub implements ReduceFunction<Record> {
+        private static final long serialVersionUID = 1047525105526690165L;
 
-			// set value and force update of record; this updates and returns
-			// value1 in order to test ChainedAllReduceDriver.collect() when
-			// object reuse is enabled
-			v1.setValue(v1.getValue() + v2.getValue());
-			value1.setField(0, v1);
-			value1.updateBinaryRepresenation();
-			return value1;
-		}
-	}
+        @Override
+        public Record reduce(Record value1, Record value2) throws Exception {
+            IntValue v1 = value1.getField(0, IntValue.class);
+            IntValue v2 = value2.getField(0, IntValue.class);
+
+            // set value and force update of record; this updates and returns
+            // value1 in order to test ChainedAllReduceDriver.collect() when
+            // object reuse is enabled
+            v1.setValue(v1.getValue() + v2.getValue());
+            value1.setField(0, v1);
+            value1.updateBinaryRepresenation();
+            return value1;
+        }
+    }
 }

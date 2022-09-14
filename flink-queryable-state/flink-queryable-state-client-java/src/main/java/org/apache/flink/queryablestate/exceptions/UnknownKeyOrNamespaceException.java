@@ -21,19 +21,18 @@ package org.apache.flink.queryablestate.exceptions;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.queryablestate.network.BadRequestException;
 
-/**
- * Thrown if the KvState does not hold any state for the given key or namespace.
- */
+/** Thrown if the KvState does not hold any state for the given key or namespace. */
 @Internal
 public class UnknownKeyOrNamespaceException extends BadRequestException {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	/**
-	 * Creates the exception.
-	 * @param serverName the name of the server that threw the exception.
-	 */
-	public UnknownKeyOrNamespaceException(String serverName) {
-		super(serverName, "No state for the specified key/namespace.");
-	}
+    /**
+     * Creates the exception.
+     *
+     * @param serverName the name of the server that threw the exception.
+     */
+    public UnknownKeyOrNamespaceException(String serverName) {
+        super(serverName, "No state for the specified key/namespace.");
+    }
 }

@@ -18,80 +18,93 @@
 
 package org.apache.flink.table.utils;
 
+import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.internal.TableEnvironmentImpl;
 import org.apache.flink.table.catalog.CatalogManager;
 import org.apache.flink.table.catalog.FunctionCatalog;
 import org.apache.flink.table.module.ModuleManager;
+import org.apache.flink.table.resource.ResourceManager;
 
-/**
- * Mocking {@link TableEnvironment} for tests.
- */
+import java.net.URL;
+
+/** Mocking {@link TableEnvironment} for tests. */
 public class TableEnvironmentMock extends TableEnvironmentImpl {
 
-	public final CatalogManager catalogManager;
+    public final CatalogManager catalogManager;
 
-	public final ExecutorMock executor;
+    public final ExecutorMock executor;
 
-	public final FunctionCatalog functionCatalog;
+    public final FunctionCatalog functionCatalog;
 
-	public final PlannerMock planner;
+    public final PlannerMock planner;
 
-	protected TableEnvironmentMock(
-			CatalogManager catalogManager,
-			ModuleManager moduleManager,
-			TableConfig tableConfig,
-			ExecutorMock executor,
-			FunctionCatalog functionCatalog,
-			PlannerMock planner,
-			boolean isStreamingMode) {
-		super(catalogManager, moduleManager, tableConfig, executor, functionCatalog, planner, isStreamingMode);
+    protected TableEnvironmentMock(
+            CatalogManager catalogManager,
+            ModuleManager moduleManager,
+            ResourceManager userResourceManager,
+            TableConfig tableConfig,
+            ExecutorMock executor,
+            FunctionCatalog functionCatalog,
+            PlannerMock planner,
+            boolean isStreamingMode) {
+        super(
+                catalogManager,
+                moduleManager,
+                userResourceManager,
+                tableConfig,
+                executor,
+                functionCatalog,
+                planner,
+                isStreamingMode);
+        this.catalogManager = catalogManager;
+        this.executor = executor;
+        this.functionCatalog = functionCatalog;
+        this.planner = planner;
+    }
 
-		this.catalogManager = catalogManager;
-		this.executor = executor;
-		this.functionCatalog = functionCatalog;
-		this.planner = planner;
-	}
+    public static TableEnvironmentMock getStreamingInstance() {
+        return getInstance(true);
+    }
 
-	public static TableEnvironmentMock getStreamingInstance() {
-		return getInstance(true);
-	}
+    public static TableEnvironmentMock getBatchInstance() {
+        return getInstance(false);
+    }
 
-	public static TableEnvironmentMock getBatchInstance() {
-		return getInstance(false);
-	}
+    private static TableEnvironmentMock getInstance(boolean isStreamingMode) {
+        final TableConfig tableConfig = TableConfig.getDefault();
+        final CatalogManager catalogManager = CatalogManagerMocks.createEmptyCatalogManager();
+        final ModuleManager moduleManager = new ModuleManager();
+        final ResourceManager resourceManager =
+                ResourceManager.createResourceManager(
+                        new URL[0],
+                        Thread.currentThread().getContextClassLoader(),
+                        tableConfig.getConfiguration());
+        return new TableEnvironmentMock(
+                catalogManager,
+                moduleManager,
+                resourceManager,
+                tableConfig,
+                createExecutor(),
+                createFunctionCatalog(tableConfig, resourceManager, catalogManager, moduleManager),
+                createPlanner(),
+                isStreamingMode);
+    }
 
-	private static TableEnvironmentMock getInstance(boolean isStreamingMode) {
-		final TableConfig config = createTableConfig();
-		final CatalogManager catalogManager = CatalogManagerMocks.createEmptyCatalogManager();
-		final ModuleManager moduleManager = new ModuleManager();
-		return new TableEnvironmentMock(
-			catalogManager,
-			moduleManager,
-			config,
-			createExecutor(),
-			createFunctionCatalog(config, catalogManager, moduleManager),
-			createPlanner(),
-			isStreamingMode);
-	}
+    private static ExecutorMock createExecutor() {
+        return new ExecutorMock();
+    }
 
-	private static TableConfig createTableConfig() {
-		return TableConfig.getDefault();
-	}
+    private static FunctionCatalog createFunctionCatalog(
+            ReadableConfig config,
+            ResourceManager resourceManager,
+            CatalogManager catalogManager,
+            ModuleManager moduleManager) {
+        return new FunctionCatalog(config, resourceManager, catalogManager, moduleManager);
+    }
 
-	private static ExecutorMock createExecutor() {
-		return new ExecutorMock();
-	}
-
-	private static FunctionCatalog createFunctionCatalog(
-			TableConfig config,
-			CatalogManager catalogManager,
-			ModuleManager moduleManager) {
-		return new FunctionCatalog(config, catalogManager, moduleManager);
-	}
-
-	private static PlannerMock createPlanner() {
-		return new PlannerMock();
-	}
+    private static PlannerMock createPlanner() {
+        return new PlannerMock();
+    }
 }

@@ -22,14 +22,12 @@ import org.apache.flink.runtime.clusterframework.types.ResourceID;
 
 import java.net.InetAddress;
 
-/**
- * Dummy local task manager location for testing purposes.
- */
+/** Dummy local task manager location for testing purposes. */
 public class LocalTaskManagerLocation extends TaskManagerLocation {
 
-	private static final long serialVersionUID = 2396142513336559461L;
+    private static final long serialVersionUID = 2396142513336559461L;
 
-	public LocalTaskManagerLocation() {
-		super(ResourceID.generate(), InetAddress.getLoopbackAddress(), 42);
-	}
+    public LocalTaskManagerLocation() {
+        super(ResourceID.generate(), InetAddress.getLoopbackAddress(), 42);
+    }
 }

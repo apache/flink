@@ -21,32 +21,29 @@ package org.apache.flink.runtime.state;
 import org.apache.flink.annotation.PublicEvolving;
 
 /**
- * This interface provides a context in which operators can initialize by registering to managed state (i.e. state that
- * is managed by state backends) or iterating over streams of state partitions written as raw state in a previous
- * snapshot.
+ * This interface provides a context in which operators can initialize by registering to managed
+ * state (i.e. state that is managed by state backends) or iterating over streams of state
+ * partitions written as raw state in a previous snapshot.
  *
- * <p>
- * Similar to the managed state from {@link ManagedInitializationContext} and in general,  raw operator state is
- * available to all operators, while raw keyed state is only available for operators after keyBy.
+ * <p>Similar to the managed state from {@link ManagedInitializationContext} and in general, raw
+ * operator state is available to all operators, while raw keyed state is only available for
+ * operators after keyBy.
  *
- * <p>
- * For the purpose of initialization, the context signals if all state is empty (new operator) or if any state was
- * restored from a previous execution of this operator.
- *
+ * <p>For the purpose of initialization, the context signals if all state is empty (new operator) or
+ * if any state was restored from a previous execution of this operator.
  */
 @PublicEvolving
 public interface StateInitializationContext extends FunctionInitializationContext {
 
-	/**
-	 * Returns an iterable to obtain input streams for previously stored operator state partitions that are assigned to
-	 * this operator.
-	 */
-	Iterable<StatePartitionStreamProvider> getRawOperatorStateInputs();
+    /**
+     * Returns an iterable to obtain input streams for previously stored operator state partitions
+     * that are assigned to this operator.
+     */
+    Iterable<StatePartitionStreamProvider> getRawOperatorStateInputs();
 
-	/**
-	 * Returns an iterable to obtain input streams for previously stored keyed state partitions that are assigned to
-	 * this operator.
-	 */
-	Iterable<KeyGroupStatePartitionStreamProvider> getRawKeyedStateInputs();
-
+    /**
+     * Returns an iterable to obtain input streams for previously stored keyed state partitions that
+     * are assigned to this operator.
+     */
+    Iterable<KeyGroupStatePartitionStreamProvider> getRawKeyedStateInputs();
 }

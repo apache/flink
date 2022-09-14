@@ -19,6 +19,59 @@
 
 :host {
   display: block;
-  height: 100%;
   width: 100%;
+  height: 100%;
+
+  .text-secondary {
+    color: @text-color-secondary;
+    font-size: @font-size-sm;
+  }
+
+  nz-tabset {
+    height: 100%;
+  }
+
+  ::ng-deep {
+    .ant-table-row-indent {
+      padding-left: 0 !important;
+
+      & + .ant-table-row-expand-icon {
+        margin-top: 2px;
+      }
+    }
+
+    .ant-table-cell {
+      font-size: @font-size-sm;
+    }
+
+    .ant-tabs-content {
+      height: 100%;
+
+      .ant-tabs-tabpane {
+        height: 100%;
+      }
+    }
+
+    .ant-tabs-nav {
+      margin-bottom: 0;
+    }
+
+    .ant-tabs-small > .ant-tabs-nav .ant-tabs-tab {
+      margin: 0 0 0 @margin-md;
+      font-size: @font-size-sm;
+    }
+
+    ::-webkit-scrollbar {
+      display: none;
+    }
+
+    nz-table,
+    nz-spin,
+    cdk-virtual-scroll-viewport,
+    nz-table-inner-scroll,
+    .ant-spin-container,
+    .ant-table {
+      height: 100%;
+    }
+  }
 }

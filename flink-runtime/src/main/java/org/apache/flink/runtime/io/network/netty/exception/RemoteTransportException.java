@@ -22,13 +22,13 @@ import java.net.SocketAddress;
 
 public class RemoteTransportException extends TransportException {
 
-	private static final long serialVersionUID = 4373615529545893089L;
+    private static final long serialVersionUID = 4373615529545893089L;
 
-	public RemoteTransportException(String message, SocketAddress address) {
-		super(message, address);
-	}
+    public RemoteTransportException(String message, SocketAddress address) {
+        super(message, address);
+    }
 
-	public RemoteTransportException(String message, SocketAddress address, Throwable cause) {
-		super(message, address, cause);
-	}
+    public RemoteTransportException(String message, SocketAddress address, Throwable cause) {
+        super(message, address, cause);
+    }
 }

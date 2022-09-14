@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -24,125 +24,151 @@ import org.apache.flink.core.testutils.CommonTestUtils;
 import org.apache.flink.runtime.clusterframework.ContaineredTaskManagerParameters;
 import org.apache.flink.runtime.clusterframework.TaskExecutorProcessSpec;
 import org.apache.flink.runtime.clusterframework.TaskExecutorProcessUtils;
-import org.apache.flink.util.TestLogger;
+import org.apache.flink.yarn.configuration.YarnResourceManagerDriverConfiguration;
+import org.apache.flink.yarn.util.TestUtils;
 
+import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.security.Credentials;
 import org.apache.hadoop.security.token.Token;
 import org.apache.hadoop.security.token.TokenIdentifier;
+import org.apache.hadoop.yarn.api.ApplicationConstants;
 import org.apache.hadoop.yarn.api.records.ContainerLaunchContext;
+import org.apache.hadoop.yarn.api.records.LocalResourceType;
+import org.apache.hadoop.yarn.api.records.LocalResourceVisibility;
 import org.apache.hadoop.yarn.conf.YarnConfiguration;
 import org.apache.hadoop.yarn.security.AMRMTokenIdentifier;
-import org.junit.Assert;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.ByteArrayInputStream;
 import java.io.DataInputStream;
 import java.io.File;
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 
-/**
- * Tests for various utilities.
- */
-public class UtilsTest extends TestLogger {
-	private static final Logger LOG = LoggerFactory.getLogger(UtilsTest.class);
+/** Tests for various utilities. */
+class UtilsTest {
+    private static final Logger LOG = LoggerFactory.getLogger(UtilsTest.class);
 
-	@Rule
-	public TemporaryFolder temporaryFolder = new TemporaryFolder();
+    @TempDir File temporaryFolder;
 
-	@Test
-	public void testUberjarLocator() {
-		File dir = YarnTestBase.findFile("..", new YarnTestBase.RootDirFilenameFilter());
-		Assert.assertNotNull(dir);
-		Assert.assertTrue(dir.getName().endsWith(".jar"));
-		dir = dir.getParentFile().getParentFile(); // from uberjar to lib to root
-		Assert.assertTrue(dir.exists());
-		Assert.assertTrue(dir.isDirectory());
-		List<String> files = Arrays.asList(dir.list());
-		Assert.assertTrue(files.contains("lib"));
-		Assert.assertTrue(files.contains("bin"));
-		Assert.assertTrue(files.contains("conf"));
-	}
+    @Test
+    void testUberjarLocator() {
+        File dir = TestUtils.findFile("..", new TestUtils.RootDirFilenameFilter());
+        assertThat(dir).isNotNull();
+        assertThat(dir.getName()).endsWith(".jar");
+        dir = dir.getParentFile().getParentFile(); // from uberjar to lib to root
+        assertThat(dir).exists().isDirectory();
+        assertThat(dir.list()).contains("lib", "bin", "conf");
+    }
 
-	@Test
-	public void testCreateTaskExecutorCredentials() throws Exception {
-		File root = temporaryFolder.getRoot();
-		File home = new File(root, "home");
-		boolean created = home.mkdir();
-		assertTrue(created);
+    @Test
+    void testCreateTaskExecutorCredentials() throws Exception {
+        File root = temporaryFolder;
+        File home = new File(root, "home");
+        boolean created = home.mkdir();
+        assertThat(created).isTrue();
 
-		Configuration flinkConf = new Configuration();
-		YarnConfiguration yarnConf = new YarnConfiguration();
+        Configuration flinkConf = new Configuration();
+        YarnConfiguration yarnConf = new YarnConfiguration();
 
-		Map<String, String> env = new HashMap<>();
-		env.put(YarnConfigKeys.ENV_APP_ID, "foo");
-		env.put(YarnConfigKeys.ENV_CLIENT_HOME_DIR, home.getAbsolutePath());
-		env.put(YarnConfigKeys.ENV_CLIENT_SHIP_FILES, "");
-		env.put(YarnConfigKeys.ENV_FLINK_CLASSPATH, "");
-		env.put(YarnConfigKeys.ENV_HADOOP_USER_NAME, "foo");
-		env.put(YarnConfigKeys.FLINK_JAR_PATH, root.toURI().toString());
-		env = Collections.unmodifiableMap(env);
+        Map<String, String> env = new HashMap<>();
+        env.put(YarnConfigKeys.ENV_APP_ID, "foo");
+        env.put(YarnConfigKeys.ENV_CLIENT_HOME_DIR, home.getAbsolutePath());
+        env.put(YarnConfigKeys.ENV_CLIENT_SHIP_FILES, "");
+        env.put(YarnConfigKeys.ENV_FLINK_CLASSPATH, "");
+        env.put(YarnConfigKeys.ENV_HADOOP_USER_NAME, "foo");
+        env.put(
+                YarnConfigKeys.FLINK_DIST_JAR,
+                new YarnLocalResourceDescriptor(
+                                "flink.jar",
+                                new Path(root.toURI()),
+                                0,
+                                System.currentTimeMillis(),
+                                LocalResourceVisibility.APPLICATION,
+                                LocalResourceType.FILE)
+                        .toString());
+        env.put(YarnConfigKeys.FLINK_YARN_FILES, "");
+        env.put(ApplicationConstants.Environment.PWD.key(), home.getAbsolutePath());
+        env = Collections.unmodifiableMap(env);
 
-		File credentialFile = temporaryFolder.newFile("container_tokens");
-		final Text amRmTokenKind = AMRMTokenIdentifier.KIND_NAME;
-		final Text hdfsDelegationTokenKind = new Text("HDFS_DELEGATION_TOKEN");
-		final Text service = new Text("test-service");
-		Credentials amCredentials = new Credentials();
-		amCredentials.addToken(amRmTokenKind, new Token<>(new byte[4], new byte[4], amRmTokenKind, service));
-		amCredentials.addToken(hdfsDelegationTokenKind, new Token<>(new byte[4], new byte[4],
-			hdfsDelegationTokenKind, service));
-		amCredentials.writeTokenStorageFile(new org.apache.hadoop.fs.Path(credentialFile.getAbsolutePath()), yarnConf);
+        final YarnResourceManagerDriverConfiguration yarnResourceManagerDriverConfiguration =
+                new YarnResourceManagerDriverConfiguration(env, "localhost", null);
 
-		TaskExecutorProcessSpec spec = TaskExecutorProcessUtils
-			.newProcessSpecBuilder(flinkConf)
-			.withTotalProcessMemory(MemorySize.parse("1g"))
-			.build();
-		ContaineredTaskManagerParameters tmParams = new ContaineredTaskManagerParameters(spec, 1, new HashMap<>(1));
-		Configuration taskManagerConf = new Configuration();
+        File credentialFile = temporaryFolder.toPath().resolve("container_tokens").toFile();
+        credentialFile.createNewFile();
+        final Text amRmTokenKind = AMRMTokenIdentifier.KIND_NAME;
+        final Text hdfsDelegationTokenKind = new Text("HDFS_DELEGATION_TOKEN");
+        final Text amRmTokenService = new Text("rm-ip:8030");
+        final Text hdfsDelegationTokenService = new Text("ha-hdfs:hadoop-namespace");
+        Credentials amCredentials = new Credentials();
+        amCredentials.addToken(
+                amRmTokenService,
+                new Token<>(new byte[4], new byte[4], amRmTokenKind, amRmTokenService));
+        amCredentials.addToken(
+                hdfsDelegationTokenService,
+                new Token<>(
+                        new byte[4],
+                        new byte[4],
+                        hdfsDelegationTokenKind,
+                        hdfsDelegationTokenService));
+        amCredentials.writeTokenStorageFile(
+                new org.apache.hadoop.fs.Path(credentialFile.getAbsolutePath()), yarnConf);
 
-		String workingDirectory = root.getAbsolutePath();
-		Class<?> taskManagerMainClass = YarnTaskExecutorRunner.class;
-		ContainerLaunchContext ctx;
+        TaskExecutorProcessSpec spec =
+                TaskExecutorProcessUtils.newProcessSpecBuilder(flinkConf)
+                        .withTotalProcessMemory(MemorySize.parse("1g"))
+                        .build();
+        ContaineredTaskManagerParameters tmParams =
+                new ContaineredTaskManagerParameters(spec, new HashMap<>(1));
+        Configuration taskManagerConf = new Configuration();
 
-		final Map<String, String> originalEnv = System.getenv();
-		try {
-			Map<String, String> systemEnv = new HashMap<>(originalEnv);
-			systemEnv.put("HADOOP_TOKEN_FILE_LOCATION", credentialFile.getAbsolutePath());
-			CommonTestUtils.setEnv(systemEnv);
-			ctx = Utils.createTaskExecutorContext(flinkConf, yarnConf, env, tmParams,
-				"", workingDirectory, taskManagerMainClass, LOG);
-		} finally {
-			CommonTestUtils.setEnv(originalEnv);
-		}
+        String workingDirectory = root.getAbsolutePath();
+        Class<?> taskManagerMainClass = YarnTaskExecutorRunner.class;
+        ContainerLaunchContext ctx;
 
-		Credentials credentials = new Credentials();
-		try (DataInputStream dis = new DataInputStream(new ByteArrayInputStream(ctx.getTokens().array()))) {
-			credentials.readTokenStorageStream(dis);
-		}
-		Collection<Token<? extends TokenIdentifier>> tokens = credentials.getAllTokens();
-		boolean hasHdfsDelegationToken = false;
-		boolean hasAmRmToken = false;
-		for (Token<? extends TokenIdentifier> token : tokens) {
-			if (token.getKind().equals(amRmTokenKind)) {
-				hasAmRmToken = true;
-			} else if (token.getKind().equals(hdfsDelegationTokenKind)) {
-				hasHdfsDelegationToken = true;
-			}
-		}
-		assertTrue(hasHdfsDelegationToken);
-		assertFalse(hasAmRmToken);
-	}
+        final Map<String, String> originalEnv = System.getenv();
+        try {
+            Map<String, String> systemEnv = new HashMap<>(originalEnv);
+            systemEnv.put("HADOOP_TOKEN_FILE_LOCATION", credentialFile.getAbsolutePath());
+            CommonTestUtils.setEnv(systemEnv);
+            ctx =
+                    Utils.createTaskExecutorContext(
+                            flinkConf,
+                            yarnConf,
+                            yarnResourceManagerDriverConfiguration,
+                            tmParams,
+                            "",
+                            workingDirectory,
+                            taskManagerMainClass,
+                            LOG);
+        } finally {
+            CommonTestUtils.setEnv(originalEnv);
+        }
+
+        Credentials credentials = new Credentials();
+        try (DataInputStream dis =
+                new DataInputStream(new ByteArrayInputStream(ctx.getTokens().array()))) {
+            credentials.readTokenStorageStream(dis);
+        }
+        Collection<Token<? extends TokenIdentifier>> tokens = credentials.getAllTokens();
+        boolean hasHdfsDelegationToken = false;
+        boolean hasAmRmToken = false;
+        for (Token<? extends TokenIdentifier> token : tokens) {
+            if (token.getKind().equals(amRmTokenKind)) {
+                hasAmRmToken = true;
+            } else if (token.getKind().equals(hdfsDelegationTokenKind)) {
+                hasHdfsDelegationToken = true;
+            }
+        }
+        assertThat(hasHdfsDelegationToken).isTrue();
+        assertThat(hasAmRmToken).isFalse();
+    }
 }
-

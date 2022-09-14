@@ -28,77 +28,107 @@ import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
 
-/**
- * Decompressor for compressed {@link Buffer}.
- */
+/** Decompressor for compressed {@link Buffer}. */
 public class BufferDecompressor {
 
-	/** The backing block decompressor for data decompression. */
-	private final BlockDecompressor blockDecompressor;
+    /** The backing block decompressor for data decompression. */
+    private final BlockDecompressor blockDecompressor;
 
-	/** The intermediate buffer for the decompressed data. */
-	private final NetworkBuffer internalBuffer;
+    /** The intermediate buffer for the decompressed data. */
+    private final NetworkBuffer internalBuffer;
 
-	public BufferDecompressor(int bufferSize, String factoryName) {
-		checkArgument(bufferSize > 0);
-		checkNotNull(factoryName);
+    /** The backup array of intermediate buffer. */
+    private final byte[] internalBufferArray;
 
-		// the decompressed data size should be never larger than the configured buffer size
-		final byte[] heapBuffer = new byte[bufferSize];
-		this.internalBuffer = new NetworkBuffer(MemorySegmentFactory.wrap(heapBuffer), FreeingBufferRecycler.INSTANCE);
-		this.blockDecompressor = BlockCompressionFactory.createBlockCompressionFactory(factoryName).getDecompressor();
-	}
+    public BufferDecompressor(int bufferSize, String factoryName) {
+        checkArgument(bufferSize > 0);
+        checkNotNull(factoryName);
 
-	/**
-	 * Decompresses the given {@link Buffer} using {@link BlockDecompressor}. The decompressed data will be stored
-	 * in the intermediate buffer of this {@link BufferDecompressor} and returned to the caller. The caller must
-	 * guarantee that the returned {@link Buffer} has been freed when calling the method next time.
-	 *
-	 * <p>Notes that the decompression will always start from offset 0 to the size of the input {@link Buffer}.
-	 */
-	public Buffer decompressToIntermediateBuffer(Buffer buffer) {
-		int decompressedLen = decompress(buffer);
-		internalBuffer.setSize(decompressedLen);
+        // the decompressed data size should be never larger than the configured buffer size
+        this.internalBufferArray = new byte[bufferSize];
+        this.internalBuffer =
+                new NetworkBuffer(
+                        MemorySegmentFactory.wrap(internalBufferArray),
+                        FreeingBufferRecycler.INSTANCE);
+        this.blockDecompressor =
+                BlockCompressionFactory.createBlockCompressionFactory(factoryName)
+                        .getDecompressor();
+    }
 
-		return internalBuffer.retainBuffer();
-	}
+    /**
+     * Decompresses the given {@link Buffer} using {@link BlockDecompressor}. The decompressed data
+     * will be stored in the intermediate buffer of this {@link BufferDecompressor} and returned to
+     * the caller. The caller must guarantee that the returned {@link Buffer} has been freed when
+     * calling the method next time.
+     *
+     * <p>Notes that the decompression will always start from offset 0 to the size of the input
+     * {@link Buffer}.
+     */
+    public Buffer decompressToIntermediateBuffer(Buffer buffer) {
+        int decompressedLen = decompress(buffer);
+        internalBuffer.setSize(decompressedLen);
 
-	/**
-	 * The difference between this method and {@link #decompressToIntermediateBuffer(Buffer)} is that this method
-	 * copies the decompressed data to the input {@link Buffer} starting from offset 0.
-	 *
-	 * <p>The caller must guarantee that the input {@link Buffer} is writable and there's enough space left.
-	 */
-	@VisibleForTesting
-	public Buffer decompressToOriginalBuffer(Buffer buffer) {
-		int decompressedLen = decompress(buffer);
+        return internalBuffer.retainBuffer();
+    }
 
-		// copy the decompressed data back
-		int memorySegmentOffset = buffer.getMemorySegmentOffset();
-		MemorySegment segment = buffer.getMemorySegment();
-		segment.put(memorySegmentOffset, internalBuffer.array(), 0, decompressedLen);
+    /**
+     * The difference between this method and {@link #decompressToIntermediateBuffer(Buffer)} is
+     * that this method copies the decompressed data to the input {@link Buffer} starting from
+     * offset 0.
+     *
+     * <p>The caller must guarantee that the input {@link Buffer} is writable and there's enough
+     * space left.
+     */
+    @VisibleForTesting
+    public Buffer decompressToOriginalBuffer(Buffer buffer) {
+        int decompressedLen = decompress(buffer);
 
-		return new ReadOnlySlicedNetworkBuffer(buffer.asByteBuf(), 0, decompressedLen, memorySegmentOffset, false);
-	}
+        // copy the decompressed data back
+        int memorySegmentOffset = buffer.getMemorySegmentOffset();
+        MemorySegment segment = buffer.getMemorySegment();
+        segment.put(memorySegmentOffset, internalBufferArray, 0, decompressedLen);
 
-	/**
-	 * Decompresses the input {@link Buffer} into the intermediate buffer and returns the decompressed data size.
-	 */
-	private int decompress(Buffer buffer) {
-		checkArgument(buffer != null, "The input buffer must not be null.");
-		checkArgument(buffer.isBuffer(), "Event can not be decompressed.");
-		checkArgument(buffer.isCompressed(), "Buffer not compressed.");
-		checkArgument(buffer.getReaderIndex() == 0, "Reader index of the input buffer must be 0.");
-		checkArgument(buffer.readableBytes() > 0, "No data to be decompressed.");
-		checkState(internalBuffer.refCnt() == 1, "Illegal reference count, buffer need to be released.");
+        return new ReadOnlySlicedNetworkBuffer(
+                buffer.asByteBuf(), 0, decompressedLen, memorySegmentOffset, false);
+    }
 
-		int length = buffer.getSize();
-		// decompress the given buffer into the internal heap buffer
-		return blockDecompressor.decompress(
-			buffer.getNioBuffer(0, length),
-			0,
-			length,
-			internalBuffer.getNioBuffer(0, internalBuffer.capacity()),
-			0);
-	}
+    /**
+     * Decompresses the input {@link Buffer} into the intermediate buffer and returns the
+     * decompressed data size.
+     */
+    private int decompress(Buffer buffer) {
+        checkArgument(buffer != null, "The input buffer must not be null.");
+        checkArgument(buffer.isBuffer(), "Event can not be decompressed.");
+        checkArgument(buffer.isCompressed(), "Buffer not compressed.");
+        checkArgument(buffer.getReaderIndex() == 0, "Reader index of the input buffer must be 0.");
+        checkArgument(buffer.readableBytes() > 0, "No data to be decompressed.");
+        checkState(
+                internalBuffer.refCnt() == 1,
+                "Illegal reference count, buffer need to be released.");
+
+        int length = buffer.getSize();
+        MemorySegment memorySegment = buffer.getMemorySegment();
+        // If buffer is on-heap, manipulate the underlying array directly. There are two main
+        // reasons why NIO buffer is not directly used here: One is that some compression
+        // libraries will use the underlying array for heap buffer, but our input buffer may be
+        // a read-only ByteBuffer, and it is illegal to access internal array. Another reason
+        // is that for the on-heap buffer, directly operating the underlying array can reduce
+        // additional overhead compared to generating a NIO buffer.
+        if (!memorySegment.isOffHeap()) {
+            return blockDecompressor.decompress(
+                    memorySegment.getArray(),
+                    buffer.getMemorySegmentOffset(),
+                    length,
+                    internalBufferArray,
+                    0);
+        } else {
+            // decompress the given buffer into the internal heap buffer
+            return blockDecompressor.decompress(
+                    buffer.getNioBuffer(0, length),
+                    0,
+                    length,
+                    internalBuffer.getNioBuffer(0, internalBuffer.capacity()),
+                    0);
+        }
+    }
 }

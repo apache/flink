@@ -20,44 +20,70 @@ package org.apache.flink.table.catalog.stats;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Objects;
 
-/**
- * Column statistics value of binary type.
- */
+/** Column statistics value of binary type. */
 public class CatalogColumnStatisticsDataBinary extends CatalogColumnStatisticsDataBase {
-	/**
-	 * max length of all values.
-	 */
-	private final Long maxLength;
+    /** max length of all values. */
+    private final Long maxLength;
 
-	/**
-	 * average length of all values.
-	 */
-	private final Double avgLength;
+    /** average length of all values. */
+    private final Double avgLength;
 
-	public CatalogColumnStatisticsDataBinary(Long maxLength, Double avgLength, Long nullCount) {
-		super(nullCount);
-		this.maxLength = maxLength;
-		this.avgLength = avgLength;
-	}
+    public CatalogColumnStatisticsDataBinary(Long maxLength, Double avgLength, Long nullCount) {
+        super(nullCount);
+        this.maxLength = maxLength;
+        this.avgLength = avgLength;
+    }
 
-	public CatalogColumnStatisticsDataBinary(Long maxLength, Double avgLength, Long nullCount,
-											Map<String, String> properties) {
-		super(nullCount, properties);
-		this.maxLength = maxLength;
-		this.avgLength = avgLength;
-	}
+    public CatalogColumnStatisticsDataBinary(
+            Long maxLength, Double avgLength, Long nullCount, Map<String, String> properties) {
+        super(nullCount, properties);
+        this.maxLength = maxLength;
+        this.avgLength = avgLength;
+    }
 
-	public Long getMaxLength() {
-		return maxLength;
-	}
+    public Long getMaxLength() {
+        return maxLength;
+    }
 
-	public Double getAvgLength() {
-		return avgLength;
-	}
+    public Double getAvgLength() {
+        return avgLength;
+    }
 
-	public CatalogColumnStatisticsDataBinary copy() {
-		return new CatalogColumnStatisticsDataBinary(maxLength, avgLength, getNullCount(), new HashMap<>(getProperties()));
-	}
+    public CatalogColumnStatisticsDataBinary copy() {
+        return new CatalogColumnStatisticsDataBinary(
+                maxLength, avgLength, getNullCount(), new HashMap<>(getProperties()));
+    }
 
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
+        CatalogColumnStatisticsDataBinary that = (CatalogColumnStatisticsDataBinary) o;
+        return Objects.equals(maxLength, that.maxLength)
+                && Objects.equals(avgLength, that.avgLength)
+                && Objects.equals(getNullCount(), that.getNullCount());
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(maxLength, avgLength, getNullCount());
+    }
+
+    @Override
+    public String toString() {
+        return "CatalogColumnStatisticsDataBinary{"
+                + "maxLength="
+                + maxLength
+                + ", avgLength="
+                + avgLength
+                + ", nullCount="
+                + getNullCount()
+                + '}';
+    }
 }

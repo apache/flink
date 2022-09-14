@@ -40,78 +40,90 @@ import org.apache.flink.util.SerializedThrowable;
 
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
 
+import java.time.Duration;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
-/**
- * Handlers to trigger the disposal of a savepoint.
- */
-public class SavepointDisposalHandlers extends AbstractAsynchronousOperationHandlers<OperationKey, Acknowledge> {
+/** Handlers to trigger the disposal of a savepoint. */
+public class SavepointDisposalHandlers
+        extends AbstractAsynchronousOperationHandlers<OperationKey, Acknowledge> {
 
-	/**
-	 * {@link TriggerHandler} implementation for the savepoint disposal operation.
-	 */
-	public class SavepointDisposalTriggerHandler extends TriggerHandler<RestfulGateway, SavepointDisposalRequest, EmptyMessageParameters> {
+    public SavepointDisposalHandlers(Duration cacheDuration) {
+        super(cacheDuration);
+    }
 
-		public SavepointDisposalTriggerHandler(
-				GatewayRetriever<? extends RestfulGateway> leaderRetriever,
-				Time timeout,
-				Map<String, String> responseHeaders) {
-			super(
-				leaderRetriever,
-				timeout,
-				responseHeaders,
-				SavepointDisposalTriggerHeaders.getInstance());
-		}
+    /** {@link TriggerHandler} implementation for the savepoint disposal operation. */
+    public class SavepointDisposalTriggerHandler
+            extends TriggerHandler<
+                    RestfulGateway, SavepointDisposalRequest, EmptyMessageParameters> {
 
-		@Override
-		protected CompletableFuture<Acknowledge> triggerOperation(HandlerRequest<SavepointDisposalRequest, EmptyMessageParameters> request, RestfulGateway gateway) throws RestHandlerException {
-			final String savepointPath = request.getRequestBody().getSavepointPath();
-			if (savepointPath == null) {
-				throw new RestHandlerException(
-					String.format("Field %s must not be omitted or be null.",
-						SavepointDisposalRequest.FIELD_NAME_SAVEPOINT_PATH),
-					HttpResponseStatus.BAD_REQUEST);
-			}
-			return gateway.disposeSavepoint(savepointPath, RpcUtils.INF_TIMEOUT);
-		}
+        public SavepointDisposalTriggerHandler(
+                GatewayRetriever<? extends RestfulGateway> leaderRetriever,
+                Time timeout,
+                Map<String, String> responseHeaders) {
+            super(
+                    leaderRetriever,
+                    timeout,
+                    responseHeaders,
+                    SavepointDisposalTriggerHeaders.getInstance());
+        }
 
-		@Override
-		protected OperationKey createOperationKey(HandlerRequest<SavepointDisposalRequest, EmptyMessageParameters> request) {
-			return new OperationKey(new TriggerId());
-		}
-	}
+        @Override
+        protected CompletableFuture<Acknowledge> triggerOperation(
+                HandlerRequest<SavepointDisposalRequest> request, RestfulGateway gateway)
+                throws RestHandlerException {
+            final String savepointPath = request.getRequestBody().getSavepointPath();
+            if (savepointPath == null) {
+                throw new RestHandlerException(
+                        String.format(
+                                "Field %s must not be omitted or be null.",
+                                SavepointDisposalRequest.FIELD_NAME_SAVEPOINT_PATH),
+                        HttpResponseStatus.BAD_REQUEST);
+            }
+            return gateway.disposeSavepoint(savepointPath, RpcUtils.INF_TIMEOUT);
+        }
 
-	/**
-	 * {@link StatusHandler} implementation for the savepoint disposal operation.
-	 */
-	public class SavepointDisposalStatusHandler extends StatusHandler<RestfulGateway, AsynchronousOperationInfo, SavepointDisposalStatusMessageParameters> {
+        @Override
+        protected OperationKey createOperationKey(
+                HandlerRequest<SavepointDisposalRequest> request) {
+            return new OperationKey(new TriggerId());
+        }
+    }
 
-		public SavepointDisposalStatusHandler(
-				GatewayRetriever<? extends RestfulGateway> leaderRetriever,
-				Time timeout,
-				Map<String, String> responseHeaders) {
-			super(
-				leaderRetriever,
-				timeout,
-				responseHeaders,
-				SavepointDisposalStatusHeaders.getInstance());
-		}
+    /** {@link StatusHandler} implementation for the savepoint disposal operation. */
+    public class SavepointDisposalStatusHandler
+            extends StatusHandler<
+                    RestfulGateway,
+                    AsynchronousOperationInfo,
+                    SavepointDisposalStatusMessageParameters> {
 
-		@Override
-		protected OperationKey getOperationKey(HandlerRequest<EmptyRequestBody, SavepointDisposalStatusMessageParameters> request) {
-			final TriggerId triggerId = request.getPathParameter(TriggerIdPathParameter.class);
-			return new OperationKey(triggerId);
-		}
+        public SavepointDisposalStatusHandler(
+                GatewayRetriever<? extends RestfulGateway> leaderRetriever,
+                Time timeout,
+                Map<String, String> responseHeaders) {
+            super(
+                    leaderRetriever,
+                    timeout,
+                    responseHeaders,
+                    SavepointDisposalStatusHeaders.getInstance());
+        }
 
-		@Override
-		protected AsynchronousOperationInfo exceptionalOperationResultResponse(Throwable throwable) {
-			return AsynchronousOperationInfo.completeExceptional(new SerializedThrowable(throwable));
-		}
+        @Override
+        protected OperationKey getOperationKey(HandlerRequest<EmptyRequestBody> request) {
+            final TriggerId triggerId = request.getPathParameter(TriggerIdPathParameter.class);
+            return new OperationKey(triggerId);
+        }
 
-		@Override
-		protected AsynchronousOperationInfo operationResultResponse(Acknowledge operationResult) {
-			return AsynchronousOperationInfo.complete();
-		}
-	}
+        @Override
+        protected AsynchronousOperationInfo exceptionalOperationResultResponse(
+                Throwable throwable) {
+            return AsynchronousOperationInfo.completeExceptional(
+                    new SerializedThrowable(throwable));
+        }
+
+        @Override
+        protected AsynchronousOperationInfo operationResultResponse(Acknowledge operationResult) {
+            return AsynchronousOperationInfo.complete();
+        }
+    }
 }

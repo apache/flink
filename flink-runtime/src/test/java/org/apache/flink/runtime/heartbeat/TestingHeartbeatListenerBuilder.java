@@ -25,26 +25,40 @@ import java.util.function.Consumer;
 import java.util.function.Function;
 
 class TestingHeartbeatListenerBuilder<I, O> {
-	private Consumer<ResourceID> notifyHeartbeatTimeoutConsumer = ignored -> {};
-	private BiConsumer<ResourceID, I> reportPayloadConsumer = (ignoredA, ignoredB) -> {};
-	private Function<ResourceID, O> retrievePayloadFunction = ignored -> null;
+    private Consumer<ResourceID> notifyHeartbeatTimeoutConsumer = ignored -> {};
+    private BiConsumer<ResourceID, I> reportPayloadConsumer = (ignoredA, ignoredB) -> {};
+    private Function<ResourceID, O> retrievePayloadFunction = ignored -> null;
+    private Consumer<ResourceID> notifyTargetUnreachableConsumer = ignored -> {};
 
-	public TestingHeartbeatListenerBuilder<I, O> setNotifyHeartbeatTimeoutConsumer(Consumer<ResourceID> notifyHeartbeatTimeoutConsumer) {
-		this.notifyHeartbeatTimeoutConsumer = notifyHeartbeatTimeoutConsumer;
-		return this;
-	}
+    public TestingHeartbeatListenerBuilder<I, O> setNotifyHeartbeatTimeoutConsumer(
+            Consumer<ResourceID> notifyHeartbeatTimeoutConsumer) {
+        this.notifyHeartbeatTimeoutConsumer = notifyHeartbeatTimeoutConsumer;
+        return this;
+    }
 
-	public TestingHeartbeatListenerBuilder<I, O> setReportPayloadConsumer(BiConsumer<ResourceID, I> reportPayloadConsumer) {
-		this.reportPayloadConsumer = reportPayloadConsumer;
-		return this;
-	}
+    public TestingHeartbeatListenerBuilder<I, O> setReportPayloadConsumer(
+            BiConsumer<ResourceID, I> reportPayloadConsumer) {
+        this.reportPayloadConsumer = reportPayloadConsumer;
+        return this;
+    }
 
-	public TestingHeartbeatListenerBuilder<I, O> setRetrievePayloadFunction(Function<ResourceID, O> retrievePayloadFunction) {
-		this.retrievePayloadFunction = retrievePayloadFunction;
-		return this;
-	}
+    public TestingHeartbeatListenerBuilder<I, O> setRetrievePayloadFunction(
+            Function<ResourceID, O> retrievePayloadFunction) {
+        this.retrievePayloadFunction = retrievePayloadFunction;
+        return this;
+    }
 
-	public TestingHeartbeatListener<I, O> createNewTestingHeartbeatListener() {
-		return new TestingHeartbeatListener<>(notifyHeartbeatTimeoutConsumer, reportPayloadConsumer, retrievePayloadFunction);
-	}
+    public TestingHeartbeatListenerBuilder<I, O> setNotifyTargetUnreachableConsumer(
+            Consumer<ResourceID> notifyTargetUnreachableConsumer) {
+        this.notifyTargetUnreachableConsumer = notifyTargetUnreachableConsumer;
+        return this;
+    }
+
+    public TestingHeartbeatListener<I, O> createNewTestingHeartbeatListener() {
+        return new TestingHeartbeatListener<>(
+                notifyHeartbeatTimeoutConsumer,
+                reportPayloadConsumer,
+                retrievePayloadFunction,
+                notifyTargetUnreachableConsumer);
+    }
 }

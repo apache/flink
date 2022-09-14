@@ -21,48 +21,49 @@ package org.apache.flink.api.java.summarize.aggregation;
 import org.apache.flink.api.java.summarize.StringColumnSummary;
 import org.apache.flink.types.StringValue;
 
-import org.junit.Assert;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.data.Offset.offset;
 
-/**
- * Tests for {@link ValueSummaryAggregator.StringValueSummaryAggregator}.
- */
-public class StringValueSummaryAggregatorTest extends StringSummaryAggregatorTest {
+/** Tests for {@link ValueSummaryAggregator.StringValueSummaryAggregator}. */
+class StringValueSummaryAggregatorTest extends StringSummaryAggregatorTest {
 
-	/**
-	 * Helper method for summarizing a list of values.
-	 *
-	 * <p>This method breaks the rule of "testing only one thing" by aggregating and combining
-	 * a bunch of different ways.
-	 */
-	@Override
-	protected StringColumnSummary summarize(String... values) {
+    /**
+     * Helper method for summarizing a list of values.
+     *
+     * <p>This method breaks the rule of "testing only one thing" by aggregating and combining a
+     * bunch of different ways.
+     */
+    @Override
+    protected StringColumnSummary summarize(String... values) {
 
-		StringValue[] stringValues = new StringValue[values.length];
-		for (int i = 0; i < values.length; i++) {
-			if (values[i] != null) {
-				stringValues[i] = new StringValue(values[i]);
-			}
-		}
+        StringValue[] stringValues = new StringValue[values.length];
+        for (int i = 0; i < values.length; i++) {
+            if (values[i] != null) {
+                stringValues[i] = new StringValue(values[i]);
+            }
+        }
 
-		return new AggregateCombineHarness<StringValue, StringColumnSummary, ValueSummaryAggregator.StringValueSummaryAggregator>(){
+        return new AggregateCombineHarness<
+                StringValue,
+                StringColumnSummary,
+                ValueSummaryAggregator.StringValueSummaryAggregator>() {
 
-			@Override
-			protected void compareResults(StringColumnSummary result1, StringColumnSummary result2) {
-				Assert.assertEquals(result1.getEmptyCount(), result2.getEmptyCount());
-				Assert.assertEquals(result1.getMaxLength(), result2.getMaxLength());
-				Assert.assertEquals(result1.getMinLength(), result2.getMinLength());
-				if (result1.getMeanLength() == null) {
-					Assert.assertEquals(result1.getMeanLength(), result2.getMeanLength());
-				}
-				else {
-					Assert.assertEquals(result1.getMeanLength().doubleValue(), result2.getMeanLength().doubleValue(), 1e-5d);
-				}
+            @Override
+            protected void compareResults(
+                    StringColumnSummary result1, StringColumnSummary result2) {
+                assertThat(result2.getEmptyCount()).isEqualTo(result1.getEmptyCount());
+                assertThat(result2.getMaxLength()).isEqualTo(result1.getMaxLength());
+                assertThat(result2.getMinLength()).isEqualTo(result1.getMinLength());
+                if (result1.getMeanLength() == null) {
+                    assertThat(result2.getMeanLength()).isEqualTo(result1.getMeanLength());
+                } else {
+                    assertThat(result2.getMeanLength().doubleValue())
+                            .isCloseTo(result1.getMeanLength().doubleValue(), offset(1e-5d));
+                }
 
-				Assert.assertEquals(result1.getNullCount(), result2.getNullCount());
-				Assert.assertEquals(result1.getNonNullCount(), result2.getNonNullCount());
-			}
-
-		}.summarize(stringValues);
-	}
-
+                assertThat(result2.getNullCount()).isEqualTo(result1.getNullCount());
+                assertThat(result2.getNonNullCount()).isEqualTo(result1.getNonNullCount());
+            }
+        }.summarize(stringValues);
+    }
 }

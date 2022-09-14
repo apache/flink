@@ -32,36 +32,44 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 
-/**
- * Strategy that does not perform any modification or validation of the input.
- */
+/** Strategy that does not perform any modification or validation of the input. */
 @Internal
 public final class WildcardInputTypeStrategy implements InputTypeStrategy {
 
-	private static final ArgumentCount PASSING_ARGUMENT_COUNT = ConstantArgumentCount.any();
+    private static final ArgumentCount PASSING_ARGUMENT_COUNT = ConstantArgumentCount.any();
+    private final ArgumentCount argumentCount;
 
-	@Override
-	public ArgumentCount getArgumentCount() {
-		return PASSING_ARGUMENT_COUNT;
-	}
+    public WildcardInputTypeStrategy(ArgumentCount argumentCount) {
+        this.argumentCount = argumentCount;
+    }
 
-	@Override
-	public Optional<List<DataType>> inferInputTypes(CallContext callContext, boolean throwOnFailure) {
-		return Optional.of(callContext.getArgumentDataTypes());
-	}
+    public WildcardInputTypeStrategy() {
+        this(PASSING_ARGUMENT_COUNT);
+    }
 
-	@Override
-	public List<Signature> getExpectedSignatures(FunctionDefinition definition) {
-		return Collections.singletonList(Signature.of(Argument.of("*")));
-	}
+    @Override
+    public ArgumentCount getArgumentCount() {
+        return argumentCount;
+    }
 
-	@Override
-	public boolean equals(Object o) {
-		return this == o || o instanceof WildcardInputTypeStrategy;
-	}
+    @Override
+    public Optional<List<DataType>> inferInputTypes(
+            CallContext callContext, boolean throwOnFailure) {
+        return Optional.of(callContext.getArgumentDataTypes());
+    }
 
-	@Override
-	public int hashCode() {
-		return WildcardInputTypeStrategy.class.hashCode();
-	}
+    @Override
+    public List<Signature> getExpectedSignatures(FunctionDefinition definition) {
+        return Collections.singletonList(Signature.of(Argument.of("*")));
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        return this == o || o instanceof WildcardInputTypeStrategy;
+    }
+
+    @Override
+    public int hashCode() {
+        return WildcardInputTypeStrategy.class.hashCode();
+    }
 }

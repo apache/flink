@@ -18,8 +18,9 @@
 package org.apache.flink.streaming.connectors.gcp.pubsub;
 
 import org.apache.flink.api.common.io.ratelimiting.FlinkConnectorRateLimiter;
+import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.metrics.MetricGroup;
+import org.apache.flink.metrics.groups.OperatorMetricGroup;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
 import org.apache.flink.streaming.connectors.gcp.pubsub.common.AcknowledgeIdsForCheckpoint;
@@ -29,187 +30,132 @@ import org.apache.flink.streaming.connectors.gcp.pubsub.common.PubSubSubscriber;
 import org.apache.flink.streaming.connectors.gcp.pubsub.common.PubSubSubscriberFactory;
 
 import com.google.auth.Credentials;
-import com.google.protobuf.ByteString;
-import com.google.pubsub.v1.PubsubMessage;
-import com.google.pubsub.v1.ReceivedMessage;
-import org.junit.Before;
-import org.junit.Test;
-import org.junit.runner.RunWith;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
-import org.mockito.runners.MockitoJUnitRunner;
+import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.util.ArrayList;
 import java.util.List;
 
-import static java.util.Arrays.asList;
-import static java.util.Collections.singletonList;
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.core.Is.is;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.refEq;
-import static org.mockito.Matchers.any;
+import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
 import static org.mockito.internal.verification.VerificationModeFactory.times;
 
-/**
- * Test for {@link SourceFunction}.
- */
-@RunWith(MockitoJUnitRunner.class)
-public class PubSubSourceTest {
-	private static final String FIRST_MESSAGE = "FirstMessage";
-	private static final String SECOND_MESSAGE = "SecondMessage";
+/** Test for {@link SourceFunction}. */
+@ExtendWith(MockitoExtension.class)
+class PubSubSourceTest {
+    @Mock private PubSubDeserializationSchema<String> deserializationSchema;
+    @Mock private PubSubSource.AcknowledgeOnCheckpointFactory acknowledgeOnCheckpointFactory;
+    @Mock private AcknowledgeOnCheckpoint<String> acknowledgeOnCheckpoint;
+    @Mock private StreamingRuntimeContext streamingRuntimeContext;
+    @Mock private OperatorMetricGroup metricGroup;
+    @Mock private PubSubSubscriberFactory pubSubSubscriberFactory;
+    @Mock private Credentials credentials;
+    @Mock private PubSubSubscriber pubsubSubscriber;
+    @Mock private FlinkConnectorRateLimiter rateLimiter;
 
-	@Mock
-	private SourceFunction.SourceContext<String> sourceContext;
-	@Mock
-	private PubSubDeserializationSchema<String> deserializationSchema;
-	@Mock
-	private PubSubSource.AcknowledgeOnCheckpointFactory acknowledgeOnCheckpointFactory;
-	@Mock
-	private AcknowledgeOnCheckpoint<String> acknowledgeOnCheckpoint;
-	@Mock
-	private StreamingRuntimeContext streamingRuntimeContext;
-	@Mock
-	private MetricGroup metricGroup;
-	@Mock
-	private PubSubSubscriberFactory pubSubSubscriberFactory;
-	@Mock
-	private Credentials credentials;
-	@Mock
-	private PubSubSubscriber pubsubSubscriber;
-	@Mock
-	private FlinkConnectorRateLimiter rateLimiter;
+    private PubSubSource<String> pubSubSource;
 
-	private PubSubSource<String> pubSubSource;
+    @BeforeEach
+    void setup() throws Exception {
+        lenient()
+                .when(pubSubSubscriberFactory.getSubscriber(eq(credentials)))
+                .thenReturn(pubsubSubscriber);
+        lenient().when(streamingRuntimeContext.isCheckpointingEnabled()).thenReturn(true);
+        lenient().when(streamingRuntimeContext.getMetricGroup()).thenReturn(metricGroup);
+        lenient().when(metricGroup.addGroup(any(String.class))).thenReturn(metricGroup);
+        lenient()
+                .when(acknowledgeOnCheckpointFactory.create(any()))
+                .thenReturn(acknowledgeOnCheckpoint);
 
-	@Before
-	public void setup() throws Exception {
-		when(pubSubSubscriberFactory.getSubscriber(eq(credentials))).thenReturn(pubsubSubscriber);
-		when(streamingRuntimeContext.isCheckpointingEnabled()).thenReturn(true);
-		when(streamingRuntimeContext.getMetricGroup()).thenReturn(metricGroup);
-		when(acknowledgeOnCheckpointFactory.create(any())).thenReturn(acknowledgeOnCheckpoint);
+        pubSubSource =
+                new PubSubSource<>(
+                        deserializationSchema,
+                        pubSubSubscriberFactory,
+                        credentials,
+                        acknowledgeOnCheckpointFactory,
+                        rateLimiter,
+                        1024);
+        pubSubSource.setRuntimeContext(streamingRuntimeContext);
+    }
 
-		pubSubSource = new PubSubSource<>(deserializationSchema,
-			pubSubSubscriberFactory,
-			credentials,
-			acknowledgeOnCheckpointFactory,
-			rateLimiter,
-			1024);
-		pubSubSource.setRuntimeContext(streamingRuntimeContext);
-	}
+    @Test
+    void testOpenWithoutCheckpointing() {
+        when(streamingRuntimeContext.isCheckpointingEnabled()).thenReturn(false);
+        assertThatThrownBy(() -> pubSubSource.open(null))
+                .isInstanceOf(IllegalArgumentException.class);
+    }
 
-	@Test(expected = IllegalArgumentException.class)
-	public void testOpenWithoutCheckpointing() throws Exception {
-		when(streamingRuntimeContext.isCheckpointingEnabled()).thenReturn(false);
-		pubSubSource.open(null);
-	}
+    @Test
+    void testOpenWithCheckpointing() throws Exception {
+        when(streamingRuntimeContext.isCheckpointingEnabled()).thenReturn(true);
 
-	@Test
-	public void testOpenWithCheckpointing() throws Exception {
-		when(streamingRuntimeContext.isCheckpointingEnabled()).thenReturn(true);
+        pubSubSource.open(null);
 
-		pubSubSource.open(null);
+        verify(pubSubSubscriberFactory, times(1)).getSubscriber(eq(credentials));
+        verify(acknowledgeOnCheckpointFactory, times(1)).create(pubsubSubscriber);
+    }
 
-		verify(pubSubSubscriberFactory, times(1)).getSubscriber(eq(credentials));
-		verify(acknowledgeOnCheckpointFactory, times(1)).create(pubsubSubscriber);
-	}
+    @Test
+    void testTypeInformationFromDeserializationSchema() {
+        TypeInformation<String> schemaTypeInformation = TypeInformation.of(String.class);
+        when(deserializationSchema.getProducedType()).thenReturn(schemaTypeInformation);
 
-	@Test
-	public void testProcessMessage() throws Exception {
-		when(deserializationSchema.isEndOfStream(any())).thenReturn(false).thenReturn(false);
-		when(deserializationSchema.deserialize(pubSubMessage(FIRST_MESSAGE))).thenReturn(FIRST_MESSAGE);
-		when(deserializationSchema.deserialize(pubSubMessage(SECOND_MESSAGE))).thenReturn(SECOND_MESSAGE);
-		when(sourceContext.getCheckpointLock()).thenReturn("some object to lock on");
+        TypeInformation<String> actualTypeInformation = pubSubSource.getProducedType();
 
-		pubSubSource.open(null);
-		List<ReceivedMessage> receivedMessages = asList(
-			receivedMessage("firstAckId", pubSubMessage(FIRST_MESSAGE)),
-			receivedMessage("secondAckId", pubSubMessage(SECOND_MESSAGE))
-		);
-		pubSubSource.processMessage(sourceContext, receivedMessages);
+        assertThat(actualTypeInformation).isEqualTo(schemaTypeInformation);
+        verify(deserializationSchema, times(1)).getProducedType();
+    }
 
-		//verify handling messages
-		verify(rateLimiter, times(1)).acquire(2);
+    @Test
+    void testNotifyCheckpointComplete() throws Exception {
+        pubSubSource.open(null);
+        pubSubSource.notifyCheckpointComplete(45L);
 
-		verify(sourceContext, times(1)).getCheckpointLock();
-		verify(deserializationSchema, times(1)).isEndOfStream(FIRST_MESSAGE);
-		verify(deserializationSchema, times(1)).deserialize(pubSubMessage(FIRST_MESSAGE));
-		verify(sourceContext, times(1)).collect(FIRST_MESSAGE);
-		verify(acknowledgeOnCheckpoint, times(1)).addAcknowledgeId("firstAckId");
+        verify(acknowledgeOnCheckpoint, times(1)).notifyCheckpointComplete(45L);
+    }
 
-		verify(deserializationSchema, times(1)).isEndOfStream(SECOND_MESSAGE);
-		verify(deserializationSchema, times(1)).deserialize(pubSubMessage(SECOND_MESSAGE));
-		verify(sourceContext, times(1)).collect(SECOND_MESSAGE);
-		verify(acknowledgeOnCheckpoint, times(1)).addAcknowledgeId("secondAckId");
-	}
+    @Test
+    void testRestoreState() throws Exception {
+        pubSubSource.open(null);
 
-	@Test
-	public void testTypeInformationFromDeserializationSchema() {
-		TypeInformation<String> schemaTypeInformation = TypeInformation.of(String.class);
-		when(deserializationSchema.getProducedType()).thenReturn(schemaTypeInformation);
+        List<AcknowledgeIdsForCheckpoint<String>> input = new ArrayList<>();
+        pubSubSource.restoreState(input);
 
-		TypeInformation<String> actualTypeInformation = pubSubSource.getProducedType();
+        verify(acknowledgeOnCheckpoint, times(1)).restoreState(refEq(input));
+    }
 
-		assertThat(actualTypeInformation, is(schemaTypeInformation));
-		verify(deserializationSchema, times(1)).getProducedType();
-	}
+    @Test
+    void testSnapshotState() throws Exception {
+        pubSubSource.open(null);
+        pubSubSource.snapshotState(1337L, 15000L);
 
-	@Test
-	public void testStoppingConnectorWhenDeserializationSchemaIndicatesEndOfStream() throws Exception {
-		when(deserializationSchema.deserialize(pubSubMessage(FIRST_MESSAGE))).thenReturn(FIRST_MESSAGE);
-		when(sourceContext.getCheckpointLock()).thenReturn("some object to lock on");
-		pubSubSource.open(null);
+        verify(acknowledgeOnCheckpoint, times(1)).snapshotState(1337L, 15000L);
+    }
 
-		when(deserializationSchema.isEndOfStream(FIRST_MESSAGE)).thenReturn(true);
+    @Test
+    void testOpen() throws Exception {
+        doAnswer(
+                        (args) -> {
+                            DeserializationSchema.InitializationContext context =
+                                    args.getArgument(0);
+                            assertThat(context.getMetricGroup()).isEqualTo(metricGroup);
+                            return null;
+                        })
+                .when(deserializationSchema)
+                .open(any(DeserializationSchema.InitializationContext.class));
+        pubSubSource.open(null);
 
-		ReceivedMessage message = receivedMessage("ackId", pubSubMessage(FIRST_MESSAGE));
-
-		//Process message
-		pubSubSource.processMessage(sourceContext, singletonList(message));
-		verify(deserializationSchema, times(1)).isEndOfStream(FIRST_MESSAGE);
-		verify(sourceContext, times(1)).getCheckpointLock();
-		verifyNoMoreInteractions(sourceContext);
-	}
-
-	@Test
-	public void testNotifyCheckpointComplete() throws Exception {
-		pubSubSource.open(null);
-		pubSubSource.notifyCheckpointComplete(45L);
-
-		verify(acknowledgeOnCheckpoint, times(1)).notifyCheckpointComplete(45L);
-	}
-
-	@Test
-	public void testRestoreState() throws Exception {
-		pubSubSource.open(null);
-
-		List<AcknowledgeIdsForCheckpoint<String>> input = new ArrayList<>();
-		pubSubSource.restoreState(input);
-
-		verify(acknowledgeOnCheckpoint, times(1)).restoreState(refEq(input));
-	}
-
-	@Test
-	public void testSnapshotState() throws Exception {
-		pubSubSource.open(null);
-		pubSubSource.snapshotState(1337L, 15000L);
-
-		verify(acknowledgeOnCheckpoint, times(1)).snapshotState(1337L, 15000L);
-	}
-
-	private ReceivedMessage receivedMessage(String ackId, PubsubMessage pubsubMessage) {
-		return ReceivedMessage.newBuilder()
-								.setAckId(ackId)
-								.setMessage(pubsubMessage)
-								.build();
-	}
-
-	private PubsubMessage pubSubMessage(String message) {
-		return PubsubMessage.newBuilder()
-			.setMessageId("some id")
-			.setData(ByteString.copyFrom(message.getBytes()))
-			.build();
-	}
+        verify(deserializationSchema, times(1))
+                .open(any(DeserializationSchema.InitializationContext.class));
+    }
 }

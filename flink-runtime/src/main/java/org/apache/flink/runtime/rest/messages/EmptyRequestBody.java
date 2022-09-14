@@ -18,17 +18,14 @@
 
 package org.apache.flink.runtime.rest.messages;
 
-/**
- * Request which do not have a request payload.
- */
+/** Request which do not have a request payload. */
 public class EmptyRequestBody implements RequestBody {
 
-	private static final EmptyRequestBody INSTANCE = new EmptyRequestBody();
+    private static final EmptyRequestBody INSTANCE = new EmptyRequestBody();
 
-	private EmptyRequestBody() {
-	}
+    private EmptyRequestBody() {}
 
-	public static EmptyRequestBody getInstance() {
-		return INSTANCE;
-	}
+    public static EmptyRequestBody getInstance() {
+        return INSTANCE;
+    }
 }

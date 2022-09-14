@@ -17,32 +17,54 @@
 
 package org.apache.flink.streaming.api.operators;
 
+import org.apache.flink.annotation.Experimental;
+import org.apache.flink.api.common.operators.MailboxExecutor;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeServiceAware;
 
+import javax.annotation.Nullable;
+
+import static org.apache.flink.util.Preconditions.checkNotNull;
+
 /**
- * Base class for all stream operator factories. It implements some common methods and the
- * {@link ProcessingTimeServiceAware} interface which enables stream operators to access
- * {@link ProcessingTimeService}.
+ * Base class for all stream operator factories. It implements some common methods and the {@link
+ * ProcessingTimeServiceAware} interface which enables stream operators to access {@link
+ * ProcessingTimeService}.
  */
-public abstract class AbstractStreamOperatorFactory<OUT> implements StreamOperatorFactory<OUT>, ProcessingTimeServiceAware {
+@Experimental
+public abstract class AbstractStreamOperatorFactory<OUT>
+        implements StreamOperatorFactory<OUT>, ProcessingTimeServiceAware {
 
-	protected ChainingStrategy chainingStrategy = ChainingStrategy.ALWAYS;
+    protected ChainingStrategy chainingStrategy = ChainingStrategy.DEFAULT_CHAINING_STRATEGY;
 
-	protected transient ProcessingTimeService processingTimeService;
+    protected transient ProcessingTimeService processingTimeService;
 
-	@Override
-	public void setChainingStrategy(ChainingStrategy strategy) {
-		this.chainingStrategy = strategy;
-	}
+    @Nullable private transient MailboxExecutor mailboxExecutor;
 
-	@Override
-	public ChainingStrategy getChainingStrategy() {
-		return chainingStrategy;
-	}
+    @Override
+    public void setChainingStrategy(ChainingStrategy strategy) {
+        this.chainingStrategy = strategy;
+    }
 
-	@Override
-	public void setProcessingTimeService(ProcessingTimeService processingTimeService) {
-		this.processingTimeService = processingTimeService;
-	}
+    @Override
+    public ChainingStrategy getChainingStrategy() {
+        return chainingStrategy;
+    }
+
+    @Override
+    public void setProcessingTimeService(ProcessingTimeService processingTimeService) {
+        this.processingTimeService = processingTimeService;
+    }
+
+    public void setMailboxExecutor(MailboxExecutor mailboxExecutor) {
+        this.mailboxExecutor = mailboxExecutor;
+    }
+
+    /**
+     * Provides the mailbox executor iff this factory implements {@link YieldingOperatorFactory}.
+     */
+    protected MailboxExecutor getMailboxExecutor() {
+        return checkNotNull(
+                mailboxExecutor, "Factory does not implement %s", YieldingOperatorFactory.class);
+    }
 }

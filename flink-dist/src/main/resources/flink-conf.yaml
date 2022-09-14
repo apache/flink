@@ -26,7 +26,7 @@
 # is only used in Standalone mode and may be overwritten on the JobManager side
 # by specifying the --host <hostname> parameter of the bin/jobmanager.sh executable.
 # In high availability mode, if you use the bin/start-cluster.sh script and setup
-# the conf/masters file, this will be taken care of automatically. Yarn/Mesos
+# the conf/masters file, this will be taken care of automatically. Yarn
 # automatically configure the host name based on the hostname of the node where the
 # JobManager runs.
 
@@ -36,17 +36,50 @@ jobmanager.rpc.address: localhost
 
 jobmanager.rpc.port: 6123
 
+# The host interface the JobManager will bind to. By default, this is localhost, and will prevent
+# the JobManager from communicating outside the machine/container it is running on.
+# On YARN this setting will be ignored if it is set to 'localhost', defaulting to 0.0.0.0.
+# On Kubernetes this setting will be ignored, defaulting to 0.0.0.0.
+#
+# To enable this, set the bind-host address to one that has access to an outside facing network
+# interface, such as 0.0.0.0.
 
-# The heap size for the JobManager JVM
+jobmanager.bind-host: localhost
 
-jobmanager.heap.size: 1024m
 
+# The total process memory size for the JobManager.
+#
+# Note this accounts for all memory usage within the JobManager process, including JVM metaspace and other overhead.
+
+jobmanager.memory.process.size: 1600m
+
+# The host interface the TaskManager will bind to. By default, this is localhost, and will prevent
+# the TaskManager from communicating outside the machine/container it is running on.
+# On YARN this setting will be ignored if it is set to 'localhost', defaulting to 0.0.0.0.
+# On Kubernetes this setting will be ignored, defaulting to 0.0.0.0.
+#
+# To enable this, set the bind-host address to one that has access to an outside facing network
+# interface, such as 0.0.0.0.
+
+taskmanager.bind-host: localhost
+
+# The address of the host on which the TaskManager runs and can be reached by the JobManager and
+# other TaskManagers. If not specified, the TaskManager will try different strategies to identify
+# the address.
+#
+# Note this address needs to be reachable by the JobManager and forward traffic to one of
+# the interfaces the TaskManager is bound to (see 'taskmanager.bind-host').
+#
+# Note also that unless all TaskManagers are running on the same machine, this address needs to be
+# configured separately for each TaskManager.
+
+taskmanager.host: localhost
 
 # The total process memory size for the TaskManager.
 #
 # Note this accounts for all memory usage within the TaskManager process, including JVM metaspace and other overhead.
 
-taskmanager.memory.process.size: 1568m
+taskmanager.memory.process.size: 1728m
 
 # To exclude JVM metaspace and overhead, please, use total Flink memory size instead of 'taskmanager.memory.process.size'.
 # It is not recommended to set both 'taskmanager.memory.process.size' and Flink memory.
@@ -105,12 +138,23 @@ parallelism.default: 1
 #==============================================================================
 
 # The backend that will be used to store operator state checkpoints if
-# checkpointing is enabled.
+# checkpointing is enabled. Checkpointing is enabled when execution.checkpointing.interval > 0.
 #
-# Supported backends are 'jobmanager', 'filesystem', 'rocksdb', or the
+# Execution checkpointing related parameters. Please refer to CheckpointConfig and ExecutionCheckpointingOptions for more details.
+#
+# execution.checkpointing.interval: 3min
+# execution.checkpointing.externalized-checkpoint-retention: [DELETE_ON_CANCELLATION, RETAIN_ON_CANCELLATION]
+# execution.checkpointing.max-concurrent-checkpoints: 1
+# execution.checkpointing.min-pause: 0
+# execution.checkpointing.mode: [EXACTLY_ONCE, AT_LEAST_ONCE]
+# execution.checkpointing.timeout: 10min
+# execution.checkpointing.tolerable-failed-checkpoints: 0
+# execution.checkpointing.unaligned: false
+#
+# Supported backends are 'hashmap', 'rocksdb', or the
 # <class-name-of-factory>.
 #
-# state.backend: filesystem
+# state.backend: hashmap
 
 # Directory for checkpoints filesystem, when using any of the default bundled
 # state backends.
@@ -119,7 +163,7 @@ parallelism.default: 1
 
 # Default target directory for savepoints, optional.
 #
-# state.savepoints.dir: hdfs://namenode-host:port/flink-checkpoints
+# state.savepoints.dir: hdfs://namenode-host:port/flink-savepoints
 
 # Flag to enable/disable incremental checkpoints for backends that
 # support incremental checkpoints (like the RocksDB state backend). 
@@ -143,20 +187,30 @@ jobmanager.execution.failover-strategy: region
 
 # The address to which the REST client will connect to
 #
-#rest.address: 0.0.0.0
+rest.address: localhost
 
 # Port range for the REST and web server to bind to.
 #
 #rest.bind-port: 8080-8090
 
 # The address that the REST & web server binds to
+# By default, this is localhost, which prevents the REST & web server from
+# being able to communicate outside of the machine/container it is running on.
 #
-#rest.bind-address: 0.0.0.0
+# To enable this, set the bind address to one that has access to outside-facing
+# network interface, such as 0.0.0.0.
+#
+rest.bind-address: localhost
 
 # Flag to specify whether job submission is enabled from the web-based
 # runtime monitor. Uncomment to disable.
 
 #web.submit.enable: false
+
+# Flag to specify whether job cancellation is enabled from the web-based
+# runtime monitor. Uncomment to disable.
+
+#web.cancel.enable: false
 
 #==============================================================================
 # Advanced
@@ -165,7 +219,7 @@ jobmanager.execution.failover-strategy: region
 # Override the directories for temporary files. If not specified, the
 # system-specific Java temporary directory (java.io.tmpdir property) is taken.
 #
-# For framework setups on Yarn or Mesos, Flink will automatically pick up the
+# For framework setups on Yarn, Flink will automatically pick up the
 # containers' temp directories without any need for configuration.
 #
 # Add a delimited list for multiple directories, using the system directory

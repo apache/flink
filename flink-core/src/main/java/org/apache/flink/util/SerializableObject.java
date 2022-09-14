@@ -19,10 +19,10 @@
 package org.apache.flink.util;
 
 /**
- * A simple object that only implements {@link java.io.Serializable}, so it can be used
- * in serializable classes.
+ * A simple object that only implements {@link java.io.Serializable}, so it can be used in
+ * serializable classes.
  */
 public class SerializableObject implements java.io.Serializable {
 
-	private static final long serialVersionUID = -7322636177391854669L;
+    private static final long serialVersionUID = -7322636177391854669L;
 }

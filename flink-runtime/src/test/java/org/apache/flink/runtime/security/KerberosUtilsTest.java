@@ -24,23 +24,20 @@ import javax.security.auth.login.AppConfigurationEntry;
 
 import static org.junit.Assert.assertNotNull;
 
-/**
- * Tests for the {@link KerberosUtils}.
- */
+/** Tests for the {@link KerberosUtils}. */
 public class KerberosUtilsTest {
 
-	@Test
-	public void testTicketCacheEntry() {
-		AppConfigurationEntry entry = KerberosUtils.ticketCacheEntry();
-		assertNotNull(entry);
-	}
+    @Test
+    public void testTicketCacheEntry() {
+        AppConfigurationEntry entry = KerberosUtils.ticketCacheEntry();
+        assertNotNull(entry);
+    }
 
-	@Test
-	public void testKeytabEntry() {
-		String keytab = "user.keytab";
-		String principal = "user";
-		AppConfigurationEntry entry = KerberosUtils.keytabEntry(keytab, principal);
-		assertNotNull(entry);
-	}
-
+    @Test
+    public void testKeytabEntry() {
+        String keytab = "user.keytab";
+        String principal = "user";
+        AppConfigurationEntry entry = KerberosUtils.keytabEntry(keytab, principal);
+        assertNotNull(entry);
+    }
 }

@@ -41,81 +41,109 @@ import java.io.PrintStream;
  * @see org.apache.flink.graph.library.clustering.undirected.LocalClusteringCoefficient
  */
 public class ClusteringCoefficient<K extends Comparable<K> & CopyableValue<K>, VV, EV>
-extends DriverBase<K, VV, EV> {
+        extends DriverBase<K, VV, EV> {
 
-	private static final String DIRECTED = "directed";
+    private static final String DIRECTED = "directed";
 
-	private static final String UNDIRECTED = "undirected";
+    private static final String UNDIRECTED = "undirected";
 
-	private ChoiceParameter order = new ChoiceParameter(this, "order")
-		.addChoices(DIRECTED, UNDIRECTED);
+    private ChoiceParameter order =
+            new ChoiceParameter(this, "order").addChoices(DIRECTED, UNDIRECTED);
 
-	private GraphAnalytic<K, VV, EV, ? extends PrintableResult> globalClusteringCoefficient;
+    private GraphAnalytic<K, VV, EV, ? extends PrintableResult> globalClusteringCoefficient;
 
-	private GraphAnalytic<K, VV, EV, ? extends PrintableResult> averageClusteringCoefficient;
+    private GraphAnalytic<K, VV, EV, ? extends PrintableResult> averageClusteringCoefficient;
 
-	@Override
-	public String getShortDescription() {
-		return "measure the connectedness of vertex neighborhoods";
-	}
+    @Override
+    public String getShortDescription() {
+        return "measure the connectedness of vertex neighborhoods";
+    }
 
-	@Override
-	public String getLongDescription() {
-		return WordUtils.wrap(new StrBuilder()
-			.appendln("The local clustering coefficient measures the connectedness of each " +
-				"vertex's neighborhood. The global clustering coefficient measures the " +
-				"connected of the graph. The average clustering coefficient is the mean local " +
-				"clustering coefficient. Each score ranges from 0.0 (no edges between vertex " +
-				"neighbors) to 1.0 (neighborhood or graph is a clique).")
-			.appendNewLine()
-			.append("The algorithm result contains the vertex ID, degree, and number of edges " +
-				"connecting neighbors.")
-			.toString(), 80);
-	}
+    @Override
+    public String getLongDescription() {
+        return WordUtils.wrap(
+                new StrBuilder()
+                        .appendln(
+                                "The local clustering coefficient measures the connectedness of each "
+                                        + "vertex's neighborhood. The global clustering coefficient measures the "
+                                        + "connected of the graph. The average clustering coefficient is the mean local "
+                                        + "clustering coefficient. Each score ranges from 0.0 (no edges between vertex "
+                                        + "neighbors) to 1.0 (neighborhood or graph is a clique).")
+                        .appendNewLine()
+                        .append(
+                                "The algorithm result contains the vertex ID, degree, and number of edges "
+                                        + "connecting neighbors.")
+                        .toString(),
+                80);
+    }
 
-	@Override
-	public DataSet plan(Graph<K, VV, EV> graph) throws Exception {
-		int parallelism = this.parallelism.getValue().intValue();
+    @Override
+    public DataSet plan(Graph<K, VV, EV> graph) throws Exception {
+        int parallelism = this.parallelism.getValue().intValue();
 
-		switch (order.getValue()) {
-			case DIRECTED:
-				globalClusteringCoefficient = graph
-					.run(new org.apache.flink.graph.library.clustering.directed.GlobalClusteringCoefficient<K, VV, EV>()
-						.setParallelism(parallelism));
+        switch (order.getValue()) {
+            case DIRECTED:
+                globalClusteringCoefficient =
+                        graph.run(
+                                new org.apache.flink.graph.library.clustering.directed
+                                                        .GlobalClusteringCoefficient<
+                                                K, VV, EV>()
+                                        .setParallelism(parallelism));
 
-				averageClusteringCoefficient = graph
-					.run(new org.apache.flink.graph.library.clustering.directed.AverageClusteringCoefficient<K, VV, EV>()
-						.setParallelism(parallelism));
+                averageClusteringCoefficient =
+                        graph.run(
+                                new org.apache.flink.graph.library.clustering.directed
+                                                        .AverageClusteringCoefficient<
+                                                K, VV, EV>()
+                                        .setParallelism(parallelism));
 
-				@SuppressWarnings("unchecked")
-				DataSet<PrintableResult> directedResult = (DataSet<PrintableResult>) (DataSet<?>) graph
-					.run(new org.apache.flink.graph.library.clustering.directed.LocalClusteringCoefficient<K, VV, EV>()
-						.setParallelism(parallelism));
-				return directedResult;
+                @SuppressWarnings("unchecked")
+                DataSet<PrintableResult> directedResult =
+                        (DataSet<PrintableResult>)
+                                (DataSet<?>)
+                                        graph.run(
+                                                new org.apache.flink.graph.library.clustering
+                                                                        .directed
+                                                                        .LocalClusteringCoefficient<
+                                                                K, VV, EV>()
+                                                        .setParallelism(parallelism));
+                return directedResult;
 
-			case UNDIRECTED:
-				globalClusteringCoefficient = graph
-					.run(new org.apache.flink.graph.library.clustering.undirected.GlobalClusteringCoefficient<K, VV, EV>()
-						.setParallelism(parallelism));
+            case UNDIRECTED:
+                globalClusteringCoefficient =
+                        graph.run(
+                                new org.apache.flink.graph.library.clustering.undirected
+                                                        .GlobalClusteringCoefficient<
+                                                K, VV, EV>()
+                                        .setParallelism(parallelism));
 
-				averageClusteringCoefficient = graph
-					.run(new org.apache.flink.graph.library.clustering.undirected.AverageClusteringCoefficient<K, VV, EV>()
-						.setParallelism(parallelism));
+                averageClusteringCoefficient =
+                        graph.run(
+                                new org.apache.flink.graph.library.clustering.undirected
+                                                        .AverageClusteringCoefficient<
+                                                K, VV, EV>()
+                                        .setParallelism(parallelism));
 
-				@SuppressWarnings("unchecked")
-				DataSet<PrintableResult> undirectedResult = (DataSet<PrintableResult>) (DataSet<?>) graph
-					.run(new org.apache.flink.graph.library.clustering.undirected.LocalClusteringCoefficient<K, VV, EV>()
-						.setParallelism(parallelism));
-				return undirectedResult;
+                @SuppressWarnings("unchecked")
+                DataSet<PrintableResult> undirectedResult =
+                        (DataSet<PrintableResult>)
+                                (DataSet<?>)
+                                        graph.run(
+                                                new org.apache.flink.graph.library.clustering
+                                                                        .undirected
+                                                                        .LocalClusteringCoefficient<
+                                                                K, VV, EV>()
+                                                        .setParallelism(parallelism));
+                return undirectedResult;
 
-			default:
-				throw new RuntimeException("Unknown order: " + order);
-		}
-	}
+            default:
+                throw new RuntimeException("Unknown order: " + order);
+        }
+    }
 
-	@Override
-	public void printAnalytics(PrintStream out) {
-		out.println(globalClusteringCoefficient.getResult().toPrintableString());
-		out.println(averageClusteringCoefficient.getResult().toPrintableString());
-	}
+    @Override
+    public void printAnalytics(PrintStream out) {
+        out.println(globalClusteringCoefficient.getResult().toPrintableString());
+        out.println(averageClusteringCoefficient.getResult().toPrintableString());
+    }
 }

@@ -16,38 +16,34 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.types.parser;
 
 import org.apache.flink.types.StringValue;
-
 
 public class UnquotedStringValueParserTest extends ParserTestBase<StringValue> {
 
     @Override
     public String[] getValidTestValues() {
-        return new String[] {
-                "abcdefgh", "i", "jklmno", "\"abc\"defgh\"", "\"i\"", "Hello9"
-        };
+        return new String[] {"abcdefgh", "i", "jklmno", "\"abc\"defgh\"", "\"i\"", "Hello9"};
     }
 
     @Override
     public StringValue[] getValidTestResults() {
         return new StringValue[] {
-                new StringValue("abcdefgh"), new StringValue("i"), new StringValue("jklmno"),
-                new StringValue("\"abc\"defgh\""), new StringValue("\"i\""), new StringValue("Hello9")
+            new StringValue("abcdefgh"), new StringValue("i"), new StringValue("jklmno"),
+            new StringValue("\"abc\"defgh\""), new StringValue("\"i\""), new StringValue("Hello9")
         };
     }
 
     @Override
     public String[] getInvalidTestValues() {
-        return new String[] { };
+        return new String[] {};
     }
 
-	@Override
-	public boolean allowsEmptyField() {
-		return true;
-	}
+    @Override
+    public boolean allowsEmptyField() {
+        return true;
+    }
 
     @Override
     public FieldParser<StringValue> getParser() {

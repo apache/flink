@@ -26,111 +26,92 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-connectors</artifactId>
-		<version>1.11-SNAPSHOT</version>
-		<relativePath>..</relativePath>
+		<version>1.17-SNAPSHOT</version>
 	</parent>
 
-	<artifactId>flink-connector-kinesis_${scala.binary.version}</artifactId>
-	<name>flink-connector-kinesis</name>
+	<artifactId>flink-connector-kinesis</artifactId>
+	<name>Flink : Connectors : Kinesis</name>
 	<properties>
-		<aws.sdk.version>1.11.603</aws.sdk.version>
-		<aws.kinesis-kcl.version>1.11.2</aws.kinesis-kcl.version>
-		<aws.kinesis-kpl.version>0.13.1</aws.kinesis-kpl.version>
-		<aws.dynamodbstreams-kinesis-adapter.version>1.5.0</aws.dynamodbstreams-kinesis-adapter.version>
+		<aws.sdk.version>1.12.276</aws.sdk.version>
+		<aws.sdkv2.version>2.17.247</aws.sdkv2.version>
+		<aws.kinesis-kcl.version>1.14.8</aws.kinesis-kcl.version>
+		<aws.kinesis-kpl.version>0.14.1</aws.kinesis-kpl.version>
+		<aws.dynamodbstreams-kinesis-adapter.version>1.5.3</aws.dynamodbstreams-kinesis-adapter.version>
+		<httpclient.version>4.5.13</httpclient.version>
+		<httpcore.version>4.4.14</httpcore.version>
+		<guava.version>29.0-jre</guava.version>
 	</properties>
 
 	<packaging>jar</packaging>
 
+	<dependencyManagement>
+		<dependencies>
+			<dependency>
+				<groupId>com.amazonaws</groupId>
+				<artifactId>aws-java-sdk-bom</artifactId>
+				<version>${aws.sdk.version}</version>
+				<type>pom</type>
+				<scope>import</scope>
+			</dependency>
+			<dependency>
+				<groupId>software.amazon.awssdk</groupId>
+				<artifactId>bom</artifactId>
+				<version>${aws.sdkv2.version}</version>
+				<type>pom</type>
+				<scope>import</scope>
+			</dependency>
+		</dependencies>
+	</dependencyManagement>
+
 	<dependencies>
-
+		<!-- AWS dependencies -->
 		<dependency>
-			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-streaming-java_${scala.binary.version}</artifactId>
-			<version>${project.version}</version>
-			<scope>provided</scope>
-		</dependency>
-
-		<dependency>
-			<groupId>com.google.guava</groupId>
-			<artifactId>guava</artifactId>
-			<version>${guava.version}</version>
-		</dependency>
-
-		<dependency>
-			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-runtime_${scala.binary.version}</artifactId>
-			<version>${project.version}</version>
-			<type>test-jar</type>
+			<groupId>com.amazonaws</groupId>
+			<artifactId>amazon-kinesis-aggregator</artifactId>
+			<version>1.0.3</version>
 			<scope>test</scope>
 		</dependency>
 
-		<dependency>
-			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-tests</artifactId>
-			<version>${project.version}</version>
-			<scope>test</scope>
-			<type>test-jar</type>
-		</dependency>
-
-		<dependency>
-			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-streaming-java_${scala.binary.version}</artifactId>
-			<version>${project.version}</version>
-			<type>test-jar</type>
-			<scope>test</scope>
-		</dependency>
-
-		<dependency>
-			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-core</artifactId>
-			<version>${project.version}</version>
-			<type>test-jar</type>
-			<scope>test</scope>
-		</dependency>
-
+		<!-- Amazon AWS SDK v1.x dependencies -->
 		<dependency>
 			<groupId>com.amazonaws</groupId>
 			<artifactId>aws-java-sdk-kinesis</artifactId>
-			<version>${aws.sdk.version}</version>
 		</dependency>
-
 		<dependency>
 			<groupId>com.amazonaws</groupId>
 			<artifactId>aws-java-sdk-sts</artifactId>
-			<version>${aws.sdk.version}</version>
 		</dependency>
-
+		<dependency>
+			<groupId>com.amazonaws</groupId>
+			<artifactId>aws-java-sdk-kms</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>com.amazonaws</groupId>
+			<artifactId>aws-java-sdk-s3</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>com.amazonaws</groupId>
+			<artifactId>aws-java-sdk-dynamodb</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>com.amazonaws</groupId>
+			<artifactId>aws-java-sdk-cloudwatch</artifactId>
+		</dependency>
 		<dependency>
 			<groupId>com.amazonaws</groupId>
 			<artifactId>amazon-kinesis-producer</artifactId>
 			<version>${aws.kinesis-kpl.version}</version>
 		</dependency>
-
 		<dependency>
 			<groupId>com.amazonaws</groupId>
 			<artifactId>amazon-kinesis-client</artifactId>
 			<version>${aws.kinesis-kcl.version}</version>
-			<!--
-				We're excluding the below from the KCL since we'll only be using the
-				com.amazonaws.services.kinesis.clientlibrary.types.UserRecord class, which will not need these dependencies.
-			-->
-			<exclusions>
-				<exclusion>
-					<groupId>com.amazonaws</groupId>
-					<artifactId>aws-java-sdk-cloudwatch</artifactId>
-				</exclusion>
-			</exclusions>
 		</dependency>
-
 		<dependency>
 			<groupId>com.amazonaws</groupId>
 			<artifactId>dynamodb-streams-kinesis-adapter</artifactId>
 			<version>${aws.dynamodbstreams-kinesis-adapter.version}</version>
 			<exclusions>
-				<exclusion>
-					<groupId>com.amazonaws</groupId>
-					<artifactId>aws-java-sdk-cloudwatch</artifactId>
-				</exclusion>
 				<exclusion>
 					<groupId>com.fasterxml.jackson.core</groupId>
 					<artifactId>jackson-databind</artifactId>
@@ -138,6 +119,7 @@ under the License.
 			</exclusions>
 		</dependency>
 
+		<!-- Other third-party dependencies -->
 		<dependency>
 			<!-- KPL requires jaxb-api for javax.xml.bind.DatatypeConverter -->
 			<groupId>javax.xml.bind</groupId>
@@ -146,20 +128,154 @@ under the License.
 			<!-- packaged in flink-dist -->
 			<scope>provided</scope>
 		</dependency>
+		<dependency>
+			<groupId>com.google.guava</groupId>
+			<artifactId>guava</artifactId>
+			<version>${guava.version}</version>
+		</dependency>
 
+		<!-- Flink ecosystem -->
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-streaming-java</artifactId>
+			<version>${project.version}</version>
+			<scope>provided</scope>
+		</dependency>
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-connector-aws-kinesis-streams</artifactId>
+			<version>${project.version}</version>
+		</dependency>
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-connector-aws-base</artifactId>
+			<version>${project.version}</version>
+		</dependency>
+
+		<!-- Flink Table API ecosystem -->
+		<!-- Projects depending on this project won't depend on flink-table-*. -->
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-table-api-java-bridge</artifactId>
+			<version>${project.version}</version>
+			<scope>provided</scope>
+			<optional>true</optional>
+		</dependency>
+
+		<!-- Test dependencies -->
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-core</artifactId>
+			<version>${project.version}</version>
+			<scope>test</scope>
+			<type>test-jar</type>
+		</dependency>
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-streaming-java</artifactId>
+			<version>${project.version}</version>
+			<scope>test</scope>
+			<type>test-jar</type>
+		</dependency>
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-connector-test-utils</artifactId>
+			<version>${project.version}</version>
+			<scope>test</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-test-utils</artifactId>
+			<version>${project.version}</version>
+			<scope>test</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-runtime</artifactId>
+			<version>${project.version}</version>
+			<type>test-jar</type>
+			<scope>test</scope>
+		</dependency>
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-connector-aws-kinesis-streams</artifactId>
+			<version>${project.version}</version>
+			<type>test-jar</type>
+			<scope>test</scope>
+		</dependency>
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-connector-aws-base</artifactId>
+			<version>${project.version}</version>
+			<type>test-jar</type>
+			<scope>test</scope>
+		</dependency>
+
+		<dependency>
+			<groupId>org.testcontainers</groupId>
+			<artifactId>testcontainers</artifactId>
+			<scope>test</scope>
+		</dependency>
+
+		<!-- Kinesis table factory testing -->
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-table-common</artifactId>
+			<version>${project.version}</version>
+			<type>test-jar</type>
+			<scope>test</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-table-test-utils</artifactId>
+			<version>${project.version}</version>
+			<scope>test</scope>
+		</dependency>
+
+		<!-- Amazon AWS SDK v2.x dependencies -->
+		<dependency>
+			<groupId>software.amazon.awssdk</groupId>
+			<artifactId>kinesis</artifactId>
+		</dependency>
+
+		<dependency>
+			<groupId>software.amazon.awssdk</groupId>
+			<artifactId>netty-nio-client</artifactId>
+		</dependency>
+
+		<dependency>
+			<groupId>software.amazon.awssdk</groupId>
+			<artifactId>sts</artifactId>
+		</dependency>
+
+		<dependency>
+			<groupId>org.apache.httpcomponents</groupId>
+			<artifactId>httpclient</artifactId>
+			<version>${httpclient.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>org.apache.httpcomponents</groupId>
+			<artifactId>httpcore</artifactId>
+			<version>${httpcore.version}</version>
+		</dependency>
+
+		<dependency>
+			<groupId>com.fasterxml.jackson.dataformat</groupId>
+			<artifactId>jackson-dataformat-cbor</artifactId>
+		</dependency>
+
+		<!-- ArchUit test dependencies -->
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-architecture-tests-test</artifactId>
+			<scope>test</scope>
+		</dependency>
 	</dependencies>
-
-	<dependencyManagement>
-		<dependencies>
-
-			<dependency>
-				<groupId>org.apache.httpcomponents</groupId>
-				<artifactId>httpclient</artifactId>
-				<version>4.5.9</version>
-			</dependency>
-
-		</dependencies>
-	</dependencyManagement>
 
 	<build>
 		<plugins>
@@ -174,6 +290,8 @@ under the License.
 						<configuration>
 							<includes>
 								<include>**/org/apache/flink/streaming/connectors/kinesis/testutils/**</include>
+								<include>META-INF/LICENSE</include>
+								<include>META-INF/NOTICE</include>
 							</includes>
 						</configuration>
 					</execution>
@@ -191,17 +309,35 @@ under the License.
 							<goal>shade</goal>
 						</goals>
 						<configuration>
+							<!-- required for the Kinesis e2e test -->
+							<shadeTestJar>true</shadeTestJar>
 							<promoteTransitiveDependencies>true</promoteTransitiveDependencies>
 							<artifactSet combine.children="append">
 								<includes>
+									<include>org.apache.flink:flink-connector-aws-base:*</include>
+									<include>org.apache.flink:flink-connector-aws-kinesis-streams:*</include>
 									<include>com.amazonaws:*</include>
 									<include>com.google.protobuf:*</include>
 									<include>org.apache.httpcomponents:*</include>
+									<include>software.amazon.awssdk:*</include>
+									<include>software.amazon.eventstream:*</include>
+									<include>software.amazon.ion:*</include>
+									<include>org.reactivestreams:*</include>
+									<include>io.netty:*</include>
+									<include>com.typesafe.netty:*</include>
 								</includes>
 							</artifactSet>
 							<relocations combine.children="override">
 								<!-- Do not relocate guava because it is exposed in the Kinesis API (KinesisProducer#addUserRecord).
 								 	Users may be using other affected API's, so relocations may break user-code -->
+								<relocation>
+									<pattern>org.apache.flink.connector.aws.config</pattern>
+									<shadedPattern>org.apache.flink.kinesis.shaded.org.apache.flink.connector.aws.config</shadedPattern>
+								</relocation>
+								<relocation>
+									<pattern>org.apache.flink.connector.aws.util</pattern>
+									<shadedPattern>org.apache.flink.kinesis.shaded.org.apache.flink.connector.aws.util</shadedPattern>
+								</relocation>
 								<relocation>
 									<pattern>com.google.protobuf</pattern>
 									<shadedPattern>org.apache.flink.kinesis.shaded.com.google.protobuf</shadedPattern>
@@ -214,10 +350,69 @@ under the License.
 									<pattern>org.apache.http</pattern>
 									<shadedPattern>org.apache.flink.kinesis.shaded.org.apache.http</shadedPattern>
 								</relocation>
+								<relocation>
+									<pattern>software.amazon</pattern>
+									<shadedPattern>org.apache.flink.kinesis.shaded.software.amazon</shadedPattern>
+								</relocation>
+								<relocation>
+									<pattern>io.netty</pattern>
+									<shadedPattern>org.apache.flink.kinesis.shaded.io.netty</shadedPattern>
+								</relocation>
+								<relocation>
+									<pattern>com.typesafe.netty</pattern>
+									<shadedPattern>org.apache.flink.kinesis.shaded.com.typesafe.netty</shadedPattern>
+								</relocation>
+								<relocation>
+									<pattern>org.reactivestreams</pattern>
+									<shadedPattern>org.apache.flink.kinesis.shaded.org.reactivestreams</shadedPattern>
+								</relocation>
 							</relocations>
+							<filters>
+								<filter>
+									<artifact>*:*</artifact>
+									<excludes>
+										<exclude>.gitkeep</exclude>
+									</excludes>
+								</filter>
+								<filter>
+									<artifact>com.amazonaws:amazon-kinesis-producer</artifact>
+									<excludes>
+										<exclude>META-INF/THIRD_PARTY_NOTICES</exclude>
+									</excludes>
+								</filter>
+								<filter>
+									<artifact>software.amazon.awssdk:*</artifact>
+									<excludes>
+										<exclude>META-INF/services/**</exclude>
+									</excludes>
+								</filter>
+								<filter>
+									<artifact>org.apache.flink:flink-connector-aws-kinesis-streams:*</artifact>
+									<excludes>
+										<exclude>profile</exclude>
+									</excludes>
+								</filter>
+								<filter>
+									<artifact>org.apache.flink:flink-connector-aws-base:*</artifact>
+									<excludes>
+										<exclude>profile</exclude>
+									</excludes>
+								</filter>
+							</filters>
 						</configuration>
 					</execution>
 				</executions>
+			</plugin>
+
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-surefire-plugin</artifactId>
+				<configuration>
+					<systemPropertyVariables>
+						<com.amazonaws.sdk.disableCbor>true</com.amazonaws.sdk.disableCbor>
+						<com.amazonaws.sdk.disableCertChecking>true</com.amazonaws.sdk.disableCertChecking>
+					</systemPropertyVariables>
+				</configuration>
 			</plugin>
 		</plugins>
 	</build>

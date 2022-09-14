@@ -24,32 +24,29 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 
-/**
- * Discards every partial match that started before emitted match ended.
- */
+/** Discards every partial match that started before emitted match ended. */
 public final class SkipPastLastStrategy extends SkipRelativeToWholeMatchStrategy {
 
-	public static final SkipPastLastStrategy INSTANCE = new SkipPastLastStrategy();
+    public static final SkipPastLastStrategy INSTANCE = new SkipPastLastStrategy();
 
-	private static final long serialVersionUID = -8450320065949093169L;
+    private static final long serialVersionUID = -8450320065949093169L;
 
-	private SkipPastLastStrategy() {
-	}
+    private SkipPastLastStrategy() {}
 
-	@Override
-	protected EventId getPruningId(final Collection<Map<String, List<EventId>>> match) {
-		EventId pruningId = null;
-		for (Map<String, List<EventId>> resultMap : match) {
-			for (List<EventId> eventList : resultMap.values()) {
-				pruningId = max(pruningId, eventList.get(eventList.size() - 1));
-			}
-		}
+    @Override
+    protected EventId getPruningId(final Collection<Map<String, List<EventId>>> match) {
+        EventId pruningId = null;
+        for (Map<String, List<EventId>> resultMap : match) {
+            for (List<EventId> eventList : resultMap.values()) {
+                pruningId = max(pruningId, eventList.get(eventList.size() - 1));
+            }
+        }
 
-		return pruningId;
-	}
+        return pruningId;
+    }
 
-	@Override
-	public String toString() {
-		return "SkipPastLastStrategy{}";
-	}
+    @Override
+    public String toString() {
+        return "SkipPastLastStrategy{}";
+    }
 }

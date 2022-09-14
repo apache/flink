@@ -18,29 +18,59 @@
 ################################################################################
 
 source "$(dirname "$0")"/common.sh
+source "$(dirname "$0")"/common_docker.sh
 
-DOCKER_MODULE_DIR=${END_TO_END_DIR}/../flink-container/docker
-KUBERNETES_MODULE_DIR=${END_TO_END_DIR}/../flink-container/kubernetes
 CONTAINER_SCRIPTS=${END_TO_END_DIR}/test-scripts/container-scripts
 MINIKUBE_START_RETRIES=3
 MINIKUBE_START_BACKOFF=5
 RESULT_HASH="e682ec6622b5e83f2eb614617d5ab2cf"
+MINIKUBE_VERSION="v1.8.2"
+
+NON_LINUX_ENV_NOTE="****** Please start/stop minikube manually in non-linux environment. ******"
 
 # If running tests on non-linux os, the kubectl and minikube should be installed manually
 function setup_kubernetes_for_linux {
+    if [[ `uname -i` == 'aarch64' ]]; then
+        local arch='arm64'
+    else
+        local arch='amd64'
+    fi
     # Download kubectl, which is a requirement for using minikube.
     if ! [ -x "$(command -v kubectl)" ]; then
         echo "Installing kubectl ..."
         local version=$(curl -s https://storage.googleapis.com/kubernetes-release/release/stable.txt)
-        curl -Lo kubectl https://storage.googleapis.com/kubernetes-release/release/$version/bin/linux/amd64/kubectl && \
+        curl -Lo kubectl https://storage.googleapis.com/kubernetes-release/release/$version/bin/linux/$arch/kubectl && \
             chmod +x kubectl && sudo mv kubectl /usr/local/bin/
     fi
-    # Download minikube.
+    # Download minikube when it is not installed beforehand.
     if ! [ -x "$(command -v minikube)" ]; then
-        echo "Installing minikube ..."
-        curl -Lo minikube https://storage.googleapis.com/minikube/releases/latest/minikube-linux-amd64 && \
-            chmod +x minikube && sudo mv minikube /usr/local/bin/
+        echo "Installing minikube $MINIKUBE_VERSION ..."
+        curl -Lo minikube https://storage.googleapis.com/minikube/releases/$MINIKUBE_VERSION/minikube-linux-$arch && \
+            chmod +x minikube && sudo mv minikube /usr/bin/minikube
     fi
+    # conntrack is required for minikube 1.9 and later
+    sudo apt-get install conntrack
+    # crictl is required for cri-dockerd
+    VERSION="v1.24.2"
+    wget https://github.com/kubernetes-sigs/cri-tools/releases/download/$VERSION/crictl-$VERSION-linux-amd64.tar.gz
+    sudo tar zxvf crictl-$VERSION-linux-amd64.tar.gz -C /usr/local/bin
+    rm -f crictl-$VERSION-linux-amd64.tar.gz
+    # cri-dockerd is required to use Kubernetes 1.24+ and the none driver
+    git clone https://github.com/Mirantis/cri-dockerd.git
+    cd cri-dockerd
+    # Checkout version 0.2.3
+    git checkout tags/v0.2.3 -b v0.2.3
+    mkdir bin
+    go get && go build -o bin/cri-dockerd
+    mkdir -p /usr/local/bin
+    sudo install -o root -g root -m 0755 bin/cri-dockerd /usr/local/bin/cri-dockerd
+    sudo cp -a packaging/systemd/* /etc/systemd/system
+    sudo sed -i -e 's,/usr/bin/cri-dockerd,/usr/local/bin/cri-dockerd,' /etc/systemd/system/cri-docker.service
+    sudo systemctl daemon-reload
+    sudo systemctl enable cri-docker.service
+    sudo systemctl enable --now cri-docker.socket
+    # required to resolve HOST_JUJU_LOCK_PERMISSION error of "minikube start --vm-driver=none"
+    sudo sysctl fs.protected_regular=0
 }
 
 function check_kubernetes_status {
@@ -52,32 +82,28 @@ function start_kubernetes_if_not_running {
     if ! check_kubernetes_status; then
         echo "Starting minikube ..."
         # We need sudo permission to set vm-driver to none in linux os.
-        if [[ "${OS_TYPE}" = "linux" ]] ; then
-            # tl;dr: Configure minikube for a low disk space environment
-            #
-            # The VMs provided by azure have ~100GB of disk space, out of which
-            # 85% are allocated, only 15GB are free. That's enough space
-            # for our purposes. However, the kubernetes nodes running during
-            # the k8s tests believe that 85% are not enough free disk space,
-            # so they start garbage collecting their host. During GCing, they
-            # are deleting all docker images currently not in use. 
-            # However, the k8s test is first building a flink image, then launching
-            # stuff on k8s. Sometimes, k8s deletes the new Flink images,
-            # thus it can not find them anymore, letting the test fail /
-            # timeout. That's why we have set the GC threshold to 98% and 99%
-            # here.
-            # Similarly, the kubelets are marking themself as "low disk space",
-            # causing Flink to avoid this node (again, failing the test)
-            sudo CHANGE_MINIKUBE_NONE_USER=true minikube start --vm-driver=none \
-                --extra-config=kubelet.image-gc-high-threshold=99 \
-                --extra-config=kubelet.image-gc-low-threshold=98 \
-                --extra-config=kubelet.minimum-container-ttl-duration=120m \
-                --extra-config=kubelet.eviction-hard="memory.available<5Mi,nodefs.available<1Mi,imagefs.available<1Mi" \
-                --extra-config=kubelet.eviction-soft="memory.available<5Mi,nodefs.available<2Mi,imagefs.available<2Mi" \
-                --extra-config=kubelet.eviction-soft-grace-period="memory.available=2h,nodefs.available=2h,imagefs.available=2h"
-        else
-            sudo minikube start
-        fi
+        # tl;dr: Configure minikube for a low disk space environment
+        #
+        # The VMs provided by azure have ~100GB of disk space, out of which
+        # 85% are allocated, only 15GB are free. That's enough space
+        # for our purposes. However, the kubernetes nodes running during
+        # the k8s tests believe that 85% are not enough free disk space,
+        # so they start garbage collecting their host. During GCing, they
+        # are deleting all docker images currently not in use.
+        # However, the k8s test is first building a flink image, then launching
+        # stuff on k8s. Sometimes, k8s deletes the new Flink images,
+        # thus it can not find them anymore, letting the test fail /
+        # timeout. That's why we have set the GC threshold to 98% and 99%
+        # here.
+        # Similarly, the kubelets are marking themself as "low disk space",
+        # causing Flink to avoid this node (again, failing the test)
+        CHANGE_MINIKUBE_NONE_USER=true sudo -E minikube start --vm-driver=none \
+            --extra-config=kubelet.image-gc-high-threshold=99 \
+            --extra-config=kubelet.image-gc-low-threshold=98 \
+            --extra-config=kubelet.minimum-container-ttl-duration=120m \
+            --extra-config=kubelet.eviction-hard="memory.available<5Mi,nodefs.available<1Mi,imagefs.available<1Mi" \
+            --extra-config=kubelet.eviction-soft="memory.available<5Mi,nodefs.available<2Mi,imagefs.available<2Mi" \
+            --extra-config=kubelet.eviction-soft-grace-period="memory.available=2h,nodefs.available=2h,imagefs.available=2h"
         # Fix the kubectl context, as it's often stale.
         minikube update-context
     fi
@@ -87,21 +113,134 @@ function start_kubernetes_if_not_running {
 }
 
 function start_kubernetes {
-    [[ "${OS_TYPE}" = "linux" ]] && setup_kubernetes_for_linux
-    if ! retry_times ${MINIKUBE_START_RETRIES} ${MINIKUBE_START_BACKOFF} start_kubernetes_if_not_running; then
-        echo "Could not start minikube. Aborting..."
-        exit 1
+    if [[ "${OS_TYPE}" != "linux" ]]; then
+        if ! check_kubernetes_status; then
+            echo "$NON_LINUX_ENV_NOTE"
+            exit 1
+        fi
+        # Mount Flink dist into minikube virtual machine because we need to mount hostPath as usrlib
+        minikube mount $FLINK_DIR:$FLINK_DIR &
+        export minikube_mount_pid=$!
+        echo "The mounting process is running with pid $minikube_mount_pid"
+    else
+        setup_kubernetes_for_linux
+        if ! retry_times ${MINIKUBE_START_RETRIES} ${MINIKUBE_START_BACKOFF} start_kubernetes_if_not_running; then
+            echo "Could not start minikube. Aborting..."
+            exit 1
+        fi
     fi
-    eval $(minikube docker-env)
 }
 
 function stop_kubernetes {
-    echo "Stopping minikube ..."
-    stop_command="minikube stop"
-    [[ "${OS_TYPE}" = "linux" ]] && stop_command="sudo ${stop_command}"
-    if ! retry_times ${MINIKUBE_START_RETRIES} ${MINIKUBE_START_BACKOFF} "${stop_command}"; then
-        echo "Could not stop minikube. Aborting..."
-        exit 1
+    if [[ "${OS_TYPE}" != "linux" ]]; then
+        echo "$NON_LINUX_ENV_NOTE"
+        echo "Killing mounting process $minikube_mount_pid"
+        kill $minikube_mount_pid 2> /dev/null
+    else
+        echo "Stopping minikube ..."
+        stop_command="minikube stop"
+        if ! retry_times ${MINIKUBE_START_RETRIES} ${MINIKUBE_START_BACKOFF} "${stop_command}"; then
+            echo "Could not stop minikube. Aborting..."
+            exit 1
+        fi
+    fi
+}
+
+function debug_and_show_logs {
+    echo "Debugging failed Kubernetes test:"
+    echo "Currently existing Kubernetes resources"
+    kubectl get all
+    kubectl describe all
+
+    echo "Flink logs:"
+    kubectl get pods -o jsonpath='{range .items[*]}{.metadata.name}{"\n"}{end}' | while read pod;do
+        echo "Current logs for $pod: "
+        kubectl logs $pod;
+        restart_count=$(kubectl get pod $pod -o jsonpath='{.status.containerStatuses[0].restartCount}')
+        if [[ ${restart_count} -gt 0 ]];then
+          echo "Previous logs for $pod: "
+          kubectl logs $pod --previous
+        fi
+    done
+}
+
+function wait_rest_endpoint_up_k8s {
+  wait_for_logs $1 "Rest endpoint listening at"
+}
+
+function wait_num_checkpoints {
+    POD_NAME=$1
+    NUM_CHECKPOINTS=$2
+
+    echo "Waiting for job ($POD_NAME) to have at least $NUM_CHECKPOINTS completed checkpoints ..."
+
+   # wait at most 120 seconds
+    local TIMEOUT=120
+    for i in $(seq 1 ${TIMEOUT}); do
+      N=$(kubectl logs $POD_NAME 2> /dev/null | grep -o "Completed checkpoint [1-9]* for job" | awk '{print $3}' | tail -1)
+
+      if [ -z $N ]; then
+        N=0
+      fi
+
+      if (( N < NUM_CHECKPOINTS )); then
+        sleep 1
+      else
+        return
+      fi
+    done
+    echo "Could not get $NUM_CHECKPOINTS completed checkpoints in $TIMEOUT sec"
+    exit 1
+}
+
+function wait_for_logs {
+  local jm_pod_name=$1
+  local successful_response_regex=$2
+  local timeout=${3:-30}
+
+  echo "Waiting for jobmanager pod ${jm_pod_name} ready."
+  kubectl wait --for=condition=Ready --timeout=${timeout}s pod/$jm_pod_name || exit 1
+
+  # wait or timeout until the log shows up
+  echo "Waiting for log \"$2\"..."
+  for i in $(seq 1 ${timeout}); do
+    if check_logs_output $jm_pod_name $successful_response_regex; then
+      echo "Log \"$2\" shows up."
+      return
+    fi
+
+    sleep 1
+  done
+  echo "Log $2 does not show up within a timeout of ${timeout} sec"
+  exit 1
+}
+
+function check_logs_output {
+  local pod_name=$1
+  local successful_response_regex=$2
+  LOG_CONTENT=$(kubectl logs $pod_name 2> /dev/null)
+
+  # ensure the log content adapts with the successful regex
+  if [[ ${LOG_CONTENT} =~ ${successful_response_regex} ]]; then
+    return 0
+  fi
+  return 1
+}
+
+function cleanup {
+    if [ $TRAPPED_EXIT_CODE != 0 ];then
+      debug_and_show_logs
+    fi
+    internal_cleanup
+    kubectl wait --for=delete pod --all=true
+    stop_kubernetes
+}
+
+function get_host_machine_address {
+    if [[ "${OS_TYPE}" != "linux" ]]; then
+        echo $(minikube ssh "route -n | grep ^0.0.0.0 | awk '{ print \$2 }' | tr -d '[:space:]'")
+    else
+        echo $(hostname --ip-address)
     fi
 }
 

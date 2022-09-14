@@ -26,20 +26,18 @@ import org.apache.flink.runtime.rest.messages.MessageQueryParameter;
 import java.util.Collection;
 import java.util.Collections;
 
-/**
- * The parameters for triggering a savepoint.
- */
+/** The parameters for triggering a savepoint. */
 public class SavepointTriggerMessageParameters extends MessageParameters {
 
-	public JobIDPathParameter jobID = new JobIDPathParameter();
+    public JobIDPathParameter jobID = new JobIDPathParameter();
 
-	@Override
-	public Collection<MessagePathParameter<?>> getPathParameters() {
-		return Collections.singleton(jobID);
-	}
+    @Override
+    public Collection<MessagePathParameter<?>> getPathParameters() {
+        return Collections.singleton(jobID);
+    }
 
-	@Override
-	public Collection<MessageQueryParameter<?>> getQueryParameters() {
-		return Collections.emptyList();
-	}
+    @Override
+    public Collection<MessageQueryParameter<?>> getQueryParameters() {
+        return Collections.emptyList();
+    }
 }

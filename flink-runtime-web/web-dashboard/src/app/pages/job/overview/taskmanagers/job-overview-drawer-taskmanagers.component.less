@@ -15,4 +15,37 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+@import "theme";
 
+:host {
+  display: block;
+  width: 100%;
+  height: 100%;
+
+  .ellipsis-cell {
+    display: block;
+    overflow: hidden;
+    width: 100%;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  ::ng-deep {
+    .ant-table-cell {
+      font-size: @font-size-sm;
+    }
+
+    ::-webkit-scrollbar {
+      display: none;
+    }
+
+    nz-table,
+    nz-spin,
+    cdk-virtual-scroll-viewport,
+    nz-table-inner-scroll,
+    .ant-spin-container,
+    .ant-table {
+      height: 100%;
+    }
+  }
+}

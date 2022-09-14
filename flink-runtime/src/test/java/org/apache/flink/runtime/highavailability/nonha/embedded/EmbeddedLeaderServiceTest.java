@@ -19,85 +19,94 @@
 package org.apache.flink.runtime.highavailability.nonha.embedded;
 
 import org.apache.flink.runtime.leaderelection.LeaderElectionService;
-import org.apache.flink.runtime.testingUtils.TestingUtils;
+import org.apache.flink.testutils.TestingUtils;
+import org.apache.flink.testutils.executor.TestExecutorResource;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Assert;
+import org.junit.ClassRule;
 import org.junit.Test;
 
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
 import static org.hamcrest.Matchers.is;
 
-/**
- * Tests for the {@link EmbeddedLeaderService}.
- */
+/** Tests for the {@link EmbeddedLeaderService}. */
 public class EmbeddedLeaderServiceTest extends TestLogger {
 
-	/**
-	 * Tests that the {@link EmbeddedLeaderService} can handle a concurrent grant
-	 * leadership call and a shutdown.
-	 */
-	@Test
-	public void testConcurrentGrantLeadershipAndShutdown() throws Exception {
-		final EmbeddedLeaderService embeddedLeaderService = new EmbeddedLeaderService(TestingUtils.defaultExecutor());
+    @ClassRule
+    public static final TestExecutorResource<ScheduledExecutorService> EXECUTOR_RESOURCE =
+            TestingUtils.defaultExecutorResource();
+    /**
+     * Tests that the {@link EmbeddedLeaderService} can handle a concurrent grant leadership call
+     * and a shutdown.
+     */
+    @Test
+    public void testConcurrentGrantLeadershipAndShutdown() throws Exception {
+        final EmbeddedLeaderService embeddedLeaderService =
+                new EmbeddedLeaderService(EXECUTOR_RESOURCE.getExecutor());
 
-		try {
-			final LeaderElectionService leaderElectionService = embeddedLeaderService.createLeaderElectionService();
+        try {
+            final LeaderElectionService leaderElectionService =
+                    embeddedLeaderService.createLeaderElectionService();
 
-			final TestingLeaderContender contender = new TestingLeaderContender();
+            final TestingLeaderContender contender = new TestingLeaderContender();
 
-			leaderElectionService.start(contender);
-			leaderElectionService.stop();
+            leaderElectionService.start(contender);
+            leaderElectionService.stop();
 
-			try {
-				// check that no exception occurred
-				contender.getLeaderSessionFuture().get(10L, TimeUnit.MILLISECONDS);
-			} catch (TimeoutException ignored) {
-				// we haven't participated in the leader election
-			}
+            try {
+                // check that no exception occurred
+                contender.getLeaderSessionFuture().get(10L, TimeUnit.MILLISECONDS);
+            } catch (TimeoutException ignored) {
+                // we haven't participated in the leader election
+            }
 
-			// the election service should still be running
-			Assert.assertThat(embeddedLeaderService.isShutdown(), is(false));
-		} finally {
-			embeddedLeaderService.shutdown();
-		}
-	}
+            // the election service should still be running
+            Assert.assertThat(embeddedLeaderService.isShutdown(), is(false));
+        } finally {
+            embeddedLeaderService.shutdown();
+        }
+    }
 
-	/**
-	 * Tests that the {@link EmbeddedLeaderService} can handle a concurrent revoke
-	 * leadership call and a shutdown.
-	 */
-	@Test
-	public void testConcurrentRevokeLeadershipAndShutdown() throws Exception {
-		final EmbeddedLeaderService embeddedLeaderService = new EmbeddedLeaderService(TestingUtils.defaultExecutor());
+    /**
+     * Tests that the {@link EmbeddedLeaderService} can handle a concurrent revoke leadership call
+     * and a shutdown.
+     */
+    @Test
+    public void testConcurrentRevokeLeadershipAndShutdown() throws Exception {
+        final EmbeddedLeaderService embeddedLeaderService =
+                new EmbeddedLeaderService(EXECUTOR_RESOURCE.getExecutor());
 
-		try {
-			final LeaderElectionService leaderElectionService = embeddedLeaderService.createLeaderElectionService();
+        try {
+            final LeaderElectionService leaderElectionService =
+                    embeddedLeaderService.createLeaderElectionService();
 
-			final TestingLeaderContender contender = new TestingLeaderContender();
+            final TestingLeaderContender contender = new TestingLeaderContender();
 
-			leaderElectionService.start(contender);
+            leaderElectionService.start(contender);
 
-			// wait for the leadership
-			contender.getLeaderSessionFuture().get();
+            // wait for the leadership
+            contender.getLeaderSessionFuture().get();
 
-			final CompletableFuture<Void> revokeLeadershipFuture = embeddedLeaderService.revokeLeadership();
-			leaderElectionService.stop();
+            final CompletableFuture<Void> revokeLeadershipFuture =
+                    embeddedLeaderService.revokeLeadership();
+            leaderElectionService.stop();
 
-			try {
-				// check that no exception occurred
-				revokeLeadershipFuture.get(10L, TimeUnit.MILLISECONDS);
-			} catch (TimeoutException ignored) {
-				// the leader election service has been stopped before revoking could be executed
-			}
+            try {
+                // check that no exception occurred
+                revokeLeadershipFuture.get(10L, TimeUnit.MILLISECONDS);
+            } catch (TimeoutException ignored) {
+                // the leader election service has been stopped before revoking could be executed
+            }
 
-			// the election service should still be running
-			Assert.assertThat(embeddedLeaderService.isShutdown(), is(false));
-		} finally {
-			embeddedLeaderService.shutdown();
-		}
-	}
+            // the election service should still be running
+            Assert.assertThat(embeddedLeaderService.isShutdown(), is(false));
+        } finally {
+            embeddedLeaderService.shutdown();
+        }
+    }
 }

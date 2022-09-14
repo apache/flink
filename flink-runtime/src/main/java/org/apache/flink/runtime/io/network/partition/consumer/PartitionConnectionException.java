@@ -21,15 +21,15 @@ package org.apache.flink.runtime.io.network.partition.consumer;
 import org.apache.flink.runtime.io.network.partition.PartitionException;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 
-/**
- * Exception for failed partition requests due to connection failure
- * with unreachable producer.
- */
+/** Exception for failed partition requests due to connection failure with unreachable producer. */
 public class PartitionConnectionException extends PartitionException {
 
-	private static final long serialVersionUID = 0L;
+    private static final long serialVersionUID = 0L;
 
-	public PartitionConnectionException(ResultPartitionID partitionId, Throwable throwable) {
-		super("Connection for partition " + partitionId + " not reachable.", partitionId, throwable);
-	}
+    public PartitionConnectionException(ResultPartitionID partitionId, Throwable throwable) {
+        super(
+                "Connection for partition " + partitionId + " not reachable.",
+                partitionId,
+                throwable);
+    }
 }

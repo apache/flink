@@ -25,51 +25,52 @@ import org.apache.flink.util.TraversableOnceException;
 import java.util.Iterator;
 
 /**
- * An iterator that reads 2-tuples (key value pairs) and returns only the values (second field).
- * The iterator also tracks the keys, as the pairs flow though it.
+ * An iterator that reads 2-tuples (key value pairs) and returns only the values (second field). The
+ * iterator also tracks the keys, as the pairs flow though it.
  */
 @Internal
-public class TupleUnwrappingIterator<T, K> implements Iterator<T>, Iterable<T>, java.io.Serializable {
+public class TupleUnwrappingIterator<T, K>
+        implements Iterator<T>, Iterable<T>, java.io.Serializable {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	private K lastKey;
-	private Iterator<Tuple2<K, T>> iterator;
-	private boolean iteratorAvailable;
+    private K lastKey;
+    private Iterator<Tuple2<K, T>> iterator;
+    private boolean iteratorAvailable;
 
-	public void set(Iterator<Tuple2<K, T>> iterator) {
-		this.iterator = iterator;
-		this.iteratorAvailable = true;
-	}
+    public void set(Iterator<Tuple2<K, T>> iterator) {
+        this.iterator = iterator;
+        this.iteratorAvailable = true;
+    }
 
-	public K getLastKey() {
-		return lastKey;
-	}
+    public K getLastKey() {
+        return lastKey;
+    }
 
-	@Override
-	public boolean hasNext() {
-		return iterator.hasNext();
-	}
+    @Override
+    public boolean hasNext() {
+        return iterator.hasNext();
+    }
 
-	@Override
-	public T next() {
-		Tuple2<K, T> t = iterator.next();
-		this.lastKey = t.f0;
-		return t.f1;
-	}
+    @Override
+    public T next() {
+        Tuple2<K, T> t = iterator.next();
+        this.lastKey = t.f0;
+        return t.f1;
+    }
 
-	@Override
-	public void remove() {
-		throw new UnsupportedOperationException();
-	}
+    @Override
+    public void remove() {
+        throw new UnsupportedOperationException();
+    }
 
-	@Override
-	public Iterator<T> iterator() {
-		if (iteratorAvailable) {
-			iteratorAvailable = false;
-			return this;
-		} else {
-			throw new TraversableOnceException();
-		}
-	}
+    @Override
+    public Iterator<T> iterator() {
+        if (iteratorAvailable) {
+            iteratorAvailable = false;
+            return this;
+        } else {
+            throw new TraversableOnceException();
+        }
+    }
 }

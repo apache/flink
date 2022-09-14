@@ -23,31 +23,32 @@ import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.types.StringValue;
 
-public class ValueComparatorTest extends ComparatorTestBase<StringValue> {
+class ValueComparatorTest extends ComparatorTestBase<StringValue> {
 
-	StringValue[] data = new StringValue[]{
-		new StringValue(""),
-		new StringValue("Lorem Ipsum Dolor Omit Longer"),
-		new StringValue("aaaa"),
-		new StringValue("abcd"),
-		new StringValue("abce"),
-		new StringValue("abdd"),
-		new StringValue("accd"),
-		new StringValue("bbcd")
-	};
+    StringValue[] data =
+            new StringValue[] {
+                new StringValue(""),
+                new StringValue("Lorem Ipsum Dolor Omit Longer"),
+                new StringValue("aaaa"),
+                new StringValue("abcd"),
+                new StringValue("abce"),
+                new StringValue("abdd"),
+                new StringValue("accd"),
+                new StringValue("bbcd")
+            };
 
-	@Override
-	protected TypeComparator<StringValue> createComparator(boolean ascending) {
-		return new ValueComparator<StringValue>(ascending, StringValue.class);
-	}
+    @Override
+    protected TypeComparator<StringValue> createComparator(boolean ascending) {
+        return new ValueComparator<StringValue>(ascending, StringValue.class);
+    }
 
-	@Override
-	protected TypeSerializer<StringValue> createSerializer() {
-		return new ValueSerializer<StringValue>(StringValue.class);
-	}
+    @Override
+    protected TypeSerializer<StringValue> createSerializer() {
+        return new ValueSerializer<StringValue>(StringValue.class);
+    }
 
-	@Override
-	protected StringValue[] getSortedTestData() {
-		return data;
-	}
+    @Override
+    protected StringValue[] getSortedTestData() {
+        return data;
+    }
 }

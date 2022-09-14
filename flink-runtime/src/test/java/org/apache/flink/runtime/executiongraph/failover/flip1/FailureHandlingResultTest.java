@@ -18,68 +18,81 @@
 
 package org.apache.flink.runtime.executiongraph.failover.flip1;
 
-import org.apache.flink.runtime.jobgraph.JobVertexID;
+import org.apache.flink.runtime.executiongraph.Execution;
+import org.apache.flink.runtime.executiongraph.ExecutionGraph;
 import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
-import org.apache.flink.util.TestLogger;
-import org.junit.Test;
+import org.apache.flink.testutils.TestingUtils;
+import org.apache.flink.testutils.executor.TestExecutorExtension;
+
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.RegisterExtension;
 
 import java.util.HashSet;
 import java.util.Set;
+import java.util.concurrent.ScheduledExecutorService;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.createExecutionGraph;
+import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.createNoOpVertex;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-/**
- * Tests for {@link FailureHandlingResult}.
- */
-public class FailureHandlingResultTest extends TestLogger {
+/** Tests for {@link FailureHandlingResult}. */
+class FailureHandlingResultTest {
 
-	/**
-	 * Tests normal FailureHandlingResult.
-	 */
-	@Test
-	public void testNormalFailureHandlingResult() {
-		// create a normal FailureHandlingResult
-		Set<ExecutionVertexID> tasks = new HashSet<>();
-		tasks.add(new ExecutionVertexID(new JobVertexID(), 0));
-		long delay = 1234;
-		FailureHandlingResult result = FailureHandlingResult.restartable(tasks, delay);
+    @RegisterExtension
+    private static final TestExecutorExtension<ScheduledExecutorService> EXECUTOR_RESOURCE =
+            TestingUtils.defaultExecutorExtension();
 
-		assertTrue(result.canRestart());
-		assertEquals(delay, result.getRestartDelayMS());
-		assertEquals(tasks, result.getVerticesToRestart());
-		try {
-			result.getError();
-			fail("Cannot get error when the restarting is accepted");
-		} catch (IllegalStateException ex) {
-			// expected
-		}
-	}
+    /** Tests normal FailureHandlingResult. */
+    @Test
+    void testNormalFailureHandlingResult() throws Exception {
 
-	/**
-	 * Tests FailureHandlingResult which suppresses restarts.
-	 */
-	@Test
-	public void testRestartingSuppressedFailureHandlingResult() {
-		// create a FailureHandlingResult with error
-		Throwable error = new Exception("test error");
-		FailureHandlingResult result = FailureHandlingResult.unrecoverable(error);
+        // create a normal FailureHandlingResult
+        Execution execution = createExecution(EXECUTOR_RESOURCE.getExecutor());
 
-		assertFalse(result.canRestart());
-		assertEquals(error, result.getError());
-		try {
-			result.getVerticesToRestart();
-			fail("get tasks to restart is not allowed when restarting is suppressed");
-		} catch (IllegalStateException ex) {
-			// expected
-		}
-		try {
-			result.getRestartDelayMS();
-			fail("get restart delay is not allowed when restarting is suppressed");
-		} catch (IllegalStateException ex) {
-			// expected
-		}
-	}
+        Set<ExecutionVertexID> tasks = new HashSet<>();
+        tasks.add(execution.getVertex().getID());
+
+        long delay = 1234;
+        Throwable error = new RuntimeException();
+        long timestamp = System.currentTimeMillis();
+        FailureHandlingResult result =
+                FailureHandlingResult.restartable(execution, error, timestamp, tasks, delay, false);
+
+        assertThat(result.canRestart()).isTrue();
+        assertThat(delay).isEqualTo(result.getRestartDelayMS());
+        assertThat(tasks).isEqualTo(result.getVerticesToRestart());
+        assertThat(result.getError()).isSameAs(error);
+        assertThat(result.getTimestamp()).isEqualTo(timestamp);
+        assertThat(result.getFailedExecution()).isPresent();
+        assertThat(result.getFailedExecution().get()).isSameAs(execution);
+    }
+
+    /** Tests FailureHandlingResult which suppresses restarts. */
+    @Test
+    void testRestartingSuppressedFailureHandlingResultWithNoCausingExecutionVertexId() {
+        // create a FailureHandlingResult with error
+        Throwable error = new Exception("test error");
+        long timestamp = System.currentTimeMillis();
+        FailureHandlingResult result =
+                FailureHandlingResult.unrecoverable(null, error, timestamp, false);
+
+        assertThat(result.canRestart()).isFalse();
+        assertThat(result.getError()).isSameAs(error);
+        assertThat(result.getTimestamp()).isEqualTo(timestamp);
+        assertThat(result.getFailedExecution()).isNotPresent();
+
+        assertThatThrownBy(result::getVerticesToRestart)
+                .as("getVerticesToRestart is not allowed when restarting is suppressed")
+                .isInstanceOf(IllegalStateException.class);
+
+        assertThatThrownBy(result::getRestartDelayMS)
+                .as("getRestartDelayMS is not allowed when restarting is suppressed")
+                .isInstanceOf(IllegalStateException.class);
+    }
+
+    static Execution createExecution(ScheduledExecutorService executor) throws Exception {
+        final ExecutionGraph executionGraph = createExecutionGraph(executor, createNoOpVertex(1));
+        return executionGraph.getRegisteredExecutions().values().iterator().next();
+    }
 }

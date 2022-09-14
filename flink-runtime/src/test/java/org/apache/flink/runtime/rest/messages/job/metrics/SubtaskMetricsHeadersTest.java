@@ -29,23 +29,29 @@ import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.junit.Assert.assertThat;
 
-/**
- * Tests for {@link SubtaskMetricsHeaders}.
- */
+/** Tests for {@link SubtaskMetricsHeaders}. */
 public class SubtaskMetricsHeadersTest extends TestLogger {
 
-	private final SubtaskMetricsHeaders subtaskMetricsHeaders = SubtaskMetricsHeaders.getInstance();
+    private final SubtaskMetricsHeaders subtaskMetricsHeaders = SubtaskMetricsHeaders.getInstance();
 
-	@Test
-	public void testUrl() {
-		assertThat(subtaskMetricsHeaders.getTargetRestEndpointURL(),
-			equalTo("/jobs/:" + JobIDPathParameter.KEY + "/vertices/:" + JobVertexIdPathParameter.KEY +
-				"/subtasks/:" + SubtaskIndexPathParameter.KEY + "/metrics"));
-	}
+    @Test
+    public void testUrl() {
+        assertThat(
+                subtaskMetricsHeaders.getTargetRestEndpointURL(),
+                equalTo(
+                        "/jobs/:"
+                                + JobIDPathParameter.KEY
+                                + "/vertices/:"
+                                + JobVertexIdPathParameter.KEY
+                                + "/subtasks/:"
+                                + SubtaskIndexPathParameter.KEY
+                                + "/metrics"));
+    }
 
-	@Test
-	public void testMessageParameters() {
-		assertThat(subtaskMetricsHeaders.getUnresolvedMessageParameters(),
-			instanceOf(SubtaskMetricsMessageParameters.class));
-	}
+    @Test
+    public void testMessageParameters() {
+        assertThat(
+                subtaskMetricsHeaders.getUnresolvedMessageParameters(),
+                instanceOf(SubtaskMetricsMessageParameters.class));
+    }
 }

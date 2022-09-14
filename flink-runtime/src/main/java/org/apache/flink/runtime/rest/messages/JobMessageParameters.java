@@ -21,20 +21,18 @@ package org.apache.flink.runtime.rest.messages;
 import java.util.Collection;
 import java.util.Collections;
 
-/**
- * Message parameters which require a job path parameter.
- */
+/** Message parameters which require a job path parameter. */
 public class JobMessageParameters extends MessageParameters {
 
-	public final JobIDPathParameter jobPathParameter = new JobIDPathParameter();
+    public final JobIDPathParameter jobPathParameter = new JobIDPathParameter();
 
-	@Override
-	public Collection<MessagePathParameter<?>> getPathParameters() {
-		return Collections.singleton(jobPathParameter);
-	}
+    @Override
+    public Collection<MessagePathParameter<?>> getPathParameters() {
+        return Collections.singleton(jobPathParameter);
+    }
 
-	@Override
-	public Collection<MessageQueryParameter<?>> getQueryParameters() {
-		return Collections.emptySet();
-	}
+    @Override
+    public Collection<MessageQueryParameter<?>> getQueryParameters() {
+        return Collections.emptySet();
+    }
 }

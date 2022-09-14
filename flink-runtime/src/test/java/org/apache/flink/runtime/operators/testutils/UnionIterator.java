@@ -18,65 +18,56 @@
 
 package org.apache.flink.runtime.operators.testutils;
 
+import org.apache.flink.util.MutableObjectIterator;
+
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
-import org.apache.flink.util.MutableObjectIterator;
-
-/**
- * An iterator that returns the union of a given set of iterators.
- */
+/** An iterator that returns the union of a given set of iterators. */
 public class UnionIterator<E> implements MutableObjectIterator<E> {
-	
-	private MutableObjectIterator<E> currentSource;
-	
-	private List<MutableObjectIterator<E>> nextSources;
 
+    private MutableObjectIterator<E> currentSource;
 
-	public UnionIterator(MutableObjectIterator<E>... iterators) {
-		this(new ArrayList<MutableObjectIterator<E>>(Arrays.asList(iterators)));
-	}
-	
-	public UnionIterator(List<MutableObjectIterator<E>> sources) {
-		this.currentSource = sources.remove(0);
-		this.nextSources = sources;
-	}
+    private List<MutableObjectIterator<E>> nextSources;
 
+    public UnionIterator(MutableObjectIterator<E>... iterators) {
+        this(new ArrayList<MutableObjectIterator<E>>(Arrays.asList(iterators)));
+    }
 
-	@Override
-	public E next(E target) throws IOException
-	{
-		E targetStaging = this.currentSource.next(target);
-		if (targetStaging != null) {
-			return targetStaging;
-		} else {
-			if (this.nextSources.size() > 0) {
-				this.currentSource = this.nextSources.remove(0);
-				return next(target);
-			}
-			else {
-				return null;
-			}
-		}
-	}
+    public UnionIterator(List<MutableObjectIterator<E>> sources) {
+        this.currentSource = sources.remove(0);
+        this.nextSources = sources;
+    }
 
-	@Override
-	public E next() throws IOException
-	{
-		E targetStaging = this.currentSource.next();
-		if (targetStaging != null) {
-			return targetStaging;
-		} else {
-			if (this.nextSources.size() > 0) {
-				this.currentSource = this.nextSources.remove(0);
-				return next();
-			}
-			else {
-				return null;
-			}
-		}
-	}
+    @Override
+    public E next(E target) throws IOException {
+        E targetStaging = this.currentSource.next(target);
+        if (targetStaging != null) {
+            return targetStaging;
+        } else {
+            if (this.nextSources.size() > 0) {
+                this.currentSource = this.nextSources.remove(0);
+                return next(target);
+            } else {
+                return null;
+            }
+        }
+    }
 
+    @Override
+    public E next() throws IOException {
+        E targetStaging = this.currentSource.next();
+        if (targetStaging != null) {
+            return targetStaging;
+        } else {
+            if (this.nextSources.size() > 0) {
+                this.currentSource = this.nextSources.remove(0);
+                return next();
+            } else {
+                return null;
+            }
+        }
+    }
 }

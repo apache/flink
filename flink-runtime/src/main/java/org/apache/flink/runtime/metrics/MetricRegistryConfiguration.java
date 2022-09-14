@@ -21,101 +21,81 @@ package org.apache.flink.runtime.metrics;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.MetricOptions;
 import org.apache.flink.runtime.metrics.scope.ScopeFormats;
-import org.apache.flink.runtime.rpc.akka.AkkaRpcServiceUtils;
 import org.apache.flink.util.Preconditions;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/**
- * Configuration object for {@link MetricRegistryImpl}.
- */
+/** Configuration object for {@link MetricRegistryImpl}. */
 public class MetricRegistryConfiguration {
 
-	private static final Logger LOG = LoggerFactory.getLogger(MetricRegistryConfiguration.class);
+    private static final Logger LOG = LoggerFactory.getLogger(MetricRegistryConfiguration.class);
 
-	private static volatile MetricRegistryConfiguration defaultConfiguration;
+    // scope formats for the different components
+    private final ScopeFormats scopeFormats;
 
-	// scope formats for the different components
-	private final ScopeFormats scopeFormats;
+    // delimiter for the scope strings
+    private final char delimiter;
 
-	// delimiter for the scope strings
-	private final char delimiter;
+    private final long queryServiceMessageSizeLimit;
 
-	private final long queryServiceMessageSizeLimit;
+    public MetricRegistryConfiguration(
+            ScopeFormats scopeFormats, char delimiter, long queryServiceMessageSizeLimit) {
 
-	public MetricRegistryConfiguration(
-		ScopeFormats scopeFormats,
-		char delimiter,
-		long queryServiceMessageSizeLimit) {
+        this.scopeFormats = Preconditions.checkNotNull(scopeFormats);
+        this.delimiter = delimiter;
+        this.queryServiceMessageSizeLimit = queryServiceMessageSizeLimit;
+    }
 
-		this.scopeFormats = Preconditions.checkNotNull(scopeFormats);
-		this.delimiter = delimiter;
-		this.queryServiceMessageSizeLimit = queryServiceMessageSizeLimit;
-	}
+    // ------------------------------------------------------------------------
+    //  Getter
+    // ------------------------------------------------------------------------
 
-	// ------------------------------------------------------------------------
-	//  Getter
-	// ------------------------------------------------------------------------
+    public ScopeFormats getScopeFormats() {
+        return scopeFormats;
+    }
 
-	public ScopeFormats getScopeFormats() {
-		return scopeFormats;
-	}
+    public char getDelimiter() {
+        return delimiter;
+    }
 
-	public char getDelimiter() {
-		return delimiter;
-	}
+    public long getQueryServiceMessageSizeLimit() {
+        return queryServiceMessageSizeLimit;
+    }
 
-	public long getQueryServiceMessageSizeLimit() {
-		return queryServiceMessageSizeLimit;
-	}
+    // ------------------------------------------------------------------------
+    //  Static factory methods
+    // ------------------------------------------------------------------------
 
-	// ------------------------------------------------------------------------
-	//  Static factory methods
-	// ------------------------------------------------------------------------
+    /**
+     * Create a metric registry configuration object from the given {@link Configuration}.
+     *
+     * @param configuration to generate the metric registry configuration from
+     * @param maximumFrameSize the maximum message size that the RPC system supports
+     * @return Metric registry configuration generated from the configuration
+     */
+    public static MetricRegistryConfiguration fromConfiguration(
+            Configuration configuration, long maximumFrameSize) {
+        ScopeFormats scopeFormats;
+        try {
+            scopeFormats = ScopeFormats.fromConfig(configuration);
+        } catch (Exception e) {
+            LOG.warn("Failed to parse scope format, using default scope formats", e);
+            scopeFormats = ScopeFormats.fromConfig(new Configuration());
+        }
 
-	/**
-	 * Create a metric registry configuration object from the given {@link Configuration}.
-	 *
-	 * @param configuration to generate the metric registry configuration from
-	 * @return Metric registry configuration generated from the configuration
-	 */
-	public static MetricRegistryConfiguration fromConfiguration(Configuration configuration) {
-		ScopeFormats scopeFormats;
-		try {
-			scopeFormats = ScopeFormats.fromConfig(configuration);
-		} catch (Exception e) {
-			LOG.warn("Failed to parse scope format, using default scope formats", e);
-			scopeFormats = ScopeFormats.fromConfig(new Configuration());
-		}
+        char delim;
+        try {
+            delim = configuration.getString(MetricOptions.SCOPE_DELIMITER).charAt(0);
+        } catch (Exception e) {
+            LOG.warn("Failed to parse delimiter, using default delimiter.", e);
+            delim = '.';
+        }
 
-		char delim;
-		try {
-			delim = configuration.getString(MetricOptions.SCOPE_DELIMITER).charAt(0);
-		} catch (Exception e) {
-			LOG.warn("Failed to parse delimiter, using default delimiter.", e);
-			delim = '.';
-		}
+        // padding to account for serialization overhead
+        final long messageSizeLimitPadding = 256;
 
-		final long maximumFrameSize = AkkaRpcServiceUtils.extractMaximumFramesize(configuration);
-
-		// padding to account for serialization overhead
-		final long messageSizeLimitPadding = 256;
-
-		return new MetricRegistryConfiguration(scopeFormats, delim, maximumFrameSize - messageSizeLimitPadding);
-	}
-
-	public static MetricRegistryConfiguration defaultMetricRegistryConfiguration() {
-		// create the default metric registry configuration only once
-		if (defaultConfiguration == null) {
-			synchronized (MetricRegistryConfiguration.class) {
-				if (defaultConfiguration == null) {
-					defaultConfiguration = fromConfiguration(new Configuration());
-				}
-			}
-		}
-
-		return defaultConfiguration;
-	}
-
+        return new MetricRegistryConfiguration(
+                scopeFormats, delim, maximumFrameSize - messageSizeLimitPadding);
+    }
 }

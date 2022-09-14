@@ -22,6 +22,9 @@ import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.SlotProfile;
 import org.apache.flink.runtime.jobmanager.scheduler.Locality;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import javax.annotation.Nonnull;
 
 import java.util.ArrayList;
@@ -36,59 +39,69 @@ import java.util.Set;
  */
 public class PreviousAllocationSlotSelectionStrategy implements SlotSelectionStrategy {
 
-	private final SlotSelectionStrategy fallbackSlotSelectionStrategy;
+    private static final Logger LOG =
+            LoggerFactory.getLogger(PreviousAllocationSlotSelectionStrategy.class);
 
-	private PreviousAllocationSlotSelectionStrategy(SlotSelectionStrategy fallbackSlotSelectionStrategy) {
-		this.fallbackSlotSelectionStrategy = fallbackSlotSelectionStrategy;
-	}
+    private final SlotSelectionStrategy fallbackSlotSelectionStrategy;
 
-	@Override
-	public Optional<SlotInfoAndLocality> selectBestSlotForProfile(
-		@Nonnull Collection<SlotInfoAndResources> availableSlots,
-		@Nonnull SlotProfile slotProfile) {
+    private PreviousAllocationSlotSelectionStrategy(
+            SlotSelectionStrategy fallbackSlotSelectionStrategy) {
+        this.fallbackSlotSelectionStrategy = fallbackSlotSelectionStrategy;
+    }
 
-		Collection<AllocationID> priorAllocations = slotProfile.getPreferredAllocations();
+    @Override
+    public Optional<SlotInfoAndLocality> selectBestSlotForProfile(
+            @Nonnull Collection<SlotInfoAndResources> availableSlots,
+            @Nonnull SlotProfile slotProfile) {
 
-		// First, if there was a prior allocation try to schedule to the same/old slot
-		if (!priorAllocations.isEmpty()) {
-			for (SlotInfoAndResources availableSlot : availableSlots) {
-				if (priorAllocations.contains(availableSlot.getSlotInfo().getAllocationId())) {
-					return Optional.of(
-						SlotInfoAndLocality.of(availableSlot.getSlotInfo(), Locality.LOCAL));
-				}
-			}
-		}
+        LOG.debug("Select best slot for profile {}.", slotProfile);
 
-		// Second, select based on location preference, excluding blacklisted allocations
-		Set<AllocationID> blackListedAllocations = slotProfile.getPreviousExecutionGraphAllocations();
-		Collection<SlotInfoAndResources> availableAndAllowedSlots = computeWithoutBlacklistedSlots(availableSlots, blackListedAllocations);
-		return fallbackSlotSelectionStrategy.selectBestSlotForProfile(availableAndAllowedSlots, slotProfile);
-	}
+        Collection<AllocationID> priorAllocations = slotProfile.getPreferredAllocations();
 
-	@Nonnull
-	private Collection<SlotInfoAndResources> computeWithoutBlacklistedSlots(
-		@Nonnull Collection<SlotInfoAndResources> availableSlots,
-		@Nonnull Set<AllocationID> blacklistedAllocations) {
+        // First, if there was a prior allocation try to schedule to the same/old slot
+        if (!priorAllocations.isEmpty()) {
+            for (SlotInfoAndResources availableSlot : availableSlots) {
+                if (priorAllocations.contains(availableSlot.getSlotInfo().getAllocationId())) {
+                    return Optional.of(
+                            SlotInfoAndLocality.of(availableSlot.getSlotInfo(), Locality.LOCAL));
+                }
+            }
+        }
 
-		if (blacklistedAllocations.isEmpty()) {
-			return Collections.unmodifiableCollection(availableSlots);
-		}
+        // Second, select based on location preference, excluding blacklisted allocations
+        Set<AllocationID> blackListedAllocations = slotProfile.getReservedAllocations();
+        Collection<SlotInfoAndResources> availableAndAllowedSlots =
+                computeWithoutBlacklistedSlots(availableSlots, blackListedAllocations);
+        return fallbackSlotSelectionStrategy.selectBestSlotForProfile(
+                availableAndAllowedSlots, slotProfile);
+    }
 
-		ArrayList<SlotInfoAndResources> availableAndAllowedSlots = new ArrayList<>(availableSlots.size());
-		for (SlotInfoAndResources availableSlot : availableSlots) {
-			if (!blacklistedAllocations.contains(availableSlot.getSlotInfo().getAllocationId())) {
-				availableAndAllowedSlots.add(availableSlot);
-			}
-		}
+    @Nonnull
+    private Collection<SlotInfoAndResources> computeWithoutBlacklistedSlots(
+            @Nonnull Collection<SlotInfoAndResources> availableSlots,
+            @Nonnull Set<AllocationID> blacklistedAllocations) {
 
-		return availableAndAllowedSlots;
-	}
+        if (blacklistedAllocations.isEmpty()) {
+            return Collections.unmodifiableCollection(availableSlots);
+        }
 
-	public static PreviousAllocationSlotSelectionStrategy create() {
-		return create(LocationPreferenceSlotSelectionStrategy.createDefault());
-	}
+        ArrayList<SlotInfoAndResources> availableAndAllowedSlots =
+                new ArrayList<>(availableSlots.size());
+        for (SlotInfoAndResources availableSlot : availableSlots) {
+            if (!blacklistedAllocations.contains(availableSlot.getSlotInfo().getAllocationId())) {
+                availableAndAllowedSlots.add(availableSlot);
+            }
+        }
 
-	public static PreviousAllocationSlotSelectionStrategy create(SlotSelectionStrategy fallbackSlotSelectionStrategy) {
-		return new PreviousAllocationSlotSelectionStrategy(fallbackSlotSelectionStrategy);
-	}
+        return availableAndAllowedSlots;
+    }
+
+    public static PreviousAllocationSlotSelectionStrategy create() {
+        return create(LocationPreferenceSlotSelectionStrategy.createDefault());
+    }
+
+    public static PreviousAllocationSlotSelectionStrategy create(
+            SlotSelectionStrategy fallbackSlotSelectionStrategy) {
+        return new PreviousAllocationSlotSelectionStrategy(fallbackSlotSelectionStrategy);
+    }
 }

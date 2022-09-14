@@ -1,0 +1,162 @@
+<table class="configuration table table-bordered">
+    <thead>
+        <tr>
+            <th class="text-left" style="width: 20%">Key</th>
+            <th class="text-left" style="width: 15%">Default</th>
+            <th class="text-left" style="width: 10%">Type</th>
+            <th class="text-left" style="width: 55%">Description</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td><h5>taskmanager.data.bind-port</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>Integer</td>
+            <td>The task manager's bind port used for data exchange operations. If not configured, 'taskmanager.data.port' will be used.</td>
+        </tr>
+        <tr>
+            <td><h5>taskmanager.data.port</h5></td>
+            <td style="word-wrap: break-word;">0</td>
+            <td>Integer</td>
+            <td>The task manager’s external port used for data exchange operations.</td>
+        </tr>
+        <tr>
+            <td><h5>taskmanager.data.ssl.enabled</h5></td>
+            <td style="word-wrap: break-word;">true</td>
+            <td>Boolean</td>
+            <td>Enable SSL support for the taskmanager data transport. This is applicable only when the global flag for internal SSL (security.ssl.internal.enabled) is set to true</td>
+        </tr>
+        <tr>
+            <td><h5>taskmanager.network.batch-shuffle.compression.enabled</h5></td>
+            <td style="word-wrap: break-word;">true</td>
+            <td>Boolean</td>
+            <td>Boolean flag indicating whether the shuffle data will be compressed for batch shuffle mode. Note that data is compressed per buffer and compression can incur extra CPU overhead, so it is more effective for IO bounded scenario when compression ratio is high.</td>
+        </tr>
+        <tr>
+            <td><h5>taskmanager.network.blocking-shuffle.type</h5></td>
+            <td style="word-wrap: break-word;">"file"</td>
+            <td>String</td>
+            <td>The blocking shuffle type, either "mmap" or "file". The "auto" means selecting the property type automatically based on system memory architecture (64 bit for mmap and 32 bit for file). Note that the memory usage of mmap is not accounted by configured memory limits, but some resource frameworks like yarn would track this memory usage and kill the container once memory exceeding some threshold. Also note that this option is experimental and might be changed future.</td>
+        </tr>
+        <tr>
+            <td><h5>taskmanager.network.compression.codec</h5></td>
+            <td style="word-wrap: break-word;">"LZ4"</td>
+            <td>String</td>
+            <td>The codec to be used when compressing shuffle data, only "LZ4", "LZO" and "ZSTD" are supported now. Through tpc-ds test of these three algorithms, the results show that "LZ4" algorithm has the highest compression and decompression speed, but the compression ratio is the lowest. "ZSTD" has the highest compression ratio, but the compression and decompression speed is the slowest, and LZO is between the two. Also note that this option is experimental and might be changed in the future.</td>
+        </tr>
+        <tr>
+            <td><h5>taskmanager.network.detailed-metrics</h5></td>
+            <td style="word-wrap: break-word;">false</td>
+            <td>Boolean</td>
+            <td>Boolean flag to enable/disable more detailed metrics about inbound/outbound network queue lengths.</td>
+        </tr>
+        <tr>
+            <td><h5>taskmanager.network.max-num-tcp-connections</h5></td>
+            <td style="word-wrap: break-word;">1</td>
+            <td>Integer</td>
+            <td>The maximum number of tpc connections between taskmanagers for data communication.</td>
+        </tr>
+        <tr>
+            <td><h5>taskmanager.network.memory.buffers-per-channel</h5></td>
+            <td style="word-wrap: break-word;">2</td>
+            <td>Integer</td>
+            <td>Number of exclusive network buffers to use for each outgoing/incoming channel (subpartition/input channel) in the credit-based flow control model. It should be configured at least 2 for good performance. 1 buffer is for receiving in-flight data in the subpartition and 1 buffer is for parallel serialization. The minimum valid value that can be configured is 0. When 0 buffers-per-channel is configured, the exclusive network buffers used per downstream incoming channel will be 0, but for each upstream outgoing channel, max(1, configured value) will be used. In other words we ensure that, for performance reasons, there is at least one buffer per outgoing channel regardless of the configuration.</td>
+        </tr>
+        <tr>
+            <td><h5>taskmanager.network.memory.floating-buffers-per-gate</h5></td>
+            <td style="word-wrap: break-word;">8</td>
+            <td>Integer</td>
+            <td>Number of extra network buffers to use for each outgoing/incoming gate (result partition/input gate). In credit-based flow control mode, this indicates how many floating credits are shared among all the input channels. The floating buffers are distributed based on backlog (real-time output buffers in the subpartition) feedback, and can help relieve back-pressure caused by unbalanced data distribution among the subpartitions. This value should be increased in case of higher round trip times between nodes and/or larger number of machines in the cluster.</td>
+        </tr>
+        <tr>
+            <td><h5>taskmanager.network.memory.max-buffers-per-channel</h5></td>
+            <td style="word-wrap: break-word;">10</td>
+            <td>Integer</td>
+            <td>Number of max buffers that can be used for each channel. If a channel exceeds the number of max buffers, it will make the task become unavailable, cause the back pressure and block the data processing. This might speed up checkpoint alignment by preventing excessive growth of the buffered in-flight data in case of data skew and high number of configured floating buffers. This limit is not strictly guaranteed, and can be ignored by things like flatMap operators, records spanning multiple buffers or single timer producing large amount of data.</td>
+        </tr>
+        <tr>
+            <td><h5>taskmanager.network.memory.max-overdraft-buffers-per-gate</h5></td>
+            <td style="word-wrap: break-word;">5</td>
+            <td>Integer</td>
+            <td>Number of max overdraft network buffers to use for each ResultPartition. The overdraft buffers will be used when the subtask cannot apply to the normal buffers  due to back pressure, while subtask is performing an action that can not be interrupted in the middle,  like serializing a large record, flatMap operator producing multiple records for one single input record or processing time timer producing large output. In situations like that system will allow subtask to request overdraft buffers, so that the subtask can finish such uninterruptible action, without blocking unaligned checkpoints for long period of time. Overdraft buffers are provided on best effort basis only if the system has some unused buffers available. Subtask that has used overdraft buffers won't be allowed to process any more records until the overdraft buffers are returned to the pool.</td>
+        </tr>
+        <tr>
+            <td><h5>taskmanager.network.netty.client.connectTimeoutSec</h5></td>
+            <td style="word-wrap: break-word;">120</td>
+            <td>Integer</td>
+            <td>The Netty client connection timeout.</td>
+        </tr>
+        <tr>
+            <td><h5>taskmanager.network.netty.client.numThreads</h5></td>
+            <td style="word-wrap: break-word;">-1</td>
+            <td>Integer</td>
+            <td>The number of Netty client threads.</td>
+        </tr>
+        <tr>
+            <td><h5>taskmanager.network.netty.num-arenas</h5></td>
+            <td style="word-wrap: break-word;">-1</td>
+            <td>Integer</td>
+            <td>The number of Netty arenas.</td>
+        </tr>
+        <tr>
+            <td><h5>taskmanager.network.netty.sendReceiveBufferSize</h5></td>
+            <td style="word-wrap: break-word;">0</td>
+            <td>Integer</td>
+            <td>The Netty send and receive buffer size. This defaults to the system buffer size (cat /proc/sys/net/ipv4/tcp_[rw]mem) and is 4 MiB in modern Linux.</td>
+        </tr>
+        <tr>
+            <td><h5>taskmanager.network.netty.server.backlog</h5></td>
+            <td style="word-wrap: break-word;">0</td>
+            <td>Integer</td>
+            <td>The netty server connection backlog.</td>
+        </tr>
+        <tr>
+            <td><h5>taskmanager.network.netty.server.numThreads</h5></td>
+            <td style="word-wrap: break-word;">-1</td>
+            <td>Integer</td>
+            <td>The number of Netty server threads.</td>
+        </tr>
+        <tr>
+            <td><h5>taskmanager.network.netty.transport</h5></td>
+            <td style="word-wrap: break-word;">"auto"</td>
+            <td>String</td>
+            <td>The Netty transport type, either "nio" or "epoll". The "auto" means selecting the property mode automatically based on the platform. Note that the "epoll" mode can get better performance, less GC and have more advanced features which are only available on modern Linux.</td>
+        </tr>
+        <tr>
+            <td><h5>taskmanager.network.request-backoff.initial</h5></td>
+            <td style="word-wrap: break-word;">100</td>
+            <td>Integer</td>
+            <td>Minimum backoff in milliseconds for partition requests of input channels.</td>
+        </tr>
+        <tr>
+            <td><h5>taskmanager.network.request-backoff.max</h5></td>
+            <td style="word-wrap: break-word;">10000</td>
+            <td>Integer</td>
+            <td>Maximum backoff in milliseconds for partition requests of input channels.</td>
+        </tr>
+        <tr>
+            <td><h5>taskmanager.network.retries</h5></td>
+            <td style="word-wrap: break-word;">0</td>
+            <td>Integer</td>
+            <td>The number of retry attempts for network communication. Currently it's only used for establishing input/output channel connections</td>
+        </tr>
+        <tr>
+            <td><h5>taskmanager.network.sort-shuffle.min-buffers</h5></td>
+            <td style="word-wrap: break-word;">512</td>
+            <td>Integer</td>
+            <td>Minimum number of network buffers required per blocking result partition for sort-shuffle. For production usage, it is suggested to increase this config value to at least 2048 (64M memory if the default 32K memory segment size is used) to improve the data compression ratio and reduce the small network packets. Usually, several hundreds of megabytes memory is enough for large scale batch jobs. Note: you may also need to increase the size of total network memory to avoid the 'insufficient number of network buffers' error if you are increasing this config value.</td>
+        </tr>
+        <tr>
+            <td><h5>taskmanager.network.sort-shuffle.min-parallelism</h5></td>
+            <td style="word-wrap: break-word;">1</td>
+            <td>Integer</td>
+            <td>Parallelism threshold to switch between sort-based blocking shuffle and hash-based blocking shuffle, which means for batch jobs of smaller parallelism, hash-shuffle will be used and for batch jobs of larger or equal parallelism, sort-shuffle will be used. The value 1 means that sort-shuffle is the default option. Note: For production usage, you may also need to tune 'taskmanager.network.sort-shuffle.min-buffers' and 'taskmanager.memory.framework.off-heap.batch-shuffle.size' for better performance.</td>
+        </tr>
+        <tr>
+            <td><h5>taskmanager.network.tcp-connection.enable-reuse-across-jobs</h5></td>
+            <td style="word-wrap: break-word;">true</td>
+            <td>Boolean</td>
+            <td>Whether to reuse tcp connections across multi jobs. If set to true, tcp connections will not be released after job finishes. The subsequent jobs will be free from the overhead of the connection re-establish. However, this may lead to an increase in the total number of connections on your machine. When it reaches the upper limit, you can set it to false to release idle connections. Note that to avoid connection leak, you must set taskmanager.network.max-num-tcp-connections to a smaller value before you enable tcp connection reuse.</td>
+        </tr>
+    </tbody>
+</table>

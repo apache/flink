@@ -18,13 +18,17 @@
 
 package org.apache.flink.runtime.rest.messages;
 
+import org.apache.flink.runtime.rest.HttpMethodWrapper;
+
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
 
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Locale;
 
 /**
- * This class links {@link RequestBody}s to {@link ResponseBody}s types and contains meta-data required for their http headers.
+ * This class links {@link RequestBody}s to {@link ResponseBody}s types and contains meta-data
+ * required for their http headers.
  *
  * <p>Implementations must be state-less.
  *
@@ -32,35 +36,61 @@ import java.util.Collections;
  * @param <P> response message type
  * @param <M> message parameters type
  */
-public interface MessageHeaders<R extends RequestBody, P extends ResponseBody, M extends MessageParameters> extends UntypedResponseMessageHeaders<R, M> {
+public interface MessageHeaders<
+                R extends RequestBody, P extends ResponseBody, M extends MessageParameters>
+        extends UntypedResponseMessageHeaders<R, M> {
 
-	/**
-	 * Returns the class of the response message.
-	 *
-	 * @return class of the response message
-	 */
-	Class<P> getResponseClass();
+    /**
+     * Returns the class of the response message.
+     *
+     * @return class of the response message
+     */
+    Class<P> getResponseClass();
 
-	/**
-	 * Returns the http status code for the response.
-	 *
-	 * @return http status code of the response
-	 */
-	HttpResponseStatus getResponseStatusCode();
+    /**
+     * Returns the http status code for the response.
+     *
+     * @return http status code of the response
+     */
+    HttpResponseStatus getResponseStatusCode();
 
-	/**
-	 * Returns the collection of type parameters for the response type.
-	 *
-	 * @return Collection of type parameters for the response type
-	 */
-	default Collection<Class<?>> getResponseTypeParameters() {
-		return Collections.emptyList();
-	}
+    /**
+     * Returns the collection of type parameters for the response type.
+     *
+     * @return Collection of type parameters for the response type
+     */
+    default Collection<Class<?>> getResponseTypeParameters() {
+        return Collections.emptyList();
+    }
 
-	/**
-	 * Returns the description for this header.
-	 *
-	 * @return description for the header
-	 */
-	String getDescription();
+    /**
+     * Returns the description for this header.
+     *
+     * @return description for the header
+     */
+    String getDescription();
+
+    /**
+     * Returns a short description for this header suitable for method code generation.
+     *
+     * @return short description
+     */
+    default String operationId() {
+        if (getHttpMethod() != HttpMethodWrapper.GET) {
+            throw new UnsupportedOperationException(
+                    "The default implementation is only supported for GET calls. Please override 'operationId()'.");
+        }
+
+        final String className = getClass().getSimpleName();
+        final int headersSuffixStart = className.lastIndexOf("Headers");
+        if (headersSuffixStart == -1) {
+            throw new IllegalStateException(
+                    "Expect name of class "
+                            + getClass()
+                            + " to end on 'Headers'. Please rename the class or override 'operationId()'.");
+        }
+
+        return getHttpMethod().name().toLowerCase(Locale.ROOT)
+                + className.substring(0, headersSuffixStart);
+    }
 }

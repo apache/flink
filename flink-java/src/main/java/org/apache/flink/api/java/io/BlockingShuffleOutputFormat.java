@@ -27,45 +27,49 @@ import org.apache.flink.util.Preconditions;
 import java.io.IOException;
 
 /**
- * This is the inner OutputFormat used for specify the BLOCKING_PERSISTENT result partition type of coming edge.
+ * This is the inner OutputFormat used for specify the BLOCKING_PERSISTENT result partition type of
+ * coming edge.
+ *
  * @param <T>
  */
 @Internal
 public final class BlockingShuffleOutputFormat<T> implements OutputFormat<T> {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	private final AbstractID intermediateDataSetId;
+    private final AbstractID intermediateDataSetId;
 
-	private BlockingShuffleOutputFormat(AbstractID intermediateDataSetId) {
-		this.intermediateDataSetId = intermediateDataSetId;
-	}
+    private BlockingShuffleOutputFormat(AbstractID intermediateDataSetId) {
+        this.intermediateDataSetId = intermediateDataSetId;
+    }
 
-	public static <T> BlockingShuffleOutputFormat<T> createOutputFormat(AbstractID intermediateDataSetId) {
-		return new BlockingShuffleOutputFormat<>(Preconditions.checkNotNull(intermediateDataSetId, "intermediateDataSetId is null"));
-	}
+    public static <T> BlockingShuffleOutputFormat<T> createOutputFormat(
+            AbstractID intermediateDataSetId) {
+        return new BlockingShuffleOutputFormat<>(
+                Preconditions.checkNotNull(intermediateDataSetId, "intermediateDataSetId is null"));
+    }
 
-	@Override
-	public void configure(Configuration parameters) {
-		throw new UnsupportedOperationException();
-	}
+    @Override
+    public void configure(Configuration parameters) {
+        throw new UnsupportedOperationException();
+    }
 
-	@Override
-	public void open(int taskNumber, int numTasks) throws IOException {
-		throw new UnsupportedOperationException();
-	}
+    @Override
+    public void open(int taskNumber, int numTasks) throws IOException {
+        throw new UnsupportedOperationException();
+    }
 
-	@Override
-	public void writeRecord(T record) throws IOException {
-		throw new UnsupportedOperationException();
-	}
+    @Override
+    public void writeRecord(T record) throws IOException {
+        throw new UnsupportedOperationException();
+    }
 
-	@Override
-	public void close() throws IOException {
-		throw new UnsupportedOperationException();
-	}
+    @Override
+    public void close() throws IOException {
+        throw new UnsupportedOperationException();
+    }
 
-	public AbstractID getIntermediateDataSetId() {
-		return intermediateDataSetId;
-	}
+    public AbstractID getIntermediateDataSetId() {
+        return intermediateDataSetId;
+    }
 }

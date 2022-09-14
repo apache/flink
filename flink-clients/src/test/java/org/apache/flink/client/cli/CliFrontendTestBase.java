@@ -20,18 +20,15 @@ package org.apache.flink.client.cli;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.GlobalConfiguration;
-import org.apache.flink.util.TestLogger;
 
-/**
- * Base test class for {@link CliFrontend} tests.
- */
-public abstract class CliFrontendTestBase extends TestLogger {
+/** Base test class for {@link CliFrontend} tests. */
+public abstract class CliFrontendTestBase {
 
-	protected Configuration getConfiguration() {
-		return GlobalConfiguration.loadConfiguration(CliFrontendTestUtils.getConfigDir());
-	}
+    protected Configuration getConfiguration() {
+        return GlobalConfiguration.loadConfiguration(CliFrontendTestUtils.getConfigDir());
+    }
 
-	static AbstractCustomCommandLine getCli(Configuration configuration) {
-		return new DefaultCLI(configuration);
-	}
+    static AbstractCustomCommandLine getCli() {
+        return new DefaultCLI();
+    }
 }

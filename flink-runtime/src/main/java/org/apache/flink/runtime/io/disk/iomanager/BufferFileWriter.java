@@ -25,14 +25,11 @@ import java.io.IOException;
 
 public interface BufferFileWriter extends BlockChannelWriterWithCallback<Buffer> {
 
-	/**
-	 * Returns the number of outstanding requests.
-	 */
-	int getNumberOfOutstandingRequests();
+    /** Returns the number of outstanding requests. */
+    int getNumberOfOutstandingRequests();
 
-	/**
-	 * Registers a listener, which is notified after all outstanding requests have been processed.
-	 */
-	boolean registerAllRequestsProcessedListener(NotificationListener listener) throws IOException;
-
+    /**
+     * Registers a listener, which is notified after all outstanding requests have been processed.
+     */
+    boolean registerAllRequestsProcessedListener(NotificationListener listener) throws IOException;
 }

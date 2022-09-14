@@ -31,31 +31,37 @@ import org.apache.flink.api.java.io.DiscardingOutputFormat;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.configuration.MemorySize;
+import org.apache.flink.configuration.NettyShuffleEnvironmentOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
-import org.apache.flink.runtime.clusterframework.types.ResourceID;
-import org.apache.flink.runtime.concurrent.FutureUtils;
-import org.apache.flink.runtime.concurrent.ScheduledExecutorServiceAdapter;
+import org.apache.flink.core.plugin.PluginManager;
+import org.apache.flink.core.plugin.PluginUtils;
 import org.apache.flink.runtime.dispatcher.DispatcherGateway;
 import org.apache.flink.runtime.dispatcher.DispatcherId;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServicesUtils;
 import org.apache.flink.runtime.leaderelection.TestingListener;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
+import org.apache.flink.runtime.rest.util.NoOpFatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcService;
+import org.apache.flink.runtime.rpc.RpcSystem;
 import org.apache.flink.runtime.rpc.RpcUtils;
-import org.apache.flink.runtime.rpc.akka.AkkaRpcServiceUtils;
+import org.apache.flink.runtime.taskexecutor.TaskExecutorResourceUtils;
 import org.apache.flink.runtime.taskexecutor.TaskManagerRunner;
-import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.runtime.testutils.DispatcherProcess;
 import org.apache.flink.runtime.testutils.ZooKeeperTestUtils;
 import org.apache.flink.runtime.zookeeper.ZooKeeperTestEnvironment;
+import org.apache.flink.testutils.TestingUtils;
+import org.apache.flink.testutils.executor.TestExecutorResource;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.TestLogger;
+import org.apache.flink.util.concurrent.FutureUtils;
+import org.apache.flink.util.concurrent.ScheduledExecutorServiceAdapter;
 
 import org.apache.commons.io.FileUtils;
 import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.BeforeClass;
+import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
@@ -70,6 +76,7 @@ import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -82,10 +89,10 @@ import static org.junit.Assert.fail;
  *
  * <p>Initially, it starts two TaskManager (2 slots each) and two JobManager JVMs.
  *
- * <p>It submits a program with parallelism 4 and waits until all tasks are brought up.
- * Coordination between the test and the tasks happens via checking for the existence of
- * temporary files. It then kills the leading JobManager process. The recovery should restart the
- * tasks on the new JobManager.
+ * <p>It submits a program with parallelism 4 and waits until all tasks are brought up. Coordination
+ * between the test and the tasks happens via checking for the existence of temporary files. It then
+ * kills the leading JobManager process. The recovery should restart the tasks on the new
+ * JobManager.
  *
  * <p>This follows the same structure as {@link AbstractTaskManagerProcessFailureRecoveryTest}.
  */
@@ -93,313 +100,363 @@ import static org.junit.Assert.fail;
 @RunWith(Parameterized.class)
 public class JobManagerHAProcessFailureRecoveryITCase extends TestLogger {
 
-	private static ZooKeeperTestEnvironment zooKeeper;
+    private static ZooKeeperTestEnvironment zooKeeper;
 
-	private static final Duration TEST_TIMEOUT = Duration.ofMinutes(5);
+    private static final Duration TEST_TIMEOUT = Duration.ofMinutes(5);
 
-	@Rule
-	public final TemporaryFolder temporaryFolder = new TemporaryFolder();
+    @ClassRule
+    public static final TestExecutorResource<ScheduledExecutorService> EXECUTOR_RESOURCE =
+            TestingUtils.defaultExecutorResource();
 
-	@BeforeClass
-	public static void setup() {
-		zooKeeper = new ZooKeeperTestEnvironment(1);
-	}
+    @Rule public final TemporaryFolder temporaryFolder = new TemporaryFolder();
 
-	@Before
-	public void cleanUp() throws Exception {
-		zooKeeper.deleteAll();
-	}
+    @BeforeClass
+    public static void setup() {
+        zooKeeper = new ZooKeeperTestEnvironment(1);
+    }
 
-	@AfterClass
-	public static void tearDown() throws Exception {
-		if (zooKeeper != null) {
-			zooKeeper.shutdown();
-		}
-	}
+    @Before
+    public void cleanUp() throws Exception {
+        zooKeeper.deleteAll();
+    }
 
-	protected static final String READY_MARKER_FILE_PREFIX = "ready_";
-	protected static final String FINISH_MARKER_FILE_PREFIX = "finish_";
-	protected static final String PROCEED_MARKER_FILE = "proceed";
+    @AfterClass
+    public static void tearDown() throws Exception {
+        if (zooKeeper != null) {
+            zooKeeper.shutdown();
+        }
+    }
 
-	protected static final int PARALLELISM = 4;
+    protected static final String READY_MARKER_FILE_PREFIX = "ready_";
+    protected static final String FINISH_MARKER_FILE_PREFIX = "finish_";
+    protected static final String PROCEED_MARKER_FILE = "proceed";
 
-	// --------------------------------------------------------------------------------------------
-	//  Parametrization (run pipelined and batch)
-	// --------------------------------------------------------------------------------------------
+    protected static final int PARALLELISM = 4;
 
-	private final ExecutionMode executionMode;
+    // --------------------------------------------------------------------------------------------
+    //  Parametrization (run pipelined and batch)
+    // --------------------------------------------------------------------------------------------
 
-	public JobManagerHAProcessFailureRecoveryITCase(ExecutionMode executionMode) {
-		this.executionMode = executionMode;
-	}
+    private final ExecutionMode executionMode;
 
-	@Parameterized.Parameters(name = "ExecutionMode {0}")
-	public static Collection<Object[]> executionMode() {
-		return Arrays.asList(new Object[][]{
-				{ ExecutionMode.PIPELINED},
-				{ExecutionMode.BATCH}});
-	}
+    public JobManagerHAProcessFailureRecoveryITCase(ExecutionMode executionMode) {
+        this.executionMode = executionMode;
+    }
 
-	/**
-	 * Test program with JobManager failure.
-	 *
-	 * @param zkQuorum ZooKeeper quorum to connect to
-	 * @param coordinateDir Coordination directory
-	 * @throws Exception
-	 */
-	private void testJobManagerFailure(String zkQuorum, final File coordinateDir, final File zookeeperStoragePath) throws Exception {
-		Configuration config = new Configuration();
-		config.setString(HighAvailabilityOptions.HA_MODE, "ZOOKEEPER");
-		config.setString(HighAvailabilityOptions.HA_ZOOKEEPER_QUORUM, zkQuorum);
-		config.setString(HighAvailabilityOptions.HA_STORAGE_PATH, zookeeperStoragePath.getAbsolutePath());
+    @Parameterized.Parameters(name = "ExecutionMode {0}")
+    public static Collection<Object[]> executionMode() {
+        return Arrays.asList(new Object[][] {{ExecutionMode.PIPELINED}, {ExecutionMode.BATCH}});
+    }
 
-		ExecutionEnvironment env = ExecutionEnvironment.createRemoteEnvironment(
-				"leader", 1, config);
-		env.setParallelism(PARALLELISM);
-		env.setRestartStrategy(RestartStrategies.fixedDelayRestart(1, 0L));
-		env.getConfig().setExecutionMode(executionMode);
+    /**
+     * Test program with JobManager failure.
+     *
+     * @param zkQuorum ZooKeeper quorum to connect to
+     * @param coordinateDir Coordination directory
+     * @throws Exception
+     */
+    private void testJobManagerFailure(
+            String zkQuorum, final File coordinateDir, final File zookeeperStoragePath)
+            throws Exception {
+        Configuration config = new Configuration();
+        config.setString(HighAvailabilityOptions.HA_MODE, "ZOOKEEPER");
+        config.setString(HighAvailabilityOptions.HA_ZOOKEEPER_QUORUM, zkQuorum);
+        config.setString(
+                HighAvailabilityOptions.HA_STORAGE_PATH, zookeeperStoragePath.getAbsolutePath());
 
-		final long numElements = 100000L;
-		final DataSet<Long> result = env.generateSequence(1, numElements)
-				// make sure every mapper is involved (no one is skipped because of lazy split assignment)
-				.rebalance()
-				// the majority of the behavior is in the MapFunction
-				.map(new RichMapFunction<Long, Long>() {
+        ExecutionEnvironment env =
+                ExecutionEnvironment.createRemoteEnvironment("leader", 1, config);
+        env.setParallelism(PARALLELISM);
+        env.setRestartStrategy(RestartStrategies.fixedDelayRestart(1, 0L));
+        env.getConfig().setExecutionMode(executionMode);
 
-					private final File proceedFile = new File(coordinateDir, PROCEED_MARKER_FILE);
+        final long numElements = 100000L;
+        final DataSet<Long> result =
+                env.generateSequence(1, numElements)
+                        // make sure every mapper is involved (no one is skipped because of lazy
+                        // split assignment)
+                        .rebalance()
+                        // the majority of the behavior is in the MapFunction
+                        .map(
+                                new RichMapFunction<Long, Long>() {
 
-					private boolean markerCreated = false;
-					private boolean checkForProceedFile = true;
+                                    private final File proceedFile =
+                                            new File(coordinateDir, PROCEED_MARKER_FILE);
 
-					@Override
-					public Long map(Long value) throws Exception {
-						if (!markerCreated) {
-							int taskIndex = getRuntimeContext().getIndexOfThisSubtask();
-							AbstractTaskManagerProcessFailureRecoveryTest.touchFile(
-									new File(coordinateDir, READY_MARKER_FILE_PREFIX + taskIndex));
-							markerCreated = true;
-						}
+                                    private boolean markerCreated = false;
+                                    private boolean checkForProceedFile = true;
 
-						// check if the proceed file exists
-						if (checkForProceedFile) {
-							if (proceedFile.exists()) {
-								checkForProceedFile = false;
-							}
-							else {
-								// otherwise wait so that we make slow progress
-								Thread.sleep(100);
-							}
-						}
-						return value;
-					}
-				})
-				.reduce(new ReduceFunction<Long>() {
-					@Override
-					public Long reduce(Long value1, Long value2) {
-						return value1 + value2;
-					}
-				})
-				// The check is done in the mapper, because the client can currently not handle
-				// job manager losses/reconnects.
-				.flatMap(new RichFlatMapFunction<Long, Long>() {
-					@Override
-					public void flatMap(Long value, Collector<Long> out) throws Exception {
-						assertEquals(numElements * (numElements + 1L) / 2L, (long) value);
+                                    @Override
+                                    public Long map(Long value) throws Exception {
+                                        if (!markerCreated) {
+                                            int taskIndex =
+                                                    getRuntimeContext().getIndexOfThisSubtask();
+                                            AbstractTaskManagerProcessFailureRecoveryTest.touchFile(
+                                                    new File(
+                                                            coordinateDir,
+                                                            READY_MARKER_FILE_PREFIX + taskIndex));
+                                            markerCreated = true;
+                                        }
 
-						int taskIndex = getRuntimeContext().getIndexOfThisSubtask();
-						AbstractTaskManagerProcessFailureRecoveryTest.touchFile(
-								new File(coordinateDir, FINISH_MARKER_FILE_PREFIX + taskIndex));
-					}
-				});
+                                        // check if the proceed file exists
+                                        if (checkForProceedFile) {
+                                            if (proceedFile.exists()) {
+                                                checkForProceedFile = false;
+                                            } else {
+                                                // otherwise wait so that we make slow progress
+                                                Thread.sleep(100);
+                                            }
+                                        }
+                                        return value;
+                                    }
+                                })
+                        .reduce(
+                                new ReduceFunction<Long>() {
+                                    @Override
+                                    public Long reduce(Long value1, Long value2) {
+                                        return value1 + value2;
+                                    }
+                                })
+                        // The check is done in the mapper, because the client can currently not
+                        // handle
+                        // job manager losses/reconnects.
+                        .flatMap(
+                                new RichFlatMapFunction<Long, Long>() {
+                                    @Override
+                                    public void flatMap(Long value, Collector<Long> out)
+                                            throws Exception {
+                                        assertEquals(
+                                                numElements * (numElements + 1L) / 2L,
+                                                (long) value);
 
-		result.output(new DiscardingOutputFormat<Long>());
+                                        int taskIndex = getRuntimeContext().getIndexOfThisSubtask();
+                                        AbstractTaskManagerProcessFailureRecoveryTest.touchFile(
+                                                new File(
+                                                        coordinateDir,
+                                                        FINISH_MARKER_FILE_PREFIX + taskIndex));
+                                    }
+                                });
 
-		env.execute();
-	}
+        result.output(new DiscardingOutputFormat<Long>());
 
-	@Test
-	public void testDispatcherProcessFailure() throws Exception {
-		final Time timeout = Time.seconds(30L);
-		final File zookeeperStoragePath = temporaryFolder.newFolder();
+        env.execute();
+    }
 
-		// Config
-		final int numberOfJobManagers = 2;
-		final int numberOfTaskManagers = 2;
-		final int numberOfSlotsPerTaskManager = 2;
+    @Test
+    public void testDispatcherProcessFailure() throws Exception {
+        final Time timeout = Time.seconds(30L);
+        final File zookeeperStoragePath = temporaryFolder.newFolder();
 
-		assertEquals(PARALLELISM, numberOfTaskManagers * numberOfSlotsPerTaskManager);
+        // Config
+        final int numberOfJobManagers = 2;
+        final int numberOfTaskManagers = 2;
+        final int numberOfSlotsPerTaskManager = 2;
 
-		// Job managers
-		final DispatcherProcess[] dispatcherProcesses = new DispatcherProcess[numberOfJobManagers];
+        assertEquals(PARALLELISM, numberOfTaskManagers * numberOfSlotsPerTaskManager);
 
-		// Task managers
-		TaskManagerRunner[] taskManagerRunners = new TaskManagerRunner[numberOfTaskManagers];
+        // Job managers
+        final DispatcherProcess[] dispatcherProcesses = new DispatcherProcess[numberOfJobManagers];
 
-		HighAvailabilityServices highAvailabilityServices = null;
+        // Task managers
+        TaskManagerRunner[] taskManagerRunners = new TaskManagerRunner[numberOfTaskManagers];
 
-		LeaderRetrievalService leaderRetrievalService = null;
+        HighAvailabilityServices highAvailabilityServices = null;
 
-		// Coordination between the processes goes through a directory
-		File coordinateTempDir = null;
+        LeaderRetrievalService leaderRetrievalService = null;
 
-		// Cluster config
-		Configuration config = ZooKeeperTestUtils.createZooKeeperHAConfig(
-			zooKeeper.getConnectString(), zookeeperStoragePath.getPath());
-		// Task manager configuration
-		config.set(TaskManagerOptions.MANAGED_MEMORY_SIZE, MemorySize.parse("4m"));
-		config.set(TaskManagerOptions.NETWORK_MEMORY_MIN, MemorySize.parse("3200k"));
-		config.set(TaskManagerOptions.NETWORK_MEMORY_MAX, MemorySize.parse("3200k"));
-		config.setInteger(TaskManagerOptions.NUM_TASK_SLOTS, 2);
-		config.set(TaskManagerOptions.TASK_HEAP_MEMORY, MemorySize.parse("128m"));
-		config.set(TaskManagerOptions.CPU_CORES, 1.0);
+        // Coordination between the processes goes through a directory
+        File coordinateTempDir = null;
 
-		final RpcService rpcService = AkkaRpcServiceUtils.createRpcService("localhost", 0, config);
+        // Cluster config
+        Configuration config =
+                ZooKeeperTestUtils.createZooKeeperHAConfig(
+                        zooKeeper.getConnectString(), zookeeperStoragePath.getPath());
+        // Task manager configuration
+        config.set(TaskManagerOptions.MANAGED_MEMORY_SIZE, MemorySize.parse("4m"));
+        config.set(TaskManagerOptions.NETWORK_MEMORY_MIN, MemorySize.parse("3200k"));
+        config.set(TaskManagerOptions.NETWORK_MEMORY_MAX, MemorySize.parse("3200k"));
+        config.set(NettyShuffleEnvironmentOptions.NETWORK_SORT_SHUFFLE_MIN_BUFFERS, 16);
+        config.setInteger(TaskManagerOptions.NUM_TASK_SLOTS, 2);
+        config.set(TaskManagerOptions.TASK_HEAP_MEMORY, MemorySize.parse("128m"));
+        config.set(TaskManagerOptions.CPU_CORES, 1.0);
+        TaskExecutorResourceUtils.adjustForLocalExecution(config);
 
-		try {
-			final Deadline deadline = Deadline.fromNow(TEST_TIMEOUT);
+        final RpcService rpcService =
+                RpcSystem.load().remoteServiceBuilder(config, "localhost", "0").createAndStart();
 
-			// Coordination directory
-			coordinateTempDir = temporaryFolder.newFolder();
+        try {
+            final Deadline deadline = Deadline.fromNow(TEST_TIMEOUT);
 
-			// Start first process
-			dispatcherProcesses[0] = new DispatcherProcess(0, config);
-			dispatcherProcesses[0].startProcess();
+            // Coordination directory
+            coordinateTempDir = temporaryFolder.newFolder();
 
-			highAvailabilityServices = HighAvailabilityServicesUtils.createAvailableOrEmbeddedServices(
-				config,
-				TestingUtils.defaultExecutor());
+            // Start first process
+            dispatcherProcesses[0] = new DispatcherProcess(0, config);
+            dispatcherProcesses[0].startProcess();
 
-			// Start the task manager process
-			for (int i = 0; i < numberOfTaskManagers; i++) {
-				taskManagerRunners[i] = new TaskManagerRunner(config, ResourceID.generate());
-				taskManagerRunners[i].start();
-			}
+            highAvailabilityServices =
+                    HighAvailabilityServicesUtils.createAvailableOrEmbeddedServices(
+                            config,
+                            EXECUTOR_RESOURCE.getExecutor(),
+                            NoOpFatalErrorHandler.INSTANCE);
 
-			// Leader listener
-			TestingListener leaderListener = new TestingListener();
-			leaderRetrievalService = highAvailabilityServices.getDispatcherLeaderRetriever();
-			leaderRetrievalService.start(leaderListener);
+            final PluginManager pluginManager =
+                    PluginUtils.createPluginManagerFromRootFolder(config);
+            // Start the task manager process
+            for (int i = 0; i < numberOfTaskManagers; i++) {
+                taskManagerRunners[i] =
+                        new TaskManagerRunner(
+                                config,
+                                pluginManager,
+                                TaskManagerRunner::createTaskExecutorService);
+                taskManagerRunners[i].start();
+            }
 
-			// Initial submission
-			leaderListener.waitForNewLeader(deadline.timeLeft().toMillis());
+            // Leader listener
+            TestingListener leaderListener = new TestingListener();
+            leaderRetrievalService = highAvailabilityServices.getDispatcherLeaderRetriever();
+            leaderRetrievalService.start(leaderListener);
 
-			String leaderAddress = leaderListener.getAddress();
-			UUID leaderId = leaderListener.getLeaderSessionID();
+            // Initial submission
+            leaderListener.waitForNewLeader();
 
-			final CompletableFuture<DispatcherGateway> dispatcherGatewayFuture = rpcService.connect(
-				leaderAddress,
-				DispatcherId.fromUuid(leaderId),
-				DispatcherGateway.class);
-			final DispatcherGateway dispatcherGateway = dispatcherGatewayFuture.get();
+            String leaderAddress = leaderListener.getAddress();
+            UUID leaderId = leaderListener.getLeaderSessionID();
 
-			// Wait for all task managers to connect to the leading job manager
-			waitForTaskManagers(numberOfTaskManagers, dispatcherGateway, deadline.timeLeft());
+            final CompletableFuture<DispatcherGateway> dispatcherGatewayFuture =
+                    rpcService.connect(
+                            leaderAddress,
+                            DispatcherId.fromUuid(leaderId),
+                            DispatcherGateway.class);
+            final DispatcherGateway dispatcherGateway = dispatcherGatewayFuture.get();
 
-			final File coordinateDirClosure = coordinateTempDir;
-			final Throwable[] errorRef = new Throwable[1];
+            // Wait for all task managers to connect to the leading job manager
+            waitForTaskManagers(numberOfTaskManagers, dispatcherGateway, deadline.timeLeft());
 
-			// we trigger program execution in a separate thread
-			Thread programTrigger = new Thread("Program Trigger") {
-				@Override
-				public void run() {
-					try {
-						testJobManagerFailure(zooKeeper.getConnectString(), coordinateDirClosure, zookeeperStoragePath);
-					}
-					catch (Throwable t) {
-						t.printStackTrace();
-						errorRef[0] = t;
-					}
-				}
-			};
+            final File coordinateDirClosure = coordinateTempDir;
+            final Throwable[] errorRef = new Throwable[1];
 
-			//start the test program
-			programTrigger.start();
+            // we trigger program execution in a separate thread
+            Thread programTrigger =
+                    new Thread("Program Trigger") {
+                        @Override
+                        public void run() {
+                            try {
+                                testJobManagerFailure(
+                                        zooKeeper.getConnectString(),
+                                        coordinateDirClosure,
+                                        zookeeperStoragePath);
+                            } catch (Throwable t) {
+                                t.printStackTrace();
+                                errorRef[0] = t;
+                            }
+                        }
+                    };
 
-			// wait until all marker files are in place, indicating that all tasks have started
-			AbstractTaskManagerProcessFailureRecoveryTest.waitForMarkerFiles(coordinateTempDir,
-					READY_MARKER_FILE_PREFIX, PARALLELISM, deadline.timeLeft().toMillis());
+            // start the test program
+            programTrigger.start();
 
-			// Kill one of the job managers and trigger recovery
-			dispatcherProcesses[0].destroy();
+            // wait until all marker files are in place, indicating that all tasks have started
+            AbstractTaskManagerProcessFailureRecoveryTest.waitForMarkerFiles(
+                    coordinateTempDir,
+                    READY_MARKER_FILE_PREFIX,
+                    PARALLELISM,
+                    deadline.timeLeft().toMillis());
 
-			dispatcherProcesses[1] = new DispatcherProcess(1, config);
-			dispatcherProcesses[1].startProcess();
+            // Kill one of the job managers and trigger recovery
+            dispatcherProcesses[0].destroy();
 
-			// we create the marker file which signals the program functions tasks that they can complete
-			AbstractTaskManagerProcessFailureRecoveryTest.touchFile(new File(coordinateTempDir, PROCEED_MARKER_FILE));
+            dispatcherProcesses[1] = new DispatcherProcess(1, config);
+            dispatcherProcesses[1].startProcess();
 
-			programTrigger.join(deadline.timeLeft().toMillis());
+            // we create the marker file which signals the program functions tasks that they can
+            // complete
+            AbstractTaskManagerProcessFailureRecoveryTest.touchFile(
+                    new File(coordinateTempDir, PROCEED_MARKER_FILE));
 
-			// We wait for the finish marker file. We don't wait for the program trigger, because
-			// we submit in detached mode.
-			AbstractTaskManagerProcessFailureRecoveryTest.waitForMarkerFiles(coordinateTempDir,
-					FINISH_MARKER_FILE_PREFIX, 1, deadline.timeLeft().toMillis());
+            programTrigger.join(deadline.timeLeft().toMillis());
 
-			// check that the program really finished
-			assertFalse("The program did not finish in time", programTrigger.isAlive());
+            // We wait for the finish marker file. We don't wait for the program trigger, because
+            // we submit in detached mode.
+            AbstractTaskManagerProcessFailureRecoveryTest.waitForMarkerFiles(
+                    coordinateTempDir,
+                    FINISH_MARKER_FILE_PREFIX,
+                    1,
+                    deadline.timeLeft().toMillis());
 
-			// check whether the program encountered an error
-			if (errorRef[0] != null) {
-				Throwable error = errorRef[0];
-				error.printStackTrace();
-				fail("The program encountered a " + error.getClass().getSimpleName() + " : " + error.getMessage());
-			}
-		}
-		catch (Throwable t) {
-			// Print early (in some situations the process logs get too big
-			// for Travis and the root problem is not shown)
-			t.printStackTrace();
+            // check that the program really finished
+            assertFalse("The program did not finish in time", programTrigger.isAlive());
 
-			for (DispatcherProcess p : dispatcherProcesses) {
-				if (p != null) {
-					p.printProcessLog();
-				}
-			}
+            // check whether the program encountered an error
+            if (errorRef[0] != null) {
+                Throwable error = errorRef[0];
+                error.printStackTrace();
+                fail(
+                        "The program encountered a "
+                                + error.getClass().getSimpleName()
+                                + " : "
+                                + error.getMessage());
+            }
+        } catch (Throwable t) {
+            // Print early (in some situations the process logs get too big
+            // for Travis and the root problem is not shown)
+            t.printStackTrace();
 
-			throw t;
-		}
-		finally {
-			for (int i = 0; i < numberOfTaskManagers; i++) {
-				if (taskManagerRunners[i] != null) {
-					taskManagerRunners[i].close();
-				}
-			}
+            for (DispatcherProcess p : dispatcherProcesses) {
+                if (p != null) {
+                    p.printProcessLog();
+                }
+            }
 
-			if (leaderRetrievalService != null) {
-				leaderRetrievalService.stop();
-			}
+            throw t;
+        } finally {
+            for (int i = 0; i < numberOfTaskManagers; i++) {
+                if (taskManagerRunners[i] != null) {
+                    taskManagerRunners[i].close();
+                }
+            }
 
-			for (DispatcherProcess dispatcherProcess : dispatcherProcesses) {
-				if (dispatcherProcess != null) {
-					dispatcherProcess.destroy();
-				}
-			}
+            if (leaderRetrievalService != null) {
+                leaderRetrievalService.stop();
+            }
 
-			if (highAvailabilityServices != null) {
-				highAvailabilityServices.closeAndCleanupAllData();
-			}
+            for (DispatcherProcess dispatcherProcess : dispatcherProcesses) {
+                if (dispatcherProcess != null) {
+                    dispatcherProcess.destroy();
+                }
+            }
 
-			RpcUtils.terminateRpcService(rpcService, timeout);
+            if (highAvailabilityServices != null) {
+                highAvailabilityServices.closeAndCleanupAllData();
+            }
 
-			// Delete coordination directory
-			if (coordinateTempDir != null) {
-				try {
-					FileUtils.deleteDirectory(coordinateTempDir);
-				}
-				catch (Throwable ignored) {
-				}
-			}
-		}
-	}
+            RpcUtils.terminateRpcService(rpcService);
 
-	private void waitForTaskManagers(int numberOfTaskManagers, DispatcherGateway dispatcherGateway, Duration timeLeft) throws ExecutionException, InterruptedException {
-		FutureUtils.retrySuccessfulWithDelay(
-			() -> dispatcherGateway.requestClusterOverview(Time.milliseconds(timeLeft.toMillis())),
-			Time.milliseconds(50L),
-			org.apache.flink.api.common.time.Deadline.fromNow(Duration.ofMillis(timeLeft.toMillis())),
-			clusterOverview -> clusterOverview.getNumTaskManagersConnected() >= numberOfTaskManagers,
-			new ScheduledExecutorServiceAdapter(Executors.newSingleThreadScheduledExecutor()))
-			.get();
-	}
+            // Delete coordination directory
+            if (coordinateTempDir != null) {
+                try {
+                    FileUtils.deleteDirectory(coordinateTempDir);
+                } catch (Throwable ignored) {
+                }
+            }
+        }
+    }
 
+    private void waitForTaskManagers(
+            int numberOfTaskManagers, DispatcherGateway dispatcherGateway, Duration timeLeft)
+            throws ExecutionException, InterruptedException {
+        FutureUtils.retrySuccessfulWithDelay(
+                        () ->
+                                dispatcherGateway.requestClusterOverview(
+                                        Time.milliseconds(timeLeft.toMillis())),
+                        Duration.ofMillis(50L),
+                        org.apache.flink.api.common.time.Deadline.fromNow(
+                                Duration.ofMillis(timeLeft.toMillis())),
+                        clusterOverview ->
+                                clusterOverview.getNumTaskManagersConnected()
+                                        >= numberOfTaskManagers,
+                        new ScheduledExecutorServiceAdapter(
+                                Executors.newSingleThreadScheduledExecutor()))
+                .get();
+    }
 }

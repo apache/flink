@@ -29,32 +29,30 @@ import scala.reflect.ClassTag
  * The result of [[DataSet.sortPartition]]. This can be used to append additional sort fields to the
  * one sort-partition operator.
  *
- * @tparam T The type of the DataSet, i.e., the type of the elements of the DataSet.
+ * @tparam T
+ *   The type of the DataSet, i.e., the type of the elements of the DataSet.
  */
 @Public
-class PartitionSortedDataSet[T: ClassTag](set: SortPartitionOperator[T])
-  extends DataSet[T](set) {
+class PartitionSortedDataSet[T: ClassTag](set: SortPartitionOperator[T]) extends DataSet[T](set) {
 
-  /**
-   * Appends the given field and order to the sort-partition operator.
-   */
+  /** Appends the given field and order to the sort-partition operator. */
   override def sortPartition(field: Int, order: Order): DataSet[T] = {
     if (set.useKeySelector()) {
-      throw new InvalidProgramException("Expression keys cannot be appended after selector " +
-        "function keys")
+      throw new InvalidProgramException(
+        "Expression keys cannot be appended after selector " +
+          "function keys")
     }
 
     this.set.sortPartition(field, order)
     this
   }
 
-  /**
-   * Appends the given field and order to the sort-partition operator.
-   */
+  /** Appends the given field and order to the sort-partition operator. */
   override def sortPartition(field: String, order: Order): DataSet[T] = {
     if (set.useKeySelector()) {
-      throw new InvalidProgramException("Expression keys cannot be appended after selector " +
-        "function keys")
+      throw new InvalidProgramException(
+        "Expression keys cannot be appended after selector " +
+          "function keys")
     }
 
     this.set.sortPartition(field, order)

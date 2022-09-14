@@ -26,5 +26,4 @@ import org.apache.flink.table.operations.Operation;
  * <p>Different sub operations can have their special target name. For example, a drop table
  * operation may have a target table name and a flag to describe if is exists.
  */
-public interface DropOperation extends Operation {
-}
+public interface DropOperation extends Operation {}

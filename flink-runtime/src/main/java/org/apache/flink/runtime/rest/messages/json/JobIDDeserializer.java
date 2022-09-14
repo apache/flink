@@ -26,18 +26,16 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.deser.std
 
 import java.io.IOException;
 
-/**
- * Json deserializer for {@link JobID}.
- */
+/** Json deserializer for {@link JobID}. */
 public class JobIDDeserializer extends StdDeserializer<JobID> {
-	private static final long serialVersionUID = -130167416771003559L;
+    private static final long serialVersionUID = -130167416771003559L;
 
-	protected JobIDDeserializer() {
-		super(JobID.class);
-	}
+    protected JobIDDeserializer() {
+        super(JobID.class);
+    }
 
-	@Override
-	public JobID deserialize(JsonParser p, DeserializationContext ctxt) throws IOException {
-		return JobID.fromHexString(p.getValueAsString());
-	}
+    @Override
+    public JobID deserialize(JsonParser p, DeserializationContext ctxt) throws IOException {
+        return JobID.fromHexString(p.getValueAsString());
+    }
 }

@@ -22,26 +22,22 @@ import org.apache.flink.annotation.Internal;
 
 import javax.annotation.Nonnull;
 
-/**
- * Interface to deal with state snapshot and restore of state.
- * TODO find better name?
- */
+/** Interface to deal with state snapshot and restore of state. TODO find better name? */
 @Internal
 public interface StateSnapshotRestore {
 
-	/**
-	 * Returns a snapshot of the state.
-	 */
-	@Nonnull
-	StateSnapshot stateSnapshot();
+    /** Returns a snapshot of the state. */
+    @Nonnull
+    StateSnapshot stateSnapshot();
 
-	/**
-	 * This method returns a {@link StateSnapshotKeyGroupReader} that can be used to restore the state on a
-	 * per-key-group basis. This method tries to return a reader for the given version hint.
-	 *
-	 * @param readVersionHint the required version of the state to read.
-	 * @return a reader that reads state by key-groups, for the given read version.
-	 */
-	@Nonnull
-	StateSnapshotKeyGroupReader keyGroupReader(int readVersionHint);
+    /**
+     * This method returns a {@link StateSnapshotKeyGroupReader} that can be used to restore the
+     * state on a per-key-group basis. This method tries to return a reader for the given version
+     * hint.
+     *
+     * @param readVersionHint the required version of the state to read.
+     * @return a reader that reads state by key-groups, for the given read version.
+     */
+    @Nonnull
+    StateSnapshotKeyGroupReader keyGroupReader(int readVersionHint);
 }

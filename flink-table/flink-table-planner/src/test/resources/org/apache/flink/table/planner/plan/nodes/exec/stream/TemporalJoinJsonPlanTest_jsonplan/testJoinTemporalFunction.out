@@ -1,0 +1,420 @@
+{
+  "flinkVersion" : "",
+  "nodes" : [ {
+    "id" : 1,
+    "type" : "stream-exec-table-source-scan_1",
+    "scanTableSource" : {
+      "table" : {
+        "identifier" : "`default_catalog`.`default_database`.`Orders`",
+        "resolvedTable" : {
+          "schema" : {
+            "columns" : [ {
+              "name" : "amount",
+              "dataType" : "INT"
+            }, {
+              "name" : "currency",
+              "dataType" : "VARCHAR(2147483647)"
+            }, {
+              "name" : "rowtime",
+              "dataType" : {
+                "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
+                "precision" : 3,
+                "kind" : "ROWTIME"
+              }
+            }, {
+              "name" : "proctime",
+              "kind" : "COMPUTED",
+              "expression" : {
+                "rexNode" : {
+                  "kind" : "CALL",
+                  "internalName" : "$PROCTIME$1",
+                  "operands" : [ ],
+                  "type" : {
+                    "type" : "TIMESTAMP_WITH_LOCAL_TIME_ZONE",
+                    "nullable" : false,
+                    "precision" : 3,
+                    "kind" : "PROCTIME"
+                  }
+                },
+                "serializableString" : "PROCTIME()"
+              }
+            } ],
+            "watermarkSpecs" : [ {
+              "rowtimeAttribute" : "rowtime",
+              "expression" : {
+                "rexNode" : {
+                  "kind" : "INPUT_REF",
+                  "inputIndex" : 2,
+                  "type" : "TIMESTAMP(3)"
+                },
+                "serializableString" : "`rowtime`"
+              }
+            } ]
+          },
+          "partitionKeys" : [ ],
+          "options" : {
+            "connector" : "values"
+          }
+        }
+      }
+    },
+    "outputType" : "ROW<`amount` INT, `currency` VARCHAR(2147483647), `rowtime` TIMESTAMP(3)>",
+    "description" : "TableSourceScan(table=[[default_catalog, default_database, Orders]], fields=[amount, currency, rowtime])",
+    "inputProperties" : [ ]
+  }, {
+    "id" : 2,
+    "type" : "stream-exec-watermark-assigner_1",
+    "watermarkExpr" : {
+      "kind" : "INPUT_REF",
+      "inputIndex" : 2,
+      "type" : "TIMESTAMP(3)"
+    },
+    "rowtimeFieldIndex" : 2,
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "UNKNOWN"
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    } ],
+    "outputType" : {
+      "type" : "ROW",
+      "fields" : [ {
+        "name" : "amount",
+        "fieldType" : "INT"
+      }, {
+        "name" : "currency",
+        "fieldType" : "VARCHAR(2147483647)"
+      }, {
+        "name" : "rowtime",
+        "fieldType" : {
+          "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
+          "precision" : 3,
+          "kind" : "ROWTIME"
+        }
+      } ]
+    },
+    "description" : "WatermarkAssigner(rowtime=[rowtime], watermark=[rowtime])"
+  }, {
+    "id" : 3,
+    "type" : "stream-exec-exchange_1",
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "HASH",
+        "keys" : [ 1 ]
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    } ],
+    "outputType" : {
+      "type" : "ROW",
+      "fields" : [ {
+        "name" : "amount",
+        "fieldType" : "INT"
+      }, {
+        "name" : "currency",
+        "fieldType" : "VARCHAR(2147483647)"
+      }, {
+        "name" : "rowtime",
+        "fieldType" : {
+          "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
+          "precision" : 3,
+          "kind" : "ROWTIME"
+        }
+      } ]
+    },
+    "description" : "Exchange(distribution=[hash[currency]])"
+  }, {
+    "id" : 4,
+    "type" : "stream-exec-table-source-scan_1",
+    "scanTableSource" : {
+      "table" : {
+        "identifier" : "`default_catalog`.`default_database`.`RatesHistory`",
+        "resolvedTable" : {
+          "schema" : {
+            "columns" : [ {
+              "name" : "currency",
+              "dataType" : "VARCHAR(2147483647) NOT NULL"
+            }, {
+              "name" : "rate",
+              "dataType" : "INT"
+            }, {
+              "name" : "rowtime",
+              "dataType" : {
+                "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
+                "precision" : 3,
+                "kind" : "ROWTIME"
+              }
+            } ],
+            "watermarkSpecs" : [ {
+              "rowtimeAttribute" : "rowtime",
+              "expression" : {
+                "rexNode" : {
+                  "kind" : "INPUT_REF",
+                  "inputIndex" : 2,
+                  "type" : "TIMESTAMP(3)"
+                },
+                "serializableString" : "`rowtime`"
+              }
+            } ],
+            "primaryKey" : {
+              "name" : "PK_575402032",
+              "type" : "PRIMARY_KEY",
+              "columns" : [ "currency" ]
+            }
+          },
+          "partitionKeys" : [ ],
+          "options" : {
+            "connector" : "values"
+          }
+        }
+      }
+    },
+    "outputType" : "ROW<`currency` VARCHAR(2147483647) NOT NULL, `rate` INT, `rowtime` TIMESTAMP(3)>",
+    "description" : "TableSourceScan(table=[[default_catalog, default_database, RatesHistory]], fields=[currency, rate, rowtime])",
+    "inputProperties" : [ ]
+  }, {
+    "id" : 5,
+    "type" : "stream-exec-watermark-assigner_1",
+    "watermarkExpr" : {
+      "kind" : "INPUT_REF",
+      "inputIndex" : 2,
+      "type" : "TIMESTAMP(3)"
+    },
+    "rowtimeFieldIndex" : 2,
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "UNKNOWN"
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    } ],
+    "outputType" : {
+      "type" : "ROW",
+      "fields" : [ {
+        "name" : "currency",
+        "fieldType" : "VARCHAR(2147483647) NOT NULL"
+      }, {
+        "name" : "rate",
+        "fieldType" : "INT"
+      }, {
+        "name" : "rowtime",
+        "fieldType" : {
+          "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
+          "precision" : 3,
+          "kind" : "ROWTIME"
+        }
+      } ]
+    },
+    "description" : "WatermarkAssigner(rowtime=[rowtime], watermark=[rowtime])"
+  }, {
+    "id" : 6,
+    "type" : "stream-exec-exchange_1",
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "HASH",
+        "keys" : [ 0 ]
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    } ],
+    "outputType" : {
+      "type" : "ROW",
+      "fields" : [ {
+        "name" : "currency",
+        "fieldType" : "VARCHAR(2147483647) NOT NULL"
+      }, {
+        "name" : "rate",
+        "fieldType" : "INT"
+      }, {
+        "name" : "rowtime",
+        "fieldType" : {
+          "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
+          "precision" : 3,
+          "kind" : "ROWTIME"
+        }
+      } ]
+    },
+    "description" : "Exchange(distribution=[hash[currency]])"
+  }, {
+    "id" : 7,
+    "type" : "stream-exec-temporal-join_1",
+    "joinSpec" : {
+      "joinType" : "INNER",
+      "leftKeys" : [ 1 ],
+      "rightKeys" : [ 0 ],
+      "filterNulls" : [ true ],
+      "nonEquiCondition" : null
+    },
+    "isTemporalFunctionJoin" : true,
+    "leftTimeAttributeIndex" : 2,
+    "rightTimeAttributeIndex" : 2,
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "UNKNOWN"
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    }, {
+      "requiredDistribution" : {
+        "type" : "UNKNOWN"
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    } ],
+    "outputType" : {
+      "type" : "ROW",
+      "fields" : [ {
+        "name" : "amount",
+        "fieldType" : "INT"
+      }, {
+        "name" : "currency",
+        "fieldType" : "VARCHAR(2147483647)"
+      }, {
+        "name" : "rowtime",
+        "fieldType" : {
+          "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
+          "precision" : 3,
+          "kind" : "ROWTIME"
+        }
+      }, {
+        "name" : "currency0",
+        "fieldType" : "VARCHAR(2147483647) NOT NULL"
+      }, {
+        "name" : "rate",
+        "fieldType" : "INT"
+      }, {
+        "name" : "rowtime0",
+        "fieldType" : {
+          "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
+          "precision" : 3,
+          "kind" : "ROWTIME"
+        }
+      } ]
+    },
+    "description" : "TemporalJoin(joinType=[InnerJoin], where=[(__TEMPORAL_JOIN_CONDITION(rowtime, rowtime0, __TEMPORAL_JOIN_CONDITION_PRIMARY_KEY(currency0)) AND (currency = currency0))], select=[amount, currency, rowtime, currency0, rate, rowtime0])"
+  }, {
+    "id" : 8,
+    "type" : "stream-exec-calc_1",
+    "projection" : [ {
+      "kind" : "CALL",
+      "syntax" : "BINARY",
+      "internalName" : "$*$1",
+      "operands" : [ {
+        "kind" : "INPUT_REF",
+        "inputIndex" : 0,
+        "type" : "INT"
+      }, {
+        "kind" : "INPUT_REF",
+        "inputIndex" : 4,
+        "type" : "INT"
+      } ],
+      "type" : "INT"
+    } ],
+    "condition" : null,
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "UNKNOWN"
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    } ],
+    "outputType" : "ROW<`EXPR$0` INT>",
+    "description" : "Calc(select=[(amount * rate) AS EXPR$0])"
+  }, {
+    "id" : 9,
+    "type" : "stream-exec-sink_1",
+    "configuration" : {
+      "table.exec.sink.keyed-shuffle" : "AUTO",
+      "table.exec.sink.not-null-enforcer" : "ERROR",
+      "table.exec.sink.type-length-enforcer" : "IGNORE",
+      "table.exec.sink.upsert-materialize" : "AUTO"
+    },
+    "dynamicTableSink" : {
+      "table" : {
+        "identifier" : "`default_catalog`.`default_database`.`MySink`",
+        "resolvedTable" : {
+          "schema" : {
+            "columns" : [ {
+              "name" : "a",
+              "dataType" : "INT"
+            } ],
+            "watermarkSpecs" : [ ]
+          },
+          "partitionKeys" : [ ],
+          "options" : {
+            "connector" : "values",
+            "table-sink-class" : "DEFAULT"
+          }
+        }
+      }
+    },
+    "inputChangelogMode" : [ "INSERT" ],
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "UNKNOWN"
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    } ],
+    "outputType" : "ROW<`EXPR$0` INT>",
+    "description" : "Sink(table=[default_catalog.default_database.MySink], fields=[EXPR$0])"
+  } ],
+  "edges" : [ {
+    "source" : 1,
+    "target" : 2,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 2,
+    "target" : 3,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 4,
+    "target" : 5,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 5,
+    "target" : 6,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 3,
+    "target" : 7,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 6,
+    "target" : 7,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 7,
+    "target" : 8,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 8,
+    "target" : 9,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  } ]
+}

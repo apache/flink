@@ -27,153 +27,151 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 
-/**
- * Tests for {@link LongParameter}.
- */
-public class LongParameterTest
-extends ParameterTestBase {
+/** Tests for {@link LongParameter}. */
+public class LongParameterTest extends ParameterTestBase {
 
-	@Rule
-	public ExpectedException expectedException = ExpectedException.none();
+    @Rule public ExpectedException expectedException = ExpectedException.none();
 
-	private LongParameter parameter;
+    private LongParameter parameter;
 
-	@Before
-	public void setup() {
-		super.setup();
+    @Before
+    public void setup() {
+        super.setup();
 
-		parameter = new LongParameter(owner, "test");
-	}
+        parameter = new LongParameter(owner, "test");
+    }
 
-	// Test configuration
+    // Test configuration
 
-	@Test
-	public void testMinimumValueAboveMaximum() {
-		parameter.setMaximumValue(0);
+    @Test
+    public void testMinimumValueAboveMaximum() {
+        parameter.setMaximumValue(0);
 
-		expectedException.expect(ProgramParametrizationException.class);
-		expectedException.expectMessage("Minimum value (1) must be less than or equal to maximum (0)");
+        expectedException.expect(ProgramParametrizationException.class);
+        expectedException.expectMessage(
+                "Minimum value (1) must be less than or equal to maximum (0)");
 
-		parameter.setMinimumValue(1);
-	}
+        parameter.setMinimumValue(1);
+    }
 
-	@Test
-	public void testMaximumValueBelowMinimum() {
-		parameter.setMinimumValue(0);
+    @Test
+    public void testMaximumValueBelowMinimum() {
+        parameter.setMinimumValue(0);
 
-		expectedException.expect(ProgramParametrizationException.class);
-		expectedException.expectMessage("Maximum value (-1) must be greater than or equal to minimum (0)");
+        expectedException.expect(ProgramParametrizationException.class);
+        expectedException.expectMessage(
+                "Maximum value (-1) must be greater than or equal to minimum (0)");
 
-		parameter.setMaximumValue(-1);
-	}
+        parameter.setMaximumValue(-1);
+    }
 
-	// With default
+    // With default
 
-	@Test
-	public void testWithDefaultWithParameter() {
-		parameter.setDefaultValue(42);
-		Assert.assertEquals("[--test TEST]", parameter.getUsage());
+    @Test
+    public void testWithDefaultWithParameter() {
+        parameter.setDefaultValue(42);
+        Assert.assertEquals("[--test TEST]", parameter.getUsage());
 
-		parameter.configure(ParameterTool.fromArgs(new String[]{"--test", "54"}));
-		Assert.assertEquals(new Long(54), parameter.getValue());
-	}
+        parameter.configure(ParameterTool.fromArgs(new String[] {"--test", "54"}));
+        Assert.assertEquals(new Long(54), parameter.getValue());
+    }
 
-	@Test
-	public void testWithDefaultWithoutParameter() {
-		parameter.setDefaultValue(13);
-		Assert.assertEquals("[--test TEST]", parameter.getUsage());
+    @Test
+    public void testWithDefaultWithoutParameter() {
+        parameter.setDefaultValue(13);
+        Assert.assertEquals("[--test TEST]", parameter.getUsage());
 
-		parameter.configure(ParameterTool.fromArgs(new String[]{}));
-		Assert.assertEquals(new Long(13), parameter.getValue());
-	}
+        parameter.configure(ParameterTool.fromArgs(new String[] {}));
+        Assert.assertEquals(new Long(13), parameter.getValue());
+    }
 
-	// Without default
+    // Without default
 
-	@Test
-	public void testWithoutDefaultWithParameter() {
-		Assert.assertEquals("--test TEST", parameter.getUsage());
+    @Test
+    public void testWithoutDefaultWithParameter() {
+        Assert.assertEquals("--test TEST", parameter.getUsage());
 
-		parameter.configure(ParameterTool.fromArgs(new String[]{"--test", "42"}));
-		Assert.assertEquals(new Long(42), parameter.getValue());
-	}
+        parameter.configure(ParameterTool.fromArgs(new String[] {"--test", "42"}));
+        Assert.assertEquals(new Long(42), parameter.getValue());
+    }
 
-	@Test
-	public void testWithoutDefaultWithoutParameter() {
-		Assert.assertEquals("--test TEST", parameter.getUsage());
+    @Test
+    public void testWithoutDefaultWithoutParameter() {
+        Assert.assertEquals("--test TEST", parameter.getUsage());
 
-		expectedException.expect(RuntimeException.class);
-		expectedException.expectMessage("No data for required key 'test'");
+        expectedException.expect(RuntimeException.class);
+        expectedException.expectMessage("No data for required key 'test'");
 
-		parameter.configure(ParameterTool.fromArgs(new String[]{}));
-	}
+        parameter.configure(ParameterTool.fromArgs(new String[] {}));
+    }
 
-	// Min
+    // Min
 
-	@Test
-	public void testMinInRange() {
-		parameter.setMinimumValue(0);
-		parameter.configure(ParameterTool.fromArgs(new String[]{"--test", "1"}));
-		Assert.assertEquals(new Long(1), parameter.getValue());
-	}
+    @Test
+    public void testMinInRange() {
+        parameter.setMinimumValue(0);
+        parameter.configure(ParameterTool.fromArgs(new String[] {"--test", "1"}));
+        Assert.assertEquals(new Long(1), parameter.getValue());
+    }
 
-	@Test
-	public void testMinOutOfRange() {
-		parameter.setMinimumValue(0);
+    @Test
+    public void testMinOutOfRange() {
+        parameter.setMinimumValue(0);
 
-		expectedException.expect(ProgramParametrizationException.class);
-		expectedException.expectMessage("test must be greater than or equal to 0");
+        expectedException.expect(ProgramParametrizationException.class);
+        expectedException.expectMessage("test must be greater than or equal to 0");
 
-		parameter.configure(ParameterTool.fromArgs(new String[]{"--test", "-1"}));
-	}
+        parameter.configure(ParameterTool.fromArgs(new String[] {"--test", "-1"}));
+    }
 
-	// Max
+    // Max
 
-	@Test
-	public void testMaxInRange() {
-		parameter.setMaximumValue(0);
-		parameter.configure(ParameterTool.fromArgs(new String[]{"--test", "-1"}));
-		Assert.assertEquals(new Long(-1), parameter.getValue());
-	}
+    @Test
+    public void testMaxInRange() {
+        parameter.setMaximumValue(0);
+        parameter.configure(ParameterTool.fromArgs(new String[] {"--test", "-1"}));
+        Assert.assertEquals(new Long(-1), parameter.getValue());
+    }
 
-	@Test
-	public void testMaxOutOfRange() {
-		parameter.setMaximumValue(0);
+    @Test
+    public void testMaxOutOfRange() {
+        parameter.setMaximumValue(0);
 
-		expectedException.expect(ProgramParametrizationException.class);
-		expectedException.expectMessage("test must be less than or equal to 0");
+        expectedException.expect(ProgramParametrizationException.class);
+        expectedException.expectMessage("test must be less than or equal to 0");
 
-		parameter.configure(ParameterTool.fromArgs(new String[]{"--test", "1"}));
-	}
+        parameter.configure(ParameterTool.fromArgs(new String[] {"--test", "1"}));
+    }
 
-	// Min and max
+    // Min and max
 
-	@Test
-	public void testMinAndMaxBelowRange() {
-		parameter.setMinimumValue(-1);
-		parameter.setMaximumValue(1);
+    @Test
+    public void testMinAndMaxBelowRange() {
+        parameter.setMinimumValue(-1);
+        parameter.setMaximumValue(1);
 
-		expectedException.expect(ProgramParametrizationException.class);
-		expectedException.expectMessage("test must be greater than or equal to -1");
+        expectedException.expect(ProgramParametrizationException.class);
+        expectedException.expectMessage("test must be greater than or equal to -1");
 
-		parameter.configure(ParameterTool.fromArgs(new String[]{"--test", "-2"}));
-	}
+        parameter.configure(ParameterTool.fromArgs(new String[] {"--test", "-2"}));
+    }
 
-	@Test
-	public void testMinAndMaxInRange() {
-		parameter.setMinimumValue(-1);
-		parameter.setMaximumValue(1);
-		parameter.configure(ParameterTool.fromArgs(new String[]{"--test", "0"}));
-		Assert.assertEquals(new Long(0), parameter.getValue());
-	}
+    @Test
+    public void testMinAndMaxInRange() {
+        parameter.setMinimumValue(-1);
+        parameter.setMaximumValue(1);
+        parameter.configure(ParameterTool.fromArgs(new String[] {"--test", "0"}));
+        Assert.assertEquals(new Long(0), parameter.getValue());
+    }
 
-	@Test
-	public void testMinAndMaxAboveRange() {
-		parameter.setMinimumValue(-1);
-		parameter.setMaximumValue(1);
+    @Test
+    public void testMinAndMaxAboveRange() {
+        parameter.setMinimumValue(-1);
+        parameter.setMaximumValue(1);
 
-		expectedException.expect(ProgramParametrizationException.class);
-		expectedException.expectMessage("test must be less than or equal to 1");
+        expectedException.expect(ProgramParametrizationException.class);
+        expectedException.expectMessage("test must be less than or equal to 1");
 
-		parameter.configure(ParameterTool.fromArgs(new String[]{"--test", "2"}));
-	}
+        parameter.configure(ParameterTool.fromArgs(new String[] {"--test", "2"}));
+    }
 }

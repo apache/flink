@@ -29,68 +29,71 @@ import java.util.concurrent.TimeUnit;
 import static org.apache.flink.metrics.View.UPDATE_INTERVAL_SECONDS;
 
 /**
- * The ViewUpdater is responsible for updating all metrics that implement the {@link View} interface.
+ * The ViewUpdater is responsible for updating all metrics that implement the {@link View}
+ * interface.
  */
 public class ViewUpdater {
-	private final Set<View> toAdd = new HashSet<>();
-	private final Set<View> toRemove = new HashSet<>();
+    private final Set<View> toAdd = new HashSet<>();
+    private final Set<View> toRemove = new HashSet<>();
 
-	private final Object lock = new Object();
+    private final Object lock = new Object();
 
-	public ViewUpdater(ScheduledExecutorService executor) {
-		executor.scheduleWithFixedDelay(new ViewUpdaterTask(lock, toAdd, toRemove), 5, UPDATE_INTERVAL_SECONDS, TimeUnit.SECONDS);
-	}
+    public ViewUpdater(ScheduledExecutorService executor) {
+        executor.scheduleWithFixedDelay(
+                new ViewUpdaterTask(lock, toAdd, toRemove),
+                5,
+                UPDATE_INTERVAL_SECONDS,
+                TimeUnit.SECONDS);
+    }
 
-	/**
-	 * Notifies this ViewUpdater of a new metric that should be regularly updated.
-	 *
-	 * @param view metric that should be regularly updated
-	 */
-	public void notifyOfAddedView(View view) {
-		synchronized (lock) {
-			toAdd.add(view);
-		}
-	}
+    /**
+     * Notifies this ViewUpdater of a new metric that should be regularly updated.
+     *
+     * @param view metric that should be regularly updated
+     */
+    public void notifyOfAddedView(View view) {
+        synchronized (lock) {
+            toAdd.add(view);
+        }
+    }
 
-	/**
-	 * Notifies this ViewUpdater of a metric that should no longer be regularly updated.
-	 *
-	 * @param view metric that should no longer be regularly updated
-	 */
-	public void notifyOfRemovedView(View view) {
-		synchronized (lock) {
-			toRemove.add(view);
-		}
-	}
+    /**
+     * Notifies this ViewUpdater of a metric that should no longer be regularly updated.
+     *
+     * @param view metric that should no longer be regularly updated
+     */
+    public void notifyOfRemovedView(View view) {
+        synchronized (lock) {
+            toRemove.add(view);
+        }
+    }
 
-	/**
-	 * The TimerTask doing the actual updating.
-	 */
-	private static class ViewUpdaterTask extends TimerTask {
-		private final Object lock;
-		private final Set<View> views;
-		private final Set<View> toAdd;
-		private final Set<View> toRemove;
+    /** The TimerTask doing the actual updating. */
+    private static class ViewUpdaterTask extends TimerTask {
+        private final Object lock;
+        private final Set<View> views;
+        private final Set<View> toAdd;
+        private final Set<View> toRemove;
 
-		private ViewUpdaterTask(Object lock, Set<View> toAdd, Set<View> toRemove) {
-			this.lock = lock;
-			this.views = new HashSet<>();
-			this.toAdd = toAdd;
-			this.toRemove = toRemove;
-		}
+        private ViewUpdaterTask(Object lock, Set<View> toAdd, Set<View> toRemove) {
+            this.lock = lock;
+            this.views = new HashSet<>();
+            this.toAdd = toAdd;
+            this.toRemove = toRemove;
+        }
 
-		@Override
-		public void run() {
-			for (View toUpdate : this.views) {
-				toUpdate.update();
-			}
+        @Override
+        public void run() {
+            for (View toUpdate : this.views) {
+                toUpdate.update();
+            }
 
-			synchronized (lock) {
-				views.addAll(toAdd);
-				toAdd.clear();
-				views.removeAll(toRemove);
-				toRemove.clear();
-			}
-		}
-	}
+            synchronized (lock) {
+                views.addAll(toAdd);
+                toAdd.clear();
+                views.removeAll(toRemove);
+                toRemove.clear();
+            }
+        }
+    }
 }

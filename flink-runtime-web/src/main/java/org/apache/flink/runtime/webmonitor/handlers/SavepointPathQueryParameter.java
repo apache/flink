@@ -18,19 +18,17 @@
 
 package org.apache.flink.runtime.webmonitor.handlers;
 
-/**
- * Query parameter that specifies the savepoint to restore from.
- */
-public class SavepointPathQueryParameter  extends StringQueryParameter {
+/** Query parameter that specifies the savepoint to restore from. */
+public class SavepointPathQueryParameter extends StringQueryParameter {
 
-	public static final String KEY = "savepointPath";
+    public static final String KEY = "savepointPath";
 
-	public SavepointPathQueryParameter() {
-		super(KEY, MessageParameterRequisiteness.OPTIONAL);
-	}
+    public SavepointPathQueryParameter() {
+        super(KEY, MessageParameterRequisiteness.OPTIONAL);
+    }
 
-	@Override
-	public String getDescription() {
-		return "String value that specifies the path of the savepoint to restore the job from.";
-	}
+    @Override
+    public String getDescription() {
+        return "String value that specifies the path of the savepoint to restore the job from.";
+    }
 }

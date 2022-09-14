@@ -24,6 +24,7 @@ import org.apache.flink.util.FlinkRuntimeException;
 
 import javax.annotation.Nonnegative;
 import javax.annotation.Nonnull;
+
 import java.util.Collection;
 
 /**
@@ -33,70 +34,74 @@ import java.util.Collection;
  * @param <N> type of state namespace
  */
 class TtlIncrementalCleanup<K, N, S> {
-	/** Global state entry iterator is advanced for {@code cleanupSize} entries. */
-	@Nonnegative
-	private final int cleanupSize;
+    /** Global state entry iterator is advanced for {@code cleanupSize} entries. */
+    @Nonnegative private final int cleanupSize;
 
-	/** Particular state with TTL object is used to check whether currently iterated entry has expired. */
-	private AbstractTtlState<K, N, ?, S, ?> ttlState;
+    /**
+     * Particular state with TTL object is used to check whether currently iterated entry has
+     * expired.
+     */
+    private AbstractTtlState<K, N, ?, S, ?> ttlState;
 
-	/** Global state entry iterator, advanced for {@code cleanupSize} entries every state and/or record processing. */
-	private StateIncrementalVisitor<K, N, S> stateIterator;
+    /**
+     * Global state entry iterator, advanced for {@code cleanupSize} entries every state and/or
+     * record processing.
+     */
+    private StateIncrementalVisitor<K, N, S> stateIterator;
 
-	/**
-	 * TtlIncrementalCleanup constructor.
-	 *
-	 * @param cleanupSize max number of queued keys to incrementally cleanup upon state access
-	 */
-	TtlIncrementalCleanup(@Nonnegative int cleanupSize) {
-		this.cleanupSize = cleanupSize;
-	}
+    /**
+     * TtlIncrementalCleanup constructor.
+     *
+     * @param cleanupSize max number of queued keys to incrementally cleanup upon state access
+     */
+    TtlIncrementalCleanup(@Nonnegative int cleanupSize) {
+        this.cleanupSize = cleanupSize;
+    }
 
-	void stateAccessed() {
-		initIteratorIfNot();
-		try {
-			runCleanup();
-		} catch (Throwable t) {
-			throw new FlinkRuntimeException("Failed to incrementally clean up state with TTL", t);
-		}
-	}
+    void stateAccessed() {
+        initIteratorIfNot();
+        try {
+            runCleanup();
+        } catch (Throwable t) {
+            throw new FlinkRuntimeException("Failed to incrementally clean up state with TTL", t);
+        }
+    }
 
-	private void initIteratorIfNot() {
-		if (stateIterator == null || !stateIterator.hasNext()) {
-			stateIterator = ttlState.original.getStateIncrementalVisitor(cleanupSize);
-		}
-	}
+    private void initIteratorIfNot() {
+        if (stateIterator == null || !stateIterator.hasNext()) {
+            stateIterator = ttlState.original.getStateIncrementalVisitor(cleanupSize);
+        }
+    }
 
-	private void runCleanup() {
-		int entryNum = 0;
-		Collection<StateEntry<K, N, S>> nextEntries;
-		while (
-			entryNum < cleanupSize &&
-			stateIterator.hasNext() &&
-			!(nextEntries = stateIterator.nextEntries()).isEmpty()) {
+    private void runCleanup() {
+        int entryNum = 0;
+        Collection<StateEntry<K, N, S>> nextEntries;
+        while (entryNum < cleanupSize
+                && stateIterator.hasNext()
+                && !(nextEntries = stateIterator.nextEntries()).isEmpty()) {
 
-			for (StateEntry<K, N, S> state : nextEntries) {
-				S cleanState = ttlState.getUnexpiredOrNull(state.getState());
-				if (cleanState == null) {
-					stateIterator.remove(state);
-				} else if (cleanState != state.getState()) {
-					stateIterator.update(state, cleanState);
-				}
-			}
+            for (StateEntry<K, N, S> state : nextEntries) {
+                S cleanState = ttlState.getUnexpiredOrNull(state.getState());
+                if (cleanState == null) {
+                    stateIterator.remove(state);
+                } else if (cleanState != state.getState()) {
+                    stateIterator.update(state, cleanState);
+                }
+            }
 
-			entryNum += nextEntries.size();
-		}
-	}
+            entryNum += nextEntries.size();
+        }
+    }
 
-	/**
-	 * As TTL state wrapper depends on this class through access callback,
-	 * it has to be set here after its construction is done.
-	 */
-	public void setTtlState(@Nonnull AbstractTtlState<K, N, ?, S, ?> ttlState) {
-		this.ttlState = ttlState;
-	}
+    /**
+     * As TTL state wrapper depends on this class through access callback, it has to be set here
+     * after its construction is done.
+     */
+    public void setTtlState(@Nonnull AbstractTtlState<K, N, ?, S, ?> ttlState) {
+        this.ttlState = ttlState;
+    }
 
-	int getCleanupSize() {
-		return cleanupSize;
-	}
+    int getCleanupSize() {
+        return cleanupSize;
+    }
 }

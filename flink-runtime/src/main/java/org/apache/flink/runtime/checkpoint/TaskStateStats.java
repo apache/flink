@@ -28,195 +28,207 @@ import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
- * Statistics for a single task/operator that gathers all statistics of its
- * subtasks and provides summary statistics about all subtasks.
+ * Statistics for a single task/operator that gathers all statistics of its subtasks and provides
+ * summary statistics about all subtasks.
  */
 public class TaskStateStats implements Serializable {
 
-	private static final long serialVersionUID = 531803101206574444L;
+    private static final long serialVersionUID = 531803101206574444L;
 
-	/** ID of the task the stats belong to. */
-	private final JobVertexID jobVertexId;
+    /** ID of the task the stats belong to. */
+    private final JobVertexID jobVertexId;
 
-	private final SubtaskStateStats[] subtaskStats;
+    private final SubtaskStateStats[] subtaskStats;
 
-	/** A summary of the subtask stats. */
-	private final TaskStateStatsSummary summaryStats = new TaskStateStatsSummary();
+    /** A summary of the subtask stats. */
+    private final TaskStateStatsSummary summaryStats = new TaskStateStatsSummary();
 
-	private int numAcknowledgedSubtasks;
+    private int numAcknowledgedSubtasks;
 
-	@Nullable
-	private SubtaskStateStats latestAckedSubtaskStats;
+    @Nullable private SubtaskStateStats latestAckedSubtaskStats;
 
-	TaskStateStats(JobVertexID jobVertexId, int numSubtasks) {
-		this.jobVertexId = checkNotNull(jobVertexId, "JobVertexID");
-		checkArgument(numSubtasks > 0, "Number of subtasks <= 0");
-		this.subtaskStats = new SubtaskStateStats[numSubtasks];
-	}
+    TaskStateStats(JobVertexID jobVertexId, int numSubtasks) {
+        this.jobVertexId = checkNotNull(jobVertexId, "JobVertexID");
+        checkArgument(numSubtasks > 0, "Number of subtasks <= 0");
+        this.subtaskStats = new SubtaskStateStats[numSubtasks];
+    }
 
-	boolean reportSubtaskStats(SubtaskStateStats subtask) {
-		checkNotNull(subtask, "Subtask stats");
-		int subtaskIndex = subtask.getSubtaskIndex();
+    boolean reportSubtaskStats(SubtaskStateStats subtask) {
+        checkNotNull(subtask, "Subtask stats");
+        int subtaskIndex = subtask.getSubtaskIndex();
 
-		if (subtaskIndex < 0 || subtaskIndex >= subtaskStats.length) {
-			return false;
-		}
+        if (subtaskIndex < 0 || subtaskIndex >= subtaskStats.length) {
+            return false;
+        }
 
-		if (subtaskStats[subtaskIndex] == null) {
-			subtaskStats[subtaskIndex] = subtask;
+        if (subtaskStats[subtaskIndex] == null) {
+            subtaskStats[subtaskIndex] = subtask;
 
-			latestAckedSubtaskStats = subtask;
-			numAcknowledgedSubtasks++;
+            if (subtask.isCompleted()) {
+                latestAckedSubtaskStats = subtask;
+                numAcknowledgedSubtasks++;
+            }
 
-			summaryStats.updateSummary(subtask);
+            summaryStats.updateSummary(subtask);
 
-			return true;
-		} else {
-			return false;
-		}
-	}
+            return true;
+        } else {
+            return false;
+        }
+    }
 
-	/**
-	 * @return ID of the operator the statistics belong to.
-	 */
-	public JobVertexID getJobVertexId() {
-		return jobVertexId;
-	}
+    /** @return ID of the operator the statistics belong to. */
+    public JobVertexID getJobVertexId() {
+        return jobVertexId;
+    }
 
-	public int getNumberOfSubtasks() {
-		return subtaskStats.length;
-	}
+    public int getNumberOfSubtasks() {
+        return subtaskStats.length;
+    }
 
-	public int getNumberOfAcknowledgedSubtasks() {
-		return numAcknowledgedSubtasks;
-	}
+    public int getNumberOfAcknowledgedSubtasks() {
+        return numAcknowledgedSubtasks;
+    }
 
-	/**
-	 * @return The latest acknowledged subtask stats or <code>null</code>
-	 * if none was acknowledged yet.
-	 */
-	@Nullable
-	public SubtaskStateStats getLatestAcknowledgedSubtaskStats() {
-		return latestAckedSubtaskStats;
-	}
+    /**
+     * @return The latest acknowledged subtask stats or <code>null</code> if none was acknowledged
+     *     yet.
+     */
+    @Nullable
+    public SubtaskStateStats getLatestAcknowledgedSubtaskStats() {
+        return latestAckedSubtaskStats;
+    }
 
-	/**
-	 * @return Ack timestamp of the latest acknowledged subtask or <code>-1</code> if none was
-	 * acknowledged yet..
-	 */
-	public long getLatestAckTimestamp() {
-		SubtaskStateStats subtask = latestAckedSubtaskStats;
-		if (subtask != null) {
-			return subtask.getAckTimestamp();
-		} else {
-			return -1;
-		}
-	}
+    /**
+     * @return Ack timestamp of the latest acknowledged subtask or <code>-1</code> if none was
+     *     acknowledged yet..
+     */
+    public long getLatestAckTimestamp() {
+        SubtaskStateStats subtask = latestAckedSubtaskStats;
+        if (subtask != null) {
+            return subtask.getAckTimestamp();
+        } else {
+            return -1;
+        }
+    }
 
-	/**
-	 * @return Total checkpoint state size over all subtasks.
-	 */
-	public long getStateSize() {
-		return summaryStats.getStateSizeStats().getSum();
-	}
+    /** @return Total persisted size over all subtasks of this checkpoint. */
+    public long getCheckpointedSize() {
+        return summaryStats.getCheckpointedSize().getSum();
+    }
 
-	/**
-	 * @return Total buffered bytes during alignment over all subtasks or <code>-1</code> if the
-	 * runtime did not report this..
-	 */
-	public long getAlignmentBuffered() {
-		return summaryStats.getAlignmentBufferedStats().getSum();
-	}
+    /** @return Total checkpoint state size over all subtasks. */
+    public long getStateSize() {
+        return summaryStats.getStateSizeStats().getSum();
+    }
 
-	/**
-	 * Returns the duration of this checkpoint at the task/operator calculated
-	 * as the time since triggering until the latest acknowledged subtask
-	 * or <code>-1</code> if no subtask was acknowledged yet.
-	 *
-	 * @return Duration of this checkpoint at the task/operator or <code>-1</code> if no subtask was acknowledged yet.
-	 */
-	public long getEndToEndDuration(long triggerTimestamp) {
-		SubtaskStateStats subtask = getLatestAcknowledgedSubtaskStats();
-		if (subtask != null) {
-			return Math.max(0, subtask.getAckTimestamp() - triggerTimestamp);
-		} else {
-			return -1;
-		}
-	}
+    public long getProcessedDataStats() {
+        return summaryStats.getProcessedDataStats().getSum();
+    }
 
-	/**
-	 * Returns the stats for all subtasks.
-	 *
-	 * <p>Elements of the returned array are <code>null</code> if no stats are
-	 * available yet for the respective subtask.
-	 *
-	 * <p>Note: The returned array must not be modified.
-	 *
-	 * @return Array of subtask stats (elements are <code>null</code> if no stats available yet).
-	 */
-	public SubtaskStateStats[] getSubtaskStats() {
-		return subtaskStats;
-	}
+    public long getPersistedDataStats() {
+        return summaryStats.getPersistedDataStats().getSum();
+    }
 
-	/**
-	 * @return Summary of the subtask stats.
-	 */
-	public TaskStateStatsSummary getSummaryStats() {
-		return summaryStats;
-	}
+    /**
+     * Returns the duration of this checkpoint at the task/operator calculated as the time since
+     * triggering until the latest acknowledged subtask or <code>-1</code> if no subtask was
+     * acknowledged yet.
+     *
+     * @return Duration of this checkpoint at the task/operator or <code>-1</code> if no subtask was
+     *     acknowledged yet.
+     */
+    public long getEndToEndDuration(long triggerTimestamp) {
+        SubtaskStateStats subtask = getLatestAcknowledgedSubtaskStats();
+        if (subtask != null) {
+            return Math.max(0, subtask.getAckTimestamp() - triggerTimestamp);
+        } else {
+            return -1;
+        }
+    }
 
-	/**
-	 * Summary of the subtask stats of a single task/operator.
-	 */
-	public static class TaskStateStatsSummary implements Serializable {
+    /**
+     * Returns the stats for all subtasks.
+     *
+     * <p>Elements of the returned array are <code>null</code> if no stats are available yet for the
+     * respective subtask.
+     *
+     * <p>Note: The returned array must not be modified.
+     *
+     * @return Array of subtask stats (elements are <code>null</code> if no stats available yet).
+     */
+    public SubtaskStateStats[] getSubtaskStats() {
+        return subtaskStats;
+    }
 
-		private static final long serialVersionUID = 1009476026522091909L;
+    /** @return Summary of the subtask stats. */
+    public TaskStateStatsSummary getSummaryStats() {
+        return summaryStats;
+    }
 
-		private MinMaxAvgStats stateSize = new MinMaxAvgStats();
-		private MinMaxAvgStats ackTimestamp = new MinMaxAvgStats();
-		private MinMaxAvgStats syncCheckpointDuration = new MinMaxAvgStats();
-		private MinMaxAvgStats asyncCheckpointDuration = new MinMaxAvgStats();
-		private MinMaxAvgStats alignmentBuffered = new MinMaxAvgStats();
-		private MinMaxAvgStats alignmentDuration = new MinMaxAvgStats();
-		private MinMaxAvgStats checkpointStartDelay = new MinMaxAvgStats();
+    /** Summary of the subtask stats of a single task/operator. */
+    public static class TaskStateStatsSummary implements Serializable {
 
-		void updateSummary(SubtaskStateStats subtaskStats) {
-			stateSize.add(subtaskStats.getStateSize());
-			ackTimestamp.add(subtaskStats.getAckTimestamp());
-			syncCheckpointDuration.add(subtaskStats.getSyncCheckpointDuration());
-			asyncCheckpointDuration.add(subtaskStats.getAsyncCheckpointDuration());
-			alignmentBuffered.add(subtaskStats.getAlignmentBuffered());
-			alignmentDuration.add(subtaskStats.getAlignmentDuration());
-			checkpointStartDelay.add(subtaskStats.getCheckpointStartDelay());
-		}
+        private static final long serialVersionUID = 1009476026522091909L;
 
-		public MinMaxAvgStats getStateSizeStats() {
-			return stateSize;
-		}
+        private StatsSummary stateSize = new StatsSummary();
+        private StatsSummary checkpointedSize = new StatsSummary();
+        private StatsSummary ackTimestamp = new StatsSummary();
+        private StatsSummary syncCheckpointDuration = new StatsSummary();
+        private StatsSummary asyncCheckpointDuration = new StatsSummary();
+        private StatsSummary processedData = new StatsSummary();
+        private StatsSummary persistedData = new StatsSummary();
+        private StatsSummary alignmentDuration = new StatsSummary();
+        private StatsSummary checkpointStartDelay = new StatsSummary();
 
-		public MinMaxAvgStats getAckTimestampStats() {
-			return ackTimestamp;
-		}
+        void updateSummary(SubtaskStateStats subtaskStats) {
+            checkpointedSize.add(subtaskStats.getCheckpointedSize());
+            stateSize.add(subtaskStats.getStateSize());
+            if (subtaskStats.isCompleted()) {
+                ackTimestamp.add(subtaskStats.getAckTimestamp());
+            }
+            syncCheckpointDuration.add(subtaskStats.getSyncCheckpointDuration());
+            asyncCheckpointDuration.add(subtaskStats.getAsyncCheckpointDuration());
+            processedData.add(subtaskStats.getProcessedData());
+            persistedData.add(subtaskStats.getPersistedData());
+            alignmentDuration.add(subtaskStats.getAlignmentDuration());
+            checkpointStartDelay.add(subtaskStats.getCheckpointStartDelay());
+        }
 
-		public MinMaxAvgStats getSyncCheckpointDurationStats() {
-			return syncCheckpointDuration;
-		}
+        public StatsSummary getCheckpointedSize() {
+            return checkpointedSize;
+        }
 
-		public MinMaxAvgStats getAsyncCheckpointDurationStats() {
-			return asyncCheckpointDuration;
-		}
+        public StatsSummary getStateSizeStats() {
+            return stateSize;
+        }
 
-		public MinMaxAvgStats getAlignmentBufferedStats() {
-			return alignmentBuffered;
-		}
+        public StatsSummary getAckTimestampStats() {
+            return ackTimestamp;
+        }
 
-		public MinMaxAvgStats getAlignmentDurationStats() {
-			return alignmentDuration;
-		}
+        public StatsSummary getSyncCheckpointDurationStats() {
+            return syncCheckpointDuration;
+        }
 
-		public MinMaxAvgStats getCheckpointStartDelayStats() {
-			return checkpointStartDelay;
-		}
-	}
+        public StatsSummary getAsyncCheckpointDurationStats() {
+            return asyncCheckpointDuration;
+        }
 
+        public StatsSummary getProcessedDataStats() {
+            return processedData;
+        }
+
+        public StatsSummary getPersistedDataStats() {
+            return persistedData;
+        }
+
+        public StatsSummary getAlignmentDurationStats() {
+            return alignmentDuration;
+        }
+
+        public StatsSummary getCheckpointStartDelayStats() {
+            return checkpointStartDelay;
+        }
+    }
 }

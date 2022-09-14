@@ -18,36 +18,33 @@
 
 package org.apache.flink.tests.util.cache;
 
-import org.apache.flink.tests.util.parameters.ParameterProperty;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.apache.flink.test.parameters.ParameterProperty;
 
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.time.Period;
 import java.util.Optional;
 
-/**
- * A {@link DownloadCacheFactory} for the {@link PersistingDownloadCache}.
- */
+/** A {@link DownloadCacheFactory} for the {@link PersistingDownloadCache}. */
 public final class PersistingDownloadCacheFactory implements DownloadCacheFactory {
-	private static final Logger LOG = LoggerFactory.getLogger(PersistingDownloadCacheFactory.class);
 
-	private static final ParameterProperty<Path> TMP_DIR = new ParameterProperty<>("cache-dir", value -> Paths.get(value));
-	private static final ParameterProperty<Period> TIME_TO_LIVE = new ParameterProperty<>("cache-ttl", Period::parse);
+    private static final ParameterProperty<Path> TMP_DIR =
+            new ParameterProperty<>("cache-dir", value -> Paths.get(value));
+    private static final ParameterProperty<Period> TIME_TO_LIVE =
+            new ParameterProperty<>("cache-ttl", Period::parse);
 
-	private static final Period TIME_TO_LIVE_DEFAULT = Period.ZERO;
+    private static final Period TIME_TO_LIVE_DEFAULT = Period.ZERO;
 
-	@Override
-	public Optional<DownloadCache> create() {
-		final Optional<Path> tmpDir = TMP_DIR.get();
-		final Period timeToLive = TIME_TO_LIVE.get(TIME_TO_LIVE_DEFAULT);
-		if (!tmpDir.isPresent()) {
-			LOG.debug("Not loading {} because {} was not set.", PersistingDownloadCache.class, TMP_DIR.getPropertyName());
-			return Optional.empty();
-		}
-		LOG.info("Created {}.", PersistingDownloadCache.class.getSimpleName());
-		return Optional.of(new PersistingDownloadCache(tmpDir.get(), timeToLive));
-	}
+    @Override
+    public DownloadCache create() {
+        final Optional<Path> tmpDir = TMP_DIR.get();
+        final Period timeToLive = TIME_TO_LIVE.get(TIME_TO_LIVE_DEFAULT);
+        if (!tmpDir.isPresent()) {
+            throw new IllegalArgumentException(
+                    String.format(
+                            "Not loading %s because %s was not set.",
+                            PersistingDownloadCache.class, TMP_DIR.getPropertyName()));
+        }
+        return new PersistingDownloadCache(tmpDir.get(), timeToLive);
+    }
 }

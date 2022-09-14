@@ -20,45 +20,44 @@ package org.apache.flink.runtime.checkpoint;
 
 import org.apache.flink.api.common.JobStatus;
 
-/**
- * A checkpoint ID counter.
- */
+import java.util.concurrent.CompletableFuture;
+
+/** A checkpoint ID counter. */
 public interface CheckpointIDCounter {
+    int INITIAL_CHECKPOINT_ID = 1;
 
-	/**
-	 * Starts the {@link CheckpointIDCounter} service down.
-	 */
-	void start() throws Exception;
+    /** Starts the {@link CheckpointIDCounter} service down. */
+    void start() throws Exception;
 
-	/**
-	 * Shuts the {@link CheckpointIDCounter} service.
-	 *
-	 * <p>The job status is forwarded and used to decide whether state should
-	 * actually be discarded or kept.
-	 *
-	 * @param jobStatus Job state on shut down
-	 */
-	void shutdown(JobStatus jobStatus) throws Exception;
+    /**
+     * Shuts the {@link CheckpointIDCounter} service.
+     *
+     * <p>The job status is forwarded and used to decide whether state should actually be discarded
+     * or kept.
+     *
+     * @param jobStatus Job state on shut down
+     * @return The {@code CompletableFuture} holding the result of the shutdown operation.
+     */
+    CompletableFuture<Void> shutdown(JobStatus jobStatus);
 
-	/**
-	 * Atomically increments the current checkpoint ID.
-	 *
-	 * @return The previous checkpoint ID
-	 */
-	long getAndIncrement() throws Exception;
+    /**
+     * Atomically increments the current checkpoint ID.
+     *
+     * @return The previous checkpoint ID
+     */
+    long getAndIncrement() throws Exception;
 
-	/**
-	 * Atomically gets the current checkpoint ID.
-	 *
-	 * @return The current checkpoint ID
-	 */
-	long get();
+    /**
+     * Atomically gets the current checkpoint ID.
+     *
+     * @return The current checkpoint ID
+     */
+    long get();
 
-	/**
-	 * Sets the current checkpoint ID.
-	 *
-	 * @param newId The new ID
-	 */
-	void setCount(long newId) throws Exception;
-
+    /**
+     * Sets the current checkpoint ID.
+     *
+     * @param newId The new ID
+     */
+    void setCount(long newId) throws Exception;
 }

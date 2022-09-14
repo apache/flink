@@ -32,39 +32,39 @@ import java.util.Iterator;
 @Internal
 public class CopyingIterator<E> implements Iterator<E>, Iterable<E> {
 
-	private final Iterator<E> source;
-	private final TypeSerializer<E> serializer;
+    private final Iterator<E> source;
+    private final TypeSerializer<E> serializer;
 
-	private boolean available = true;
+    private boolean available = true;
 
-	public CopyingIterator(Iterator<E> source, TypeSerializer<E> serializer) {
-		this.source = source;
-		this.serializer = serializer;
-	}
+    public CopyingIterator(Iterator<E> source, TypeSerializer<E> serializer) {
+        this.source = source;
+        this.serializer = serializer;
+    }
 
-	@Override
-	public Iterator<E> iterator() {
-		if (available) {
-			available = false;
-			return this;
-		} else {
-			throw new TraversableOnceException();
-		}
-	}
+    @Override
+    public Iterator<E> iterator() {
+        if (available) {
+            available = false;
+            return this;
+        } else {
+            throw new TraversableOnceException();
+        }
+    }
 
-	@Override
-	public boolean hasNext() {
-		return source.hasNext();
-	}
+    @Override
+    public boolean hasNext() {
+        return source.hasNext();
+    }
 
-	@Override
-	public E next() {
-		E next = source.next();
-		return serializer.copy(next);
-	}
+    @Override
+    public E next() {
+        E next = source.next();
+        return serializer.copy(next);
+    }
 
-	@Override
-	public void remove() {
-		throw new UnsupportedOperationException();
-	}
+    @Override
+    public void remove() {
+        throw new UnsupportedOperationException();
+    }
 }

@@ -21,7 +21,6 @@ package org.apache.flink.yarn;
 import org.apache.flink.client.deployment.ClusterRetrieveException;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.util.Preconditions;
-import org.apache.flink.util.TestLogger;
 
 import org.apache.hadoop.yarn.api.records.ApplicationAttemptId;
 import org.apache.hadoop.yarn.api.records.ApplicationId;
@@ -32,94 +31,89 @@ import org.apache.hadoop.yarn.client.api.YarnClient;
 import org.apache.hadoop.yarn.client.api.impl.YarnClientImpl;
 import org.apache.hadoop.yarn.conf.YarnConfiguration;
 import org.apache.hadoop.yarn.exceptions.YarnException;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
+import org.apache.hadoop.yarn.util.Records;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 import java.io.IOException;
+import java.nio.file.Path;
 import java.util.Collections;
 import java.util.Map;
 
-/**
- * Tests for the {@link YarnClusterDescriptor}.
- */
-public class AbstractYarnClusterTest extends TestLogger {
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-	@Rule
-	public TemporaryFolder temporaryFolder = new TemporaryFolder();
+/** Tests for the {@link YarnClusterDescriptor}. */
+class AbstractYarnClusterTest {
 
-	/**
-	 * Tests that the cluster retrieval of a finished YARN application fails.
-	 */
-	@Test(expected = ClusterRetrieveException.class)
-	public void testClusterClientRetrievalOfFinishedYarnApplication() throws Exception {
-		final ApplicationId applicationId = ApplicationId.newInstance(System.currentTimeMillis(), 42);
-		final ApplicationReport applicationReport = createApplicationReport(
-			applicationId,
-			YarnApplicationState.FINISHED,
-			FinalApplicationStatus.SUCCEEDED);
+    /** Tests that the cluster retrieval of a finished YARN application fails. */
+    @Test
+    void testClusterClientRetrievalOfFinishedYarnApplication(@TempDir Path tempDir) {
 
-		final YarnClient yarnClient = new TestingYarnClient(Collections.singletonMap(applicationId, applicationReport));
-		final YarnConfiguration yarnConfiguration = new YarnConfiguration();
-		yarnClient.init(yarnConfiguration);
-		yarnClient.start();
+        final ApplicationId applicationId =
+                ApplicationId.newInstance(System.currentTimeMillis(), 42);
+        final ApplicationReport applicationReport =
+                createApplicationReport(
+                        applicationId,
+                        YarnApplicationState.FINISHED,
+                        FinalApplicationStatus.SUCCEEDED);
 
-		final YarnClusterDescriptor clusterDescriptor = YarnTestUtils.createClusterDescriptorWithLogging(
-				temporaryFolder.newFolder().getAbsolutePath(),
-				new Configuration(),
-				yarnConfiguration,
-				yarnClient,
-				false);
+        final YarnClient yarnClient =
+                new TestingYarnClient(Collections.singletonMap(applicationId, applicationReport));
+        final YarnConfiguration yarnConfiguration = new YarnConfiguration();
+        yarnClient.init(yarnConfiguration);
+        yarnClient.start();
 
-		try {
-			clusterDescriptor.retrieve(applicationId);
-		} finally {
-			clusterDescriptor.close();
-		}
-	}
+        try (YarnClusterDescriptor clusterDescriptor =
+                YarnTestUtils.createClusterDescriptorWithLogging(
+                        tempDir.toFile().getAbsolutePath(),
+                        new Configuration(),
+                        yarnConfiguration,
+                        yarnClient,
+                        false)) {
+            assertThatThrownBy(() -> clusterDescriptor.retrieve(applicationId))
+                    .isInstanceOf(ClusterRetrieveException.class);
+        }
+    }
 
-	private ApplicationReport createApplicationReport(
-		ApplicationId applicationId,
-		YarnApplicationState yarnApplicationState,
-		FinalApplicationStatus finalApplicationStatus) {
-		return ApplicationReport.newInstance(
-			applicationId,
-			ApplicationAttemptId.newInstance(applicationId, 0),
-			"user",
-			"queue",
-			"name",
-			"localhost",
-			42,
-			null,
-			yarnApplicationState,
-			null,
-			null,
-			1L,
-			2L,
-			finalApplicationStatus,
-			null,
-			null,
-			1.0f,
-			null,
-			null);
-	}
+    private ApplicationReport createApplicationReport(
+            ApplicationId applicationId,
+            YarnApplicationState yarnApplicationState,
+            FinalApplicationStatus finalApplicationStatus) {
 
-	private static final class TestingYarnClient extends YarnClientImpl {
-		private final Map<ApplicationId, ApplicationReport> applicationReports;
+        ApplicationReport applicationReport = Records.newRecord(ApplicationReport.class);
+        applicationReport.setApplicationId(applicationId);
+        applicationReport.setCurrentApplicationAttemptId(
+                ApplicationAttemptId.newInstance(applicationId, 0));
+        applicationReport.setUser("user");
+        applicationReport.setQueue("queue");
+        applicationReport.setName("name");
+        applicationReport.setHost("localhost");
+        applicationReport.setRpcPort(42);
+        applicationReport.setYarnApplicationState(yarnApplicationState);
+        applicationReport.setStartTime(1L);
+        applicationReport.setFinishTime(2L);
+        applicationReport.setFinalApplicationStatus(finalApplicationStatus);
+        applicationReport.setProgress(1.0f);
+        return applicationReport;
+    }
 
-		private TestingYarnClient(Map<ApplicationId, ApplicationReport> applicationReports) {
-			this.applicationReports = Preconditions.checkNotNull(applicationReports);
-		}
+    private static final class TestingYarnClient extends YarnClientImpl {
+        private final Map<ApplicationId, ApplicationReport> applicationReports;
 
-		@Override
-		public ApplicationReport getApplicationReport(ApplicationId appId) throws YarnException, IOException {
-			final ApplicationReport applicationReport = applicationReports.get(appId);
+        private TestingYarnClient(Map<ApplicationId, ApplicationReport> applicationReports) {
+            this.applicationReports = Preconditions.checkNotNull(applicationReports);
+        }
 
-			if (applicationReport != null) {
-				return applicationReport;
-			} else {
-				return super.getApplicationReport(appId);
-			}
-		}
-	}
+        @Override
+        public ApplicationReport getApplicationReport(ApplicationId appId)
+                throws YarnException, IOException {
+            final ApplicationReport applicationReport = applicationReports.get(appId);
+
+            if (applicationReport != null) {
+                return applicationReport;
+            } else {
+                return super.getApplicationReport(appId);
+            }
+        }
+    }
 }

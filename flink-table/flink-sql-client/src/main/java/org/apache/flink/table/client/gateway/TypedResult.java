@@ -27,75 +27,73 @@ import java.util.Objects;
  */
 public class TypedResult<P> {
 
-	private ResultType type;
+    private ResultType type;
 
-	private P payload;
+    private P payload;
 
-	private TypedResult(ResultType type, P payload) {
-		this.type = type;
-		this.payload = payload;
-	}
+    private TypedResult(ResultType type, P payload) {
+        this.type = type;
+        this.payload = payload;
+    }
 
-	public void setType(ResultType type) {
-		this.type = type;
-	}
+    public void setType(ResultType type) {
+        this.type = type;
+    }
 
-	public void setPayload(P payload) {
-		this.payload = payload;
-	}
+    public void setPayload(P payload) {
+        this.payload = payload;
+    }
 
-	public ResultType getType() {
-		return type;
-	}
+    public ResultType getType() {
+        return type;
+    }
 
-	public P getPayload() {
-		return payload;
-	}
+    public P getPayload() {
+        return payload;
+    }
 
-	@Override
-	public String toString() {
-		return "TypedResult<" + type + ">";
-	}
+    @Override
+    public String toString() {
+        return "TypedResult<" + type + ">";
+    }
 
-	@Override
-	public boolean equals(Object o) {
-		if (this == o) {
-			return true;
-		}
-		if (o == null || getClass() != o.getClass()) {
-			return false;
-		}
-		TypedResult<?> that = (TypedResult<?>) o;
-		return type == that.type && Objects.equals(payload, that.payload);
-	}
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
+        TypedResult<?> that = (TypedResult<?>) o;
+        return type == that.type && Objects.equals(payload, that.payload);
+    }
 
-	@Override
-	public int hashCode() {
-		return Objects.hash(type, payload);
-	}
+    @Override
+    public int hashCode() {
+        return Objects.hash(type, payload);
+    }
 
-	// --------------------------------------------------------------------------------------------
+    // --------------------------------------------------------------------------------------------
 
-	public static <T> TypedResult<T> empty() {
-		return new TypedResult<>(ResultType.EMPTY, null);
-	}
+    public static <T> TypedResult<T> empty() {
+        return new TypedResult<>(ResultType.EMPTY, null);
+    }
 
-	public static <T> TypedResult<T> payload(T payload) {
-		return new TypedResult<>(ResultType.PAYLOAD, payload);
-	}
+    public static <T> TypedResult<T> payload(T payload) {
+        return new TypedResult<>(ResultType.PAYLOAD, payload);
+    }
 
-	public static <T> TypedResult<T> endOfStream() {
-		return new TypedResult<>(ResultType.EOS, null);
-	}
+    public static <T> TypedResult<T> endOfStream() {
+        return new TypedResult<>(ResultType.EOS, null);
+    }
 
-	// --------------------------------------------------------------------------------------------
+    // --------------------------------------------------------------------------------------------
 
-	/**
-	 * Result types.
-	 */
-	public enum ResultType {
-		PAYLOAD,
-		EMPTY,
-		EOS
-	}
+    /** Result types. */
+    public enum ResultType {
+        PAYLOAD,
+        EMPTY,
+        EOS
+    }
 }

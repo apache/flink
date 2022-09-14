@@ -18,59 +18,59 @@
 
 package org.apache.flink.runtime.operators.testutils;
 
-import java.io.IOException;
-
 import org.apache.flink.runtime.operators.testutils.types.StringPair;
 import org.apache.flink.util.MutableObjectIterator;
 
+import java.io.IOException;
+
 public class UniformStringPairGenerator implements MutableObjectIterator<StringPair> {
 
-	private final int numKeys;
-	private final int numVals;
-	
-	private int keyCnt = 0;
-	private int valCnt = 0;
-	private boolean repeatKey;
-	
-	public UniformStringPairGenerator(int numKeys, int numVals, boolean repeatKey) {
-		this.numKeys = numKeys;
-		this.numVals = numVals;
-		this.repeatKey = repeatKey;
-	}
-	
-	@Override
-	public StringPair next(StringPair target) throws IOException {
-		if(!repeatKey) {
-			if(valCnt >= numVals) {
-				return null;
-			}
-			
-			target.setKey(Integer.toString(keyCnt++));
-			target.setValue(Integer.toBinaryString(valCnt));
-			
-			if(keyCnt == numKeys) {
-				keyCnt = 0;
-				valCnt++;
-			}
-		} else {
-			if(keyCnt >= numKeys) {
-				return null;
-			}
-			
-			target.setKey(Integer.toString(keyCnt));
-			target.setValue(Integer.toBinaryString(valCnt++));
-			
-			if(valCnt == numVals) {
-				valCnt = 0;
-				keyCnt++;
-			}
-		}
-		
-		return target;
-	}
+    private final int numKeys;
+    private final int numVals;
 
-	@Override
-	public StringPair next() throws IOException {
-		return next(new StringPair());
-	}
+    private int keyCnt = 0;
+    private int valCnt = 0;
+    private boolean repeatKey;
+
+    public UniformStringPairGenerator(int numKeys, int numVals, boolean repeatKey) {
+        this.numKeys = numKeys;
+        this.numVals = numVals;
+        this.repeatKey = repeatKey;
+    }
+
+    @Override
+    public StringPair next(StringPair target) throws IOException {
+        if (!repeatKey) {
+            if (valCnt >= numVals) {
+                return null;
+            }
+
+            target.setKey(Integer.toString(keyCnt++));
+            target.setValue(Integer.toBinaryString(valCnt));
+
+            if (keyCnt == numKeys) {
+                keyCnt = 0;
+                valCnt++;
+            }
+        } else {
+            if (keyCnt >= numKeys) {
+                return null;
+            }
+
+            target.setKey(Integer.toString(keyCnt));
+            target.setValue(Integer.toBinaryString(valCnt++));
+
+            if (valCnt == numVals) {
+                valCnt = 0;
+                keyCnt++;
+            }
+        }
+
+        return target;
+    }
+
+    @Override
+    public StringPair next() throws IOException {
+        return next(new StringPair());
+    }
 }

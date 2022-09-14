@@ -23,7 +23,8 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.runtime.state.internal.InternalAppendingState;
 
 /**
- * Base class for {@link AppendingState} ({@link InternalAppendingState}) that is stored on the heap.
+ * Base class for {@link AppendingState} ({@link InternalAppendingState}) that is stored on the
+ * heap.
  *
  * @param <K> The type of the key.
  * @param <N> The type of the namespace.
@@ -31,34 +32,33 @@ import org.apache.flink.runtime.state.internal.InternalAppendingState;
  * @param <SV> The type of the values in the state.
  * @param <OUT> The type of the output elements.
  */
-abstract class AbstractHeapAppendingState<K, N, IN, SV, OUT>
-	extends AbstractHeapState<K, N, SV>
-	implements InternalAppendingState<K, N, IN, SV, OUT> {
-	/**
-	 * Creates a new key/value state for the given hash map of key/value pairs.
-	 *
-	 * @param stateTable          The state table for which this state is associated to.
-	 * @param keySerializer       The serializer for the keys.
-	 * @param valueSerializer     The serializer for the state.
-	 * @param namespaceSerializer The serializer for the namespace.
-	 * @param defaultValue        The default value for the state.
-	 */
-	AbstractHeapAppendingState(
-		StateTable<K, N, SV> stateTable,
-		TypeSerializer<K> keySerializer,
-		TypeSerializer<SV> valueSerializer,
-		TypeSerializer<N> namespaceSerializer,
-		SV defaultValue) {
-		super(stateTable, keySerializer, valueSerializer, namespaceSerializer, defaultValue);
-	}
+abstract class AbstractHeapAppendingState<K, N, IN, SV, OUT> extends AbstractHeapState<K, N, SV>
+        implements InternalAppendingState<K, N, IN, SV, OUT> {
+    /**
+     * Creates a new key/value state for the given hash map of key/value pairs.
+     *
+     * @param stateTable The state table for which this state is associated to.
+     * @param keySerializer The serializer for the keys.
+     * @param valueSerializer The serializer for the state.
+     * @param namespaceSerializer The serializer for the namespace.
+     * @param defaultValue The default value for the state.
+     */
+    AbstractHeapAppendingState(
+            StateTable<K, N, SV> stateTable,
+            TypeSerializer<K> keySerializer,
+            TypeSerializer<SV> valueSerializer,
+            TypeSerializer<N> namespaceSerializer,
+            SV defaultValue) {
+        super(stateTable, keySerializer, valueSerializer, namespaceSerializer, defaultValue);
+    }
 
-	@Override
-	public SV getInternal() {
-		return stateTable.get(currentNamespace);
-	}
+    @Override
+    public SV getInternal() {
+        return stateTable.get(currentNamespace);
+    }
 
-	@Override
-	public void updateInternal(SV valueToStore) {
-		stateTable.put(currentNamespace, valueToStore);
-	}
+    @Override
+    public void updateInternal(SV valueToStore) {
+        stateTable.put(currentNamespace, valueToStore);
+    }
 }

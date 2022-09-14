@@ -51,262 +51,322 @@ import java.util.concurrent.TimeUnit;
  */
 @Internal
 @ChannelHandler.Sharable
-public abstract class AbstractServerHandler<REQ extends MessageBody, RESP extends MessageBody> extends ChannelInboundHandlerAdapter {
+public abstract class AbstractServerHandler<REQ extends MessageBody, RESP extends MessageBody>
+        extends ChannelInboundHandlerAdapter {
 
-	private static final Logger LOG = LoggerFactory.getLogger(AbstractServerHandler.class);
+    private static final Logger LOG = LoggerFactory.getLogger(AbstractServerHandler.class);
 
-	/** The owning server of this handler. */
-	private final AbstractServerBase<REQ, RESP> server;
+    private static final long UNKNOWN_REQUEST_ID = -1;
 
-	/** The serializer used to (de-)serialize messages. */
-	private final MessageSerializer<REQ, RESP> serializer;
+    /** The owning server of this handler. */
+    private final AbstractServerBase<REQ, RESP> server;
 
-	/** Thread pool for query execution. */
-	protected final ExecutorService queryExecutor;
+    /** The serializer used to (de-)serialize messages. */
+    private final MessageSerializer<REQ, RESP> serializer;
 
-	/** Exposed server statistics. */
-	private final KvStateRequestStats stats;
+    /** Thread pool for query execution. */
+    protected final ExecutorService queryExecutor;
 
-	/**
-	 * Create the handler.
-	 *
-	 * @param serializer the serializer used to (de-)serialize messages
-	 * @param stats statistics collector
-	 */
-	public AbstractServerHandler(
-			final AbstractServerBase<REQ, RESP> server,
-			final MessageSerializer<REQ, RESP> serializer,
-			final KvStateRequestStats stats) {
+    /** Exposed server statistics. */
+    private final KvStateRequestStats stats;
 
-		this.server = Preconditions.checkNotNull(server);
-		this.serializer = Preconditions.checkNotNull(serializer);
-		this.queryExecutor = server.getQueryExecutor();
-		this.stats = Preconditions.checkNotNull(stats);
-	}
+    /**
+     * Create the handler.
+     *
+     * @param serializer the serializer used to (de-)serialize messages
+     * @param stats statistics collector
+     */
+    public AbstractServerHandler(
+            final AbstractServerBase<REQ, RESP> server,
+            final MessageSerializer<REQ, RESP> serializer,
+            final KvStateRequestStats stats) {
 
-	protected String getServerName() {
-		return server.getServerName();
-	}
+        this.server = Preconditions.checkNotNull(server);
+        this.serializer = Preconditions.checkNotNull(serializer);
+        this.queryExecutor = server.getQueryExecutor();
+        this.stats = Preconditions.checkNotNull(stats);
+    }
 
-	@Override
-	public void channelActive(ChannelHandlerContext ctx) throws Exception {
-		stats.reportActiveConnection();
-	}
+    protected String getServerName() {
+        return server.getServerName();
+    }
 
-	@Override
-	public void channelInactive(ChannelHandlerContext ctx) throws Exception {
-		stats.reportInactiveConnection();
-	}
+    @Override
+    public void channelActive(ChannelHandlerContext ctx) throws Exception {
+        stats.reportActiveConnection();
+    }
 
-	@Override
-	public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
-		REQ request = null;
-		long requestId = -1L;
+    @Override
+    public void channelInactive(ChannelHandlerContext ctx) throws Exception {
+        stats.reportInactiveConnection();
+    }
 
-		try {
-			final ByteBuf buf = (ByteBuf) msg;
-			final MessageType msgType = MessageSerializer.deserializeHeader(buf);
+    @Override
+    public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
+        REQ request = null;
+        long requestId = UNKNOWN_REQUEST_ID;
 
-			requestId = MessageSerializer.getRequestId(buf);
+        try {
+            final ByteBuf buf = (ByteBuf) msg;
+            final MessageType msgType = MessageSerializer.deserializeHeader(buf);
 
-			if (msgType == MessageType.REQUEST) {
+            requestId = MessageSerializer.getRequestId(buf);
+            LOG.trace("Handling request with ID {}", requestId);
 
-				// ------------------------------------------------------------
-				// MessageBody
-				// ------------------------------------------------------------
-				request = serializer.deserializeRequest(buf);
-				stats.reportRequest();
+            if (msgType == MessageType.REQUEST) {
 
-				// Execute actual query async, because it is possibly
-				// blocking (e.g. file I/O).
-				//
-				// A submission failure is not treated as fatal.
-				queryExecutor.submit(new AsyncRequestTask<>(this, ctx, requestId, request, stats));
+                // ------------------------------------------------------------
+                // MessageBody
+                // ------------------------------------------------------------
+                request = serializer.deserializeRequest(buf);
+                stats.reportRequest();
 
-			} else {
-				// ------------------------------------------------------------
-				// Unexpected
-				// ------------------------------------------------------------
+                // Execute actual query async, because it is possibly
+                // blocking (e.g. file I/O).
+                //
+                // A submission failure is not treated as fatal.
+                queryExecutor.submit(new AsyncRequestTask<>(this, ctx, requestId, request, stats));
 
-				final String errMsg = "Unexpected message type " + msgType + ". Expected " + MessageType.REQUEST + ".";
-				final ByteBuf failure = MessageSerializer.serializeServerFailure(ctx.alloc(), new IllegalArgumentException(errMsg));
+            } else {
+                // ------------------------------------------------------------
+                // Unexpected
+                // ------------------------------------------------------------
 
-				LOG.debug(errMsg);
-				ctx.writeAndFlush(failure);
-			}
-		} catch (Throwable t) {
-			final String stringifiedCause = ExceptionUtils.stringifyException(t);
+                final String errMsg =
+                        "Unexpected message type "
+                                + msgType
+                                + ". Expected "
+                                + MessageType.REQUEST
+                                + ".";
+                final ByteBuf failure =
+                        MessageSerializer.serializeServerFailure(
+                                ctx.alloc(), new IllegalArgumentException(errMsg));
 
-			String errMsg;
-			ByteBuf err;
-			if (request != null) {
-				errMsg = "Failed request with ID " + requestId + ". Caused by: " + stringifiedCause;
-				err = MessageSerializer.serializeRequestFailure(ctx.alloc(), requestId, new RuntimeException(errMsg));
-				stats.reportFailedRequest();
-			} else {
-				errMsg = "Failed incoming message. Caused by: " + stringifiedCause;
-				err = MessageSerializer.serializeServerFailure(ctx.alloc(), new RuntimeException(errMsg));
-			}
+                LOG.debug(errMsg);
+                ctx.writeAndFlush(failure);
+            }
+        } catch (Throwable t) {
+            LOG.error(
+                    "Error while handling request with ID [{}]",
+                    requestId == UNKNOWN_REQUEST_ID ? "unknown" : requestId,
+                    t);
 
-			LOG.debug(errMsg);
-			ctx.writeAndFlush(err);
+            final String stringifiedCause = ExceptionUtils.stringifyException(t);
 
-		} finally {
-			// IMPORTANT: We have to always recycle the incoming buffer.
-			// Otherwise we will leak memory out of Netty's buffer pool.
-			//
-			// If any operation ever holds on to the buffer, it is the
-			// responsibility of that operation to retain the buffer and
-			// release it later.
-			ReferenceCountUtil.release(msg);
-		}
-	}
+            String errMsg;
+            ByteBuf err;
+            if (request != null) {
+                errMsg = "Failed request with ID " + requestId + ". Caused by: " + stringifiedCause;
+                err =
+                        MessageSerializer.serializeRequestFailure(
+                                ctx.alloc(), requestId, new RuntimeException(errMsg));
+                stats.reportFailedRequest();
+            } else {
+                errMsg = "Failed incoming message. Caused by: " + stringifiedCause;
+                err =
+                        MessageSerializer.serializeServerFailure(
+                                ctx.alloc(), new RuntimeException(errMsg));
+            }
 
-	@Override
-	public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception {
-		final String msg = "Exception in server pipeline. Caused by: " + ExceptionUtils.stringifyException(cause);
-		final ByteBuf err = MessageSerializer.serializeServerFailure(ctx.alloc(), new RuntimeException(msg));
+            ctx.writeAndFlush(err);
 
-		LOG.debug(msg);
-		ctx.writeAndFlush(err).addListener(ChannelFutureListener.CLOSE);
-	}
+        } finally {
+            // IMPORTANT: We have to always recycle the incoming buffer.
+            // Otherwise we will leak memory out of Netty's buffer pool.
+            //
+            // If any operation ever holds on to the buffer, it is the
+            // responsibility of that operation to retain the buffer and
+            // release it later.
+            ReferenceCountUtil.release(msg);
+        }
+    }
 
-	/**
-	 * Handles an incoming request and returns a {@link CompletableFuture} containing the corresponding response.
-	 *
-	 * <p><b>NOTE:</b> This method is called by multiple threads.
-	 *
-	 * @param requestId the id of the received request to be handled.
-	 * @param request the request to be handled.
-	 * @return A future with the response to be forwarded to the client.
-	 */
-	public abstract CompletableFuture<RESP> handleRequest(final long requestId, final REQ request);
+    @Override
+    public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception {
+        final String msg =
+                "Exception in server pipeline. Caused by: "
+                        + ExceptionUtils.stringifyException(cause);
+        final ByteBuf err =
+                MessageSerializer.serializeServerFailure(ctx.alloc(), new RuntimeException(msg));
 
-	/**
-	 * Shuts down any handler-specific resources, e.g. thread pools etc and returns
-	 * a {@link CompletableFuture}.
-	 *
-	 * <p>If an exception is thrown during the shutdown process, then that exception
-	 * will be included in the returned future.
-	 *
-	 * @return A {@link CompletableFuture} that will be completed when the shutdown
-	 * process actually finishes.
-	 */
-	public abstract CompletableFuture<Void> shutdown();
+        LOG.debug(msg);
+        ctx.writeAndFlush(err).addListener(ChannelFutureListener.CLOSE);
+    }
 
-	/**
-	 * Task to execute the actual query against the state instance.
-	 */
-	private static class AsyncRequestTask<REQ extends MessageBody, RESP extends MessageBody> implements Runnable {
+    /**
+     * Handles an incoming request and returns a {@link CompletableFuture} containing the
+     * corresponding response.
+     *
+     * <p><b>NOTE:</b> This method is called by multiple threads.
+     *
+     * @param requestId the id of the received request to be handled.
+     * @param request the request to be handled.
+     * @return A future with the response to be forwarded to the client.
+     */
+    public abstract CompletableFuture<RESP> handleRequest(final long requestId, final REQ request);
 
-		private final AbstractServerHandler<REQ, RESP> handler;
+    /**
+     * Shuts down any handler-specific resources, e.g. thread pools etc and returns a {@link
+     * CompletableFuture}.
+     *
+     * <p>If an exception is thrown during the shutdown process, then that exception will be
+     * included in the returned future.
+     *
+     * @return A {@link CompletableFuture} that will be completed when the shutdown process actually
+     *     finishes.
+     */
+    public abstract CompletableFuture<Void> shutdown();
 
-		private final ChannelHandlerContext ctx;
+    /** Task to execute the actual query against the state instance. */
+    private static class AsyncRequestTask<REQ extends MessageBody, RESP extends MessageBody>
+            implements Runnable {
 
-		private final long requestId;
+        private final AbstractServerHandler<REQ, RESP> handler;
 
-		private final REQ request;
+        private final ChannelHandlerContext ctx;
 
-		private final KvStateRequestStats stats;
+        private final long requestId;
 
-		private final long creationNanos;
+        private final REQ request;
 
-		AsyncRequestTask(
-				final AbstractServerHandler<REQ, RESP> handler,
-				final ChannelHandlerContext ctx,
-				final long requestId,
-				final REQ request,
-				final KvStateRequestStats stats) {
+        private final KvStateRequestStats stats;
 
-			this.handler = Preconditions.checkNotNull(handler);
-			this.ctx = Preconditions.checkNotNull(ctx);
-			this.requestId = requestId;
-			this.request = Preconditions.checkNotNull(request);
-			this.stats = Preconditions.checkNotNull(stats);
-			this.creationNanos = System.nanoTime();
-		}
+        private final long creationNanos;
 
-		@Override
-		public void run() {
+        AsyncRequestTask(
+                final AbstractServerHandler<REQ, RESP> handler,
+                final ChannelHandlerContext ctx,
+                final long requestId,
+                final REQ request,
+                final KvStateRequestStats stats) {
 
-			if (!ctx.channel().isActive()) {
-				return;
-			}
+            this.handler = Preconditions.checkNotNull(handler);
+            this.ctx = Preconditions.checkNotNull(ctx);
+            this.requestId = requestId;
+            this.request = Preconditions.checkNotNull(request);
+            this.stats = Preconditions.checkNotNull(stats);
+            this.creationNanos = System.nanoTime();
+        }
 
-			handler.handleRequest(requestId, request).whenComplete((resp, throwable) -> {
-				try {
-					if (throwable != null) {
-						throw throwable instanceof CompletionException
-								? throwable.getCause()
-								: throwable;
-					}
+        @Override
+        public void run() {
 
-					if (resp == null) {
-						throw new BadRequestException(handler.getServerName(), "NULL returned for request with ID " + requestId + ".");
-					}
+            if (!ctx.channel().isActive()) {
+                return;
+            }
 
-					final ByteBuf serialResp = MessageSerializer.serializeResponse(ctx.alloc(), requestId, resp);
+            handler.handleRequest(requestId, request)
+                    .whenComplete(
+                            (resp, throwable) -> {
+                                try {
+                                    if (throwable != null) {
+                                        throw throwable instanceof CompletionException
+                                                ? throwable.getCause()
+                                                : throwable;
+                                    }
 
-					int highWatermark = ctx.channel().config().getWriteBufferHighWaterMark();
+                                    if (resp == null) {
+                                        throw new BadRequestException(
+                                                handler.getServerName(),
+                                                "NULL returned for request with ID "
+                                                        + requestId
+                                                        + ".");
+                                    }
 
-					ChannelFuture write;
-					if (serialResp.readableBytes() <= highWatermark) {
-						write = ctx.writeAndFlush(serialResp);
-					} else {
-						write = ctx.writeAndFlush(new ChunkedByteBuf(serialResp, highWatermark));
-					}
-					write.addListener(new RequestWriteListener());
+                                    final ByteBuf serialResp =
+                                            MessageSerializer.serializeResponse(
+                                                    ctx.alloc(), requestId, resp);
 
-				} catch (BadRequestException e) {
-					try {
-						stats.reportFailedRequest();
-						final ByteBuf err = MessageSerializer.serializeRequestFailure(ctx.alloc(), requestId, e);
-						ctx.writeAndFlush(err);
-					} catch (IOException io) {
-						LOG.error("Failed to respond with the error after failed request", io);
-					}
-				} catch (Throwable t) {
-					try {
-						stats.reportFailedRequest();
+                                    int highWatermark =
+                                            ctx.channel().config().getWriteBufferHighWaterMark();
 
-						final String errMsg = "Failed request " + requestId + "." + System.lineSeparator() + " Caused by: " + ExceptionUtils.stringifyException(t);
-						final ByteBuf err = MessageSerializer.serializeRequestFailure(ctx.alloc(), requestId, new RuntimeException(errMsg));
-						ctx.writeAndFlush(err);
-					} catch (IOException io) {
-						LOG.error("Failed to respond with the error after failed request", io);
-					}
-				}
-			});
-		}
+                                    ChannelFuture write;
+                                    if (serialResp.readableBytes() <= highWatermark) {
+                                        write = ctx.writeAndFlush(serialResp);
+                                    } else {
+                                        write =
+                                                ctx.writeAndFlush(
+                                                        new ChunkedByteBuf(
+                                                                serialResp, highWatermark));
+                                    }
+                                    write.addListener(new RequestWriteListener());
 
-		@Override
-		public String toString() {
-			return "AsyncRequestTask{" +
-					"requestId=" + requestId +
-					", request=" + request +
-					'}';
-		}
+                                } catch (BadRequestException e) {
+                                    LOG.debug("Bad request (request ID = {})", requestId, e);
+                                    try {
+                                        stats.reportFailedRequest();
+                                        final ByteBuf err =
+                                                MessageSerializer.serializeRequestFailure(
+                                                        ctx.alloc(), requestId, e);
+                                        ctx.writeAndFlush(err);
+                                    } catch (IOException io) {
+                                        LOG.error(
+                                                "Failed to respond with the error after failed request",
+                                                io);
+                                    }
+                                } catch (Throwable t) {
+                                    LOG.error(
+                                            "Error while handling request with ID {}",
+                                            requestId,
+                                            t);
+                                    try {
+                                        stats.reportFailedRequest();
 
-		/**
-		 * Callback after query result has been written.
-		 *
-		 * <p>Gathers stats and logs errors.
-		 */
-		private class RequestWriteListener implements ChannelFutureListener {
+                                        final String errMsg =
+                                                "Failed request "
+                                                        + requestId
+                                                        + "."
+                                                        + System.lineSeparator()
+                                                        + " Caused by: "
+                                                        + ExceptionUtils.stringifyException(t);
+                                        final ByteBuf err =
+                                                MessageSerializer.serializeRequestFailure(
+                                                        ctx.alloc(),
+                                                        requestId,
+                                                        new RuntimeException(errMsg));
+                                        ctx.writeAndFlush(err);
+                                    } catch (IOException io) {
+                                        LOG.error(
+                                                "Failed to respond with the error after failed request",
+                                                io);
+                                    }
+                                }
+                            });
+        }
 
-			@Override
-			public void operationComplete(ChannelFuture future) throws Exception {
-				long durationNanos = System.nanoTime() - creationNanos;
-				long durationMillis = TimeUnit.MILLISECONDS.convert(durationNanos, TimeUnit.NANOSECONDS);
+        @Override
+        public String toString() {
+            return "AsyncRequestTask{" + "requestId=" + requestId + ", request=" + request + '}';
+        }
 
-				if (future.isSuccess()) {
-					LOG.debug("Request {} was successfully answered after {} ms.", request, durationMillis);
-					stats.reportSuccessfulRequest(durationMillis);
-				} else {
-					LOG.debug("Request {} failed after {} ms due to: {}", request, durationMillis, future.cause());
-					stats.reportFailedRequest();
-				}
-			}
-		}
-	}
+        /**
+         * Callback after query result has been written.
+         *
+         * <p>Gathers stats and logs errors.
+         */
+        private class RequestWriteListener implements ChannelFutureListener {
+
+            @Override
+            public void operationComplete(ChannelFuture future) throws Exception {
+                long durationNanos = System.nanoTime() - creationNanos;
+                long durationMillis =
+                        TimeUnit.MILLISECONDS.convert(durationNanos, TimeUnit.NANOSECONDS);
+
+                if (future.isSuccess()) {
+                    LOG.debug(
+                            "Request {} was successfully answered after {} ms.",
+                            request,
+                            durationMillis);
+                    stats.reportSuccessfulRequest(durationMillis);
+                } else {
+                    LOG.debug(
+                            "Request {} failed after {} ms",
+                            request,
+                            durationMillis,
+                            future.cause());
+                    stats.reportFailedRequest();
+                }
+            }
+        }
+    }
 }

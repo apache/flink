@@ -16,13 +16,32 @@
  * limitations under the License.
  */
 
-export interface ConfigurationInterface {
+export interface JvmInfo {
+  version: string;
+  arch: string;
+  options: string[];
+}
+
+export interface EnvironmentInfo {
+  environment: Array<{ key: string; value: string }>;
+  jvm: JvmInfo;
+  classpath: string[];
+}
+
+export interface ClusterConfiguration {
+  key: string;
+  value: string;
+}
+
+export interface Configuration {
   'refresh-interval': number;
   'timezone-name': string;
   'timezone-offset': number;
   'flink-version': string;
   'flink-revision': string;
   features: {
+    'web-history': boolean;
     'web-submit': boolean;
+    'web-cancel': boolean;
   };
 }

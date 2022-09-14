@@ -19,107 +19,133 @@
 package org.apache.flink.table.runtime.operators.python.scalar.arrow;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.python.PythonFunctionRunner;
-import org.apache.flink.python.env.PythonEnvironmentManager;
+import org.apache.flink.fnexecution.v1.FlinkFnApi;
+import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.functions.ScalarFunction;
 import org.apache.flink.table.functions.python.PythonFunctionInfo;
-import org.apache.flink.table.runtime.arrow.ArrowReader;
-import org.apache.flink.table.runtime.arrow.ArrowUtils;
-import org.apache.flink.table.runtime.operators.python.scalar.AbstractRowPythonScalarFunctionOperator;
-import org.apache.flink.table.runtime.runners.python.scalar.arrow.ArrowPythonScalarFunctionRunner;
-import org.apache.flink.table.runtime.types.CRow;
+import org.apache.flink.table.runtime.arrow.serializers.ArrowSerializer;
+import org.apache.flink.table.runtime.generated.GeneratedProjection;
+import org.apache.flink.table.runtime.operators.python.scalar.AbstractPythonScalarFunctionOperator;
 import org.apache.flink.table.types.logical.RowType;
-import org.apache.flink.types.Row;
 
-import org.apache.arrow.memory.BufferAllocator;
-import org.apache.arrow.vector.VectorSchemaRoot;
-import org.apache.arrow.vector.ipc.ArrowStreamReader;
-import org.apache.beam.sdk.fn.data.FnDataReceiver;
+import static org.apache.flink.python.PythonOptions.MAX_ARROW_BATCH_SIZE;
+import static org.apache.flink.python.util.ProtoUtils.createArrowTypeCoderInfoDescriptorProto;
 
-import java.io.IOException;
-
-/**
- * Arrow Python {@link ScalarFunction} operator for the old planner.
- */
+/** Arrow Python {@link ScalarFunction} operator. */
 @Internal
-public class ArrowPythonScalarFunctionOperator extends AbstractRowPythonScalarFunctionOperator {
+public class ArrowPythonScalarFunctionOperator extends AbstractPythonScalarFunctionOperator {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	/**
-	 * Allocator which is used for byte buffer allocation.
-	 */
-	private transient BufferAllocator allocator;
+    /** The current number of elements to be included in an arrow batch. */
+    private transient int currentBatchCount;
 
-	/**
-	 * Reader which is responsible for deserialize the Arrow format data to the Flink rows.
-	 */
-	private transient ArrowReader<Row> arrowReader;
+    /** Max number of elements to include in an arrow batch. */
+    private transient int maxArrowBatchSize;
 
-	/**
-	 * Reader which is responsible for convert the execution result from
-	 * byte array to arrow format.
-	 */
-	private transient ArrowStreamReader reader;
+    private transient ArrowSerializer arrowSerializer;
 
-	public ArrowPythonScalarFunctionOperator(
-		Configuration config,
-		PythonFunctionInfo[] scalarFunctions,
-		RowType inputType,
-		RowType outputType,
-		int[] udfInputOffsets,
-		int[] forwardedFields) {
-		super(config, scalarFunctions, inputType, outputType, udfInputOffsets, forwardedFields);
-	}
+    public ArrowPythonScalarFunctionOperator(
+            Configuration config,
+            PythonFunctionInfo[] scalarFunctions,
+            RowType inputType,
+            RowType udfInputType,
+            RowType udfOutputType,
+            GeneratedProjection udfInputGeneratedProjection,
+            GeneratedProjection forwardedFieldGeneratedProjection) {
+        super(
+                config,
+                scalarFunctions,
+                inputType,
+                udfInputType,
+                udfOutputType,
+                udfInputGeneratedProjection,
+                forwardedFieldGeneratedProjection);
+    }
 
-	@Override
-	public void open() throws Exception {
-		super.open();
-		allocator = ArrowUtils.ROOT_ALLOCATOR.newChildAllocator("reader", 0, Long.MAX_VALUE);
-		reader = new ArrowStreamReader(bais, allocator);
-	}
+    @Override
+    public void open() throws Exception {
+        super.open();
+        maxArrowBatchSize = Math.min(config.get(MAX_ARROW_BATCH_SIZE), maxBundleSize);
+        arrowSerializer = new ArrowSerializer(udfInputType, udfOutputType);
+        arrowSerializer.open(bais, baos);
+        currentBatchCount = 0;
+    }
 
-	@Override
-	public void close() throws Exception {
-		try {
-			super.close();
-		} finally {
-			reader.close();
-			allocator.close();
-		}
-	}
+    @Override
+    public FlinkFnApi.CoderInfoDescriptor createInputCoderInfoDescriptor(RowType runnerInputType) {
+        return createArrowTypeCoderInfoDescriptorProto(
+                runnerInputType, FlinkFnApi.CoderInfoDescriptor.Mode.MULTIPLE, false);
+    }
 
-	@Override
-	public PythonFunctionRunner<Row> createPythonFunctionRunner(
-		FnDataReceiver<byte[]> resultReceiver,
-		PythonEnvironmentManager pythonEnvironmentManager) {
-		return new ArrowPythonScalarFunctionRunner(
-			getRuntimeContext().getTaskName(),
-			resultReceiver,
-			scalarFunctions,
-			pythonEnvironmentManager,
-			userDefinedFunctionInputType,
-			userDefinedFunctionOutputType,
-			getPythonConfig().getMaxArrowBatchSize());
-	}
+    @Override
+    public FlinkFnApi.CoderInfoDescriptor createOutputCoderInfoDescriptor(
+            RowType runnerOutputType) {
+        return createArrowTypeCoderInfoDescriptorProto(
+                runnerOutputType, FlinkFnApi.CoderInfoDescriptor.Mode.SINGLE, false);
+    }
 
-	@Override
-	@SuppressWarnings("ConstantConditions")
-	public void emitResults() throws IOException {
-		byte[] udfResult;
-		while ((udfResult = userDefinedFunctionResultQueue.poll()) != null) {
-			bais.setBuffer(udfResult, 0, udfResult.length);
-			reader.loadNextBatch();
-			VectorSchemaRoot root = reader.getVectorSchemaRoot();
-			if (arrowReader == null) {
-				arrowReader = ArrowUtils.createRowArrowReader(root);
-			}
-			for (int i = 0; i < root.getRowCount(); i++) {
-				CRow input = forwardedInputQueue.poll();
-				cRowWrapper.setChange(input.change());
-				cRowWrapper.collect(Row.join(input.row(), arrowReader.read(i)));
-			}
-		}
-	}
+    @Override
+    protected void invokeFinishBundle() throws Exception {
+        invokeCurrentBatch();
+        super.invokeFinishBundle();
+    }
+
+    @Override
+    public void endInput() throws Exception {
+        invokeCurrentBatch();
+        super.endInput();
+    }
+
+    @Override
+    public void finish() throws Exception {
+        invokeCurrentBatch();
+        super.finish();
+    }
+
+    @Override
+    public void close() throws Exception {
+        super.close();
+        if (arrowSerializer != null) {
+            arrowSerializer.close();
+            arrowSerializer = null;
+        }
+    }
+
+    @Override
+    @SuppressWarnings("ConstantConditions")
+    public void emitResult(Tuple3<String, byte[], Integer> resultTuple) throws Exception {
+        byte[] udfResult = resultTuple.f1;
+        int length = resultTuple.f2;
+        bais.setBuffer(udfResult, 0, length);
+        int rowCount = arrowSerializer.load();
+        for (int i = 0; i < rowCount; i++) {
+            RowData input = forwardedInputQueue.poll();
+            reuseJoinedRow.setRowKind(input.getRowKind());
+            rowDataWrapper.collect(reuseJoinedRow.replace(input, arrowSerializer.read(i)));
+        }
+        arrowSerializer.resetReader();
+    }
+
+    @Override
+    public void processElementInternal(RowData value) throws Exception {
+        arrowSerializer.write(getFunctionInput(value));
+        currentBatchCount++;
+        if (currentBatchCount >= maxArrowBatchSize) {
+            invokeCurrentBatch();
+        }
+    }
+
+    private void invokeCurrentBatch() throws Exception {
+        if (currentBatchCount > 0) {
+            arrowSerializer.finishCurrentBatch();
+            currentBatchCount = 0;
+            pythonFunctionRunner.process(baos.toByteArray());
+            checkInvokeFinishBundleByCount();
+            baos.reset();
+            arrowSerializer.resetWriter();
+        }
+    }
 }

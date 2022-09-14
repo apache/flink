@@ -31,7 +31,7 @@ TEST=flink-stream-state-ttl-test
 TEST_PROGRAM_NAME=DataStreamStateTTLTestProgram
 TEST_PROGRAM_JAR=${END_TO_END_DIR}/$TEST/target/$TEST_PROGRAM_NAME.jar
 
-setup_flink_slf4j_metric_reporter
+setup_flink_slf4j_metric_reporter "numRecordsIn"
 
 set_config_key "metrics.fetcher.update-interval" "2000"
 
@@ -75,7 +75,7 @@ wait_oper_metric_num_in_records TtlVerifyUpdateFunction.0 ${UPDATE_NUM} "State T
 
 # if verification fails job produces failed TTL'ed state updates,
 # output would be non-empty and contains TTL verification failed:
-local EXIT_CODE=0
+EXIT_CODE=0
 check_logs_for_non_empty_out_files
 
 if [ $EXIT_CODE != 0 ]; then

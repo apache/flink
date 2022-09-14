@@ -24,47 +24,39 @@ import org.apache.flink.runtime.state.KeyGroupRange;
 import javax.annotation.Nonnull;
 
 /**
- * This interface is the current context of a keyed state. It provides information about the currently selected key in
- * the context, the corresponding key-group, and other key and key-grouping related information.
- * <p>
- * The typical use case for this interface is providing a view on the current-key selection aspects of
- * {@link org.apache.flink.runtime.state.KeyedStateBackend}.
+ * This interface is the current context of a keyed state. It provides information about the
+ * currently selected key in the context, the corresponding key-group, and other key and
+ * key-grouping related information.
+ *
+ * <p>The typical use case for this interface is providing a view on the current-key selection
+ * aspects of {@link org.apache.flink.runtime.state.KeyedStateBackend}.
  */
 @Internal
 public interface InternalKeyContext<K> {
 
-	/**
-	 * Used by states to access the current key.
-	 */
-	K getCurrentKey();
+    /** Used by states to access the current key. */
+    K getCurrentKey();
 
-	/**
-	 * Returns the key-group to which the current key belongs.
-	 */
-	int getCurrentKeyGroupIndex();
+    /** Returns the key-group to which the current key belongs. */
+    int getCurrentKeyGroupIndex();
 
-	/**
-	 * Returns the number of key-groups aka max parallelism.
-	 */
-	int getNumberOfKeyGroups();
+    /** Returns the number of key-groups aka max parallelism. */
+    int getNumberOfKeyGroups();
 
-	/**
-	 * Returns the key groups for this backend.
-	 */
-	KeyGroupRange getKeyGroupRange();
+    /** Returns the key groups for this backend. */
+    KeyGroupRange getKeyGroupRange();
 
-	/**
-	 * Set current key of the context.
-	 *
-	 * @param currentKey the current key to set to.
-	 */
-	void setCurrentKey(@Nonnull K currentKey);
+    /**
+     * Set current key of the context.
+     *
+     * @param currentKey the current key to set to.
+     */
+    void setCurrentKey(@Nonnull K currentKey);
 
-	/**
-	 * Set current key group index of the context.
-	 *
-	 * @param currentKeyGroupIndex the current key group index to set to.
-	 */
-	void setCurrentKeyGroupIndex(int currentKeyGroupIndex);
-
+    /**
+     * Set current key group index of the context.
+     *
+     * @param currentKeyGroupIndex the current key group index to set to.
+     */
+    void setCurrentKeyGroupIndex(int currentKeyGroupIndex);
 }

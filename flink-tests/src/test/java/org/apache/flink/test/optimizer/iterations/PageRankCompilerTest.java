@@ -45,69 +45,80 @@ import org.junit.Test;
 import static org.apache.flink.api.java.aggregation.Aggregations.SUM;
 import static org.junit.Assert.fail;
 
-/**
- * Test compilation of PageRank implementation.
- */
-public class PageRankCompilerTest extends CompilerTestBase{
+/** Test compilation of PageRank implementation. */
+public class PageRankCompilerTest extends CompilerTestBase {
 
-	@Test
-	public void testPageRank() {
-		try {
-			final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+    @Test
+    public void testPageRank() {
+        try {
+            final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
-			// get input data
-			DataSet<Long> pagesInput = env.fromElements(1L);
-			@SuppressWarnings("unchecked")
-			DataSet<Tuple2<Long, Long>> linksInput = env.fromElements(new Tuple2<Long, Long>(1L, 2L));
+            // get input data
+            DataSet<Long> pagesInput = env.fromElements(1L);
+            @SuppressWarnings("unchecked")
+            DataSet<Tuple2<Long, Long>> linksInput =
+                    env.fromElements(new Tuple2<Long, Long>(1L, 2L));
 
-			// assign initial rank to pages
-			DataSet<Tuple2<Long, Double>> pagesWithRanks = pagesInput.
-					map(new RankAssigner((1.0d / 10)));
+            // assign initial rank to pages
+            DataSet<Tuple2<Long, Double>> pagesWithRanks =
+                    pagesInput.map(new RankAssigner((1.0d / 10)));
 
-			// build adjacency list from link input
-			DataSet<Tuple2<Long, Long[]>> adjacencyListInput =
-					linksInput.groupBy(0).reduceGroup(new BuildOutgoingEdgeList());
+            // build adjacency list from link input
+            DataSet<Tuple2<Long, Long[]>> adjacencyListInput =
+                    linksInput.groupBy(0).reduceGroup(new BuildOutgoingEdgeList());
 
-			// set iterative data set
-			IterativeDataSet<Tuple2<Long, Double>> iteration = pagesWithRanks.iterate(10);
+            // set iterative data set
+            IterativeDataSet<Tuple2<Long, Double>> iteration = pagesWithRanks.iterate(10);
 
-			Configuration cfg = new Configuration();
-			cfg.setString(Optimizer.HINT_LOCAL_STRATEGY, Optimizer.HINT_LOCAL_STRATEGY_HASH_BUILD_SECOND);
+            Configuration cfg = new Configuration();
+            cfg.setString(
+                    Optimizer.HINT_LOCAL_STRATEGY, Optimizer.HINT_LOCAL_STRATEGY_HASH_BUILD_SECOND);
 
-			DataSet<Tuple2<Long, Double>> newRanks = iteration
-					// join pages with outgoing edges and distribute rank
-					.join(adjacencyListInput).where(0).equalTo(0).withParameters(cfg)
-					.flatMap(new JoinVertexWithEdgesMatch())
-					// collect and sum ranks
-					.groupBy(0).aggregate(SUM, 1)
-					// apply dampening factor
-					.map(new Dampener(0.85, 10));
+            DataSet<Tuple2<Long, Double>> newRanks =
+                    iteration
+                            // join pages with outgoing edges and distribute rank
+                            .join(adjacencyListInput)
+                            .where(0)
+                            .equalTo(0)
+                            .withParameters(cfg)
+                            .flatMap(new JoinVertexWithEdgesMatch())
+                            // collect and sum ranks
+                            .groupBy(0)
+                            .aggregate(SUM, 1)
+                            // apply dampening factor
+                            .map(new Dampener(0.85, 10));
 
-			DataSet<Tuple2<Long, Double>> finalPageRanks = iteration.closeWith(
-					newRanks,
-					newRanks.join(iteration).where(0).equalTo(0)
-					// termination condition
-					.filter(new EpsilonFilter()));
+            DataSet<Tuple2<Long, Double>> finalPageRanks =
+                    iteration.closeWith(
+                            newRanks,
+                            newRanks.join(iteration)
+                                    .where(0)
+                                    .equalTo(0)
+                                    // termination condition
+                                    .filter(new EpsilonFilter()));
 
-			finalPageRanks.output(new DiscardingOutputFormat<Tuple2<Long, Double>>());
+            finalPageRanks.output(new DiscardingOutputFormat<Tuple2<Long, Double>>());
 
-			// get the plan and compile it
-			Plan p = env.createProgramPlan();
-			OptimizedPlan op = compileNoStats(p);
+            // get the plan and compile it
+            Plan p = env.createProgramPlan();
+            OptimizedPlan op = compileNoStats(p);
 
-			SinkPlanNode sinkPlanNode = (SinkPlanNode) op.getDataSinks().iterator().next();
-			BulkIterationPlanNode iterPlanNode = (BulkIterationPlanNode) sinkPlanNode.getInput().getSource();
+            SinkPlanNode sinkPlanNode = (SinkPlanNode) op.getDataSinks().iterator().next();
+            BulkIterationPlanNode iterPlanNode =
+                    (BulkIterationPlanNode) sinkPlanNode.getInput().getSource();
 
-			// check that the partitioning is pushed out of the first loop
-			Assert.assertEquals(ShipStrategyType.PARTITION_HASH, iterPlanNode.getInput().getShipStrategy());
-			Assert.assertEquals(LocalStrategy.NONE, iterPlanNode.getInput().getLocalStrategy());
+            // check that the partitioning is pushed out of the first loop
+            Assert.assertEquals(
+                    ShipStrategyType.PARTITION_HASH, iterPlanNode.getInput().getShipStrategy());
+            Assert.assertEquals(LocalStrategy.NONE, iterPlanNode.getInput().getLocalStrategy());
 
-			BulkPartialSolutionPlanNode partSolPlanNode = iterPlanNode.getPartialSolutionPlanNode();
-			Assert.assertEquals(ShipStrategyType.FORWARD, partSolPlanNode.getOutgoingChannels().get(0).getShipStrategy());
-		}
-		catch (Exception e) {
-			e.printStackTrace();
-			fail(e.getMessage());
-		}
-	}
+            BulkPartialSolutionPlanNode partSolPlanNode = iterPlanNode.getPartialSolutionPlanNode();
+            Assert.assertEquals(
+                    ShipStrategyType.FORWARD,
+                    partSolPlanNode.getOutgoingChannels().get(0).getShipStrategy());
+        } catch (Exception e) {
+            e.printStackTrace();
+            fail(e.getMessage());
+        }
+    }
 }

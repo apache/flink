@@ -19,12 +19,14 @@
 package org.apache.flink.table.runtime.arrow;
 
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.table.data.RowData;
 import org.apache.flink.testutils.CustomEqualityMatcher;
 import org.apache.flink.testutils.DeeplyEqualsChecker;
 import org.apache.flink.util.Preconditions;
 
 import org.apache.arrow.vector.ipc.ArrowStreamWriter;
-import org.junit.Test;
+import org.assertj.core.api.HamcrestCondition;
+import org.junit.jupiter.api.Test;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -32,58 +34,63 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.fail;
 
 /**
  * Abstract test base for {@link ArrowReader} and {@link ArrowWriter}.
  *
  * @param <T> the elment type.
  */
-public abstract class ArrowReaderWriterTestBase<T> {
+abstract class ArrowReaderWriterTestBase<T> {
 
-	private final DeeplyEqualsChecker checker;
+    private final DeeplyEqualsChecker checker;
 
-	ArrowReaderWriterTestBase() {
-		this.checker = new DeeplyEqualsChecker();
-	}
+    ArrowReaderWriterTestBase() {
+        this.checker = new DeeplyEqualsChecker();
+    }
 
-	ArrowReaderWriterTestBase(DeeplyEqualsChecker checker) {
-		this.checker = Preconditions.checkNotNull(checker);
-	}
+    ArrowReaderWriterTestBase(DeeplyEqualsChecker checker) {
+        this.checker = Preconditions.checkNotNull(checker);
+    }
 
-	@Test
-	public void testBasicFunctionality() {
-		try {
-			ByteArrayOutputStream baos = new ByteArrayOutputStream();
-			Tuple2<ArrowWriter<T>, ArrowStreamWriter> tuple2 = createArrowWriter(baos);
-			ArrowWriter<T> arrowWriter = tuple2.f0;
-			ArrowStreamWriter arrowStreamWriter = tuple2.f1;
+    @Test
+    void testBasicFunctionality() {
+        try {
+            ByteArrayOutputStream baos = new ByteArrayOutputStream();
+            Tuple2<ArrowWriter<T>, ArrowStreamWriter> tuple2 = createArrowWriter(baos);
+            ArrowWriter<T> arrowWriter = tuple2.f0;
+            ArrowStreamWriter arrowStreamWriter = tuple2.f1;
 
-			T[] testData = getTestData();
-			for (T value : testData) {
-				arrowWriter.write(value);
-			}
-			arrowWriter.finish();
-			arrowStreamWriter.writeBatch();
+            T[] testData = getTestData();
+            for (T value : testData) {
+                arrowWriter.write(value);
+            }
+            arrowWriter.finish();
+            arrowStreamWriter.writeBatch();
 
-			ArrowReader<T> arrowReader = createArrowReader(new ByteArrayInputStream(baos.toByteArray()));
-			for (int i = 0; i < testData.length; i++) {
-				T deserialized = arrowReader.read(i);
-				assertThat("Deserialized value is wrong.",
-					deserialized, CustomEqualityMatcher.deeplyEquals(testData[i]).withChecker(checker));
-			}
-		}
-		catch (Exception e) {
-			System.err.println(e.getMessage());
-			e.printStackTrace();
-			fail("Exception in test: " + e.getMessage());
-		}
-	}
+            ArrowReader arrowReader =
+                    createArrowReader(new ByteArrayInputStream(baos.toByteArray()));
+            for (int i = 0; i < testData.length; i++) {
+                RowData deserialized = arrowReader.read(i);
+                assertThat(deserialized)
+                        .as("Deserialized value is wrong.")
+                        .is(
+                                HamcrestCondition.matching(
+                                        CustomEqualityMatcher.deeplyEquals(testData[i])
+                                                .withChecker(checker)));
+            }
+        } catch (Exception e) {
+            System.err.println(e.getMessage());
+            e.printStackTrace();
+            fail("Exception in test: " + e.getMessage());
+        }
+    }
 
-	public abstract ArrowReader<T> createArrowReader(InputStream inputStream) throws IOException;
+    public abstract ArrowReader createArrowReader(InputStream inputStream) throws IOException;
 
-	public abstract Tuple2<ArrowWriter<T>, ArrowStreamWriter> createArrowWriter(OutputStream outputStream) throws IOException;
+    public abstract Tuple2<ArrowWriter<T>, ArrowStreamWriter> createArrowWriter(
+            OutputStream outputStream) throws IOException;
 
-	public abstract T[] getTestData();
+    public abstract T[] getTestData();
 }

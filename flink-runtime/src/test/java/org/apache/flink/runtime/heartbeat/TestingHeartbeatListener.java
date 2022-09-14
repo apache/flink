@@ -26,30 +26,42 @@ import java.util.function.Function;
 
 final class TestingHeartbeatListener<I, O> implements HeartbeatListener<I, O> {
 
-	private final Consumer<ResourceID> notifyHeartbeatTimeoutConsumer;
+    private final Consumer<ResourceID> notifyHeartbeatTimeoutConsumer;
 
-	private final BiConsumer<ResourceID, I> reportPayloadConsumer;
+    private final BiConsumer<ResourceID, I> reportPayloadConsumer;
 
-	private final Function<ResourceID, O> retrievePayloadFunction;
+    private final Function<ResourceID, O> retrievePayloadFunction;
 
-	TestingHeartbeatListener(Consumer<ResourceID> notifyHeartbeatTimeoutConsumer, BiConsumer<ResourceID, I> reportPayloadConsumer, Function<ResourceID, O> retrievePayloadFunction) {
-		this.notifyHeartbeatTimeoutConsumer = notifyHeartbeatTimeoutConsumer;
-		this.reportPayloadConsumer = reportPayloadConsumer;
-		this.retrievePayloadFunction = retrievePayloadFunction;
-	}
+    private final Consumer<ResourceID> notifyTargetUnreachableConsumer;
 
-	@Override
-	public void notifyHeartbeatTimeout(ResourceID resourceID) {
-		notifyHeartbeatTimeoutConsumer.accept(resourceID);
-	}
+    TestingHeartbeatListener(
+            Consumer<ResourceID> notifyHeartbeatTimeoutConsumer,
+            BiConsumer<ResourceID, I> reportPayloadConsumer,
+            Function<ResourceID, O> retrievePayloadFunction,
+            Consumer<ResourceID> notifyTargetUnreachableConsumer) {
+        this.notifyHeartbeatTimeoutConsumer = notifyHeartbeatTimeoutConsumer;
+        this.reportPayloadConsumer = reportPayloadConsumer;
+        this.retrievePayloadFunction = retrievePayloadFunction;
+        this.notifyTargetUnreachableConsumer = notifyTargetUnreachableConsumer;
+    }
 
-	@Override
-	public void reportPayload(ResourceID resourceID, I payload) {
-		reportPayloadConsumer.accept(resourceID, payload);
-	}
+    @Override
+    public void notifyHeartbeatTimeout(ResourceID resourceID) {
+        notifyHeartbeatTimeoutConsumer.accept(resourceID);
+    }
 
-	@Override
-	public O retrievePayload(ResourceID resourceID) {
-		return retrievePayloadFunction.apply(resourceID);
-	}
+    @Override
+    public void notifyTargetUnreachable(ResourceID resourceID) {
+        notifyTargetUnreachableConsumer.accept(resourceID);
+    }
+
+    @Override
+    public void reportPayload(ResourceID resourceID, I payload) {
+        reportPayloadConsumer.accept(resourceID, payload);
+    }
+
+    @Override
+    public O retrievePayload(ResourceID resourceID) {
+        return retrievePayloadFunction.apply(resourceID);
+    }
 }

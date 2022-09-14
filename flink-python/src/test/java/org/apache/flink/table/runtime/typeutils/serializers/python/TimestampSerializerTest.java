@@ -21,48 +21,58 @@ package org.apache.flink.table.runtime.typeutils.serializers.python;
 import org.apache.flink.api.common.typeutils.SerializerTestBase;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
-
 import java.sql.Timestamp;
-import java.util.Arrays;
-import java.util.Collection;
 
-/**
- * Test for {@link TimestampSerializer}.
- */
-@RunWith(Parameterized.class)
-public class TimestampSerializerTest extends SerializerTestBase<Timestamp> {
+/** Test for {@link TimestampSerializer}. */
+abstract class TimestampSerializerTest extends SerializerTestBase<Timestamp> {
 
-	@Parameterized.Parameters
-	public static Collection<Object[]> data() {
-		return Arrays.asList(new Object[][]{{0}, {3}, {6}, {9}});
-	}
+    @Override
+    protected TypeSerializer<Timestamp> createSerializer() {
+        return new TimestampSerializer(getPrecision());
+    }
 
-	private int precision;
+    @Override
+    protected int getLength() {
+        return (getPrecision() <= 3) ? 8 : 12;
+    }
 
-	public TimestampSerializerTest(int precision) {
-		super();
-		this.precision = precision;
-	}
+    @Override
+    protected Class<Timestamp> getTypeClass() {
+        return Timestamp.class;
+    }
 
-	@Override
-	protected TypeSerializer<Timestamp> createSerializer() {
-		return new TimestampSerializer(precision);
-	}
+    abstract int getPrecision();
 
-	@Override
-	protected int getLength() {
-		return (precision <= 3) ? 8 : 12;
-	}
+    @Override
+    protected Timestamp[] getTestData() {
+        return new Timestamp[] {Timestamp.valueOf("2018-03-11 03:00:00.123")};
+    }
 
-	@Override
-	protected Class<Timestamp> getTypeClass() {
-		return Timestamp.class;
-	}
+    static final class TimestampSerializerTest0 extends TimestampSerializerTest {
+        @Override
+        protected int getPrecision() {
+            return 0;
+        }
+    }
 
-	@Override
-	protected Timestamp[] getTestData() {
-		return new Timestamp[]{Timestamp.valueOf("2018-03-11 03:00:00.123")};
-	}
+    static final class TimestampSerializerTest3 extends TimestampSerializerTest {
+        @Override
+        protected int getPrecision() {
+            return 3;
+        }
+    }
+
+    static final class TimestampSerializerTest6 extends TimestampSerializerTest {
+        @Override
+        protected int getPrecision() {
+            return 6;
+        }
+    }
+
+    static final class TimestampSerializerTest8 extends TimestampSerializerTest {
+        @Override
+        protected int getPrecision() {
+            return 8;
+        }
+    }
 }

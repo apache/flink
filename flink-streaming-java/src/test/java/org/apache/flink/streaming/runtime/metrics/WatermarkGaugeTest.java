@@ -21,18 +21,16 @@ package org.apache.flink.streaming.runtime.metrics;
 import org.junit.Assert;
 import org.junit.Test;
 
-/**
- * Tests for the {@link WatermarkGauge}.
- */
+/** Tests for the {@link WatermarkGauge}. */
 public class WatermarkGaugeTest {
 
-	@Test
-	public void testSetCurrentLowWatermark() {
-		WatermarkGauge metric = new WatermarkGauge();
+    @Test
+    public void testSetCurrentLowWatermark() {
+        WatermarkGauge metric = new WatermarkGauge();
 
-		Assert.assertEquals(Long.MIN_VALUE, metric.getValue().longValue());
+        Assert.assertEquals(Long.MIN_VALUE, metric.getValue().longValue());
 
-		metric.setCurrentWatermark(64);
-		Assert.assertEquals(64, metric.getValue().longValue());
-	}
+        metric.setCurrentWatermark(64);
+        Assert.assertEquals(64, metric.getValue().longValue());
+    }
 }

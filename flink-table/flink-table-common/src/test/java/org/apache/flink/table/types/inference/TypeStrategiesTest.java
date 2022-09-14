@@ -19,178 +19,137 @@
 package org.apache.flink.table.types.inference;
 
 import org.apache.flink.table.api.DataTypes;
-import org.apache.flink.table.api.ValidationException;
-import org.apache.flink.table.functions.FunctionKind;
-import org.apache.flink.table.types.DataType;
-import org.apache.flink.table.types.inference.utils.CallContextMock;
-import org.apache.flink.table.types.inference.utils.FunctionDefinitionMock;
+import org.apache.flink.table.types.logical.LogicalTypeFamily;
+import org.apache.flink.table.types.logical.utils.LogicalTypeMerging;
 
-import org.junit.Assert;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.ExpectedException;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
-import org.junit.runners.Parameterized.Parameter;
-import org.junit.runners.Parameterized.Parameters;
-
-import javax.annotation.Nullable;
-
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
 import java.util.Optional;
+import java.util.stream.Stream;
 
 import static org.apache.flink.table.types.inference.TypeStrategies.MISSING;
 import static org.apache.flink.table.types.inference.TypeStrategies.argument;
 import static org.apache.flink.table.types.inference.TypeStrategies.explicit;
-import static org.apache.flink.util.CoreMatchers.containsCause;
-import static org.hamcrest.CoreMatchers.equalTo;
+import static org.apache.flink.table.types.inference.TypeStrategies.nullableIfAllArgs;
+import static org.apache.flink.table.types.inference.TypeStrategies.nullableIfArgs;
+import static org.apache.flink.table.types.inference.TypeStrategies.varyingString;
 
-/**
- * Tests for built-in {@link TypeStrategies}.
- */
-@RunWith(Parameterized.class)
-public class TypeStrategiesTest {
+/** Tests for built-in {@link TypeStrategies}. */
+class TypeStrategiesTest extends TypeStrategiesTestBase {
 
-	@Parameters
-	public static List<TestSpec> testData() {
-		return Arrays.asList(
-			// missing strategy with arbitrary argument
-			TestSpec
-				.forStrategy(MISSING)
-				.inputTypes(DataTypes.INT())
-				.expectErrorMessage("Could not infer an output type for the given arguments."),
+    @Override
+    protected Stream<TestSpec> testData() {
+        return Stream.of(
+                // missing strategy with arbitrary argument
+                TypeStrategiesTestBase.TestSpec.forStrategy(MISSING)
+                        .inputTypes(DataTypes.INT())
+                        .expectErrorMessage(
+                                "Could not infer an output type for the given arguments."),
 
-			// valid explicit
-			TestSpec
-				.forStrategy(explicit(DataTypes.BIGINT()))
-				.inputTypes()
-				.expectDataType(DataTypes.BIGINT()),
+                // valid explicit
+                TypeStrategiesTestBase.TestSpec.forStrategy(explicit(DataTypes.BIGINT()))
+                        .inputTypes()
+                        .expectDataType(DataTypes.BIGINT()),
 
-			// infer from input
-			TestSpec
-				.forStrategy(argument(0))
-				.inputTypes(DataTypes.INT(), DataTypes.STRING())
-				.expectDataType(DataTypes.INT()),
+                // infer from input
+                TypeStrategiesTestBase.TestSpec.forStrategy(argument(0))
+                        .inputTypes(DataTypes.INT(), DataTypes.STRING())
+                        .expectDataType(DataTypes.INT()),
 
-			// infer from not existing input
-			TestSpec
-				.forStrategy(argument(0))
-				.inputTypes()
-				.expectErrorMessage("Could not infer an output type for the given arguments."),
+                // infer from not existing input
+                TypeStrategiesTestBase.TestSpec.forStrategy(argument(0))
+                        .inputTypes()
+                        .expectErrorMessage(
+                                "Could not infer an output type for the given arguments."),
 
-			// (INT, BOOLEAN) -> STRING
-			TestSpec
-				.forStrategy(createMappingTypeStrategy())
-				.inputTypes(DataTypes.INT(), DataTypes.BOOLEAN())
-				.expectDataType(DataTypes.STRING()),
-
-			// (INT, STRING) -> BOOLEAN
-			TestSpec
-				.forStrategy(createMappingTypeStrategy())
-				.inputTypes(DataTypes.INT(), DataTypes.STRING())
-				.expectDataType(DataTypes.BOOLEAN().bridgedTo(boolean.class)),
-
-			// invalid mapping strategy
-			TestSpec
-				.forStrategy(createMappingTypeStrategy())
-				.inputTypes(DataTypes.INT(), DataTypes.INT())
-				.expectErrorMessage("Could not infer an output type for the given arguments."),
-
-			// invalid return type
-			TestSpec
-				.forStrategy(TypeStrategies.explicit(DataTypes.NULL()))
-				.inputTypes()
-				.expectErrorMessage("Could not infer an output type for the given arguments. Untyped NULL received.")
-		);
-	}
-
-	@Parameter
-	public TestSpec testSpec;
-
-	@Rule
-	public ExpectedException thrown = ExpectedException.none();
-
-	@Test
-	public void testTypeStrategy() {
-		if (testSpec.expectedErrorMessage != null) {
-			thrown.expect(ValidationException.class);
-			thrown.expectCause(containsCause(new ValidationException(testSpec.expectedErrorMessage)));
-		}
-		TypeInferenceUtil.Result result = runTypeInference();
-		if (testSpec.expectedDataType != null) {
-			Assert.assertThat(result.getOutputDataType(), equalTo(testSpec.expectedDataType));
-		}
-	}
-
-	// --------------------------------------------------------------------------------------------
-
-	private TypeInferenceUtil.Result runTypeInference() {
-		final FunctionDefinitionMock functionDefinitionMock = new FunctionDefinitionMock();
-		functionDefinitionMock.functionKind = FunctionKind.SCALAR;
-		final CallContextMock callContextMock = new CallContextMock();
-		callContextMock.functionDefinition = functionDefinitionMock;
-		callContextMock.argumentDataTypes = testSpec.inputTypes;
-		callContextMock.name = "f";
-		callContextMock.outputDataType = Optional.empty();
-
-		final TypeInference typeInference = TypeInference.newBuilder()
-			.inputTypeStrategy(InputTypeStrategies.WILDCARD)
-			.outputTypeStrategy(testSpec.strategy)
-			.build();
-		return TypeInferenceUtil.runTypeInference(typeInference, callContextMock, null);
-	}
-
-	// --------------------------------------------------------------------------------------------
-
-	private static class TestSpec {
-
-		private final TypeStrategy strategy;
-
-		private List<DataType> inputTypes;
-
-		private @Nullable DataType expectedDataType;
-
-		private @Nullable String expectedErrorMessage;
-
-		private TestSpec(TypeStrategy strategy) {
-			this.strategy = strategy;
-		}
-
-		static TestSpec forStrategy(TypeStrategy strategy) {
-			return new TestSpec(strategy);
-		}
-
-		TestSpec inputTypes(DataType... dataTypes) {
-			this.inputTypes = Arrays.asList(dataTypes);
-			return this;
-		}
-
-		TestSpec expectDataType(DataType expectedDataType) {
-			this.expectedDataType = expectedDataType;
-			return this;
-		}
-
-		TestSpec expectErrorMessage(String expectedErrorMessage) {
-			this.expectedErrorMessage = expectedErrorMessage;
-			return this;
-		}
-	}
-
-	private static TypeStrategy createMappingTypeStrategy() {
-		final Map<InputTypeStrategy, TypeStrategy> mappings = new HashMap<>();
-		mappings.put(
-			InputTypeStrategies.sequence(
-				InputTypeStrategies.explicit(DataTypes.INT()),
-				InputTypeStrategies.explicit(DataTypes.STRING())),
-			TypeStrategies.explicit(DataTypes.BOOLEAN().bridgedTo(boolean.class)));
-		mappings.put(
-			InputTypeStrategies.sequence(
-				InputTypeStrategies.explicit(DataTypes.INT()),
-				InputTypeStrategies.explicit(DataTypes.BOOLEAN())),
-			TypeStrategies.explicit(DataTypes.STRING()));
-		return TypeStrategies.mapping(mappings);
-	}
+                // invalid return type
+                TypeStrategiesTestBase.TestSpec.forStrategy(explicit(DataTypes.NULL()))
+                        .inputTypes()
+                        .expectErrorMessage(
+                                "Could not infer an output type for the given arguments. Untyped NULL received."),
+                TypeStrategiesTestBase.TestSpec.forStrategy(
+                                "First type strategy",
+                                TypeStrategies.first(
+                                        (callContext) -> Optional.empty(),
+                                        explicit(DataTypes.INT())))
+                        .inputTypes()
+                        .expectDataType(DataTypes.INT()),
+                TypeStrategiesTestBase.TestSpec.forStrategy(
+                                "Match root type strategy",
+                                TypeStrategies.matchFamily(0, LogicalTypeFamily.NUMERIC))
+                        .inputTypes(DataTypes.INT())
+                        .expectDataType(DataTypes.INT()),
+                TypeStrategiesTestBase.TestSpec.forStrategy(
+                                "Invalid match root type strategy",
+                                TypeStrategies.matchFamily(0, LogicalTypeFamily.NUMERIC))
+                        .inputTypes(DataTypes.BOOLEAN())
+                        .expectErrorMessage(
+                                "Could not infer an output type for the given arguments."),
+                TypeStrategiesTestBase.TestSpec.forStrategy(
+                                "Cascading to nullable type",
+                                nullableIfArgs(explicit(DataTypes.BOOLEAN().notNull())))
+                        .inputTypes(DataTypes.BIGINT().notNull(), DataTypes.VARCHAR(2).nullable())
+                        .expectDataType(DataTypes.BOOLEAN().nullable()),
+                TypeStrategiesTestBase.TestSpec.forStrategy(
+                                "Cascading to not null type",
+                                nullableIfArgs(explicit(DataTypes.BOOLEAN().nullable())))
+                        .inputTypes(DataTypes.BIGINT().notNull(), DataTypes.VARCHAR(2).notNull())
+                        .expectDataType(DataTypes.BOOLEAN().notNull()),
+                TypeStrategiesTestBase.TestSpec.forStrategy(
+                                "Cascading to not null type but only consider first argument",
+                                nullableIfArgs(
+                                        ConstantArgumentCount.to(0),
+                                        explicit(DataTypes.BOOLEAN().nullable())))
+                        .inputTypes(DataTypes.BIGINT().notNull(), DataTypes.VARCHAR(2).nullable())
+                        .expectDataType(DataTypes.BOOLEAN().notNull()),
+                TypeStrategiesTestBase.TestSpec.forStrategy(
+                                "Cascading to null type but only consider first two argument",
+                                nullableIfArgs(
+                                        ConstantArgumentCount.to(1),
+                                        explicit(DataTypes.BOOLEAN().nullable())))
+                        .inputTypes(DataTypes.BIGINT().notNull(), DataTypes.VARCHAR(2).nullable())
+                        .expectDataType(DataTypes.BOOLEAN().nullable()),
+                TypeStrategiesTestBase.TestSpec.forStrategy(
+                                "Cascading to not null type but only consider the second and third argument",
+                                nullableIfArgs(
+                                        ConstantArgumentCount.between(1, 2),
+                                        explicit(DataTypes.BOOLEAN().nullable())))
+                        .inputTypes(
+                                DataTypes.BIGINT().nullable(),
+                                DataTypes.BIGINT().notNull(),
+                                DataTypes.VARCHAR(2).notNull())
+                        .expectDataType(DataTypes.BOOLEAN().notNull()),
+                TypeStrategiesTestBase.TestSpec.forStrategy(
+                                "Cascading to not null because one argument is not null",
+                                nullableIfAllArgs(TypeStrategies.COMMON))
+                        .inputTypes(DataTypes.VARCHAR(2).notNull(), DataTypes.VARCHAR(2).nullable())
+                        .expectDataType(DataTypes.VARCHAR(2).notNull()),
+                TypeStrategiesTestBase.TestSpec.forStrategy(
+                                "Cascading to nullable because all args are nullable",
+                                nullableIfAllArgs(TypeStrategies.COMMON))
+                        .inputTypes(
+                                DataTypes.VARCHAR(2).nullable(), DataTypes.VARCHAR(2).nullable())
+                        .expectDataType(DataTypes.VARCHAR(2).nullable()),
+                TypeStrategiesTestBase.TestSpec.forStrategy(
+                                "Find a common type", TypeStrategies.COMMON)
+                        .inputTypes(
+                                DataTypes.INT(),
+                                DataTypes.TINYINT().notNull(),
+                                DataTypes.DECIMAL(20, 10))
+                        .expectDataType(DataTypes.DECIMAL(20, 10)),
+                TypeStrategiesTestBase.TestSpec.forStrategy(
+                                "Convert to varying string",
+                                varyingString(explicit(DataTypes.CHAR(12).notNull())))
+                        .inputTypes(DataTypes.CHAR(12).notNull())
+                        .expectDataType(DataTypes.VARCHAR(12).notNull()),
+                TypeStrategiesTestBase.TestSpec.forStrategy(
+                                "Average with grouped aggregation",
+                                TypeStrategies.aggArg0(LogicalTypeMerging::findAvgAggType, true))
+                        .inputTypes(DataTypes.INT().notNull())
+                        .calledWithGroupedAggregation()
+                        .expectDataType(DataTypes.INT().notNull()),
+                TypeStrategiesTestBase.TestSpec.forStrategy(
+                                "Average without grouped aggregation",
+                                TypeStrategies.aggArg0(LogicalTypeMerging::findAvgAggType, true))
+                        .inputTypes(DataTypes.INT().notNull())
+                        .expectDataType(DataTypes.INT()));
+    }
 }

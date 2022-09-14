@@ -22,32 +22,30 @@ import org.apache.flink.annotation.PublicEvolving;
 
 /**
  * Rich variant of the {@link AggregateFunction}. As a {@link RichFunction}, it gives access to the
- * {@link RuntimeContext} and provides setup and teardown methods:
- * {@link RichFunction#open(org.apache.flink.configuration.Configuration)} and
- * {@link RichFunction#close()}.
+ * {@link RuntimeContext} and provides setup and teardown methods: {@link
+ * RichFunction#open(org.apache.flink.configuration.Configuration)} and {@link
+ * RichFunction#close()}.
  *
  * @see AggregateFunction
- *
- * @param <IN>  The type of the values that are aggregated (input values)
+ * @param <IN> The type of the values that are aggregated (input values)
  * @param <ACC> The type of the accumulator (intermediate aggregate state).
  * @param <OUT> The type of the aggregated result
  */
 @PublicEvolving
-public abstract class RichAggregateFunction<IN, ACC, OUT>
-		extends AbstractRichFunction
-		implements AggregateFunction<IN, ACC, OUT> {
+public abstract class RichAggregateFunction<IN, ACC, OUT> extends AbstractRichFunction
+        implements AggregateFunction<IN, ACC, OUT> {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	@Override
-	public abstract ACC createAccumulator();
+    @Override
+    public abstract ACC createAccumulator();
 
-	@Override
-	public abstract ACC add(IN value, ACC accumulator);
+    @Override
+    public abstract ACC add(IN value, ACC accumulator);
 
-	@Override
-	public abstract OUT getResult(ACC accumulator);
+    @Override
+    public abstract OUT getResult(ACC accumulator);
 
-	@Override
-	public abstract ACC merge(ACC a, ACC b);
+    @Override
+    public abstract ACC merge(ACC a, ACC b);
 }

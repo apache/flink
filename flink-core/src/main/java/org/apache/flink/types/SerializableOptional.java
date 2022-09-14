@@ -27,64 +27,62 @@ import java.util.Optional;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
-/**
- * Serializable {@link Optional}.
- */
+/** Serializable {@link Optional}. */
 public final class SerializableOptional<T extends Serializable> implements Serializable {
-	private static final long serialVersionUID = -3312769593551775940L;
+    private static final long serialVersionUID = -3312769593551775940L;
 
-	private static final SerializableOptional<?> EMPTY = new SerializableOptional<>(null);
+    private static final SerializableOptional<?> EMPTY = new SerializableOptional<>(null);
 
-	@Nullable
-	private final T value;
+    @Nullable private final T value;
 
-	private SerializableOptional(@Nullable T value) {
-		this.value = value;
-	}
+    private SerializableOptional(@Nullable T value) {
+        this.value = value;
+    }
 
-	public T get() {
-		if (value == null) {
-			throw new NoSuchElementException("No value present");
-		}
-		return value;
-	}
+    public T get() {
+        if (value == null) {
+            throw new NoSuchElementException("No value present");
+        }
+        return value;
+    }
 
-	public boolean isPresent() {
-		return value != null;
-	}
+    public boolean isPresent() {
+        return value != null;
+    }
 
-	public void ifPresent(Consumer<? super T> consumer) {
-		if (value != null) {
-			consumer.accept(value);
-		}
-	}
+    public void ifPresent(Consumer<? super T> consumer) {
+        if (value != null) {
+            consumer.accept(value);
+        }
+    }
 
-	public <R extends Serializable> SerializableOptional<R> map(Function<? super T, ? extends R> mapper) {
-		if (value == null) {
-			return empty();
-		} else {
-			return ofNullable(mapper.apply(value));
-		}
-	}
+    public <R extends Serializable> SerializableOptional<R> map(
+            Function<? super T, ? extends R> mapper) {
+        if (value == null) {
+            return empty();
+        } else {
+            return ofNullable(mapper.apply(value));
+        }
+    }
 
-	public Optional<T> toOptional() {
-		return Optional.ofNullable(value);
-	}
+    public Optional<T> toOptional() {
+        return Optional.ofNullable(value);
+    }
 
-	public static <T extends Serializable> SerializableOptional<T> of(@Nonnull T value) {
-		return new SerializableOptional<>(value);
-	}
+    public static <T extends Serializable> SerializableOptional<T> of(@Nonnull T value) {
+        return new SerializableOptional<>(value);
+    }
 
-	public static <T extends Serializable> SerializableOptional<T> ofNullable(@Nullable T value) {
-		if (value == null) {
-			return empty();
-		} else {
-			return of(value);
-		}
-	}
+    public static <T extends Serializable> SerializableOptional<T> ofNullable(@Nullable T value) {
+        if (value == null) {
+            return empty();
+        } else {
+            return of(value);
+        }
+    }
 
-	@SuppressWarnings("unchecked")
-	public static <T extends Serializable> SerializableOptional<T> empty() {
-		return (SerializableOptional<T>) EMPTY;
-	}
+    @SuppressWarnings("unchecked")
+    public static <T extends Serializable> SerializableOptional<T> empty() {
+        return (SerializableOptional<T>) EMPTY;
+    }
 }

@@ -29,20 +29,15 @@ import org.apache.flink.runtime.jobgraph.JobGraph;
  */
 public interface FlinkPipelineTranslator {
 
-	/**
-	 * Creates a {@link JobGraph} from the given {@link Pipeline} and attaches the given jar
-	 * files and classpaths to the {@link JobGraph}.
-	 */
-	JobGraph translateToJobGraph(
-			Pipeline pipeline,
-			Configuration optimizerConfiguration,
-			int defaultParallelism);
+    /**
+     * Creates a {@link JobGraph} from the given {@link Pipeline} and attaches the given jar files
+     * and classpaths to the {@link JobGraph}.
+     */
+    JobGraph translateToJobGraph(
+            Pipeline pipeline, Configuration optimizerConfiguration, int defaultParallelism);
 
+    /** Extracts the execution plan (as JSON) from the given {@link Pipeline}. */
+    String translateToJSONExecutionPlan(Pipeline pipeline);
 
-	/**
-	 * Extracts the execution plan (as JSON) from the given {@link Pipeline}.
-	 */
-	String translateToJSONExecutionPlan(Pipeline pipeline);
-
-	boolean canTranslate(Pipeline pipeline);
+    boolean canTranslate(Pipeline pipeline);
 }

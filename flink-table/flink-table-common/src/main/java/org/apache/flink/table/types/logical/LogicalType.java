@@ -20,7 +20,7 @@ package org.apache.flink.table.types.logical;
 
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.table.types.logical.utils.LogicalTypeCasts;
-import org.apache.flink.table.types.logical.utils.LogicalTypeGeneralization;
+import org.apache.flink.table.types.logical.utils.LogicalTypeMerging;
 import org.apache.flink.table.types.logical.utils.LogicalTypeParser;
 import org.apache.flink.util.Preconditions;
 
@@ -40,170 +40,205 @@ import java.util.Set;
  * also contains information about the nullability of a value for efficient handling of scalar
  * expressions.
  *
- * <p>Subclasses of this class define characteristics of built-in or user-defined types. Every logical
- * type must support nullability.
+ * <p>Subclasses of this class define characteristics of built-in or user-defined types. Every
+ * logical type must support nullability.
  *
  * <p>Instances of this class describe the fully parameterized, immutable type with additional
  * information such as numeric precision or expected length.
  *
  * <p>Contracts how logical types relate to other types are defined by {@link LogicalTypeCasts} and
- * {@link LogicalTypeGeneralization}.
+ * {@link LogicalTypeMerging}.
  *
  * <p>NOTE: A logical type is just a description of a type, a planner or runtime might not support
  * every type in every logical precision yet!
  */
 @PublicEvolving
 public abstract class LogicalType implements Serializable {
+    private static final long serialVersionUID = 1L;
 
-	private final boolean isNullable;
+    private final boolean isNullable;
 
-	private final LogicalTypeRoot typeRoot;
+    private final LogicalTypeRoot typeRoot;
 
-	public LogicalType(boolean isNullable, LogicalTypeRoot typeRoot) {
-		this.isNullable = isNullable;
-		this.typeRoot = Preconditions.checkNotNull(typeRoot);
-	}
+    public LogicalType(boolean isNullable, LogicalTypeRoot typeRoot) {
+        this.isNullable = isNullable;
+        this.typeRoot = Preconditions.checkNotNull(typeRoot);
+    }
 
-	/**
-	 * Returns whether a value of this type can be {@code null}.
-	 */
-	public boolean isNullable() {
-		return isNullable;
-	}
+    /** Returns whether a value of this type can be {@code null}. */
+    public boolean isNullable() {
+        return isNullable;
+    }
 
-	/**
-	 * Returns the root of this type. It is an essential description without additional parameters.
-	 */
-	public LogicalTypeRoot getTypeRoot() {
-		return typeRoot;
-	}
+    /**
+     * Returns the root of this type. It is an essential description without additional parameters.
+     */
+    public LogicalTypeRoot getTypeRoot() {
+        return typeRoot;
+    }
 
-	/**
-	 * Returns a deep copy of this type with possibly different nullability.
-	 *
-	 * @param isNullable the intended nullability of the copied type
-	 * @return a deep copy
-	 */
-	public abstract LogicalType copy(boolean isNullable);
+    /**
+     * Returns whether the root of the type equals to the {@code typeRoot} or not.
+     *
+     * @param typeRoot The root type to check against for equality
+     */
+    public boolean is(LogicalTypeRoot typeRoot) {
+        return this.typeRoot == typeRoot;
+    }
 
-	/**
-	 * Returns a deep copy of this type. It requires an implementation of {@link #copy(boolean)}.
-	 *
-	 * @return a deep copy
-	 */
-	public final LogicalType copy() {
-		return copy(isNullable);
-	}
+    /**
+     * Returns whether the root of the type equals to at least on of the {@code typeRoots} or not.
+     *
+     * @param typeRoots The root types to check against for equality
+     */
+    public boolean isAnyOf(LogicalTypeRoot... typeRoots) {
+        return Arrays.stream(typeRoots).anyMatch(tr -> this.typeRoot == tr);
+    }
 
-	/**
-	 * Returns a string that fully serializes this instance. The serialized string can be used for
-	 * transmitting or persisting a type.
-	 *
-	 * <p>See {@link LogicalTypeParser} for the reverse operation.
-	 *
-	 * @return detailed string for transmission or persistence
-	 */
-	public abstract String asSerializableString();
+    /**
+     * Returns whether the root of the type is part of at least one family of the {@code typeFamily}
+     * or not.
+     *
+     * @param typeFamilies The families to check against for equality
+     */
+    public boolean isAnyOf(LogicalTypeFamily... typeFamilies) {
+        return Arrays.stream(typeFamilies).anyMatch(tf -> this.typeRoot.getFamilies().contains(tf));
+    }
 
-	/**
-	 * Returns a string that summarizes this type for printing to a console. An implementation might
-	 * shorten long names or skips very specific properties.
-	 *
-	 * <p>Use {@link #asSerializableString()} for a type string that fully serializes
-	 * this instance.
-	 *
-	 * @return summary string of this type for debugging purposes
-	 */
-	public String asSummaryString() {
-		return asSerializableString();
-	}
+    /**
+     * Returns whether the family type of the type equals to the {@code family} or not.
+     *
+     * @param family The family type to check against for equality
+     */
+    public boolean is(LogicalTypeFamily family) {
+        return typeRoot.getFamilies().contains(family);
+    }
 
-	/**
-	 * Returns whether an instance of the given class can be represented as a value of this logical
-	 * type when entering the table ecosystem. This method helps for the interoperability between
-	 * JVM-based languages and the relational type system.
-	 *
-	 * <p>A supported conversion directly maps an input class to a logical type without loss of
-	 * precision or type widening.
-	 *
-	 * <p>For example, {@code java.lang.Long} or {@code long} can be used as input for {@code BIGINT}
-	 * independent of the set nullability.
-	 *
-	 * @param clazz input class to be converted into this logical type
-	 * @return flag that indicates if instances of this class can be used as input into the table
-	 * ecosystem
-	 * @see #getDefaultConversion()
-	 */
-	public abstract boolean supportsInputConversion(Class<?> clazz);
+    /**
+     * Returns a deep copy of this type with possibly different nullability.
+     *
+     * @param isNullable the intended nullability of the copied type
+     * @return a deep copy
+     */
+    public abstract LogicalType copy(boolean isNullable);
 
-	/**
-	 * Returns whether a value of this logical type can be represented as an instance of the given
-	 * class when leaving the table ecosystem. This method helps for the interoperability between
-	 * JVM-based languages and the relational type system.
-	 *
-	 * <p>A supported conversion directly maps a logical type to an output class without loss of
-	 * precision or type widening.
-	 *
-	 * <p>For example, {@code java.lang.Long} or {@code long} can be used as output for {@code BIGINT}
-	 * if the type is not nullable. If the type is nullable, only {@code java.lang.Long} can represent
-	 * this.
-	 *
-	 * @param clazz output class to be converted from this logical type
-	 * @return flag that indicates if instances of this class can be used as output from the table
-	 * ecosystem
-	 * @see #getDefaultConversion()
-	 */
-	public abstract boolean supportsOutputConversion(Class<?> clazz);
+    /**
+     * Returns a deep copy of this type. It requires an implementation of {@link #copy(boolean)}.
+     *
+     * @return a deep copy
+     */
+    public final LogicalType copy() {
+        return copy(isNullable);
+    }
 
-	/**
-	 * Returns the default conversion class. A value of this logical type is expected to be an instance
-	 * of the given class when entering or is represented as an instance of the given class when
-	 * leaving the table ecosystem if no other conversion has been specified.
-	 *
-	 * <p>For example, {@code java.lang.Long} is the default input and output for {@code BIGINT}.
-	 *
-	 * @return default class to represent values of this logical type
-	 * @see #supportsInputConversion(Class)
-	 * @see #supportsOutputConversion(Class)
-	 */
-	public abstract Class<?> getDefaultConversion();
+    /**
+     * Returns a string that fully serializes this instance. The serialized string can be used for
+     * transmitting or persisting a type.
+     *
+     * <p>See {@link LogicalTypeParser} for the reverse operation.
+     *
+     * @return detailed string for transmission or persistence
+     */
+    public abstract String asSerializableString();
 
-	public abstract List<LogicalType> getChildren();
+    /**
+     * Returns a string that summarizes this type for printing to a console. An implementation might
+     * shorten long names or skips very specific properties.
+     *
+     * <p>Use {@link #asSerializableString()} for a type string that fully serializes this instance.
+     *
+     * @return summary string of this type for debugging purposes
+     */
+    public String asSummaryString() {
+        return asSerializableString();
+    }
 
-	public abstract <R> R accept(LogicalTypeVisitor<R> visitor);
+    /**
+     * Returns whether an instance of the given class can be represented as a value of this logical
+     * type when entering the table ecosystem. This method helps for the interoperability between
+     * JVM-based languages and the relational type system.
+     *
+     * <p>A supported conversion directly maps an input class to a logical type without loss of
+     * precision or type widening.
+     *
+     * <p>For example, {@code java.lang.Long} or {@code long} can be used as input for {@code
+     * BIGINT} independent of the set nullability.
+     *
+     * @param clazz input class to be converted into this logical type
+     * @return flag that indicates if instances of this class can be used as input into the table
+     *     ecosystem
+     * @see #getDefaultConversion()
+     */
+    public abstract boolean supportsInputConversion(Class<?> clazz);
 
-	@Override
-	public String toString() {
-		return asSummaryString();
-	}
+    /**
+     * Returns whether a value of this logical type can be represented as an instance of the given
+     * class when leaving the table ecosystem. This method helps for the interoperability between
+     * JVM-based languages and the relational type system.
+     *
+     * <p>A supported conversion directly maps a logical type to an output class without loss of
+     * precision or type widening.
+     *
+     * <p>For example, {@code java.lang.Long} or {@code long} can be used as output for {@code
+     * BIGINT} if the type is not nullable. If the type is nullable, only {@code java.lang.Long} can
+     * represent this.
+     *
+     * @param clazz output class to be converted from this logical type
+     * @return flag that indicates if instances of this class can be used as output from the table
+     *     ecosystem
+     * @see #getDefaultConversion()
+     */
+    public abstract boolean supportsOutputConversion(Class<?> clazz);
 
-	@Override
-	public boolean equals(Object o) {
-		if (this == o) {
-			return true;
-		}
-		if (o == null || getClass() != o.getClass()) {
-			return false;
-		}
-		LogicalType that = (LogicalType) o;
-		return isNullable == that.isNullable && typeRoot == that.typeRoot;
-	}
+    /**
+     * Returns the default conversion class. A value of this logical type is expected to be an
+     * instance of the given class when entering or is represented as an instance of the given class
+     * when leaving the table ecosystem if no other conversion has been specified.
+     *
+     * <p>For example, {@code java.lang.Long} is the default input and output for {@code BIGINT}.
+     *
+     * @return default class to represent values of this logical type
+     * @see #supportsInputConversion(Class)
+     * @see #supportsOutputConversion(Class)
+     */
+    public abstract Class<?> getDefaultConversion();
 
-	@Override
-	public int hashCode() {
-		return Objects.hash(isNullable, typeRoot);
-	}
+    public abstract List<LogicalType> getChildren();
 
-	// --------------------------------------------------------------------------------------------
+    public abstract <R> R accept(LogicalTypeVisitor<R> visitor);
 
-	protected String withNullability(String format, Object... params) {
-		if (!isNullable) {
-			return String.format(format + " NOT NULL", params);
-		}
-		return String.format(format, params);
-	}
+    @Override
+    public String toString() {
+        return asSummaryString();
+    }
 
-	protected static Set<String> conversionSet(String... elements) {
-		return new HashSet<>(Arrays.asList(elements));
-	}
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
+        LogicalType that = (LogicalType) o;
+        return isNullable == that.isNullable && typeRoot == that.typeRoot;
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(isNullable, typeRoot);
+    }
+
+    // --------------------------------------------------------------------------------------------
+
+    protected String withNullability(String format, Object... params) {
+        if (!isNullable) {
+            return String.format(format + " NOT NULL", params);
+        }
+        return String.format(format, params);
+    }
+
+    protected static Set<String> conversionSet(String... elements) {
+        return new HashSet<>(Arrays.asList(elements));
+    }
 }

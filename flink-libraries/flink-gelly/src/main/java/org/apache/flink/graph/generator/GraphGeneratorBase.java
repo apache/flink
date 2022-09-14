@@ -29,19 +29,19 @@ import static org.apache.flink.api.common.ExecutionConfig.PARALLELISM_DEFAULT;
  * @param <VV> vertex value type
  * @param <EV> edge value type
  */
-public abstract class GraphGeneratorBase<K, VV, EV>
-implements GraphGenerator<K, VV, EV> {
+public abstract class GraphGeneratorBase<K, VV, EV> implements GraphGenerator<K, VV, EV> {
 
-	// Optional configuration
-	protected int parallelism = PARALLELISM_DEFAULT;
+    // Optional configuration
+    protected int parallelism = PARALLELISM_DEFAULT;
 
-	@Override
-	public GraphGenerator<K, VV, EV> setParallelism(int parallelism) {
-		Preconditions.checkArgument(parallelism > 0 || parallelism == PARALLELISM_DEFAULT,
-			"The parallelism must be greater than zero.");
+    @Override
+    public GraphGenerator<K, VV, EV> setParallelism(int parallelism) {
+        Preconditions.checkArgument(
+                parallelism > 0 || parallelism == PARALLELISM_DEFAULT,
+                "The parallelism must be greater than zero.");
 
-		this.parallelism = parallelism;
+        this.parallelism = parallelism;
 
-		return this;
-	}
+        return this;
+    }
 }

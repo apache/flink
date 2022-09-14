@@ -19,53 +19,46 @@
 package org.apache.flink.runtime.scheduler.strategy;
 
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
+import org.apache.flink.runtime.scheduler.SchedulingTopologyListener;
 import org.apache.flink.runtime.topology.Topology;
 
-import java.util.Optional;
+import java.util.List;
 
-/**
- * Topology of {@link SchedulingExecutionVertex}.
- */
-public interface SchedulingTopology<V extends SchedulingExecutionVertex<V, R>, R extends SchedulingResultPartition<V, R>>
-	extends Topology<ExecutionVertexID, IntermediateResultPartitionID, V, R> {
+/** Topology of {@link SchedulingExecutionVertex}. */
+public interface SchedulingTopology
+        extends Topology<
+                ExecutionVertexID,
+                IntermediateResultPartitionID,
+                SchedulingExecutionVertex,
+                SchedulingResultPartition,
+                SchedulingPipelinedRegion> {
 
-	/**
-	 * Looks up the {@link SchedulingExecutionVertex} for the given {@link ExecutionVertexID}.
-	 *
-	 * @param executionVertexId identifying the respective scheduling vertex
-	 * @return Optional containing the respective scheduling vertex or none if the vertex does not exist
-	 */
-	Optional<V> getVertex(ExecutionVertexID executionVertexId);
+    /**
+     * Looks up the {@link SchedulingExecutionVertex} for the given {@link ExecutionVertexID}.
+     *
+     * @param executionVertexId identifying the respective scheduling vertex
+     * @return The respective scheduling vertex
+     * @throws IllegalArgumentException If the vertex does not exist
+     */
+    SchedulingExecutionVertex getVertex(ExecutionVertexID executionVertexId);
 
-	/**
-	 * Looks up the {@link SchedulingExecutionVertex} for the given {@link ExecutionVertexID}.
-	 *
-	 * @param executionVertexId identifying the respective scheduling vertex
-	 * @return The respective scheduling vertex
-	 * @throws IllegalArgumentException If the vertex does not exist
-	 */
-	default V getVertexOrThrow(ExecutionVertexID executionVertexId) {
-		return getVertex(executionVertexId).orElseThrow(
-				() -> new IllegalArgumentException("can not find vertex: " + executionVertexId));
-	}
+    /**
+     * Looks up the {@link SchedulingResultPartition} for the given {@link
+     * IntermediateResultPartitionID}.
+     *
+     * @param intermediateResultPartitionId identifying the respective scheduling result partition
+     * @return The respective scheduling result partition
+     * @throws IllegalArgumentException If the partition does not exist
+     */
+    SchedulingResultPartition getResultPartition(
+            IntermediateResultPartitionID intermediateResultPartitionId);
 
-	/**
-	 * Looks up the {@link SchedulingResultPartition} for the given {@link IntermediateResultPartitionID}.
-	 *
-	 * @param intermediateResultPartitionId identifying the respective scheduling result partition
-	 * @return Optional containing the respective scheduling result partition or none if the partition does not exist
-	 */
-	Optional<R> getResultPartition(IntermediateResultPartitionID intermediateResultPartitionId);
-
-	/**
-	 * Looks up the {@link SchedulingResultPartition} for the given {@link IntermediateResultPartitionID}.
-	 *
-	 * @param intermediateResultPartitionId identifying the respective scheduling result partition
-	 * @return The respective scheduling result partition
-	 * @throws IllegalArgumentException If the partition does not exist
-	 */
-	default R getResultPartitionOrThrow(IntermediateResultPartitionID intermediateResultPartitionId) {
-		return getResultPartition(intermediateResultPartitionId).orElseThrow(
-				() -> new IllegalArgumentException("can not find partition: " + intermediateResultPartitionId));
-	}
+    /**
+     * Register a scheduling topology listener. The listener will be notified by {@link
+     * SchedulingTopologyListener#notifySchedulingTopologyUpdated(SchedulingTopology, List)} when
+     * the scheduling topology is updated.
+     *
+     * @param listener the registered listener.
+     */
+    void registerSchedulingTopologyListener(SchedulingTopologyListener listener);
 }

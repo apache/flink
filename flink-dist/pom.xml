@@ -25,21 +25,28 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-parent</artifactId>
-		<version>1.11-SNAPSHOT</version>
-		<relativePath>..</relativePath>
+		<version>1.17-SNAPSHOT</version>
 	</parent>
 
 	<artifactId>flink-dist_${scala.binary.version}</artifactId>
-	<name>flink-dist</name>
+	<name>Flink : Dist</name>
 	<packaging>jar</packaging>
 
 	<properties>
-		<zookeeper.optional.version>3.5.6</zookeeper.optional.version>
+		<zookeeper.optional.version>3.6.3</zookeeper.optional.version>
+		<japicmp.skip>true</japicmp.skip>
 	</properties>
 
 	<dependencies>
 
 		<!-- Flink project binaries -->
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-dist-scala_${scala.binary.version}</artifactId>
+			<version>${project.version}</version>
+			<scope>provided</scope>
+		</dependency>
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
@@ -55,43 +62,31 @@ under the License.
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-scala_${scala.binary.version}</artifactId>
+			<artifactId>flink-runtime</artifactId>
 			<version>${project.version}</version>
 		</dependency>
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-runtime_${scala.binary.version}</artifactId>
+			<artifactId>flink-runtime-web</artifactId>
 			<version>${project.version}</version>
 		</dependency>
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-runtime-web_${scala.binary.version}</artifactId>
+			<artifactId>flink-optimizer</artifactId>
 			<version>${project.version}</version>
 		</dependency>
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-optimizer_${scala.binary.version}</artifactId>
+			<artifactId>flink-clients</artifactId>
 			<version>${project.version}</version>
 		</dependency>
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-clients_${scala.binary.version}</artifactId>
-			<version>${project.version}</version>
-		</dependency>
-
-		<dependency>
-			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-streaming-java_${scala.binary.version}</artifactId>
-			<version>${project.version}</version>
-		</dependency>
-
-		<dependency>
-			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-streaming-scala_${scala.binary.version}</artifactId>
+			<artifactId>flink-streaming-java</artifactId>
 			<version>${project.version}</version>
 		</dependency>
 
@@ -103,58 +98,58 @@ under the License.
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-metrics-jmx_${scala.binary.version}</artifactId>
-			<version>${project.version}</version>
-		</dependency>
-        
-		<dependency>
-			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-mesos_${scala.binary.version}</artifactId>
+			<artifactId>flink-container</artifactId>
 			<version>${project.version}</version>
 		</dependency>
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-container_${scala.binary.version}</artifactId>
+			<artifactId>flink-statebackend-rocksdb</artifactId>
 			<version>${project.version}</version>
 		</dependency>
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-statebackend-rocksdb_${scala.binary.version}</artifactId>
+			<artifactId>flink-statebackend-changelog</artifactId>
+			<version>${project.version}</version>
+		</dependency>
+
+        <dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-dstl-dfs</artifactId>
+			<version>${project.version}</version>
+        </dependency>
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-kubernetes</artifactId>
 			<version>${project.version}</version>
 		</dependency>
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-kubernetes_${scala.binary.version}</artifactId>
-			<version>${project.version}</version>
-		</dependency>
-
-		<dependency>
-			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-yarn_${scala.binary.version}</artifactId>
+			<artifactId>flink-yarn</artifactId>
 			<version>${project.version}</version>
 			<exclusions>
 				<exclusion>
-					<groupId>org.apache.flink</groupId>
-					<artifactId>flink-shaded-hadoop-2</artifactId>
+					<groupId>org.apache.hadoop</groupId>
+					<artifactId>*</artifactId>
 				</exclusion>
 			</exclusions>
 		</dependency>
 
-		<!-- Default file system support. The Hadoop and MapR dependencies -->
-		<!--       are optional, so not being added to the dist jar        -->
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-connector-base</artifactId>
+			<version>${project.version}</version>
+		</dependency>
+
+		<!-- Default file system support. The Hadoop dependency			   -->
+		<!--       is optional, so not being added to the dist jar         -->
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-hadoop-fs</artifactId>
-			<version>${project.version}</version>
-		</dependency>
-
-		<dependency>
-			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-mapr-fs</artifactId>
 			<version>${project.version}</version>
 		</dependency>
 
@@ -187,6 +182,45 @@ under the License.
 			<scope>compile</scope>
 		</dependency>
 
+		<!-- Table dependencies -->
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-table-api-java-uber</artifactId>
+			<version>${project.version}</version>
+			<scope>provided</scope>
+		</dependency>
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-table-runtime</artifactId>
+			<version>${project.version}</version>
+			<scope>provided</scope>
+		</dependency>
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-table-planner-loader</artifactId>
+			<version>${project.version}</version>
+			<scope>provided</scope>
+		</dependency>
+
+		<!-- SQL Client and planner with scala version goes in the /opt folder -->
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-table-planner_${scala.binary.version}</artifactId>
+			<version>${project.version}</version>
+			<scope>provided</scope>
+		</dependency>
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-sql-client</artifactId>
+			<version>${project.version}</version>
+			<scope>provided</scope>
+		</dependency>
+
 		<!--
 			The following dependencies are packaged in 'examples/'
 			The scope of these dependencies needs to be 'provided' so that
@@ -216,13 +250,6 @@ under the License.
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-examples-streaming-twitter_${scala.binary.version}</artifactId>
-			<version>${project.version}</version>
-			<scope>provided</scope>
-		</dependency>
-
-		<dependency>
-			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-gelly-examples_${scala.binary.version}</artifactId>
 			<version>${project.version}</version>
 			<scope>provided</scope>
@@ -241,6 +268,14 @@ under the License.
 			they are not included into the 'flink-dist' uber jar.
 		-->
 
+		<!-- start optional Flink external resource drivers -->
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-external-resource-gpu</artifactId>
+			<version>${project.version}</version>
+			<scope>provided</scope>
+		</dependency>
+
 		<!-- start optional Flink metrics reporters -->
 		<dependency>
 			<groupId>org.apache.flink</groupId>
@@ -258,14 +293,21 @@ under the License.
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-metrics-influxdb_${scala.binary.version}</artifactId>
+			<artifactId>flink-metrics-influxdb</artifactId>
 			<version>${project.version}</version>
 			<scope>provided</scope>
 		</dependency>
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-metrics-prometheus_${scala.binary.version}</artifactId>
+			<artifactId>flink-metrics-prometheus</artifactId>
+			<version>${project.version}</version>
+			<scope>provided</scope>
+		</dependency>
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-metrics-jmx</artifactId>
 			<version>${project.version}</version>
 			<scope>provided</scope>
 		</dependency>
@@ -296,7 +338,7 @@ under the License.
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-cep_${scala.binary.version}</artifactId>
+			<artifactId>flink-cep</artifactId>
 			<version>${project.version}</version>
 			<scope>provided</scope>
 		</dependency>
@@ -310,7 +352,7 @@ under the License.
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-gelly_${scala.binary.version}</artifactId>
+			<artifactId>flink-gelly</artifactId>
 			<version>${project.version}</version>
 			<scope>provided</scope>
 		</dependency>
@@ -324,28 +366,28 @@ under the License.
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-table-uber_${scala.binary.version}</artifactId>
+			<artifactId>flink-state-processor-api</artifactId>
 			<version>${project.version}</version>
 			<scope>provided</scope>
 		</dependency>
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-table-uber-blink_${scala.binary.version}</artifactId>
+			<artifactId>flink-connector-files</artifactId>
 			<version>${project.version}</version>
 			<scope>provided</scope>
 		</dependency>
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-sql-client_${scala.binary.version}</artifactId>
+			<artifactId>flink-json</artifactId>
 			<version>${project.version}</version>
 			<scope>provided</scope>
 		</dependency>
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-state-processor-api_${scala.binary.version}</artifactId>
+			<artifactId>flink-csv</artifactId>
 			<version>${project.version}</version>
 			<scope>provided</scope>
 		</dependency>
@@ -373,13 +415,6 @@ under the License.
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-swift-fs-hadoop</artifactId>
-			<version>${project.version}</version>
-			<scope>provided</scope>
-		</dependency>
-
-		<dependency>
-			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-oss-fs-hadoop</artifactId>
 			<version>${project.version}</version>
 			<scope>provided</scope>
@@ -387,14 +422,31 @@ under the License.
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-queryable-state-runtime_${scala.binary.version}</artifactId>
+			<artifactId>flink-gs-fs-hadoop</artifactId>
+			<version>${project.version}</version>
+			<scope>provided</scope>
+			<exclusions>
+				<!--
+					Despite at provided scope, grpc artifacts can cause dependency resolving errors,
+					unstably, during javadoc aggregation.
+				 -->
+				<exclusion>
+					<groupId>io.grpc</groupId>
+					<artifactId>*</artifactId>
+				</exclusion>
+			</exclusions>
+		</dependency>
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-queryable-state-runtime</artifactId>
 			<version>${project.version}</version>
 			<scope>provided</scope>
 		</dependency>
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-python_${scala.binary.version}</artifactId>
+			<artifactId>flink-python</artifactId>
 			<version>${project.version}</version>
 			<scope>provided</scope>
 		</dependency>
@@ -402,13 +454,6 @@ under the License.
 		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-shaded-netty-tcnative-dynamic</artifactId>
-			<scope>provided</scope>
-		</dependency>
-
-		<dependency>
-			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-ml-uber_${scala.binary.version}</artifactId>
-			<version>${project.version}</version>
 			<scope>provided</scope>
 		</dependency>
 		<!-- end optional Flink libraries -->
@@ -441,69 +486,26 @@ under the License.
 		<!-- end test dependencies -->
 	</dependencies>
 
+	<dependencyManagement>
+		<dependencies>
+			<dependency>
+				<!-- Provided by flink-dist-scala -->
+				<groupId>org.apache.flink</groupId>
+				<artifactId>flink-scala_${scala.binary.version}</artifactId>
+				<version>${project.version}</version>
+				<scope>provided</scope>
+			</dependency>
+			<dependency>
+				<!-- Provided by flink-dist-scala -->
+				<groupId>org.apache.flink</groupId>
+				<artifactId>flink-streaming-scala_${scala.binary.version}</artifactId>
+				<version>${project.version}</version>
+				<scope>provided</scope>
+			</dependency>
+		</dependencies>
+	</dependencyManagement>
+
 	<profiles>
-		<profile>
-			<id>scala-2.11</id>
-			<activation>
-				<property>
-					<name>!scala-2.12</name>
-				</property>
-			</activation>
-			<!-- Scala Shell doesn't currently work with Scala 2.12 so only include
-			when building for Scala 2.11. -->
-			<dependencies>
-				<dependency>
-					<groupId>org.apache.flink</groupId>
-					<artifactId>flink-scala-shell_${scala.binary.version}</artifactId>
-					<version>${project.version}</version>
-				</dependency>
-			</dependencies>
-		</profile>
-
-		<profile>
-			<!-- Copies that shaded Hadoop uber jar to the dist folder. -->
-			<id>include-hadoop</id>
-			<activation>
-				<property>
-					<name>include-hadoop</name>
-				</property>
-			</activation>
-			<dependencies>
-				<!--
-                    The Hadoop 2 Uber jar should not go into the Flink dist jar, but
-                    sit next to it. Hence, we set it to 'provided' here.
-                -->
-				<dependency>
-					<groupId>org.apache.flink</groupId>
-					<artifactId>flink-shaded-hadoop-2-uber</artifactId>
-					<scope>provided</scope>
-				</dependency>
-			</dependencies>
-			<build>
-				<plugins>
-					<plugin>
-						<artifactId>maven-assembly-plugin</artifactId>
-						<executions>
-							<execution>
-								<id>hadoop</id>
-								<phase>package</phase>
-								<goals>
-									<goal>single</goal>
-								</goals>
-								<configuration>
-									<descriptors>
-										<descriptor>src/main/assemblies/hadoop.xml</descriptor>
-									</descriptors>
-									<finalName>flink-${project.version}-bin</finalName>
-									<appendAssemblyId>false</appendAssemblyId>
-								</configuration>
-							</execution>
-						</executions>
-					</plugin>
-
-				</plugins>
-			</build>
-		</profile>
 		<profile>
 			<!-- Creates/Removes the 'build-target' symlink in the root directory (only Unix systems) -->
 			<id>symlink-build-target</id>
@@ -557,6 +559,18 @@ under the License.
 	</profiles>
 
 	<build>
+		<pluginManagement>
+			<plugins>
+				<plugin>
+					<artifactId>maven-assembly-plugin</artifactId>
+					<configuration>
+						<finalName>flink-${project.version}-bin</finalName>
+						<appendAssemblyId>false</appendAssemblyId>
+					</configuration>
+				</plugin>
+			</plugins>
+		</pluginManagement>
+
 		<plugins>
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
@@ -571,23 +585,20 @@ under the License.
 							<skip>true</skip>
 						</configuration>
 					</execution>
+					<execution>
+						<id>forbid-direct-table-planner-dependencies</id>
+						<goals>
+							<goal>enforce</goal>
+						</goals>
+						<configuration>
+							<!-- We need to depend on table planner to ship it in the /opt folder -->
+							<skip>true</skip>
+						</configuration>
+					</execution>
 				</executions>
 			</plugin>
 
-			<!--unit tests-->
 			<!--plugin must appear BEFORE the shade-plugin to not mess up package order and include the non-uber JAR into the assembly-->
-			<plugin>
-				<groupId>org.apache.maven.plugins</groupId>
-				<artifactId>maven-surefire-plugin</artifactId>
-				<configuration>
-					<reuseForks>false</reuseForks>
-					<!-- <workingDirectory>${project.build.testOutputDirectory}</workingDirectory> -->
-					<systemPropertyVariables>
-						<log.level>WARN</log.level>
-					</systemPropertyVariables>
-				</configuration>
-			</plugin>
-
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-jar-plugin</artifactId>
@@ -690,11 +701,12 @@ under the License.
 				<artifactId>maven-shade-plugin</artifactId>
 				<executions>
 					<execution>
+						<id>shade-dist</id>
 						<phase>package</phase>
 						<goals>
 							<goal>shade</goal>
 						</goals>
-						<configuration combine.self="override">
+						<configuration>
 							<createDependencyReducedPom>false</createDependencyReducedPom>
 							<shadedArtifactAttached>false</shadedArtifactAttached>
 							<finalName>${project.artifactId}-${project.version}</finalName>
@@ -703,12 +715,7 @@ under the License.
 								<filter>
 									<artifact>*</artifact>
 									<excludes>
-										<exclude>log4j.properties</exclude>
-										<exclude>log4j-test.properties</exclude>
-										<exclude>META-INF/*.SF</exclude>
-										<exclude>META-INF/*.DSA</exclude>
-										<exclude>META-INF/*.RSA</exclude>
-										<exclude>org/apache/flink/runtime/util/BashJavaUtils.class</exclude>
+										<exclude>org/apache/flink/runtime/util/bash/BashJavaUtils.class</exclude>
 									</excludes>
 								</filter>
 							</filters>
@@ -720,17 +727,6 @@ under the License.
 									<exclude>org.apache.flink:flink-shaded-zookeeper-3</exclude>
 								</excludes>
 							</artifactSet>
-							<transformers>
-								<transformer implementation="org.apache.maven.plugins.shade.resource.AppendingTransformer">
-									<resource>reference.conf</resource>
-								</transformer>
-								<!-- The service transformer is needed to merge META-INF/services files -->
-								<transformer implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer"/>
-								<transformer implementation="org.apache.maven.plugins.shade.resource.ApacheNoticeResourceTransformer">
-									<projectName>Apache Flink</projectName>
-									<encoding>UTF-8</encoding>
-								</transformer>
-							</transformers>
 						</configuration>
 					</execution>
 					<execution>
@@ -749,27 +745,16 @@ under the License.
 						<goals>
 							<goal>shade</goal>
 						</goals>
-						<configuration combine.self="override">
+						<configuration>
 							<createDependencyReducedPom>false</createDependencyReducedPom>
 							<shadedArtifactAttached>false</shadedArtifactAttached>
 							<finalName>bash-java-utils</finalName>
 							<filters>
-								<!-- Globally exclude log4j.properties from our JAR files. -->
-								<filter>
-									<artifact>*</artifact>
-									<excludes>
-										<exclude>log4j.properties</exclude>
-										<exclude>log4j-test.properties</exclude>
-										<exclude>META-INF/*.SF</exclude>
-										<exclude>META-INF/*.DSA</exclude>
-										<exclude>META-INF/*.RSA</exclude>
-									</excludes>
-								</filter>
 								<!-- Include only the BashJavaUtils, other required classes should come from the flink-dist-->
 								<filter>
 									<artifact>org.apache.flink:*</artifact>
 									<includes>
-										<include>org/apache/flink/runtime/util/BashJavaUtils.class</include>
+										<include>org/apache/flink/runtime/util/bash/BashJavaUtils.class</include>
 									</includes>
 								</filter>
 							</filters>
@@ -784,13 +769,6 @@ under the License.
 								<transformer implementation="org.apache.maven.plugins.shade.resource.IncludeResourceTransformer">
 									<resource>log4j2.properties</resource>
 									<file>src/main/resources/log4j-bash-utils.properties</file>
-								</transformer>
-								<transformer implementation="org.apache.maven.plugins.shade.resource.AppendingTransformer">
-									<resource>reference.conf</resource>
-								</transformer>
-								<transformer implementation="org.apache.maven.plugins.shade.resource.ApacheNoticeResourceTransformer">
-									<projectName>Apache Flink</projectName>
-									<encoding>UTF-8</encoding>
 								</transformer>
 							</transformers>
 						</configuration>
@@ -811,8 +789,6 @@ under the License.
 							<descriptors>
 								<descriptor>src/main/assemblies/bin.xml</descriptor>
 							</descriptors>
-							<finalName>flink-${project.version}-bin</finalName>
-							<appendAssemblyId>false</appendAssemblyId>
 						</configuration>
 					</execution>
 					<execution>
@@ -825,8 +801,18 @@ under the License.
 							<descriptors>
 								<descriptor>src/main/assemblies/opt.xml</descriptor>
 							</descriptors>
-							<finalName>flink-${project.version}-bin</finalName>
-							<appendAssemblyId>false</appendAssemblyId>
+						</configuration>
+					</execution>
+					<execution>
+						<id>plugins</id>
+						<phase>package</phase>
+						<goals>
+							<goal>single</goal>
+						</goals>
+						<configuration>
+							<descriptors>
+								<descriptor>src/main/assemblies/plugins.xml</descriptor>
+							</descriptors>
 						</configuration>
 					</execution>
 				</executions>
@@ -841,29 +827,6 @@ under the License.
 				</configuration>
 			</plugin>
 
-			<plugin>
-				<!-- Description: https://github.com/ktoso/maven-git-commit-id-plugin -->
-				<groupId>pl.project13.maven</groupId>
-				<artifactId>git-commit-id-plugin</artifactId>
-				<executions>
-					<execution>
-						<goals>
-							<goal>revision</goal>
-						 </goals>
-					</execution>
-				</executions>
-				<configuration>
-					<dotGitDirectory>${project.basedir}/../.git</dotGitDirectory>
-					<generateGitPropertiesFile>true</generateGitPropertiesFile>
-					<failOnNoGitDirectory>false</failOnNoGitDirectory>
-					<skipPoms>false</skipPoms>
-					<generateGitPropertiesFilename>src/main/flink-bin/.version.properties</generateGitPropertiesFilename>
-					<gitDescribe>
-						<!-- don't generate the describe property -->
-						<skip>true</skip>
-					</gitDescribe>
-				</configuration>
-			</plugin>
 		</plugins>
 	</build>
 

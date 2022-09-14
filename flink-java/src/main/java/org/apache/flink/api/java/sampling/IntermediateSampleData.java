@@ -28,24 +28,24 @@ import org.apache.flink.annotation.Internal;
  */
 @Internal
 public class IntermediateSampleData<T> implements Comparable<IntermediateSampleData<T>> {
-	private double weight;
-	private T element;
+    private double weight;
+    private T element;
 
-	public IntermediateSampleData(double weight, T element) {
-		this.weight = weight;
-		this.element = element;
-	}
+    public IntermediateSampleData(double weight, T element) {
+        this.weight = weight;
+        this.element = element;
+    }
 
-	public double getWeight() {
-		return weight;
-	}
+    public double getWeight() {
+        return weight;
+    }
 
-	public T getElement() {
-		return element;
-	}
+    public T getElement() {
+        return element;
+    }
 
-	@Override
-	public int compareTo(IntermediateSampleData<T> other) {
-		return this.weight >= other.getWeight() ? 1 : -1;
-	}
+    @Override
+    public int compareTo(IntermediateSampleData<T> other) {
+        return this.weight >= other.getWeight() ? 1 : -1;
+    }
 }
