@@ -73,6 +73,15 @@ import static org.apache.flink.util.Preconditions.checkArgument;
 @Public
 public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecutionConfig> {
 
+    // NOTE TO IMPLEMENTERS:
+    // Please do not add further fields to this class. Use the ConfigOption stack instead!
+    // It is currently very tricky to keep this kind of POJO classes in sync with instances of
+    // org.apache.flink.configuration.Configuration. Instances of Configuration are way easier to
+    // pass, layer, merge, restrict, copy, filter, etc.
+    // See ExecutionOptions.RUNTIME_MODE for a reference implementation. If the option is very
+    // crucial for the API, we can add a dedicated setter to StreamExecutionEnvironment. Otherwise,
+    // introducing a ConfigOption should be enough.
+
     private static final long serialVersionUID = 1L;
 
     /**

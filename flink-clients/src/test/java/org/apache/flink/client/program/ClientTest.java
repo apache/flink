@@ -378,7 +378,7 @@ class ClientTest {
                             .build();
 
             final Configuration configuration = fromPackagedProgram(program, 1, false);
-            configuration.set(DeploymentOptions.ALLOW_CLIENT_JOB_CONFIGURATIONS, false);
+            configuration.set(DeploymentOptions.PROGRAM_CONFIG_ENABLED, false);
 
             assertThatThrownBy(
                             () ->
