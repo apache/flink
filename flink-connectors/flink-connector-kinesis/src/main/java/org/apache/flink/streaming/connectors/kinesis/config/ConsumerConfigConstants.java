@@ -404,7 +404,7 @@ public class ConsumerConfigConstants extends AWSConfigConstants {
 
     public static final long DEFAULT_WATERMARK_SYNC_MILLIS = 30_000;
 
-    public static final int DEFAULT_EFO_HTTP_CLIENT_MAX_CONURRENCY = 10_000;
+    public static final int DEFAULT_EFO_HTTP_CLIENT_MAX_CONCURRENCY = 10_000;
 
     public static final Duration DEFAULT_EFO_HTTP_CLIENT_READ_TIMEOUT = Duration.ofMinutes(6);
 
