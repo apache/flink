@@ -21,8 +21,8 @@ import org.apache.flink.connector.testframe.container.FlinkContainersSettings;
 import org.apache.flink.connector.testframe.container.TestcontainersSettings;
 import org.apache.flink.connector.upserttest.sink.UpsertTestFileUtil;
 import org.apache.flink.streaming.api.environment.ExecutionCheckpointingOptions;
+import org.apache.flink.test.resources.ResourceTestUtils;
 import org.apache.flink.test.util.SQLJobSubmission;
-import org.apache.flink.tests.util.TestUtils;
 import org.apache.flink.util.DockerImageVersions;
 
 import org.apache.kafka.clients.admin.AdminClient;
@@ -68,12 +68,12 @@ public class SqlClientITCase {
     private static final String INTER_CONTAINER_KAFKA_ALIAS = "kafka";
 
     private static final Slf4jLogConsumer LOG_CONSUMER = new Slf4jLogConsumer(LOG);
-    private static final Path sqlToolBoxJar = TestUtils.getResource(".*SqlToolbox.jar");
+    private static final Path sqlToolBoxJar = ResourceTestUtils.getResource(".*SqlToolbox.jar");
 
-    private final Path sqlConnectorKafkaJar = TestUtils.getResource(".*kafka.*.jar");
+    private final Path sqlConnectorKafkaJar = ResourceTestUtils.getResource(".*kafka.*.jar");
 
     private final Path sqlConnectorUpsertTestJar =
-            TestUtils.getResource(".*flink-test-utils.*.jar");
+            ResourceTestUtils.getResource(".*flink-test-utils.*.jar");
 
     public static final Network NETWORK = Network.newNetwork();
 
