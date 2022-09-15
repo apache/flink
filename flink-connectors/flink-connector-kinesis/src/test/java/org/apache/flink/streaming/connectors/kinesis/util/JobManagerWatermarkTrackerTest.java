@@ -65,16 +65,13 @@ public class JobManagerWatermarkTrackerTest {
 
         @Override
         public void run(SourceContext<Integer> ctx) {
-<<<<<<< HEAD
             assertThat(tracker.updateWatermark(998)).isEqualTo(998);
             assertThat(tracker.updateWatermark(999)).isEqualTo(999);
-=======
-            Assert.assertEquals(998, tracker.updateWatermark(998));
-            Assert.assertEquals(999, tracker.updateWatermark(999));
-            Assert.assertEquals(999, tracker.getWatermark());
-            Assert.assertEquals(1000, tracker.updateWatermark(1000));
-            Assert.assertEquals(1000, tracker.getWatermark());
->>>>>>> 8733b7b0314 ([STRMHELP-197] Update Global Watermark When Idle (#61))
+            assertThat(tracker.updateWatermark(998)).isEqualTo(998);
+            assertThat(tracker.updateWatermark(999)).isEqualTo(999);
+            assertThat(tracker.getWatermark()).isEqualTo(999);
+            assertThat(tracker.updateWatermark(1000)).isEqualTo(1000);
+            assertThat(tracker.getWatermark()).isEqualTo(1000);
         }
 
         @Override
