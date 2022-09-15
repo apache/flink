@@ -19,12 +19,13 @@
 package org.apache.flink.client.program;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.configuration.DeploymentOptions;
 
 import java.util.Collection;
 
 /**
- * If {@link org.apache.flink.configuration.DeploymentOptions#ALLOW_CLIENT_JOB_CONFIGURATIONS} is
- * disabled configurations in the user jar will throw this exception.
+ * If {@link DeploymentOptions#PROGRAM_CONFIG_ENABLED} is disabled, configurations in the user jar
+ * will throw this exception.
  */
 @Internal
 public class MutatedConfigurationException extends Exception {
