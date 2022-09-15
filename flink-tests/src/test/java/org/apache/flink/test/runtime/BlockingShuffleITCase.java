@@ -32,23 +32,21 @@ class BlockingShuffleITCase extends BatchShuffleITCaseBase {
     @Test
     public void testBoundedBlockingShuffle() throws Exception {
         final int numRecordsToSend = 1000000;
-        JobGraph jobGraph = createJobGraph(1000000, false, false);
         Configuration configuration = getConfiguration();
         configuration.setInteger(
                 NettyShuffleEnvironmentOptions.NETWORK_SORT_SHUFFLE_MIN_PARALLELISM,
                 Integer.MAX_VALUE);
-
+        JobGraph jobGraph = createJobGraph(numRecordsToSend, false, false, configuration);
         executeJob(jobGraph, configuration, numRecordsToSend);
     }
 
     @Test
     public void testBoundedBlockingShuffleWithoutData() throws Exception {
-        JobGraph jobGraph = createJobGraph(0, false, false);
         Configuration configuration = getConfiguration();
         configuration.setInteger(
                 NettyShuffleEnvironmentOptions.NETWORK_SORT_SHUFFLE_MIN_PARALLELISM,
                 Integer.MAX_VALUE);
-
+        JobGraph jobGraph = createJobGraph(0, false, false, configuration);
         executeJob(jobGraph, configuration, 0);
     }
 
@@ -59,7 +57,7 @@ class BlockingShuffleITCase extends BatchShuffleITCaseBase {
         configuration.setInteger(
                 NettyShuffleEnvironmentOptions.NETWORK_SORT_SHUFFLE_MIN_BUFFERS, 64);
 
-        JobGraph jobGraph = createJobGraph(1000000, false, false);
+        JobGraph jobGraph = createJobGraph(numRecordsToSend, false, false, configuration);
         executeJob(jobGraph, configuration, numRecordsToSend);
     }
 
@@ -69,7 +67,7 @@ class BlockingShuffleITCase extends BatchShuffleITCaseBase {
         configuration.setInteger(
                 NettyShuffleEnvironmentOptions.NETWORK_SORT_SHUFFLE_MIN_BUFFERS, 64);
 
-        JobGraph jobGraph = createJobGraph(0, false, false);
+        JobGraph jobGraph = createJobGraph(0, false, false, configuration);
         executeJob(jobGraph, configuration, 0);
     }
 
@@ -80,14 +78,14 @@ class BlockingShuffleITCase extends BatchShuffleITCaseBase {
                 NettyShuffleEnvironmentOptions.NETWORK_SORT_SHUFFLE_MIN_PARALLELISM,
                 Integer.MAX_VALUE);
 
-        JobGraph jobGraph = createJobGraph(0, false, true);
+        JobGraph jobGraph = createJobGraph(0, false, true, configuration);
         executeJob(jobGraph, configuration, 0);
     }
 
     @Test
     public void testDeletePartitionFileOfSortMergeBlockingShuffle() throws Exception {
         Configuration configuration = getConfiguration();
-        JobGraph jobGraph = createJobGraph(0, false, true);
+        JobGraph jobGraph = createJobGraph(0, false, true, configuration);
         executeJob(jobGraph, configuration, 0);
     }
 
