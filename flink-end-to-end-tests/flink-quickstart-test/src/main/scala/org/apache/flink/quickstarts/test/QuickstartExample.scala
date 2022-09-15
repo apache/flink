@@ -43,7 +43,7 @@ object QuickstartExample {
 
     val data = source.collectAsync()
 
-    env.execute("Elasticsearch7.x end to end sink test example")
+    env.execute("Quickstart example")
 
     var count = 0
     while (data.hasNext) {
