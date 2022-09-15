@@ -68,12 +68,12 @@ public class SqlClientITCase {
     private static final String INTER_CONTAINER_KAFKA_ALIAS = "kafka";
 
     private static final Slf4jLogConsumer LOG_CONSUMER = new Slf4jLogConsumer(LOG);
-    private static final Path sqlToolBoxJar = ResourceTestUtils.getResource(".*SqlToolbox.jar");
+    private static final Path sqlToolBoxJar = ResourceTestUtils.getResource(".*/SqlToolbox\\.jar");
 
-    private final Path sqlConnectorKafkaJar = ResourceTestUtils.getResource(".*kafka.*.jar");
+    private final Path sqlConnectorKafkaJar = ResourceTestUtils.getResource(".*kafka.*\\.jar");
 
     private final Path sqlConnectorUpsertTestJar =
-            ResourceTestUtils.getResource(".*flink-test-utils.*.jar");
+            ResourceTestUtils.getResource(".*flink-test-utils.*\\.jar");
 
     public static final Network NETWORK = Network.newNetwork();
 
