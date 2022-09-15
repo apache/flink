@@ -69,13 +69,18 @@ class BatchShuffleITCaseBase {
         tmpDir = TempDirUtils.newFolder(path, UUID.randomUUID().toString()).toPath();
     }
 
-    protected JobGraph createJobGraph(int numRecordsToSend, boolean failExecution) {
-        return createJobGraph(numRecordsToSend, failExecution, false);
+    protected JobGraph createJobGraph(
+            int numRecordsToSend, boolean failExecution, Configuration configuration) {
+        return createJobGraph(numRecordsToSend, failExecution, false, configuration);
     }
 
     protected JobGraph createJobGraph(
-            int numRecordsToSend, boolean failExecution, boolean deletePartitionFile) {
-        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+            int numRecordsToSend,
+            boolean failExecution,
+            boolean deletePartitionFile,
+            Configuration configuration) {
+        StreamExecutionEnvironment env =
+                StreamExecutionEnvironment.getExecutionEnvironment(configuration);
         env.setRestartStrategy(RestartStrategies.fixedDelayRestart(10, 0L));
         env.setParallelism(NUM_SLOTS_PER_TASK_MANAGER);
 

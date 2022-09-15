@@ -34,7 +34,7 @@ class HybridShuffleITCase extends BatchShuffleITCaseBase {
         Configuration configuration = getConfiguration();
         configuration.set(
                 ExecutionOptions.BATCH_SHUFFLE_MODE, BatchShuffleMode.ALL_EXCHANGES_HYBRID_FULL);
-        JobGraph jobGraph = createJobGraph(numRecordsToSend, false);
+        JobGraph jobGraph = createJobGraph(numRecordsToSend, false, configuration);
         executeJob(jobGraph, configuration, numRecordsToSend);
     }
 
@@ -45,7 +45,7 @@ class HybridShuffleITCase extends BatchShuffleITCaseBase {
         configuration.set(
                 ExecutionOptions.BATCH_SHUFFLE_MODE,
                 BatchShuffleMode.ALL_EXCHANGES_HYBRID_SELECTIVE);
-        JobGraph jobGraph = createJobGraph(numRecordsToSend, false);
+        JobGraph jobGraph = createJobGraph(numRecordsToSend, false, configuration);
         executeJob(jobGraph, configuration, numRecordsToSend);
     }
 
@@ -55,7 +55,7 @@ class HybridShuffleITCase extends BatchShuffleITCaseBase {
         Configuration configuration = getConfiguration();
         configuration.set(
                 ExecutionOptions.BATCH_SHUFFLE_MODE, BatchShuffleMode.ALL_EXCHANGES_HYBRID_FULL);
-        JobGraph jobGraph = createJobGraph(numRecordsToSend, true);
+        JobGraph jobGraph = createJobGraph(numRecordsToSend, true, configuration);
         executeJob(jobGraph, configuration, numRecordsToSend);
     }
 
@@ -66,7 +66,7 @@ class HybridShuffleITCase extends BatchShuffleITCaseBase {
         configuration.set(
                 ExecutionOptions.BATCH_SHUFFLE_MODE,
                 BatchShuffleMode.ALL_EXCHANGES_HYBRID_SELECTIVE);
-        JobGraph jobGraph = createJobGraph(numRecordsToSend, true);
+        JobGraph jobGraph = createJobGraph(numRecordsToSend, true, configuration);
         executeJob(jobGraph, configuration, numRecordsToSend);
     }
 }
