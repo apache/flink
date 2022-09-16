@@ -39,6 +39,7 @@ import javax.annotation.Nonnull;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.Iterator;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
@@ -126,20 +127,6 @@ class AkkaRpcServiceTest {
     void testGetPort() {
         assertThat(akkaRpcService.getPort())
                 .isEqualTo(AkkaUtils.getAddress(actorSystem).port().get());
-    }
-
-    /** Tests that we can wait for the termination of the rpc service. */
-    @Test
-    void testTerminationFuture() throws Exception {
-        final AkkaRpcService rpcService = startAkkaRpcService();
-
-        CompletableFuture<Void> terminationFuture = rpcService.getTerminationFuture();
-
-        assertThat(terminationFuture).isNotDone();
-
-        rpcService.stopService();
-
-        terminationFuture.get();
     }
 
     /**
@@ -279,16 +266,15 @@ class AkkaRpcServiceTest {
         try {
             final int numberActors = 5;
 
-            CompletableFuture<Void> terminationFuture = akkaRpcService.getTerminationFuture();
-
-            final Collection<CompletableFuture<Void>> onStopFutures =
+            final RpcServiceShutdownTestHelper rpcServiceShutdownTestHelper =
                     startStopNCountingAsynchronousOnStopEndpoints(akkaRpcService, numberActors);
 
-            for (CompletableFuture<Void> onStopFuture : onStopFutures) {
+            for (CompletableFuture<Void> onStopFuture :
+                    rpcServiceShutdownTestHelper.getStopFutures()) {
                 onStopFuture.complete(null);
             }
 
-            terminationFuture.get();
+            rpcServiceShutdownTestHelper.waitForRpcServiceTermination();
             assertThat(akkaRpcService.getActorSystem().whenTerminated().isCompleted()).isTrue();
         } finally {
             RpcUtils.terminateRpcService(akkaRpcService);
@@ -305,12 +291,11 @@ class AkkaRpcServiceTest {
 
         final int numberActors = 5;
 
-        CompletableFuture<Void> terminationFuture = akkaRpcService.getTerminationFuture();
-
-        final Collection<CompletableFuture<Void>> onStopFutures =
+        final RpcServiceShutdownTestHelper rpcServiceShutdownTestHelper =
                 startStopNCountingAsynchronousOnStopEndpoints(akkaRpcService, numberActors);
 
-        Iterator<CompletableFuture<Void>> iterator = onStopFutures.iterator();
+        final Iterator<CompletableFuture<Void>> iterator =
+                rpcServiceShutdownTestHelper.getStopFutures().iterator();
 
         for (int i = 0; i < numberActors - 1; i++) {
             iterator.next().complete(null);
@@ -318,11 +303,7 @@ class AkkaRpcServiceTest {
 
         iterator.next().completeExceptionally(new OnStopException("onStop exception occurred."));
 
-        for (CompletableFuture<Void> onStopFuture : onStopFutures) {
-            onStopFuture.complete(null);
-        }
-
-        assertThatThrownBy(() -> terminationFuture.get())
+        assertThatThrownBy(rpcServiceShutdownTestHelper::waitForRpcServiceTermination)
                 .satisfies(FlinkAssertions.anyCauseMatches(OnStopException.class));
 
         assertThat(akkaRpcService.getActorSystem().whenTerminated().isCompleted()).isTrue();
@@ -349,8 +330,8 @@ class AkkaRpcServiceTest {
         }
     }
 
-    private Collection<CompletableFuture<Void>> startStopNCountingAsynchronousOnStopEndpoints(
-            AkkaRpcService akkaRpcService, int numberActors) throws Exception {
+    private static RpcServiceShutdownTestHelper startStopNCountingAsynchronousOnStopEndpoints(
+            AkkaRpcService akkaRpcService, int numberActors) throws InterruptedException {
         final Collection<CompletableFuture<Void>> onStopFutures = new ArrayList<>(numberActors);
 
         final CountDownLatch countDownLatch = new CountDownLatch(numberActors);
@@ -366,12 +347,34 @@ class AkkaRpcServiceTest {
 
         CompletableFuture<Void> terminationFuture = akkaRpcService.stopService();
 
+        countDownLatch.await();
+
         assertThat(terminationFuture).isNotDone();
         assertThat(akkaRpcService.getActorSystem().whenTerminated().isCompleted()).isFalse();
 
-        countDownLatch.await();
+        return new RpcServiceShutdownTestHelper(
+                Collections.unmodifiableCollection(onStopFutures), terminationFuture);
+    }
 
-        return onStopFutures;
+    private static class RpcServiceShutdownTestHelper {
+
+        private final Collection<CompletableFuture<Void>> stopFutures;
+        private final CompletableFuture<Void> terminationFuture;
+
+        public RpcServiceShutdownTestHelper(
+                Collection<CompletableFuture<Void>> stopFutures,
+                CompletableFuture<Void> terminationFuture) {
+            this.stopFutures = stopFutures;
+            this.terminationFuture = terminationFuture;
+        }
+
+        public Collection<CompletableFuture<Void>> getStopFutures() {
+            return stopFutures;
+        }
+
+        public void waitForRpcServiceTermination() throws ExecutionException, InterruptedException {
+            terminationFuture.get();
+        }
     }
 
     @Nonnull

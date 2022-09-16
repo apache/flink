@@ -200,11 +200,6 @@ public class TestingRpcService implements RpcService {
     }
 
     @Override
-    public CompletableFuture<Void> getTerminationFuture() {
-        return backingRpcService.getTerminationFuture();
-    }
-
-    @Override
     public ScheduledExecutor getScheduledExecutor() {
         return backingRpcService.getScheduledExecutor();
     }

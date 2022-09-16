@@ -451,11 +451,6 @@ public class AkkaRpcService implements RpcService {
     }
 
     @Override
-    public CompletableFuture<Void> getTerminationFuture() {
-        return terminationFuture;
-    }
-
-    @Override
     public ScheduledExecutor getScheduledExecutor() {
         return internalScheduledExecutor;
     }

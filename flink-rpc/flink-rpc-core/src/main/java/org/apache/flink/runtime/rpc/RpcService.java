@@ -100,13 +100,6 @@ public interface RpcService {
     CompletableFuture<Void> stopService();
 
     /**
-     * Returns a future indicating when the RPC service has been shut down.
-     *
-     * @return Termination future
-     */
-    CompletableFuture<Void> getTerminationFuture();
-
-    /**
      * Gets a scheduled executor from the RPC service. This executor can be used to schedule tasks
      * to be executed in the future.
      *

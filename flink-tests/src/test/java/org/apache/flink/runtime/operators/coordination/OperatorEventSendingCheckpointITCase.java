@@ -505,11 +505,6 @@ public class OperatorEventSendingCheckpointITCase extends TestLogger {
         }
 
         @Override
-        public CompletableFuture<Void> getTerminationFuture() {
-            return rpcService.getTerminationFuture();
-        }
-
-        @Override
         public ScheduledExecutor getScheduledExecutor() {
             return rpcService.getScheduledExecutor();
         }
