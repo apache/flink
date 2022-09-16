@@ -55,7 +55,7 @@ CREATE TABLE clicks (
 ```
 
 Some new data were written:
-```gitexclude
+```
 +------+---------------------+------------+
 |  uid |               cTime |        url |
 +------+---------------------+------------+
@@ -75,7 +75,7 @@ WHERE cTime BETWEEN TIMESTAMPADD(MINUTE, -2, CURRENT_TIMESTAMP) AND CURRENT_TIME
 ```
 
 When the query was submitted at '2022-08-22 12:02:00', it returned all 6 rows in the table, and when it was executed again a minute later, at '2022-08-22 12:03:00', it returned only 3 items:
-```gitexclude
+```
 +------+---------------------+------------+
 |  uid |               cTime |        url |
 +------+---------------------+------------+
@@ -91,7 +91,7 @@ SELECT UUID() AS uuid, * FROM clicks LIMIT 3;
 ```
 
 Executing this query twice in a row generates a different `uuid` identifier for each row
-```gitexclude
+```
 -- first execution
 +--------------------------------+------+---------------------+------------+
 |                           uuid |  uid |               cTime |        url |
@@ -119,7 +119,7 @@ SELECT CURRENT_TIMESTAMP, * FROM clicks;
 ```
 
 `CURRENT_TIMESTAMP` is the same value on all records returned
-```gitexclude
+```
 +-------------------------+------+---------------------+------------+
 |       CURRENT_TIMESTAMP |  uid |               cTime |        url |
 +-------------------------+------+---------------------+------------+
@@ -142,6 +142,16 @@ If the `clicks` log table in the example is from a Kafka topic that is continuou
 ```sql
 SELECT CURRENT_TIMESTAMP, * FROM clicks;
 ```
+e.g,
+```
++-------------------------+------+---------------------+------------+
+|       CURRENT_TIMESTAMP |  uid |               cTime |        url |
++-------------------------+------+---------------------+------------+
+| 2022-08-23 17:25:46.831 | Mary | 2022-08-22 12:00:01 |      /home |
+| 2022-08-23 17:25:47.001 |  Bob | 2022-08-22 12:00:01 |      /home |
+| 2022-08-23 17:25:47.310 | Mary | 2022-08-22 12:00:05 | /prod?id=1 |
++-------------------------+------+---------------------+------------+
+```
 
 ### 3.1 Non-Determinism In Streaming
 In addition to the non-deterministic function, other factors that may generate non-determinism are mainly:
@@ -152,7 +162,7 @@ In addition to the non-deterministic function, other factors that may generate n
 #### Non-Deterministic Back Read Of Source Connector
 For Flink SQL, the determinism provided is limited to the computation only, because it does not store user data itself (here it is necessary to distinguish between the managed internal state in streaming mode and the user data itself),
 so the Source connector's implementation that cannot provide deterministic back read will bring non-determinism of the input data, which may produce non-deterministic results.
-Common examples are inconsistent data for multiple reads from a same offset, or requests for data that no longer exists because of the retention time, e.g., the requested data beyond the configured ttl of Kafka topic.
+Common examples are inconsistent data for multiple reads from a same offset, or requests for data that no longer exists because of the retention time(e.g., the requested data beyond the configured ttl of Kafka topic).
 
 #### Query Based On Processing Time
 Unlike event time, processing time is based on the machine's local time, and this processing does not provide determinism. Related operations that rely on the time attribute include [Window Aggregation]({{< ref "docs/dev/table/sql/queries/window-agg" >}}), [Interval Join]({{< ref "docs/dev/table/sql/queries/joins" >}}#interval-joins), [Temporal Join]({{< ref "docs/dev/table/sql/queries/joins" >}}temporal-joins), etc.
@@ -166,10 +176,10 @@ The impact of the non-determinism on different queries is different, for some qu
 The main reason for the latter one is 'non-deterministic update'.
 
 ### 3.2 Non-Deterministic Update In Streaming
-Flink SQL implements a complete incremental update mechanism based on the ['continuous query on dynamic tables']({{< ref "docs/dev/table/concepts/dynamic_tables" >}}#dynamic-tables-amp-continuous-queries) abstraction. All operations that need to generate incremental messages maintain complete internal state data, and the operation of the entire query pipeline relies on the guarantee of correct delivery of update messages between operators, which can be broken by non-determinism leading to errors.
+Flink SQL implements a complete incremental update mechanism based on the ['continuous query on dynamic tables']({{< ref "docs/dev/table/concepts/dynamic_tables" >}}#dynamic-tables-amp-continuous-queries) abstraction. All operations that need to generate incremental messages maintain complete internal state data, and the operation of the entire query pipeline(include the complete dag from source to sink operators) relies on the guarantee of correct delivery of update messages between operators, which can be broken by non-determinism leading to errors.
 
 What is the 'Non-deterministic Update'(NDU)?
-Update messages(changelog) may contain kinds of message types: Insert (I), Delete (D), Update_Before (UB) and Update_After (UA). There's no NDU problem in an insert-only changelog pipeline(At the operator level, we only focus on the input, for the whole job, we need to consider the complete pipeline for the job).
+Update messages(changelog) may contain kinds of message types: Insert (I), Delete (D), Update_Before (UB) and Update_After (UA). There's no NDU problem in an insert-only changelog pipeline.
 When there is an update message (containing at least one message D, UB, UA in addition to I), the update key of the message (which can be regarded as the primary key of the changelog) is deduced from the query:
 - when the update key can be deduced, the operators in the pipeline maintains the internal state by the update key
 - when the update key cannot be deduced (it is possible that the primary key is not defined in the [CDC source table]({{< ref "docs/connectors/table/kafka" >}}#cdc-changelog-source) or Sink table, or some operations cannot be deduced from the semantics of the query).
@@ -201,7 +211,7 @@ FROM t_order AS o
 LEFT JOIN t_logistics AS l ON ord.order_id=logistics.order_id
 ```
 The execution plan generated by default will run with a runtime error, when `TRY_RESOLVE` mode is enabled, the following error will be given:
-```gitexclude
+```
 org.apache.flink.table.api.TableException: The column(s): logistics_time(generated by non-deterministic function: NOW ) can not satisfy the determinism requirement for correctly processing update message(changelogMode contains not only insert ‘I’).... Please consider removing these non-deterministic columns or making them deterministic.
 
 related rel plan:

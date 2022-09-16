@@ -53,7 +53,7 @@ CREATE TABLE clicks (
 ```
 
 新写入了一些数据：
-```gitexclude
+```
 +------+---------------------+------------+
 |  uid |               cTime |        url |
 +------+---------------------+------------+
@@ -72,7 +72,7 @@ SELECT * FROM clicks
 WHERE cTime BETWEEN TIMESTAMPADD(MINUTE, -2, CURRENT_TIMESTAMP) AND CURRENT_TIMESTAMP;
 ```
 在 '2022-08-22 12:02:00' 时刻提交该查询时，查询返回了表中全部的 6 条数据, 一分钟后，也就是在 '2022-08-22 12:03:00' 时刻再次执行该查询时, 只返回了 3 条数据：
-```gitexclude
+```
 +------+---------------------+------------+
 |  uid |               cTime |        url |
 +------+---------------------+------------+
@@ -87,7 +87,7 @@ WHERE cTime BETWEEN TIMESTAMPADD(MINUTE, -2, CURRENT_TIMESTAMP) AND CURRENT_TIME
 SELECT UUID() AS uuid, * FROM clicks LIMIT 3;
 ```
 连续执行两次该查询，每条记录都生成了不同的 `uuid` 标识：
-```gitexclude
+```
 -- 第 1 次执行
 +--------------------------------+------+---------------------+------------+
 |                           uuid |  uid |               cTime |        url |
@@ -108,14 +108,14 @@ SELECT UUID() AS uuid, * FROM clicks LIMIT 3;
 ```
 
 ### 2.2 批处理中的不确定性因素
-批处理中的不确定性因素, 主要是由不确定函数造成的，回顾上述两个查询示例，内置函数 `CURRENT_TIMESTAMP` 和 `UUID()`
-在批处理中的行为实际是有差异的，继续看一个查询示例：
+批处理中的不确定性因素, 主要是由不确定函数造成的，上述两个查询示例中，内置函数 `CURRENT_TIMESTAMP` 和 `UUID()`
+在批处理中的行为是有差异的，继续看一个查询示例：
 ```sql
 SELECT CURRENT_TIMESTAMP, * FROM clicks;
 ```
 
 `CURRENT_TIMESTAMP` 在返回的记录上都是同一个值：
-```gitexclude
+```
 +-------------------------+------+---------------------+------------+
 |       CURRENT_TIMESTAMP |  uid |               cTime |        url |
 +-------------------------+------+---------------------+------------+
@@ -132,9 +132,19 @@ SELECT CURRENT_TIMESTAMP, * FROM clicks;
 
 ## 3. 流上的确定性
 流和批处理的一个核心区别是数据的无界性，Flink SQL 对流计算抽象为[动态表上的连续查询（continuous query）]({{< ref "docs/dev/table/concepts/dynamic_tables" >}}#dynamic-tables-amp-continuous-queries)。 
-因此批查询示例中的动态函数在流场景中（逻辑上每条基表记录的变更都会触发查询被执行）也就等效于不确定性函数. 示例中如果 `clicks` 点击日志表来源于持续写入的 Kafka topic，同样的查询在流模式下返回的 `CURRENT_TIMESTAMP` 也就会随着时间推移而变化
+因此批查询示例中的动态函数在流场景中（逻辑上每条基表记录的变更都会触发查询被执行）也就等效于不确定性函数。示例中如果 `clicks` 点击日志表来源于持续写入的 Kafka topic，同样的查询在流模式下返回的 `CURRENT_TIMESTAMP` 也就会随着时间推移而变化
 ```sql
 SELECT CURRENT_TIMESTAMP, * FROM clicks;
+```
+例如：
+```
++-------------------------+------+---------------------+------------+
+|       CURRENT_TIMESTAMP |  uid |               cTime |        url |
++-------------------------+------+---------------------+------------+
+| 2022-08-23 17:25:46.831 | Mary | 2022-08-22 12:00:01 |      /home |
+| 2022-08-23 17:25:47.001 |  Bob | 2022-08-22 12:00:01 |      /home |
+| 2022-08-23 17:25:47.310 | Mary | 2022-08-22 12:00:05 | /prod?id=1 |
++-------------------------+------+---------------------+------------+
 ```
 
 ### 3.1 流上的不确定性
@@ -144,8 +154,8 @@ SELECT CURRENT_TIMESTAMP, * FROM clicks;
 3. 基于 [TTL]({{< ref "docs/dev/table/config" >}}#table-exec-state-ttl) 淘汰内部状态数据的不确定性
 
 #### Source 连接器回溯读取的不确定性
-对于 Flink SQL 来说，所能提供的确定性局限于计算部分，因为它本身并不存储用户数据（这里需要区别流模式中管理的内部状态和计算时输入的用户数据），所以对于无法提供确定性回溯读取数据的 Source 连接器实现会带来输入数据的不确定性，从而可能产生不确定的计算结果。
-常见的比如指定相同时间点位请求多次读取的数据不一致、或请求的数据因为保存时限已经不存在等，如请求的 Kafka topic 数据已经超出了保存时限。
+对于 Flink SQL 来说，所能提供的确定性局限于计算部分，因为它本身并不存储用户数据（这里的用户数据不包括内部状态），所以对于无法提供确定性回溯读取数据的 Source 连接器实现会带来输入数据的不确定性，从而可能产生不确定的计算结果。
+常见的比如指定相同时间点位请求多次读取的数据不一致、或请求的数据因为保存时限已经不存在等（如请求的 Kafka topic 数据已经超出了保存时限）。
 
 #### 基于处理时间计算的不确定性
 区别于事件时间，处理时间是基于机器的本地时间，这种处理不能提供确定性。相关的依赖时间属性的操作作包括[窗口聚合]({{< ref "docs/dev/table/sql/queries/window-agg" >}})、[Interval Join]({{< ref "docs/dev/table/sql/queries/joins" >}}#interval-joins)、[Temporal Join]({{< ref "docs/dev/table/sql/queries/joins" >}}#temporal-joins) 等，另一个典型的操作是 [Lookup Join]({{< ref "docs/dev/table/sql/queries/joins" >}}#lookup-joins)，语义上是类似基于处理时间的 Temporal Join，访问的外部表如存在更新，就会产生不确定性。
@@ -153,13 +163,13 @@ SELECT CURRENT_TIMESTAMP, * FROM clicks;
 #### 基于 TTL 淘汰内部状态数据的不确定性
 因为流处理数据无界性的特点，长时间运行的流查询在双流 Join([Regular Join]({{< ref "docs/dev/table/sql/queries/joins" >}}#regular-joins))、[分组聚合]({{< ref "docs/dev/table/sql/queries/group-agg" >}})（非窗口聚合）等操作维护的内部状态数据可能持续膨胀，开启状态 TTL 来淘汰内部状态数据很多时候是必要的妥协，但这种淘汰数据的方式可能让计算结果变得不确定。
 
-这些不确定性对不同查询的影响是不同的，某些查询上仅仅是产生不确定的结果（查询可以正常运行，只是多次运行无法得到确定一致的结果），而在某些查询上不确定性会产生更严重的影响，比如结果错误甚至查询无法正常运行。后者的主要原因在于不确定的更新消息。
+这些不确定性对不同查询的影响是不同的，某些查询仅仅是产生不确定的结果（查询可以正常运行，只是多次运行无法得到确定一致的结果），而某些查询不确定性会产生更严重的影响，比如结果错误甚至查询无法正常运行。后者的主要原因在于不确定的更新消息。
 
 ### 3.2 流上导致正确性问题的不确定更新
-Flink SQL 基于[动态表上的连续查询（continuous query）]({{< ref "docs/dev/table/concepts/dynamic_tables" >}}#dynamic-tables-amp-continuous-queries)抽象实现了一套完整的增量更新机制，所有需要产生增量消息的操作都维护了完整的内部状态数据，整个查询管道的顺利运行依赖算子之间对增量消息的正确传递保证，而不确定性就可能破坏这种保证从而导致错误。
+Flink SQL 基于[动态表上的连续查询（continuous query）]({{< ref "docs/dev/table/concepts/dynamic_tables" >}}#dynamic-tables-amp-continuous-queries)抽象实现了一套完整的增量更新机制，所有需要产生增量消息的操作都维护了完整的内部状态数据，整个查询管道（包含了从 Source、Sink 的完整执行图）的顺利运行依赖算子之间对增量消息的正确传递保证，而不确定性就可能破坏这种保证从而导致错误。
 
 什么是不确定更新（Non-deterministic Update, 简称 NDU）？
-增量消息包含插入（Insert，简称 I）、删除（Delete，简称 D）、更新前（Update_Before，简称 UB），更新后（Update_After，简称 UA），在仅有插入类型增量消息的查询管道中不存在 NDU 问题（对于单个算子只关注输入，对于整个作业，我们需要考虑作业对应的完整查询管道）。
+增量消息包含插入（Insert，简称 I）、删除（Delete，简称 D）、更新前（Update_Before，简称 UB），更新后（Update_After，简称 UA），在仅有插入类型增量消息的查询管道中不存在 NDU 问题。
 在有更新消息（除 I 外还包含 D、UB、UA 至少一种消息）时，会根据查询推导消息的更新键（可视为变更日志的主键）
 - 能推导出更新键时，管道中的算子通过更新键来维护内部状态
 - 不能推导出更新键时（有可能 [CDC 源表]({{< ref "docs/connectors/table/kafka" >}}#cdc-changelog-source)或 Sink 表就没定义主键，也可能从查询的语义上某些操作就推导不出来），所有的算子维护内部状态时只能通过比较完整的行来处理更新（D/UB/UA）消息, Sink 节点在没有定义主键时以 Retract 模式工作，按整行进行删除操作。
@@ -188,7 +198,7 @@ FROM t_order AS o
 LEFT JOIN t_logistics AS l ON ord.order_id=logistics.order_id
 ```
 在默认情况下生成的执行计划在运行时会发生撤回错误，当启用 `TRY_RESOLVE` 模式时, 会给出如下错误提示：
-```gitexclude
+```
 org.apache.flink.table.api.TableException: The column(s): logistics_time(generated by non-deterministic function: NOW ) can not satisfy the determinism requirement for correctly processing update message(changelogMode contains not only insert ‘I’).... Please consider removing these non-deterministic columns or making them deterministic.
 
 related rel plan:
