@@ -542,9 +542,9 @@ public class JoinedStreams<T1, T2> {
             int secondSize = ((ArrayList<Tuple>) second).size();
             int joinPartners = 0;
             for (T1 val1 : first) {
-                streamMonitor.reportInput(val1, this.executionConfig);
+                streamMonitor.reportInput(val1, this.executionConfig, true);
                 for (T2 val2 : second) {
-                    streamMonitor.reportInput(val2, this.executionConfig);
+                    streamMonitor.reportInput(val2, this.executionConfig, false);
                     T output = wrappedFunction.join(val1, val2);
                     streamMonitor.reportOutput(output);
                     joinPartners++;

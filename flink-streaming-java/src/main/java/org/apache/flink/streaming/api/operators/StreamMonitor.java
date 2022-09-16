@@ -69,6 +69,8 @@ public class StreamMonitor<T> implements Serializable {
     private int joinSize1 = 0;
     private int joinSize2 = 0;
     private int joinPartners = 0;
+    private int joinInputWidthLeftSide = -1;
+    private int joinInputWidthRightSide = -1;
 
     public StreamMonitor(HashMap<String, Object> description, T operator) {
         this.description = Objects.requireNonNullElseGet(description, HashMap::new);
@@ -88,6 +90,10 @@ public class StreamMonitor<T> implements Serializable {
     }
 
     public <T> void reportInput(T input, ExecutionConfig config) {
+        reportInput(input, config, false);
+    }
+
+    public <T> void reportInput(T input, ExecutionConfig config, Boolean joinStreamLeftSide) {
         if (this.disableStreamMonitor) {
             return;
         }
@@ -119,7 +125,26 @@ public class StreamMonitor<T> implements Serializable {
                 this.distributedLogging = false;
             }
             this.startTime = System.nanoTime();
-            description.put("tupleWidthIn", getTupleSize(input));
+            // if this operator is a join operator
+            if (this.operator instanceof WrappingFunction) {
+                // store left or right input width of join
+                if (joinStreamLeftSide) {
+                    this.joinInputWidthLeftSide = getTupleSize(input);
+                } else {
+                    this.joinInputWidthRightSide = getTupleSize(input);
+                }
+                // if left or right side width is not stored yet, set initialized to false,else
+                // put tupleWidthIn into description
+                if (this.joinInputWidthLeftSide == -1 || this.joinInputWidthRightSide == -1) {
+                    this.initialized = false;
+                } else {
+                    description.put(
+                            "tupleWidthIn", joinInputWidthLeftSide + joinInputWidthRightSide);
+                }
+                // it's not a join operator, so the tupleWidthIn can be put into description
+            } else {
+                description.put("tupleWidthIn", getTupleSize(input));
+            }
             description.put("tupleWidthOut", -1); // not any observation yet
         }
         this.inputCounter++;
