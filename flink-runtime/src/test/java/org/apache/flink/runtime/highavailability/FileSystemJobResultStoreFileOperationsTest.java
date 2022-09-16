@@ -44,7 +44,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for the internal {@link FileSystemJobResultStore} mechanisms. */
 @ExtendWith(TestLoggerExtension.class)
-public class FileSystemJobResultStoreTestInternal {
+public class FileSystemJobResultStoreFileOperationsTest {
 
     private static final ObjectMapper MAPPER = JacksonMapperFactory.createObjectMapper();
 
@@ -66,7 +66,7 @@ public class FileSystemJobResultStoreTestInternal {
         final Path entryParent =
                 fileSystemJobResultStore.constructEntryPath("random-name").getParent();
         assertThat(entryParent)
-                .extracting(FileSystemJobResultStoreTestInternal::stripSucceedingSlash)
+                .extracting(FileSystemJobResultStoreFileOperationsTest::stripSucceedingSlash)
                 .isEqualTo(stripSucceedingSlash(basePath));
     }
 
