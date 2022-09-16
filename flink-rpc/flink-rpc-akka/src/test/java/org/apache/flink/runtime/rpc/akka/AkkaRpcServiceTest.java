@@ -266,7 +266,7 @@ class AkkaRpcServiceTest {
         try {
             final int numberActors = 5;
 
-            RpcServiceShutdownTestHelper rpcServiceShutdownTestHelper =
+            final RpcServiceShutdownTestHelper rpcServiceShutdownTestHelper =
                     startStopNCountingAsynchronousOnStopEndpoints(akkaRpcService, numberActors);
 
             for (CompletableFuture<Void> onStopFuture :
@@ -291,10 +291,10 @@ class AkkaRpcServiceTest {
 
         final int numberActors = 5;
 
-        RpcServiceShutdownTestHelper rpcServiceShutdownTestHelper =
+        final RpcServiceShutdownTestHelper rpcServiceShutdownTestHelper =
                 startStopNCountingAsynchronousOnStopEndpoints(akkaRpcService, numberActors);
 
-        Iterator<CompletableFuture<Void>> iterator =
+        final Iterator<CompletableFuture<Void>> iterator =
                 rpcServiceShutdownTestHelper.getStopFutures().iterator();
 
         for (int i = 0; i < numberActors - 1; i++) {
@@ -347,10 +347,10 @@ class AkkaRpcServiceTest {
 
         CompletableFuture<Void> terminationFuture = akkaRpcService.stopService();
 
+        countDownLatch.await();
+
         assertThat(terminationFuture).isNotDone();
         assertThat(akkaRpcService.getActorSystem().whenTerminated().isCompleted()).isFalse();
-
-        countDownLatch.await();
 
         return new RpcServiceShutdownTestHelper(
                 Collections.unmodifiableCollection(onStopFutures), terminationFuture);
