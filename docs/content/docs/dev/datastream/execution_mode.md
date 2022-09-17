@@ -96,7 +96,7 @@ programmatically when creating/configuring the `StreamExecutionEnvironment`.
 Here's how you can configure the execution mode via the command line:
 
 ```bash
-$ bin/flink run -Dexecution.runtime-mode=BATCH examples/streaming/WordCount.jar
+$ bin/flink run examples/streaming/WordCount.jar --execution-mode BATCH
 ```
 
 This example shows how you can configure the execution mode in code:

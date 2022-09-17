@@ -60,7 +60,7 @@ Apache Flink 对流处理和批处理统一方法，意味着无论配置何种�
 下面是如何通过命令行配置执行模式：
 
 ```bash
-$ bin/flink run -Dexecution.runtime-mode=BATCH examples/streaming/WordCount.jar
+$ bin/flink run examples/streaming/WordCount.jar --execution-mode BATCH
 ```
 
 这个例子展示了如何在代码中配置执行模式：
