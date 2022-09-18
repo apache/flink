@@ -35,14 +35,11 @@ import org.apache.hadoop.hbase.client.BufferedMutator;
 import org.apache.hadoop.hbase.client.BufferedMutatorParams;
 import org.apache.hadoop.hbase.client.Connection;
 import org.apache.hadoop.hbase.client.ConnectionFactory;
-import org.apache.hadoop.hbase.client.Mutation;
 import org.apache.hadoop.hbase.client.RetriesExhaustedWithDetailsException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.util.HashMap;
-import java.util.Map;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
@@ -79,7 +76,6 @@ public class HBaseSinkFunction<T> extends RichSinkFunction<T>
     private transient ScheduledExecutorService executor;
     private transient ScheduledFuture scheduledFuture;
     private transient AtomicLong numPendingRequests;
-    private Map<byte[], Mutation> mutationMap = new HashMap<>();
 
     private transient volatile boolean closed = false;
 
@@ -195,10 +191,8 @@ public class HBaseSinkFunction<T> extends RichSinkFunction<T>
     public void invoke(T value, Context context) throws Exception {
         checkErrorAndRethrow();
 
-        Mutation mutation = mutationConverter.convertToMutation(value);
-        synchronized (mutationMap) {
-            mutationMap.put(mutation.getRow(), mutation);
-        }
+        mutator.mutate(mutationConverter.convertToMutation(value));
+
         // flush when the buffer number of mutations greater than the configured max size.
         if (bufferFlushMaxMutations > 0
                 && numPendingRequests.incrementAndGet() >= bufferFlushMaxMutations) {
@@ -207,12 +201,6 @@ public class HBaseSinkFunction<T> extends RichSinkFunction<T>
     }
 
     private void flush() throws IOException {
-        synchronized (mutationMap) {
-            for (Map.Entry<byte[], Mutation> entry : mutationMap.entrySet()) {
-                mutator.mutate(entry.getValue());
-            }
-            mutationMap.clear();
-        }
         // BufferedMutator is thread-safe
         mutator.flush();
         numPendingRequests.set(0);
@@ -225,7 +213,6 @@ public class HBaseSinkFunction<T> extends RichSinkFunction<T>
 
         if (mutator != null) {
             try {
-                flush();
                 mutator.close();
             } catch (IOException e) {
                 LOG.warn("Exception occurs while closing HBase BufferedMutator.", e);
