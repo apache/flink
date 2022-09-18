@@ -79,7 +79,7 @@ public class HBaseSinkFunction<T> extends RichSinkFunction<T>
     private transient ScheduledExecutorService executor;
     private transient ScheduledFuture scheduledFuture;
     private transient AtomicLong numPendingRequests;
-    private static Map<byte[], Mutation> mutationMap = new HashMap<>();
+    private Map<byte[], Mutation> mutationMap = new HashMap<>();
 
     private transient volatile boolean closed = false;
 
