@@ -24,10 +24,12 @@ import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.java.tuple.Tuple4;
 import org.apache.flink.api.java.tuple.Tuple5;
 import org.apache.flink.api.java.tuple.Tuple6;
+import org.apache.flink.core.execution.CheckpointType;
 import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.queryablestate.KvStateID;
 import org.apache.flink.runtime.blocklist.BlockedNode;
 import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
+import org.apache.flink.runtime.checkpoint.CompletedCheckpoint;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
@@ -133,7 +135,9 @@ public class TestingJobMasterGateway implements JobMasterGateway {
     private final TriFunction<String, Boolean, SavepointFormatType, CompletableFuture<String>>
             triggerSavepointFunction;
 
-    @Nonnull private final Supplier<CompletableFuture<String>> triggerCheckpointFunction;
+    @Nonnull
+    private final Function<CheckpointType, CompletableFuture<CompletedCheckpoint>>
+            triggerCheckpointFunction;
 
     @Nonnull
     private final TriFunction<String, Boolean, SavepointFormatType, CompletableFuture<String>>
@@ -236,7 +240,9 @@ public class TestingJobMasterGateway implements JobMasterGateway {
             @Nonnull
                     TriFunction<String, Boolean, SavepointFormatType, CompletableFuture<String>>
                             triggerSavepointFunction,
-            @Nonnull Supplier<CompletableFuture<String>> triggerCheckpointFunction,
+            @Nonnull
+                    Function<CheckpointType, CompletableFuture<CompletedCheckpoint>>
+                            triggerCheckpointFunction,
             @Nonnull
                     TriFunction<String, Boolean, SavepointFormatType, CompletableFuture<String>>
                             stopWithSavepointFunction,
@@ -412,8 +418,9 @@ public class TestingJobMasterGateway implements JobMasterGateway {
     }
 
     @Override
-    public CompletableFuture<String> triggerCheckpoint(Time timeout) {
-        return triggerCheckpointFunction.get();
+    public CompletableFuture<CompletedCheckpoint> triggerCheckpoint(
+            CheckpointType checkpointType, Time timeout) {
+        return triggerCheckpointFunction.apply(checkpointType);
     }
 
     @Override

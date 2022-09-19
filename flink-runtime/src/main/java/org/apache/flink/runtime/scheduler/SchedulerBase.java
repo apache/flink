@@ -26,6 +26,7 @@ import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.MetricOptions;
 import org.apache.flink.configuration.WebOptions;
+import org.apache.flink.core.execution.CheckpointType;
 import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.MetricGroup;
@@ -878,7 +879,7 @@ public abstract class SchedulerBase implements SchedulerNG, CheckpointScheduling
     }
 
     @Override
-    public CompletableFuture<String> triggerCheckpoint() {
+    public CompletableFuture<CompletedCheckpoint> triggerCheckpoint(CheckpointType checkpointType) {
         mainThreadExecutor.assertRunningInMainThread();
 
         final CheckpointCoordinator checkpointCoordinator =
@@ -890,8 +891,7 @@ public abstract class SchedulerBase implements SchedulerNG, CheckpointScheduling
         log.info("Triggering a manual checkpoint for job {}.", jobID);
 
         return checkpointCoordinator
-                .triggerCheckpoint(false)
-                .thenApply(CompletedCheckpoint::getExternalPointer)
+                .triggerCheckpoint(checkpointType)
                 .handleAsync(
                         (path, throwable) -> {
                             if (throwable != null) {

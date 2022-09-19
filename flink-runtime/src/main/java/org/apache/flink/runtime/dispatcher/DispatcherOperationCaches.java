@@ -22,8 +22,10 @@ import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.runtime.rest.handler.async.CompletedOperationCache;
 import org.apache.flink.runtime.rest.handler.job.AsynchronousJobOperationKey;
 import org.apache.flink.util.AutoCloseableAsync;
+import org.apache.flink.util.concurrent.FutureUtils;
 
 import java.time.Duration;
+import java.util.Arrays;
 import java.util.concurrent.CompletableFuture;
 
 /**
@@ -33,6 +35,8 @@ public class DispatcherOperationCaches implements AutoCloseableAsync {
     private final CompletedOperationCache<AsynchronousJobOperationKey, String>
             savepointTriggerCache;
 
+    private final CompletedOperationCache<AsynchronousJobOperationKey, Long> checkpointTriggerCache;
+
     @VisibleForTesting
     public DispatcherOperationCaches() {
         this(RestOptions.ASYNC_OPERATION_STORE_DURATION.defaultValue());
@@ -41,14 +45,21 @@ public class DispatcherOperationCaches implements AutoCloseableAsync {
     @VisibleForTesting
     public DispatcherOperationCaches(Duration cacheDuration) {
         savepointTriggerCache = new CompletedOperationCache<>(cacheDuration);
+        checkpointTriggerCache = new CompletedOperationCache<>(cacheDuration);
     }
 
     public CompletedOperationCache<AsynchronousJobOperationKey, String> getSavepointTriggerCache() {
         return savepointTriggerCache;
     }
 
+    public CompletedOperationCache<AsynchronousJobOperationKey, Long> getCheckpointTriggerCache() {
+        return checkpointTriggerCache;
+    }
+
     @Override
     public CompletableFuture<Void> closeAsync() {
-        return savepointTriggerCache.closeAsync();
+        return FutureUtils.completeAll(
+                Arrays.asList(
+                        savepointTriggerCache.closeAsync(), checkpointTriggerCache.closeAsync()));
     }
 }

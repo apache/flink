@@ -43,6 +43,7 @@ import org.apache.flink.util.concurrent.FutureUtils;
 import org.apache.flink.util.concurrent.ManuallyTriggeredScheduledExecutor;
 import org.apache.flink.util.concurrent.ScheduledExecutorServiceAdapter;
 
+import org.assertj.core.api.Assertions;
 import org.junit.Before;
 import org.junit.ClassRule;
 import org.junit.Rule;
@@ -287,6 +288,171 @@ public class CheckpointCoordinatorTriggeringTest extends TestLogger {
                 is(CheckpointType.FULL_CHECKPOINT));
     }
 
+    @Test
+    public void testTriggeringCheckpointsWithNullCheckpointType() throws Exception {
+        CheckpointCoordinatorTestingUtils.CheckpointRecorderTaskManagerGateway gateway =
+                new CheckpointCoordinatorTestingUtils.CheckpointRecorderTaskManagerGateway();
+
+        JobVertexID jobVertexID = new JobVertexID();
+        ExecutionGraph graph =
+                new CheckpointCoordinatorTestingUtils.CheckpointExecutionGraphBuilder()
+                        .addJobVertex(jobVertexID)
+                        .setTaskManagerGateway(gateway)
+                        .build(EXECUTOR_RESOURCE.getExecutor());
+
+        final StandaloneCompletedCheckpointStore checkpointStore =
+                new StandaloneCompletedCheckpointStore(1);
+        final StandaloneCheckpointIDCounter checkpointIDCounter =
+                new StandaloneCheckpointIDCounter();
+
+        CheckpointCoordinator checkpointCoordinator =
+                createCheckpointCoordinator(graph, checkpointStore, checkpointIDCounter);
+
+        checkpointCoordinator.startCheckpointScheduler();
+        gateway.resetCount();
+
+        Assertions.assertThatExceptionOfType(IllegalArgumentException.class)
+                .isThrownBy(() -> checkpointCoordinator.triggerCheckpoint(null));
+    }
+
+    @Test
+    public void testTriggeringCheckpointsWithIncrementalCheckpointType() throws Exception {
+        CheckpointCoordinatorTestingUtils.CheckpointRecorderTaskManagerGateway gateway =
+                new CheckpointCoordinatorTestingUtils.CheckpointRecorderTaskManagerGateway();
+
+        JobVertexID jobVertexID = new JobVertexID();
+        ExecutionGraph graph =
+                new CheckpointCoordinatorTestingUtils.CheckpointExecutionGraphBuilder()
+                        .addJobVertex(jobVertexID)
+                        .setTaskManagerGateway(gateway)
+                        .build(EXECUTOR_RESOURCE.getExecutor());
+
+        ExecutionVertex vertex = graph.getJobVertex(jobVertexID).getTaskVertices()[0];
+        ExecutionAttemptID attemptID = vertex.getCurrentExecutionAttempt().getAttemptId();
+
+        final StandaloneCompletedCheckpointStore checkpointStore =
+                new StandaloneCompletedCheckpointStore(1);
+        final StandaloneCheckpointIDCounter checkpointIDCounter =
+                new StandaloneCheckpointIDCounter();
+        CheckpointCoordinator checkpointCoordinator =
+                createCheckpointCoordinator(graph, checkpointStore, checkpointIDCounter);
+
+        checkpointCoordinator.startCheckpointScheduler();
+        gateway.resetCount();
+
+        // trigger an incremental type checkpoint
+        final CompletableFuture<CompletedCheckpoint> checkpoint =
+                checkpointCoordinator.triggerCheckpoint(
+                        org.apache.flink.core.execution.CheckpointType.INCREMENTAL);
+
+        manuallyTriggeredScheduledExecutor.triggerAll();
+        checkpointCoordinator.receiveAcknowledgeMessage(
+                new AcknowledgeCheckpoint(graph.getJobID(), attemptID, 1),
+                TASK_MANAGER_LOCATION_INFO);
+        checkpoint.get();
+        Assertions.assertThat(
+                        gateway.getOnlyTriggeredCheckpoint(attemptID)
+                                .checkpointOptions
+                                .getCheckpointType())
+                .isEqualTo(CheckpointType.CHECKPOINT);
+    }
+
+    @Test
+    public void testTriggeringCheckpointsWithFullCheckpointType() throws Exception {
+        CheckpointCoordinatorTestingUtils.CheckpointRecorderTaskManagerGateway gateway =
+                new CheckpointCoordinatorTestingUtils.CheckpointRecorderTaskManagerGateway();
+
+        JobVertexID jobVertexID = new JobVertexID();
+        ExecutionGraph graph =
+                new CheckpointCoordinatorTestingUtils.CheckpointExecutionGraphBuilder()
+                        .addJobVertex(jobVertexID)
+                        .setTaskManagerGateway(gateway)
+                        .build(EXECUTOR_RESOURCE.getExecutor());
+
+        ExecutionVertex vertex = graph.getJobVertex(jobVertexID).getTaskVertices()[0];
+        ExecutionAttemptID attemptID = vertex.getCurrentExecutionAttempt().getAttemptId();
+
+        final StandaloneCompletedCheckpointStore checkpointStore =
+                new StandaloneCompletedCheckpointStore(1);
+        final StandaloneCheckpointIDCounter checkpointIDCounter =
+                new StandaloneCheckpointIDCounter();
+        CheckpointCoordinator checkpointCoordinator =
+                createCheckpointCoordinator(graph, checkpointStore, checkpointIDCounter);
+
+        checkpointCoordinator.startCheckpointScheduler();
+        gateway.resetCount();
+
+        // trigger an full type checkpoint
+        final CompletableFuture<CompletedCheckpoint> checkpoint =
+                checkpointCoordinator.triggerCheckpoint(
+                        org.apache.flink.core.execution.CheckpointType.FULL);
+
+        manuallyTriggeredScheduledExecutor.triggerAll();
+        checkpointCoordinator.receiveAcknowledgeMessage(
+                new AcknowledgeCheckpoint(graph.getJobID(), attemptID, 1),
+                TASK_MANAGER_LOCATION_INFO);
+        checkpoint.get();
+        Assertions.assertThat(
+                        gateway.getOnlyTriggeredCheckpoint(attemptID)
+                                .checkpointOptions
+                                .getCheckpointType())
+                .isEqualTo(CheckpointType.FULL_CHECKPOINT);
+    }
+
+    @Test
+    public void testTriggeringCheckpointsWithCheckpointTypeAfterNoClaimSavepoint()
+            throws Exception {
+        CheckpointCoordinatorTestingUtils.CheckpointRecorderTaskManagerGateway gateway =
+                new CheckpointCoordinatorTestingUtils.CheckpointRecorderTaskManagerGateway();
+
+        JobVertexID jobVertexID = new JobVertexID();
+        ExecutionGraph graph =
+                new CheckpointCoordinatorTestingUtils.CheckpointExecutionGraphBuilder()
+                        .addJobVertex(jobVertexID)
+                        .setTaskManagerGateway(gateway)
+                        .build(EXECUTOR_RESOURCE.getExecutor());
+
+        ExecutionVertex vertex = graph.getJobVertex(jobVertexID).getTaskVertices()[0];
+        ExecutionAttemptID attemptID = vertex.getCurrentExecutionAttempt().getAttemptId();
+
+        // create a savepoint, we can restore from later
+        final CompletedCheckpoint savepoint = takeSavepoint(graph, attemptID);
+
+        // restore from a savepoint in NO_CLAIM mode
+        final StandaloneCompletedCheckpointStore checkpointStore =
+                new StandaloneCompletedCheckpointStore(1);
+        final StandaloneCheckpointIDCounter checkpointIDCounter =
+                new StandaloneCheckpointIDCounter();
+        CheckpointCoordinator checkpointCoordinator =
+                createCheckpointCoordinator(graph, checkpointStore, checkpointIDCounter);
+        checkpointCoordinator.restoreSavepoint(
+                SavepointRestoreSettings.forPath(
+                        savepoint.getExternalPointer(), true, RestoreMode.NO_CLAIM),
+                graph.getAllVertices(),
+                this.getClass().getClassLoader());
+
+        // trigger a savepoint before any checkpoint completes
+        // next triggered checkpoint should still be a full one
+        takeSavepoint(graph, attemptID, checkpointCoordinator, 2);
+        checkpointCoordinator.startCheckpointScheduler();
+        gateway.resetCount();
+        // the checkpoint should be a FULL_CHECKPOINT even it is specified as incremental
+        final CompletableFuture<CompletedCheckpoint> checkpoint =
+                checkpointCoordinator.triggerCheckpoint(
+                        org.apache.flink.core.execution.CheckpointType.INCREMENTAL);
+        manuallyTriggeredScheduledExecutor.triggerAll();
+        checkpointCoordinator.receiveAcknowledgeMessage(
+                new AcknowledgeCheckpoint(graph.getJobID(), attemptID, 3),
+                TASK_MANAGER_LOCATION_INFO);
+        checkpoint.get();
+
+        Assertions.assertThat(
+                        gateway.getOnlyTriggeredCheckpoint(attemptID)
+                                .checkpointOptions
+                                .getCheckpointType())
+                .isEqualTo(CheckpointType.FULL_CHECKPOINT);
+    }
+
     private CompletedCheckpoint takeSavepoint(ExecutionGraph graph, ExecutionAttemptID attemptID)
             throws Exception {
         CheckpointCoordinator checkpointCoordinator =
@@ -324,7 +490,7 @@ public class CheckpointCoordinatorTriggeringTest extends TestLogger {
         CheckpointCoordinatorConfiguration checkpointCoordinatorConfiguration =
                 new CheckpointCoordinatorConfigurationBuilder()
                         .setCheckpointInterval(
-                                10000) // periodic is ver long, we trigger checkpoint manually
+                                10000) // periodic is very long, we trigger checkpoint manually
                         .setCheckpointTimeout(200000) // timeout is very long (200 s)
                         .setMaxConcurrentCheckpoints(Integer.MAX_VALUE)
                         .build();
