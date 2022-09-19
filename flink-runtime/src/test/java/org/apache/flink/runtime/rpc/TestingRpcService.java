@@ -190,6 +190,11 @@ public class TestingRpcService implements RpcService {
     }
 
     @Override
+    public <C extends RpcGateway> C getSelfGateway(Class<C> selfGatewayType, RpcServer rpcServer) {
+        return backingRpcService.getSelfGateway(selfGatewayType, rpcServer);
+    }
+
+    @Override
     public <C extends RpcEndpoint & RpcGateway> RpcServer startServer(C rpcEndpoint) {
         return backingRpcService.startServer(rpcEndpoint);
     }

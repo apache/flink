@@ -48,6 +48,19 @@ public interface RpcService {
     int getPort();
 
     /**
+     * Returns a self gateway of the specified type which can be used to issue asynchronous calls
+     * against the RpcEndpoint.
+     *
+     * <p>IMPORTANT: The self gateway type must be implemented by the RpcEndpoint. Otherwise the
+     * method will fail.
+     *
+     * @param <C> type of the self gateway to create
+     * @param selfGatewayType class of the self gateway type
+     * @return Self gateway of the specified type which can be used to issue asynchronous rpcs
+     */
+    <C extends RpcGateway> C getSelfGateway(Class<C> selfGatewayType, RpcServer rpcServer);
+
+    /**
      * Connect to a remote rpc server under the provided address. Returns a rpc gateway which can be
      * used to communicate with the rpc server. If the connection failed, then the returned future
      * is failed with a {@link RpcConnectionException}.
