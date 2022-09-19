@@ -40,7 +40,9 @@ for more information about built-in table sources and sinks.
 
 This page focuses on how to develop a custom, user-defined connector.
 
-Note: Since FLINK-15635, a user classloader is introduced to the table module to manage all user jars uniformly such as the jar added by `ADD JAR` statement. In user-defined connector, if some classes need to be loaded explicitly, please use the user classloader instead of thread context classloader. Otherwise, ClassNotFoundException maybe occur. Users can get the user classloader through `DynamicTableFactory.Context`.
+{{< hint warning >}}Since Flink v1.16, TableEnvironment introduces a user class loader to have a consistent class loading behavior in table programs, SQL Client and SQL Gateway. The user classloader manages all user jars such as jar added by `ADD JAR` or `CREATE FUNCTION .. USING JAR ..` statements.
+User-defined connectors should replace `Thread.currentThread().getContextClassLoader()` with the user class loader to load classes. Otherwise, `ClassNotFoundException` maybe thrown. The user class loader can be accessed via `DynamicTableFactory.Context`.
+{{< /hint >}}
 
 Overview
 --------
