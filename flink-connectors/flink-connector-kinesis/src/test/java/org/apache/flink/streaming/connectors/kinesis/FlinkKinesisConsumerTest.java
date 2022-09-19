@@ -1184,6 +1184,14 @@ public class FlinkKinesisConsumerTest extends TestLogger {
         testHarness.close();
     }
 
+    @Test
+    public void testCloseConnectorBeforeSubtaskStart() throws Exception {
+        Properties config = TestUtils.getStandardProperties();
+        FlinkKinesisConsumer<String> consumer =
+                new FlinkKinesisConsumer<>("fakeStream", new SimpleStringSchema(), config);
+        consumer.close();
+    }
+
     private void awaitRecordCount(ConcurrentLinkedQueue<? extends Object> queue, int count)
             throws Exception {
         Deadline deadline = Deadline.fromNow(Duration.ofSeconds(10));
