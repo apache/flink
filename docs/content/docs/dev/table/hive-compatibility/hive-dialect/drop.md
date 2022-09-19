@@ -107,7 +107,7 @@ DROP VIEW IF EXISTS v1;
 ## DROP MARCO
 
 `DROP MARCO` statement is used to drop the existing `MARCO`.
-Please refer to [CREATE MARCO]({{< ref "docs/dev/table/hiveCompatibility/hiveDialect/create" >}}#create-marco) for how to create `MARCO`.
+Please refer to [CREATE MARCO]({{< ref "docs/dev/table/hive-compatibility/hive-dialect/create" >}}#create-marco) for how to create `MARCO`.
 
 ### Syntax
 

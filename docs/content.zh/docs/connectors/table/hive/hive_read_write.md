@@ -507,7 +507,7 @@ INSERT INTO TABLE fact_tz PARTITION (day, hour) select 1, '2022-8-8', '14';
 
 **注意：**
 - 该配置项 `table.exec.hive.sink.sort-by-dynamic-partition.enable` 只在批模式下生效。
-- 目前，只有在 Flink 批模式下使用了 [Hive 方言]({{< ref "docs/dev/table/hiveCompatibility/hiveDialect/overview" >}})，才可以使用 `DISTRIBUTED BY` 和 `SORTED BY`。
+- 目前，只有在 Flink 批模式下使用了 [Hive 方言]({{< ref "docs/dev/table/hive-compatibility/hive-dialect/overview" >}})，才可以使用 `DISTRIBUTED BY` 和 `SORTED BY`。
 
 ### 自动收集统计信息
 在使用 Flink 写入 Hive 表的时候，Flink 将默认自动收集写入数据的统计信息然后将其提交至 Hive metastore 中。
