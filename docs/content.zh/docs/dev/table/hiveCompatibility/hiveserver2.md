@@ -1,6 +1,6 @@
 ---
 title: HiveServer2 Endpoint
-weight: 1
+weight: 11
 type: docs
 aliases:
 - /dev/table/hiveCompatibility/hiveserver2.html
