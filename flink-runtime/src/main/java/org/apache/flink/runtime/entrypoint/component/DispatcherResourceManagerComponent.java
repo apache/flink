@@ -146,7 +146,7 @@ public class DispatcherResourceManagerComponent implements AutoCloseableAsync {
             final Supplier<CompletableFuture<?>> additionalShutdownAction) {
         if (isRunning.compareAndSet(true, false)) {
             final CompletableFuture<Void> operationsConsumedFuture =
-                    dispatcherOperationCaches.shutdownCaches();
+                    dispatcherOperationCaches.closeAsync();
             final CompletableFuture<Void> webMonitorShutdownFuture =
                     FutureUtils.composeAfterwards(
                             operationsConsumedFuture, webMonitorEndpoint::closeAsync);
