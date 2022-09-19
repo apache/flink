@@ -2,8 +2,6 @@
 title: "SET Statements"
 weight: 8
 type: docs
-aliases:
-- /dev/table/hive_compatibility/hive_dialect/set.html
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one

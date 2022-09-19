@@ -2,8 +2,6 @@
 title: "概览"
 weight: 1
 type: docs
-aliases:
-- /dev/table/hive_compatibility/hive_dialect/overview
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
