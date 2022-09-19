@@ -26,7 +26,7 @@ under the License.
 
 ### Description
 
-Unlike [ORDER BY]({{< ref "docs/dev/table/hiveCompatibility/hiveDialect/Queries/overview" >}}#order-by-clause) which guarantees a total order of output,
+Unlike [ORDER BY]({{< ref "docs/dev/table/hive-compatibility/hive-dialect/queries/overview" >}}#order-by-clause) which guarantees a total order of output,
 `SORT BY` only guarantees the result rows with each partition is in the user specified order.
 So when there's more than one partition, `SORT BY` may return result that's partially ordered.
 

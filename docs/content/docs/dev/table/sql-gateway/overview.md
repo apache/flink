@@ -214,7 +214,7 @@ $ ./sql-gateway -Dkey=value
 Supported Endpoints
 ----------------
 
-Flink natively support [REST Endpoint]({{< ref "docs/dev/table/sql-gateway/rest" >}}) and [HiveServer2 Endpoint]({{< ref "docs/dev/table/hiveCompatibility/hiveserver2" >}}). 
+Flink natively support [REST Endpoint]({{< ref "docs/dev/table/sql-gateway/rest" >}}) and [HiveServer2 Endpoint]({{< ref "docs/dev/table/hive-compatibility/hiveserver2" >}}).
 The SQL Gateway is bundled with the REST Endpoint by default. With the flexible architecture, users are able to start the SQL Gateway with the specified endpoints by calling 
 
 ```bash
