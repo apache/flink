@@ -51,7 +51,7 @@ statement you execute. There's no need to restart a session to use a different d
 - While all Hive versions support the same syntax, whether a specific feature is available still depends on the
   [Hive version]({{< ref "docs/connectors/table/hive/overview" >}}#supported-hive-versions) you use. For example, updating database
   location is only supported in Hive-2.4.0 or later.
-- The Hive dialect is mainly used in batch mode. Some Hive's syntax ([Sort/Cluster/Distributed BY]({{< ref "docs/dev/table/hiveCompatibility/hiveDialect/Queries/sort-cluster-distribute-by" >}}), [Transform]({{< ref "docs/dev/table/hiveCompatibility/hiveDialect/Queries/transform" >}}), etc.)  haven't been supported in streaming mode yet.
+- The Hive dialect is mainly used in batch mode. Some Hive's syntax ([Sort/Cluster/Distributed BY]({{< ref "docs/dev/table/hive-compatibility/hive-dialect/queries/sort-cluster-distribute-by" >}}), [Transform]({{< ref "docs/dev/table/hive-compatibility/hive-dialect/queries/transform" >}}), etc.)  haven't been supported in streaming mode yet.
 {{< /hint >}}
 
 ### SQL Client

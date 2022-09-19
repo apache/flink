@@ -534,7 +534,7 @@ Also, you can manually add `SORTED BY <partition_field>` in your SQL statement t
 
 **NOTE:** 
 - The configuration `table.exec.hive.sink.sort-by-dynamic-partition.enable` only works in Flink `BATCH` mode.
-- Currently, `DISTRIBUTED BY` and `SORTED BY` is only supported when using [Hive dialect]({{< ref "docs/dev/table/hiveCompatibility/hiveDialect/overview" >}})  in Flink `BATCH` mode.
+- Currently, `DISTRIBUTED BY` and `SORTED BY` is only supported when using [Hive dialect]({{< ref "docs/dev/table/hive-compatibility/hive-dialect/overview" >}})  in Flink `BATCH` mode.
 
 ### Auto Gather Statistic
 By default, Flink will gather the statistic automatically and then committed to Hive metastore during writing Hive table.

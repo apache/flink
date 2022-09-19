@@ -454,7 +454,7 @@ Below are the options supported when creating a `HiveCatalog` instance with YAML
 
 ## DDL
 
-It's recommended to use [Hive dialect]({{< ref "docs/dev/table/hiveCompatibility/hiveDialect/overview" >}}) to execute DDLs to create
+It's recommended to use [Hive dialect]({{< ref "docs/dev/table/hive-compatibility/hive-dialect/overview" >}}) to execute DDLs to create
 Hive tables, views, partitions, functions within Flink.
 
 ## DML
