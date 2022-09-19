@@ -363,11 +363,11 @@ class ResourceManagerTest {
                         () -> {
                             assertThat(processRequirementsFuture.isDone()).isFalse();
                             readyToServeFuture.complete(null);
-                            assertThat(processRequirementsFuture.isDone()).isTrue();
                             return null;
                         },
                         TIMEOUT)
                 .get(TIMEOUT.toMilliseconds(), TimeUnit.MILLISECONDS);
+        processRequirementsFuture.get();
     }
 
     @Test
