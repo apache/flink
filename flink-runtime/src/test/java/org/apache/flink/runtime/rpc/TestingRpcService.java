@@ -81,8 +81,8 @@ public class TestingRpcService implements RpcService {
     // ------------------------------------------------------------------------
 
     @Override
-    public CompletableFuture<Void> stopService() {
-        final CompletableFuture<Void> terminationFuture = backingRpcService.stopService();
+    public CompletableFuture<Void> closeAsync() {
+        final CompletableFuture<Void> terminationFuture = backingRpcService.closeAsync();
 
         terminationFuture.whenComplete(
                 (Void ignored, Throwable throwable) -> {

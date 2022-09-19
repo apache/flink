@@ -238,7 +238,7 @@ class JobMasterTest {
     @AfterAll
     static void teardownAll() {
         if (rpcService != null) {
-            rpcService.stopService();
+            rpcService.closeAsync();
             rpcService = null;
         }
     }

@@ -75,7 +75,7 @@ public class RetryingRegistrationTest extends TestLogger {
     @After
     public void tearDown() throws ExecutionException, InterruptedException {
         if (rpcService != null) {
-            rpcService.stopService().get();
+            rpcService.closeAsync().get();
         }
     }
 

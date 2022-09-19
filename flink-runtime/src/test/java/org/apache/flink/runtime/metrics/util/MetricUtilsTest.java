@@ -92,7 +92,7 @@ public class MetricUtilsTest extends TestLogger {
                             .get();
             assertThat(threadPriority, is(expectedThreadPriority));
         } finally {
-            rpcService.stopService().get();
+            rpcService.closeAsync().get();
         }
     }
 

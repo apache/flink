@@ -404,7 +404,7 @@ public class AkkaRpcService implements RpcService {
     }
 
     @Override
-    public CompletableFuture<Void> stopService() {
+    public CompletableFuture<Void> closeAsync() {
         final CompletableFuture<Void> akkaRpcActorsTerminationFuture;
 
         synchronized (lock) {

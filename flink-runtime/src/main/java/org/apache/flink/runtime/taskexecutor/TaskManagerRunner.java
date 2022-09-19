@@ -395,7 +395,7 @@ public class TaskManagerRunner implements FatalErrorHandler {
             }
 
             if (rpcService != null) {
-                terminationFutures.add(rpcService.stopService());
+                terminationFutures.add(rpcService.closeAsync());
             }
 
             if (executor != null) {

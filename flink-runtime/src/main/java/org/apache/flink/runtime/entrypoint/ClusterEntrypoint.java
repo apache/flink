@@ -522,7 +522,7 @@ public abstract class ClusterEntrypoint implements AutoCloseableAsync, FatalErro
             }
 
             if (commonRpcService != null) {
-                terminationFutures.add(commonRpcService.stopService());
+                terminationFutures.add(commonRpcService.closeAsync());
             }
 
             try {

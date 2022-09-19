@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.rpc;
 
 import org.apache.flink.runtime.rpc.exceptions.RpcConnectionException;
+import org.apache.flink.util.AutoCloseableAsync;
 import org.apache.flink.util.concurrent.ScheduledExecutor;
 
 import java.io.Serializable;
@@ -29,7 +30,7 @@ import java.util.concurrent.CompletableFuture;
  * Connecting to a rpc server will return a {@link RpcGateway} which can be used to call remote
  * procedures.
  */
-public interface RpcService {
+public interface RpcService extends AutoCloseableAsync {
 
     /**
      * Return the hostname or host address under which the rpc service can be reached. If the rpc
@@ -104,13 +105,6 @@ public interface RpcService {
      * @param selfGateway Self gateway describing the underlying rpc server
      */
     void stopServer(RpcServer selfGateway);
-
-    /**
-     * Trigger the asynchronous stopping of the {@link RpcService}.
-     *
-     * @return Future which is completed once the {@link RpcService} has been fully stopped.
-     */
-    CompletableFuture<Void> stopService();
 
     /**
      * Gets a scheduled executor from the RPC service. This executor can be used to schedule tasks

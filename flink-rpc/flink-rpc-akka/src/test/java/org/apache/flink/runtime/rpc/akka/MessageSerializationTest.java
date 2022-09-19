@@ -65,8 +65,8 @@ class MessageSerializationTest {
     static void teardown() throws InterruptedException, ExecutionException, TimeoutException {
         final Collection<CompletableFuture<?>> terminationFutures = new ArrayList<>(2);
 
-        terminationFutures.add(akkaRpcService1.stopService());
-        terminationFutures.add(akkaRpcService2.stopService());
+        terminationFutures.add(akkaRpcService1.closeAsync());
+        terminationFutures.add(akkaRpcService2.closeAsync());
 
         FutureUtils.waitForAll(terminationFutures).get();
     }

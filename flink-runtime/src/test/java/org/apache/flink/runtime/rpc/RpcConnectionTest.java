@@ -68,7 +68,7 @@ public class RpcConnectionTest extends TestLogger {
                     .cause()
                     .isInstanceOf(RpcConnectionException.class)
                     .hasMessageContaining(invalidAddress);
-            rpcService.stopService().get();
+            rpcService.closeAsync().get();
         }
     }
 }

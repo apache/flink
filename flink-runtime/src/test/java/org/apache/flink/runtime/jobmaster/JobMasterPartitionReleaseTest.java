@@ -107,7 +107,7 @@ public class JobMasterPartitionReleaseTest extends TestLogger {
     @AfterClass
     public static void teardownClass() {
         if (rpcService != null) {
-            rpcService.stopService();
+            rpcService.closeAsync();
             rpcService = null;
         }
     }

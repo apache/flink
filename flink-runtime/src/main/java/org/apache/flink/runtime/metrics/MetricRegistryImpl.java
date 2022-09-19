@@ -325,7 +325,7 @@ public class MetricRegistryImpl implements MetricRegistry, AutoCloseableAsync {
 
                 if (metricQueryServiceRpcService != null) {
                     final CompletableFuture<Void> metricQueryServiceRpcServiceTerminationFuture =
-                            metricQueryServiceRpcService.stopService();
+                            metricQueryServiceRpcService.closeAsync();
                     terminationFutures.add(metricQueryServiceRpcServiceTerminationFuture);
                 }
 
