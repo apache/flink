@@ -18,24 +18,21 @@
 
 package org.apache.flink.runtime.io.network.partition;
 
-import org.apache.flink.runtime.io.network.netty.NettyPartitionRequestNotifier;
-import org.apache.flink.runtime.io.network.netty.PartitionRequestNotifierTimeout;
+import org.apache.flink.runtime.io.network.netty.NettyPartitionRequestListener;
 import org.apache.flink.runtime.io.network.partition.consumer.InputChannelID;
 import org.apache.flink.util.TestLogger;
-
 import org.apache.flink.util.concurrent.ManuallyTriggeredScheduledExecutor;
 
 import org.junit.Test;
 
-import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 
 import static org.apache.flink.runtime.io.network.partition.PartitionTestUtils.createPartition;
 import static org.apache.flink.runtime.io.network.partition.PartitionTestUtils.verifyCreateSubpartitionViewThrowsException;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** Tests for {@link ResultPartitionManager}. */
@@ -68,27 +65,83 @@ public class ResultPartitionManagerTest extends TestLogger {
                 partition.getPartitionId(), 0, new NoOpBufferAvailablityListener());
     }
 
+    /**
+     * {@link ResultPartitionManager} creates subpartition view reader after the given partition is
+     * registered.
+     */
     @Test
-    public void testCreateViewNotifierAfterRegisteredPartition() throws Exception {
+    public void testCreateSubpartitionViewAfterRegisteredPartition() throws Exception {
         final ResultPartitionManager partitionManager = new ResultPartitionManager();
         final ResultPartition partition = createPartition();
 
+        assertTrue(partitionManager.getListenerManagers().isEmpty());
+
         partitionManager.registerResultPartition(partition);
-        PartitionRequestNotifier partitionRequestNotifier = new TestingPartitionRequestNotifier();
-        assertNotNull(partitionManager.createSubpartitionViewOrNotify(
-                partition.getPartitionId(), 0, new NoOpBufferAvailablityListener(), partitionRequestNotifier));
+        PartitionRequestListener partitionRequestListener =
+                TestingPartitionRequestListener.newBuilder().build();
+        assertTrue(
+                partitionManager
+                        .createSubpartitionViewOrRegisterListener(
+                                partition.getPartitionId(),
+                                0,
+                                new NoOpBufferAvailablityListener(),
+                                partitionRequestListener)
+                        .isPresent());
+        assertTrue(partitionManager.getListenerManagers().isEmpty());
     }
 
+    /**
+     * The {@link ResultPartitionManager} registers {@link PartitionRequestListener} before specify
+     * {@link ResultPartition} is registered. When the {@link ResultPartition} is registered, the
+     * {@link ResultPartitionManager} will find the listener and create partition view reader. an
+     */
     @Test
-    public void testCreateViewNotifierBeforeRegisteredPartition() throws Exception {
+    public void testRegisterPartitionListenerBeforeRegisteredPartition() throws Exception {
         final ResultPartitionManager partitionManager = new ResultPartitionManager();
         final ResultPartition partition = createPartition();
 
-        PartitionRequestNotifier partitionRequestNotifier = new TestingPartitionRequestNotifier();
-        assertNull(partitionManager.createSubpartitionViewOrNotify(
-                partition.getPartitionId(), 0, new NoOpBufferAvailablityListener(), partitionRequestNotifier));
+        assertTrue(partitionManager.getListenerManagers().isEmpty());
+
+        final CompletableFuture<ResultPartition> notifySubpartitionCreatedFuture =
+                new CompletableFuture<>();
+        PartitionRequestListener partitionRequestListener =
+                TestingPartitionRequestListener.newBuilder()
+                        .setResultPartitionId(partition.getPartitionId())
+                        .setNetworkSequenceViewReader(
+                                TestingSubpartitionCreatedViewReader.newBuilder()
+                                        .setNotifySubpartitionCreatedConsumer(
+                                                tuple ->
+                                                        notifySubpartitionCreatedFuture.complete(
+                                                                tuple.f0))
+                                        .build())
+                        .build();
+        assertFalse(
+                partitionManager
+                        .createSubpartitionViewOrRegisterListener(
+                                partition.getPartitionId(),
+                                0,
+                                new NoOpBufferAvailablityListener(),
+                                partitionRequestListener)
+                        .isPresent());
+        assertEquals(partitionManager.getListenerManagers().size(), 1);
+
+        // Check if the partition request listener is registered.
+        PartitionRequestListenerManager listenerManager =
+                partitionManager.getListenerManagers().get(partition.getPartitionId());
+        assertNotNull(listenerManager);
+        assertFalse(listenerManager.isEmpty());
+        assertEquals(listenerManager.getPartitionRequestNotifiers().size(), 1);
+        PartitionRequestListener listener =
+                listenerManager.getPartitionRequestNotifiers().iterator().next();
+        assertEquals(listener.getResultPartitionId(), partition.getPartitionId());
 
         partitionManager.registerResultPartition(partition);
+
+        // Check if the listener is notified.
+        ResultPartition notifyPartition =
+                notifySubpartitionCreatedFuture.get(10, TimeUnit.MILLISECONDS);
+        assertEquals(partition.getPartitionId(), notifyPartition.getPartitionId());
+        assertTrue(partitionManager.getListenerManagers().isEmpty());
     }
 
     /**
@@ -107,47 +160,49 @@ public class ResultPartitionManagerTest extends TestLogger {
         verifyCreateSubpartitionViewThrowsException(partitionManager, partition.getPartitionId());
     }
 
-    /**
-     * Test notifier timeout in {@link ResultPartitionManager}.
-     */
+    /** Test notifier timeout in {@link ResultPartitionManager}. */
     @Test
     public void testCreateViewReaderForNotifierTimeout() throws Exception {
-        ManuallyTriggeredScheduledExecutor scheduledExecutor = new ManuallyTriggeredScheduledExecutor();
-        final ResultPartitionManager partitionManager = new ResultPartitionManager(Duration.ofSeconds(100L), scheduledExecutor);
+        ManuallyTriggeredScheduledExecutor scheduledExecutor =
+                new ManuallyTriggeredScheduledExecutor();
+        final ResultPartitionManager partitionManager =
+                new ResultPartitionManager(100, scheduledExecutor);
         final ResultPartition partition1 = createPartition();
         final ResultPartition partition2 = createPartition();
 
-        CompletableFuture<PartitionRequestNotifierTimeout> timeoutFuture1 = new CompletableFuture<>();
-        CompletableFuture<PartitionRequestNotifierTimeout> timeoutFuture2 = new CompletableFuture<>();
-        partitionManager.createSubpartitionViewOrNotify(
+        CompletableFuture<PartitionRequestListener> timeoutFuture1 = new CompletableFuture<>();
+        CompletableFuture<PartitionRequestListener> timeoutFuture2 = new CompletableFuture<>();
+        partitionManager.createSubpartitionViewOrRegisterListener(
                 partition1.getPartitionId(),
                 0,
                 new NoOpBufferAvailablityListener(),
-                new NettyPartitionRequestNotifier(
+                new NettyPartitionRequestListener(
                         TestingResultPartitionProvider.newBuilder().build(),
-                        TestNotifierViewReader.newBuilder()
+                        TestingSubpartitionCreatedViewReader.newBuilder()
                                 .setReceiverId(new InputChannelID())
-                                .setPartitionRequestNotifierTimeout(timeoutFuture1::complete)
+                                .setPartitionRequestListenerTimeoutConsumer(
+                                        timeoutFuture1::complete)
                                 .build(),
                         0,
                         partition1.getPartitionId(),
                         0L));
-        partitionManager.createSubpartitionViewOrNotify(
+        partitionManager.createSubpartitionViewOrRegisterListener(
                 partition2.getPartitionId(),
                 0,
                 new NoOpBufferAvailablityListener(),
-                new NettyPartitionRequestNotifier(
+                new NettyPartitionRequestListener(
                         TestingResultPartitionProvider.newBuilder().build(),
-                        TestNotifierViewReader.newBuilder()
+                        TestingSubpartitionCreatedViewReader.newBuilder()
                                 .setReceiverId(new InputChannelID())
-                                .setPartitionRequestNotifierTimeout(timeoutFuture2::complete)
+                                .setPartitionRequestListenerTimeoutConsumer(
+                                        timeoutFuture2::complete)
                                 .build(),
                         0,
                         partition2.getPartitionId()));
         scheduledExecutor.triggerScheduledTasks();
 
         assertTrue(timeoutFuture1.isDone());
-        assertEquals(partition1.getPartitionId(), timeoutFuture1.get().getPartitionRequestNotifier().getResultPartitionId());
+        assertEquals(partition1.getPartitionId(), timeoutFuture1.get().getResultPartitionId());
         assertFalse(timeoutFuture2.isDone());
     }
 }

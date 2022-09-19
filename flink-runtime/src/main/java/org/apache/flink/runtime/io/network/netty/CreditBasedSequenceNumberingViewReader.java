@@ -22,7 +22,7 @@ import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.runtime.io.network.NetworkSequenceViewReader;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.partition.BufferAvailabilityListener;
-import org.apache.flink.runtime.io.network.partition.PartitionRequestNotifier;
+import org.apache.flink.runtime.io.network.partition.PartitionRequestListener;
 import org.apache.flink.runtime.io.network.partition.ResultPartition;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionProvider;
@@ -35,8 +35,10 @@ import org.apache.flink.runtime.io.network.partition.consumer.LocalInputChannel;
 import javax.annotation.Nullable;
 
 import java.io.IOException;
+import java.util.Optional;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
+import static org.apache.flink.util.Preconditions.checkState;
 
 /**
  * Simple wrapper for the subpartition view used in the new network credit-based mode.
@@ -57,7 +59,7 @@ class CreditBasedSequenceNumberingViewReader
 
     private volatile ResultSubpartitionView subpartitionView;
 
-    private volatile PartitionRequestNotifier partitionRequestNotifier;
+    private volatile PartitionRequestListener partitionRequestListener;
 
     /**
      * The status indicating whether this reader is already enqueued in the pipeline for
@@ -82,23 +84,32 @@ class CreditBasedSequenceNumberingViewReader
     }
 
     @Override
-    public void requestSubpartitionView(
+    public void requestSubpartitionViewOrRegisterListener(
             ResultPartitionProvider partitionProvider,
             ResultPartitionID resultPartitionId,
             int subPartitionIndex)
             throws IOException {
-
         synchronized (requestLock) {
-            if (subpartitionView == null) {
-                // This call can trigger a notification we have to
-                // schedule a separate task at the event loop that will
-                // start consuming this. Otherwise the reference to the
-                // view cannot be available in getNextBuffer().
-                this.subpartitionView =
-                        partitionProvider.createSubpartitionView(
-                                resultPartitionId, subPartitionIndex, this);
+            checkState(subpartitionView == null, "Subpartition already requested");
+            if (partitionRequestListener == null) {
+                partitionRequestListener =
+                        new NettyPartitionRequestListener(
+                                partitionProvider, this, subPartitionIndex, resultPartitionId);
             } else {
-                throw new IllegalStateException("Subpartition already requested");
+                throw new IllegalStateException("Partition request notifier already created");
+            }
+            // The partition provider will create subpartitionView if resultPartition is
+            // registered, otherwise it will register a listener of partition request to the result
+            // partition manager.
+            Optional<ResultSubpartitionView> subpartitionViewOptional =
+                    partitionProvider.createSubpartitionViewOrRegisterListener(
+                            resultPartitionId, subPartitionIndex, this, partitionRequestListener);
+            if (subpartitionViewOptional.isPresent()) {
+                this.subpartitionView = subpartitionViewOptional.get();
+            } else {
+                // If the subpartitionView is not exist, it means that the requested partition is
+                // not registered.
+                return;
             }
         }
 
@@ -106,46 +117,11 @@ class CreditBasedSequenceNumberingViewReader
     }
 
     @Override
-    public void requestSubpartitionView(
-            ResultPartition partition,
-            int subPartitionIndex) throws IOException {
+    public void notifySubpartitionCreated(ResultPartition partition, int subPartitionIndex)
+            throws IOException {
         synchronized (requestLock) {
             if (subpartitionView == null) {
                 subpartitionView = partition.createSubpartitionView(subPartitionIndex, this);
-            } else {
-                throw new IllegalStateException("Subpartition already requested");
-            }
-        }
-
-        notifyDataAvailable();
-    }
-
-    @Override
-    public void requestSubpartitionViewOrNotify(
-            ResultPartitionProvider partitionProvider,
-            ResultPartitionID resultPartitionId,
-            int subPartitionIndex) throws IOException {
-        synchronized (requestLock) {
-            if (subpartitionView == null) {
-                if (partitionRequestNotifier == null) {
-                    partitionRequestNotifier = new NettyPartitionRequestNotifier(
-                            partitionProvider,
-                            this,
-                            subPartitionIndex,
-                            resultPartitionId);
-                } else {
-                    throw new IllegalStateException("Partition request notifier already created");
-                }
-                // The partition provider will create subpartitionView if resultPartition is registered,
-                // otherwise it will return null and add a notifier of the given result partition id.
-                this.subpartitionView = partitionProvider.createSubpartitionViewOrNotify(
-                        resultPartitionId,
-                        subPartitionIndex,
-                        this,
-                        partitionRequestNotifier);
-                if (subpartitionView == null) {
-                    return;
-                }
             } else {
                 throw new IllegalStateException("Subpartition already requested");
             }
@@ -231,8 +207,8 @@ class CreditBasedSequenceNumberingViewReader
     }
 
     @Override
-    public void notifyPartitionRequestTimeout(PartitionRequestNotifierTimeout partitionRequestNotifierTimeout) {
-        requestQueue.notifyPartitionRequestTimeout(partitionRequestNotifierTimeout);
+    public void notifyPartitionRequestTimeout(PartitionRequestListener partitionRequestListener) {
+        requestQueue.notifyPartitionRequestTimeout(partitionRequestListener);
     }
 
     @VisibleForTesting
@@ -279,8 +255,8 @@ class CreditBasedSequenceNumberingViewReader
 
     @Override
     public void releaseAllResources() throws IOException {
-        if (partitionRequestNotifier != null) {
-            partitionRequestNotifier.releaseNotifier();
+        if (partitionRequestListener != null) {
+            partitionRequestListener.releaseListener();
         }
         subpartitionView.releaseAllResources();
     }

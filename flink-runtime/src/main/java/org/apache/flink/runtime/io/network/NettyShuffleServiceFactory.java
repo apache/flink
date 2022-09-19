@@ -39,8 +39,7 @@ import org.apache.flink.runtime.shuffle.ShuffleMasterContext;
 import org.apache.flink.runtime.shuffle.ShuffleServiceFactory;
 import org.apache.flink.runtime.taskmanager.NettyShuffleEnvironmentConfiguration;
 import org.apache.flink.util.concurrent.ExecutorThreadFactory;
-
-import org.apache.flink.util.concurrent.ScheduledExecutorServiceAdapter;
+import org.apache.flink.util.concurrent.ScheduledExecutor;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -83,6 +82,7 @@ public class NettyShuffleServiceFactory
                 shuffleEnvironmentContext.getEventPublisher(),
                 shuffleEnvironmentContext.getParentMetricGroup(),
                 shuffleEnvironmentContext.getIoExecutor(),
+                shuffleEnvironmentContext.getScheduledExecutor(),
                 shuffleEnvironmentContext.getNumberOfSlots(),
                 shuffleEnvironmentContext.getTmpDirPaths());
     }
@@ -94,6 +94,7 @@ public class NettyShuffleServiceFactory
             TaskEventPublisher taskEventPublisher,
             MetricGroup metricGroup,
             Executor ioExecutor,
+            ScheduledExecutor scheduledExecutor,
             int numberOfSlots,
             String[] tmpDirPaths) {
         return createNettyShuffleEnvironment(
@@ -101,10 +102,7 @@ public class NettyShuffleServiceFactory
                 taskExecutorResourceId,
                 taskEventPublisher,
                 new ResultPartitionManager(
-                        config.getPartitionRequestNotifyTimeout(),
-                        new ScheduledExecutorServiceAdapter(
-                                Executors.newSingleThreadScheduledExecutor(
-                                        new ExecutorThreadFactory("partition-notifier-timeout-checker")))),
+                        config.getPartitionRequestListenerTimeout(), scheduledExecutor),
                 metricGroup,
                 ioExecutor,
                 numberOfSlots,

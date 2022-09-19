@@ -32,7 +32,7 @@ import static org.junit.Assert.assertTrue;
 public class PipelinedResultPartitionReleaseOnConsumptionTest extends TestLogger {
 
     @Test
-    public void testConsumptionBasedPartitionRelease() {
+    public void testConsumptionBasedPartitionRelease() throws IOException {
         final ResultPartitionManager manager = new ResultPartitionManager();
         final ResultPartition partition =
                 new ResultPartitionBuilder()
@@ -70,7 +70,7 @@ public class PipelinedResultPartitionReleaseOnConsumptionTest extends TestLogger
     }
 
     @Test
-    public void testMultipleReleaseCallsAreIdempotent() {
+    public void testMultipleReleaseCallsAreIdempotent() throws IOException {
         final ResultPartitionManager manager = new ResultPartitionManager();
         final ResultPartition partition =
                 new ResultPartitionBuilder()
@@ -87,7 +87,7 @@ public class PipelinedResultPartitionReleaseOnConsumptionTest extends TestLogger
     }
 
     @Test
-    public void testReleaseAfterIdempotentCalls() {
+    public void testReleaseAfterIdempotentCalls() throws IOException {
         final ResultPartitionManager manager = new ResultPartitionManager();
         final ResultPartition partition =
                 new ResultPartitionBuilder()

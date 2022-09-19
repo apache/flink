@@ -67,6 +67,8 @@ public class SingleInputGateFactory {
 
     protected final int partitionRequestMaxBackoff;
 
+    protected final int partitionRequestListenerTimeout;
+
     @Nonnull protected final ConnectionManager connectionManager;
 
     @Nonnull protected final ResultPartitionManager partitionManager;
@@ -97,6 +99,7 @@ public class SingleInputGateFactory {
         this.taskExecutorResourceId = taskExecutorResourceId;
         this.partitionRequestInitialBackoff = networkConfig.partitionRequestInitialBackoff();
         this.partitionRequestMaxBackoff = networkConfig.partitionRequestMaxBackoff();
+        this.partitionRequestListenerTimeout = networkConfig.getPartitionRequestListenerTimeout();
         this.networkBuffersPerChannel =
                 NettyShuffleUtils.getNetworkBuffersPerInputChannel(
                         networkConfig.networkBuffersPerChannel());
@@ -240,6 +243,7 @@ public class SingleInputGateFactory {
                             connectionManager,
                             partitionRequestInitialBackoff,
                             partitionRequestMaxBackoff,
+                            partitionRequestListenerTimeout,
                             networkBuffersPerChannel,
                             metrics);
                 },
@@ -294,6 +298,7 @@ public class SingleInputGateFactory {
                     connectionManager,
                     partitionRequestInitialBackoff,
                     partitionRequestMaxBackoff,
+                    partitionRequestListenerTimeout,
                     networkBuffersPerChannel,
                     metrics);
         }

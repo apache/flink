@@ -18,8 +18,8 @@
 
 package org.apache.flink.runtime.io.network.partition;
 
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.io.network.NetworkSequenceViewReader;
-import org.apache.flink.runtime.io.network.netty.PartitionRequestNotifierTimeout;
 import org.apache.flink.runtime.io.network.partition.consumer.InputChannel;
 import org.apache.flink.runtime.io.network.partition.consumer.InputChannelID;
 
@@ -28,40 +28,33 @@ import org.jetbrains.annotations.Nullable;
 import java.io.IOException;
 import java.util.function.Consumer;
 
-/**
- * Testing view reader for partition request notifier.
- */
-public class TestNotifierViewReader implements NetworkSequenceViewReader {
+/** Testing view reader for partition request notifier. */
+public class TestingSubpartitionCreatedViewReader implements NetworkSequenceViewReader {
     private final InputChannelID receiverId;
-    private final Consumer<PartitionRequestNotifierTimeout> partitionRequestNotifierTimeoutConsumer;
+    private final Consumer<PartitionRequestListener> partitionRequestListenerTimeoutConsumer;
+    private final Consumer<Tuple2<ResultPartition, Integer>> notifySubpartitionCreatedConsumer;
 
-    private TestNotifierViewReader(
+    private TestingSubpartitionCreatedViewReader(
             InputChannelID receiverId,
-            Consumer<PartitionRequestNotifierTimeout> partitionRequestNotifierTimeoutConsumer) {
+            Consumer<PartitionRequestListener> partitionRequestListenerTimeoutConsumer,
+            Consumer<Tuple2<ResultPartition, Integer>> notifySubpartitionCreatedConsumer) {
         this.receiverId = receiverId;
-        this.partitionRequestNotifierTimeoutConsumer = partitionRequestNotifierTimeoutConsumer;
+        this.partitionRequestListenerTimeoutConsumer = partitionRequestListenerTimeoutConsumer;
+        this.notifySubpartitionCreatedConsumer = notifySubpartitionCreatedConsumer;
     }
 
     @Override
-    public void requestSubpartitionView(
+    public void notifySubpartitionCreated(ResultPartition partition, int subPartitionIndex)
+            throws IOException {
+        notifySubpartitionCreatedConsumer.accept(Tuple2.of(partition, subPartitionIndex));
+    }
+
+    @Override
+    public void requestSubpartitionViewOrRegisterListener(
             ResultPartitionProvider partitionProvider,
             ResultPartitionID resultPartitionId,
-            int subPartitionIndex) throws IOException {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public void requestSubpartitionView(
-            ResultPartition partition,
-            int subPartitionIndex) throws IOException {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public void requestSubpartitionViewOrNotify(
-            ResultPartitionProvider partitionProvider,
-            ResultPartitionID resultPartitionId,
-            int subPartitionIndex) throws IOException {
+            int subPartitionIndex)
+            throws IOException {
         throw new UnsupportedOperationException();
     }
 
@@ -132,34 +125,47 @@ public class TestNotifierViewReader implements NetworkSequenceViewReader {
     }
 
     @Override
-    public void notifyPartitionRequestTimeout(PartitionRequestNotifierTimeout partitionRequestNotifierTimeout) {
-        partitionRequestNotifierTimeoutConsumer.accept(partitionRequestNotifierTimeout);
+    public void notifyPartitionRequestTimeout(PartitionRequestListener partitionRequestListener) {
+        partitionRequestListenerTimeoutConsumer.accept(partitionRequestListener);
     }
 
-    public static TestNotifierViewReaderBuilder newBuilder() {
-        return new TestNotifierViewReaderBuilder();
+    public static TestingSubpartitionCreatedViewReaderBuilder newBuilder() {
+        return new TestingSubpartitionCreatedViewReaderBuilder();
     }
 
-    /**
-     * Builder for {@link TestNotifierViewReader}.
-     */
-    public static class TestNotifierViewReaderBuilder {
+    /** Builder for {@link TestingSubpartitionCreatedViewReader}. */
+    public static class TestingSubpartitionCreatedViewReaderBuilder {
         private InputChannelID receiverId;
-        private Consumer<PartitionRequestNotifierTimeout> partitionRequestNotifierTimeoutConsumer = notifierTimeout -> {};
+        private Consumer<PartitionRequestListener> partitionRequestListenerTimeoutConsumer =
+                listener -> {};
+        private Consumer<Tuple2<ResultPartition, Integer>> notifySubpartitionCreatedConsumer =
+                tuple -> {};
 
-        public TestNotifierViewReaderBuilder setReceiverId(InputChannelID receiverId) {
+        public TestingSubpartitionCreatedViewReaderBuilder setReceiverId(
+                InputChannelID receiverId) {
             this.receiverId = receiverId;
             return this;
         }
 
-        public TestNotifierViewReaderBuilder setPartitionRequestNotifierTimeout(
-                Consumer<PartitionRequestNotifierTimeout> partitionRequestNotifierTimeoutConsumer) {
-            this.partitionRequestNotifierTimeoutConsumer = partitionRequestNotifierTimeoutConsumer;
+        public TestingSubpartitionCreatedViewReaderBuilder
+                setPartitionRequestListenerTimeoutConsumer(
+                        Consumer<PartitionRequestListener>
+                                partitionRequestListenerTimeoutConsumer) {
+            this.partitionRequestListenerTimeoutConsumer = partitionRequestListenerTimeoutConsumer;
             return this;
         }
 
-        public TestNotifierViewReader build() {
-            return new TestNotifierViewReader(receiverId, partitionRequestNotifierTimeoutConsumer);
+        public TestingSubpartitionCreatedViewReaderBuilder setNotifySubpartitionCreatedConsumer(
+                Consumer<Tuple2<ResultPartition, Integer>> notifySubpartitionCreatedConsumer) {
+            this.notifySubpartitionCreatedConsumer = notifySubpartitionCreatedConsumer;
+            return this;
+        }
+
+        public TestingSubpartitionCreatedViewReader build() {
+            return new TestingSubpartitionCreatedViewReader(
+                    receiverId,
+                    partitionRequestListenerTimeoutConsumer,
+                    notifySubpartitionCreatedConsumer);
         }
     }
 }

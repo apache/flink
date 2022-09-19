@@ -18,16 +18,15 @@
 
 package org.apache.flink.runtime.io.network;
 
-import org.apache.flink.runtime.io.network.netty.PartitionRequestNotifierTimeout;
 import org.apache.flink.runtime.io.network.partition.PartitionNotFoundException;
+import org.apache.flink.runtime.io.network.partition.PartitionRequestListener;
 import org.apache.flink.runtime.io.network.partition.ResultPartition;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
+import org.apache.flink.runtime.io.network.partition.ResultPartitionManager;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionProvider;
 import org.apache.flink.runtime.io.network.partition.ResultSubpartitionView;
 import org.apache.flink.runtime.io.network.partition.consumer.InputChannel.BufferAndAvailability;
 import org.apache.flink.runtime.io.network.partition.consumer.InputChannelID;
-import org.apache.flink.runtime.io.network.partition.PartitionRequestNotifier;
-import org.apache.flink.runtime.io.network.partition.ResultPartitionManager;
 
 import javax.annotation.Nullable;
 
@@ -39,35 +38,35 @@ import java.io.IOException;
  */
 public interface NetworkSequenceViewReader {
 
-    void requestSubpartitionView(
-            ResultPartitionProvider partitionProvider,
-            ResultPartitionID resultPartitionId,
-            int subPartitionIndex)
-            throws IOException;
-
     /**
-     * The {@link PartitionRequestNotifier} notify and process the downstream task's partition request.
-     *
-     * @param partition the result partition
-     * @param subPartitionIndex the sub partition index
-     * @throws IOException the thrown exception
-     */
-    void requestSubpartitionView(ResultPartition partition, int subPartitionIndex) throws IOException;
-
-    /**
-     * When the netty server receives the downstream task's partition request and the upstream task has registered its partition,
-     * it will process the partition request immediately, otherwise it will create a {@link PartitionRequestNotifier} for given {@link ResultPartitionID}
-     * in {@link ResultPartitionManager} and notify the request when the upstream task registers its partition.
+     * When the netty server receives the downstream task's partition request and the upstream task
+     * has registered its partition, it will process the partition request immediately, otherwise it
+     * will create a {@link PartitionRequestListener} for given {@link ResultPartitionID} in {@link
+     * ResultPartitionManager} and notify the listener when the upstream task registers its
+     * partition.
      *
      * @param partitionProvider the result partition provider
      * @param resultPartitionId the result partition id
      * @param subPartitionIndex the sub partition index
      * @throws IOException the thrown exception
      */
-    void requestSubpartitionViewOrNotify(
+    void requestSubpartitionViewOrRegisterListener(
             ResultPartitionProvider partitionProvider,
             ResultPartitionID resultPartitionId,
-            int subPartitionIndex) throws IOException;
+            int subPartitionIndex)
+            throws IOException;
+
+    /**
+     * When the {@link ResultPartitionManager} registers {@link ResultPartition}, it will get the
+     * {@link PartitionRequestListener} via given {@link ResultPartitionID}, and create subpartition
+     * view reader for downstream task.
+     *
+     * @param partition the result partition
+     * @param subPartitionIndex the sub partition index
+     * @throws IOException the thrown exception
+     */
+    void notifySubpartitionCreated(ResultPartition partition, int subPartitionIndex)
+            throws IOException;
 
     @Nullable
     BufferAndAvailability getNextBuffer() throws IOException;
@@ -115,10 +114,10 @@ public interface NetworkSequenceViewReader {
     void notifyNewBufferSize(int newBufferSize);
 
     /**
-     * When the partition request from the given downstream task is timeout, it should notify the reader in netty server
-     * and send {@link PartitionNotFoundException} to the task.
+     * When the partition request from the given downstream task is timeout, it should notify the
+     * reader in netty server and send {@link PartitionNotFoundException} to the task.
      *
-     * @param partitionRequestNotifierTimeout the timeout message of given {@link PartitionRequestNotifier}
+     * @param partitionRequestListener the timeout message of given {@link PartitionRequestListener}
      */
-    void notifyPartitionRequestTimeout(PartitionRequestNotifierTimeout partitionRequestNotifierTimeout);
+    void notifyPartitionRequestTimeout(PartitionRequestListener partitionRequestListener);
 }

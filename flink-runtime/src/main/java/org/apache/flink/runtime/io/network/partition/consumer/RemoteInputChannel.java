@@ -100,6 +100,9 @@ public class RemoteInputChannel extends InputChannel {
     /** The initial number of exclusive buffers assigned to this channel. */
     private final int initialCredit;
 
+    /** The milliseconds timeout for partition request listener in result partition manager. */
+    private final int partitionRequestListenerTimeout;
+
     /** The number of available buffers that have not been announced to the producer yet. */
     private final AtomicInteger unannouncedCredit = new AtomicInteger(0);
 
@@ -124,6 +127,7 @@ public class RemoteInputChannel extends InputChannel {
             ConnectionManager connectionManager,
             int initialBackOff,
             int maxBackoff,
+            int partitionRequestListenerTimeout,
             int networkBuffersPerChannel,
             Counter numBytesIn,
             Counter numBuffersIn,
@@ -140,6 +144,7 @@ public class RemoteInputChannel extends InputChannel {
                 numBuffersIn);
         checkArgument(networkBuffersPerChannel >= 0, "Must be non-negative.");
 
+        this.partitionRequestListenerTimeout = partitionRequestListenerTimeout;
         this.initialCredit = networkBuffersPerChannel;
         this.connectionId = checkNotNull(connectionId);
         this.connectionManager = checkNotNull(connectionManager);
@@ -199,9 +204,9 @@ public class RemoteInputChannel extends InputChannel {
     void retriggerSubpartitionRequest() throws IOException {
         checkPartitionRequestQueueInitialized();
 
-        if (increaseBackoff()) {
+        if (increaseBackoff(partitionRequestListenerTimeout)) {
             partitionRequestClient.requestSubpartition(
-                    partitionId, consumedSubpartitionIndex, this, getCurrentBackoff());
+                    partitionId, consumedSubpartitionIndex, this, 0);
         } else {
             failPartitionRequest();
         }

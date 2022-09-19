@@ -32,13 +32,11 @@ import org.apache.flink.runtime.io.network.partition.PipelinedSubpartition;
 import org.apache.flink.runtime.io.network.partition.PipelinedSubpartitionTest;
 import org.apache.flink.runtime.io.network.partition.PipelinedSubpartitionView;
 import org.apache.flink.runtime.io.network.partition.ResultPartition;
-import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionManager;
-import org.apache.flink.runtime.io.network.partition.ResultPartitionProvider;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.io.network.partition.ResultSubpartition.BufferAndBacklog;
 import org.apache.flink.runtime.io.network.partition.ResultSubpartitionView;
-import org.apache.flink.runtime.io.network.partition.TestingResultPartitionProvider;
+import org.apache.flink.runtime.io.network.partition.TestingResultPartition;
 import org.apache.flink.runtime.io.network.partition.consumer.InputChannelID;
 import org.apache.flink.runtime.io.network.util.TestBufferFactory;
 
@@ -107,12 +105,12 @@ public class PartitionRequestQueueTest {
         CreditBasedSequenceNumberingViewReader reader2 =
                 new CreditBasedSequenceNumberingViewReader(new InputChannelID(1, 1), 10, queue);
 
-        reader1.requestSubpartitionView(
-                TestingResultPartitionProvider
-                        .newBuilder()
-                        .setCreateSubpartitionViewFunction(tuple -> new EmptyAlwaysAvailableResultSubpartitionView())
+        reader1.notifySubpartitionCreated(
+                TestingResultPartition.newBuilder()
+                        .setCreateSubpartitionViewFunction(
+                                (index, listener) ->
+                                        new EmptyAlwaysAvailableResultSubpartitionView())
                         .build(),
-                new ResultPartitionID(),
                 0);
         reader1.notifyDataAvailable();
         assertTrue(reader1.getAvailabilityAndBacklog().isAvailable());
@@ -125,12 +123,12 @@ public class PartitionRequestQueueTest {
         channel.runPendingTasks();
 
         reader2.notifyDataAvailable();
-        reader2.requestSubpartitionView(
-                TestingResultPartitionProvider
-                        .newBuilder()
-                        .setCreateSubpartitionViewFunction(tuple -> new DefaultBufferResultSubpartitionView(buffersToWrite))
+        reader2.notifySubpartitionCreated(
+                TestingResultPartition.newBuilder()
+                        .setCreateSubpartitionViewFunction(
+                                (index, listener) ->
+                                        new DefaultBufferResultSubpartitionView(buffersToWrite))
                         .build(),
-                new ResultPartitionID(),
                 0);
         assertTrue(reader2.getAvailabilityAndBacklog().isAvailable());
         assertFalse(reader2.isRegisteredAsAvailable());
@@ -157,9 +155,9 @@ public class PartitionRequestQueueTest {
 
     private void testBufferWriting(ResultSubpartitionView view) throws IOException {
         // setup
-        ResultPartitionProvider partitionProvider = TestingResultPartitionProvider
-                        .newBuilder()
-                        .setCreateSubpartitionViewFunction(tuple -> view)
+        ResultPartition partition =
+                TestingResultPartition.newBuilder()
+                        .setCreateSubpartitionViewFunction((index, listener) -> view)
                         .build();
 
         final InputChannelID receiverId = new InputChannelID();
@@ -168,7 +166,7 @@ public class PartitionRequestQueueTest {
                 new CreditBasedSequenceNumberingViewReader(receiverId, Integer.MAX_VALUE, queue);
         final EmbeddedChannel channel = new EmbeddedChannel(queue);
 
-        reader.requestSubpartitionView(partitionProvider, new ResultPartitionID(), 0);
+        reader.notifySubpartitionCreated(partition, 0);
 
         // notify about buffer availability and encode one buffer
         reader.notifyDataAvailable();
@@ -253,10 +251,10 @@ public class PartitionRequestQueueTest {
         // setup
         final ResultSubpartitionView view = new NextIsEventResultSubpartitionView();
 
-        ResultPartitionProvider partitionProvider = TestingResultPartitionProvider
-                .newBuilder()
-                .setCreateSubpartitionViewFunction(tuple -> view)
-                .build();
+        ResultPartition partition =
+                TestingResultPartition.newBuilder()
+                        .setCreateSubpartitionViewFunction((index, listener) -> view)
+                        .build();
 
         final InputChannelID receiverId = new InputChannelID();
         final PartitionRequestQueue queue = new PartitionRequestQueue();
@@ -264,7 +262,7 @@ public class PartitionRequestQueueTest {
                 new CreditBasedSequenceNumberingViewReader(receiverId, 0, queue);
         final EmbeddedChannel channel = new EmbeddedChannel(queue);
 
-        reader.requestSubpartitionView(partitionProvider, new ResultPartitionID(), 0);
+        reader.notifySubpartitionCreated(partition, 0);
 
         // block the channel so that we see an intermediate state in the test
         ByteBuf channelBlockingBuffer = blockChannel(channel);
@@ -306,10 +304,10 @@ public class PartitionRequestQueueTest {
         // setup
         final ResultSubpartitionView view = new DefaultBufferResultSubpartitionView(10);
 
-        ResultPartitionProvider partitionProvider = TestingResultPartitionProvider
-                .newBuilder()
-                .setCreateSubpartitionViewFunction(tuple -> view)
-                .build();
+        ResultPartition partition =
+                TestingResultPartition.newBuilder()
+                        .setCreateSubpartitionViewFunction((index, listener) -> view)
+                        .build();
 
         final InputChannelID receiverId = new InputChannelID();
         final PartitionRequestQueue queue = new PartitionRequestQueue();
@@ -318,7 +316,7 @@ public class PartitionRequestQueueTest {
         final EmbeddedChannel channel = new EmbeddedChannel(queue);
         reader.addCredit(-2);
 
-        reader.requestSubpartitionView(partitionProvider, new ResultPartitionID(), 0);
+        reader.notifySubpartitionCreated(partition, 0);
         queue.notifyReaderCreated(reader);
 
         // block the channel so that we see an intermediate state in the test
@@ -386,10 +384,10 @@ public class PartitionRequestQueueTest {
 
         BufferAvailabilityListener bufferAvailabilityListener = new NoOpBufferAvailablityListener();
         PipelinedSubpartitionView view = subpartition.createReadView(bufferAvailabilityListener);
-        ResultPartitionProvider partitionProvider = TestingResultPartitionProvider
-                .newBuilder()
-                .setCreateSubpartitionViewFunction(tuple -> view)
-                .build();
+        ResultPartition partition =
+                TestingResultPartition.newBuilder()
+                        .setCreateSubpartitionViewFunction((index, listener) -> view)
+                        .build();
 
         InputChannelID receiverId = new InputChannelID();
         PartitionRequestQueue queue = new PartitionRequestQueue();
@@ -397,7 +395,7 @@ public class PartitionRequestQueueTest {
                 new CreditBasedSequenceNumberingViewReader(receiverId, 2, queue);
         EmbeddedChannel channel = new EmbeddedChannel(queue);
 
-        reader.requestSubpartitionView(partitionProvider, new ResultPartitionID(), 0);
+        reader.notifySubpartitionCreated(partition, 0);
         queue.notifyReaderCreated(reader);
         assertTrue(reader.getAvailabilityAndBacklog().isAvailable());
 
@@ -426,10 +424,10 @@ public class PartitionRequestQueueTest {
 
         PipelinedSubpartitionView view =
                 subpartition.createReadView(new NoOpBufferAvailablityListener());
-        ResultPartitionProvider partitionProvider = TestingResultPartitionProvider
-                .newBuilder()
-                .setCreateSubpartitionViewFunction(tuple -> view)
-                .build();
+        ResultPartition partition =
+                TestingResultPartition.newBuilder()
+                        .setCreateSubpartitionViewFunction((index, listener) -> view)
+                        .build();
 
         PartitionRequestQueue queue = new PartitionRequestQueue();
         InputChannelID receiverId = new InputChannelID();
@@ -437,7 +435,7 @@ public class PartitionRequestQueueTest {
                 new CreditBasedSequenceNumberingViewReader(receiverId, 0, queue);
         EmbeddedChannel channel = new EmbeddedChannel(queue);
 
-        reader.requestSubpartitionView(partitionProvider, new ResultPartitionID(), 0);
+        reader.notifySubpartitionCreated(partition, 0);
         queue.notifyReaderCreated(reader);
 
         reader.notifyDataAvailable();
@@ -474,7 +472,7 @@ public class PartitionRequestQueueTest {
                 new CreditBasedSequenceNumberingViewReader(receiverId, 2, queue);
         final EmbeddedChannel channel = new EmbeddedChannel(queue);
 
-        reader.requestSubpartitionView(partitionManager, partition.getPartitionId(), 0);
+        reader.notifySubpartitionCreated(partition, 0);
         // add this reader into allReaders queue
         queue.notifyReaderCreated(reader);
 
@@ -509,10 +507,10 @@ public class PartitionRequestQueueTest {
 
         BufferAvailabilityListener bufferAvailabilityListener = new NoOpBufferAvailablityListener();
         ResultSubpartitionView view = parent.createSubpartitionView(0, bufferAvailabilityListener);
-        ResultPartitionProvider partitionProvider = TestingResultPartitionProvider
-                .newBuilder()
-                .setCreateSubpartitionViewFunction(tuple -> view)
-                .build();
+        ResultPartition partition =
+                TestingResultPartition.newBuilder()
+                        .setCreateSubpartitionViewFunction((index, listener) -> view)
+                        .build();
 
         InputChannelID receiverId = new InputChannelID();
         PartitionRequestQueue queue = new PartitionRequestQueue();
@@ -520,7 +518,7 @@ public class PartitionRequestQueueTest {
                 new CreditBasedSequenceNumberingViewReader(receiverId, 2, queue);
         EmbeddedChannel channel = new EmbeddedChannel(queue);
 
-        reader.requestSubpartitionView(partitionProvider, new ResultPartitionID(), 0);
+        reader.notifySubpartitionCreated(partition, 0);
         queue.notifyReaderCreated(reader);
 
         // when: New buffer size received.
@@ -532,26 +530,6 @@ public class PartitionRequestQueueTest {
         parent.emitRecord(ByteBuffer.allocate(60), 0);
 
         reader.notifyDataAvailable();
-        channel.runPendingTasks();
-
-        // then: Buffers of received size will be in outbound channel.
-        Object data1 = channel.readOutbound();
-        // The size can not be less than the first record in buffer.
-        assertEquals(128, ((NettyMessage.BufferResponse) data1).buffer.getSize());
-        Object data2 = channel.readOutbound();
-        // The size should shrink up to notified buffer size.
-        assertEquals(65, ((NettyMessage.BufferResponse) data2).buffer.getSize());
-    }
-
-    @Test
-    public void testPartitionRequestNotifierTimeout() throws Exception {
-        // given: Result partition and the reader for subpartition 0.
-        ResultPartition resultPartition = createResultPartition();
-
-        InputChannelID receiverId = new InputChannelID();
-        PartitionRequestQueue queue = new PartitionRequestQueue();
-        EmbeddedChannel channel = new EmbeddedChannel(queue);
-        channel.writeInbound(new NettyMessage.PartitionRequest(resultPartition.getPartitionId(), 0, receiverId, 2));
         channel.runPendingTasks();
 
         // then: Buffers of received size will be in outbound channel.

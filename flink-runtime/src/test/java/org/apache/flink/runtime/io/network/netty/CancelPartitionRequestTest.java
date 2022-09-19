@@ -23,6 +23,7 @@ import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferProvider;
 import org.apache.flink.runtime.io.network.netty.NettyTestUtil.NettyServerAndClient;
 import org.apache.flink.runtime.io.network.partition.BufferAvailabilityListener;
+import org.apache.flink.runtime.io.network.partition.PartitionRequestListener;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionManager;
 import org.apache.flink.runtime.io.network.partition.ResultSubpartition.BufferAndBacklog;
@@ -83,17 +84,16 @@ public class CancelPartitionRequestTest {
                     spy(new InfiniteSubpartitionView(outboundBuffers, sync));
 
             // Return infinite subpartition
-            when(partitions.createSubpartitionView(
-                            eq(pid), eq(0), any(BufferAvailabilityListener.class)))
+            when(partitions.createSubpartitionViewOrRegisterListener(
+                            eq(pid),
+                            eq(0),
+                            any(BufferAvailabilityListener.class),
+                            any(PartitionRequestListener.class)))
                     .thenAnswer(
                             new Answer<ResultSubpartitionView>() {
                                 @Override
                                 public ResultSubpartitionView answer(
                                         InvocationOnMock invocationOnMock) throws Throwable {
-                                    BufferAvailabilityListener listener =
-                                            (BufferAvailabilityListener)
-                                                    invocationOnMock.getArguments()[2];
-                                    listener.notifyDataAvailable();
                                     return view;
                                 }
                             });
@@ -140,8 +140,11 @@ public class CancelPartitionRequestTest {
                     spy(new InfiniteSubpartitionView(outboundBuffers, sync));
 
             // Return infinite subpartition
-            when(partitions.createSubpartitionView(
-                            eq(pid), eq(0), any(BufferAvailabilityListener.class)))
+            when(partitions.createSubpartitionViewOrRegisterListener(
+                            eq(pid),
+                            eq(0),
+                            any(BufferAvailabilityListener.class),
+                            any(PartitionRequestListener.class)))
                     .thenAnswer(
                             new Answer<ResultSubpartitionView>() {
                                 @Override

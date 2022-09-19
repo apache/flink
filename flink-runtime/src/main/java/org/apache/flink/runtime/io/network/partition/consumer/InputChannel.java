@@ -27,6 +27,7 @@ import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
 import org.apache.flink.runtime.io.network.api.EndOfData;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.partition.PartitionException;
+import org.apache.flink.runtime.io.network.partition.PartitionNotFoundException;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.ResultSubpartitionView;
 
@@ -276,6 +277,18 @@ public abstract class InputChannel {
      * @return <code>true</code>, iff the operation was successful. Otherwise, <code>false</code>.
      */
     protected boolean increaseBackoff() {
+        return increaseBackoff(0);
+    }
+
+    /**
+     * The remote task manager creates partition request listener and returns {@link
+     * PartitionNotFoundException} until the listener is timeout, so the backoff should add the
+     * timeout milliseconds if it exists.
+     *
+     * @param timeoutMS The timeout milliseconds that the partition request listener timeout
+     * @return <code>true</code>, iff the operation was successful. Otherwise, <code>false</code>.
+     */
+    protected boolean increaseBackoff(int timeoutMS) {
         // Backoff is disabled
         if (currentBackoff < 0) {
             return false;
@@ -283,14 +296,17 @@ public abstract class InputChannel {
 
         // This is the first time backing off
         if (currentBackoff == 0) {
-            currentBackoff = initialBackoff;
+            currentBackoff = timeoutMS > 0 ? timeoutMS : initialBackoff;
 
             return true;
         }
 
         // Continue backing off
         else if (currentBackoff < maxBackoff) {
-            currentBackoff = Math.min(currentBackoff * 2, maxBackoff);
+            currentBackoff =
+                    timeoutMS > 0
+                            ? Math.min(currentBackoff + timeoutMS, maxBackoff)
+                            : Math.min(currentBackoff * 2, maxBackoff);
 
             return true;
         }

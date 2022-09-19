@@ -18,52 +18,120 @@
 
 package org.apache.flink.runtime.io.network.partition;
 
-import org.apache.flink.api.java.tuple.Tuple3;
-import org.apache.flink.api.java.tuple.Tuple4;
-import org.apache.flink.runtime.io.network.netty.NettyPartitionRequestNotifier;
+import org.apache.flink.runtime.io.network.netty.NettyPartitionRequestListener;
 
 import java.io.IOException;
-import java.util.function.Consumer;
-import java.util.function.Function;
+import java.util.Optional;
 
 /** {@link ResultPartitionProvider} implementation for testing purposes. */
 public class TestingResultPartitionProvider implements ResultPartitionProvider {
-    private final Function<Tuple3<ResultPartitionID, Integer, BufferAvailabilityListener>, ResultSubpartitionView> createSubpartitionViewFunction;
-    private final Function<Tuple4<ResultPartitionID, Integer, BufferAvailabilityListener, PartitionRequestNotifier>, ResultSubpartitionView> createSubpartitionViewOrNotifyFunction;
-    private final Consumer<NettyPartitionRequestNotifier> releasePartitionRequestNotifierConsumer;
+    private final CreateSubpartitionView createSubpartitionViewFunction;
+    private final CreateSubpartitionViewOrRegisterListener
+            createSubpartitionViewOrRegisterListenerFunction;
+    private final ReleasePartitionRequestListener releasePartitionRequestListenerConsumer;
 
     public TestingResultPartitionProvider(
-            Function<Tuple3<ResultPartitionID, Integer, BufferAvailabilityListener>, ResultSubpartitionView> createSubpartitionViewFunction,
-            Function<Tuple4<ResultPartitionID, Integer, BufferAvailabilityListener, PartitionRequestNotifier>, ResultSubpartitionView> createSubpartitionViewOrNotifyFunction,
-            Consumer<NettyPartitionRequestNotifier> releasePartitionRequestNotifierConsumer) {
+            CreateSubpartitionView createSubpartitionViewFunction,
+            CreateSubpartitionViewOrRegisterListener
+                    createSubpartitionViewOrRegisterListenerFunction,
+            ReleasePartitionRequestListener releasePartitionRequestListenerConsumer) {
         this.createSubpartitionViewFunction = createSubpartitionViewFunction;
-        this.createSubpartitionViewOrNotifyFunction = createSubpartitionViewOrNotifyFunction;
-        this.releasePartitionRequestNotifierConsumer = releasePartitionRequestNotifierConsumer;
+        this.createSubpartitionViewOrRegisterListenerFunction =
+                createSubpartitionViewOrRegisterListenerFunction;
+        this.releasePartitionRequestListenerConsumer = releasePartitionRequestListenerConsumer;
     }
 
     @Override
     public ResultSubpartitionView createSubpartitionView(
             ResultPartitionID partitionId,
             int index,
-            BufferAvailabilityListener availabilityListener) throws IOException {
-        return createSubpartitionViewFunction.apply(Tuple3.of(partitionId, index, availabilityListener));
+            BufferAvailabilityListener availabilityListener)
+            throws IOException {
+        return createSubpartitionViewFunction.createSubpartitionView(
+                partitionId, index, availabilityListener);
     }
 
     @Override
-    public ResultSubpartitionView createSubpartitionViewOrNotify(
+    public Optional<ResultSubpartitionView> createSubpartitionViewOrRegisterListener(
             ResultPartitionID partitionId,
             int index,
             BufferAvailabilityListener availabilityListener,
-            PartitionRequestNotifier notifier) throws IOException {
-        return createSubpartitionViewOrNotifyFunction.apply(Tuple4.of(partitionId, index, availabilityListener, notifier));
+            PartitionRequestListener notifier)
+            throws IOException {
+        return createSubpartitionViewOrRegisterListenerFunction
+                .createSubpartitionViewOrRegisterListener(
+                        partitionId, index, availabilityListener, notifier);
     }
 
     @Override
-    public void releasePartitionRequestNotifier(NettyPartitionRequestNotifier notifier) {
-        releasePartitionRequestNotifierConsumer.accept(notifier);
+    public void releasePartitionRequestListener(NettyPartitionRequestListener notifier) {
+        releasePartitionRequestListenerConsumer.releasePartitionRequestListener(notifier);
     }
 
     public static TestingResultPartitionProviderBuilder newBuilder() {
         return new TestingResultPartitionProviderBuilder();
+    }
+
+    /** Factory for {@link TestingResultPartitionProvider}. */
+    public static class TestingResultPartitionProviderBuilder {
+        private CreateSubpartitionView createSubpartitionViewFunction =
+                (resultPartitionID, index, availabilityListener) -> null;
+        private CreateSubpartitionViewOrRegisterListener
+                createSubpartitionViewOrRegisterListenerFunction =
+                        (partitionId, index, availabilityListener, partitionRequestListener) ->
+                                Optional.empty();
+        private ReleasePartitionRequestListener releasePartitionRequestListenerConsumer =
+                listener -> {};
+
+        public TestingResultPartitionProviderBuilder setCreateSubpartitionViewFunction(
+                CreateSubpartitionView createSubpartitionViewFunction) {
+            this.createSubpartitionViewFunction = createSubpartitionViewFunction;
+            return this;
+        }
+
+        public TestingResultPartitionProviderBuilder setCreateSubpartitionViewOrNotifyFunction(
+                CreateSubpartitionViewOrRegisterListener
+                        createSubpartitionViewOrRegisterListenerFunction) {
+            this.createSubpartitionViewOrRegisterListenerFunction =
+                    createSubpartitionViewOrRegisterListenerFunction;
+            return this;
+        }
+
+        public TestingResultPartitionProviderBuilder setReleasePartitionRequestListenerConsumer(
+                ReleasePartitionRequestListener releasePartitionRequestListenerConsumer) {
+            this.releasePartitionRequestListenerConsumer = releasePartitionRequestListenerConsumer;
+            return this;
+        }
+
+        public TestingResultPartitionProvider build() {
+            return new TestingResultPartitionProvider(
+                    createSubpartitionViewFunction,
+                    createSubpartitionViewOrRegisterListenerFunction,
+                    releasePartitionRequestListenerConsumer);
+        }
+    }
+
+    /** Testing interface for createSubpartitionView. */
+    public interface CreateSubpartitionView {
+        ResultSubpartitionView createSubpartitionView(
+                ResultPartitionID partitionId,
+                int index,
+                BufferAvailabilityListener availabilityListener)
+                throws IOException;
+    }
+
+    /** Testing interface for createSubpartitionViewOrRegisterListener. */
+    public interface CreateSubpartitionViewOrRegisterListener {
+        Optional<ResultSubpartitionView> createSubpartitionViewOrRegisterListener(
+                ResultPartitionID partitionId,
+                int index,
+                BufferAvailabilityListener availabilityListener,
+                PartitionRequestListener listener)
+                throws IOException;
+    }
+
+    /** Testing interface for releasePartitionRequestListener. */
+    public interface ReleasePartitionRequestListener {
+        void releasePartitionRequestListener(NettyPartitionRequestListener listener);
     }
 }

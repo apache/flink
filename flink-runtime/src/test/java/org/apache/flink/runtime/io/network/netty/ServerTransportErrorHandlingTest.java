@@ -20,6 +20,7 @@ package org.apache.flink.runtime.io.network.netty;
 
 import org.apache.flink.runtime.io.network.TaskEventDispatcher;
 import org.apache.flink.runtime.io.network.partition.BufferAvailabilityListener;
+import org.apache.flink.runtime.io.network.partition.PartitionRequestListener;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionManager;
 import org.apache.flink.runtime.io.network.partition.ResultSubpartitionView;
@@ -63,19 +64,16 @@ public class ServerTransportErrorHandlingTest {
 
         final ResultPartitionManager partitionManager = mock(ResultPartitionManager.class);
 
-        when(partitionManager.createSubpartitionView(
+        when(partitionManager.createSubpartitionViewOrRegisterListener(
                         any(ResultPartitionID.class),
                         anyInt(),
-                        any(BufferAvailabilityListener.class)))
+                        any(BufferAvailabilityListener.class),
+                        any(PartitionRequestListener.class)))
                 .thenAnswer(
                         new Answer<ResultSubpartitionView>() {
                             @Override
                             public ResultSubpartitionView answer(InvocationOnMock invocationOnMock)
                                     throws Throwable {
-                                BufferAvailabilityListener listener =
-                                        (BufferAvailabilityListener)
-                                                invocationOnMock.getArguments()[2];
-                                listener.notifyDataAvailable();
                                 return new CancelPartitionRequestTest.InfiniteSubpartitionView(
                                         outboundBuffers, sync);
                             }

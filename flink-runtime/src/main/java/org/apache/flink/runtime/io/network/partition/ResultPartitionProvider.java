@@ -18,9 +18,10 @@
 
 package org.apache.flink.runtime.io.network.partition;
 
-import org.apache.flink.runtime.io.network.netty.NettyPartitionRequestNotifier;
+import org.apache.flink.runtime.io.network.netty.NettyPartitionRequestListener;
 
 import java.io.IOException;
+import java.util.Optional;
 
 /** Interface for creating result partitions. */
 public interface ResultPartitionProvider {
@@ -34,25 +35,26 @@ public interface ResultPartitionProvider {
 
     /**
      * If the upstream task's partition has been registered, returns the result subpartition input
-     * view immediately, otherwise save the notifier and return null.
+     * view immediately, otherwise register the listener and return empty.
      *
      * @param partitionId the result partition id
      * @param index the index
      * @param availabilityListener the buffer availability listener
-     * @param notifier the partition request notifier
+     * @param listener the partition request listener
      * @return the result subpartition view
      * @throws IOException the thrown exception
      */
-    ResultSubpartitionView createSubpartitionViewOrNotify(
+    Optional<ResultSubpartitionView> createSubpartitionViewOrRegisterListener(
             ResultPartitionID partitionId,
             int index,
             BufferAvailabilityListener availabilityListener,
-            PartitionRequestNotifier notifier) throws IOException;
+            PartitionRequestListener listener)
+            throws IOException;
 
     /**
-     * Remove the given notifier in this result partition provider.
+     * Release the given listener in this result partition provider.
      *
-     * @param notifier the given notifier
+     * @param listener the given listener
      */
-    void releasePartitionRequestNotifier(NettyPartitionRequestNotifier notifier);
+    void releasePartitionRequestListener(NettyPartitionRequestListener listener);
 }

@@ -44,7 +44,7 @@ public class NettyShuffleEnvironmentBuilder {
         EnvironmentInformation.getTemporaryFileDirectory()
     };
     private static final Duration DEFAULT_REQUEST_SEGMENTS_TIMEOUT = Duration.ofMillis(30000L);
-    private static final Duration DEFAULT_PARTITION_REQUEST_NOTIFY_TIMEOUT = Duration.ofMillis(10000L);
+    private static final int DEFAULT_PARTITION_REQUEST_LISTENER_TIMEOUT = 10000;
 
     private int bufferSize = DEFAULT_NETWORK_BUFFER_SIZE;
 
@@ -212,7 +212,7 @@ public class NettyShuffleEnvironmentBuilder {
                         bufferSize,
                         partitionRequestInitialBackoff,
                         partitionRequestMaxBackoff,
-                        DEFAULT_PARTITION_REQUEST_NOTIFY_TIMEOUT,
+                        DEFAULT_PARTITION_REQUEST_LISTENER_TIMEOUT,
                         networkBuffersPerChannel,
                         floatingNetworkBuffersPerGate,
                         DEFAULT_REQUEST_SEGMENTS_TIMEOUT,

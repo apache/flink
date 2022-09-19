@@ -23,7 +23,7 @@ import org.apache.flink.runtime.io.network.NetworkSequenceViewReader;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.netty.NettyMessage.ErrorResponse;
 import org.apache.flink.runtime.io.network.partition.PartitionNotFoundException;
-import org.apache.flink.runtime.io.network.partition.PartitionRequestNotifier;
+import org.apache.flink.runtime.io.network.partition.PartitionRequestListener;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.ResultSubpartitionView;
 import org.apache.flink.runtime.io.network.partition.consumer.InputChannel.BufferAndAvailability;
@@ -246,21 +246,25 @@ class PartitionRequestQueue extends ChannelInboundHandlerAdapter {
             if (toRelease != null) {
                 releaseViewReader(toRelease);
             }
-        } else if (msg.getClass() == PartitionRequestNotifierTimeout.class) {
-            PartitionRequestNotifierTimeout partitionRequestNotifierTimeout = (PartitionRequestNotifierTimeout) msg;
+        } else if (msg instanceof PartitionRequestListener) {
+            PartitionRequestListener partitionRequestListener = (PartitionRequestListener) msg;
 
-            // Send partition not found message to the downstream task when the notifier is timeout.
-            final PartitionRequestNotifier partitionRequestNotifier = partitionRequestNotifierTimeout
-                    .getPartitionRequestNotifier();
-            final ResultPartitionID resultPartitionId = partitionRequestNotifier.getResultPartitionId();
-            final InputChannelID inputChannelId = partitionRequestNotifier.getReceiverId();
-            availableReaders.remove(partitionRequestNotifier.getViewReader());
+            // Send partition not found message to the downstream task when the listener is timeout.
+            final ResultPartitionID resultPartitionId =
+                    partitionRequestListener.getResultPartitionId();
+            final InputChannelID inputChannelId = partitionRequestListener.getReceiverId();
+            availableReaders.remove(partitionRequestListener.getViewReader());
             allReaders.remove(inputChannelId);
             try {
-                ctx.writeAndFlush(new NettyMessage.ErrorResponse(
-                        new PartitionNotFoundException(resultPartitionId), inputChannelId));
+                ctx.writeAndFlush(
+                        new NettyMessage.ErrorResponse(
+                                new PartitionNotFoundException(resultPartitionId), inputChannelId));
             } catch (Exception e) {
-                LOG.warn("Write partition not found exception to {} for result partition {} fail", inputChannelId, resultPartitionId, e);
+                LOG.warn(
+                        "Write partition not found exception to {} for result partition {} fail",
+                        inputChannelId,
+                        resultPartitionId,
+                        e);
             }
         } else {
             ctx.fireUserEventTriggered(msg);
@@ -396,8 +400,8 @@ class PartitionRequestQueue extends ChannelInboundHandlerAdapter {
         }
     }
 
-    public void notifyPartitionRequestTimeout(PartitionRequestNotifierTimeout partitionRequestNotifierTimeout) {
-        ctx.pipeline().fireUserEventTriggered(partitionRequestNotifierTimeout);
+    public void notifyPartitionRequestTimeout(PartitionRequestListener partitionRequestListener) {
+        ctx.pipeline().fireUserEventTriggered(partitionRequestListener);
     }
 
     // This listener is called after an element of the current nonEmptyReader has been

@@ -24,11 +24,12 @@ import org.apache.flink.runtime.io.network.partition.consumer.InputChannelID;
 import java.io.IOException;
 
 /**
- * When the netty server receives a downstream task's partition request event and finds its upstream task doesn't register its partition yet,
- * the netty server will construct a {@link PartitionRequestNotifier} and notify the request when the task deploys itself and
- * registers its partition to {@link ResultPartitionManager}.
+ * When the netty server receives a downstream task's partition request event and finds its upstream
+ * task doesn't register its partition yet, the netty server will construct a {@link
+ * PartitionRequestListener} and notify the listener when the task deploys itself and registers its
+ * partition to {@link ResultPartitionManager}.
  */
-public interface PartitionRequestNotifier {
+public interface PartitionRequestListener {
 
     /**
      * The creation timestamp of this notifier, it's used to check whether the notifier is timeout.
@@ -59,19 +60,18 @@ public interface PartitionRequestNotifier {
     InputChannelID getReceiverId();
 
     /**
-     * Notify the pending partition request when the given partition is registered.
+     * Notify the partition request listener when the given partition is registered.
      *
      * @param partition The registered partition.
      */
-    void notifyPartitionRequest(ResultPartition partition) throws IOException;
+    void notifyPartitionCreated(ResultPartition partition) throws IOException;
 
     /**
-     * When the partition request notifier is timeout, it needs to notify {@link NetworkSequenceViewReader} of the message.
+     * When the partition request listener is timeout, it will be notified to send {@link
+     * PartitionNotFoundException}.
      */
-    void notifyPartitionRequestTimeout();
+    void notifyPartitionCreatedTimeout();
 
-    /**
-     * Release this notifier.
-     */
-    void releaseNotifier();
+    /** Release this listener. */
+    void releaseListener();
 }

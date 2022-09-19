@@ -29,20 +29,16 @@ import org.apache.flink.runtime.io.network.partition.PartitionTestUtils;
 import org.apache.flink.runtime.io.network.partition.ResultPartition;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionManager;
-import org.apache.flink.runtime.io.network.partition.ResultPartitionProvider;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
-import org.apache.flink.runtime.io.network.partition.TestingResultPartitionProvider;
 import org.apache.flink.runtime.io.network.partition.consumer.InputChannelID;
 import org.apache.flink.util.TestLogger;
+import org.apache.flink.util.concurrent.ManuallyTriggeredScheduledExecutor;
 
 import org.apache.flink.shaded.netty4.io.netty.channel.embedded.EmbeddedChannel;
-
-import org.apache.flink.util.concurrent.ManuallyTriggeredScheduledExecutor;
 
 import org.junit.Test;
 
 import java.io.IOException;
-import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
 
 import static org.hamcrest.Matchers.instanceOf;
@@ -64,14 +60,14 @@ public class PartitionRequestServerHandlerTest extends TestLogger {
     @Test
     public void testResponsePartitionNotFoundExceptionForNotifierTimeout() {
         long startTimestamp = System.currentTimeMillis();
-        ManuallyTriggeredScheduledExecutor scheduledExecutor = new ManuallyTriggeredScheduledExecutor();
+        ManuallyTriggeredScheduledExecutor scheduledExecutor =
+                new ManuallyTriggeredScheduledExecutor();
         PartitionRequestQueue partitionRequestQueue = new PartitionRequestQueue();
-        ResultPartitionManager resultPartitionManager = new ResultPartitionManager(Duration.ofMillis(1L), scheduledExecutor);
+        ResultPartitionManager resultPartitionManager =
+                new ResultPartitionManager(1, scheduledExecutor);
         final PartitionRequestServerHandler serverHandler =
                 new PartitionRequestServerHandler(
-                        resultPartitionManager,
-                        new TaskEventDispatcher(),
-                        partitionRequestQueue);
+                        resultPartitionManager, new TaskEventDispatcher(), partitionRequestQueue);
         final EmbeddedChannel channel = new EmbeddedChannel(serverHandler, partitionRequestQueue);
         final ResultPartitionID partitionId = new ResultPartitionID();
 
@@ -122,15 +118,6 @@ public class PartitionRequestServerHandlerTest extends TestLogger {
 
         ResultPartition resultPartition =
                 PartitionTestUtils.createPartition(ResultPartitionType.PIPELINED_BOUNDED);
-        ResultPartitionProvider partitionProvider = TestingResultPartitionProvider.newBuilder()
-                .setCreateSubpartitionViewFunction(tuple -> {
-                    try {
-                        return resultPartition.createSubpartitionView(tuple.f1, tuple.f2);
-                    } catch (IOException e) {
-                        throw new IllegalArgumentException(e);
-                    }
-                })
-                .build();
 
         // Creates the netty network handler stack.
         PartitionRequestQueue partitionRequestQueue = new PartitionRequestQueue();
@@ -145,7 +132,7 @@ public class PartitionRequestServerHandlerTest extends TestLogger {
         NetworkSequenceViewReader viewReader =
                 new CreditBasedSequenceNumberingViewReader(
                         inputChannelID, 2, partitionRequestQueue);
-        viewReader.requestSubpartitionView(partitionProvider, resultPartition.getPartitionId(), 0);
+        viewReader.notifySubpartitionCreated(resultPartition, 0);
         partitionRequestQueue.notifyReaderCreated(viewReader);
 
         // Write the message to acknowledge all records are processed to server

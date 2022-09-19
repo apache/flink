@@ -55,7 +55,7 @@ public class NettyShuffleEnvironmentConfiguration {
 
     private final int partitionRequestMaxBackoff;
 
-    private final Duration partitionRequestNotifyTimeout;
+    private final int partitionRequestListenerTimeout;
 
     /**
      * Number of network buffers to use for each outgoing/incoming channel (subpartition/input
@@ -106,7 +106,7 @@ public class NettyShuffleEnvironmentConfiguration {
             int networkBufferSize,
             int partitionRequestInitialBackoff,
             int partitionRequestMaxBackoff,
-            Duration partitionRequestNotifyTimeout,
+            int partitionRequestListenerTimeout,
             int networkBuffersPerChannel,
             int floatingNetworkBuffersPerGate,
             Duration requestSegmentsTimeout,
@@ -129,7 +129,7 @@ public class NettyShuffleEnvironmentConfiguration {
         this.networkBufferSize = networkBufferSize;
         this.partitionRequestInitialBackoff = partitionRequestInitialBackoff;
         this.partitionRequestMaxBackoff = partitionRequestMaxBackoff;
-        this.partitionRequestNotifyTimeout = partitionRequestNotifyTimeout;
+        this.partitionRequestListenerTimeout = partitionRequestListenerTimeout;
         this.networkBuffersPerChannel = networkBuffersPerChannel;
         this.floatingNetworkBuffersPerGate = floatingNetworkBuffersPerGate;
         this.requestSegmentsTimeout = Preconditions.checkNotNull(requestSegmentsTimeout);
@@ -167,8 +167,8 @@ public class NettyShuffleEnvironmentConfiguration {
         return partitionRequestMaxBackoff;
     }
 
-    public Duration getPartitionRequestNotifyTimeout() {
-        return partitionRequestNotifyTimeout;
+    public int getPartitionRequestListenerTimeout() {
+        return partitionRequestListenerTimeout;
     }
 
     public int networkBuffersPerChannel() {
@@ -282,10 +282,9 @@ public class NettyShuffleEnvironmentConfiguration {
         int maxRequestBackoff =
                 configuration.getInteger(
                         NettyShuffleEnvironmentOptions.NETWORK_REQUEST_BACKOFF_MAX);
-        Duration notifierTimeout =
-                Duration.ofMillis(
-                        configuration.getLong(
-                            NettyShuffleEnvironmentOptions.NETWORK_REQUEST_NOTIFY_TIMEOUT));
+        int listenerTimeout =
+                configuration.getInteger(
+                        NettyShuffleEnvironmentOptions.NETWORK_REQUEST_LISTENER_TIMEOUT);
 
         int buffersPerChannel =
                 configuration.getInteger(
@@ -350,7 +349,7 @@ public class NettyShuffleEnvironmentConfiguration {
                 pageSize,
                 initialRequestBackoff,
                 maxRequestBackoff,
-                notifierTimeout,
+                listenerTimeout,
                 buffersPerChannel,
                 extraBuffersPerGate,
                 requestSegmentsTimeout,
@@ -493,7 +492,7 @@ public class NettyShuffleEnvironmentConfiguration {
         result = 31 * result + networkBufferSize;
         result = 31 * result + partitionRequestInitialBackoff;
         result = 31 * result + partitionRequestMaxBackoff;
-        result = 31 * result + partitionRequestNotifyTimeout.hashCode();
+        result = 31 * result + partitionRequestListenerTimeout;
         result = 31 * result + networkBuffersPerChannel;
         result = 31 * result + floatingNetworkBuffersPerGate;
         result = 31 * result + requestSegmentsTimeout.hashCode();
@@ -537,6 +536,7 @@ public class NettyShuffleEnvironmentConfiguration {
                     && Arrays.equals(this.tempDirs, that.tempDirs)
                     && this.batchShuffleCompressionEnabled == that.batchShuffleCompressionEnabled
                     && this.maxBuffersPerChannel == that.maxBuffersPerChannel
+                    && this.partitionRequestListenerTimeout == that.partitionRequestListenerTimeout
                     && Objects.equals(this.compressionCodec, that.compressionCodec)
                     && this.maxNumberOfConnections == that.maxNumberOfConnections
                     && this.connectionReuseEnabled == that.connectionReuseEnabled

@@ -20,7 +20,7 @@ package org.apache.flink.runtime.io.network.netty;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.runtime.io.network.NetworkSequenceViewReader;
-import org.apache.flink.runtime.io.network.partition.PartitionRequestNotifier;
+import org.apache.flink.runtime.io.network.partition.PartitionRequestListener;
 import org.apache.flink.runtime.io.network.partition.ResultPartition;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionProvider;
@@ -30,26 +30,29 @@ import java.io.IOException;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
-/**
- * Implementation of {@link PartitionRequestNotifier} for netty partition request.
- */
-public class NettyPartitionRequestNotifier implements PartitionRequestNotifier {
+/** Implementation of {@link PartitionRequestListener} for netty partition request. */
+public class NettyPartitionRequestListener implements PartitionRequestListener {
     private final ResultPartitionProvider resultPartitionProvider;
     private final NetworkSequenceViewReader reader;
     private final int subPartitionIndex;
     private final ResultPartitionID resultPartitionId;
     private final long createTimestamp;
 
-    public NettyPartitionRequestNotifier(
+    public NettyPartitionRequestListener(
             ResultPartitionProvider resultPartitionProvider,
             NetworkSequenceViewReader reader,
             int subPartitionIndex,
             ResultPartitionID resultPartitionId) {
-        this(resultPartitionProvider, reader, subPartitionIndex, resultPartitionId, System.currentTimeMillis());
+        this(
+                resultPartitionProvider,
+                reader,
+                subPartitionIndex,
+                resultPartitionId,
+                System.currentTimeMillis());
     }
 
     @VisibleForTesting
-    public NettyPartitionRequestNotifier(
+    public NettyPartitionRequestListener(
             ResultPartitionProvider resultPartitionProvider,
             NetworkSequenceViewReader reader,
             int subPartitionIndex,
@@ -83,18 +86,18 @@ public class NettyPartitionRequestNotifier implements PartitionRequestNotifier {
     }
 
     @Override
-    public void notifyPartitionRequest(ResultPartition partition) throws IOException {
+    public void notifyPartitionCreated(ResultPartition partition) throws IOException {
         checkNotNull(partition);
-        reader.requestSubpartitionView(partition, subPartitionIndex);
+        reader.notifySubpartitionCreated(partition, subPartitionIndex);
     }
 
     @Override
-    public void notifyPartitionRequestTimeout() {
-        reader.notifyPartitionRequestTimeout(new PartitionRequestNotifierTimeout(this));
+    public void notifyPartitionCreatedTimeout() {
+        reader.notifyPartitionRequestTimeout(this);
     }
 
     @Override
-    public void releaseNotifier() {
-        resultPartitionProvider.releasePartitionRequestNotifier(this);
+    public void releaseListener() {
+        resultPartitionProvider.releasePartitionRequestListener(this);
     }
 }

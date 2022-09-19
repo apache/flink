@@ -410,6 +410,7 @@ public class TaskExecutorLocalStateStoresManagerTest extends TestLogger {
                 VoidPermanentBlobService.INSTANCE,
                 UnregisteredMetricGroups.createUnregisteredTaskManagerMetricGroup(),
                 Executors.newDirectExecutorService(),
+                null,
                 throwable -> {},
                 workingDirectory);
     }

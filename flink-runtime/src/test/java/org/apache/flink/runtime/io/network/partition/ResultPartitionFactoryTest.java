@@ -32,6 +32,7 @@ import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
+import java.io.IOException;
 import java.util.Arrays;
 import java.util.concurrent.Executors;
 
@@ -61,7 +62,7 @@ public class ResultPartitionFactoryTest extends TestLogger {
     }
 
     @Test
-    public void testBoundedBlockingSubpartitionsCreated() {
+    public void testBoundedBlockingSubpartitionsCreated() throws IOException {
         final BoundedBlockingResultPartition resultPartition =
                 (BoundedBlockingResultPartition)
                         createResultPartition(ResultPartitionType.BLOCKING);
@@ -70,7 +71,7 @@ public class ResultPartitionFactoryTest extends TestLogger {
     }
 
     @Test
-    public void testPipelinedSubpartitionsCreated() {
+    public void testPipelinedSubpartitionsCreated() throws IOException {
         final PipelinedResultPartition resultPartition =
                 (PipelinedResultPartition) createResultPartition(ResultPartitionType.PIPELINED);
         Arrays.stream(resultPartition.subpartitions)
@@ -78,26 +79,26 @@ public class ResultPartitionFactoryTest extends TestLogger {
     }
 
     @Test
-    public void testSortMergePartitionCreated() {
+    public void testSortMergePartitionCreated() throws IOException {
         ResultPartition resultPartition = createResultPartition(ResultPartitionType.BLOCKING, 1);
         assertTrue(resultPartition instanceof SortMergeResultPartition);
     }
 
     @Test
-    public void testHybridFullResultPartitionCreated() {
+    public void testHybridFullResultPartitionCreated() throws IOException {
         ResultPartition resultPartition = createResultPartition(ResultPartitionType.HYBRID_FULL);
         assertTrue(resultPartition instanceof HsResultPartition);
     }
 
     @Test
-    public void testHybridSelectiveResultPartitionCreated() {
+    public void testHybridSelectiveResultPartitionCreated() throws IOException {
         ResultPartition resultPartition =
                 createResultPartition(ResultPartitionType.HYBRID_SELECTIVE);
         assertTrue(resultPartition instanceof HsResultPartition);
     }
 
     @Test
-    public void testNoReleaseOnConsumptionForBoundedBlockingPartition() {
+    public void testNoReleaseOnConsumptionForBoundedBlockingPartition() throws IOException {
         final ResultPartition resultPartition = createResultPartition(ResultPartitionType.BLOCKING);
 
         resultPartition.onConsumedSubpartition(0);
@@ -106,7 +107,7 @@ public class ResultPartitionFactoryTest extends TestLogger {
     }
 
     @Test
-    public void testNoReleaseOnConsumptionForSortMergePartition() {
+    public void testNoReleaseOnConsumptionForSortMergePartition() throws IOException {
         final ResultPartition resultPartition =
                 createResultPartition(ResultPartitionType.BLOCKING, 1);
 
@@ -116,7 +117,7 @@ public class ResultPartitionFactoryTest extends TestLogger {
     }
 
     @Test
-    public void testNoReleaseOnConsumptionForHybridFullPartition() {
+    public void testNoReleaseOnConsumptionForHybridFullPartition() throws IOException {
         final ResultPartition resultPartition =
                 createResultPartition(ResultPartitionType.HYBRID_FULL);
 
@@ -126,7 +127,7 @@ public class ResultPartitionFactoryTest extends TestLogger {
     }
 
     @Test
-    public void testNoReleaseOnConsumptionForHybridSelectivePartition() {
+    public void testNoReleaseOnConsumptionForHybridSelectivePartition() throws IOException {
         final ResultPartition resultPartition =
                 createResultPartition(ResultPartitionType.HYBRID_SELECTIVE);
 
@@ -135,12 +136,13 @@ public class ResultPartitionFactoryTest extends TestLogger {
         assertFalse(resultPartition.isReleased());
     }
 
-    private static ResultPartition createResultPartition(ResultPartitionType partitionType) {
+    private static ResultPartition createResultPartition(ResultPartitionType partitionType)
+            throws IOException {
         return createResultPartition(partitionType, Integer.MAX_VALUE);
     }
 
     private static ResultPartition createResultPartition(
-            ResultPartitionType partitionType, int sortShuffleMinParallelism) {
+            ResultPartitionType partitionType, int sortShuffleMinParallelism) throws IOException {
         final ResultPartitionManager manager = new ResultPartitionManager();
 
         final ResultPartitionFactory factory =
