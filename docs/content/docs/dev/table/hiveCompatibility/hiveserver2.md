@@ -203,27 +203,27 @@ Below are the options supported when creating a HiveServer2 Endpoint instance wi
     </tbody>
 </table>
 
-Features
+HiveServer2 Protocol Compatibility
 ----------------
 
-### Be Compatible with HiveServer2 Protocol
-
-The SQL Gateway with HiveServer2 Endpoint aims to provide the same experience compared to the HiveServer2. 
-When users connect to the HiveServer2, the HiveServer2 Endpoint 
-- creates the Hive Catalog as the default catalog;
-- switches to the Hive dialect;
-- set the option `execution.runtime-mode` with value `BATCH`, the option `table.dml-sync` with value `true` to
-execute SQL in batch mode and return the results until execution finishes.
+The Flink SQL Gateway with HiveServer2 Endpoint aims to provide the same experience compared to the HiveServer2 of Apache Hive.
+Therefore, HiveServer2 Endpoint automatically initialize the environment to have more consistent experience for Hive users:
+- create the [Hive Catalog]({{< ref "docs/connectors/table/hive/hive_catalog.md" >}}) as the default catalog;
+- use Hive built-in function by loading Hive function module and place it first in the [function module]({{< ref "docs/dev/table/modules/index.md" >}}) list;
+- switch to the Hive dialect (`table.sql-dialect = hive`);
+- switch to batch execution mode (`execution.runtime-mode = BATCH`);
+- execute DML statements (e.g. INSERT INTO) blocking and one by one (`table.dml-sync = true`).
 
 With these essential prerequisites, you can submit the Hive SQL in Hive style but execute it in the Flink environment.
 
-### Clients
+Clients & Tools
+----------------
 
 The HiveServer2 Endpoint is compatible with the HiveServer2 wire protocol. Therefore, the tools that manage the Hive SQL also work for
 the SQL Gateway with the HiveServer2 Endpoint. Currently, Hive JDBC, Hive Beeline, Dbeaver, Apache Superset and so on are tested to be able to connect to the
 Flink SQL Gateway with HiveServer2 Endpoint and submit SQL.
 
-#### Hive JDBC
+### Hive JDBC
 
 SQL Gateway is compatible with HiveServer2. You can write a program that uses Hive JDBC to connect to SQL Gateway. To build the program, add the 
 following dependencies in your project pom.xml.
@@ -261,7 +261,7 @@ public class JdbcConnection {
 }
 ```
 
-#### DBeaver
+### DBeaver
 
 DBeaver uses Hive JDBC to connect to the HiveServer2. So DBeaver can connect to the Flink SQL Gateway to submit Hive SQL. Considering the
 API compatibility, you can connect to the Flink SQL Gateway like HiveServer2. Please refer to the [guidance](https://github.com/dbeaver/dbeaver/wiki/Apache-Hive)
@@ -278,7 +278,7 @@ After the setup, you can explore Flink with DBeaver.
 
 {{< img width="80%" src="/fig/dbeaver.png" alt="DBeaver" >}}
 
-#### Apache Superset
+### Apache Superset
 
 Apache Superset is a powerful data exploration and visualization platform. With the API compatibility, you can connect 
 to the Flink SQL Gateway like Hive. Please refer to the [guidance](https://superset.apache.org/docs/databases/hive) for more details.
@@ -292,7 +292,8 @@ the following JDBC URL to connect to the Apache Superset:
 jdbc:hive2://{host}:{port}/{database}?auth=NOSASL
 ```
 
-### Submit the Streaming SQL
+Streaming SQL
+----------------
 
 Flink is a batch-streaming unified engine. You can switch to the streaming SQL with the following SQL
 
