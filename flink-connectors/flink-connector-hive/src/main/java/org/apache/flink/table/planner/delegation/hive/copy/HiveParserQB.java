@@ -18,13 +18,17 @@
 
 package org.apache.flink.table.planner.delegation.hive.copy;
 
-import org.apache.hadoop.hive.ql.metadata.Table;
-import org.apache.hadoop.hive.ql.parse.QBMetaData;
+import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.table.catalog.CatalogTable;
+import org.apache.flink.table.catalog.CatalogView;
+import org.apache.flink.table.planner.delegation.hive.HiveParserQBMetaData;
+
 import org.apache.hadoop.hive.ql.plan.CreateTableDesc;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
@@ -39,18 +43,21 @@ public class HiveParserQB {
 
     private int numSels = 0;
     private int numSelDi = 0;
+    private final Map<String, String> aliasToTabsOriginName;
     private final HashMap<String, String> aliasToTabs;
     private final HashMap<String, HiveParserQBExpr> aliasToSubq;
-    private final HashMap<String, Table> viewAliasToViewSchema;
+    private final HashMap<String, CatalogView> viewAliasToViewSchema;
     private final HashMap<String, Map<String, String>> aliasToProps;
     private final List<String> aliases;
     private final HiveParserQBParseInfo qbp;
-    private final QBMetaData qbm;
+    private final HiveParserQBMetaData qbm;
     private final String id;
     private boolean isQuery;
     private boolean insideView;
     private Set<String> aliasInsideView;
-    private final Map<String, List<List<String>>> valuesTableToData = new HashMap<>();
+    // tableName -> <catalogTable, valuesData>
+    private final Map<String, Tuple2<CatalogTable, List<List<String>>>> valuesTableToData =
+            new HashMap<>();
 
     // used by PTFs
     /*
@@ -85,6 +92,7 @@ public class HiveParserQB {
 
     public HiveParserQB(String outerId, String alias, boolean isSubQ) {
         // Must be deterministic order maps - see HIVE-8707
+        aliasToTabsOriginName = new LinkedHashMap<>();
         aliasToTabs = new LinkedHashMap<>();
         aliasToSubq = new LinkedHashMap<>();
         viewAliasToViewSchema = new LinkedHashMap<>();
@@ -94,7 +102,7 @@ public class HiveParserQB {
             alias = alias.toLowerCase();
         }
         qbp = new HiveParserQBParseInfo(alias, isSubQ);
-        qbm = new QBMetaData();
+        qbm = new HiveParserQBMetaData();
         // Must be deterministic order maps - see HIVE-8707
         ptfNodeToSpec = new LinkedHashMap<>();
         destToWindowingSpec = new LinkedHashMap<>();
@@ -119,7 +127,7 @@ public class HiveParserQB {
         return qbp;
     }
 
-    public QBMetaData getMetaData() {
+    public HiveParserQBMetaData getMetaData() {
         return qbm;
     }
 
@@ -136,8 +144,17 @@ public class HiveParserQB {
         return aliasToTabs.get(alias) != null || aliasToSubq.get(alias) != null;
     }
 
-    public void setTabAlias(String alias, String tabName) {
-        aliasToTabs.put(alias.toLowerCase(), tabName);
+    /**
+     * Maintain table alias -> (originTableName, qualifiedName).
+     *
+     * @param alias table alias
+     * @param originTableName table name that be actually specified, may be "table", "db.table",
+     *     "catalog.db.table"
+     * @param qualifiedName table name with full path, always is "catalog.db.table"
+     */
+    public void setTabAlias(String alias, String originTableName, String qualifiedName) {
+        aliasToTabsOriginName.put(alias.toLowerCase(), originTableName.toLowerCase());
+        aliasToTabs.put(alias.toLowerCase(), qualifiedName);
     }
 
     public void setSubqAlias(String alias, HiveParserQBExpr qbexpr) {
@@ -182,14 +199,19 @@ public class HiveParserQB {
         return aliasToTabs.get(alias.toLowerCase());
     }
 
+    public String getOriginTabNameForAlias(String alias) {
+        return aliasToTabsOriginName.get(alias.toLowerCase());
+    }
+
     public void rewriteViewToSubq(
-            String alias, String viewName, HiveParserQBExpr qbexpr, Table tab) {
+            String alias, String viewName, HiveParserQBExpr qbexpr, CatalogView view) {
         alias = alias.toLowerCase();
         String tableName = aliasToTabs.remove(alias);
-        assert (viewName.equals(tableName));
+        String originTableName = aliasToTabsOriginName.remove(alias);
+        assert (viewName.equals(tableName) || viewName.equals(originTableName));
         aliasToSubq.put(alias, qbexpr);
-        if (tab != null) {
-            viewAliasToViewSchema.put(alias, tab);
+        if (view != null) {
+            viewAliasToViewSchema.put(alias, view);
         }
     }
 
@@ -240,12 +262,8 @@ public class HiveParserQB {
 
     /** Retrieve skewed column name for a table. */
     public List<String> getSkewedColumnNames(String alias) {
-        List<String> skewedColNames = null;
-        if (null != qbm && null != qbm.getAliasToTable() && qbm.getAliasToTable().size() > 0) {
-            Table tbl = getMetaData().getTableForAlias(alias);
-            skewedColNames = tbl.getSkewedColNames();
-        }
-        return skewedColNames;
+        // currently, skew column means nothing for flink, so we just return an empty list.
+        return Collections.emptyList();
     }
 
     public HiveParserPTFInvocationSpec getPTFInvocationSpec(HiveParserASTNode node) {
@@ -278,7 +296,7 @@ public class HiveParserQB {
         return ++numSubQueryPredicates;
     }
 
-    public HashMap<String, Table> getViewToTabSchema() {
+    public HashMap<String, CatalogView> getViewToTabSchema() {
         return viewAliasToViewSchema;
     }
 
@@ -313,7 +331,7 @@ public class HiveParserQB {
         return false;
     }
 
-    public Map<String, List<List<String>>> getValuesTableToData() {
+    public Map<String, Tuple2<CatalogTable, List<List<String>>>> getValuesTableToData() {
         return valuesTableToData;
     }
 }
