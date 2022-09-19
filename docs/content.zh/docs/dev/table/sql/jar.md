@@ -80,8 +80,9 @@ ADD JAR '<path_to_filename>.jar'
 
 添加一个 JAR 文件到资源列表中，该 jar 应该位于 Flink 当前支持的本地或远程[文件系统]({{< ref "docs/deployment/filesystems/overview" >}}) 中。添加的 JAR 文件可以使用 [`SHOW JARS`](#show-jars) 语句列出。
 
-### Limitation
-目前请不要通过 `ADD JAR` 语句来使用 Hive 连接器，正确行为参考 [Flink-Hive 集成]({{< ref "docs/connectors/table/hive/overview" >}}#dependencies).
+### 限制
+
+请不要通过 `ADD JAR` 语句来加载 Hive 的source、sink、function、catalog。这是 Hive connector 的一个已知限制，且会在将来版本中修复。当前，建议跟随这个指南来[安装 Hive 的集成]({{< ref "docs/connectors/table/hive/overview" >}}#dependencies)。
 
 <a name="show-jars"></a>
 
