@@ -90,7 +90,7 @@ public class TaskExecutorOperatorEventHandlingTest extends TestLogger {
         }
 
         if (metricRegistry != null) {
-            metricRegistry.shutdown().get();
+            metricRegistry.closeAsync().get();
         }
     }
 

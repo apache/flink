@@ -35,6 +35,7 @@ import org.apache.flink.runtime.metrics.groups.ReporterScopedSettings;
 import org.apache.flink.runtime.metrics.scope.ScopeFormats;
 import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.webmonitor.retriever.MetricQueryServiceGateway;
+import org.apache.flink.util.AutoCloseableAsync;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.ExecutorUtils;
 import org.apache.flink.util.FlinkException;
@@ -67,7 +68,7 @@ import java.util.stream.Collectors;
  * A MetricRegistry keeps track of all registered {@link Metric Metrics}. It serves as the
  * connection between {@link MetricGroup MetricGroups} and {@link MetricReporter MetricReporters}.
  */
-public class MetricRegistryImpl implements MetricRegistry {
+public class MetricRegistryImpl implements MetricRegistry, AutoCloseableAsync {
     private static final Logger LOG = LoggerFactory.getLogger(MetricRegistryImpl.class);
 
     private final Object lock = new Object();
@@ -312,7 +313,8 @@ public class MetricRegistryImpl implements MetricRegistry {
      *
      * @return Future which is completed once the {@link MetricRegistryImpl} is shut down.
      */
-    public CompletableFuture<Void> shutdown() {
+    @Override
+    public CompletableFuture<Void> closeAsync() {
         synchronized (lock) {
             if (isShutdown) {
                 return terminationFuture;

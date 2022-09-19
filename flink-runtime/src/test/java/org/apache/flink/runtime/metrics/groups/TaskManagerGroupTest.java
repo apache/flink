@@ -59,7 +59,7 @@ public class TaskManagerGroupTest extends TestLogger {
     @After
     public void teardown() throws Exception {
         if (registry != null) {
-            registry.shutdown().get();
+            registry.closeAsync().get();
         }
     }
 
@@ -185,7 +185,7 @@ public class TaskManagerGroupTest extends TestLogger {
         assertArrayEquals(
                 new String[] {"constant", "host", "foo", "host"}, group.getScopeComponents());
         assertEquals("constant.host.foo.host.name", group.getMetricIdentifier("name"));
-        registry.shutdown().get();
+        registry.closeAsync().get();
     }
 
     @Test

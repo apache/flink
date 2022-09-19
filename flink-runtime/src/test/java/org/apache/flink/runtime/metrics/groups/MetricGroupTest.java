@@ -73,7 +73,7 @@ public class MetricGroupTest extends TestLogger {
 
     @After
     public void shutdownRegistry() throws Exception {
-        this.registry.shutdown().get();
+        this.registry.closeAsync().get();
         this.registry = null;
     }
 
@@ -266,7 +266,7 @@ public class MetricGroupTest extends TestLogger {
             assertThat(
                     "Value is present in logical scope.", logicalScope, not(containsString(value)));
         } finally {
-            registry.shutdown().get();
+            registry.closeAsync().get();
         }
     }
 

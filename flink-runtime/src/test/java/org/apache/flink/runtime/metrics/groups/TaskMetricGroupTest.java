@@ -57,7 +57,7 @@ public class TaskMetricGroupTest extends TestLogger {
     @After
     public void teardown() throws Exception {
         if (registry != null) {
-            registry.shutdown().get();
+            registry.closeAsync().get();
         }
     }
 
@@ -116,7 +116,7 @@ public class TaskMetricGroupTest extends TestLogger {
         assertEquals(
                 String.format("test-tm-id.%s.%s.%s.name", jid, vertexId, executionId),
                 taskGroup.getMetricIdentifier("name"));
-        registry.shutdown().get();
+        registry.closeAsync().get();
     }
 
     @Test
@@ -149,7 +149,7 @@ public class TaskMetricGroupTest extends TestLogger {
         assertEquals(
                 "theHostName.taskmanager.test-tm-id.myJobName." + executionId + ".13.name",
                 taskGroup.getMetricIdentifier("name"));
-        registry.shutdown().get();
+        registry.closeAsync().get();
     }
 
     @Test
@@ -192,7 +192,7 @@ public class TaskMetricGroupTest extends TestLogger {
         // now all registered metrics should have been unregistered
         assertEquals(initialMetricsCount, registry.getNumberRegisteredMetrics());
 
-        registry.shutdown().get();
+        registry.closeAsync().get();
     }
 
     @Test
@@ -217,7 +217,7 @@ public class TaskMetricGroupTest extends TestLogger {
         Assert.assertEquals(
                 originalName.substring(0, TaskMetricGroup.METRICS_OPERATOR_NAME_MAX_LENGTH),
                 storedName);
-        registry.shutdown().get();
+        registry.closeAsync().get();
     }
 
     private static class CountingMetricRegistry extends MetricRegistryImpl {

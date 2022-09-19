@@ -706,7 +706,7 @@ public class MiniCluster implements AutoCloseableAsync {
 
             // metrics shutdown
             if (metricRegistry != null) {
-                terminationFutures.add(metricRegistry.shutdown());
+                terminationFutures.add(metricRegistry.closeAsync());
                 metricRegistry = null;
             }
 
