@@ -47,7 +47,7 @@ Flink 目前支持两种 SQL 方言: `default` 和 `hive`。你需要先切换�
 - Hive 方言只支持 `db.table` 这种两级的标识符，不支持带有 Catalog 名字的标识符。
 - 虽然所有 Hive 版本支持相同的语法，但是一些特定的功能是否可用仍取决于你使用的 [Hive 版本]({{< ref "docs/connectors/table/hive/overview" >}}#支持的hive版本)。例如，更新数据库位置
   只在 Hive-2.4.0 或更高版本支持。
-- Hive 方言主要是在批模式下使用的，某些 Hive 的语法([Sort/Cluster/Distributed BY]({{< ref "docs/dev/table/hiveCompatibility/hiveDialect/Queries/sort-cluster-distribute-by" >}}), [Transform]({{< ref "docs/dev/table/hiveCompatibility/hiveDialect/Queries/transform" >}}), 等)还没有在流模式下支持。
+- Hive 方言主要是在批模式下使用的，某些 Hive 的语法([Sort/Cluster/Distributed BY]({{< ref "docs/dev/table/hive-compatibility/hive-dialect/queries/sort-cluster-distribute-by" >}}), [Transform]({{< ref "docs/dev/table/hive-compatibility/hive-dialect/queries/transform" >}}), 等)还没有在流模式下支持。
 {{< /hint >}}
 
 ### SQL Client

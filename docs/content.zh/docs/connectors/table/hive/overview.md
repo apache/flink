@@ -449,7 +449,7 @@ USE CATALOG myhive;
 
 ## DDL
 
-在 Flink 中执行 DDL 操作 Hive 的表、视图、分区、函数等元数据时，建议使用 [Hive 方言]({{< ref "docs/dev/table/hiveCompatibility/hiveDialect/overview" >}})
+在 Flink 中执行 DDL 操作 Hive 的表、视图、分区、函数等元数据时，建议使用 [Hive 方言]({{< ref "docs/dev/table/hive-compatibility/hive-dialect/overview" >}})
 
 ## DML
 

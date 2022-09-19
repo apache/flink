@@ -64,7 +64,7 @@ Generic tables, on the other hand, are specific to Flink. When creating generic 
 HMS to persist the metadata. While these tables are visible to Hive, it's unlikely Hive is able to understand
 the metadata. And therefore using such tables in Hive leads to undefined behavior.
 
-It's recommended to switch to [Hive dialect]({{< ref "docs/dev/table/hiveCompatibility/hiveDialect/overview" >}}) to create Hive-compatible tables.
+It's recommended to switch to [Hive dialect]({{< ref "docs/dev/table/hive-compatibility/hive-dialect/overview" >}}) to create Hive-compatible tables.
 If you want to create Hive-compatible tables with default dialect, make sure to set `'connector'='hive'` in your table properties, otherwise
 a table is considered generic by default in `HiveCatalog`. Note that the `connector` property is not required if you use Hive dialect.
 
