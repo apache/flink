@@ -2,8 +2,6 @@
 title: HiveServer2 Endpoint
 weight: 11
 type: docs
-aliases:
-- /dev/table/hive-compatibility/hiveserver2.html
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
