@@ -61,7 +61,9 @@ Catalog 是可扩展的，用户可以通过实现 `Catalog` 接口来开发自�
 `CatalogFactory` 定义了一组属性，用于 SQL CLI 启动时配置 Catalog。
 这组属性集将传递给发现服务，在该服务中，服务会尝试将属性关联到 `CatalogFactory` 并初始化相应的 Catalog 实例。
 
-注意：从 FLINK-15635 开始，table 模块引入了一个用户类加载器，以统一管理所有的用户 jar 包，例如通过 `ADD JAR` 语句添加的 jar。在自定义 Catalog 中，如果需要明确加载某些类，请使用用户类加载器而不是线程上下文类加载器，否则可能会出现 ClassNotFoundException 异常。用户可以通过 `CatalogFactory.Context` 获得用户类加载器。
+{{< hint warning >}}从 Flink v1.16 开始, TableEnvironment 引入了一个用户类加载器，以在 table 程序、SQL Client、SQL Gateway 中保持一致的类加载行为。该类加载器会统一管理所有的用户 jar 包，包括通过 `ADD JAR` 或 `CREATE FUNCTION .. USING JAR ..` 添加的 jar 资源。
+ 在用户自定义 catalog 中，应该将 `Thread.currentThread().getContextClassLoader()` 替换成该用户类加载器去加载类。否则，可能会发生 `ClassNotFoundException` 的异常。该用户类加载器可以通过 `CatalogFactory.Context#getClassLoader` 获得。
+{{< /hint >}}
 
 ## 如何创建 Flink 表并将其注册到 Catalog
 

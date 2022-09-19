@@ -76,7 +76,7 @@ ADD JAR '<path_to_filename>.jar'
 Add a JAR file to the list of resources, it supports adding the jar locates in a local or remote [file system]({{< ref "docs/deployment/filesystems/overview" >}}). The added JAR file can be listed using [`SHOW JARS`](#show-jars) statements.
 
 ### Limitation
-Please don't use the hive connector by `ADD JAR` statement currently, the correct behavior refers to [Flink-Hive integration]({{< ref "docs/connectors/table/hive/overview" >}}#dependencies).
+Please don't use `ADD JAR` statement to load Hive source/sink/function/catalog. This is a known limitation of Hive connector and will be fixed in the future version. Currently, it's recommended to follow this [instruction]({{< ref "docs/connectors/table/hive/overview" >}}#dependencies) to setup Hive integration.
 
 ## SHOW JARS
 
