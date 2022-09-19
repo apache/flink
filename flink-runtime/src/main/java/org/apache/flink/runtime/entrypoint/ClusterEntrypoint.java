@@ -512,7 +512,7 @@ public abstract class ClusterEntrypoint implements AutoCloseableAsync, FatalErro
             }
 
             if (metricRegistry != null) {
-                terminationFutures.add(metricRegistry.shutdown());
+                terminationFutures.add(metricRegistry.closeAsync());
             }
 
             if (ioExecutor != null) {
