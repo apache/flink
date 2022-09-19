@@ -57,7 +57,7 @@ public class AsyncCallsTest extends TestLogger {
     @AfterClass
     public static void shutdown()
             throws InterruptedException, ExecutionException, TimeoutException {
-        rpcService.stopService().get();
+        rpcService.closeAsync().get();
     }
 
     // ------------------------------------------------------------------------

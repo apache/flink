@@ -317,7 +317,7 @@ class TaskSubmissionTestEnvironment implements AutoCloseable {
 
     @Override
     public void close() throws Exception {
-        testingRpcService.stopService().join();
+        testingRpcService.closeAsync().join();
 
         timerService.stop();
 

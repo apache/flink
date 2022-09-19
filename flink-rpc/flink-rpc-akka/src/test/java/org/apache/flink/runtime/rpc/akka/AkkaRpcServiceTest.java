@@ -72,7 +72,7 @@ class AkkaRpcServiceTest {
 
     @AfterAll
     static void shutdown() throws InterruptedException, ExecutionException, TimeoutException {
-        final CompletableFuture<Void> rpcTerminationFuture = akkaRpcService.stopService();
+        final CompletableFuture<Void> rpcTerminationFuture = akkaRpcService.closeAsync();
         final CompletableFuture<Terminated> actorSystemTerminationFuture =
                 AkkaFutureUtils.toJava(actorSystem.terminate());
 
@@ -345,7 +345,7 @@ class AkkaRpcServiceTest {
             onStopFutures.add(onStopFuture);
         }
 
-        CompletableFuture<Void> terminationFuture = akkaRpcService.stopService();
+        CompletableFuture<Void> terminationFuture = akkaRpcService.closeAsync();
 
         countDownLatch.await();
 

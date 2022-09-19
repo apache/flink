@@ -506,8 +506,8 @@ public class OperatorEventSendingCheckpointITCase extends TestLogger {
         }
 
         @Override
-        public CompletableFuture<Void> stopService() {
-            return rpcService.stopService();
+        public CompletableFuture<Void> closeAsync() {
+            return rpcService.closeAsync();
         }
 
         @Override

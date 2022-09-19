@@ -93,7 +93,7 @@ class ContextClassLoadingSettingTest {
 
     @AfterEach
     void shutdown() throws InterruptedException, ExecutionException, TimeoutException {
-        final CompletableFuture<Void> rpcTerminationFuture = akkaRpcService.stopService();
+        final CompletableFuture<Void> rpcTerminationFuture = akkaRpcService.closeAsync();
         final CompletableFuture<Terminated> actorSystemTerminationFuture =
                 AkkaFutureUtils.toJava(actorSystem.terminate());
 
@@ -221,7 +221,7 @@ class ContextClassLoadingSettingTest {
                 runWithContextClassLoader(
                         () ->
                                 akkaRpcService
-                                        .stopService()
+                                        .closeAsync()
                                         .thenApply(
                                                 ignored ->
                                                         Thread.currentThread()

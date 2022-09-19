@@ -60,7 +60,7 @@ class MainThreadValidationTest {
 
             testEndpoint.closeAsync();
         } finally {
-            akkaRpcService.stopService().get();
+            akkaRpcService.closeAsync().get();
         }
     }
 

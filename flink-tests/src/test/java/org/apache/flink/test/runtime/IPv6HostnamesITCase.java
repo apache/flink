@@ -153,7 +153,7 @@ public class IPv6HostnamesITCase extends TestLogger {
                                                 .withBindAddress(addr.getHostAddress())
                                                 .withBindPort(port.getPort())
                                                 .createAndStart();
-                                rpcService.stopService().get();
+                                rpcService.closeAsync().get();
                             }
 
                             log.info("Using address " + addr);

@@ -299,7 +299,7 @@ class AkkaRpcActorTest {
 
             CompletableFuture<Void> terminationFuture = rpcEndpoint.getTerminationFuture();
 
-            rpcService.stopService();
+            rpcService.closeAsync();
 
             terminationFuture.get();
         } finally {

@@ -134,7 +134,7 @@ public class TestingResourceManagerService implements ResourceManagerService {
     }
 
     private CompletableFuture<Void> stopRpcServiceIfNeeded() {
-        return needStopRpcService ? rpcService.stopService() : FutureUtils.completedVoidFuture();
+        return needStopRpcService ? rpcService.closeAsync() : FutureUtils.completedVoidFuture();
     }
 
     public static Builder newBuilder() {

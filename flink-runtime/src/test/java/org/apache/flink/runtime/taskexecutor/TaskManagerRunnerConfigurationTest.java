@@ -294,7 +294,7 @@ class TaskManagerRunnerConfigurationTest {
     private static void maybeCloseRpcService(@Nullable final RpcService rpcService)
             throws Exception {
         if (rpcService != null) {
-            rpcService.stopService().get(TEST_TIMEOUT_SECONDS, TimeUnit.SECONDS);
+            rpcService.closeAsync().get(TEST_TIMEOUT_SECONDS, TimeUnit.SECONDS);
         }
     }
 }

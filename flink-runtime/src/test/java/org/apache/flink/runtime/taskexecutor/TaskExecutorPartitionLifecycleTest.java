@@ -142,7 +142,7 @@ public class TaskExecutorPartitionLifecycleTest extends TestLogger {
 
     @AfterClass
     public static void shutdownClass() throws ExecutionException, InterruptedException {
-        rpc.stopService().get();
+        rpc.closeAsync().get();
     }
 
     @Test

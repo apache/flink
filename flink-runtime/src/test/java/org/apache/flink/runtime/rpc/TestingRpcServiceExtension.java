@@ -59,7 +59,7 @@ public class TestingRpcServiceExtension implements CustomExtension {
     }
 
     private void terminateRpcService(TestingRpcService testingRpcService) {
-        CompletableFuture<Void> terminationFuture = testingRpcService.stopService();
+        CompletableFuture<Void> terminationFuture = testingRpcService.closeAsync();
         terminationFuture.join();
     }
 }
