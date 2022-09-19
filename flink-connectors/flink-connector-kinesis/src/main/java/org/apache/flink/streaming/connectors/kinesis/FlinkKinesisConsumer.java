@@ -418,7 +418,12 @@ public class FlinkKinesisConsumer<T> extends RichParallelSourceFunction<T>
     public void close() throws Exception {
         cancel();
         // safe-guard when the fetcher has been interrupted, make sure to not leak resources
-        fetcher.awaitTermination();
+        // application might be stopped before connector subtask has been started
+        // so we must check if the fetcher is actually created
+        KinesisDataFetcher fetcher = this.fetcher;
+        if (fetcher != null) {
+            fetcher.awaitTermination();
+        }
         this.fetcher = null;
         super.close();
     }
