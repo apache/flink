@@ -1,0 +1,90 @@
+<table class="configuration table table-bordered">
+    <thead>
+        <tr>
+            <th class="text-left" style="width: 20%">Key</th>
+            <th class="text-left" style="width: 15%">Default</th>
+            <th class="text-left" style="width: 10%">Type</th>
+            <th class="text-left" style="width: 55%">Description</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td><h5>admin-url</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>String</td>
+            <td>The Pulsar service HTTP URL for the admin endpoint. For example, <code class="highlighter-rouge">http://my-broker.example.com:8080</code>, or <code class="highlighter-rouge">https://my-broker.example.com:8443</code> for TLS.</td>
+        </tr>
+        <tr>
+            <td><h5>explicit</h5></td>
+            <td style="word-wrap: break-word;">true</td>
+            <td>Boolean</td>
+            <td>Indicate if the table is an explicit Flink table.</td>
+        </tr>
+        <tr>
+            <td><h5>key.fields</h5></td>
+            <td style="word-wrap: break-word;"></td>
+            <td>List&lt;String&gt;</td>
+            <td>An explicit list of physical columns from the table schema that are decoded/encoded from the key bytes of a Pulsar message. By default, this list is empty and thus a key is undefined.</td>
+        </tr>
+        <tr>
+            <td><h5>key.format</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>String</td>
+            <td>Defines the format identifier for decoding/encoding key bytes in Pulsar message. The identifier is used to discover a suitable format factory.</td>
+        </tr>
+        <tr>
+            <td><h5>service-url</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>String</td>
+            <td>Service URL provider for Pulsar service.<br />To connect to Pulsar using client libraries, you need to specify a Pulsar protocol URL.<br />You can assign Pulsar protocol URLs to specific clusters and use the Pulsar scheme.<br /><ul><li>This is an example of <code class="highlighter-rouge">localhost</code>: <code class="highlighter-rouge">pulsar://localhost:6650</code>.</li><li>If you have multiple brokers, the URL is as: <code class="highlighter-rouge">pulsar://localhost:6550,localhost:6651,localhost:6652</code></li><li>A URL for a production Pulsar cluster is as: <code class="highlighter-rouge">pulsar://pulsar.us-west.example.com:6650</code></li><li>If you use TLS authentication, the URL is as <code class="highlighter-rouge">pulsar+ssl://pulsar.us-west.example.com:6651</code></li></ul></td>
+        </tr>
+        <tr>
+            <td><h5>sink.custom-topic-router</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>String</td>
+            <td>(Optional) the custom topic router class URL that is used in the [Pulsar DataStream sink connector](https://nightlies.apache.org/flink/flink-docs-master/docs/connectors/datastream/pulsar/#pulsar-sink). If this option is provided, the <code class="highlighter-rouge">sink.topic-routing-mode</code> option will be ignored.</td>
+        </tr>
+        <tr>
+            <td><h5>sink.message-delay-interval</h5></td>
+            <td style="word-wrap: break-word;">0 ms</td>
+            <td>Duration</td>
+            <td>(Optional) the message delay delivery interval that is used in the [Pulsar DataStream sink connector](https://nightlies.apache.org/flink/flink-docs-master/docs/connectors/datastream/pulsar/#pulsar-sink).</td>
+        </tr>
+        <tr>
+            <td><h5>sink.topic-routing-mode</h5></td>
+            <td style="word-wrap: break-word;">round-robin</td>
+            <td><p>Enum</p></td>
+            <td>(Optional) the topic routing mode. Available options are <code class="highlighter-rouge">round-robin</code> and <code class="highlighter-rouge">message-key-hash</code>. By default, it is set to <code class="highlighter-rouge">round-robin</code>. If you want to use a custom topic router, use the <code class="highlighter-rouge">sink.custom-topic-router</code> option to determine the partition for a particular message.<br /><br />Possible values:<ul><li>"round-robin": The producer will publish messages across all partitions in a round-robin fashion to achieve maximum throughput. Please note that round-robin is not done per individual message but rather it's set to the same boundary of <code class="highlighter-rouge">pulsar.producer.batchingMaxMessages</code>, to ensure batching is effective.</li><li>"message-key-hash": If no key is provided, The partitioned producer will randomly pick one single topic partition and publish all the messages into that partition. If a key is provided on the message, the partitioned producer will hash the key and assign the message to a particular partition.</li><li>"custom": Use custom <code class="highlighter-rouge">TopicRouter</code> implementation that will be called to determine the partition for a particular message.</li></ul></td>
+        </tr>
+        <tr>
+            <td><h5>source.start.message-id</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>String</td>
+            <td>Optional message id used to specify a consuming starting point for source. Use <code class="highlighter-rouge">earliest</code>, <code class="highlighter-rouge">latest</code> or pass in a message id representation in <code class="highlighter-rouge">ledgerId:entryId:partitionId</code>, such as <code class="highlighter-rouge">12:2:-1</code></td>
+        </tr>
+        <tr>
+            <td><h5>source.start.publish-time</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>Long</td>
+            <td>(Optional) the publish timestamp that is used to specify a starting point for the [Pulsar DataStream source connector](https://nightlies.apache.org/flink/flink-docs-master/docs/connectors/datastream/pulsar/#pulsar-source) to consume data.</td>
+        </tr>
+        <tr>
+            <td><h5>source.subscription-name</h5></td>
+            <td style="word-wrap: break-word;">"flink-sql-connector-pulsar"</td>
+            <td>String</td>
+            <td>The subscription name of the consumer that is used by the runtime [Pulsar DataStream source connector](https://nightlies.apache.org/flink/flink-docs-master/docs/connectors/datastream/pulsar/#pulsar-source). This argument is required for constructing the consumer.</td>
+        </tr>
+        <tr>
+            <td><h5>source.subscription-type</h5></td>
+            <td style="word-wrap: break-word;">Exclusive</td>
+            <td><p>Enum</p></td>
+            <td>The [subscription type](https://nightlies.apache.org/flink/flink-docs-master/docs/connectors/datastream/pulsar/#pulsar-subscriptions) that is supported by the [Pulsar DataStream source connector](https://nightlies.apache.org/flink/flink-docs-master/docs/connectors/datastream/pulsar/#pulsar-source). Currently, only <code class="highlighter-rouge">Exclusive</code> and <code class="highlighter-rouge">Shared</code> subscription types are supported.<br /><br />Possible values:<ul><li>"Exclusive"</li><li>"Shared"</li><li>"Failover"</li><li>"Key_Shared"</li></ul></td>
+        </tr>
+        <tr>
+            <td><h5>topics</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>List&lt;String&gt;</td>
+            <td>Topic name(s) the table reads data from. It can be a single topic name or a list of topic names separated by a semicolon symbol (<code class="highlighter-rouge">;</code>) like <code class="highlighter-rouge">topic-1;topic-2</code>.</td>
+        </tr>
+    </tbody>
+</table>
