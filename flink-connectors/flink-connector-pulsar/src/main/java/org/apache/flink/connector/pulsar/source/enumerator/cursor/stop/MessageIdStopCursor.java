@@ -24,6 +24,8 @@ import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 
+import java.util.Objects;
+
 import static org.apache.flink.connector.pulsar.source.enumerator.cursor.MessageIdUtils.unwrapMessageId;
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.pulsar.client.api.MessageId.earliest;
@@ -55,5 +57,22 @@ public class MessageIdStopCursor implements StopCursor {
     public StopCondition shouldStop(Message<?> message) {
         MessageId current = message.getMessageId();
         return StopCondition.compare(messageId, current, inclusive);
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
+        MessageIdStopCursor that = (MessageIdStopCursor) o;
+        return inclusive == that.inclusive && messageId.equals(that.messageId);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(messageId, inclusive);
     }
 }
