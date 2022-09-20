@@ -21,7 +21,9 @@ package org.apache.flink.connector.pulsar.source.enumerator.cursor.start;
 import org.apache.flink.connector.pulsar.source.enumerator.cursor.CursorPosition;
 import org.apache.flink.connector.pulsar.source.enumerator.cursor.StartCursor;
 
-/** This cursor would left pulsar start consuming from a specific publish timestamp. */
+import java.util.Objects;
+
+/** A cursor starts consuming from a specific publish timestamp. */
 public class TimestampStartCursor implements StartCursor {
     private static final long serialVersionUID = 5170578885838095320L;
 
@@ -34,5 +36,22 @@ public class TimestampStartCursor implements StartCursor {
     @Override
     public CursorPosition position(String topic, int partitionId) {
         return new CursorPosition(timestamp);
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
+        TimestampStartCursor that = (TimestampStartCursor) o;
+        return timestamp == that.timestamp;
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(timestamp);
     }
 }
