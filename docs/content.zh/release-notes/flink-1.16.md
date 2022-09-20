@@ -26,17 +26,6 @@ These release notes discuss important aspects, such as configuration, behavior, 
 that changed between Flink 1.15 and Flink 1.16. Please read these notes carefully if you are
 planning to upgrade your Flink version to 1.16.
 
-### DataStream
-
-#### Support Cache in DataStream for Batch Processing(FLIP-205)
-
-##### [FLINK-27521](https://issues.apache.org/jira/browse/FLINK-27521)
-
-Supports caching the result of a transformation via DataStream#cache(). The cached intermediate result
-is generated lazily at the first time the intermediate result is computed so that the result can be
-reused by later jobs. If the cache is lost, it will be recomputed using the original transformations.
-Notes that currently only batch mode is supported.
-
 ### Table API & SQL
 
 #### Remove string expression DSL
@@ -44,30 +33,6 @@ Notes that currently only batch mode is supported.
 ##### [FLINK-26704](https://issues.apache.org/jira/browse/FLINK-26704)
 
 The deprecated String expression DSL has been removed from Java/Scala/Python Table API.
-
-#### Add advanced function DDL syntax "USING JAR"
-
-##### [FLINK-14055](https://issues.apache.org/jira/browse/FLINK-14055)
-
-In 1.16, we introduced the `CREATE FUNCTION ... USING JAR` syntax to support the dynamic loading of 
-the UDF jar in per job, which is convenient for platform developers to easily achieve UDF management.
-In addition, we also port the `ADD JAR` syntax from SqlClient to `TableEnvironment` side, this allows
-the syntax is more general to Table API users. However, due to inconsistent classloader in StreamExecutionEnvironment
-and TableEnvironment, the `ADD JAR` syntax is not available for Table API program currently, it will
-be resolved by https://issues.apache.org/jira/browse/FLINK-29240
-
-More information about this feature could be found in https://nightlies.apache.org/flink/flink-docs-master/docs/dev/table/sql/create/#create-function.
-
-#### Allow passing a ClassLoader to EnvironmentSettings
-
-##### [FLINK-15635](https://issues.apache.org/jira/browse/FLINK-15635)
-
-TableEnvironment introduces a user class loader to have a consistent class loading behavior in table
-programs, SQL Client and SQL Gateway. The user classloader manages all user jars such as jar added
-by `ADD JAR` or `CREATE FUNCTION .. USING JAR ..` statements. User-defined functions/connectors/catalogs
-should replace `Thread.currentThread().getContextClassLoader()` with the user class loader to load classes.
-Otherwise, ClassNotFoundException maybe thrown. The user class loader can be accessed via `FunctionContext#getUserCodeClassLoader`,
-`DynamicTableFactory.Context#getClassLoader` and `CatalogFactory.Context#getClassLoader`.
 
 #### Support Retryable Lookup Join To Solve Delayed Updates Issue In External Systems
 
@@ -95,13 +60,16 @@ For complex streaming jobs, now it's possible to detect and resolve potential co
 ##### [FLINK-26884](https://issues.apache.org/jira/browse/FLINK-26884)
 
 The Elasticsearch connector has been copied from the Flink repository to its own individual repository
-at https://github.com/apache/flink-connector-elasticsearch
+at https://github.com/apache/flink-connector-elasticsearch. For this release, identical Elasticsearch
+connector artifacts will be available from both repositories but with different versions. For example,
+the first releases will be `1.16.0` and the externally versioned and maintained artifact `3.0.0`.
+Developers are encouraged to move to the latter during this release cycle.
 
-#### Drop support for Hive versions 1.*, 2.1.* and 2.2.*
+#### Drop support for Hive versions 1.\*, 2.1.\* and 2.2.\*
 
 ##### [FLINK-27044](https://issues.apache.org/jira/browse/FLINK-27044)
 
-Support for Hive 1.*, 2.1.* and 2.2.* has been dropped from Flink. These Hive version are no longer
+Support for Hive 1.\*, 2.1.\* and 2.2.\* has been dropped from Flink. These Hive versions are no longer
 supported by the Hive community and therefore are also no longer supported by Flink.
 
 #### Hive sink report statistics to Hive metastore
@@ -118,9 +86,9 @@ setting `table.exec.hive.sink.statistic-auto-gather.enable` to `false`.
 
 A number of breaking changes were made to the Pulsar Connector cursor APIs:
 
-- CursorPosition#seekPosition() has been removed.
-- StartCursor#seekPosition() has been removed.
-- StopCursor#shouldStop now returns a StopCondition instead of a boolean.
+- `CursorPosition#seekPosition()` has been removed.
+- `StartCursor#seekPosition()` has been removed.
+- `StopCursor#shouldStop` now returns a `StopCondition` instead of a boolean.
 
 #### Mark StreamingFileSink as deprecated
 
@@ -148,16 +116,9 @@ directly in your Table API or SQL applications.
 
 Supports configurable RateLimitingStrategy for the AsyncSinkWriter. This change allows sink implementers
 to change the behaviour of an AsyncSink when requests fail, for a specific sink. If no RateLimitingStrategy
-is specified, it will default to current default of AIMDRateLimitingStrategy.
+is specified, it will use the current default of AIMDRateLimitingStrategy.
 
 ### Runtime & Coordination
-
-##### Remove brackets around variables
-
-###### [FLINK-24078](https://issues.apache.org/jira/browse/FLINK-24078)
-
-The keys in the map returned my MetricGroup#getAllVariables are no longer surrounded by brackets,
-e.g., <job_id> is now stored as job_id.
 
 #### Deprecate reflection-based reporter instantiation
 
@@ -166,7 +127,7 @@ e.g., <job_id> is now stored as job_id.
 Configuring reporters by their class has been deprecated. Reporter implementations should provide a
 MetricReporterFactory, and all configurations should be migrated to such a factory.
 
-If the reporter is loaded from the plugins directory, setting metrics.reporter.reporter_name.class no longer works.
+If the reporter is loaded from the plugins directory, setting `metrics.reporter.reporter_name.class` no longer works.
 
 #### Deprecate Datadog reporter 'tags' option
 
@@ -180,27 +141,6 @@ The 'tags' option from the DatadogReporter has been deprecated in favor of the g
 
 The REST API now returns a 503 Service Unavailable error when a request is made but the backing
 component isn't ready yet. Previously this returned a 500 Internal Server error.
-
-#### Completed Jobs Information Enhancement(FLIP-241)
-
-##### [FLINK-28307](https://issues.apache.org/jira/browse/FLINK-28307)
-
-We have enhanced the experiences of viewing completed jobs’ information in this release.
-- JobManager / HistoryServer WebUI now provides detailed execution time metrics, including durations tasks spend in each execution state and the accumulated busy / idle / back-pressured time during running.
-- JobManager / HistoryServer WebUI now provides aggregation of major SubTask metrics, grouped by Task or TaskManager.
-- JobManager / HistoryServer WebUI now provides more environmental information, including environment variables, JVM options and classpath.
-- HistoryServer now supports browsing logs from external log archiving services. For more details: https://nightlies.apache.org/flink/flink-docs-release-1.16/docs/deployment/advanced/historyserver#log-integration
-
-#### Hybrid Shuffle Mode(FLIP-235)
-
-##### [FLINK-27862](https://issues.apache.org/jira/browse/FLINK-27862)
-
-We have introduced a new Hybrid Shuffle Mode for batch executions. It combines the advantages of blocking shuffle and pipelined shuffle (in streaming mode).
-- Like blocking shuffle, it does not require upstream and downstream tasks to run simultaneously, which allows executing a job with little resources.
-- Like pipelined shuffle, it does not require downstream tasks to be executed after upstream tasks finish, which reduces the overall execution time of the job when given sufficient resources.
-- It adapts to custom preferences between persisting less data and restarting less tasks on failures, by providing different spilling strategies.
-
-For more details: https://nightlies.apache.org/flink/flink-docs-release-1.16/docs/ops/batch/batch_shuffle.md
 
 ### Checkpoints
 
@@ -219,30 +159,18 @@ you can set `taskmanager.network.memory.max-overdraft-buffers-per-gate` to zero.
 
 ##### [FLINK-28861](https://issues.apache.org/jira/browse/FLINK-28861)
 
-1.15.0 and 1.15.1 generated non-deterministic UIDs for operators that make it difficult/impossible
+1.15.0 and 1.15.1 generated non-deterministic UIDs for operators, which make it difficult/impossible
 to restore state or upgrade to next patch version. A new table.exec.uid.generation config option (with correct default behavior)
 disables setting a UID for new pipelines from non-compiled plans. Existing pipelines can set table.exec.uid.generation=ALWAYS
 if the 1.15.0/1 behavior was acceptable.
 
-#### Support recovery (from checkpoints) after disabling changelog backend
-
-##### [FLINK-23252](https://issues.apache.org/jira/browse/FLINK-23252)
-
-Added support for disabling changelog when recovering from checkpoints
-
 ### Python
-
-#### Update PyFlink to use the new type system
-
-##### [FLINK-25231](https://issues.apache.org/jira/browse/FLINK-25231)
-
-PyFlink now uses Flink's target data type system instead of the legacy data type system.
 
 #### Annotate Python3.6 as deprecated in PyFlink 1.16
 
 ##### [FLINK-28195](https://issues.apache.org/jira/browse/FLINK-28195)
 
-Python 3.6 extended support end on 23 December 2021. We plan that PyFlink 1.16 will be the last version support Python3.6.
+Python 3.6 extended support ended on 23 December 2021. We plan that PyFlink 1.16 will be the last version support Python3.6.
 
 ### Dependency upgrades
 
