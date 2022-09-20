@@ -715,17 +715,22 @@ public class HiveDialectQueryITCase {
                                     .replace("$filepath", testLoadCsvFilePath));
 
             // test load data into table
-            tableEnv.executeSql("insert into tab1 values (1, 1), (1, 2), (2, 1), (2, 2)").await();
+            tableEnv.executeSql("insert into tab1 values (1, 1), (1, 2)").await();
             tableEnv.executeSql(
                     String.format(
                             "load data local inpath '%s' INTO TABLE tab2", warehouse + "/tab1"));
             List<Row> result =
                     CollectionUtil.iteratorToList(
                             tableEnv.executeSql("select * from tab2").collect());
-            assertThat(result.toString()).isEqualTo("[+I[1, 1], +I[1, 2], +I[2, 1], +I[2, 2]]");
+            assertThat(result.toString()).isEqualTo("[+I[1, 1], +I[1, 2]]");
+            // there should still exist data in tab1
+            result =
+                    CollectionUtil.iteratorToList(
+                            tableEnv.executeSql("select * from tab1").collect());
+            assertThat(result.toString()).isEqualTo("[+I[1, 1], +I[1, 2]]");
 
             // test load data overwrite
-            tableEnv.executeSql("insert into tab1 values (2, 1), (2, 2)").await();
+            tableEnv.executeSql("insert overwrite table tab1 values (2, 1), (2, 2)").await();
             tableEnv.executeSql(
                     String.format(
                             "load data local inpath '%s' overwrite into table tab2",
@@ -741,6 +746,8 @@ public class HiveDialectQueryITCase {
                                     "load data inpath '%s' into table p_table partition (dateint=2022) ",
                                     testLoadCsvFilePath))
                     .await();
+            // the file should be removed
+            assertThat(new File(testLoadCsvFilePath).exists()).isFalse();
             result =
                     CollectionUtil.iteratorToList(
                             tableEnv.executeSql("select * from p_table where dateint=2022")
