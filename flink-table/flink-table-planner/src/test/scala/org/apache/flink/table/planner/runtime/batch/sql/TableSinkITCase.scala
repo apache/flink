@@ -125,6 +125,22 @@ class TableSinkITCase extends BatchTestBase {
     val expected = Seq("1,1,Hi", "2,2,Hello", "3,2,Hello world")
     val result = TableTestUtil.readFromFile(resultPath)
     Assertions.assertThat(result.sorted).isEqualTo(expected.sorted)
+
+    // test statement set
+    val statementSet = tEnv.createStatementSet()
+    val useStatementResultPath = BatchAbstractTestBase.TEMPORARY_FOLDER.newFolder().getAbsolutePath
+    statementSet.addInsertSql(s"""
+                                 |CREATE TABLE MyCtasTableUseStatement
+                                 | WITH (
+                                 |  'connector' = 'filesystem',
+                                 |  'format' = 'testcsv',
+                                 |  'path' = '$useStatementResultPath'
+                                 |) AS
+                                 | SELECT * FROM MyTable
+                                 |""".stripMargin)
+    statementSet.execute().await()
+    val useStatementResult = TableTestUtil.readFromFile(useStatementResultPath)
+    Assertions.assertThat(useStatementResult.sorted).isEqualTo(expected.sorted)
   }
 
   @Test

@@ -180,3 +180,56 @@ SELECT * FROM BatchTable;
 +----+-------------+
 7 rows in set
 !ok
+
+# test only to verify the test job id.
+SET '$internal.pipeline.job-id' = '84c7408a08c284d5736e50d3f5a648be';
+!output
++--------+
+| result |
++--------+
+|     OK |
++--------+
+1 row in set
+!ok
+
+CREATE TABLE CtasTable
+WITH (
+  'connector' = 'filesystem',
+  'path' = '$VAR_BATCH_CTAS_PATH',
+  'format' = 'csv'
+)
+AS SELECT * FROM (VALUES (1, 'Hello World'), (2, 'Hi'), (2, 'Hi'), (3, 'Hello'), (3, 'World'), (4, 'ADD'), (5, 'LINE')) T(id, str);
+!output
++----------------------------------+
+|                           job id |
++----------------------------------+
+| 84c7408a08c284d5736e50d3f5a648be |
++----------------------------------+
+1 row in set
+!ok
+
+RESET '$internal.pipeline.job-id';
+!output
++--------+
+| result |
++--------+
+|     OK |
++--------+
+1 row in set
+!ok
+
+SELECT * FROM CtasTable;
+!output
++----+-------------+
+| id |         str |
++----+-------------+
+|  1 | Hello World |
+|  2 |          Hi |
+|  2 |          Hi |
+|  3 |       Hello |
+|  3 |       World |
+|  4 |         ADD |
+|  5 |        LINE |
++----+-------------+
+7 rows in set
+!ok

@@ -100,6 +100,30 @@ public class CompiledPlanITCase extends JsonPlanTestBase {
     }
 
     @Test
+    public void testExecuteCtasPlanSql() throws Exception {
+        createTestCsvSourceTable("src", DATA, COLUMNS_DEFINITION);
+
+        File sinkPath = TEMPORARY_FOLDER.newFolder();
+        assertThatThrownBy(
+                        () ->
+                                tableEnv.compilePlanSql(
+                                                String.format(
+                                                        "CREATE TABLE sink\n"
+                                                                + "WITH (\n"
+                                                                + "  'connector' = 'filesystem',\n"
+                                                                + "  'format' = 'testcsv',\n"
+                                                                + "  'path' = '%s'\n"
+                                                                + ") AS SELECT * FROM src",
+                                                        sinkPath.getAbsolutePath()))
+                                        .execute())
+                .satisfies(
+                        anyCauseMatches(
+                                TableException.class,
+                                "Unsupported SQL query! compilePlanSql() only accepts a single SQL statement"
+                                        + " of type INSERT"));
+    }
+
+    @Test
     public void testExecutePlanTable() throws Exception {
         File sinkPath = createSourceSinkTables();
 
