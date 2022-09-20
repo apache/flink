@@ -42,8 +42,8 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * Contains key, value projection and format information, and use such information to create a
- * {@link PulsarTableDeserializationSchema} instance
- * used by runtime {@link org.apache.flink.connector.pulsar.source.PulsarSource} instance.
+ * {@link PulsarTableDeserializationSchema} instance used by runtime {@link
+ * org.apache.flink.connector.pulsar.source.PulsarSource} instance.
  *
  * <p>A Flink row fields has a strict order: Physical Fields (Key + value) + Format Metadata Fields
  * Connector Metadata Fields. Physical Fields are fields come directly from Pulsar message body;

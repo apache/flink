@@ -27,7 +27,6 @@ import org.apache.flink.connector.pulsar.sink.writer.router.TopicRoutingMode;
 import org.apache.flink.connector.pulsar.source.PulsarSource;
 import org.apache.flink.connector.pulsar.source.enumerator.cursor.StartCursor;
 import org.apache.flink.connector.pulsar.source.enumerator.cursor.StopCursor;
-import org.apache.flink.connector.pulsar.table.PulsarTableFactory;
 import org.apache.flink.connector.pulsar.table.sink.PulsarTableSerializationSchemaFactory;
 import org.apache.flink.connector.pulsar.table.sink.PulsarTableSink;
 import org.apache.flink.connector.pulsar.table.source.PulsarTableDeserializationSchemaFactory;
@@ -77,9 +76,10 @@ import static org.apache.flink.table.factories.utils.FactoryMocks.createTableSou
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * This test aims to verify that {@link PulsarTableFactory} can consume proper config options and
- * produce expected {@link PulsarTableSource} and {@link PulsarTableSink}. It guarantees that config
- * options is used internally by the implementation classes.
+ * This test aims to verify that {@link org.apache.flink.connector.pulsar.table.PulsarTableFactory}
+ * can consume proper config options and produce expected {@link PulsarTableSource} and {@link
+ * PulsarTableSink}. It guarantees that config options is used internally by the implementation
+ * classes.
  */
 public class PulsarTableFactoryTest {
     private static final String TEST_TOPIC = "test-topic";
