@@ -325,6 +325,8 @@ under the License.
 									<include>org.reactivestreams:*</include>
 									<include>io.netty:*</include>
 									<include>com.typesafe.netty:*</include>
+									<include>com.fasterxml.jackson.core:*</include>
+									<include>com.fasterxml.jackson.dataformat:*</include>
 								</includes>
 							</artifactSet>
 							<relocations combine.children="override">
@@ -365,6 +367,10 @@ under the License.
 								<relocation>
 									<pattern>org.reactivestreams</pattern>
 									<shadedPattern>org.apache.flink.kinesis.shaded.org.reactivestreams</shadedPattern>
+								</relocation>
+								<relocation>
+									<pattern>com.fasterxml.jackson</pattern>
+									<shadedPattern>org.apache.flink.kinesis.shaded.com.fasterxml.jackson</shadedPattern>
 								</relocation>
 							</relocations>
 							<filters>

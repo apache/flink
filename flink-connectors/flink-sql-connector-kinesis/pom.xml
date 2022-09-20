@@ -69,10 +69,6 @@ under the License.
 								<includes>
 									<include>org.apache.flink:flink-connector-base</include>
 									<include>org.apache.flink:flink-connector-kinesis</include>
-									<include>com.fasterxml.jackson.core:jackson-core</include>
-									<include>com.fasterxml.jackson.core:jackson-databind</include>
-									<include>com.fasterxml.jackson.core:jackson-annotations</include>
-									<include>com.fasterxml.jackson.dataformat:jackson-dataformat-cbor</include>
 									<include>joda-time:joda-time</include>
 									<include>commons-codec:commons-codec</include>
 									<include>commons-io:commons-io</include>
@@ -95,10 +91,6 @@ under the License.
 								</filter>
 							</filters>
 							<relocations>
-								<relocation>
-									<pattern>com.fasterxml.jackson</pattern>
-									<shadedPattern>org.apache.flink.kinesis.shaded.com.fasterxml.jackson</shadedPattern>
-								</relocation>
 								<relocation>
 									<pattern>org.apache.commons</pattern>
 									<shadedPattern>org.apache.flink.kinesis.shaded.org.apache.commons</shadedPattern>
