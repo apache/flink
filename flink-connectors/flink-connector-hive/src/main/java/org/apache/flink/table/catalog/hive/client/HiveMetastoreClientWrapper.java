@@ -27,7 +27,6 @@ import org.apache.flink.util.Preconditions;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hive.conf.HiveConf;
-import org.apache.hadoop.hive.metastore.HiveMetaStoreClient;
 import org.apache.hadoop.hive.metastore.IMetaStoreClient;
 import org.apache.hadoop.hive.metastore.api.AlreadyExistsException;
 import org.apache.hadoop.hive.metastore.api.ColumnStatistics;
@@ -70,7 +69,6 @@ public class HiveMetastoreClientWrapper implements AutoCloseable {
 
     private static final Logger LOG = LoggerFactory.getLogger(HiveMetastoreClientWrapper.class);
 
-    private final IMetaStoreClient client;
     private final HiveConf hiveConf;
     private final HiveShim hiveShim;
     private volatile Hive hive;
@@ -82,81 +80,76 @@ public class HiveMetastoreClientWrapper implements AutoCloseable {
     public HiveMetastoreClientWrapper(HiveConf hiveConf, HiveShim hiveShim) {
         this.hiveConf = Preconditions.checkNotNull(hiveConf, "HiveConf cannot be null");
         this.hiveShim = hiveShim;
-        // use synchronized client in case we're talking to a remote HMS
-        client =
-                HiveCatalog.isEmbeddedMetastore(hiveConf)
-                        ? createMetastoreClient()
-                        : HiveMetaStoreClient.newSynchronizedClient(createMetastoreClient());
     }
 
     @Override
     public void close() {
-        client.close();
+        getClient().close();
     }
 
     public List<String> getDatabases(String pattern) throws MetaException, TException {
-        return client.getDatabases(pattern);
+        return getClient().getDatabases(pattern);
     }
 
     public List<String> getAllDatabases() throws MetaException, TException {
-        return client.getAllDatabases();
+        return getClient().getAllDatabases();
     }
 
     public List<String> getAllTables(String databaseName)
             throws MetaException, TException, UnknownDBException {
-        return client.getAllTables(databaseName);
+        return getClient().getAllTables(databaseName);
     }
 
     public void dropTable(String databaseName, String tableName)
             throws MetaException, TException, NoSuchObjectException {
-        client.dropTable(databaseName, tableName);
+        getClient().dropTable(databaseName, tableName);
     }
 
     public void dropTable(
             String dbName, String tableName, boolean deleteData, boolean ignoreUnknownTable)
             throws MetaException, NoSuchObjectException, TException {
-        client.dropTable(dbName, tableName, deleteData, ignoreUnknownTable);
+        getClient().dropTable(dbName, tableName, deleteData, ignoreUnknownTable);
     }
 
     public boolean tableExists(String databaseName, String tableName)
             throws MetaException, TException, UnknownDBException {
-        return client.tableExists(databaseName, tableName);
+        return getClient().tableExists(databaseName, tableName);
     }
 
     public Database getDatabase(String name)
             throws NoSuchObjectException, MetaException, TException {
-        return client.getDatabase(name);
+        return getClient().getDatabase(name);
     }
 
     public Table getTable(String databaseName, String tableName)
             throws MetaException, NoSuchObjectException, TException {
-        return client.getTable(databaseName, tableName);
+        return getClient().getTable(databaseName, tableName);
     }
 
     public Partition add_partition(Partition partition)
             throws InvalidObjectException, AlreadyExistsException, MetaException, TException {
-        return client.add_partition(partition);
+        return getClient().add_partition(partition);
     }
 
     public int add_partitions(List<Partition> partitionList)
             throws InvalidObjectException, AlreadyExistsException, MetaException, TException {
-        return client.add_partitions(partitionList);
+        return getClient().add_partitions(partitionList);
     }
 
     public Partition getPartition(String databaseName, String tableName, List<String> list)
             throws NoSuchObjectException, MetaException, TException {
-        return client.getPartition(databaseName, tableName, list);
+        return getClient().getPartition(databaseName, tableName, list);
     }
 
     public List<Partition> getPartitionsByNames(
             String databaseName, String tableName, List<String> partitionNames) throws TException {
-        return client.getPartitionsByNames(databaseName, tableName, partitionNames);
+        return getClient().getPartitionsByNames(databaseName, tableName, partitionNames);
     }
 
     public List<String> listPartitionNames(
             String databaseName, String tableName, short maxPartitions)
             throws MetaException, TException {
-        return client.listPartitionNames(databaseName, tableName, maxPartitions);
+        return getClient().listPartitionNames(databaseName, tableName, maxPartitions);
     }
 
     public List<String> listPartitionNames(
@@ -165,40 +158,41 @@ public class HiveMetastoreClientWrapper implements AutoCloseable {
             List<String> partitionValues,
             short maxPartitions)
             throws MetaException, TException, NoSuchObjectException {
-        return client.listPartitionNames(databaseName, tableName, partitionValues, maxPartitions);
+        return getClient()
+                .listPartitionNames(databaseName, tableName, partitionValues, maxPartitions);
     }
 
     public void createTable(Table table)
             throws AlreadyExistsException, InvalidObjectException, MetaException,
                     NoSuchObjectException, TException {
-        client.createTable(table);
+        getClient().createTable(table);
     }
 
     public void createDatabase(Database database)
             throws InvalidObjectException, AlreadyExistsException, MetaException, TException {
-        client.createDatabase(database);
+        getClient().createDatabase(database);
     }
 
     public void dropDatabase(String name, boolean deleteData, boolean ignoreIfNotExists)
             throws NoSuchObjectException, InvalidOperationException, MetaException, TException {
-        client.dropDatabase(name, deleteData, ignoreIfNotExists);
+        getClient().dropDatabase(name, deleteData, ignoreIfNotExists);
     }
 
     public void dropDatabase(
             String name, boolean deleteData, boolean ignoreIfNotExists, boolean cascade)
             throws NoSuchObjectException, InvalidOperationException, MetaException, TException {
-        client.dropDatabase(name, deleteData, ignoreIfNotExists, cascade);
+        getClient().dropDatabase(name, deleteData, ignoreIfNotExists, cascade);
     }
 
     public void alterDatabase(String name, Database database)
             throws NoSuchObjectException, MetaException, TException {
-        client.alterDatabase(name, database);
+        getClient().alterDatabase(name, database);
     }
 
     public boolean dropPartition(
             String databaseName, String tableName, List<String> partitionValues, boolean deleteData)
             throws NoSuchObjectException, MetaException, TException {
-        return client.dropPartition(databaseName, tableName, partitionValues, deleteData);
+        return getClient().dropPartition(databaseName, tableName, partitionValues, deleteData);
     }
 
     public void renamePartition(
@@ -207,85 +201,81 @@ public class HiveMetastoreClientWrapper implements AutoCloseable {
             List<String> partitionValues,
             Partition partition)
             throws InvalidOperationException, MetaException, TException {
-        client.renamePartition(databaseName, tableName, partitionValues, partition);
+        getClient().renamePartition(databaseName, tableName, partitionValues, partition);
     }
 
     public void createFunction(Function function)
             throws InvalidObjectException, MetaException, TException {
-        client.createFunction(function);
+        getClient().createFunction(function);
     }
 
     public void alterFunction(String databaseName, String functionName, Function function)
             throws InvalidObjectException, MetaException, TException {
-        client.alterFunction(databaseName, functionName, function);
+        getClient().alterFunction(databaseName, functionName, function);
     }
 
     public void dropFunction(String databaseName, String functionName)
             throws MetaException, NoSuchObjectException, InvalidObjectException,
                     InvalidInputException, TException {
-        client.dropFunction(databaseName, functionName);
+        getClient().dropFunction(databaseName, functionName);
     }
 
     public List<String> getFunctions(String databaseName, String pattern)
             throws MetaException, TException {
-        return client.getFunctions(databaseName, pattern);
+        return getClient().getFunctions(databaseName, pattern);
     }
 
     public List<ColumnStatisticsObj> getTableColumnStatistics(
             String databaseName, String tableName, List<String> columnNames)
             throws NoSuchObjectException, MetaException, TException {
-        return client.getTableColumnStatistics(databaseName, tableName, columnNames);
+        return getClient().getTableColumnStatistics(databaseName, tableName, columnNames);
     }
 
     public Map<String, List<ColumnStatisticsObj>> getPartitionColumnStatistics(
             String dbName, String tableName, List<String> partNames, List<String> colNames)
             throws NoSuchObjectException, MetaException, TException {
-        return client.getPartitionColumnStatistics(dbName, tableName, partNames, colNames);
+        return getClient().getPartitionColumnStatistics(dbName, tableName, partNames, colNames);
     }
 
     public boolean updateTableColumnStatistics(ColumnStatistics columnStatistics)
             throws NoSuchObjectException, InvalidObjectException, MetaException, TException,
                     InvalidInputException {
-        return client.updateTableColumnStatistics(columnStatistics);
+        return getClient().updateTableColumnStatistics(columnStatistics);
     }
 
     public boolean updatePartitionColumnStatistics(ColumnStatistics columnStatistics)
             throws NoSuchObjectException, InvalidObjectException, MetaException, TException,
                     InvalidInputException {
-        return client.updatePartitionColumnStatistics(columnStatistics);
+        return getClient().updatePartitionColumnStatistics(columnStatistics);
     }
 
     public List<Partition> listPartitions(
             String dbName, String tblName, List<String> partVals, short max) throws TException {
-        return client.listPartitions(dbName, tblName, partVals, max);
+        return getClient().listPartitions(dbName, tblName, partVals, max);
     }
 
     public List<Partition> listPartitions(String dbName, String tblName, short max)
             throws TException {
-        return client.listPartitions(dbName, tblName, max);
+        return getClient().listPartitions(dbName, tblName, max);
     }
 
     public PartitionSpecProxy listPartitionSpecsByFilter(
             String dbName, String tblName, String filter, short max) throws TException {
-        return client.listPartitionSpecsByFilter(dbName, tblName, filter, max);
+        return getClient().listPartitionSpecsByFilter(dbName, tblName, filter, max);
     }
 
     // -------- Start of shimmed methods ----------
 
     public Set<String> getNotNullColumns(Configuration conf, String dbName, String tableName) {
-        return hiveShim.getNotNullColumns(client, conf, dbName, tableName);
+        return hiveShim.getNotNullColumns(getClient(), conf, dbName, tableName);
     }
 
     public Optional<UniqueConstraint> getPrimaryKey(String dbName, String tableName, byte trait) {
-        return hiveShim.getPrimaryKey(client, dbName, tableName, trait);
+        return hiveShim.getPrimaryKey(getClient(), dbName, tableName, trait);
     }
 
     public List<String> getViews(String databaseName) throws UnknownDBException, TException {
-        return hiveShim.getViews(client, databaseName);
-    }
-
-    private IMetaStoreClient createMetastoreClient() {
-        return hiveShim.getHiveMetastoreClient(hiveConf);
+        return hiveShim.getViews(getClient(), databaseName);
     }
 
     public Function getFunction(String databaseName, String functionName)
@@ -293,7 +283,7 @@ public class HiveMetastoreClientWrapper implements AutoCloseable {
         try {
             // Hive may not throw NoSuchObjectException if function doesn't exist, instead it throws
             // a MetaException
-            return client.getFunction(databaseName, functionName);
+            return getClient().getFunction(databaseName, functionName);
         } catch (MetaException e) {
             // need to check the cause and message of this MetaException to decide whether it should
             // actually be a NoSuchObjectException
@@ -309,12 +299,12 @@ public class HiveMetastoreClientWrapper implements AutoCloseable {
 
     public void alter_table(String databaseName, String tableName, Table table)
             throws InvalidOperationException, MetaException, TException {
-        hiveShim.alterTable(client, databaseName, tableName, table);
+        hiveShim.alterTable(getClient(), databaseName, tableName, table);
     }
 
     public void alter_partition(String databaseName, String tableName, Partition partition)
             throws InvalidOperationException, MetaException, TException {
-        hiveShim.alterPartition(client, databaseName, tableName, partition);
+        hiveShim.alterPartition(getClient(), databaseName, tableName, partition);
     }
 
     public void createTableWithConstraints(
@@ -325,21 +315,21 @@ public class HiveMetastoreClientWrapper implements AutoCloseable {
             List<String> notNullCols,
             List<Byte> nnTraits) {
         hiveShim.createTableWithConstraints(
-                client, table, conf, pk, pkTraits, notNullCols, nnTraits);
+                getClient(), table, conf, pk, pkTraits, notNullCols, nnTraits);
     }
 
     public LockResponse checkLock(long lockid)
             throws NoSuchTxnException, TxnAbortedException, NoSuchLockException, TException {
-        return client.checkLock(lockid);
+        return getClient().checkLock(lockid);
     }
 
     public LockResponse lock(LockRequest request)
             throws NoSuchTxnException, TxnAbortedException, TException {
-        return client.lock(request);
+        return getClient().lock(request);
     }
 
     public void unlock(long lockid) throws NoSuchLockException, TxnOpenException, TException {
-        client.unlock(lockid);
+        getClient().unlock(lockid);
     }
 
     public void loadTable(Path loadPath, String tableName, boolean replace, boolean isSrcLocal)
@@ -371,6 +361,25 @@ public class HiveMetastoreClientWrapper implements AutoCloseable {
                     }
                 }
             }
+        }
+    }
+
+    private void updateHive() {
+        synchronized (this) {
+            try {
+                hive = Hive.get(hiveConf);
+            } catch (HiveException e) {
+                throw new FlinkHiveException(e);
+            }
+        }
+    }
+
+    private IMetaStoreClient getClient() {
+        try {
+            updateHive();
+            return hive.getMSC(HiveCatalog.isEmbeddedMetastore(hiveConf), false);
+        } catch (MetaException e) {
+            throw new FlinkHiveException("Cannot get hive metastore client.", e);
         }
     }
 }
