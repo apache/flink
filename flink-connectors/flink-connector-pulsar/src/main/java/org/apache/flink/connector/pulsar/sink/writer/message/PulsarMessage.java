@@ -37,6 +37,7 @@ public class PulsarMessage<T> {
 
     @Nullable private final byte[] orderingKey;
     @Nullable private final String key;
+    @Nullable private final byte[] keyBytes;
     private final long eventTime;
     private final Schema<T> schema;
     @Nullable private final T value;
@@ -49,6 +50,7 @@ public class PulsarMessage<T> {
     PulsarMessage(
             @Nullable byte[] orderingKey,
             @Nullable String key,
+            @Nullable byte[] keyBytes,
             long eventTime,
             Schema<T> schema,
             @Nullable T value,
@@ -58,6 +60,7 @@ public class PulsarMessage<T> {
             boolean disableReplication) {
         this.orderingKey = orderingKey;
         this.key = key;
+        this.keyBytes = keyBytes;
         this.eventTime = eventTime;
         this.schema = schema;
         this.value = value;
@@ -75,6 +78,11 @@ public class PulsarMessage<T> {
     @Nullable
     public String getKey() {
         return key;
+    }
+
+    @Nullable
+    public byte[] getKeyBytes() {
+        return keyBytes;
     }
 
     public long getEventTime() {

@@ -36,6 +36,7 @@ public class PulsarMessageBuilder<T> {
 
     private byte[] orderingKey;
     private String key;
+    private byte[] keyBytes;
     private long eventTime;
     Schema<T> schema;
     private T value;
@@ -57,6 +58,15 @@ public class PulsarMessageBuilder<T> {
     public PulsarMessageBuilder<T> key(String key) {
         this.key = checkNotNull(key);
         return this;
+    }
+
+    /**
+     * Property {@link TypedMessageBuilder#keyBytes(byte[])}. This property would also be used in
+     * {@link KeyHashTopicRouter}.
+     */
+    public PulsarMessageBuilder<T> keyBytes(byte[] keyBytes) {
+        this.keyBytes = checkNotNull(keyBytes);
+        return null;
     }
 
     /** Method wrapper of {@link TypedMessageBuilder#eventTime(long)}. */
@@ -116,6 +126,7 @@ public class PulsarMessageBuilder<T> {
         return new PulsarMessage<>(
                 orderingKey,
                 key,
+                keyBytes,
                 eventTime,
                 schema,
                 value,
