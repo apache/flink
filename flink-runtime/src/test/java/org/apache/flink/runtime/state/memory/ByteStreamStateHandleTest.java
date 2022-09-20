@@ -172,4 +172,15 @@ public class ByteStreamStateHandleTest {
             // expected
         }
     }
+
+    @Test
+    public void testStreamWithEmptyByteArray() throws IOException {
+        final byte[] data = new byte[0];
+        final ByteStreamStateHandle handle = new ByteStreamStateHandle("name", data);
+
+        FSDataInputStream in = handle.openInputStream();
+        in.seek(0);
+        byte[] dataGot = new byte[1];
+        assertEquals(0, in.read(dataGot, 0, 0));
+    }
 }
