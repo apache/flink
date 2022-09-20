@@ -148,7 +148,7 @@ public class ByteStreamStateHandle implements StreamStateHandle {
                 index += bytesToCopy;
                 return bytesToCopy;
             } else {
-                return -1;
+                return len == 0 ? 0 : -1;
             }
         }
     }
