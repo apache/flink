@@ -1400,7 +1400,7 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
         } else if (operation instanceof CreateTableASOperation) {
             CreateTableASOperation createTableASOperation = (CreateTableASOperation) operation;
             executeInternal(createTableASOperation.getCreateTableOperation());
-            return executeInternal(createTableASOperation.toSinkModifyOperation(catalogManager));
+            return executeInternal(createTableASOperation.toSinkModifyOperation());
         } else if (operation instanceof ExecutePlanOperation) {
             ExecutePlanOperation executePlanOperation = (ExecutePlanOperation) operation;
             return (TableResultInternal)

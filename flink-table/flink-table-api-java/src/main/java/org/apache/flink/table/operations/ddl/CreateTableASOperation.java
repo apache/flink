@@ -19,7 +19,7 @@
 package org.apache.flink.table.operations.ddl;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.table.catalog.CatalogManager;
+import org.apache.flink.table.catalog.ContextResolvedTable;
 import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.OperationUtils;
 import org.apache.flink.table.operations.QueryOperation;
@@ -38,25 +38,28 @@ public class CreateTableASOperation implements CreateOperation {
     private final Map<String, String> sinkModifyStaticPartitions;
     private final QueryOperation sinkModifyQuery;
     private final boolean sinkModifyOverwrite;
+    private final ContextResolvedTable contextResolvedTable;
 
     public CreateTableASOperation(
             CreateTableOperation createTableOperation,
             Map<String, String> sinkModifyStaticPartitions,
             QueryOperation sinkModifyQuery,
-            boolean sinkModifyOverwrite) {
+            boolean sinkModifyOverwrite,
+            ContextResolvedTable contextResolvedTable) {
         this.createTableOperation = createTableOperation;
         this.sinkModifyStaticPartitions = sinkModifyStaticPartitions;
         this.sinkModifyQuery = sinkModifyQuery;
         this.sinkModifyOverwrite = sinkModifyOverwrite;
+        this.contextResolvedTable = contextResolvedTable;
     }
 
     public CreateTableOperation getCreateTableOperation() {
         return createTableOperation;
     }
 
-    public SinkModifyOperation toSinkModifyOperation(CatalogManager catalogManager) {
+    public SinkModifyOperation toSinkModifyOperation() {
         return new SinkModifyOperation(
-                catalogManager.getTableOrError(createTableOperation.getTableIdentifier()),
+                contextResolvedTable,
                 sinkModifyQuery,
                 sinkModifyStaticPartitions,
                 sinkModifyOverwrite,
@@ -66,7 +69,7 @@ public class CreateTableASOperation implements CreateOperation {
     @Override
     public String asSummaryString() {
         Map<String, Object> params = new LinkedHashMap<>();
-        params.put("catalogTable", getCreateTableOperation().getCatalogTable().toProperties());
+        params.put("catalogTable", getCreateTableOperation().getCatalogTable());
         params.put("identifier", getCreateTableOperation().getTableIdentifier());
         params.put("ignoreIfExists", getCreateTableOperation().isIgnoreIfExists());
         params.put("isTemporary", getCreateTableOperation().isTemporary());

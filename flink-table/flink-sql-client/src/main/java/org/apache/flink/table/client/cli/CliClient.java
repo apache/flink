@@ -49,6 +49,7 @@ import org.apache.flink.table.operations.command.ResetOperation;
 import org.apache.flink.table.operations.command.SetOperation;
 import org.apache.flink.table.operations.ddl.AlterOperation;
 import org.apache.flink.table.operations.ddl.CreateOperation;
+import org.apache.flink.table.operations.ddl.CreateTableASOperation;
 import org.apache.flink.table.operations.ddl.DropOperation;
 import org.apache.flink.table.utils.EncodingUtils;
 import org.apache.flink.table.utils.print.PrintStyle;
@@ -463,6 +464,12 @@ public class CliClient implements AutoCloseable {
         } else if (operation instanceof ShowCreateViewOperation) {
             // SHOW CREATE VIEW
             callShowCreateView((ShowCreateViewOperation) operation);
+        } else if (operation instanceof CreateTableASOperation) {
+            CreateTableASOperation createTableASOperation = (CreateTableASOperation) operation;
+            // CREATE TABLE
+            callOperation(createTableASOperation.getCreateTableOperation(), mode);
+            // INSERT
+            callOperation(createTableASOperation.toSinkModifyOperation(), mode);
         } else {
             // fallback to default implementation
             executeOperation(operation);
