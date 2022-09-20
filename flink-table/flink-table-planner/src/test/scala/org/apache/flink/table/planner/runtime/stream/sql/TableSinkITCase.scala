@@ -280,6 +280,23 @@ class TableSinkITCase(mode: StateBackendMode) extends StreamingWithStateTestBase
       "+I[jason, 1]"
     )
     Assertions.assertThat(actual.sorted).isEqualTo(expected.sorted)
+    // test statement set
+    val statementSet = tEnv.createStatementSet()
+    statementSet.addInsertSql("""
+                                |CREATE TABLE MyCtasTableUseStatement
+                                | WITH (
+                                |   'connector' = 'values',
+                                |   'sink-insert-only' = 'true'
+                                |) AS
+                                |  SELECT
+                                |    `person`,
+                                |    `votes`
+                                |  FROM
+                                |    src
+                                |""".stripMargin)
+    statementSet.execute().await()
+    val actualUseStatement = TestValuesTableFactory.getResults("MyCtasTableUseStatement")
+    Assertions.assertThat(actualUseStatement.sorted).isEqualTo(expected.sorted)
   }
 
   @Test

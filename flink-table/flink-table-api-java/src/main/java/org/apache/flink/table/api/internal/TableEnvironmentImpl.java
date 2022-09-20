@@ -90,6 +90,7 @@ import org.apache.flink.table.module.ModuleEntry;
 import org.apache.flink.table.module.ModuleManager;
 import org.apache.flink.table.operations.CollectModifyOperation;
 import org.apache.flink.table.operations.CompileAndExecutePlanOperation;
+import org.apache.flink.table.operations.CreateTableASOperation;
 import org.apache.flink.table.operations.DescribeTableOperation;
 import org.apache.flink.table.operations.ExplainOperation;
 import org.apache.flink.table.operations.LoadModuleOperation;
@@ -139,7 +140,6 @@ import org.apache.flink.table.operations.ddl.CompilePlanOperation;
 import org.apache.flink.table.operations.ddl.CreateCatalogFunctionOperation;
 import org.apache.flink.table.operations.ddl.CreateCatalogOperation;
 import org.apache.flink.table.operations.ddl.CreateDatabaseOperation;
-import org.apache.flink.table.operations.ddl.CreateTableASOperation;
 import org.apache.flink.table.operations.ddl.CreateTableOperation;
 import org.apache.flink.table.operations.ddl.CreateTempSystemFunctionOperation;
 import org.apache.flink.table.operations.ddl.CreateViewOperation;
@@ -779,7 +779,9 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
     public CompiledPlan compilePlanSql(String stmt) {
         List<Operation> operations = getParser().parse(stmt);
 
-        if (operations.size() != 1 || !(operations.get(0) instanceof ModifyOperation)) {
+        if (operations.size() != 1
+                || !(operations.get(0) instanceof ModifyOperation)
+                || operations.get(0) instanceof CreateTableASOperation) {
             throw new TableException(UNSUPPORTED_QUERY_IN_COMPILE_PLAN_SQL_MSG);
         }
 
@@ -839,8 +841,20 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
 
     @Override
     public TableResultInternal executeInternal(List<ModifyOperation> operations) {
-        List<Transformation<?>> transformations = translate(operations);
-        List<String> sinkIdentifierNames = extractSinkIdentifierNames(operations);
+        List<ModifyOperation> mapOperations = new ArrayList<>();
+        for (ModifyOperation modify : operations) {
+            // execute CREATE TABLE first for CTAS statements
+            if (modify instanceof CreateTableASOperation) {
+                CreateTableASOperation ctasOperation = (CreateTableASOperation) modify;
+                executeInternal(ctasOperation.getCreateTableOperation());
+                mapOperations.add(ctasOperation.toSinkModifyOperation(catalogManager));
+            } else {
+                mapOperations.add(modify);
+            }
+        }
+
+        List<Transformation<?>> transformations = translate(mapOperations);
+        List<String> sinkIdentifierNames = extractSinkIdentifierNames(mapOperations);
         TableResultInternal result = executeInternal(transformations, sinkIdentifierNames);
         if (tableConfig.get(TABLE_DML_SYNC)) {
             try {
@@ -1397,10 +1411,6 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
             }
         } else if (operation instanceof QueryOperation) {
             return executeQueryOperation((QueryOperation) operation);
-        } else if (operation instanceof CreateTableASOperation) {
-            CreateTableASOperation createTableASOperation = (CreateTableASOperation) operation;
-            executeInternal(createTableASOperation.getCreateTableOperation());
-            return executeInternal(createTableASOperation.toSinkModifyOperation(catalogManager));
         } else if (operation instanceof ExecutePlanOperation) {
             ExecutePlanOperation executePlanOperation = (ExecutePlanOperation) operation;
             return (TableResultInternal)
