@@ -62,8 +62,8 @@ public class JobMasterPartitionTrackerImpl
 
     private final PartitionTrackerFactory.TaskExecutorGatewayLookup taskExecutorGatewayLookup;
     private ResourceManagerGateway resourceManagerGateway;
-    private final Map<IntermediateDataSetID, List<ShuffleDescriptor>>
-            clusterPartitionShuffleDescriptors;
+    private final Map<IntermediateDataSetID, CompletableFuture<List<ShuffleDescriptor>>>
+            clusterPartitionShuffleDescriptorFutures;
 
     public JobMasterPartitionTrackerImpl(
             JobID jobId,
@@ -73,7 +73,7 @@ public class JobMasterPartitionTrackerImpl
         this.jobId = Preconditions.checkNotNull(jobId);
         this.shuffleMaster = Preconditions.checkNotNull(shuffleMaster);
         this.taskExecutorGatewayLookup = taskExecutorGatewayLookup;
-        this.clusterPartitionShuffleDescriptors = new HashMap<>();
+        this.clusterPartitionShuffleDescriptorFutures = new HashMap<>();
     }
 
     @Override
@@ -141,20 +141,19 @@ public class JobMasterPartitionTrackerImpl
     }
 
     @Override
-    public List<ShuffleDescriptor> getClusterPartitionShuffleDescriptors(
+    public CompletableFuture<List<ShuffleDescriptor>> getClusterPartitionShuffleDescriptors(
             IntermediateDataSetID intermediateDataSetID) {
-        return clusterPartitionShuffleDescriptors.computeIfAbsent(
+        return clusterPartitionShuffleDescriptorFutures.computeIfAbsent(
                 intermediateDataSetID, this::requestShuffleDescriptorsFromResourceManager);
     }
 
-    private List<ShuffleDescriptor> requestShuffleDescriptorsFromResourceManager(
+    private CompletableFuture<List<ShuffleDescriptor>> requestShuffleDescriptorsFromResourceManager(
             IntermediateDataSetID intermediateDataSetID) {
         Preconditions.checkNotNull(
                 resourceManagerGateway, "JobMaster is not connected to ResourceManager");
         try {
-            return this.resourceManagerGateway
-                    .getClusterPartitionsShuffleDescriptors(intermediateDataSetID)
-                    .get();
+            return this.resourceManagerGateway.getClusterPartitionsShuffleDescriptors(
+                    intermediateDataSetID);
         } catch (Throwable e) {
             throw new RuntimeException(
                     String.format(

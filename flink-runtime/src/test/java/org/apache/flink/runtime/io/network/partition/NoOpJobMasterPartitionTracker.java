@@ -65,9 +65,9 @@ public class NoOpJobMasterPartitionTracker implements JobMasterPartitionTracker 
     public void connectToResourceManager(ResourceManagerGateway resourceManagerGateway) {}
 
     @Override
-    public List<ShuffleDescriptor> getClusterPartitionShuffleDescriptors(
+    public CompletableFuture<List<ShuffleDescriptor>> getClusterPartitionShuffleDescriptors(
             IntermediateDataSetID intermediateDataSetID) {
-        return Collections.emptyList();
+        return CompletableFuture.completedFuture(Collections.emptyList());
     }
 
     @Override

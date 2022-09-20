@@ -38,6 +38,7 @@ import org.apache.flink.util.SerializedValue;
 import javax.annotation.Nonnull;
 
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 
 /**
@@ -118,6 +119,6 @@ public interface InternalExecutionGraphAccessor {
     ExecutionGraphID getExecutionGraphID();
 
     /** Get the shuffle descriptors of the cluster partitions ordered by partition number. */
-    List<ShuffleDescriptor> getClusterPartitionShuffleDescriptors(
+    CompletableFuture<List<ShuffleDescriptor>> getClusterPartitionShuffleDescriptors(
             IntermediateDataSetID intermediateResultPartition);
 }

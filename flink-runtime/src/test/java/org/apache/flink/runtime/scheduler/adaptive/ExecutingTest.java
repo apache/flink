@@ -1025,7 +1025,7 @@ public class ExecutingTest extends TestLogger {
         }
 
         @Override
-        public List<ShuffleDescriptor> getClusterPartitionShuffleDescriptors(
+        public CompletableFuture<List<ShuffleDescriptor>> getClusterPartitionShuffleDescriptors(
                 IntermediateDataSetID intermediateResultPartition) {
             throw new UnsupportedOperationException(
                     "This method is not supported by the MockInternalExecutionGraphAccessor.");

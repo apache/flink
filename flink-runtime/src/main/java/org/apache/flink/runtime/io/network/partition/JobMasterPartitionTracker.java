@@ -88,6 +88,6 @@ public interface JobMasterPartitionTracker
     void connectToResourceManager(ResourceManagerGateway resourceManagerGateway);
 
     /** Get the shuffle descriptors of the cluster partitions ordered by partition number. */
-    List<ShuffleDescriptor> getClusterPartitionShuffleDescriptors(
+    CompletableFuture<List<ShuffleDescriptor>> getClusterPartitionShuffleDescriptors(
             IntermediateDataSetID intermediateDataSetID);
 }

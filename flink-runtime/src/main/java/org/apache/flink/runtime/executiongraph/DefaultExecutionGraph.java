@@ -1680,7 +1680,7 @@ public class DefaultExecutionGraph implements ExecutionGraph, InternalExecutionG
     }
 
     @Override
-    public List<ShuffleDescriptor> getClusterPartitionShuffleDescriptors(
+    public CompletableFuture<List<ShuffleDescriptor>> getClusterPartitionShuffleDescriptors(
             IntermediateDataSetID intermediateDataSetID) {
         return partitionTracker.getClusterPartitionShuffleDescriptors(intermediateDataSetID);
     }

@@ -54,6 +54,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ScheduledExecutorService;
 
 import static org.hamcrest.CoreMatchers.is;
@@ -162,10 +163,12 @@ public class TaskDeploymentDescriptorFactoryTest extends TestLogger {
     }
 
     private static TaskDeploymentDescriptor createTaskDeploymentDescriptor(ExecutionVertex ev)
-            throws IOException, ClusterDatasetCorruptedException {
+            throws IOException, ClusterDatasetCorruptedException, ExecutionException,
+                    InterruptedException {
 
         return TaskDeploymentDescriptorFactory.fromExecution(ev.getCurrentExecutionAttempt())
-                .createDeploymentDescriptor(new AllocationID(), null, Collections.emptyList());
+                .createDeploymentDescriptor(new AllocationID(), null, Collections.emptyList())
+                .get();
     }
 
     public static ShuffleDescriptor[] deserializeShuffleDescriptors(

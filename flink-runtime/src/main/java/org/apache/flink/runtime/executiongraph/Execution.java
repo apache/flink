@@ -567,7 +567,7 @@ public class Execution
                     getAssignedResourceLocation(),
                     slot.getAllocationId());
 
-            final TaskDeploymentDescriptor deployment =
+            final CompletableFuture<TaskDeploymentDescriptor> deploymentFuture =
                     TaskDeploymentDescriptorFactory.fromExecution(this)
                             .createDeploymentDescriptor(
                                     slot.getAllocationId(),
@@ -586,8 +586,9 @@ public class Execution
             // We run the submission in the future executor so that the serialization of large TDDs
             // does not block
             // the main thread and sync back to the main thread once submission is completed.
-            CompletableFuture.supplyAsync(
-                            () -> taskManagerGateway.submitTask(deployment, rpcTimeout), executor)
+            deploymentFuture
+                    .thenApplyAsync(
+                            deploy -> taskManagerGateway.submitTask(deploy, rpcTimeout), executor)
                     .thenCompose(Function.identity())
                     .whenCompleteAsync(
                             (ack, failure) -> {

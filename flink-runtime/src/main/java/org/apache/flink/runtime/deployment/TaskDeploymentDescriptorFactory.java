@@ -47,6 +47,7 @@ import org.apache.flink.types.Either;
 import org.apache.flink.util.CompressedSerializedValue;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.SerializedValue;
+import org.apache.flink.util.concurrent.FutureUtils;
 
 import javax.annotation.Nullable;
 
@@ -57,6 +58,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
@@ -75,7 +77,7 @@ public class TaskDeploymentDescriptorFactory {
     private final Function<IntermediateResultPartitionID, IntermediateResultPartition>
             resultPartitionRetriever;
     private final BlobWriter blobWriter;
-    private final Map<IntermediateDataSetID, ShuffleDescriptor[]>
+    private final Map<IntermediateDataSetID, CompletableFuture<ShuffleDescriptor[]>>
             consumedClusterPartitionShuffleDescriptors;
 
     private TaskDeploymentDescriptorFactory(
@@ -88,7 +90,7 @@ public class TaskDeploymentDescriptorFactory {
             Function<IntermediateResultPartitionID, IntermediateResultPartition>
                     resultPartitionRetriever,
             BlobWriter blobWriter,
-            Map<IntermediateDataSetID, ShuffleDescriptor[]>
+            Map<IntermediateDataSetID, CompletableFuture<ShuffleDescriptor[]>>
                     consumedClusterPartitionShuffleDescriptors) {
         this.executionId = executionId;
         this.serializedJobInformation = serializedJobInformation;
@@ -102,25 +104,29 @@ public class TaskDeploymentDescriptorFactory {
                 consumedClusterPartitionShuffleDescriptors;
     }
 
-    public TaskDeploymentDescriptor createDeploymentDescriptor(
+    public CompletableFuture<TaskDeploymentDescriptor> createDeploymentDescriptor(
             AllocationID allocationID,
             @Nullable JobManagerTaskRestore taskRestore,
             Collection<ResultPartitionDeploymentDescriptor> producedPartitions)
             throws IOException {
-        return new TaskDeploymentDescriptor(
-                jobID,
-                serializedJobInformation,
-                taskInfo,
-                executionId,
-                allocationID,
-                taskRestore,
-                new ArrayList<>(producedPartitions),
-                createInputGateDeploymentDescriptors());
+
+        return FutureUtils.combineAll(createInputGateDeploymentDescriptors())
+                .thenApply(
+                        inputGateDeploymentDescriptors ->
+                                new TaskDeploymentDescriptor(
+                                        jobID,
+                                        serializedJobInformation,
+                                        taskInfo,
+                                        executionId,
+                                        allocationID,
+                                        taskRestore,
+                                        new ArrayList<>(producedPartitions),
+                                        new ArrayList<>(inputGateDeploymentDescriptors)));
     }
 
-    private List<InputGateDeploymentDescriptor> createInputGateDeploymentDescriptors()
-            throws IOException {
-        List<InputGateDeploymentDescriptor> inputGates =
+    private List<CompletableFuture<InputGateDeploymentDescriptor>>
+            createInputGateDeploymentDescriptors() throws IOException {
+        List<CompletableFuture<InputGateDeploymentDescriptor>> inputGatesFuture =
                 new ArrayList<>(consumedPartitionGroups.size());
 
         for (ConsumedPartitionGroup consumedPartitionGroup : consumedPartitionGroups) {
@@ -140,29 +146,40 @@ public class TaskDeploymentDescriptorFactory {
             IntermediateDataSetID resultId = consumedIntermediateResult.getId();
             ResultPartitionType partitionType = consumedIntermediateResult.getResultType();
 
-            inputGates.add(
-                    new InputGateDeploymentDescriptor(
-                            resultId,
-                            partitionType,
-                            consumedSubpartitionRange,
-                            getConsumedPartitionShuffleDescriptors(
-                                    consumedIntermediateResult, consumedPartitionGroup)));
+            inputGatesFuture.add(
+                    CompletableFuture.completedFuture(
+                            new InputGateDeploymentDescriptor(
+                                    resultId,
+                                    partitionType,
+                                    consumedSubpartitionRange,
+                                    getConsumedPartitionShuffleDescriptors(
+                                            consumedIntermediateResult, consumedPartitionGroup))));
         }
 
-        for (Map.Entry<IntermediateDataSetID, ShuffleDescriptor[]> entry :
+        for (Map.Entry<IntermediateDataSetID, CompletableFuture<ShuffleDescriptor[]>> entry :
                 consumedClusterPartitionShuffleDescriptors.entrySet()) {
-            // For FLIP-205, the JobGraph generating side ensure that the cluster partition is
-            // produced with only one subpartition. Therefore, we always consume the partition with
-            // subpartition index of 0.
-            inputGates.add(
-                    new InputGateDeploymentDescriptor(
-                            entry.getKey(),
-                            ResultPartitionType.BLOCKING_PERSISTENT,
-                            0,
-                            entry.getValue()));
+            inputGatesFuture.add(
+                    entry.getValue()
+                            .thenApply(
+                                    shuffleDescriptors -> {
+                                        try {
+                                            // For FLIP-205, the JobGraph generating side ensure
+                                            // that the cluster partition is
+                                            // produced with only one subpartition. Therefore, we
+                                            // always consume the partition with
+                                            // subpartition index of 0.
+                                            return new InputGateDeploymentDescriptor(
+                                                    entry.getKey(),
+                                                    ResultPartitionType.BLOCKING_PERSISTENT,
+                                                    0,
+                                                    shuffleDescriptors);
+                                        } catch (Throwable e) {
+                                            throw new RuntimeException(e);
+                                        }
+                                    }));
         }
 
-        return inputGates;
+        return inputGatesFuture;
     }
 
     public static SubpartitionIndexRange computeConsumedSubpartitionRange(
@@ -261,7 +278,8 @@ public class TaskDeploymentDescriptorFactory {
         final ExecutionVertex executionVertex = execution.getVertex();
         final InternalExecutionGraphAccessor internalExecutionGraphAccessor =
                 executionVertex.getExecutionGraphAccessor();
-        Map<IntermediateDataSetID, ShuffleDescriptor[]> clusterPartitionShuffleDescriptors;
+        Map<IntermediateDataSetID, CompletableFuture<ShuffleDescriptor[]>>
+                clusterPartitionShuffleDescriptors;
         try {
             clusterPartitionShuffleDescriptors =
                     getClusterPartitionShuffleDescriptors(executionVertex);
@@ -287,35 +305,50 @@ public class TaskDeploymentDescriptorFactory {
                 clusterPartitionShuffleDescriptors);
     }
 
-    private static Map<IntermediateDataSetID, ShuffleDescriptor[]>
+    private static Map<IntermediateDataSetID, CompletableFuture<ShuffleDescriptor[]>>
             getClusterPartitionShuffleDescriptors(ExecutionVertex executionVertex) {
         final InternalExecutionGraphAccessor internalExecutionGraphAccessor =
                 executionVertex.getExecutionGraphAccessor();
         final List<IntermediateDataSetID> consumedClusterDataSetIds =
                 executionVertex.getJobVertex().getJobVertex().getIntermediateDataSetIdsToConsume();
-        Map<IntermediateDataSetID, ShuffleDescriptor[]> clusterPartitionShuffleDescriptors =
-                new HashMap<>();
+        Map<IntermediateDataSetID, CompletableFuture<ShuffleDescriptor[]>>
+                clusterPartitionShuffleDescriptors = new HashMap<>();
 
         for (IntermediateDataSetID consumedClusterDataSetId : consumedClusterDataSetIds) {
-            List<? extends ShuffleDescriptor> shuffleDescriptors =
+            CompletableFuture<List<ShuffleDescriptor>> shuffleDescriptorsFuture =
                     internalExecutionGraphAccessor.getClusterPartitionShuffleDescriptors(
                             consumedClusterDataSetId);
 
-            // For FLIP-205, the job graph generating side makes sure that the producer and consumer
-            // of the cluster partition have the same parallelism and each consumer Task consumes
-            // one output partition of the producer.
-            Preconditions.checkState(
-                    executionVertex.getTotalNumberOfParallelSubtasks() == shuffleDescriptors.size(),
-                    "The parallelism (%s) of the cache consuming job vertex is "
-                            + "different from the number of shuffle descriptors (%s) of the intermediate data set",
-                    executionVertex.getTotalNumberOfParallelSubtasks(),
-                    shuffleDescriptors.size());
+            final CompletableFuture<ShuffleDescriptor[]> completableFuture =
+                    shuffleDescriptorsFuture.thenApplyAsync(
+                            shuffleDescriptors -> {
+                                try {
+                                    // For FLIP-205, the job graph generating side makes sure that
+                                    // the producer and consumer of the cluster partition have the
+                                    // same parallelism and each consumer Task consumes one output
+                                    // partition of the producer.
+                                    Preconditions.checkState(
+                                            executionVertex.getTotalNumberOfParallelSubtasks()
+                                                    == shuffleDescriptors.size(),
+                                            "The parallelism (%s) of the cache consuming job vertex is "
+                                                    + "different from the number of shuffle descriptors (%s) of the intermediate data set",
+                                            executionVertex.getTotalNumberOfParallelSubtasks(),
+                                            shuffleDescriptors.size());
+                                    return new ShuffleDescriptor[] {
+                                        shuffleDescriptors.get(
+                                                executionVertex.getParallelSubtaskIndex())
+                                    };
+                                } catch (Throwable throwable) {
+                                    throw new RuntimeException(
+                                            new ClusterDatasetCorruptedException(
+                                                    throwable, consumedClusterDataSetIds));
+                                }
+                            },
+                            executionVertex
+                                    .getExecutionGraphAccessor()
+                                    .getJobMasterMainThreadExecutor());
 
-            clusterPartitionShuffleDescriptors.put(
-                    consumedClusterDataSetId,
-                    new ShuffleDescriptor[] {
-                        shuffleDescriptors.get(executionVertex.getParallelSubtaskIndex())
-                    });
+            clusterPartitionShuffleDescriptors.put(consumedClusterDataSetId, completableFuture);
         }
         return clusterPartitionShuffleDescriptors;
     }
