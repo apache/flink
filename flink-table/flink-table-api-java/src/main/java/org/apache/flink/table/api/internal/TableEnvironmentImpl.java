@@ -69,8 +69,12 @@ import org.apache.flink.table.catalog.exceptions.DatabaseNotEmptyException;
 import org.apache.flink.table.catalog.exceptions.DatabaseNotExistException;
 import org.apache.flink.table.catalog.exceptions.FunctionAlreadyExistException;
 import org.apache.flink.table.catalog.exceptions.FunctionNotExistException;
+import org.apache.flink.table.catalog.exceptions.PartitionNotExistException;
 import org.apache.flink.table.catalog.exceptions.TableAlreadyExistException;
 import org.apache.flink.table.catalog.exceptions.TableNotExistException;
+import org.apache.flink.table.catalog.stats.CatalogColumnStatistics;
+import org.apache.flink.table.catalog.stats.CatalogColumnStatisticsDataBase;
+import org.apache.flink.table.catalog.stats.CatalogTableStatistics;
 import org.apache.flink.table.delegation.Executor;
 import org.apache.flink.table.delegation.ExecutorFactory;
 import org.apache.flink.table.delegation.ExtendedOperationExecutor;
@@ -151,6 +155,8 @@ import org.apache.flink.table.operations.ddl.DropTableOperation;
 import org.apache.flink.table.operations.ddl.DropTempSystemFunctionOperation;
 import org.apache.flink.table.operations.ddl.DropViewOperation;
 import org.apache.flink.table.operations.utils.OperationTreeBuilder;
+import org.apache.flink.table.plan.stats.ColumnStats;
+import org.apache.flink.table.plan.stats.TableStats;
 import org.apache.flink.table.resource.ResourceManager;
 import org.apache.flink.table.resource.ResourceType;
 import org.apache.flink.table.resource.ResourceUri;
@@ -163,6 +169,7 @@ import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.utils.DataTypeUtils;
 import org.apache.flink.table.utils.TableSchemaUtils;
 import org.apache.flink.table.utils.print.PrintStyle;
+import org.apache.flink.table.utils.stats.CatalogTableStatisticsConverter;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.FlinkUserCodeClassLoaders;
 import org.apache.flink.util.MutableURLClassLoader;
@@ -176,14 +183,18 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 
 import static org.apache.flink.table.api.config.TableConfigOptions.TABLE_DML_SYNC;
+import static org.apache.flink.table.utils.stats.CatalogTableStatisticsConverter.convertToAccumulatedTableStates;
+import static org.apache.flink.table.utils.stats.CatalogTableStatisticsConverter.getPartitionKeys;
 
 /**
  * Implementation of {@link TableEnvironment} that works exclusively with Table API interfaces. Only
@@ -1388,7 +1399,11 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
             Optional<ContextResolvedTable> result =
                     catalogManager.getTable(describeTableOperation.getSqlIdentifier());
             if (result.isPresent()) {
-                return buildDescribeResult(result.get().getResolvedSchema());
+                return buildDescribeResult(
+                        result.get(),
+                        describeTableOperation.isExtended(),
+                        describeTableOperation.getColumnName().get(),
+                        describeTableOperation.getPartitionSpecs());
             } else {
                 throw new ValidationException(
                         String.format(
@@ -1499,12 +1514,231 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
         return buildResult(
                 new String[] {columnName},
                 new DataType[] {DataTypes.STRING()},
-                Arrays.stream(objects).map((c) -> new String[] {c}).toArray(String[][]::new));
+                Arrays.stream(objects).map((c) -> new String[] {c}).toArray(String[][]::new),
+                false);
     }
 
-    private TableResultInternal buildDescribeResult(ResolvedSchema schema) {
-        Object[][] rows = buildTableColumns(schema);
-        return buildResult(generateTableColumnsNames(), generateTableColumnsDataTypes(), rows);
+    private TableResultInternal buildDescribeResult(
+            ContextResolvedTable contextResolvedTable,
+            boolean isExtended,
+            String columnName,
+            Optional<List<CatalogPartitionSpec>> partitionSpecs) {
+        // desc extended results need to show table catalog information including row name, row
+        // type, table statistics.
+        if (columnName.length() == 0) {
+            // If columnName is null, desc [extended] just need to print table information.
+            Object[][] rows = buildDescribeRows(contextResolvedTable, isExtended, partitionSpecs);
+            return buildResult(
+                    new String[] {"col_name", "data_type", "comment"},
+                    new DataType[] {DataTypes.STRING(), DataTypes.STRING(), DataTypes.STRING()},
+                    rows,
+                    true);
+        } else {
+            // If columnName is not null, desc [extended] need to print table column information.
+            Object[][] rows =
+                    buildDescribeRowsForSpecifiedColumn(
+                            contextResolvedTable, isExtended, columnName, partitionSpecs);
+            return buildResult(
+                    new String[] {"name", "value"},
+                    new DataType[] {DataTypes.STRING(), DataTypes.STRING()},
+                    rows,
+                    true);
+        }
+    }
+
+    private Object[][] buildDescribeRows(
+            ContextResolvedTable contextResolvedTable,
+            boolean isExtended,
+            Optional<List<CatalogPartitionSpec>> partitionSpecs) {
+        ResolvedSchema resolvedSchema = contextResolvedTable.getResolvedSchema();
+        // add table column names and table types part.
+        List<Object[]> objectList = new ArrayList<>();
+        if (!partitionSpecs.isPresent() || partitionSpecs.get().isEmpty()) {
+            objectList =
+                    resolvedSchema.getColumns().stream()
+                            .map(
+                                    (c) -> {
+                                        final LogicalType logicalType =
+                                                c.getDataType().getLogicalType();
+                                        return new Object[] {
+                                            c.getName(),
+                                            logicalType.copy(true).asSummaryString(),
+                                            c.getComment()
+                                        };
+                                    })
+                            .collect(Collectors.toList());
+        } else {
+            Set<String> partitionKeys = getPartitionKeys(partitionSpecs.get());
+            List<Object[]> partitionColumnList = new ArrayList<>();
+            List<Column> columns = resolvedSchema.getColumns();
+            for (Column column : columns) {
+                if (partitionKeys.contains(column.getName())) {
+                    partitionColumnList.add(
+                            new Object[] {
+                                column.getName(),
+                                column.getDataType().getLogicalType().copy(true).asSummaryString(),
+                                column.getComment()
+                            });
+                } else {
+                    objectList.add(
+                            new Object[] {
+                                column.getName(),
+                                column.getDataType().getLogicalType().copy(true).asSummaryString(),
+                                column.getComment()
+                            });
+                }
+            }
+
+            // partition information
+            objectList.add(new Object[] {null, null, null});
+            objectList.add(new Object[] {"# Partition Information", null, null});
+            objectList.add(new Object[] {"# col_name", "data_type", "comment"});
+            objectList.addAll(partitionColumnList);
+        }
+
+        if (isExtended) {
+            // add empty row.
+            objectList.add(new Object[] {null, null, null});
+            objectList.add(new Object[] {"# Detailed Table Information", null, null});
+            // add detail table information.
+            addDetailedTableInformation(contextResolvedTable, objectList, partitionSpecs);
+        }
+
+        return objectList.toArray(new Object[0][0]);
+    }
+
+    private Object[][] buildDescribeRowsForSpecifiedColumn(
+            ContextResolvedTable contextResolvedTable,
+            boolean isExtended,
+            String columnName,
+            Optional<List<CatalogPartitionSpec>> partitionSpecs) {
+        List<Object[]> objectList = new ArrayList<>();
+        objectList.add(new Object[] {"col_name", columnName});
+        objectList.add(
+                new Object[] {
+                    "data_type",
+                    contextResolvedTable
+                            .getResolvedSchema()
+                            .getColumn(columnName)
+                            .get()
+                            .getDataType()
+                            .toString()
+                });
+        if (isExtended) {
+            addDetailedTableInformationForSpecifiedColumn(
+                    contextResolvedTable, objectList, columnName, partitionSpecs);
+        }
+        return objectList.toArray(new Object[0][0]);
+    }
+
+    private void addDetailedTableInformationForSpecifiedColumn(
+            ContextResolvedTable contextResolvedTable,
+            List<Object[]> objectList,
+            String columnName,
+            Optional<List<CatalogPartitionSpec>> partitionSpecs) {
+        String[] statsTypes =
+                new String[] {
+                    "min", "max", "num_nulls", "distinct_count", "avg_col_len", "max_col_len"
+                };
+        Map<String, Object> statsMap = new LinkedHashMap<>();
+        for (String statsType : statsTypes) {
+            statsMap.put(statsType, null);
+        }
+        ObjectPath objectPath = contextResolvedTable.getIdentifier().toObjectPath();
+        ColumnStats columnStat = null;
+        try {
+            if (!partitionSpecs.isPresent() || partitionSpecs.get().isEmpty()) {
+                CatalogColumnStatistics columnStatistics =
+                        contextResolvedTable
+                                .getCatalog()
+                                .get()
+                                .getTableColumnStatistics(objectPath);
+                Map<String, CatalogColumnStatisticsDataBase> columnStatisticsData =
+                        columnStatistics.getColumnStatisticsData();
+                if (columnStatisticsData.containsKey(columnName)) {
+                    columnStat =
+                            CatalogTableStatisticsConverter.convertToColumnStats(
+                                    columnStatisticsData.get(columnName));
+                }
+            } else {
+                Catalog catalog = contextResolvedTable.getCatalog().get();
+                TableStats tableStats =
+                        convertToAccumulatedTableStates(
+                                catalog.bulkGetPartitionStatistics(
+                                        objectPath, partitionSpecs.get()),
+                                catalog.bulkGetPartitionColumnStatistics(
+                                        objectPath, partitionSpecs.get()),
+                                getPartitionKeys(partitionSpecs.get()));
+                Map<String, ColumnStats> columnStats = tableStats.getColumnStats();
+                if (columnStats.containsKey(columnName)) {
+                    columnStat = columnStats.get(columnName);
+                }
+            }
+        } catch (TableNotExistException e) {
+            throw new RuntimeException(e);
+        } catch (PartitionNotExistException e) {
+            throw new RuntimeException(e);
+        }
+
+        if (columnStat != null) {
+            statsMap.put("min", columnStat.getMin());
+            statsMap.put("max", columnStat.getMax());
+            statsMap.put("num_nulls", columnStat.getNullCount());
+            statsMap.put("distinct_count", columnStat.getNdv());
+            statsMap.put("avg_col_len", columnStat.getAvgLen());
+            statsMap.put("max_col_len", columnStat.getMaxLen());
+        }
+        objectList.addAll(
+                statsMap.entrySet().stream()
+                        .map(entry -> new Object[] {entry.getKey(), entry.getValue()})
+                        .collect(Collectors.toList()));
+    }
+
+    private void addDetailedTableInformation(
+            ContextResolvedTable contextResolvedTable,
+            List<Object[]> objectList,
+            Optional<List<CatalogPartitionSpec>> partitionSpecs) {
+        ObjectPath objectPath = contextResolvedTable.getIdentifier().toObjectPath();
+        objectList.add(new Object[] {"Database Name", objectPath.getDatabaseName(), null});
+        objectList.add(new Object[] {"Table Name", objectPath.getObjectName(), null});
+        // Adding table statistics.
+        try {
+            if (!partitionSpecs.isPresent() || partitionSpecs.get().isEmpty()) {
+                CatalogTableStatistics tableStatistics =
+                        contextResolvedTable.getCatalog().get().getTableStatistics(objectPath);
+                // get and add table statistics.
+                objectList.add(
+                        new Object[] {
+                            "Table Statistics",
+                            tableStatistics.getRowCount() == -1L
+                                    ? null
+                                    : String.format("%s rows", tableStatistics.getRowCount()),
+                            null
+                        });
+            } else {
+                Catalog catalog = contextResolvedTable.getCatalog().get();
+                TableStats tableStats =
+                        convertToAccumulatedTableStates(
+                                catalog.bulkGetPartitionStatistics(
+                                        objectPath, partitionSpecs.get()),
+                                catalog.bulkGetPartitionColumnStatistics(
+                                        objectPath, partitionSpecs.get()),
+                                getPartitionKeys(partitionSpecs.get()));
+                // get and add table statistics.
+                objectList.add(
+                        new Object[] {
+                            "Table Statistics",
+                            tableStats.getRowCount() == -1L
+                                    ? null
+                                    : String.format("%s rows", tableStats.getRowCount()),
+                            null
+                        });
+            }
+        } catch (TableNotExistException e) {
+            throw new RuntimeException(e);
+        } catch (PartitionNotExistException e) {
+            throw new RuntimeException(e);
+        }
     }
 
     private DataType[] generateTableColumnsDataTypes() {
@@ -1555,7 +1789,8 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
                                                             "\\"))
                             .toArray(Object[][]::new);
         }
-        return buildResult(generateTableColumnsNames(), generateTableColumnsDataTypes(), rows);
+        return buildResult(
+                generateTableColumnsNames(), generateTableColumnsDataTypes(), rows, false);
     }
 
     private TableResultInternal buildShowFullModulesResult(ModuleEntry[] moduleEntries) {
@@ -1566,7 +1801,8 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
         return buildResult(
                 new String[] {"module name", "used"},
                 new DataType[] {DataTypes.STRING(), DataTypes.BOOLEAN()},
-                rows);
+                rows,
+                false);
     }
 
     private Object[][] buildTableColumns(ResolvedSchema schema) {
@@ -1607,23 +1843,34 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
                 .toArray(Object[][]::new);
     }
 
-    private TableResultInternal buildResult(String[] headers, DataType[] types, Object[][] rows) {
+    private TableResultInternal buildResult(
+            String[] headers, DataType[] types, Object[][] rows, boolean leftAlign) {
         ResolvedSchema schema = ResolvedSchema.physical(headers, types);
         ResultProvider provider =
                 new StaticResultProvider(
                         Arrays.stream(rows).map(Row::of).collect(Collectors.toList()));
-        return TableResultImpl.builder()
-                .resultKind(ResultKind.SUCCESS_WITH_CONTENT)
+        TableResultImpl.Builder builder = TableResultImpl.builder();
+        builder.resultKind(ResultKind.SUCCESS_WITH_CONTENT)
                 .schema(ResolvedSchema.physical(headers, types))
-                .resultProvider(provider)
-                .setPrintStyle(
-                        PrintStyle.tableauWithDataInferredColumnWidths(
-                                schema,
-                                provider.getRowDataStringConverter(),
-                                Integer.MAX_VALUE,
-                                true,
-                                false))
-                .build();
+                .resultProvider(provider);
+        if (leftAlign) {
+            builder.setPrintStyle(
+                    PrintStyle.tableauWithDataInferredColumnWidthsAndContentLeftAlign(
+                            schema,
+                            provider.getRowDataStringConverter(),
+                            Integer.MAX_VALUE,
+                            true,
+                            false));
+        } else {
+            builder.setPrintStyle(
+                    PrintStyle.tableauWithDataInferredColumnWidths(
+                            schema,
+                            provider.getRowDataStringConverter(),
+                            Integer.MAX_VALUE,
+                            true,
+                            false));
+        }
+        return builder.build();
     }
 
     /**

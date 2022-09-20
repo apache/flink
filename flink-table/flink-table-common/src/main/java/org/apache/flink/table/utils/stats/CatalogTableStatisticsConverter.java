@@ -16,10 +16,11 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.planner.utils;
+package org.apache.flink.table.utils.stats;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.table.api.TableException;
+import org.apache.flink.table.catalog.CatalogPartitionSpec;
 import org.apache.flink.table.catalog.stats.CatalogColumnStatistics;
 import org.apache.flink.table.catalog.stats.CatalogColumnStatisticsDataBase;
 import org.apache.flink.table.catalog.stats.CatalogColumnStatisticsDataBinary;
@@ -36,7 +37,9 @@ import org.apache.flink.util.Preconditions;
 
 import java.sql.Date;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -46,6 +49,34 @@ import java.util.Set;
  * to {@link TableStats}.
  */
 public class CatalogTableStatisticsConverter {
+
+    public static Set<String> getPartitionKeys(List<CatalogPartitionSpec> catalogPartitionSpecs) {
+        Set<String> partitionKeys = new HashSet<>();
+        for (CatalogPartitionSpec catalogPartitionSpec : catalogPartitionSpecs) {
+            Map<String, String> partitionSpec = catalogPartitionSpec.getPartitionSpec();
+            partitionKeys.addAll(partitionSpec.keySet());
+        }
+        return partitionKeys;
+    }
+
+    public static Map<String, Set<String>> getPartitionKeysAndValues(
+            List<CatalogPartitionSpec> catalogPartitionSpecs) {
+        HashMap<String, Set<String>> partitionKeysAndValues = new HashMap<>();
+        for (CatalogPartitionSpec catalogPartitionSpec : catalogPartitionSpecs) {
+            Map<String, String> partitionSpec = catalogPartitionSpec.getPartitionSpec();
+            for (Map.Entry<String, String> entry : partitionSpec.entrySet()) {
+                if (!partitionKeysAndValues.containsKey(entry.getKey())) {
+                    partitionKeysAndValues.put(
+                            entry.getKey(),
+                            new HashSet<>(Collections.singletonList(entry.getValue())));
+                } else {
+                    partitionKeysAndValues.get(entry.getKey()).add(entry.getValue());
+                }
+            }
+        }
+
+        return partitionKeysAndValues;
+    }
 
     public static TableStats convertToTableStats(
             CatalogTableStatistics tableStatistics, CatalogColumnStatistics columnStatistics) {
@@ -102,7 +133,7 @@ public class CatalogTableStatisticsConverter {
         return columnStatsMap;
     }
 
-    private static ColumnStats convertToColumnStats(
+    public static ColumnStats convertToColumnStats(
             CatalogColumnStatisticsDataBase columnStatisticsData) {
         Long ndv = null;
         Long nullCount = columnStatisticsData.getNullCount();

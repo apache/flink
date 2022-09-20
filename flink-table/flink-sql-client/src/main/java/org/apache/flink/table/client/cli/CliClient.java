@@ -28,6 +28,7 @@ import org.apache.flink.table.client.gateway.Executor;
 import org.apache.flink.table.client.gateway.ResultDescriptor;
 import org.apache.flink.table.client.gateway.SqlExecutionException;
 import org.apache.flink.table.operations.BeginStatementSetOperation;
+import org.apache.flink.table.operations.DescribeTableOperation;
 import org.apache.flink.table.operations.EndStatementSetOperation;
 import org.apache.flink.table.operations.ExplainOperation;
 import org.apache.flink.table.operations.LoadModuleOperation;
@@ -463,6 +464,9 @@ public class CliClient implements AutoCloseable {
         } else if (operation instanceof ShowCreateViewOperation) {
             // SHOW CREATE VIEW
             callShowCreateView((ShowCreateViewOperation) operation);
+        } else if (operation instanceof DescribeTableOperation) {
+            // DESC TABLE
+            callDescTable((DescribeTableOperation) operation);
         } else {
             // fallback to default implementation
             executeOperation(operation);
@@ -599,6 +603,23 @@ public class CliClient implements AutoCloseable {
 
     public void callShowCreateView(ShowCreateViewOperation operation) {
         printRawContent(operation);
+    }
+
+    public void callDescTable(DescribeTableOperation operation) {
+        TableResultInternal result = executor.executeOperation(sessionId, operation);
+        if (TABLE_RESULT_OK == result) {
+            // print more meaningful message than tableau OK result
+            printInfo(MESSAGE_EXECUTE_STATEMENT);
+        } else {
+            // For desc table statement, we print content in left align way.
+            PrintStyle.tableauWithDataInferredColumnWidthsAndContentLeftAlign(
+                            result.getResolvedSchema(),
+                            result.getRowDataToStringConverter(),
+                            Integer.MAX_VALUE,
+                            true,
+                            false)
+                    .print(result.collectInternal(), terminal.writer());
+        }
     }
 
     public void printRawContent(Operation operation) {

@@ -1684,7 +1684,7 @@ public class HiveParserDDLSemanticAnalyzer {
         }
 
         ObjectIdentifier tableIdentifier = parseObjectIdentifier(tableName);
-        return new DescribeTableOperation(tableIdentifier, isExt || isFormatted);
+        return new DescribeTableOperation(tableIdentifier, isExt || isFormatted, null, null);
     }
 
     public static HashMap<String, String> getPartSpec(HiveParserASTNode partspec) {

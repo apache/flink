@@ -27,6 +27,7 @@ import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
 import org.apache.flink.table.api.bridge.scala.{StreamTableEnvironment, _}
 import org.apache.flink.table.api.internal.TableEnvironmentInternal
 import org.apache.flink.table.catalog._
+import org.apache.flink.table.catalog.stats._
 import org.apache.flink.table.factories.{TableFactoryUtil, TableSourceFactoryContextImpl}
 import org.apache.flink.table.functions.TestGenericUDF
 import org.apache.flink.table.module.ModuleEntry
@@ -46,11 +47,11 @@ import org.apache.calcite.plan.RelOptUtil
 import org.apache.calcite.sql.SqlExplainLevel
 import org.assertj.core.api.Assertions.{assertThat, assertThatThrownBy}
 import org.junit.{Rule, Test}
-import org.junit.Assert.{assertEquals, assertFalse, assertTrue, fail}
+import org.junit.Assert._
 import org.junit.rules.{ExpectedException, TemporaryFolder}
 
 import java.io.File
-import java.util.UUID
+import java.util.{Optional, UUID}
 
 import scala.annotation.meta.getter
 
@@ -1788,6 +1789,355 @@ class TableEnvironmentTest {
         "insert into MySink select a, b from MyTable where a > 10",
       "/explain/testExecuteSqlWithExplainDetailsInsert.out"
     )
+  }
+
+  @Test
+  def testDescribeTable(): Unit = {
+    val catalog = new GenericInMemoryCatalog(CatalogTest.TEST_CATALOG_NAME)
+    val path = new ObjectPath("testDb", "testTable")
+    val schema = new ResolvedSchema(
+      util.Arrays.asList(
+        Column.physical("a", DataTypes.BIGINT()),
+        Column.physical("b", DataTypes.STRING()),
+        Column.physical("c", DataTypes.BOOLEAN()),
+        Column.physical("d", DataTypes.BINARY(5))
+      ),
+      util.Collections.emptyList(),
+      null)
+    val table = CatalogTable.of(
+      Schema.newBuilder().fromResolvedSchema(schema).build(),
+      "test comment",
+      util.Collections.emptyList(),
+      new util.HashMap[String, String]() {
+        put("connector", "value")
+        put("is-bounded", "true")
+      }
+    )
+    val resolvedCatalogTable = new ResolvedCatalogTable(table, schema)
+
+    catalog.open()
+    catalog.createDatabase(
+      "testDb",
+      new CatalogDatabaseImpl(
+        new util.HashMap[String, String]() {
+          put("k1", "v1")
+        },
+        "test comment"),
+      false)
+    catalog.createTable(path, resolvedCatalogTable, false)
+    val tableStatistics = new CatalogTableStatistics(10L, 2, 10L, 100L)
+    catalog.alterTableStatistics(path, tableStatistics, false)
+    batchTableEnv.registerCatalog("catalog1", catalog)
+    batchTableEnv.useCatalog("catalog1")
+
+    // 1. desc table
+    var tableResult = batchTableEnv.executeSql("desc catalog1.testDb.testTable")
+    var expectedResult = util.Arrays.asList(
+      Row.of("a", "BIGINT", Optional.empty()),
+      Row.of("b", "STRING", Optional.empty()),
+      Row.of("c", "BOOLEAN", Optional.empty()),
+      Row.of("d", "BINARY(5)", Optional.empty())
+    )
+    assertEquals(ResultKind.SUCCESS_WITH_CONTENT, tableResult.getResultKind)
+    checkData(expectedResult.iterator(), tableResult.collect())
+
+    // 2. desc extended table
+    tableResult = batchTableEnv.executeSql("desc extended catalog1.testDb.testTable")
+    expectedResult = util.Arrays.asList(
+      Row.of("a", "BIGINT", Optional.empty()),
+      Row.of("b", "STRING", Optional.empty()),
+      Row.of("c", "BOOLEAN", Optional.empty()),
+      Row.of("d", "BINARY(5)", Optional.empty()),
+      Row.of(null, null, null),
+      Row.of("# Detailed Table Information", null, null),
+      Row.of("Database Name", "testDb", null),
+      Row.of("Table Name", "testTable", null),
+      Row.of("Table Statistics", "10 rows", null)
+    )
+    checkData(expectedResult.iterator(), tableResult.collect())
+
+    // 3. desc table for specified column
+    val colStatsMap = new util.HashMap[String, CatalogColumnStatisticsDataBase]
+    colStatsMap.put("a", new CatalogColumnStatisticsDataLong(1L, 10L, 5L, 5L))
+    val columnStatistics = new CatalogColumnStatistics(colStatsMap)
+    catalog.alterTableColumnStatistics(path, columnStatistics, false)
+
+    tableResult = batchTableEnv.executeSql("desc catalog1.testDb.testTable a")
+    expectedResult = util.Arrays.asList(
+      Row.of("col_name", "a"),
+      Row.of("data_type", "BIGINT")
+    )
+    checkData(expectedResult.iterator(), tableResult.collect())
+
+    tableResult = batchTableEnv.executeSql("desc catalog1.testDb.testTable b")
+    expectedResult = util.Arrays.asList(
+      Row.of("col_name", "b"),
+      Row.of("data_type", "STRING")
+    )
+    checkData(expectedResult.iterator(), tableResult.collect())
+
+    // 4. desc extended table for specified column
+    tableResult = batchTableEnv.executeSql("desc extended catalog1.testDb.testTable a")
+    expectedResult = util.Arrays.asList(
+      Row.of("col_name", "a"),
+      Row.of("data_type", "BIGINT"),
+      Row.of("min", java.lang.Long.valueOf(1)),
+      Row.of("max", java.lang.Long.valueOf(10)),
+      Row.of("num_nulls", java.lang.Long.valueOf(5)),
+      Row.of("distinct_count", java.lang.Long.valueOf(5)),
+      Row.of("avg_col_len", java.lang.Double.valueOf(8.0)),
+      Row.of("max_col_len", Integer.valueOf(8))
+    )
+    checkData(expectedResult.iterator(), tableResult.collect())
+
+    tableResult = batchTableEnv.executeSql("desc extended catalog1.testDb.testTable b")
+    expectedResult = util.Arrays.asList(
+      Row.of("col_name", "b"),
+      Row.of("data_type", "STRING"),
+      Row.of("min", null),
+      Row.of("max", null),
+      Row.of("num_nulls", null),
+      Row.of("distinct_count", null),
+      Row.of("avg_col_len", null),
+      Row.of("max_col_len", null)
+    )
+    checkData(expectedResult.iterator(), tableResult.collect())
+
+    // 5. failed cases
+    // table not exists
+    assertThatThrownBy(() => batchTableEnv.executeSql("desc extended catalog1.testDb.testTable1"))
+      .isInstanceOf(classOf[ValidationException])
+      .hasMessageContaining(
+        "Table `catalog1`.`testDb`.`testTable1` doesn't exist or is a temporary table.")
+
+    // column not exists
+    assertThatThrownBy(() => batchTableEnv.executeSql("desc extended catalog1.testDb.testTable e"))
+      .isInstanceOf(classOf[ValidationException])
+      .hasMessageContaining(
+        "Column: e does not exist in the table: `catalog1`.`testDb`.`testTable`.")
+
+    // Try to specify partition spec for none partition table.
+    assertThatThrownBy(
+      () => batchTableEnv.executeSql("desc extended catalog1.testDb.testTable partition(a=1) a"))
+      .isInstanceOf(classOf[ValidationException])
+      .hasMessageContaining(
+        "Invalid DESCRIBE TABLE statement. Table: `catalog1`.`testDb`.`testTable`" +
+          " is not a partition table, while partition values are given.")
+  }
+
+  @Test
+  def testDescribeTableForPartitionTable(): Unit = {
+    val catalog = new GenericInMemoryCatalog(CatalogTest.TEST_CATALOG_NAME)
+    val path = new ObjectPath("testDb", "testTable")
+    val schema = new ResolvedSchema(
+      util.Arrays.asList(
+        Column.physical("a", DataTypes.BIGINT()),
+        Column.physical("b", DataTypes.STRING()),
+        Column.physical("c", DataTypes.BOOLEAN()),
+        Column.physical("d", DataTypes.BINARY(5))
+      ),
+      util.Collections.emptyList(),
+      null)
+    val table = CatalogTable.of(
+      Schema.newBuilder().fromResolvedSchema(schema).build(),
+      "test comment",
+      util.Collections.singletonList("a"),
+      new util.HashMap[String, String]() {
+        put("connector", "value")
+        put("is-bounded", "true")
+      }
+    )
+    val resolvedCatalogTable = new ResolvedCatalogTable(table, schema)
+
+    catalog.open()
+    catalog.createDatabase(
+      "testDb",
+      new CatalogDatabaseImpl(
+        new util.HashMap[String, String]() {
+          put("k1", "v1")
+        },
+        "test comment"),
+      false)
+    catalog.createTable(path, resolvedCatalogTable, false)
+    batchTableEnv.registerCatalog("catalog1", catalog)
+    batchTableEnv.useCatalog("catalog1")
+    batchTableEnv
+      .getCatalog(batchTableEnv.getCurrentCatalog)
+      .get()
+      .createPartition(
+        path,
+        new CatalogPartitionSpec(util.Collections.singletonMap("a", "1")),
+        new CatalogPartitionImpl(new util.HashMap[String, String](), ""),
+        false)
+    batchTableEnv
+      .getCatalog(batchTableEnv.getCurrentCatalog)
+      .get()
+      .createPartition(
+        path,
+        new CatalogPartitionSpec(util.Collections.singletonMap("a", "2")),
+        new CatalogPartitionImpl(new util.HashMap[String, String](), ""),
+        false)
+
+    // 1. desc table
+    var tableResult = batchTableEnv.executeSql("desc catalog1.testDb.testTable")
+    var expectedResult = util.Arrays.asList(
+      Row.of("b", "STRING", Optional.empty()),
+      Row.of("c", "BOOLEAN", Optional.empty()),
+      Row.of("d", "BINARY(5)", Optional.empty()),
+      Row.of(null, null, null),
+      Row.of("# Partition Information", null, null),
+      Row.of("# col_name", "data_type", "comment"),
+      Row.of("a", "BIGINT", Optional.empty())
+    )
+    assertEquals(ResultKind.SUCCESS_WITH_CONTENT, tableResult.getResultKind)
+    checkData(expectedResult.iterator(), tableResult.collect())
+
+    // 2. desc extended table
+    catalog.alterPartitionStatistics(
+      path,
+      new CatalogPartitionSpec(util.Collections.singletonMap("a", "1")),
+      new CatalogTableStatistics(10L, 2, 10L, 100L),
+      false)
+    catalog.alterPartitionStatistics(
+      path,
+      new CatalogPartitionSpec(util.Collections.singletonMap("a", "2")),
+      new CatalogTableStatistics(11L, 3, 100L, 200L),
+      false)
+    // If not specifying partition, all partition stats will be merged, which equals to 'partition(a)'.
+    tableResult = batchTableEnv.executeSql("desc extended catalog1.testDb.testTable")
+    expectedResult = util.Arrays.asList(
+      Row.of("b", "STRING", Optional.empty()),
+      Row.of("c", "BOOLEAN", Optional.empty()),
+      Row.of("d", "BINARY(5)", Optional.empty()),
+      Row.of(null, null, null),
+      Row.of("# Partition Information", null, null),
+      Row.of("# col_name", "data_type", "comment"),
+      Row.of("a", "BIGINT", Optional.empty()),
+      Row.of(null, null, null),
+      Row.of("# Detailed Table Information", null, null),
+      Row.of("Database Name", "testDb", null),
+      Row.of("Table Name", "testTable", null),
+      Row.of("Table Statistics", "21 rows", null)
+    )
+    checkData(expectedResult.iterator(), tableResult.collect())
+
+    tableResult = batchTableEnv.executeSql("desc extended catalog1.testDb.testTable partition(a)")
+    expectedResult = util.Arrays.asList(
+      Row.of("b", "STRING", Optional.empty()),
+      Row.of("c", "BOOLEAN", Optional.empty()),
+      Row.of("d", "BINARY(5)", Optional.empty()),
+      Row.of(null, null, null),
+      Row.of("# Partition Information", null, null),
+      Row.of("# col_name", "data_type", "comment"),
+      Row.of("a", "BIGINT", Optional.empty()),
+      Row.of(null, null, null),
+      Row.of("# Detailed Table Information", null, null),
+      Row.of("Database Name", "testDb", null),
+      Row.of("Table Name", "testTable", null),
+      Row.of("Table Statistics", "21 rows", null)
+    )
+    checkData(expectedResult.iterator(), tableResult.collect())
+
+    tableResult = batchTableEnv.executeSql("desc extended catalog1.testDb.testTable partition(a=1)")
+    expectedResult = util.Arrays.asList(
+      Row.of("b", "STRING", Optional.empty()),
+      Row.of("c", "BOOLEAN", Optional.empty()),
+      Row.of("d", "BINARY(5)", Optional.empty()),
+      Row.of(null, null, null),
+      Row.of("# Partition Information", null, null),
+      Row.of("# col_name", "data_type", "comment"),
+      Row.of("a", "BIGINT", Optional.empty()),
+      Row.of(null, null, null),
+      Row.of("# Detailed Table Information", null, null),
+      Row.of("Database Name", "testDb", null),
+      Row.of("Table Name", "testTable", null),
+      Row.of("Table Statistics", "10 rows", null)
+    )
+    checkData(expectedResult.iterator(), tableResult.collect())
+
+    // 3. desc table for specified column
+    tableResult = batchTableEnv.executeSql("desc catalog1.testDb.testTable a")
+    expectedResult = util.Arrays.asList(
+      Row.of("col_name", "a"),
+      Row.of("data_type", "BIGINT")
+    )
+    checkData(expectedResult.iterator(), tableResult.collect())
+
+    // 4. desc extended table for specified column
+    val colStatsMap = new util.HashMap[String, CatalogColumnStatisticsDataBase]
+    colStatsMap.put("a", new CatalogColumnStatisticsDataLong(1L, 10L, 5L, 5L))
+    catalog.alterPartitionColumnStatistics(
+      path,
+      new CatalogPartitionSpec(util.Collections.singletonMap("a", "1")),
+      new CatalogColumnStatistics(colStatsMap),
+      false)
+    colStatsMap.put("a", new CatalogColumnStatisticsDataLong(2L, 15L, 10L, 2L))
+    catalog.alterPartitionColumnStatistics(
+      path,
+      new CatalogPartitionSpec(util.Collections.singletonMap("a", "2")),
+      new CatalogColumnStatistics(colStatsMap),
+      false)
+    tableResult = batchTableEnv.executeSql("desc extended catalog1.testDb.testTable partition(a) a")
+    // Because 'a' is column of partition key, so when merging, the distinct_count is summed.
+    expectedResult = util.Arrays.asList(
+      Row.of("col_name", "a"),
+      Row.of("data_type", "BIGINT"),
+      Row.of("min", java.lang.Long.valueOf(1)),
+      Row.of("max", java.lang.Long.valueOf(15)),
+      Row.of("num_nulls", java.lang.Long.valueOf(7)),
+      Row.of("distinct_count", java.lang.Long.valueOf(15)),
+      Row.of("avg_col_len", java.lang.Double.valueOf(8.0)),
+      Row.of("max_col_len", Integer.valueOf(8))
+    )
+    checkData(expectedResult.iterator(), tableResult.collect())
+
+    tableResult =
+      batchTableEnv.executeSql("desc extended catalog1.testDb.testTable partition(a=1) a")
+    expectedResult = util.Arrays.asList(
+      Row.of("col_name", "a"),
+      Row.of("data_type", "BIGINT"),
+      Row.of("min", java.lang.Long.valueOf(1)),
+      Row.of("max", java.lang.Long.valueOf(10)),
+      Row.of("num_nulls", java.lang.Long.valueOf(5)),
+      Row.of("distinct_count", java.lang.Long.valueOf(5)),
+      Row.of("avg_col_len", java.lang.Double.valueOf(8.0)),
+      Row.of("max_col_len", Integer.valueOf(8))
+    )
+    checkData(expectedResult.iterator(), tableResult.collect())
+
+    tableResult = batchTableEnv.executeSql("desc extended catalog1.testDb.testTable b")
+    expectedResult = util.Arrays.asList(
+      Row.of("col_name", "b"),
+      Row.of("data_type", "STRING"),
+      Row.of("min", null),
+      Row.of("max", null),
+      Row.of("num_nulls", null),
+      Row.of("distinct_count", null),
+      Row.of("avg_col_len", null),
+      Row.of("max_col_len", null)
+    )
+    checkData(expectedResult.iterator(), tableResult.collect())
+
+    // 5. failed cases
+    // Specifying partition column is not a partition key.
+    assertThatThrownBy(
+      () => batchTableEnv.executeSql("desc extended catalog1.testDb.testTable partition(b=1) b"))
+      .isInstanceOf(classOf[ValidationException])
+      .hasMessageContaining(
+        "key 'b' in partition spec {b=1} is not partition key. Partition keys: [a]")
+
+    // Specifying partition column value not exists.
+    assertThatThrownBy(
+      () => batchTableEnv.executeSql("desc extended catalog1.testDb.testTable partition(a=3) b"))
+      .isInstanceOf(classOf[ValidationException])
+      .hasMessageContaining("partition '3' not found for partition spec {a=3}.")
+
+    // If partition spec's filter condition is not '='.
+    assertThatThrownBy(
+      () => batchTableEnv.executeSql("desc extended catalog1.testDb.testTable partition(a>1) b"))
+      .isInstanceOf(classOf[SqlParserException])
+      .hasMessageContaining("SQL parse failed. Encountered \">\" at line 1, column 52." +
+        "\nWas expecting one of:\n    \")\" ...\n    \",\" ...\n    \"=\" ...")
   }
 
   @Test

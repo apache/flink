@@ -31,6 +31,7 @@ import org.apache.flink.types.Row;
 import org.apache.flink.util.CloseableIterator;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.function.Function;
 
 /** Create result provider from a static set of data using external types. */
@@ -103,14 +104,17 @@ public class StaticResultProvider implements ResultProvider {
         Object[] values = new Object[row.getArity()];
         for (int i = 0; i < row.getArity(); i++) {
             Object value = row.getField(i);
-            if (value == null) {
+            if (value == null || (value instanceof Optional && !((Optional) value).isPresent())) {
                 values[i] = null;
             } else if (value instanceof String) {
                 values[i] = StringData.fromString((String) value);
             } else if (value instanceof Boolean
                     || value instanceof Long
-                    || value instanceof Integer) {
+                    || value instanceof Integer
+                    || value instanceof Double) {
                 values[i] = value;
+            } else if (value instanceof Optional && ((Optional) value).isPresent()) {
+                values[i] = ((Optional) value).get();
             } else {
                 throw new TableException("Cannot convert row type");
             }

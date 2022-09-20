@@ -18,11 +18,14 @@
 
 package org.apache.flink.table.operations;
 
+import org.apache.flink.table.catalog.CatalogPartitionSpec;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 
-import java.util.Collections;
-import java.util.LinkedHashMap;
-import java.util.Map;
+import javax.annotation.Nullable;
+
+import java.util.List;
+import java.util.Optional;
+import java.util.stream.Collectors;
 
 /**
  * Operation to describe a DESCRIBE [EXTENDED] [[catalogName.] dataBasesName].sqlIdentifier
@@ -32,10 +35,18 @@ public class DescribeTableOperation implements Operation {
 
     private final ObjectIdentifier sqlIdentifier;
     private final boolean isExtended;
+    private final String columnName;
+    private final @Nullable List<CatalogPartitionSpec> partitionSpecs;
 
-    public DescribeTableOperation(ObjectIdentifier sqlIdentifier, boolean isExtended) {
+    public DescribeTableOperation(
+            ObjectIdentifier sqlIdentifier,
+            boolean isExtended,
+            String columnName,
+            @Nullable List<CatalogPartitionSpec> partitionSpecs) {
         this.sqlIdentifier = sqlIdentifier;
         this.isExtended = isExtended;
+        this.columnName = columnName;
+        this.partitionSpecs = partitionSpecs;
     }
 
     public ObjectIdentifier getSqlIdentifier() {
@@ -46,12 +57,37 @@ public class DescribeTableOperation implements Operation {
         return isExtended;
     }
 
+    public Optional<String> getColumnName() {
+        return Optional.ofNullable(columnName);
+    }
+
+    /**
+     * Returns Optional.empty() if the table is not a partition table, else returns the given
+     * partition specs.
+     */
+    public Optional<List<CatalogPartitionSpec>> getPartitionSpecs() {
+        return Optional.ofNullable(partitionSpecs);
+    }
+
     @Override
     public String asSummaryString() {
-        Map<String, Object> params = new LinkedHashMap<>();
-        params.put("identifier", sqlIdentifier);
-        params.put("isExtended", isExtended);
-        return OperationUtils.formatWithChildren(
-                "DESCRIBE", params, Collections.emptyList(), Operation::asSummaryString);
+        StringBuilder sb = new StringBuilder();
+        sb.append("DESCRIBE");
+        if (isExtended) {
+            sb.append(" EXTENDED");
+        }
+        sb.append(sqlIdentifier.toString());
+        if (partitionSpecs != null) {
+            sb.append(" PARTITION(")
+                    .append(
+                            partitionSpecs.stream()
+                                    .map(p -> p.getPartitionSpec().toString())
+                                    .collect(Collectors.joining(",")))
+                    .append(")");
+        }
+        if (columnName.length() != 0) {
+            sb.append(String.format(" %s", columnName));
+        }
+        return sb.toString();
     }
 }

@@ -249,6 +249,32 @@ class FlinkSqlParserImplTest extends SqlParserTest {
         sql("desc tbl").ok("DESCRIBE `TBL`");
         sql("desc catalog1.db1.tbl").ok("DESCRIBE `CATALOG1`.`DB1`.`TBL`");
         sql("desc extended db1").ok("DESCRIBE EXTENDED `DB1`");
+
+        sql("desc tbl col1").ok("DESCRIBE `TBL` `COL1`");
+        sql("desc catalog1.db1.tbl col1").ok("DESCRIBE `CATALOG1`.`DB1`.`TBL` `COL1`");
+        sql("desc extended db1 col1").ok("DESCRIBE EXTENDED `DB1` `COL1`");
+
+        sql("desc tbl partition(a=1)").ok("DESCRIBE `TBL` PARTITION `A` = 1");
+        sql("desc catalog1.db1.tbl partition(a=1)")
+                .ok("DESCRIBE `CATALOG1`.`DB1`.`TBL` PARTITION `A` = 1");
+        sql("desc extended tbl partition(a=1)").ok("DESCRIBE EXTENDED `TBL` PARTITION `A` = 1");
+
+        sql("desc tbl partition(a)").ok("DESCRIBE `TBL` PARTITION `A`");
+        sql("desc catalog1.db1.tbl partition(a)")
+                .ok("DESCRIBE `CATALOG1`.`DB1`.`TBL` PARTITION `A`");
+        sql("desc extended tbl partition(a)").ok("DESCRIBE EXTENDED `TBL` PARTITION `A`");
+
+        sql("desc tbl partition(a=1) col1").ok("DESCRIBE `TBL` PARTITION `A` = 1 `COL1`");
+        sql("desc catalog1.db1.tbl partition(a=1) col1")
+                .ok("DESCRIBE `CATALOG1`.`DB1`.`TBL` PARTITION `A` = 1 `COL1`");
+        sql("desc extended tbl partition(a=1) col1")
+                .ok("DESCRIBE EXTENDED `TBL` PARTITION `A` = 1 `COL1`");
+
+        sql("desc tbl partition(a) col1").ok("DESCRIBE `TBL` PARTITION `A` `COL1`");
+        sql("desc tbl partition(a=1, b=2) col1")
+                .ok("DESCRIBE `TBL` PARTITION `A` = 1, `B` = 2 `COL1`");
+        sql("desc extended tbl partition(a=1, b=2) col1")
+                .ok("DESCRIBE EXTENDED `TBL` PARTITION `A` = 1, `B` = 2 `COL1`");
     }
 
     @Test

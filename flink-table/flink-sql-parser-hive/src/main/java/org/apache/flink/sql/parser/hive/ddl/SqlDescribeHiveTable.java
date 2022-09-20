@@ -35,7 +35,7 @@ public class SqlDescribeHiveTable extends SqlRichDescribeTable {
             SqlIdentifier tableNameIdentifier,
             boolean extended,
             boolean formatted) {
-        super(pos, tableNameIdentifier, extended || formatted);
+        super(pos, tableNameIdentifier, extended || formatted, null, null);
         this.extended = extended;
         this.formatted = formatted;
     }

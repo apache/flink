@@ -21,6 +21,7 @@ package org.apache.flink.table.planner.utils;
 import org.apache.flink.table.catalog.stats.CatalogColumnStatisticsDataBase;
 import org.apache.flink.table.catalog.stats.CatalogColumnStatisticsDataString;
 import org.apache.flink.table.plan.stats.ColumnStats;
+import org.apache.flink.table.utils.stats.CatalogTableStatisticsConverter;
 
 import org.junit.Test;
 

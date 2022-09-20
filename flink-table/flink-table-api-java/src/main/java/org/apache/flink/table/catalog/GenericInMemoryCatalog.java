@@ -18,6 +18,8 @@
 
 package org.apache.flink.table.catalog;
 
+import org.apache.flink.table.api.TableException;
+import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.catalog.exceptions.CatalogException;
 import org.apache.flink.table.catalog.exceptions.DatabaseAlreadyExistException;
 import org.apache.flink.table.catalog.exceptions.DatabaseNotEmptyException;
@@ -33,7 +35,17 @@ import org.apache.flink.table.catalog.exceptions.TableNotPartitionedException;
 import org.apache.flink.table.catalog.stats.CatalogColumnStatistics;
 import org.apache.flink.table.catalog.stats.CatalogTableStatistics;
 import org.apache.flink.table.expressions.Expression;
+import org.apache.flink.table.expressions.ResolvedExpression;
 import org.apache.flink.table.functions.FunctionIdentifier;
+import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.types.logical.BigIntType;
+import org.apache.flink.table.types.logical.BooleanType;
+import org.apache.flink.table.types.logical.CharType;
+import org.apache.flink.table.types.logical.DoubleType;
+import org.apache.flink.table.types.logical.IntType;
+import org.apache.flink.table.types.logical.LogicalType;
+import org.apache.flink.table.types.logical.VarCharType;
+import org.apache.flink.table.utils.FilterUtils;
 import org.apache.flink.util.StringUtils;
 
 import java.util.ArrayList;
@@ -41,6 +53,8 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
@@ -599,7 +613,71 @@ public class GenericInMemoryCatalog extends AbstractCatalog {
     public List<CatalogPartitionSpec> listPartitionsByFilter(
             ObjectPath tablePath, List<Expression> filters)
             throws TableNotExistException, TableNotPartitionedException, CatalogException {
-        throw new UnsupportedOperationException();
+        checkNotNull(tablePath);
+        ensurePartitionedTable(tablePath);
+
+        List<CatalogPartitionSpec> partitions = listPartitions(tablePath);
+        if (partitions.isEmpty()) {
+            return partitions;
+        }
+
+        CatalogBaseTable table = this.getTable(tablePath);
+        TableSchema schema = table.getSchema();
+        List<ResolvedExpression> resolvedExpressions =
+                filters.stream()
+                        .map(
+                                filter -> {
+                                    if (filter instanceof ResolvedExpression) {
+                                        return (ResolvedExpression) filter;
+                                    }
+                                    throw new UnsupportedOperationException(
+                                            String.format(
+                                                    "GenericInMemoryCatalog only works with resolved expressions. Get unresolved expression: %s",
+                                                    filter));
+                                })
+                        .collect(Collectors.toList());
+
+        return partitions.stream()
+                .filter(
+                        partition -> {
+                            Function<String, Comparable<?>> getter =
+                                    getValueGetter(partition.getPartitionSpec(), schema);
+                            return FilterUtils.isRetainedAfterApplyingFilterPredicates(
+                                    resolvedExpressions, getter);
+                        })
+                .collect(Collectors.toList());
+    }
+
+    private Function<String, Comparable<?>> getValueGetter(
+            Map<String, String> spec, TableSchema schema) {
+        return field -> {
+            Optional<DataType> optionalDataType = schema.getFieldDataType(field);
+            if (!optionalDataType.isPresent()) {
+                throw new TableException(
+                        String.format("Field %s is not found in table schema.", field));
+            }
+            return convertValue(
+                    optionalDataType.get().getLogicalType(), spec.getOrDefault(field, null));
+        };
+    }
+
+    private Comparable<?> convertValue(LogicalType type, String value) {
+        if (type instanceof BooleanType) {
+            return Boolean.valueOf(value);
+        } else if (type instanceof CharType) {
+            return value.charAt(0);
+        } else if (type instanceof DoubleType) {
+            return Double.valueOf(value);
+        } else if (type instanceof IntType) {
+            return Integer.valueOf(value);
+        } else if (type instanceof BigIntType) {
+            return Long.valueOf(value);
+        } else if (type instanceof VarCharType) {
+            return value;
+        } else {
+            throw new UnsupportedOperationException(
+                    String.format("Unsupported data type: %s.", type));
+        }
     }
 
     @Override

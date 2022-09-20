@@ -47,15 +47,14 @@ import org.apache.calcite.rel.logical.LogicalTableScan;
 import javax.annotation.Nullable;
 
 import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.Set;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.table.api.config.OptimizerConfigOptions.TABLE_OPTIMIZER_SOURCE_REPORT_STATISTICS_ENABLED;
-import static org.apache.flink.table.planner.utils.CatalogTableStatisticsConverter.convertToAccumulatedTableStates;
+import static org.apache.flink.table.utils.stats.CatalogTableStatisticsConverter.convertToAccumulatedTableStates;
+import static org.apache.flink.table.utils.stats.CatalogTableStatisticsConverter.getPartitionKeys;
 
 /**
  * A FlinkOptimizeProgram that recompute statistics after partition pruning and filter push down.
@@ -214,15 +213,6 @@ public class FlinkRecomputeStatisticsProgram implements FlinkOptimizeProgram<Bat
         } catch (PartitionNotExistException e) {
             return Optional.empty();
         }
-    }
-
-    private static Set<String> getPartitionKeys(List<CatalogPartitionSpec> catalogPartitionSpecs) {
-        Set<String> partitionKeys = new HashSet<>();
-        for (CatalogPartitionSpec catalogPartitionSpec : catalogPartitionSpecs) {
-            Map<String, String> partitionSpec = catalogPartitionSpec.getPartitionSpec();
-            partitionKeys.addAll(partitionSpec.keySet());
-        }
-        return partitionKeys;
     }
 
     @SuppressWarnings({"unchecked", "raw"})

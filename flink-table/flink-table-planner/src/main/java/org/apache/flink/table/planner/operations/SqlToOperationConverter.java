@@ -187,6 +187,7 @@ import org.apache.flink.table.resource.ResourceType;
 import org.apache.flink.table.resource.ResourceUri;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.utils.TableSchemaUtils;
+import org.apache.flink.table.utils.stats.CatalogTableStatisticsConverter;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.StringUtils;
 
@@ -1192,7 +1193,64 @@ public class SqlToOperationConverter {
                 UnresolvedIdentifier.of(sqlRichDescribeTable.fullTableName());
         ObjectIdentifier identifier = catalogManager.qualifyIdentifier(unresolvedIdentifier);
 
-        return new DescribeTableOperation(identifier, sqlRichDescribeTable.isExtended());
+        Optional<ContextResolvedTable> optionalCatalogTable = catalogManager.getTable(identifier);
+        if (!optionalCatalogTable.isPresent() || optionalCatalogTable.get().isTemporary()) {
+            throw new ValidationException(
+                    String.format("Table %s doesn't exist or is a temporary table.", identifier));
+        }
+        CatalogBaseTable baseTable = optionalCatalogTable.get().getTable();
+        if (baseTable instanceof CatalogView) {
+            throw new ValidationException("DESCRIBE TABLE for a view is not allowed.");
+        }
+        CatalogTable table = (CatalogTable) baseTable;
+        ResolvedSchema schema =
+                baseTable.getUnresolvedSchema().resolve(catalogManager.getSchemaResolver());
+
+        LinkedHashMap<String, String> partitions = sqlRichDescribeTable.getPartitions();
+        List<CatalogPartitionSpec> targetPartitionSpecs = null;
+        if (table.isPartitioned()) {
+            try {
+                targetPartitionSpecs = getPartitionSpecs(identifier, schema, partitions);
+            } catch (Exception e) {
+                throw new ValidationException(e.getMessage(), e);
+            }
+        } else if (!partitions.isEmpty()) {
+            throw new ValidationException(
+                    String.format(
+                            "Invalid DESCRIBE TABLE statement. Table: %s is not a partition table, while partition values are given.",
+                            identifier));
+        }
+        String columnName = sqlRichDescribeTable.getColumnName();
+        String targetColumns = "";
+        if (columnName != null) {
+            Optional<Column> colOpt = schema.getColumn(columnName);
+            if (!colOpt.isPresent()) {
+                throw new ValidationException(
+                        String.format(
+                                "Column: %s does not exist in the table: %s.",
+                                columnName, identifier));
+            }
+            Column col = colOpt.get();
+            if (col instanceof Column.ComputedColumn) {
+                throw new ValidationException(
+                        String.format(
+                                "Column: %s is a computed column, DESCRIBE TABLE does not support computed column.",
+                                columnName));
+            } else if (col instanceof Column.MetadataColumn) {
+                throw new ValidationException(
+                        String.format(
+                                "Column: %s is a metadata column, DESCRIBE TABLE does not support metadata column.",
+                                columnName));
+            } else if (col instanceof Column.PhysicalColumn) {
+                targetColumns = columnName;
+            } else {
+                throw new ValidationException(
+                        "Unknown column class: " + col.getClass().getSimpleName());
+            }
+        }
+
+        return new DescribeTableOperation(
+                identifier, sqlRichDescribeTable.isExtended(), targetColumns, targetPartitionSpecs);
     }
 
     /** Convert LOAD MODULE statement. */
@@ -1370,26 +1428,47 @@ public class SqlToOperationConverter {
             ResolvedSchema schema,
             LinkedHashMap<String, String> partitions)
             throws TableNotPartitionedException, TableNotExistException {
+        List<CatalogPartitionSpec> allPartitionsSpec =
+                catalogManager
+                        .getCatalog(tableIdentifier.getCatalogName())
+                        .get()
+                        .listPartitions(tableIdentifier.toObjectPath());
+        Map<String, Set<String>> partitionKeysAndValues =
+                CatalogTableStatisticsConverter.getPartitionKeysAndValues(allPartitionsSpec);
         List<Expression> filters = new ArrayList<>();
         for (Map.Entry<String, String> entry : partitions.entrySet()) {
             if (entry.getValue() != null) {
-                CallExpression call =
-                        CallExpression.temporary(
-                                FunctionIdentifier.of("="),
-                                BuiltInFunctionDefinitions.EQUALS,
-                                Arrays.asList(
-                                        getPartitionKeyExpr(schema, entry.getKey()),
-                                        getPartitionValueExpr(
-                                                schema, entry.getKey(), entry.getValue())),
-                                DataTypes.BOOLEAN());
-                filters.add(call);
+                if (!partitionKeysAndValues.containsKey(entry.getKey())) {
+                    throw new ValidationException(
+                            String.format(
+                                    "key '%s' in partition spec {%s=%s} is not partition key. Partition keys: %s",
+                                    entry.getKey(),
+                                    entry.getKey(),
+                                    entry.getValue(),
+                                    partitionKeysAndValues.keySet()));
+                } else {
+                    if (!partitionKeysAndValues.get(entry.getKey()).contains(entry.getValue())) {
+                        throw new ValidationException(
+                                String.format(
+                                        "partition '%s' not found for partition spec {%s=%s}.",
+                                        entry.getValue(), entry.getKey(), entry.getValue()));
+                    }
+                    CallExpression call =
+                            CallExpression.temporary(
+                                    FunctionIdentifier.of("="),
+                                    BuiltInFunctionDefinitions.EQUALS,
+                                    Arrays.asList(
+                                            getPartitionKeyExpr(schema, entry.getKey()),
+                                            getPartitionValueExpr(
+                                                    schema, entry.getKey(), entry.getValue())),
+                                    DataTypes.BOOLEAN());
+                    filters.add(call);
+                }
             }
         }
         if (filters.isEmpty()) {
-            return catalogManager
-                    .getCatalog(tableIdentifier.getCatalogName())
-                    .get()
-                    .listPartitions(tableIdentifier.toObjectPath());
+            // If not specifying partition, all partition stats will be selected.
+            return allPartitionsSpec;
         } else {
             return catalogManager
                     .getCatalog(tableIdentifier.getCatalogName())

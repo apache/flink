@@ -82,6 +82,9 @@ public final class TableauStyle implements PrintStyle {
     /** A flag to indicate whether print row kind info. */
     private final boolean printRowKind;
 
+    /** Content is left-aligned, default is false. */
+    private boolean leftAligned = false;
+
     private int[] columnWidths;
 
     private String[] columnNames;
@@ -92,12 +95,14 @@ public final class TableauStyle implements PrintStyle {
             int[] columnWidths,
             int maxColumnWidth,
             boolean printNullAsEmpty,
-            boolean printRowKind) {
+            boolean printRowKind,
+            boolean leftAligned) {
         this.converter = converter;
         this.columnWidths = columnWidths;
         this.maxColumnWidth = maxColumnWidth;
         this.printNullAsEmpty = printNullAsEmpty;
         this.printRowKind = printRowKind;
+        this.leftAligned = leftAligned;
 
         if (printRowKind) {
             this.columnNames =
@@ -198,8 +203,13 @@ public final class TableauStyle implements PrintStyle {
             sb.append(" ");
             int displayWidth = getStringDisplayWidth(col);
             if (displayWidth <= columnWidths[idx]) {
-                sb.append(EncodingUtils.repeat(' ', columnWidths[idx] - displayWidth));
-                sb.append(col);
+                if (leftAligned) {
+                    sb.append(col);
+                    sb.append(EncodingUtils.repeat(' ', columnWidths[idx] - displayWidth));
+                } else {
+                    sb.append(EncodingUtils.repeat(' ', columnWidths[idx] - displayWidth));
+                    sb.append(col);
+                }
             } else {
                 sb.append(truncateString(col, columnWidths[idx] - COLUMN_TRUNCATED_FLAG.length()));
                 sb.append(COLUMN_TRUNCATED_FLAG);

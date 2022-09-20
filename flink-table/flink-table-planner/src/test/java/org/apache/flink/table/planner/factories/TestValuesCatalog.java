@@ -18,9 +18,6 @@
 
 package org.apache.flink.table.planner.factories;
 
-import org.apache.flink.table.api.TableException;
-import org.apache.flink.table.api.TableSchema;
-import org.apache.flink.table.catalog.CatalogBaseTable;
 import org.apache.flink.table.catalog.CatalogPartitionSpec;
 import org.apache.flink.table.catalog.GenericInMemoryCatalog;
 import org.apache.flink.table.catalog.ObjectPath;
@@ -28,23 +25,10 @@ import org.apache.flink.table.catalog.exceptions.CatalogException;
 import org.apache.flink.table.catalog.exceptions.TableNotExistException;
 import org.apache.flink.table.catalog.exceptions.TableNotPartitionedException;
 import org.apache.flink.table.expressions.Expression;
-import org.apache.flink.table.expressions.ResolvedExpression;
 import org.apache.flink.table.factories.FunctionDefinitionFactory;
-import org.apache.flink.table.planner.utils.FilterUtils;
-import org.apache.flink.table.types.DataType;
-import org.apache.flink.table.types.logical.BigIntType;
-import org.apache.flink.table.types.logical.BooleanType;
-import org.apache.flink.table.types.logical.CharType;
-import org.apache.flink.table.types.logical.DoubleType;
-import org.apache.flink.table.types.logical.IntType;
-import org.apache.flink.table.types.logical.LogicalType;
-import org.apache.flink.table.types.logical.VarCharType;
 
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
-import java.util.function.Function;
-import java.util.stream.Collectors;
 
 /** Use TestValuesCatalog to test partition push down and create function definition. */
 public class TestValuesCatalog extends GenericInMemoryCatalog {
@@ -65,72 +49,11 @@ public class TestValuesCatalog extends GenericInMemoryCatalog {
                     "TestValuesCatalog doesn't support list partition by filters");
         }
 
-        List<CatalogPartitionSpec> partitions = listPartitions(tablePath);
-        if (partitions.isEmpty()) {
-            return partitions;
-        }
-
-        CatalogBaseTable table = this.getTable(tablePath);
-        TableSchema schema = table.getSchema();
-        List<ResolvedExpression> resolvedExpressions =
-                filters.stream()
-                        .map(
-                                filter -> {
-                                    if (filter instanceof ResolvedExpression) {
-                                        return (ResolvedExpression) filter;
-                                    }
-                                    throw new UnsupportedOperationException(
-                                            String.format(
-                                                    "TestValuesCatalog only works with resolved expressions. Get unresolved expression: %s",
-                                                    filter));
-                                })
-                        .collect(Collectors.toList());
-
-        return partitions.stream()
-                .filter(
-                        partition -> {
-                            Function<String, Comparable<?>> getter =
-                                    getValueGetter(partition.getPartitionSpec(), schema);
-                            return FilterUtils.isRetainedAfterApplyingFilterPredicates(
-                                    resolvedExpressions, getter);
-                        })
-                .collect(Collectors.toList());
+        return super.listPartitionsByFilter(tablePath, filters);
     }
 
     @Override
     public Optional<FunctionDefinitionFactory> getFunctionDefinitionFactory() {
         return Optional.of(new TestFunctionDefinitionFactory());
-    }
-
-    private Function<String, Comparable<?>> getValueGetter(
-            Map<String, String> spec, TableSchema schema) {
-        return field -> {
-            Optional<DataType> optionalDataType = schema.getFieldDataType(field);
-            if (!optionalDataType.isPresent()) {
-                throw new TableException(
-                        String.format("Field %s is not found in table schema.", field));
-            }
-            return convertValue(
-                    optionalDataType.get().getLogicalType(), spec.getOrDefault(field, null));
-        };
-    }
-
-    private Comparable<?> convertValue(LogicalType type, String value) {
-        if (type instanceof BooleanType) {
-            return Boolean.valueOf(value);
-        } else if (type instanceof CharType) {
-            return value.charAt(0);
-        } else if (type instanceof DoubleType) {
-            return Double.valueOf(value);
-        } else if (type instanceof IntType) {
-            return Integer.valueOf(value);
-        } else if (type instanceof BigIntType) {
-            return Long.valueOf(value);
-        } else if (type instanceof VarCharType) {
-            return value;
-        } else {
-            throw new UnsupportedOperationException(
-                    String.format("Unsupported data type: %s.", type));
-        }
     }
 }

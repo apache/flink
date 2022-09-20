@@ -567,7 +567,7 @@ SqlShowCreate SqlShowCreate() :
 }
 
 /**
- * DESCRIBE | DESC [ EXTENDED] [[catalogName.] dataBasesName].tableName sql call.
+ * DESCRIBE | DESC [ EXTENDED] [[catalogName.] dataBasesName].tableName [PARTITION partitionSpec] [columnName] sql call.
  * Here we add Rich in className to distinguish from calcite's original SqlDescribeTable.
  */
 SqlRichDescribeTable SqlRichDescribeTable() :
@@ -575,13 +575,21 @@ SqlRichDescribeTable SqlRichDescribeTable() :
     SqlIdentifier tableName;
     SqlParserPos pos;
     boolean isExtended = false;
+    SqlNodeList partitionSpec = null;
+    SqlIdentifier columnName = null;
 }
 {
     ( <DESCRIBE> | <DESC> ) { pos = getPos();}
     [ <EXTENDED> { isExtended = true;} ]
     tableName = CompoundIdentifier()
+    [ <PARTITION> {
+          partitionSpec = new SqlNodeList(getPos());
+          ExtendedPartitionSpecCommaList(partitionSpec);
+          }
+    ]
+    [ columnName = SimpleIdentifier() ]
     {
-        return new SqlRichDescribeTable(pos, tableName, isExtended);
+        return new SqlRichDescribeTable(pos, tableName, isExtended, partitionSpec, columnName);
     }
 }
 

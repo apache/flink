@@ -68,7 +68,8 @@ public interface PrintStyle {
                         schema.getColumns(), maxColumnWidth, printNullAsEmpty, printRowKind),
                 maxColumnWidth,
                 printNullAsEmpty,
-                printRowKind);
+                printRowKind,
+                false);
     }
 
     /**
@@ -86,7 +87,18 @@ public interface PrintStyle {
             boolean printRowKind) {
         Preconditions.checkArgument(maxColumnWidth > 0, "maxColumnWidth should be greater than 0");
         return new TableauStyle(
-                schema, converter, null, maxColumnWidth, printNullAsEmpty, printRowKind);
+                schema, converter, null, maxColumnWidth, printNullAsEmpty, printRowKind, false);
+    }
+
+    static TableauStyle tableauWithDataInferredColumnWidthsAndContentLeftAlign(
+            ResolvedSchema schema,
+            RowDataToStringConverter converter,
+            int maxColumnWidth,
+            boolean printNullAsEmpty,
+            boolean printRowKind) {
+        Preconditions.checkArgument(maxColumnWidth > 0, "maxColumnWidth should be greater than 0");
+        return new TableauStyle(
+                schema, converter, null, maxColumnWidth, printNullAsEmpty, printRowKind, true);
     }
 
     /**
