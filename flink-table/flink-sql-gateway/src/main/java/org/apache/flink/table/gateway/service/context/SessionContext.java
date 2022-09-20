@@ -23,8 +23,10 @@ import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.table.api.EnvironmentSettings;
+import org.apache.flink.table.api.SqlDialect;
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.TableException;
+import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.api.bridge.java.internal.StreamTableEnvironmentImpl;
 import org.apache.flink.table.api.config.TableConfigOptions;
 import org.apache.flink.table.api.internal.TableEnvironmentInternal;
@@ -46,6 +48,7 @@ import org.apache.flink.table.gateway.service.operation.OperationManager;
 import org.apache.flink.table.gateway.service.utils.SqlExecutionException;
 import org.apache.flink.table.module.ModuleManager;
 import org.apache.flink.table.resource.ResourceManager;
+import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkUserCodeClassLoaders;
 import org.apache.flink.util.MutableURLClassLoader;
 
@@ -293,16 +296,27 @@ public class SessionContext {
                         catalogManager,
                         functionCatalog);
 
-        return new StreamTableEnvironmentImpl(
-                catalogManager,
-                moduleManager,
-                resourceManager,
-                functionCatalog,
-                tableConfig,
-                env,
-                planner,
-                executor,
-                settings.isStreamingMode());
+        try {
+            return new StreamTableEnvironmentImpl(
+                    catalogManager,
+                    moduleManager,
+                    resourceManager,
+                    functionCatalog,
+                    tableConfig,
+                    env,
+                    planner,
+                    executor,
+                    settings.isStreamingMode());
+        } catch (ValidationException e) {
+            if (tableConfig.getSqlDialect() == SqlDialect.HIVE) {
+                String additionErrorMsg =
+                        "Note: if you want to use Hive dialect, "
+                                + "please first move the jar `flink-table-planner_2.12` located in `FLINK_HOME/opt` "
+                                + "to `FLINK_HOME/lib` and then move out the jar `flink-table-planner-loader` from `FLINK_HOME/lib`.";
+                ExceptionUtils.updateDetailMessage(e, t -> t.getMessage() + additionErrorMsg);
+            }
+            throw e;
+        }
     }
 
     private static Executor lookupExecutor(

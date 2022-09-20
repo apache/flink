@@ -24,6 +24,8 @@ import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.table.api.EnvironmentSettings;
+import org.apache.flink.table.api.SqlDialect;
+import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.Catalog;
 import org.apache.flink.table.catalog.CatalogManager;
 import org.apache.flink.table.catalog.FunctionCatalog;
@@ -34,6 +36,7 @@ import org.apache.flink.table.client.resource.ClientResourceManager;
 import org.apache.flink.table.client.util.ClientClassloaderUtil;
 import org.apache.flink.table.client.util.ClientWrapperClassLoader;
 import org.apache.flink.table.module.ModuleManager;
+import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.TemporaryClassLoaderContext;
 
 import org.slf4j.Logger;
@@ -156,6 +159,14 @@ public class SessionContext {
         } catch (Exception e) {
             // get error and reset the key with old value
             resetSessionConfigurationToDefault(originConfiguration);
+            if (value.equalsIgnoreCase(SqlDialect.HIVE.name())
+                    && e instanceof ValidationException) {
+                String additionErrorMsg =
+                        "Note: if you want to use Hive dialect, "
+                                + "please first move the jar `flink-table-planner_2.12` located in `FLINK_HOME/opt` "
+                                + "to `FLINK_HOME/lib` and then move out the jar `flink-table-planner-loader` from `FLINK_HOME/lib`.";
+                ExceptionUtils.updateDetailMessage(e, t -> t.getMessage() + additionErrorMsg);
+            }
             throw new SqlExecutionException(
                     String.format("Failed to set key %s with value %s.", key, value), e);
         }
