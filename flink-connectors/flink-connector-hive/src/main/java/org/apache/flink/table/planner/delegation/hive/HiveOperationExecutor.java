@@ -153,14 +153,14 @@ public class HiveOperationExecutor implements ExtendedOperationExecutor {
                         hiveLoadDataOperation.getPath(),
                         hiveLoadDataOperation.getTablePath(),
                         hiveLoadDataOperation.getPartitionSpec(),
-                        hiveLoadDataOperation.isSrcLocal(),
-                        hiveLoadDataOperation.isOverwrite());
+                        hiveLoadDataOperation.isOverwrite(),
+                        hiveLoadDataOperation.isSrcLocal());
             } else {
                 hiveCatalog.loadTable(
                         hiveLoadDataOperation.getPath(),
                         hiveLoadDataOperation.getTablePath(),
-                        hiveLoadDataOperation.isSrcLocal(),
-                        hiveLoadDataOperation.isOverwrite());
+                        hiveLoadDataOperation.isOverwrite(),
+                        hiveLoadDataOperation.isSrcLocal());
             }
             return Optional.of(TableResultImpl.TABLE_RESULT_OK);
         } finally {
