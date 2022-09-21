@@ -297,7 +297,7 @@ if [ -z "${FLINK_ENV_JAVA_OPTS}" ]; then
     FLINK_ENV_JAVA_OPTS=$(readFromConfig ${KEY_ENV_JAVA_OPTS} "" "${YAML_CONF}")
     if [ -z "${FLINK_ENV_JAVA_OPTS}" ]; then
       # try deprecated key
-      FLINK_ENV_JAVA_OPTS=$(readFromConfig ${"env.java.opts"} "${DEFAULT_ENV_JAVA_OPTS}" "${YAML_CONF}")
+      FLINK_ENV_JAVA_OPTS=$(readFromConfig "env.java.opts" "${DEFAULT_ENV_JAVA_OPTS}" "${YAML_CONF}")
     fi
 
     # Remove leading and ending double quotes (if present) of value
