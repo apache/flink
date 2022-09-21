@@ -371,11 +371,10 @@ public class RemoteInputChannelTest {
         ch.requestSubpartition();
         client.verifyResult(partitionId, 0, 0);
 
-        // Request subpartition and verify that the actual requests are delayed.
+        // Request subpartition and verify that the actual back off.
         for (int expected : expectedDelays) {
             ch.retriggerSubpartitionRequest();
-
-            client.verifyResult(partitionId, 0, expected);
+            assertEquals(expected, ch.getCurrentBackoff());
         }
 
         // Exception after backoff is greater than the maximum backoff.
@@ -401,9 +400,9 @@ public class RemoteInputChannelTest {
         ch.requestSubpartition();
         client.verifyResult(partitionId, 0, 0);
 
-        // Initial delay for second request
+        // The current backoff for second request
         ch.retriggerSubpartitionRequest();
-        client.verifyResult(partitionId, 0, 500);
+        assertEquals(500, ch.getCurrentBackoff());
 
         // Exception after backoff is greater than the maximum backoff.
         try {

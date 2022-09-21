@@ -39,6 +39,7 @@ import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 
 import java.net.BindException;
+import java.util.Optional;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
@@ -70,12 +71,13 @@ public class ServerTransportErrorHandlingTest {
                         any(BufferAvailabilityListener.class),
                         any(PartitionRequestListener.class)))
                 .thenAnswer(
-                        new Answer<ResultSubpartitionView>() {
+                        new Answer<Optional<ResultSubpartitionView>>() {
                             @Override
-                            public ResultSubpartitionView answer(InvocationOnMock invocationOnMock)
-                                    throws Throwable {
-                                return new CancelPartitionRequestTest.InfiniteSubpartitionView(
-                                        outboundBuffers, sync);
+                            public Optional<ResultSubpartitionView> answer(
+                                    InvocationOnMock invocationOnMock) throws Throwable {
+                                return Optional.of(
+                                        new CancelPartitionRequestTest.InfiniteSubpartitionView(
+                                                outboundBuffers, sync));
                             }
                         });
 

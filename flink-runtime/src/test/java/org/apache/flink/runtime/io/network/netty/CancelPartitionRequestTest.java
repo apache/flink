@@ -41,6 +41,7 @@ import org.mockito.stubbing.Answer;
 import javax.annotation.Nullable;
 
 import java.io.IOException;
+import java.util.Optional;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
@@ -90,11 +91,11 @@ public class CancelPartitionRequestTest {
                             any(BufferAvailabilityListener.class),
                             any(PartitionRequestListener.class)))
                     .thenAnswer(
-                            new Answer<ResultSubpartitionView>() {
+                            new Answer<Optional<ResultSubpartitionView>>() {
                                 @Override
-                                public ResultSubpartitionView answer(
+                                public Optional<ResultSubpartitionView> answer(
                                         InvocationOnMock invocationOnMock) throws Throwable {
-                                    return view;
+                                    return Optional.of(view);
                                 }
                             });
 
@@ -146,15 +147,15 @@ public class CancelPartitionRequestTest {
                             any(BufferAvailabilityListener.class),
                             any(PartitionRequestListener.class)))
                     .thenAnswer(
-                            new Answer<ResultSubpartitionView>() {
+                            new Answer<Optional<ResultSubpartitionView>>() {
                                 @Override
-                                public ResultSubpartitionView answer(
+                                public Optional<ResultSubpartitionView> answer(
                                         InvocationOnMock invocationOnMock) throws Throwable {
                                     BufferAvailabilityListener listener =
                                             (BufferAvailabilityListener)
                                                     invocationOnMock.getArguments()[2];
                                     listener.notifyDataAvailable();
-                                    return view;
+                                    return Optional.of(view);
                                 }
                             });
 

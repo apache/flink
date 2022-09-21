@@ -43,6 +43,7 @@ import org.junit.Test;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 
+import java.util.Optional;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
@@ -179,15 +180,15 @@ public class PartitionRequestListenerTest {
                             any(BufferAvailabilityListener.class),
                             any(PartitionRequestListener.class)))
                     .thenAnswer(
-                            new Answer<ResultSubpartitionView>() {
+                            new Answer<Optional<ResultSubpartitionView>>() {
                                 @Override
-                                public ResultSubpartitionView answer(
+                                public Optional<ResultSubpartitionView> answer(
                                         InvocationOnMock invocationOnMock) throws Throwable {
                                     PartitionRequestListener notifier =
                                             (PartitionRequestListener)
                                                     invocationOnMock.getArguments()[3];
                                     notifier.notifyPartitionCreatedTimeout();
-                                    return null;
+                                    return Optional.empty();
                                 }
                             });
 

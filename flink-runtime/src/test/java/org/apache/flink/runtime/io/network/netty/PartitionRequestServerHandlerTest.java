@@ -21,18 +21,13 @@ package org.apache.flink.runtime.io.network.netty;
 import org.apache.flink.runtime.io.network.NetworkSequenceViewReader;
 import org.apache.flink.runtime.io.network.TaskEventDispatcher;
 import org.apache.flink.runtime.io.network.api.StopMode;
-import org.apache.flink.runtime.io.network.netty.NettyMessage.ErrorResponse;
-import org.apache.flink.runtime.io.network.netty.NettyMessage.PartitionRequest;
 import org.apache.flink.runtime.io.network.netty.NettyMessage.ResumeConsumption;
-import org.apache.flink.runtime.io.network.partition.PartitionNotFoundException;
 import org.apache.flink.runtime.io.network.partition.PartitionTestUtils;
 import org.apache.flink.runtime.io.network.partition.ResultPartition;
-import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionManager;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.io.network.partition.consumer.InputChannelID;
 import org.apache.flink.util.TestLogger;
-import org.apache.flink.util.concurrent.ManuallyTriggeredScheduledExecutor;
 
 import org.apache.flink.shaded.netty4.io.netty.channel.embedded.EmbeddedChannel;
 
@@ -41,55 +36,12 @@ import org.junit.Test;
 import java.io.IOException;
 import java.util.concurrent.CompletableFuture;
 
-import static org.hamcrest.Matchers.instanceOf;
-import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
-import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 /** Tests for {@link PartitionRequestServerHandler}. */
 public class PartitionRequestServerHandlerTest extends TestLogger {
-
-    /**
-     * Tests that {@link PartitionRequestServerHandler} responds {@link ErrorResponse} with wrapped
-     * {@link PartitionNotFoundException} when the notifier is timeout.
-     */
-    @Test
-    public void testResponsePartitionNotFoundExceptionForNotifierTimeout() {
-        long startTimestamp = System.currentTimeMillis();
-        ManuallyTriggeredScheduledExecutor scheduledExecutor =
-                new ManuallyTriggeredScheduledExecutor();
-        PartitionRequestQueue partitionRequestQueue = new PartitionRequestQueue();
-        ResultPartitionManager resultPartitionManager =
-                new ResultPartitionManager(1, scheduledExecutor);
-        final PartitionRequestServerHandler serverHandler =
-                new PartitionRequestServerHandler(
-                        resultPartitionManager, new TaskEventDispatcher(), partitionRequestQueue);
-        final EmbeddedChannel channel = new EmbeddedChannel(serverHandler, partitionRequestQueue);
-        final ResultPartitionID partitionId = new ResultPartitionID();
-
-        // Write the message of partition request to server
-        channel.writeInbound(new PartitionRequest(partitionId, 0, new InputChannelID(), 2));
-        channel.runPendingTasks();
-
-        // Read the response message after handling partition request
-        final Object msg = channel.readOutbound();
-        assertNull(msg);
-
-        assumeTrue(System.currentTimeMillis() > startTimestamp);
-        scheduledExecutor.triggerScheduledTasks();
-
-        final Object timeoutMsg = channel.readOutbound();
-        final ErrorResponse err = (ErrorResponse) timeoutMsg;
-        assertThat(err.cause, instanceOf(PartitionNotFoundException.class));
-
-        final ResultPartitionID actualPartitionId =
-                ((PartitionNotFoundException) err.cause).getPartitionId();
-        assertThat(partitionId, is(actualPartitionId));
-    }
 
     @Test
     public void testResumeConsumption() {

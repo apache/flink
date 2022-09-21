@@ -20,12 +20,12 @@ package org.apache.flink.runtime.io.network.partition;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.runtime.io.network.netty.NettyPartitionRequestListener;
-import org.apache.flink.util.concurrent.ExecutorThreadFactory;
 import org.apache.flink.util.concurrent.ScheduledExecutor;
-import org.apache.flink.util.concurrent.ScheduledExecutorServiceAdapter;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import javax.annotation.Nullable;
 
 import java.io.IOException;
 import java.util.Collection;
@@ -35,7 +35,6 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
 import static org.apache.flink.util.Preconditions.checkState;
@@ -53,7 +52,7 @@ public class ResultPartitionManager implements ResultPartitionProvider {
     private final Map<ResultPartitionID, PartitionRequestListenerManager> listenerManagers =
             new HashMap<>(16);
 
-    private final ScheduledExecutor partitionListenerTimeoutChecker;
+    @Nullable private final ScheduledExecutor partitionListenerTimeoutChecker;
 
     private final int partitionListenerTimeout;
 
@@ -61,11 +60,7 @@ public class ResultPartitionManager implements ResultPartitionProvider {
 
     @VisibleForTesting
     public ResultPartitionManager() {
-        this(
-                0,
-                new ScheduledExecutorServiceAdapter(
-                        Executors.newSingleThreadScheduledExecutor(
-                                new ExecutorThreadFactory("partition-notifier-timeout-checker"))));
+        this(0, null);
     }
 
     public ResultPartitionManager(
