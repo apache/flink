@@ -577,11 +577,14 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
         } else if (!inputProcessor.isAvailable()) {
             timer = new GaugePeriodTimer(ioMetrics.getIdleTimeMsPerSecond());
             resumeFuture = inputProcessor.getAvailableFuture();
-        } else {
+        } else if (changelogWriterAvailabilityProvider != null) {
             // currently, waiting for changelog availability is reported as busy
             // todo: add new metric (FLINK-24402)
             timer = null;
             resumeFuture = changelogWriterAvailabilityProvider.getAvailableFuture();
+        } else {
+            // data availability has changed in the meantime; retry immediately
+            return;
         }
         assertNoException(
                 resumeFuture.thenRun(
