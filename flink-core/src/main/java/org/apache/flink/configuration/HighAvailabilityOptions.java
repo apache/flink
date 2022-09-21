@@ -36,12 +36,12 @@ public class HighAvailabilityOptions {
      * highly available setup. To enable high-availability, set this mode to "ZOOKEEPER" or
      * "KUBERNETES". Can also be set to the FQN of the HighAvailability factory class.
      */
-    @Documentation.Section(Documentation.Sections.COMMON_HIGH_AVAILABILITY)
+    @Documentation.Section(value = Documentation.Sections.COMMON_HIGH_AVAILABILITY, position = 1)
     public static final ConfigOption<String> HA_MODE =
-            key("high-availability")
+            key("high-availability.type")
                     .stringType()
                     .defaultValue("NONE")
-                    .withDeprecatedKeys("recovery.mode")
+                    .withDeprecatedKeys("recovery.mode", "high-availability")
                     .withDescription(
                             "Defines high-availability mode used for cluster execution."
                                     + " To enable high-availability, set this mode to \"ZOOKEEPER\", \"KUBERNETES\", or specify the fully qualified name of the factory class.");
