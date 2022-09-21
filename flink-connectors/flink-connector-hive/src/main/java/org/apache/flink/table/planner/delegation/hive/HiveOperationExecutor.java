@@ -28,6 +28,7 @@ import org.apache.flink.table.api.internal.TableResultInternal;
 import org.apache.flink.table.catalog.Catalog;
 import org.apache.flink.table.catalog.CatalogManager;
 import org.apache.flink.table.catalog.Column;
+import org.apache.flink.table.catalog.ObjectPath;
 import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.catalog.hive.HiveCatalog;
 import org.apache.flink.table.delegation.ExtendedOperationExecutor;
@@ -36,10 +37,14 @@ import org.apache.flink.table.operations.HiveSetOperation;
 import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.planner.delegation.PlannerContext;
 import org.apache.flink.table.planner.delegation.hive.copy.HiveSetProcessor;
-import org.apache.flink.table.planner.delegation.hive.operation.HiveLoadDataOperation;
+import org.apache.flink.table.planner.delegation.hive.operations.HiveLoadDataOperation;
+import org.apache.flink.table.planner.delegation.hive.operations.HiveShowCreateTableOperation;
 import org.apache.flink.types.Row;
 
 import org.apache.hadoop.hive.conf.HiveConf;
+import org.apache.hadoop.hive.ql.metadata.Hive;
+import org.apache.hadoop.hive.ql.metadata.HiveException;
+import org.apache.hadoop.hive.ql.metadata.Table;
 
 import java.util.Collections;
 import java.util.List;
@@ -69,6 +74,8 @@ public class HiveOperationExecutor implements ExtendedOperationExecutor {
             return executeHiveSetOperation((HiveSetOperation) operation);
         } else if (operation instanceof HiveLoadDataOperation) {
             return executeHiveLoadDataOperation((HiveLoadDataOperation) operation);
+        } else if (operation instanceof HiveShowCreateTableOperation) {
+            return executeShowCreateTableOperation((HiveShowCreateTableOperation) operation);
         } else if (operation instanceof ExplainOperation) {
             ExplainOperation explainOperation = (ExplainOperation) operation;
             if (explainOperation.getChild() instanceof HiveLoadDataOperation) {
@@ -218,5 +225,43 @@ public class HiveOperationExecutor implements ExtendedOperationExecutor {
                         .schema(ResolvedSchema.of(Column.physical("result", DataTypes.STRING())))
                         .data(Collections.singletonList(Row.of(explanation)))
                         .build());
+    }
+
+    private Optional<TableResultInternal> executeShowCreateTableOperation(
+            HiveShowCreateTableOperation showCreateTableOperation) {
+        ObjectPath tablePath = showCreateTableOperation.getTablePath();
+        Catalog currentCatalog =
+                catalogManager.getCatalog(catalogManager.getCurrentCatalog()).orElse(null);
+        if (!(currentCatalog instanceof HiveCatalog)) {
+            throw new FlinkHiveException(
+                    "Only support 'SHOW CREATE TABLE' when the current catalog is HiveCatalog in Hive dialect.");
+        }
+        HiveCatalog hiveCatalog = (HiveCatalog) currentCatalog;
+        HiveConf hiveConf = hiveCatalog.getHiveConf();
+        Hive hive;
+        Table tbl;
+        try {
+            hive = Hive.get(hiveConf);
+            tbl = hive.getTable(tablePath.getDatabaseName(), tablePath.getObjectName());
+        } catch (HiveException e) {
+            throw new FlinkHiveException(String.format("Fail to get the table %s.", tablePath), e);
+        }
+
+        if (!HiveCatalog.isHiveTable(tbl.getTTable())) {
+            throw new UnsupportedOperationException(
+                    String.format(
+                            "The table %s to show isn't a Hive table,"
+                                    + " but 'SHOW CREATE TABLE' only supports Hive table currently.",
+                            tablePath));
+        }
+
+        String showCreateTableString = HiveShowTableUtils.showCreateTable(tablePath, tbl);
+        TableResultInternal resultInternal =
+                TableResultImpl.builder()
+                        .resultKind(ResultKind.SUCCESS)
+                        .schema(ResolvedSchema.of(Column.physical("result", DataTypes.STRING())))
+                        .data(Collections.singletonList(Row.of(showCreateTableString)))
+                        .build();
+        return Optional.of(resultInternal);
     }
 }

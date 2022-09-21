@@ -1175,6 +1175,61 @@ public class HiveDialectITCase {
     }
 
     @Test
+    public void testShowCreateTable() throws Exception {
+        tableEnv.getConfig().setSqlDialect(SqlDialect.DEFAULT);
+        tableEnv.executeSql(
+                "create table t1(id BIGINT,\n"
+                        + "  name STRING) WITH (\n"
+                        + "  'connector' = 'datagen' "
+                        + ")");
+        tableEnv.getConfig().setSqlDialect(SqlDialect.HIVE);
+        tableEnv.executeSql(
+                "create table t2 (key string, value string) comment 'show create table' partitioned by (a string, b int)"
+                        + " tblproperties ('k1' = 'v1')");
+
+        // should throw exception for show non-hive table
+        assertThatThrownBy(() -> tableEnv.executeSql("show create table t1"))
+                .isInstanceOf(UnsupportedOperationException.class)
+                .hasMessage(
+                        String.format(
+                                "The table %s to show isn't a Hive table,"
+                                        + " but 'SHOW CREATE TABLE' only supports Hive table currently.",
+                                "default.t1"));
+
+        // show hive table
+        String actualResult =
+                (String)
+                        CollectionUtil.iteratorToList(
+                                        tableEnv.executeSql("show create table t2").collect())
+                                .get(0)
+                                .getField(0);
+        Table table = hiveCatalog.getHiveTable(new ObjectPath("default", "t2"));
+        String expectLastDdlTime = table.getParameters().get("transient_lastDdlTime");
+        String expectedResult =
+                String.format(
+                        "CREATE TABLE `default.t2`(\n"
+                                + "  `key` string, \n"
+                                + "  `value` string)\n"
+                                + "COMMENT 'show create table'\n"
+                                + "PARTITIONED BY ( \n"
+                                + "  `a` string, \n"
+                                + "  `b` int)\n"
+                                + "ROW FORMAT SERDE \n"
+                                + "  'org.apache.hadoop.hive.serde2.lazy.LazySimpleSerDe' \n"
+                                + "STORED AS INPUTFORMAT \n"
+                                + "  'org.apache.hadoop.mapred.TextInputFormat' \n"
+                                + "OUTPUTFORMAT \n"
+                                + "  'org.apache.hadoop.hive.ql.io.IgnoreKeyTextOutputFormat'\n"
+                                + "LOCATION\n"
+                                + "  'file:%s'\n"
+                                + "TBLPROPERTIES (\n"
+                                + "  'k1'='v1', \n"
+                                + "  'transient_lastDdlTime'='%s')\n",
+                        warehouse + "/t2", expectLastDdlTime);
+        assertThat(actualResult).isEqualTo(expectedResult);
+    }
+
+    @Test
     public void testUnsupportedOperation() {
         List<String> statements =
                 Arrays.asList(

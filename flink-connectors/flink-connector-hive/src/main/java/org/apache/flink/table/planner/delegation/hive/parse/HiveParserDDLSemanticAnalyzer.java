@@ -104,6 +104,7 @@ import org.apache.flink.table.planner.delegation.hive.copy.HiveParserQueryState;
 import org.apache.flink.table.planner.delegation.hive.copy.HiveParserRowResolver;
 import org.apache.flink.table.planner.delegation.hive.copy.HiveParserSemanticAnalyzer;
 import org.apache.flink.table.planner.delegation.hive.copy.HiveParserStorageFormat;
+import org.apache.flink.table.planner.delegation.hive.operations.HiveShowCreateTableOperation;
 import org.apache.flink.table.planner.utils.OperationConverterUtils;
 import org.apache.flink.table.resource.ResourceType;
 import org.apache.flink.table.resource.ResourceUri;
@@ -377,6 +378,9 @@ public class HiveParserDDLSemanticAnalyzer {
             case HiveASTParser.TOK_DROPMACRO:
                 res = convertDropMacro(ast);
                 break;
+            case HiveASTParser.TOK_SHOW_CREATETABLE:
+                res = convertShowCreateTable(ast);
+                break;
             case HiveASTParser.TOK_DESCFUNCTION:
             case HiveASTParser.TOK_DESCDATABASE:
             case HiveASTParser.TOK_TRUNCATETABLE:
@@ -413,7 +417,6 @@ public class HiveParserDDLSemanticAnalyzer {
             case HiveASTParser.TOK_SHOW_TABLESTATUS:
             case HiveASTParser.TOK_SHOW_TBLPROPERTIES:
             case HiveASTParser.TOK_SHOWCONF:
-            case HiveASTParser.TOK_SHOW_CREATETABLE:
             default:
                 handleUnsupportedOperation(ast);
         }
@@ -695,6 +698,19 @@ public class HiveParserDDLSemanticAnalyzer {
         boolean ifExists = (ast.getFirstChildWithType(HiveASTParser.TOK_IFEXISTS) != null);
         // macro is always temporary function
         return new DropTempSystemFunctionOperation(macroName, ifExists);
+    }
+
+    private Operation convertShowCreateTable(HiveParserASTNode ast) throws SemanticException {
+        String[] qualTabName =
+                HiveParserBaseSemanticAnalyzer.getQualifiedTableName(
+                        (HiveParserASTNode) ast.getChild(0));
+        ObjectPath tablePath = new ObjectPath(qualTabName[0], qualTabName[1]);
+        Table table = getTable(tablePath);
+        if (table.getTableType() == TableType.INDEX_TABLE) {
+            throw new SemanticException(
+                    ErrorMsg.SHOW_CREATETABLE_INDEX.getMsg(table + " has table type INDEX_TABLE"));
+        }
+        return new HiveShowCreateTableOperation(tablePath);
     }
 
     private Operation convertAlterView(HiveParserASTNode ast) throws SemanticException {
