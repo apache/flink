@@ -77,9 +77,10 @@ public class CleanupOptions {
     }
 
     public static final ConfigOption<String> CLEANUP_STRATEGY =
-            ConfigOptions.key(CLEANUP_STRATEGY_PARAM)
+            ConfigOptions.key(CLEANUP_STRATEGY_PARAM + ".type")
                     .stringType()
                     .defaultValue(EXPONENTIAL_DELAY_LABEL)
+                    .withDeprecatedKeys(CLEANUP_STRATEGY_PARAM)
                     .withDescription(
                             Description.builder()
                                     .text(
