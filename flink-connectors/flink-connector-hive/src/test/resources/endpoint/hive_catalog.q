@@ -102,15 +102,15 @@ show current database;
 # test hive table with parameterized types
 # ==========================================================================
 
-describe hive.additional_test_database.param_types_table;
+describe additional_test_database.param_types_table;
 !output
-+------+-----------------+------+-----+--------+-----------+
-| name |            type | null | key | extras | watermark |
-+------+-----------------+------+-----+--------+-----------+
-|  dec | DECIMAL(10, 10) | TRUE |     |        |           |
-|   ch |         CHAR(5) | TRUE |     |        |           |
-|  vch |     VARCHAR(15) | TRUE |     |        |           |
-+------+-----------------+------+-----+--------+-----------+
++----------+----------------+---------+
+| col_name |      data_type | comment |
++----------+----------------+---------+
+|      dec | decimal(10,10) |         |
+|       ch |        char(5) |         |
+|      vch |    varchar(15) |         |
++----------+----------------+---------+
 3 rows in set
 !ok
 
