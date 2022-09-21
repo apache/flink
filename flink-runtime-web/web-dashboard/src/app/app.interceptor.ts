@@ -16,7 +16,14 @@
  * limitations under the License.
  */
 
-import { HttpEvent, HttpHandler, HttpInterceptor, HttpRequest } from '@angular/common/http';
+import {
+  HttpEvent,
+  HttpHandler,
+  HttpInterceptor,
+  HttpRequest,
+  HttpResponseBase,
+  HttpStatusCode
+} from '@angular/common/http';
 import { Injectable, Injector } from '@angular/core';
 import { Observable, throwError } from 'rxjs';
 import { catchError } from 'rxjs/operators';
@@ -39,6 +46,16 @@ export class AppInterceptor implements HttpInterceptor {
 
     return next.handle(req.clone({ withCredentials: true })).pipe(
       catchError(res => {
+        if (
+          res instanceof HttpResponseBase &&
+          (res.status == HttpStatusCode.MovedPermanently ||
+            res.status == HttpStatusCode.TemporaryRedirect ||
+            res.status == HttpStatusCode.SeeOther) &&
+          res.headers.has('Location')
+        ) {
+          window.location.href = String(res.headers.get('Location'));
+        }
+
         const errorMessage = res && res.error && res.error.errors && res.error.errors[0];
         if (
           errorMessage &&
