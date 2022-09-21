@@ -215,7 +215,7 @@ data:
     kubernetes.cluster-id: <cluster-id>
     high-availability.type: kubernetes
     high-availability.storageDir: hdfs:///flink/recovery
-    restart-strategy: fixed-delay
+    restart-strategy.type: fixed-delay
     restart-strategy.fixed-delay.attempts: 10
   ...
 ```

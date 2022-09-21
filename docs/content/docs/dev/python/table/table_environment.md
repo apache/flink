@@ -825,7 +825,7 @@ And now you can configure them by setting key-value options in `TableConfig`, se
 The following code is an example showing how to configure the statebackend, checkpoint and restart strategy through the Table API:
 ```python
 # set the restart strategy to "fixed-delay"
-table_env.get_config().set("restart-strategy", "fixed-delay")
+table_env.get_config().set("restart-strategy.type", "fixed-delay")
 table_env.get_config().set("restart-strategy.fixed-delay.attempts", "3")
 table_env.get_config().set("restart-strategy.fixed-delay.delay", "30s")
 

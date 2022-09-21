@@ -77,7 +77,7 @@ function setup_and_start_cluster() {
     set_config_key "jobmanager.execution.failover-strategy" "region"
     set_config_key "taskmanager.numberOfTaskSlots" "1"
 
-    set_config_key "restart-strategy" "fixed-delay"
+    set_config_key "restart-strategy.type" "fixed-delay"
     set_config_key "restart-strategy.fixed-delay.attempts" "2147483647"
 
     set_config_key "heartbeat.interval" "2000"

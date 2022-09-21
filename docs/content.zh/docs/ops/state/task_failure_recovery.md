@@ -38,7 +38,7 @@ Flink 通过重启策略和故障恢复策略来控制 Task 重启：重启策�
 Flink 作业如果没有定义重启策略，则会遵循集群启动时加载的默认重启策略。
 如果提交作业时设置了重启策略，该策略将覆盖掉集群的默认策略。
 
-通过 Flink 的配置文件 `flink-conf.yaml` 来设置默认的重启策略。配置参数 *restart-strategy* 定义了采取何种策略。
+通过 Flink 的配置文件 `flink-conf.yaml` 来设置默认的重启策略。配置参数 *restart-strategy.type* 定义了采取何种策略。
 如果没有启用 checkpoint，就采用“不重启”策略。如果启用了 checkpoint 且没有配置重启策略，那么就采用固定延时重启策略，
 此时最大尝试重启次数由 `Integer.MAX_VALUE` 参数设置。下表列出了可用的重启策略和与其对应的配置值。
 
@@ -98,7 +98,7 @@ env.set_restart_strategy(RestartStrategies.fixed_delay_restart(
 通过在 `flink-conf.yaml` 中设置如下配置参数，默认启用此策略。
 
 ```yaml
-restart-strategy: fixed-delay
+restart-strategy.type: fixed-delay
 ```
 
 {{< generated/fixed_delay_restart_strategy_configuration >}}
@@ -151,7 +151,7 @@ env.set_restart_strategy(RestartStrategies.fixed_delay_restart(
 通过在 `flink-conf.yaml` 中设置如下配置参数，默认启用此策略。
 
 ```yaml
-restart-strategy: failure-rate
+restart-strategy.type: failure-rate
 ```
 
 {{< generated/failure_rate_restart_strategy_configuration >}}
@@ -205,7 +205,7 @@ env.set_restart_strategy(RestartStrategies.failure_rate_restart(
 作业直接失败，不尝试重启。
 
 ```yaml
-restart-strategy: none
+restart-strategy.type: none
 ```
 
 不重启策略也可以在程序中设置：

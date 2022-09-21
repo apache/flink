@@ -821,7 +821,7 @@ Statebackend，Checkpoint 以及重启策略
 下面代码示例展示了如何通过 Table API 来配置 statebackend，checkpoint 以及重启策略：
 ```python
 # 设置重启策略为 "fixed-delay"
-table_env.get_config().set("restart-strategy", "fixed-delay")
+table_env.get_config().set("restart-strategy.type", "fixed-delay")
 table_env.get_config().set("restart-strategy.fixed-delay.attempts", "3")
 table_env.get_config().set("restart-strategy.fixed-delay.delay", "30s")
 

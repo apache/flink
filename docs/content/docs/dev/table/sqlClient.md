@@ -382,7 +382,7 @@ SET 'parallelism.default' = '1'; -- optional: Flink's parallelism (1 by default)
 SET 'pipeline.auto-watermark-interval' = '200'; --optional: interval for periodic watermarks
 SET 'pipeline.max-parallelism' = '10'; -- optional: Flink's maximum parallelism
 SET 'table.exec.state.ttl' = '1000'; -- optional: table program's idle state time
-SET 'restart-strategy' = 'fixed-delay';
+SET 'restart-strategy.type' = 'fixed-delay';
 
 -- Configuration options for adjusting and tuning table programs.
 
