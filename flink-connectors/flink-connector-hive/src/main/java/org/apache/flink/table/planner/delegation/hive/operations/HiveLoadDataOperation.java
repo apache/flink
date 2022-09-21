@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.planner.delegation.hive.operation;
+package org.apache.flink.table.planner.delegation.hive.operations;
 
 import org.apache.flink.table.catalog.ObjectPath;
 import org.apache.flink.table.operations.Operation;
