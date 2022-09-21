@@ -27,6 +27,8 @@ import org.apache.flink.runtime.taskmanager.CheckpointResponder;
 import org.apache.flink.runtime.taskmanager.TestCheckpointResponder;
 import org.apache.flink.util.Preconditions;
 
+import javax.annotation.Nullable;
+
 import java.util.HashMap;
 import java.util.Map;
 
@@ -39,7 +41,10 @@ public class TestTaskStateManagerBuilder {
     private ExecutionAttemptID executionAttemptID = new ExecutionAttemptID();
     private CheckpointResponder checkpointResponder = new TestCheckpointResponder();
     private LocalRecoveryConfig localRecoveryConfig = TestLocalRecoveryConfig.disabled();
+
+    @Nullable
     private StateChangelogStorage<?> stateChangelogStorage = new InMemoryStateChangelogStorage();
+
     private final Map<Long, TaskStateSnapshot> jobManagerTaskStateSnapshotsByCheckpointId =
             new HashMap<>();
     private long reportedCheckpointId = -1L;
@@ -74,7 +79,7 @@ public class TestTaskStateManagerBuilder {
                 this.stateChangelogStorage == null
                         || this.stateChangelogStorage instanceof InMemoryStateChangelogStorage,
                 "StateChangelogStorage was already initialized to " + this.stateChangelogStorage);
-        this.stateChangelogStorage = checkNotNull(stateChangelogStorage);
+        this.stateChangelogStorage = stateChangelogStorage;
         return this;
     }
 
