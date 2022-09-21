@@ -90,7 +90,7 @@ public class TestTaskStateManager implements TaskStateManager {
             ExecutionAttemptID executionAttemptID,
             CheckpointResponder checkpointResponder,
             LocalRecoveryConfig localRecoveryConfig,
-            StateChangelogStorage<?> changelogStorage,
+            @Nullable StateChangelogStorage<?> changelogStorage,
             Map<Long, TaskStateSnapshot> jobManagerTaskStateSnapshotsByCheckpointId,
             long reportedCheckpointId,
             OneShotLatch waitForReportLatch) {
@@ -98,7 +98,7 @@ public class TestTaskStateManager implements TaskStateManager {
         this.executionAttemptID = checkNotNull(executionAttemptID);
         this.checkpointResponder = checkNotNull(checkpointResponder);
         this.localRecoveryDirectoryProvider = checkNotNull(localRecoveryConfig);
-        this.stateChangelogStorage = checkNotNull(changelogStorage);
+        this.stateChangelogStorage = changelogStorage;
         this.jobManagerTaskStateSnapshotsByCheckpointId =
                 checkNotNull(jobManagerTaskStateSnapshotsByCheckpointId);
         this.taskManagerTaskStateSnapshotsByCheckpointId = new HashMap<>();
