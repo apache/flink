@@ -154,7 +154,7 @@ parallelism.default: 1
 # Supported backends are 'hashmap', 'rocksdb', or the
 # <class-name-of-factory>.
 #
-# state.backend: hashmap
+# state.backend.type: hashmap
 
 # Directory for checkpoints filesystem, when using any of the default bundled
 # state backends.

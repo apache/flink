@@ -1542,8 +1542,8 @@ cep operator (or when the match was generated in case of `PatternProcessFunction
 Options to configure the cache capacity of Flink CEP `SharedBuffer`.
 It could accelerate the CEP operate process speed and limit the number of elements of cache in pure memory. 
 
-<span class="label label-info">Note</span> It's only effective to limit usage of memory when `state.backend` was set as `rocksdb`, which would transport the elements exceeded the number of the cache into the rocksdb state storage instead of memory state storage.
-The configuration items are helpful for memory limitation when the `state.backend` is set as rocksdb. By contrast，when the `state.backend` is set as not `rocksdb`, the cache would cause performance decreased. Compared with old cache implemented with `Map`, the state part will contain more elements swapped out from new guava-cache, which would make it heavier to `copy on write` for state.
+<span class="label label-info">Note</span> It's only effective to limit usage of memory when `state.backend.type` was set as `rocksdb`, which would transport the elements exceeded the number of the cache into the rocksdb state storage instead of memory state storage.
+The configuration items are helpful for memory limitation when the `state.backend.type` is set as rocksdb. By contrast，when the `state.backend.type` is set as not `rocksdb`, the cache would cause performance decreased. Compared with old cache implemented with `Map`, the state part will contain more elements swapped out from new guava-cache, which would make it heavier to `copy on write` for state.
 
 {{< generated/cep_cache_configuration >}}
 
