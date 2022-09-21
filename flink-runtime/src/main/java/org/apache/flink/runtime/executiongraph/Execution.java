@@ -1226,8 +1226,8 @@ public class Execution
             } else {
                 String message =
                         String.format(
-                                "Concurrent unexpected state transition of task %s to %s while deployment was in progress.",
-                                getVertexWithAttempt(), currentState);
+                                "Concurrent unexpected state transition of task %s from %s (expected %s) to %s while deployment was in progress.",
+                                getAttemptId(), currentState, from, to);
 
                 LOG.debug(message);
 
