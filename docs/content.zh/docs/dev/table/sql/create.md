@@ -188,7 +188,7 @@ CREATE TABLE [IF NOT EXISTS] [catalog_name.][db_name.]table_name
 
 <select_query>:
 
-使用来自SELECT查询的数据填充表。
+使用 SELECT 查询的结果数据填充表。
 
 ```
 
@@ -519,9 +519,9 @@ LIKE Orders_in_file (
 
 ### `AS`
 
-表也可以通过一个创建表即选择（CTAS）语句中的查询结果来创建和填充。 CTAS 是用一条命令创建和插入数据到一个表中的最简单和最快的方法。
+表也可以通过一个 CTAS 语句中的查询结果来创建并填充数据，CTAS 是一种简单、快捷的创建表并插入数据的方法。
 
-CTAS 有两个部分，SELECT 部分可以是 Flink SQL 支持的任何 [SELECT 查询]({{< ref "docs/dev/table/sql/queries/overview" >}})。 CREATE 部分从 SELECT 部分获取结果列信息，并创建目标表。 与 `CREATE TABLE` 类似，CTAS 要求目标表的必选项必须在WITH子句中指定。
+CTAS 有两个部分，SELECT 部分可以是 Flink SQL 支持的任何 [SELECT 查询]({{< ref "docs/dev/table/sql/queries/overview" >}})。 CREATE 部分从 SELECT 查询中获取列信息，并创建目标表。 与 `CREATE TABLE` 类似，CTAS 要求必须在目标表的 WITH 子句中指定必填的表属性。
 
 使用 CTAS 建表需要依赖 Catalog，所以如果使用内置的基于内存的 Catalog，用户必须确保该表已经存在于外部存储中。如果使用其他 Catalog，如 Hive Catalog，目标表将由 Catalog 自动创建。
 
@@ -550,12 +550,12 @@ CREATE TABLE my_ctas_table (
 INSERT INTO my_ctas_table SELECT id, name, age FROM source_table WHERE mod(id, 10) = 0;
 ```
 
-**注意** CTAS 有以下约束：
-* 暂不支持创建临时结果表。
-* 暂不支持手动指定列信息。
-* 暂不支持 watermark 定义。
+**注意** CTAS 有如下约束：
+* 暂不支持创建临时表。
+* 暂不支持指定列信息。
+* 暂不支持指定 Watermark。
 * 暂不支持创建分区表。
-* 暂不支持指定主键约束。
+* 暂不支持主键约束。
 
 **注意** 目前，CTAS 创建的目标表是非原子性的，如果在向表中插入数据时发生错误，该表不会被自动删除。
 
