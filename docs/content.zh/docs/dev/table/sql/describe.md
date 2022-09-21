@@ -28,194 +28,234 @@ under the License.
 
 # DESCRIBE 语句
 
-DESCRIBE 语句用于描述表或视图的 schema。
+DESCRIBE 语句用于展示表的元信息，包括列名，列对应的数据类型，附加信息（comments）和分区信息（对于分区表）等。同时，也可以有选择的展示详细的表信息，
+例如表的参数，表的统计信息和指定表某一列的列信息。
 
 <a name="run-a-describe-statement"></a>
 
 ## 执行 DESCRIBE 语句
 
 {{< tabs "describe" >}}
-{{< tab "Java" >}}
-可以使用 `TableEnvironment` 的 `executeSql()` 方法执行 DESCRIBE 语句。如果 DESCRIBE 操作执行成功，`executeSql()` 方法会返回给定表的 schema，否则会抛出异常。
+{{< tab "使用方法" >}}
 
-以下示例展示了如何在 `TableEnvironment` 中执行一条 DESCRIBE 语句。
-{{< /tab >}}
-{{< tab "Scala" >}}
-可以使用 `TableEnvironment` 的 `executeSql()` 方法执行 DESCRIBE 语句。如果 DESCRIBE 操作执行成功，`executeSql()` 方法会返回给定表的 schema，否则会抛出异常。
+DESCRIBE 语句可以通过如下途径使用:
+- Java: 可以使用 TableEnvironment 的 executeSql() 方法执行 DESCRIBE 语句
+- Scala: 可以使用 TableEnvironment 的 executeSql() 方法执行 DESCRIBE 语句
+- Python: 可以使用 TableEnvironment 的 execute_sql() 方法执行 DESCRIBE 语句
+- [SQL CLI]({{< ref "docs/dev/table/sqlClient" >}})
 
-以下示例展示了如何在 `TableEnvironment` 中执行一条 DESCRIBE 语句。
-{{< /tab >}}
-{{< tab "Python" >}}
-可以使用 `TableEnvironment` 的 `execute_sql()` 方法执行 DESCRIBE 语句。如果 DESCRIBE 操作执行成功，`execute_sql()` 方法会返回给定表的 schema，否则会抛出异常。
-
-以下示例展示了如何在 `TableEnvironment` 中执行一条 DESCRIBE 语句。
-{{< /tab >}}
-{{< tab "SQL CLI" >}}
-
-DESCRIBE 语句可以在 [SQL CLI]({{< ref "docs/dev/table/sqlClient" >}}) 中执行。
-
-以下示例展示了如何在 SQL CLI 中执行一条 DESCRIBE 语句。
+以下示例展示了如何在 SQL CLI 中执行 DESCRIBE 语句。
 
 {{< /tab >}}
 {{< /tabs >}}
 
 {{< tabs "a5de1760-e363-4b8d-9d6f-0bacb35b9dcf" >}}
-{{< tab "Java" >}}
-```java
-TableEnvironment tableEnv = TableEnvironment.create(...);
-
-// 注册名为 “Orders” 的表
-tableEnv.executeSql(
-        "CREATE TABLE Orders (" +
-        " `user` BIGINT NOT NULl," +
-        " product VARCHAR(32)," +
-        " amount INT," +
-        " ts TIMESTAMP(3)," +
-        " ptime AS PROCTIME()," +
-        " PRIMARY KEY(`user`) NOT ENFORCED," +
-        " WATERMARK FOR ts AS ts - INTERVAL '1' SECONDS" +
-        ") with (...)");
-
-// 打印 schema
-tableEnv.executeSql("DESCRIBE Orders").print();
-
-// 打印 schema
-tableEnv.executeSql("DESC Orders").print();
-```
-{{< /tab >}}
-{{< tab "Scala" >}}
-```scala
-val tableEnv = TableEnvironment.create(...)
-
-// 注册名为 “Orders” 的表
- tableEnv.executeSql(
-        "CREATE TABLE Orders (" +
-        " `user` BIGINT NOT NULl," +
-        " product VARCHAR(32)," +
-        " amount INT," +
-        " ts TIMESTAMP(3)," +
-        " ptime AS PROCTIME()," +
-        " PRIMARY KEY(`user`) NOT ENFORCED," +
-        " WATERMARK FOR ts AS ts - INTERVAL '1' SECONDS" +
-        ") with (...)")
-
-// 打印 schema
-tableEnv.executeSql("DESCRIBE Orders").print()
-
-// 打印 schema
-tableEnv.executeSql("DESC Orders").print()
-```
-{{< /tab >}}
-{{< tab "Python" >}}
-```python
-table_env = TableEnvironment.create(...)
-
-# 注册名为 “Orders” 的表
-table_env.execute_sql( \
-        "CREATE TABLE Orders (" 
-        " `user` BIGINT NOT NULl," 
-        " product VARCHAR(32),"
-        " amount INT,"
-        " ts TIMESTAMP(3),"
-        " ptime AS PROCTIME(),"
-        " PRIMARY KEY(`user`) NOT ENFORCED,"
-        " WATERMARK FOR ts AS ts - INTERVAL '1' SECONDS"
-        ") with (...)");
-
-# 打印 schema
-table_env.execute_sql("DESCRIBE Orders").print()
-
-# 打印 schema
-table_env.execute_sql("DESC Orders").print()
-```
-{{< /tab >}}
 {{< tab "SQL CLI" >}}
 ```sql
-Flink SQL> CREATE TABLE Orders (
->  `user` BIGINT NOT NULl,
->  product VARCHAR(32),
->  amount INT,
->  ts TIMESTAMP(3),
->  ptime AS PROCTIME(),
->  PRIMARY KEY(`user`) NOT ENFORCED,
->  WATERMARK FOR ts AS ts - INTERVAL '1' SECONDS
-> ) with (
->  ...
-> );
+-- 在 "catalog1.testDb" 中注册一张普通表 "testTable"
+Flink SQL> CREATE TABLE catalog1.testDb.testTable (
+> `a` BIGINT,
+> `b` STRING,
+> `c` BOOLEAN,
+> `d` BINARY(5)
+> ) with
+> ( .... );
 [INFO] Table has been created.
 
-Flink SQL> DESCRIBE Orders;
+-- 在 "catalog1.testDb" 中注册一张分区表 "part_table"
+Flink SQL> CREATE TABLE catalog1.testDb.part_table (
+> `a` BIGINT,
+> `b` STRING,
+> `c` BOOLEAN,
+> `d` BINARY(5)
+> ) PARTITIONED BY (`a`
+> ) with
+> ( .... );
+[INFO] Table has been created.
 
-Flink SQL> DESC Orders;
+-- 为了更好的展示示例，我们假设普通表 "testTable" 中已经存在 20 行的数据，且表的统计信息已经被收集
+
+-- 普通表 "testTable" 使用 describe table 语句
+Flink SQL> desc catalog1.testDb.testTable;
++----------+-----------+---------+
+| col_name | data_type | comment |
++----------+-----------+---------+
+| a        | BIGINT    |         |
+| b        | STRING    |         |
+| c        | BOOLEAN   |         |
+| d        | BINARY(5) |         |
++----------+-----------+---------+
+4 rows in set    
+        
+-- 普通表 "testTable" 使用 describe extended table 语句
+Flink SQL> desc extended catalog1.testDb.testTable;
++------------------------------+------------------------------------+---------+
+| col_name                     | data_type                          | comment |
++------------------------------+------------------------------------+---------+
+| a                            | BIGINT                             |         |
+| b                            | STRING                             |         |
+| c                            | BOOLEAN                            |         |
+| d                            | BINARY(5)                          |         |
+|                              |                                    |         |
+| # Detailed Table Information |                                    |         |
+| Database Name                | testDb                             |         |
+| Table Name                   | testTable                          |         |
+| Table Statistics             | 10 rows                            |         |
++------------------------------+------------------------------------+---------+
+10 rows in set
+    
+-- 普通表 "testTable" 使用 describe table 语句并指定某一列
+Flink SQL> desc catalog1.testDb.testTable a;
++-----------+------------+
+| name      | value      |
++-----------+------------+
+| col_name  | a          |
+| data_type | BIGINT     |
++-----------+------------+
+2 rows in set
+    
+-- 普通表 "testTable" 使用 describe extended table 语句并指定某一列
+Flink SQL> desc extended catalog1.testDb.testTable a;
++----------------+------------+
+| name           | value      |
++----------------+------------+
+| col_name       | a          |
+| data_type      | BIGINT     |
+| min            | 1          |
+| max            | 10         |
+| num_nulls      | 5          |
+| distinct_count | 5          |
+| avg_col_len    | 8.0        |
+| max_col_len    | 8          |
++----------------+------------+
+8 rows in set
+
+-- 为了更好的展示本示例在分区表上的不同情况，我们假设分区表 "part_table" 有两个分区 a=1 和 a=2
+-- 同时，我们假设分区 a=1 中已经写入了 10 行数据， 分区 a=2 中写入了 11 行数据， 且各分区的统计信息已经被收集
+
+-- 分区表 "part_table" 使用 describe table 语句      
+Flink SQL> desc catalog1.testDb.part_table;
++-------------------------+-----------+---------+
+| col_name                | data_type | comment |
++-------------------------+-----------+---------+
+| b                       | STRING    |         |
+| c                       | BOOLEAN   |         |
+| d                       | BINARY(5) |         |
+|                         |           |         |
+| # Partition Information |           |         |
+| # col_name              | data_type | comment |
+| a                       | BIGINT    |         |
++-------------------------+-----------+---------+
+7 rows in set  
+
+-- 分区表 "part_table" 使用 describe extended table 语句且不指定具体的分区信息
+-- 如果用户不指定具体的分区信息，则我们默认会展示合并后的所有分区的信息，其等价于执行语句：desc extended catalog1.testDb.part_table partition(a)         
+Flink SQL> desc extended catalog1.testDb.part_table;
++------------------------------+------------------------------------+---------+
+| col_name                     | data_type                          | comment |
++------------------------------+------------------------------------+---------+
+| b                            | STRING                             |         |
+| c                            | BOOLEAN                            |         |
+| d                            | BINARY(5)                          |         |
+|                              |                                    |         |
+| # Partition Information      |                                    |         |
+| # col_name                   | data_type                          | comment |
+| a                            | BIGINT                             |         |
+|                              |                                    |         |
+| # Detailed Table Information |                                    |         |
+| Database Name                | testDb                             |         |
+| Table Name                   | testTable                          |         |
+| Table Statistics             | 21 rows                            |         |
++------------------------------+------------------------------------+---------+
+13 rows in set  
+
+-- 分区表 "part_table" 使用 describe extended table 语句并指定分区信息 "partition(a)"
+-- 该语句打印的统计信息是分区统计信息合并后的结果   
+Flink SQL> desc extended catalog1.testDb.part_table partition(a);
++------------------------------+------------------------------------+---------+
+| col_name                     | data_type                          | comment |
++------------------------------+------------------------------------+---------+
+| b                            | STRING                             |         |
+| c                            | BOOLEAN                            |         |
+| d                            | BINARY(5)                          |         |
+|                              |                                    |         |
+| # Partition Information      |                                    |         |
+| # col_name                   | data_type                          | comment |
+| a                            | BIGINT                             |         |
+|                              |                                    |         |
+| # Detailed Table Information |                                    |         |
+| Database Name                | testDb                             |         |
+| Table Name                   | testTable                          |         |
+| Table Statistics             | 21 rows                            |         |
++------------------------------+------------------------------------+---------+
+13 rows in set
+
+-- 分区表 "part_table" 使用 describe extended table 语句并指定分区信息 "partition(a=1)"      
+Flink SQL> desc extended catalog1.testDb.part_table partition(a=1);
++------------------------------+------------------------------------+---------+
+| col_name                     | data_type                          | comment |
++------------------------------+------------------------------------+---------+
+| b                            | STRING                             |         |
+| c                            | BOOLEAN                            |         |
+| d                            | BINARY(5)                          |         |
+|                              |                                    |         |
+| # Partition Information      |                                    |         |
+| # col_name                   | data_type                          | comment |
+| a                            | BIGINT                             |         |
+|                              |                                    |         |
+| # Detailed Table Information |                                    |         |
+| Database Name                | testDb                             |         |
+| Table Name                   | testTable                          |         |
+| Table Statistics             | 10 rows                            |         |
++------------------------------+------------------------------------+---------+
+13 rows in set
+
+-- 分区表 "part_table" 使用 describe extended table 语句并指定某一列
+-- 该语句打印的列统计信息是各分区统计信息合并后的结果        
+Flink SQL> desc extended catalog1.testDb.testTable partition(a) a;
++----------------+------------+
+| name           | value      |
++----------------+------------+
+| col_name       | a          |
+| data_type      | BIGINT     |
+| min            | 1          |
+| max            | 15         |
+| num_nulls      | 7          |
+| distinct_count | 15         |
+| avg_col_len    | 8.0        |
+| max_col_len    | 8          |
++----------------+------------+
+8 rows in set
+    
+-- 分区表 "part_table" 使用 describe extended table 语句并指定某一列
+-- 该语句只打印 a=1 的分区的列统计信息        
+Flink SQL> desc extended catalog1.testDb.testTable partition(a=1) a;
++----------------+------------+
+| name           | value      |
++----------------+------------+
+| col_name       | a          |
+| data_type      | BIGINT     |
+| min            | 1          |
+| max            | 10         |
+| num_nulls      | 5          |
+| distinct_count | 5          |
+| avg_col_len    | 8.0        |
+| max_col_len    | 8          |
++----------------+------------+
+8 rows in set    
 ```
+
 {{< /tab >}}
 {{< /tabs >}}
 
-上述示例的结果是：
-{{< tabs "c20da697-b9fc-434b-b7e5-3b51510eee5b" >}}
-{{< tab "Java" >}}
-```text
-
-+---------+----------------------------------+-------+-----------+-----------------+----------------------------+
-|    name |                             type |  null |       key | computed column |                  watermark |
-+---------+----------------------------------+-------+-----------+-----------------+----------------------------+
-|    user |                           BIGINT | false | PRI(user) |                 |                            |
-| product |                      VARCHAR(32) |  true |           |                 |                            |
-|  amount |                              INT |  true |           |                 |                            |
-|      ts |           TIMESTAMP(3) *ROWTIME* |  true |           |                 | `ts` - INTERVAL '1' SECOND |
-|   ptime | TIMESTAMP(3) NOT NULL *PROCTIME* | false |           |      PROCTIME() |                            |
-+---------+----------------------------------+-------+-----------+-----------------+----------------------------+
-5 rows in set
-
-```
-{{< /tab >}}
-{{< tab "Scala" >}}
-```text
-
-+---------+----------------------------------+-------+-----------+-----------------+----------------------------+
-|    name |                             type |  null |       key | computed column |                  watermark |
-+---------+----------------------------------+-------+-----------+-----------------+----------------------------+
-|    user |                           BIGINT | false | PRI(user) |                 |                            |
-| product |                      VARCHAR(32) |  true |           |                 |                            |
-|  amount |                              INT |  true |           |                 |                            |
-|      ts |           TIMESTAMP(3) *ROWTIME* |  true |           |                 | `ts` - INTERVAL '1' SECOND |
-|   ptime | TIMESTAMP(3) NOT NULL *PROCTIME* | false |           |      PROCTIME() |                            |
-+---------+----------------------------------+-------+-----------+-----------------+----------------------------+
-5 rows in set
-
-```
-{{< /tab >}}
-{{< tab "Python" >}}
-```text
-
-+---------+----------------------------------+-------+-----------+-----------------+----------------------------+
-|    name |                             type |  null |       key | computed column |                  watermark |
-+---------+----------------------------------+-------+-----------+-----------------+----------------------------+
-|    user |                           BIGINT | false | PRI(user) |                 |                            |
-| product |                      VARCHAR(32) |  true |           |                 |                            |
-|  amount |                              INT |  true |           |                 |                            |
-|      ts |           TIMESTAMP(3) *ROWTIME* |  true |           |                 | `ts` - INTERVAL '1' SECOND |
-|   ptime | TIMESTAMP(3) NOT NULL *PROCTIME* | false |           |      PROCTIME() |                            |
-+---------+----------------------------------+-------+-----------+-----------------+----------------------------+
-5 rows in set
-
-```
-{{< /tab >}}
-{{< tab "SQL CLI" >}}
-```text
-
-root
- |-- user: BIGINT NOT NULL
- |-- product: VARCHAR(32)
- |-- amount: INT
- |-- ts: TIMESTAMP(3) *ROWTIME*
- |-- ptime: TIMESTAMP(3) NOT NULL *PROCTIME* AS PROCTIME()
- |-- WATERMARK FOR ts AS `ts` - INTERVAL '1' SECOND
- |-- CONSTRAINT PK_3599338 PRIMARY KEY (user)
-
-```
-{{< /tab >}}
-{{< /tabs >}}
+{{< hint info >}}
+对于下列的情况， Describe 语句会报错：
+1. 表不存在，会报表不存在的验证错误
+2. 列不存在，会报列 'x' 不存在的验证错误
+3. 对于非分区表，尝试指定分区信息，会报表是非分区表的验证错误
+4. 对于分区表，指定的分区信息里包含了非分区键，会报 'x' in partition spec {'x'='y'} is not partition key 的验证错误
+5. 对于分区表，指定的分区不存在，会报 partition 'y' not found for partition spec {'x'='y'} 的验证错误
+{{< /hint >}}
 
 {{< top >}}
 
@@ -224,5 +264,5 @@ root
 ## 语法
 
 ```sql
-{ DESCRIBE | DESC } [catalog_name.][db_name.]table_name
+{ DESCRIBE | DESC } [EXTENDED] [catalog_name.][db_name.]table_name [PARTITION(partcol1[=val1] [, partcol2[=val2], ...])] [column_name]
 ```

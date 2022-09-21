@@ -26,32 +26,21 @@ under the License.
 
 # DESCRIBE Statements
 
-DESCRIBE statements are used to describe the schema of a table or a view.
+The DESCRIBE statements are used to display metadata about a table, such as the column names, their data types, 
+comments and partition information. Also DESCRIBE statements can optionally display detailed table information 
+like table options, statistics and information for specific columns.
 
 
 ## Run a DESCRIBE statement
 
 {{< tabs "describe" >}}
-{{< tab "Java" >}}
-DESCRIBE statements can be executed with the `executeSql()` method of the `TableEnvironment`. The `executeSql()` method returns the schema of given table for a successful DESCRIBE operation, otherwise will throw an exception.
+{{< tab "HOW TO USE" >}}
 
-The following examples show how to run a DESCRIBE statement in `TableEnvironment`.
-{{< /tab >}}
-{{< tab "Scala" >}}
-DESCRIBE statements can be executed with the `executeSql()` method of the `TableEnvironment`. The `executeSql()` method returns the schema of given table for a successful DESCRIBE operation, otherwise will throw an exception.
-
-The following examples show how to run a DESCRIBE statement in `TableEnvironment`.
-{{< /tab >}}
-{{< tab "Python" >}}
-
-DESCRIBE statements can be executed with the `execute_sql()` method of the `TableEnvironment`. The `execute_sql()` method returns the schema of given table for a successful DESCRIBE operation, otherwise will throw an exception.
-
-The following examples show how to run a DESCRIBE statement in `TableEnvironment`.
-
-{{< /tab >}}
-{{< tab "SQL CLI" >}}
-
-DESCRIBE statements can be executed in [SQL CLI]({{< ref "docs/dev/table/sqlClient" >}}).
+DESCRIBE statements can be executed in:
+- Java: can be executed with the executeSql() method of the TableEnvironment
+- Scala: can be executed with the executeSql() method of the TableEnvironment
+- Python: can be executed with the execute_sql() method of the TableEnvironment
+- [SQL CLI]({{< ref "docs/dev/table/sqlClient" >}})
 
 The following examples show how to run a DESCRIBE statement in SQL CLI.
 
@@ -59,168 +48,216 @@ The following examples show how to run a DESCRIBE statement in SQL CLI.
 {{< /tabs >}}
 
 {{< tabs "a5de1760-e363-4b8d-9d6f-0bacb35b9dcf" >}}
-{{< tab "Java" >}}
-```java
-TableEnvironment tableEnv = TableEnvironment.create(...);
-
-// register a table named "Orders"
-tableEnv.executeSql(
-        "CREATE TABLE Orders (" +
-        " `user` BIGINT NOT NULl," +
-        " product VARCHAR(32)," +
-        " amount INT," +
-        " ts TIMESTAMP(3)," +
-        " ptime AS PROCTIME()," +
-        " PRIMARY KEY(`user`) NOT ENFORCED," +
-        " WATERMARK FOR ts AS ts - INTERVAL '1' SECONDS" +
-        ") with (...)");
-
-// print the schema
-tableEnv.executeSql("DESCRIBE Orders").print();
-
-// print the schema
-tableEnv.executeSql("DESC Orders").print();
-```
-{{< /tab >}}
-{{< tab "Scala" >}}
-```scala
-val tableEnv = TableEnvironment.create(...)
-
-// register a table named "Orders"
- tableEnv.executeSql(
-        "CREATE TABLE Orders (" +
-        " `user` BIGINT NOT NULl," +
-        " product VARCHAR(32)," +
-        " amount INT," +
-        " ts TIMESTAMP(3)," +
-        " ptime AS PROCTIME()," +
-        " PRIMARY KEY(`user`) NOT ENFORCED," +
-        " WATERMARK FOR ts AS ts - INTERVAL '1' SECONDS" +
-        ") with (...)")
-
-// print the schema
-tableEnv.executeSql("DESCRIBE Orders").print()
-
-// print the schema
-tableEnv.executeSql("DESC Orders").print()
-```
-{{< /tab >}}
-{{< tab "Python" >}}
-```python
-table_env = TableEnvironment.create(...)
-
-# register a table named "Orders"
-table_env.execute_sql( \
-        "CREATE TABLE Orders (" 
-        " `user` BIGINT NOT NULl," 
-        " product VARCHAR(32),"
-        " amount INT,"
-        " ts TIMESTAMP(3),"
-        " ptime AS PROCTIME(),"
-        " PRIMARY KEY(`user`) NOT ENFORCED,"
-        " WATERMARK FOR ts AS ts - INTERVAL '1' SECONDS"
-        ") with (...)");
-
-# print the schema
-table_env.execute_sql("DESCRIBE Orders").print()
-
-# print the schema
-table_env.execute_sql("DESC Orders").print()
-```
-{{< /tab >}}
 {{< tab "SQL CLI" >}}
 ```sql
-Flink SQL> CREATE TABLE Orders (
->  `user` BIGINT NOT NULl,
->  product VARCHAR(32),
->  amount INT,
->  ts TIMESTAMP(3),
->  ptime AS PROCTIME(),
->  PRIMARY KEY(`user`) NOT ENFORCED,
->  WATERMARK FOR ts AS ts - INTERVAL '1' SECONDS
-> ) with (
->  ...
-> );
+-- register a non-partition table named "testTable"
+Flink SQL> CREATE TABLE catalog1.testDb.testTable (
+> `a` BIGINT,
+> `b` STRING,
+> `c` BOOLEAN,
+> `d` BINARY(5)
+> ) with
+> (....);
 [INFO] Table has been created.
 
-Flink SQL> DESCRIBE Orders;
+-- register a partition table named "part_table"
+Flink SQL> CREATE TABLE catalog1.testDb.part_table (
+> `a` BIGINT,
+> `b` STRING,
+> `c` BOOLEAN,
+> `d` BINARY(5)
+> ) PARTITIONED BY (`a`
+> ) with
+> (....);
+[INFO] Table has been created.
 
-Flink SQL> DESC Orders;
+-- Suppose there are 20 rows in table "testTable", and the statistics has been collected for this catalog
+
+-- For "testTable", describe table
+Flink SQL> desc catalog1.testDb.testTable;
++----------+-----------+---------+
+| col_name | data_type | comment |
++----------+-----------+---------+
+| a        | BIGINT    |         |
+| b        | STRING    |         |
+| c        | BOOLEAN   |         |
+| d        | BINARY(5) |         |
++----------+-----------+---------+
+4 rows in set    
+        
+-- For "testTable", describe extended table
+Flink SQL> desc extended catalog1.testDb.testTable;
++------------------------------+------------------------------------+---------+
+| col_name                     | data_type                          | comment |
++------------------------------+------------------------------------+---------+
+| a                            | BIGINT                             |         |
+| b                            | STRING                             |         |
+| c                            | BOOLEAN                            |         |
+| d                            | BINARY(5)                          |         |
+|                              |                                    |         |
+| # Detailed Table Information |                                    |         |
+| Database Name                | testDb                             |         |
+| Table Name                   | testTable                          |         |
+| Table Statistics             | 10 rows                            |         |
++------------------------------+------------------------------------+---------+
+10 rows in set
+    
+-- For "testTable", describe table with specifying column
+Flink SQL> desc catalog1.testDb.testTable a;
++-----------+------------+
+| name      | value      |
++-----------+------------+
+| col_name  | a          |
+| data_type | BIGINT     |
++-----------+------------+
+2 rows in set
+    
+-- For "testTable", describe extended table with specifying column
+Flink SQL> desc extended catalog1.testDb.testTable a;
++----------------+------------+
+| name           | value      |
++----------------+------------+
+| col_name       | a          |
+| data_type      | BIGINT     |
+| min            | 1          |
+| max            | 10         |
+| num_nulls      | 5          |
+| distinct_count | 5          |
+| avg_col_len    | 8.0        |
+| max_col_len    | 8          |
++----------------+------------+
+8 rows in set
+    
+-- Suppose partition table "part_table" has 2 partitions with spec: Partition1 : a=1 and Partition2 : a=2
+-- Suppose there are 10 rows in partition (a='1') and 11 rows in partition (a='2'), and the statistics has been collected for this catalog.
+
+-- For partition table "part_table", describe table.        
+Flink SQL> desc catalog1.testDb.part_table;
++-------------------------+-----------+---------+
+| col_name                | data_type | comment |
++-------------------------+-----------+---------+
+| b                       | STRING    |         |
+| c                       | BOOLEAN   |         |
+| d                       | BINARY(5) |         |
+|                         |           |         |
+| # Partition Information |           |         |
+| # col_name              | data_type | comment |
+| a                       | BIGINT    |         |
++-------------------------+-----------+---------+
+7 rows in set  
+    
+-- For partition table "part_table", describe extended table without specifying partition spec.
+-- If user don't specify partition spec, all partition stats will be merged, 
+-- which equals to "desc extended catalog1.testDb.part_table partition(a)"          
+Flink SQL> desc extended catalog1.testDb.part_table;
++------------------------------+------------------------------------+---------+
+| col_name                     | data_type                          | comment |
++------------------------------+------------------------------------+---------+
+| b                            | STRING                             |         |
+| c                            | BOOLEAN                            |         |
+| d                            | BINARY(5)                          |         |
+|                              |                                    |         |
+| # Partition Information      |                                    |         |
+| # col_name                   | data_type                          | comment |
+| a                            | BIGINT                             |         |
+|                              |                                    |         |
+| # Detailed Table Information |                                    |         |
+| Database Name                | testDb                             |         |
+| Table Name                   | testTable                          |         |
+| Table Statistics             | 21 rows                            |         |
++------------------------------+------------------------------------+---------+
+13 rows in set  
+    
+-- For partition table "part_table", describe extended table with specifying partition spec 'partition(a)'.       
+Flink SQL> desc extended catalog1.testDb.part_table partition(a);
++------------------------------+------------------------------------+---------+
+| col_name                     | data_type                          | comment |
++------------------------------+------------------------------------+---------+
+| b                            | STRING                             |         |
+| c                            | BOOLEAN                            |         |
+| d                            | BINARY(5)                          |         |
+|                              |                                    |         |
+| # Partition Information      |                                    |         |
+| # col_name                   | data_type                          | comment |
+| a                            | BIGINT                             |         |
+|                              |                                    |         |
+| # Detailed Table Information |                                    |         |
+| Database Name                | testDb                             |         |
+| Table Name                   | testTable                          |         |\
+| Table Statistics             | 21 rows                            |         |
++------------------------------+------------------------------------+---------+
+13 rows in set
+    
+-- For partition table "part_table", describe extended table with specifying partition spec 'partition(a=1)'.       
+Flink SQL> desc extended catalog1.testDb.part_table partition(a=1);
++------------------------------+------------------------------------+---------+
+| col_name                     | data_type                          | comment |
++------------------------------+------------------------------------+---------+
+| b                            | STRING                             |         |
+| c                            | BOOLEAN                            |         |
+| d                            | BINARY(5)                          |         |
+|                              |                                    |         |
+| # Partition Information      |                                    |         |
+| # col_name                   | data_type                          | comment |
+| a                            | BIGINT                             |         |
+|                              |                                    |         |
+| # Detailed Table Information |                                    |         |
+| Database Name                | testDb                             |         |
+| Table Name                   | testTable                          |         |
+| Table Statistics             | 10 rows                            |         |
++------------------------------+------------------------------------+---------+
+13 rows in set
+    
+-- For partition table "part_table", describe extended table with specifying column for all partitions.
+-- Merged column statistics for all partition will be printed.        
+Flink SQL> desc extended catalog1.testDb.testTable partition(a) a;
++----------------+------------+
+| name           | value      |
++----------------+------------+
+| col_name       | a          |
+| data_type      | BIGINT     |
+| min            | 1          |
+| max            | 15         |
+| num_nulls      | 7          |
+| distinct_count | 15         |
+| avg_col_len    | 8.0        |
+| max_col_len    | 8          |
++----------------+------------+
+8 rows in set
+    
+-- For partition table "part_table", describe extended table with specifying column for single partition 'a=1'.
+-- Column statistics for partition 'a=1' will be printed.        
+Flink SQL> desc extended catalog1.testDb.testTable partition(a=1) a;
++----------------+------------+
+| name           | value      |
++----------------+------------+
+| col_name       | a          |
+| data_type      | BIGINT     |
+| min            | 1          |
+| max            | 10         |
+| num_nulls      | 5          |
+| distinct_count | 5          |
+| avg_col_len    | 8.0        |
+| max_col_len    | 8          |
++----------------+------------+
+8 rows in set    
 ```
 {{< /tab >}}
 {{< /tabs >}}
 
-The result of the above example is:
-{{< tabs "c20da697-b9fc-434b-b7e5-3b51510eee5b" >}}
-{{< tab "Java" >}}
-```text
-
-+---------+----------------------------------+-------+-----------+-----------------+----------------------------+
-|    name |                             type |  null |       key | computed column |                  watermark |
-+---------+----------------------------------+-------+-----------+-----------------+----------------------------+
-|    user |                           BIGINT | false | PRI(user) |                 |                            |
-| product |                      VARCHAR(32) |  true |           |                 |                            |
-|  amount |                              INT |  true |           |                 |                            |
-|      ts |           TIMESTAMP(3) *ROWTIME* |  true |           |                 | `ts` - INTERVAL '1' SECOND |
-|   ptime | TIMESTAMP(3) NOT NULL *PROCTIME* | false |           |      PROCTIME() |                            |
-+---------+----------------------------------+-------+-----------+-----------------+----------------------------+
-5 rows in set
-
-```
-{{< /tab >}}
-{{< tab "Scala" >}}
-```text
-
-+---------+----------------------------------+-------+-----------+-----------------+----------------------------+
-|    name |                             type |  null |       key | computed column |                  watermark |
-+---------+----------------------------------+-------+-----------+-----------------+----------------------------+
-|    user |                           BIGINT | false | PRI(user) |                 |                            |
-| product |                      VARCHAR(32) |  true |           |                 |                            |
-|  amount |                              INT |  true |           |                 |                            |
-|      ts |           TIMESTAMP(3) *ROWTIME* |  true |           |                 | `ts` - INTERVAL '1' SECOND |
-|   ptime | TIMESTAMP(3) NOT NULL *PROCTIME* | false |           |      PROCTIME() |                            |
-+---------+----------------------------------+-------+-----------+-----------------+----------------------------+
-5 rows in set
-
-```
-{{< /tab >}}
-{{< tab "Python" >}}
-```text
-
-+---------+----------------------------------+-------+-----------+-----------------+----------------------------+
-|    name |                             type |  null |       key | computed column |                  watermark |
-+---------+----------------------------------+-------+-----------+-----------------+----------------------------+
-|    user |                           BIGINT | false | PRI(user) |                 |                            |
-| product |                      VARCHAR(32) |  true |           |                 |                            |
-|  amount |                              INT |  true |           |                 |                            |
-|      ts |           TIMESTAMP(3) *ROWTIME* |  true |           |                 | `ts` - INTERVAL '1' SECOND |
-|   ptime | TIMESTAMP(3) NOT NULL *PROCTIME* | false |           |      PROCTIME() |                            |
-+---------+----------------------------------+-------+-----------+-----------------+----------------------------+
-5 rows in set
-
-```
-{{< /tab >}}
-{{< tab "SQL CLI" >}}
-```text
-
-root
- |-- user: BIGINT NOT NULL
- |-- product: VARCHAR(32)
- |-- amount: INT
- |-- ts: TIMESTAMP(3) *ROWTIME*
- |-- ptime: TIMESTAMP(3) NOT NULL *PROCTIME* AS PROCTIME()
- |-- WATERMARK FOR ts AS `ts` - INTERVAL '1' SECOND
- |-- CONSTRAINT PK_3599338 PRIMARY KEY (user)
-
-```
-{{< /tab >}}
-{{< /tabs >}}
-
+{{< hint info >}}
+For these situation, Describe statement will throw error:
+1. Table doesn't exist, a validation error that table doesn't exist will be thrown
+2. Column doesn't exist, a validation error that column 'x' doesn't exist will be thrown
+3. Try to specify partition specs for none partition table, a validation error that table is not a partition table will be thrown
+4. For partition table, try to specify one partition spec whose key is not partition key. A validation error that key 'x' in partition spec {'x'='y'} is not partition key will be thrown
+5. for partition table, try to specify one partition spec whose value is not exists(partition not exists). A validation error that partition 'y' not found for partition spec {'x'='y'} will be thrown
+{{< /hint >}}
 
 {{< top >}}
 
 ## Syntax
 
 ```sql
-{ DESCRIBE | DESC } [catalog_name.][db_name.]table_name
+{ DESCRIBE | DESC } [EXTENDED] [catalog_name.][db_name.]table_name [PARTITION(partcol1[=val1] [, partcol2[=val2], ...])] [column_name]
 ```
