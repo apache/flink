@@ -185,7 +185,7 @@ CREATE TABLE [IF NOT EXISTS] [catalog_name.][db_name.]table_name
 }[, ...]
 
 <select_query>:
-The table is populated using the data from the select statement.
+The table is populated using the data from the select query.
 
 ```
 
@@ -518,14 +518,11 @@ If you provide no like options, `INCLUDING ALL OVERWRITING OPTIONS` will be used
 
 ### `AS`
 
-Tables can also be created and populated by the results of a query in one create-table-as-select (CTAS) statement. 
-CTAS is the simplest and fastest way to create and insert data into a table with a single command.
+Tables can also be created and populated by the results of a query in one create-table-as-select (CTAS) statement. CTAS is the simplest and fastest way to create and insert data into a table with a single command.
 
-There are two parts in CTAS, the SELECT part can be any [SELECT statement]({{< ref "docs/dev/table/sql/queries/overview" >}}) supported by Flink SQL. 
-The CREATE part of the CTAS takes the resulting schema from the SELECT part and creates the target table with other table properties such as the connector and URL. 
-Similar to CREATE TABLE, CTAS requires the required options of the corresponding connector must be specified in WITH clause.
+There are two parts in CTAS, the SELECT part can be any [SELECT query]({{< ref "docs/dev/table/sql/queries/overview" >}}) supported by Flink SQL. The CREATE part takes the resulting schema from the SELECT part and creates the target table. Similar to `CREATE TABLE`, CTAS requires the required options of the target table must be specified in WITH clause.
 
-**NOTE** If using an in-memory catalog, the user must ensure that external storage already exists; If using an external catalog, then flink will create table from the external catalog, such as HiveCatalog.
+Creating the target table of CTAS depends on Catalog, so if using the built-in memory Catalog, users must ensure that the table already exists in external storage. If using other catalogs such as hive Catalog, the target table will be created by Catalog automatically.
 
 Consider the example statement below:
 
@@ -535,8 +532,7 @@ WITH (
     'connector' = 'kafka',
     ...
 )
-AS
-SELECT id, name, age FROM test WHERE mod(id, 10) = 0;
+AS SELECT id, name, age FROM source_table WHERE mod(id, 10) = 0;
 ```
 
 The resulting table `my_ctas_table` will be equivalent to create the table and insert the data with the following statement:
@@ -550,7 +546,7 @@ CREATE TABLE my_ctas_table (
     ...
 );
  
-INSERT INTO my_ctas_table SELECT id, name, age FROM test WHERE mod(id, 10) = 0;
+INSERT INTO my_ctas_table SELECT id, name, age FROM source_table WHERE mod(id, 10) = 0;
 ```
 
 **Note** CTAS has these restrictions:
@@ -560,7 +556,7 @@ INSERT INTO my_ctas_table SELECT id, name, age FROM test WHERE mod(id, 10) = 0;
 * Does not support creating partitioned table yet.
 * Does not support specifying primary key constraints yet.
 
-**Note** The CTAS clause is currently non-atomicity and does not drop the target table when the job's final status is FAILED/CANCELED.
+**Note** The target table created by CTAS is non-atomic currently, the table won't be dropped automatically if occur errors while inserting data into the table.
 
 {{< top >}}
 

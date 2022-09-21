@@ -187,7 +187,8 @@ CREATE TABLE [IF NOT EXISTS] [catalog_name.][db_name.]table_name
 }[, ...]
 
 <select_query>:
-使用来自SELECT语句的数据填充表。
+
+使用来自SELECT查询的数据填充表。
 
 ```
 
@@ -518,12 +519,11 @@ LIKE Orders_in_file (
 
 ### `AS`
 
-表也可以通过一个创建表即选择（CTAS）语句中的查询结果来创建和填充。 CTAS是用一条命令创建和插入数据到一个表中的最简单和最快的方法。
+表也可以通过一个创建表即选择（CTAS）语句中的查询结果来创建和填充。 CTAS 是用一条命令创建和插入数据到一个表中的最简单和最快的方法。
 
-CTAS有两个部分，SELECT部分可以是Flink SQL支持的任何[SELECT语句]({{< ref "docs/dev/table/sql/queries/overview" >}})。
-CREATE部分从SELECT部分获取结果列信息，并创建具有其他表属性（如连接器和URL）的目标表。 与CREATE TABLE类似，CTAS要求必须在WITH子句中指定相应连接器的必要选项。
+CTAS 有两个部分，SELECT 部分可以是 Flink SQL 支持的任何 [SELECT 查询]({{< ref "docs/dev/table/sql/queries/overview" >}})。 CREATE 部分从 SELECT 部分获取结果列信息，并创建目标表。 与 `CREATE TABLE` 类似，CTAS 要求目标表的必选项必须在WITH子句中指定。
 
-**注意** 如果使用基于内存实现的 catalog，用户必须确保外部存储已经存在；如果使用外部扩展的 catalog，flink可以通过 catalog去创建表，比如 HiveCatalog。
+使用 CTAS 建表需要依赖 Catalog，所以如果使用内置的基于内存的 Catalog，用户必须确保该表已经存在于外部存储中。如果使用其他 Catalog，如 Hive Catalog，目标表将由 Catalog 自动创建。
 
 示例如下:
 
@@ -533,8 +533,7 @@ WITH (
     'connector' = 'kafka',
     ...
 )
-AS
-SELECT id, name, age FROM test WHERE mod(id, 10) = 0;
+AS SELECT id, name, age FROM source_table WHERE mod(id, 10) = 0;
 ```
 
 结果表 `my_ctas_table` 等效于使用以下语句创建表并写入数据:
@@ -548,17 +547,17 @@ CREATE TABLE my_ctas_table (
     ...
 );
  
-INSERT INTO my_ctas_table SELECT id, name, age FROM test WHERE mod(id, 10) = 0;
+INSERT INTO my_ctas_table SELECT id, name, age FROM source_table WHERE mod(id, 10) = 0;
 ```
 
-**注意** CTAS有以下约束：
+**注意** CTAS 有以下约束：
 * 暂不支持创建临时结果表。
 * 暂不支持手动指定列信息。
 * 暂不支持 watermark 定义。
 * 暂不支持创建分区表。
 * 暂不支持指定主键约束。
 
-**注意** CTAS子句目前是非原子性的，当作业的最终状态为FAILED/CANCELED时，它不会删除目标表。
+**注意** 目前，CTAS 创建的目标表是非原子性的，如果在向表中插入数据时发生错误，该表不会被自动删除。
 
 {{< top >}}
 
