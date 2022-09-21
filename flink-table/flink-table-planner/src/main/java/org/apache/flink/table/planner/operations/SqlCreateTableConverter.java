@@ -121,13 +121,8 @@ class SqlCreateTableConverter {
                         sqlCreateTableAs.isIfNotExists(),
                         sqlCreateTableAs.isTemporary());
 
-        ContextResolvedTable contextResolvedTable =
-                ContextResolvedTable.permanent(
-                        identifier,
-                        catalogManager.getCatalog(catalogManager.getCurrentCatalog()).get(),
-                        catalogManager.resolveCatalogTable(createTableOperation.getCatalogTable()));
         return new CreateTableASOperation(
-                createTableOperation, Collections.emptyMap(), query, false, contextResolvedTable);
+                createTableOperation, Collections.emptyMap(), query, false);
     }
 
     private CatalogTable createCatalogTable(SqlCreateTable sqlCreateTable) {

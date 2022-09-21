@@ -19,7 +19,9 @@
 package org.apache.flink.table.operations.ddl;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.table.catalog.ContextResolvedTable;
+import org.apache.flink.table.catalog.CatalogManager;
+import org.apache.flink.table.operations.ModifyOperation;
+import org.apache.flink.table.operations.ModifyOperationVisitor;
 import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.OperationUtils;
 import org.apache.flink.table.operations.QueryOperation;
@@ -31,35 +33,32 @@ import java.util.Map;
 
 /** Operation to describe a CREATE TABLE AS statement. */
 @Internal
-public class CreateTableASOperation implements CreateOperation {
+public class CreateTableASOperation implements ModifyOperation {
 
     private final CreateTableOperation createTableOperation;
 
     private final Map<String, String> sinkModifyStaticPartitions;
     private final QueryOperation sinkModifyQuery;
     private final boolean sinkModifyOverwrite;
-    private final ContextResolvedTable contextResolvedTable;
 
     public CreateTableASOperation(
             CreateTableOperation createTableOperation,
             Map<String, String> sinkModifyStaticPartitions,
             QueryOperation sinkModifyQuery,
-            boolean sinkModifyOverwrite,
-            ContextResolvedTable contextResolvedTable) {
+            boolean sinkModifyOverwrite) {
         this.createTableOperation = createTableOperation;
         this.sinkModifyStaticPartitions = sinkModifyStaticPartitions;
         this.sinkModifyQuery = sinkModifyQuery;
         this.sinkModifyOverwrite = sinkModifyOverwrite;
-        this.contextResolvedTable = contextResolvedTable;
     }
 
     public CreateTableOperation getCreateTableOperation() {
         return createTableOperation;
     }
 
-    public SinkModifyOperation toSinkModifyOperation() {
+    public SinkModifyOperation toSinkModifyOperation(CatalogManager catalogManager) {
         return new SinkModifyOperation(
-                contextResolvedTable,
+                catalogManager.getTableOrError(createTableOperation.getTableIdentifier()),
                 sinkModifyQuery,
                 sinkModifyStaticPartitions,
                 sinkModifyOverwrite,
@@ -81,5 +80,15 @@ public class CreateTableASOperation implements CreateOperation {
                 params,
                 Collections.singletonList(sinkModifyQuery),
                 Operation::asSummaryString);
+    }
+
+    @Override
+    public QueryOperation getChild() {
+        return sinkModifyQuery;
+    }
+
+    @Override
+    public <T> T accept(ModifyOperationVisitor<T> visitor) {
+        return visitor.visit(this);
     }
 }

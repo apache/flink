@@ -839,8 +839,21 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
 
     @Override
     public TableResultInternal executeInternal(List<ModifyOperation> operations) {
-        List<Transformation<?>> transformations = translate(operations);
-        List<String> sinkIdentifierNames = extractSinkIdentifierNames(operations);
+        List<Transformation<?>> transformations;
+        List<String> sinkIdentifierNames;
+        if (operations.size() == 1 && operations.get(0) instanceof CreateTableASOperation) {
+            CreateTableASOperation createTableASOperation =
+                    (CreateTableASOperation) operations.get(0);
+            executeInternal(createTableASOperation.getCreateTableOperation());
+            List<ModifyOperation> tmpModifyOperations =
+                    Collections.singletonList(
+                            createTableASOperation.toSinkModifyOperation(catalogManager));
+            transformations = translate(tmpModifyOperations);
+            sinkIdentifierNames = extractSinkIdentifierNames(tmpModifyOperations);
+        } else {
+            transformations = translate(operations);
+            sinkIdentifierNames = extractSinkIdentifierNames(operations);
+        }
         TableResultInternal result = executeInternal(transformations, sinkIdentifierNames);
         if (tableConfig.get(TABLE_DML_SYNC)) {
             try {
@@ -932,6 +945,12 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
         }
         // otherwise, fall back to internal implementation
         if (operation instanceof ModifyOperation) {
+            if (operation instanceof CreateTableASOperation) {
+                CreateTableASOperation createTableASOperation = (CreateTableASOperation) operation;
+                executeInternal(createTableASOperation.getCreateTableOperation());
+                return executeInternal(
+                        createTableASOperation.toSinkModifyOperation(catalogManager));
+            }
             return executeInternal(Collections.singletonList((ModifyOperation) operation));
         } else if (operation instanceof StatementSetOperation) {
             return executeInternal(((StatementSetOperation) operation).getOperations());
@@ -1397,10 +1416,6 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
             }
         } else if (operation instanceof QueryOperation) {
             return executeQueryOperation((QueryOperation) operation);
-        } else if (operation instanceof CreateTableASOperation) {
-            CreateTableASOperation createTableASOperation = (CreateTableASOperation) operation;
-            executeInternal(createTableASOperation.getCreateTableOperation());
-            return executeInternal(createTableASOperation.toSinkModifyOperation());
         } else if (operation instanceof ExecutePlanOperation) {
             ExecutePlanOperation executePlanOperation = (ExecutePlanOperation) operation;
             return (TableResultInternal)

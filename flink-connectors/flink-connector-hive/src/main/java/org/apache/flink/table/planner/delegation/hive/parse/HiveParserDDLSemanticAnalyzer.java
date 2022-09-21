@@ -1049,18 +1049,12 @@ public class HiveParserDDLSemanticAnalyzer {
                                 storageFormat,
                                 primaryKeys,
                                 notNulls);
-                ContextResolvedTable contextResolvedTable =
-                        ContextResolvedTable.permanent(
-                                createTableOperation.getTableIdentifier(),
-                                catalogManager.getCatalog(catalogManager.getCurrentCatalog()).get(),
-                                catalogManager.resolveCatalogTable(
-                                        createTableOperation.getCatalogTable()));
+
                 return new CreateTableASOperation(
                         createTableOperation,
                         insertOperationInfo.f2,
                         insertOperationInfo.f1,
-                        insertOperationInfo.f3,
-                        contextResolvedTable);
+                        insertOperationInfo.f3);
             default:
                 throw new ValidationException("Unrecognized command.");
         }

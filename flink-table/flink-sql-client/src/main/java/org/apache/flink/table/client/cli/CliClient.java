@@ -411,7 +411,8 @@ public class CliClient implements AutoCloseable {
         // check the current operation is allowed in STATEMENT SET.
         if (isStatementSetMode) {
             if (!(operation instanceof SinkModifyOperation
-                    || operation instanceof EndStatementSetOperation)) {
+                    || operation instanceof EndStatementSetOperation
+                    || operation instanceof CreateTableASOperation)) {
                 // It's up to invoker of the executeStatement to determine whether to continue
                 // execution
                 throw new SqlExecutionException(MESSAGE_STATEMENT_SET_SQL_EXECUTION_ERROR);
@@ -465,11 +466,8 @@ public class CliClient implements AutoCloseable {
             // SHOW CREATE VIEW
             callShowCreateView((ShowCreateViewOperation) operation);
         } else if (operation instanceof CreateTableASOperation) {
-            CreateTableASOperation createTableASOperation = (CreateTableASOperation) operation;
-            // CREATE TABLE
-            callOperation(createTableASOperation.getCreateTableOperation(), mode);
-            // INSERT
-            callOperation(createTableASOperation.toSinkModifyOperation(), mode);
+            // CTAS
+            callInsert((CreateTableASOperation) operation);
         } else {
             // fallback to default implementation
             executeOperation(operation);
@@ -564,7 +562,7 @@ public class CliClient implements AutoCloseable {
         }
     }
 
-    private void callInsert(SinkModifyOperation operation) {
+    private void callInsert(ModifyOperation operation) {
         if (isStatementSetMode) {
             statementSetOperations.add(operation);
             printInfo(CliStrings.MESSAGE_ADD_STATEMENT_TO_STATEMENT_SET);
