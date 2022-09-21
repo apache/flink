@@ -225,9 +225,10 @@ public class CoreOptions {
     // ------------------------------------------------------------------------
 
     public static final ConfigOption<String> FLINK_JVM_OPTIONS =
-            ConfigOptions.key("env.java.opts")
+            ConfigOptions.key("env.java.opts.all")
                     .stringType()
                     .defaultValue("")
+                    .withDeprecatedKeys("env.java.opts")
                     .withDescription(
                             Description.builder()
                                     .text(

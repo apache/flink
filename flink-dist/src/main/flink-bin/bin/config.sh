@@ -158,7 +158,7 @@ KEY_ENV_YARN_CONF_DIR="env.yarn.conf.dir"
 KEY_ENV_HADOOP_CONF_DIR="env.hadoop.conf.dir"
 KEY_ENV_HBASE_CONF_DIR="env.hbase.conf.dir"
 KEY_ENV_JAVA_HOME="env.java.home"
-KEY_ENV_JAVA_OPTS="env.java.opts"
+KEY_ENV_JAVA_OPTS="env.java.opts.all"
 KEY_ENV_JAVA_OPTS_JM="env.java.opts.jobmanager"
 KEY_ENV_JAVA_OPTS_TM="env.java.opts.taskmanager"
 KEY_ENV_JAVA_OPTS_HS="env.java.opts.historyserver"
@@ -294,7 +294,11 @@ if [ -z "${FLINK_PID_DIR}" ]; then
 fi
 
 if [ -z "${FLINK_ENV_JAVA_OPTS}" ]; then
-    FLINK_ENV_JAVA_OPTS=$(readFromConfig ${KEY_ENV_JAVA_OPTS} "${DEFAULT_ENV_JAVA_OPTS}" "${YAML_CONF}")
+    FLINK_ENV_JAVA_OPTS=$(readFromConfig ${KEY_ENV_JAVA_OPTS} "" "${YAML_CONF}")
+    if [ -z "${FLINK_ENV_JAVA_OPTS}" ]; then
+      # try deprecated key
+      FLINK_ENV_JAVA_OPTS=$(readFromConfig ${"env.java.opts"} "${DEFAULT_ENV_JAVA_OPTS}" "${YAML_CONF}")
+    fi
 
     # Remove leading and ending double quotes (if present) of value
     FLINK_ENV_JAVA_OPTS="$( echo "${FLINK_ENV_JAVA_OPTS}" | sed -e 's/^"//'  -e 's/"$//' )"
