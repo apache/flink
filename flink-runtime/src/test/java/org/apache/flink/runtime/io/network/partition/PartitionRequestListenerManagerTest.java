@@ -75,10 +75,10 @@ public class PartitionRequestListenerManagerTest extends TestLogger {
 
         assertEquals(
                 listenerList.size(),
-                partitionRequestListenerManager.getPartitionRequestNotifiers().size());
+                partitionRequestListenerManager.getPartitionRequestListeners().size());
         assertTrue(
                 listenerList.containsAll(
-                        partitionRequestListenerManager.getPartitionRequestNotifiers()));
+                        partitionRequestListenerManager.getPartitionRequestListeners()));
     }
 
     /**
@@ -126,10 +126,10 @@ public class PartitionRequestListenerManagerTest extends TestLogger {
         partitionRequestListenerManager.remove(listener1.getReceiverId());
         assertEquals(
                 listenerList.size(),
-                partitionRequestListenerManager.getPartitionRequestNotifiers().size());
+                partitionRequestListenerManager.getPartitionRequestListeners().size());
         assertTrue(
                 listenerList.containsAll(
-                        partitionRequestListenerManager.getPartitionRequestNotifiers()));
+                        partitionRequestListenerManager.getPartitionRequestListeners()));
     }
 
     /** Test remove expire listeners from {@link PartitionRequestListenerManager}. */
@@ -184,10 +184,10 @@ public class PartitionRequestListenerManagerTest extends TestLogger {
 
         assertEquals(
                 listenerList.size(),
-                partitionRequestListenerManager.getPartitionRequestNotifiers().size());
+                partitionRequestListenerManager.getPartitionRequestListeners().size());
         assertTrue(
                 listenerList.containsAll(
-                        partitionRequestListenerManager.getPartitionRequestNotifiers()));
+                        partitionRequestListenerManager.getPartitionRequestListeners()));
 
         assertEquals(expireListenerList.size(), removeExpireListenerList.size());
         assertTrue(expireListenerList.containsAll(removeExpireListenerList));

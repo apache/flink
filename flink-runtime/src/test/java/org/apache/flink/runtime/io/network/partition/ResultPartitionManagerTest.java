@@ -130,9 +130,9 @@ public class ResultPartitionManagerTest extends TestLogger {
                 partitionManager.getListenerManagers().get(partition.getPartitionId());
         assertNotNull(listenerManager);
         assertFalse(listenerManager.isEmpty());
-        assertEquals(listenerManager.getPartitionRequestNotifiers().size(), 1);
+        assertEquals(listenerManager.getPartitionRequestListeners().size(), 1);
         PartitionRequestListener listener =
-                listenerManager.getPartitionRequestNotifiers().iterator().next();
+                listenerManager.getPartitionRequestListeners().iterator().next();
         assertEquals(listener.getResultPartitionId(), partition.getPartitionId());
 
         partitionManager.registerResultPartition(partition);

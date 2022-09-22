@@ -33,7 +33,7 @@ public class PartitionRequestListenerManager {
         this.listeners = new HashMap<>();
     }
 
-    public Collection<PartitionRequestListener> getPartitionRequestNotifiers() {
+    public Collection<PartitionRequestListener> getPartitionRequestListeners() {
         return listeners.values();
     }
 

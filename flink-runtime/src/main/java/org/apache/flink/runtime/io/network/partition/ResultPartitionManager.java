@@ -90,7 +90,7 @@ public class ResultPartitionManager implements ResultPartitionProvider {
                     listenerManagers.remove(partition.getPartitionId());
             if (listenerManager != null) {
                 for (PartitionRequestListener listener :
-                        listenerManager.getPartitionRequestNotifiers()) {
+                        listenerManager.getPartitionRequestListeners()) {
                     listener.notifyPartitionCreated(partition);
                 }
             }
@@ -168,7 +168,6 @@ public class ResultPartitionManager implements ResultPartitionProvider {
 
     public void releasePartition(ResultPartitionID partitionId, Throwable cause) {
         synchronized (registeredPartitions) {
-            listenerManagers.remove(partitionId);
             ResultPartition resultPartition = registeredPartitions.remove(partitionId);
             if (resultPartition != null) {
                 resultPartition.release(cause);
@@ -176,6 +175,13 @@ public class ResultPartitionManager implements ResultPartitionProvider {
                         "Released partition {} produced by {}.",
                         partitionId.getPartitionId(),
                         partitionId.getProducerId());
+            }
+            PartitionRequestListenerManager listenerManager = listenerManagers.remove(partitionId);
+            if (listenerManager != null && !listenerManager.isEmpty()) {
+                for (PartitionRequestListener listener :
+                        listenerManager.getPartitionRequestListeners()) {
+                    listener.notifyPartitionCreatedTimeout();
+                }
             }
         }
     }
@@ -192,12 +198,22 @@ public class ResultPartitionManager implements ResultPartitionProvider {
 
             registeredPartitions.clear();
 
-            listenerManagers.clear();
+            releaseListenerManagers();
 
             isShutdown = true;
 
             LOG.debug("Successful shutdown.");
         }
+    }
+
+    private void releaseListenerManagers() {
+        for (PartitionRequestListenerManager listenerManager : listenerManagers.values()) {
+            for (PartitionRequestListener listener :
+                    listenerManager.getPartitionRequestListeners()) {
+                listener.notifyPartitionCreatedTimeout();
+            }
+        }
+        listenerManagers.clear();
     }
 
     /** Check whether the partition request listener is timeout. */

@@ -123,6 +123,12 @@
             <td>The Netty transport type, either "nio" or "epoll". The "auto" means selecting the property mode automatically based on the platform. Note that the "epoll" mode can get better performance, less GC and have more advanced features which are only available on modern Linux.</td>
         </tr>
         <tr>
+            <td><h5>taskmanager.network.partition-request-listener-timeout-ms</h5></td>
+            <td style="word-wrap: break-word;">10000</td>
+            <td>Integer</td>
+            <td>Timeout in milliseconds for partition request listener in result partition manager.</td>
+        </tr>
+        <tr>
             <td><h5>taskmanager.network.request-backoff.initial</h5></td>
             <td style="word-wrap: break-word;">100</td>
             <td>Integer</td>
