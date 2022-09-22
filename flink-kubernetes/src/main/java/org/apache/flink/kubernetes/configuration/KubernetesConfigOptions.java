@@ -141,9 +141,10 @@ public class KubernetesConfigOptions {
                                                     "Owner References"))
                                     .build());
     public static final ConfigOption<Double> JOB_MANAGER_CPU =
-            key("kubernetes.jobmanager.cpu")
+            key("kubernetes.jobmanager.cpu.amount")
                     .doubleType()
                     .defaultValue(1.0)
+                    .withDeprecatedKeys("kubernetes.jobmanager.cpu")
                     .withDescription("The number of cpu used by job manager");
 
     public static final ConfigOption<Double> JOB_MANAGER_CPU_LIMIT_FACTOR =
@@ -163,9 +164,10 @@ public class KubernetesConfigOptions {
                                     + "The resources limit memory will be set to memory * limit-factor.");
 
     public static final ConfigOption<Double> TASK_MANAGER_CPU =
-            key("kubernetes.taskmanager.cpu")
+            key("kubernetes.taskmanager.cpu.amount")
                     .doubleType()
                     .defaultValue(-1.0)
+                    .withDeprecatedKeys("kubernetes.taskmanager.cpu")
                     .withDescription(
                             "The number of cpu used by task manager. By default, the cpu is set "
                                     + "to the number of slots per TaskManager");
