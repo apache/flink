@@ -287,7 +287,7 @@ to the Flink SQL Gateway like Hive. Please refer to the [guidance](https://super
 the following JDBC URL to connect to the Apache Superset:
 
 ```bash
-jdbc:hive2://{host}:{port}/{database}?auth=NOSASL
+hive://hive@{host}:{port}/{database}?auth=NOSASL
 ```
 
 Streaming SQL

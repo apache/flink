@@ -44,10 +44,8 @@ import org.junit.rules.TemporaryFolder;
 
 import java.io.BufferedWriter;
 import java.io.File;
-import java.io.FileOutputStream;
 import java.io.FileWriter;
 import java.io.IOException;
-import java.io.OutputStream;
 import java.net.BindException;
 import java.net.InetSocketAddress;
 import java.net.ServerSocket;
@@ -129,15 +127,6 @@ public class HiveTestUtils {
         } catch (IOException e) {
             throw new CatalogException("Failed to create test HiveConf to HiveCatalog.", e);
         }
-    }
-
-    public static File createHiveSite() throws Exception {
-        HiveConf conf = createHiveConf();
-        File site = TEMPORARY_FOLDER.newFile("hive-site.xml");
-        try (OutputStream out = new FileOutputStream(site)) {
-            conf.writeXml(out);
-        }
-        return site;
     }
 
     // Gets a free port of localhost. Note that this method suffers the "time of check to time of
