@@ -45,7 +45,7 @@ IntelliJ IDEA 支持开箱即用的 Maven 项目。Eclipse 提供了 [m2e 插件
 
 如果您想 __构建/打包__ 您的项目，请转到您的项目目录并运行 '`mvn clean package`' 命令。您将 __找到一个 JAR 文件__，其中包含您的应用程序（还有已作为依赖项添加到应用程序的连接器和库）：`target/<artifact-id>-<version>.jar`。
 
-__注意：__ 如果您使用不同于 `DataStreamJob` 的类作为应用程序的主类/入口点，我们建议您对 `pom.xml` 文件里的 `mainClassName` 配置进行相应的修改。这样，Flink 可以通过 JAR 文件运行应用程序，而无需额外指定主类。
+__注意：__ 如果您使用不同于 `DataStreamJob` 的类作为应用程序的主类/入口点，我们建议您对 `pom.xml` 文件里的 `mainClass` 配置进行相应的修改。这样，Flink 可以通过 JAR 文件运行应用程序，而无需额外指定主类。
 
 ## 向项目添加依赖项
 
