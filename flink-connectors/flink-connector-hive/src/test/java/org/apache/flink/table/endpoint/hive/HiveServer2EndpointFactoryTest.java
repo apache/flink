@@ -21,6 +21,8 @@ package org.apache.flink.table.endpoint.hive;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.testutils.FlinkAssertions;
+import org.apache.flink.table.catalog.hive.HiveCatalog;
+import org.apache.flink.table.catalog.hive.HiveTestUtils;
 import org.apache.flink.table.gateway.api.endpoint.SqlGatewayEndpointFactoryUtils;
 import org.apache.flink.table.gateway.api.utils.MockedSqlGatewayService;
 
@@ -29,6 +31,7 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
 
 import java.net.InetSocketAddress;
+import java.nio.file.Paths;
 import java.time.Duration;
 import java.util.Arrays;
 import java.util.Collections;
@@ -52,6 +55,7 @@ import static org.apache.flink.table.endpoint.hive.HiveServer2EndpointConfigOpti
 import static org.apache.flink.table.endpoint.hive.HiveServer2EndpointFactory.IDENTIFIER;
 import static org.apache.flink.table.factories.FactoryUtil.SQL_GATEWAY_ENDPOINT_TYPE;
 import static org.apache.flink.table.gateway.api.endpoint.SqlGatewayEndpointFactoryUtils.GATEWAY_ENDPOINT_PREFIX;
+import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -69,7 +73,6 @@ class HiveServer2EndpointFactoryTest {
     private final Duration backOffSlotLength = Duration.ofMillis(300);
 
     private final String catalogName = "test-hive";
-    private final String hiveConfPath = "/path/to/conf";
     private final String defaultDatabase = "test-db";
     private final String moduleName = "test-module";
 
@@ -90,7 +93,7 @@ class HiveServer2EndpointFactoryTest {
                                         maxWorkerThreads,
                                         workerAliveDuration,
                                         catalogName,
-                                        hiveConfPath,
+                                        HiveTestUtils.createHiveConf(),
                                         defaultDatabase,
                                         moduleName)));
     }
@@ -179,7 +182,17 @@ class HiveServer2EndpointFactoryTest {
         setEndpointOption(config, THRIFT_LOGIN_TIMEOUT, "10s");
 
         setEndpointOption(config, CATALOG_NAME, catalogName);
-        setEndpointOption(config, CATALOG_HIVE_CONF_DIR, hiveConfPath);
+        setEndpointOption(
+                config,
+                CATALOG_HIVE_CONF_DIR,
+                Paths.get(
+                                checkNotNull(
+                                                HiveTestUtils.class
+                                                        .getClassLoader()
+                                                        .getResource(HiveCatalog.HIVE_SITE_FILE))
+                                        .toString())
+                        .toFile()
+                        .getParent());
         setEndpointOption(config, CATALOG_DEFAULT_DATABASE, defaultDatabase);
 
         setEndpointOption(config, MODULE_NAME, moduleName);
