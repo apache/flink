@@ -186,10 +186,6 @@ CREATE TABLE [IF NOT EXISTS] [catalog_name.][db_name.]table_name
  | { INCLUDING | EXCLUDING | OVERWRITING } { GENERATED | OPTIONS | WATERMARKS } 
 }[, ...]
 
-<select_query>:
-
-使用 SELECT 查询的结果数据填充表。
-
 ```
 
 根据指定的表名创建一个表，如果同名表已经在 catalog 中存在了，则无法注册。
@@ -517,13 +513,13 @@ LIKE Orders_in_file (
 
 **注意：** 源表 `source_table` 可以是一个组合 ID。您可以指定不同 catalog 或者 DB 的表作为源表: 例如，`my_catalog.my_db.MyTable` 指定了源表 `MyTable` 来源于名为 `MyCatalog` 的 catalog  和名为 `my_db` 的 DB ，`my_db.MyTable` 指定了源表 `MyTable` 来源于当前 catalog  和名为 `my_db` 的 DB。
 
-### `AS`
+### `AS select_statement`
 
 表也可以通过一个 CTAS 语句中的查询结果来创建并填充数据，CTAS 是一种简单、快捷的创建表并插入数据的方法。
 
 CTAS 有两个部分，SELECT 部分可以是 Flink SQL 支持的任何 [SELECT 查询]({{< ref "docs/dev/table/sql/queries/overview" >}})。 CREATE 部分从 SELECT 查询中获取列信息，并创建目标表。 与 `CREATE TABLE` 类似，CTAS 要求必须在目标表的 WITH 子句中指定必填的表属性。
 
-使用 CTAS 建表需要依赖 Catalog，所以如果使用内置的基于内存的 Catalog，用户必须确保该表已经存在于外部存储中。如果使用其他 Catalog，如 Hive Catalog，目标表将由 Catalog 自动创建。
+CTAS 的建表操作需要依赖目标 Catalog。比如，Hive Catalog 会自动在 Hive 中创建物理表。但是基于内存的 Catalog 只会将表的元信息注册在执行 SQL 的 Client 的内存中。
 
 示例如下:
 

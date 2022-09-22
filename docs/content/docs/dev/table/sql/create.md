@@ -184,9 +184,6 @@ CREATE TABLE [IF NOT EXISTS] [catalog_name.][db_name.]table_name
  | { INCLUDING | EXCLUDING | OVERWRITING } { GENERATED | OPTIONS | WATERMARKS } 
 }[, ...]
 
-<select_query>:
-The table is populated using the data from the select query.
-
 ```
 
 The statement above creates a table with the given name. If a table with the same name already exists
@@ -516,13 +513,13 @@ If you provide no like options, `INCLUDING ALL OVERWRITING OPTIONS` will be used
 
 **NOTE** The `source_table` can be a compound identifier. Thus, it can be a table from a different catalog or database: e.g. `my_catalog.my_db.MyTable` specifies table `MyTable` from catalog `MyCatalog` and database `my_db`; `my_db.MyTable` specifies table `MyTable` from current catalog and database `my_db`.
 
-### `AS`
+### `AS select_statement`
 
 Tables can also be created and populated by the results of a query in one create-table-as-select (CTAS) statement. CTAS is the simplest and fastest way to create and insert data into a table with a single command.
 
 There are two parts in CTAS, the SELECT part can be any [SELECT query]({{< ref "docs/dev/table/sql/queries/overview" >}}) supported by Flink SQL. The CREATE part takes the resulting schema from the SELECT part and creates the target table. Similar to `CREATE TABLE`, CTAS requires the required options of the target table must be specified in WITH clause.
 
-Creating the target table of CTAS depends on Catalog, so if using the built-in memory Catalog, users must ensure that the table already exists in external storage. If using other catalogs such as hive Catalog, the target table will be created by Catalog automatically.
+The creating table operation of CTAS depends on the target Catalog. For example, Hive Catalog creates the physical table in Hive automatically. But the in-memory catalog registers the table metadata in the client's memory where the SQL is executed.
 
 Consider the example statement below:
 
