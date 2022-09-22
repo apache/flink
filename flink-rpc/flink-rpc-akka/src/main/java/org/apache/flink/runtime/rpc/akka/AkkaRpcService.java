@@ -204,7 +204,7 @@ public class AkkaRpcService implements RpcService {
 
             return selfGateway;
         } else {
-            throw new RuntimeException(
+            throw new ClassCastException(
                     "RpcEndpoint does not implement the RpcGateway interface of type "
                             + selfGatewayType
                             + '.');
