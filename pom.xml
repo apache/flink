@@ -119,7 +119,7 @@ under the License.
 		<scala.version>2.11.12</scala.version>
 		<scala.binary.version>2.11</scala.binary.version>
 		<chill.version>0.7.6</chill.version>
-		<zookeeper.version>3.4.14</zookeeper.version>
+		<zookeeper.version>3.5.6</zookeeper.version>
 		<!-- Only the curator2 TestingServer works with ZK 3.4 -->
 		<curator.version>2.12.0</curator.version>
 		<jackson.version>2.12.1</jackson.version>
