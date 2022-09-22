@@ -9,6 +9,12 @@
     </thead>
     <tbody>
         <tr>
+            <td><h5>high-availability.type</h5></td>
+            <td style="word-wrap: break-word;">"NONE"</td>
+            <td>String</td>
+            <td>Defines high-availability mode used for cluster execution. To enable high-availability, set this mode to "ZOOKEEPER", "KUBERNETES", or specify the fully qualified name of the factory class.</td>
+        </tr>
+        <tr>
             <td><h5>high-availability.cluster-id</h5></td>
             <td style="word-wrap: break-word;">"/default"</td>
             <td>String</td>
@@ -19,12 +25,6 @@
             <td style="word-wrap: break-word;">(none)</td>
             <td>String</td>
             <td>File system path (URI) where Flink persists metadata in high-availability setups.</td>
-        </tr>
-        <tr>
-            <td><h5>high-availability.type</h5></td>
-            <td style="word-wrap: break-word;">"NONE"</td>
-            <td>String</td>
-            <td>Defines high-availability mode used for cluster execution. To enable high-availability, set this mode to "ZOOKEEPER", "KUBERNETES", or specify the fully qualified name of the factory class.</td>
         </tr>
     </tbody>
 </table>
