@@ -58,7 +58,7 @@ public abstract class PulsarTableTestBase {
         return PulsarRuntime.container();
     }
 
-    private static final int DEFAULT_PARALLELISM = 1;
+    private static final int DEFAULT_PARALLELISM = 2;
 
     @BeforeAll
     public void beforeAll() {
