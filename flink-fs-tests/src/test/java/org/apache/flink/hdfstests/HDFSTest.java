@@ -119,7 +119,6 @@ public class HDFSTest {
     }
 
     @Test
-    @Disabled
     public void testHDFS() {
 
         Path file = new Path(hdfsURI + hdPath);
@@ -160,7 +159,6 @@ public class HDFSTest {
     }
 
     @Test
-    @Disabled
     public void testChangingFileNames() {
         org.apache.hadoop.fs.Path hdfsPath = new org.apache.hadoop.fs.Path(hdfsURI + "/hdfsTest");
         Path path = new Path(hdfsPath.toString());
