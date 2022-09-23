@@ -188,20 +188,48 @@ Connector Options
       <td>Whether async lookup are enabled. If true, the lookup will be async. Note, async only supports hbase-2.2 connector.</td>
     </tr>
     <tr>
-      <td><h5>lookup.cache.max-rows</h5></td>
+      <td><h5>lookup.cache</h5></td>
       <td>optional</td>
       <td>yes</td>
-      <td style="word-wrap: break-word;">-1</td>
-      <td>Long</td>
-      <td>The max number of rows of lookup cache, over this value, the oldest rows will be expired. Note, "lookup.cache.max-rows" and "lookup.cache.ttl" options must all be specified if any of them is specified. Lookup cache is disabled by default.</td>
+      <td style="word-wrap: break-word;">NONE</td>
+      <td><p>Enum</p>Possible values: NONE, PARTIAL</td>
+      <td>The cache strategy for the lookup table. Currently supports NONE (no caching) and PARTIAL (caching entries on lookup operation in external database).</td>
     </tr>
     <tr>
-      <td><h5>lookup.cache.ttl</h5></td>
+      <td><h5>lookup.partial-cache.max-rows</h5></td>
       <td>optional</td>
       <td>yes</td>
-      <td style="word-wrap: break-word;">0 s</td>
+      <td style="word-wrap: break-word;">(none)</td>
+      <td>Long</td>
+      <td>The max number of rows of lookup cache, over this value, the oldest rows will be expired. 
+        "lookup.cache" must be set to "PARTIAL" to use this option.</td>
+    </tr>
+    <tr>
+      <td><h5>lookup.partial-cache.expire-after-write</h5></td>
+      <td>optional</td>
+      <td>yes</td>
+      <td style="word-wrap: break-word;">(none)</td>
       <td>Duration</td>
-      <td>The max time to live for each rows in lookup cache, over this time, the oldest rows will be expired. Note, "cache.max-rows" and "cache.ttl" options must all be specified if any of them is specified.Lookup cache is disabled by default.</td>
+      <td>The max time to live for each rows in lookup cache after writing into the cache
+        "lookup.cache" must be set to "PARTIAL" to use this option. </td>
+    </tr>
+    <tr>
+      <td><h5>lookup.partial-cache.expire-after-access</h5></td>
+      <td>optional</td>
+      <td>yes</td>
+      <td style="word-wrap: break-word;">(none)</td>
+      <td>Duration</td>
+      <td>The max time to live for each rows in lookup cache after accessing the entry in the cache.
+      "lookup.cache" must be set to "PARTIAL" to use this option. </td>
+    </tr>
+    <tr>
+      <td><h5>lookup.partial-cache.caching-missing-key</h5></td>
+      <td>optional</td>
+      <td>yes</td>
+      <td style="word-wrap: break-word;">true</td>
+      <td>Boolean</td>
+      <td>Whether to store an empty value into the cache if the lookup key doesn't match any rows in the table. 
+        "lookup.cache" must be set to "PARTIAL" to use this option.</td>
     </tr>
     <tr>
       <td><h5>lookup.max-retries</h5></td>
@@ -223,6 +251,39 @@ Connector Options
     </tr>
     </tbody>
 </table>
+
+### Deprecated Options
+These deprecated options has been replaced by new options listed above and will be removed eventually. Please consider using new options first.
+<table>
+    <thead>
+      <tr>
+        <th class="text-left" style="width: 25%">Option</th>
+        <th class="text-left" style="width: 8%">Required</th>
+        <th class="text-left" style="width: 8%">Forwarded</th>
+        <th class="text-left" style="width: 7%">Default</th>
+        <th class="text-left" style="width: 10%">Type</th>
+        <th class="text-left" style="width: 42%">Description</th>
+      </tr>
+    </thead>
+    <tbody>
+        <tr>
+          <td><h5>lookup.cache.max-rows</h5></td>
+          <td>optional</td>
+          <td>yes</td>
+          <td style="word-wrap: break-word;">(none)</td>
+          <td>Integer</td>
+          <td>Please set "lookup.cache" = "PARTIAL" and use "lookup.partial-cache.max-rows" instead.</td>
+        </tr>
+        <tr>
+          <td><h5>lookup.cache.ttl</h5></td>
+          <td>optional</td>
+          <td>yes</td>
+          <td style="word-wrap: break-word;">(none)</td>
+          <td>Duration</td>
+          <td>Please set "lookup.cache" = "PARTIAL" and use "lookup.partial-cache.expire-after-write" instead.</td>
+        </tr>
+    </tbody>
+<table>
 
 
 
