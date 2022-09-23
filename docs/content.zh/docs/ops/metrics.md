@@ -557,13 +557,13 @@ Each of these keys expect a format string that may contain constants (e.g. "task
 - `metrics.scope.jm`
   - Default: &lt;host&gt;.jobmanager
   - Applied to all metrics that were scoped to a job manager.
-- `metrics.scope.jm.job`
+- `metrics.scope.jm-job`
   - Default: &lt;host&gt;.jobmanager.&lt;job_name&gt;
   - Applied to all metrics that were scoped to a job manager and job.
 - `metrics.scope.tm`
   - Default: &lt;host&gt;.taskmanager.&lt;tm_id&gt;
   - Applied to all metrics that were scoped to a task manager.
-- `metrics.scope.tm.job`
+- `metrics.scope.tm-job`
   - Default: &lt;host&gt;.taskmanager.&lt;tm_id&gt;.&lt;job_name&gt;
   - Applied to all metrics that were scoped to a task manager and job.
 - `metrics.scope.task`
