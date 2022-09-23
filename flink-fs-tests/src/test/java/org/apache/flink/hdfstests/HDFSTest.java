@@ -50,7 +50,6 @@ import org.junit.Assume;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -221,7 +220,6 @@ public class HDFSTest {
      * recognised during the download via a {@link org.apache.flink.runtime.blob.BlobServer}.
      */
     @Test
-    @Disabled
     public void testBlobServerCorruptedFile(@TempDir File tmpDir1, @TempDir File tmpDir2)
             throws Exception {
         org.apache.flink.configuration.Configuration config =
@@ -244,7 +242,6 @@ public class HDFSTest {
      * any participating BlobServer when uploaded via a BLOB cache.
      */
     @Test
-    @Disabled
     public void testBlobCacheRecovery(@TempDir File tmpDir1, @TempDir File tmpDir2)
             throws Exception {
         org.apache.flink.configuration.Configuration config =
@@ -267,7 +264,6 @@ public class HDFSTest {
      * recognised during the download via a BLOB cache.
      */
     @Test
-    @Disabled
     public void testBlobCacheCorruptedFile(@TempDir File tmpDir1, @TempDir File tmpDir2)
             throws Exception {
         org.apache.flink.configuration.Configuration config =
