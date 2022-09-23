@@ -472,9 +472,10 @@ public class KubernetesConfigOptions {
      */
     @SuppressWarnings("unused")
     public static final ConfigOption<String> KUBERNETES_POD_TEMPLATE =
-            key(KUBERNETES_POD_TEMPLATE_FILE_KEY)
+            key(KUBERNETES_POD_TEMPLATE_FILE_KEY + ".default")
                     .stringType()
                     .noDefaultValue()
+                    .withDeprecatedKeys(KUBERNETES_POD_TEMPLATE_FILE_KEY)
                     .withDescription(
                             "Specify a local file that contains the pod template definition. "
                                     + "It will be used to initialize the jobmanager and taskmanager pod. "

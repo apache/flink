@@ -56,7 +56,7 @@ mkdir -p "$LOCAL_LOGS_PATH"
     -Dkubernetes.jobmanager.cpu=0.5 \
     -Dkubernetes.taskmanager.cpu=0.5 \
     -Dkubernetes.rest-service.exposed.type=NodePort \
-    -Dkubernetes.pod-template-file=${CONTAINER_SCRIPTS}/kubernetes-pod-template.yaml \
+    -Dkubernetes.pod-template-file.default=${CONTAINER_SCRIPTS}/kubernetes-pod-template.yaml \
     -Dhigh-availability=org.apache.flink.kubernetes.highavailability.KubernetesHaServicesFactory \
     -Dhigh-availability.storageDir=file:///flink-ha \
     -Drestart-strategy=fixed-delay \
