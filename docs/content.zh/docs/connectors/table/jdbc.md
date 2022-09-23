@@ -202,27 +202,43 @@ ON myTopic.key = MyUserTable.id;
       <a href="https://jdbc.postgresql.org/documentation/head/query.html#query-with-cursor">Postgres</a>，可能需要将此设置为 false 以便流化结果。</td>
     </tr>
     <tr>
+      <td><h5>lookup.cache</h5></td>
+      <td>可选</td>
+      <td style="word-wrap: break-word;">NONE</td>
+      <td><p>枚举类型</p>可选值: NONE, PARTIAL</td>
+      <td>维表的缓存策略。 目前支持 NONE（不缓存）和 PARTIAL（只在外部数据库中查找数据时缓存）。</td>
+    </tr>
+    <tr>
       <td><h5>lookup.cache.max-rows</h5></td>
       <td>可选</td>
       <td style="word-wrap: break-word;">(none)</td>
       <td>Integer</td>
-      <td>lookup cache 的最大行数，若超过该值，则最老的行记录将会过期。
-      默认情况下，lookup cache 是未开启的。请参阅下面的 <a href="#lookup-cache">Lookup Cache</a> 部分了解更多详情。</td>
+      <td>维表缓存的最大行数，若超过该值，则最老的行记录将会过期。
+      使用该配置时 "lookup.cache" 必须设置为 "PARTIAL”。请参阅下面的 <a href="#lookup-cache">Lookup Cache</a> 部分了解更多详情。</td>
     </tr>
     <tr>
-      <td><h5>lookup.cache.ttl</h5></td>
+      <td><h5>lookup.partial-cache.expire-after-write</h5></td>
       <td>可选</td>
       <td style="word-wrap: break-word;">(none)</td>
       <td>Duration</td>
-      <td>lookup cache 中每一行记录的最大存活时间，若超过该时间，则最老的行记录将会过期。
-      默认情况下，lookup cache 是未开启的。请参阅下面的 <a href="#lookup-cache">Lookup Cache</a> 部分了解更多详情。</td>
+      <td>在记录写入缓存后该记录的最大保留时间。
+      使用该配置时 "lookup.cache" 必须设置为 "PARTIAL”。请参阅下面的 <a href="#lookup-cache">Lookup Cache</a> 部分了解更多详情。</td>
     </tr>
     <tr>
-      <td><h5>lookup.cache.caching-missing-key</h5></td>
+      <td><h5>lookup.partial-cache.expire-after-access</h5></td>
+      <td>可选</td>
+      <td style="word-wrap: break-word;">(none)</td>
+      <td>Duration</td>
+      <td>在缓存中的记录被访问后该记录的最大保留时间。
+      使用该配置时 "lookup.cache" 必须设置为 "PARTIAL”。请参阅下面的 <a href="#lookup-cache">Lookup Cache</a> 部分了解更多详情。</td>
+    </tr>
+    <tr>
+      <td><h5>lookup.partial-cache.caching-missing-key</h5></td>
       <td>可选</td>
       <td style="word-wrap: break-word;">true</td>
       <td>Boolean</td>
-      <td>标记缓存丢失的键，默认为true</td>
+      <td>是否缓存维表中不存在的键，默认为true。
+        使用该配置时 "lookup.cache" 必须设置为 "PARTIAL”。</td>
     </tr>
     <tr>
       <td><h5>lookup.max-retries</h5></td>
@@ -262,6 +278,47 @@ ON myTopic.key = MyUserTable.id;
     </tbody>
 </table>
 
+### 已弃用的配置
+这些弃用配置已经被上述的新配置代替，而且最终会被弃用。请优先考虑使用新配置。
+<table>
+    <thead>
+      <tr>
+        <th class="text-left" style="width: 25%">Option</th>
+        <th class="text-left" style="width: 8%">Required</th>
+        <th class="text-left" style="width: 8%">Forwarded</th>
+        <th class="text-left" style="width: 7%">Default</th>
+        <th class="text-left" style="width: 10%">Type</th>
+        <th class="text-left" style="width: 42%">Description</th>
+      </tr>
+    </thead>
+    <tbody>
+        <tr>
+          <td><h5>lookup.cache.max-rows</h5></td>
+          <td>optional</td>
+          <td>yes</td>
+          <td style="word-wrap: break-word;">(none)</td>
+          <td>Integer</td>
+          <td>请配置 "lookup.cache" = "PARTIAL" 并使用 "lookup.partial-cache.max-rows" 代替</td>
+        </tr>
+        <tr>
+          <td><h5>lookup.cache.ttl</h5></td>
+          <td>optional</td>
+          <td>yes</td>
+          <td style="word-wrap: break-word;">(none)</td>
+          <td>Duration</td>
+          <td>请配置 "lookup.cache" = "PARTIAL" 并使用 "lookup.partial-cache.expire-after-write" 代替</td>
+        </tr>
+        <tr>
+          <td><h5>lookup.cache.caching-missing-key</h5></td>
+          <td>optional</td>
+          <td>yes</td>
+          <td style="word-wrap: break-word;">true</td>
+          <td>Boolean</td>
+          <td>请配置 "lookup.cache" = "PARTIAL" 并使用 "lookup.partial-cache.caching-missing-key" 代替</td>
+        </tr>
+    </tbody>
+<table>
+
 <a name="features"></a>
 
 特性
@@ -297,14 +354,14 @@ ON myTopic.key = MyUserTable.id;
 
 JDBC 连接器可以用在时态表关联中作为一个可 lookup 的 source (又称为维表)，当前只支持同步的查找模式。
 
-默认情况下，lookup cache 是未启用的，你可以设置 `lookup.cache.max-rows` and `lookup.cache.ttl` 参数来启用。
+默认情况下，lookup cache 是未启用的，你可以将 `lookup.cache` 设置为 `PARTIAL` 参数来启用。
 
 lookup cache 的主要目的是用于提高时态表关联 JDBC 连接器的性能。默认情况下，lookup cache 不开启，所以所有请求都会发送到外部数据库。
 当 lookup cache 被启用时，每个进程（即 TaskManager）将维护一个缓存。Flink 将优先查找缓存，只有当缓存未查找到时才向外部数据库发送请求，并使用返回的数据更新缓存。
-当缓存命中最大缓存行 `lookup.cache.max-rows` 或当行超过最大存活时间 `lookup.cache.ttl` 时，缓存中最老的行将被设置为已过期。
-缓存中的记录可能不是最新的，用户可以将 `lookup.cache.ttl` 设置为一个更小的值以获得更好的刷新数据，但这可能会增加发送到数据库的请求数。所以要做好吞吐量和正确性之间的平衡。
+当缓存命中最大缓存行 `lookup.partial-cache.max-rows` 或当行超过 `lookup.partial-cache.expire-after-write` 或 `lookup.partial-cache.expire-after-access` 指定的最大存活时间时，缓存中的行将被设置为已过期。
+缓存中的记录可能不是最新的，用户可以将缓存记录超时设置为一个更小的值以获得更好的刷新数据，但这可能会增加发送到数据库的请求数。所以要做好吞吐量和正确性之间的平衡。
 
-默认情况下，flink 会缓存主键的空查询结果，你可以通过将 `lookup.cache.caching-missing-key` 设置为 false 来切换行为。
+默认情况下，flink 会缓存主键的空查询结果，你可以通过将 `lookup.partial-cache.caching-missing-key` 设置为 false 来切换行为。
 
 <a name="idempotent-writes"></a>
 
