@@ -172,7 +172,7 @@ ON myTopic.key = hTable.rowkey;
       <td>可选</td>
       <td style="word-wrap: break-word;">NONE</td>
       <td><p>枚举类型</p>可选值: NONE, PARTIAL</td>
-      <td>维表的缓存策略。 目前支持 NONE（不缓存）和 PARTIAL（伴随在外部数据库中查找数据的过程缓存）。</td>
+      <td>维表的缓存策略。 目前支持 NONE（不缓存）和 PARTIAL（只在外部数据库中查找数据时缓存）。</td>
     </tr>
     <tr>
       <td><h5>lookup.partial-cache.max-rows</h5></td>
@@ -245,7 +245,7 @@ ON myTopic.key = hTable.rowkey;
           <td>yes</td>
           <td style="word-wrap: break-word;">(none)</td>
           <td>Integer</td>
-          <td>请配置 "lookup.cache" = "PARTIAL" 并使用 "lookup.partial-cache.max-rows" 作为替代</td>
+          <td>请配置 "lookup.cache" = "PARTIAL" 并使用 "lookup.partial-cache.max-rows" 代替</td>
         </tr>
         <tr>
           <td><h5>lookup.cache.ttl</h5></td>
@@ -253,7 +253,7 @@ ON myTopic.key = hTable.rowkey;
           <td>yes</td>
           <td style="word-wrap: break-word;">(none)</td>
           <td>Duration</td>
-          <td>请配置 "lookup.cache" = "PARTIAL" 并使用 "lookup.partial-cache.expire-after-write" 作为替代</td>
+          <td>请配置 "lookup.cache" = "PARTIAL" 并使用 "lookup.partial-cache.expire-after-write" 代替</td>
         </tr>
     </tbody>
 <table>
