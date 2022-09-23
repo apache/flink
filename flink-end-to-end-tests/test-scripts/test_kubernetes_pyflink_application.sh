@@ -103,7 +103,7 @@ mkdir -p "$LOCAL_LOGS_PATH"
 # Set the memory and cpu smaller than default, so that the jobmanager and taskmanager pods could be allocated in minikube.
 "$FLINK_DIR"/bin/flink run-application -t kubernetes-application \
     -Dkubernetes.cluster-id=${CLUSTER_ID} \
-    -Dkubernetes.container.image=${PYFLINK_IMAGE_NAME} \
+    -Dkubernetes.container.image.ref=${PYFLINK_IMAGE_NAME} \
     -Djobmanager.memory.process.size=1088m \
     -Dkubernetes.jobmanager.cpu=0.5 \
     -Dkubernetes.taskmanager.cpu=0.5 \

@@ -39,7 +39,7 @@
             <td>The kubernetes config file will be used to create the client. The default is located at ~/.kube/config</td>
         </tr>
         <tr>
-            <td><h5>kubernetes.container.image</h5></td>
+            <td><h5>kubernetes.container.image.ref</h5></td>
             <td style="word-wrap: break-word;">The default value depends on the actually running version. In general it looks like "flink:&lt;FLINK_VERSION&gt;-scala_&lt;SCALA_VERSION&gt;"</td>
             <td>String</td>
             <td>Image to use for Flink containers. The specified image must be based upon the same Apache Flink and Scala versions as used by the application. Visit <a href="https://hub.docker.com/_/flink?tab=tags">here</a> for the official docker images provided by the Flink project. The Flink project also publishes docker images to <a href="https://hub.docker.com/r/apache/flink/tags">apache/flink DockerHub repository</a>.</td>

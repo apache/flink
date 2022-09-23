@@ -104,7 +104,7 @@ After creating and publishing the Docker image under `custom-image-name`, you ca
 $ ./bin/flink run-application \
     --target kubernetes-application \
     -Dkubernetes.cluster-id=my-first-application-cluster \
-    -Dkubernetes.container.image=custom-image-name \
+    -Dkubernetes.container.image.ref=custom-image-name \
     local:///opt/flink/usrlib/my-flink-job.jar
 ```
 
@@ -113,7 +113,7 @@ $ ./bin/flink run-application \
 The `kubernetes.cluster-id` option specifies the cluster name and must be unique.
 If you do not specify this option, then Flink will generate a random name.
 
-The `kubernetes.container.image` option specifies the image to start the pods with.
+The `kubernetes.container.image.ref` option specifies the image to start the pods with.
 
 Once the application cluster is deployed you can interact with it:
 
@@ -251,7 +251,7 @@ $ ./bin/kubernetes-session.sh
 
 ### Custom Docker Image
 
-If you want to use a custom Docker image, then you can specify it via the configuration option `kubernetes.container.image`.
+If you want to use a custom Docker image, then you can specify it via the configuration option `kubernetes.container.image.ref`.
 The Flink community provides a rich [Flink Docker image]({{< ref "docs/deployment/resource-providers/standalone/docker" >}}) which can be a good starting point.
 See [how to customize Flink's Docker image]({{< ref "docs/deployment/resource-providers/standalone/docker" >}}#customize-flink-image) for how to enable plugins, add dependencies and other options.
 
@@ -485,7 +485,7 @@ All the fields defined in the pod template that are not listed in the tables wil
         <tr>
             <td>image</td>
             <td>Defined by the user</td>
-            <td><a href="{{< ref "docs/deployment/config" >}}#kubernetes-container-image">kubernetes.container.image</a></td>
+            <td><a href="{{< ref "docs/deployment/config" >}}#kubernetes-container-image">kubernetes.container.image.ref</a></td>
             <td>The container image will be resolved with respect to the defined precedence order for user defined values.</td>
         </tr>
         <tr>

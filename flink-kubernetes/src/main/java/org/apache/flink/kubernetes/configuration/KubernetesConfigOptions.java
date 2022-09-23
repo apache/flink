@@ -269,9 +269,10 @@ public class KubernetesConfigOptions {
     @Documentation.OverrideDefault(
             "The default value depends on the actually running version. In general it looks like \"flink:<FLINK_VERSION>-scala_<SCALA_VERSION>\"")
     public static final ConfigOption<String> CONTAINER_IMAGE =
-            key("kubernetes.container.image")
+            key("kubernetes.container.image.ref")
                     .stringType()
                     .defaultValue(getDefaultFlinkImage())
+                    .withDeprecatedKeys("kubernetes.container.image")
                     .withDescription(
                             Description.builder()
                                     .text(
