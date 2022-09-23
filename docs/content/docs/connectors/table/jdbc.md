@@ -297,6 +297,47 @@ Connector Options
     </tbody>
 </table>
 
+### Deprecated Options
+These deprecated options has been replaced by new options listed above and will be removed eventually. Please consider using new options first.
+<table>
+    <thead>
+      <tr>
+        <th class="text-left" style="width: 25%">Option</th>
+        <th class="text-left" style="width: 8%">Required</th>
+        <th class="text-left" style="width: 8%">Forwarded</th>
+        <th class="text-left" style="width: 7%">Default</th>
+        <th class="text-left" style="width: 10%">Type</th>
+        <th class="text-left" style="width: 42%">Description</th>
+      </tr>
+    </thead>
+    <tbody>
+        <tr>
+          <td><h5>lookup.cache.max-rows</h5></td>
+          <td>optional</td>
+          <td>yes</td>
+          <td style="word-wrap: break-word;">(none)</td>
+          <td>Integer</td>
+          <td>Please set "lookup.cache" = "PARTIAL" and use "lookup.partial-cache.max-rows" instead.</td>
+        </tr>
+        <tr>
+          <td><h5>lookup.cache.ttl</h5></td>
+          <td>optional</td>
+          <td>yes</td>
+          <td style="word-wrap: break-word;">(none)</td>
+          <td>Duration</td>
+          <td>Please set "lookup.cache" = "PARTIAL" and use "lookup.partial-cache.expire-after-write" instead.</td>
+        </tr>
+        <tr>
+          <td><h5>lookup.cache.caching-missing-key</h5></td>
+          <td>optional</td>
+          <td>yes</td>
+          <td style="word-wrap: break-word;">true</td>
+          <td>Boolean</td>
+          <td>Please set "lookup.cache" = "PARTIAL" and use "lookup.partial-cache.caching-missing-key" instead.</td>
+        </tr>
+    </tbody>
+<table>
+
 Features
 --------
 
