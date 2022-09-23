@@ -16,16 +16,16 @@
  * limitations under the License.
  */
 
-package org.apache.flink.docs.configuration;
+package org.apache.flink.docs.util;
 
 import org.apache.flink.configuration.ConfigOption;
 
 /** Simple descriptor for the location of a class containing {@link ConfigOption ConfigOptions}. */
-class OptionsClassLocation {
+public class OptionsClassLocation {
     private final String module;
     private final String pckg;
 
-    OptionsClassLocation(String module, String pckg) {
+    public OptionsClassLocation(String module, String pckg) {
         this.module = module;
         this.pckg = pckg;
     }
