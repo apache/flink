@@ -34,6 +34,14 @@ under the License.
 
 	<packaging>jar</packaging>
 
+	<!-- pentaho-aggdesigner-algorithm is not available in the default repository -->
+	<repositories>
+		<repository>
+			<id>maven.aliyun.com</id>
+			<url>https://maven.aliyun.com/repository/spring-plugin</url>
+		</repository>
+	</repositories>
+
 	<properties>
 		<hiverunner.version>4.0.0</hiverunner.version>
 		<reflections.version>0.9.8</reflections.version>
