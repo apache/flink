@@ -71,6 +71,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 import static org.apache.flink.api.java.typeutils.TypeExtractionUtils.checkAndExtractLambda;
 import static org.apache.flink.api.java.typeutils.TypeExtractionUtils.getAllDeclaredMethods;
@@ -2004,13 +2005,28 @@ public class TypeExtractor {
                                 || methodNameLow.equals(fieldNameLow))
                         &&
                         // no arguments for the getter
-                        m.getParameterTypes().length == 0
-                        &&
-                        // return type is same as field type (or the generic variant of it)
-                        (m.getGenericReturnType().equals(fieldType)
-                                || (m.getReturnType().equals(fieldTypeWrapper))
-                                || (m.getGenericReturnType().equals(fieldTypeGeneric)))) {
-                    hasGetter = true;
+                        m.getParameterTypes().length == 0) {
+                    Type methodGenericReturnType = m.getGenericReturnType();
+                    Type methodReturnType = m.getReturnType();
+                    Type[] returnGenericTypeParameters = null;
+                    if (methodGenericReturnType instanceof ParameterizedType) {
+                        ParameterizedType pt = (ParameterizedType) methodGenericReturnType;
+                        returnGenericTypeParameters = pt.getActualTypeArguments();
+                    }
+                    Type methodReturnOptionalWrappedType = null;
+                    if (returnGenericTypeParameters != null
+                            && methodReturnType.equals(Optional.class)) {
+                        methodReturnOptionalWrappedType = returnGenericTypeParameters[0];
+                    }
+                    // return type is same as field type or the generic variant of it
+                    // field type wrapped in Optional
+                    if (methodGenericReturnType.equals(fieldType)
+                            || methodReturnType.equals(fieldTypeWrapper)
+                            || methodGenericReturnType.equals(fieldTypeGeneric)
+                            || fieldType.equals(methodReturnOptionalWrappedType)) {
+
+                        hasGetter = true;
+                    }
                 }
                 // check for setters (<FieldName>_$eq for scala)
                 if ((methodNameLow.equals("set" + fieldNameLow)
