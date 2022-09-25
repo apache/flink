@@ -62,8 +62,9 @@ import java.io.StringWriter;
 import static org.junit.Assert.assertTrue;
 
 /**
- * This test should logically be located in the 'flink-runtime' tests. However, this project has
- * already all dependencies required (flink-java-examples). Also, the ParallelismOneExecEnv is here.
+ * DEBUG This test should logically be located in the 'flink-runtime' tests. However, this project
+ * has already all dependencies required (flink-java-examples). Also, the ParallelismOneExecEnv is
+ * here.
  */
 public class HDFSTest {
 
