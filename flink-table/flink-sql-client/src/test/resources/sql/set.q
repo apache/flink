@@ -74,14 +74,21 @@ CREATE TABLE hive_table (
 [INFO] Execute statement succeed.
 !info
 
-# test "ctas" only supported in Hive Dialect
+# test "ctas" in Hive Dialect
 CREATE TABLE foo as select 1;
-+-------------------------+
-| hivecatalog.default.foo |
-+-------------------------+
-|                      -1 |
-+-------------------------+
-1 row in set
+[INFO] Submitting SQL update statement to the cluster...
+[INFO] SQL update statement has been successfully submitted to the cluster:
+Job ID:
+
+!info
+
+SELECT * from foo;
++----+-------------+
+| op |      _o__c0 |
++----+-------------+
+| +I |           1 |
++----+-------------+
+Received a total of 1 row
 !ok
 
 # test add jar
