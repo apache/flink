@@ -280,6 +280,60 @@ class HsResultPartitionTest {
     }
 
     @Test
+    void testBroadcastResultPartition() throws Exception {
+        final int numBuffers = 10;
+        final int numRecords = 10;
+        final int numConsumers = 2;
+        final Random random = new Random();
+
+        BufferPool bufferPool = globalPool.createBufferPool(numBuffers, numBuffers);
+        try (HsResultPartition resultPartition = createHsResultPartition(2, bufferPool, true)) {
+            List<ByteBuffer> dataWritten = new ArrayList<>();
+            for (int i = 0; i < numRecords; i++) {
+                ByteBuffer record = generateRandomData(bufferSize, random);
+                resultPartition.broadcastRecord(record);
+                dataWritten.add(record);
+            }
+            resultPartition.finish();
+
+            Tuple2[] viewAndListeners = createSubpartitionViews(resultPartition, 2);
+
+            List<List<Buffer>> dataRead = new ArrayList<>();
+            for (int i = 0; i < numConsumers; i++) {
+                dataRead.add(new ArrayList<>());
+            }
+            readData(
+                    viewAndListeners,
+                    (buffer, subpartition) -> {
+                        int numBytes = buffer.readableBytes();
+                        if (buffer.isBuffer()) {
+                            MemorySegment segment =
+                                    MemorySegmentFactory.allocateUnpooledSegment(numBytes);
+                            segment.put(0, buffer.getNioBufferReadable(), numBytes);
+                            dataRead.get(subpartition)
+                                    .add(
+                                            new NetworkBuffer(
+                                                    segment,
+                                                    (buf) -> {},
+                                                    buffer.getDataType(),
+                                                    numBytes));
+                        }
+                    });
+
+            for (int i = 0; i < numConsumers; i++) {
+                assertThat(dataWritten).hasSameSizeAs(dataRead.get(i));
+                List<Buffer> readBufferList = dataRead.get(i);
+                for (int j = 0; j < dataWritten.size(); j++) {
+                    ByteBuffer bufferWritten = dataWritten.get(j);
+                    bufferWritten.rewind();
+                    Buffer bufferRead = readBufferList.get(j);
+                    assertThat(bufferRead.getNioBufferReadable()).isEqualTo(bufferWritten);
+                }
+            }
+        }
+    }
+
+    @Test
     void testClose() throws Exception {
         final int numBuffers = 1;
 
@@ -427,6 +481,20 @@ class HsResultPartitionTest {
         }
     }
 
+    @Test
+    void testMetricsUpdateForBroadcastOnlyResultPartition() throws Exception {
+        BufferPool bufferPool = globalPool.createBufferPool(3, 3);
+        try (HsResultPartition partition = createHsResultPartition(2, bufferPool, true)) {
+            partition.broadcastRecord(ByteBuffer.allocate(bufferSize));
+            assertThat(taskIOMetricGroup.getNumBuffersOutCounter().getCount()).isEqualTo(1);
+            assertThat(taskIOMetricGroup.getNumBytesOutCounter().getCount()).isEqualTo(bufferSize);
+            IOMetrics ioMetrics = taskIOMetricGroup.createSnapshot();
+            assertThat(ioMetrics.getNumBytesProducedOfPartitions())
+                    .hasSize(1)
+                    .containsValue((long) bufferSize);
+        }
+    }
+
     private static void recordDataWritten(
             ByteBuffer record,
             Queue<Tuple2<ByteBuffer, Buffer.DataType>>[] dataWritten,
@@ -493,9 +561,25 @@ class HsResultPartitionTest {
 
     private HsResultPartition createHsResultPartition(int numSubpartitions, BufferPool bufferPool)
             throws IOException {
+        return createHsResultPartition(numSubpartitions, bufferPool, false);
+    }
+
+    private HsResultPartition createHsResultPartition(
+            int numSubpartitions,
+            BufferPool bufferPool,
+            HybridShuffleConfiguration hybridShuffleConfiguration)
+            throws IOException {
+        return createHsResultPartition(
+                numSubpartitions, bufferPool, false, hybridShuffleConfiguration);
+    }
+
+    private HsResultPartition createHsResultPartition(
+            int numSubpartitions, BufferPool bufferPool, boolean isBroadcastOnly)
+            throws IOException {
         return createHsResultPartition(
                 numSubpartitions,
                 bufferPool,
+                isBroadcastOnly,
                 HybridShuffleConfiguration.builder(
                                 numSubpartitions, readBufferPool.getNumBuffersPerRequest())
                         .build());
@@ -504,6 +588,7 @@ class HsResultPartitionTest {
     private HsResultPartition createHsResultPartition(
             int numSubpartitions,
             BufferPool bufferPool,
+            boolean isBroadcastOnly,
             HybridShuffleConfiguration hybridShuffleConfiguration)
             throws IOException {
         HsResultPartition hsResultPartition =
@@ -521,6 +606,7 @@ class HsResultPartitionTest {
                         bufferSize,
                         hybridShuffleConfiguration,
                         null,
+                        isBroadcastOnly,
                         () -> bufferPool);
         taskIOMetricGroup =
                 UnregisteredMetricGroups.createUnregisteredTaskMetricGroup().getIOMetricGroup();
