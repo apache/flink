@@ -59,26 +59,8 @@ public class NFATest extends TestLogger {
         State<Event> endState = new State<>("end", State.StateType.Normal);
         State<Event> endingState = new State<>("", State.StateType.Final);
 
-        startState.addTake(
-                endState,
-                new SimpleCondition<Event>() {
-                    private static final long serialVersionUID = -4869589195918650396L;
-
-                    @Override
-                    public boolean filter(Event value) throws Exception {
-                        return value.getName().equals("start");
-                    }
-                });
-        endState.addTake(
-                endingState,
-                new SimpleCondition<Event>() {
-                    private static final long serialVersionUID = 2979804163709590673L;
-
-                    @Override
-                    public boolean filter(Event value) throws Exception {
-                        return value.getName().equals("end");
-                    }
-                });
+        startState.addTake(endState, SimpleCondition.of(value -> value.getName().equals("start")));
+        endState.addTake(endingState, SimpleCondition.of(value -> value.getName().equals("end")));
         endState.addIgnore(BooleanConditions.<Event>trueFunction());
 
         List<State<Event>> states = new ArrayList<>();
@@ -224,76 +206,22 @@ public class NFATest extends TestLogger {
     public void testNFASerialization() throws Exception {
         Pattern<Event, ?> pattern1 =
                 Pattern.<Event>begin("start")
-                        .where(
-                                new SimpleCondition<Event>() {
-                                    private static final long serialVersionUID =
-                                            1858562682635302605L;
-
-                                    @Override
-                                    public boolean filter(Event value) throws Exception {
-                                        return value.getName().equals("a");
-                                    }
-                                })
+                        .where(SimpleCondition.of(value -> value.getName().equals("a")))
                         .followedByAny("middle")
-                        .where(
-                                new SimpleCondition<Event>() {
-                                    private static final long serialVersionUID =
-                                            8061969839441121955L;
-
-                                    @Override
-                                    public boolean filter(Event value) throws Exception {
-                                        return value.getName().equals("b");
-                                    }
-                                })
+                        .where(SimpleCondition.of(value -> value.getName().equals("b")))
                         .oneOrMore()
                         .optional()
                         .allowCombinations()
                         .followedByAny("end")
-                        .where(
-                                new SimpleCondition<Event>() {
-                                    private static final long serialVersionUID =
-                                            8061969839441121955L;
-
-                                    @Override
-                                    public boolean filter(Event value) throws Exception {
-                                        return value.getName().equals("d");
-                                    }
-                                });
+                        .where(SimpleCondition.of(value -> value.getName().equals("d")));
 
         Pattern<Event, ?> pattern2 =
                 Pattern.<Event>begin("start")
-                        .where(
-                                new SimpleCondition<Event>() {
-                                    private static final long serialVersionUID =
-                                            1858562682635302605L;
-
-                                    @Override
-                                    public boolean filter(Event value) throws Exception {
-                                        return value.getName().equals("a");
-                                    }
-                                })
+                        .where(SimpleCondition.of(value -> value.getName().equals("a")))
                         .notFollowedBy("not")
-                        .where(
-                                new SimpleCondition<Event>() {
-                                    private static final long serialVersionUID =
-                                            -6085237016591726715L;
-
-                                    @Override
-                                    public boolean filter(Event value) throws Exception {
-                                        return value.getName().equals("c");
-                                    }
-                                })
+                        .where(SimpleCondition.of(value -> value.getName().equals("c")))
                         .followedByAny("middle")
-                        .where(
-                                new SimpleCondition<Event>() {
-                                    private static final long serialVersionUID =
-                                            8061969839441121955L;
-
-                                    @Override
-                                    public boolean filter(Event value) throws Exception {
-                                        return value.getName().equals("b");
-                                    }
-                                })
+                        .where(SimpleCondition.of(value -> value.getName().equals("b")))
                         .oneOrMore()
                         .optional()
                         .allowCombinations()
@@ -318,40 +246,13 @@ public class NFATest extends TestLogger {
         Pattern<Event, ?> pattern3 =
                 Pattern.<Event>begin("start")
                         .notFollowedBy("not")
-                        .where(
-                                new SimpleCondition<Event>() {
-                                    private static final long serialVersionUID =
-                                            -6085237016591726715L;
-
-                                    @Override
-                                    public boolean filter(Event value) throws Exception {
-                                        return value.getName().equals("c");
-                                    }
-                                })
+                        .where(SimpleCondition.of(value -> value.getName().equals("c")))
                         .followedByAny("middle")
-                        .where(
-                                new SimpleCondition<Event>() {
-                                    private static final long serialVersionUID =
-                                            8061969839441121955L;
-
-                                    @Override
-                                    public boolean filter(Event value) throws Exception {
-                                        return value.getName().equals("b");
-                                    }
-                                })
+                        .where(SimpleCondition.of(value -> value.getName().equals("b")))
                         .oneOrMore()
                         .allowCombinations()
                         .followedByAny("end")
-                        .where(
-                                new SimpleCondition<Event>() {
-                                    private static final long serialVersionUID =
-                                            8061969839441121955L;
-
-                                    @Override
-                                    public boolean filter(Event value) throws Exception {
-                                        return value.getName().equals("d");
-                                    }
-                                });
+                        .where(SimpleCondition.of(value -> value.getName().equals("d")));
 
         List<Pattern<Event, ?>> patterns = new ArrayList<>();
         patterns.add(pattern1);
@@ -417,26 +318,8 @@ public class NFATest extends TestLogger {
         State<Event> endState = new State<>("end", State.StateType.Normal);
         State<Event> endingState = new State<>("", State.StateType.Final);
 
-        startState.addTake(
-                endState,
-                new SimpleCondition<Event>() {
-                    private static final long serialVersionUID = -4869589195918650396L;
-
-                    @Override
-                    public boolean filter(Event value) throws Exception {
-                        return value.getName().equals("start");
-                    }
-                });
-        endState.addTake(
-                endingState,
-                new SimpleCondition<Event>() {
-                    private static final long serialVersionUID = 2979804163709590673L;
-
-                    @Override
-                    public boolean filter(Event value) throws Exception {
-                        return value.getName().equals("end");
-                    }
-                });
+        startState.addTake(endState, SimpleCondition.of(value -> value.getName().equals("start")));
+        endState.addTake(endingState, SimpleCondition.of(value -> value.getName().equals("end")));
         endState.addIgnore(BooleanConditions.<Event>trueFunction());
 
         List<State<Event>> states = new ArrayList<>();
