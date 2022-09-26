@@ -126,6 +126,7 @@ public class ResultPartitionFactory {
                 desc.getPartitionType(),
                 desc.getNumberOfSubpartitions(),
                 desc.getMaxParallelism(),
+                desc.isBroadcast(),
                 createBufferPoolFactory(desc.getNumberOfSubpartitions(), desc.getPartitionType()));
     }
 
@@ -137,6 +138,7 @@ public class ResultPartitionFactory {
             ResultPartitionType type,
             int numberOfSubpartitions,
             int maxParallelism,
+            boolean isBroadcast,
             SupplierWithException<BufferPool, IOException> bufferPoolFactory) {
         BufferCompressor bufferCompressor = null;
         if (type.supportCompression() && batchShuffleCompressionEnabled) {
@@ -216,6 +218,11 @@ public class ResultPartitionFactory {
             }
         } else if (type == ResultPartitionType.HYBRID_FULL
                 || type == ResultPartitionType.HYBRID_SELECTIVE) {
+            if (isBroadcast) {
+                // for broadcast result partition, it can be optimized to always use full spilling
+                // strategy to significantly reduce shuffle data writing cost.
+                type = ResultPartitionType.HYBRID_FULL;
+            }
             partition =
                     new HsResultPartition(
                             taskNameWithSubtaskAndId,
@@ -240,6 +247,7 @@ public class ResultPartitionFactory {
                                                             .SpillingStrategyType.SELECTIVE)
                                     .build(),
                             bufferCompressor,
+                            isBroadcast,
                             bufferPoolFactory);
         } else {
             throw new IllegalArgumentException("Unrecognized ResultPartitionType: " + type);

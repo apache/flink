@@ -28,6 +28,8 @@ public class PartitionDescriptorBuilder {
     private ResultPartitionType partitionType;
     private int totalNumberOfPartitions = 1;
 
+    private boolean isBroadcast = false;
+
     private PartitionDescriptorBuilder() {
         this.partitionId = new IntermediateResultPartitionID();
         this.partitionType = ResultPartitionType.PIPELINED;
@@ -48,6 +50,11 @@ public class PartitionDescriptorBuilder {
         return this;
     }
 
+    public PartitionDescriptorBuilder setIsBroadcast(boolean isBroadcast) {
+        this.isBroadcast = isBroadcast;
+        return this;
+    }
+
     public PartitionDescriptor build() {
         return new PartitionDescriptor(
                 new IntermediateDataSetID(),
@@ -56,7 +63,7 @@ public class PartitionDescriptorBuilder {
                 partitionType,
                 1,
                 0,
-                false,
+                isBroadcast,
                 true);
     }
 

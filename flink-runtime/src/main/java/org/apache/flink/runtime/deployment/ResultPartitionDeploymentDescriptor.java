@@ -63,6 +63,11 @@ public class ResultPartitionDeploymentDescriptor implements Serializable {
         return partitionDescriptor.getPartitionId();
     }
 
+    /** Whether the resultPartition is a broadcast edge. */
+    public boolean isBroadcast() {
+        return partitionDescriptor.isBroadcast();
+    }
+
     public ResultPartitionType getPartitionType() {
         return partitionDescriptor.getPartitionType();
     }
