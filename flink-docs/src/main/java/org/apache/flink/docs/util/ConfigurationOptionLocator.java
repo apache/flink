@@ -41,6 +41,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
+/** Utility for discovering config options. */
 public class ConfigurationOptionLocator {
 
     private static final Logger LOG = LoggerFactory.getLogger(ConfigurationOptionLocator.class);
