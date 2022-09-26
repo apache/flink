@@ -56,7 +56,7 @@ class BatchShuffleITCaseBase {
 
     private static final int NUM_TASK_MANAGERS = 2;
 
-    private static final int NUM_SLOTS_PER_TASK_MANAGER = 10;
+    private static final int NUM_SLOTS_PER_TASK_MANAGER = 15;
 
     private static final int PARALLELISM = NUM_SLOTS_PER_TASK_MANAGER;
 
