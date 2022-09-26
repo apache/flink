@@ -21,6 +21,7 @@ package org.apache.flink.table.endpoint.hive;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.table.api.ValidationException;
+import org.apache.flink.table.catalog.hive.HiveCatalog;
 import org.apache.flink.table.gateway.api.endpoint.SqlGatewayEndpoint;
 import org.apache.flink.table.gateway.api.endpoint.SqlGatewayEndpointFactory;
 import org.apache.flink.table.gateway.api.endpoint.SqlGatewayEndpointFactoryUtils;
@@ -67,7 +68,7 @@ public class HiveServer2EndpointFactory implements SqlGatewayEndpointFactory {
                 configuration.get(THRIFT_WORKER_THREADS_MAX),
                 configuration.get(THRIFT_WORKER_KEEPALIVE_TIME),
                 configuration.get(CATALOG_NAME),
-                configuration.get(CATALOG_HIVE_CONF_DIR),
+                HiveCatalog.createHiveConf(configuration.get(CATALOG_HIVE_CONF_DIR), null),
                 configuration.get(CATALOG_DEFAULT_DATABASE),
                 configuration.get(MODULE_NAME));
     }
