@@ -450,7 +450,7 @@ public class KubernetesConfigOptions {
                                     + Constants.MAIN_CONTAINER_NAME
                                     + "'. If not explicitly configured, config option '"
                                     + KUBERNETES_POD_TEMPLATE_FILE_KEY
-                                    + "' will be used.");
+                                    + ".default' will be used.");
 
     public static final ConfigOption<String> TASK_MANAGER_POD_TEMPLATE =
             key(KUBERNETES_POD_TEMPLATE_FILE_KEY + ".taskmanager")
@@ -464,7 +464,7 @@ public class KubernetesConfigOptions {
                                     + Constants.MAIN_CONTAINER_NAME
                                     + "'. If not explicitly configured, config option '"
                                     + KUBERNETES_POD_TEMPLATE_FILE_KEY
-                                    + "' will be used.");
+                                    + ".default' will be used.");
 
     /**
      * This option is here only for documentation generation, it is the fallback key of
