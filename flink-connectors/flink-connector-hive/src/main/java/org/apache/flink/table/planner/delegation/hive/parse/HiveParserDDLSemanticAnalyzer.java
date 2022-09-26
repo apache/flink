@@ -52,6 +52,7 @@ import org.apache.flink.table.catalog.exceptions.DatabaseNotExistException;
 import org.apache.flink.table.catalog.exceptions.TableNotExistException;
 import org.apache.flink.table.catalog.hive.HiveCatalog;
 import org.apache.flink.table.catalog.hive.client.HiveShim;
+import org.apache.flink.table.catalog.hive.client.HiveShimLoader;
 import org.apache.flink.table.catalog.hive.factories.HiveFunctionDefinitionFactory;
 import org.apache.flink.table.catalog.hive.util.HiveTableUtil;
 import org.apache.flink.table.catalog.hive.util.HiveTypeUtil;
@@ -705,12 +706,21 @@ public class HiveParserDDLSemanticAnalyzer {
                 HiveParserBaseSemanticAnalyzer.getQualifiedTableName(
                         (HiveParserASTNode) ast.getChild(0));
         ObjectPath tablePath = new ObjectPath(qualTabName[0], qualTabName[1]);
-        Table table = getTable(tablePath);
-        if (table.getTableType() == TableType.INDEX_TABLE) {
-            throw new SemanticException(
-                    ErrorMsg.SHOW_CREATETABLE_INDEX.getMsg(table + " has table type INDEX_TABLE"));
+        if (!isHive310OrLater()) {
+            // before hive3, Hive will check the table type is index table or not
+            Table table = getTable(tablePath);
+            if (table.getTableType().name().equals("INDEX_TABLE")) {
+                throw new SemanticException(
+                        String.format(
+                                "SHOW CREATE TABLE does not support tables of type INDEX_TABLE.. %s has has table type INDEX_TABLE.",
+                                tablePath));
+            }
         }
         return new HiveShowCreateTableOperation(tablePath);
+    }
+
+    private boolean isHive310OrLater() {
+        return HiveShimLoader.getHiveVersion().compareTo(HiveShimLoader.HIVE_VERSION_V3_1_0) >= 0;
     }
 
     private Operation convertAlterView(HiveParserASTNode ast) throws SemanticException {

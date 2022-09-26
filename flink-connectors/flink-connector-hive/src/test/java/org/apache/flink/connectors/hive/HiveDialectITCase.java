@@ -1205,6 +1205,15 @@ public class HiveDialectITCase {
                                 .getField(0);
         Table table = hiveCatalog.getHiveTable(new ObjectPath("default", "t2"));
         String expectLastDdlTime = table.getParameters().get("transient_lastDdlTime");
+        String expectedTableProperties =
+                String.format(
+                        "%s  'k1'='v1', \n  'transient_lastDdlTime'='%s'",
+                        // if it's hive 3.x, table properties should also contain
+                        // 'bucketing_version'='2'
+                        HiveVersionTestUtil.HIVE_310_OR_LATER
+                                ? "  'bucketing_version'='2', \n"
+                                : "",
+                        expectLastDdlTime);
         String expectedResult =
                 String.format(
                         "CREATE TABLE `default.t2`(\n"
@@ -1222,10 +1231,8 @@ public class HiveDialectITCase {
                                 + "  'org.apache.hadoop.hive.ql.io.IgnoreKeyTextOutputFormat'\n"
                                 + "LOCATION\n"
                                 + "  'file:%s'\n"
-                                + "TBLPROPERTIES (\n"
-                                + "  'k1'='v1', \n"
-                                + "  'transient_lastDdlTime'='%s')\n",
-                        warehouse + "/t2", expectLastDdlTime);
+                                + "TBLPROPERTIES (\n%s)\n",
+                        warehouse + "/t2", expectedTableProperties);
         assertThat(actualResult).isEqualTo(expectedResult);
     }
 
