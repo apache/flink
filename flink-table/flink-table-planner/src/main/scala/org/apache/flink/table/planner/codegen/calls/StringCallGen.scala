@@ -27,6 +27,7 @@ import org.apache.flink.table.planner.functions.sql.FlinkSqlOperatorTable._
 import org.apache.flink.table.runtime.functions.SqlFunctionUtils
 import org.apache.flink.table.runtime.typeutils.TypeCheckUtils.{isCharacterString, isTimestamp, isTimestampWithLocalZone}
 import org.apache.flink.table.types.logical._
+import org.apache.flink.table.utils.DateTimeUtils
 
 import org.apache.calcite.sql.SqlOperator
 import org.apache.calcite.sql.fun.SqlTrimFunction.Flag.{BOTH, LEADING, TRAILING}
@@ -189,6 +190,16 @@ object StringCallGen {
             isCharacterString(operands.head.resultType) &&
             isCharacterString(operands(1).resultType) =>
         methodGen(BuiltInMethods.STRING_TO_DATE_WITH_FORMAT)
+
+      case DATE_ADD
+          if operands.size == 2 &&
+            !isCharacterString(operands.head.resultType) =>
+        generateToDateAdd(ctx, operands, returnType)
+
+      case DATE_ADD
+          if operands.size == 2 &&
+            isCharacterString(operands.head.resultType) =>
+        generateToDateAdd(ctx, operands, returnType)
 
       case TO_TIMESTAMP if operands.size == 1 && isCharacterString(operands.head.resultType) =>
         fallibleMethodGen(BuiltInMethods.STRING_TO_TIMESTAMP)
@@ -576,6 +587,16 @@ object StringCallGen {
     val className = classOf[SqlFunctionUtils].getCanonicalName
     generateCallIfArgsNotNull(ctx, resultType, operands) {
       terms => s"$className.hashCode(${terms.head}.toString())"
+    }
+  }
+
+  def generateToDateAdd(
+      ctx: CodeGeneratorContext,
+      operands: Seq[GeneratedExpression],
+      resultType: LogicalType): GeneratedExpression = {
+    val className = classOf[DateTimeUtils].getCanonicalName
+    generateCallIfArgsNotNull(ctx, resultType, operands) {
+      terms => s"$className.dateAdd(${terms.head}, ${terms.last})"
     }
   }
 

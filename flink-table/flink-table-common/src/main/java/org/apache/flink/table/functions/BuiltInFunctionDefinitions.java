@@ -1507,6 +1507,21 @@ public final class BuiltInFunctionDefinitions {
                     .outputTypeStrategy(nullableIfArgs(explicit(STRING())))
                     .build();
 
+    public static final BuiltInFunctionDefinition DATE_ADD =
+            BuiltInFunctionDefinition.newBuilder()
+                    .name("date_add")
+                    .kind(SCALAR)
+                    .inputTypeStrategy(
+                            or(
+                                    sequence(
+                                            logical(LogicalTypeRoot.BIGINT),
+                                            logical(LogicalTypeRoot.BIGINT)),
+                                    sequence(
+                                            logical(LogicalTypeRoot.VARCHAR),
+                                            logical(LogicalTypeRoot.BIGINT))))
+                    .outputTypeStrategy(explicit(DATE().notNull()))
+                    .build();
+
     public static final BuiltInFunctionDefinition TIMESTAMP_DIFF =
             BuiltInFunctionDefinition.newBuilder()
                     .name("timestampDiff")

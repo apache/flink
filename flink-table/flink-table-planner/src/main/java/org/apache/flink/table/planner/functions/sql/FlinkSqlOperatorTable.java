@@ -780,6 +780,17 @@ public class FlinkSqlOperatorTable extends ReflectiveSqlOperatorTable {
                             OperandTypes.family(SqlTypeFamily.STRING, SqlTypeFamily.STRING)),
                     SqlFunctionCategory.TIMEDATE);
 
+    public static final SqlFunction DATE_ADD =
+            new SqlFunction(
+                    "DATE_ADD",
+                    SqlKind.OTHER_FUNCTION,
+                    ReturnTypes.DATE,
+                    InferTypes.RETURN_TYPE,
+                    OperandTypes.or(
+                            OperandTypes.family(SqlTypeFamily.DATE, SqlTypeFamily.INTEGER),
+                            OperandTypes.family(SqlTypeFamily.STRING, SqlTypeFamily.INTEGER)),
+                    SqlFunctionCategory.TIMEDATE);
+
     public static final SqlFunction CONVERT_TZ =
             new SqlFunction(
                     "CONVERT_TZ",
