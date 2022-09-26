@@ -121,6 +121,32 @@ public class RocksDBConfigurableOptions implements Serializable {
                                             "There is no need to modify the RocksDB log level, unless for troubleshooting RocksDB.")
                                     .build());
 
+    public static final ConfigOption<Boolean> USE_DIRECT_READS =
+            key("state.backend.rocksdb.use-direct-reads")
+                    .booleanType()
+                    .defaultValue(false)
+                    .withDescription(
+                            "If true, RocksDB will use DirectIO to bypass Linux Page Cache for read operations. "
+                                    + "Enabling this option results in overall worse performances and should be done only in specific cases (e.g benchmarking). "
+                                    + "The default value is 'false'. "
+                                    + "For more information, please refer to "
+                                    + link(
+                                            "https://github.com/facebook/rocksdb/wiki/Direct-IO",
+                                            "RocksDB's doc."));
+
+    public static final ConfigOption<Boolean> USE_DIRECT_WRITES =
+            key("state.backend.rocksdb.use-direct-writes")
+                    .booleanType()
+                    .defaultValue(false)
+                    .withDescription(
+                            "If true, RocksDB will use DirectIO for writes in background flush and compactions. "
+                                    + "Enabling this option results in overall worse performances and should be done only in specific cases (e.g benchmarking). "
+                                    + "The default value is 'false'. "
+                                    + "For more information, please refer to "
+                                    + link(
+                                            "https://github.com/facebook/rocksdb/wiki/Direct-IO",
+                                            "RocksDB's doc."));
+
     // --------------------------------------------------------------------------
     // Provided configurable ColumnFamilyOptions within Flink
     // --------------------------------------------------------------------------
@@ -275,6 +301,8 @@ public class RocksDBConfigurableOptions implements Serializable {
                 LOG_MAX_FILE_SIZE,
                 LOG_FILE_NUM,
                 LOG_DIR,
+                USE_DIRECT_READS,
+                USE_DIRECT_WRITES,
 
                 // configurable ColumnFamilyOptions
                 COMPACTION_STYLE,

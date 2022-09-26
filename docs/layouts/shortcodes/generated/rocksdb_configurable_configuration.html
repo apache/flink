@@ -111,6 +111,18 @@
             <td>If true, every newly created SST file will contain a Bloom filter. It is disabled by default.</td>
         </tr>
         <tr>
+            <td><h5>state.backend.rocksdb.use-direct-reads</h5></td>
+            <td style="word-wrap: break-word;">false</td>
+            <td>Boolean</td>
+            <td>If true, RocksDB will use DirectIO to bypass Linux Page Cache for read operations. Enabling this option results in overall worse performances and should be done only in specific cases (e.g benchmarking). The default value is 'false'. For more information, please refer to org.apache.flink.configuration.description.LinkElement@42e25b0b</td>
+        </tr>
+        <tr>
+            <td><h5>state.backend.rocksdb.use-direct-writes</h5></td>
+            <td style="word-wrap: break-word;">false</td>
+            <td>Boolean</td>
+            <td>If true, RocksDB will use DirectIO for writes in background flush and compactions. Enabling this option results in overall worse performances and should be done only in specific cases (e.g benchmarking). The default value is 'false'. For more information, please refer to org.apache.flink.configuration.description.LinkElement@39b43d60</td>
+        </tr>
+        <tr>
             <td><h5>state.backend.rocksdb.write-batch-size</h5></td>
             <td style="word-wrap: break-word;">2 mb</td>
             <td>MemorySize</td>

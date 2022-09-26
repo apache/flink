@@ -504,6 +504,9 @@ public class RocksDBStateBackendConfigTest {
             verifyIllegalArgument(RocksDBConfigurableOptions.BLOOM_FILTER_BLOCK_BASED_MODE, "YES");
             verifyIllegalArgument(
                     RocksDBConfigurableOptions.RESTORE_OVERLAP_FRACTION_THRESHOLD, "2");
+
+            verifyIllegalArgument(RocksDBConfigurableOptions.USE_DIRECT_READS, "1");
+            verifyIllegalArgument(RocksDBConfigurableOptions.USE_DIRECT_WRITES, "1");
         }
 
         // verify legal configuration
@@ -528,6 +531,8 @@ public class RocksDBStateBackendConfigTest {
             configuration.setString(RocksDBConfigurableOptions.USE_BLOOM_FILTER.key(), "TRUE");
             configuration.setString(
                     RocksDBConfigurableOptions.RESTORE_OVERLAP_FRACTION_THRESHOLD.key(), "0.5");
+            configuration.setString(RocksDBConfigurableOptions.USE_DIRECT_READS.key(), "TRUE");
+            configuration.setString(RocksDBConfigurableOptions.USE_DIRECT_WRITES.key(), "TRUE");
 
             try (RocksDBResourceContainer optionsContainer =
                     new RocksDBResourceContainer(
