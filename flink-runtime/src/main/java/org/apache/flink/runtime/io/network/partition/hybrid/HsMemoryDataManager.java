@@ -223,10 +223,11 @@ public class HsMemoryDataManager implements HsSpillingInfoProvider, HsMemoryData
     // Write lock should be acquired before invoke this method.
     @Override
     public Deque<BufferIndexAndChannel> getBuffersInOrder(
-            int subpartitionId, SpillStatus spillStatus, ConsumeStatus consumeStatus) {
+            int subpartitionId, SpillStatus spillStatus, ConsumeStatusWithId consumeStatusWithId) {
         HsSubpartitionMemoryDataManager targetSubpartitionDataManager =
                 getSubpartitionMemoryDataManager(subpartitionId);
-        return targetSubpartitionDataManager.getBuffersSatisfyStatus(spillStatus, consumeStatus);
+        return targetSubpartitionDataManager.getBuffersSatisfyStatus(
+                spillStatus, consumeStatusWithId);
     }
 
     // Write lock should be acquired before invoke this method.

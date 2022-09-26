@@ -22,8 +22,11 @@ import org.apache.flink.runtime.io.network.buffer.Buffer;
 
 import javax.annotation.Nullable;
 
+import java.util.Collections;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
 
 import static org.apache.flink.util.Preconditions.checkState;
 
@@ -37,7 +40,7 @@ import static org.apache.flink.util.Preconditions.checkState;
  *       can no longer be spilled or consumed.
  *   <li>{@link #spillStarted} indicates that spilling of the buffer has started, either completed
  *       or not.
- *   <li>{@link #consumed} indicates that buffer has been consumed by the downstream.
+ *   <li>{@link #consumed} indicates that buffer has been consumed by these consumers.
  * </ul>
  *
  * <p>Reference count of the buffer is maintained as follows: *
@@ -64,7 +67,7 @@ public class HsBufferContext {
 
     private boolean spillStarted;
 
-    private boolean consumed;
+    private final Set<HsConsumerId> consumed = Collections.newSetFromMap(new ConcurrentHashMap<>());
 
     @Nullable private CompletableFuture<Void> spilledFuture;
 
@@ -89,8 +92,8 @@ public class HsBufferContext {
         return spillStarted;
     }
 
-    public boolean isConsumed() {
-        return consumed;
+    public boolean isConsumed(HsConsumerId consumerId) {
+        return consumed.contains(consumerId);
     }
 
     public Optional<CompletableFuture<Void>> getSpilledFuture() {
@@ -127,10 +130,9 @@ public class HsBufferContext {
         return true;
     }
 
-    public void consumed() {
+    public void consumed(HsConsumerId consumerId) {
         checkState(!released, "Buffer is already released.");
-        checkState(!consumed, "Consume buffer repeatedly is unexpected.");
-        consumed = true;
+        checkState(consumed.add(consumerId), "Consume buffer repeatedly is unexpected.");
         // increase ref count when buffer is consumed, will be decreased when downstream finish
         // consuming.
         buffer.retainBuffer();

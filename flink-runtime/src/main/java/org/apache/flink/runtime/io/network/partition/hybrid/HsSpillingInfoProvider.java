@@ -43,13 +43,13 @@ public interface HsSpillingInfoProvider {
      *
      * @param subpartitionId target buffers belong to.
      * @param spillStatus expected buffer spill status.
-     * @param consumeStatus expected buffer consume status.
+     * @param consumeStatusWithId expected buffer consume status and consumer id.
      * @return all buffers satisfy specific status of this subpartition, This queue must be sorted
      *     according to bufferIndex from small to large, in other words, head is the buffer with the
      *     minimum bufferIndex in the current subpartition.
      */
     Deque<BufferIndexAndChannel> getBuffersInOrder(
-            int subpartitionId, SpillStatus spillStatus, ConsumeStatus consumeStatus);
+            int subpartitionId, SpillStatus spillStatus, ConsumeStatusWithId consumeStatusWithId);
 
     /** Get total number of not decided to spill buffers. */
     int getNumTotalUnSpillBuffers();
@@ -78,5 +78,25 @@ public interface HsSpillingInfoProvider {
         NOT_CONSUMED,
         /** The buffer is either consumed or not consumed. */
         ALL
+    }
+
+    /** This class represents a pair of {@link ConsumeStatus} and consumer id. */
+    class ConsumeStatusWithId {
+        public static final ConsumeStatusWithId ALL_ANY =
+                new ConsumeStatusWithId(ConsumeStatus.ALL, HsConsumerId.ANY);
+
+        ConsumeStatus status;
+
+        HsConsumerId consumerId;
+
+        private ConsumeStatusWithId(ConsumeStatus status, HsConsumerId consumerId) {
+            this.status = status;
+            this.consumerId = consumerId;
+        }
+
+        public static ConsumeStatusWithId fromStatusAndConsumerId(
+                ConsumeStatus consumeStatus, HsConsumerId consumerId) {
+            return new ConsumeStatusWithId(consumeStatus, consumerId);
+        }
     }
 }
