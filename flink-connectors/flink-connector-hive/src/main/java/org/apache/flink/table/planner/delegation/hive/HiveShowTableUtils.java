@@ -23,7 +23,6 @@ import org.apache.flink.table.catalog.ObjectPath;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.hadoop.hive.common.StatsSetupConst;
 import org.apache.hadoop.hive.conf.Constants;
-import org.apache.hadoop.hive.metastore.MetaStoreUtils;
 import org.apache.hadoop.hive.metastore.TableType;
 import org.apache.hadoop.hive.metastore.api.FieldSchema;
 import org.apache.hadoop.hive.metastore.api.Order;
@@ -46,6 +45,14 @@ import static org.apache.hadoop.hive.metastore.api.hive_metastoreConstants.META_
 
 /** Utils for Hive's SHOW TABLE statement. */
 public class HiveShowTableUtils {
+
+    // the default serialization format.
+    // In Hive2, the value is
+    // org.apache.hadoop.hive.metastore.MetaStoreUtils.DEFAULT_SERIALIZATION_FORMAT
+    // In Hive3, the value is org.apache.hadoop.hive.metastore.DEFAULT_SERIALIZATION_FORMAT.
+    // Both of them are "1", but exist in different class.
+    // so we port the value to here
+    private static final String DEFAULT_SERIALIZATION_FORMAT = "1";
 
     /** Construct the string for SHOW CREATE TABLE statement. Most of the logic is from Hive's. */
     public static String showCreateTable(ObjectPath tablePath, Table tbl) {
@@ -190,7 +197,7 @@ public class HiveShowTableUtils {
             if (tbl.getStorageHandler() == null) {
                 // If serialization.format property has the default value, it will not to be
                 // included in SERDE properties
-                if (MetaStoreUtils.DEFAULT_SERIALIZATION_FORMAT.equals(
+                if (DEFAULT_SERIALIZATION_FORMAT.equals(
                         serdeParams.get(serdeConstants.SERIALIZATION_FORMAT))) {
                     serdeParams.remove(serdeConstants.SERIALIZATION_FORMAT);
                 }
