@@ -180,6 +180,9 @@ public class ConfigOptionsDocGenerator {
                         optionWithMetaInfos.stream()
                                 .filter(
                                         optionWithMetaInfo ->
+                                                shouldBeDocumented(optionWithMetaInfo.field))
+                                .filter(
+                                        optionWithMetaInfo ->
                                                 optionWithMetaInfo.field.getAnnotation(
                                                                 Documentation.Section.class)
                                                         != null)
