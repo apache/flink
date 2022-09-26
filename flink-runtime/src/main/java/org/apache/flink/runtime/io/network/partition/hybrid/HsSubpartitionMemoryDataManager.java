@@ -30,6 +30,7 @@ import org.apache.flink.runtime.io.network.buffer.FreeingBufferRecycler;
 import org.apache.flink.runtime.io.network.buffer.NetworkBuffer;
 import org.apache.flink.runtime.io.network.partition.ResultSubpartition.BufferAndBacklog;
 import org.apache.flink.runtime.io.network.partition.hybrid.HsSpillingInfoProvider.ConsumeStatus;
+import org.apache.flink.runtime.io.network.partition.hybrid.HsSpillingInfoProvider.ConsumeStatusWithId;
 import org.apache.flink.runtime.io.network.partition.hybrid.HsSpillingInfoProvider.SpillStatus;
 import org.apache.flink.util.function.SupplierWithException;
 import org.apache.flink.util.function.ThrowingRunnable;
@@ -144,7 +145,8 @@ public class HsSubpartitionMemoryDataManager implements HsDataView {
 
                             HsBufferContext bufferContext =
                                     checkNotNull(unConsumedBuffers.pollFirst());
-                            bufferContext.consumed();
+                            // TODO move this logical to consumer and pass real consumerId.
+                            bufferContext.consumed(HsConsumerId.DEFAULT);
                             DataType nextDataType =
                                     peekNextToConsumeDataTypeInternal(toConsumeIndex + 1);
                             return Optional.of(Tuple2.of(bufferContext, nextDataType));
@@ -200,14 +202,14 @@ public class HsSubpartitionMemoryDataManager implements HsDataView {
      * ConsumeStatus}.
      *
      * @param spillStatus the status of spilling expected.
-     * @param consumeStatus the status of consuming expected.
+     * @param consumeStatusWithId the status and consumerId expected.
      * @return buffers satisfy expected status in order.
      */
     @SuppressWarnings("FieldAccessNotGuarded")
     // Note that: callWithLock ensure that code block guarded by resultPartitionReadLock and
     // subpartitionLock.
     public Deque<BufferIndexAndChannel> getBuffersSatisfyStatus(
-            SpillStatus spillStatus, ConsumeStatus consumeStatus) {
+            SpillStatus spillStatus, ConsumeStatusWithId consumeStatusWithId) {
         return callWithLock(
                 () -> {
                     // TODO return iterator to avoid completely traversing the queue for each call.
@@ -216,7 +218,7 @@ public class HsSubpartitionMemoryDataManager implements HsDataView {
                     allBuffers.forEach(
                             (bufferContext -> {
                                 if (isBufferSatisfyStatus(
-                                        bufferContext, spillStatus, consumeStatus)) {
+                                        bufferContext, spillStatus, consumeStatusWithId)) {
                                     targetBuffers.add(bufferContext.getBufferIndexAndChannel());
                                 }
                             }));
@@ -460,7 +462,7 @@ public class HsSubpartitionMemoryDataManager implements HsDataView {
     @GuardedBy("subpartitionLock")
     private void checkAndMarkBufferReadable(HsBufferContext bufferContext) {
         // only spill buffer needs to be marked as released.
-        if (isBufferSatisfyStatus(bufferContext, SpillStatus.SPILL, ConsumeStatus.ALL)) {
+        if (isBufferSatisfyStatus(bufferContext, SpillStatus.SPILL, ConsumeStatusWithId.ALL_ANY)) {
             bufferContext
                     .getSpilledFuture()
                     .orElseThrow(
@@ -480,7 +482,9 @@ public class HsSubpartitionMemoryDataManager implements HsDataView {
 
     @GuardedBy("subpartitionLock")
     private boolean isBufferSatisfyStatus(
-            HsBufferContext bufferContext, SpillStatus spillStatus, ConsumeStatus consumeStatus) {
+            HsBufferContext bufferContext,
+            SpillStatus spillStatus,
+            ConsumeStatusWithId consumeStatusWithId) {
         // released buffer is not needed.
         if (bufferContext.isReleased()) {
             return false;
@@ -494,12 +498,12 @@ public class HsSubpartitionMemoryDataManager implements HsDataView {
                 match = bufferContext.isSpillStarted();
                 break;
         }
-        switch (consumeStatus) {
+        switch (consumeStatusWithId.status) {
             case NOT_CONSUMED:
-                match &= !bufferContext.isConsumed();
+                match &= !bufferContext.isConsumed(consumeStatusWithId.consumerId);
                 break;
             case CONSUMED:
-                match &= bufferContext.isConsumed();
+                match &= bufferContext.isConsumed(consumeStatusWithId.consumerId);
                 break;
         }
         return match;

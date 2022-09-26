@@ -18,7 +18,7 @@
 
 package org.apache.flink.runtime.io.network.partition.hybrid;
 
-import org.apache.flink.runtime.io.network.partition.hybrid.HsSpillingInfoProvider.ConsumeStatus;
+import org.apache.flink.runtime.io.network.partition.hybrid.HsSpillingInfoProvider.ConsumeStatusWithId;
 import org.apache.flink.runtime.io.network.partition.hybrid.HsSpillingInfoProvider.SpillStatus;
 
 import java.util.ArrayDeque;
@@ -88,12 +88,14 @@ public class HsFullSpillingStrategy implements HsSpillingStrategy {
                             subpartitionId,
                             // get all not start spilling buffers.
                             spillingInfoProvider.getBuffersInOrder(
-                                    subpartitionId, SpillStatus.NOT_SPILL, ConsumeStatus.ALL))
+                                    subpartitionId,
+                                    SpillStatus.NOT_SPILL,
+                                    ConsumeStatusWithId.ALL_ANY))
                     .addBufferToRelease(
                             subpartitionId,
                             // get all not released buffers.
                             spillingInfoProvider.getBuffersInOrder(
-                                    subpartitionId, SpillStatus.ALL, ConsumeStatus.ALL));
+                                    subpartitionId, SpillStatus.ALL, ConsumeStatusWithId.ALL_ANY));
         }
         return builder.build();
     }
@@ -110,7 +112,7 @@ public class HsFullSpillingStrategy implements HsSpillingStrategy {
             builder.addBufferToSpill(
                     i,
                     spillingInfoProvider.getBuffersInOrder(
-                            i, SpillStatus.NOT_SPILL, ConsumeStatus.ALL));
+                            i, SpillStatus.NOT_SPILL, ConsumeStatusWithId.ALL_ANY));
         }
     }
 
@@ -135,7 +137,7 @@ public class HsFullSpillingStrategy implements HsSpillingStrategy {
         for (int subpartitionId = 0; subpartitionId < numSubpartitions; subpartitionId++) {
             Deque<BufferIndexAndChannel> buffersInOrder =
                     spillingInfoProvider.getBuffersInOrder(
-                            subpartitionId, SpillStatus.SPILL, ConsumeStatus.ALL);
+                            subpartitionId, SpillStatus.SPILL, ConsumeStatusWithId.ALL_ANY);
             // if the number of subpartition buffers less than survived buffers, reserved all of
             // them.
             int releaseNum = Math.max(0, buffersInOrder.size() - subpartitionSurvivedNum);

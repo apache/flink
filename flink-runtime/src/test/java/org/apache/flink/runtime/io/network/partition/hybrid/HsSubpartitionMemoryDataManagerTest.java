@@ -53,6 +53,8 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
+import static org.apache.flink.runtime.io.network.partition.hybrid.HsSpillingInfoProvider.ConsumeStatusWithId.ALL_ANY;
+import static org.apache.flink.runtime.io.network.partition.hybrid.HsSpillingInfoProvider.ConsumeStatusWithId.fromStatusAndConsumerId;
 import static org.apache.flink.runtime.io.network.partition.hybrid.HybridShuffleTestUtils.createBufferBuilder;
 import static org.apache.flink.runtime.io.network.partition.hybrid.HybridShuffleTestUtils.createTestingOutputMetrics;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -290,40 +292,44 @@ class HsSubpartitionMemoryDataManagerTest {
         subpartitionMemoryDataManager.consumeBuffer(1);
 
         checkBufferIndex(
-                subpartitionMemoryDataManager.getBuffersSatisfyStatus(
-                        SpillStatus.ALL, ConsumeStatus.ALL),
+                subpartitionMemoryDataManager.getBuffersSatisfyStatus(SpillStatus.ALL, ALL_ANY),
                 Arrays.asList(0, 1, 2, 3));
         checkBufferIndex(
                 subpartitionMemoryDataManager.getBuffersSatisfyStatus(
-                        SpillStatus.ALL, ConsumeStatus.CONSUMED),
+                        SpillStatus.ALL,
+                        fromStatusAndConsumerId(ConsumeStatus.CONSUMED, HsConsumerId.DEFAULT)),
                 Arrays.asList(0, 1));
         checkBufferIndex(
                 subpartitionMemoryDataManager.getBuffersSatisfyStatus(
-                        SpillStatus.ALL, ConsumeStatus.NOT_CONSUMED),
+                        SpillStatus.ALL,
+                        fromStatusAndConsumerId(ConsumeStatus.NOT_CONSUMED, HsConsumerId.DEFAULT)),
                 Arrays.asList(2, 3));
         checkBufferIndex(
-                subpartitionMemoryDataManager.getBuffersSatisfyStatus(
-                        SpillStatus.SPILL, ConsumeStatus.ALL),
+                subpartitionMemoryDataManager.getBuffersSatisfyStatus(SpillStatus.SPILL, ALL_ANY),
                 Arrays.asList(1, 2));
         checkBufferIndex(
                 subpartitionMemoryDataManager.getBuffersSatisfyStatus(
-                        SpillStatus.NOT_SPILL, ConsumeStatus.ALL),
+                        SpillStatus.NOT_SPILL, ALL_ANY),
                 Arrays.asList(0, 3));
         checkBufferIndex(
                 subpartitionMemoryDataManager.getBuffersSatisfyStatus(
-                        SpillStatus.SPILL, ConsumeStatus.NOT_CONSUMED),
+                        SpillStatus.SPILL,
+                        fromStatusAndConsumerId(ConsumeStatus.NOT_CONSUMED, HsConsumerId.DEFAULT)),
                 Collections.singletonList(2));
         checkBufferIndex(
                 subpartitionMemoryDataManager.getBuffersSatisfyStatus(
-                        SpillStatus.SPILL, ConsumeStatus.CONSUMED),
+                        SpillStatus.SPILL,
+                        fromStatusAndConsumerId(ConsumeStatus.CONSUMED, HsConsumerId.DEFAULT)),
                 Collections.singletonList(1));
         checkBufferIndex(
                 subpartitionMemoryDataManager.getBuffersSatisfyStatus(
-                        SpillStatus.NOT_SPILL, ConsumeStatus.CONSUMED),
+                        SpillStatus.NOT_SPILL,
+                        fromStatusAndConsumerId(ConsumeStatus.CONSUMED, HsConsumerId.DEFAULT)),
                 Collections.singletonList(0));
         checkBufferIndex(
                 subpartitionMemoryDataManager.getBuffersSatisfyStatus(
-                        SpillStatus.NOT_SPILL, ConsumeStatus.NOT_CONSUMED),
+                        SpillStatus.NOT_SPILL,
+                        fromStatusAndConsumerId(ConsumeStatus.NOT_CONSUMED, HsConsumerId.DEFAULT)),
                 Collections.singletonList(3));
     }
 

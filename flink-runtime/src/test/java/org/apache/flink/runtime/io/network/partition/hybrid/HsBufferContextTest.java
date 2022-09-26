@@ -81,25 +81,40 @@ class HsBufferContextTest {
 
     @Test
     void testBufferConsumed() {
+        final HsConsumerId consumerId = HsConsumerId.DEFAULT;
         Buffer buffer = bufferContext.getBuffer();
-        bufferContext.consumed();
-        assertThat(bufferContext.isConsumed()).isTrue();
+        bufferContext.consumed(consumerId);
+        assertThat(bufferContext.isConsumed(consumerId)).isTrue();
         assertThat(buffer.refCnt()).isEqualTo(2);
     }
 
     @Test
     void testBufferConsumedRepeatedly() {
-        bufferContext.consumed();
-        assertThatThrownBy(() -> bufferContext.consumed())
+        final HsConsumerId consumerId = HsConsumerId.DEFAULT;
+        bufferContext.consumed(consumerId);
+        assertThatThrownBy(() -> bufferContext.consumed(consumerId))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("Consume buffer repeatedly is unexpected.");
+    }
+
+    @Test
+    void testBufferConsumedMultipleConsumer() {
+        HsConsumerId consumer0 = HsConsumerId.newId(null);
+        HsConsumerId consumer1 = HsConsumerId.newId(consumer0);
+        bufferContext.consumed(consumer0);
+        bufferContext.consumed(consumer1);
+
+        assertThat(bufferContext.isConsumed(consumer0)).isTrue();
+        assertThat(bufferContext.isConsumed(consumer1)).isTrue();
+
+        assertThat(bufferContext.isConsumed(HsConsumerId.newId(consumer1))).isFalse();
     }
 
     @Test
     void testBufferStartSpillOrConsumedAfterReleased() {
         bufferContext.release();
         assertThat(bufferContext.startSpilling(new CompletableFuture<>())).isFalse();
-        assertThatThrownBy(() -> bufferContext.consumed())
+        assertThatThrownBy(() -> bufferContext.consumed(HsConsumerId.DEFAULT))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("Buffer is already released.");
     }
@@ -117,7 +132,7 @@ class HsBufferContextTest {
     @Test
     void testBufferConsumedThenRelease() {
         Buffer buffer = bufferContext.getBuffer();
-        bufferContext.consumed();
+        bufferContext.consumed(HsConsumerId.DEFAULT);
         bufferContext.release();
         assertThat(buffer.refCnt()).isEqualTo(1);
     }
