@@ -26,7 +26,7 @@ import java.util.function.Function;
 public class TestingSpillingStrategy implements HsSpillingStrategy {
     private final BiFunction<Integer, Integer, Optional<Decision>> onMemoryUsageChangedFunction;
 
-    private final Function<Integer, Optional<Decision>> onBufferFinishedFunction;
+    private final BiFunction<Integer, Integer, Optional<Decision>> onBufferFinishedFunction;
 
     private final Function<BufferIndexAndChannel, Optional<Decision>> onBufferConsumedFunction;
 
@@ -36,7 +36,7 @@ public class TestingSpillingStrategy implements HsSpillingStrategy {
 
     private TestingSpillingStrategy(
             BiFunction<Integer, Integer, Optional<Decision>> onMemoryUsageChangedFunction,
-            Function<Integer, Optional<Decision>> onBufferFinishedFunction,
+            BiFunction<Integer, Integer, Optional<Decision>> onBufferFinishedFunction,
             Function<BufferIndexAndChannel, Optional<Decision>> onBufferConsumedFunction,
             Function<HsSpillingInfoProvider, Decision> decideActionWithGlobalInfoFunction,
             Function<HsSpillingInfoProvider, Decision> onResultPartitionClosedFunction) {
@@ -54,8 +54,8 @@ public class TestingSpillingStrategy implements HsSpillingStrategy {
     }
 
     @Override
-    public Optional<Decision> onBufferFinished(int numTotalUnSpillBuffers) {
-        return onBufferFinishedFunction.apply(numTotalUnSpillBuffers);
+    public Optional<Decision> onBufferFinished(int numTotalUnSpillBuffers, int currentPoolSize) {
+        return onBufferFinishedFunction.apply(numTotalUnSpillBuffers, currentPoolSize);
     }
 
     @Override
@@ -82,8 +82,8 @@ public class TestingSpillingStrategy implements HsSpillingStrategy {
         private BiFunction<Integer, Integer, Optional<Decision>> onMemoryUsageChangedFunction =
                 (ignore1, ignore2) -> Optional.of(Decision.NO_ACTION);
 
-        private Function<Integer, Optional<Decision>> onBufferFinishedFunction =
-                (ignore) -> Optional.of(Decision.NO_ACTION);
+        private BiFunction<Integer, Integer, Optional<Decision>> onBufferFinishedFunction =
+                (ignore1, ignore2) -> Optional.of(Decision.NO_ACTION);
 
         private Function<BufferIndexAndChannel, Optional<Decision>> onBufferConsumedFunction =
                 (ignore) -> Optional.of(Decision.NO_ACTION);
@@ -103,7 +103,7 @@ public class TestingSpillingStrategy implements HsSpillingStrategy {
         }
 
         public Builder setOnBufferFinishedFunction(
-                Function<Integer, Optional<Decision>> onBufferFinishedFunction) {
+                BiFunction<Integer, Integer, Optional<Decision>> onBufferFinishedFunction) {
             this.onBufferFinishedFunction = onBufferFinishedFunction;
             return this;
         }
