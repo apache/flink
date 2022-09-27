@@ -213,10 +213,12 @@ public abstract class TableFunction<T> extends UserDefinedFunction {
      * records can be produced for the downstream operators.
      *
      * <p><b>NOTE:</b>This method does not need to close any resources. You should release external
-     * resources in the {@link #close()} method. More details can see {@link StreamOperator#finish}.
+     * resources in the {@link #close()} method. More details can see {@link
+     * StreamOperator#finish()}.
      *
-     * <p><b>NOTE:</b>Emit record in the {@link #close()} method is impossible since flink-1.14, *
-     * if you need to emit records at the end of processing, do so in the {@link #finish()} method.
+     * <p><b>Important:</b>Emit record in the {@link #close()} method is impossible since
+     * flink-1.14, if you need to emit records at the end of data processing, do so in the {@link
+     * #finish()} method.
      */
     public void finish() throws Exception {
         // do nothing
