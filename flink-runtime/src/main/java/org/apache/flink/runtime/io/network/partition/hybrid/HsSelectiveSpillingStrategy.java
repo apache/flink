@@ -45,7 +45,7 @@ public class HsSelectiveSpillingStrategy implements HsSpillingStrategy {
     // For the case of buffer finished, there is no need to take action for
     // HsSelectiveSpillingStrategy.
     @Override
-    public Optional<Decision> onBufferFinished(int numTotalUnSpillBuffers) {
+    public Optional<Decision> onBufferFinished(int numTotalUnSpillBuffers, int currentPoolSize) {
         return Optional.of(Decision.NO_ACTION);
     }
 

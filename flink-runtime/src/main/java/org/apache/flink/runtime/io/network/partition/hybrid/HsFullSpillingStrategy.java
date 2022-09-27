@@ -32,25 +32,25 @@ import static org.apache.flink.runtime.io.network.partition.hybrid.HsSpillingStr
 
 /** A special implementation of {@link HsSpillingStrategy} that spilled all buffers to disk. */
 public class HsFullSpillingStrategy implements HsSpillingStrategy {
-    private final int numBuffersTriggerSpilling;
+    private final float numBuffersTriggerSpillingRatio;
 
     private final float releaseBufferRatio;
 
     private final float releaseThreshold;
 
     public HsFullSpillingStrategy(HybridShuffleConfiguration hybridShuffleConfiguration) {
-        this.numBuffersTriggerSpilling =
-                hybridShuffleConfiguration.getFullStrategyNumBuffersTriggerSpilling();
+        this.numBuffersTriggerSpillingRatio =
+                hybridShuffleConfiguration.getFullStrategyNumBuffersTriggerSpillingRatio();
         this.releaseThreshold = hybridShuffleConfiguration.getFullStrategyReleaseThreshold();
         this.releaseBufferRatio = hybridShuffleConfiguration.getFullStrategyReleaseBufferRatio();
     }
 
     // For the case of buffer finished, whenever the number of unSpillBuffers reaches
-    // numBuffersTriggerSpilling, make a decision based on global information. Otherwise, no need to
-    // take action.
+    // numBuffersTriggerSpillingRatio times currentPoolSize, make a decision based on global
+    // information. Otherwise, no need to take action.
     @Override
-    public Optional<Decision> onBufferFinished(int numTotalUnSpillBuffers) {
-        return numTotalUnSpillBuffers < numBuffersTriggerSpilling
+    public Optional<Decision> onBufferFinished(int numTotalUnSpillBuffers, int currentPoolSize) {
+        return numTotalUnSpillBuffers < numBuffersTriggerSpillingRatio * currentPoolSize
                 ? Optional.of(Decision.NO_ACTION)
                 : Optional.empty();
     }
@@ -74,8 +74,11 @@ public class HsFullSpillingStrategy implements HsSpillingStrategy {
     @Override
     public Decision decideActionWithGlobalInfo(HsSpillingInfoProvider spillingInfoProvider) {
         Decision.Builder builder = Decision.builder();
-        checkSpill(spillingInfoProvider, builder);
-        checkRelease(spillingInfoProvider, builder);
+        // Save the cost of lock, if pool size is changed between checkSpill and checkRelease, pool
+        // size checker will handle this inconsistency.
+        int poolSize = spillingInfoProvider.getPoolSize();
+        checkSpill(spillingInfoProvider, poolSize, builder);
+        checkRelease(spillingInfoProvider, poolSize, builder);
         return builder.build();
     }
 
@@ -99,8 +102,10 @@ public class HsFullSpillingStrategy implements HsSpillingStrategy {
         return builder.build();
     }
 
-    private void checkSpill(HsSpillingInfoProvider spillingInfoProvider, Decision.Builder builder) {
-        if (spillingInfoProvider.getNumTotalUnSpillBuffers() < numBuffersTriggerSpilling) {
+    private void checkSpill(
+            HsSpillingInfoProvider spillingInfoProvider, int poolSize, Decision.Builder builder) {
+        if (spillingInfoProvider.getNumTotalUnSpillBuffers()
+                < numBuffersTriggerSpillingRatio * poolSize) {
             // In case situation changed since onBufferFinished() returns Optional#empty()
             return;
         }
@@ -114,9 +119,8 @@ public class HsFullSpillingStrategy implements HsSpillingStrategy {
     }
 
     private void checkRelease(
-            HsSpillingInfoProvider spillingInfoProvider, Decision.Builder builder) {
-        if (spillingInfoProvider.getNumTotalRequestedBuffers()
-                < spillingInfoProvider.getPoolSize() * releaseThreshold) {
+            HsSpillingInfoProvider spillingInfoProvider, int poolSize, Decision.Builder builder) {
+        if (spillingInfoProvider.getNumTotalRequestedBuffers() < poolSize * releaseThreshold) {
             // In case situation changed since onMemoryUsageChanged() returns Optional#empty()
             return;
         }
