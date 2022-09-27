@@ -20,7 +20,6 @@ package org.apache.flink.connector.pulsar.testutils.runtime;
 
 import org.apache.flink.connector.pulsar.testutils.PulsarTestEnvironment;
 import org.apache.flink.connector.pulsar.testutils.runtime.container.PulsarContainerRuntime;
-import org.apache.flink.connector.pulsar.testutils.runtime.embedded.PulsarEmbeddedRuntime;
 import org.apache.flink.connector.pulsar.testutils.runtime.mock.PulsarMockRuntime;
 
 import org.testcontainers.containers.GenericContainer;
@@ -51,21 +50,9 @@ public interface PulsarRuntime {
     }
 
     /**
-     * Create a standalone Pulsar instance in test thread. We would start an embedded zookeeper and
-     * bookkeeper. The stream storage for bookkeeper is disabled. The function worker is disabled on
-     * Pulsar broker.
-     *
-     * <p>This runtime would be faster than {@link #container()} and behaves the same as the {@link
-     * #container()}.
-     */
-    static PulsarRuntime embedded() {
-        return new PulsarEmbeddedRuntime();
-    }
-
-    /**
      * Create a Pulsar instance in docker. We would start a standalone Pulsar in TestContainers.
      * This runtime is often used in end-to-end tests. The performance may be a bit of slower than
-     * {@link #embedded()}. The stream storage for bookkeeper is disabled. The function worker is
+     * {@link #mock()}. The stream storage for bookkeeper is disabled. The function worker is
      * disabled on Pulsar broker.
      */
     static PulsarRuntime container() {
@@ -75,7 +62,7 @@ public interface PulsarRuntime {
     /**
      * Create a Pulsar instance in docker. We would start a standalone Pulsar in TestContainers.
      * This runtime is often used in end-to-end tests. The performance may be a bit of slower than
-     * {@link #embedded()}. The stream storage for bookkeeper is disabled. The function worker is
+     * {@link #mock()}. The stream storage for bookkeeper is disabled. The function worker is
      * disabled on Pulsar broker.
      *
      * <p>We would link the created Pulsar docker instance with the given flink instance. This would
