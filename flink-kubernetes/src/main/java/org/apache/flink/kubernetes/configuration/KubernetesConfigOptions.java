@@ -442,7 +442,9 @@ public class KubernetesConfigOptions {
             key(KUBERNETES_POD_TEMPLATE_FILE_KEY + ".jobmanager")
                     .stringType()
                     .noDefaultValue()
-                    .withFallbackKeys(KUBERNETES_POD_TEMPLATE_FILE_KEY)
+                    .withFallbackKeys(
+                            KUBERNETES_POD_TEMPLATE_FILE_KEY,
+                            KUBERNETES_POD_TEMPLATE_FILE_KEY + ".default")
                     .withDescription(
                             "Specify a local file that contains the jobmanager pod template definition. "
                                     + "It will be used to initialize the jobmanager pod. "
@@ -456,7 +458,9 @@ public class KubernetesConfigOptions {
             key(KUBERNETES_POD_TEMPLATE_FILE_KEY + ".taskmanager")
                     .stringType()
                     .noDefaultValue()
-                    .withFallbackKeys(KUBERNETES_POD_TEMPLATE_FILE_KEY)
+                    .withFallbackKeys(
+                            KUBERNETES_POD_TEMPLATE_FILE_KEY,
+                            KUBERNETES_POD_TEMPLATE_FILE_KEY + ".default")
                     .withDescription(
                             "Specify a local file that contains the taskmanager pod template definition. "
                                     + "It will be used to initialize the taskmanager pod. "
