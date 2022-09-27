@@ -24,6 +24,7 @@ import org.apache.flink.runtime.io.network.buffer.BufferBuilder;
 import org.apache.flink.runtime.io.network.buffer.BufferCompressor;
 import org.apache.flink.runtime.io.network.buffer.BufferPool;
 import org.apache.flink.runtime.io.network.partition.hybrid.HsSpillingStrategy.Decision;
+import org.apache.flink.util.concurrent.ExecutorThreadFactory;
 import org.apache.flink.util.concurrent.FutureUtils;
 import org.apache.flink.util.function.SupplierWithException;
 
@@ -40,6 +41,9 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReadWriteLock;
@@ -71,6 +75,17 @@ public class HsMemoryDataManager implements HsSpillingInfoProvider, HsMemoryData
     private final Map<Integer, HsSubpartitionViewInternalOperations> subpartitionViewOperationsMap =
             new ConcurrentHashMap<>();
 
+    /**
+     * Currently, it is only used to regularly check the actual size of local buffer pool (the size
+     * will change dynamically due to the redistribution of network buffers). When the size of the
+     * buffer pool changes, it attempts to trigger the spilling strategy.
+     */
+    private final ScheduledExecutorService poolSizeChecker =
+            Executors.newSingleThreadScheduledExecutor(
+                    new ExecutorThreadFactory("hybrid-shuffle-pool-size-checker-executor"));
+
+    private int previousPoolSize;
+
     public HsMemoryDataManager(
             int numSubpartitions,
             int bufferSize,
@@ -78,7 +93,8 @@ public class HsMemoryDataManager implements HsSpillingInfoProvider, HsMemoryData
             HsSpillingStrategy spillStrategy,
             HsFileDataIndex fileDataIndex,
             Path dataFilePath,
-            BufferCompressor bufferCompressor)
+            BufferCompressor bufferCompressor,
+            long poolSizeCheckInterval)
             throws IOException {
         this.numSubpartitions = numSubpartitions;
         this.bufferPool = bufferPool;
@@ -98,6 +114,20 @@ public class HsMemoryDataManager implements HsSpillingInfoProvider, HsMemoryData
                             readWriteLock.readLock(),
                             bufferCompressor,
                             this);
+        }
+        this.previousPoolSize = getPoolSize();
+        if (poolSizeCheckInterval > 0) {
+            poolSizeChecker.scheduleAtFixedRate(
+                    () -> {
+                        int currentPoolSize = getPoolSize();
+                        if (previousPoolSize > currentPoolSize) {
+                            callWithLock(() -> spillStrategy.decideActionWithGlobalInfo(this));
+                        }
+                        previousPoolSize = currentPoolSize;
+                    },
+                    poolSizeCheckInterval,
+                    poolSizeCheckInterval,
+                    TimeUnit.MILLISECONDS);
         }
     }
 
@@ -144,6 +174,7 @@ public class HsMemoryDataManager implements HsSpillingInfoProvider, HsMemoryData
         Decision decision = callWithLock(() -> spillStrategy.onResultPartitionClosed(this));
         handleDecision(Optional.of(decision));
         spiller.close();
+        poolSizeChecker.shutdown();
     }
 
     /**
@@ -240,7 +271,7 @@ public class HsMemoryDataManager implements HsSpillingInfoProvider, HsMemoryData
     @Override
     public void onBufferFinished() {
         Optional<Decision> decision =
-                spillStrategy.onBufferFinished(numUnSpillBuffers.incrementAndGet());
+                spillStrategy.onBufferFinished(numUnSpillBuffers.incrementAndGet(), getPoolSize());
         handleDecision(decision);
     }
 

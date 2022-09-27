@@ -41,7 +41,6 @@ import org.apache.flink.runtime.io.network.partition.ResultPartitionManager;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.io.network.partition.ResultSubpartition;
 import org.apache.flink.runtime.io.network.partition.ResultSubpartitionView;
-import org.apache.flink.runtime.io.network.partition.hybrid.HybridShuffleConfiguration.SpillingStrategyType;
 import org.apache.flink.runtime.metrics.groups.TaskIOMetricGroup;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.util.IOUtils;
@@ -378,33 +377,6 @@ class HsResultPartitionTest {
         byte[] dataWritten = new byte[dataSize];
         random.nextBytes(dataWritten);
         return ByteBuffer.wrap(dataWritten);
-    }
-
-    private HsResultPartition createHsResultPartition(
-            int numSubpartitions, BufferPool bufferPool, int numBuffersTriggerSpilling)
-            throws IOException {
-        HsResultPartition hsResultPartition =
-                new HsResultPartition(
-                        "HsResultPartitionTest",
-                        0,
-                        new ResultPartitionID(),
-                        ResultPartitionType.HYBRID_FULL,
-                        numSubpartitions,
-                        numSubpartitions,
-                        readBufferPool,
-                        readIOExecutor,
-                        new ResultPartitionManager(),
-                        fileChannelManager.createChannel().getPath(),
-                        bufferSize,
-                        HybridShuffleConfiguration.builder(
-                                        numSubpartitions, readBufferPool.getNumBuffersPerRequest())
-                                .setSpillingStrategyType(SpillingStrategyType.FULL)
-                                .setFullStrategyNumBuffersTriggerSpilling(numBuffersTriggerSpilling)
-                                .build(),
-                        null,
-                        () -> bufferPool);
-        hsResultPartition.setup();
-        return hsResultPartition;
     }
 
     private HsResultPartition createHsResultPartition(int numSubpartitions, BufferPool bufferPool)

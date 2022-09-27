@@ -49,7 +49,7 @@ class HsSelectiveSpillingStrategyTest {
 
     @Test
     void testOnBufferFinished() {
-        Optional<Decision> finishedDecision = spillStrategy.onBufferFinished(5);
+        Optional<Decision> finishedDecision = spillStrategy.onBufferFinished(5, 10);
         assertThat(finishedDecision).hasValue(Decision.NO_ACTION);
     }
 

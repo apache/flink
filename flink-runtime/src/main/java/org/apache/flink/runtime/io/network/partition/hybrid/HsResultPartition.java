@@ -127,7 +127,8 @@ public class HsResultPartition extends ResultPartition {
                         getSpillingStrategy(hybridShuffleConfiguration),
                         dataIndex,
                         dataFilePath,
-                        bufferCompressor);
+                        bufferCompressor,
+                        hybridShuffleConfiguration.getBufferPoolSizeCheckIntervalMs());
     }
 
     @Override

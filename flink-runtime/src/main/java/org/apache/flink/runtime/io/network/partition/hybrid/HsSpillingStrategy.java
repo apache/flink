@@ -51,7 +51,7 @@ public interface HsSpillingStrategy {
      * @return A {@link Decision} based on the provided information, or {@link Optional#empty()} if
      *     the decision cannot be made, which indicates global information is needed.
      */
-    Optional<Decision> onBufferFinished(int numTotalUnSpillBuffers);
+    Optional<Decision> onBufferFinished(int numTotalUnSpillBuffers, int currentPoolSize);
 
     /**
      * Make a decision when a buffer is consumed.
