@@ -90,15 +90,16 @@ public class PulsarContainerRuntime implements PulsarRuntime {
 
         // Override the default configuration in container for enabling the Pulsar transaction.
         container.withClasspathResourceMapping(
-                "containers/txnStandalone.conf",
-                "/pulsar/conf/standalone.conf",
-                BindMode.READ_ONLY);
+                "docker/bootstrap.sh", "/pulsar/bin/bootstrap.sh", BindMode.READ_ONLY);
         // Waiting for the Pulsar border is ready.
         container.waitingFor(
                 forHttp("/admin/v2/namespaces/public/default")
                         .forPort(BROKER_HTTP_PORT)
                         .forStatusCode(200)
                         .withStartupTimeout(Duration.ofMinutes(5)));
+        // Set custom startup script.
+        container.withCommand("sh /pulsar/bin/bootstrap.sh");
+
         // Start the Pulsar Container.
         container.start();
         // Append the output to this runtime logger. Used for local debug purpose.
