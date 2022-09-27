@@ -16,14 +16,11 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.operations.ddl;
+package org.apache.flink.table.operations;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.catalog.CatalogManager;
-import org.apache.flink.table.operations.Operation;
-import org.apache.flink.table.operations.OperationUtils;
-import org.apache.flink.table.operations.QueryOperation;
-import org.apache.flink.table.operations.SinkModifyOperation;
+import org.apache.flink.table.operations.ddl.CreateTableOperation;
 
 import java.util.Collections;
 import java.util.LinkedHashMap;
@@ -31,7 +28,7 @@ import java.util.Map;
 
 /** Operation to describe a CREATE TABLE AS statement. */
 @Internal
-public class CreateTableASOperation implements CreateOperation {
+public class CreateTableASOperation implements ModifyOperation {
 
     private final CreateTableOperation createTableOperation;
 
@@ -66,7 +63,7 @@ public class CreateTableASOperation implements CreateOperation {
     @Override
     public String asSummaryString() {
         Map<String, Object> params = new LinkedHashMap<>();
-        params.put("catalogTable", getCreateTableOperation().getCatalogTable().toProperties());
+        params.put("catalogTable", getCreateTableOperation().getCatalogTable());
         params.put("identifier", getCreateTableOperation().getTableIdentifier());
         params.put("ignoreIfExists", getCreateTableOperation().isIgnoreIfExists());
         params.put("isTemporary", getCreateTableOperation().isTemporary());
@@ -78,5 +75,15 @@ public class CreateTableASOperation implements CreateOperation {
                 params,
                 Collections.singletonList(sinkModifyQuery),
                 Operation::asSummaryString);
+    }
+
+    @Override
+    public QueryOperation getChild() {
+        return sinkModifyQuery;
+    }
+
+    @Override
+    public <T> T accept(ModifyOperationVisitor<T> visitor) {
+        return visitor.visit(this);
     }
 }
