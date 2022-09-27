@@ -84,7 +84,7 @@ public class HsMemoryDataManager implements HsSpillingInfoProvider, HsMemoryData
             Executors.newSingleThreadScheduledExecutor(
                     new ExecutorThreadFactory("hybrid-shuffle-pool-size-checker-executor"));
 
-    private int previousPoolSize;
+    private final AtomicInteger poolSize;
 
     public HsMemoryDataManager(
             int numSubpartitions,
@@ -115,15 +115,17 @@ public class HsMemoryDataManager implements HsSpillingInfoProvider, HsMemoryData
                             bufferCompressor,
                             this);
         }
-        this.previousPoolSize = getPoolSize();
+
+        poolSize = new AtomicInteger(this.bufferPool.getNumBuffers());
+
         if (poolSizeCheckInterval > 0) {
             poolSizeChecker.scheduleAtFixedRate(
                     () -> {
-                        int currentPoolSize = getPoolSize();
-                        if (previousPoolSize > currentPoolSize) {
+                        int newSize = this.bufferPool.getNumBuffers();
+                        int oldSize = poolSize.getAndSet(newSize);
+                        if (oldSize > newSize) {
                             callWithLock(() -> spillStrategy.decideActionWithGlobalInfo(this));
                         }
-                        previousPoolSize = currentPoolSize;
                     },
                     poolSizeCheckInterval,
                     poolSizeCheckInterval,
@@ -199,7 +201,7 @@ public class HsMemoryDataManager implements HsSpillingInfoProvider, HsMemoryData
 
     @Override
     public int getPoolSize() {
-        return bufferPool.getNumBuffers();
+        return poolSize.get();
     }
 
     @Override
