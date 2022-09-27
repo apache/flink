@@ -16,43 +16,29 @@
  * limitations under the License.
  */
 
-package org.apache.flink.connector.pulsar.testutils.cases;
+package org.apache.flink.tests.util.pulsar.source;
 
 import org.apache.flink.connector.pulsar.testutils.PulsarTestEnvironment;
+import org.apache.flink.connector.pulsar.testutils.source.cases.MultipleTopicConsumingContext;
 
 import org.apache.pulsar.client.api.SubscriptionType;
 
-import java.net.URL;
-import java.util.Collections;
-import java.util.List;
+import static org.apache.pulsar.client.api.SubscriptionType.Shared;
 
-/**
- * A consuming context with {@link SubscriptionType#Shared}, it's almost the same as {@link
- * MultipleTopicConsumingContext}.
- */
-public class SharedSubscriptionConsumingContext extends MultipleTopicTemplateContext {
+/** We would consume from test splits by using {@link SubscriptionType#Shared} subscription. */
+public class SharedSubscriptionContext extends MultipleTopicConsumingContext {
 
-    public SharedSubscriptionConsumingContext(PulsarTestEnvironment environment) {
-        this(environment, Collections.emptyList());
-    }
-
-    public SharedSubscriptionConsumingContext(
-            PulsarTestEnvironment environment, List<URL> connectorJarPaths) {
-        super(environment, connectorJarPaths);
+    public SharedSubscriptionContext(PulsarTestEnvironment environment) {
+        super(environment, Shared);
     }
 
     @Override
     protected String displayName() {
-        return "consuming message with shared subscription";
+        return "consume message by Shared";
     }
 
     @Override
     protected String subscriptionName() {
-        return "flink-shared-subscription-test";
-    }
-
-    @Override
-    protected SubscriptionType subscriptionType() {
-        return SubscriptionType.Shared;
+        return "pulsar-shared-subscription";
     }
 }
