@@ -786,17 +786,11 @@ class CodeGeneratorContext(val tableConfig: ReadableConfig, val classLoader: Cla
     reusableOpenStatements.add(openFunction)
 
     if (function.isInstanceOf[TableFunction[_]]) {
-      val finishFunction =
-        s"""
-           |$fieldTerm.finish();
-       """.stripMargin
+      val finishFunction = s"$fieldTerm.finish();"
       reusableFinishStatements.add(finishFunction)
     }
 
-    val closeFunction =
-      s"""
-         |$fieldTerm.close();
-       """.stripMargin
+    val closeFunction = s"$fieldTerm.close();"
     reusableCloseStatements.add(closeFunction)
 
     fieldTerm
