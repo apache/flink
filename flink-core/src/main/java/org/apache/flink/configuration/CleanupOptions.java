@@ -146,7 +146,7 @@ public class CleanupOptions {
                                                     + "Reaching the configured limit means that "
                                                     + "the job artifacts (and the job's JobResultStore entry) "
                                                     + "might need to be cleaned up manually.",
-                                            code(CLEANUP_STRATEGY_PARAM), code(FIXED_DELAY_LABEL))
+                                            code(CLEANUP_STRATEGY.key()), code(FIXED_DELAY_LABEL))
                                     .build());
 
     public static final ConfigOption<Duration> CLEANUP_STRATEGY_FIXED_DELAY_DELAY =
@@ -160,7 +160,7 @@ public class CleanupOptions {
                                                     + "the cleanup after a failed attempt if the %s is "
                                                     + "set to %s. It can be specified using the following "
                                                     + "notation: \"1 min\", \"20 s\"",
-                                            code(CLEANUP_STRATEGY_PARAM), code(FIXED_DELAY_LABEL))
+                                            code(CLEANUP_STRATEGY.key()), code(FIXED_DELAY_LABEL))
                                     .build());
 
     public static final ConfigOption<Duration> CLEANUP_STRATEGY_EXPONENTIAL_DELAY_INITIAL_BACKOFF =
@@ -173,7 +173,7 @@ public class CleanupOptions {
                                             "Starting duration between cleanup retries if %s has "
                                                     + "been set to %s. It can be specified using the "
                                                     + "following notation: \"1 min\", \"20 s\"",
-                                            code(CLEANUP_STRATEGY_PARAM),
+                                            code(CLEANUP_STRATEGY.key()),
                                             code(EXPONENTIAL_DELAY_LABEL))
                                     .build());
 
@@ -188,7 +188,7 @@ public class CleanupOptions {
                                                     + "retries if %s has been set to %s. It can be "
                                                     + "specified using the following notation: "
                                                     + "\"1 min\", \"20 s\"",
-                                            code(CLEANUP_STRATEGY_PARAM),
+                                            code(CLEANUP_STRATEGY.key()),
                                             code(EXPONENTIAL_DELAY_LABEL))
                                     .build());
 
@@ -205,7 +205,7 @@ public class CleanupOptions {
                                                     + "configured limit means that the job artifacts "
                                                     + "(and the job's JobResultStore entry) "
                                                     + "might need to be cleaned up manually.",
-                                            code(CLEANUP_STRATEGY_PARAM),
+                                            code(CLEANUP_STRATEGY.key()),
                                             code(EXPONENTIAL_DELAY_LABEL))
                                     .build());
 }
