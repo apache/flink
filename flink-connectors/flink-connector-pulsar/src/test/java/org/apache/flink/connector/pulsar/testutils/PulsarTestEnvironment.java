@@ -48,7 +48,7 @@ import java.util.List;
  * }</pre>
  *
  * <p>If you want to use this class in JUnit 5, just simply extends {@link PulsarTestSuiteBase}, all
- * the helper methods in {@code PulsarContainerOperator} is also exposed there.
+ * the helper methods in {@link PulsarRuntimeOperator} is also exposed there.
  */
 public class PulsarTestEnvironment
         implements BeforeAllCallback, AfterAllCallback, TestResource, TestRule {

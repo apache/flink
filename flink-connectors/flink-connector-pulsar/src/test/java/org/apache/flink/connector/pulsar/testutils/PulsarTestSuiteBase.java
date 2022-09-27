@@ -30,9 +30,8 @@ import org.junit.jupiter.api.extension.RegisterExtension;
  * The base class for the all Pulsar related test sites. It brings up:
  *
  * <ul>
- *   <li>A Zookeeper cluster.
- *   <li>Pulsar Broker.
- *   <li>A Bookkeeper cluster.
+ *   <li>A Pulsar Broker with memory based local metastore.
+ *   <li>A standalone Bookkeeper with memory based local metastore.
  * </ul>
  *
  * <p>You just need to write a JUnit 5 test class and extends this suite class. All the helper

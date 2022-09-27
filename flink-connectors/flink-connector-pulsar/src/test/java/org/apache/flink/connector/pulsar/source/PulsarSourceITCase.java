@@ -20,9 +20,9 @@ package org.apache.flink.connector.pulsar.source;
 
 import org.apache.flink.connector.pulsar.testutils.PulsarTestContextFactory;
 import org.apache.flink.connector.pulsar.testutils.PulsarTestEnvironment;
-import org.apache.flink.connector.pulsar.testutils.cases.MultipleTopicConsumingContext;
-import org.apache.flink.connector.pulsar.testutils.cases.SingleTopicConsumingContext;
 import org.apache.flink.connector.pulsar.testutils.runtime.PulsarRuntime;
+import org.apache.flink.connector.pulsar.testutils.source.cases.MultipleTopicConsumingContext;
+import org.apache.flink.connector.pulsar.testutils.source.cases.SingleTopicConsumingContext;
 import org.apache.flink.connector.testframe.environment.MiniClusterTestEnvironment;
 import org.apache.flink.connector.testframe.junit.annotations.TestContext;
 import org.apache.flink.connector.testframe.junit.annotations.TestEnv;
@@ -41,6 +41,7 @@ import org.junit.experimental.categories.Category;
  */
 @Category(value = {FailsOnJava11.class})
 class PulsarSourceITCase extends SourceTestSuiteBase<String> {
+
     // Defines test environment on Flink MiniCluster
     @TestEnv MiniClusterTestEnvironment flink = new MiniClusterTestEnvironment();
 
@@ -48,6 +49,7 @@ class PulsarSourceITCase extends SourceTestSuiteBase<String> {
     @TestExternalSystem
     PulsarTestEnvironment pulsar = new PulsarTestEnvironment(PulsarRuntime.mock());
 
+    // This field is preserved, we don't support the semantics in source currently.
     @TestSemantics
     CheckpointingMode[] semantics = new CheckpointingMode[] {CheckpointingMode.EXACTLY_ONCE};
 
