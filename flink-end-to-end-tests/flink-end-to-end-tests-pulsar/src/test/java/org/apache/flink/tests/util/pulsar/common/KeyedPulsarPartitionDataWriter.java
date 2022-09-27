@@ -35,23 +35,26 @@ public class KeyedPulsarPartitionDataWriter implements ExternalSystemSplitDataWr
 
     private final PulsarRuntimeOperator operator;
     private final String fullTopicName;
-    private final String key1;
-    private final String key2;
+    private final String keyToRead;
+    private final String keyToExclude;
 
     public KeyedPulsarPartitionDataWriter(
-            PulsarRuntimeOperator operator, String fullTopicName, String key1, String key2) {
+            PulsarRuntimeOperator operator,
+            String fullTopicName,
+            String keyToRead,
+            String keyToExclude) {
         this.operator = operator;
         this.fullTopicName = fullTopicName;
-        this.key1 = key1;
-        this.key2 = key2;
+        this.keyToRead = keyToRead;
+        this.keyToExclude = keyToExclude;
     }
 
     @Override
     public void writeRecords(List<String> records) {
-        operator.sendMessages(fullTopicName, Schema.STRING, key1, records);
+        List<String> newRecords = records.stream().map(a -> a + keyToRead).collect(toList());
 
-        List<String> newRecords = records.stream().map(a -> a + key1).collect(toList());
-        operator.sendMessages(fullTopicName, Schema.STRING, key2, newRecords);
+        operator.sendMessages(fullTopicName, Schema.STRING, keyToExclude, newRecords);
+        operator.sendMessages(fullTopicName, Schema.STRING, keyToRead, records);
     }
 
     @Override
