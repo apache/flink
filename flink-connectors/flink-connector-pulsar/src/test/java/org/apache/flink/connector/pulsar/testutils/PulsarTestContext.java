@@ -19,41 +19,30 @@
 package org.apache.flink.connector.pulsar.testutils;
 
 import org.apache.flink.connector.pulsar.testutils.runtime.PulsarRuntimeOperator;
-import org.apache.flink.connector.testframe.external.source.DataStreamSourceExternalContext;
+import org.apache.flink.connector.testframe.external.ExternalContext;
+
+import org.apache.pulsar.client.api.Schema;
 
 import java.net.URL;
-import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
-import java.util.Random;
 
-import static org.apache.commons.lang3.RandomStringUtils.randomAlphanumeric;
-
-/** Common test context for pulsar based test. */
-public abstract class PulsarTestContext<T> implements DataStreamSourceExternalContext<T> {
+/**
+ * The implementation for Flink connector test tools. Providing the common test case writing
+ * constraint for both source, sink and table API.
+ */
+public abstract class PulsarTestContext<T> implements ExternalContext {
 
     protected final PulsarRuntimeOperator operator;
-    protected final List<URL> connectorJarPaths;
+    // The schema used for consuming and producing messages between Pulsar and tests.
+    protected final Schema<T> schema;
 
-    protected PulsarTestContext(PulsarTestEnvironment environment, List<URL> connectorJarPaths) {
+    protected PulsarTestContext(PulsarTestEnvironment environment, Schema<T> schema) {
         this.operator = environment.operator();
-        this.connectorJarPaths = connectorJarPaths;
+        this.schema = schema;
     }
 
-    // Helper methods for generating data.
-
-    protected List<String> generateStringTestData(int splitIndex, long seed) {
-        Random random = new Random(seed);
-        int recordNum = 300 + random.nextInt(200);
-        List<String> records = new ArrayList<>(recordNum);
-
-        for (int i = 0; i < recordNum; i++) {
-            int length = random.nextInt(40) + 10;
-            records.add(splitIndex + "-" + i + "-" + randomAlphanumeric(length));
-        }
-
-        return records;
-    }
-
+    /** Implement this method for providing a more friendly test name in IDE. */
     protected abstract String displayName();
 
     @Override
@@ -63,6 +52,10 @@ public abstract class PulsarTestContext<T> implements DataStreamSourceExternalCo
 
     @Override
     public List<URL> getConnectorJarPaths() {
-        return connectorJarPaths;
+        // We don't need any tests jar definition. They are provided in docker-related environments.
+        return Collections.emptyList();
     }
+
+    @Override
+    public void close() throws Exception {}
 }
