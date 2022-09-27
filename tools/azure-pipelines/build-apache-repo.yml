@@ -65,13 +65,13 @@ stages:
     jobs:
       - template: jobs-template.yml
         parameters:
-          stage_name: ci
+          stage_name: cron_azure
           test_pool_definition:
-            name: Default
+            vmImage: 'ubuntu-20.04'
           e2e_pool_definition:
             vmImage: 'ubuntu-20.04'
           environment: PROFILE="-Dflink.hadoop.version=2.8.5 -Dinclude_hadoop_aws -Dscala-2.12"
-          run_end_to_end: false
+          run_end_to_end: true
           container: flink-build-container
           jdk: 8
       - job: docs_404_check # run on a MSFT provided machine
