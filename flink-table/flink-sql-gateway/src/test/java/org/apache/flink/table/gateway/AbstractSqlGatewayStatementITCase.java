@@ -103,6 +103,9 @@ public abstract class AbstractSqlGatewayStatementITCase extends AbstractTestBase
         replaceVars.put(
                 "$VAR_BATCH_PATH",
                 Files.createDirectory(temporaryFolder.resolve("batch")).toFile().getPath());
+        replaceVars.put(
+                "$VAR_BATCH_CTAS_PATH",
+                Files.createDirectory(temporaryFolder.resolve("batch_ctas")).toFile().getPath());
     }
 
     @ParameterizedTest

@@ -806,8 +806,8 @@ class TableSinkTest extends TableTestBase {
     Assertions
       .assertThatThrownBy(
         () => util.tableEnv.explainSql("CREATE TABLE zm_ctas_test AS SELECT * FROM MyTable"))
-      .hasMessage(
-        "Unsupported operation: org.apache.flink.table.operations.ddl.CreateTableASOperation")
+      .hasMessageContaining(
+        "Unsupported ModifyOperation: org.apache.flink.table.operations.CreateTableASOperation")
   }
 }
 
