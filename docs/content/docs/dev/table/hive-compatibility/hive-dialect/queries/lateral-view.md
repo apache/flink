@@ -55,7 +55,7 @@ The column alias can be omitted. In this case, aliases are inherited from fields
 
 Assuming you have one table:
 ```sql
-create table pageAds(pageid string, addid_list array<int>);
+CREATE TABLE pageAds(pageid string, addid_list array<int>);
 ```
 And the table contains two rows:
 ```sql
@@ -75,7 +75,7 @@ contact_page, 5
 ```
 Also, if you have one table:
 ```sql
-CREATE TABLE t1(c1 array<int>, addid_list array<int>);
+CREATE TABLE t1(c1 array<int>, c2 array<int>);
 ```
 You can use multiple lateral view clauses to convert the column `c1` and `c2` into separate rows:
 ```sql

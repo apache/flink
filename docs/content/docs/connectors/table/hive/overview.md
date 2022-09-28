@@ -271,6 +271,13 @@ Please find the required dependencies for different Hive major versions below.
 {{< /tab >}}
 {{< /tabs >}}
 
+#### Moving the planner jar
+
+Move the jar `flink-table-planner_2.12` located in `FLINK_HOME/opt` to `FLINK_HOME/lib` and move out the jar `flink-table-planner-loader` from `FLINK_HOME/lib`.
+Please refer to [FLINK-25128](https://issues.apache.org/jira/browse/FLINK-25128) for more details.
+
+**NOTE**: Such extra planner jar moving is only needed when using [Hive dialect]({{< ref "docs/dev/table/hive-compatibility/hive-dialect/overview" >}}) or [HiveServer2 endpoint]({{< ref "docs/dev/table/hive-compatibility/hiveserver2" >}}), but this is the recommended setup for Hive integration. 
+
 ### Program maven
 
 If you are building your own program, you need the following dependencies in your mvn file.

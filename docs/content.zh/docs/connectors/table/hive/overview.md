@@ -268,6 +268,14 @@ export HADOOP_CLASSPATH=`hadoop classpath`
 {{< /tab >}}
 {{< /tabs >}}
 
+#### 移动 planner jar 包
+
+把 `FLINK_HOME/opt` 下的 jar 包 `flink-table-planner_2.12` 移动到 `FLINK_HOME/lib` 下，并且将 `FLINK_HOME/lib` 下的 jar 包 `flink-table-planner-loader` 移出去。
+具体原因请参见 [FLINK-25128](https://issues.apache.org/jira/browse/FLINK-25128)。
+
+**NOTE**: 只有当要使用 [Hive 语法]({{< ref "docs/dev/table/hive-compatibility/hive-dialect/overview" >}}) 或者 [HiveServer2 endpoint]({{< ref "docs/dev/table/hive-compatibility/hiveserver2" >}}), 你才需要做上述的 jar 包移动。
+但是在集成 Hive 的时候，推荐进行上述的操作。
+
 ### Maven 依赖
 
 如果您在构建自己的应用程序，则需要在 mvn 文件中添加以下依赖项。
