@@ -158,13 +158,13 @@ KEY_ENV_YARN_CONF_DIR="env.yarn.conf.dir"
 KEY_ENV_HADOOP_CONF_DIR="env.hadoop.conf.dir"
 KEY_ENV_HBASE_CONF_DIR="env.hbase.conf.dir"
 KEY_ENV_JAVA_HOME="env.java.home"
-KEY_ENV_JAVA_OPTS="env.java.opts"
+KEY_ENV_JAVA_OPTS="env.java.opts.all"
 KEY_ENV_JAVA_OPTS_JM="env.java.opts.jobmanager"
 KEY_ENV_JAVA_OPTS_TM="env.java.opts.taskmanager"
 KEY_ENV_JAVA_OPTS_HS="env.java.opts.historyserver"
 KEY_ENV_JAVA_OPTS_CLI="env.java.opts.client"
 KEY_ENV_SSH_OPTS="env.ssh.opts"
-KEY_HIGH_AVAILABILITY="high-availability"
+KEY_HIGH_AVAILABILITY="high-availability.type"
 KEY_ZK_HEAP_MB="zookeeper.heap.mb"
 
 ########################################################################################################################
@@ -294,7 +294,11 @@ if [ -z "${FLINK_PID_DIR}" ]; then
 fi
 
 if [ -z "${FLINK_ENV_JAVA_OPTS}" ]; then
-    FLINK_ENV_JAVA_OPTS=$(readFromConfig ${KEY_ENV_JAVA_OPTS} "${DEFAULT_ENV_JAVA_OPTS}" "${YAML_CONF}")
+    FLINK_ENV_JAVA_OPTS=$(readFromConfig ${KEY_ENV_JAVA_OPTS} "" "${YAML_CONF}")
+    if [ -z "${FLINK_ENV_JAVA_OPTS}" ]; then
+      # try deprecated key
+      FLINK_ENV_JAVA_OPTS=$(readFromConfig "env.java.opts" "${DEFAULT_ENV_JAVA_OPTS}" "${YAML_CONF}")
+    fi
 
     # Remove leading and ending double quotes (if present) of value
     FLINK_ENV_JAVA_OPTS="$( echo "${FLINK_ENV_JAVA_OPTS}" | sed -e 's/^"//'  -e 's/"$//' )"
@@ -338,7 +342,7 @@ if [ -z "${HIGH_AVAILABILITY}" ]; then
      HIGH_AVAILABILITY=$(readFromConfig ${KEY_HIGH_AVAILABILITY} "" "${YAML_CONF}")
      if [ -z "${HIGH_AVAILABILITY}" ]; then
         # Try deprecated value
-        DEPRECATED_HA=$(readFromConfig "recovery.mode" "" "${YAML_CONF}")
+        DEPRECATED_HA=$(readFromConfig "high-availability" "$(readFromConfig "recovery.mode" "" "${YAML_CONF}")" "${YAML_CONF}")
         if [ -z "${DEPRECATED_HA}" ]; then
             HIGH_AVAILABILITY="none"
         elif [ ${DEPRECATED_HA} == "standalone" ]; then

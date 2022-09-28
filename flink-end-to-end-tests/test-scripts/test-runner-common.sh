@@ -52,7 +52,7 @@ function run_test {
     trap 'test_error' ERR
 
     # Always enable unaligned checkpoint
-    set_config_key "execution.checkpointing.unaligned" "true"
+    set_config_key "execution.checkpointing.unaligned.enabled" "true"
 
     ${command}
     exit_code="$?"

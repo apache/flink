@@ -198,7 +198,7 @@ function create_ha_config() {
     # High Availability
     #==============================================================================
 
-    high-availability: zookeeper
+    high-availability.type: zookeeper
     high-availability.zookeeper.storageDir: file://${TEST_DATA_DIR}/recovery/
     high-availability.zookeeper.quorum: localhost:2181
     high-availability.zookeeper.path.root: /flink

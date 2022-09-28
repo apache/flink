@@ -86,7 +86,7 @@ public class CheckpointConfigFromConfigurationTest {
                         .getterVia(CheckpointConfig::getTolerableCheckpointFailureNumber)
                         .nonDefaultValue(100),
                 TestSpec.testValue(true)
-                        .whenSetFromFile("execution.checkpointing.unaligned", "true")
+                        .whenSetFromFile("execution.checkpointing.unaligned.enabled", "true")
                         .viaSetter(CheckpointConfig::enableUnalignedCheckpoints)
                         .getterVia(CheckpointConfig::isUnalignedCheckpointsEnabled)
                         .nonDefaultValue(true),
