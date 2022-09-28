@@ -19,9 +19,8 @@
 package org.apache.flink.tests.util.pulsar;
 
 import org.apache.flink.connector.pulsar.testutils.PulsarTestContextFactory;
-import org.apache.flink.connector.pulsar.testutils.source.UnorderedSourceTestSuiteBase;
-import org.apache.flink.connector.pulsar.testutils.source.cases.KeySharedSubscriptionContext;
-import org.apache.flink.connector.pulsar.testutils.source.cases.SharedSubscriptionContext;
+import org.apache.flink.connector.pulsar.testutils.sink.PulsarSinkTestContext;
+import org.apache.flink.connector.pulsar.testutils.sink.PulsarSinkTestSuiteBase;
 import org.apache.flink.connector.testframe.junit.annotations.TestContext;
 import org.apache.flink.connector.testframe.junit.annotations.TestEnv;
 import org.apache.flink.connector.testframe.junit.annotations.TestExternalSystem;
@@ -33,32 +32,26 @@ import org.apache.flink.testutils.junit.FailsOnJava11;
 
 import org.junit.experimental.categories.Category;
 
-/**
- * Pulsar E2E test based on connector testing framework. It's used for Shared & Key_Shared
- * subscription.
- */
+/** Pulsar sink E2E test based on connector testing framework. */
 @SuppressWarnings("unused")
 @Category(value = {FailsOnJava11.class})
-public class PulsarSourceUnorderedE2ECase extends UnorderedSourceTestSuiteBase<String> {
+public class PulsarSinkE2ECase extends PulsarSinkTestSuiteBase {
 
-    // Defines the Semantic.
     @TestSemantics
-    CheckpointingMode[] semantics = new CheckpointingMode[] {CheckpointingMode.EXACTLY_ONCE};
+    CheckpointingMode[] semantics =
+            new CheckpointingMode[] {
+                CheckpointingMode.EXACTLY_ONCE, CheckpointingMode.AT_LEAST_ONCE
+            };
 
-    // Defines TestEnvironment.
+    // Defines TestEnvironment
     @TestEnv
-    FlinkContainerWithPulsarEnvironment flink = new FlinkContainerWithPulsarEnvironment(1, 8);
+    FlinkContainerWithPulsarEnvironment flink = new FlinkContainerWithPulsarEnvironment(1, 6);
 
     // Defines ConnectorExternalSystem.
     @TestExternalSystem
     PulsarContainerTestEnvironment pulsar = new PulsarContainerTestEnvironment(flink);
 
-    // Defines a set of external context Factories for different test cases.
     @TestContext
-    PulsarTestContextFactory<String, SharedSubscriptionContext> shared =
-            new PulsarTestContextFactory<>(pulsar, SharedSubscriptionContext::new);
-
-    @TestContext
-    PulsarTestContextFactory<String, KeySharedSubscriptionContext> keyShared =
-            new PulsarTestContextFactory<>(pulsar, KeySharedSubscriptionContext::new);
+    PulsarTestContextFactory<String, PulsarSinkTestContext> sinkContext =
+            new PulsarTestContextFactory<>(pulsar, PulsarSinkTestContext::new);
 }

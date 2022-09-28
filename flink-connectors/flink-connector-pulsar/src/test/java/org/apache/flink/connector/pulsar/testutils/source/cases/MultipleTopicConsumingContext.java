@@ -33,18 +33,11 @@ import static org.apache.flink.connector.pulsar.source.enumerator.topic.TopicNam
 public class MultipleTopicConsumingContext extends PulsarSourceTestContext {
 
     private final String topicPrefix = "flink-multiple-topic-" + randomAlphabetic(8) + "-";
-    private final SubscriptionType subscriptionType;
 
     private int index = 0;
 
     public MultipleTopicConsumingContext(PulsarTestEnvironment environment) {
-        this(environment, SubscriptionType.Exclusive);
-    }
-
-    public MultipleTopicConsumingContext(
-            PulsarTestEnvironment environment, SubscriptionType subscriptionType) {
         super(environment);
-        this.subscriptionType = subscriptionType;
     }
 
     @Override
@@ -64,7 +57,7 @@ public class MultipleTopicConsumingContext extends PulsarSourceTestContext {
 
     @Override
     protected SubscriptionType subscriptionType() {
-        return subscriptionType;
+        return SubscriptionType.Exclusive;
     }
 
     @Override
