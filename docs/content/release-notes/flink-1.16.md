@@ -76,7 +76,7 @@ supported by the Hive community and therefore are also no longer supported by Fl
 
 ##### [FLINK-28883](https://issues.apache.org/jira/browse/FLINK-28883)
 
-In batch mode, Hive sink now will report statistics for written tables and partitions to Hive metastore by default.
+In batch mode, Hive sink now will report statistics to Hive metastore by default for writting tables and partitions.
 This might be time-consuming when there are many written files. You can disable this feature by
 setting `table.exec.hive.sink.statistic-auto-gather.enable` to `false`.
 
