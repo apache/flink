@@ -21,9 +21,12 @@ package org.apache.flink.client.cli;
 import org.apache.flink.client.program.PackagedProgram;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.CoreOptions;
+import org.apache.flink.configuration.SecurityOptions;
+import org.apache.flink.runtime.security.SecurityConfiguration;
 import org.apache.flink.util.ChildFirstClassLoader;
 import org.apache.flink.util.FlinkUserCodeClassLoaders.ParentFirstClassLoader;
 
+import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.Options;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
@@ -165,6 +168,27 @@ class CliFrontendDynamicPropertiesTest {
         expectedConfigValues.put("parallelism.default", "12");
         verifyCliFrontendWithDynamicProperties(
                 configuration, args, cliUnderTest, expectedConfigValues);
+    }
+
+    @Test
+    public void testSecurityConfigWithDynamicProperties() throws Exception {
+        String keytable = this.getClass().getResource("/keytable.file").getFile();
+        String[] args = {
+            "-e",
+            "test-executor",
+            "-D" + SecurityOptions.KERBEROS_LOGIN_KEYTAB.key() + "=" + keytable,
+            "-D" + SecurityOptions.KERBEROS_LOGIN_PRINCIPAL.key() + "=principal",
+            getTestJarPath(),
+        };
+        TestingCliFrontendWithDynamicProperties testFrontend =
+                new TestingCliFrontendWithDynamicProperties(
+                        configuration, cliUnderTest, null, null);
+        CommandLine commandLine = testFrontend.getCommandLine(new Options(), args, true);
+        Configuration securityConfig = new Configuration(configuration);
+        DynamicPropertiesUtil.encodeDynamicProperties(commandLine, securityConfig);
+        SecurityConfiguration securityConfiguration = new SecurityConfiguration(securityConfig);
+        assertThat(securityConfiguration.getKeytab()).isEqualTo(keytable);
+        assertThat(securityConfiguration.getPrincipal()).isEqualTo("principal");
     }
 
     // --------------------------------------------------------------------------------------------
