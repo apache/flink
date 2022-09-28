@@ -33,7 +33,7 @@ import org.apache.flink.connector.pulsar.source.enumerator.topic.TopicNameUtils;
 import org.apache.flink.connector.pulsar.source.enumerator.topic.TopicRange;
 import org.apache.flink.connector.pulsar.source.enumerator.topic.range.FullRangeGenerator;
 import org.apache.flink.connector.pulsar.source.enumerator.topic.range.RangeGenerator;
-import org.apache.flink.connector.pulsar.source.enumerator.topic.range.UniformRangeGenerator;
+import org.apache.flink.connector.pulsar.source.enumerator.topic.range.SplitRangeGenerator;
 import org.apache.flink.connector.pulsar.source.reader.deserializer.PulsarDeserializationSchema;
 
 import org.apache.pulsar.client.api.RegexSubscriptionMode;
@@ -426,8 +426,8 @@ public final class PulsarSourceBuilder<OUT> {
             if (rangeGenerator == null) {
                 LOG.warn(
                         "No range generator provided for key_shared subscription,"
-                                + " we would use the UniformRangeGenerator as the default range generator.");
-                this.rangeGenerator = new UniformRangeGenerator();
+                                + " we would use the SplitRangeGenerator as the default range generator.");
+                this.rangeGenerator = new SplitRangeGenerator();
             }
         } else {
             // Override the range generator.
@@ -501,7 +501,7 @@ public final class PulsarSourceBuilder<OUT> {
 
     // ------------- private helpers  --------------
 
-    /** Helper method for java compiler recognize the generic type. */
+    /** Helper method for java compiler recognizes the generic type. */
     @SuppressWarnings("unchecked")
     private <T extends OUT> PulsarSourceBuilder<T> specialized() {
         return (PulsarSourceBuilder<T>) this;

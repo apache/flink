@@ -46,11 +46,13 @@ public final class SplitAssignerFactory {
         switch (subscriptionType) {
             case Failover:
             case Exclusive:
-            case Key_Shared:
                 return new NonSharedSplitAssigner(
                         stopCursor, enablePartitionDiscovery, context, enumState);
             case Shared:
                 return new SharedSplitAssigner(
+                        stopCursor, enablePartitionDiscovery, context, enumState);
+            case Key_Shared:
+                return new KeySharedSplitAssigner(
                         stopCursor, enablePartitionDiscovery, context, enumState);
             default:
                 throw new IllegalArgumentException(

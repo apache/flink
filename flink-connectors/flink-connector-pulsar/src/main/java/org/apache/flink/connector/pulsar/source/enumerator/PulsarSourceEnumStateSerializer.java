@@ -41,7 +41,7 @@ public class PulsarSourceEnumStateSerializer
         implements SimpleVersionedSerializer<PulsarSourceEnumState> {
 
     // This version should be bumped after modifying the PulsarSourceEnumState.
-    public static final int CURRENT_VERSION = 1;
+    public static final int CURRENT_VERSION = 2;
 
     public static final PulsarSourceEnumStateSerializer INSTANCE =
             new PulsarSourceEnumStateSerializer();
@@ -71,16 +71,20 @@ public class PulsarSourceEnumStateSerializer
 
     @Override
     public PulsarSourceEnumState deserialize(int version, byte[] serialized) throws IOException {
-        // VERSION 1 deserialization, support VERSION 0 deserialization in the meantime.
+        // VERSION 2 deserialization, support VERSION 0 and 1 deserialization in the meantime.
         try (ByteArrayInputStream bais = new ByteArrayInputStream(serialized);
                 DataInputStream in = new DataInputStream(bais)) {
-            Set<TopicPartition> partitions = deserializeSet(in, deserializePartition(version));
+            Set<TopicPartition> partitions = null;
+            if (version == 2) {
+                partitions = deserializeSet(in, deserializePartition(1));
+            } else {
+                partitions = deserializeSet(in, deserializePartition(0));
+            }
 
             // Only deserialize these fields for backward compatibility.
             if (version == 0) {
-                deserializeSet(in, deserializeSplit(version));
-                deserializeMap(
-                        in, DataInput::readInt, i -> deserializeSet(i, deserializeSplit(version)));
+                deserializeSet(in, deserializeSplit(0));
+                deserializeMap(in, DataInput::readInt, i -> deserializeSet(i, deserializeSplit(0)));
                 deserializeMap(in, DataInput::readInt, i -> deserializeSet(i, DataInput::readUTF));
                 in.readBoolean();
             }

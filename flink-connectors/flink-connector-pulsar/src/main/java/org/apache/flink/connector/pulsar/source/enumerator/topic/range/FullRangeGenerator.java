@@ -18,23 +18,31 @@
 
 package org.apache.flink.connector.pulsar.source.enumerator.topic.range;
 
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.connector.pulsar.source.enumerator.topic.TopicMetadata;
 import org.apache.flink.connector.pulsar.source.enumerator.topic.TopicRange;
 
 import org.apache.pulsar.client.api.SubscriptionType;
 
-import java.util.Collections;
 import java.util.List;
+
+import static java.util.Collections.singletonList;
 
 /**
  * Default implementation for {@link SubscriptionType#Shared}, {@link SubscriptionType#Failover} and
  * {@link SubscriptionType#Exclusive} subscription.
  */
+@PublicEvolving
 public class FullRangeGenerator implements RangeGenerator {
     private static final long serialVersionUID = -4571731955155036216L;
 
     @Override
     public List<TopicRange> range(TopicMetadata metadata, int parallelism) {
-        return Collections.singletonList(TopicRange.createFullRange());
+        return singletonList(TopicRange.createFullRange());
+    }
+
+    @Override
+    public KeySharedMode keyShareMode(TopicMetadata metadata, int parallelism) {
+        return KeySharedMode.SPLIT;
     }
 }

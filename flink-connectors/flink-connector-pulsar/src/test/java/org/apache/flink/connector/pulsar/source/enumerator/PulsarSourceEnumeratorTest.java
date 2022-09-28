@@ -53,7 +53,6 @@ import static org.apache.flink.connector.pulsar.source.PulsarSourceOptions.PULSA
 import static org.apache.flink.connector.pulsar.source.PulsarSourceOptions.PULSAR_SUBSCRIPTION_TYPE;
 import static org.apache.flink.connector.pulsar.source.enumerator.PulsarSourceEnumState.initialState;
 import static org.apache.flink.connector.pulsar.source.enumerator.subscriber.PulsarSubscriber.getTopicPatternSubscriber;
-import static org.apache.flink.connector.pulsar.source.enumerator.topic.TopicRange.createFullRange;
 import static org.apache.flink.connector.pulsar.testutils.runtime.PulsarRuntimeOperator.DEFAULT_PARTITIONS;
 import static org.apache.flink.shaded.guava30.com.google.common.util.concurrent.Uninterruptibles.sleepUninterruptibly;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -414,7 +413,7 @@ class PulsarSourceEnumeratorTest extends PulsarTestSuiteBase {
         Set<TopicPartition> allPartitions = new HashSet<>();
         for (String topicName : topics) {
             for (int i = 0; i < DEFAULT_PARTITIONS; i++) {
-                allPartitions.add(new TopicPartition(topicName, i, createFullRange()));
+                allPartitions.add(new TopicPartition(topicName, i));
             }
         }
         return allPartitions;
