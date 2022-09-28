@@ -67,7 +67,7 @@ stages:
         parameters:
           stage_name: cron_azure
           test_pool_definition:
-            vmImage: 'ubuntu-20.04'
+            name: Default
           e2e_pool_definition:
             vmImage: 'ubuntu-20.04'
           environment: PROFILE="-Dflink.hadoop.version=2.8.5 -Dinclude_hadoop_aws -Dscala-2.12"
