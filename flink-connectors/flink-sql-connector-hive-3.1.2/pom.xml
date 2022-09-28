@@ -123,7 +123,8 @@ under the License.
 				<groupId>com.diffplug.spotless</groupId>
 				<artifactId>spotless-maven-plugin</artifactId>
 				<configuration>
-					<skip>true</skip>
+					<applySkip>true</applySkip>
+					<checkSkip>true</checkSkip>
 				</configuration>
 			</plugin>
 
