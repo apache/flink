@@ -51,11 +51,8 @@ public class FlinkContainerWithPulsarEnvironment extends FlinkContainerTestEnvir
         return ResourceTestUtils.getResource(jarName).toAbsolutePath().toString();
     }
 
-    protected static Configuration flinkConfiguration() {
+    private static Configuration flinkConfiguration() {
         Configuration configuration = new Configuration();
-        // Increase the off heap memory of TaskManager to avoid direct buffer memory error in Pulsar
-        // e2e tests.
-        configuration.set(TaskManagerOptions.TASK_OFF_HEAP_MEMORY, MemorySize.ofMebiBytes(100));
 
         // Increase the jvm metaspace memory to avoid java.lang.OutOfMemoryError: Metaspace
         configuration.set(TaskManagerOptions.TOTAL_PROCESS_MEMORY, MemorySize.ofMebiBytes(2048));
