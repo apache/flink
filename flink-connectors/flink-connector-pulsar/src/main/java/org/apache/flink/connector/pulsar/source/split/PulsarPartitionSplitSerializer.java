@@ -21,6 +21,7 @@ package org.apache.flink.connector.pulsar.source.split;
 import org.apache.flink.connector.pulsar.source.enumerator.cursor.StopCursor;
 import org.apache.flink.connector.pulsar.source.enumerator.topic.TopicPartition;
 import org.apache.flink.connector.pulsar.source.enumerator.topic.TopicRange;
+import org.apache.flink.connector.pulsar.source.enumerator.topic.range.RangeGenerator.KeySharedMode;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
 
 import org.apache.pulsar.client.api.MessageId;
@@ -31,10 +32,14 @@ import java.io.ByteArrayOutputStream;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
+import java.util.List;
 
+import static java.util.Collections.singletonList;
 import static org.apache.flink.connector.pulsar.common.utils.PulsarSerdeUtils.deserializeBytes;
+import static org.apache.flink.connector.pulsar.common.utils.PulsarSerdeUtils.deserializeList;
 import static org.apache.flink.connector.pulsar.common.utils.PulsarSerdeUtils.deserializeObject;
 import static org.apache.flink.connector.pulsar.common.utils.PulsarSerdeUtils.serializeBytes;
+import static org.apache.flink.connector.pulsar.common.utils.PulsarSerdeUtils.serializeList;
 import static org.apache.flink.connector.pulsar.common.utils.PulsarSerdeUtils.serializeObject;
 
 /** The {@link SimpleVersionedSerializer serializer} for {@link PulsarPartitionSplit}. */
@@ -45,7 +50,7 @@ public class PulsarPartitionSplitSerializer
             new PulsarPartitionSplitSerializer();
 
     // This version should be bumped after modifying the PulsarPartitionSplit.
-    public static final int CURRENT_VERSION = 0;
+    public static final int CURRENT_VERSION = 1;
 
     private PulsarPartitionSplitSerializer() {
         // Singleton instance.
@@ -136,23 +141,45 @@ public class PulsarPartitionSplitSerializer
 
     public void serializeTopicPartition(DataOutputStream out, TopicPartition partition)
             throws IOException {
-        // VERSION 0 serialization
-        TopicRange range = partition.getRange();
+        // VERSION 1 serialization
         out.writeUTF(partition.getTopic());
         out.writeInt(partition.getPartitionId());
-        out.writeInt(range.getStart());
-        out.writeInt(range.getEnd());
+        serializeList(
+                out,
+                partition.getRanges(),
+                (o, r) -> {
+                    o.writeInt(r.getStart());
+                    o.writeInt(r.getEnd());
+                });
+        out.writeInt(partition.getMode().ordinal());
     }
 
     public TopicPartition deserializeTopicPartition(int version, DataInputStream in)
             throws IOException {
-        // VERSION 0 deserialization
         String topic = in.readUTF();
         int partitionId = in.readInt();
-        int start = in.readInt();
-        int end = in.readInt();
+        List<TopicRange> ranges;
+        KeySharedMode keySharedMode;
+        if (version == 0) {
+            // VERSION 0 deserialization
+            int start = in.readInt();
+            int end = in.readInt();
+            TopicRange range = new TopicRange(start, end);
+            ranges = singletonList(range);
+            keySharedMode = KeySharedMode.SPLIT;
+        } else {
+            // VERSION 1 deserialization
+            ranges =
+                    deserializeList(
+                            in,
+                            i -> {
+                                int start = i.readInt();
+                                int end = i.readInt();
+                                return new TopicRange(start, end);
+                            });
+            keySharedMode = KeySharedMode.values()[in.readInt()];
+        }
 
-        TopicRange range = new TopicRange(start, end);
-        return new TopicPartition(topic, partitionId, range);
+        return new TopicPartition(topic, partitionId, ranges, keySharedMode);
     }
 }

@@ -34,6 +34,7 @@ import java.time.Duration;
 import java.util.Objects;
 
 import static org.apache.flink.connector.base.source.reader.SourceReaderOptions.ELEMENT_QUEUE_CAPACITY;
+import static org.apache.flink.connector.pulsar.source.PulsarSourceOptions.PULSAR_ALLOW_KEY_SHARED_OUT_OF_ORDER_DELIVERY;
 import static org.apache.flink.connector.pulsar.source.PulsarSourceOptions.PULSAR_AUTO_COMMIT_CURSOR_INTERVAL;
 import static org.apache.flink.connector.pulsar.source.PulsarSourceOptions.PULSAR_ENABLE_AUTO_ACKNOWLEDGE_MESSAGE;
 import static org.apache.flink.connector.pulsar.source.PulsarSourceOptions.PULSAR_MAX_FETCH_RECORDS;
@@ -61,6 +62,7 @@ public class SourceConfiguration extends PulsarConfiguration {
     private final String subscriptionName;
     private final SubscriptionType subscriptionType;
     private final SubscriptionMode subscriptionMode;
+    private final boolean allowKeySharedOutOfOrderDelivery;
 
     public SourceConfiguration(Configuration configuration) {
         super(configuration);
@@ -76,6 +78,7 @@ public class SourceConfiguration extends PulsarConfiguration {
         this.subscriptionName = get(PULSAR_SUBSCRIPTION_NAME);
         this.subscriptionType = get(PULSAR_SUBSCRIPTION_TYPE);
         this.subscriptionMode = get(PULSAR_SUBSCRIPTION_MODE);
+        this.allowKeySharedOutOfOrderDelivery = get(PULSAR_ALLOW_KEY_SHARED_OUT_OF_ORDER_DELIVERY);
     }
 
     /** The capacity of the element queue in the source reader. */
@@ -183,6 +186,11 @@ public class SourceConfiguration extends PulsarConfiguration {
         return subscriptionMode;
     }
 
+    /** Whether to enable the out-of-order delivery in Key Shared subscription. */
+    public boolean isAllowKeySharedOutOfOrderDelivery() {
+        return allowKeySharedOutOfOrderDelivery;
+    }
+
     /** Convert the subscription into a readable str. */
     public String getSubscriptionDesc() {
         return getSubscriptionName()
@@ -214,7 +222,8 @@ public class SourceConfiguration extends PulsarConfiguration {
                 && verifyInitialOffsets == that.verifyInitialOffsets
                 && Objects.equals(subscriptionName, that.subscriptionName)
                 && subscriptionType == that.subscriptionType
-                && subscriptionMode == that.subscriptionMode;
+                && subscriptionMode == that.subscriptionMode
+                && allowKeySharedOutOfOrderDelivery == that.allowKeySharedOutOfOrderDelivery;
     }
 
     @Override
@@ -230,6 +239,7 @@ public class SourceConfiguration extends PulsarConfiguration {
                 verifyInitialOffsets,
                 subscriptionName,
                 subscriptionType,
-                subscriptionMode);
+                subscriptionMode,
+                allowKeySharedOutOfOrderDelivery);
     }
 }
