@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.tests.util.pulsar.common;
+package org.apache.flink.connector.pulsar.testutils.source;
 
 import org.apache.flink.connector.pulsar.testutils.runtime.PulsarRuntimeOperator;
 import org.apache.flink.connector.testframe.external.ExternalSystemSplitDataWriter;
@@ -24,8 +24,6 @@ import org.apache.flink.connector.testframe.external.ExternalSystemSplitDataWrit
 import org.apache.pulsar.client.api.Schema;
 
 import java.util.List;
-
-import static java.util.stream.Collectors.toList;
 
 /**
  * Source split data writer for writing test data into a Pulsar topic partition. It will write the
@@ -36,24 +34,17 @@ public class KeyedPulsarPartitionDataWriter implements ExternalSystemSplitDataWr
     private final PulsarRuntimeOperator operator;
     private final String fullTopicName;
     private final String keyToRead;
-    private final String keyToExclude;
 
     public KeyedPulsarPartitionDataWriter(
-            PulsarRuntimeOperator operator,
-            String fullTopicName,
-            String keyToRead,
-            String keyToExclude) {
+            PulsarRuntimeOperator operator, String fullTopicName, String keyToRead) {
         this.operator = operator;
         this.fullTopicName = fullTopicName;
         this.keyToRead = keyToRead;
-        this.keyToExclude = keyToExclude;
     }
 
     @Override
     public void writeRecords(List<String> records) {
-        List<String> newRecords = records.stream().map(a -> a + keyToRead).collect(toList());
-
-        operator.sendMessages(fullTopicName, Schema.STRING, keyToExclude, newRecords);
+        // Send messages with the given key.
         operator.sendMessages(fullTopicName, Schema.STRING, keyToRead, records);
     }
 

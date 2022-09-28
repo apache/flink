@@ -52,10 +52,12 @@ public abstract class PulsarTestContext<T> implements ExternalContext {
 
     @Override
     public List<URL> getConnectorJarPaths() {
-        // We don't need any tests jar definition. They are provided in docker-related environments.
+        // We don't need any test jars definition. They are provided in docker-related environments.
         return Collections.emptyList();
     }
 
     @Override
-    public void close() throws Exception {}
+    public void close() throws Exception {
+        // All the topics would be deleted in the PulsarRuntime. No need to manually close them.
+    }
 }

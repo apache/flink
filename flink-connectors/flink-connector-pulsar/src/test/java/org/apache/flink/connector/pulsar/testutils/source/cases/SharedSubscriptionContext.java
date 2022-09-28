@@ -16,20 +16,17 @@
  * limitations under the License.
  */
 
-package org.apache.flink.tests.util.pulsar.source;
+package org.apache.flink.connector.pulsar.testutils.source.cases;
 
 import org.apache.flink.connector.pulsar.testutils.PulsarTestEnvironment;
-import org.apache.flink.connector.pulsar.testutils.source.cases.MultipleTopicConsumingContext;
 
 import org.apache.pulsar.client.api.SubscriptionType;
-
-import static org.apache.pulsar.client.api.SubscriptionType.Shared;
 
 /** We would consume from test splits by using {@link SubscriptionType#Shared} subscription. */
 public class SharedSubscriptionContext extends MultipleTopicConsumingContext {
 
     public SharedSubscriptionContext(PulsarTestEnvironment environment) {
-        super(environment, Shared);
+        super(environment);
     }
 
     @Override
@@ -40,5 +37,10 @@ public class SharedSubscriptionContext extends MultipleTopicConsumingContext {
     @Override
     protected String subscriptionName() {
         return "pulsar-shared-subscription";
+    }
+
+    @Override
+    protected SubscriptionType subscriptionType() {
+        return SubscriptionType.Shared;
     }
 }

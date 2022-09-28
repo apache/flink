@@ -24,7 +24,6 @@ import org.apache.flink.util.DockerImageVersions;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.testcontainers.containers.BindMode;
 import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.containers.PulsarContainer;
 import org.testcontainers.containers.output.Slf4jLogConsumer;
@@ -88,22 +87,30 @@ public class PulsarContainerRuntime implements PulsarRuntime {
             return;
         }
 
-        // Override the default configuration in container for enabling the Pulsar transaction.
-        container.withClasspathResourceMapping(
-                "docker/bootstrap.sh", "/pulsar/bin/bootstrap.sh", BindMode.READ_ONLY);
-        // Waiting for the Pulsar border is ready.
+        // Override the default standalone configuration by system environments.
+        container.withEnv("PULSAR_PREFIX_transactionCoordinatorEnabled", "true");
+        container.withEnv("PULSAR_PREFIX_acknowledgmentAtBatchIndexLevelEnabled", "true");
+        container.withEnv("PULSAR_PREFIX_systemTopicEnabled", "true");
+        container.withEnv("PULSAR_PREFIX_brokerDeduplicationEnabled", "true");
+        container.withEnv("PULSAR_PREFIX_defaultNumberOfNamespaceBundles", "1");
+        // Change the default bootstrap script, it will override the default configuration
+        // and start a standalone Pulsar without streaming storage and function worker.
+        container.withCommand(
+                "sh",
+                "-c",
+                "/pulsar/bin/apply-config-from-env.py /pulsar/conf/standalone.conf && /pulsar/bin/pulsar standalone --no-functions-worker -nss");
+        // Waiting for the Pulsar broker and the transaction is ready after the container started.
         container.waitingFor(
-                forHttp("/admin/v2/namespaces/public/default")
+                forHttp(
+                                "/admin/v2/persistent/pulsar/system/transaction_coordinator_assign/partitions")
                         .forPort(BROKER_HTTP_PORT)
                         .forStatusCode(200)
                         .withStartupTimeout(Duration.ofMinutes(5)));
-        // Set custom startup script.
-        container.withCommand("sh /pulsar/bin/bootstrap.sh");
 
         // Start the Pulsar Container.
         container.start();
         // Append the output to this runtime logger. Used for local debug purpose.
-        container.followOutput(new Slf4jLogConsumer(LOG).withSeparateOutputStreams());
+        container.followOutput(new Slf4jLogConsumer(LOG, true));
 
         // Create the operator.
         if (boundFlink) {
