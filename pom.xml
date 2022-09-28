@@ -175,7 +175,7 @@ under the License.
 		<hivemetastore.hadoop.version>2.7.5</hivemetastore.hadoop.version>
 		<japicmp.referenceVersion>1.15.0</japicmp.referenceVersion>
 		<japicmp.outputDir>tools/japicmp-output</japicmp.outputDir>
-		<spotless.version>2.13.0</spotless.version>
+		<spotless.version>2.27.0</spotless.version>
 		<spotless.scalafmt.version>3.4.3</spotless.scalafmt.version>
 		<spotless.delimiter>package</spotless.delimiter>
 		<spotless.license.header>
@@ -1011,30 +1011,6 @@ under the License.
 								<additionalJOptions>
 									<additionalJOption>--add-exports=java.base/sun.net.util=ALL-UNNAMED</additionalJOption>
 								</additionalJOptions>
-							</configuration>
-						</plugin>
-					</plugins>
-				</pluginManagement>
-			</build>
-		</profile>
-
-		<profile>
-			<id>java17</id>
-			<activation>
-				<jdk>[17,)</jdk>
-			</activation>
-
-			<build>
-				<pluginManagement>
-					<plugins>
-						<plugin>
-							<groupId>com.diffplug.spotless</groupId>
-							<artifactId>spotless-maven-plugin</artifactId>
-							<configuration>
-								<!-- Current google format does not run on Java 17.
-									 Don't upgrade it in this profile because it formats code differently.
-									 Re-evaluate once support for Java 8 is dropped. -->
-								<skip>true</skip>
 							</configuration>
 						</plugin>
 					</plugins>
