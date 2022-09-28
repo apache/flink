@@ -71,7 +71,7 @@ public final class PulsarSourceOptions {
     ///////////////////////////////////////////////////////////////////////////////
     //
     // The configuration for pulsar source part.
-    // All the configuration listed below should have the pulsar.source prefix.
+    // All the configurations listed below should have the pulsar.source prefix.
     //
     ///////////////////////////////////////////////////////////////////////////////
 
@@ -189,10 +189,25 @@ public final class PulsarSourceOptions {
                                             " A possible solution is to adjust the retention settings in Pulsar or ignoring the check result.")
                                     .build());
 
+    public static final ConfigOption<Boolean> PULSAR_ALLOW_KEY_SHARED_OUT_OF_ORDER_DELIVERY =
+            ConfigOptions.key(SOURCE_CONFIG_PREFIX + "allowKeySharedOutOfOrderDelivery")
+                    .booleanType()
+                    .defaultValue(false)
+                    .withDescription(
+                            Description.builder()
+                                    .text(
+                                            "If enabled, it will relax the ordering requirement, allowing the broker to send out-of-order messages in case of failures.")
+                                    .text(
+                                            " This will make it faster for new consumers to join without being stalled by an existing slow consumer.")
+                                    .linebreak()
+                                    .text(
+                                            "In this case, a single consumer will still receive all the keys, but they may be coming in different orders.")
+                                    .build());
+
     ///////////////////////////////////////////////////////////////////////////////
     //
     // The configuration for ConsumerConfigurationData part.
-    // All the configuration listed below should have the pulsar.consumer prefix.
+    // All the configurations listed below should have the pulsar.consumer prefix.
     //
     ///////////////////////////////////////////////////////////////////////////////
 
@@ -548,7 +563,7 @@ public final class PulsarSourceOptions {
     public static final ConfigOption<Integer> PULSAR_MAX_REDELIVER_COUNT =
             ConfigOptions.key(CONSUMER_CONFIG_PREFIX + "deadLetterPolicy.maxRedeliverCount")
                     .intType()
-                    .defaultValue(0)
+                    .noDefaultValue()
                     .withDescription(
                             "The maximum number of times that a message are redelivered before being sent to the dead letter queue.");
 

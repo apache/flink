@@ -56,6 +56,8 @@ import java.util.concurrent.TimeoutException;
 
 import static org.apache.flink.connector.pulsar.common.utils.PulsarExceptionUtils.sneakyClient;
 import static org.apache.flink.connector.pulsar.source.config.PulsarSourceConfigUtils.createConsumerBuilder;
+import static org.apache.flink.connector.pulsar.source.enumerator.topic.range.RangeGenerator.KeySharedMode.JOIN;
+import static org.apache.pulsar.client.api.KeySharedPolicy.stickyHashRange;
 
 /**
  * The common partition split reader.
@@ -219,9 +221,17 @@ abstract class PulsarPartitionSplitReaderBase<OUT>
 
         // Add KeySharedPolicy for Key_Shared subscription.
         if (sourceConfiguration.getSubscriptionType() == SubscriptionType.Key_Shared) {
-            KeySharedPolicy policy =
-                    KeySharedPolicy.stickyHashRange().ranges(partition.getPulsarRange());
+            KeySharedPolicy policy = stickyHashRange().ranges(partition.getPulsarRanges());
+            // We may enable out of order delivery for speeding up. It was turned off by default.
+            policy.setAllowOutOfOrderDelivery(
+                    sourceConfiguration.isAllowKeySharedOutOfOrderDelivery());
             consumerBuilder.keySharedPolicy(policy);
+
+            if (partition.getMode() == JOIN) {
+                // Override the key shared subscription into exclusive for making it behaviors like
+                // a Pulsar Reader which supports partial key hash ranges.
+                consumerBuilder.subscriptionType(SubscriptionType.Exclusive);
+            }
         }
 
         // Create the consumer configuration by using common utils.
