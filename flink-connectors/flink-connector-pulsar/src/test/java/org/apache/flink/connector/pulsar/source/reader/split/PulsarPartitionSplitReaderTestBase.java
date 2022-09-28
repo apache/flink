@@ -65,7 +65,6 @@ import static org.apache.flink.connector.pulsar.source.PulsarSourceOptions.PULSA
 import static org.apache.flink.connector.pulsar.source.PulsarSourceOptions.PULSAR_MAX_FETCH_TIME;
 import static org.apache.flink.connector.pulsar.source.PulsarSourceOptions.PULSAR_SUBSCRIPTION_NAME;
 import static org.apache.flink.connector.pulsar.source.enumerator.topic.TopicNameUtils.topicNameWithPartition;
-import static org.apache.flink.connector.pulsar.source.enumerator.topic.TopicRange.createFullRange;
 import static org.apache.flink.connector.pulsar.source.reader.deserializer.PulsarDeserializationSchema.flinkSchema;
 import static org.apache.flink.connector.pulsar.testutils.PulsarTestCommonUtils.isAssignableFromParameterContext;
 import static org.apache.flink.connector.pulsar.testutils.extension.TestOrderlinessExtension.PULSAR_SOURCE_READER_SUBSCRIPTION_TYPE_STORE_KEY;
@@ -110,7 +109,7 @@ abstract class PulsarPartitionSplitReaderTestBase extends PulsarTestSuiteBase {
             String topicName,
             int partitionId,
             MessageId startPosition) {
-        TopicPartition partition = new TopicPartition(topicName, partitionId, createFullRange());
+        TopicPartition partition = new TopicPartition(topicName, partitionId);
         PulsarPartitionSplit split =
                 new PulsarPartitionSplit(partition, StopCursor.never(), startPosition, null);
         SplitsAddition<PulsarPartitionSplit> addition = new SplitsAddition<>(singletonList(split));
@@ -127,7 +126,7 @@ abstract class PulsarPartitionSplitReaderTestBase extends PulsarTestSuiteBase {
             String topicName,
             int partitionId,
             MessageId startPosition) {
-        TopicPartition partition = new TopicPartition(topicName, partitionId, createFullRange());
+        TopicPartition partition = new TopicPartition(topicName, partitionId);
         PulsarPartitionSplit split =
                 new PulsarPartitionSplit(partition, StopCursor.never(), null, null);
         SplitsAddition<PulsarPartitionSplit> addition = new SplitsAddition<>(singletonList(split));

@@ -18,17 +18,25 @@
 
 package org.apache.flink.connector.pulsar.source.enumerator.topic;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.connector.base.source.reader.splitreader.SplitReader;
+import org.apache.flink.connector.pulsar.source.enumerator.topic.range.RangeGenerator.KeySharedMode;
+
+import org.apache.flink.shaded.guava30.com.google.common.collect.ImmutableList;
 
 import org.apache.pulsar.client.api.Range;
 import org.apache.pulsar.client.api.SubscriptionType;
 
 import java.io.Serializable;
+import java.util.List;
 import java.util.Objects;
 
+import static java.util.stream.Collectors.toList;
 import static org.apache.flink.connector.pulsar.source.enumerator.topic.TopicNameUtils.topicName;
 import static org.apache.flink.connector.pulsar.source.enumerator.topic.TopicNameUtils.topicNameWithPartition;
+import static org.apache.flink.connector.pulsar.source.enumerator.topic.TopicRange.createFullRange;
+import static org.apache.flink.connector.pulsar.source.enumerator.topic.range.RangeGenerator.KeySharedMode.SPLIT;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
@@ -39,15 +47,17 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 public class TopicPartition implements Serializable {
     private static final long serialVersionUID = -1474354741550810953L;
 
+    private static final List<TopicRange> FULL_RANGES = ImmutableList.of(createFullRange());
+
     /**
-     * The topic name of the pulsar. It would be a full topic name, if your don't provide the tenant
+     * The topic name of the pulsar. It would be a full topic name. If you don't provide the tenant
      * and namespace, we would add them automatically.
      */
     private final String topic;
 
     /**
-     * Index of partition for the topic. It would be natural number for partitioned topic with a
-     * non-key_shared subscription.
+     * Index of partition for the topic. It would be a natural number for the partitioned topic with
+     * a non-key_shared subscription.
      */
     private final int partitionId;
 
@@ -56,12 +66,28 @@ public class TopicPartition implements Serializable {
      * TopicRange#createFullRange()} full range for all the subscription type except {@link
      * SubscriptionType#Key_Shared}.
      */
-    private final TopicRange range;
+    private final List<TopicRange> ranges;
 
-    public TopicPartition(String topic, int partitionId, TopicRange range) {
+    /**
+     * The key share mode for the {@link SubscriptionType#Key_Shared}. It will be {@link
+     * KeySharedMode#JOIN} for other subscriptions.
+     */
+    private final KeySharedMode mode;
+
+    public TopicPartition(String topic, int partitionId) {
+        this(topic, partitionId, FULL_RANGES, SPLIT);
+    }
+
+    public TopicPartition(String topic, int partitionId, List<TopicRange> ranges) {
+        this(topic, partitionId, ranges, SPLIT);
+    }
+
+    public TopicPartition(
+            String topic, int partitionId, List<TopicRange> ranges, KeySharedMode mode) {
         this.topic = topicName(checkNotNull(topic));
         this.partitionId = partitionId;
-        this.range = checkNotNull(range);
+        this.ranges = checkNotNull(ranges);
+        this.mode = mode;
     }
 
     public String getTopic() {
@@ -84,12 +110,22 @@ public class TopicPartition implements Serializable {
         }
     }
 
-    public TopicRange getRange() {
-        return range;
+    /** This method is internal used for serialization. */
+    @Internal
+    public List<TopicRange> getRanges() {
+        return ranges;
     }
 
-    public Range getPulsarRange() {
-        return range.toPulsarRange();
+    /** This method is internal used for define key shared subscription. */
+    @Internal
+    public List<Range> getPulsarRanges() {
+        return ranges.stream().map(TopicRange::toPulsarRange).collect(toList());
+    }
+
+    /** This method is internal used for key shared mode. */
+    @Internal
+    public KeySharedMode getMode() {
+        return mode;
     }
 
     @Override
@@ -100,19 +136,21 @@ public class TopicPartition implements Serializable {
         if (o == null || getClass() != o.getClass()) {
             return false;
         }
-        TopicPartition that = (TopicPartition) o;
-        return partitionId == that.partitionId
-                && topic.equals(that.topic)
-                && range.equals(that.range);
+        TopicPartition partition = (TopicPartition) o;
+
+        return partitionId == partition.partitionId
+                && topic.equals(partition.topic)
+                && ranges.equals(partition.ranges)
+                && mode == partition.mode;
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(topic, partitionId, range);
+        return Objects.hash(topic, partitionId, ranges, mode);
     }
 
     @Override
     public String toString() {
-        return getFullTopicName() + "|" + range;
+        return getFullTopicName() + "|" + ranges;
     }
 }

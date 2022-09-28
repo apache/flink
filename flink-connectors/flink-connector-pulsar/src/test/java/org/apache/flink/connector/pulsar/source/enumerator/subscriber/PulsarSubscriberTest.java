@@ -37,7 +37,6 @@ import static org.apache.flink.connector.pulsar.source.enumerator.subscriber.Pul
 import static org.apache.flink.connector.pulsar.source.enumerator.subscriber.PulsarSubscriber.getTopicPatternSubscriber;
 import static org.apache.flink.connector.pulsar.source.enumerator.topic.TopicNameUtils.topicName;
 import static org.apache.flink.connector.pulsar.source.enumerator.topic.TopicNameUtils.topicNameWithPartition;
-import static org.apache.flink.connector.pulsar.source.enumerator.topic.TopicRange.createFullRange;
 import static org.apache.pulsar.client.api.RegexSubscriptionMode.AllTopics;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -81,8 +80,8 @@ class PulsarSubscriberTest extends PulsarTestSuiteBase {
         Set<TopicPartition> expectedPartitions = new HashSet<>();
 
         for (int i = 0; i < NUM_PARTITIONS_PER_TOPIC; i++) {
-            expectedPartitions.add(new TopicPartition(topic1, i, createFullRange()));
-            expectedPartitions.add(new TopicPartition(topic2, i, createFullRange()));
+            expectedPartitions.add(new TopicPartition(topic1, i));
+            expectedPartitions.add(new TopicPartition(topic2, i));
         }
 
         assertEquals(expectedPartitions, topicPartitions);
@@ -97,7 +96,7 @@ class PulsarSubscriberTest extends PulsarTestSuiteBase {
                 subscriber.getSubscribedTopicPartitions(
                         operator().admin(), new FullRangeGenerator(), NUM_PARALLELISM);
 
-        TopicPartition desiredPartition = new TopicPartition(topic1, 2, createFullRange());
+        TopicPartition desiredPartition = new TopicPartition(topic1, 2);
         assertThat(partitions).hasSize(1).containsExactly(desiredPartition);
     }
 
@@ -108,7 +107,7 @@ class PulsarSubscriberTest extends PulsarTestSuiteBase {
                 subscriber.getSubscribedTopicPartitions(
                         operator().admin(), new FullRangeGenerator(), NUM_PARALLELISM);
 
-        TopicPartition desiredPartition = new TopicPartition(topic4, -1, createFullRange());
+        TopicPartition desiredPartition = new TopicPartition(topic4, -1);
         assertThat(partitions).hasSize(1).containsExactly(desiredPartition);
     }
 
@@ -125,8 +124,8 @@ class PulsarSubscriberTest extends PulsarTestSuiteBase {
 
         Set<TopicPartition> expectedPartitions = new HashSet<>();
 
-        expectedPartitions.add(new TopicPartition(topic4, -1, createFullRange()));
-        expectedPartitions.add(new TopicPartition(topic5, -1, createFullRange()));
+        expectedPartitions.add(new TopicPartition(topic4, -1));
+        expectedPartitions.add(new TopicPartition(topic5, -1));
 
         assertEquals(expectedPartitions, topicPartitions);
     }
@@ -144,8 +143,8 @@ class PulsarSubscriberTest extends PulsarTestSuiteBase {
         Set<TopicPartition> expectedPartitions = new HashSet<>();
 
         for (int i = 0; i < NUM_PARTITIONS_PER_TOPIC; i++) {
-            expectedPartitions.add(new TopicPartition(topic1, i, createFullRange()));
-            expectedPartitions.add(new TopicPartition(topic3, i, createFullRange()));
+            expectedPartitions.add(new TopicPartition(topic1, i));
+            expectedPartitions.add(new TopicPartition(topic3, i));
         }
 
         assertEquals(expectedPartitions, topicPartitions);

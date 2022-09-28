@@ -18,6 +18,7 @@
 
 package org.apache.flink.connector.pulsar.source.enumerator.topic.range;
 
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.connector.pulsar.source.enumerator.topic.TopicMetadata;
 import org.apache.flink.connector.pulsar.source.enumerator.topic.TopicRange;
 
@@ -27,27 +28,55 @@ import java.util.ArrayList;
 import java.util.List;
 
 import static org.apache.flink.connector.pulsar.source.enumerator.topic.TopicRange.MAX_RANGE;
-import static org.apache.flink.connector.pulsar.source.enumerator.topic.TopicRange.RANGE_SIZE;
+import static org.apache.flink.connector.pulsar.source.enumerator.topic.TopicRange.MIN_RANGE;
+import static org.apache.flink.util.Preconditions.checkArgument;
 
 /**
  * This range generator would divide the range by the flink source parallelism. It would be the
  * default implementation for {@link SubscriptionType#Key_Shared} subscription.
  */
-public class UniformRangeGenerator implements RangeGenerator {
-    private static final long serialVersionUID = -7292650922683609268L;
+@PublicEvolving
+public class SplitRangeGenerator implements RangeGenerator {
+    private static final long serialVersionUID = -8682286436352905249L;
+
+    private final int start;
+    private final int end;
+
+    public SplitRangeGenerator() {
+        this(MIN_RANGE, MAX_RANGE);
+    }
+
+    public SplitRangeGenerator(int start, int end) {
+        checkArgument(
+                start >= MIN_RANGE,
+                "Start range should be equal to or great than the min range " + MIN_RANGE);
+        checkArgument(
+                end <= MAX_RANGE, "End range should below or less than the max range " + MAX_RANGE);
+        checkArgument(start <= end, "Start range should be equal to or less than the end range");
+
+        this.start = start;
+        this.end = end;
+    }
 
     @Override
     public List<TopicRange> range(TopicMetadata metadata, int parallelism) {
-        List<TopicRange> results = new ArrayList<>(parallelism);
+        final int range = end - start + 1;
+        final int size = Math.min(range, parallelism);
+        int startRange = start;
 
-        int startRange = 0;
-        for (int i = 1; i < parallelism; i++) {
-            int nextStartRange = i * RANGE_SIZE / parallelism;
+        List<TopicRange> results = new ArrayList<>(size);
+        for (int i = 1; i < size; i++) {
+            int nextStartRange = i * range / size + start;
             results.add(new TopicRange(startRange, nextStartRange - 1));
             startRange = nextStartRange;
         }
-        results.add(new TopicRange(startRange, MAX_RANGE));
+        results.add(new TopicRange(startRange, end));
 
         return results;
+    }
+
+    @Override
+    public KeySharedMode keyShareMode(TopicMetadata metadata, int parallelism) {
+        return KeySharedMode.SPLIT;
     }
 }

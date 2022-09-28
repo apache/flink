@@ -18,23 +18,40 @@
 
 package org.apache.flink.connector.pulsar.source.enumerator.topic.range;
 
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.connector.pulsar.source.enumerator.topic.TopicMetadata;
 import org.apache.flink.connector.pulsar.source.enumerator.topic.TopicRange;
 
 import java.util.List;
 
+import static org.apache.flink.connector.pulsar.source.enumerator.topic.range.TopicRangeUtils.validateTopicRanges;
+
 /** Always return the same range set for all topics. */
+@PublicEvolving
 public class FixedRangeGenerator implements RangeGenerator {
     private static final long serialVersionUID = -3895203007855538734L;
 
     private final List<TopicRange> ranges;
+    private final KeySharedMode sharedMode;
 
     public FixedRangeGenerator(List<TopicRange> ranges) {
+        this(ranges, KeySharedMode.JOIN);
+    }
+
+    public FixedRangeGenerator(List<TopicRange> ranges, KeySharedMode sharedMode) {
+        validateTopicRanges(ranges, sharedMode);
+
         this.ranges = ranges;
+        this.sharedMode = sharedMode;
     }
 
     @Override
     public List<TopicRange> range(TopicMetadata metadata, int parallelism) {
         return ranges;
+    }
+
+    @Override
+    public KeySharedMode keyShareMode(TopicMetadata metadata, int parallelism) {
+        return sharedMode;
     }
 }
