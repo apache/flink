@@ -29,6 +29,7 @@ import java.util.Objects;
 
 import static org.apache.flink.connector.pulsar.source.enumerator.topic.TopicNameUtils.topicName;
 import static org.apache.flink.connector.pulsar.source.enumerator.topic.TopicNameUtils.topicNameWithPartition;
+import static org.apache.flink.connector.pulsar.source.enumerator.topic.TopicRange.createFullRange;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
@@ -57,6 +58,10 @@ public class TopicPartition implements Serializable {
      * SubscriptionType#Key_Shared}.
      */
     private final TopicRange range;
+
+    public TopicPartition(String topic, int partitionId) {
+        this(topic, partitionId, createFullRange());
+    }
 
     public TopicPartition(String topic, int partitionId, TopicRange range) {
         this.topic = topicName(checkNotNull(topic));

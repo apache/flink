@@ -72,8 +72,5 @@ public abstract class UnorderedSourceTestSuiteBase<T> extends SourceTestSuiteBas
     public void testIdleReader(
             TestEnvironment testEnv,
             DataStreamSourceExternalContext<T> externalContext,
-            CheckpointingMode semantic)
-            throws Exception {
-        super.testIdleReader(testEnv, externalContext, semantic);
-    }
+            CheckpointingMode semantic) {}
 }

@@ -22,7 +22,6 @@ import org.apache.flink.api.connector.source.Boundedness;
 import org.apache.flink.connector.base.DeliveryGuarantee;
 import org.apache.flink.connector.pulsar.source.enumerator.cursor.StopCursor;
 import org.apache.flink.connector.pulsar.source.enumerator.topic.TopicPartition;
-import org.apache.flink.connector.pulsar.source.enumerator.topic.TopicRange;
 import org.apache.flink.connector.pulsar.source.split.PulsarPartitionSplit;
 import org.apache.flink.streaming.api.CheckpointingMode;
 
@@ -59,9 +58,7 @@ public class PulsarTestCommonUtils {
 
     public static PulsarPartitionSplit createPartitionSplit(
             String topic, int partitionId, Boundedness boundedness, MessageId latestConsumedId) {
-        TopicPartition topicPartition =
-                new TopicPartition(topic, partitionId, TopicRange.createFullRange());
-
+        TopicPartition topicPartition = new TopicPartition(topic, partitionId);
         StopCursor stopCursor =
                 boundedness == Boundedness.BOUNDED ? StopCursor.latest() : StopCursor.never();
         return new PulsarPartitionSplit(topicPartition, stopCursor, latestConsumedId, null);

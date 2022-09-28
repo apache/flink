@@ -22,7 +22,8 @@ import org.apache.flink.connector.pulsar.testutils.PulsarTestContextFactory;
 import org.apache.flink.connector.pulsar.testutils.PulsarTestEnvironment;
 import org.apache.flink.connector.pulsar.testutils.runtime.PulsarRuntime;
 import org.apache.flink.connector.pulsar.testutils.source.UnorderedSourceTestSuiteBase;
-import org.apache.flink.connector.pulsar.testutils.source.cases.MultipleTopicConsumingContext;
+import org.apache.flink.connector.pulsar.testutils.source.cases.KeySharedSubscriptionContext;
+import org.apache.flink.connector.pulsar.testutils.source.cases.SharedSubscriptionContext;
 import org.apache.flink.connector.testframe.environment.MiniClusterTestEnvironment;
 import org.apache.flink.connector.testframe.junit.annotations.TestContext;
 import org.apache.flink.connector.testframe.junit.annotations.TestEnv;
@@ -33,8 +34,6 @@ import org.apache.flink.testutils.junit.FailsOnJava11;
 
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.junit.experimental.categories.Category;
-
-import static org.apache.pulsar.client.api.SubscriptionType.Shared;
 
 /**
  * Unit test class for {@link PulsarSource}. Used for {@link SubscriptionType#Shared} subscription.
@@ -53,7 +52,10 @@ public class PulsarUnorderedSourceITCase extends UnorderedSourceTestSuiteBase<St
     CheckpointingMode[] semantics = new CheckpointingMode[] {CheckpointingMode.EXACTLY_ONCE};
 
     @TestContext
-    PulsarTestContextFactory<String, MultipleTopicConsumingContext> multipleTopic =
-            new PulsarTestContextFactory<>(
-                    pulsar, env -> new MultipleTopicConsumingContext(env, Shared));
+    PulsarTestContextFactory<String, SharedSubscriptionContext> sharedSubscription =
+            new PulsarTestContextFactory<>(pulsar, SharedSubscriptionContext::new);
+
+    @TestContext
+    PulsarTestContextFactory<String, KeySharedSubscriptionContext> keySharedSubscription =
+            new PulsarTestContextFactory<>(pulsar, KeySharedSubscriptionContext::new);
 }

@@ -16,16 +16,15 @@
  * limitations under the License.
  */
 
-package org.apache.flink.tests.util.pulsar.source;
+package org.apache.flink.connector.pulsar.testutils.source.cases;
 
 import org.apache.flink.connector.pulsar.source.PulsarSourceBuilder;
 import org.apache.flink.connector.pulsar.source.enumerator.topic.TopicRange;
 import org.apache.flink.connector.pulsar.source.enumerator.topic.range.FixedRangeGenerator;
 import org.apache.flink.connector.pulsar.testutils.PulsarTestEnvironment;
-import org.apache.flink.connector.pulsar.testutils.source.cases.MultipleTopicConsumingContext;
+import org.apache.flink.connector.pulsar.testutils.source.KeyedPulsarPartitionDataWriter;
 import org.apache.flink.connector.testframe.external.ExternalSystemSplitDataWriter;
 import org.apache.flink.connector.testframe.external.source.TestingSourceSettings;
-import org.apache.flink.tests.util.pulsar.common.KeyedPulsarPartitionDataWriter;
 
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.common.util.Murmur3_32Hash;
@@ -33,33 +32,23 @@ import org.apache.pulsar.common.util.Murmur3_32Hash;
 import static java.util.Collections.singletonList;
 import static org.apache.commons.lang3.RandomStringUtils.randomAlphabetic;
 import static org.apache.flink.connector.pulsar.source.enumerator.topic.TopicRange.RANGE_SIZE;
-import static org.apache.pulsar.client.api.SubscriptionType.Key_Shared;
 
 /** We would consume from test splits by using {@link SubscriptionType#Key_Shared} subscription. */
 public class KeySharedSubscriptionContext extends MultipleTopicConsumingContext {
 
     private final String keyToRead;
-    private final String keyToExclude;
 
     public KeySharedSubscriptionContext(PulsarTestEnvironment environment) {
-        super(environment, Key_Shared);
+        super(environment);
 
         this.keyToRead = randomAlphabetic(8);
-
-        // Make sure they have different hash code.
-        int readHash = keyHash(keyToRead);
-        String randomKey;
-        do {
-            randomKey = randomAlphabetic(8);
-        } while (keyHash(randomKey) == readHash);
-        this.keyToExclude = randomKey;
     }
 
     @Override
     public ExternalSystemSplitDataWriter<String> createSourceSplitDataWriter(
             TestingSourceSettings sourceSettings) {
         String partitionName = generatePartitionName();
-        return new KeyedPulsarPartitionDataWriter(operator, partitionName, keyToRead, keyToExclude);
+        return new KeyedPulsarPartitionDataWriter(operator, partitionName, keyToRead);
     }
 
     @Override
@@ -78,6 +67,11 @@ public class KeySharedSubscriptionContext extends MultipleTopicConsumingContext 
     @Override
     protected String subscriptionName() {
         return "pulsar-key-shared-subscription";
+    }
+
+    @Override
+    protected SubscriptionType subscriptionType() {
+        return SubscriptionType.Key_Shared;
     }
 
     // This method is copied from Pulsar for calculating message key hash.
