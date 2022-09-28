@@ -301,11 +301,44 @@ PulsarSource.builder().set_subscription_name("my-exclusive").set_subscription_ty
 {{< /tab >}}
 {{< /tabs >}}
 
-Ensure that you provide a `RangeGenerator` implementation if you want to use the `Key_Shared` subscription type on the Pulsar connector.
-The `RangeGenerator` generates a set of key hash ranges so that a respective reader subtask only dispatches messages where the hash of the message key is contained in the specified range.
+#### Key_Shared subscriptions
 
-The Pulsar connector uses `UniformRangeGenerator` that divides the range by the Flink source
+All the Pulsar's messages will be calculated with a key hash in Key_Shared subscription.
+The hash range must be 0 to 65535. We try to compute the key hash in the order of `Message.getOrderingKey()`,
+`Message.getKey()` or `Message.getKeyBytes()`. We will use `"NO_KEY"` str as the message key if none of these keys has been provided.
+
+Pulsar's Key_Shared subscription comes in two forms in Connector, the `KeySharedMode.SPLIT` and `KeySharedMode.JOIN`.
+Different `KeySharedMode` means different split assignment behaviors. If you only consume a subset of Pulsar's key hash range,
+remember to use the `KeySharedMode.JOIN` which will subscribe all the range in only one reader.
+Otherwise, when the ranges can join into a full Pulsar key hash range (0~65535) you should use `KeySharedMode.SPLIT`
+mode for sharing the splits among all the backend readers.
+
+In the `KeySharedMode.SPLIT` mode. The topic will be subscribed by multiple readers.
+But Pulsar has one limit in this situation. That is if a Message can't find the corresponding reader by the key hash range.
+No messages will be delivered to the current readers, until there is a reader which can subscribe to such messages.
+
+##### Define a RangeGenerator
+
+Ensure that you have provided a `RangeGenerator` implementation if you want to use the `Key_Shared` subscription type on the Pulsar connector.
+The `RangeGenerator` generates a set of key hash ranges so that a respective reader subtask only dispatches
+messages where the hash of the message key is contained in the specified range.
+
+The Pulsar connector uses `SplitRangeGenerator` that divides the range by the Flink source
 parallelism if no `RangeGenerator` is provided in the `Key_Shared` subscription type.
+
+Since the Pulsar didn't expose the key hash range method. We have to provide an `FixedKeysRangeGenerator` for end-user.
+You can add the keys you want to consume, no need to calculate any hash ranges.
+The key's hash isn't specified to only one key, so the consuming results may contain the messages with
+different keys comparing the keys you have defined in this range generator.
+Remember to use flink's `DataStream.filter()` method after the Pulsar source.
+
+```java
+FixedKeysRangeGenerator.builder()
+    .supportNullKey()
+    .key("someKey")
+    .keys(Arrays.asList("key1", "key2"))
+    .build()
+```
 
 ### Starting Position
 

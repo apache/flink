@@ -273,9 +273,21 @@ PulsarSource.builder().set_subscription_name("my-exclusive").set_subscription_ty
 {{< /tab >}}
 {{< /tabs >}}
 
-如果想在 Pulsar Source 里面使用 `key 共享` 订阅，需要提供 `RangeGenerator` 实例。`RangeGenerator` 会生成一组消息 key 的 hash 范围，Pulsar Source 会基于给定的范围来消费数据。
+#### Key_Shared 订阅
 
-Pulsar Source 也提供了一个名为 `UniformRangeGenerator` 的默认实现，它会基于 flink 数据源的并行度将 hash 范围均分。
+当时用 Key_Shared 订阅时，Pulsar 将会基于 Message 的 key 去计算对应的 Hash 值，Hash 取值范围为（0～65535）。我们首先会使用 `Message.getOrderingKey()` 计算 Hash，如果没有则会依次使用 `Message.getKey()` 和 `Message.getKeyBytes()`。对于上述 key 都找不到的消息，我们会使用字符串 `"NO_KEY"` 来计算消息的 Hash 值。
+
+在 Flink Connector 中针对 Key_Shared 订阅提供了两种消费模式，分别是 `KeySharedMode.SPLIT` 和 `KeySharedMode.JOIN`，它们的实际消费行为并不相同。`KeySharedMode.JOIN` 会把所有的给定的 Hash 范围放于一个 Reader 中进行消费，而 `KeySharedMode.SPLIT` 会打散给定的 Hash 范围于不同的 Reader 中消费。
+
+之所以这么设计的主要原因是因为，在 Key_Shared 的订阅模式中，如果一条消息找不到对应的消费者，所有的消息都不会继续往下发送。所以我们提供了 `KeySharedMode.JOIN` 模式，允许用户只消费部分 Hash 范围的消息。
+
+##### 定义 RangeGenerator
+
+如果想在 Pulsar Source 里面使用 `Key_Shared` 订阅，需要提供 `RangeGenerator` 实例。`RangeGenerator` 会生成一组消息 key 的 hash 范围，Pulsar Source 会基于给定的范围来消费数据。
+
+Pulsar Source 也提供了一个名为 `SplitRangeGenerator` 的默认实现，它会基于 flink 数据源的并行度将 hash 范围均分。
+
+由于 Pulsar 并未提供 Key 的 Hash 计算方法，所以我们在 Flink 中提供了名为 `FixedKeysRangeGenerator` 的实现，你可以在 builder 中依次提供需要消费的 Key 内容即可。但需要注意的是，Pulsar 的 Key Hash 值并不对应唯一的一个 Key，所以如果你只想消费某几个 Key 的消息，还需要在后面的代码中使用 `DataStream.filter()` 方法来过滤出对应的消息。
 
 ### 起始消费位置
 
