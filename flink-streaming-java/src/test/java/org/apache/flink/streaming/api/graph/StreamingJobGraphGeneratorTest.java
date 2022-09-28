@@ -75,9 +75,11 @@ import org.apache.flink.streaming.api.functions.sink.DiscardingSink;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.streaming.api.functions.source.InputFormatSourceFunction;
 import org.apache.flink.streaming.api.functions.source.ParallelSourceFunction;
+import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperatorFactory;
 import org.apache.flink.streaming.api.operators.ChainingStrategy;
 import org.apache.flink.streaming.api.operators.CoordinatedOperatorFactory;
+import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperatorFactory;
 import org.apache.flink.streaming.api.operators.SimpleOperatorFactory;
 import org.apache.flink.streaming.api.operators.SourceOperatorFactory;
@@ -94,6 +96,7 @@ import org.apache.flink.streaming.api.transformations.StreamExchangeMode;
 import org.apache.flink.streaming.runtime.partitioner.ForwardPartitioner;
 import org.apache.flink.streaming.runtime.partitioner.RebalancePartitioner;
 import org.apache.flink.streaming.runtime.partitioner.RescalePartitioner;
+import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.MultipleInputStreamTask;
 import org.apache.flink.streaming.runtime.tasks.SourceOperatorStreamTask;
 import org.apache.flink.streaming.util.TestAnyModeReadingStreamOperator;
@@ -109,6 +112,8 @@ import org.assertj.core.data.Offset;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 
+import java.io.IOException;
+import java.io.ObjectOutputStream;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -1689,6 +1694,106 @@ class StreamingJobGraphGeneratorTest {
                         .collect(Collectors.toList());
         assertThat(streamOutputsInOrder).hasSize(6);
         assertThat(streamOutputsInOrder).isEqualTo(producedDataSet);
+    }
+
+    @Test
+    void testStreamConfigSerializationException() {
+        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        DataStreamSource<Integer> source = env.fromElements(1, 2, 3);
+        env.addOperator(
+                new OneInputTransformation<>(
+                        source.getTransformation(),
+                        "serializationTestOperator",
+                        // using a non-serializable operator factory to trigger an IOException when
+                        // try to serialize streamConfig.
+                        new SerializationTestOperatorFactory(false),
+                        Types.INT,
+                        1));
+        final StreamGraph streamGraph = env.getStreamGraph();
+        assertThatThrownBy(() -> StreamingJobGraphGenerator.createJobGraph(streamGraph))
+                .hasRootCauseInstanceOf(IOException.class)
+                .hasRootCauseMessage("This operator factory is not serializable.");
+    }
+
+    @Test
+    public void testCoordinatedSerializationException() {
+        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        DataStreamSource<Integer> source = env.fromElements(1, 2, 3);
+        env.addOperator(
+                new OneInputTransformation<>(
+                        source.getTransformation(),
+                        "serializationTestOperator",
+                        new SerializationTestOperatorFactory(true),
+                        Types.INT,
+                        1));
+
+        StreamGraph streamGraph = env.getStreamGraph();
+        assertThatThrownBy(() -> StreamingJobGraphGenerator.createJobGraph(streamGraph))
+                .hasRootCauseInstanceOf(IOException.class)
+                .hasRootCauseMessage("This provider is not serializable.");
+    }
+
+    private static class SerializationTestOperatorFactory
+            extends AbstractStreamOperatorFactory<Integer>
+            implements CoordinatedOperatorFactory<Integer> {
+        private final boolean isOperatorFactorySerializable;
+
+        SerializationTestOperatorFactory(boolean isOperatorFactorySerializable) {
+            this.isOperatorFactorySerializable = isOperatorFactorySerializable;
+        }
+
+        @Override
+        public OperatorCoordinator.Provider getCoordinatorProvider(
+                String operatorName, OperatorID operatorID) {
+            return new NonSerializableCoordinatorProvider();
+        }
+
+        private void writeObject(ObjectOutputStream oos) throws IOException {
+            if (!isOperatorFactorySerializable) {
+                throw new IOException("This operator factory is not serializable.");
+            }
+        }
+
+        @Override
+        public <T extends StreamOperator<Integer>> T createStreamOperator(
+                StreamOperatorParameters<Integer> parameters) {
+            // today's lunch is generics spaghetti
+            @SuppressWarnings("unchecked")
+            final T castedOperator = (T) new SerializationTestOperator();
+            return castedOperator;
+        }
+
+        @Override
+        public Class<? extends StreamOperator> getStreamOperatorClass(ClassLoader classLoader) {
+            return SerializationTestOperator.class;
+        }
+    }
+
+    private static class SerializationTestOperator extends AbstractStreamOperator<Integer>
+            implements OneInputStreamOperator<Integer, Integer> {
+
+        @Override
+        public void processElement(StreamRecord<Integer> element) throws Exception {
+            throw new UnsupportedOperationException();
+        }
+    }
+
+    private static class NonSerializableCoordinatorProvider
+            implements OperatorCoordinator.Provider {
+
+        @Override
+        public OperatorID getOperatorId() {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public OperatorCoordinator create(OperatorCoordinator.Context context) throws Exception {
+            throw new UnsupportedOperationException();
+        }
+
+        private void writeObject(ObjectOutputStream oos) throws IOException {
+            throw new IOException("This provider is not serializable.");
+        }
     }
 
     private static JobVertex findJobVertexWithName(List<JobVertex> vertices, String name) {
