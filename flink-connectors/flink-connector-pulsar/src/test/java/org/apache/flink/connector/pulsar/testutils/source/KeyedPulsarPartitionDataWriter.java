@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.tests.util.pulsar.common;
+package org.apache.flink.connector.pulsar.testutils.source;
 
 import org.apache.flink.connector.pulsar.testutils.runtime.PulsarRuntimeOperator;
 import org.apache.flink.connector.testframe.external.ExternalSystemSplitDataWriter;
@@ -51,9 +51,11 @@ public class KeyedPulsarPartitionDataWriter implements ExternalSystemSplitDataWr
 
     @Override
     public void writeRecords(List<String> records) {
+        // Send messages with the key we don't need.
         List<String> newRecords = records.stream().map(a -> a + keyToRead).collect(toList());
-
         operator.sendMessages(fullTopicName, Schema.STRING, keyToExclude, newRecords);
+
+        // Send messages with the given key.
         operator.sendMessages(fullTopicName, Schema.STRING, keyToRead, records);
     }
 
