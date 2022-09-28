@@ -22,7 +22,6 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.connector.base.DeliveryGuarantee;
 import org.apache.flink.connector.pulsar.common.config.PulsarConfiguration;
 import org.apache.flink.connector.pulsar.source.enumerator.topic.TopicPartition;
-import org.apache.flink.connector.pulsar.source.enumerator.topic.TopicRange;
 import org.apache.flink.connector.testframe.external.ExternalContext;
 
 import org.apache.flink.shaded.guava30.com.google.common.base.Strings;
@@ -48,7 +47,6 @@ import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 
 import java.io.Closeable;
-import java.io.IOException;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -228,12 +226,7 @@ public class PulsarRuntimeOperator implements Closeable {
     public List<TopicPartition> topicInfo(String topic) {
         try {
             return client().getPartitionsForTopic(topic).get().stream()
-                    .map(
-                            p ->
-                                    new TopicPartition(
-                                            topic,
-                                            TopicName.getPartitionIndex(p),
-                                            TopicRange.createFullRange()))
+                    .map(p -> new TopicPartition(topic, TopicName.getPartitionIndex(p)))
                     .collect(toList());
         } catch (InterruptedException | ExecutionException e) {
             throw new IllegalStateException(e);
@@ -452,7 +445,7 @@ public class PulsarRuntimeOperator implements Closeable {
 
     /** This method is used for test framework. You can't close this operator manually. */
     @Override
-    public void close() throws IOException {
+    public void close() throws PulsarClientException {
         if (admin != null) {
             admin.close();
         }
@@ -485,7 +478,7 @@ public class PulsarRuntimeOperator implements Closeable {
         }
     }
 
-    private synchronized <T> Producer<T> createProducer(String topic, Schema<T> schema) {
+    private <T> Producer<T> createProducer(String topic, Schema<T> schema) {
         ProducerBuilder<T> builder =
                 client().newProducer(schema)
                         .topic(topic)
@@ -496,7 +489,7 @@ public class PulsarRuntimeOperator implements Closeable {
         return sneakyClient(builder::create);
     }
 
-    private synchronized <T> Consumer<T> createConsumer(String topic, Schema<T> schema) {
+    private <T> Consumer<T> createConsumer(String topic, Schema<T> schema) {
         // Create the earliest subscription if it's not existed.
         List<String> subscriptions = sneakyAdmin(() -> admin().topics().getSubscriptions(topic));
         if (!subscriptions.contains(SUBSCRIPTION_NAME)) {
