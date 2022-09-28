@@ -492,3 +492,25 @@ SavepointWriter
     .withOperator(OperatorIdentifier.forUid("uid"), transformation)
     .write(newPath);
 ```
+
+### Changing UID (hashes)
+
+`SavepointWriter#changeOperatorIdenfifier` can be used to modify the [UIDs]({{< ref "docs/concepts/glossary" >}}#uid) or [UID hash]({{< ref "docs/concepts/glossary" >}}#uid-hash) of an operator.
+
+If a `UID` was not explicitly set (and was thus auto-generated and is effectively unknown), you can assign a `UID` provided that you know the `UID hash` (e.g., by parsing the logs):
+```java
+savepointWriter
+    .changeOperatorIdentifier(
+        OperatorIdentifier.forUidHash("2feb7f8bcc404c3ac8a981959780bd78"),
+        OperatorIdentifier.forUid("new-uid"))
+    ...
+```
+
+You can also replace one `UID` with another:
+```java
+savepointWriter
+    .changeOperatorIdentifier(
+        OperatorIdentifier.forUid("old-uid"),
+        OperatorIdentifier.forUid("new-uid"))
+    ...
+```
