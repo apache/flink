@@ -164,10 +164,9 @@ public class StreamConfig implements Serializable {
         FutureUtils.combineAll(chainedTaskFutures.values())
                 .thenAcceptAsync(
                         chainedConfigs -> {
-                            // Serialize all the objects to config.
-                            serializeAllConfigs();
-
                             try {
+                                // Serialize all the objects to config.
+                                serializeAllConfigs();
                                 InstantiationUtil.writeObjectToConfig(
                                         chainedConfigs.stream()
                                                 .collect(
@@ -176,12 +175,10 @@ public class StreamConfig implements Serializable {
                                                                 Function.identity())),
                                         this.config,
                                         CHAINED_TASK_CONFIG);
-                            } catch (IOException e) {
-                                throw new StreamTaskException(
-                                        "Could not serialize object for key chained task config.",
-                                        e);
+                                serializationFuture.complete(this);
+                            } catch (Throwable throwable) {
+                                serializationFuture.completeExceptionally(throwable);
                             }
-                            serializationFuture.complete(this);
                         },
                         ioExecutor);
         return serializationFuture;
