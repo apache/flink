@@ -155,15 +155,7 @@ public class SavepointReader {
      */
     public <T> DataStream<T> readListState(String uid, String name, TypeInformation<T> typeInfo)
             throws IOException {
-        OperatorState operatorState = metadata.getOperatorState(uid);
-        ListStateDescriptor<T> descriptor = new ListStateDescriptor<>(name, typeInfo);
-        ListStateInputFormat<T> inputFormat =
-                new ListStateInputFormat<>(
-                        operatorState,
-                        MutableConfig.of(env.getConfiguration()),
-                        stateBackend,
-                        descriptor);
-        return SourceBuilder.fromFormat(env, inputFormat, typeInfo);
+        return readListState(uid, typeInfo, new ListStateDescriptor<T>(name, typeInfo));
     }
 
     /**
@@ -182,9 +174,14 @@ public class SavepointReader {
     public <T> DataStream<T> readListState(
             String uid, String name, TypeInformation<T> typeInfo, TypeSerializer<T> serializer)
             throws IOException {
+        return readListState(uid, typeInfo, new ListStateDescriptor<T>(name, serializer));
+    }
+
+    private <T> DataStream<T> readListState(
+            String uid, TypeInformation<T> typeInfo, ListStateDescriptor<T> descriptor)
+            throws IOException {
 
         OperatorState operatorState = metadata.getOperatorState(uid);
-        ListStateDescriptor<T> descriptor = new ListStateDescriptor<>(name, serializer);
         ListStateInputFormat<T> inputFormat =
                 new ListStateInputFormat<>(
                         operatorState,
@@ -206,15 +203,7 @@ public class SavepointReader {
      */
     public <T> DataStream<T> readUnionState(String uid, String name, TypeInformation<T> typeInfo)
             throws IOException {
-        OperatorState operatorState = metadata.getOperatorState(uid);
-        ListStateDescriptor<T> descriptor = new ListStateDescriptor<>(name, typeInfo);
-        UnionStateInputFormat<T> inputFormat =
-                new UnionStateInputFormat<>(
-                        operatorState,
-                        MutableConfig.of(env.getConfiguration()),
-                        stateBackend,
-                        descriptor);
-        return SourceBuilder.fromFormat(env, inputFormat, typeInfo);
+        return readUnionState(uid, typeInfo, new ListStateDescriptor<>(name, typeInfo));
     }
 
     /**
@@ -233,9 +222,14 @@ public class SavepointReader {
     public <T> DataStream<T> readUnionState(
             String uid, String name, TypeInformation<T> typeInfo, TypeSerializer<T> serializer)
             throws IOException {
+        return readUnionState(uid, typeInfo, new ListStateDescriptor<>(name, serializer));
+    }
+
+    private <T> DataStream<T> readUnionState(
+            String uid, TypeInformation<T> typeInfo, ListStateDescriptor<T> descriptor)
+            throws IOException {
 
         OperatorState operatorState = metadata.getOperatorState(uid);
-        ListStateDescriptor<T> descriptor = new ListStateDescriptor<>(name, serializer);
         UnionStateInputFormat<T> inputFormat =
                 new UnionStateInputFormat<>(
                         operatorState,
@@ -263,18 +257,11 @@ public class SavepointReader {
             TypeInformation<K> keyTypeInfo,
             TypeInformation<V> valueTypeInfo)
             throws IOException {
-
-        OperatorState operatorState = metadata.getOperatorState(uid);
-        MapStateDescriptor<K, V> descriptor =
-                new MapStateDescriptor<>(name, keyTypeInfo, valueTypeInfo);
-        BroadcastStateInputFormat<K, V> inputFormat =
-                new BroadcastStateInputFormat<>(
-                        operatorState,
-                        MutableConfig.of(env.getConfiguration()),
-                        stateBackend,
-                        descriptor);
-        return SourceBuilder.fromFormat(
-                env, inputFormat, new TupleTypeInfo<>(keyTypeInfo, valueTypeInfo));
+        return readBroadcastState(
+                uid,
+                keyTypeInfo,
+                valueTypeInfo,
+                new MapStateDescriptor<>(name, keyTypeInfo, valueTypeInfo));
     }
 
     /**
@@ -301,10 +288,21 @@ public class SavepointReader {
             TypeSerializer<K> keySerializer,
             TypeSerializer<V> valueSerializer)
             throws IOException {
+        return readBroadcastState(
+                uid,
+                keyTypeInfo,
+                valueTypeInfo,
+                new MapStateDescriptor<>(name, keySerializer, valueSerializer));
+    }
+
+    private <K, V> DataStream<Tuple2<K, V>> readBroadcastState(
+            String uid,
+            TypeInformation<K> keyTypeInfo,
+            TypeInformation<V> valueTypeInfo,
+            MapStateDescriptor<K, V> descriptor)
+            throws IOException {
 
         OperatorState operatorState = metadata.getOperatorState(uid);
-        MapStateDescriptor<K, V> descriptor =
-                new MapStateDescriptor<>(name, keySerializer, valueSerializer);
         BroadcastStateInputFormat<K, V> inputFormat =
                 new BroadcastStateInputFormat<>(
                         operatorState,
