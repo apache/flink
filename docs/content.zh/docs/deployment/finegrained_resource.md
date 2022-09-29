@@ -23,97 +23,90 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-# Fine-Grained Resource Management
 
-Apache Flink works hard to auto-derive sensible default resource requirements for all applications out of the box. 
-For users who wish to fine-tune their resource consumption, based on knowledge of their specific scenarios, Flink offers **fine-grained resource management**.
+# 细粒度资源管理
 
-This page describes the fine-grained resource management’s usage, applicable scenarios, and how it works.
+Apache Flink 致力于自动分配的默认资源合理且都能满足所有应用需求,做到开箱即用。对于希望更精细化调节资源消耗的用户，基于对特定场景的了解，Flink 提供了**细粒度资源管理**。
+本文介绍了细粒度资源管理的使用、适用场景以及工作原理。
 
 {{< hint warning >}}
-**Note:** This feature is currently an MVP (“minimum viable product”) feature and only available to [DataStream API]({{< ref "docs/dev/datastream/overview" >}}).
+**注意:** 本特性是当前的一个最简化产品(版本)的特性，它只支持在 [DataStream API]({{< ref "docs/dev/datastream/overview" >}})中使用。
 {{< /hint >}}
 
-## Applicable Scenarios
+## 使用场景
 
-Typical scenarios that potentially benefit from fine-grained resource management are where:
+可能从细粒度资源管理中受益的典型场景包括：
 
-  - Tasks have significantly different parallelisms.
+- Tasks 有显著不同的并行度的场景。
 
-  - The resource needed for an entire pipeline is too much to fit into a single slot/task manager.
+- 整个 pipeline 需要的资源太大了以致不能和单一的 Slot/TaskManager 相适应的场景。
 
-  - Batch jobs where resources needed for tasks of different stages are significantly different
+- 批处理作业，其中不同 stage 的tasks 所需的资源差异明显。
 
-An in-depth discussion on why fine-grained resource management can improve resource efficiency for the above scenarios is presented in [How it improves resource efficiency](#how-it-improves-resource-efficiency).
+在[如何提高资源利用率](#how-it-improves-resource-efficiency)部分将会对细粒度资源管理为什么在以上使用场景中可以提高资源利用率作深入的讨论。
 
-## How it works
 
-As described in [Flink Architecture]({{< ref "docs/concepts/flink-architecture" >}}#anatomy-of-a-flink-cluster),
-task execution resources in a TaskManager are split into many slots.
-The slot is the basic unit of both resource scheduling and resource requirement in Flink's runtime.
+## <a name="how-it-works">工作原理</a>
+
+如[Flink架构]({{< ref "docs/concepts/flink-architecture" >}}#anatomy-of-a-flink-cluster)中描述,
+在一个 TaskManager 中,执行 task 时使用的资源被分割成许多个 slots。
+Slot 既是资源调度的基本单元,又是Flink运行时申请资源的基本单元。
 
 {{< img src="/fig/dynamic_slot_alloc.png" class="center" >}}
 
-With fine-grained resource management, the slots requests contain specific resource profiles, which users can specify.
-Flink will respect those user-specified resource requirements and dynamically cut an exactly-matched slot out of the TaskManager’s available
-resources. As shown above, there is a requirement for a slot with 0.25 Core and 1GB memory, and Flink allocates *Slot 1* for it.
+对于细粒度资源管理,Slot 资源请求包含用户指定的特定的资源配置文件。Flink 会遵从这些用户指定的资源请求并从 TaskManager 可用的资源中动态地切分出精确匹配的 slot。如上图所示，对于一个 slot，0.25Core 和 1GB 内存的资源申请，Flink 为它分配 slot 1。
 
 {{< hint info >}}
-Previously in Flink, the resource requirement only contained the required slots, without fine-grained resource
-profiles, namely **coarse-grained resource management**. The TaskManager had a fixed number of identical slots to fulfill those requirements.
+Flink之前的资源申请只包含必须指定的 slots,但没有精细化的资源配置,这是一种粗粒度的资源管理.在这种管理方式下, TaskManager 以固定相同的 slots 的个数的方式来满足资源需求。
 {{< /hint >}}
 
-For the resource requirement without a specified resource profile, Flink will automatically decide a resource profile.
-Currently, the resource profile of it is calculated from [TaskManager’s total resource]({{< ref "docs/deployment/memory/mem_setup_tm" >}})
-and [taskmanager.numberOfTaskSlots]({{< ref "docs/deployment/config" >}}#taskmanager-numberoftaskslots), just
-like in coarse-grained resource management. As shown above, the total resource of TaskManager is 1 Core and 4 GB memory and the number of task slots
-is set to 2, *Slot 2* is created with 0.5 Core and 2 GB memory for the requirement without a specified resource profile.
+对于没有指定资源配置的资源请求，Flink会自动决定资源配置。粗粒度资源管理当前被计算的资源来自 [TaskManager总资源]({{< ref "docs/deployment/memory/mem_setup_tm" >}})和TaskManager的总 slot 数 [taskmanager.numberOfTaskSlots]({{< ref "docs/deployment/config" >}}#taskmanager-numberoftaskslots)。
+如上所示，TaskManager 的总资源是 1Core 和 4GB 内存，task 的 slot 数设置为2，*Slot 2* 被创建，并申请 0.5 Core和 2GB 的内存而没有指定资源配置。
+在分配 Slot 1和 Slot 2后，在 TaskManager 留下 0.25 Core 和 1GB 的内存作为未使用资源。
 
-After the allocation of *Slot 1* and *Slot 2*, there is 0.25 Core and 1 GB memory remaining as the free resources in the
-TaskManager. These free resources can be further partitioned to fulfill the following resource requirements.
+详情请参考[资源分配策略](#resource-allocation-strategy)。
 
-Please refer to [Resource Allocation Strategy](#resource-allocation-strategy) for more details.
 
-## Usage
+## 用法
 
-To use fine-grained resource management, you need to:
+为了可以使用细粒度的资源管理,需要做以下步骤:
 
-  - Configure to enable fine-grained resource management.
+- 配置细粒度的资源管理
 
-  - Specify the resource requirement.
+- 指定资源请求
 
-### Enable Fine-Grained Resource Management
+### 启用细粒度资源管理
 
-To enable fine-grained resource management, you need to configure the [cluster.fine-grained-resource-management.enabled]({{< ref "docs/deployment/config" >}}#cluster-fine-grained-resource-management-enabled) to true.
-
+为了启用细粒度的资源管理配置,需要将 [cluster.fine-grained-resource-management.enabled]({{< ref "docs/deployment/config" >}}#cluster-fine-grained-resource-management-enabled) 的值设置为 true。
 {{< hint danger >}}
-Without this configuration, the Flink runtime cannot schedule the slots with your specified resource requirement and the job will fail with an exception.
+没有该配置,Flink 运行 job 时并不能按照你指定的资源需求分配 slots,并且 job 会失败抛出异常。
 {{< /hint >}}
 
-### Specify Resource Requirement for Slot Sharing Group
+### 为 Slot 共享组指定资源请求
 
-Fine-grained resource requirements are defined on slot sharing groups. A slot sharing group is a hint that tells the JobManager operators/tasks in it CAN be put into the same slot.
+细粒度资源请求是基于 slot 共享组定义的。一个 slot 共享组是一个切入点，这意味着在 TaskManager 中的算子和 tasks 可以被置于相同的 slot。
 
-For specifying the resource requirement, you need to:
+对于指定资源请求,应该:
 
-  - Define the slot sharing group and the operators it contains.
+- 定义 Slot 共享组和它所包含的操作算子
 
-  - Specify the resource of the slot sharing group.
+- 指定 Slot 共享组的资源
 
-There are two approaches to define the slot sharing group and the operators it contains:
+目前有两种方法定义槽共享组和它所包含的操作算子:
 
-  - You can define a slot sharing group only by its name and attach it to an operator through the [slotSharingGroup(String name)]({{< ref "docs/dev/datastream/operators/overview" >}}#set-slot-sharing-group).
+- 可以只用它的名字定义一个 Slot 共享组并将它与一个算子绑定通过 [slotSharingGroup(String name)]({{< ref "docs/dev/datastream/operators/overview" >}}#set-slot-sharing-group)。
 
-  - You can construct a `SlotSharingGroup` instance, which contains the name and an optional resource profile of the slot sharing group. The `SlotSharingGroup` can be attached to an operator through `slotSharingGroup(SlotSharingGroup ssg)`.
+- 可以构造 SlotSharingGroup 的一个实例，该实例包含 slot 共享组的名字属性和一个可选的资源配置属性。SlotSharingGroup 可以通过slotSharingGroup(SlotSharingGroup ssg)这个构造方法来绑定一个算子。
 
-You can specify the resource profile for your slot sharing groups:
+为 Slot 共享组指定资源配置:
 
-  - If you set the slot sharing group through `slotSharingGroup(SlotSharingGroup ssg)`, you can specify the resource profile in constructing the `SlotSharingGroup` instance.
+- 如果通过 SlotSharingGroup 来设置 Slot 共享组,可以在构建 SlotSharingGroup 实例的时候指定资源配置。
 
-  - If you only set the name of slot sharing group with [slotSharingGroup(String name)]({{< ref "docs/dev/datastream/operators/overview" >}}#set-slot-sharing-group). You can construct a SlotSharingGroup instance with the same name along with the resource profile and register the resource of them with `StreamExecutionEnvironment#registerSlotSharingGroup(SlotSharingGroup ssg)`.
+- 构造一个 SlotSharingGroup 的实例，该实例包含 slot 共享组的名字属性和可选的资源配置属性。`SlotSharingGroup`可以通过 slotSharingGroup(SlotSharingGroup ssg)构造方法绑定一个算子。
 
-{{< tabs "configure-ssg" >}}
-{{< tab "Java" >}}
+  {{< tabs "configure-ssg" >}}
+  {{< tab "Java" >}}
+
 ```java
 final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
@@ -127,10 +120,10 @@ SlotSharingGroup ssgB = SlotSharingGroup.newBuilder("b")
   .setTaskHeapMemoryMB(100)
   .build();
 
-someStream.filter(...).slotSharingGroup("a") // Set the slot sharing group with name “a”
-.map(...).slotSharingGroup(ssgB); // Directly set the slot sharing group with name and resource.
+someStream.filter(...).slotSharingGroup("a") // 设置Slot共享组的名字为‘a’ 
+.map(...).slotSharingGroup(ssgB); // 直接设置Slot共享组的名字和资源.
 
-env.registerSlotSharingGroup(ssgA); // Then register the resource of group “a”
+env.registerSlotSharingGroup(ssgA); // 注册共享组的资源
 ```
 {{< /tab >}}
 {{< tab "Scala" >}}
@@ -147,10 +140,10 @@ val ssgB = SlotSharingGroup.newBuilder("b")
   .setTaskHeapMemoryMB(100)
   .build()
 
-someStream.filter(...).slotSharingGroup("a") // Set the slot sharing group with name “a”
-.map(...).slotSharingGroup(ssgB) // Directly set the slot sharing group with name and resource.
+someStream.filter(...).slotSharingGroup("a") // 设置Slot共享组的名字为‘a’ 
+.map(...).slotSharingGroup(ssgB) // 直接设置Slot共享组的名字和资源.
 
-env.registerSlotSharingGroup(ssgA) // Then register the resource of group “a”
+env.registerSlotSharingGroup(ssgA) // 注册共享组的资源
 ```
 {{< /tab >}}
 {{< tab "Python" >}}
@@ -166,29 +159,29 @@ ssg_b = SlotSharingGroup.builder('b') \
             .set_task_heap_memory_mb(100) \
             .build()
 
-some_stream.filter(...).slot_sharing_group('a') # Set the slot sharing group with name "a"
-.map(...).slot_sharing_group(ssg_b) # Directly set the slot sharing group with name and resource.
+some_stream.filter(...).slot_sharing_group('a') # 设置Slot共享组的名字为‘a’ 
+.map(...).slot_sharing_group(ssg_b) # 直接设置Slot共享组的名字和资源.
 
-env.register_slot_sharing_group(ssg_a) # Then register the resource of group "a"
+env.register_slot_sharing_group(ssg_a) # 注册共享组的资源
 ```
 {{< /tab >}}
 {{< /tabs >}}
 
 {{< hint warning >}}
-**Note:** Each slot sharing group can only attach to one specified resource, any conflict will fail the compiling of your job.
+**提示:** 每个共享组只能绑定一个指定的资源组，任何冲突将会导致 job 的编译的失败。
 {{< /hint >}}
 
-In constructing the `SlotSharingGroup`, you can set the following resource components for the slot sharing group:
-  - **CPU Cores**. Defines how many CPU cores are needed. Required to be explicitly configured with positive value.
-  - **[Task Heap Memory]({{< ref "docs/deployment/memory/mem_setup_tm" >}}#task-operator-heap-memory)**. Defines how much task heap memory is needed. Required to be explicitly configured with positive value.
-  - **[Task Off-Heap Memory]({{< ref "docs/deployment/memory/mem_setup_tm" >}}#configure-off-heap-memory-direct-or-native)**. Defines how much task off-heap memory is needed, can be 0.
-  - **[Managed Memory]({{< ref "docs/deployment/memory/mem_setup_tm" >}}#managed-memory)**. Defines how much task managed memory is needed, can be 0.
-  - **[External Resources]({{< ref "docs/deployment/advanced/external_resources" >}})**. Defines the external resources needed, can be empty.
+在构造 SlotSharingGroup 时，可以为 Slot 共享组设置以下资源:
 
-{{< tabs "configure-resource" >}}
-{{< tab "Java" >}}
+- **CPU核数** 定义作业所需要的CPU核数， 该设置务必是明确配置的正值。
+- **[Task堆内存]({{< ref "docs/deployment/memory/mem_setup_tm" >}}#task-operator-heap-memory)** 定义作业所需要的堆内存，该设置务必是明确配置的正值。
+- **[堆外内存]({{< ref "docs/deployment/memory/mem_setup_tm" >}}#configure-off-heap-memory-direct-or-native)** 定义作业所需要的堆外内存，该设置可设置为0。
+- **[管理内存]({{< ref "docs/deployment/memory/mem_setup_tm" >}}#managed-memory)** 定义作业所需要的管理内存，可设置为0。
+- **[外部资源]({{< ref "docs/deployment/advanced/external_resources" >}})** 定义需要的外部资源，可设置为空。
+  {{< tabs "configure-resource" >}}
+  {{< tab "Java" >}}
 ```java
-// Directly build a slot sharing group with specific resource
+// 通过指定资源直接构建一个 slot 共享组
 SlotSharingGroup ssgWithResource =
     SlotSharingGroup.newBuilder("ssg")
         .setCpuCores(1.0) // required
@@ -198,14 +191,14 @@ SlotSharingGroup ssgWithResource =
         .setExternalResource("gpu", 1.0)
         .build();
 
-// Build a slot sharing group without specific resource and then register the resource of it in StreamExecutionEnvironment
+// 构建一个 slot 共享组未指定资源，然后在 StreamExecutionEnvironment 中注册资源
 SlotSharingGroup ssgWithName = SlotSharingGroup.newBuilder("ssg").build();
 env.registerSlotSharingGroup(ssgWithResource);
 ```
 {{< /tab >}}
 {{< tab "Scala" >}}
 ```scala
-// Directly build a slot sharing group with specific resource
+// 通过指定资源直接构建一个 slot 共享组
 val ssgWithResource =
     SlotSharingGroup.newBuilder("ssg")
         .setCpuCores(1.0) // required
@@ -215,7 +208,7 @@ val ssgWithResource =
         .setExternalResource("gpu", 1.0)
         .build()
 
-// Build a slot sharing group without specific resource and then register the resource of it in StreamExecutionEnvironment
+// 构建一个 slot 共享组未指定资源，然后在 StreamExecutionEnvironment中注册资源
 val ssgWithName = SlotSharingGroup.newBuilder("ssg").build()
 env.registerSlotSharingGroup(ssgWithResource)
 ```
@@ -231,7 +224,7 @@ ssg_with_resource = SlotSharingGroup.builder('ssg') \
             .set_external_resource('gpu', 1.0) \
             .build()
 
-# Build a slot sharing group without specific resource and then register the resource of it in StreamExecutionEnvironment
+# 构建一个 slot 共享组未指定资源，然后在 StreamExecutionEnvironment中注册资源
 ssg_with_name = SlotSharingGroup.builder('ssg').build()
 env.register_slot_sharing_group(ssg_with_resource)
 ```
@@ -239,86 +232,59 @@ env.register_slot_sharing_group(ssg_with_resource)
 {{< /tabs >}}
 
 {{< hint warning >}}
-**Note:** You can construct a SlotSharingGroup with or without specifying its resource profile.
-With specifying the resource profile, you need to explicitly set the **CPU cores** and **Task Heap Memory** with a positive value, other components are optional.
+**提示:** 可以指定或者不指定资源配置构造 SlotSharingGroup。
+对于指定资源配置，必须明确地将 **CPU cores**和 **Task Heap Memory**设置成正数值，其它设置则是可选的。
 {{< /hint >}}
 
-## Limitations
+## 局限
 
-Since fine-grained resource management is a new, experimental feature, not all features supported by the default
-scheduler are also available with it. The Flink community is working on addressing these limitations.
+因为细粒度资源管理是新的实验性特性,并不是所有的特性都被默认的调度器所支持.Flink 社区正努力解决并突破这些限制。
+- **不支持[弹性伸缩]({{< ref "docs/deployment/elastic_scaling" >}})**. 弹性伸缩目前只支持不指定资源的slot请求。
+- **不支持TaskManager的冗余** TaskManager冗余 [slotmanager.redundant-taskmanager-num]({{< ref "docs/deployment/config" >}}#slotmanager-redundant-taskmanager-num) 用于启动冗余的 TaskManager 以加速 job 恢复。当前该配置在细粒度资源管理中不生效。
+- **不支持均匀分布的插槽策略** 此策略试图在所有可用的TaskManager中均匀分配插槽 [cluster.evenly-spread-out-slots]({{< ref "docs/deployment/config" >}}#cluster-evenly-spread-out-slots)。该策略在细粒度资源管理的第一个版本中不受支持，目前不会生效。
+- **与Flink Web UI有限的集成** 在细粒度的资源管理中,Slots会有不同的资源规格.目前Web UI页面只显示 slot 数量而不显示具体详情。
+- **与批作业有限的集成** 目前，细粒度资源管理需要在所有边缘都被阻塞的情况下执行批处理工作负载。为了达到该实现，需要将配置 [fine-grained.shuffle-mode.all-blocking]({{< ref "docs/deployment/config" >}}#fine-grained-shuffle-mode-all-blocking)设置为 true。注意这样可能会影响性能。详情请见[FLINK-20865](https://issues.apache.org/jira/browse/FLINK-20865)。
+- **不建议使用混合资源需求** 不建议仅为工作的某些部分指定资源需求，而未指定其余部分的需求。目前，任何资源的插槽都可以满足未指定的要求。它获取的实际资源可能在不同的作业执行或故障切换中不一致。
+- **Slot分配结果可能不是最优** 正因为Slot需求包含资源的多维度方面,所以,Slot分配实际上是一个多维度问题,这是一个NP难题. 因些,在一些使用场景中,默认的[资源分配策略](#resource-allocation-strategy)可能不会使得Slot分配达到最优,而且还会导致资源碎片或者资源分配失败.
 
-  - **No support for the [Elastic Scaling]({{< ref "docs/deployment/elastic_scaling" >}})**. The elastic scaling only supports slot requests without specified-resource at the moment.
+## 注意
+- **设置 Slot 共享组可能改变性能** 为可链式操作的算子设置不同的 slot 共享组可能会导致链式操作 [operator chains]({{< ref "docs/dev/datastream/operators/overview" >}}#task-chaining-and-resource-groups)产生割裂,从而改变性能.
+- **Slot 共享组不会限制算子的调度** Slot 共享组仅仅意味着调度器可以使被分组的算子被部署到中一个Slot中,但无法保证调度器总是和被分组的算子部署绑定在一起。如果被分组算子被部署到单独的Slot中，Slot资源将从特定的资源组需求中派生而来。
 
-  - **No support for task manager redundancy**. The [slotmanager.redundant-taskmanager-num]({{< ref "docs/deployment/config" >}}#slotmanager-redundant-taskmanager-num) is used to start redundant TaskManagers to speed up job recovery. This config option will not take effect in fine-grained resource management at the moment.
+## 深入讨论
 
-  - **No support for evenly spread out slot strategy**. This strategy tries to spread out the slots evenly across all available TaskManagers. The strategy is not supported in the first version of fine-grained resource management and [cluster.evenly-spread-out-slots]({{< ref "docs/deployment/config" >}}#cluster-evenly-spread-out-slots) will not take effect in it at the moment.
+### <a name="how-it-improves-resource-efficiency">如何提高资源使用率</a>  
 
-  - **Limited integration with Flink’s Web UI**. Slots in fine-grained resource management can have different resource specs. The web UI only shows the slot number without its details at the moment.
+这部分，我们对细粒度资源管理如何提高资源利用率作深入讨论，这会有助于你理解它对我们的 jobs 是否有益。
+之前的 Flink 采用的一种粗粒度资源管理的方式，tasks 被提前定义部署，通常被分配相同的 slots 而没有每个 slot 包含多少资源的概念。
+对于许多jobs，使用粗粒度的资源管理并简单地把所有的tasks放入一个 [Slot 共享组]({{< ref "docs/dev/datastream/operators/overview" >}}#set-slot-sharing-group)中运行，就资源利用率而言，也能运行得很好。
 
-  - **Limited integration with batch jobs**. At the moment, fine-grained resource management requires batch workloads to be executed with types of all edges being BLOCKING. To do that, you need to configure [fine-grained.shuffle-mode.all-blocking]({{< ref "docs/deployment/config" >}}#fine-grained-shuffle-mode-all-blocking) to `true`. Notice that this may affect the performance. See [FLINK-20865](https://issues.apache.org/jira/browse/FLINK-20865) for more details.
+- 对于许多有相同并行度的 tasks 的流作业而言，每个 slot 会包含[整个 pipeline](https://flink.apache.org/2020/12/15/pipelined-region-sheduling.html#pipelined-regions)。理想情况条件下，所有的 pipelines 应该使用大致相同的资源，这可以容易被满足通过调节相同 slot 的资源。
 
-  - **Hybrid resource requirements are not recommended**. It is not recommended to specify the resource requirements only for some parts of the job and leave the requirements for the rest unspecified. Currently, the unspecified requirement can be fulfilled with slots of any resource. The actual resource acquired by it can be inconsistent across different job executions or failover.
+- tasks 的资源消耗随时间变化不同。当一个 task 的资源消耗减少，其他的资源可以被另外一个 task 使用，该 task 的消耗增加。这就是被称为“调峰填谷效应”的现象，它降低了所需要的总体需求。
 
-  - **Slot allocation result might not be optimal**. As the slot requirements contain multiple dimensions of resources, the slot allocation is indeed a multi-dimensional packing problem, which is NP-hard. The default [resource allocation strategy](#resource-allocation-strategy) might not achieve optimal slot allocation and can lead to resource fragments or resource allocation failure in some scenarios.
+尽管如此，有些情况下使用粗粒度资源管理效果并不好。
 
-## Notice
+- Tasks 会有不同的并行度。有时，这种不同的并行度是不可避免的。例如，象 source/sink/lookup 这些类别的 tasks 的并行度可能被分区数和外部上下游系统的 IO 负载所限制。在这种情况下，拥有更少的 tasks 的 slots 会需要更少的资源相比 tasks 的 [整个 pipeline](https://flink.apache.org/2020/12/15/pipelined-region-sheduling.html#pipelined-regions)。
+- 有时[整个pipeline](https://flink.apache.org/2020/12/15/pipelined-region-sheduling.html#pipelined-regions) 需要的资源可能会太大以致难于与单一的 slot/TaskManager 的场景相适应。在这种情况下，pipeline 需要被分割成多个 SSGs，它们可能不总是有相同的资源需求。
+- 对于批作业，不是所有的 tasks 能够在同时被执行。因此，整个 pipeline 的瞬时资源需求而时间变化。
 
-  - **Setting the slot sharing group may change the performance**. Setting chain-able operators to different slot sharing groups may break [operator chains]({{< ref "docs/dev/datastream/operators/overview" >}}#task-chaining-and-resource-groups), and thus change the performance.
+试图以相同的 slots 执行所有的tasks,这样会造成非最优的资源利用率。相同 slot 的资源能够满足最高的资源需求，这对于其他资源需求将是浪费的。当涉及到像 GPU 这样昂贵的外部资源时，这样的浪费将是难以承受的。细粒度资源管理运用不同资源的 slots 提高了资源利用率在种使用场景中。
 
-  - **Slot sharing group will not restrict the scheduling of operators**. The slot sharing group only hints the scheduler that the grouped operators CAN be deployed into a shared slot. There's no guarantee that the scheduler always deploys the grouped operator together. In cases grouped operators are deployed into separate slots, the slot resources will be derived from the specified group requirement.
+### <a name="resource-allocation-strategy">资源分配策略</a> 
 
-## Deep Dive
-
-### How it improves resource efficiency
-
-In this section, we deep dive into how fine-grained resource management improves resource efficiency, which can help you to understand whether it can benefit your jobs.
-
-Previously, Flink adopted a coarse-grained resource management approach, where tasks are deployed into predefined,
-usually identical slots without the notion of how many resources each slot contains. For many jobs, using coarse-grained
-resource management and simply putting all tasks into one [slot sharing group]({{< ref "docs/dev/datastream/operators/overview" >}}#set-slot-sharing-group) works well enough in terms of resource utilization.
-
-  - For many streaming jobs that all tasks have the same parallelism, each slot will contain an [entire pipeline](https://flink.apache.org/2020/12/15/pipelined-region-sheduling.html#pipelined-regions). Ideally, all pipelines should use roughly the same resources, which can be satisfied easily by tuning the resources of the identical slots.
-
-  - Resource consumption of tasks varies over time. When consumption of a task decreases, the extra resources can be used by another task whose consumption is increasing. This, known as the peak shaving and valley filling effect, reduces the overall resource needed.
-
-However, there are cases where coarse-grained resource management does not work well.
-
-  - Tasks may have different parallelisms. Sometimes, such different parallelisms cannot be avoided. E.g., the parallelism of source/sink/lookup tasks might be constrained by the partitions and IO load of the external upstream/downstream system. In such cases, slots with fewer tasks would need fewer resources than those with the [entire pipeline](https://flink.apache.org/2020/12/15/pipelined-region-sheduling.html#pipelined-regions) of tasks.
-
-  - Sometimes the resource needed for the [entire pipeline](https://flink.apache.org/2020/12/15/pipelined-region-sheduling.html#pipelined-regions) might be too much to be put into a single slot/TaskManager. In such cases, the pipeline needs to be split into multiple SSGs, which may not always have the same resource requirement.
-
-  - For batch jobs, not all the tasks can be executed at the same time. Thus, the instantaneous resource requirement of the pipeline changes over time.
-
-Trying to execute all tasks with identical slots can result in non-optimal resource utilization. The resource of the identical slots
-has to be able to fulfill the highest resource requirement, which will be wasteful for other requirements. When expensive external resources
-like GPU are involved, such waste can become even harder to afford. The fine-grained resource management leverages slots of different resources
-to improve resource utilization in such scenarios.
-
-### Resource Allocation Strategy
-
-In this section, we talk about the slot partitioning mechanism in Flink runtime and the resource allocation strategy, including how
-the Flink runtime selects a TaskManager to cut slots and allocates TaskManagers on [Native Kubernetes]({{< ref "docs/deployment/resource-providers/native_kubernetes" >}})
-and [YARN]({{< ref "docs/deployment/resource-providers/yarn" >}}). Note that the resource allocation strategy is pluggable in
-Flink runtime and here we introduce its default implementation in the first step of fine-grained resource
-management. In the future, there might be various strategies that users can select for different scenarios.
-
+本节讨论的是 Flink 作业运行时的 Slot 分区机制和资源分配策略,包括在 YARN 和 Kubernetes 中运行 Flink 作业时,Flink 如何选择 TaskManager 来切分成 Slots 和如何分配 TaskManager 的。({{< ref "docs/deployment/resource-providers/native_kubernetes" >}})
+and [YARN]({{< ref "docs/deployment/resource-providers/yarn" >}})。值得注意的是,Flink运行时的资源分配策略是可插拔的以及我们在细粒度资源管理中的第一步引入它的默认实现。不久的将来,会有不同的策略供用户针对不同的使用场景选择使用。
 {{< img src="/fig/resource_alloc.png" class="center" >}}
 
-As described in [How it works](#how-it-works) section, Flink will cut an exactly matched slot out of the TaskManager for slot requests with specified
-resources. The internal process is shown above. The TaskManager will be launched with total resources but no predefined slots.
-When a slot request with 0.25 Core and 1GB memory arrives, Flink will select a TaskManager with enough free resources and create
-a new slot with the requested resources. If a slot is freed, it will return its resources to the available resources of the TaskManager.
+正如在[工作原理](#how-it-works)中的描述，Flink 会精确地从 TaskManager 中切分出匹配的 slot 为指定的 slot 资源请求。如上图内部进程所示，TaskManager将以总资源的形式被启动，但是没有提前指定 slots。当一个 slot 请求 0.25 Core 和 1GB 的内存，Flink 将会选择一个有足够可用资源的 TaskManger 和创建一个新的已经被资源申请的 slot。如果一个 slot 未被使用，它会将它的资源返回到 TaskManager 中的可用资源中去。
 
-In the current resource allocation strategy, Flink will traverse all the registered TaskManagers and select the first one who has
-enough free resources to fulfill the slot request. When there is no TaskManager that has enough free resources, Flink will try to
-allocate a new TaskManager when deploying on [Native Kubernetes]({{< ref "docs/deployment/resource-providers/native_kubernetes" >}}) or
-[YARN]({{< ref "docs/deployment/resource-providers/yarn" >}}). In the current strategy, Flink will allocate identical TaskManagers
-according to [user’s configuration]({{< ref "docs/deployment/memory/mem_setup_tm" >}}#set-up-taskmanager-memory). As the resource spec of TaskManagers is pre-defined:
+在当前的资源分配策略中，Flink 会遍历所有被注册的 TaskMangers 并选择第一个有充足资源的 TaskManager 来满足 Slot 资源请求。当没有 TaskManager 有足够的资源时，Flink将会从 [Native Kubernetes]({{< ref "docs/deployment/resource-providers/native_kubernetes" >}})或者 [YARN]({{< ref "docs/deployment/resource-providers/yarn" >}})分配一个新的 TaskManager。在当前的策略中，Flink 会根据 [用户配置]({{< ref "docs/deployment/memory/mem_setup_tm" >}}#set-up-taskmanager-memory)分配相同的TaskManagers，
 
-  - There might be resource fragments in the cluster. E.g. if there are two slot requests with 3 GB heap memory while the total heap memory of TaskManager is 4 GB, Flink will start two TaskManagers and there will be 1 GB heap memory wasted in each TaskManager. In the future, there might be a resource allocation strategy that can allocate heterogeneous TaskManagers according to the slot requests of the job and thus mitigate the resource fragment.
+因为 TaskManagers 的规格组合是预定义的。
 
-  - You need to make sure the resource components configured for the slot sharing group are no larger than the total resources of the TaskManager. Otherwise, your job will fail with an exception.
+- 集群中可能会存在资源碎片。例如，两个 slots 请求 3GB 堆内存，然而 TaskManager 总共的堆内存是 4GB，Flink 会启动两个 TaskManagers，每个 TaskManager 会有1G的堆内存被浪费。未来，可能会有一种资源分配策略，可以根据 job 的 slot 请求分配异构 TaskManagers，从而缓解资源碎片。
 
+- 确保配置的 Slot 共享组的资源组成不能大于 TaskManager 的总资源。否则，job 会失败，并抛出异常。
 
 {{< top >}}
