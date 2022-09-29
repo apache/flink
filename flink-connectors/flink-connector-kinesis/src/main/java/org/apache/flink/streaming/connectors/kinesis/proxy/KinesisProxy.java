@@ -51,6 +51,7 @@ import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
 
+import java.io.EOFException;
 import java.net.SocketTimeoutException;
 import java.util.ArrayList;
 import java.util.Date;
@@ -422,11 +423,16 @@ public class KinesisProxy implements KinesisProxyInterface {
     protected boolean isRecoverableSdkClientException(SdkClientException ex) {
         if (ex instanceof AmazonServiceException) {
             return KinesisProxy.isRecoverableException((AmazonServiceException) ex);
-        } else if (ExceptionUtils.findThrowable(ex, SocketTimeoutException.class).isPresent()) {
+        } else if (isRecoverableConnectionException(ex)) {
             return true;
         }
         // customizations may decide to retry other errors, such as read timeouts
         return false;
+    }
+
+    private boolean isRecoverableConnectionException(SdkClientException ex) {
+        return ExceptionUtils.findThrowable(ex, SocketTimeoutException.class).isPresent()
+                || ExceptionUtils.findThrowable(ex, EOFException.class).isPresent();
     }
 
     /**
