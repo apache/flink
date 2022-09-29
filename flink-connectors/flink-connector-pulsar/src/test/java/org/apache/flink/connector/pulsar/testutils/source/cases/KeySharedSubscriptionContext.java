@@ -29,6 +29,7 @@ import org.apache.flink.connector.testframe.external.source.TestingSourceSetting
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.common.util.Murmur3_32Hash;
 
+import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.Collections.singletonList;
 import static org.apache.commons.lang3.RandomStringUtils.randomAlphabetic;
 import static org.apache.flink.connector.pulsar.source.enumerator.topic.TopicRange.RANGE_SIZE;
@@ -40,7 +41,6 @@ public class KeySharedSubscriptionContext extends MultipleTopicConsumingContext 
 
     public KeySharedSubscriptionContext(PulsarTestEnvironment environment) {
         super(environment);
-
         this.keyToRead = randomAlphabetic(8);
     }
 
@@ -60,7 +60,6 @@ public class KeySharedSubscriptionContext extends MultipleTopicConsumingContext 
     protected void setSourceBuilder(PulsarSourceBuilder<String> builder) {
         int keyHash = keyHash(keyToRead);
         TopicRange range = new TopicRange(keyHash, keyHash);
-
         builder.setRangeGenerator(new FixedRangeGenerator(singletonList(range)));
     }
 
@@ -76,6 +75,6 @@ public class KeySharedSubscriptionContext extends MultipleTopicConsumingContext 
 
     // This method is copied from Pulsar for calculating message key hash.
     private int keyHash(String key) {
-        return Murmur3_32Hash.getInstance().makeHash(key.getBytes()) % RANGE_SIZE;
+        return Murmur3_32Hash.getInstance().makeHash(key.getBytes(UTF_8)) % RANGE_SIZE;
     }
 }
