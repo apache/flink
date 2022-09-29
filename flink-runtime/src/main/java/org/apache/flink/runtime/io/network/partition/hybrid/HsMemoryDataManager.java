@@ -124,7 +124,8 @@ public class HsMemoryDataManager implements HsSpillingInfoProvider, HsMemoryData
                         int newSize = this.bufferPool.getNumBuffers();
                         int oldSize = poolSize.getAndSet(newSize);
                         if (oldSize > newSize) {
-                            callWithLock(() -> spillStrategy.decideActionWithGlobalInfo(this));
+                            // pass Optional.empty to trigger global decision.
+                            handleDecision(Optional.empty());
                         }
                     },
                     poolSizeCheckInterval,
