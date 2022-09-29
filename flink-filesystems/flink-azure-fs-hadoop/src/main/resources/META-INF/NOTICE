@@ -6,7 +6,7 @@ The Apache Software Foundation (http://www.apache.org/).
 
 This project bundles the following dependencies under the Apache Software License 2.0 (http://www.apache.org/licenses/LICENSE-2.0.txt)
 
-- com.fasterxml.jackson.core:jackson-core:2.13.2
+- com.fasterxml.jackson.core:jackson-core:2.13.4
 - com.google.errorprone:error_prone_annotations:2.2.0
 - com.google.guava:failureaccess:1.0
 - com.google.guava:guava:27.0-jre
