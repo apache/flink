@@ -236,13 +236,22 @@ class HsResultPartitionTest {
     @Test
     @Timeout(30)
     void testRelease() throws Exception {
+        final int numSubpartitions = 2;
         final int numBuffers = 10;
 
         BufferPool bufferPool = globalPool.createBufferPool(numBuffers, numBuffers);
-        HsResultPartition partition = createHsResultPartition(2, bufferPool);
+        HsResultPartition partition =
+                createHsResultPartition(
+                        numSubpartitions,
+                        bufferPool,
+                        HybridShuffleConfiguration.builder(
+                                        numSubpartitions, readBufferPool.getNumBuffersPerRequest())
+                                .setFullStrategyNumBuffersTriggerSpillingRatio(0.6f)
+                                .setFullStrategyReleaseBufferRatio(0.8f)
+                                .build());
 
-        partition.emitRecord(ByteBuffer.allocate(bufferSize * numBuffers), 1);
-        assertThat(bufferPool.bestEffortGetNumOfUsedBuffers()).isEqualTo(numBuffers);
+        partition.emitRecord(ByteBuffer.allocate(bufferSize * 5), 1);
+        assertThat(bufferPool.bestEffortGetNumOfUsedBuffers()).isEqualTo(5);
 
         partition.close();
         assertThat(bufferPool.isDestroyed()).isTrue();
@@ -381,6 +390,19 @@ class HsResultPartitionTest {
 
     private HsResultPartition createHsResultPartition(int numSubpartitions, BufferPool bufferPool)
             throws IOException {
+        return createHsResultPartition(
+                numSubpartitions,
+                bufferPool,
+                HybridShuffleConfiguration.builder(
+                                numSubpartitions, readBufferPool.getNumBuffersPerRequest())
+                        .build());
+    }
+
+    private HsResultPartition createHsResultPartition(
+            int numSubpartitions,
+            BufferPool bufferPool,
+            HybridShuffleConfiguration hybridShuffleConfiguration)
+            throws IOException {
         HsResultPartition hsResultPartition =
                 new HsResultPartition(
                         "HsResultPartitionTest",
@@ -394,9 +416,7 @@ class HsResultPartitionTest {
                         new ResultPartitionManager(),
                         fileChannelManager.createChannel().getPath(),
                         bufferSize,
-                        HybridShuffleConfiguration.builder(
-                                        numSubpartitions, readBufferPool.getNumBuffersPerRequest())
-                                .build(),
+                        hybridShuffleConfiguration,
                         null,
                         () -> bufferPool);
         taskIOMetricGroup =
