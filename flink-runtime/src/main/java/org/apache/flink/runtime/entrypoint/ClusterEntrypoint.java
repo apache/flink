@@ -668,7 +668,7 @@ public abstract class ClusterEntrypoint implements AutoCloseableAsync, FatalErro
     protected abstract ExecutionGraphInfoStore createSerializableExecutionGraphStore(
             Configuration configuration, ScheduledExecutor scheduledExecutor) throws IOException;
 
-    protected static EntrypointClusterConfiguration parseArguments(String[] args)
+    public static EntrypointClusterConfiguration parseArguments(String[] args)
             throws FlinkParseException {
         final CommandLineParser<EntrypointClusterConfiguration> clusterConfigurationParser =
                 new CommandLineParser<>(new EntrypointClusterConfigurationParserFactory());
