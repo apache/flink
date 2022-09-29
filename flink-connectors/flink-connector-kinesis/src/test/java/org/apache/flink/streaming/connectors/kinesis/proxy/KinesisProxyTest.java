@@ -48,6 +48,7 @@ import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 import org.powermock.reflect.Whitebox;
 
+import java.io.EOFException;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.util.ArrayList;
@@ -85,6 +86,18 @@ public class KinesisProxyTest {
                                 InetAddress.getByAddress(
                                         "kinesis.us-east-1.amazonaws.com",
                                         new byte[] {3, 91, (byte) 171, (byte) 253})));
+        assertThat(kinesisProxy.isRecoverableSdkClientException(ex)).isTrue();
+    }
+
+    @Test
+    public void testIsRecoverableExceptionWithEOFConnectError() throws UnknownHostException {
+        Properties kinesisConsumerConfig = new Properties();
+        kinesisConsumerConfig.setProperty(ConsumerConfigConstants.AWS_REGION, "us-east-1");
+        KinesisProxy kinesisProxy = new KinesisProxy(kinesisConsumerConfig);
+        final SdkClientException ex =
+                new SdkClientException(
+                        "Unable to execute HTTP request",
+                        new EOFException("SSL peer shut down incorrectly"));
         assertThat(kinesisProxy.isRecoverableSdkClientException(ex)).isTrue();
     }
 
