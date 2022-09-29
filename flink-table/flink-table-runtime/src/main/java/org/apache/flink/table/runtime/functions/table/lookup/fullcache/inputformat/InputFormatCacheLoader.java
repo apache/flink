@@ -39,6 +39,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 /** {@link CacheLoader} that used {@link InputFormat} for loading data into the cache. */
@@ -108,6 +109,8 @@ public class InputFormatCacheLoader extends CacheLoader {
         } finally {
             if (cacheLoadTaskService != null) {
                 cacheLoadTaskService.shutdownNow();
+                // wait forever
+                cacheLoadTaskService.awaitTermination(Long.MAX_VALUE, TimeUnit.NANOSECONDS);
             }
         }
         cache = newCache; // reassigning cache field is safe, because it's volatile

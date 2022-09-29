@@ -48,9 +48,11 @@ import java.util.Collection;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -131,15 +133,19 @@ class InputFormatCacheLoaderTest {
     }
 
     @Test
-    void testCloseAndInterruptDuringReload() throws Exception {
-        AtomicInteger sleepCounter = new AtomicInteger(0);
-        int totalSleepCount = TestCacheLoader.DATA.size() + 1; // equals to number of all rows
+    void testInterruptDuringReload() throws Exception {
+        CountDownLatch recordsProcessingLatch = new CountDownLatch(1);
         Runnable reloadAction =
-                ThrowingRunnable.unchecked(
-                        () -> {
-                            sleepCounter.incrementAndGet();
-                            Thread.sleep(1000);
-                        });
+                () -> {
+                    try {
+                        // wait should be interrupted if everything works ok
+                        if (!recordsProcessingLatch.await(5, TimeUnit.SECONDS)) {
+                            throw new RuntimeException("timeout");
+                        }
+                    } catch (InterruptedException ignored) {
+                        Thread.currentThread().interrupt(); // restore interrupted status
+                    }
+                };
         InputFormatCacheLoader cacheLoader = createCacheLoader(0, reloadAction);
         InterceptingCacheMetricGroup metricGroup = new InterceptingCacheMetricGroup();
         cacheLoader.open(metricGroup);
@@ -149,19 +155,33 @@ class InputFormatCacheLoaderTest {
         Future<?> future = executorService.submit(cacheLoader);
         executorService.shutdownNow(); // internally interrupts a thread
         assertThatNoException().isThrownBy(future::get); // wait for the end
-        // check that we didn't process all elements, but reacted on interruption
-        assertThat(sleepCounter).hasValueLessThan(totalSleepCount);
         assertThat(metricGroup.numLoadFailuresCounter.getCount()).isEqualTo(0);
+    }
 
-        sleepCounter.set(0);
+    @Test
+    void testCloseDuringReload() throws Exception {
+        AtomicInteger recordsCounter = new AtomicInteger(0);
+        int totalRecords = TestCacheLoader.DATA.size() + 1; // 1 key with 2 records
+        CountDownLatch latch = new CountDownLatch(1);
+        Runnable reloadAction =
+                ThrowingRunnable.unchecked(
+                        () -> {
+                            recordsCounter.incrementAndGet();
+                            latch.await();
+                        });
+        InputFormatCacheLoader cacheLoader = createCacheLoader(0, reloadAction);
+        InterceptingCacheMetricGroup metricGroup = new InterceptingCacheMetricGroup();
+        cacheLoader.open(metricGroup);
 
         // check closing
-        executorService = Executors.newSingleThreadExecutor();
-        future = executorService.submit(cacheLoader);
+        ExecutorService executorService = Executors.newSingleThreadExecutor();
+        Future<?> future = executorService.submit(cacheLoader);
         cacheLoader.close();
-        assertThatNoException().isThrownBy(future::get); // wait for the end
+        latch.countDown();
+        future.get(); // wait for the end
+        executorService.shutdown();
         // check that we didn't process all elements, but reacted on closing
-        assertThat(sleepCounter).hasValueLessThan(totalSleepCount);
+        assertThat(recordsCounter).hasValueLessThan(totalRecords);
         assertThat(metricGroup.numLoadFailuresCounter.getCount()).isEqualTo(0);
     }
 
