@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.runtime.functions.table.lookup.fullcache;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.SimpleCounter;
@@ -33,6 +34,7 @@ import java.util.Collection;
 import java.util.Collections;
 
 /** Internal implementation of {@link LookupCache} for {@link LookupCacheType#FULL}. */
+@Internal
 public class LookupFullCache implements LookupCache {
     private static final long serialVersionUID = 1L;
 
@@ -57,25 +59,28 @@ public class LookupFullCache implements LookupCache {
         }
         metricGroup.hitCounter(hitCounter);
         metricGroup.missCounter(new SimpleCounter()); // always zero
-        cacheLoader.open(metricGroup);
-    }
+        cacheLoader.initializeMetrics(metricGroup);
 
-    public synchronized void open(Configuration parameters) throws Exception {
         if (reloadTriggerContext == null) {
-            cacheLoader.open(parameters);
-            reloadTriggerContext =
-                    new ReloadTriggerContext(
-                            cacheLoader,
-                            th -> {
-                                if (reloadFailCause == null) {
-                                    reloadFailCause = th;
-                                } else {
-                                    reloadFailCause.addSuppressed(th);
-                                }
-                            });
+            try {
+                // TODO add Configuration into FunctionContext and pass in into LookupFullCache
+                cacheLoader.open(new Configuration());
+                reloadTriggerContext =
+                        new ReloadTriggerContext(
+                                cacheLoader::reloadAsync,
+                                th -> {
+                                    if (reloadFailCause == null) {
+                                        reloadFailCause = th;
+                                    } else {
+                                        reloadFailCause.addSuppressed(th);
+                                    }
+                                });
 
-            reloadTrigger.open(reloadTriggerContext);
-            cacheLoader.awaitFirstLoad();
+                reloadTrigger.open(reloadTriggerContext);
+                cacheLoader.awaitFirstLoad();
+            } catch (Exception e) {
+                throw new RuntimeException("Failed to open lookup 'FULL' cache.", e);
+            }
         }
     }
 
@@ -109,7 +114,9 @@ public class LookupFullCache implements LookupCache {
 
     @Override
     public void close() throws Exception {
-        reloadTrigger.close(); // firstly try to interrupt reload thread
+        // stops scheduled thread pool that's responsible for scheduling cache updates
+        reloadTrigger.close();
+        // stops thread pool that's responsible for executing the actual cache update
         cacheLoader.close();
     }
 }

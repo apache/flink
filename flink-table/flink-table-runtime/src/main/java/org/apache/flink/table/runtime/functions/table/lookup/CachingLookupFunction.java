@@ -20,7 +20,6 @@ package org.apache.flink.table.runtime.functions.table.lookup;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.SimpleCounter;
 import org.apache.flink.metrics.groups.CacheMetricGroup;
@@ -109,10 +108,6 @@ public class CachingLookupFunction extends LookupFunction {
         }
         // Initialize cache and the delegating function
         cache.open(cacheMetricGroup);
-        if (cache instanceof LookupFullCache) {
-            // TODO add Configuration into FunctionContext
-            ((LookupFullCache) cache).open(new Configuration());
-        }
         if (delegate != null) {
             delegate.open(context);
         }
