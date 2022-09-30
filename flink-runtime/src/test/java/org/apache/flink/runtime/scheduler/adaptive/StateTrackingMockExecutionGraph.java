@@ -173,6 +173,9 @@ class StateTrackingMockExecutionGraph implements ExecutionGraph {
     }
 
     @Override
+    public void setJsonPlan(String jsonPlan) {}
+
+    @Override
     public JobID getJobID() {
         return jobId;
     }
@@ -271,11 +274,6 @@ class StateTrackingMockExecutionGraph implements ExecutionGraph {
 
     @Override
     public KvStateLocationRegistry getKvStateLocationRegistry() {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public void setJsonPlan(String jsonPlan) {
         throw new UnsupportedOperationException();
     }
 
