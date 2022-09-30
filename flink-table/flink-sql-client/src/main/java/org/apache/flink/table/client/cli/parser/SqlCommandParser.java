@@ -16,17 +16,18 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.client.cli;
+package org.apache.flink.table.client.cli.parser;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.sql.parser.impl.FlinkSqlParserImplConstants;
 import org.apache.flink.table.client.gateway.SqlExecutionException;
 import org.apache.flink.table.operations.Operation;
 
 import java.util.Optional;
 
-/** SqlClient command parser. */
+/** SqlClient command parser. Extends FlinkSqlParserImplConstants to use defined token kinds. */
 @Internal
-interface SqlCommandParser {
+public interface SqlCommandParser extends FlinkSqlParserImplConstants {
 
     /**
      * Parses given command statement.
@@ -37,4 +38,14 @@ interface SqlCommandParser {
      * @throws SqlExecutionException if any error happen while parsing or validating the command.
      */
     Optional<Operation> parseCommand(String command) throws SqlExecutionException;
+
+    /**
+     * Parses given statement.
+     *
+     * @param statement the sql client input to evaluate.
+     * @return the optional value of {@link StatementType} parsed. It would be empty when the
+     *     statement is "" or ";".
+     * @throws SqlExecutionException if any error happen while parsing or validating the statement.
+     */
+    Optional<StatementType> parseStatement(String statement) throws SqlExecutionException;
 }
