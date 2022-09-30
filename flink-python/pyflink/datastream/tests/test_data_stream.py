@@ -312,9 +312,16 @@ class DataStreamTests(object):
                       decimal.Decimal('2000000000000000000.061111111111111'
                                       '11111111111111'))]
         expected = test_data
-        ds = self.env.from_collection(test_data).map(lambda a: a)
+        ds = self.env.from_collection(test_data)
         with ds.execute_and_collect() as results:
             actual = [result for result in results]
+            self.assert_equals_sorted(expected, actual)
+
+        test_data = [[1, 2, 3], [4, 5]]
+        expected = test_data
+        ds = self.env.from_collection(test_data, type_info=Types.PRIMITIVE_ARRAY(Types.INT()))
+        with ds.execute_and_collect() as results:
+            actual = [r for r in results]
             self.assert_equals_sorted(expected, actual)
 
     def test_keyed_map(self):
