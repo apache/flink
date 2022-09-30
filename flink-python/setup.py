@@ -180,7 +180,7 @@ except IOError:
     sys.exit(-1)
 VERSION = __version__  # noqa
 APACHE_FLINK_VERSION = '1.13.0'
-APACHE_FLINK_LIBRARIES_VERSION = '1.13+lyft202208091660085522'
+APACHE_FLINK_LIBRARIES_VERSION = '1.13+lyft202208111660263173'
 
 
 with io.open(os.path.join(this_directory, 'README.md'), 'r', encoding='utf-8') as f:
