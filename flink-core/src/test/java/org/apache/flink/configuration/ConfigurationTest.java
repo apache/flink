@@ -54,19 +54,30 @@ public class ConfigurationTest extends TestLogger {
     private static final ConfigOption<Map<String, String>> MAP_OPTION =
             ConfigOptions.key("test-map-key").mapType().noDefaultValue();
 
+    private static final ConfigOption<Map<String, Integer>> MAP_OPTION_INTEGER_TYPE =
+            ConfigOptions.key("test-map-key").mapType(Integer.class).noDefaultValue();
+
     private static final ConfigOption<Duration> DURATION_OPTION =
             ConfigOptions.key("test-duration-key").durationType().noDefaultValue();
 
     private static final Map<String, String> PROPERTIES_MAP = new HashMap<>();
 
+    private static final Map<String, Integer> PROPERTIES_MAP2 = new HashMap<>();
+
     static {
         PROPERTIES_MAP.put("prop1", "value1");
         PROPERTIES_MAP.put("prop2", "12");
+        PROPERTIES_MAP2.put("prop1", 1);
+        PROPERTIES_MAP2.put("prop2", 2);
     }
 
     private static final String MAP_PROPERTY_1 = MAP_OPTION.key() + ".prop1";
 
     private static final String MAP_PROPERTY_2 = MAP_OPTION.key() + ".prop2";
+
+    private static final String MAP2_PROPERTY_1 = MAP_OPTION_INTEGER_TYPE.key() + ".prop1";
+
+    private static final String MAP2_PROPERTY_2 = MAP_OPTION_INTEGER_TYPE.key() + ".prop2";
 
     /** This test checks the serialization/deserialization of configuration objects. */
     @Test
@@ -433,6 +444,16 @@ public class ConfigurationTest extends TestLogger {
         assertFalse(cfg.contains(MAP_OPTION));
         assertFalse(cfg.containsKey(MAP_PROPERTY_1));
         assertFalse(cfg.containsKey(MAP_PROPERTY_2));
+    }
+
+    @Test
+    public void testMapWorksWithNonStringValue() {
+        final Configuration cfg = new Configuration();
+        cfg.setString(MAP2_PROPERTY_1, "1");
+        cfg.setString(MAP2_PROPERTY_2, "2");
+
+        Map<String, Integer> stringIntegerMap = cfg.get(MAP_OPTION_INTEGER_TYPE);
+        assertEquals(1L, (long) stringIntegerMap.get("prop1"));
     }
 
     // --------------------------------------------------------------------------------------------

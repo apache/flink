@@ -23,9 +23,13 @@ import org.apache.flink.configuration.description.Description;
 
 import java.time.Duration;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
+import static org.apache.flink.configuration.ConfigOption.Type.LIST;
+import static org.apache.flink.configuration.ConfigOption.Type.MAP;
+import static org.apache.flink.configuration.ConfigOption.Type.VALUE;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
@@ -87,13 +91,6 @@ public class ConfigOptions {
      * ConfigOptions#key(String)}.
      */
     public static final class OptionBuilder {
-        /**
-         * Workaround to reuse the {@link TypedConfigOptionBuilder} for a {@link Map Map&lt;String,
-         * String&gt;}.
-         */
-        @SuppressWarnings("unchecked")
-        private static final Class<Map<String, String>> PROPERTIES_MAP_CLASS =
-                (Class<Map<String, String>>) (Class<?>) Map.class;
 
         /** The key for the config option. */
         private final String key;
@@ -160,8 +157,16 @@ public class ConfigOptions {
          * Defines that the value of the option should be a set of properties, which can be
          * represented as {@code Map<String, String>}.
          */
-        public TypedConfigOptionBuilder<Map<String, String>> mapType() {
-            return new TypedConfigOptionBuilder<>(key, PROPERTIES_MAP_CLASS);
+        public MapConfigOptionBuilder<String> mapType() {
+            return mapType(String.class);
+        }
+
+        /**
+         * Defines that the value of the option should be a set of properties, which can be
+         * represented as {@code Map<String, String>}.
+         */
+        public <T> MapConfigOptionBuilder<T> mapType(Class<T> valueClazz) {
+            return new MapConfigOptionBuilder<>(key, valueClazz);
         }
 
         /**
@@ -180,7 +185,7 @@ public class ConfigOptions {
         public <T> ConfigOption<T> defaultValue(T value) {
             checkNotNull(value);
             return new ConfigOption<>(
-                    key, value.getClass(), ConfigOption.EMPTY_DESCRIPTION, value, false);
+                    key, value.getClass(), ConfigOption.EMPTY_DESCRIPTION, value, VALUE);
         }
 
         /**
@@ -194,7 +199,7 @@ public class ConfigOptions {
         @Deprecated
         public ConfigOption<String> noDefaultValue() {
             return new ConfigOption<>(
-                    key, String.class, ConfigOption.EMPTY_DESCRIPTION, null, false);
+                    key, String.class, ConfigOption.EMPTY_DESCRIPTION, null, VALUE);
         }
     }
 
@@ -218,13 +223,21 @@ public class ConfigOptions {
         }
 
         /**
+         * Defines that the option's type should be a map with values of the previously defined
+         * atomic type.
+         */
+        public MapConfigOptionBuilder<T> asMap() {
+            return new MapConfigOptionBuilder<>(key, clazz);
+        }
+
+        /**
          * Creates a ConfigOption with the given default value.
          *
          * @param value The default value for the config option
          * @return The config option with the default value.
          */
         public ConfigOption<T> defaultValue(T value) {
-            return new ConfigOption<>(key, clazz, ConfigOption.EMPTY_DESCRIPTION, value, false);
+            return new ConfigOption<>(key, clazz, ConfigOption.EMPTY_DESCRIPTION, value, VALUE);
         }
 
         /**
@@ -234,7 +247,7 @@ public class ConfigOptions {
          */
         public ConfigOption<T> noDefaultValue() {
             return new ConfigOption<>(
-                    key, clazz, Description.builder().text("").build(), null, false);
+                    key, clazz, Description.builder().text("").build(), null, VALUE);
         }
     }
 
@@ -261,7 +274,7 @@ public class ConfigOptions {
         @SafeVarargs
         public final ConfigOption<List<E>> defaultValues(E... values) {
             return new ConfigOption<>(
-                    key, clazz, ConfigOption.EMPTY_DESCRIPTION, Arrays.asList(values), true);
+                    key, clazz, ConfigOption.EMPTY_DESCRIPTION, Arrays.asList(values), LIST);
         }
 
         /**
@@ -270,7 +283,32 @@ public class ConfigOptions {
          * @return The config option without a default value.
          */
         public ConfigOption<List<E>> noDefaultValue() {
-            return new ConfigOption<>(key, clazz, ConfigOption.EMPTY_DESCRIPTION, null, true);
+            return new ConfigOption<>(key, clazz, ConfigOption.EMPTY_DESCRIPTION, null, LIST);
+        }
+    }
+
+    /** Builder for map type {@link ConfigOption} with a value type V. */
+    public static class MapConfigOptionBuilder<V> {
+        private final String key;
+        private final Class<V> clazz;
+
+        MapConfigOptionBuilder(String key, Class<V> clazz) {
+            this.key = key;
+            this.clazz = clazz;
+        }
+
+        /** Defines that the option's type should be a list of previously defined atomic type. */
+        public ListConfigOptionBuilder<Map> asList() {
+            return new ListConfigOptionBuilder<>(key, Map.class);
+        }
+
+        public final ConfigOption<Map<String, V>> defaultValue(Map<String, V> defaultMap) {
+            return new ConfigOption<>(key, clazz, ConfigOption.EMPTY_DESCRIPTION, defaultMap, MAP);
+        }
+
+        public ConfigOption<Map<String, V>> noDefaultValue() {
+            return new ConfigOption<>(
+                    key, clazz, ConfigOption.EMPTY_DESCRIPTION, Collections.emptyMap(), MAP);
         }
     }
 

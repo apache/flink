@@ -21,11 +21,13 @@ package org.apache.flink.runtime.rest.handler.job;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.PipelineOptions;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.blob.BlobClient;
 import org.apache.flink.runtime.client.ClientUtils;
 import org.apache.flink.runtime.dispatcher.DispatcherGateway;
 import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.rest.handler.AbstractRestHandler;
 import org.apache.flink.runtime.rest.handler.HandlerRequest;
@@ -148,9 +150,28 @@ public final class JobSubmitHandler
                                         HttpResponseStatus.BAD_REQUEST,
                                         e));
                     }
+                    try {
+                        applyParallelismOverrides(jobGraph);
+                    } catch (Exception e) {
+                        throw new CompletionException(
+                                new RestHandlerException(
+                                        "Failed to apply parallelism overrides",
+                                        HttpResponseStatus.INTERNAL_SERVER_ERROR,
+                                        e));
+                    }
                     return jobGraph;
                 },
                 executor);
+    }
+
+    private void applyParallelismOverrides(JobGraph jobGraph) {
+        Map<String, Integer> overrides = configuration.get(PipelineOptions.PARALLELISM_OVERRIDES);
+        for (JobVertex vertex : jobGraph.getVertices()) {
+            Integer override = overrides.get(vertex.getID().toHexString());
+            if (override != null) {
+                vertex.setParallelism(override);
+            }
+        }
     }
 
     private static Collection<Path> getJarFilesToUpload(

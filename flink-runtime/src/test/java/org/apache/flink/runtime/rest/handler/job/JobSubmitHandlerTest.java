@@ -21,11 +21,14 @@ package org.apache.flink.runtime.rest.handler.job;
 import org.apache.flink.api.common.cache.DistributedCache;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.PipelineOptions;
 import org.apache.flink.runtime.blob.BlobServer;
 import org.apache.flink.runtime.blob.VoidBlobStore;
 import org.apache.flink.runtime.dispatcher.DispatcherGateway;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobGraphTestUtils;
+import org.apache.flink.runtime.jobgraph.JobVertex;
+import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.net.SSLUtilsTest;
 import org.apache.flink.runtime.rest.handler.HandlerRequest;
@@ -39,6 +42,7 @@ import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.concurrent.Executors;
 import org.apache.flink.util.concurrent.FutureUtils;
 
+import org.apache.flink.shaded.guava30.com.google.common.collect.ImmutableMap;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
 
 import org.junit.After;
@@ -134,11 +138,7 @@ public class JobSubmitHandlerTest extends TestLogger {
 
     @Test
     public void testSuccessfulJobSubmission() throws Exception {
-        final Path jobGraphFile = TEMPORARY_FOLDER.newFile().toPath();
-        try (ObjectOutputStream objectOut =
-                new ObjectOutputStream(Files.newOutputStream(jobGraphFile))) {
-            objectOut.writeObject(JobGraphTestUtils.emptyJobGraph());
-        }
+        final Path jobGraphFile = writeJobGraphToFile(JobGraphTestUtils.emptyJobGraph());
 
         TestingDispatcherGateway.Builder builder = TestingDispatcherGateway.newBuilder();
         builder.setBlobServerPort(blobServer.getPort())
@@ -171,11 +171,7 @@ public class JobSubmitHandlerTest extends TestLogger {
 
     @Test
     public void testRejectionOnCountMismatch() throws Exception {
-        final Path jobGraphFile = TEMPORARY_FOLDER.newFile().toPath();
-        try (ObjectOutputStream objectOut =
-                new ObjectOutputStream(Files.newOutputStream(jobGraphFile))) {
-            objectOut.writeObject(JobGraphTestUtils.emptyJobGraph());
-        }
+        final Path jobGraphFile = writeJobGraphToFile(JobGraphTestUtils.emptyJobGraph());
         final Path countExceedingFile = TEMPORARY_FOLDER.newFile().toPath();
 
         TestingDispatcherGateway.Builder builder = TestingDispatcherGateway.newBuilder();
@@ -239,7 +235,6 @@ public class JobSubmitHandlerTest extends TestLogger {
                         Executors.directExecutor(),
                         configuration);
 
-        final Path jobGraphFile = TEMPORARY_FOLDER.newFile().toPath();
         final Path jarFile = TEMPORARY_FOLDER.newFile().toPath();
         final Path artifactFile = TEMPORARY_FOLDER.newFile().toPath();
 
@@ -247,10 +242,7 @@ public class JobSubmitHandlerTest extends TestLogger {
         // the entry that should be updated
         jobGraph.addUserArtifact(
                 dcEntryName, new DistributedCache.DistributedCacheEntry("random", false));
-        try (ObjectOutputStream objectOut =
-                new ObjectOutputStream(Files.newOutputStream(jobGraphFile))) {
-            objectOut.writeObject(jobGraph);
-        }
+        final Path jobGraphFile = writeJobGraphToFile(jobGraph);
 
         JobSubmitRequestBody request =
                 new JobSubmitRequestBody(
@@ -297,13 +289,8 @@ public class JobSubmitHandlerTest extends TestLogger {
                         Executors.directExecutor(),
                         configuration);
 
-        final Path jobGraphFile = TEMPORARY_FOLDER.newFile().toPath();
+        final Path jobGraphFile = writeJobGraphToFile(JobGraphTestUtils.emptyJobGraph());
 
-        JobGraph jobGraph = JobGraphTestUtils.emptyJobGraph();
-        try (ObjectOutputStream objectOut =
-                new ObjectOutputStream(Files.newOutputStream(jobGraphFile))) {
-            objectOut.writeObject(jobGraph);
-        }
         JobSubmitRequestBody request =
                 new JobSubmitRequestBody(
                         jobGraphFile.getFileName().toString(),
@@ -322,5 +309,76 @@ public class JobSubmitHandlerTest extends TestLogger {
             Throwable t = ExceptionUtils.stripExecutionException(e);
             Assert.assertEquals(errorMessage, t.getMessage());
         }
+    }
+
+    @Test
+    public void testParallelismOverrides() throws Exception {
+        JobVertex v1 = new JobVertex("v1");
+        v1.setParallelism(1);
+        JobVertex v2 = new JobVertex("v2");
+        v2.setParallelism(2);
+        JobVertex v3 = new JobVertex("v3");
+        v3.setParallelism(3);
+        JobGraph jobGraph = JobGraphTestUtils.streamingJobGraph(v1, v2, v3);
+        Path jobGraphFile = writeJobGraphToFile(jobGraph);
+
+        configuration.set(
+                PipelineOptions.PARALLELISM_OVERRIDES,
+                ImmutableMap.of(
+                        v1.getID().toHexString(), 10,
+                        // v2 is omitted
+                        v3.getID().toHexString(), 42,
+                        // unknown vertex added
+                        new JobVertexID().toHexString(), 23));
+
+        JobSubmitRequestBody request =
+                new JobSubmitRequestBody(
+                        jobGraphFile.getFileName().toString(),
+                        Collections.emptyList(),
+                        Collections.emptyList());
+
+        CompletableFuture<JobGraph> submittedJobGraph = new CompletableFuture<>();
+        TestingDispatcherGateway mockGateway =
+                TestingDispatcherGateway.newBuilder()
+                        .setSubmitFunction(
+                                graph -> {
+                                    // Intercept the jobGraph which is submitted
+                                    submittedJobGraph.complete(graph);
+                                    return CompletableFuture.completedFuture(Acknowledge.get());
+                                })
+                        .build();
+
+        JobSubmitHandler jobSubmitHandler =
+                new JobSubmitHandler(
+                        () -> CompletableFuture.completedFuture(mockGateway),
+                        RpcUtils.INF_TIMEOUT,
+                        Collections.emptyMap(),
+                        Executors.directExecutor(),
+                        configuration);
+
+        jobSubmitHandler
+                .handleRequest(
+                        HandlerRequest.create(
+                                request,
+                                EmptyMessageParameters.getInstance(),
+                                Collections.singletonList(jobGraphFile.toFile())),
+                        mockGateway)
+                .get();
+
+        Assert.assertTrue(submittedJobGraph.isDone());
+        jobGraph = submittedJobGraph.get();
+
+        Assert.assertEquals(jobGraph.findVertexByID(v1.getID()).getParallelism(), 10);
+        Assert.assertEquals(jobGraph.findVertexByID(v2.getID()).getParallelism(), 2);
+        Assert.assertEquals(jobGraph.findVertexByID(v3.getID()).getParallelism(), 42);
+    }
+
+    private static Path writeJobGraphToFile(JobGraph jobGraph) throws IOException {
+        Path jobGraphFile = TEMPORARY_FOLDER.newFile().toPath();
+        try (ObjectOutputStream objectOut =
+                new ObjectOutputStream(Files.newOutputStream(jobGraphFile))) {
+            objectOut.writeObject(jobGraph);
+        }
+        return jobGraphFile;
     }
 }

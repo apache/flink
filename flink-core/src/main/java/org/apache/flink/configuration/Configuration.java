@@ -712,6 +712,8 @@ public class Configuration extends ExecutionConfig.GlobalJobParameters
         try {
             if (option.isList()) {
                 return rawValue.map(v -> ConfigurationUtils.convertToList(v, clazz));
+            } else if (option.isMap()) {
+                return rawValue.map(v -> ConfigurationUtils.convertToMap(v, clazz));
             } else {
                 return rawValue.map(v -> ConfigurationUtils.convertValue(v, clazz));
             }
