@@ -880,6 +880,13 @@ under the License.
 			<scope>test</scope>
 		</dependency>
 
+		<dependency>
+			<groupId>org.apache.derby</groupId>
+			<artifactId>derbytools</artifactId>
+			<version>${derby.version}</version>
+			<scope>test</scope>
+		</dependency>
+
 		<!--We downgrade the version of avro for tests. We do that because we test Hive's built-in
 			formats, which do not work with newer avro versions. We do not downgrade the version
 			permanently, because it should be safe to use hive as a catalog with newer avro
