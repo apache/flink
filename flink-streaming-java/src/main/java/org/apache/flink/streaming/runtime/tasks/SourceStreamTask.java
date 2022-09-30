@@ -330,7 +330,11 @@ public class SourceStreamTask<
                     LOG.debug(
                             "Legacy source {} skip execution since the task is finished on restore",
                             getTaskNameWithSubtaskAndId());
-                    mainOperator.run(lock, operatorChain);
+                    mainOperator.run(
+                            lock,
+                            operatorChain,
+                            configuration.isUnalignedCheckpointsEnabled(),
+                            recordWriter);
                 }
                 completeProcessing();
                 completionFuture.complete(null);

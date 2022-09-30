@@ -21,6 +21,8 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.MetricOptions;
+import org.apache.flink.runtime.io.network.api.writer.RecordWriterDelegate;
+import org.apache.flink.runtime.plugable.SerializationDelegate;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
@@ -61,16 +63,30 @@ public class StreamSource<OUT, SRC extends SourceFunction<OUT>>
         return emitProgressiveWatermarks;
     }
 
-    public void run(final Object lockingObject, final OperatorChain<?, ?> operatorChain)
+    public void run(
+            final Object lockingObject,
+            final OperatorChain<?, ?> operatorChain,
+            final boolean enabledUnaligned,
+            RecordWriterDelegate<SerializationDelegate<StreamRecord<OUT>>> recordWriter)
             throws Exception {
 
-        run(lockingObject, output, operatorChain);
+        run(lockingObject, output, operatorChain, enabledUnaligned, recordWriter);
     }
 
     public void run(
             final Object lockingObject,
             final Output<StreamRecord<OUT>> collector,
             final OperatorChain<?, ?> operatorChain)
+            throws Exception {
+        run(lockingObject, collector, operatorChain, false, null);
+    }
+
+    public void run(
+            final Object lockingObject,
+            final Output<StreamRecord<OUT>> collector,
+            final OperatorChain<?, ?> operatorChain,
+            final boolean enabledUnaligned,
+            RecordWriterDelegate<SerializationDelegate<StreamRecord<OUT>>> recordWriter)
             throws Exception {
 
         final TimeCharacteristic timeCharacteristic = getOperatorConfig().getTimeCharacteristic();
@@ -104,7 +120,9 @@ public class StreamSource<OUT, SRC extends SourceFunction<OUT>>
                         collector,
                         watermarkInterval,
                         -1,
-                        emitProgressiveWatermarks);
+                        emitProgressiveWatermarks,
+                        enabledUnaligned,
+                        recordWriter);
 
         try {
             userFunction.run(ctx);
@@ -144,8 +162,8 @@ public class StreamSource<OUT, SRC extends SourceFunction<OUT>>
     /**
      * Marks this source as canceled or stopped.
      *
-     * <p>This indicates that any exit of the {@link #run(Object, Output, OperatorChain)} method
-     * cannot be interpreted as the result of a finite source.
+     * <p>This indicates that any exit of the {@link #run(Object, OperatorChain, boolean,
+     * RecordWriterDelegate)} method cannot be interpreted as the result of a finite source.
      */
     protected void markCanceledOrStopped() {
         this.canceledOrStopped = true;

@@ -18,6 +18,8 @@
 package org.apache.flink.streaming.api.operators;
 
 import org.apache.flink.api.common.operators.ProcessingTimeService.ProcessingTimeCallback;
+import org.apache.flink.runtime.io.network.api.writer.RecordWriterDelegate;
+import org.apache.flink.runtime.plugable.SerializationDelegate;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.api.watermark.Watermark;
@@ -27,6 +29,7 @@ import org.apache.flink.streaming.runtime.watermarkstatus.WatermarkStatus;
 import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.Preconditions;
 
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ScheduledFuture;
 
 /** Source contexts for various stream time characteristics. */
@@ -50,6 +53,38 @@ public class StreamSourceContexts {
             long watermarkInterval,
             long idleTimeout,
             boolean emitProgressiveWatermarks) {
+        return getSourceContext(
+                timeCharacteristic,
+                processingTimeService,
+                checkpointLock,
+                output,
+                watermarkInterval,
+                idleTimeout,
+                emitProgressiveWatermarks,
+                false,
+                null);
+    }
+
+    /**
+     * Depending on the {@link TimeCharacteristic}, this method will return the adequate {@link
+     * org.apache.flink.streaming.api.functions.source.SourceFunction.SourceContext}. That is:
+     *
+     * <ul>
+     *   <li>{@link TimeCharacteristic#IngestionTime} = {@code AutomaticWatermarkContext}
+     *   <li>{@link TimeCharacteristic#ProcessingTime} = {@code NonTimestampContext}
+     *   <li>{@link TimeCharacteristic#EventTime} = {@code ManualWatermarkContext}
+     * </ul>
+     */
+    public static <OUT> SourceFunction.SourceContext<OUT> getSourceContext(
+            TimeCharacteristic timeCharacteristic,
+            ProcessingTimeService processingTimeService,
+            Object checkpointLock,
+            Output<StreamRecord<OUT>> output,
+            long watermarkInterval,
+            long idleTimeout,
+            boolean emitProgressiveWatermarks,
+            boolean enabledUnaligned,
+            RecordWriterDelegate<SerializationDelegate<StreamRecord<OUT>>> recordWriter) {
 
         final SourceFunction.SourceContext<OUT> ctx;
         switch (timeCharacteristic) {
@@ -60,7 +95,9 @@ public class StreamSourceContexts {
                                 processingTimeService,
                                 checkpointLock,
                                 idleTimeout,
-                                emitProgressiveWatermarks);
+                                emitProgressiveWatermarks,
+                                enabledUnaligned,
+                                recordWriter);
 
                 break;
             case IngestionTime:
@@ -74,10 +111,14 @@ public class StreamSourceContexts {
                                 watermarkInterval,
                                 processingTimeService,
                                 checkpointLock,
-                                idleTimeout);
+                                idleTimeout,
+                                enabledUnaligned,
+                                recordWriter);
                 break;
             case ProcessingTime:
-                ctx = new NonTimestampContext<>(checkpointLock, output);
+                ctx =
+                        new NonTimestampContext<>(
+                                checkpointLock, output, enabledUnaligned, recordWriter);
                 break;
             default:
                 throw new IllegalArgumentException(String.valueOf(timeCharacteristic));
@@ -128,6 +169,11 @@ public class StreamSourceContexts {
             nestedContext.close();
             this.nestedContext = new ClosedContext<>(nestedContext.getCheckpointLock());
         }
+
+        @Override
+        public void ensureRecordWriterIsAvailable() {
+            this.nestedContext.ensureRecordWriterIsAvailable();
+        }
     }
 
     private static class ClosedContext<T> implements SourceFunction.SourceContext<T> {
@@ -177,13 +223,19 @@ public class StreamSourceContexts {
      * A source context that attached {@code -1} as a timestamp to all records, and that does not
      * forward watermarks.
      */
-    private static class NonTimestampContext<T> implements SourceFunction.SourceContext<T> {
+    private static class NonTimestampContext<T> extends BasicContext<T> {
 
         private final Object lock;
         private final Output<StreamRecord<T>> output;
         private final StreamRecord<T> reuse;
 
-        private NonTimestampContext(Object checkpointLock, Output<StreamRecord<T>> output) {
+        private NonTimestampContext(
+                Object checkpointLock,
+                Output<StreamRecord<T>> output,
+                boolean enabledUnaligned,
+                RecordWriterDelegate<SerializationDelegate<StreamRecord<T>>> recordWriter) {
+            super(enabledUnaligned, recordWriter);
+
             this.lock =
                     Preconditions.checkNotNull(
                             checkpointLock, "The checkpoint lock cannot be null.");
@@ -246,9 +298,11 @@ public class StreamSourceContexts {
                 final long watermarkInterval,
                 final ProcessingTimeService timeService,
                 final Object checkpointLock,
-                final long idleTimeout) {
+                final long idleTimeout,
+                final boolean enabledUnaligned,
+                final RecordWriterDelegate<SerializationDelegate<StreamRecord<T>>> recordWriter) {
 
-            super(timeService, checkpointLock, idleTimeout);
+            super(timeService, checkpointLock, idleTimeout, enabledUnaligned, recordWriter);
 
             this.output = Preconditions.checkNotNull(output, "The output cannot be null.");
 
@@ -404,9 +458,11 @@ public class StreamSourceContexts {
                 final ProcessingTimeService timeService,
                 final Object checkpointLock,
                 final long idleTimeout,
-                final boolean emitProgressiveWatermarks) {
+                final boolean emitProgressiveWatermarks,
+                final boolean enabledUnaligned,
+                final RecordWriterDelegate<SerializationDelegate<StreamRecord<T>>> recordWriter) {
 
-            super(timeService, checkpointLock, idleTimeout);
+            super(timeService, checkpointLock, idleTimeout, enabledUnaligned, recordWriter);
 
             this.emitProgressiveWatermarks = emitProgressiveWatermarks;
             this.output = Preconditions.checkNotNull(output, "The output cannot be null.");
@@ -456,7 +512,7 @@ public class StreamSourceContexts {
      * 2 consecutive checks, it determines the source to be IDLE and correspondingly toggles the
      * status. ACTIVE status resumes as soon as some record or watermark is collected again.
      */
-    private abstract static class WatermarkContext<T> implements SourceFunction.SourceContext<T> {
+    private abstract static class WatermarkContext<T> extends BasicContext<T> {
 
         protected final ProcessingTimeService timeService;
         protected final Object checkpointLock;
@@ -483,7 +539,10 @@ public class StreamSourceContexts {
         public WatermarkContext(
                 final ProcessingTimeService timeService,
                 final Object checkpointLock,
-                final long idleTimeout) {
+                final long idleTimeout,
+                boolean enabledUnaligned,
+                RecordWriterDelegate<SerializationDelegate<StreamRecord<T>>> recordWriter) {
+            super(enabledUnaligned, recordWriter);
 
             this.timeService =
                     Preconditions.checkNotNull(timeService, "Time Service cannot be null.");
@@ -621,5 +680,36 @@ public class StreamSourceContexts {
         protected abstract void processAndEmitWatermark(Watermark mark);
 
         protected abstract void processAndEmitWatermarkStatus(WatermarkStatus watermarkStatus);
+    }
+
+    /** This class implements the logic of checking the availability of recordWriter. */
+    private abstract static class BasicContext<T> implements SourceFunction.SourceContext<T> {
+
+        private final boolean enabledUnaligned;
+
+        protected final RecordWriterDelegate<SerializationDelegate<StreamRecord<T>>> recordWriter;
+
+        protected BasicContext(
+                boolean enabledUnaligned,
+                RecordWriterDelegate<SerializationDelegate<StreamRecord<T>>> recordWriter) {
+            this.enabledUnaligned = enabledUnaligned;
+            this.recordWriter = recordWriter;
+        }
+
+        @Override
+        public void ensureRecordWriterIsAvailable() {
+            if (recordWriter == null || !enabledUnaligned || recordWriter.isAvailable()) {
+                return;
+            }
+
+            CompletableFuture<?> resumeFuture = recordWriter.getAvailableFuture();
+            try {
+                resumeFuture.get();
+            } catch (InterruptedException e) {
+                throw new RuntimeException(
+                        "Interrupted while waiting for recordWriter to become available", e);
+            } catch (Throwable ignored) {
+            }
+        }
     }
 }

@@ -213,6 +213,8 @@ public interface SourceFunction<T> extends Function, Serializable {
          */
         Object getCheckpointLock();
 
+        default void ensureRecordWriterIsAvailable() {}
+
         /** This method is called by the system to shut down the context. */
         void close();
     }

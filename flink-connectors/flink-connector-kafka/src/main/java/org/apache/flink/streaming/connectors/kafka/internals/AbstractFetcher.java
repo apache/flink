@@ -356,6 +356,8 @@ public abstract class AbstractFetcher<T, KPH> {
             KafkaTopicPartitionState<T, KPH> partitionState,
             long offset,
             long kafkaEventTimestamp) {
+        sourceContext.ensureRecordWriterIsAvailable();
+
         // emit the records, using the checkpoint lock to guarantee
         // atomicity of record emission and offset state update
         synchronized (checkpointLock) {

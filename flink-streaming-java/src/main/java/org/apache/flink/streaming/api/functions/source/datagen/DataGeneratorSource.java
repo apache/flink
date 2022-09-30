@@ -112,6 +112,7 @@ public class DataGeneratorSource<T> extends RichParallelSourceFunction<T>
                 if (isRunning
                         && generator.hasNext()
                         && (numberOfRows == null || outputSoFar < toOutput)) {
+                    ctx.ensureRecordWriterIsAvailable();
                     synchronized (ctx.getCheckpointLock()) {
                         outputSoFar++;
                         ctx.collect(this.generator.next());
