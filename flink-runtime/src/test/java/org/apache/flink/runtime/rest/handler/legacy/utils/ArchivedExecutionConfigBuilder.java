@@ -27,6 +27,7 @@ import java.util.Map;
 /** Utility class for constructing an ArchivedExecutionConfig. */
 public class ArchivedExecutionConfigBuilder {
     private String executionMode;
+    private String jobType;
     private String restartStrategyDescription;
     private int maxParallelism;
     private int parallelism;
@@ -55,6 +56,11 @@ public class ArchivedExecutionConfigBuilder {
         return this;
     }
 
+    public ArchivedExecutionConfigBuilder setJobType(String jobType) {
+        this.jobType = jobType;
+        return this;
+    }
+
     public ArchivedExecutionConfigBuilder setObjectReuseEnabled(boolean objectReuseEnabled) {
         this.objectReuseEnabled = objectReuseEnabled;
         return this;
@@ -75,6 +81,7 @@ public class ArchivedExecutionConfigBuilder {
     public ArchivedExecutionConfig build() {
         return new ArchivedExecutionConfig(
                 executionMode != null ? executionMode : ExecutionMode.PIPELINED.name(),
+                jobType != null ? jobType : "UNKNOWN",
                 restartStrategyDescription != null ? restartStrategyDescription : "default",
                 maxParallelism,
                 parallelism,

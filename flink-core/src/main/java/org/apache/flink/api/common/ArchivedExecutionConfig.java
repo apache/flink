@@ -35,6 +35,7 @@ public class ArchivedExecutionConfig implements Serializable {
     private static final long serialVersionUID = 2907040336948181163L;
 
     private final String executionMode;
+    private final String jobType;
     private final String restartStrategyDescription;
     private final int parallelism;
     private final int maxParallelism;
@@ -44,6 +45,11 @@ public class ArchivedExecutionConfig implements Serializable {
 
     public ArchivedExecutionConfig(ExecutionConfig ec) {
         executionMode = ec.getExecutionMode().name();
+        if (ec.getJobType() != null) {
+            jobType = ec.getJobType();
+        } else {
+            jobType = "UNKNOWN";
+        }
         if (ec.getRestartStrategy() != null) {
             restartStrategyDescription = ec.getRestartStrategy().getDescription();
         } else {
@@ -68,7 +74,26 @@ public class ArchivedExecutionConfig implements Serializable {
             boolean objectReuseEnabled,
             long periodicMaterializeIntervalMillis,
             Map<String, String> globalJobParameters) {
+        this(
+                executionMode,
+                "UNKNOW",
+                restartStrategyDescription,
+                maxParallelism,
+                parallelism,
+                objectReuseEnabled,
+                globalJobParameters);
+    }
+
+    public ArchivedExecutionConfig(
+            String executionMode,
+            String jobType,
+            String restartStrategyDescription,
+            int maxParallelism,
+            int parallelism,
+            boolean objectReuseEnabled,
+            Map<String, String> globalJobParameters) {
         this.executionMode = executionMode;
+        this.jobType = jobType;
         this.restartStrategyDescription = restartStrategyDescription;
         this.maxParallelism = maxParallelism;
         this.parallelism = parallelism;
@@ -79,6 +104,10 @@ public class ArchivedExecutionConfig implements Serializable {
 
     public String getExecutionMode() {
         return executionMode;
+    }
+
+    public String getJobType() {
+        return jobType;
     }
 
     public String getRestartStrategyDescription() {

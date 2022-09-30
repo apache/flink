@@ -66,8 +66,10 @@ public class JobConfigHandlerTest extends TestLogger {
         globalJobParameters.put("bar.secret.foo", "my secret");
         globalJobParameters.put("password.to.my.safe", "12345");
 
+        final String jobType = "BATCH";
         final ArchivedExecutionConfig archivedExecutionConfig =
                 new ArchivedExecutionConfigBuilder()
+                        .setJobType(jobType)
                         .setGlobalJobParameters(globalJobParameters)
                         .build();
         final AccessExecutionGraph archivedExecutionGraph =
@@ -86,6 +88,8 @@ public class JobConfigHandlerTest extends TestLogger {
         assertThat(
                 jobConfigInfoResponse.getExecutionConfigInfo().getGlobalJobParameters(),
                 is(equalTo(filteredGlobalJobParameters)));
+        assertThat(
+                jobConfigInfoResponse.getExecutionConfigInfo().getJobType(), is(equalTo(jobType)));
     }
 
     private Map<String, String> filterSecretValues(Map<String, String> globalJobParameters) {

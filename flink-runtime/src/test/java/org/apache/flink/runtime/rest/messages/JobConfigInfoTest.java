@@ -40,7 +40,7 @@ public class JobConfigInfoTest extends RestResponseMarshallingTestBase<JobConfig
 
         final JobConfigInfo.ExecutionConfigInfo executionConfigInfo =
                 new JobConfigInfo.ExecutionConfigInfo(
-                        "foobar", "always", 42, false, globalJobParameters);
+                        "foobar", "STREAMING", "always", 42, false, globalJobParameters);
         return new JobConfigInfo(new JobID(), "testJob", executionConfigInfo);
     }
 }

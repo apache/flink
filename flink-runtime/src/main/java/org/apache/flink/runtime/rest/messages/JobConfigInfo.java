@@ -169,6 +169,7 @@ public class JobConfigInfo implements ResponseBody {
     public static final class ExecutionConfigInfo {
 
         public static final String FIELD_NAME_EXECUTION_MODE = "execution-mode";
+        public static final String FIELD_NAME_JOB_TYPE = "job-type";
         public static final String FIELD_NAME_RESTART_STRATEGY = "restart-strategy";
         public static final String FIELD_NAME_PARALLELISM = "job-parallelism";
         public static final String FIELD_NAME_OBJECT_REUSE_MODE = "object-reuse-mode";
@@ -176,6 +177,9 @@ public class JobConfigInfo implements ResponseBody {
 
         @JsonProperty(FIELD_NAME_EXECUTION_MODE)
         private final String executionMode;
+
+        @JsonProperty(FIELD_NAME_JOB_TYPE)
+        private final String jobType;
 
         @JsonProperty(FIELD_NAME_RESTART_STRATEGY)
         private final String restartStrategy;
@@ -192,12 +196,14 @@ public class JobConfigInfo implements ResponseBody {
         @JsonCreator
         public ExecutionConfigInfo(
                 @JsonProperty(FIELD_NAME_EXECUTION_MODE) String executionMode,
+                @JsonProperty(FIELD_NAME_JOB_TYPE) String jobType,
                 @JsonProperty(FIELD_NAME_RESTART_STRATEGY) String restartStrategy,
                 @JsonProperty(FIELD_NAME_PARALLELISM) int parallelism,
                 @JsonProperty(FIELD_NAME_OBJECT_REUSE_MODE) boolean isObjectReuse,
                 @JsonProperty(FIELD_NAME_GLOBAL_JOB_PARAMETERS)
                         Map<String, String> globalJobParameters) {
             this.executionMode = Preconditions.checkNotNull(executionMode);
+            this.jobType = Preconditions.checkNotNull(jobType);
             this.restartStrategy = Preconditions.checkNotNull(restartStrategy);
             this.parallelism = parallelism;
             this.isObjectReuse = isObjectReuse;
@@ -206,6 +212,10 @@ public class JobConfigInfo implements ResponseBody {
 
         public String getExecutionMode() {
             return executionMode;
+        }
+
+        public String getJobType() {
+            return jobType;
         }
 
         public String getRestartStrategy() {
@@ -237,6 +247,7 @@ public class JobConfigInfo implements ResponseBody {
             return parallelism == that.parallelism
                     && isObjectReuse == that.isObjectReuse
                     && Objects.equals(executionMode, that.executionMode)
+                    && Objects.equals(jobType, that.jobType)
                     && Objects.equals(restartStrategy, that.restartStrategy)
                     && Objects.equals(globalJobParameters, that.globalJobParameters);
         }
@@ -245,6 +256,7 @@ public class JobConfigInfo implements ResponseBody {
         public int hashCode() {
             return Objects.hash(
                     executionMode,
+                    jobType,
                     restartStrategy,
                     parallelism,
                     isObjectReuse,
@@ -254,6 +266,7 @@ public class JobConfigInfo implements ResponseBody {
         public static ExecutionConfigInfo from(ArchivedExecutionConfig archivedExecutionConfig) {
             return new ExecutionConfigInfo(
                     archivedExecutionConfig.getExecutionMode(),
+                    archivedExecutionConfig.getJobType(),
                     archivedExecutionConfig.getRestartStrategyDescription(),
                     archivedExecutionConfig.getParallelism(),
                     archivedExecutionConfig.getObjectReuseEnabled(),

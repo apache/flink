@@ -123,7 +123,15 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
             key("hidden.execution.mode")
                     .enumType(ExecutionMode.class)
                     .defaultValue(ExecutionMode.PIPELINED)
-                    .withDescription("Defines how data exchange happens - batch or pipelined");
+                    .withDescription(
+                            "Defines how data exchange happens "
+                                    + "- batch or pipelined(used in the deprecated DataSet API)");
+
+    private static final ConfigOption<String> JOB_TYPE =
+            key("hidden.job.type")
+                    .stringType()
+                    .defaultValue("STREAMING")
+                    .withDescription("Defines the execution runtime mode of job");
 
     /**
      * Use {@link
@@ -541,10 +549,12 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
      * Sets the execution mode to execute the program. The execution mode defines whether data
      * exchanges are performed in a batch or on a pipelined manner.
      *
-     * <p>The default execution mode is {@link ExecutionMode#PIPELINED}.
-     *
+     * @deprecated This configuration is used in the deprecated DataSet API. The {@link
+     *     ExecutionConfig#setJobType(String)} sets execution runtime mode of job
+     *     <p>The default execution mode is {@link ExecutionMode#PIPELINED}.
      * @param executionMode The execution mode to use.
      */
+    @Deprecated
     public void setExecutionMode(ExecutionMode executionMode) {
         configuration.set(EXECUTION_MODE, executionMode);
     }
@@ -553,12 +563,32 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
      * Gets the execution mode used to execute the program. The execution mode defines whether data
      * exchanges are performed in a batch or on a pipelined manner.
      *
-     * <p>The default execution mode is {@link ExecutionMode#PIPELINED}.
-     *
+     * @deprecated This configuration is used in the deprecated DataSet API. The {@link
+     *     ExecutionConfig#getJobType()} contains execution runtime mode of job
+     *     <p>The default execution mode is {@link ExecutionMode#PIPELINED}.
      * @return The execution mode for the program.
      */
+    @Deprecated
     public ExecutionMode getExecutionMode() {
         return configuration.get(EXECUTION_MODE);
+    }
+
+    /**
+     * Sets the execution runtime mode used to execute the program. The execution mode defines
+     * whether job are performed in a batch or on a streaming manner.
+     */
+    public void setJobType(String jobType) {
+        configuration.set(JOB_TYPE, jobType);
+    }
+
+    /**
+     * Gets the execution runtime mode used to execute the program. The execution mode defines
+     * whether job are performed in a batch or on a streaming manner.
+     *
+     * @return The execution runtime mode for the program
+     */
+    public String getJobType() {
+        return configuration.get(JOB_TYPE);
     }
 
     /**
