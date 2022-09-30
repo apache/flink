@@ -33,9 +33,10 @@ import java.util.Optional;
 /** Identifies an operator, either based on a {@code uid} or {@code uidHash}. */
 @Internal
 public class OperatorIdentifier implements Serializable {
-    private final OperatorID operatorId;
     // this is only used for logging purposes
     @Nullable private final String uid;
+    // this is the runtime representation of a uid hash
+    private final OperatorID operatorId;
 
     private OperatorIdentifier(OperatorID operatorId, @Nullable String uid) {
         this.operatorId = operatorId;
@@ -62,8 +63,12 @@ public class OperatorIdentifier implements Serializable {
 
     @Override
     public boolean equals(Object o) {
-        if (this == o) return true;
-        if (o == null || getClass() != o.getClass()) return false;
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
         OperatorIdentifier that = (OperatorIdentifier) o;
         return Objects.equals(operatorId, that.operatorId);
     }
