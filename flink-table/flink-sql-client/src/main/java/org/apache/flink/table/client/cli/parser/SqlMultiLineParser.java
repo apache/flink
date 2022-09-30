@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.client.cli;
+package org.apache.flink.table.client.cli.parser;
 
 import org.apache.flink.table.api.SqlParserEOFException;
 import org.apache.flink.table.client.gateway.SqlExecutionException;
@@ -35,7 +35,7 @@ import java.util.Optional;
  *
  * <p>Quoting and escaping are disabled for now.
  */
-class SqlMultiLineParser extends DefaultParser {
+public class SqlMultiLineParser extends DefaultParser {
 
     private static final String STATEMENT_DELIMITER = ";"; // a statement should end with `;`
     private static final String LINE_DELIMITER = "\n";
