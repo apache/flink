@@ -472,8 +472,10 @@ public abstract class BaseExpressions<InType, OutType> {
         return toApiSpecificExpression(unresolvedCall(LAST_VALUE, toExpr()));
     }
 
-    /** Concatenates the values of string expressions and places separator values between them.
-        The separator is not added at the end of string. The default value of separator is ‘,’. */
+    /**
+     * Concatenates the values of string expressions and places separator values between them. The
+     * separator is not added at the end of string. The default value of separator is ‘,’.
+     */
     public OutType listAgg(String separator) {
         return toApiSpecificExpression(unresolvedCall(LISTAGG, toExpr(), valueLiteral(separator)));
     }

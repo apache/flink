@@ -241,7 +241,13 @@ class AggregateITCase(mode: StateBackendMode) extends StreamingWithStateTestBase
     val t = failingDataSource(tupleData5)
       .toTable(tEnv, 'a, 'b, 'c, 'd, 'e)
       .groupBy('e, 'b % 3)
-      .select('c.min, 'e, 'a.avg, 'd.count, 'b.firstValue(), 'd.listAgg("-"),
+      .select(
+        'c.min,
+        'e,
+        'a.avg,
+        'd.count,
+        'b.firstValue(),
+        'd.listAgg("-"),
         call("LAST_VALUE", col("c")))
 
     val sink = new TestingRetractSink()
@@ -256,7 +262,8 @@ class AggregateITCase(mode: StateBackendMode) extends StreamingWithStateTestBase
       s"2,1,3,2,3,Hallo Welt wie-EFG,8",
       s"3,2,3,3,4,Hallo Welt wie gehts?-CDE-FGH,9",
       s"5,3,4,2,6,BCD-HIJ,11",
-      s"7,1,4,2,8,DEF-GHI,10")
+      s"7,1,4,2,8,DEF-GHI,10"
+    )
     assertEquals(expected.sorted, sink.getRetractResults.sorted)
   }
 

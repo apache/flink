@@ -428,10 +428,7 @@ public final class BuiltInFunctionDefinitions {
             BuiltInFunctionDefinition.newBuilder()
                     .name("listAgg")
                     .kind(AGGREGATE)
-                    .inputTypeStrategy(
-                            sequence(
-                                    ANY,
-                                    logical(LogicalTypeFamily.CHARACTER_STRING)))
+                    .inputTypeStrategy(sequence(ANY, logical(LogicalTypeFamily.CHARACTER_STRING)))
                     .outputTypeStrategy(explicit(STRING().nullable()))
                     .build();
 
