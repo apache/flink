@@ -472,9 +472,15 @@ public abstract class BaseExpressions<InType, OutType> {
         return toApiSpecificExpression(unresolvedCall(LAST_VALUE, toExpr()));
     }
 
+    /** It can aggregate multiple columns of records into one column to achieve data compression. */
+    public OutType listAgg() {
+        return toApiSpecificExpression(unresolvedCall(LISTAGG, toExpr(), valueLiteral(",")));
+    }
+
     /**
-     * Concatenates the values of string expressions and places separator values between them. The
-     * separator is not added at the end of string. The default value of separator is ‘,’.
+     * It can aggregate multiple columns of records into one column to achieve data compression
+     *
+     * @param separator string containing the character
      */
     public OutType listAgg(String separator) {
         return toApiSpecificExpression(unresolvedCall(LISTAGG, toExpr(), valueLiteral(separator)));
