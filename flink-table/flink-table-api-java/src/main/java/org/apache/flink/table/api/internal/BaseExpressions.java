@@ -478,7 +478,8 @@ public abstract class BaseExpressions<InType, OutType> {
     }
 
     /**
-     * It can aggregate multiple columns of records into one column to achieve data compression
+     * Concatenates the values of string expressions and places separator values between them. The
+     * separator is not added at the end of string. The default value of separator is ‘,’.
      *
      * @param separator string containing the character
      */
