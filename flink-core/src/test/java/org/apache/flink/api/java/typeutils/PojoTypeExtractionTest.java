@@ -44,6 +44,7 @@ import java.util.Collection;
 import java.util.Date;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Optional;
 
 /**
  * Pojo Type tests.
@@ -185,6 +186,34 @@ public class PojoTypeExtractionTest {
         public void setUsers(Collection<String> users) {
             this.users = users;
         }
+    }
+
+    public static class PojoWithOptionalGetters {
+        public String field1;
+        public Integer field2;
+
+        public PojoWithOptionalGetters() {}
+
+        public PojoWithOptionalGetters(String f1, Integer f2) {
+            this.field1 = f1;
+            this.field2 = f2;
+        }
+
+        public Optional<String> getMyField1() {
+            return Optional.ofNullable(field1);
+        }
+
+        public Optional<Integer> getMyField2() {
+            return Optional.ofNullable(field2);
+        }
+    }
+
+    @Test
+    public void testPojoWithOptionalGetters() {
+        TypeInformation<?> typeForClass =
+                TypeExtractor.createTypeInfo(PojoWithOptionalGetters.class);
+
+        Assert.assertTrue(typeForClass instanceof PojoTypeInfo<?>);
     }
 
     @Test

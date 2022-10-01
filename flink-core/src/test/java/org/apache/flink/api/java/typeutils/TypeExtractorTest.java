@@ -67,6 +67,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 @SuppressWarnings("serial")
 public class TypeExtractorTest {
@@ -451,6 +452,56 @@ public class TypeExtractorTest {
     }
 
     @Test
+    public void testPojoWithOptionalGetters() {
+        // use getCrossReturnTypes()
+        RichCrossFunction<?, ?, ?> function =
+                new RichCrossFunction<
+                        CustomTypeWithOptionalGetters, Integer, CustomTypeWithOptionalGetters>() {
+                    private static final long serialVersionUID = 1L;
+
+                    @Override
+                    public CustomTypeWithOptionalGetters cross(
+                            CustomTypeWithOptionalGetters first, Integer second) throws Exception {
+                        return null;
+                    }
+                };
+
+        TypeInformation<?> ti =
+                TypeExtractor.getCrossReturnTypes(
+                        function,
+                        (TypeInformation)
+                                TypeInformation.of(
+                                        new TypeHint<CustomTypeWithOptionalGetters>() {}),
+                        (TypeInformation) Types.INT);
+
+        Assert.assertFalse(ti.isBasicType());
+        Assert.assertFalse(ti.isTupleType());
+        Assert.assertTrue(ti instanceof PojoTypeInfo);
+        Assert.assertEquals(ti.getTypeClass(), CustomTypeWithOptionalGetters.class);
+
+        // use getForClass()
+        Assert.assertTrue(
+                TypeExtractor.getForClass(CustomTypeWithOptionalGetters.class)
+                        instanceof PojoTypeInfo);
+        Assert.assertEquals(
+                TypeExtractor.getForClass(CustomTypeWithOptionalGetters.class).getTypeClass(),
+                ti.getTypeClass());
+
+        // use getForObject()
+        CustomTypeWithOptionalGetters t = new CustomTypeWithOptionalGetters("World", 1);
+        TypeInformation<?> ti2 = TypeExtractor.getForObject(t);
+
+        Assert.assertFalse(ti2.isBasicType());
+        Assert.assertFalse(ti2.isTupleType());
+        Assert.assertTrue(ti2 instanceof PojoTypeInfo);
+        Assert.assertEquals(ti2.getTypeClass(), CustomTypeWithOptionalGetters.class);
+
+        Assert.assertFalse(
+                TypeExtractor.getForClass(PojoWithNonPublicDefaultCtor.class)
+                        instanceof PojoTypeInfo);
+    }
+
+    @Test
     public void testMethodChainingPojo() {
         CustomChainingPojoType t = new CustomChainingPojoType();
         t.setMyField1("World").setMyField2(1);
@@ -488,6 +539,26 @@ public class TypeExtractorTest {
         public CustomType(String myField1, int myField2) {
             this.myField1 = myField1;
             this.myField2 = myField2;
+        }
+    }
+
+    public static class CustomTypeWithOptionalGetters {
+        public String myField1;
+        public Integer myField2;
+
+        public CustomTypeWithOptionalGetters() {}
+
+        public CustomTypeWithOptionalGetters(String myField1, Integer myField2) {
+            this.myField1 = myField1;
+            this.myField2 = myField2;
+        }
+
+        public Optional<String> getMyField1() {
+            return Optional.ofNullable(myField1);
+        }
+
+        public Optional<Integer> getMyField2() {
+            return Optional.ofNullable(myField2);
         }
     }
 

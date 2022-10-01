@@ -20,6 +20,8 @@ package org.apache.flink.api.java.typeutils;
 
 import org.apache.flink.api.common.typeutils.TypeInformationTestBase;
 
+import java.util.Optional;
+
 /** Test for {@link PojoTypeInfo}. */
 class PojoTypeInfoTest extends TypeInformationTestBase<PojoTypeInfo<?>> {
 
@@ -29,7 +31,8 @@ class PojoTypeInfoTest extends TypeInformationTestBase<PojoTypeInfo<?>> {
             (PojoTypeInfo<?>) TypeExtractor.getForClass(TestPojo.class),
             (PojoTypeInfo<?>) TypeExtractor.getForClass(AlternatePojo.class),
             (PojoTypeInfo<?>) TypeExtractor.getForClass(PrimitivePojo.class),
-            (PojoTypeInfo<?>) TypeExtractor.getForClass(UnderscorePojo.class)
+            (PojoTypeInfo<?>) TypeExtractor.getForClass(UnderscorePojo.class),
+            (PojoTypeInfo<?>) TypeExtractor.getForClass(PojoWithOptionalGetters.class)
         };
     }
 
@@ -90,6 +93,27 @@ class PojoTypeInfoTest extends TypeInformationTestBase<PojoTypeInfo<?>> {
 
         public Integer getSomeInt() {
             return this.some_int;
+        }
+    }
+
+    public static final class PojoWithOptionalGetters {
+        private String someString;
+        private Integer someInt;
+
+        public void setSomeString(String str) {
+            this.someString = str;
+        }
+
+        public void setSomeInt(Integer i) {
+            this.someInt = i;
+        }
+
+        public Optional<String> getSomeString() {
+            return Optional.ofNullable(someString);
+        }
+
+        public Optional<Integer> getSomeInt() {
+            return Optional.ofNullable(someInt);
         }
     }
 }
