@@ -35,6 +35,7 @@ under the License.
 	<properties>
 		<zookeeper.optional.version>3.6.3</zookeeper.optional.version>
 		<japicmp.skip>true</japicmp.skip>
+		<flink-dist.deploy.skip>true</flink-dist.deploy.skip>
 	</properties>
 
 	<dependencies>
@@ -823,7 +824,7 @@ under the License.
 				<artifactId>maven-deploy-plugin</artifactId>
 				<version>2.4</version><!--$NO-MVN-MAN-VER$-->
 				<configuration>
-					<skip>true</skip>
+					<skip>${flink-dist.deploy.skip}</skip>
 				</configuration>
 			</plugin>
 
