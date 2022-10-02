@@ -483,8 +483,8 @@ class FlinkHiveSqlParserImplTest extends SqlParserTest {
     void testLoadModule() {
         sql("load module hive").ok("LOAD MODULE `HIVE`");
 
-        sql("load module hive with ('hive-version' = '3.1.2')")
-                .ok("LOAD MODULE `HIVE` WITH (\n  'hive-version' = '3.1.2'\n)");
+        sql("load module hive with ('hive-version' = '3.1.3')")
+                .ok("LOAD MODULE `HIVE` WITH (\n  'hive-version' = '3.1.3'\n)");
     }
 
     @Test

@@ -1097,7 +1097,7 @@ under the License.
 		<profile>
 			<id>hive3</id>
 			<properties>
-				<hive.version>3.1.1</hive.version>
+				<hive.version>3.1.3</hive.version>
 				<derby.version>10.14.1.0</derby.version>
 				<!-- need a hadoop version that fixes HADOOP-14683 -->
 				<hivemetastore.hadoop.version>2.8.2</hivemetastore.hadoop.version>
