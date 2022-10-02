@@ -244,15 +244,30 @@ under the License.
 				<groupId>org.apache.avro</groupId>
 				<artifactId>avro-maven-plugin</artifactId>
 				<version>${avro.version}</version>
+				<configuration>
+					<testOutputDirectory>${project.basedir}/target/generated-test-sources/</testOutputDirectory>
+				</configuration>
 				<executions>
 					<execution>
+						<id>1</id>
+						<phase>generate-sources</phase>
+						<goals>
+							<goal>schema</goal>
+						</goals>
+						<configuration>
+							<testSourceDirectory>${project.basedir}/src/test/resources/avro/optional</testSourceDirectory>
+							<gettersReturnOptional>true</gettersReturnOptional>
+							<optionalGettersForNullableFieldsOnly>true</optionalGettersForNullableFieldsOnly>
+						</configuration>
+					</execution>
+					<execution>
+						<id>2</id>
 						<phase>generate-sources</phase>
 						<goals>
 							<goal>schema</goal>
 						</goals>
 						<configuration>
 							<testSourceDirectory>${project.basedir}/src/test/resources/avro</testSourceDirectory>
-							<testOutputDirectory>${project.basedir}/target/generated-test-sources/</testOutputDirectory>
 						</configuration>
 					</execution>
 				</executions>

@@ -21,6 +21,7 @@ package org.apache.flink.formats.avro;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.formats.avro.generated.Address;
+import org.apache.flink.formats.avro.generated.OptionalUnionLogicalType;
 import org.apache.flink.formats.avro.typeutils.GenericRecordAvroTypeInfo;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
@@ -44,12 +45,14 @@ import org.junit.rules.Timeout;
 import java.io.File;
 import java.io.IOException;
 import java.io.Serializable;
+import java.time.Instant;
 import java.util.AbstractCollection;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Random;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -85,6 +88,35 @@ public class AvroStreamingFileSinkITCase extends AbstractTestBase {
         env.execute();
 
         validateResults(folder, new SpecificDatumReader<>(Address.class), data);
+    }
+
+    @Test
+    public void testWriteAvroSpecificWithOptionalGetters() throws Exception {
+        File folder = TEMPORARY_FOLDER.newFolder();
+        Random rnd = new Random();
+        List<OptionalUnionLogicalType> data =
+                Arrays.asList(
+                        new OptionalUnionLogicalType(Instant.ofEpochMilli(rnd.nextLong())),
+                        new OptionalUnionLogicalType(Instant.ofEpochMilli(rnd.nextLong())),
+                        new OptionalUnionLogicalType(null));
+
+        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        env.setParallelism(1);
+        env.enableCheckpointing(100);
+
+        AvroWriterFactory<OptionalUnionLogicalType> avroWriterFactory =
+                AvroWriters.forSpecificRecord(OptionalUnionLogicalType.class);
+        DataStream<OptionalUnionLogicalType> stream =
+                env.addSource(
+                        new FiniteTestSource<>(data),
+                        TypeInformation.of(OptionalUnionLogicalType.class));
+        stream.addSink(
+                StreamingFileSink.forBulkFormat(Path.fromLocalFile(folder), avroWriterFactory)
+                        .withBucketAssigner(new UniqueBucketAssigner<>("test"))
+                        .build());
+        env.execute();
+
+        validateResults(folder, new SpecificDatumReader<>(OptionalUnionLogicalType.class), data);
     }
 
     @Test

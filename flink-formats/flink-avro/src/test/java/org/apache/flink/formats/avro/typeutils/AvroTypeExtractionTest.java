@@ -30,6 +30,7 @@ import org.apache.flink.core.fs.Path;
 import org.apache.flink.formats.avro.AvroInputFormat;
 import org.apache.flink.formats.avro.AvroRecordInputFormatTest;
 import org.apache.flink.formats.avro.generated.Fixed16;
+import org.apache.flink.formats.avro.generated.OptionalUser;
 import org.apache.flink.formats.avro.generated.User;
 import org.apache.flink.runtime.minicluster.MiniCluster;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
@@ -86,15 +87,13 @@ class AvroTypeExtractionTest {
         TestBaseUtils.compareResultsByLinesInMemory(expected, resultPath);
     }
 
-    @ParameterizedTest
-    @ValueSource(booleans = {true, false})
-    void testSimpleAvroRead(boolean useMiniCluster, @InjectMiniCluster MiniCluster miniCluster)
-            throws Exception {
+    private <T> void testSimpleAvroRead(
+            boolean useMiniCluster, Class<T> clazz, MiniCluster miniCluster) throws Exception {
         final ExecutionEnvironment env = getExecutionEnvironment(useMiniCluster, miniCluster);
         Path in = new Path(inFile.getAbsoluteFile().toURI());
 
-        AvroInputFormat<User> users = new AvroInputFormat<>(in, User.class);
-        DataSet<User> usersDS = env.createInput(users).map((value) -> value);
+        AvroInputFormat<T> users = new AvroInputFormat<>(in, clazz);
+        DataSet<T> usersDS = env.createInput(users).map((value) -> value);
 
         usersDS.writeAsText(resultPath);
 
@@ -125,6 +124,14 @@ class AvroTypeExtractionTest {
                         + "\"type_timestamp_millis\": \"2014-03-01T12:12:12.321Z\", "
                         + "\"type_timestamp_micros\": \"1970-01-01T00:00:00.123456Z\", \"type_decimal_bytes\": \"\\u0007Ð\", "
                         + "\"type_decimal_fixed\": [7, -48]}\n";
+    }
+
+    @ParameterizedTest
+    @ValueSource(booleans = {true, false})
+    void testSimpleAvroRead(boolean useMiniCluster, @InjectMiniCluster MiniCluster miniCluster)
+            throws Exception {
+        testSimpleAvroRead(useMiniCluster, User.class, miniCluster);
+        testSimpleAvroRead(useMiniCluster, OptionalUser.class, miniCluster);
     }
 
     @ParameterizedTest
@@ -180,6 +187,54 @@ class AvroTypeExtractionTest {
 
     @ParameterizedTest
     @ValueSource(booleans = {true, false})
+    void testSerializeWithAvroOptionalGetters(
+            boolean useMiniCluster, @InjectMiniCluster MiniCluster miniCluster) throws Exception {
+        final ExecutionEnvironment env = getExecutionEnvironment(useMiniCluster, miniCluster);
+        env.getConfig().enableForceAvro();
+        Path in = new Path(inFile.getAbsoluteFile().toURI());
+
+        AvroInputFormat<OptionalUser> users = new AvroInputFormat<>(in, OptionalUser.class);
+        DataSet<OptionalUser> usersDS =
+                env.createInput(users)
+                        .map(
+                                (MapFunction<OptionalUser, OptionalUser>)
+                                        value -> {
+                                            value.setTypeUnion(10L);
+                                            value.setTypeNested(null);
+                                            return value;
+                                        });
+
+        usersDS.writeAsText(resultPath);
+
+        env.execute("Simple Avro read job");
+
+        expected =
+                "{\"name\": \"Alyssa\", \"favorite_number\": 256, \"favorite_color\": null,"
+                        + " \"type_long_test\": null, \"type_double_test\": 123.45, \"type_null_test\": null,"
+                        + " \"type_bool_test\": true, \"type_array_string\": [\"ELEMENT 1\", \"ELEMENT 2\"],"
+                        + " \"type_array_boolean\": [true, false], \"type_nullable_array\": null, \"type_enum\": \"GREEN\","
+                        + " \"type_map\": {\"KEY 2\": 17554, \"KEY 1\": 8546456}, \"type_fixed\": null, \"type_union\": 10,"
+                        + " \"type_nested\": null,"
+                        + " \"type_bytes\": \"\\u0000\\u0000\\u0000\\u0000\\u0000\\u0000\\u0000\\u0000\\u0000\\u0000\", "
+                        + "\"type_date\": \"2014-03-01\", \"type_time_millis\": \"12:12:12\", \"type_time_micros\": \"00:00:00.123456\", "
+                        + "\"type_timestamp_millis\": \"2014-03-01T12:12:12.321Z\", "
+                        + "\"type_timestamp_micros\": \"1970-01-01T00:00:00.123456Z\", \"type_decimal_bytes\": \"\\u0007Ð\", "
+                        + "\"type_decimal_fixed\": [7, -48]}\n"
+                        + "{\"name\": \"Charlie\", \"favorite_number\": null, "
+                        + "\"favorite_color\": \"blue\", \"type_long_test\": 1337, \"type_double_test\": 1.337, "
+                        + "\"type_null_test\": null, \"type_bool_test\": false, \"type_array_string\": [], "
+                        + "\"type_array_boolean\": [], \"type_nullable_array\": null, \"type_enum\": \"RED\", "
+                        + "\"type_map\": {}, \"type_fixed\": null, \"type_union\": 10, "
+                        + "\"type_nested\": null, "
+                        + "\"type_bytes\": \"\\u0000\\u0000\\u0000\\u0000\\u0000\\u0000\\u0000\\u0000\\u0000\\u0000\", "
+                        + "\"type_date\": \"2014-03-01\", \"type_time_millis\": \"12:12:12\", \"type_time_micros\": \"00:00:00.123456\", "
+                        + "\"type_timestamp_millis\": \"2014-03-01T12:12:12.321Z\", "
+                        + "\"type_timestamp_micros\": \"1970-01-01T00:00:00.123456Z\", \"type_decimal_bytes\": \"\\u0007Ð\", "
+                        + "\"type_decimal_fixed\": [7, -48]}\n";
+    }
+
+    @ParameterizedTest
+    @ValueSource(booleans = {true, false})
     void testKeySelection(boolean useMiniCluster, @InjectMiniCluster MiniCluster miniCluster)
             throws Exception {
         final ExecutionEnvironment env = getExecutionEnvironment(useMiniCluster, miniCluster);
@@ -204,6 +259,38 @@ class AvroTypeExtractionTest {
         env.execute("Avro Key selection");
 
         expected = "(Alyssa,1)\n(Charlie,1)\n";
+    }
+
+    @ParameterizedTest
+    @ValueSource(booleans = {true, false})
+    void testKeySelectionOptional(
+            boolean useMiniCluster, @InjectMiniCluster MiniCluster miniCluster) throws Exception {
+        final ExecutionEnvironment env = getExecutionEnvironment(useMiniCluster, miniCluster);
+        env.getConfig().enableObjectReuse();
+        Path in = new Path(inFile.getAbsoluteFile().toURI());
+
+        AvroInputFormat<OptionalUser> users = new AvroInputFormat<>(in, OptionalUser.class);
+        DataSet<OptionalUser> usersDS = env.createInput(users);
+
+        DataSet<Tuple2<String, Integer>> res =
+                usersDS.groupBy("name")
+                        .reduceGroup(
+                                (GroupReduceFunction<OptionalUser, Tuple2<String, Integer>>)
+                                        (values, out) -> {
+                                            for (OptionalUser u : values) {
+                                                out.collect(
+                                                        new Tuple2<>(
+                                                                u.getTypeNullTest()
+                                                                        .map(Object::toString)
+                                                                        .orElse("null"),
+                                                                1));
+                                            }
+                                        })
+                        .returns(Types.TUPLE(Types.STRING, Types.INT));
+        res.writeAsText(resultPath);
+        env.execute("Avro Key selection");
+
+        expected = "(null,1)\n(null,1)\n";
     }
 
     @ParameterizedTest
@@ -239,6 +326,43 @@ class AvroTypeExtractionTest {
 
     @ParameterizedTest
     @ValueSource(booleans = {true, false})
+    void testWithAvroGenericSerOptional(
+            boolean useMiniCluster, @InjectMiniCluster MiniCluster miniCluster) throws Exception {
+        final ExecutionEnvironment env = getExecutionEnvironment(useMiniCluster, miniCluster);
+        env.getConfig().enableForceAvro();
+        Path in = new Path(inFile.getAbsoluteFile().toURI());
+
+        AvroInputFormat<OptionalUser> users = new AvroInputFormat<>(in, OptionalUser.class);
+        DataSet<OptionalUser> usersDS = env.createInput(users);
+
+        DataSet<Tuple2<String, Integer>> res =
+                usersDS.groupBy(
+                                (KeySelector<OptionalUser, String>)
+                                        value ->
+                                                String.valueOf(
+                                                        value.getFavoriteNumber().orElse(-1)))
+                        .reduceGroup(
+                                (GroupReduceFunction<OptionalUser, Tuple2<String, Integer>>)
+                                        (values, out) -> {
+                                            for (OptionalUser u : values) {
+                                                out.collect(
+                                                        new Tuple2<>(
+                                                                u.getFavoriteNumber()
+                                                                        .orElse(-1)
+                                                                        .toString(),
+                                                                1));
+                                            }
+                                        })
+                        .returns(Types.TUPLE(Types.STRING, Types.INT));
+
+        res.writeAsText(resultPath);
+        env.execute("Avro Key selection");
+
+        expected = "(-1,1)\n(256,1)\n";
+    }
+
+    @ParameterizedTest
+    @ValueSource(booleans = {true, false})
     void testWithKryoGenericSer(boolean useMiniCluster, @InjectMiniCluster MiniCluster miniCluster)
             throws Exception {
         final ExecutionEnvironment env = getExecutionEnvironment(useMiniCluster, miniCluster);
@@ -266,6 +390,43 @@ class AvroTypeExtractionTest {
         env.execute("Avro Key selection");
 
         expected = "(Charlie,1)\n(Alyssa,1)\n";
+    }
+
+    @ParameterizedTest
+    @ValueSource(booleans = {true, false})
+    void testWithKryoGenericSerOptional(
+            boolean useMiniCluster, @InjectMiniCluster MiniCluster miniCluster) throws Exception {
+        final ExecutionEnvironment env = getExecutionEnvironment(useMiniCluster, miniCluster);
+        env.getConfig().enableForceKryo();
+        Path in = new Path(inFile.getAbsoluteFile().toURI());
+
+        AvroInputFormat<OptionalUser> users = new AvroInputFormat<>(in, OptionalUser.class);
+        DataSet<OptionalUser> usersDS = env.createInput(users);
+
+        DataSet<Tuple2<String, Integer>> res =
+                usersDS.groupBy(
+                                (KeySelector<OptionalUser, String>)
+                                        value ->
+                                                String.valueOf(
+                                                        value.getFavoriteNumber().orElse(-1)))
+                        .reduceGroup(
+                                (GroupReduceFunction<OptionalUser, Tuple2<String, Integer>>)
+                                        (values, out) -> {
+                                            for (OptionalUser u : values) {
+                                                out.collect(
+                                                        new Tuple2<>(
+                                                                u.getFavoriteNumber()
+                                                                        .orElse(-1)
+                                                                        .toString(),
+                                                                1));
+                                            }
+                                        })
+                        .returns(Types.TUPLE(Types.STRING, Types.INT));
+
+        res.writeAsText(resultPath);
+        env.execute("Avro Key selection");
+
+        expected = "(-1,1)\n(256,1)\n";
     }
 
     private static Stream<Arguments> testField() {

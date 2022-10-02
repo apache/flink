@@ -19,6 +19,7 @@
 package org.apache.flink.formats.avro;
 
 import org.apache.flink.formats.avro.generated.Address;
+import org.apache.flink.formats.avro.generated.OptionalSimpleRecord;
 import org.apache.flink.formats.avro.generated.SimpleRecord;
 import org.apache.flink.formats.avro.utils.TestDataGenerator;
 
@@ -74,6 +75,26 @@ class RegistryAvroDeserializationSchemaTest {
         assertThat(genericRecord.get("country")).isNull();
     }
 
+    private <T> RegistryAvroDeserializationSchema<T> getDeserializerForSchema(
+            Schema schema, Class<T> clazz) {
+        return new RegistryAvroDeserializationSchema<>(
+                clazz,
+                null,
+                () ->
+                        new SchemaCoder() {
+                            @Override
+                            public Schema readSchema(InputStream in) {
+                                return schema;
+                            }
+
+                            @Override
+                            public void writeSchema(Schema schema, OutputStream out)
+                                    throws IOException {
+                                // Do nothing
+                            }
+                        });
+    }
+
     @Test
     void testSpecificRecordReadMoreFieldsThanWereWritten() throws IOException {
         Schema smallerUserSchema =
@@ -83,26 +104,11 @@ class RegistryAvroDeserializationSchemaTest {
                                         + " \"type\": \"record\",\n"
                                         + " \"name\": \"SimpleRecord\",\n"
                                         + " \"fields\": [\n"
-                                        + "     {\"name\": \"name\", \"type\": \"string\"}"
+                                        + "  {\"name\": \"name\", \"type\": \"string\"}"
                                         + " ]\n"
                                         + "}]");
         RegistryAvroDeserializationSchema<SimpleRecord> deserializer =
-                new RegistryAvroDeserializationSchema<>(
-                        SimpleRecord.class,
-                        null,
-                        () ->
-                                new SchemaCoder() {
-                                    @Override
-                                    public Schema readSchema(InputStream in) {
-                                        return smallerUserSchema;
-                                    }
-
-                                    @Override
-                                    public void writeSchema(Schema schema, OutputStream out)
-                                            throws IOException {
-                                        // Do nothing
-                                    }
-                                });
+                getDeserializerForSchema(smallerUserSchema, SimpleRecord.class);
 
         GenericData.Record smallUser =
                 new GenericRecordBuilder(smallerUserSchema).set("name", "someName").build();
@@ -112,5 +118,31 @@ class RegistryAvroDeserializationSchemaTest {
 
         assertThat(simpleRecord.getName().toString()).isEqualTo("someName");
         assertThat(simpleRecord.getOptionalField()).isNull();
+    }
+
+    @Test
+    void testSpecificRecordReadMoreFieldsThanWereWrittenOptionalEmpty() throws IOException {
+        Schema smallerUserSchema =
+                new Schema.Parser()
+                        .parse(
+                                "{\"namespace\": \"org.apache.flink.formats.avro.generated\",\n"
+                                        + " \"type\": \"record\",\n"
+                                        + " \"name\": \"OptionalSimpleRecord\",\n"
+                                        + " \"fields\": [\n"
+                                        + "     {\"name\": \"name\", \"type\": \"string\"},"
+                                        + "     {\"name\": \"optionalField\",  \"type\": [\"null\", \"int\"], \"default\": null}"
+                                        + " ]\n"
+                                        + "}]");
+        RegistryAvroDeserializationSchema<OptionalSimpleRecord> deserializer =
+                getDeserializerForSchema(smallerUserSchema, OptionalSimpleRecord.class);
+
+        GenericData.Record smallUser =
+                new GenericRecordBuilder(smallerUserSchema).set("name", "someName").build();
+
+        OptionalSimpleRecord simpleRecord =
+                deserializer.deserialize(writeRecord(smallUser, smallerUserSchema));
+
+        assertThat(simpleRecord.getName().toString()).isEqualTo("someName");
+        assertThat(simpleRecord.getOptionalField()).isEmpty();
     }
 }

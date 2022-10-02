@@ -22,9 +22,12 @@ import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeutils.TypeInformationTestBase;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.formats.avro.generated.Address;
+import org.apache.flink.formats.avro.generated.OptionalUser;
 import org.apache.flink.formats.avro.generated.User;
 
-import org.junit.jupiter.api.Test;
+import org.apache.avro.specific.SpecificRecordBase;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -34,14 +37,17 @@ class AvroTypeInfoTest extends TypeInformationTestBase<AvroTypeInfo<?>> {
     @Override
     protected AvroTypeInfo<?>[] getTestData() {
         return new AvroTypeInfo<?>[] {
-            new AvroTypeInfo<>(Address.class), new AvroTypeInfo<>(User.class),
+            new AvroTypeInfo<>(Address.class),
+            new AvroTypeInfo<>(User.class),
+            new AvroTypeInfo<>(OptionalUser.class)
         };
     }
 
-    @Test
-    void testAvroByDefault() {
-        final TypeSerializer<User> serializer =
-                new AvroTypeInfo<>(User.class).createSerializer(new ExecutionConfig());
+    @ParameterizedTest
+    @ValueSource(classes = {User.class, Address.class, OptionalUser.class})
+    <T extends SpecificRecordBase> void testAvroByDefault(Class<T> clazz) {
+        final TypeSerializer<T> serializer =
+                new AvroTypeInfo<>(clazz).createSerializer(new ExecutionConfig());
         assertThat(serializer).isInstanceOf(AvroSerializer.class);
     }
 }
