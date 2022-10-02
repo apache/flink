@@ -543,6 +543,14 @@ under the License.
 						</configuration>
 					</execution>
 				</executions>
+				<configuration>
+					<artifactSet>
+						<includes>
+							<!-- ClientParser dependency -->
+							<include>org.apache.flink:flink-sql-parser</include>
+						</includes>
+					</artifactSet>
+				</configuration>
 			</plugin>
 		</plugins>
 	</build>
