@@ -19,7 +19,6 @@
 package org.apache.flink.table.client.cli.parser;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.sql.parser.impl.FlinkSqlParserImplConstants;
 import org.apache.flink.table.client.gateway.SqlExecutionException;
 import org.apache.flink.table.operations.Operation;
 
@@ -27,7 +26,7 @@ import java.util.Optional;
 
 /** SqlClient command parser. Extends FlinkSqlParserImplConstants to use defined token kinds. */
 @Internal
-public interface SqlCommandParser extends FlinkSqlParserImplConstants {
+public interface SqlCommandParser {
 
     /**
      * Parses given command statement.

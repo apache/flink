@@ -18,9 +18,11 @@
 
 package org.apache.flink.table.client.cli.parser;
 
+import org.apache.flink.sql.parser.impl.FlinkSqlParserImplConstants;
 import org.apache.flink.sql.parser.impl.FlinkSqlParserImplTokenManager;
 import org.apache.flink.sql.parser.impl.SimpleCharStream;
 import org.apache.flink.sql.parser.impl.Token;
+import org.apache.flink.table.api.SqlParserEOFException;
 import org.apache.flink.table.client.gateway.SqlExecutionException;
 import org.apache.flink.table.operations.Operation;
 
@@ -31,8 +33,11 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
-/** ClientParser use {@link FlinkSqlParserImplTokenManager} to do lexical analysis. */
-public class ClientParser implements SqlCommandParser {
+/**
+ * ClientParser use {@link FlinkSqlParserImplTokenManager} to do lexical analysis. It cannot
+ * recognize special hive keywords yet.
+ */
+public class ClientParser implements SqlCommandParser, FlinkSqlParserImplConstants {
 
     /** A dumb implementation. TODO: remove this after unifying the SqlMultiLineParser. */
     @Override
@@ -46,30 +51,45 @@ public class ClientParser implements SqlCommandParser {
         FlinkSqlParserImplTokenManager tokenManager =
                 new FlinkSqlParserImplTokenManager(
                         new SimpleCharStream(new StringReader(trimmedStatement)));
-        List<Token> tokenList = new ArrayList<>();
-        Token token;
-        do {
+        // this means to switch to "BACK TICK IDENTIFIER" state to support '`' in Flink SQL
+        tokenManager.SwitchTo(2);
+        List<Token> tokens = new ArrayList<>();
+        Token token = tokenManager.getNextToken();
+        while (token.kind != EOF) {
+            tokens.add(token);
             token = tokenManager.getNextToken();
-            tokenList.add(token);
-        } while (token.endColumn != trimmedStatement.length());
-        return getStatementType(tokenList);
+        }
+
+        if (tokens.size() == 0 || tokens.get(tokens.size() - 1).kind != SEMICOLON) {
+            // throw this to notify the terminal to continue reading input
+            throw new SqlExecutionException("", new SqlParserEOFException(""));
+        }
+
+        return getStatementType(tokens);
     }
 
     // ---------------------------------------------------------------------------------------------
-    private Optional<StatementType> getStatementType(List<Token> tokenList) {
-        Token firstToken = tokenList.get(0);
+    private Optional<StatementType> getStatementType(List<Token> tokens) {
+        Token firstToken = tokens.get(0);
 
-        if (firstToken.kind == EOF || firstToken.kind == EMPTY || firstToken.kind == SEMICOLON) {
+        if (firstToken.kind == SEMICOLON) {
             return Optional.empty();
         }
 
         if (firstToken.kind == IDENTIFIER) {
-            // unrecognized token
+            // it means the token is not a reserved keyword, potentially a client command
             return getPotentialCommandType(firstToken.image);
         } else if (firstToken.kind == EXPLAIN) {
             return Optional.of(StatementType.EXPLAIN);
         } else if (firstToken.kind == SHOW) {
-            return getPotentialShowCreateType(tokenList);
+            return getPotentialShowCreateType(tokens);
+        } else if (firstToken.kind == BEGIN) {
+            return getPotentialBeginStatementSetType(tokens);
+        } else if (firstToken.kind == END) {
+            // an 'END;' statement should have exactly 2 tokens
+            return tokens.size() == 2
+                    ? Optional.of(StatementType.END)
+                    : Optional.of(StatementType.OTHER);
         } else {
             return Optional.of(StatementType.OTHER);
         }
@@ -89,14 +109,27 @@ public class ClientParser implements SqlCommandParser {
         }
     }
 
-    private Optional<StatementType> getPotentialShowCreateType(List<Token> tokenList) {
+    private Optional<StatementType> getPotentialShowCreateType(List<Token> tokens) {
         // obviously a 'SHOW CREATE TABLE/VIEW' statement has more than 3 tokens
-        if (tokenList.size() < 3) {
+        if (tokens.size() < 3) {
             return Optional.of(StatementType.OTHER);
         }
-        Token secondToken = tokenList.get(1), thirdToken = tokenList.get(2);
+        Token secondToken = tokens.get(1), thirdToken = tokens.get(2);
         if (secondToken.kind == CREATE && (thirdToken.kind == TABLE || thirdToken.kind == VIEW)) {
             return Optional.of(StatementType.SHOW_CREATE);
+        } else {
+            return Optional.of(StatementType.OTHER);
+        }
+    }
+
+    private Optional<StatementType> getPotentialBeginStatementSetType(List<Token> tokens) {
+        // obviously a 'BEGIN STATEMENT SET' statement has more than 3 tokens
+        if (tokens.size() < 3) {
+            return Optional.of(StatementType.OTHER);
+        }
+        Token secondToken = tokens.get(1), thirdToken = tokens.get(2);
+        if (secondToken.kind == STATEMENT && thirdToken.kind == SET) {
+            return Optional.of(StatementType.BEGIN_STATEMENT_SET);
         } else {
             return Optional.of(StatementType.OTHER);
         }
