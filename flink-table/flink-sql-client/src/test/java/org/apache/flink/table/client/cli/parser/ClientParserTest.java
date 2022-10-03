@@ -45,18 +45,15 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 /**
  * Testing whether {@link ClientParser} can parse statement to get {@link StatementType} correctly.
  */
-@SuppressWarnings("OptionalUsedAsFieldOrParameterType")
 public class ClientParserTest {
 
     private final ClientParser clientParser = new ClientParser();
-
-    private String[] s;
 
     @ParameterizedTest
     @MethodSource("testData1")
     public void testParseStatement(TestSpec testData) {
         Optional<StatementType> type = clientParser.parseStatement(testData.statement);
-        assertThat(type).isEqualTo(testData.type);
+        assertThat(type.orElse(null)).isEqualTo(testData.type);
     }
 
     @ParameterizedTest
@@ -68,10 +65,13 @@ public class ClientParserTest {
                 .satisfies(anyCauseMatches(SqlParserEOFException.class));
     }
 
+    private static final String incompleteExecute =
+            "EXECUTE STATEMENT SET BEGIN\n INSERT INTO StreamingTable SELECT * FROM (VALUES (1, 'Hello World'));";
+
     private static List<TestSpec> testData1() {
         return Arrays.asList(
                 TestSpec.of(";", null),
-                TestSpec.of("; ;", null),
+                TestSpec.of("; ;", OTHER),
                 // comment and multi lines tests
                 TestSpec.of("SHOW --ignore;\n CREATE TABLE tbl;", SHOW_CREATE),
                 TestSpec.of("SHOW\n create\t TABLE `tbl`;", SHOW_CREATE),
@@ -79,6 +79,7 @@ public class ClientParserTest {
                 // special characters tests
                 TestSpec.of("SELECT * FROM `tbl`;", OTHER),
                 TestSpec.of("SHOW /* ignore */ CREATE TABLE \"tbl\";", SHOW_CREATE),
+                TestSpec.of("SELECT '\\';", OTHER),
                 // normal tests
                 TestSpec.of("quit;", QUIT), // non case sensitive test
                 TestSpec.of("QUIT;", QUIT),
@@ -89,11 +90,15 @@ public class ClientParserTest {
                 TestSpec.of("EXPLAIN PLAN FOR 'what_ever';", EXPLAIN),
                 TestSpec.of("SHOW CREATE TABLE(what_ever);", SHOW_CREATE),
                 TestSpec.of("SHOW CREATE VIEW (what_ever);", SHOW_CREATE),
-                TestSpec.of("SHOW CREATE syntax_error;", OTHER),
+                TestSpec.of("SHOW CREATE syntax_error;", SHOW_CREATE),
                 TestSpec.of("SHOW TABLES;", OTHER),
                 TestSpec.of("BEGIN STATEMENT SET;", BEGIN_STATEMENT_SET),
                 TestSpec.of("END;", END),
-                TestSpec.of("END statement;", OTHER));
+                TestSpec.of("END statement;", OTHER),
+                // statement set tests
+                TestSpec.of(incompleteExecute + "\nEND;", OTHER),
+                TestSpec.of("EXPLAIN " + incompleteExecute + "\nEND;", EXPLAIN),
+                TestSpec.of("EXPLAIN BEGIN STATEMENT SET;\nEND;", EXPLAIN));
     }
 
     private static List<String> testData2() {
@@ -104,19 +109,19 @@ public class ClientParserTest {
                 "-- comment;",
                 "SHOW TABLES -- comment;",
                 "SHOW TABLES",
-                "EXPLAIN EXECUTE STATEMENT SET BEGIN\n"
-                        + "INSERT INTO StreamingTable SELECT * FROM (VALUES (1, 'Hello World'));",
+                incompleteExecute,
+                "EXPLAIN " + incompleteExecute,
                 "EXPLAIN BEGIN STATEMENT SET;");
     }
 
     /** Used to load generated data. */
     private static class TestSpec {
         String statement;
-        Optional<StatementType> type;
+        StatementType type;
 
         TestSpec(String statement, @Nullable StatementType type) {
             this.statement = statement;
-            this.type = type == null ? Optional.empty() : Optional.of(type);
+            this.type = type;
         }
 
         static TestSpec of(String statement, @Nullable StatementType type) {
