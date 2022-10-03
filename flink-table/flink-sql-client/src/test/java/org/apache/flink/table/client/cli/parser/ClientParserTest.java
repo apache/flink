@@ -23,7 +23,6 @@ import org.apache.flink.table.client.gateway.SqlExecutionException;
 
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
-import org.junit.jupiter.params.provider.ValueSource;
 
 import javax.annotation.Nullable;
 
@@ -51,15 +50,17 @@ public class ClientParserTest {
 
     private final ClientParser clientParser = new ClientParser();
 
+    private String[] s;
+
     @ParameterizedTest
-    @MethodSource("generateTestData")
+    @MethodSource("testData1")
     public void testParseStatement(TestSpec testData) {
         Optional<StatementType> type = clientParser.parseStatement(testData.statement);
         assertThat(type).isEqualTo(testData.type);
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"", "\n", " ", "-- comment;", "SHOW TABLES -- comment;", "SHOW TABLES"})
+    @MethodSource("testData2")
     public void testParseIncompleteStatement(String statement) {
         assertThatThrownBy(() -> clientParser.parseStatement(statement))
                 .satisfies(anyCauseMatches(SqlExecutionException.class))
@@ -67,7 +68,7 @@ public class ClientParserTest {
                 .satisfies(anyCauseMatches(SqlParserEOFException.class));
     }
 
-    private static List<TestSpec> generateTestData() {
+    private static List<TestSpec> testData1() {
         return Arrays.asList(
                 TestSpec.of(";", null),
                 TestSpec.of("; ;", null),
@@ -93,6 +94,19 @@ public class ClientParserTest {
                 TestSpec.of("BEGIN STATEMENT SET;", BEGIN_STATEMENT_SET),
                 TestSpec.of("END;", END),
                 TestSpec.of("END statement;", OTHER));
+    }
+
+    private static List<String> testData2() {
+        return Arrays.asList(
+                "",
+                "\n",
+                " ",
+                "-- comment;",
+                "SHOW TABLES -- comment;",
+                "SHOW TABLES",
+                "EXPLAIN EXECUTE STATEMENT SET BEGIN\n"
+                        + "INSERT INTO StreamingTable SELECT * FROM (VALUES (1, 'Hello World'));",
+                "EXPLAIN BEGIN STATEMENT SET;");
     }
 
     /** Used to load generated data. */
