@@ -80,7 +80,7 @@ public class ClientParser implements SqlCommandParser, FlinkSqlParserImplConstan
             // it means the token is not a reserved keyword, potentially a client command
             return getPotentialCommandType(firstToken.image);
         } else if (firstToken.kind == EXPLAIN) {
-            return Optional.of(StatementType.EXPLAIN);
+            return getPotentialExplainType(tokens);
         } else if (firstToken.kind == SHOW) {
             return getPotentialShowCreateType(tokens);
         } else if (firstToken.kind == BEGIN) {
@@ -107,6 +107,15 @@ public class ClientParser implements SqlCommandParser, FlinkSqlParserImplConstan
             default:
                 return Optional.of(StatementType.OTHER);
         }
+    }
+
+    private Optional<StatementType> getPotentialExplainType(List<Token> tokens) {
+        Token secondToken = tokens.get(1), potentialEnd = tokens.get(tokens.size() - 2);
+        if ((secondToken.kind == EXECUTE || secondToken.kind == BEGIN)
+                && potentialEnd.kind != END) {
+            throw new SqlExecutionException("", new SqlParserEOFException(""));
+        }
+        return Optional.of(StatementType.EXPLAIN);
     }
 
     private Optional<StatementType> getPotentialShowCreateType(List<Token> tokens) {
