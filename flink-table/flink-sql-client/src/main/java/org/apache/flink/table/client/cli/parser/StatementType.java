@@ -25,6 +25,8 @@ public enum StatementType {
     HELP,
     EXPLAIN,
     SHOW_CREATE,
+    BEGIN_STATEMENT_SET,
+    END,
     /** type not covered by any other type value. */
     OTHER
 }

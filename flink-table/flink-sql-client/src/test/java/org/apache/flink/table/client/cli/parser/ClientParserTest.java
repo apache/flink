@@ -18,17 +18,30 @@
 
 package org.apache.flink.table.client.cli.parser;
 
-import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.table.api.SqlParserEOFException;
+import org.apache.flink.table.client.gateway.SqlExecutionException;
 
-import org.junit.Ignore;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
+import org.junit.jupiter.params.provider.ValueSource;
+
+import javax.annotation.Nullable;
 
 import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 
+import static org.apache.flink.core.testutils.FlinkAssertions.anyCauseMatches;
+import static org.apache.flink.table.client.cli.parser.StatementType.BEGIN_STATEMENT_SET;
+import static org.apache.flink.table.client.cli.parser.StatementType.CLEAR;
+import static org.apache.flink.table.client.cli.parser.StatementType.END;
+import static org.apache.flink.table.client.cli.parser.StatementType.EXPLAIN;
+import static org.apache.flink.table.client.cli.parser.StatementType.HELP;
+import static org.apache.flink.table.client.cli.parser.StatementType.OTHER;
+import static org.apache.flink.table.client.cli.parser.StatementType.QUIT;
+import static org.apache.flink.table.client.cli.parser.StatementType.SHOW_CREATE;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
  * Testing whether {@link ClientParser} can parse statement to get {@link StatementType} correctly.
@@ -38,44 +51,62 @@ public class ClientParserTest {
 
     private final ClientParser clientParser = new ClientParser();
 
-    private static final Optional<StatementType> QUIT = Optional.of(StatementType.QUIT);
-    private static final Optional<StatementType> CLEAR = Optional.of(StatementType.CLEAR);
-    private static final Optional<StatementType> HELP = Optional.of(StatementType.HELP);
-    private static final Optional<StatementType> EXPLAIN = Optional.of(StatementType.EXPLAIN);
-    private static final Optional<StatementType> SHOW_CREATE =
-            Optional.of(StatementType.SHOW_CREATE);
-    private static final Optional<StatementType> OTHER = Optional.of(StatementType.OTHER);
-    private static final Optional<StatementType> EMPTY = Optional.empty();
-
-    @Ignore
     @ParameterizedTest
     @MethodSource("generateTestData")
-    public void testParseStatement(Tuple2<String, Optional<StatementType>> testData) {
-        Optional<StatementType> type = clientParser.parseStatement(testData.f0);
-        assertThat(type).isEqualTo(testData.f1);
+    public void testParseStatement(TestSpec testData) {
+        Optional<StatementType> type = clientParser.parseStatement(testData.statement);
+        assertThat(type).isEqualTo(testData.type);
     }
 
-    private static List<Tuple2<String, Optional<StatementType>>> generateTestData() {
+    @ParameterizedTest
+    @ValueSource(strings = {"", "\n", " ", "-- comment;", "SHOW TABLES -- comment;", "SHOW TABLES"})
+    public void testParseIncompleteStatement(String statement) {
+        assertThatThrownBy(() -> clientParser.parseStatement(statement))
+                .satisfies(anyCauseMatches(SqlExecutionException.class))
+                .cause()
+                .satisfies(anyCauseMatches(SqlParserEOFException.class));
+    }
+
+    private static List<TestSpec> generateTestData() {
         return Arrays.asList(
-                Tuple2.of("quit;", QUIT),
-                Tuple2.of("quit", QUIT),
-                Tuple2.of("QUIT", QUIT),
-                Tuple2.of("Quit", QUIT),
-                Tuple2.of("QuIt", QUIT),
-                Tuple2.of("clear;", CLEAR),
-                Tuple2.of("help;", HELP),
-                Tuple2.of("EXPLAIN PLAN FOR what_ever", EXPLAIN),
-                Tuple2.of("SHOW CREATE TABLE(what_ever);", SHOW_CREATE),
-                Tuple2.of("SHOW CREATE VIEW (what_ever)", SHOW_CREATE),
-                Tuple2.of("SHOW CREATE syntax_error;", OTHER),
-                Tuple2.of("--SHOW CREATE TABLE ignore_comment", EMPTY),
-                Tuple2.of("SHOW CREATE --TABLE ignore_comment", OTHER),
-                Tuple2.of("SHOW -- CREATE VIEW ignore_comment", OTHER),
-                Tuple2.of("SHOW TABLES;", OTHER),
-                Tuple2.of("\tSHOW    CREATE \tTABLE \t ", SHOW_CREATE),
-                Tuple2.of("", EMPTY),
-                Tuple2.of(";", EMPTY),
-                Tuple2.of("\t", EMPTY),
-                Tuple2.of("\n", EMPTY));
+                TestSpec.of(";", null),
+                TestSpec.of("; ;", null),
+                // comment and multi lines tests
+                TestSpec.of("SHOW --ignore;\n CREATE TABLE tbl;", SHOW_CREATE),
+                TestSpec.of("SHOW\n create\t TABLE `tbl`;", SHOW_CREATE),
+                TestSpec.of("SHOW -- create\n TABLES;", OTHER),
+                // special characters tests
+                TestSpec.of("SELECT * FROM `tbl`;", OTHER),
+                TestSpec.of("SHOW /* ignore */ CREATE TABLE \"tbl\";", SHOW_CREATE),
+                // normal tests
+                TestSpec.of("quit;", QUIT), // non case sensitive test
+                TestSpec.of("QUIT;", QUIT),
+                TestSpec.of("Quit;", QUIT),
+                TestSpec.of("QuIt;", QUIT),
+                TestSpec.of("clear;", CLEAR),
+                TestSpec.of("help;", HELP),
+                TestSpec.of("EXPLAIN PLAN FOR 'what_ever';", EXPLAIN),
+                TestSpec.of("SHOW CREATE TABLE(what_ever);", SHOW_CREATE),
+                TestSpec.of("SHOW CREATE VIEW (what_ever);", SHOW_CREATE),
+                TestSpec.of("SHOW CREATE syntax_error;", OTHER),
+                TestSpec.of("SHOW TABLES;", OTHER),
+                TestSpec.of("BEGIN STATEMENT SET;", BEGIN_STATEMENT_SET),
+                TestSpec.of("END;", END),
+                TestSpec.of("END statement;", OTHER));
+    }
+
+    /** Used to load generated data. */
+    private static class TestSpec {
+        String statement;
+        Optional<StatementType> type;
+
+        TestSpec(String statement, @Nullable StatementType type) {
+            this.statement = statement;
+            this.type = type == null ? Optional.empty() : Optional.of(type);
+        }
+
+        static TestSpec of(String statement, @Nullable StatementType type) {
+            return new TestSpec(statement, type);
+        }
     }
 }
