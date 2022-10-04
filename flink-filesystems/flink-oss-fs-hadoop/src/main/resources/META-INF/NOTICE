@@ -16,7 +16,7 @@ This project bundles the following dependencies under the Apache Software Licens
 - io.opentracing:opentracing-api:0.33.0
 - io.opentracing:opentracing-noop:0.33.0
 - io.opentracing:opentracing-util:0.33.0
-- org.apache.hadoop:hadoop-aliyun:3.3.2
+- org.apache.hadoop:hadoop-aliyun:3.3.4
 - org.apache.httpcomponents:httpclient:4.5.13
 - org.apache.httpcomponents:httpcore:4.4.14
 - org.codehaus.jettison:jettison:1.1
