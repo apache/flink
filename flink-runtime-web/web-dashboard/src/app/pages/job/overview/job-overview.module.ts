@@ -20,6 +20,7 @@ import { CommonModule } from '@angular/common';
 import { NgModule } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 
+import { NzAlertModule } from 'ng-zorro-antd/alert';
 import { NzDividerModule } from 'ng-zorro-antd/divider';
 import { NzDropDownModule } from 'ng-zorro-antd/dropdown';
 import { NzFormModule } from 'ng-zorro-antd/form';
@@ -58,6 +59,7 @@ import { JobOverviewDrawerWatermarksComponent } from './watermarks/job-overview-
     NzIconModule,
     NzFormModule,
     NzSelectModule,
+    NzAlertModule,
     NzDividerModule,
     NzTabsModule,
     NzDropDownModule
