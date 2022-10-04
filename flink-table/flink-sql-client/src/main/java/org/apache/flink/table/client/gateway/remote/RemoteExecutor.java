@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.client.gateway.remote;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.rest.RestClient;
 import org.apache.flink.runtime.rest.messages.EmptyMessageParameters;
@@ -26,13 +27,14 @@ import org.apache.flink.runtime.rest.messages.MessageHeaders;
 import org.apache.flink.runtime.rest.messages.MessageParameters;
 import org.apache.flink.runtime.rest.messages.RequestBody;
 import org.apache.flink.runtime.rest.messages.ResponseBody;
-import org.apache.flink.table.api.internal.TableResultImpl;
-import org.apache.flink.table.api.internal.TableResultInternal;
 import org.apache.flink.table.client.SqlClientException;
 import org.apache.flink.table.client.gateway.SqlExecutionException;
 import org.apache.flink.table.client.gateway.TypedResult;
 import org.apache.flink.table.client.gateway.local.ResultStore;
+import org.apache.flink.table.client.gateway.local.result.ChangelogResult;
 import org.apache.flink.table.client.gateway.local.result.DynamicResult;
+import org.apache.flink.table.client.gateway.local.result.MaterializedResult;
+import org.apache.flink.table.client.gateway.remote.result.TableResultWrapper;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.gateway.api.operation.OperationHandle;
 import org.apache.flink.table.gateway.api.results.ResultSet;
@@ -51,7 +53,7 @@ import org.apache.flink.table.gateway.rest.message.statement.ExecuteStatementReq
 import org.apache.flink.table.gateway.rest.message.statement.ExecuteStatementResponseBody;
 import org.apache.flink.table.gateway.rest.message.statement.FetchResultsResponseBody;
 import org.apache.flink.table.gateway.rest.message.statement.FetchResultsTokenParameters;
-import org.apache.flink.types.Row;
+import org.apache.flink.util.AbstractID;
 import org.apache.flink.util.ConfigurationException;
 import org.apache.flink.util.concurrent.Executors;
 
@@ -69,7 +71,6 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
-import java.util.stream.Collectors;
 
 import static org.apache.flink.table.gateway.rest.handler.session.CloseSessionHandler.CLOSE_MESSAGE;
 
@@ -181,7 +182,7 @@ public class RemoteExecutor {
         return new ArrayList<>();
     }
 
-    public TableResultInternal executeStatement(
+    public TableResultWrapper executeStatement(
             String statement, long executionTimeOutMs, @Nullable Configuration executionConfig)
             throws SqlClientException {
         if (executionTimeOutMs <= 0) {
@@ -206,22 +207,19 @@ public class RemoteExecutor {
             OperationHandle operationHandle =
                     new OperationHandle(UUID.fromString(operationHandleId));
 
-            LOG.info("Fetching Results...");
+            LOG.info("Fetching the first result...");
             FetchResultsResponseBody fetchResultsResponse =
                     fetchWhenResultsReady(operationHandle, Duration.ofMillis(executionTimeOutMs));
             ResultSet firstResult = fetchResultsResponse.getResults();
-            List<RowData> allResults = new ArrayList<>(firstResult.getData());
             Long nextToken = parseTokenFromUri(fetchResultsResponse.getNextResultUri());
-            while (nextToken != null) {
-                fetchResultsResponse = fetchResults(operationHandle, nextToken);
-                allResults.addAll(fetchResultsResponse.getResults().getData());
-                nextToken = parseTokenFromUri(fetchResultsResponse.getNextResultUri());
-            }
 
-            return TableResultImpl.builder()
-                    .schema(firstResult.getResultSchema())
-                    .data(allResults.stream().map(Row::of).collect(Collectors.toList()))
-                    .build();
+            TableResultWrapper result =
+                    new TableResultWrapper(this, operationHandle, firstResult, nextToken);
+
+            if (isQuery(statement)) {
+                storeResult(result, executionConfig);
+            }
+            return result;
         } catch (Exception e) {
             LOG.error("Unexpected error occurs when executing SQL statement.", e);
             throw new SqlClientException(
@@ -230,15 +228,42 @@ public class RemoteExecutor {
     }
 
     public TypedResult<List<RowData>> retrieveResultChanges(String resultId) {
-        throw new UnsupportedOperationException();
+        DynamicResult result = resultStore.getResult(resultId);
+        if (result == null) {
+            throw new SqlExecutionException(
+                    String.format(
+                            "Could not find a result with result identifier '%s'.", resultId));
+        }
+        if (result.isMaterialized()) {
+            throw new SqlClientException("Invalid result retrieval mode.");
+        }
+        return ((ChangelogResult) result).retrieveChanges();
     }
 
     public TypedResult<Integer> snapshotResult(String resultId, int pageSize) {
-        throw new UnsupportedOperationException();
+        DynamicResult result = resultStore.getResult(resultId);
+        if (result == null) {
+            throw new SqlExecutionException(
+                    String.format(
+                            "Could not find a result with result identifier '%s'.", resultId));
+        }
+        if (!result.isMaterialized()) {
+            throw new SqlExecutionException("Invalid result retrieval mode.");
+        }
+        return ((MaterializedResult) result).snapshot(pageSize);
     }
 
     public List<RowData> retrieveResultPage(String resultId, int page) {
-        throw new UnsupportedOperationException();
+        final DynamicResult result = resultStore.getResult(resultId);
+        if (result == null) {
+            throw new SqlExecutionException(
+                    String.format(
+                            "Could not find a result with result identifier '%s'.", resultId));
+        }
+        if (!result.isMaterialized()) {
+            throw new SqlExecutionException("Invalid result retrieval mode.");
+        }
+        return ((MaterializedResult) result).retrievePage(page);
     }
 
     public void cancelQuery(String resultId) throws SqlExecutionException {
@@ -275,7 +300,7 @@ public class RemoteExecutor {
         return fetchResults(operationHandle, 0L);
     }
 
-    private FetchResultsResponseBody fetchResults(OperationHandle operationHandle, long token)
+    public FetchResultsResponseBody fetchResults(OperationHandle operationHandle, long token)
             throws SqlClientException {
         FetchResultsTokenParameters fetchResultsTokenParameters =
                 new FetchResultsTokenParameters(sessionHandle, operationHandle, token);
@@ -331,11 +356,36 @@ public class RemoteExecutor {
         return response;
     }
 
-    private Long parseTokenFromUri(String uri) {
+    public Long parseTokenFromUri(String uri) {
         if (uri == null || uri.length() == 0) {
             return null;
         }
         String[] split = uri.split("/");
         return Long.valueOf(split[split.length - 1]);
+    }
+
+    @VisibleForTesting
+    public SessionHandle getSessionHandle() {
+        return sessionHandle;
+    }
+
+    private boolean isQuery(String sql) {
+        sql = sql.toUpperCase();
+        return sql.startsWith("SELECT ");
+    }
+
+    private void storeResult(
+            TableResultWrapper resultWrapper, @Nullable Configuration executionConfig) {
+        // TODO: get config cost too much time. optimize later
+        Configuration configuration = Configuration.fromMap(getSessionConfig());
+        configuration.addAll(executionConfig == null ? new Configuration() : executionConfig);
+        DynamicResult result = resultStore.createResult(configuration, resultWrapper);
+
+        String resultId = new AbstractID().toHexString();
+        resultWrapper.setResultId(resultId);
+        resultWrapper.setMaterialized(result.isMaterialized());
+        resultWrapper.setConfig(configuration);
+
+        resultStore.storeResult(resultId, result);
     }
 }
