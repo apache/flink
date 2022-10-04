@@ -482,6 +482,14 @@ trait ImplicitExpressionConversions {
   }
 
   /**
+   * Converts date time string string1 in format string2 (by default: yyyy-MM-dd HH:mm:ss if not
+   * specified) to Unix timestamp (in seconds), using the specified timezone in table config.
+   */
+  def toDate(dateStr: Expression, format: Expression): Expression = {
+    Expressions.toDate(dateStr, format)
+  }
+
+  /**
    * Converts a numeric type epoch time to [[DataTypes#TIMESTAMP_LTZ]].
    *
    * The supported precision is 0 or 3:
@@ -490,6 +498,14 @@ trait ImplicitExpressionConversions {
    */
   def toTimestampLtz(numericEpochTime: Expression, precision: Expression): Expression = {
     Expressions.toTimestampLtz(numericEpochTime, precision)
+  }
+
+  /**
+   * Converts date time string string1 with format string2 (by default: ‘yyyy-MM-dd HH:mm:ss’) under
+   * the ‘UTC+0’ time zone to a timestamp.
+   */
+  def toTimestamp(dateStr: Expression, format: Expression): Expression = {
+    Expressions.toTimestamp(dateStr, format)
   }
 
   /**

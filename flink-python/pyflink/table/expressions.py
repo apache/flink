@@ -272,6 +272,20 @@ def local_timestamp() -> Expression:
     return _leaf_op("localTimestamp")
 
 
+def to_date(date_str: str, format: str = None) -> Expression:
+    """
+    Converts a date string string1 with format string2 (by default ‘yyyy-MM-dd’) to a date.
+
+    :param date_str: the date time string
+    :param format: The format of the string
+    :return: The formatted date as string.
+    """
+    if format is None:
+        return _unary_op("toDate", date_str)
+    else:
+        return _binary_op("toDate", date_str, format)
+
+
 def to_timestamp_ltz(numeric_epoch_time, precision) -> Expression:
     """
     Converts a numeric type epoch time to TIMESTAMP_LTZ.
@@ -285,6 +299,21 @@ def to_timestamp_ltz(numeric_epoch_time, precision) -> Expression:
     :return: The timestamp value with TIMESTAMP_LTZ type.
     """
     return _binary_op("toTimestampLtz", numeric_epoch_time, precision)
+
+
+def to_timestamp(date_str: str, format: str = None) -> Expression:
+    """
+    Converts date time string string1 with format string2 (by default: ‘yyyy-MM-dd HH:mm:ss’)
+    under the ‘UTC+0’ time zone to a timestamp.
+
+    :param date_str: the date time string
+    :param format: The format of the string
+    :return: The formatted timestamp as string.
+    """
+    if format is None:
+        return _unary_op("toTimestamp", date_str)
+    else:
+        return _binary_op("toTimestamp", date_str, format)
 
 
 def temporal_overlaps(left_time_point,

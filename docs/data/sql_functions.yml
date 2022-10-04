@@ -495,11 +495,13 @@ temporal:
   - sql: UNIX_TIMESTAMP(string1[, string2])
     description: 'Converts date time string string1 in format string2 (by default: yyyy-MM-dd HH:mm:ss if not specified) to Unix timestamp (in seconds), using the specified timezone in table config.'
   - sql: TO_DATE(string1[, string2])
+    table: toDate(STRING1[, STRING2])
     description: Converts a date string string1 with format string2 (by default 'yyyy-MM-dd') to a date.
   - sql: TO_TIMESTAMP_LTZ(numeric, precision)
     table: toTimestampLtz(NUMERIC, PRECISION)
     description: "Converts a epoch seconds or epoch milliseconds to a TIMESTAMP_LTZ, the valid precision is 0 or 3, the 0 represents TO_TIMESTAMP_LTZ(epochSeconds, 0), the 3 represents TO_TIMESTAMP_LTZ(epochMilliseconds, 3)."
   - sql: TO_TIMESTAMP(string1[, string2])
+    table: toTimestamp(STRING1[, STRING2])
     description: "Converts date time string string1 with format string2 (by default: 'yyyy-MM-dd HH:mm:ss') under the 'UTC+0' time zone to a timestamp."
   - sql: CURRENT_WATERMARK(rowtime)
     description: |

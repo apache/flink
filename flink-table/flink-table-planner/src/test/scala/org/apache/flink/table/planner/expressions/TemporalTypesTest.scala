@@ -613,6 +613,12 @@ class TemporalTypesTest extends ExpressionTestBase {
     testSqlApi("TIME '12:44:31'", "12:44:31")
     testSqlApi("TO_DATE('2018-03-18')", "2018-03-18")
 
+    testAllApis(toDate("2018-03-18", "yyyy-MM-dd"), "TO_DATE('2018-03-18')", "2018-03-18")
+    testAllApis(
+      toTimestamp("1970-01-01 08:01:40", "yyyy-MM-dd HH:mm:ss"),
+      "TO_TIMESTAMP('1970-01-01 08:01:40', 'yyyy-MM-dd HH:mm:ss')",
+      "1970-01-01 08:01:40.000")
+
     // EXTRACT
     // testSqlApi("TO_DATE(1521331200)", "2018-03-18")
     testSqlApi("EXTRACT(HOUR FROM TIME '06:07:08')", "6")

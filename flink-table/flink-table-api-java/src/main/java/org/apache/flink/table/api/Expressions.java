@@ -304,6 +304,17 @@ public final class Expressions {
     }
 
     /**
+     * Converts a date string string1 with format string2 (by default ‘yyyy-MM-dd’) to a date.
+     *
+     * @param dateStr dateStr the date time string.
+     * @param format The format of the string.
+     * @return the return type of this expression is {@link DataTypes#DATE()}.
+     */
+    public static ApiExpression toDate(Object dateStr, Object format) {
+        return apiCall(BuiltInFunctionDefinitions.TO_DATE, dateStr, format);
+    }
+
+    /**
      * Converts a numeric type epoch time to {@link DataTypes#TIMESTAMP_LTZ(int)}.
      *
      * <p>The supported precision is 0 or 3:
@@ -319,6 +330,18 @@ public final class Expressions {
      */
     public static ApiExpression toTimestampLtz(Object numericEpochTime, Object precision) {
         return apiCall(BuiltInFunctionDefinitions.TO_TIMESTAMP_LTZ, numericEpochTime, precision);
+    }
+
+    /**
+     * Converts date time string string1 with format string2 (by default: ‘yyyy-MM-dd HH:mm:ss’)
+     * under the ‘UTC+0’ time zone to a timestamp.
+     *
+     * @param dateStr dateStr the date time string.
+     * @param format The format of the string.
+     * @return the return type of this expression is {@link DataTypes#TIMESTAMP()}.
+     */
+    public static ApiExpression toTimestamp(Object dateStr, Object format) {
+        return apiCall(BuiltInFunctionDefinitions.TO_TIMESTAMP, dateStr, format);
     }
 
     /**
