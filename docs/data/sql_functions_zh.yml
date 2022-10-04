@@ -617,8 +617,10 @@ temporal:
       （在 TableConfig 中指定）。例如，如果在 UTC 时区，FROM_UNIXTIME(44) 返回 '1970-01-01 00:00:44'，如果在
       'Asia/Tokyo' 时区，则返回 '1970-01-01 09:00:44'。
   - sql: UNIX_TIMESTAMP()
+    table: unixtimestamp()
     description: 以秒为单位获取当前的 Unix 时间戳。此函数不是确定性的，这意味着将为每个记录重新计算该值。
   - sql: UNIX_TIMESTAMP(string1[, string2])
+    table: unixtimestamp(string1[, string2])
     description: |
       使用表配置中指定的时区将格式为 string2 的日期时间字符串 string1（如果未指定默认情况下：yyyy-MM-dd HH:mm:ss）
       转换为 Unix 时间戳（以秒为单位）。

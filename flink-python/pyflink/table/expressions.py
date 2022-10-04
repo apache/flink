@@ -358,6 +358,19 @@ def from_unixtime(unixtime, format=None) -> Expression:
         return _binary_op("fromUnixtime", unixtime, format)
 
 
+def unix_timestamp(date_str: str = None, format: str = None) -> Expression:
+    """
+    Converts date time string string1 in format string2 (by default: yyyy-MM-dd HH:mm:ss if not
+    specified) to Unix timestamp (in seconds), using the specified timezone in table config.
+    """
+    if date_str is None:
+        return _leaf_op("unixTimestamp")
+    elif format is None:
+        return _unary_op("unixTimestamp", date_str)
+    else:
+        return _binary_op("unixTimestamp", date_str, format)
+
+
 def array(head, *tail) -> Expression:
     """
     Creates an array of literals.

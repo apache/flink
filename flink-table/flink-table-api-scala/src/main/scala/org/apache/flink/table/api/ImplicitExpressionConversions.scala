@@ -561,6 +561,28 @@ trait ImplicitExpressionConversions {
   def fromUnixtime(unixtime: Expression, format: Expression): Expression =
     Expressions.fromUnixtime(unixtime, format)
 
+  /**
+   * Gets current Unix timestamp in seconds. This function is not deterministic which means the
+   * value would be recalculated for each record.
+   */
+  def unixTimestamp(): Expression = Expressions.unixTimestamp()
+
+  /**
+   * Converts date time string string1 in format string2 (by default: yyyy-MM-dd HH:mm:ss if not
+   * specified) to Unix timestamp (in seconds), using the specified timezone in table config.
+   */
+  def unixTimestamp(dateStr: Expression): Expression = {
+    Expressions.unixTimestamp(dateStr)
+  }
+
+  /**
+   * Converts date time string string1 in format string2 (by default: yyyy-MM-dd HH:mm:ss if not
+   * specified) to Unix timestamp (in seconds), using the specified timezone in table config.
+   */
+  def unixTimestamp(dateStr: Expression, format: Expression): Expression = {
+    Expressions.unixTimestamp(dateStr, format)
+  }
+
   /** Creates an array of literals. */
   def array(head: Expression, tail: Expression*): Expression = {
     Expressions.array(head, tail: _*)

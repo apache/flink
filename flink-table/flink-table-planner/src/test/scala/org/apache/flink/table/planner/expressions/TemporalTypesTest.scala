@@ -931,6 +931,17 @@ class TemporalTypesTest extends ExpressionTestBase {
     val ss2 = "2015-07-25 02:02:02"
     val fmt = "yyyy/MM/dd HH:mm:ss.S"
 
+    testAllApis(unixTimestamp(ss1), s"UNIX_TIMESTAMP('$ss1')", (ts1.getTime / 1000L).toString)
+    testAllApis(unixTimestamp(ss2), s"UNIX_TIMESTAMP('$ss2')", (ts2.getTime / 1000L).toString)
+    testAllApis(
+      unixTimestamp(s1, fmt),
+      s"UNIX_TIMESTAMP('$s1', '$fmt')",
+      (ts1.getTime / 1000L).toString)
+    testAllApis(
+      unixTimestamp(s2, fmt),
+      s"UNIX_TIMESTAMP('$s2', '$fmt')",
+      (ts2.getTime / 1000L).toString)
+
     testSqlApi(s"UNIX_TIMESTAMP('$ss1')", (ts1.getTime / 1000L).toString)
     testSqlApi(s"UNIX_TIMESTAMP('$ss2')", (ts2.getTime / 1000L).toString)
     testSqlApi(s"UNIX_TIMESTAMP('$s1', '$fmt')", (ts1.getTime / 1000L).toString)
