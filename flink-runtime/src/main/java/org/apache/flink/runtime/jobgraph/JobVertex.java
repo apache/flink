@@ -520,19 +520,32 @@ public class JobVertex implements java.io.Serializable {
      * A hook that can be overwritten by sub classes to implement logic that is called by the master
      * when the job starts.
      *
-     * @param loader The class loader for user defined code.
+     * @param context Provides contextual information for the initialization
      * @throws Exception The method may throw exceptions which cause the job to fail immediately.
      */
-    public void initializeOnMaster(ClassLoader loader) throws Exception {}
+    public void initializeOnMaster(InitializeOnMasterContext context) throws Exception {}
 
     /**
      * A hook that can be overwritten by sub classes to implement logic that is called by the master
      * after the job completed.
      *
-     * @param loader The class loader for user defined code.
+     * @param context Provides contextual information for the initialization
      * @throws Exception The method may throw exceptions which cause the job to fail immediately.
      */
-    public void finalizeOnMaster(ClassLoader loader) throws Exception {}
+    public void finalizeOnMaster(InitializeOnMasterContext context) throws Exception {}
+
+    public interface InitializeOnMasterContext {
+        /** The class loader for user defined code. */
+        ClassLoader getClassLoader();
+
+        /**
+         * The actual parallelism this vertex will be run with. In contrast, the {@link
+         * #getParallelism()} is the original parallelism set when creating the {@link JobGraph} and
+         * might be updated e.g. by the {@link
+         * org.apache.flink.runtime.scheduler.adaptive.AdaptiveScheduler}.
+         */
+        int getExecutionParallelism();
+    }
 
     // --------------------------------------------------------------------------------------------
 

@@ -67,8 +67,8 @@ public class FinalizeOnMasterTest extends TestLogger {
         ExecutionGraphTestUtils.finishAllVertices(eg);
         assertEquals(JobStatus.FINISHED, eg.waitUntilTerminal());
 
-        verify(vertex1, times(1)).finalizeOnMaster(any(ClassLoader.class));
-        verify(vertex2, times(1)).finalizeOnMaster(any(ClassLoader.class));
+        verify(vertex1, times(1)).finalizeOnMaster(any(JobVertex.InitializeOnMasterContext.class));
+        verify(vertex2, times(1)).finalizeOnMaster(any(JobVertex.InitializeOnMasterContext.class));
 
         assertEquals(0, eg.getRegisteredExecutions().size());
     }
@@ -98,7 +98,7 @@ public class FinalizeOnMasterTest extends TestLogger {
 
         assertEquals(JobStatus.FAILED, eg.waitUntilTerminal());
 
-        verify(vertex, times(0)).finalizeOnMaster(any(ClassLoader.class));
+        verify(vertex, times(0)).finalizeOnMaster(any(JobVertex.InitializeOnMasterContext.class));
 
         assertEquals(0, eg.getRegisteredExecutions().size());
     }

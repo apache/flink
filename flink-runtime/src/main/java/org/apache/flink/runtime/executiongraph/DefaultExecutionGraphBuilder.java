@@ -169,7 +169,12 @@ public class DefaultExecutionGraphBuilder {
             }
 
             try {
-                vertex.initializeOnMaster(classLoader);
+                vertex.initializeOnMaster(
+                        new SimpleInitializeOnMasterContext(
+                                classLoader,
+                                vertexParallelismStore
+                                        .getParallelismInfo(vertex.getID())
+                                        .getParallelism()));
             } catch (Throwable t) {
                 throw new JobExecutionException(
                         jobId,

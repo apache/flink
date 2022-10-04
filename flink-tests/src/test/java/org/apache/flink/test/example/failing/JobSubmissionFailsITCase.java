@@ -147,7 +147,7 @@ public class JobSubmissionFailsITCase extends TestLogger {
         }
 
         @Override
-        public void initializeOnMaster(ClassLoader loader) throws Exception {
+        public void initializeOnMaster(InitializeOnMasterContext context) throws Exception {
             throw new Exception("Test exception.");
         }
     }
