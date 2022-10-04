@@ -390,6 +390,18 @@ public final class Expressions {
     }
 
     /**
+     * Convert datetime string from a time zone to another time zone.
+     *
+     * @param dateStr the date time string
+     * @param tzFrom the original time zone
+     * @param tzTo the target time zone
+     * @return The formatted timestamp as string.
+     */
+    public static ApiExpression convertTz(Object dateStr, Object tzFrom, Object tzTo) {
+        return apiCall(BuiltInFunctionDefinitions.CONVERT_TZ, dateStr, tzFrom, tzTo);
+    }
+
+    /**
      * Convert unix timestamp (seconds since '1970-01-01 00:00:00' UTC) to datetime string in the
      * "yyyy-MM-dd HH:mm:ss" format.
      *

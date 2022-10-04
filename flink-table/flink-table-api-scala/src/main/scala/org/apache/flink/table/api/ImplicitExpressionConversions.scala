@@ -549,86 +549,85 @@ trait ImplicitExpressionConversions {
   }
 
   /**
+   * Converts a datetime string1 (with default ISO timestamp format ‘yyyy-MM-dd HH:mm:ss’) from time
+   * zone string2 to time zone string3. The format of time zone should be either an abbreviation
+   * such as “PST”, a full name such as “America/Los_Angeles”, or a custom ID such as “GMT-08:00”.
+   * E.g., CONVERT_TZ(‘1970-01-01 00:00:00’, ‘UTC’, ‘America/Los_Angeles’) returns ‘1969-12-31
+   * 16:00:00’.
+   *
+   * @param dateStr
+   *   dateStr the date time string
+   * @param tzFrom
+   *   tzFrom the original time zone
+   * @param tzTo
+   *   tzTo the target time zone
+   * @return
+   *   The formatted timestamp as string.
+   */
+  def convertTz(dateStr: Expression, tzFrom: Expression, tzTo: Expression): ApiExpression = {
+    Expressions.convertTz(dateStr, tzFrom, tzTo)
+  }
+
+  /**
    * Convert unix timestamp (seconds since '1970-01-01 00:00:00' UTC) to datetime string in the
    * "yyyy-MM-dd HH:mm:ss" format.
    */
-  def fromUnixtime(unixtime: Expression): Expression = Expressions.fromUnixtime(unixtime)
+  def fromUnixtime(unixtime: Expression) = Expressions.fromUnixtime(unixtime)
 
   /**
    * Convert unix timestamp (seconds since '1970-01-01 00:00:00' UTC) to datetime string in the
    * given format.
    */
-  def fromUnixtime(unixtime: Expression, format: Expression): Expression =
+  def fromUnixtime(unixtime: Expression, format: Expression) =
     Expressions.fromUnixtime(unixtime, format)
 
   /** Creates an array of literals. */
-  def array(head: Expression, tail: Expression*): Expression = {
-    Expressions.array(head, tail: _*)
-  }
+  def array(head: Expression, tail: Expression*) = Expressions.array(head, tail: _*)
 
   /** Creates a row of expressions. */
-  def row(head: Expression, tail: Expression*): Expression = {
-    Expressions.row(head, tail: _*)
-  }
+  def row(head: Expression, tail: Expression*) = Expressions.row(head, tail: _*)
 
   /** Creates a map of expressions. */
-  def map(key: Expression, value: Expression, tail: Expression*): Expression = {
+  def map(key: Expression, value: Expression, tail: Expression*) =
     Expressions.map(key, value, tail: _*)
-  }
 
   /** Returns a value that is closer than any other value to pi. */
-  def pi(): Expression = {
-    Expressions.pi()
-  }
+  def pi() = Expressions.pi()
 
   /** Returns a value that is closer than any other value to e. */
-  def e(): Expression = {
-    Expressions.e()
-  }
+  def e() = Expressions.e()
 
   /** Returns a pseudorandom double value between 0.0 (inclusive) and 1.0 (exclusive). */
-  def rand(): Expression = {
-    Expressions.rand()
-  }
+  def rand() = Expressions.rand()
 
   /**
    * Returns a pseudorandom double value between 0.0 (inclusive) and 1.0 (exclusive) with a initial
    * seed. Two rand() functions will return identical sequences of numbers if they have same initial
    * seed.
    */
-  def rand(seed: Expression): Expression = {
-    Expressions.rand(seed)
-  }
+  def rand(seed: Expression) = Expressions.rand(seed)
 
   /**
    * Returns a pseudorandom integer value between 0.0 (inclusive) and the specified value
    * (exclusive).
    */
-  def randInteger(bound: Expression): Expression = {
-    Expressions.randInteger(bound)
-  }
+  def randInteger(bound: Expression) = Expressions.randInteger(bound)
 
   /**
    * Returns a pseudorandom integer value between 0.0 (inclusive) and the specified value
    * (exclusive) with a initial seed. Two randInteger() functions will return identical sequences of
    * numbers if they have same initial seed and same bound.
    */
-  def randInteger(seed: Expression, bound: Expression): Expression = {
-    Expressions.randInteger(seed, bound)
-  }
+  def randInteger(seed: Expression, bound: Expression) = Expressions.randInteger(seed, bound)
 
   /**
    * Returns the string that results from concatenating the arguments. Returns NULL if any argument
    * is NULL.
    */
-  def concat(string: Expression, strings: Expression*): Expression = {
-    Expressions.concat(string, strings: _*)
-  }
+  def concat(string: Expression, strings: Expression*) = Expressions.concat(string, strings: _*)
 
   /** Calculates the arc tangent of a given coordinate. */
-  def atan2(y: Expression, x: Expression): Expression = {
-    Expressions.atan2(y, x)
-  }
+  def atan2(y: Expression, x: Expression) = Expressions.atan2(y, x)
 
   /**
    * Returns the string that results from concatenating the arguments and separator. Returns NULL If
@@ -640,9 +639,8 @@ trait ImplicitExpressionConversions {
    *   use [[ImplicitExpressionConversions.concatWs()]]
    */
   @deprecated
-  def concat_ws(separator: Expression, string: Expression, strings: Expression*): Expression = {
+  def concat_ws(separator: Expression, string: Expression, strings: Expression*) =
     concatWs(separator, string, strings: _*)
-  }
 
   /**
    * Returns the string that results from concatenating the arguments and separator. Returns NULL If
@@ -651,9 +649,8 @@ trait ImplicitExpressionConversions {
    * Note: this user-defined function does not skip empty strings. However, it does skip any NULL
    * values after the separator argument.
    */
-  def concatWs(separator: Expression, string: Expression, strings: Expression*): Expression = {
+  def concatWs(separator: Expression, string: Expression, strings: Expression*) =
     Expressions.concatWs(separator, string, strings: _*)
-  }
 
   /**
    * Returns an UUID (Universally Unique Identifier) string (e.g.,
@@ -661,18 +658,14 @@ trait ImplicitExpressionConversions {
    * generated) UUID. The UUID is generated using a cryptographically strong pseudo random number
    * generator.
    */
-  def uuid(): Expression = {
-    Expressions.uuid()
-  }
+  def uuid() = Expressions.uuid()
 
   /**
    * Returns a null literal value of a given data type.
    *
    * e.g. nullOf(DataTypes.INT())
    */
-  def nullOf(dataType: DataType): Expression = {
-    Expressions.nullOf(dataType)
-  }
+  def nullOf(dataType: DataType) = Expressions.nullOf(dataType)
 
   /**
    * @deprecated
@@ -681,19 +674,13 @@ trait ImplicitExpressionConversions {
    *   [[DataTypes]]. Please make sure to use either the old or the new type system consistently to
    *   avoid unintended behavior. See the website documentation for more information.
    */
-  def nullOf(typeInfo: TypeInformation[_]): Expression = {
-    Expressions.nullOf(typeInfo)
-  }
+  def nullOf(typeInfo: TypeInformation[_]) = Expressions.nullOf(typeInfo)
 
   /** Calculates the logarithm of the given value. */
-  def log(value: Expression): Expression = {
-    Expressions.log(value)
-  }
+  def log(value: Expression) = Expressions.log(value)
 
   /** Calculates the logarithm of the given value to the given base. */
-  def log(base: Expression, value: Expression): Expression = {
-    Expressions.log(base, value)
-  }
+  def log(base: Expression, value: Expression) = Expressions.log(base, value)
 
   /**
    * Source watermark declaration for [[Schema]].
@@ -706,9 +693,7 @@ trait ImplicitExpressionConversions {
    *
    * Please check the documentation whether the connector supports source watermarks.
    */
-  def sourceWatermark(): Expression = {
-    Expressions.sourceWatermark()
-  }
+  def sourceWatermark() = Expressions.sourceWatermark()
 
   /**
    * Ternary conditional operator that decides which of two other expressions should be evaluated
@@ -723,9 +708,8 @@ trait ImplicitExpressionConversions {
    * @param ifFalse
    *   expression to be evaluated if condition does not hold
    */
-  def ifThenElse(condition: Expression, ifTrue: Expression, ifFalse: Expression): Expression = {
+  def ifThenElse(condition: Expression, ifTrue: Expression, ifFalse: Expression) =
     Expressions.ifThenElse(condition, ifTrue, ifFalse)
-  }
 
   /**
    * Returns the first argument that is not NULL.
@@ -746,9 +730,7 @@ trait ImplicitExpressionConversions {
    * @param args
    *   the input expressions.
    */
-  def coalesce(args: Expression*): Expression = {
-    Expressions.coalesce(args: _*)
-  }
+  def coalesce(args: Expression*) = Expressions.coalesce(args: _*)
 
   /**
    * Creates an expression that selects a range of columns. It can be used wherever an array of
@@ -759,9 +741,7 @@ trait ImplicitExpressionConversions {
    *
    * e.g. withColumns('b to 'c) or withColumns('*)
    */
-  def withColumns(head: Expression, tail: Expression*): Expression = {
-    Expressions.withColumns(head, tail: _*)
-  }
+  def withColumns(head: Expression, tail: Expression*) = Expressions.withColumns(head, tail: _*)
 
   /**
    * Creates an expression that selects all columns except for the given range of columns. It can be
@@ -773,19 +753,16 @@ trait ImplicitExpressionConversions {
    *
    * e.g. withoutColumns('b to 'c) or withoutColumns('c)
    */
-  def withoutColumns(head: Expression, tail: Expression*): Expression = {
+  def withoutColumns(head: Expression, tail: Expression*) =
     Expressions.withoutColumns(head, tail: _*)
-  }
 
   /** Boolean AND in three-valued logic. */
-  def and(predicate0: Expression, predicate1: Expression, predicates: Expression*): Expression = {
+  def and(predicate0: Expression, predicate1: Expression, predicates: Expression*) =
     Expressions.and(predicate0, predicate1, predicates: _*)
-  }
 
   /** Boolean OR in three-valued logic. */
-  def or(predicate0: Expression, predicate1: Expression, predicates: Expression*): Expression = {
+  def or(predicate0: Expression, predicate1: Expression, predicates: Expression*) =
     Expressions.or(predicate0, predicate1, predicates: _*)
-  }
 
   /**
    * Inverts a given boolean expression.
@@ -803,7 +780,7 @@ trait ImplicitExpressionConversions {
    * not(lit(null, DataTypes.BOOLEAN())) // null
    * }}}
    */
-  def not(expression: Expression): Expression = Expressions.not(expression)
+  def not(expression: Expression) = Expressions.not(expression)
 
   /**
    * Serializes a value into JSON.
@@ -822,9 +799,7 @@ trait ImplicitExpressionConversions {
    * jsonString(Arrays.asList(1, 2)) // "[1,2]"
    * }}}
    */
-  def jsonString(value: Expression): Expression = {
-    Expressions.jsonString(value)
-  }
+  def jsonString(value: Expression) = Expressions.jsonString(value)
 
   /**
    * Builds a JSON object string from a list of key-value pairs.
@@ -860,9 +835,8 @@ trait ImplicitExpressionConversions {
    * @see
    *   #jsonObject
    */
-  def jsonObject(onNull: JsonOnNull, keyValues: Expression*): Expression = {
+  def jsonObject(onNull: JsonOnNull, keyValues: Expression*) =
     Expressions.jsonObject(onNull, keyValues: _*)
-  }
 
   /**
    * Builds a JSON object string by aggregating key-value expressions into a single JSON object.
@@ -884,9 +858,8 @@ trait ImplicitExpressionConversions {
    * @see
    *   #jsonObject
    */
-  def jsonObjectAgg(onNull: JsonOnNull, keyExpr: Expression, valueExpr: Expression): Expression = {
+  def jsonObjectAgg(onNull: JsonOnNull, keyExpr: Expression, valueExpr: Expression) =
     Expressions.jsonObjectAgg(onNull, keyExpr, valueExpr)
-  }
 
   /**
    * Builds a JSON array string from a list of values.
@@ -920,9 +893,7 @@ trait ImplicitExpressionConversions {
    * @see
    *   #jsonObject
    */
-  def jsonArray(onNull: JsonOnNull, values: Expression*): Expression = {
-    Expressions.jsonArray(onNull, values: _*)
-  }
+  def jsonArray(onNull: JsonOnNull, values: Expression*) = Expressions.jsonArray(onNull, values: _*)
 
   /**
    * Builds a JSON object string by aggregating items into an array.
@@ -942,7 +913,6 @@ trait ImplicitExpressionConversions {
    * @see
    *   #jsonObject
    */
-  def jsonArrayAgg(onNull: JsonOnNull, itemExpr: Expression): Expression = {
+  def jsonArrayAgg(onNull: JsonOnNull, itemExpr: Expression) =
     Expressions.jsonArrayAgg(onNull, itemExpr)
-  }
 }

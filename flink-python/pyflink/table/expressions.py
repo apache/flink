@@ -347,6 +347,18 @@ def timestamp_diff(time_point_unit: TimePointUnit, time_point1, time_point2) -> 
                        time_point1, time_point2)
 
 
+def convert_tz(date_str: str, tz_from: str, tz_to: str) -> Expression:
+    """
+    Convert datetime string from a time zone to another time zone.
+
+    :param date_str: the date time string
+    :param tz_from: the original time zone
+    :param tz_to: the target time zone
+    :return: The formatted timestamp as string.
+    """
+    return _ternary_op("convertTz", date_str, tz_from, tz_to)
+
+
 def from_unixtime(unixtime, format=None) -> Expression:
     """
     Convert unix timestamp (seconds since '1970-01-01 00:00:00' UTC) to datetime string the given
