@@ -25,12 +25,15 @@ import org.apache.flink.streaming.connectors.kinesis.model.StartingPosition;
 import org.apache.flink.streaming.connectors.kinesis.proxy.FullJitterBackoff;
 import org.apache.flink.streaming.connectors.kinesis.proxy.KinesisProxyV2Interface;
 import org.apache.flink.streaming.connectors.kinesis.testutils.FakeKinesisFanOutBehavioursFactory;
+import org.apache.flink.streaming.connectors.kinesis.testutils.FakeKinesisFanOutBehavioursFactory.AbstractSingleShardFanOutKinesisV2;
 import org.apache.flink.streaming.connectors.kinesis.testutils.FakeKinesisFanOutBehavioursFactory.SingleShardFanOutKinesisV2;
 import org.apache.flink.streaming.connectors.kinesis.testutils.FakeKinesisFanOutBehavioursFactory.SubscriptionErrorKinesisV2;
 import org.apache.flink.streaming.connectors.kinesis.testutils.TestUtils.TestConsumer;
 
 import com.amazonaws.http.timers.client.SdkInterruptedException;
+import com.amazonaws.kinesis.agg.RecordAggregator;
 import com.amazonaws.services.kinesis.clientlibrary.types.UserRecord;
+import com.amazonaws.services.kinesis.model.HashKeyRange;
 import io.netty.handler.timeout.ReadTimeoutException;
 import org.junit.Rule;
 import org.junit.Test;
@@ -42,12 +45,16 @@ import software.amazon.awssdk.services.kinesis.model.ResourceNotFoundException;
 import software.amazon.awssdk.services.kinesis.model.SubscribeToShardEvent;
 
 import java.nio.ByteBuffer;
+import java.time.Instant;
+import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 import java.util.Properties;
 import java.util.stream.Collectors;
 
+import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.Collections.emptyList;
+import static org.apache.commons.lang3.RandomStringUtils.randomAlphabetic;
 import static org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants.EFO_CONSUMER_NAME;
 import static org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants.RECORD_PUBLISHER_TYPE;
 import static org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants.RecordPublisherType.EFO;
@@ -58,9 +65,11 @@ import static org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfi
 import static org.apache.flink.streaming.connectors.kinesis.internals.publisher.RecordPublisher.RecordPublisherRunResult.CANCELLED;
 import static org.apache.flink.streaming.connectors.kinesis.internals.publisher.RecordPublisher.RecordPublisherRunResult.COMPLETE;
 import static org.apache.flink.streaming.connectors.kinesis.internals.publisher.RecordPublisher.RecordPublisherRunResult.INCOMPLETE;
+import static org.apache.flink.streaming.connectors.kinesis.model.SentinelSequenceNumber.SENTINEL_AT_TIMESTAMP_SEQUENCE_NUM;
 import static org.apache.flink.streaming.connectors.kinesis.model.SentinelSequenceNumber.SENTINEL_EARLIEST_SEQUENCE_NUM;
 import static org.apache.flink.streaming.connectors.kinesis.model.SentinelSequenceNumber.SENTINEL_LATEST_SEQUENCE_NUM;
 import static org.apache.flink.streaming.connectors.kinesis.testutils.FakeKinesisFanOutBehavioursFactory.emptyShard;
+import static org.apache.flink.streaming.connectors.kinesis.testutils.FakeKinesisFanOutBehavioursFactory.singleShardWithEvents;
 import static org.apache.flink.streaming.connectors.kinesis.testutils.FakeKinesisFanOutBehavioursFactory.singletonShard;
 import static org.apache.flink.streaming.connectors.kinesis.testutils.TestUtils.createDummyStreamShardHandle;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -165,6 +174,56 @@ public class FanOutRecordPublisherTest {
         assertThat(kinesis.getStartingPositionForSubscription(0).timestamp())
                 .isEqualTo(now.toInstant());
         assertThat(kinesis.getStartingPositionForSubscription(0).type()).isEqualTo(AT_TIMESTAMP);
+    }
+
+    @Test
+    public void testToSdkV2StartingPositionAtTimestampWithDroppedAggregatedRecord()
+            throws Exception {
+        // Create Aggregate Record with explicit hash keys 0 and 1
+        RecordAggregator recordAggregator = new RecordAggregator();
+        recordAggregator.addUserRecord("pk", "0", randomAlphabetic(32).getBytes(UTF_8));
+        recordAggregator.addUserRecord("pk", "1", randomAlphabetic(32).getBytes(UTF_8));
+        Record record =
+                Record.builder()
+                        .approximateArrivalTimestamp(Instant.now())
+                        .data(
+                                SdkBytes.fromByteArray(
+                                        recordAggregator.clearAndGet().toRecordBytes()))
+                        .sequenceNumber("1")
+                        .partitionKey("pk")
+                        .build();
+
+        // Create 2 Subscription events for asserting that requested sequence number stays the same
+        List<SubscribeToShardEvent> events = new ArrayList<>();
+        events.add(createSubscribeToShardEvent(record));
+        events.add(createSubscribeToShardEvent(record));
+
+        AbstractSingleShardFanOutKinesisV2 kinesis = singleShardWithEvents(events);
+        Date now = new Date();
+
+        // Create ShardHandle with HashKeyRange excluding single UserRecord with hash key 0
+        HashKeyRange hashKeyRange =
+                new HashKeyRange().withStartingHashKey("1").withEndingHashKey("100");
+
+        RecordPublisher publisher =
+                new FanOutRecordPublisher(
+                        StartingPosition.fromTimestamp(now),
+                        "arn",
+                        createDummyStreamShardHandle("stream-name", "shardId-00000", hashKeyRange),
+                        kinesis,
+                        createConfiguration(),
+                        new FullJitterBackoff());
+        publisher.run(
+                new TestConsumer(SENTINEL_AT_TIMESTAMP_SEQUENCE_NUM.get().getSequenceNumber()));
+
+        // Run a second time to ensure the StartingPosition is still respected, indicating we are
+        // still using the original AT_TIMESTAMP behaviour
+        publisher.run(
+                new TestConsumer(SENTINEL_AT_TIMESTAMP_SEQUENCE_NUM.get().getSequenceNumber()));
+
+        assertThat(kinesis.getStartingPositionForSubscription(1).timestamp())
+                .isEqualTo(now.toInstant());
+        assertThat(kinesis.getStartingPositionForSubscription(1).type()).isEqualTo(AT_TIMESTAMP);
     }
 
     @Test

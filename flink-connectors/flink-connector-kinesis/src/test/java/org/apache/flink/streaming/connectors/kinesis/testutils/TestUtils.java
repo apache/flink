@@ -118,18 +118,24 @@ public class TestUtils {
 
     public static StreamShardHandle createDummyStreamShardHandle(
             final String streamName, final String shardId) {
+        return createDummyStreamShardHandle(
+                streamName,
+                shardId,
+                new HashKeyRange()
+                        .withStartingHashKey("0")
+                        .withEndingHashKey(
+                                new BigInteger(StringUtils.repeat("FF", 16), 16).toString()));
+    }
+
+    public static StreamShardHandle createDummyStreamShardHandle(
+            final String streamName, final String shardId, final HashKeyRange hashKeyRange) {
         final Shard shard =
                 new Shard()
                         .withSequenceNumberRange(
                                 new SequenceNumberRange()
                                         .withStartingSequenceNumber("0")
                                         .withEndingSequenceNumber("9999999999999"))
-                        .withHashKeyRange(
-                                new HashKeyRange()
-                                        .withStartingHashKey("0")
-                                        .withEndingHashKey(
-                                                new BigInteger(StringUtils.repeat("FF", 16), 16)
-                                                        .toString()))
+                        .withHashKeyRange(hashKeyRange)
                         .withShardId(shardId);
 
         return new StreamShardHandle(streamName, shard);
@@ -173,6 +179,14 @@ public class TestUtils {
     public static class TestConsumer implements RecordPublisher.RecordBatchConsumer {
         private final List<RecordBatch> recordBatches = new ArrayList<>();
         private String latestSequenceNumber;
+
+        public TestConsumer() {
+            this(null);
+        }
+
+        public TestConsumer(String latestSequenceNumber) {
+            this.latestSequenceNumber = latestSequenceNumber;
+        }
 
         @Override
         public SequenceNumber accept(final RecordBatch batch) {
