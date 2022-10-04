@@ -50,7 +50,7 @@ public class SavepointWriterTest {
                         .transform(new Bootstrapper());
 
         SavepointWriter.newSavepoint(128)
-                .withOperator("uid", transformation)
+                .withOperator(OperatorIdentifier.forUid("uid"), transformation)
                 .write("file:///tmp/path");
 
         env.execute();

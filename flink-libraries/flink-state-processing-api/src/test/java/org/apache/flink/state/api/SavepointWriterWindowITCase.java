@@ -159,7 +159,8 @@ public class SavepointWriterWindowITCase extends AbstractTestBase {
                         .window(TumblingEventTimeWindows.of(Time.milliseconds(5)));
 
         SavepointWriter.newSavepoint(stateBackend, 128)
-                .withOperator(UID, windowBootstrap.bootstrap(transformation))
+                .withOperator(
+                        OperatorIdentifier.forUid(UID), windowBootstrap.bootstrap(transformation))
                 .write(savepointPath);
 
         env.execute("write state");
@@ -203,7 +204,8 @@ public class SavepointWriterWindowITCase extends AbstractTestBase {
                         .evictor(CountEvictor.of(1));
 
         SavepointWriter.newSavepoint(stateBackend, 128)
-                .withOperator(UID, windowBootstrap.bootstrap(transformation))
+                .withOperator(
+                        OperatorIdentifier.forUid(UID), windowBootstrap.bootstrap(transformation))
                 .write(savepointPath);
 
         env.execute("write state");
@@ -248,7 +250,8 @@ public class SavepointWriterWindowITCase extends AbstractTestBase {
                                         Time.milliseconds(5), Time.milliseconds(1)));
 
         SavepointWriter.newSavepoint(stateBackend, 128)
-                .withOperator(UID, windowBootstrap.bootstrap(transformation))
+                .withOperator(
+                        OperatorIdentifier.forUid(UID), windowBootstrap.bootstrap(transformation))
                 .write(savepointPath);
 
         env.execute("write state");
@@ -296,7 +299,8 @@ public class SavepointWriterWindowITCase extends AbstractTestBase {
                         .evictor(CountEvictor.of(1));
 
         SavepointWriter.newSavepoint(stateBackend, 128)
-                .withOperator(UID, windowBootstrap.bootstrap(transformation))
+                .withOperator(
+                        OperatorIdentifier.forUid(UID), windowBootstrap.bootstrap(transformation))
                 .write(savepointPath);
 
         env.execute("write state");
