@@ -70,7 +70,7 @@ export class JobOverviewComponent implements OnInit, OnDestroy {
         takeUntil(this.destroy$)
       )
       .subscribe(data => {
-        if (this.jobId !== data.plan.jid) {
+        if (this.jobId !== data.plan.jid || this.nodes.length === 0) {
           this.nodes = data.plan.nodes;
           this.links = data.plan.links;
           this.jobId = data.plan.jid;
