@@ -472,6 +472,39 @@ public final class Expressions {
         return apiCall(BuiltInFunctionDefinitions.FROM_UNIXTIME, unixtime, format);
     }
 
+    /**
+     * Gets the current unix timestamp in seconds. This function is not deterministic which means
+     * the value would be recalculated for each record.
+     *
+     * @return The current unix timestamp as bigint.
+     */
+    public static ApiExpression unixTimestamp() {
+        return apiCall(BuiltInFunctionDefinitions.UNIX_TIMESTAMP);
+    }
+
+    /**
+     * Converts the given date time string with format 'yyyy-MM-dd HH:mm:ss' to unix timestamp (in
+     * seconds), using the time zone specified in the table config.
+     *
+     * @param timestampStr The date time string.
+     * @return The converted timestamp as bigint.
+     */
+    public static ApiExpression unixTimestamp(Object timestampStr) {
+        return apiCall(BuiltInFunctionDefinitions.UNIX_TIMESTAMP, timestampStr);
+    }
+
+    /**
+     * Converts the given date time string with the specified format to unix timestamp (in seconds),
+     * using the specified timezone in table config.
+     *
+     * @param timestampStr The date time string.
+     * @param format The format of the date time string.
+     * @return The converted timestamp as bigint.
+     */
+    public static ApiExpression unixTimestamp(Object timestampStr, Object format) {
+        return apiCall(BuiltInFunctionDefinitions.UNIX_TIMESTAMP, timestampStr, format);
+    }
+
     /** Creates an array of literals. */
     public static ApiExpression array(Object head, Object... tail) {
         return apiCallAtLeastOneArgument(BuiltInFunctionDefinitions.ARRAY, head, tail);

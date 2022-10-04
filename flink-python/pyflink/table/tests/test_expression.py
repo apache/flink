@@ -27,7 +27,7 @@ from pyflink.table.expressions import (col, lit, range_, and_, or_, current_date
                                        rand, rand_integer, atan2, negative, concat, concat_ws, uuid,
                                        null_of, log, if_then_else, with_columns, call,
                                        to_timestamp_ltz, from_unixtime, to_date, to_timestamp,
-                                       convert_tz)
+                                       convert_tz, unix_timestamp)
 from pyflink.testing.test_case_utils import PyFlinkTestCase
 
 
@@ -285,6 +285,11 @@ class PyFlinkBatchExpressionTests(PyFlinkTestCase):
         self.assertEqual("fromUnixtime(1)", str(from_unixtime(1)))
         self.assertEqual("fromUnixtime(1, 'yy-MM-dd HH-mm-ss')",
                          str(from_unixtime(1, 'yy-MM-dd HH-mm-ss')))
+        self.assertEqual("unixTimestamp()", str(unix_timestamp()))
+        self.assertEqual("unixTimestamp('2015-07-24 10:00:00')",
+                         str(unix_timestamp('2015-07-24 10:00:00')))
+        self.assertEqual("unixTimestamp('2015-07-24 10:00:00', 'yy-MM-dd HH-mm-ss')",
+                         str(unix_timestamp('2015-07-24 10:00:00', 'yy-MM-dd HH-mm-ss')))
         self.assertEqual('array(1, 2, 3)', str(array(1, 2, 3)))
         self.assertEqual("row('key1', 1)", str(row("key1", 1)))
         self.assertEqual("map('key1', 1, 'key2', 2, 'key3', 3)",
