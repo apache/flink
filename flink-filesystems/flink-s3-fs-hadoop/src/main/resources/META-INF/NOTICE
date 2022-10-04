@@ -30,10 +30,10 @@ This project bundles the following dependencies under the Apache Software Licens
 - org.apache.commons:commons-text:1.4
 - org.apache.hadoop.thirdparty:hadoop-shaded-guava:1.1.1
 - org.apache.hadoop.thirdparty:hadoop-shaded-protobuf_3_7:1.1.1
-- org.apache.hadoop:hadoop-annotations:3.3.2
-- org.apache.hadoop:hadoop-auth:3.3.2
-- org.apache.hadoop:hadoop-aws:3.3.2
-- org.apache.hadoop:hadoop-common:3.3.2
+- org.apache.hadoop:hadoop-annotations:3.3.4
+- org.apache.hadoop:hadoop-auth:3.3.4
+- org.apache.hadoop:hadoop-aws:3.3.4
+- org.apache.hadoop:hadoop-common:3.3.4
 - org.apache.httpcomponents:httpclient:4.5.13
 - org.apache.httpcomponents:httpcore:4.4.14
 - org.apache.kerby:kerb-core:1.0.1
