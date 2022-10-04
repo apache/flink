@@ -173,27 +173,39 @@ public class SavepointWriter {
         this.configuration = new Configuration();
     }
 
+    /** @deprecated use {@link #removeOperator(OperatorIdentifier)} */
+    @Deprecated
+    public SavepointWriter removeOperator(String uid) {
+        return removeOperator(OperatorIdentifier.forUid(uid));
+    }
+
     /**
      * Drop an existing operator from the savepoint.
      *
-     * @param uid The uid of the operator.
+     * @param identifier The identifier of the operator.
      * @return A modified savepoint.
      */
-    public SavepointWriter removeOperator(String uid) {
-        metadata.removeOperator(OperatorIdentifier.forUid(uid));
+    public SavepointWriter removeOperator(OperatorIdentifier identifier) {
+        metadata.removeOperator(identifier);
         return this;
+    }
+
+    @Deprecated
+    public <T> SavepointWriter withOperator(
+            String uid, StateBootstrapTransformation<T> transformation) {
+        return withOperator(OperatorIdentifier.forUid(uid), transformation);
     }
 
     /**
      * Adds a new operator to the savepoint.
      *
-     * @param uid The uid of the operator.
+     * @param identifier The identifier of the operator.
      * @param transformation The operator to be included.
      * @return The modified savepoint.
      */
     public <T> SavepointWriter withOperator(
-            String uid, StateBootstrapTransformation<T> transformation) {
-        metadata.addOperator(OperatorIdentifier.forUid(uid), transformation);
+            OperatorIdentifier identifier, StateBootstrapTransformation<T> transformation) {
+        metadata.addOperator(identifier, transformation);
         return this;
     }
 

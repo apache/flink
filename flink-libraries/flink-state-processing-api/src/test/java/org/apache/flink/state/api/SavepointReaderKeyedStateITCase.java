@@ -73,7 +73,8 @@ public abstract class SavepointReaderKeyedStateITCase<B extends StateBackend>
         SavepointReader savepoint = SavepointReader.read(env, savepointPath, getStateBackend());
 
         List<Pojo> results =
-                JobResultRetriever.collect(savepoint.readKeyedState(uid, new Reader()));
+                JobResultRetriever.collect(
+                        savepoint.readKeyedState(OperatorIdentifier.forUid(uid), new Reader()));
 
         Set<Pojo> expected = new HashSet<>(elements);
 

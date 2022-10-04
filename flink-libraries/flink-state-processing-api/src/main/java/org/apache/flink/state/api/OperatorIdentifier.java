@@ -19,6 +19,7 @@
 package org.apache.flink.state.api;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.state.api.runtime.OperatorIDGenerator;
 import org.apache.flink.util.Preconditions;
@@ -31,8 +32,8 @@ import java.util.Objects;
 import java.util.Optional;
 
 /** Identifies an operator, either based on a {@code uid} or {@code uidHash}. */
-@Internal
-public class OperatorIdentifier implements Serializable {
+@PublicEvolving
+public final class OperatorIdentifier implements Serializable {
     // this is only used for logging purposes
     @Nullable private final String uid;
     // this is the runtime representation of a uid hash
@@ -53,10 +54,12 @@ public class OperatorIdentifier implements Serializable {
         return new OperatorIdentifier(OperatorIDGenerator.fromUid(uid), uid);
     }
 
+    @Internal
     public Optional<String> getUid() {
         return Optional.ofNullable(uid);
     }
 
+    @Internal
     public OperatorID getOperatorId() {
         return operatorId;
     }

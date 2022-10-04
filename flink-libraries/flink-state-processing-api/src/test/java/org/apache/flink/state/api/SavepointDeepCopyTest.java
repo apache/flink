@@ -148,7 +148,7 @@ public class SavepointDeepCopyTest extends AbstractTestBase {
 
         SavepointWriter.newSavepoint(backend, 128)
                 .withConfiguration(FS_SMALL_FILE_THRESHOLD, FILE_STATE_SIZE_THRESHOLD)
-                .withOperator("Operator1", transformation)
+                .withOperator(OperatorIdentifier.forUid("Operator1"), transformation)
                 .write(savepointPath1);
 
         env.execute("bootstrap savepoint1");
@@ -167,7 +167,9 @@ public class SavepointDeepCopyTest extends AbstractTestBase {
                 SavepointWriter.fromExistingSavepoint(savepointPath1, backend)
                         .withConfiguration(FS_SMALL_FILE_THRESHOLD, FILE_STATE_SIZE_THRESHOLD);
 
-        savepoint2.withOperator("Operator2", transformation).write(savepointPath2);
+        savepoint2
+                .withOperator(OperatorIdentifier.forUid("Operator2"), transformation)
+                .write(savepointPath2);
         env.execute("create savepoint2");
 
         Set<String> stateFiles2 = getFileNamesInDirectory(Paths.get(savepointPath1));
@@ -188,7 +190,9 @@ public class SavepointDeepCopyTest extends AbstractTestBase {
         long actuallyKeyNum =
                 JobResultRetriever.collect(
                                 SavepointReader.read(env, savepointPath2, backend)
-                                        .readKeyedState("Operator1", new ReadFunction()))
+                                        .readKeyedState(
+                                                OperatorIdentifier.forUid("Operator1"),
+                                                new ReadFunction()))
                         .size();
 
         long expectedKeyNum = Arrays.stream(TEXT.split(" ")).distinct().count();

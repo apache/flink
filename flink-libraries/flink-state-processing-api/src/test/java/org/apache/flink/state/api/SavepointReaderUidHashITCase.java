@@ -21,52 +21,45 @@ package org.apache.flink.state.api;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.state.MapStateDescriptor;
 import org.apache.flink.api.common.typeinfo.Types;
-import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.streaming.api.datastream.DataStream;
 
 import java.io.IOException;
 
 /** IT case for reading state. */
-public class SavepointReaderCustomSerializerITCase extends SavepointReaderITTestBase {
+public class SavepointReaderUidHashITCase extends SavepointReaderITTestBase {
     private static final ListStateDescriptor<Integer> list =
-            new ListStateDescriptor<>(LIST_NAME, CustomIntSerializer.INSTANCE);
+            new ListStateDescriptor<>(LIST_NAME, Types.INT);
 
     private static final ListStateDescriptor<Integer> union =
-            new ListStateDescriptor<>(UNION_NAME, CustomIntSerializer.INSTANCE);
+            new ListStateDescriptor<>(UNION_NAME, Types.INT);
 
     private static final MapStateDescriptor<Integer, String> broadcast =
-            new MapStateDescriptor<>(
-                    BROADCAST_NAME, CustomIntSerializer.INSTANCE, StringSerializer.INSTANCE);
+            new MapStateDescriptor<>(BROADCAST_NAME, Types.INT, Types.STRING);
 
-    public SavepointReaderCustomSerializerITCase() {
+    public SavepointReaderUidHashITCase() {
         super(list, union, broadcast);
     }
 
     @Override
     public DataStream<Integer> readListState(SavepointReader savepoint) throws IOException {
-        return savepoint.readListState(
-                OperatorIdentifier.forUid(UID), LIST_NAME, Types.INT, CustomIntSerializer.INSTANCE);
+        return savepoint.readListState(getUidHashFromUid(UID), LIST_NAME, Types.INT);
     }
 
     @Override
     public DataStream<Integer> readUnionState(SavepointReader savepoint) throws IOException {
-        return savepoint.readUnionState(
-                OperatorIdentifier.forUid(UID),
-                UNION_NAME,
-                Types.INT,
-                CustomIntSerializer.INSTANCE);
+        return savepoint.readUnionState(getUidHashFromUid(UID), UNION_NAME, Types.INT);
     }
 
     @Override
     public DataStream<Tuple2<Integer, String>> readBroadcastState(SavepointReader savepoint)
             throws IOException {
         return savepoint.readBroadcastState(
-                OperatorIdentifier.forUid(UID),
-                BROADCAST_NAME,
-                Types.INT,
-                Types.STRING,
-                CustomIntSerializer.INSTANCE,
-                StringSerializer.INSTANCE);
+                getUidHashFromUid(UID), BROADCAST_NAME, Types.INT, Types.STRING);
+    }
+
+    private static OperatorIdentifier getUidHashFromUid(String uid) {
+        return OperatorIdentifier.forUidHash(
+                OperatorIdentifier.forUid(uid).getOperatorId().toHexString());
     }
 }
