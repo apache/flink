@@ -85,6 +85,11 @@ public class FakeKinesisFanOutBehavioursFactory {
         return new SingletonEventFanOutKinesisV2(event);
     }
 
+    public static AbstractSingleShardFanOutKinesisV2 singleShardWithEvents(
+            final List<SubscribeToShardEvent> events) {
+        return new EventFanOutKinesisV2(events);
+    }
+
     public static SingleShardFanOutKinesisV2 emptyShard() {
         return new SingleShardFanOutKinesisV2.Builder().withBatchCount(0).build();
     }
@@ -260,6 +265,21 @@ public class FakeKinesisFanOutBehavioursFactory {
         @Override
         List<SubscribeToShardEvent> getEventsToSend() {
             return Collections.singletonList(event);
+        }
+    }
+
+    private static class EventFanOutKinesisV2 extends AbstractSingleShardFanOutKinesisV2 {
+
+        private final List<SubscribeToShardEvent> events;
+
+        private EventFanOutKinesisV2(List<SubscribeToShardEvent> events) {
+            super(1);
+            this.events = events;
+        }
+
+        @Override
+        List<SubscribeToShardEvent> getEventsToSend() {
+            return events;
         }
     }
 
