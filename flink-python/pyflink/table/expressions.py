@@ -272,6 +272,35 @@ def local_timestamp() -> Expression:
     return _leaf_op("localTimestamp")
 
 
+def to_date(date_str: str, format: str = None) -> Expression:
+    """
+    Converts the date string with the given format (by default 'yyyy-MM-dd') to a date.
+
+    :param date_str: The date string
+    :param format: The format of the string
+    :return: The date value with DATE type.
+    """
+    if format is None:
+        return _unary_op("toDate", date_str)
+    else:
+        return _binary_op("toDate", date_str, format)
+
+
+def to_timestamp(timestamp_str: str, format: str = None) -> Expression:
+    """
+    Converts the date time string with the given format (by default: 'yyyy-MM-dd HH:mm:ss')
+    under the 'UTC+0' time zone to a timestamp.
+
+    :param timestamp_str: The date time string
+    :param format: The format of the string
+    :return: The date value with TIMESTAMP type.
+    """
+    if format is None:
+        return _unary_op("toTimestamp", timestamp_str)
+    else:
+        return _binary_op("toTimestamp", timestamp_str, format)
+
+
 def to_timestamp_ltz(numeric_epoch_time, precision) -> Expression:
     """
     Converts a numeric type epoch time to TIMESTAMP_LTZ.

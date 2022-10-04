@@ -482,6 +482,36 @@ trait ImplicitExpressionConversions {
   }
 
   /**
+   * Converts the date string with format 'yyyy-MM-dd' to a date value of [[DataTypes.DATE]] type.
+   */
+  def toDate(dateStr: Expression): Expression = {
+    Expressions.toDate(dateStr)
+  }
+
+  /**
+   * Converts the date string with the specified format to a date value of [[DataTypes.DATE]] type.
+   */
+  def toDate(dateStr: Expression, format: Expression): Expression = {
+    Expressions.toDate(dateStr, format)
+  }
+
+  /**
+   * Converts the date time string with format 'yyyy-MM-dd HH:mm:ss' under the 'UTC+0' time zone
+   * to a timestamp value of [[DataTypes.TIMESTAMP]].
+   */
+  def toTimestamp(timestampStr: Expression): Expression = {
+    Expressions.toTimestamp(timestampStr)
+  }
+
+  /**
+   * Converts the date time string with the specified format under the 'UTC+0' time zone
+   * to a timestamp value of [[DataTypes.TIMESTAMP]].
+   */
+  def toTimestamp(timestampStr: Expression, format: Expression): Expression = {
+    Expressions.toTimestamp(timestampStr, format)
+  }
+
+  /**
    * Converts a numeric type epoch time to [[DataTypes#TIMESTAMP_LTZ]].
    *
    * The supported precision is 0 or 3:

@@ -623,6 +623,7 @@ temporal:
       使用表配置中指定的时区将格式为 string2 的日期时间字符串 string1（如果未指定默认情况下：yyyy-MM-dd HH:mm:ss）
       转换为 Unix 时间戳（以秒为单位）。
   - sql: TO_DATE(string1[, string2])
+    table: toDate(STRING1[, STRING2])
     description: 将格式为 string2（默认为 'yyyy-MM-dd'）的字符串 string1 转换为日期。
   - sql: TO_TIMESTAMP_LTZ(numeric, precision)
     table: toTimestampLtz(numeric, PRECISION)
@@ -630,6 +631,7 @@ temporal:
       将纪元秒或纪元毫秒转换为 TIMESTAMP_LTZ，有效精度为 0 或 3，0 代表 `TO_TIMESTAMP_LTZ(epochSeconds, 0)`，
       3 代表` TO_TIMESTAMP_LTZ(epochMilliseconds, 3)`。
   - sql: TO_TIMESTAMP(string1[, string2])
+    table: toTimestamp(STRING1[, STRING2])
     description: 将 'UTC+0' 时区下格式为 string2（默认为：'yyyy-MM-dd HH:mm:ss'）的字符串 string1 转换为时间戳。
   - sql: CURRENT_WATERMARK(rowtime)
     description: |

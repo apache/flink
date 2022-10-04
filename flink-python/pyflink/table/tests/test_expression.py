@@ -26,7 +26,7 @@ from pyflink.table.expressions import (col, lit, range_, and_, or_, current_date
                                        timestamp_diff, array, row, map_, row_interval, pi, e,
                                        rand, rand_integer, atan2, negative, concat, concat_ws, uuid,
                                        null_of, log, if_then_else, with_columns, call,
-                                       to_timestamp_ltz, from_unixtime)
+                                       to_timestamp_ltz, from_unixtime, to_date, to_timestamp)
 from pyflink.testing.test_case_utils import PyFlinkTestCase
 
 
@@ -257,7 +257,14 @@ class PyFlinkBatchExpressionTests(PyFlinkTestCase):
         self.assertEqual('currentTimestamp()', str(current_timestamp()))
         self.assertEqual('localTime()', str(local_time()))
         self.assertEqual('localTimestamp()', str(local_timestamp()))
+        self.assertEqual("toDate('2018-03-18')", str(to_date('2018-03-18')))
+        self.assertEqual("toDate('2018-03-18', 'yyyy-MM-dd')",
+                         str(to_date('2018-03-18', 'yyyy-MM-dd')))
         self.assertEqual('toTimestampLtz(123, 0)', str(to_timestamp_ltz(123, 0)))
+        self.assertEqual("toTimestamp('1970-01-01 08:01:40')",
+                         str(to_timestamp('1970-01-01 08:01:40')))
+        self.assertEqual("toTimestamp('1970-01-01 08:01:40', 'yyyy-MM-dd HH:mm:ss')",
+                         str(to_timestamp('1970-01-01 08:01:40', 'yyyy-MM-dd HH:mm:ss')))
         self.assertEqual("temporalOverlaps(cast('2:55:00', TIME(0)), 3600000, "
                          "cast('3:30:00', TIME(0)), 7200000)",
                          str(temporal_overlaps(

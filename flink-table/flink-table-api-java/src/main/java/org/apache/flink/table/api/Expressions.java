@@ -304,6 +304,50 @@ public final class Expressions {
     }
 
     /**
+     * Converts the given date string with format 'yyyy-MM-dd' to {@link DataTypes#DATE()}.
+     *
+     * @param dateStr The date string.
+     * @return The date value of {@link DataTypes#DATE()} type.
+     */
+    public static ApiExpression toDate(Object dateStr) {
+        return apiCall(BuiltInFunctionDefinitions.TO_DATE, dateStr);
+    }
+
+    /**
+     * Converts the date string with the specified format to {@link DataTypes#DATE()}.
+     *
+     * @param dateStr The date string.
+     * @param format The format of the string.
+     * @return The date value of {@link DataTypes#DATE()} type.
+     */
+    public static ApiExpression toDate(Object dateStr, Object format) {
+        return apiCall(BuiltInFunctionDefinitions.TO_DATE, dateStr, format);
+    }
+
+    /**
+     * Converts the given date time string with format 'yyyy-MM-dd HH:mm:ss' under the 'UTC+0' time
+     * zone to {@link DataTypes#TIMESTAMP()}.
+     *
+     * @param timestampStr The date time string.
+     * @return The timestamp value with {@link DataTypes#TIMESTAMP()} type.
+     */
+    public static ApiExpression toTimestamp(Object timestampStr) {
+        return apiCall(BuiltInFunctionDefinitions.TO_TIMESTAMP, timestampStr);
+    }
+
+    /**
+     * Converts the given time string with the specified format under the 'UTC+0' time zone to
+     * {@link DataTypes#TIMESTAMP()}.
+     *
+     * @param timestampStr The date time string.
+     * @param format The format of the string.
+     * @return The timestamp value with {@link DataTypes#TIMESTAMP()} type.
+     */
+    public static ApiExpression toTimestamp(Object timestampStr, Object format) {
+        return apiCall(BuiltInFunctionDefinitions.TO_TIMESTAMP, timestampStr, format);
+    }
+
+    /**
      * Converts a numeric type epoch time to {@link DataTypes#TIMESTAMP_LTZ(int)}.
      *
      * <p>The supported precision is 0 or 3:
