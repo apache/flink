@@ -95,6 +95,10 @@ class SubtaskCheckpointCoordinatorImpl implements SubtaskCheckpointCoordinator {
     /** The IDs of the checkpoint for which we are notified aborted. */
     private final Set<Long> abortedCheckpointIds;
 
+    private final int maxRecordAbortedCheckpoints;
+
+    private long maxAbortedCheckpointId = 0;
+
     private long lastCheckpointId;
 
     /** Lock that guards state of AsyncCheckpointRunnable registry. * */
@@ -180,6 +184,7 @@ class SubtaskCheckpointCoordinatorImpl implements SubtaskCheckpointCoordinator {
         this.prepareInputSnapshot = prepareInputSnapshot;
         this.abortedCheckpointIds =
                 createAbortedCheckpointSetWithLimitSize(maxRecordAbortedCheckpoints);
+        this.maxRecordAbortedCheckpoints = maxRecordAbortedCheckpoints;
         this.lastCheckpointId = -1L;
         this.closed = false;
         this.enableCheckpointAfterTasksFinished = enableCheckpointAfterTasksFinished;
@@ -287,6 +292,10 @@ class SubtaskCheckpointCoordinatorImpl implements SubtaskCheckpointCoordinator {
             // broadcast cancel checkpoint marker to avoid downstream back-pressure due to
             // checkpoint barrier align.
             operatorChain.broadcastEvent(new CancelCheckpointMarker(metadata.getCheckpointId()));
+            channelStateWriter.abort(
+                    metadata.getCheckpointId(),
+                    new CancellationException("checkpoint aborted via notification"),
+                    true);
             LOG.info(
                     "Checkpoint {} has been notified as aborted, would not trigger any checkpoint.",
                     metadata.getCheckpointId());
@@ -432,6 +441,7 @@ class SubtaskCheckpointCoordinatorImpl implements SubtaskCheckpointCoordinator {
                         if (checkpointId > lastCheckpointId) {
                             // only record checkpoints that have not triggered on task side.
                             abortedCheckpointIds.add(checkpointId);
+                            maxAbortedCheckpointId = Math.max(maxAbortedCheckpointId, checkpointId);
                         }
                     }
 
@@ -544,7 +554,8 @@ class SubtaskCheckpointCoordinatorImpl implements SubtaskCheckpointCoordinator {
     }
 
     private boolean checkAndClearAbortedStatus(long checkpointId) {
-        return abortedCheckpointIds.remove(checkpointId);
+        return abortedCheckpointIds.remove(checkpointId)
+                || checkpointId + maxRecordAbortedCheckpoints < maxAbortedCheckpointId;
     }
 
     private void registerAsyncCheckpointRunnable(

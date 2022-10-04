@@ -18,6 +18,7 @@
 package org.apache.flink.runtime.checkpoint.channel;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.state.CheckpointStateOutputStream;
@@ -221,6 +222,12 @@ public class ChannelStateWriterImpl implements ChannelStateWriter {
                 result != null,
                 taskName + " channel state write result not found for checkpoint " + checkpointId);
         return result;
+    }
+
+    // just for test
+    @VisibleForTesting
+    public ChannelStateWriteResult getWriteResult(long checkpointId) {
+        return results.get(checkpointId);
     }
 
     public void open() {

@@ -18,6 +18,7 @@
 package org.apache.flink.runtime.checkpoint.channel;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.state.InputChannelStateHandle;
@@ -72,8 +73,20 @@ public interface ChannelStateWriter extends Closeable {
             resultSubpartitionStateHandles.completeExceptionally(e);
         }
 
-        boolean isDone() {
+        public boolean isDone() {
             return inputChannelStateHandles.isDone() && resultSubpartitionStateHandles.isDone();
+        }
+
+        @VisibleForTesting
+        public void waitForDone() {
+            try {
+                inputChannelStateHandles.get();
+            } catch (Throwable ignored) {
+            }
+            try {
+                resultSubpartitionStateHandles.get();
+            } catch (Throwable ignored) {
+            }
         }
     }
 
