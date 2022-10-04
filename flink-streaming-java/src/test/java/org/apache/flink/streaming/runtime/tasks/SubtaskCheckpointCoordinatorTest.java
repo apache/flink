@@ -82,10 +82,12 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Supplier;
 
 import static org.apache.flink.runtime.checkpoint.CheckpointType.CHECKPOINT;
+import static org.apache.flink.runtime.state.ChannelPersistenceITCase.getStreamFactoryFactory;
 import static org.apache.flink.shaded.guava30.com.google.common.util.concurrent.MoreExecutors.newDirectExecutorService;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
@@ -566,6 +568,58 @@ public class SubtaskCheckpointCoordinatorTest {
 
             assertEquals(false, broadcastedPriorityEvent.get());
             assertNotNull(channelStateResult.get());
+        }
+    }
+
+    @Test
+    public void testChannelStateWriteResultLeakAndNotFailAfterCheckpointAborted() throws Exception {
+        String taskName = "test";
+        try (MockEnvironment mockEnvironment = MockEnvironment.builder().build();
+                ChannelStateWriterImpl writer =
+                        new ChannelStateWriterImpl(taskName, 0, getStreamFactoryFactory());
+                SubtaskCheckpointCoordinator coordinator =
+                        new SubtaskCheckpointCoordinatorImpl(
+                                new TestCheckpointStorageWorkerView(100),
+                                taskName,
+                                StreamTaskActionExecutor.IMMEDIATE,
+                                newDirectExecutorService(),
+                                new DummyEnvironment(),
+                                (unused1, unused2) -> {},
+                                (unused1, unused2) -> CompletableFuture.completedFuture(null),
+                                1,
+                                writer,
+                                true,
+                                (callable, duration) -> () -> {})) {
+            writer.open();
+            final OperatorChain<?, ?> operatorChain = getOperatorChain(mockEnvironment);
+            int checkpointId = 1;
+            // Abort checkpoint 1
+            coordinator.notifyCheckpointAborted(checkpointId, operatorChain, () -> true);
+
+            coordinator.initInputsCheckpoint(
+                    checkpointId,
+                    CheckpointOptions.unaligned(
+                            CheckpointType.CHECKPOINT,
+                            CheckpointStorageLocationReference.getDefault()));
+            ChannelStateWriter.ChannelStateWriteResult writeResult =
+                    writer.getWriteResult(checkpointId);
+            assertNotNull(writeResult);
+            assertFalse(writeResult.isDone());
+            assertFalse(writeResult.getInputChannelStateHandles().isCompletedExceptionally());
+            assertFalse(writeResult.getResultSubpartitionStateHandles().isCompletedExceptionally());
+
+            coordinator.checkpointState(
+                    new CheckpointMetaData(checkpointId, System.currentTimeMillis()),
+                    CheckpointOptions.forCheckpointWithDefaultLocation(),
+                    new CheckpointMetricsBuilder(),
+                    operatorChain,
+                    false,
+                    () -> true);
+            assertNull(writer.getWriteResult(checkpointId));
+            writeResult.waitForDone();
+            assertTrue(writeResult.isDone());
+            assertTrue(writeResult.getInputChannelStateHandles().isCompletedExceptionally());
+            assertTrue(writeResult.getResultSubpartitionStateHandles().isCompletedExceptionally());
         }
     }
 
