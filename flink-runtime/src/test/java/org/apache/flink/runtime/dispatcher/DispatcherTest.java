@@ -1419,8 +1419,8 @@ public class DispatcherTest extends AbstractDispatcherTest {
         }
 
         @Override
-        public void initializeOnMaster(ClassLoader loader) throws Exception {
-            super.initializeOnMaster(loader);
+        public void initializeOnMaster(InitializeOnMasterContext context) throws Exception {
+            super.initializeOnMaster(context);
             oneShotLatch.await();
         }
 
