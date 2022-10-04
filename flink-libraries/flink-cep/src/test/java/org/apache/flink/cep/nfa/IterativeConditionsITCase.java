@@ -101,58 +101,22 @@ public class IterativeConditionsITCase extends TestLogger {
         Pattern<Event, ?> pattern =
                 eager
                         ? Pattern.<Event>begin("start")
-                                .where(
-                                        new SimpleCondition<Event>() {
-                                            private static final long serialVersionUID =
-                                                    5726188262756267490L;
-
-                                            @Override
-                                            public boolean filter(Event value) throws Exception {
-                                                return value.getName().equals("start");
-                                            }
-                                        })
+                                .where(SimpleCondition.of(value -> value.getName().equals("start")))
                                 .followedBy("middle")
                                 .subtype(SubEvent.class)
                                 .where(new MySubeventIterCondition())
                                 .oneOrMore()
                                 .followedBy("end")
-                                .where(
-                                        new SimpleCondition<Event>() {
-                                            private static final long serialVersionUID =
-                                                    7056763917392056548L;
-
-                                            @Override
-                                            public boolean filter(Event value) throws Exception {
-                                                return value.getName().equals("end");
-                                            }
-                                        })
+                                .where(SimpleCondition.of(value -> value.getName().equals("end")))
                         : Pattern.<Event>begin("start")
-                                .where(
-                                        new SimpleCondition<Event>() {
-                                            private static final long serialVersionUID =
-                                                    5726188262756267490L;
-
-                                            @Override
-                                            public boolean filter(Event value) throws Exception {
-                                                return value.getName().equals("start");
-                                            }
-                                        })
+                                .where(SimpleCondition.of(value -> value.getName().equals("start")))
                                 .followedBy("middle")
                                 .subtype(SubEvent.class)
                                 .where(new MySubeventIterCondition())
                                 .oneOrMore()
                                 .allowCombinations()
                                 .followedBy("end")
-                                .where(
-                                        new SimpleCondition<Event>() {
-                                            private static final long serialVersionUID =
-                                                    7056763917392056548L;
-
-                                            @Override
-                                            public boolean filter(Event value) throws Exception {
-                                                return value.getName().equals("end");
-                                            }
-                                        });
+                                .where(SimpleCondition.of(value -> value.getName().equals("end")));
 
         NFA<Event> nfa = compile(pattern, false);
 
@@ -228,32 +192,14 @@ public class IterativeConditionsITCase extends TestLogger {
                                 .oneOrMore()
                                 .optional()
                                 .followedBy("end")
-                                .where(
-                                        new SimpleCondition<Event>() {
-                                            private static final long serialVersionUID =
-                                                    7056763917392056548L;
-
-                                            @Override
-                                            public boolean filter(Event value) throws Exception {
-                                                return value.getName().equals("end");
-                                            }
-                                        })
+                                .where(SimpleCondition.of(value -> value.getName().equals("end")))
                         : Pattern.<Event>begin("start")
                                 .where(new MyEventIterCondition())
                                 .oneOrMore()
                                 .allowCombinations()
                                 .optional()
                                 .followedBy("end")
-                                .where(
-                                        new SimpleCondition<Event>() {
-                                            private static final long serialVersionUID =
-                                                    7056763917392056548L;
-
-                                            @Override
-                                            public boolean filter(Event value) throws Exception {
-                                                return value.getName().equals("end");
-                                            }
-                                        });
+                                .where(SimpleCondition.of(value -> value.getName().equals("end")));
 
         NFA<Event> nfa = compile(pattern, false);
 
@@ -289,16 +235,7 @@ public class IterativeConditionsITCase extends TestLogger {
 
         Pattern<Event, ?> pattern =
                 Pattern.<Event>begin("start")
-                        .where(
-                                new SimpleCondition<Event>() {
-                                    private static final long serialVersionUID =
-                                            6215754202506583964L;
-
-                                    @Override
-                                    public boolean filter(Event value) throws Exception {
-                                        return value.getName().equals("start");
-                                    }
-                                })
+                        .where(SimpleCondition.of(value -> value.getName().equals("start")))
                         .oneOrMore()
                         .followedBy("end")
                         .where(
@@ -350,28 +287,10 @@ public class IterativeConditionsITCase extends TestLogger {
 
         Pattern<Event, ?> pattern =
                 Pattern.<Event>begin("start")
-                        .where(
-                                new SimpleCondition<Event>() {
-                                    private static final long serialVersionUID =
-                                            6215754202506583964L;
-
-                                    @Override
-                                    public boolean filter(Event value) throws Exception {
-                                        return value.getName().equals("start");
-                                    }
-                                })
+                        .where(SimpleCondition.of(value -> value.getName().equals("start")))
                         .followedByAny("middle1")
                         .subtype(SubEvent.class)
-                        .where(
-                                new SimpleCondition<SubEvent>() {
-                                    private static final long serialVersionUID =
-                                            2178338526904474690L;
-
-                                    @Override
-                                    public boolean filter(SubEvent value) throws Exception {
-                                        return value.getName().startsWith("foo");
-                                    }
-                                })
+                        .where(SimpleCondition.of(value -> value.getName().startsWith("foo")))
                         .followedBy("middle2")
                         .where(
                                 new IterativeCondition<Event>() {
@@ -395,16 +314,7 @@ public class IterativeConditionsITCase extends TestLogger {
                                 })
                         .oneOrMore()
                         .followedBy("end")
-                        .where(
-                                new SimpleCondition<Event>() {
-                                    private static final long serialVersionUID =
-                                            562590474115118323L;
-
-                                    @Override
-                                    public boolean filter(Event value) throws Exception {
-                                        return value.getName().equals("end");
-                                    }
-                                });
+                        .where(SimpleCondition.of(value -> value.getName().equals("end")));
 
         NFA<Event> nfa = compile(pattern, false);
 
@@ -434,29 +344,11 @@ public class IterativeConditionsITCase extends TestLogger {
 
         Pattern<Event, ?> pattern =
                 Pattern.<Event>begin("start")
-                        .where(
-                                new SimpleCondition<Event>() {
-                                    private static final long serialVersionUID =
-                                            6215754202506583964L;
-
-                                    @Override
-                                    public boolean filter(Event value) throws Exception {
-                                        return value.getName().equals("start");
-                                    }
-                                })
+                        .where(SimpleCondition.of(value -> value.getName().equals("start")))
                         .oneOrMore()
                         .followedByAny("middle1")
                         .subtype(SubEvent.class)
-                        .where(
-                                new SimpleCondition<SubEvent>() {
-                                    private static final long serialVersionUID =
-                                            2178338526904474690L;
-
-                                    @Override
-                                    public boolean filter(SubEvent value) throws Exception {
-                                        return value.getName().startsWith("foo");
-                                    }
-                                })
+                        .where(SimpleCondition.of(value -> value.getName().startsWith("foo")))
                         .followedByAny("end")
                         .where(
                                 new IterativeCondition<Event>() {

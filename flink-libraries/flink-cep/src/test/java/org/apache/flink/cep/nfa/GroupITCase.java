@@ -63,53 +63,19 @@ public class GroupITCase extends TestLogger {
         // c (a b){2} d
         Pattern<Event, ?> pattern =
                 Pattern.<Event>begin("start")
-                        .where(
-                                new SimpleCondition<Event>() {
-                                    private static final long serialVersionUID =
-                                            5726188262756267490L;
-
-                                    @Override
-                                    public boolean filter(Event value) throws Exception {
-                                        return value.getName().equals("c");
-                                    }
-                                })
+                        .where(SimpleCondition.of(value -> value.getName().equals("c")))
                         .followedBy(
                                 Pattern.<Event>begin("middle1")
                                         .where(
-                                                new SimpleCondition<Event>() {
-                                                    private static final long serialVersionUID =
-                                                            5726188262756267490L;
-
-                                                    @Override
-                                                    public boolean filter(Event value)
-                                                            throws Exception {
-                                                        return value.getName().equals("a");
-                                                    }
-                                                })
+                                                SimpleCondition.of(
+                                                        value -> value.getName().equals("a")))
                                         .followedBy("middle2")
                                         .where(
-                                                new SimpleCondition<Event>() {
-                                                    private static final long serialVersionUID =
-                                                            5726188262756267490L;
-
-                                                    @Override
-                                                    public boolean filter(Event value)
-                                                            throws Exception {
-                                                        return value.getName().equals("b");
-                                                    }
-                                                }))
+                                                SimpleCondition.of(
+                                                        value -> value.getName().equals("b"))))
                         .times(2)
                         .followedBy("end")
-                        .where(
-                                new SimpleCondition<Event>() {
-                                    private static final long serialVersionUID =
-                                            5726188262756267490L;
-
-                                    @Override
-                                    public boolean filter(Event value) throws Exception {
-                                        return value.getName().equals("d");
-                                    }
-                                });
+                        .where(SimpleCondition.of(value -> value.getName().equals("d")));
 
         NFA<Event> nfa = compile(pattern, false);
 
@@ -139,53 +105,19 @@ public class GroupITCase extends TestLogger {
         // c (a b)? d
         Pattern<Event, ?> pattern =
                 Pattern.<Event>begin("start")
-                        .where(
-                                new SimpleCondition<Event>() {
-                                    private static final long serialVersionUID =
-                                            5726188262756267490L;
-
-                                    @Override
-                                    public boolean filter(Event value) throws Exception {
-                                        return value.getName().equals("c");
-                                    }
-                                })
+                        .where(SimpleCondition.of(value -> value.getName().equals("c")))
                         .followedBy(
                                 Pattern.<Event>begin("middle1")
                                         .where(
-                                                new SimpleCondition<Event>() {
-                                                    private static final long serialVersionUID =
-                                                            5726188262756267490L;
-
-                                                    @Override
-                                                    public boolean filter(Event value)
-                                                            throws Exception {
-                                                        return value.getName().equals("a");
-                                                    }
-                                                })
+                                                SimpleCondition.of(
+                                                        value -> value.getName().equals("a")))
                                         .followedBy("middle2")
                                         .where(
-                                                new SimpleCondition<Event>() {
-                                                    private static final long serialVersionUID =
-                                                            5726188262756267490L;
-
-                                                    @Override
-                                                    public boolean filter(Event value)
-                                                            throws Exception {
-                                                        return value.getName().equals("b");
-                                                    }
-                                                }))
+                                                SimpleCondition.of(
+                                                        value -> value.getName().equals("b"))))
                         .optional()
                         .followedBy("end")
-                        .where(
-                                new SimpleCondition<Event>() {
-                                    private static final long serialVersionUID =
-                                            5726188262756267490L;
-
-                                    @Override
-                                    public boolean filter(Event value) throws Exception {
-                                        return value.getName().equals("d");
-                                    }
-                                });
+                        .where(SimpleCondition.of(value -> value.getName().equals("d")));
 
         NFA<Event> nfa = compile(pattern, false);
 
@@ -212,54 +144,20 @@ public class GroupITCase extends TestLogger {
         // c (a b){2}? d
         Pattern<Event, ?> pattern =
                 Pattern.<Event>begin("start")
-                        .where(
-                                new SimpleCondition<Event>() {
-                                    private static final long serialVersionUID =
-                                            5726188262756267490L;
-
-                                    @Override
-                                    public boolean filter(Event value) throws Exception {
-                                        return value.getName().equals("c");
-                                    }
-                                })
+                        .where(SimpleCondition.of(value -> value.getName().equals("c")))
                         .followedBy(
                                 Pattern.<Event>begin("middle1")
                                         .where(
-                                                new SimpleCondition<Event>() {
-                                                    private static final long serialVersionUID =
-                                                            5726188262756267490L;
-
-                                                    @Override
-                                                    public boolean filter(Event value)
-                                                            throws Exception {
-                                                        return value.getName().equals("a");
-                                                    }
-                                                })
+                                                SimpleCondition.of(
+                                                        value -> value.getName().equals("a")))
                                         .followedBy("middle2")
                                         .where(
-                                                new SimpleCondition<Event>() {
-                                                    private static final long serialVersionUID =
-                                                            5726188262756267490L;
-
-                                                    @Override
-                                                    public boolean filter(Event value)
-                                                            throws Exception {
-                                                        return value.getName().equals("b");
-                                                    }
-                                                }))
+                                                SimpleCondition.of(
+                                                        value -> value.getName().equals("b"))))
                         .times(2)
                         .optional()
                         .followedBy("end")
-                        .where(
-                                new SimpleCondition<Event>() {
-                                    private static final long serialVersionUID =
-                                            5726188262756267490L;
-
-                                    @Override
-                                    public boolean filter(Event value) throws Exception {
-                                        return value.getName().equals("d");
-                                    }
-                                });
+                        .where(SimpleCondition.of(value -> value.getName().equals("d")));
 
         NFA<Event> nfa = compile(pattern, false);
 
@@ -290,53 +188,19 @@ public class GroupITCase extends TestLogger {
         // c (a b)+ d
         Pattern<Event, ?> pattern =
                 Pattern.<Event>begin("start")
-                        .where(
-                                new SimpleCondition<Event>() {
-                                    private static final long serialVersionUID =
-                                            5726188262756267490L;
-
-                                    @Override
-                                    public boolean filter(Event value) throws Exception {
-                                        return value.getName().equals("c");
-                                    }
-                                })
+                        .where(SimpleCondition.of(value -> value.getName().equals("c")))
                         .followedBy(
                                 Pattern.<Event>begin("middle1")
                                         .where(
-                                                new SimpleCondition<Event>() {
-                                                    private static final long serialVersionUID =
-                                                            5726188262756267490L;
-
-                                                    @Override
-                                                    public boolean filter(Event value)
-                                                            throws Exception {
-                                                        return value.getName().equals("a");
-                                                    }
-                                                })
+                                                SimpleCondition.of(
+                                                        value -> value.getName().equals("a")))
                                         .followedBy("middle2")
                                         .where(
-                                                new SimpleCondition<Event>() {
-                                                    private static final long serialVersionUID =
-                                                            5726188262756267490L;
-
-                                                    @Override
-                                                    public boolean filter(Event value)
-                                                            throws Exception {
-                                                        return value.getName().equals("b");
-                                                    }
-                                                }))
+                                                SimpleCondition.of(
+                                                        value -> value.getName().equals("b"))))
                         .oneOrMore()
                         .followedBy("end")
-                        .where(
-                                new SimpleCondition<Event>() {
-                                    private static final long serialVersionUID =
-                                            5726188262756267490L;
-
-                                    @Override
-                                    public boolean filter(Event value) throws Exception {
-                                        return value.getName().equals("d");
-                                    }
-                                });
+                        .where(SimpleCondition.of(value -> value.getName().equals("d")));
 
         NFA<Event> nfa = compile(pattern, false);
 
@@ -370,54 +234,20 @@ public class GroupITCase extends TestLogger {
         // c (a b)* d
         Pattern<Event, ?> pattern =
                 Pattern.<Event>begin("start")
-                        .where(
-                                new SimpleCondition<Event>() {
-                                    private static final long serialVersionUID =
-                                            5726188262756267490L;
-
-                                    @Override
-                                    public boolean filter(Event value) throws Exception {
-                                        return value.getName().equals("c");
-                                    }
-                                })
+                        .where(SimpleCondition.of(value -> value.getName().equals("c")))
                         .followedBy(
                                 Pattern.<Event>begin("middle1")
                                         .where(
-                                                new SimpleCondition<Event>() {
-                                                    private static final long serialVersionUID =
-                                                            5726188262756267490L;
-
-                                                    @Override
-                                                    public boolean filter(Event value)
-                                                            throws Exception {
-                                                        return value.getName().equals("a");
-                                                    }
-                                                })
+                                                SimpleCondition.of(
+                                                        value -> value.getName().equals("a")))
                                         .followedBy("middle2")
                                         .where(
-                                                new SimpleCondition<Event>() {
-                                                    private static final long serialVersionUID =
-                                                            5726188262756267490L;
-
-                                                    @Override
-                                                    public boolean filter(Event value)
-                                                            throws Exception {
-                                                        return value.getName().equals("b");
-                                                    }
-                                                }))
+                                                SimpleCondition.of(
+                                                        value -> value.getName().equals("b"))))
                         .oneOrMore()
                         .optional()
                         .followedBy("end")
-                        .where(
-                                new SimpleCondition<Event>() {
-                                    private static final long serialVersionUID =
-                                            5726188262756267490L;
-
-                                    @Override
-                                    public boolean filter(Event value) throws Exception {
-                                        return value.getName().equals("d");
-                                    }
-                                });
+                        .where(SimpleCondition.of(value -> value.getName().equals("d")));
 
         NFA<Event> nfa = compile(pattern, false);
 
@@ -456,54 +286,20 @@ public class GroupITCase extends TestLogger {
         // c any (a b){2} d
         Pattern<Event, ?> pattern =
                 Pattern.<Event>begin("start")
-                        .where(
-                                new SimpleCondition<Event>() {
-                                    private static final long serialVersionUID =
-                                            5726188262756267490L;
-
-                                    @Override
-                                    public boolean filter(Event value) throws Exception {
-                                        return value.getName().equals("c");
-                                    }
-                                })
+                        .where(SimpleCondition.of(value -> value.getName().equals("c")))
                         .followedByAny(
                                 Pattern.<Event>begin("middle1")
                                         .where(
-                                                new SimpleCondition<Event>() {
-                                                    private static final long serialVersionUID =
-                                                            5726188262756267490L;
-
-                                                    @Override
-                                                    public boolean filter(Event value)
-                                                            throws Exception {
-                                                        return value.getName().equals("a");
-                                                    }
-                                                })
+                                                SimpleCondition.of(
+                                                        value -> value.getName().equals("a")))
                                         .followedBy("middle2")
                                         .where(
-                                                new SimpleCondition<Event>() {
-                                                    private static final long serialVersionUID =
-                                                            5726188262756267490L;
-
-                                                    @Override
-                                                    public boolean filter(Event value)
-                                                            throws Exception {
-                                                        return value.getName().equals("b");
-                                                    }
-                                                }))
+                                                SimpleCondition.of(
+                                                        value -> value.getName().equals("b"))))
                         .times(2)
                         .allowCombinations()
                         .followedBy("end")
-                        .where(
-                                new SimpleCondition<Event>() {
-                                    private static final long serialVersionUID =
-                                            5726188262756267490L;
-
-                                    @Override
-                                    public boolean filter(Event value) throws Exception {
-                                        return value.getName().equals("d");
-                                    }
-                                });
+                        .where(SimpleCondition.of(value -> value.getName().equals("d")));
 
         NFA<Event> nfa = compile(pattern, false);
 
@@ -542,54 +338,20 @@ public class GroupITCase extends TestLogger {
         // c any (a b){2}? d
         Pattern<Event, ?> pattern =
                 Pattern.<Event>begin("start")
-                        .where(
-                                new SimpleCondition<Event>() {
-                                    private static final long serialVersionUID =
-                                            5726188262756267490L;
-
-                                    @Override
-                                    public boolean filter(Event value) throws Exception {
-                                        return value.getName().equals("c");
-                                    }
-                                })
+                        .where(SimpleCondition.of(value -> value.getName().equals("c")))
                         .followedByAny(
                                 Pattern.<Event>begin("middle1")
                                         .where(
-                                                new SimpleCondition<Event>() {
-                                                    private static final long serialVersionUID =
-                                                            5726188262756267490L;
-
-                                                    @Override
-                                                    public boolean filter(Event value)
-                                                            throws Exception {
-                                                        return value.getName().equals("a");
-                                                    }
-                                                })
+                                                SimpleCondition.of(
+                                                        value -> value.getName().equals("a")))
                                         .followedBy("middle2")
                                         .where(
-                                                new SimpleCondition<Event>() {
-                                                    private static final long serialVersionUID =
-                                                            5726188262756267490L;
-
-                                                    @Override
-                                                    public boolean filter(Event value)
-                                                            throws Exception {
-                                                        return value.getName().equals("b");
-                                                    }
-                                                }))
+                                                SimpleCondition.of(
+                                                        value -> value.getName().equals("b"))))
                         .times(2)
                         .optional()
                         .followedBy("end")
-                        .where(
-                                new SimpleCondition<Event>() {
-                                    private static final long serialVersionUID =
-                                            5726188262756267490L;
-
-                                    @Override
-                                    public boolean filter(Event value) throws Exception {
-                                        return value.getName().equals("d");
-                                    }
-                                });
+                        .where(SimpleCondition.of(value -> value.getName().equals("d")));
 
         NFA<Event> nfa = compile(pattern, false);
 
@@ -628,53 +390,19 @@ public class GroupITCase extends TestLogger {
         // c any (a b){1,} d
         Pattern<Event, ?> pattern =
                 Pattern.<Event>begin("start")
-                        .where(
-                                new SimpleCondition<Event>() {
-                                    private static final long serialVersionUID =
-                                            5726188262756267490L;
-
-                                    @Override
-                                    public boolean filter(Event value) throws Exception {
-                                        return value.getName().equals("c");
-                                    }
-                                })
+                        .where(SimpleCondition.of(value -> value.getName().equals("c")))
                         .followedByAny(
                                 Pattern.<Event>begin("middle1")
                                         .where(
-                                                new SimpleCondition<Event>() {
-                                                    private static final long serialVersionUID =
-                                                            5726188262756267490L;
-
-                                                    @Override
-                                                    public boolean filter(Event value)
-                                                            throws Exception {
-                                                        return value.getName().equals("a");
-                                                    }
-                                                })
+                                                SimpleCondition.of(
+                                                        value -> value.getName().equals("a")))
                                         .followedBy("middle2")
                                         .where(
-                                                new SimpleCondition<Event>() {
-                                                    private static final long serialVersionUID =
-                                                            5726188262756267490L;
-
-                                                    @Override
-                                                    public boolean filter(Event value)
-                                                            throws Exception {
-                                                        return value.getName().equals("b");
-                                                    }
-                                                }))
+                                                SimpleCondition.of(
+                                                        value -> value.getName().equals("b"))))
                         .oneOrMore()
                         .followedBy("end")
-                        .where(
-                                new SimpleCondition<Event>() {
-                                    private static final long serialVersionUID =
-                                            5726188262756267490L;
-
-                                    @Override
-                                    public boolean filter(Event value) throws Exception {
-                                        return value.getName().equals("d");
-                                    }
-                                });
+                        .where(SimpleCondition.of(value -> value.getName().equals("d")));
 
         NFA<Event> nfa = compile(pattern, false);
 
@@ -716,55 +444,21 @@ public class GroupITCase extends TestLogger {
         // c next (a b)* d
         Pattern<Event, ?> pattern =
                 Pattern.<Event>begin("start")
-                        .where(
-                                new SimpleCondition<Event>() {
-                                    private static final long serialVersionUID =
-                                            6215754202506583964L;
-
-                                    @Override
-                                    public boolean filter(Event value) throws Exception {
-                                        return value.getName().equals("c");
-                                    }
-                                })
+                        .where(SimpleCondition.of(value -> value.getName().equals("c")))
                         .next(
                                 Pattern.<Event>begin("middle1")
                                         .where(
-                                                new SimpleCondition<Event>() {
-                                                    private static final long serialVersionUID =
-                                                            5726188262756267490L;
-
-                                                    @Override
-                                                    public boolean filter(Event value)
-                                                            throws Exception {
-                                                        return value.getName().equals("a");
-                                                    }
-                                                })
+                                                SimpleCondition.of(
+                                                        value -> value.getName().equals("a")))
                                         .followedBy("middle2")
                                         .where(
-                                                new SimpleCondition<Event>() {
-                                                    private static final long serialVersionUID =
-                                                            5726188262756267490L;
-
-                                                    @Override
-                                                    public boolean filter(Event value)
-                                                            throws Exception {
-                                                        return value.getName().equals("b");
-                                                    }
-                                                }))
+                                                SimpleCondition.of(
+                                                        value -> value.getName().equals("b"))))
                         .oneOrMore()
                         .optional()
                         .consecutive()
                         .followedBy("end")
-                        .where(
-                                new SimpleCondition<Event>() {
-                                    private static final long serialVersionUID =
-                                            7056763917392056548L;
-
-                                    @Override
-                                    public boolean filter(Event value) throws Exception {
-                                        return value.getName().equals("d");
-                                    }
-                                });
+                        .where(SimpleCondition.of(value -> value.getName().equals("d")));
 
         NFA<Event> nfa = compile(pattern, false);
 
@@ -802,63 +496,20 @@ public class GroupITCase extends TestLogger {
         // c (a b) ^d e
         Pattern<Event, ?> pattern =
                 Pattern.<Event>begin("start")
-                        .where(
-                                new SimpleCondition<Event>() {
-                                    private static final long serialVersionUID =
-                                            5726188262756267490L;
-
-                                    @Override
-                                    public boolean filter(Event value) throws Exception {
-                                        return value.getName().equals("c");
-                                    }
-                                })
+                        .where(SimpleCondition.of(value -> value.getName().equals("c")))
                         .followedByAny(
                                 Pattern.<Event>begin("middle1")
                                         .where(
-                                                new SimpleCondition<Event>() {
-                                                    private static final long serialVersionUID =
-                                                            5726188262756267490L;
-
-                                                    @Override
-                                                    public boolean filter(Event value)
-                                                            throws Exception {
-                                                        return value.getName().equals("a");
-                                                    }
-                                                })
+                                                SimpleCondition.of(
+                                                        value -> value.getName().equals("a")))
                                         .followedBy("middle2")
                                         .where(
-                                                new SimpleCondition<Event>() {
-                                                    private static final long serialVersionUID =
-                                                            5726188262756267490L;
-
-                                                    @Override
-                                                    public boolean filter(Event value)
-                                                            throws Exception {
-                                                        return value.getName().equals("b");
-                                                    }
-                                                }))
+                                                SimpleCondition.of(
+                                                        value -> value.getName().equals("b"))))
                         .notFollowedBy("notPattern")
-                        .where(
-                                new SimpleCondition<Event>() {
-                                    private static final long serialVersionUID =
-                                            5726188262756267490L;
-
-                                    @Override
-                                    public boolean filter(Event value) throws Exception {
-                                        return value.getName().equals("d");
-                                    }
-                                })
+                        .where(SimpleCondition.of(value -> value.getName().equals("d")))
                         .followedBy("end")
-                        .where(
-                                new SimpleCondition<Event>() {
-                                    private static final long serialVersionUID =
-                                            5726188262756267490L;
-
-                                    @Override
-                                    public boolean filter(Event value) throws Exception {
-                                        return value.getName().equals("e");
-                                    }
-                                });
+                        .where(SimpleCondition.of(value -> value.getName().equals("e")));
 
         NFA<Event> nfa = compile(pattern, false);
 
@@ -892,63 +543,20 @@ public class GroupITCase extends TestLogger {
         // c (a b) next ^d e
         Pattern<Event, ?> pattern =
                 Pattern.<Event>begin("start")
-                        .where(
-                                new SimpleCondition<Event>() {
-                                    private static final long serialVersionUID =
-                                            5726188262756267490L;
-
-                                    @Override
-                                    public boolean filter(Event value) throws Exception {
-                                        return value.getName().equals("c");
-                                    }
-                                })
+                        .where(SimpleCondition.of(value -> value.getName().equals("c")))
                         .followedByAny(
                                 Pattern.<Event>begin("middle1")
                                         .where(
-                                                new SimpleCondition<Event>() {
-                                                    private static final long serialVersionUID =
-                                                            5726188262756267490L;
-
-                                                    @Override
-                                                    public boolean filter(Event value)
-                                                            throws Exception {
-                                                        return value.getName().equals("a");
-                                                    }
-                                                })
+                                                SimpleCondition.of(
+                                                        value -> value.getName().equals("a")))
                                         .followedBy("middle2")
                                         .where(
-                                                new SimpleCondition<Event>() {
-                                                    private static final long serialVersionUID =
-                                                            5726188262756267490L;
-
-                                                    @Override
-                                                    public boolean filter(Event value)
-                                                            throws Exception {
-                                                        return value.getName().equals("b");
-                                                    }
-                                                }))
+                                                SimpleCondition.of(
+                                                        value -> value.getName().equals("b"))))
                         .notNext("notPattern")
-                        .where(
-                                new SimpleCondition<Event>() {
-                                    private static final long serialVersionUID =
-                                            5726188262756267490L;
-
-                                    @Override
-                                    public boolean filter(Event value) throws Exception {
-                                        return value.getName().equals("d");
-                                    }
-                                })
+                        .where(SimpleCondition.of(value -> value.getName().equals("d")))
                         .followedBy("end")
-                        .where(
-                                new SimpleCondition<Event>() {
-                                    private static final long serialVersionUID =
-                                            5726188262756267490L;
-
-                                    @Override
-                                    public boolean filter(Event value) throws Exception {
-                                        return value.getName().equals("e");
-                                    }
-                                });
+                        .where(SimpleCondition.of(value -> value.getName().equals("e")));
 
         NFA<Event> nfa = compile(pattern, false);
 
@@ -982,74 +590,32 @@ public class GroupITCase extends TestLogger {
         // d (a (b c)*)? e
         Pattern<Event, ?> pattern =
                 Pattern.<Event>begin("start")
-                        .where(
-                                new SimpleCondition<Event>() {
-                                    private static final long serialVersionUID =
-                                            5726188262756267490L;
-
-                                    @Override
-                                    public boolean filter(Event value) throws Exception {
-                                        return value.getName().equals("d");
-                                    }
-                                })
+                        .where(SimpleCondition.of(value -> value.getName().equals("d")))
                         .followedBy(
                                 Pattern.<Event>begin("middle1")
                                         .where(
-                                                new SimpleCondition<Event>() {
-                                                    private static final long serialVersionUID =
-                                                            5726188262756267490L;
-
-                                                    @Override
-                                                    public boolean filter(Event value)
-                                                            throws Exception {
-                                                        return value.getName().equals("a");
-                                                    }
-                                                })
+                                                SimpleCondition.of(
+                                                        value -> value.getName().equals("a")))
                                         .followedBy(
                                                 Pattern.<Event>begin("middle2")
                                                         .where(
-                                                                new SimpleCondition<Event>() {
-                                                                    private static final long
-                                                                            serialVersionUID =
-                                                                                    5726188262756267490L;
-
-                                                                    @Override
-                                                                    public boolean filter(
-                                                                            Event value)
-                                                                            throws Exception {
-                                                                        return value.getName()
-                                                                                .equals("b");
-                                                                    }
-                                                                })
+                                                                SimpleCondition.of(
+                                                                        value ->
+                                                                                value.getName()
+                                                                                        .equals(
+                                                                                                "b")))
                                                         .followedBy("middle3")
                                                         .where(
-                                                                new SimpleCondition<Event>() {
-                                                                    private static final long
-                                                                            serialVersionUID =
-                                                                                    5726188262756267490L;
-
-                                                                    @Override
-                                                                    public boolean filter(
-                                                                            Event value)
-                                                                            throws Exception {
-                                                                        return value.getName()
-                                                                                .equals("c");
-                                                                    }
-                                                                }))
+                                                                SimpleCondition.of(
+                                                                        value ->
+                                                                                value.getName()
+                                                                                        .equals(
+                                                                                                "c"))))
                                         .oneOrMore()
                                         .optional())
                         .optional()
                         .followedBy("end")
-                        .where(
-                                new SimpleCondition<Event>() {
-                                    private static final long serialVersionUID =
-                                            5726188262756267490L;
-
-                                    @Override
-                                    public boolean filter(Event value) throws Exception {
-                                        return value.getName().equals("e");
-                                    }
-                                });
+                        .where(SimpleCondition.of(value -> value.getName().equals("e")));
 
         NFA<Event> nfa = compile(pattern, false);
 
@@ -1105,73 +671,31 @@ public class GroupITCase extends TestLogger {
         // d any (a (b c){3}){0, 2} e
         Pattern<Event, ?> pattern =
                 Pattern.<Event>begin("start")
-                        .where(
-                                new SimpleCondition<Event>() {
-                                    private static final long serialVersionUID =
-                                            5726188262756267490L;
-
-                                    @Override
-                                    public boolean filter(Event value) throws Exception {
-                                        return value.getName().equals("d");
-                                    }
-                                })
+                        .where(SimpleCondition.of(value -> value.getName().equals("d")))
                         .followedByAny(
                                 Pattern.<Event>begin("middle1")
                                         .where(
-                                                new SimpleCondition<Event>() {
-                                                    private static final long serialVersionUID =
-                                                            5726188262756267490L;
-
-                                                    @Override
-                                                    public boolean filter(Event value)
-                                                            throws Exception {
-                                                        return value.getName().equals("a");
-                                                    }
-                                                })
+                                                SimpleCondition.of(
+                                                        value -> value.getName().equals("a")))
                                         .followedBy(
                                                 Pattern.<Event>begin("middle2")
                                                         .where(
-                                                                new SimpleCondition<Event>() {
-                                                                    private static final long
-                                                                            serialVersionUID =
-                                                                                    5726188262756267490L;
-
-                                                                    @Override
-                                                                    public boolean filter(
-                                                                            Event value)
-                                                                            throws Exception {
-                                                                        return value.getName()
-                                                                                .equals("b");
-                                                                    }
-                                                                })
+                                                                SimpleCondition.of(
+                                                                        value ->
+                                                                                value.getName()
+                                                                                        .equals(
+                                                                                                "b")))
                                                         .followedBy("middle3")
                                                         .where(
-                                                                new SimpleCondition<Event>() {
-                                                                    private static final long
-                                                                            serialVersionUID =
-                                                                                    5726188262756267490L;
-
-                                                                    @Override
-                                                                    public boolean filter(
-                                                                            Event value)
-                                                                            throws Exception {
-                                                                        return value.getName()
-                                                                                .equals("c");
-                                                                    }
-                                                                }))
+                                                                SimpleCondition.of(
+                                                                        value ->
+                                                                                value.getName()
+                                                                                        .equals(
+                                                                                                "c"))))
                                         .times(3))
                         .times(0, 2)
                         .followedBy("end")
-                        .where(
-                                new SimpleCondition<Event>() {
-                                    private static final long serialVersionUID =
-                                            5726188262756267490L;
-
-                                    @Override
-                                    public boolean filter(Event value) throws Exception {
-                                        return value.getName().equals("e");
-                                    }
-                                });
+                        .where(SimpleCondition.of(value -> value.getName().equals("e")));
 
         NFA<Event> nfa = compile(pattern, false);
 
@@ -1229,75 +753,33 @@ public class GroupITCase extends TestLogger {
         // d any (a (b c){3}){0, 2} e
         Pattern<Event, ?> pattern =
                 Pattern.<Event>begin("start")
-                        .where(
-                                new SimpleCondition<Event>() {
-                                    private static final long serialVersionUID =
-                                            5726188262756267490L;
-
-                                    @Override
-                                    public boolean filter(Event value) throws Exception {
-                                        return value.getName().equals("d");
-                                    }
-                                })
+                        .where(SimpleCondition.of(value -> value.getName().equals("d")))
                         .followedByAny(
                                 Pattern.<Event>begin("middle1")
                                         .where(
-                                                new SimpleCondition<Event>() {
-                                                    private static final long serialVersionUID =
-                                                            5726188262756267490L;
-
-                                                    @Override
-                                                    public boolean filter(Event value)
-                                                            throws Exception {
-                                                        return value.getName().equals("a");
-                                                    }
-                                                })
+                                                SimpleCondition.of(
+                                                        value -> value.getName().equals("a")))
                                         .followedBy(
                                                 Pattern.<Event>begin("middle2")
                                                         .where(
-                                                                new SimpleCondition<Event>() {
-                                                                    private static final long
-                                                                            serialVersionUID =
-                                                                                    5726188262756267490L;
-
-                                                                    @Override
-                                                                    public boolean filter(
-                                                                            Event value)
-                                                                            throws Exception {
-                                                                        return value.getName()
-                                                                                .equals("b");
-                                                                    }
-                                                                })
+                                                                SimpleCondition.of(
+                                                                        value ->
+                                                                                value.getName()
+                                                                                        .equals(
+                                                                                                "b")))
                                                         .followedBy("middle3")
                                                         .where(
-                                                                new SimpleCondition<Event>() {
-                                                                    private static final long
-                                                                            serialVersionUID =
-                                                                                    5726188262756267490L;
-
-                                                                    @Override
-                                                                    public boolean filter(
-                                                                            Event value)
-                                                                            throws Exception {
-                                                                        return value.getName()
-                                                                                .equals("c");
-                                                                    }
-                                                                }))
+                                                                SimpleCondition.of(
+                                                                        value ->
+                                                                                value.getName()
+                                                                                        .equals(
+                                                                                                "c"))))
                                         .times(3)
                                         .consecutive())
                         .times(0, 2)
                         .consecutive()
                         .followedBy("end")
-                        .where(
-                                new SimpleCondition<Event>() {
-                                    private static final long serialVersionUID =
-                                            5726188262756267490L;
-
-                                    @Override
-                                    public boolean filter(Event value) throws Exception {
-                                        return value.getName().equals("e");
-                                    }
-                                });
+                        .where(SimpleCondition.of(value -> value.getName().equals("e")));
 
         NFA<Event> nfa = compile(pattern, false);
 
@@ -1331,40 +813,15 @@ public class GroupITCase extends TestLogger {
                 Pattern.begin(
                                 Pattern.<Event>begin("middle1")
                                         .where(
-                                                new SimpleCondition<Event>() {
-                                                    private static final long serialVersionUID =
-                                                            5726188262756267490L;
-
-                                                    @Override
-                                                    public boolean filter(Event value)
-                                                            throws Exception {
-                                                        return value.getName().equals("a");
-                                                    }
-                                                })
+                                                SimpleCondition.of(
+                                                        value -> value.getName().equals("a")))
                                         .followedBy("middle2")
                                         .where(
-                                                new SimpleCondition<Event>() {
-                                                    private static final long serialVersionUID =
-                                                            5726188262756267490L;
-
-                                                    @Override
-                                                    public boolean filter(Event value)
-                                                            throws Exception {
-                                                        return value.getName().equals("b");
-                                                    }
-                                                }))
+                                                SimpleCondition.of(
+                                                        value -> value.getName().equals("b"))))
                         .times(1, 2)
                         .followedBy("end")
-                        .where(
-                                new SimpleCondition<Event>() {
-                                    private static final long serialVersionUID =
-                                            5726188262756267490L;
-
-                                    @Override
-                                    public boolean filter(Event value) throws Exception {
-                                        return value.getName().equals("d");
-                                    }
-                                });
+                        .where(SimpleCondition.of(value -> value.getName().equals("d")));
 
         NFA<Event> nfa = compile(pattern, false);
 
@@ -1399,60 +856,20 @@ public class GroupITCase extends TestLogger {
         // c (a b)+ d
         Pattern<Event, ?> pattern =
                 Pattern.<Event>begin("start")
-                        .where(
-                                new SimpleCondition<Event>() {
-                                    private static final long serialVersionUID =
-                                            5726188262756267490L;
-
-                                    @Override
-                                    public boolean filter(Event value) throws Exception {
-                                        return value.getName().equals("c");
-                                    }
-                                })
+                        .where(SimpleCondition.of(value -> value.getName().equals("c")))
                         .followedBy(
                                 Pattern.<Event>begin("middle1")
                                         .where(
-                                                new SimpleCondition<Event>() {
-                                                    private static final long serialVersionUID =
-                                                            5726188262756267490L;
-
-                                                    @Override
-                                                    public boolean filter(Event value)
-                                                            throws Exception {
-                                                        return value.getName().equals("a");
-                                                    }
-                                                })
+                                                SimpleCondition.of(
+                                                        value -> value.getName().equals("a")))
                                         .followedBy("middle2")
                                         .where(
-                                                new SimpleCondition<Event>() {
-                                                    private static final long serialVersionUID =
-                                                            5726188262756267490L;
-
-                                                    @Override
-                                                    public boolean filter(Event value)
-                                                            throws Exception {
-                                                        return value.getName().equals("b");
-                                                    }
-                                                }))
+                                                SimpleCondition.of(
+                                                        value -> value.getName().equals("b"))))
                         .oneOrMore()
-                        .until(
-                                new SimpleCondition<Event>() {
-                                    @Override
-                                    public boolean filter(Event value) throws Exception {
-                                        return value.getName().equals("d");
-                                    }
-                                })
+                        .until(SimpleCondition.of(value -> value.getName().equals("d")))
                         .followedBy("end")
-                        .where(
-                                new SimpleCondition<Event>() {
-                                    private static final long serialVersionUID =
-                                            5726188262756267490L;
-
-                                    @Override
-                                    public boolean filter(Event value) throws Exception {
-                                        return value.getName().equals("d");
-                                    }
-                                });
+                        .where(SimpleCondition.of(value -> value.getName().equals("d")));
 
         NFA<Event> nfa = compile(pattern, false);
 
