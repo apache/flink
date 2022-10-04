@@ -22,6 +22,7 @@ import { FormsModule } from '@angular/forms';
 
 import { SubtasksTableActionComponent } from '@flink-runtime-web/pages/job/overview/subtasks/table-action/subtasks-table-action.component';
 import { ShareModule } from '@flink-runtime-web/share/share.module';
+import { NzAlertModule } from 'ng-zorro-antd/alert';
 import { NzDividerModule } from 'ng-zorro-antd/divider';
 import { NzDropDownModule } from 'ng-zorro-antd/dropdown';
 import { NzFormModule } from 'ng-zorro-antd/form';
@@ -61,6 +62,7 @@ import { JobOverviewDrawerWatermarksComponent } from './watermarks/job-overview-
     NzIconModule,
     NzFormModule,
     NzSelectModule,
+    NzAlertModule,
     NzDividerModule,
     NzTabsModule,
     NzDropDownModule,
