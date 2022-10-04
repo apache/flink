@@ -1215,7 +1215,10 @@ public class DefaultExecutionGraph implements ExecutionGraph, InternalExecutionG
 
             try {
                 for (ExecutionJobVertex ejv : verticesInCreationOrder) {
-                    ejv.getJobVertex().finalizeOnMaster(getUserClassLoader());
+                    ejv.getJobVertex()
+                            .finalizeOnMaster(
+                                    new SimpleInitializeOnMasterContext(
+                                            getUserClassLoader(), ejv.getParallelism()));
                 }
             } catch (Throwable t) {
                 ExceptionUtils.rethrowIfFatalError(t);
