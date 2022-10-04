@@ -237,7 +237,7 @@ public class WindowSavepointReader<W extends Window> {
             throws IOException {
         KeyedStateInputFormat<K, W, OUT> format =
                 new KeyedStateInputFormat<>(
-                        metadata.getOperatorState(uid),
+                        metadata.getOperatorState(OperatorIdentifier.forUid(uid)),
                         stateBackend,
                         MutableConfig.of(env.getConfiguration()),
                         operator);

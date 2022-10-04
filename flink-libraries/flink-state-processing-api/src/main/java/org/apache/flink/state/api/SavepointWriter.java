@@ -180,7 +180,7 @@ public class SavepointWriter {
      * @return A modified savepoint.
      */
     public SavepointWriter removeOperator(String uid) {
-        metadata.removeOperator(uid);
+        metadata.removeOperator(OperatorIdentifier.forUid(uid));
         return this;
     }
 
@@ -193,7 +193,7 @@ public class SavepointWriter {
      */
     public <T> SavepointWriter withOperator(
             String uid, StateBootstrapTransformation<T> transformation) {
-        metadata.addOperator(uid, transformation);
+        metadata.addOperator(OperatorIdentifier.forUid(uid), transformation);
         return this;
     }
 

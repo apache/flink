@@ -181,7 +181,7 @@ public class SavepointReader {
             String uid, TypeInformation<T> typeInfo, ListStateDescriptor<T> descriptor)
             throws IOException {
 
-        OperatorState operatorState = metadata.getOperatorState(uid);
+        OperatorState operatorState = metadata.getOperatorState(OperatorIdentifier.forUid(uid));
         ListStateInputFormat<T> inputFormat =
                 new ListStateInputFormat<>(
                         operatorState,
@@ -229,7 +229,7 @@ public class SavepointReader {
             String uid, TypeInformation<T> typeInfo, ListStateDescriptor<T> descriptor)
             throws IOException {
 
-        OperatorState operatorState = metadata.getOperatorState(uid);
+        OperatorState operatorState = metadata.getOperatorState(OperatorIdentifier.forUid(uid));
         UnionStateInputFormat<T> inputFormat =
                 new UnionStateInputFormat<>(
                         operatorState,
@@ -302,7 +302,7 @@ public class SavepointReader {
             MapStateDescriptor<K, V> descriptor)
             throws IOException {
 
-        OperatorState operatorState = metadata.getOperatorState(uid);
+        OperatorState operatorState = metadata.getOperatorState(OperatorIdentifier.forUid(uid));
         BroadcastStateInputFormat<K, V> inputFormat =
                 new BroadcastStateInputFormat<>(
                         operatorState,
@@ -380,7 +380,7 @@ public class SavepointReader {
             TypeInformation<OUT> outTypeInfo)
             throws IOException {
 
-        OperatorState operatorState = metadata.getOperatorState(uid);
+        OperatorState operatorState = metadata.getOperatorState(OperatorIdentifier.forUid(uid));
         KeyedStateInputFormat<K, VoidNamespace, OUT> inputFormat =
                 new KeyedStateInputFormat<>(
                         operatorState,
