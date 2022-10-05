@@ -3,6 +3,7 @@ package org.apache.flink.table.client.gateway.remote;
 import org.apache.flink.api.common.RuntimeExecutionMode;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
+import org.apache.flink.table.client.SqlClientException;
 import org.apache.flink.table.client.config.ResultMode;
 import org.apache.flink.table.client.gateway.ResultDescriptor;
 import org.apache.flink.table.client.gateway.TypedResult;
@@ -37,6 +38,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.TimeUnit;
+import java.util.function.BiFunction;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
@@ -69,6 +71,10 @@ public class RemoteExecutorITCase {
     private static SessionHandle sessionHandle;
 
     // todo : replace fake results with real results
+    // --------------------------------------------------------------------------------------------
+    // Expected results for tests
+    // --------------------------------------------------------------------------------------------
+
     private final List<String> expectedResults1 =
             Arrays.asList(
                     "[47, Hello World, ABC]",
@@ -78,11 +84,23 @@ public class RemoteExecutorITCase {
                     "[47, Hello World, ABC]",
                     "[57, Hello World!!!!, ABC]");
 
-    private final List<String> expectedResults2 = Collections.singletonList("[1, Hello World!!!!]");
+    private final List<String> expectedResults2 =
+            Arrays.asList(
+                    "[47, Hello World]",
+                    "[27, Hello World]",
+                    "[37, Hello World]",
+                    "[37, Hello World]",
+                    "[47, Hello World]",
+                    "[57, Hello World!!!!]");
 
-    private final List<String> expectedResults3 =
+    private final List<String> expectedResults3 = Collections.singletonList("[1, Hello World!!!!]");
+
+    private final List<String> expectedResults4 =
             Arrays.asList(
                     "[47, ABC]", "[27, ABC]", "[37, ABC]", "[37, ABC]", "[47, ABC]", "[57, ABC]");
+
+    private final List<String> expectedResults5 =
+            Arrays.asList("[47]", "[27]", "[37]", "[37]", "[47]", "[57]");
 
     @BeforeAll
     public static void setUp() {
@@ -106,100 +124,86 @@ public class RemoteExecutorITCase {
         executor.close();
     }
 
-    @Test
-    @Timeout(value = testMethodTimeout, unit = TimeUnit.MILLISECONDS)
-    public void testGetSessionConfig() {
-        assertThat(executor.getSessionConfig())
-                .isEqualTo(
-                        SQL_GATEWAY_SERVICE_EXTENSION.getService().getSessionConfig(sessionHandle));
-    }
-
-    @Test
-    public void testKeepingAlive() throws Exception {
-        long lastAccessTime =
-                SQL_GATEWAY_SERVICE_EXTENSION
-                        .getSessionManager()
-                        .getSession(sessionHandle)
-                        .getLastAccessTime();
-
-        // Wait to trigger heartbeat
-        Thread.sleep(20_000L);
-
-        assertThat(
-                        SQL_GATEWAY_SERVICE_EXTENSION
-                                        .getSessionManager()
-                                        .getSession(sessionHandle)
-                                        .getLastAccessTime()
-                                > lastAccessTime)
-                .isTrue();
-    }
+    // --------------------------------------------------------------------------------------------
+    // Runtime mode: streaming; Result mode: changelog
+    // --------------------------------------------------------------------------------------------
 
     @Test
     @Timeout(value = testMethodTimeout, unit = TimeUnit.MILLISECONDS)
     public void testStreamQueryExecutionChangelog() throws Exception {
-        // start job and retrieval
-        ResultDescriptor descriptor =
-                ResultDescriptor.of(
-                        executeStatement(
-                                "SELECT scalarUDF(IntegerField1, 5), StringField1, 'ABC' FROM TableNumber1;",
-                                buildDefaultExecutionConfiguration()));
-
-        assertThat(descriptor.isMaterialized()).isFalse();
-
-        List<String> actualResults =
-                retrieveChangelogResult(
-                        descriptor.getResultId(), descriptor.getRowDataStringConverter());
-
-        TestBaseUtils.compareResultCollections(
-                fakeResult(6), actualResults, Comparator.naturalOrder());
+        executeQuery(
+                "SELECT scalarUDF(IntegerField1, 5), StringField1, 'ABC' FROM TableNumber1;",
+                buildDefaultExecutionConfiguration(),
+                false,
+                this::retrieveChangelogResult,
+                fakeResult(6));
     }
 
-    // todo: actually here use different sql. need modify
     @Test
     @Timeout(value = 3 * testMethodTimeout, unit = TimeUnit.MILLISECONDS)
     public void testStreamQueryExecutionChangelogMultipleTimes() throws Exception {
         for (int i = 0; i < 3; i++) {
-            testStreamQueryExecutionChangelog();
+            executeQuery(
+                    "SELECT scalarUDF(IntegerField1, 5), StringField1 FROM TableNumber1;",
+                    buildDefaultExecutionConfiguration(),
+                    false,
+                    this::retrieveChangelogResult,
+                    fakeResult(6));
         }
     }
+
+    // --------------------------------------------------------------------------------------------
+    // Runtime mode: streaming; Result mode: table
+    // --------------------------------------------------------------------------------------------
 
     @Test
     @Timeout(value = testMethodTimeout, unit = TimeUnit.MILLISECONDS)
     public void testStreamQueryExecutionTable() throws Exception {
-        String query = "SELECT scalarUDF(IntegerField1, 5), StringField1, 'ABC' FROM TableNumber1;";
-
         Configuration executionConfiguration = buildDefaultExecutionConfiguration();
         executionConfiguration.set(EXECUTION_RESULT_MODE, ResultMode.TABLE);
 
-        List<String> actualResults = executeStreamQueryTable(query, executionConfiguration);
-
-        TestBaseUtils.compareResultCollections(
-                fakeResult(6), actualResults, Comparator.naturalOrder());
+        executeQuery(
+                "SELECT scalarUDF(IntegerField1, 5), StringField1, 'ABC' FROM TableNumber1;",
+                executionConfiguration,
+                true,
+                this::retrieveTableResult,
+                fakeResult(6));
     }
 
-    // todo: actually here use different sql. need modify
     @Test
     @Timeout(value = 3 * testMethodTimeout, unit = TimeUnit.MILLISECONDS)
     public void testStreamQueryExecutionTableMultipleTimes() throws Exception {
+        Configuration executionConfiguration = buildDefaultExecutionConfiguration();
+        executionConfiguration.set(EXECUTION_RESULT_MODE, ResultMode.TABLE);
+
         for (int i = 0; i < 3; i++) {
-            testStreamQueryExecutionTable();
+            executeQuery(
+                    "SELECT scalarUDF(IntegerField1, 5), StringField1 FROM TableNumber1;",
+                    executionConfiguration,
+                    true,
+                    this::retrieveTableResult,
+                    fakeResult(6));
         }
     }
 
     @Test
     @Timeout(value = testMethodTimeout, unit = TimeUnit.MILLISECONDS)
     public void testStreamQueryExecutionLimitedTable() throws Exception {
-        String query = "SELECT COUNT(*), StringField1 FROM TableNumber1 GROUP BY StringField1;";
-
         Configuration executionConfiguration = buildDefaultExecutionConfiguration();
         executionConfiguration.set(EXECUTION_RESULT_MODE, ResultMode.TABLE);
         executionConfiguration.setInteger(EXECUTION_MAX_TABLE_RESULT_ROWS, 1);
 
-        List<String> actualResults = executeStreamQueryTable(query, executionConfiguration);
-
-        TestBaseUtils.compareResultCollections(
-                fakeResult(1), actualResults, Comparator.naturalOrder());
+        executeQuery(
+                "SELECT COUNT(*), StringField1 FROM TableNumber1 GROUP BY StringField1;",
+                executionConfiguration,
+                true,
+                this::retrieveTableResult,
+                fakeResult(1));
     }
+
+    // --------------------------------------------------------------------------------------------
+    // Runtime mode: batch; Result mode: table
+    // --------------------------------------------------------------------------------------------
 
     @Test
     @Timeout(value = testMethodTimeout, unit = TimeUnit.MILLISECONDS)
@@ -238,24 +242,15 @@ public class RemoteExecutorITCase {
         replaceVars.put("$VAR_SOURCE_PATH1", url.getPath());
         initSession(replaceVars);
 
-        // start job and retrieval
         Configuration executionConfiguration = buildDefaultExecutionConfiguration();
         executionConfiguration.set(EXECUTION_RESULT_MODE, ResultMode.TABLE);
 
-        ResultDescriptor resultDescriptor =
-                ResultDescriptor.of(
-                        executeStatement(
-                                "SELECT *, 'ABC' FROM TestView1;", executionConfiguration));
-
-        assertThat(resultDescriptor.isMaterialized()).isTrue();
-
-        final List<String> actualResults =
-                retrieveTableResult(
-                        resultDescriptor.getResultId(),
-                        resultDescriptor.getRowDataStringConverter());
-
-        TestBaseUtils.compareResultCollections(
-                fakeResult(6), actualResults, Comparator.naturalOrder());
+        executeQuery(
+                "SELECT *, 'ABC' FROM TestView1;",
+                executionConfiguration,
+                true,
+                this::retrieveTableResult,
+                fakeResult(6));
 
         // Restore environment for the rest tests
         miniClusterExtension.afterAll(null);
@@ -265,16 +260,134 @@ public class RemoteExecutorITCase {
         sessionHandle = oldHandle;
     }
 
-    // todo: actually here use different sql. need modify
     @Test
     @Timeout(value = 3 * testMethodTimeout, unit = TimeUnit.MILLISECONDS)
     public void testBatchQueryExecutionMultipleTimes() throws Exception {
+        RemoteExecutor oldExecutor = executor;
+        SessionHandle oldHandle = sessionHandle;
+        MiniClusterExtension miniClusterExtension =
+                new MiniClusterExtension(
+                        () -> {
+                            Configuration configuration = new Configuration();
+                            configuration.set(RUNTIME_MODE, RuntimeExecutionMode.BATCH);
+                            return new MiniClusterResourceConfiguration.Builder()
+                                    .setConfiguration(configuration)
+                                    .build();
+                        });
+        miniClusterExtension.beforeAll(null);
+        SqlGatewayServiceExtension sqlGatewayServiceExtension =
+                new SqlGatewayServiceExtension(miniClusterExtension::getClientConfiguration);
+        sqlGatewayServiceExtension.beforeAll(null);
+        SqlGatewayRestEndpointExtension sqlGatewayRestEndpointExtension =
+                new SqlGatewayRestEndpointExtension(sqlGatewayServiceExtension::getService);
+        sqlGatewayRestEndpointExtension.beforeAll(null);
+        executor =
+                new RemoteExecutor(
+                        miniClusterExtension.getClientConfiguration(),
+                        sqlGatewayRestEndpointExtension.getTargetAddress(),
+                        sqlGatewayRestEndpointExtension.getTargetPort());
+        executor.start();
+        sessionHandle = executor.getSessionHandle();
+
+        URL url = RemoteExecutorITCase.class.getClassLoader().getResource("test-data.csv");
+        Objects.requireNonNull(url);
+        Map<String, String> replaceVars = new HashMap<>();
+        replaceVars.put("$VAR_SOURCE_PATH1", url.getPath());
+        initSession(replaceVars);
+
+        Configuration executionConfiguration = buildDefaultExecutionConfiguration();
+        executionConfiguration.set(EXECUTION_RESULT_MODE, ResultMode.TABLE);
+
         for (int i = 0; i < 3; i++) {
-            testBatchQueryExecution();
+            executeQuery(
+                    "SELECT * FROM TestView1;",
+                    executionConfiguration,
+                    true,
+                    this::retrieveTableResult,
+                    fakeResult(6));
         }
+
+        miniClusterExtension.afterAll(null);
+        sqlGatewayServiceExtension.afterAll(null);
+        sqlGatewayRestEndpointExtension.afterAll(null);
+        executor = oldExecutor;
+        sessionHandle = oldHandle;
     }
 
     // --------------------------------------------------------------------------------------------
+    // Other tests
+    // --------------------------------------------------------------------------------------------
+
+    @Test
+    @Timeout(value = testMethodTimeout, unit = TimeUnit.MILLISECONDS)
+    public void testSetResetProperty() {
+        // test set
+        executeStatement("SET 'key1' = 'value1';", null);
+        executeStatement("SET 'key2' = 'value2';", null);
+        assertThat(executor.getSessionConfig())
+                .containsEntry("key1", "value1")
+                .containsEntry("key2", "value2");
+
+        // test reset one property
+        executeStatement("RESET 'key1';", null);
+        assertThat(executor.getSessionConfig()).doesNotContainKey("key1");
+
+        // test reset all properties
+        executeStatement("SET 'key1' = 'value1';", null);
+        assertThat(executor.getSessionConfig())
+                .containsEntry("key1", "value1")
+                .containsEntry("key2", "value2");
+        executeStatement("RESET;", null);
+        assertThat(executor.getSessionConfig()).doesNotContainKey("key1").doesNotContainKey("key2");
+    }
+
+    @Test
+    @Timeout(value = testMethodTimeout, unit = TimeUnit.MILLISECONDS)
+    public void testGetSessionConfig() {
+        assertThat(executor.getSessionConfig())
+                .isEqualTo(
+                        SQL_GATEWAY_SERVICE_EXTENSION.getService().getSessionConfig(sessionHandle));
+    }
+
+    @Test
+    public void testKeepingAlive() throws Exception {
+        long lastAccessTime =
+                SQL_GATEWAY_SERVICE_EXTENSION
+                        .getSessionManager()
+                        .getSession(sessionHandle)
+                        .getLastAccessTime();
+
+        // Wait to trigger heartbeat
+        Thread.sleep(20_000L);
+
+        assertThat(
+                        SQL_GATEWAY_SERVICE_EXTENSION
+                                        .getSessionManager()
+                                        .getSession(sessionHandle)
+                                        .getLastAccessTime()
+                                > lastAccessTime)
+                .isTrue();
+    }
+
+    // --------------------------------------------------------------------------------------------
+
+    private void executeQuery(
+            String sql,
+            Configuration executionConfig,
+            boolean isMaterialized,
+            BiFunction<String, RowDataToStringConverter, List<String>> resultGetter,
+            List<String> expectedResults) {
+        ResultDescriptor descriptor = ResultDescriptor.of(executeStatement(sql, executionConfig));
+
+        assertThat(descriptor.isMaterialized()).isEqualTo(isMaterialized);
+
+        List<String> actualResults =
+                resultGetter.apply(
+                        descriptor.getResultId(), descriptor.getRowDataStringConverter());
+
+        TestBaseUtils.compareResultCollections(
+                expectedResults, actualResults, Comparator.naturalOrder());
+    }
 
     private static TableResultWrapper executeStatement(
             String statement, @Nullable Configuration executionConfig) {
@@ -340,24 +453,16 @@ public class RemoteExecutorITCase {
         }
     }
 
-    private List<String> executeStreamQueryTable(String query, Configuration executionConfiguration)
-            throws Exception {
-        // start job and retrieval
-        ResultDescriptor desc =
-                ResultDescriptor.of(executeStatement(query, executionConfiguration));
-
-        assertThat(desc.isMaterialized()).isTrue();
-
-        return retrieveTableResult(desc.getResultId(), desc.getRowDataStringConverter());
-    }
-
     private List<String> retrieveChangelogResult(
-            String resultId, RowDataToStringConverter rowDataToStringConverter)
-            throws InterruptedException {
-        final List<String> actualResults = new ArrayList<>();
+            String resultId, RowDataToStringConverter rowDataToStringConverter) {
+        List<String> actualResults = new ArrayList<>();
         while (true) {
-            Thread.sleep(50); // slow the processing down
-            final TypedResult<List<RowData>> result = executor.retrieveResultChanges(resultId);
+            try {
+                Thread.sleep(50); // slow the processing down
+            } catch (InterruptedException e) {
+                throw new SqlClientException(e);
+            }
+            TypedResult<List<RowData>> result = executor.retrieveResultChanges(resultId);
             if (result.getType() == TypedResult.ResultType.PAYLOAD) {
                 for (RowData row : result.getPayload()) {
                     actualResults.add(
@@ -371,12 +476,15 @@ public class RemoteExecutorITCase {
     }
 
     private List<String> retrieveTableResult(
-            String resultId, RowDataToStringConverter rowDataToStringConverter)
-            throws InterruptedException {
-        final List<String> actualResults = new ArrayList<>();
+            String resultId, RowDataToStringConverter rowDataToStringConverter) {
+        List<String> actualResults = new ArrayList<>();
         while (true) {
-            Thread.sleep(50); // slow the processing down
-            final TypedResult<Integer> result = executor.snapshotResult(resultId, 2);
+            try {
+                Thread.sleep(50); // slow the processing down
+            } catch (InterruptedException e) {
+                throw new SqlClientException(e);
+            }
+            TypedResult<Integer> result = executor.snapshotResult(resultId, 2);
             if (result.getType() == TypedResult.ResultType.PAYLOAD) {
                 actualResults.clear();
                 IntStream.rangeClosed(1, result.getPayload())
@@ -397,7 +505,7 @@ public class RemoteExecutorITCase {
         return actualResults;
     }
 
-    // TODO: remove this
+    // TODO: remove this after implementing TableResultWrapper#getRowDataToStringConverter
     private List<String> fakeResult(int repeat) {
         List<String> fake = new ArrayList<>();
         for (int i = 0; i < repeat; i++) {
