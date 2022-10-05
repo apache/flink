@@ -3945,6 +3945,10 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=@pa
       "type" : "string",
       "enum" : [ "ok", "low", "high" ]
     },
+    "backpressureLevel" : {
+      "type" : "string",
+      "enum" : [ "ok", "low", "high" ]
+    },
     "end-timestamp" : {
       "type" : "integer"
     },
@@ -3959,6 +3963,10 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=@pa
         "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:JobVertexBackPressureInfo:SubtaskBackPressureInfo",
         "properties" : {
           "backpressure-level" : {
+            "type" : "string",
+            "enum" : [ "ok", "low", "high" ]
+          },
+          "backpressureLevel" : {
             "type" : "string",
             "enum" : [ "ok", "low", "high" ]
           },

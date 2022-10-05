@@ -2220,7 +2220,7 @@
           "type" : "string",
           "enum" : [ "deprecated", "ok" ]
         },
-        "backpressure-level" : {
+        "backpressureLevel" : {
           "type" : "string",
           "enum" : [ "ok", "low", "high" ]
         },
@@ -2236,7 +2236,7 @@
               "subtask" : {
                 "type" : "integer"
               },
-              "backpressure-level" : {
+              "backpressureLevel" : {
                 "type" : "string",
                 "enum" : [ "ok", "low", "high" ]
               },
@@ -2248,9 +2248,17 @@
               },
               "busyRatio" : {
                 "type" : "number"
+              },
+              "backpressure-level" : {
+                "type" : "string",
+                "enum" : [ "ok", "low", "high" ]
               }
             }
           }
+        },
+        "backpressure-level" : {
+          "type" : "string",
+          "enum" : [ "ok", "low", "high" ]
         }
       }
     }

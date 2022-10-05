@@ -2262,7 +2262,7 @@ components:
           enum:
           - deprecated
           - ok
-        backpressure-level:
+        backpressureLevel:
           type: string
           enum:
           - ok
@@ -2861,7 +2861,7 @@ components:
         subtask:
           type: integer
           format: int32
-        backpressure-level:
+        backpressureLevel:
           type: string
           enum:
           - ok
