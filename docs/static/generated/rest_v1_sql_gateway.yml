@@ -232,60 +232,33 @@ components:
       properties:
         status:
           type: string
-    WatermarkSpec:
+    Column:
       type: object
       properties:
-        rowtimeAttribute:
+        comment:
           type: string
-        watermarkExpression:
-          $ref: '#/components/schemas/ResolvedExpression'
-    GetInfoResponseBody:
-      type: object
-      properties:
-        productName:
-          type: string
-        version:
-          type: string
-    JobVertexID:
-      pattern: "[0-9a-f]{32}"
-      type: string
-    ResolvedExpression:
-      type: object
-      properties:
-        children:
-          type: array
-          items:
-            $ref: '#/components/schemas/Expression'
-        outputDataType:
+        dataType:
           $ref: '#/components/schemas/DataType'
-        resolvedChildren:
-          type: array
-          items:
-            $ref: '#/components/schemas/ResolvedExpression'
-    LogicalType:
-      type: object
-      properties:
-        children:
-          type: array
-          items:
-            $ref: '#/components/schemas/LogicalType'
-        nullable:
-          type: boolean
-        typeRoot:
-          $ref: '#/components/schemas/LogicalTypeRoot'
-    UniqueConstraint:
-      type: object
-      properties:
-        columns:
-          type: array
-          items:
-            type: string
-        enforced:
-          type: boolean
         name:
           type: string
-        type:
-          $ref: '#/components/schemas/ConstraintType'
+        persisted:
+          type: boolean
+        physical:
+          type: boolean
+    ConstraintType:
+      type: string
+      enum:
+      - PRIMARY_KEY
+      - UNIQUE_KEY
+    DataType:
+      type: object
+      properties:
+        children:
+          type: array
+          items:
+            $ref: '#/components/schemas/DataType'
+        logicalType:
+          $ref: '#/components/schemas/LogicalType'
     ExecuteStatementRequestBody:
       type: object
       properties:
@@ -298,6 +271,63 @@ components:
           format: int64
         statement:
           type: string
+    ExecuteStatementResponseBody:
+      type: object
+      properties:
+        operationHandle:
+          type: string
+    Expression:
+      type: object
+    FetchResultsResponseBody:
+      type: object
+      properties:
+        nextResultUri:
+          type: string
+        resultType:
+          type: string
+        results:
+          $ref: '#/components/schemas/ResultSet'
+    GetApiVersionResponseBody:
+      type: object
+      properties:
+        versions:
+          type: array
+          items:
+            type: string
+    GetInfoResponseBody:
+      type: object
+      properties:
+        productName:
+          type: string
+        version:
+          type: string
+    GetSessionConfigResponseBody:
+      type: object
+      properties:
+        properties:
+          type: object
+          additionalProperties:
+            type: string
+    IntermediateDataSetID:
+      pattern: "[0-9a-f]{32}"
+      type: string
+    JobID:
+      pattern: "[0-9a-f]{32}"
+      type: string
+    JobVertexID:
+      pattern: "[0-9a-f]{32}"
+      type: string
+    LogicalType:
+      type: object
+      properties:
+        children:
+          type: array
+          items:
+            $ref: '#/components/schemas/LogicalType'
+        nullable:
+          type: boolean
+        typeRoot:
+          $ref: '#/components/schemas/LogicalTypeRoot'
     LogicalTypeRoot:
       type: string
       enum:
@@ -330,53 +360,6 @@ components:
       - RAW
       - SYMBOL
       - UNRESOLVED
-    OperationHandle:
-      type: object
-      properties:
-        identifier:
-          type: string
-          format: uuid
-    ExecuteStatementResponseBody:
-      type: object
-      properties:
-        operationHandle:
-          type: string
-    FetchResultsResponseBody:
-      type: object
-      properties:
-        nextResultUri:
-          type: string
-        resultType:
-          type: string
-        results:
-          $ref: '#/components/schemas/ResultSet'
-    RowData:
-      type: object
-      properties:
-        arity:
-          type: integer
-          format: int32
-        rowKind:
-          $ref: '#/components/schemas/RowKind'
-    Column:
-      type: object
-      properties:
-        comment:
-          type: string
-        dataType:
-          $ref: '#/components/schemas/DataType'
-        name:
-          type: string
-        persisted:
-          type: boolean
-        physical:
-          type: boolean
-    TriggerId:
-      pattern: "[0-9a-f]{32}"
-      type: string
-    ResourceID:
-      pattern: "[0-9a-f]{32}"
-      type: string
     OpenSessionRequestBody:
       type: object
       properties:
@@ -386,29 +369,35 @@ components:
             type: string
         sessionName:
           type: string
-    ResultSet:
+    OpenSessionResponseBody:
       type: object
       properties:
-        data:
-          type: array
-          items:
-            $ref: '#/components/schemas/RowData'
-        nextToken:
-          type: integer
-          format: int64
-        resultSchema:
-          $ref: '#/components/schemas/ResolvedSchema'
-        resultType:
-          $ref: '#/components/schemas/ResultType'
-    DataType:
+        sessionHandle:
+          type: string
+    OperationHandle:
+      type: object
+      properties:
+        identifier:
+          type: string
+          format: uuid
+    OperationStatusResponseBody:
+      type: object
+      properties:
+        status:
+          type: string
+    ResolvedExpression:
       type: object
       properties:
         children:
           type: array
           items:
-            $ref: '#/components/schemas/DataType'
-        logicalType:
-          $ref: '#/components/schemas/LogicalType'
+            $ref: '#/components/schemas/Expression'
+        outputDataType:
+          $ref: '#/components/schemas/DataType'
+        resolvedChildren:
+          type: array
+          items:
+            $ref: '#/components/schemas/ResolvedExpression'
     ResolvedSchema:
       type: object
       properties:
@@ -438,45 +427,37 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/WatermarkSpec'
-    GetSessionConfigResponseBody:
+    ResourceID:
+      pattern: "[0-9a-f]{32}"
+      type: string
+    ResultSet:
       type: object
       properties:
-        properties:
-          type: object
-          additionalProperties:
-            type: string
-    SerializedThrowable:
-      type: object
-      properties:
-        serialized-throwable:
-          type: string
-          format: binary
-    GetApiVersionResponseBody:
-      type: object
-      properties:
-        versions:
+        data:
           type: array
           items:
-            type: string
-    OperationStatusResponseBody:
-      type: object
-      properties:
-        status:
-          type: string
-    SessionHandle:
-      type: object
-      properties:
-        identifier:
-          type: string
-          format: uuid
+            $ref: '#/components/schemas/RowData'
+        nextToken:
+          type: integer
+          format: int64
+        resultSchema:
+          $ref: '#/components/schemas/ResolvedSchema'
+        resultType:
+          $ref: '#/components/schemas/ResultType'
     ResultType:
       type: string
       enum:
       - NOT_READY
       - PAYLOAD
       - EOS
-    Expression:
+    RowData:
       type: object
+      properties:
+        arity:
+          type: integer
+          format: int32
+        rowKind:
+          $ref: '#/components/schemas/RowKind'
     RowKind:
       type: string
       enum:
@@ -484,19 +465,38 @@ components:
       - UPDATE_BEFORE
       - UPDATE_AFTER
       - DELETE
-    OpenSessionResponseBody:
+    SerializedThrowable:
       type: object
       properties:
-        sessionHandle:
+        serialized-throwable:
           type: string
-    ConstraintType:
-      type: string
-      enum:
-      - PRIMARY_KEY
-      - UNIQUE_KEY
-    IntermediateDataSetID:
+          format: binary
+    SessionHandle:
+      type: object
+      properties:
+        identifier:
+          type: string
+          format: uuid
+    TriggerId:
       pattern: "[0-9a-f]{32}"
       type: string
-    JobID:
-      pattern: "[0-9a-f]{32}"
-      type: string
+    UniqueConstraint:
+      type: object
+      properties:
+        columns:
+          type: array
+          items:
+            type: string
+        enforced:
+          type: boolean
+        name:
+          type: string
+        type:
+          $ref: '#/components/schemas/ConstraintType'
+    WatermarkSpec:
+      type: object
+      properties:
+        rowtimeAttribute:
+          type: string
+        watermarkExpression:
+          $ref: '#/components/schemas/ResolvedExpression'
