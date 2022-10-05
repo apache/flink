@@ -20,6 +20,7 @@ package org.apache.flink.tools.ci.licensecheck;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.tools.ci.utils.dependency.DependencyParser;
+import org.apache.flink.tools.ci.utils.deploy.DeployParser;
 import org.apache.flink.tools.ci.utils.notice.NoticeContents;
 import org.apache.flink.tools.ci.utils.notice.NoticeParser;
 import org.apache.flink.tools.ci.utils.shared.Dependency;
@@ -42,7 +43,6 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -69,19 +69,6 @@ public class NoticeFileChecker {
             Pattern.compile(".*Including ([^:]+):([^:]+):jar:([^ ]+) in the shaded jar");
 
     // Examples:
-    //
-    // Deployment on CI with alternative repo
-    // [INFO] --- maven-deploy-plugin:2.8.2:deploy (default-deploy) @ flink-parent ---
-    // [INFO] Using alternate deployment repository.../tmp/flink-validation-deployment
-    //
-    // Skipped deployment:
-    // [INFO] --- maven-deploy-plugin:2.8.2:deploy (default-deploy) @ flink-parent ---
-    // [INFO] Skipping artifact deployment
-    private static final Pattern DEPLOY_MODULE_PATTERN =
-            Pattern.compile(
-                    ".maven-deploy-plugin:.*:deploy .* @ (?<module>[^ _]+)(_[0-9.]+)? --.*");
-
-    // Examples:
     // "- org.apache.htrace:htrace-core:3.1.0-incubating"
     // or
     // "This project bundles "net.jcip:jcip-annotations:1.0".
@@ -96,7 +83,7 @@ public class NoticeFileChecker {
                         parseModulesFromBuildResult(buildResult),
                         DependencyParser.parseDependencyCopyOutput(buildResult.toPath()));
 
-        final Set<String> deployedModules = parseDeployedModulesFromBuildResult(buildResult);
+        final Set<String> deployedModules = DeployParser.parseDeployOutput(buildResult);
 
         LOG.info(
                 "Extracted "
@@ -370,25 +357,6 @@ public class NoticeFileChecker {
             }
         }
         return result;
-    }
-
-    private static Set<String> parseDeployedModulesFromBuildResult(File buildResult)
-            throws IOException {
-        final Set<String> deployedModules = new HashSet<>();
-        try (Stream<String> linesStream = Files.lines(buildResult.toPath())) {
-            final Iterator<String> lines = linesStream.iterator();
-            while (lines.hasNext()) {
-                final String line = lines.next();
-                final Matcher matcher = DEPLOY_MODULE_PATTERN.matcher(line);
-                if (matcher.find()) {
-                    final String module = matcher.group("module");
-                    if (lines.hasNext() && !lines.next().contains("Skipping artifact deployment")) {
-                        deployedModules.add(module);
-                    }
-                }
-            }
-        }
-        return deployedModules;
     }
 
     private static List<String> loadFromResources(String fileName) {
