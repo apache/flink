@@ -167,13 +167,16 @@ public class NoticeFileChecker {
         Set<String> shadingModules = new HashSet<>(modulesWithShadedDependencies.keys());
         shadingModules.removeAll(modulesWithNoticeFile);
         for (String moduleWithoutNotice : shadingModules) {
-            LOG.error(
-                    "Module {} is missing a NOTICE file. It has shaded dependencies: {}",
-                    moduleWithoutNotice,
-                    modulesWithShadedDependencies.get(moduleWithoutNotice).stream()
-                            .map(Dependency::toString)
-                            .collect(Collectors.joining("\n\t", "\n\t", "")));
-            severeIssueCount++;
+            if (modulesWithShadedDependencies.get(moduleWithoutNotice).stream()
+                    .anyMatch(dependency -> !dependency.getGroupId().equals("org.apache.flink"))) {
+                LOG.error(
+                        "Module {} is missing a NOTICE file. It has shaded dependencies: {}",
+                        moduleWithoutNotice,
+                        modulesWithShadedDependencies.get(moduleWithoutNotice).stream()
+                                .map(Dependency::toString)
+                                .collect(Collectors.joining("\n\t", "\n\t", "")));
+                severeIssueCount++;
+            }
         }
         return severeIssueCount;
     }
@@ -257,7 +260,12 @@ public class NoticeFileChecker {
 
             // find all dependencies missing from NOTICE file
             Collection<Dependency> expectedDependencies =
-                    modulesWithShadedDependencies.get(moduleName);
+                    modulesWithShadedDependencies.get(moduleName).stream()
+                            .filter(
+                                    dependency ->
+                                            !dependency.getGroupId().equals("org.apache.flink"))
+                            .collect(Collectors.toList());
+            ;
             for (Dependency expectedDependency : expectedDependencies) {
                 if (!declaredDependencies.contains(expectedDependency)) {
                     addProblem(
@@ -344,11 +352,9 @@ public class NoticeFileChecker {
                         String groupId = includeMatcher.group(1);
                         String artifactId = includeMatcher.group(2);
                         String version = includeMatcher.group(3);
-                        if (!"org.apache.flink".equals(groupId)) {
-                            result.put(
-                                    currentShadeModule,
-                                    Dependency.create(groupId, artifactId, version));
-                        }
+                        result.put(
+                                currentShadeModule,
+                                Dependency.create(groupId, artifactId, version));
                     }
                 }
                 if (line.contains("Replacing original artifact with shaded artifact")) {
