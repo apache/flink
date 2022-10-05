@@ -165,7 +165,7 @@ under the License.
 			Starting Hadoop 3, org.apache.kerby will be used instead of MiniKDC. We may have
 			to revisit the impact at that time.
 		-->
-		<minikdc.version>3.2.0</minikdc.version>
+		<minikdc.version>3.2.4</minikdc.version>
 		<hive.version>2.3.9</hive.version>
 		<orc.version>1.5.6</orc.version>
 		<!--
