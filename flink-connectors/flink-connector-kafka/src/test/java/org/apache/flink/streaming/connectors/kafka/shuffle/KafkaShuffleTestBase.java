@@ -21,6 +21,8 @@ import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.api.java.tuple.Tuple3;
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.datastream.DataStream;
@@ -34,7 +36,6 @@ import org.apache.flink.streaming.connectors.kafka.FlinkKafkaProducer;
 import org.apache.flink.streaming.connectors.kafka.KafkaConsumerTestBase;
 import org.apache.flink.streaming.connectors.kafka.KafkaProducerTestBase;
 import org.apache.flink.streaming.connectors.kafka.KafkaTestEnvironmentImpl;
-import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicPartition;
 import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicPartitionAssigner;
 import org.apache.flink.test.util.SuccessException;
 import org.apache.flink.util.Collector;
@@ -168,6 +169,7 @@ public class KafkaShuffleTestBase extends KafkaConsumerTestBase {
         private final KeySelector<Tuple3<Integer, Long, Integer>, Tuple> keySelector;
         private final int numberOfPartitions;
         private final String topic;
+        private KeyGroupRange keyGroupRange;
 
         private int previousPartition;
 
@@ -182,23 +184,44 @@ public class KafkaShuffleTestBase extends KafkaConsumerTestBase {
         }
 
         @Override
+        public void open(Configuration parameters) throws Exception {
+            super.open(parameters);
+            this.keyGroupRange =
+                    KeyGroupRangeAssignment.computeKeyGroupRangeForOperatorIndex(
+                            getRuntimeContext().getMaxNumberOfParallelSubtasks(),
+                            numberOfPartitions,
+                            getRuntimeContext().getIndexOfThisSubtask());
+        }
+
+        @Override
         public void processElement(
                 Tuple3<Integer, Long, Integer> in,
                 Context ctx,
                 Collector<Tuple3<Integer, Long, Integer>> out)
                 throws Exception {
-            int expectedPartition =
+            int expectedSubtask =
                     KeyGroupRangeAssignment.assignKeyToParallelOperator(
                             keySelector.getKey(in), numberOfPartitions, numberOfPartitions);
-            int indexOfThisSubtask = getRuntimeContext().getIndexOfThisSubtask();
-            KafkaTopicPartition partition = new KafkaTopicPartition(topic, expectedPartition);
-
+            int expectedPartition = -1;
             // This is how Kafka assign partition to subTask;
+            for (int i = 0; i < numberOfPartitions; i++) {
+                if (KafkaTopicPartitionAssigner.assign(topic, i, numberOfPartitions)
+                        == expectedSubtask) {
+                    expectedPartition = i;
+                }
+            }
+            int indexOfThisSubtask = getRuntimeContext().getIndexOfThisSubtask();
+
             boolean rightAssignment =
-                    KafkaTopicPartitionAssigner.assign(partition, numberOfPartitions)
-                            == indexOfThisSubtask;
+                    (expectedSubtask == indexOfThisSubtask)
+                            && keyGroupRange.contains(
+                                    KeyGroupRangeAssignment.assignToKeyGroup(
+                                            keySelector.getKey(in),
+                                            getRuntimeContext().getMaxNumberOfParallelSubtasks()));
             boolean samePartition =
-                    (previousPartition == expectedPartition) || (previousPartition == -1);
+                    (expectedPartition != -1)
+                            && ((previousPartition == expectedPartition)
+                                    || (previousPartition == -1));
             previousPartition = expectedPartition;
 
             if (!(rightAssignment && samePartition)) {
