@@ -126,7 +126,34 @@ public class NoticeFileChecker {
         final Set<String> modulesSkippingDeployment =
                 new HashSet<>(modulesWithBundledDependencies.keySet());
         modulesSkippingDeployment.removeAll(deployedModules);
-        modulesSkippingDeployment.forEach(modulesWithBundledDependencies::removeAll);
+
+        LOG.debug(
+                "The following {} modules are skipping deployment: {}",
+                modulesSkippingDeployment.size(),
+                modulesSkippingDeployment.stream()
+                        .sorted()
+                        .collect(Collectors.joining("\n\t", "\n\t", "")));
+
+        for (String moduleSkippingDeployment : modulesSkippingDeployment) {
+            // TODO: this doesn't work for modules requiring a NOTICE that are bundled indirectly
+            // TODO: via another non-deployed module
+            boolean bundledByDeployedModule =
+                    modulesWithBundledDependencies.entries().stream()
+                            .filter(
+                                    entry ->
+                                            entry.getValue()
+                                                    .getArtifactId()
+                                                    .equals(moduleSkippingDeployment))
+                            .anyMatch(entry -> !modulesSkippingDeployment.contains(entry.getKey()));
+
+            if (!bundledByDeployedModule) {
+                modulesWithBundledDependencies.removeAll(moduleSkippingDeployment);
+            } else {
+                LOG.debug(
+                        "Including module {} in license checks, despite not being deployed, because it is bundled by another deployed module.",
+                        moduleSkippingDeployment);
+            }
+        }
 
         // check that all required NOTICE files exists
         severeIssueCount +=
@@ -265,7 +292,7 @@ public class NoticeFileChecker {
                                     dependency ->
                                             !dependency.getGroupId().equals("org.apache.flink"))
                             .collect(Collectors.toList());
-            ;
+
             for (Dependency expectedDependency : expectedDependencies) {
                 if (!declaredDependencies.contains(expectedDependency)) {
                     addProblem(
