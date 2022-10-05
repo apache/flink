@@ -71,6 +71,8 @@ public class SQLClientSchemaRegistryITCase {
     private static final Path sqlToolBoxJar = ResourceTestUtils.getResource(".*SqlToolbox.jar");
     private final Path sqlConnectorKafkaJar = ResourceTestUtils.getResource(".*kafka.jar");
 
+    private final Path sqlGuavaJar = ResourceTestUtils.getResource(".*guava-31.1-jre.jar");
+
     @ClassRule public static final Network NETWORK = Network.newNetwork();
 
     @ClassRule public static final Timeout TIMEOUT = new Timeout(10, TimeUnit.MINUTES);
@@ -254,7 +256,7 @@ public class SQLClientSchemaRegistryITCase {
         flink.submitSQLJob(
                 new SQLJobSubmission.SQLJobSubmissionBuilder(sqlLines)
                         .addJars(
-                                sqlAvroJar, sqlAvroRegistryJar, sqlConnectorKafkaJar, sqlToolBoxJar)
+                                sqlAvroJar, sqlAvroRegistryJar, sqlConnectorKafkaJar, sqlToolBoxJar, sqlGuavaJar)
                         .build());
     }
 }
