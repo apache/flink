@@ -371,7 +371,11 @@ public class OpenApiSpecGenerator {
                                     new Content()
                                             .addMediaType(
                                                     "application/x-java-archive",
-                                                    new MediaType())));
+                                                    new MediaType()
+                                                            .schema(
+                                                                    new Schema<>()
+                                                                            .type("string")
+                                                                            .format("binary")))));
         }
 
         // TODO: unhack

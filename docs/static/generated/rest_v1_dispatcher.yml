@@ -90,7 +90,10 @@ paths:
         \ http://hostname:port/jars/upload'."
       requestBody:
         content:
-          application/x-java-archive: {}
+          application/x-java-archive:
+            schema:
+              type: string
+              format: binary
         required: true
       responses:
         "200":
