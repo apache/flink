@@ -2373,6 +2373,18 @@ components:
       - FAILED
       - RECONCILING
       - INITIALIZING
+    CurrentAttempts:
+      type: object
+      properties:
+        representativeAttempt:
+          type: integer
+          format: int32
+        currentAttempts:
+          uniqueItems: true
+          type: array
+          items:
+            type: integer
+            format: int32
     ProcessingMode:
       type: string
       enum:
@@ -2770,8 +2782,7 @@ components:
           additionalProperties:
             type: object
             additionalProperties:
-              type: integer
-              format: int32
+              $ref: '#/components/schemas/CurrentAttempts'
     ThreadInfo:
       type: object
       properties:

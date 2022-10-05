@@ -267,12 +267,12 @@ components:
       properties:
         typeRoot:
           $ref: '#/components/schemas/LogicalTypeRoot'
-        nullable:
-          type: boolean
         children:
           type: array
           items:
             $ref: '#/components/schemas/LogicalType'
+        nullable:
+          type: boolean
     UniqueConstraint:
       type: object
       properties:
@@ -353,11 +353,11 @@ components:
     RowData:
       type: object
       properties:
-        rowKind:
-          $ref: '#/components/schemas/RowKind'
         arity:
           type: integer
           format: int32
+        rowKind:
+          $ref: '#/components/schemas/RowKind'
     Column:
       type: object
       properties:
@@ -422,10 +422,6 @@ components:
             $ref: '#/components/schemas/WatermarkSpec'
         primaryKey:
           $ref: '#/components/schemas/UniqueConstraint'
-        columnNames:
-          type: array
-          items:
-            type: string
         primaryKeyIndexes:
           type: array
           items:
@@ -438,6 +434,10 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/DataType'
+        columnNames:
+          type: array
+          items:
+            type: string
     GetSessionConfigResponseBody:
       type: object
       properties:
