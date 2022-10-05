@@ -115,6 +115,26 @@ public class RemoteExecutorITCase {
     }
 
     @Test
+    public void testKeepingAlive() throws Exception {
+        long lastAccessTime =
+                SQL_GATEWAY_SERVICE_EXTENSION
+                        .getSessionManager()
+                        .getSession(sessionHandle)
+                        .getLastAccessTime();
+
+        // Wait to trigger heartbeat
+        Thread.sleep(20_000L);
+
+        assertThat(
+                        SQL_GATEWAY_SERVICE_EXTENSION
+                                        .getSessionManager()
+                                        .getSession(sessionHandle)
+                                        .getLastAccessTime()
+                                > lastAccessTime)
+                .isTrue();
+    }
+
+    @Test
     @Timeout(value = testMethodTimeout, unit = TimeUnit.MILLISECONDS)
     public void testStreamQueryExecutionChangelog() throws Exception {
         // start job and retrieval

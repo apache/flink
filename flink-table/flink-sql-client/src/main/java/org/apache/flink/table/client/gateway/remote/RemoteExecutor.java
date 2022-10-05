@@ -42,6 +42,7 @@ import org.apache.flink.table.gateway.api.session.SessionHandle;
 import org.apache.flink.table.gateway.rest.header.session.CloseSessionHeaders;
 import org.apache.flink.table.gateway.rest.header.session.GetSessionConfigHeaders;
 import org.apache.flink.table.gateway.rest.header.session.OpenSessionHeaders;
+import org.apache.flink.table.gateway.rest.header.session.TriggerSessionHeartbeatHeaders;
 import org.apache.flink.table.gateway.rest.header.statement.ExecuteStatementHeaders;
 import org.apache.flink.table.gateway.rest.header.statement.FetchResultsHeaders;
 import org.apache.flink.table.gateway.rest.message.session.CloseSessionResponseBody;
@@ -84,6 +85,7 @@ public class RemoteExecutor {
 
     private final RestClient restClient;
     private final ResultStore resultStore;
+    private final KeepingAliveThread keepingAliveThread;
 
     private String sessionHandleId;
     private SessionHandle sessionHandle;
@@ -105,6 +107,7 @@ public class RemoteExecutor {
             throw new SqlClientException("Cannot get rest client.", e);
         }
         this.resultStore = new ResultStore();
+        this.keepingAliveThread = new KeepingAliveThread(10_000L);
     }
 
     public void start() throws SqlClientException {
@@ -125,6 +128,7 @@ public class RemoteExecutor {
         }
         sessionHandle = new SessionHandle(UUID.fromString(sessionHandleId));
         sessionMessageParametersInstance = new SessionMessageParameters(sessionHandle);
+        keepingAliveThread.start();
     }
 
     public void close() throws SqlClientException {
@@ -162,6 +166,8 @@ public class RemoteExecutor {
                     t);
             // ignore any throwable to keep the cleanup running
         }
+
+        keepingAliveThread.interrupt();
     }
 
     public Map<String, String> getSessionConfig() throws SqlClientException {
@@ -364,11 +370,6 @@ public class RemoteExecutor {
         return Long.valueOf(split[split.length - 1]);
     }
 
-    @VisibleForTesting
-    public SessionHandle getSessionHandle() {
-        return sessionHandle;
-    }
-
     private boolean isQuery(String sql) {
         sql = sql.toUpperCase();
         return sql.startsWith("SELECT ");
@@ -387,5 +388,36 @@ public class RemoteExecutor {
         resultWrapper.setConfig(configuration);
 
         resultStore.storeResult(resultId, result);
+    }
+
+    @VisibleForTesting
+    public SessionHandle getSessionHandle() {
+        return sessionHandle;
+    }
+
+    /** Thread to keep connection to SQL gateway alive. */
+    private class KeepingAliveThread extends Thread {
+        private final long interval;
+
+        private KeepingAliveThread(long interval) {
+            this.interval = interval;
+        }
+
+        @Override
+        @SuppressWarnings("BusyWait")
+        public void run() {
+            while (true) {
+                try {
+                    Thread.sleep(interval);
+                    sendRequest(
+                            TriggerSessionHeartbeatHeaders.getInstance(),
+                            sessionMessageParametersInstance,
+                            EmptyRequestBody.getInstance());
+                } catch (Exception e) {
+                    LOG.warn("Unexpected error occurs when sending heart beat message.", e);
+                    // ignore
+                }
+            }
+        }
     }
 }
