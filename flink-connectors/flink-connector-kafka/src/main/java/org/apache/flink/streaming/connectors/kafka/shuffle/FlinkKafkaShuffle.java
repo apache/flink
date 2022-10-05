@@ -343,7 +343,9 @@ public class FlinkKafkaShuffle {
         int numberOfPartitions =
                 PropertiesUtil.getInt(kafkaProperties, PARTITION_NUMBER, Integer.MIN_VALUE);
         DataStream<T> outputDataStream =
-                env.addSource(kafkaConsumer).setParallelism(numberOfPartitions);
+                env.addSource(kafkaConsumer)
+                        .setParallelism(numberOfPartitions)
+                        .setMaxParallelism(numberOfPartitions);
 
         return DataStreamUtils.reinterpretAsKeyedStream(outputDataStream, keySelector);
     }
