@@ -88,9 +88,9 @@ public class NoticeFileChecker {
         LOG.info(
                 "Extracted "
                         + deployedModules.size()
-                        + " modules that were deployed of which "
+                        + " modules that were deployed and "
                         + modulesWithBundledDependencies.keySet().size()
-                        + " bundle dependencies with a total of "
+                        + " modules which bundle dependencies with a total of "
                         + modulesWithBundledDependencies.values().size()
                         + " dependencies");
 
