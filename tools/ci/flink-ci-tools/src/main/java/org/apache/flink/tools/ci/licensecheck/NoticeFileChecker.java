@@ -90,7 +90,6 @@ public class NoticeFileChecker {
                     "- ([^ :]+):([^:]+):([^ ]+)($| )|.*bundles \"([^:]+):([^:]+):([^\"]+)\".*");
 
     static int run(File buildResult, Path root) throws IOException {
-        int severeIssueCount = 0;
         // parse included dependencies from build output
         final Multimap<String, Dependency> modulesWithBundledDependencies =
                 combine(
@@ -108,21 +107,51 @@ public class NoticeFileChecker {
                         + modulesWithBundledDependencies.values().size()
                         + " dependencies");
 
-        final HashSet<String> moduleSkippingDeployment =
-                new HashSet<>(modulesWithBundledDependencies.keySet());
-        moduleSkippingDeployment.removeAll(deployedModules);
-        moduleSkippingDeployment.forEach(modulesWithBundledDependencies::removeAll);
-
         // find modules producing a shaded-jar
         List<Path> noticeFiles = findNoticeFiles(root);
         LOG.info("Found {} NOTICE files to check", noticeFiles.size());
 
+        final Map<String, Optional<NoticeContents>> moduleToNotice =
+                noticeFiles.stream()
+                        .collect(
+                                Collectors.toMap(
+                                        NoticeFileChecker::getModuleFromNoticeFile,
+                                        noticeFile -> {
+                                            try {
+                                                return NoticeParser.parseNoticeFile(noticeFile);
+                                            } catch (IOException e) {
+                                                // some machine issue
+                                                throw new RuntimeException(e);
+                                            }
+                                        }));
+
+        return run(modulesWithBundledDependencies, deployedModules, moduleToNotice);
+    }
+
+    @VisibleForTesting
+    static int run(
+            Multimap<String, Dependency> modulesWithBundledDependencies,
+            Set<String> deployedModules,
+            Map<String, Optional<NoticeContents>> noticeFiles)
+            throws IOException {
+        int severeIssueCount = 0;
+
+        final Set<String> modulesSkippingDeployment =
+                new HashSet<>(modulesWithBundledDependencies.keySet());
+        modulesSkippingDeployment.removeAll(deployedModules);
+        modulesSkippingDeployment.forEach(modulesWithBundledDependencies::removeAll);
+
         // check that all required NOTICE files exists
-        severeIssueCount += ensureRequiredNoticeFiles(modulesWithBundledDependencies, noticeFiles);
+        severeIssueCount +=
+                ensureRequiredNoticeFiles(modulesWithBundledDependencies, noticeFiles.keySet());
 
         // check each NOTICE file
-        for (Path noticeFile : noticeFiles) {
-            severeIssueCount += checkNoticeFile(modulesWithBundledDependencies, noticeFile);
+        for (Map.Entry<String, Optional<NoticeContents>> noticeFile : noticeFiles.entrySet()) {
+            severeIssueCount +=
+                    checkNoticeFileAndLogProblems(
+                            modulesWithBundledDependencies,
+                            noticeFile.getKey(),
+                            noticeFile.getValue().orElse(null));
         }
 
         return severeIssueCount;
@@ -145,13 +174,11 @@ public class NoticeFileChecker {
     }
 
     private static int ensureRequiredNoticeFiles(
-            Multimap<String, Dependency> modulesWithShadedDependencies, List<Path> noticeFiles) {
+            Multimap<String, Dependency> modulesWithShadedDependencies,
+            Collection<String> modulesWithNoticeFile) {
         int severeIssueCount = 0;
         Set<String> shadingModules = new HashSet<>(modulesWithShadedDependencies.keys());
-        shadingModules.removeAll(
-                noticeFiles.stream()
-                        .map(NoticeFileChecker::getModuleFromNoticeFile)
-                        .collect(Collectors.toList()));
+        shadingModules.removeAll(modulesWithNoticeFile);
         for (String moduleWithoutNotice : shadingModules) {
             LOG.error(
                     "Module {} is missing a NOTICE file. It has shaded dependencies: {}",
@@ -175,16 +202,14 @@ public class NoticeFileChecker {
         return moduleDirectory.getFileName().toString();
     }
 
-    private static int checkNoticeFile(
-            Multimap<String, Dependency> modulesWithShadedDependencies, Path noticeFile)
+    private static int checkNoticeFileAndLogProblems(
+            Multimap<String, Dependency> modulesWithShadedDependencies,
+            String moduleName,
+            @Nullable NoticeContents noticeContents)
             throws IOException {
-        String moduleName = getModuleFromNoticeFile(noticeFile);
-
-        Optional<NoticeContents> noticeContents = NoticeParser.parseNoticeFile(noticeFile);
 
         final Map<Severity, List<String>> problemsBySeverity =
-                checkNoticeFile(
-                        modulesWithShadedDependencies, moduleName, noticeContents.orElse(null));
+                checkNoticeFile(modulesWithShadedDependencies, moduleName, noticeContents);
 
         final List<String> severeProblems =
                 problemsBySeverity.getOrDefault(Severity.CRITICAL, Collections.emptyList());
