@@ -31,6 +31,7 @@ under the License.
 
 		<suppress files="NoticeFileChecker.java" checks="Regexp"/>
 		<suppress files="NoticeFileChecker.java" checks="IllegalImport"/>
+		<suppress files="NoticeFileCheckerTest.java" checks="IllegalImport"/>
 
 		<suppress files="JoinOperator.java" checks="FileLength"/>
 		<suppress files="WindowOperatorTest.java" checks="FileLength"/>
