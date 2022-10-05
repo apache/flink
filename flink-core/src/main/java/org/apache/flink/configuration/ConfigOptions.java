@@ -298,8 +298,9 @@ public class ConfigOptions {
         }
 
         /** Defines that the option's type should be a list of previously defined atomic type. */
-        public ListConfigOptionBuilder<Map> asList() {
-            return new ListConfigOptionBuilder<>(key, Map.class);
+        @SuppressWarnings("rawtypes")
+        public ListConfigOptionBuilder<Map<String, V>> asList() {
+            return (ListConfigOptionBuilder) new ListConfigOptionBuilder<>(key, Map.class);
         }
 
         public final ConfigOption<Map<String, V>> defaultValue(Map<String, V> defaultMap) {
