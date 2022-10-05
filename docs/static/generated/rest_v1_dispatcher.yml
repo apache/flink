@@ -2491,7 +2491,7 @@ components:
       properties:
         status:
           $ref: '#/components/schemas/VertexBackPressureStatus'
-        backpressure-level:
+        backpressureLevel:
           $ref: '#/components/schemas/VertexBackPressureLevel'
         end-timestamp:
           type: integer
@@ -3106,7 +3106,7 @@ components:
         attempt-number:
           type: integer
           format: int32
-        backpressure-level:
+        backpressureLevel:
           $ref: '#/components/schemas/VertexBackPressureLevel'
         ratio:
           type: number
