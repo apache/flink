@@ -252,52 +252,52 @@ components:
     ResolvedExpression:
       type: object
       properties:
+        children:
+          type: array
+          items:
+            $ref: '#/components/schemas/Expression'
         outputDataType:
           $ref: '#/components/schemas/DataType'
         resolvedChildren:
           type: array
           items:
             $ref: '#/components/schemas/ResolvedExpression'
-        children:
-          type: array
-          items:
-            $ref: '#/components/schemas/Expression'
     LogicalType:
       type: object
       properties:
-        typeRoot:
-          $ref: '#/components/schemas/LogicalTypeRoot'
         children:
           type: array
           items:
             $ref: '#/components/schemas/LogicalType'
         nullable:
           type: boolean
+        typeRoot:
+          $ref: '#/components/schemas/LogicalTypeRoot'
     UniqueConstraint:
       type: object
       properties:
-        name:
-          type: string
-        enforced:
-          type: boolean
         columns:
           type: array
           items:
             type: string
+        enforced:
+          type: boolean
+        name:
+          type: string
         type:
           $ref: '#/components/schemas/ConstraintType'
     ExecuteStatementRequestBody:
       type: object
       properties:
-        statement:
-          type: string
-        executionTimeout:
-          type: integer
-          format: int64
         executionConfig:
           type: object
           additionalProperties:
             type: string
+        executionTimeout:
+          type: integer
+          format: int64
+        statement:
+          type: string
     LogicalTypeRoot:
       type: string
       enum:
@@ -344,12 +344,12 @@ components:
     FetchResultsResponseBody:
       type: object
       properties:
-        results:
-          $ref: '#/components/schemas/ResultSet'
-        resultType:
-          type: string
         nextResultUri:
           type: string
+        resultType:
+          type: string
+        results:
+          $ref: '#/components/schemas/ResultSet'
     RowData:
       type: object
       properties:
@@ -361,15 +361,15 @@ components:
     Column:
       type: object
       properties:
-        name:
+        comment:
           type: string
         dataType:
           $ref: '#/components/schemas/DataType'
-        comment:
+        name:
           type: string
-        physical:
-          type: boolean
         persisted:
+          type: boolean
+        physical:
           type: boolean
     TriggerId:
       pattern: "[0-9a-f]{32}"
@@ -380,53 +380,38 @@ components:
     OpenSessionRequestBody:
       type: object
       properties:
-        sessionName:
-          type: string
         properties:
           type: object
           additionalProperties:
             type: string
+        sessionName:
+          type: string
     ResultSet:
       type: object
       properties:
-        resultType:
-          $ref: '#/components/schemas/ResultType'
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/RowData'
         nextToken:
           type: integer
           format: int64
         resultSchema:
           $ref: '#/components/schemas/ResolvedSchema'
-        data:
-          type: array
-          items:
-            $ref: '#/components/schemas/RowData'
+        resultType:
+          $ref: '#/components/schemas/ResultType'
     DataType:
       type: object
       properties:
-        logicalType:
-          $ref: '#/components/schemas/LogicalType'
         children:
           type: array
           items:
             $ref: '#/components/schemas/DataType'
+        logicalType:
+          $ref: '#/components/schemas/LogicalType'
     ResolvedSchema:
       type: object
       properties:
-        columns:
-          type: array
-          items:
-            $ref: '#/components/schemas/Column'
-        watermarkSpecs:
-          type: array
-          items:
-            $ref: '#/components/schemas/WatermarkSpec'
-        primaryKey:
-          $ref: '#/components/schemas/UniqueConstraint'
-        primaryKeyIndexes:
-          type: array
-          items:
-            type: integer
-            format: int32
         columnCount:
           type: integer
           format: int32
@@ -438,6 +423,21 @@ components:
           type: array
           items:
             type: string
+        columns:
+          type: array
+          items:
+            $ref: '#/components/schemas/Column'
+        primaryKey:
+          $ref: '#/components/schemas/UniqueConstraint'
+        primaryKeyIndexes:
+          type: array
+          items:
+            type: integer
+            format: int32
+        watermarkSpecs:
+          type: array
+          items:
+            $ref: '#/components/schemas/WatermarkSpec'
     GetSessionConfigResponseBody:
       type: object
       properties:

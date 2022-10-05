@@ -81,7 +81,9 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -135,8 +137,24 @@ public class OpenApiSpecGenerator {
         overrideIdSchemas(openApi);
         overrideSerializeThrowableSchema(openApi);
 
+        sortProperties(openApi);
+
         Files.deleteIfExists(outputFile);
         Files.write(outputFile, Yaml.pretty(openApi).getBytes(StandardCharsets.UTF_8));
+    }
+
+    @SuppressWarnings("rawtypes")
+    private static void sortProperties(OpenAPI openApi) {
+        for (Schema<?> schema : openApi.getComponents().getSchemas().values()) {
+            final Map<String, Schema> properties = schema.getProperties();
+            if (properties != null) {
+                final LinkedHashMap<String, Schema> sortedMap = new LinkedHashMap<>();
+                properties.entrySet().stream()
+                        .sorted(Map.Entry.comparingByKey())
+                        .forEach(entry -> sortedMap.put(entry.getKey(), entry.getValue()));
+                schema.setProperties(sortedMap);
+            }
+        }
     }
 
     private static boolean shouldBeDocumented(MessageHeaders spec) {
