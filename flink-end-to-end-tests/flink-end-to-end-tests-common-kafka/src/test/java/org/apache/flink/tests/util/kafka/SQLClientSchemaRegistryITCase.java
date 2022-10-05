@@ -256,7 +256,11 @@ public class SQLClientSchemaRegistryITCase {
         flink.submitSQLJob(
                 new SQLJobSubmission.SQLJobSubmissionBuilder(sqlLines)
                         .addJars(
-                                sqlAvroJar, sqlAvroRegistryJar, sqlConnectorKafkaJar, sqlToolBoxJar, sqlGuavaJar)
+                                sqlAvroJar,
+                                sqlAvroRegistryJar,
+                                sqlConnectorKafkaJar,
+                                sqlToolBoxJar,
+                                sqlGuavaJar)
                         .build());
     }
 }
