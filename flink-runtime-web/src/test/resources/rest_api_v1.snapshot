@@ -2516,7 +2516,7 @@
           "type" : "string",
           "enum" : [ "deprecated", "ok" ]
         },
-        "backpressure-level" : {
+        "backpressureLevel" : {
           "type" : "string",
           "enum" : [ "ok", "low", "high" ]
         },
@@ -2535,7 +2535,7 @@
               "attempt-number" : {
                 "type" : "integer"
               },
-              "backpressure-level" : {
+              "backpressureLevel" : {
                 "type" : "string",
                 "enum" : [ "ok", "low", "high" ]
               },
@@ -2554,9 +2554,17 @@
                   "type" : "object",
                   "$ref" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:JobVertexBackPressureInfo:SubtaskBackPressureInfo"
                 }
+              },
+              "backpressure-level" : {
+                "type" : "string",
+                "enum" : [ "ok", "low", "high" ]
               }
             }
           }
+        },
+        "backpressure-level" : {
+          "type" : "string",
+          "enum" : [ "ok", "low", "high" ]
         }
       }
     }
