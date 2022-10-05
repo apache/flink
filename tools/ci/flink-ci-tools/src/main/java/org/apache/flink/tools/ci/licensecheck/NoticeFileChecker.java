@@ -19,6 +19,8 @@
 package org.apache.flink.tools.ci.licensecheck;
 
 import org.apache.flink.tools.ci.utils.dependency.DependencyParser;
+import org.apache.flink.tools.ci.utils.notice.NoticeContents;
+import org.apache.flink.tools.ci.utils.notice.NoticeParser;
 import org.apache.flink.tools.ci.utils.shared.Dependency;
 
 import com.google.common.collect.ArrayListMultimap;
@@ -175,44 +177,32 @@ public class NoticeFileChecker {
         String moduleName = getModuleFromNoticeFile(noticeFile);
 
         // 1st line contains module name
-        List<String> noticeContents = Files.readAllLines(noticeFile);
+        NoticeContents noticeContents = NoticeParser.parseNoticeFile(noticeFile).orElse(null);
 
         final Map<Severity, List<String>> problemsBySeverity = new HashMap<>();
 
-        if (noticeContents.isEmpty()) {
+        if (noticeContents == null) {
             addProblem(problemsBySeverity, Severity.CRITICAL, "The NOTICE file was empty.");
         }
 
         // first line must be the module name.
-        if (!noticeContents.get(0).equals(moduleName)) {
+        if (!noticeContents.getNoticeModuleName().equals(moduleName)) {
             addProblem(
                     problemsBySeverity,
                     Severity.TOLERATED,
                     String.format(
                             "First line does not start with module name. firstLine=%s",
-                            noticeContents.get(0)));
+                            noticeContents.getNoticeModuleName()));
         }
 
         // collect all declared dependencies from NOTICE file
         Set<Dependency> declaredDependencies = new HashSet<>();
-        for (String line : noticeContents) {
-            Matcher noticeDependencyMatcher = NOTICE_DEPENDENCY_PATTERN.matcher(line);
-            if (noticeDependencyMatcher.find()) {
-                String groupId = noticeDependencyMatcher.group(1);
-                String artifactId = noticeDependencyMatcher.group(2);
-                String version = noticeDependencyMatcher.group(3);
-                if (groupId == null && artifactId == null && version == null) { // "bundles" case
-                    groupId = noticeDependencyMatcher.group(5);
-                    artifactId = noticeDependencyMatcher.group(6);
-                    version = noticeDependencyMatcher.group(7);
-                }
-                Dependency toAdd = Dependency.create(groupId, artifactId, version);
-                if (!declaredDependencies.add(toAdd)) {
-                    addProblem(
-                            problemsBySeverity,
-                            Severity.CRITICAL,
-                            String.format("Dependency %s is declared twice.", toAdd));
-                }
+        for (Dependency toAdd : noticeContents.getDeclaredDependencies()) {
+            if (!declaredDependencies.add(toAdd)) {
+                addProblem(
+                        problemsBySeverity,
+                        Severity.CRITICAL,
+                        String.format("Dependency %s is declared twice.", toAdd));
             }
         }
         // find all dependencies missing from NOTICE file
