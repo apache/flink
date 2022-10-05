@@ -242,7 +242,7 @@ public class JobVertexBackPressureInfo implements ResponseBody {
         DEPRECATED("deprecated"),
         OK("ok");
 
-        private String status;
+        private final String status;
 
         VertexBackPressureStatus(String status) {
             this.status = status;
@@ -261,7 +261,7 @@ public class JobVertexBackPressureInfo implements ResponseBody {
         LOW("low"),
         HIGH("high");
 
-        private String level;
+        private final String level;
 
         VertexBackPressureLevel(String level) {
             this.level = level;
