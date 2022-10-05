@@ -97,7 +97,10 @@ paths:
       operationId: uploadJar
       requestBody:
         content:
-          application/x-java-archive: {}
+          application/x-java-archive:
+            schema:
+              type: string
+              format: binary
         required: true
       responses:
         "200":
