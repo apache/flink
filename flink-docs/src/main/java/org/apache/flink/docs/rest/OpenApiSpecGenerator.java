@@ -138,6 +138,7 @@ public class OpenApiSpecGenerator {
         overrideSerializeThrowableSchema(openApi);
 
         sortProperties(openApi);
+        sortSchemas(openApi);
 
         Files.deleteIfExists(outputFile);
         Files.write(outputFile, Yaml.pretty(openApi).getBytes(StandardCharsets.UTF_8));
@@ -155,6 +156,17 @@ public class OpenApiSpecGenerator {
                 schema.setProperties(sortedMap);
             }
         }
+    }
+
+    @SuppressWarnings("rawtypes")
+    private static void sortSchemas(OpenAPI openApi) {
+        Components components = openApi.getComponents();
+        Map<String, Schema> schemas = components.getSchemas();
+        final LinkedHashMap<String, Schema> sortedSchemas = new LinkedHashMap<>();
+        schemas.entrySet().stream()
+                .sorted(Map.Entry.comparingByKey())
+                .forEach(entry -> sortedSchemas.put(entry.getKey(), entry.getValue()));
+        components.setSchemas(sortedSchemas);
     }
 
     private static boolean shouldBeDocumented(MessageHeaders spec) {
