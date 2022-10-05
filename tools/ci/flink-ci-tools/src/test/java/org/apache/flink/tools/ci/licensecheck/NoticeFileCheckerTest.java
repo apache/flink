@@ -24,12 +24,88 @@ import org.apache.flink.tools.ci.utils.shared.Dependency;
 import com.google.common.collect.ArrayListMultimap;
 import org.junit.jupiter.api.Test;
 
+import java.io.IOException;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.Optional;
+import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
 class NoticeFileCheckerTest {
+    @Test
+    void testRunHappyPath() throws IOException {
+        final String moduleName = "test";
+        final Dependency bundledDependency = Dependency.create("a", "b", "c");
+        final ArrayListMultimap<String, Dependency> bundleDependencies = ArrayListMultimap.create();
+        bundleDependencies.put(moduleName, bundledDependency);
+        final Set<String> deployedModules = Collections.singleton(moduleName);
+        final Optional<NoticeContents> noticeContents =
+                Optional.of(
+                        new NoticeContents(
+                                moduleName, Collections.singletonList(bundledDependency)));
+
+        assertThat(
+                        NoticeFileChecker.run(
+                                bundleDependencies,
+                                deployedModules,
+                                Collections.singletonMap(moduleName, noticeContents)))
+                .isEqualTo(0);
+    }
+
+    @Test
+    void testRunRejectsMissingNotice() throws IOException {
+        final String moduleName = "test";
+        final Dependency bundledDependency = Dependency.create("a", "b", "c");
+        final ArrayListMultimap<String, Dependency> bundleDependencies = ArrayListMultimap.create();
+        bundleDependencies.put(moduleName, bundledDependency);
+        final Set<String> deployedModules = Collections.singleton(moduleName);
+        final Optional<NoticeContents> missingNotice = Optional.empty();
+
+        assertThat(
+                        NoticeFileChecker.run(
+                                bundleDependencies,
+                                deployedModules,
+                                Collections.singletonMap(moduleName, missingNotice)))
+                .isEqualTo(1);
+    }
+
+    @Test
+    void testRunRejectsIncorrectNotice() throws IOException {
+        final String moduleName = "test";
+        final Dependency bundledDependency = Dependency.create("a", "b", "c");
+        final ArrayListMultimap<String, Dependency> bundleDependencies = ArrayListMultimap.create();
+        bundleDependencies.put(moduleName, bundledDependency);
+        final Set<String> deployedModules = Collections.singleton(moduleName);
+        final Optional<NoticeContents> emptyNotice =
+                Optional.of(new NoticeContents(moduleName, Collections.emptyList()));
+
+        assertThat(
+                        NoticeFileChecker.run(
+                                bundleDependencies,
+                                deployedModules,
+                                Collections.singletonMap(moduleName, emptyNotice)))
+                .isEqualTo(1);
+    }
+
+    @Test
+    void testRunSkipsNonDeployedModules() throws IOException {
+        final String moduleName = "test";
+        final Dependency bundledDependency = Dependency.create("a", "b", "c");
+        final ArrayListMultimap<String, Dependency> bundleDependencies = ArrayListMultimap.create();
+        bundleDependencies.put(moduleName, bundledDependency);
+        final Set<String> deployedModules = Collections.emptySet();
+        // this would usually be a problem, but since the module is not deployed it's OK!
+        final Optional<NoticeContents> emptyNotice =
+                Optional.of(new NoticeContents(moduleName, Collections.emptyList()));
+
+        assertThat(
+                        NoticeFileChecker.run(
+                                bundleDependencies,
+                                deployedModules,
+                                Collections.singletonMap(moduleName, emptyNotice)))
+                .isEqualTo(0);
+    }
 
     @Test
     void testCheckNoticeFileHappyPath() {
