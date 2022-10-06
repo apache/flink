@@ -275,6 +275,7 @@ class PyFlinkBatchExpressionTests(PyFlinkTestCase):
         self.assertEqual("fromUnixtime(1)", str(from_unixtime(1)))
         self.assertEqual("fromUnixtime(1, 'yy-MM-dd HH-mm-ss')",
                          str(from_unixtime(1, 'yy-MM-dd HH-mm-ss')))
+        self.assertEqual("unixTimestamp()", str(unix_timestamp()))
         self.assertEqual("unixTimestamp('2015-07-24 10:00:00')",
                          str(unix_timestamp('2015-07-24 10:00:00')))
         self.assertEqual("unixTimestamp('2015-07-24 10:00:00', 'yy-MM-dd HH-mm-ss')",

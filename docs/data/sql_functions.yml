@@ -491,10 +491,10 @@ temporal:
     table: fromUnixtime(NUMERIC[, STRING])
     description: Returns a representation of the numeric argument as a value in string format (default is 'yyyy-MM-dd HH:mm:ss'). numeric is an internal timestamp value representing seconds since '1970-01-01 00:00:00' UTC, such as produced by the UNIX_TIMESTAMP() function. The return value is expressed in the session time zone (specified in TableConfig). E.g., FROM_UNIXTIME(44) returns '1970-01-01 00:00:44' if in UTC time zone, but returns '1970-01-01 09:00:44' if in 'Asia/Tokyo' time zone.
   - sql: UNIX_TIMESTAMP()
-    table: unixtimestamp()
+    table: unixTimestamp()
     description: Gets current Unix timestamp in seconds. This function is not deterministic which means the value would be recalculated for each record.
   - sql: UNIX_TIMESTAMP(string1[, string2])
-    table: unixtimestamp(string1[, string2])
+    table: unixTimestamp(string1[, string2])
     description: 'Converts date time string string1 in format string2 (by default: yyyy-MM-dd HH:mm:ss if not specified) to Unix timestamp (in seconds), using the specified timezone in table config.'
   - sql: TO_DATE(string1[, string2])
     description: Converts a date string string1 with format string2 (by default 'yyyy-MM-dd') to a date.

@@ -1559,7 +1559,7 @@ public final class BuiltInFunctionDefinitions {
                                     sequence(
                                             logical(LogicalTypeFamily.CHARACTER_STRING),
                                             logical(LogicalTypeFamily.CHARACTER_STRING))))
-                    .outputTypeStrategy(nullableIfArgs(explicit(BIGINT())))
+                    .outputTypeStrategy(explicit(BIGINT().nullable()))
                     .build();
 
     public static final BuiltInFunctionDefinition TO_TIMESTAMP_LTZ =
