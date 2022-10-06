@@ -466,6 +466,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
                                             ExecutionCheckpointingOptions
                                                     .ENABLE_CHECKPOINTS_AFTER_TASKS_FINISH),
                             this::prepareInputSnapshot,
+                            configuration.getMaxConcurrentCheckpoints(),
                             BarrierAlignmentUtil.createRegisterTimerCallback(
                                     mainMailboxExecutor, systemTimerService));
             resourceCloser.registerCloseable(subtaskCheckpointCoordinator::close);

@@ -519,6 +519,17 @@ public class StreamConfig implements Serializable {
                 ExecutionCheckpointingOptions.ALIGNED_CHECKPOINT_TIMEOUT, alignedCheckpointTimeout);
     }
 
+    public void setMaxConcurrentCheckpoints(int maxConcurrentCheckpoints) {
+        config.setInteger(
+                ExecutionCheckpointingOptions.MAX_CONCURRENT_CHECKPOINTS, maxConcurrentCheckpoints);
+    }
+
+    public int getMaxConcurrentCheckpoints() {
+        return config.getInteger(
+                ExecutionCheckpointingOptions.MAX_CONCURRENT_CHECKPOINTS,
+                ExecutionCheckpointingOptions.MAX_CONCURRENT_CHECKPOINTS.defaultValue());
+    }
+
     /**
      * Sets the job vertex level non-chained outputs. The given output list must have the same order
      * with {@link JobVertex#getProducedDataSets()}.
