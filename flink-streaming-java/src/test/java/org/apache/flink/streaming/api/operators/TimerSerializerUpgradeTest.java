@@ -51,11 +51,6 @@ class TimerSerializerUpgradeTest
         return testSpecifications;
     }
 
-    private static TypeSerializer<TimerHeapInternalTimer<String, Integer>>
-            stringIntTimerSerializerSupplier() {
-        return new TimerSerializer<>(StringSerializer.INSTANCE, IntSerializer.INSTANCE);
-    }
-
     // ----------------------------------------------------------------------------------------------
     // Specification for "TimerSerializer"
     // ----------------------------------------------------------------------------------------------
