@@ -156,6 +156,7 @@ under the License.
 			<version>${project.version}</version>
 			<type>test-jar</type>
 		</dependency>
+		<!-- Needed by Schema Registry -->
 		<dependency>
 			<groupId>com.google.guava</groupId>
 			<artifactId>guava</artifactId>

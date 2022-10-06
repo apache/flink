@@ -71,7 +71,7 @@ public class SQLClientSchemaRegistryITCase {
     private static final Path sqlToolBoxJar = ResourceTestUtils.getResource(".*SqlToolbox.jar");
     private final Path sqlConnectorKafkaJar = ResourceTestUtils.getResource(".*kafka.jar");
 
-    private final Path sqlGuavaJar = ResourceTestUtils.getResource(".*guava.jar");
+    private final Path guavaJar = ResourceTestUtils.getResource(".*guava.jar");
 
     @ClassRule public static final Network NETWORK = Network.newNetwork();
 
@@ -260,7 +260,7 @@ public class SQLClientSchemaRegistryITCase {
                                 sqlAvroRegistryJar,
                                 sqlConnectorKafkaJar,
                                 sqlToolBoxJar,
-                                sqlGuavaJar)
+                                guavaJar)
                         .build());
     }
 }
