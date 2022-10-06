@@ -1,6 +1,6 @@
 openapi: 3.0.1
 info:
-  title: Flink JobManager REST API
+  title: Flink SQL Gateway REST API
   contact:
     email: user@flink.apache.org
   license:
