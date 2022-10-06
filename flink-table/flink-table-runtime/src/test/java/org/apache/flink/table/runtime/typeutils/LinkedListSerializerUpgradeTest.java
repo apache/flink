@@ -40,7 +40,6 @@ import static org.hamcrest.Matchers.is;
 public class LinkedListSerializerUpgradeTest
         extends TypeSerializerUpgradeTestBase<LinkedList<Long>, LinkedList<Long>> {
 
-    @SuppressWarnings("unchecked")
     public Collection<TestSpecification<?, ?>> createTestSpecifications() {
         return FlinkVersion.rangeOf(FlinkVersion.v1_13, CURRENT_VERSION).stream()
                 .map(
