@@ -103,7 +103,7 @@ public class KinesisProxyTest {
                 new SdkClientException(
                         "Unable to execute HTTP request",
                         new EOFException("SSL peer shut down incorrectly"));
-        assertThat(kinesisProxy.isRecoverableSdkClientException(ex)).isTrue();
+        assertTrue(kinesisProxy.isRecoverableSdkClientException(ex));
     }
 
     @Test
