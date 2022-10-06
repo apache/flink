@@ -879,6 +879,10 @@ class TemporalTypesTest extends ExpressionTestBase {
   @Test
   def testConvertTZ(): Unit = {
     testSqlApi("CONVERT_TZ('2018-03-14 11:00:00', 'UTC', 'Asia/Shanghai')", "2018-03-14 19:00:00")
+    testAllApis(
+      convertTz("2018-03-14 11:00:00", "UTC", "Asia/Shanghai"),
+      "CONVERT_TZ('2018-03-14 11:00:00', 'UTC', 'Asia/Shanghai')",
+      "2018-03-14 19:00:00")
   }
 
   @Test

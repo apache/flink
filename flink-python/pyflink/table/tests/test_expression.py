@@ -272,6 +272,8 @@ class PyFlinkBatchExpressionTests(PyFlinkTestCase):
                              TimePointUnit.DAY,
                              lit("2016-06-15").to_date,
                              lit("2016-06-18").to_date)))
+        self.assertEqual("convertTz('2018-03-14 11:00:00', 'UTC', 'Asia/Shanghai')",
+                         str(convert_tz("2018-03-14 11:00:00", "UTC", "Asia/Shanghai")))
         self.assertEqual("fromUnixtime(1)", str(from_unixtime(1)))
         self.assertEqual("fromUnixtime(1, 'yy-MM-dd HH-mm-ss')",
                          str(from_unixtime(1, 'yy-MM-dd HH-mm-ss')))
