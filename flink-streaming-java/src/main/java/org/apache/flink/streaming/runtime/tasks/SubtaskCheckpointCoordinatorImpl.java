@@ -77,7 +77,6 @@ class SubtaskCheckpointCoordinatorImpl implements SubtaskCheckpointCoordinator {
 
     private static final Logger LOG =
             LoggerFactory.getLogger(SubtaskCheckpointCoordinatorImpl.class);
-    private static final int DEFAULT_MAX_RECORD_ABORTED_CHECKPOINTS = 128;
 
     private static final int CHECKPOINT_EXECUTION_DELAY_LOG_THRESHOLD_MS = 30_000;
 
@@ -120,34 +119,6 @@ class SubtaskCheckpointCoordinatorImpl implements SubtaskCheckpointCoordinator {
      * {@link #alignmentTimer}.
      */
     private long alignmentCheckpointId;
-
-    SubtaskCheckpointCoordinatorImpl(
-            CheckpointStorageWorkerView checkpointStorage,
-            String taskName,
-            StreamTaskActionExecutor actionExecutor,
-            ExecutorService asyncOperationsThreadPool,
-            Environment env,
-            AsyncExceptionHandler asyncExceptionHandler,
-            boolean unalignedCheckpointEnabled,
-            boolean enableCheckpointAfterTasksFinished,
-            BiFunctionWithException<
-                            ChannelStateWriter, Long, CompletableFuture<Void>, CheckpointException>
-                    prepareInputSnapshot,
-            DelayableTimer registerTimer)
-            throws IOException {
-        this(
-                checkpointStorage,
-                taskName,
-                actionExecutor,
-                asyncOperationsThreadPool,
-                env,
-                asyncExceptionHandler,
-                unalignedCheckpointEnabled,
-                enableCheckpointAfterTasksFinished,
-                prepareInputSnapshot,
-                DEFAULT_MAX_RECORD_ABORTED_CHECKPOINTS,
-                registerTimer);
-    }
 
     SubtaskCheckpointCoordinatorImpl(
             CheckpointStorageWorkerView checkpointStorage,
