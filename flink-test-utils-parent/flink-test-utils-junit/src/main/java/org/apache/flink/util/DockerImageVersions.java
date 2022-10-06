@@ -30,6 +30,8 @@ public class DockerImageVersions {
 
     public static final String KAFKA = "confluentinc/cp-kafka:7.2.2";
 
+    public static final String SCHEMA_REGISTRY = "confluentinc/cp-schema-registry:7.2.2";
+
     public static final String RABBITMQ = "rabbitmq:3.9.8-management-alpine";
 
     public static final String KINESALITE = "instructure/kinesalite:latest";
