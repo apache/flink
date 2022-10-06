@@ -434,7 +434,23 @@ public final class Expressions {
     }
 
     /**
-     * Convert unix timestamp (seconds since '1970-01-01 00:00:00' UTC) to datetime string in the
+     * Converts a datetime dateStr (with default ISO timestamp format 'yyyy-MM-dd HH:mm:ss') from
+     * time zone tzFrom to time zone tzTo. The format of time zone should be either an abbreviation
+     * such as "PST", a full name such as "America/Los_Angeles", or a custom ID such as "GMT-08:00".
+     * E.g., convertTz('1970-01-01 00:00:00', 'UTC', 'America/Los_Angeles') returns '1969-12-31
+     * 16:00:00'.
+     *
+     * @param dateStr the date time string
+     * @param tzFrom the original time zone
+     * @param tzTo the target time zone
+     * @return The formatted timestamp as string.
+     */
+    public static ApiExpression convertTz(Object dateStr, Object tzFrom, Object tzTo) {
+        return apiCall(BuiltInFunctionDefinitions.CONVERT_TZ, dateStr, tzFrom, tzTo);
+    }
+
+    /**
+     * Converts unix timestamp (seconds since '1970-01-01 00:00:00' UTC) to datetime string in the
      * "yyyy-MM-dd HH:mm:ss" format.
      *
      * @param unixtime The unix timestamp with numeric type.
@@ -445,7 +461,7 @@ public final class Expressions {
     }
 
     /**
-     * Convert unix timestamp (seconds since '1970-01-01 00:00:00' UTC) to datetime string in the
+     * Converts unix timestamp (seconds since '1970-01-01 00:00:00' UTC) to datetime string in the
      * given format.
      *
      * @param unixtime The unix timestamp with numeric type.

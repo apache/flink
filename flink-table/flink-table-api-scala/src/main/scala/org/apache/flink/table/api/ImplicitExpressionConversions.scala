@@ -579,6 +579,26 @@ trait ImplicitExpressionConversions {
   }
 
   /**
+   * Converts a datetime dateStr (with default ISO timestamp format 'yyyy-MM-dd HH:mm:ss') from time
+   * zone tzFrom to time zone tzTo. The format of time zone should be either an abbreviation
+   * such as "PST", a full name such as "America/Los_Angeles", or a custom ID such as "GMT-08:00".
+   * E.g., convertTz('1970-01-01 00:00:00', 'UTC', 'America/Los_Angeles') returns '1969-12-31
+   * 16:00:00'.
+   *
+   * @param dateStr
+   *   dateStr the date time string
+   * @param tzFrom
+   *   tzFrom the original time zone
+   * @param tzTo
+   *   tzTo the target time zone
+   * @return
+   *   The formatted timestamp as string.
+   */
+  def convertTz(dateStr: Expression, tzFrom: Expression, tzTo: Expression): ApiExpression = {
+    Expressions.convertTz(dateStr, tzFrom, tzTo)
+  }
+
+  /**
    * Convert unix timestamp (seconds since '1970-01-01 00:00:00' UTC) to datetime string in the
    * "yyyy-MM-dd HH:mm:ss" format.
    */

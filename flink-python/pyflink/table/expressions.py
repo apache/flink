@@ -32,7 +32,8 @@ __all__ = ['if_then_else', 'lit', 'col', 'range_', 'and_', 'or_', 'not_', 'UNBOU
            'row_interval', 'pi', 'e', 'rand', 'rand_integer', 'atan2', 'negative', 'concat',
            'concat_ws', 'uuid', 'null_of', 'log', 'with_columns', 'without_columns', 'json_string',
            'json_object', 'json_object_agg', 'json_array', 'json_array_agg', 'call', 'call_sql',
-           'source_watermark']
+           'source_watermark', 'to_timestamp_ltz', 'from_unixtime', 'to_date', 'to_timestamp',
+           'convert_tz']
 
 
 def _leaf_op(op_name: str) -> Expression:
@@ -272,7 +273,8 @@ def local_timestamp() -> Expression:
     return _leaf_op("localTimestamp")
 
 
-def to_date(date_str: str, format: str = None) -> Expression:
+def to_date(date_str: Union[str, Expression[str]],
+            format: Union[str, Expression[str]] = None) -> Expression:
     """
     Converts the date string with the given format (by default 'yyyy-MM-dd') to a date.
 
@@ -286,7 +288,8 @@ def to_date(date_str: str, format: str = None) -> Expression:
         return _binary_op("toDate", date_str, format)
 
 
-def to_timestamp(timestamp_str: str, format: str = None) -> Expression:
+def to_timestamp(timestamp_str: Union[str, Expression[str]],
+                 format: Union[str, Expression[str]] = None) -> Expression:
     """
     Converts the date time string with the given format (by default: 'yyyy-MM-dd HH:mm:ss')
     under the 'UTC+0' time zone to a timestamp.
@@ -374,6 +377,29 @@ def timestamp_diff(time_point_unit: TimePointUnit, time_point1, time_point2) -> 
     """
     return _ternary_op("timestampDiff", time_point_unit._to_j_time_point_unit(),
                        time_point1, time_point2)
+
+
+def convert_tz(date_str: Union[str, Expression[str]],
+               tz_from: Union[str, Expression[str]],
+               tz_to: Union[str, Expression[str]]) -> Expression:
+    """
+    Converts a datetime string date_str (with default ISO timestamp format 'yyyy-MM-dd HH:mm:ss')
+    from time zone tz_from to time zone tz_to. The format of time zone should be either an
+    abbreviation such as "PST", a full name such as "America/Los_Angeles", or a custom ID such as
+    "GMT-08:00". E.g., convert_tz('1970-01-01 00:00:00', 'UTC', 'America/Los_Angeles') returns
+    '1969-12-31 16:00:00'.
+
+    Example:
+    ::
+
+        >>> tab.select(convert_tz(col('a'), 'PST', 'UTC'))
+
+    :param date_str: the date time string
+    :param tz_from: the original time zone
+    :param tz_to: the target time zone
+    :return: The formatted timestamp as string.
+    """
+    return _ternary_op("convertTz", date_str, tz_from, tz_to)
 
 
 def from_unixtime(unixtime, format=None) -> Expression:
