@@ -19,11 +19,10 @@
 package org.apache.flink.connector.kafka.source.reader;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.api.connector.source.SourceOutput;
 import org.apache.flink.connector.base.source.reader.RecordEmitter;
+import org.apache.flink.connector.base.source.reader.SourceOutputWrapper;
 import org.apache.flink.connector.kafka.source.reader.deserializer.KafkaRecordDeserializationSchema;
 import org.apache.flink.connector.kafka.source.split.KafkaPartitionSplitState;
-import org.apache.flink.util.Collector;
 
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 
@@ -35,7 +34,6 @@ public class KafkaRecordEmitter<T>
         implements RecordEmitter<ConsumerRecord<byte[], byte[]>, T, KafkaPartitionSplitState> {
 
     private final KafkaRecordDeserializationSchema<T> deserializationSchema;
-    private final SourceOutputWrapper<T> sourceOutputWrapper = new SourceOutputWrapper<>();
 
     public KafkaRecordEmitter(KafkaRecordDeserializationSchema<T> deserializationSchema) {
         this.deserializationSchema = deserializationSchema;
@@ -44,38 +42,15 @@ public class KafkaRecordEmitter<T>
     @Override
     public void emitRecord(
             ConsumerRecord<byte[], byte[]> consumerRecord,
-            SourceOutput<T> output,
+            SourceOutputWrapper<T> sourceOutputWrapper,
             KafkaPartitionSplitState splitState)
             throws Exception {
         try {
-            sourceOutputWrapper.setSourceOutput(output);
             sourceOutputWrapper.setTimestamp(consumerRecord.timestamp());
             deserializationSchema.deserialize(consumerRecord, sourceOutputWrapper);
             splitState.setCurrentOffset(consumerRecord.offset() + 1);
         } catch (Exception e) {
             throw new IOException("Failed to deserialize consumer record due to", e);
-        }
-    }
-
-    private static class SourceOutputWrapper<T> implements Collector<T> {
-
-        private SourceOutput<T> sourceOutput;
-        private long timestamp;
-
-        @Override
-        public void collect(T record) {
-            sourceOutput.collect(record, timestamp);
-        }
-
-        @Override
-        public void close() {}
-
-        private void setSourceOutput(SourceOutput<T> sourceOutput) {
-            this.sourceOutput = sourceOutput;
-        }
-
-        private void setTimestamp(long timestamp) {
-            this.timestamp = timestamp;
         }
     }
 }

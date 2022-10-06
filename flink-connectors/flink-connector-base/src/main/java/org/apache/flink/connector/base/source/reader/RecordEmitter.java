@@ -47,5 +47,6 @@ public interface RecordEmitter<E, T, SplitStateT> {
      * @param output The output to which the final records are emit to.
      * @param splitState The state of the split.
      */
-    void emitRecord(E element, SourceOutput<T> output, SplitStateT splitState) throws Exception;
+    void emitRecord(E element, SourceOutputWrapper<T> output, SplitStateT splitState)
+            throws Exception;
 }

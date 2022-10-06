@@ -23,6 +23,7 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.connector.source.Boundedness;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.connector.base.source.reader.RecordEvaluator;
 import org.apache.flink.connector.pulsar.common.config.PulsarConfigBuilder;
 import org.apache.flink.connector.pulsar.common.config.PulsarOptions;
 import org.apache.flink.connector.pulsar.source.config.SourceConfiguration;
@@ -125,6 +126,7 @@ public final class PulsarSourceBuilder<OUT> {
     private StopCursor stopCursor;
     private Boundedness boundedness;
     private PulsarDeserializationSchema<OUT> deserializationSchema;
+    private RecordEvaluator<OUT> eofRecordEvaluator;
 
     // private builder constructor.
     PulsarSourceBuilder() {
@@ -132,6 +134,7 @@ public final class PulsarSourceBuilder<OUT> {
         this.startCursor = StartCursor.defaultStartCursor();
         this.stopCursor = StopCursor.defaultStopCursor();
         this.boundedness = Boundedness.CONTINUOUS_UNBOUNDED;
+        this.eofRecordEvaluator = null;
     }
 
     /**
@@ -397,6 +400,26 @@ public final class PulsarSourceBuilder<OUT> {
     }
 
     /**
+     * Sets the optional {@link RecordEvaluator eofRecordEvaluator} for PulsarSource.
+     *
+     * <p>When the evaluator is specified, it is invoked for each de-serialized record to determine
+     * whether the corresponding split has reached end of stream. If a record is matched by the
+     * evaluator, the source would not emit this record as well as the following records in the same
+     * split.
+     *
+     * <p>Note that the evaluator works jointly with the stopping criteria specified by the {@link
+     * #setBoundedStopCursor(StopCursor)} or the {@link #setUnboundedStopCursor(StopCursor)}. The
+     * source stops consuming from a split when any of these conditions is met.
+     *
+     * @param eofRecordEvaluator a {@link RecordEvaluator recordEvaluator}
+     * @return this PulsarSourceBuilder.
+     */
+    public PulsarSourceBuilder<OUT> setEofRecordEvaluator(RecordEvaluator<OUT> eofRecordEvaluator) {
+        this.eofRecordEvaluator = eofRecordEvaluator;
+        return this;
+    }
+
+    /**
      * Set arbitrary properties for the PulsarSource and Pulsar Consumer. The valid keys can be
      * found in {@link PulsarSourceOptions} and {@link PulsarOptions}.
      *
@@ -495,6 +518,7 @@ public final class PulsarSourceBuilder<OUT> {
                 rangeGenerator,
                 startCursor,
                 stopCursor,
+                eofRecordEvaluator,
                 boundedness,
                 deserializationSchema);
     }

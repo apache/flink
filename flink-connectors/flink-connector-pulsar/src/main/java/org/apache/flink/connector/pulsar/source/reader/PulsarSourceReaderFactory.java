@@ -21,6 +21,7 @@ package org.apache.flink.connector.pulsar.source.reader;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.connector.source.SourceReader;
 import org.apache.flink.api.connector.source.SourceReaderContext;
+import org.apache.flink.connector.base.source.reader.RecordEvaluator;
 import org.apache.flink.connector.base.source.reader.RecordsWithSplitIds;
 import org.apache.flink.connector.base.source.reader.synchronization.FutureCompletingBlockingQueue;
 import org.apache.flink.connector.pulsar.source.config.SourceConfiguration;
@@ -63,7 +64,8 @@ public final class PulsarSourceReaderFactory {
     public static <OUT> SourceReader<OUT, PulsarPartitionSplit> create(
             SourceReaderContext readerContext,
             PulsarDeserializationSchema<OUT> deserializationSchema,
-            SourceConfiguration sourceConfiguration) {
+            SourceConfiguration sourceConfiguration,
+            RecordEvaluator<OUT> recordEvaluator) {
 
         PulsarClient pulsarClient = createClient(sourceConfiguration);
         PulsarAdmin pulsarAdmin = createAdmin(sourceConfiguration);
@@ -91,6 +93,7 @@ public final class PulsarSourceReaderFactory {
                     splitReaderSupplier,
                     readerContext,
                     sourceConfiguration,
+                    recordEvaluator,
                     pulsarClient,
                     pulsarAdmin);
         } else if (subscriptionType == SubscriptionType.Shared
@@ -116,6 +119,7 @@ public final class PulsarSourceReaderFactory {
                     splitReaderSupplier,
                     readerContext,
                     sourceConfiguration,
+                    recordEvaluator,
                     pulsarClient,
                     pulsarAdmin,
                     coordinatorClient);

@@ -21,6 +21,7 @@ package org.apache.flink.connector.kafka.source;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.api.connector.source.Boundedness;
+import org.apache.flink.connector.base.source.reader.RecordEvaluator;
 import org.apache.flink.connector.kafka.source.enumerator.initializer.NoStoppingOffsetsInitializer;
 import org.apache.flink.connector.kafka.source.enumerator.initializer.OffsetsInitializer;
 import org.apache.flink.connector.kafka.source.enumerator.initializer.OffsetsInitializerValidator;
@@ -100,6 +101,7 @@ public class KafkaSourceBuilder<OUT> {
     private KafkaRecordDeserializationSchema<OUT> deserializationSchema;
     // The configurations.
     protected Properties props;
+    private RecordEvaluator<OUT> eofRecordEvaluator;
 
     KafkaSourceBuilder() {
         this.subscriber = null;
@@ -108,6 +110,7 @@ public class KafkaSourceBuilder<OUT> {
         this.boundedness = Boundedness.CONTINUOUS_UNBOUNDED;
         this.deserializationSchema = null;
         this.props = new Properties();
+        this.eofRecordEvaluator = null;
     }
 
     /**
@@ -355,6 +358,11 @@ public class KafkaSourceBuilder<OUT> {
         return setProperty(KafkaSourceOptions.CLIENT_ID_PREFIX.key(), prefix);
     }
 
+    public KafkaSourceBuilder<OUT> setEofRecordEvaluator(RecordEvaluator<OUT> eofRecordEvaluator) {
+        this.eofRecordEvaluator = eofRecordEvaluator;
+        return this;
+    }
+
     /**
      * Set an arbitrary property for the KafkaSource and KafkaConsumer. The valid keys can be found
      * in {@link ConsumerConfig} and {@link KafkaSourceOptions}.
@@ -420,6 +428,7 @@ public class KafkaSourceBuilder<OUT> {
                 subscriber,
                 startingOffsetsInitializer,
                 stoppingOffsetsInitializer,
+                eofRecordEvaluator,
                 boundedness,
                 deserializationSchema,
                 props);

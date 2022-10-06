@@ -22,6 +22,7 @@ import org.apache.flink.connector.kafka.source.enumerator.initializer.OffsetsIni
 import org.apache.flink.connector.kafka.source.enumerator.subscriber.KafkaSubscriber;
 import org.apache.flink.connector.kafka.source.reader.deserializer.KafkaRecordDeserializationSchema;
 import org.apache.flink.connector.kafka.source.split.KafkaPartitionSplit;
+import org.apache.flink.connector.kafka.testutils.KafkaSourceTestRecordEvaluator;
 import org.apache.flink.util.TestLoggerExtension;
 
 import org.apache.kafka.clients.admin.AdminClient;
@@ -117,6 +118,11 @@ public class KafkaSourceBuilderTest {
                 .setProperty(KafkaSourceOptions.COMMIT_OFFSETS_ON_CHECKPOINT.key(), "false")
                 .build();
         getBasicBuilder().setProperty(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, "false").build();
+    }
+
+    @Test
+    public void testSetRecordEvaluator() {
+        getBasicBuilder().setEofRecordEvaluator(new KafkaSourceTestRecordEvaluator<>(1)).build();
     }
 
     @Test

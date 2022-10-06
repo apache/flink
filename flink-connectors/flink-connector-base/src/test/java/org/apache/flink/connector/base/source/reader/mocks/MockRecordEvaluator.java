@@ -18,16 +18,19 @@
 
 package org.apache.flink.connector.base.source.reader.mocks;
 
-import org.apache.flink.connector.base.source.reader.RecordEmitter;
-import org.apache.flink.connector.base.source.reader.SourceOutputWrapper;
+import org.apache.flink.connector.base.source.reader.RecordEvaluator;
 
-/** A record emitter that pipes records directly into the source output. */
-public final class PassThroughRecordEmitter<E, SplitStateT>
-        implements RecordEmitter<E, E, SplitStateT> {
+/** A mock {@link RecordEvaluator} that stops input on stopValue. */
+public class MockRecordEvaluator<T> implements RecordEvaluator<T> {
+
+    private final Integer stopValue;
+
+    public MockRecordEvaluator(int stopValue) {
+        this.stopValue = stopValue;
+    }
 
     @Override
-    public void emitRecord(E element, SourceOutputWrapper<E> output, SplitStateT splitState)
-            throws Exception {
-        output.collect(element);
+    public boolean isEndOfStream(T record) {
+        return record == stopValue;
     }
 }

@@ -20,6 +20,7 @@ package org.apache.flink.connector.pulsar.source.reader.source;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.connector.source.SourceReaderContext;
+import org.apache.flink.connector.base.source.reader.RecordEvaluator;
 import org.apache.flink.connector.base.source.reader.RecordsWithSplitIds;
 import org.apache.flink.connector.base.source.reader.synchronization.FutureCompletingBlockingQueue;
 import org.apache.flink.connector.pulsar.source.config.SourceConfiguration;
@@ -67,6 +68,7 @@ public class PulsarUnorderedSourceReader<OUT> extends PulsarSourceReaderBase<OUT
             Supplier<PulsarUnorderedPartitionSplitReader<OUT>> splitReaderSupplier,
             SourceReaderContext context,
             SourceConfiguration sourceConfiguration,
+            RecordEvaluator<OUT> recordEvaluator,
             PulsarClient pulsarClient,
             PulsarAdmin pulsarAdmin,
             @Nullable TransactionCoordinatorClient coordinatorClient) {
@@ -76,6 +78,7 @@ public class PulsarUnorderedSourceReader<OUT> extends PulsarSourceReaderBase<OUT
                         elementsQueue, splitReaderSupplier::get, context.getConfiguration()),
                 context,
                 sourceConfiguration,
+                recordEvaluator,
                 pulsarClient,
                 pulsarAdmin);
 

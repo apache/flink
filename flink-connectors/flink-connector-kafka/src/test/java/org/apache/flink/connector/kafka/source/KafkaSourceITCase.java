@@ -31,6 +31,7 @@ import org.apache.flink.connector.kafka.source.enumerator.initializer.OffsetsIni
 import org.apache.flink.connector.kafka.source.reader.deserializer.KafkaRecordDeserializationSchema;
 import org.apache.flink.connector.kafka.testutils.KafkaSourceExternalContextFactory;
 import org.apache.flink.connector.kafka.testutils.KafkaSourceTestEnv;
+import org.apache.flink.connector.kafka.testutils.KafkaSourceTestRecordEvaluator;
 import org.apache.flink.connector.testframe.environment.MiniClusterTestEnvironment;
 import org.apache.flink.connector.testframe.external.DefaultContainerizedExternalSystem;
 import org.apache.flink.connector.testframe.junit.annotations.TestContext;
@@ -165,6 +166,51 @@ public class KafkaSourceITCase {
             DataStream<PartitionAndValue> stream =
                     env.fromSource(source, WatermarkStrategy.noWatermarks(), "testBasicRead");
             executeAndVerify(env, stream);
+        }
+
+        @Test
+        public void testRecordEvaluator() throws Throwable {
+            int maxRecords = 10;
+            String testTopic = "testTopic-" + UUID.randomUUID();
+            KafkaSourceTestEnv.createTestTopic(testTopic, 1, 1);
+            List<ProducerRecord<String, Integer>> records = new ArrayList<>();
+            int sumToCheck = 0;
+            for (int i = 0; i < maxRecords * 2; i++) {
+                records.add(new ProducerRecord<>(testTopic, 0, null, i * 10));
+                if (i < maxRecords) {
+                    sumToCheck += i * 10;
+                }
+            }
+            KafkaSourceTestEnv.produceToKafka(records);
+            KafkaSource<PartitionAndValue> source =
+                    KafkaSource.<PartitionAndValue>builder()
+                            .setBootstrapServers(KafkaSourceTestEnv.brokerConnectionStrings)
+                            .setGroupId("testValueOnlyDeserializer")
+                            .setTopics(testTopic)
+                            .setDeserializer(new TestingKafkaRecordDeserializationSchema(false))
+                            .setStartingOffsets(OffsetsInitializer.earliest())
+                            .setBounded(OffsetsInitializer.latest())
+                            .setEofRecordEvaluator(new KafkaSourceTestRecordEvaluator<>(maxRecords))
+                            .build();
+
+            StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+            env.setParallelism(1);
+            CloseableIterator<PartitionAndValue> result =
+                    env.fromSource(
+                                    source,
+                                    WatermarkStrategy.noWatermarks(),
+                                    "testRecordEvaluatorSource")
+                            .executeAndCollect();
+
+            AtomicInteger actualCount = new AtomicInteger();
+            AtomicInteger actualSum = new AtomicInteger();
+            result.forEachRemaining(
+                    partitionAndValue -> {
+                        actualCount.getAndIncrement();
+                        actualSum.addAndGet(partitionAndValue.value);
+                    });
+            assertThat(actualCount.get()).isEqualTo(maxRecords);
+            assertThat(actualSum.get()).isEqualTo(sumToCheck);
         }
 
         @Test

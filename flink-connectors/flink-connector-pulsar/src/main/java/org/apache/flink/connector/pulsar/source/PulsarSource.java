@@ -28,6 +28,7 @@ import org.apache.flink.api.connector.source.SourceReaderContext;
 import org.apache.flink.api.connector.source.SplitEnumerator;
 import org.apache.flink.api.connector.source.SplitEnumeratorContext;
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
+import org.apache.flink.connector.base.source.reader.RecordEvaluator;
 import org.apache.flink.connector.pulsar.source.config.SourceConfiguration;
 import org.apache.flink.connector.pulsar.source.enumerator.PulsarSourceEnumState;
 import org.apache.flink.connector.pulsar.source.enumerator.PulsarSourceEnumStateSerializer;
@@ -89,6 +90,8 @@ public final class PulsarSource<OUT>
     /** The pulsar deserialization schema used for deserializing message. */
     private final PulsarDeserializationSchema<OUT> deserializationSchema;
 
+    private final RecordEvaluator recordEvaluator;
+
     /**
      * The constructor for PulsarSource, it's package protected for forcing using {@link
      * PulsarSourceBuilder}.
@@ -99,6 +102,7 @@ public final class PulsarSource<OUT>
             RangeGenerator rangeGenerator,
             StartCursor startCursor,
             StopCursor stopCursor,
+            RecordEvaluator recordEvaluator,
             Boundedness boundedness,
             PulsarDeserializationSchema<OUT> deserializationSchema) {
         this.sourceConfiguration = sourceConfiguration;
@@ -106,6 +110,7 @@ public final class PulsarSource<OUT>
         this.rangeGenerator = rangeGenerator;
         this.startCursor = startCursor;
         this.stopCursor = stopCursor;
+        this.recordEvaluator = recordEvaluator;
         this.boundedness = boundedness;
         this.deserializationSchema = deserializationSchema;
     }
@@ -134,7 +139,7 @@ public final class PulsarSource<OUT>
         deserializationSchema.open(initializationContext, sourceConfiguration);
 
         return PulsarSourceReaderFactory.create(
-                readerContext, deserializationSchema, sourceConfiguration);
+                readerContext, deserializationSchema, sourceConfiguration, recordEvaluator);
     }
 
     @Internal

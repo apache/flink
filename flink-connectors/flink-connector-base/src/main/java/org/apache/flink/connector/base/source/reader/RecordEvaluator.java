@@ -16,18 +16,25 @@
  * limitations under the License.
  */
 
-package org.apache.flink.connector.base.source.reader.mocks;
+package org.apache.flink.connector.base.source.reader;
 
-import org.apache.flink.connector.base.source.reader.RecordEmitter;
-import org.apache.flink.connector.base.source.reader.SourceOutputWrapper;
+import org.apache.flink.annotation.PublicEvolving;
 
-/** A record emitter that pipes records directly into the source output. */
-public final class PassThroughRecordEmitter<E, SplitStateT>
-        implements RecordEmitter<E, E, SplitStateT> {
+import java.io.Serializable;
 
-    @Override
-    public void emitRecord(E element, SourceOutputWrapper<E> output, SplitStateT splitState)
-            throws Exception {
-        output.collect(element);
-    }
+/**
+ * An interface that evaluates whether a de-serialized record should trigger certain control-flow
+ * operations (e.g. end of stream).
+ */
+@PublicEvolving
+@FunctionalInterface
+public interface RecordEvaluator<T> extends Serializable {
+    /**
+     * Determines whether a record should trigger the end of stream for its split. The given record
+     * wouldn't be emitted from the source if the returned result is true.
+     *
+     * @param record a de-serialized record from the split.
+     * @return a boolean indicating whether the split has reached end of stream.
+     */
+    boolean isEndOfStream(T record);
 }

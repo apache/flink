@@ -11,23 +11,29 @@
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either expre
+ * ss or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
 
-package org.apache.flink.connector.base.source.reader.mocks;
+package org.apache.flink.connector.pulsar.testutils;
 
-import org.apache.flink.connector.base.source.reader.RecordEmitter;
-import org.apache.flink.connector.base.source.reader.SourceOutputWrapper;
+import org.apache.flink.connector.base.source.reader.RecordEvaluator;
 
-/** A record emitter that pipes records directly into the source output. */
-public final class PassThroughRecordEmitter<E, SplitStateT>
-        implements RecordEmitter<E, E, SplitStateT> {
+/** {@link RecordEvaluator} for pulsar tests. Stops input when maxRecords is reached. */
+public class PulsarSourceTestRecordEvaluator<T> implements RecordEvaluator<T> {
+
+    private final int maxRecords;
+    private int count = 0;
+
+    public PulsarSourceTestRecordEvaluator(int maxRecords) {
+        this.maxRecords = maxRecords;
+    }
 
     @Override
-    public void emitRecord(E element, SourceOutputWrapper<E> output, SplitStateT splitState)
-            throws Exception {
-        output.collect(element);
+    public boolean isEndOfStream(T record) {
+        count++;
+        return count == maxRecords;
     }
 }

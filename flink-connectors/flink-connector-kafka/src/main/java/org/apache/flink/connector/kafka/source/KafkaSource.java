@@ -31,6 +31,7 @@ import org.apache.flink.api.connector.source.SplitEnumerator;
 import org.apache.flink.api.connector.source.SplitEnumeratorContext;
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.connector.base.source.reader.RecordEvaluator;
 import org.apache.flink.connector.base.source.reader.RecordsWithSplitIds;
 import org.apache.flink.connector.base.source.reader.synchronization.FutureCompletingBlockingQueue;
 import org.apache.flink.connector.kafka.source.enumerator.KafkaSourceEnumState;
@@ -93,6 +94,9 @@ public class KafkaSource<OUT>
     // Users can specify the starting / stopping offset initializer.
     private final OffsetsInitializer startingOffsetsInitializer;
     private final OffsetsInitializer stoppingOffsetsInitializer;
+
+    // Users can specify record evaluator.
+    private final RecordEvaluator recordEvaluator;
     // Boundedness
     private final Boundedness boundedness;
     private final KafkaRecordDeserializationSchema<OUT> deserializationSchema;
@@ -103,12 +107,14 @@ public class KafkaSource<OUT>
             KafkaSubscriber subscriber,
             OffsetsInitializer startingOffsetsInitializer,
             @Nullable OffsetsInitializer stoppingOffsetsInitializer,
+            @Nullable RecordEvaluator<OUT> eofRecordEvaluator,
             Boundedness boundedness,
             KafkaRecordDeserializationSchema<OUT> deserializationSchema,
             Properties props) {
         this.subscriber = subscriber;
         this.startingOffsetsInitializer = startingOffsetsInitializer;
         this.stoppingOffsetsInitializer = stoppingOffsetsInitializer;
+        this.recordEvaluator = eofRecordEvaluator;
         this.boundedness = boundedness;
         this.deserializationSchema = deserializationSchema;
         this.props = props;
@@ -165,6 +171,7 @@ public class KafkaSource<OUT>
                 new KafkaSourceFetcherManager(
                         elementsQueue, splitReaderSupplier::get, splitFinishedHook),
                 recordEmitter,
+                recordEvaluator,
                 toConfiguration(props),
                 readerContext,
                 kafkaSourceReaderMetrics);

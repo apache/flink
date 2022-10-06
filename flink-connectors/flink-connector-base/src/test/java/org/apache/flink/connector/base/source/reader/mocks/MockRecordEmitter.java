@@ -18,8 +18,8 @@
 
 package org.apache.flink.connector.base.source.reader.mocks;
 
-import org.apache.flink.api.connector.source.SourceOutput;
 import org.apache.flink.connector.base.source.reader.RecordEmitter;
+import org.apache.flink.connector.base.source.reader.SourceOutputWrapper;
 import org.apache.flink.metrics.groups.SourceReaderMetricGroup;
 
 import java.util.Collections;
@@ -47,7 +47,8 @@ public class MockRecordEmitter implements RecordEmitter<int[], Integer, MockSpli
     }
 
     @Override
-    public void emitRecord(int[] record, SourceOutput<Integer> output, MockSplitState splitState) {
+    public void emitRecord(
+            int[] record, SourceOutputWrapper<Integer> output, MockSplitState splitState) {
         knownSplits.add(splitState);
         if (record[0] % 2 == 0) {
             this.metricGroup.getNumRecordsInErrorsCounter().inc();

@@ -19,8 +19,8 @@ limitations under the License.
 package org.apache.flink.connector.file.src.impl;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.api.connector.source.SourceOutput;
 import org.apache.flink.connector.base.source.reader.RecordEmitter;
+import org.apache.flink.connector.base.source.reader.SourceOutputWrapper;
 import org.apache.flink.connector.file.src.FileSourceSplit;
 import org.apache.flink.connector.file.src.FileSourceSplitState;
 import org.apache.flink.connector.file.src.util.RecordAndPosition;
@@ -39,7 +39,7 @@ final class FileSourceRecordEmitter<T, SplitT extends FileSourceSplit>
     @Override
     public void emitRecord(
             final RecordAndPosition<T> element,
-            final SourceOutput<T> output,
+            final SourceOutputWrapper<T> output,
             final FileSourceSplitState<SplitT> splitState) {
 
         output.collect(element.getRecord());

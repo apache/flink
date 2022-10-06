@@ -28,6 +28,7 @@ import org.apache.flink.api.connector.source.mocks.MockSourceSplit;
 import org.apache.flink.api.connector.source.mocks.MockSourceSplitSerializer;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.connector.base.source.reader.fetcher.SingleThreadFetcherManager;
+import org.apache.flink.connector.base.source.reader.mocks.MockRecordEvaluator;
 import org.apache.flink.connector.base.source.reader.mocks.MockSourceReader;
 import org.apache.flink.connector.base.source.reader.mocks.MockSplitReader;
 import org.apache.flink.connector.base.source.reader.mocks.PassThroughRecordEmitter;
@@ -257,6 +258,47 @@ public class SourceReaderBaseTest extends SourceReaderTestBase<MockSourceSplit> 
         splitFetcherManager.getInShutdownSplitFetcherFuture().thenRun(() -> split.addRecord(1));
         assertThat(sourceReader.pollNext(new TestingReaderOutput<>()))
                 .isEqualTo(InputStatus.MORE_AVAILABLE);
+    }
+
+    @Test
+    void testRecordEvaluator() throws Exception {
+        int stopValue = 3;
+        FutureCompletingBlockingQueue<RecordsWithSplitIds<int[]>> elementsQueue =
+                new FutureCompletingBlockingQueue<>();
+        MockSplitReader mockSplitReader =
+                MockSplitReader.newBuilder()
+                        .setNumRecordsPerSplitPerFetch(2)
+                        .setSeparatedFinishedRecord(true)
+                        .setBlockingFetch(false)
+                        .build();
+        MockSourceReader reader =
+                new MockSourceReader(
+                        elementsQueue,
+                        () -> mockSplitReader,
+                        new MockRecordEvaluator<>(stopValue),
+                        getConfig(),
+                        new TestingReaderContext());
+
+        reader.start();
+
+        int numRecords = 10;
+        List<MockSourceSplit> splits = Arrays.asList(getSplit(0, numRecords, Boundedness.BOUNDED));
+        reader.addSplits(splits);
+        reader.notifyNoMoreSplits();
+
+        int counter = 0;
+        while (true) {
+            InputStatus status = reader.pollNext(new TestingReaderOutput<>());
+            if (status == InputStatus.END_OF_INPUT) {
+                assertThat(counter - 1).isLessThan(numRecords);
+                assertThat(counter - 1).isEqualTo(stopValue);
+                break;
+            }
+            if (status == InputStatus.NOTHING_AVAILABLE) {
+                reader.isAvailable().get();
+            }
+            counter++;
+        }
     }
 
     @ParameterizedTest(name = "Emit record before split addition: {0}")

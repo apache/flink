@@ -18,8 +18,8 @@
 
 package org.apache.flink.connector.pulsar.source.reader.emitter;
 
-import org.apache.flink.api.connector.source.SourceOutput;
 import org.apache.flink.connector.base.source.reader.RecordEmitter;
+import org.apache.flink.connector.base.source.reader.SourceOutputWrapper;
 import org.apache.flink.connector.pulsar.source.reader.message.PulsarMessage;
 import org.apache.flink.connector.pulsar.source.reader.source.PulsarOrderedSourceReader;
 import org.apache.flink.connector.pulsar.source.reader.source.PulsarUnorderedSourceReader;
@@ -35,7 +35,9 @@ public class PulsarRecordEmitter<T>
 
     @Override
     public void emitRecord(
-            PulsarMessage<T> element, SourceOutput<T> output, PulsarPartitionSplitState splitState)
+            PulsarMessage<T> element,
+            SourceOutputWrapper<T> output,
+            PulsarPartitionSplitState splitState)
             throws Exception {
         // Sink the record to source output.
         output.collect(element.getValue(), element.getEventTime());

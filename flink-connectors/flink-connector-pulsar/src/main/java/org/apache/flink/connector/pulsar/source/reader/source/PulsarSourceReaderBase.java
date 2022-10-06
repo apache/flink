@@ -19,6 +19,7 @@
 package org.apache.flink.connector.pulsar.source.reader.source;
 
 import org.apache.flink.api.connector.source.SourceReaderContext;
+import org.apache.flink.connector.base.source.reader.RecordEvaluator;
 import org.apache.flink.connector.base.source.reader.RecordsWithSplitIds;
 import org.apache.flink.connector.base.source.reader.SourceReaderBase;
 import org.apache.flink.connector.base.source.reader.synchronization.FutureCompletingBlockingQueue;
@@ -52,12 +53,14 @@ abstract class PulsarSourceReaderBase<OUT>
             PulsarFetcherManagerBase<OUT> splitFetcherManager,
             SourceReaderContext context,
             SourceConfiguration sourceConfiguration,
+            RecordEvaluator<OUT> recordEvaluator,
             PulsarClient pulsarClient,
             PulsarAdmin pulsarAdmin) {
         super(
                 elementsQueue,
                 splitFetcherManager,
                 new PulsarRecordEmitter<>(),
+                recordEvaluator,
                 sourceConfiguration,
                 context);
 

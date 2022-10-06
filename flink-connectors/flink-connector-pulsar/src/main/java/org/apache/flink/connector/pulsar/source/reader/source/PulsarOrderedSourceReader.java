@@ -22,6 +22,7 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.connector.source.ReaderOutput;
 import org.apache.flink.api.connector.source.SourceReaderContext;
+import org.apache.flink.connector.base.source.reader.RecordEvaluator;
 import org.apache.flink.connector.base.source.reader.RecordsWithSplitIds;
 import org.apache.flink.connector.base.source.reader.synchronization.FutureCompletingBlockingQueue;
 import org.apache.flink.connector.pulsar.source.config.SourceConfiguration;
@@ -71,6 +72,7 @@ public class PulsarOrderedSourceReader<OUT> extends PulsarSourceReaderBase<OUT> 
             Supplier<PulsarOrderedPartitionSplitReader<OUT>> splitReaderSupplier,
             SourceReaderContext context,
             SourceConfiguration sourceConfiguration,
+            RecordEvaluator<OUT> recordEvaluator,
             PulsarClient pulsarClient,
             PulsarAdmin pulsarAdmin) {
         super(
@@ -79,6 +81,7 @@ public class PulsarOrderedSourceReader<OUT> extends PulsarSourceReaderBase<OUT> 
                         elementsQueue, splitReaderSupplier::get, context.getConfiguration()),
                 context,
                 sourceConfiguration,
+                recordEvaluator,
                 pulsarClient,
                 pulsarAdmin);
 

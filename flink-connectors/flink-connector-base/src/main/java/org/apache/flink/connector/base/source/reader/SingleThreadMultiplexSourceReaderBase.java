@@ -27,6 +27,8 @@ import org.apache.flink.connector.base.source.reader.fetcher.SingleThreadFetcher
 import org.apache.flink.connector.base.source.reader.splitreader.SplitReader;
 import org.apache.flink.connector.base.source.reader.synchronization.FutureCompletingBlockingQueue;
 
+import javax.annotation.Nullable;
+
 import java.util.function.Supplier;
 
 /**
@@ -100,6 +102,22 @@ public abstract class SingleThreadMultiplexSourceReaderBase<
                 context);
     }
 
+    public SingleThreadMultiplexSourceReaderBase(
+            FutureCompletingBlockingQueue<RecordsWithSplitIds<E>> elementsQueue,
+            Supplier<SplitReader<E, SplitT>> splitReaderSupplier,
+            RecordEmitter<E, T, SplitStateT> recordEmitter,
+            @Nullable RecordEvaluator<T> eofRecordEvaluator,
+            Configuration config,
+            SourceReaderContext context) {
+        super(
+                elementsQueue,
+                new SingleThreadFetcherManager<>(elementsQueue, splitReaderSupplier, config),
+                recordEmitter,
+                eofRecordEvaluator,
+                config,
+                context);
+    }
+
     /**
      * This constructor behaves like {@link #SingleThreadMultiplexSourceReaderBase(Supplier,
      * RecordEmitter, Configuration, SourceReaderContext)}, but accepts a specific {@link
@@ -109,8 +127,15 @@ public abstract class SingleThreadMultiplexSourceReaderBase<
             FutureCompletingBlockingQueue<RecordsWithSplitIds<E>> elementsQueue,
             SingleThreadFetcherManager<E, SplitT> splitFetcherManager,
             RecordEmitter<E, T, SplitStateT> recordEmitter,
+            @Nullable RecordEvaluator<T> eofRecordEvaluator,
             Configuration config,
             SourceReaderContext context) {
-        super(elementsQueue, splitFetcherManager, recordEmitter, config, context);
+        super(
+                elementsQueue,
+                splitFetcherManager,
+                recordEmitter,
+                eofRecordEvaluator,
+                config,
+                context);
     }
 }
