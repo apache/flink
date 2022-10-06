@@ -481,9 +481,13 @@ trait ImplicitExpressionConversions {
     Expressions.localTimestamp()
   }
 
+  /** Convert dateStr of date format to string of ‘yyyy-MM-dd’ format. */
+  def toDate(dateStr: Expression): Expression = {
+    Expressions.toDate(dateStr)
+  }
+
   /**
-   * Converts date time string string1 in format string2 (by default: yyyy-MM-dd HH:mm:ss if not
-   * specified) to Unix timestamp (in seconds), using the specified timezone in table config.
+   * Converts the date string dateStr to a string in the specified format (by default ‘yyyy-MM-dd’).
    */
   def toDate(dateStr: Expression, format: Expression): Expression = {
     Expressions.toDate(dateStr, format)
@@ -501,8 +505,16 @@ trait ImplicitExpressionConversions {
   }
 
   /**
-   * Converts date time string string1 with format string2 (by default: ‘yyyy-MM-dd HH:mm:ss’) under
-   * the ‘UTC+0’ time zone to a timestamp.
+   * Converts date time string dateStr with format ‘yyyy-MM-dd HH:mm:ss’ under the ‘UTC+0’ time zone
+   * to a timestamp.
+   */
+  def toTimestamp(dateStr: Expression): Expression = {
+    Expressions.toTimestamp(dateStr)
+  }
+
+  /**
+   * Convert the time string "dateStr" to a string in the specified format (by default: 'yyyy MM dd
+   * HH: mm: ss') under the ‘UTC+0’ time zone to a timestamp.
    */
   def toTimestamp(dateStr: Expression, format: Expression): Expression = {
     Expressions.toTimestamp(dateStr, format)

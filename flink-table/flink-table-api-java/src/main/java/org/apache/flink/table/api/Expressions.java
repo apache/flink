@@ -304,7 +304,18 @@ public final class Expressions {
     }
 
     /**
-     * Converts a date string string1 with format string2 (by default ‘yyyy-MM-dd’) to a date.
+     * Convert dateStr of date format to string of ‘yyyy-MM-dd’ format.
+     *
+     * @param dateStr dateStr the date time string.
+     * @return the return type of this expression is {@link DataTypes#DATE()}.
+     */
+    public static ApiExpression toDate(Object dateStr) {
+        return apiCall(BuiltInFunctionDefinitions.TO_DATE, dateStr);
+    }
+
+    /**
+     * Converts the date string dateStr to a string in the specified format (by default
+     * ‘yyyy-MM-dd’).
      *
      * @param dateStr dateStr the date time string.
      * @param format The format of the string.
@@ -333,8 +344,19 @@ public final class Expressions {
     }
 
     /**
-     * Converts date time string string1 with format string2 (by default: ‘yyyy-MM-dd HH:mm:ss’)
-     * under the ‘UTC+0’ time zone to a timestamp.
+     * Converts date time string dateStr with format ‘yyyy-MM-dd HH:mm:ss’ under the ‘UTC+0’ time
+     * zone to a timestamp.
+     *
+     * @param dateStr dateStr the date time string.
+     * @return the return type of this expression is {@link DataTypes#TIMESTAMP()}.
+     */
+    public static ApiExpression toTimestamp(Object dateStr) {
+        return apiCall(BuiltInFunctionDefinitions.TO_TIMESTAMP, dateStr);
+    }
+
+    /**
+     * Convert the time string "dateStr" to a string in the specified format (by default: 'yyyy MM
+     * dd HH: mm: ss') under the ‘UTC+0’ time zone to a timestamp.
      *
      * @param dateStr dateStr the date time string.
      * @param format The format of the string.

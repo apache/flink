@@ -257,9 +257,12 @@ class PyFlinkBatchExpressionTests(PyFlinkTestCase):
         self.assertEqual('currentTimestamp()', str(current_timestamp()))
         self.assertEqual('localTime()', str(local_time()))
         self.assertEqual('localTimestamp()', str(local_timestamp()))
+        self.assertEqual("toDate('2018-03-18')", str(to_date('2018-03-18')))
         self.assertEqual("toDate('2018-03-18', 'yyyy-MM-dd')",
                          str(to_date('2018-03-18', 'yyyy-MM-dd')))
         self.assertEqual('toTimestampLtz(123, 0)', str(to_timestamp_ltz(123, 0)))
+        self.assertEqual("toTimestamp('1970-01-01 08:01:40')",
+                         str(to_timestamp('1970-01-01 08:01:40')))
         self.assertEqual("toTimestamp('1970-01-01 08:01:40', 'yyyy-MM-dd HH:mm:ss')",
                          str(to_timestamp('1970-01-01 08:01:40', 'yyyy-MM-dd HH:mm:ss')))
         self.assertEqual("temporalOverlaps(cast('2:55:00', TIME(0)), 3600000, "

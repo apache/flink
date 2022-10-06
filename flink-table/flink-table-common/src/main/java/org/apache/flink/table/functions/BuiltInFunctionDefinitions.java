@@ -1578,12 +1578,11 @@ public final class BuiltInFunctionDefinitions {
                     .kind(SCALAR)
                     .inputTypeStrategy(
                             or(
-                                    NO_ARGS,
                                     sequence(logical(LogicalTypeFamily.CHARACTER_STRING)),
                                     sequence(
                                             logical(LogicalTypeFamily.CHARACTER_STRING),
                                             logical(LogicalTypeFamily.CHARACTER_STRING))))
-                    .outputTypeStrategy(nullableIfArgs(explicit(TIMESTAMP())))
+                    .outputTypeStrategy(nullableIfArgs(explicit(TIMESTAMP(3))))
                     .build();
 
     // --------------------------------------------------------------------------------------------
