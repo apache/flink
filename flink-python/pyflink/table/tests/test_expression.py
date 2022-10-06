@@ -26,7 +26,7 @@ from pyflink.table.expressions import (col, lit, range_, and_, or_, current_date
                                        timestamp_diff, array, row, map_, row_interval, pi, e,
                                        rand, rand_integer, atan2, negative, concat, concat_ws, uuid,
                                        null_of, log, if_then_else, with_columns, call,
-                                       to_timestamp_ltz, from_unixtime)
+                                       to_timestamp_ltz, from_unixtime, convert_tz)
 from pyflink.testing.test_case_utils import PyFlinkTestCase
 
 
