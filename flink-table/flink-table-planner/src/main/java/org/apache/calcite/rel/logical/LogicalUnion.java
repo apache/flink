@@ -83,6 +83,7 @@ public final class LogicalUnion extends Union {
 
     // ~ Methods ----------------------------------------------------------------
 
+    @Override
     public LogicalUnion copy(RelTraitSet traitSet, List<RelNode> inputs, boolean all) {
         assert traitSet.containsIfApplicable(Convention.NONE);
         return new LogicalUnion(getCluster(), traitSet, hints, inputs, all);

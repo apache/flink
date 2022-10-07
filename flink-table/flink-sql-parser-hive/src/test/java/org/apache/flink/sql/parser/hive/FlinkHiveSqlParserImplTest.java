@@ -34,6 +34,8 @@ class FlinkHiveSqlParserImplTest extends SqlParserTest {
     }
 
     // ignore test methods that we don't support
+    // BEGIN
+    // DESCRIBE STATEMENT
     @Disabled
     @Test
     void testDescribeStatement() {}
@@ -42,9 +44,31 @@ class FlinkHiveSqlParserImplTest extends SqlParserTest {
     @Test
     void testTableHintsInInsert() {}
 
+    // ARRAY_AGG
+    @Disabled
+    @Test
+    void testArrayAgg() {}
+
+    // DESCRIBE SCHEMA
     @Disabled
     @Test
     void testDescribeSchema() {}
+
+    // EXPLAIN AS DOT
+    @Disabled
+    @Test
+    void testExplainAsDot() {}
+
+    // GROUP CONCAT
+    @Disabled
+    @Test
+    void testGroupConcat() {}
+
+    // STRING_AGG
+    @Disabled
+    @Test
+    void testStringAgg() {}
+    // END
 
     @Test
     void testShowDatabases() {

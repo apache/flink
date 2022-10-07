@@ -18,6 +18,8 @@
 
 package org.apache.calcite.rel.logical;
 
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableSet;
 import org.apache.calcite.plan.Convention;
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelTraitSet;
@@ -34,7 +36,7 @@ import org.apache.calcite.rel.metadata.RelMdCollation;
 import org.apache.calcite.rel.metadata.RelMdDistribution;
 import org.apache.calcite.rel.metadata.RelMetadataQuery;
 import org.apache.calcite.rex.RexNode;
-import org.apache.calcite.util.Litmus;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 import java.util.List;
 import java.util.Objects;
@@ -72,23 +74,17 @@ public final class LogicalFilter extends Filter {
             RexNode condition,
             com.google.common.collect.ImmutableSet<CorrelationId> variablesSet) {
         super(cluster, traitSet, hints, child, condition);
-        this.variablesSet = Objects.requireNonNull(variablesSet);
-        assert isValid(Litmus.THROW, null);
+        this.variablesSet = Objects.requireNonNull(variablesSet, "variablesSet");
     }
 
+    @Deprecated // to be removed before 2.0
     public LogicalFilter(
             RelOptCluster cluster,
             RelTraitSet traitSet,
             RelNode child,
             RexNode condition,
-            com.google.common.collect.ImmutableSet<CorrelationId> variablesSet) {
-        this(
-                cluster,
-                traitSet,
-                com.google.common.collect.ImmutableList.of(),
-                child,
-                condition,
-                variablesSet);
+            ImmutableSet<CorrelationId> variablesSet) {
+        this(cluster, traitSet, ImmutableList.of(), child, condition, variablesSet);
     }
 
     @Deprecated // to be removed before 2.0
@@ -99,30 +95,23 @@ public final class LogicalFilter extends Filter {
 
     @Deprecated // to be removed before 2.0
     public LogicalFilter(RelOptCluster cluster, RelNode child, RexNode condition) {
-        this(
-                cluster,
-                cluster.traitSetOf(Convention.NONE),
-                child,
-                condition,
-                com.google.common.collect.ImmutableSet.of());
+        this(cluster, cluster.traitSetOf(Convention.NONE), child, condition, ImmutableSet.of());
     }
 
     /** Creates a LogicalFilter by parsing serialized output. */
     public LogicalFilter(RelInput input) {
         super(input);
-        this.variablesSet = com.google.common.collect.ImmutableSet.of();
+        this.variablesSet = ImmutableSet.of();
     }
 
     /** Creates a LogicalFilter. */
     public static LogicalFilter create(final RelNode input, RexNode condition) {
-        return create(input, condition, com.google.common.collect.ImmutableSet.of());
+        return create(input, condition, ImmutableSet.of());
     }
 
     /** Creates a LogicalFilter. */
     public static LogicalFilter create(
-            final RelNode input,
-            RexNode condition,
-            com.google.common.collect.ImmutableSet<CorrelationId> variablesSet) {
+            final RelNode input, RexNode condition, ImmutableSet<CorrelationId> variablesSet) {
         final RelOptCluster cluster = input.getCluster();
         final RelMetadataQuery mq = cluster.getMetadataQuery();
         final RelTraitSet traitSet =
@@ -143,6 +132,7 @@ public final class LogicalFilter extends Filter {
         return variablesSet;
     }
 
+    @Override
     public LogicalFilter copy(RelTraitSet traitSet, RelNode input, RexNode condition) {
         assert traitSet.containsIfApplicable(Convention.NONE);
         return new LogicalFilter(getCluster(), traitSet, hints, input, condition, variablesSet);
@@ -159,7 +149,7 @@ public final class LogicalFilter extends Filter {
     }
 
     @Override
-    public boolean deepEquals(Object obj) {
+    public boolean deepEquals(@Nullable Object obj) {
         return deepEquals0(obj) && variablesSet.equals(((LogicalFilter) obj).variablesSet);
     }
 

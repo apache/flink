@@ -42,6 +42,12 @@ under the License.
 		<dependency>
 			<groupId>com.google.guava</groupId>
 			<artifactId>guava</artifactId>
+			<exclusions>
+				<exclusion>
+					<groupId>org.checkerframework</groupId>
+					<artifactId>checker-qual</artifactId>
+				</exclusion>
+			</exclusions>
 		</dependency>
 		<dependency>
 			<groupId>org.codehaus.janino</groupId>
@@ -81,6 +87,17 @@ under the License.
 				</exclusion>
 			</exclusions>
 		</dependency>
+		<!-- Use newer version v1.1.2 as in Calcite because org.junit.jupiter:junit-jupiter contains it -->
+		<dependency>
+			<artifactId>apiguardian-api</artifactId>
+			<groupId>org.apiguardian</groupId>
+			<version>1.1.2</version>
+		</dependency>
+		<dependency>
+			<groupId>org.checkerframework</groupId>
+			<artifactId>checker-qual</artifactId>
+			<version>3.10.0</version>
+		</dependency>
 		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-sql-parser-hive</artifactId>
@@ -111,22 +128,22 @@ under the License.
 			<version>${calcite.version}</version>
 			<exclusions>
 				<!--
-				"mvn dependency:tree" as of Calcite 1.26.0:
+				"mvn dependency:tree" as of Calcite 1.27.0:
 
-				[INFO] +- org.apache.calcite:calcite-core:jar:1.26.0:compile
-				[INFO] |  +- org.apache.calcite:calcite-linq4j:jar:1.26.0:compile
-				[INFO] |  +- com.fasterxml.jackson.core:jackson-annotations:jar:2.12.1:compile
-				[INFO] |  +- org.apiguardian:apiguardian-api:jar:1.1.0:compile
-				[INFO] |  +- com.esri.geometry:esri-geometry-api:jar:2.2.0:runtime
-				[INFO] |  +- com.fasterxml.jackson.core:jackson-core:jar:2.12.1:runtime
-				[INFO] |  +- com.fasterxml.jackson.core:jackson-databind:jar:2.12.1:runtime
+				[INFO] +- org.apache.calcite:calcite-core:jar:1.27.0:compile
+				[INFO] |  +- org.apache.calcite:calcite-linq4j:jar:1.27.0:compile
+				[INFO] |  +- com.esri.geometry:esri-geometry-api:jar:2.2.0:compile
+				[INFO] |  +- com.fasterxml.jackson.core:jackson-annotations:jar:2.13.2:compile
+				[INFO] |  +- org.apache.calcite.avatica:avatica-core:jar:1.18.0:compile
+				[INFO] |  +- com.fasterxml.jackson.core:jackson-core:jar:2.13.2:compile
+				[INFO] |  +- com.fasterxml.jackson.core:jackson-databind:jar:2.13.2.2:compile
 				[INFO] |  +- com.jayway.jsonpath:json-path:jar:2.4.0:runtime
 				[INFO] |  |  \- net.minidev:json-smart:jar:2.3:runtime
 				[INFO] |  |     \- net.minidev:accessors-smart:jar:1.2:runtime
 				[INFO] |  |        \- org.ow2.asm:asm:jar:5.0.4:runtime
-				[INFO] |  +- commons-codec:commons-codec:jar:1.10:runtime
-				[INFO] |  +- org.apache.commons:commons-lang3:jar:3.3.2:compile
-				[INFO] |  \- commons-io:commons-io:jar:2.4:compile
+				[INFO] |  +- commons-codec:commons-codec:jar:1.15:runtime
+				[INFO] |  \- commons-io:commons-io:jar:2.11.0:compile
+
 
 				Dependencies that are not needed for how we use Calcite right now.
 				-->
@@ -178,6 +195,10 @@ under the License.
 				<exclusion>
 					<groupId>org.apiguardian</groupId>
 					<artifactId>apiguardian-api</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>com.google.errorprone</groupId>
+					<artifactId>error_prone_annotations</artifactId>
 				</exclusion>
 			</exclusions>
 		</dependency>
@@ -347,6 +368,7 @@ under the License.
 							<include>com.google.guava:failureaccess</include>
 							<include>commons-codec:commons-codec</include>
 							<include>commons-io:commons-io</include>
+							<include>org.checkerframework:checker-qual</include>
 
 							<!-- flink-table-planner dependencies -->
 							<include>org.apache.flink:flink-sql-parser</include>
@@ -372,6 +394,10 @@ under the License.
 						<relocation>
 							<pattern>org.apache.commons.io</pattern>
 							<shadedPattern>org.apache.flink.calcite.shaded.org.apache.commons.io</shadedPattern>
+						</relocation>
+						<relocation>
+							<pattern>org.checkerframework</pattern>
+							<shadedPattern>org.apache.flink.calcite.shaded.org.checkerframework</shadedPattern>
 						</relocation>
 
 						<!-- These are relocated to match package names, but not included in this jar -->

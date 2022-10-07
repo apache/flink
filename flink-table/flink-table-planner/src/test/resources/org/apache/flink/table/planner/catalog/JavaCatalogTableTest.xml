@@ -45,7 +45,7 @@ GroupWindowAggregate(window=[TumblingGroupWindow('w$, proctime, 600000)], select
     <Resource name="ast">
       <![CDATA[
 LogicalProject(EXPR$0=[$0])
-+- LogicalWindowAggregate(group=[{}], EXPR$0=[COUNT($3)], window=[TumblingGroupWindow('w, rowtime, 600000)], properties=[])
++- LogicalWindowAggregate(group=[{}], EXPR$0=[COUNT()], window=[TumblingGroupWindow('w, rowtime, 600000)], properties=[])
    +- LogicalProject(count=[$0], rowtime=[$1], proctime=[$2], $f3=[1])
       +- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[-($1, 5000:INTERVAL SECOND)])
          +- LogicalProject(count=[$0], rowtime=[$1], proctime=[PROCTIME()])
@@ -54,12 +54,11 @@ LogicalProject(EXPR$0=[$0])
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-GroupWindowAggregate(window=[TumblingGroupWindow('w, rowtime, 600000)], select=[COUNT($f3) AS EXPR$0])
+GroupWindowAggregate(window=[TumblingGroupWindow('w, rowtime, 600000)], select=[COUNT(*) AS EXPR$0])
 +- Exchange(distribution=[single])
-   +- Calc(select=[count, rowtime, proctime, 1 AS $f3])
-      +- WatermarkAssigner(rowtime=[rowtime], watermark=[(rowtime - 5000:INTERVAL SECOND)])
-         +- Calc(select=[count, rowtime, PROCTIME() AS proctime])
-            +- TableSourceScan(table=[[testCatalog, default, testTable]], fields=[count, rowtime])
+   +- WatermarkAssigner(rowtime=[rowtime], watermark=[(rowtime - 5000:INTERVAL SECOND)])
+      +- Calc(select=[count, rowtime, PROCTIME() AS proctime])
+         +- TableSourceScan(table=[[testCatalog, default, testTable]], fields=[count, rowtime])
 ]]>
     </Resource>
   </TestCase>
@@ -67,7 +66,7 @@ GroupWindowAggregate(window=[TumblingGroupWindow('w, rowtime, 600000)], select=[
     <Resource name="ast">
       <![CDATA[
 LogicalProject(EXPR$0=[$0])
-+- LogicalWindowAggregate(group=[{}], EXPR$0=[COUNT($3)], window=[TumblingGroupWindow('w, proctime, 600000)], properties=[])
++- LogicalWindowAggregate(group=[{}], EXPR$0=[COUNT()], window=[TumblingGroupWindow('w, proctime, 600000)], properties=[])
    +- LogicalProject(count=[$0], rowtime=[$1], proctime=[$2], $f3=[1])
       +- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[-($1, 5000:INTERVAL SECOND)])
          +- LogicalProject(count=[$0], rowtime=[$1], proctime=[PROCTIME()])
@@ -76,12 +75,11 @@ LogicalProject(EXPR$0=[$0])
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-GroupWindowAggregate(window=[TumblingGroupWindow('w, proctime, 600000)], select=[COUNT($f3) AS EXPR$0])
+GroupWindowAggregate(window=[TumblingGroupWindow('w, proctime, 600000)], select=[COUNT(*) AS EXPR$0])
 +- Exchange(distribution=[single])
-   +- Calc(select=[count, rowtime, proctime, 1 AS $f3])
-      +- WatermarkAssigner(rowtime=[rowtime], watermark=[(rowtime - 5000:INTERVAL SECOND)])
-         +- Calc(select=[count, rowtime, PROCTIME() AS proctime])
-            +- TableSourceScan(table=[[testCatalog, default, testTable]], fields=[count, rowtime])
+   +- WatermarkAssigner(rowtime=[rowtime], watermark=[(rowtime - 5000:INTERVAL SECOND)])
+      +- Calc(select=[count, rowtime, PROCTIME() AS proctime])
+         +- TableSourceScan(table=[[testCatalog, default, testTable]], fields=[count, rowtime])
 ]]>
     </Resource>
   </TestCase>
@@ -133,18 +131,17 @@ GroupWindowAggregate(window=[TumblingGroupWindow('w$, rowtime, 600000)], select=
     <Resource name="ast">
       <![CDATA[
 LogicalProject(EXPR$0=[$0])
-+- LogicalWindowAggregate(group=[{}], EXPR$0=[COUNT($3)], window=[TumblingGroupWindow('w, rowtime, 600000)], properties=[])
++- LogicalWindowAggregate(group=[{}], EXPR$0=[COUNT()], window=[TumblingGroupWindow('w, rowtime, 600000)], properties=[])
    +- LogicalProject(count=[$0], rowtime=[$1], proctime=[PROCTIME()], $f3=[1])
       +- LogicalTableScan(table=[[testCatalog, default, testTable]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-HashWindowAggregate(window=[TumblingGroupWindow('w, rowtime, 600000)], select=[Final_COUNT(count$0) AS EXPR$0])
+HashWindowAggregate(window=[TumblingGroupWindow('w, rowtime, 600000)], select=[Final_COUNT(count1$0) AS EXPR$0])
 +- Exchange(distribution=[single])
-   +- LocalHashWindowAggregate(window=[TumblingGroupWindow('w, rowtime, 600000)], select=[Partial_COUNT($f3) AS count$0])
-      +- Calc(select=[count, rowtime, PROCTIME() AS proctime, 1 AS $f3])
-         +- TableSourceScan(table=[[testCatalog, default, testTable]], fields=[count, rowtime])
+   +- LocalHashWindowAggregate(window=[TumblingGroupWindow('w, rowtime, 600000)], select=[Partial_COUNT(*) AS count1$0])
+      +- TableSourceScan(table=[[testCatalog, default, testTable]], fields=[count, rowtime])
 ]]>
     </Resource>
   </TestCase>
