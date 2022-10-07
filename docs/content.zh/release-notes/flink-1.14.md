@@ -460,7 +460,7 @@ older checkpoints over newer savepoints for recovery can lead to data loss.
 
 ### Dependency upgrades
 
-#### Bump up RocksDb version to 6.20.3
+#### Bump up RocksDB version to 6.20.3
 
 ##### [FLINK-14482](https://issues.apache.org/jira/browse/FLINK-14482)
 
