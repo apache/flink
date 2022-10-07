@@ -76,7 +76,7 @@ under the License.
 	</dependencyManagement>
 
 	<properties>
-		<calcite.version>1.26.0</calcite.version>
+		<calcite.version>1.27.0</calcite.version>
 		<checker-qual.version>3.10.0</checker-qual.version>
 		<!-- Keep Janino in sync with calcite. -->
 		<janino.version>3.0.11</janino.version>

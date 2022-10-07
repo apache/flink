@@ -84,7 +84,7 @@ Calc(select=[a, b, d, e])
     <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], d=[$3], e=[$4])
-+- LogicalFilter(condition=[OR(AND(=($0, 0), =($3, 3)), SEARCH($0, Sarg[1]))])
++- LogicalFilter(condition=[OR(AND(=($0, 0), =($3, 3)), =($0, 1))])
    +- LogicalJoin(condition=[true], joinType=[inner])
       :- LogicalTableScan(table=[[default_catalog, default_database, T1]])
       +- LogicalTableScan(table=[[default_catalog, default_database, T2]])
@@ -92,7 +92,7 @@ LogicalProject(a=[$0], b=[$1], d=[$3], e=[$4])
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-Join(joinType=[InnerJoin], where=[(((a = 0) AND (d = 3)) OR SEARCH(a, Sarg[1]))], select=[a, b, d, e], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+Join(joinType=[InnerJoin], where=[(((a = 0) AND (d = 3)) OR (a = 1))], select=[a, b, d, e], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
 :- Exchange(distribution=[single])
 :  +- Calc(select=[a, b], where=[SEARCH(a, Sarg[0, 1])])
 :     +- DataStreamScan(table=[[default_catalog, default_database, T1]], fields=[a, b, c])
