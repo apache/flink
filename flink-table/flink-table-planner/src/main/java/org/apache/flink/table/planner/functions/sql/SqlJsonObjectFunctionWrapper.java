@@ -20,6 +20,7 @@ package org.apache.flink.table.planner.functions.sql;
 
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.sql.SqlOperatorBinding;
+import org.apache.calcite.sql.fun.SqlJsonObjectFunction;
 import org.apache.calcite.sql.type.SqlReturnTypeInference;
 
 import static org.apache.flink.table.planner.plan.type.FlinkReturnTypes.VARCHAR_NOT_NULL;
