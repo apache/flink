@@ -136,6 +136,8 @@ under the License.
 		<zookeeper.version>3.5.9</zookeeper.version>
 		<curator.version>5.2.0</curator.version>
 		<avro.version>1.10.0</avro.version>
+		<!-- Version for transitive Jackson dependencies that are not used within Flink itself.-->
+		<jackson-bom.version>2.13.4</jackson-bom.version>
 		<javax.activation.api.version>1.2.0</javax.activation.api.version>
 		<jaxb.api.version>2.3.1</jaxb.api.version>
 		<junit4.version>4.13.2</junit4.version>
@@ -578,9 +580,9 @@ under the License.
 				<artifactId>jackson-bom</artifactId>
 				<type>pom</type>
 				<scope>import</scope>
-				<version>2.13.4</version>
+				<version>${jackson-bom.version}</version>
 			</dependency>
-			
+
 			<dependency>
 				<groupId>com.squareup.okhttp3</groupId>
 				<artifactId>okhttp</artifactId>
