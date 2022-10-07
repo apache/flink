@@ -19,10 +19,21 @@
 package org.apache.flink.fs.s3hadoop;
 
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.core.testutils.CommonTestUtils;
 import org.apache.flink.runtime.util.HadoopConfigLoader;
 
-import org.junit.Test;
+import org.apache.flink.shaded.guava30.com.google.common.collect.ImmutableMap;
 
+import org.junit.Rule;
+import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
+
+import java.io.File;
+import java.io.IOException;
+import java.util.HashMap;
+import java.util.Map;
+
+import static org.apache.flink.runtime.util.ConfigurationFileUtil.printConfigs;
 import static org.junit.Assert.assertEquals;
 
 /**
@@ -30,6 +41,7 @@ import static org.junit.Assert.assertEquals;
  * org.apache.hadoop.fs.s3a.S3AFileSystem}.
  */
 public class HadoopS3FileSystemTest {
+    @Rule public final TemporaryFolder tempFolder = new TemporaryFolder();
 
     @Test
     public void testShadingOfAwsCredProviderConfig() {
@@ -79,6 +91,38 @@ public class HadoopS3FileSystemTest {
         conf.setString("s3.access-key", "clé d'accès");
         conf.setString("s3.secret-key", "clef secrète");
         checkHadoopAccessKeys(conf, "clé d'accès", "clef secrète");
+    }
+
+    /** Test reading the values from the base hadoop configuration. */
+    @Test
+    public void testConfigKeysFromHadoopConfig() throws IOException {
+        final File confDir = tempFolder.newFolder();
+        final File file1 = new File(confDir, "core-site.xml");
+
+        printConfigs(
+                file1,
+                ImmutableMap.of(
+                        "fs.s3a.overwrite", "from.hadoop.conf",
+                        "fs.s3a.orig", "from.hadoop.conf"));
+
+        final Configuration conf = new Configuration();
+        conf.setString("fs.s3a.from.conf", "from.conf");
+        conf.setString("fs.s3a.overwrite", "from.conf");
+
+        final Map<String, String> originalEnv = System.getenv();
+        final Map<String, String> newEnv = new HashMap<>(originalEnv);
+        newEnv.put("HADOOP_CONF_DIR", confDir.getAbsolutePath());
+        try {
+            CommonTestUtils.setEnv(newEnv);
+            HadoopConfigLoader configLoader = S3FileSystemFactory.createHadoopConfigLoader();
+            configLoader.setFlinkConfig(conf);
+            org.apache.hadoop.conf.Configuration hadoopConf = configLoader.getOrLoadHadoopConfig();
+            assertEquals("from.conf", hadoopConf.get("fs.s3a.from.conf", null));
+            assertEquals("from.conf", hadoopConf.get("fs.s3a.overwrite", null));
+            assertEquals("from.hadoop.conf", hadoopConf.get("fs.s3a.orig", null));
+        } finally {
+            CommonTestUtils.setEnv(originalEnv);
+        }
     }
 
     private static void checkHadoopAccessKeys(

@@ -52,6 +52,12 @@ under the License.
 			</dependency>
 
 			<dependency>
+				<groupId>org.apache.hadoop</groupId>
+				<artifactId>hadoop-hdfs-client</artifactId>
+				<version>${fs.hadoopshaded.version}</version>
+			</dependency>
+
+			<dependency>
 				<!-- Bumped for security purposes -->
 				<groupId>commons-beanutils</groupId>
 				<artifactId>commons-beanutils</artifactId>
@@ -129,6 +135,12 @@ under the License.
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-runtime</artifactId>
 			<version>${project.version}</version>
+			<scope>test</scope>
+		</dependency>
+
+		<dependency>
+			<groupId>org.apache.hadoop</groupId>
+			<artifactId>hadoop-hdfs-client</artifactId>
 			<scope>test</scope>
 		</dependency>
 

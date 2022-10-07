@@ -94,7 +94,7 @@ public class HadoopConfigLoader {
     // add additional config entries from the Flink config to the Hadoop config
     private org.apache.hadoop.conf.Configuration loadHadoopConfigFromFlink() {
         org.apache.hadoop.conf.Configuration hadoopConfig =
-                new org.apache.hadoop.conf.Configuration();
+                HadoopUtils.getHadoopConfiguration(flinkConfig);
         for (String key : flinkConfig.keySet()) {
             for (String prefix : flinkConfigPrefixes) {
                 if (key.startsWith(prefix)) {
