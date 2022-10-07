@@ -42,6 +42,12 @@ under the License.
 		<dependency>
 			<groupId>com.google.guava</groupId>
 			<artifactId>guava</artifactId>
+			<exclusions>
+				<exclusion>
+					<groupId>org.checkerframework</groupId>
+					<artifactId>checker-qual</artifactId>
+				</exclusion>
+			</exclusions>
 		</dependency>
 		<dependency>
 			<groupId>org.codehaus.janino</groupId>
@@ -80,6 +86,16 @@ under the License.
 					<artifactId>calcite-core</artifactId>
 				</exclusion>
 			</exclusions>
+		</dependency>
+		<dependency>
+			<artifactId>apiguardian-api</artifactId>
+			<groupId>org.apiguardian</groupId>
+			<version>1.1.2</version>
+		</dependency>
+		<dependency>
+			<groupId>org.checkerframework</groupId>
+			<artifactId>checker-qual</artifactId>
+			<version>${checker-qual.version}</version>
 		</dependency>
 		<dependency>
 			<groupId>org.apache.flink</groupId>
@@ -178,6 +194,10 @@ under the License.
 				<exclusion>
 					<groupId>org.apiguardian</groupId>
 					<artifactId>apiguardian-api</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>com.google.errorprone</groupId>
+					<artifactId>error_prone_annotations</artifactId>
 				</exclusion>
 			</exclusions>
 		</dependency>
@@ -347,6 +367,7 @@ under the License.
 							<include>com.google.guava:failureaccess</include>
 							<include>commons-codec:commons-codec</include>
 							<include>commons-io:commons-io</include>
+							<include>org.checkerframework:checker-qual</include>
 
 							<!-- flink-table-planner dependencies -->
 							<include>org.apache.flink:flink-sql-parser</include>
