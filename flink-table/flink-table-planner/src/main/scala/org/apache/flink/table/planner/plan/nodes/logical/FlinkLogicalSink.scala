@@ -17,7 +17,7 @@
  */
 package org.apache.flink.table.planner.plan.nodes.logical
 
-import org.apache.flink.table.catalog.{CatalogTable, ContextResolvedTable, ObjectIdentifier, ResolvedCatalogTable}
+import org.apache.flink.table.catalog.ContextResolvedTable
 import org.apache.flink.table.connector.sink.DynamicTableSink
 import org.apache.flink.table.planner.plan.abilities.sink.SinkAbilitySpec
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions
