@@ -87,6 +87,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
+import static org.apache.flink.connectors.hive.HiveOptions.TABLE_EXEC_HIVE_FALLBACK_MAPRED_READER;
 import static org.apache.flink.table.catalog.hive.HiveTestUtils.createTableEnvWithHiveCatalog;
 import static org.apache.flink.table.planner.utils.JavaScalaConversionUtil.toScala;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -171,7 +172,6 @@ public class HiveTableSourceITCase extends BatchAbstractTestBase {
         batchTableEnv.executeSql(
                 "create table parquet_complex_type_test("
                         + "a array<int>, m map<int,string>, s struct<f1:int,f2:bigint>) stored as parquet");
-        String[] modules = batchTableEnv.listModules();
         // load hive module so that we can use array,map, named_struct function
         // for convenient writing complex data
         batchTableEnv.loadModule("hive", new HiveModule());
@@ -187,6 +187,29 @@ public class HiveTableSourceITCase extends BatchAbstractTestBase {
         Table src = batchTableEnv.sqlQuery("select * from parquet_complex_type_test");
         List<Row> rows = CollectionUtil.iteratorToList(src.execute().collect());
         assertThat(rows.toString()).isEqualTo("[+I[[1, 2], {1=val1, 2=val2}, +I[1, 2]]]");
+        batchTableEnv.unloadModule("hive");
+    }
+
+    @Test
+    public void testReadParquetArrayDataType() throws Exception {
+        batchTableEnv.executeSql(
+                "create table parquet_complex_type_test("
+                        + "a array<int>, m map<int,string>, s struct<f1:int,f2:bigint>) stored as parquet");
+        // load hive module so that we can use array,map, named_struct function
+        // for convenient writing complex data
+        batchTableEnv.loadModule("hive", new HiveModule());
+        batchTableEnv.useModules("hive", CoreModuleFactory.IDENTIFIER);
+
+        batchTableEnv
+                .executeSql(
+                        "insert into parquet_complex_type_test"
+                                + " select array(1, 2), map(1, 'val1', 2, 'val2'),"
+                                + " named_struct('f1', 1,  'f2', 2)")
+                .await();
+
+        Table src = batchTableEnv.sqlQuery("select a[1], a[3] from parquet_complex_type_test");
+        List<Row> rows = CollectionUtil.iteratorToList(src.execute().collect());
+        assertThat(rows.toString()).isEqualTo("[+I[2, null]]");
         batchTableEnv.unloadModule("hive");
     }
 
@@ -813,7 +836,7 @@ public class HiveTableSourceITCase extends BatchAbstractTestBase {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         StreamTableEnvironment tEnv =
                 HiveTestUtils.createTableEnvInStreamingMode(env, SqlDialect.HIVE);
-        tEnv.getConfig().set(HiveOptions.TABLE_EXEC_HIVE_FALLBACK_MAPRED_READER, useMapredReader);
+        tEnv.getConfig().set(TABLE_EXEC_HIVE_FALLBACK_MAPRED_READER, useMapredReader);
         tEnv.registerCatalog(catalogName, hiveCatalog);
         tEnv.useCatalog(catalogName);
         tEnv.executeSql(
@@ -857,9 +880,7 @@ public class HiveTableSourceITCase extends BatchAbstractTestBase {
                             TableSourceFactory.Context context = invocation.getArgument(0);
                             assertThat(
                                             context.getConfiguration()
-                                                    .get(
-                                                            HiveOptions
-                                                                    .TABLE_EXEC_HIVE_FALLBACK_MAPRED_READER))
+                                                    .get(TABLE_EXEC_HIVE_FALLBACK_MAPRED_READER))
                                     .isEqualTo(fallbackMR);
                             return new TestConfigSource(
                                     new JobConf(hiveCatalog.getHiveConf()),
@@ -875,7 +896,7 @@ public class HiveTableSourceITCase extends BatchAbstractTestBase {
         doReturn(Optional.of(tableFactorySpy)).when(catalogSpy).getTableFactory();
 
         TableEnvironment tableEnv = HiveTestUtils.createTableEnvInBatchMode();
-        tableEnv.getConfig().set(HiveOptions.TABLE_EXEC_HIVE_FALLBACK_MAPRED_READER, fallbackMR);
+        tableEnv.getConfig().set(TABLE_EXEC_HIVE_FALLBACK_MAPRED_READER, fallbackMR);
         tableEnv.getConfig()
                 .set(HiveOptions.TABLE_EXEC_HIVE_INFER_SOURCE_PARALLELISM, inferParallelism);
         tableEnv.getConfig().set(ExecutionConfigOptions.TABLE_EXEC_RESOURCE_DEFAULT_PARALLELISM, 2);

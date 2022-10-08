@@ -100,7 +100,6 @@ public class ArrayObjectArrayConverter<E> implements DataStructureConverter<Arra
             if (genericArray.isPrimitiveArray()) {
                 return genericToJavaArrayConverter.convert((GenericArrayData) internal);
             }
-            return (E[]) genericArray.toObjectArray();
         }
         return toJavaArray(internal);
     }
