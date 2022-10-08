@@ -30,9 +30,9 @@ import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.serialization.KeyedSerializationSchema;
 
 import org.apache.kafka.common.errors.ProducerFencedException;
-import org.junit.Before;
-import org.junit.Ignore;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Disabled;
+import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -68,7 +68,7 @@ public class FlinkKafkaProducerITCase extends KafkaTestBase {
     protected KeyedSerializationSchema<Integer> integerKeyedSerializationSchema =
             new KeyedSerializationSchemaWrapper<>(integerSerializationSchema);
 
-    @Before
+    @BeforeEach
     public void before() {
         transactionalId = UUID.randomUUID().toString();
         extraProperties = new Properties();
@@ -171,7 +171,7 @@ public class FlinkKafkaProducerITCase extends KafkaTestBase {
 
     /** This test hangs when running it in your IDE. */
     @Test
-    @Ignore
+    @Disabled
     public void testFlinkKafkaProducerFailBeforeNotify() throws Exception {
         String topic = "flink-kafka-producer-fail-before-notify";
 

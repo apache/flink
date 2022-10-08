@@ -34,8 +34,8 @@ import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.common.Configurable;
 import org.apache.kafka.common.serialization.StringDeserializer;
 import org.apache.kafka.common.serialization.StringSerializer;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -53,7 +53,7 @@ public class KafkaRecordDeserializationSchemaTest {
     private static Map<String, ?> configuration;
     private static boolean isKeyDeserializer;
 
-    @Before
+    @BeforeEach
     public void setUp() {
         configurableConfiguration = new HashMap<>(1);
         configuration = new HashMap<>(1);

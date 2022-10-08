@@ -38,8 +38,9 @@ import org.apache.flink.streaming.connectors.kafka.partitioner.FlinkKafkaPartiti
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 
 import org.apache.kafka.clients.consumer.ConsumerRecord;
-import org.junit.BeforeClass;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Timeout;
 
 import javax.annotation.Nullable;
 
@@ -50,7 +51,7 @@ import java.util.Optional;
 /** IT cases for Kafka. */
 public class KafkaITCase extends KafkaConsumerTestBase {
 
-    @BeforeClass
+    @BeforeAll
     public static void prepare() throws Exception {
         KafkaProducerTestBase.prepare();
         ((KafkaTestEnvironmentImpl) kafkaServer)
@@ -61,130 +62,153 @@ public class KafkaITCase extends KafkaConsumerTestBase {
     //  Suite of Tests
     // ------------------------------------------------------------------------
 
-    @Test(timeout = 120000)
+    @Test
+    @Timeout(120000L)
     public void testFailOnNoBroker() throws Exception {
         runFailOnNoBrokerTest();
     }
 
-    @Test(timeout = 60000)
+    @Test
+    @Timeout(60000L)
     public void testConcurrentProducerConsumerTopology() throws Exception {
         runSimpleConcurrentProducerConsumerTopology();
     }
 
-    @Test(timeout = 60000)
+    @Test
+    @Timeout(60000L)
     public void testKeyValueSupport() throws Exception {
         runKeyValueTest();
     }
 
     // --- canceling / failures ---
 
-    @Test(timeout = 60000)
+    @Test
+    @Timeout(60000L)
     public void testCancelingEmptyTopic() throws Exception {
         runCancelingOnEmptyInputTest();
     }
 
-    @Test(timeout = 60000)
+    @Test
+    @Timeout(60000L)
     public void testCancelingFullTopic() throws Exception {
         runCancelingOnFullInputTest();
     }
 
     // --- source to partition mappings and exactly once ---
 
-    @Test(timeout = 60000)
+    @Test
+    @Timeout(60000L)
     public void testOneToOneSources() throws Exception {
         runOneToOneExactlyOnceTest();
     }
 
-    @Test(timeout = 60000)
+    @Test
+    @Timeout(60000L)
     public void testOneSourceMultiplePartitions() throws Exception {
         runOneSourceMultiplePartitionsExactlyOnceTest();
     }
 
-    @Test(timeout = 60000)
+    @Test
+    @Timeout(60000L)
     public void testMultipleSourcesOnePartition() throws Exception {
         runMultipleSourcesOnePartitionExactlyOnceTest();
     }
 
     // --- broker failure ---
 
-    @Test(timeout = 60000)
+    @Test
+    @Timeout(60000L)
     public void testBrokerFailure() throws Exception {
         runBrokerFailureTest();
     }
 
     // --- special executions ---
 
-    @Test(timeout = 60000)
+    @Test
+    @Timeout(60000L)
     public void testBigRecordJob() throws Exception {
         runBigRecordTestTopology();
     }
 
-    @Test(timeout = 60000)
+    @Test
+    @Timeout(60000L)
     public void testMultipleTopicsWithLegacySerializer() throws Exception {
         runProduceConsumeMultipleTopics(true);
     }
 
-    @Test(timeout = 60000)
+    @Test
+    @Timeout(60000L)
     public void testMultipleTopicsWithKafkaSerializer() throws Exception {
         runProduceConsumeMultipleTopics(false);
     }
 
-    @Test(timeout = 60000)
+    @Test
+    @Timeout(60000L)
     public void testAllDeletes() throws Exception {
         runAllDeletesTest();
     }
 
-    @Test(timeout = 60000)
+    @Test
+    @Timeout(60000L)
     public void testMetricsAndEndOfStream() throws Exception {
         runEndOfStreamTest();
     }
 
     // --- startup mode ---
 
-    @Test(timeout = 60000)
+    @Test
+    @Timeout(60000L)
     public void testStartFromEarliestOffsets() throws Exception {
         runStartFromEarliestOffsets();
     }
 
-    @Test(timeout = 60000)
+    @Test
+    @Timeout(60000L)
     public void testStartFromLatestOffsets() throws Exception {
         runStartFromLatestOffsets();
     }
 
-    @Test(timeout = 60000)
+    @Test
+    @Timeout(60000L)
     public void testStartFromGroupOffsets() throws Exception {
         runStartFromGroupOffsets();
     }
 
-    @Test(timeout = 60000)
+    @Test
+    @Timeout(60000L)
     public void testStartFromSpecificOffsets() throws Exception {
         runStartFromSpecificOffsets();
     }
 
-    @Test(timeout = 60000)
+    @Test
+    @Timeout(60000L)
     public void testStartFromTimestamp() throws Exception {
         runStartFromTimestamp();
     }
 
     // --- offset committing ---
 
-    @Test(timeout = 60000)
+    @Test
+    @Timeout(60000L)
     public void testCommitOffsetsToKafka() throws Exception {
         runCommitOffsetsToKafka();
     }
 
-    @Test(timeout = 60000)
+    @Test
+    @Timeout(60000L)
     public void testAutoOffsetRetrievalAndCommitToKafka() throws Exception {
         runAutoOffsetRetrievalAndCommitToKafka();
     }
 
-    @Test(timeout = 60000)
+    @Test
+    @Timeout(60000L)
     public void testCollectingSchema() throws Exception {
         runCollectingSchemaTest();
     }
 
     /** Kafka 20 specific test, ensuring Timestamps are properly written to and read from Kafka. */
-    @Test(timeout = 60000)
+    @Test
+    @Timeout(60000L)
     public void testTimestamps() throws Exception {
 
         final String topic = "tstopic";

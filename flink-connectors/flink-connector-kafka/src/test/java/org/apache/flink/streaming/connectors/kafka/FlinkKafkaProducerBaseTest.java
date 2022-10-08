@@ -40,7 +40,8 @@ import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.common.PartitionInfo;
 import org.apache.kafka.common.serialization.ByteArraySerializer;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Timeout;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 
@@ -49,6 +50,7 @@ import java.util.List;
 import java.util.Properties;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.fail;
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.anyString;
@@ -61,13 +63,19 @@ import static org.mockito.Mockito.when;
 public class FlinkKafkaProducerBaseTest {
 
     /** Tests that the constructor eagerly checks bootstrap servers are set in config. */
-    @Test(expected = IllegalArgumentException.class)
-    public void testInstantiationFailsWhenBootstrapServersMissing() throws Exception {
+    @Test
+    public void testInstantiationFailsWhenBootstrapServersMissing() {
         // no bootstrap servers set in props
         Properties props = new Properties();
         // should throw IllegalArgumentException
-        new DummyFlinkKafkaProducer<>(
-                props, new KeyedSerializationSchemaWrapper<>(new SimpleStringSchema()), null);
+        assertThatThrownBy(
+                        () ->
+                                new DummyFlinkKafkaProducer<>(
+                                        props,
+                                        new KeyedSerializationSchemaWrapper<>(
+                                                new SimpleStringSchema()),
+                                        null))
+                .isInstanceOf(IllegalArgumentException.class);
     }
 
     /**
@@ -75,7 +83,7 @@ public class FlinkKafkaProducerBaseTest {
      * deserializers if not set.
      */
     @Test
-    public void testKeyValueDeserializersSetIfMissing() throws Exception {
+    public void testKeyValueDeserializersSetIfMissing() {
         Properties props = new Properties();
         props.setProperty(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, "localhost:12345");
         // should set missing key value deserializers
@@ -219,7 +227,8 @@ public class FlinkKafkaProducerBaseTest {
      * pending records. The test for that is covered in testAtLeastOnceProducer.
      */
     @SuppressWarnings("unchecked")
-    @Test(timeout = 5000)
+    @Test
+    @Timeout(5000L)
     public void testAsyncErrorRethrownOnCheckpointAfterFlush() throws Throwable {
         final DummyFlinkKafkaProducer<String> producer =
                 new DummyFlinkKafkaProducer<>(
@@ -280,7 +289,8 @@ public class FlinkKafkaProducerBaseTest {
      * the test will not finish if the logic is broken.
      */
     @SuppressWarnings("unchecked")
-    @Test(timeout = 10000)
+    @Test
+    @Timeout(10000L)
     public void testAtLeastOnceProducer() throws Throwable {
         final DummyFlinkKafkaProducer<String> producer =
                 new DummyFlinkKafkaProducer<>(
@@ -353,7 +363,8 @@ public class FlinkKafkaProducerBaseTest {
      * records; we set a timeout because the test will not finish if the logic is broken.
      */
     @SuppressWarnings("unchecked")
-    @Test(timeout = 5000)
+    @Test
+    @Timeout(10000L)
     public void testDoesNotWaitForPendingRecordsIfFlushingDisabled() throws Throwable {
         final DummyFlinkKafkaProducer<String> producer =
                 new DummyFlinkKafkaProducer<>(

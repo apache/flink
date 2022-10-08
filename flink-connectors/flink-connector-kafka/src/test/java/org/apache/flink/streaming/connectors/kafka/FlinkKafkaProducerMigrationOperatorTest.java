@@ -19,9 +19,9 @@
 package org.apache.flink.streaming.connectors.kafka;
 
 import org.apache.flink.FlinkVersion;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameters;
 
-import org.junit.Ignore;
-import org.junit.runners.Parameterized;
+import org.junit.jupiter.api.Disabled;
 
 import java.util.Arrays;
 import java.util.Collection;
@@ -35,15 +35,17 @@ import java.util.Collection;
  * also specified by the {@link #getOperatorSnapshotPath(FlinkVersion)} method.
  */
 public class FlinkKafkaProducerMigrationOperatorTest extends FlinkKafkaProducerMigrationTest {
-    @Parameterized.Parameters(name = "Migration Savepoint: {0}")
+    @Parameters(name = "Migration Savepoint: {0}")
     public static Collection<FlinkVersion> parameters() {
         return Arrays.asList(
                 FlinkVersion.v1_8, FlinkVersion.v1_9, FlinkVersion.v1_10, FlinkVersion.v1_11);
     }
 
-    public FlinkKafkaProducerMigrationOperatorTest(FlinkVersion testMigrateVersion) {
-        super(testMigrateVersion);
-    }
+    //    @Parameter public FlinkVersion testMigrateVersion;
+
+    //    public FlinkKafkaProducerMigrationOperatorTest(FlinkVersion testMigrateVersion) {
+    //        super(testMigrateVersion);
+    //    }
 
     @Override
     public String getOperatorSnapshotPath(FlinkVersion version) {
@@ -52,7 +54,7 @@ public class FlinkKafkaProducerMigrationOperatorTest extends FlinkKafkaProducerM
                 + "-snapshot";
     }
 
-    @Ignore
+    @Disabled
     @Override
     public void writeSnapshot() throws Exception {
         throw new UnsupportedOperationException();

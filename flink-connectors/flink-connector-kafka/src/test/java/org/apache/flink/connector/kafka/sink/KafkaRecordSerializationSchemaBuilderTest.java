@@ -21,7 +21,7 @@ import org.apache.flink.api.common.serialization.SerializationSchema;
 import org.apache.flink.api.common.serialization.SimpleStringSchema;
 import org.apache.flink.connector.testutils.formats.DummyInitializationContext;
 import org.apache.flink.streaming.connectors.kafka.partitioner.FlinkKafkaPartitioner;
-import org.apache.flink.util.TestLogger;
+import org.apache.flink.util.TestLoggerExtension;
 
 import org.apache.flink.shaded.guava30.com.google.common.collect.ImmutableList;
 import org.apache.flink.shaded.guava30.com.google.common.collect.ImmutableMap;
@@ -31,8 +31,9 @@ import org.apache.kafka.common.Configurable;
 import org.apache.kafka.common.serialization.Deserializer;
 import org.apache.kafka.common.serialization.StringDeserializer;
 import org.apache.kafka.common.serialization.StringSerializer;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.util.Collections;
 import java.util.HashMap;
@@ -45,7 +46,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for {@link KafkaRecordSerializationSchemaBuilder}. */
-public class KafkaRecordSerializationSchemaBuilderTest extends TestLogger {
+@ExtendWith(TestLoggerExtension.class)
+public class KafkaRecordSerializationSchemaBuilderTest {
 
     private static final String DEFAULT_TOPIC = "test";
 
@@ -53,7 +55,7 @@ public class KafkaRecordSerializationSchemaBuilderTest extends TestLogger {
     private static Map<String, ?> configuration;
     private static boolean isKeySerializer;
 
-    @Before
+    @BeforeEach
     public void setUp() {
         configurableConfiguration = new HashMap<>();
         configuration = new HashMap<>();

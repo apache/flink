@@ -26,11 +26,13 @@ import org.apache.flink.streaming.connectors.kafka.internals.KeyedSerializationS
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.OperatorSnapshotUtil;
 import org.apache.flink.streaming.util.serialization.KeyedSerializationSchema;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameter;
 
-import org.junit.AfterClass;
-import org.junit.BeforeClass;
-import org.junit.Ignore;
-import org.junit.Test;
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Disabled;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestTemplate;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -38,7 +40,6 @@ import java.util.Arrays;
 import java.util.Optional;
 import java.util.Properties;
 
-import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
 
 /** The base class with migration tests for the Kafka Exactly-Once Producer. */
@@ -48,7 +49,8 @@ public abstract class KafkaMigrationTestBase extends KafkaTestBase {
     protected static final Logger LOG = LoggerFactory.getLogger(KafkaMigrationTestBase.class);
     protected static final String TOPIC = "flink-kafka-producer-migration-test";
 
-    protected final FlinkVersion testMigrateVersion;
+    @Parameter public FlinkVersion testMigrateVersion;
+    //    protected final FlinkVersion testMigrateVersion;
     protected final TypeInformationSerializationSchema<Integer> integerSerializationSchema =
             new TypeInformationSerializationSchema<>(
                     BasicTypeInfo.INT_TYPE_INFO, new ExecutionConfig());
@@ -63,9 +65,9 @@ public abstract class KafkaMigrationTestBase extends KafkaTestBase {
      */
     protected final Optional<FlinkVersion> flinkGenerateSavepointVersion = Optional.empty();
 
-    public KafkaMigrationTestBase(FlinkVersion testMigrateVersion) {
-        this.testMigrateVersion = checkNotNull(testMigrateVersion);
-    }
+    //        public KafkaMigrationTestBase(FlinkVersion testMigrateVersion) {
+    //            this.testMigrateVersion = checkNotNull(testMigrateVersion);
+    //        }
 
     public String getOperatorSnapshotPath() {
         return getOperatorSnapshotPath(testMigrateVersion);
@@ -79,18 +81,18 @@ public abstract class KafkaMigrationTestBase extends KafkaTestBase {
      * Override {@link KafkaTestBase}. Kafka Migration Tests are starting up Kafka/ZooKeeper cluster
      * manually
      */
-    @BeforeClass
+    @BeforeAll
     public static void prepare() throws Exception {}
 
     /**
      * Override {@link KafkaTestBase}. Kafka Migration Tests are starting up Kafka/ZooKeeper cluster
      * manually
      */
-    @AfterClass
+    @AfterAll
     public static void shutDownServices() throws Exception {}
 
     /** Manually run this to write binary snapshot data. */
-    @Ignore
+    @Disabled
     @Test
     public void writeSnapshot() throws Exception {
         try {
@@ -128,15 +130,19 @@ public abstract class KafkaMigrationTestBase extends KafkaTestBase {
     }
 
     @SuppressWarnings("warning")
-    @Test
+    @TestTemplate
     public void testRestoreProducer() throws Exception {
         try {
+            // TODO due to @RetryOnFailure annotation the test runs initially with null param
+            if (testMigrateVersion == null) {
+                return;
+            }
             startClusters();
 
             initializeTestState();
 
             try (OneInputStreamOperatorTestHarness testHarness = createTestHarness()) {
-                initializeState(testHarness);
+                initializeState(testHarness, testMigrateVersion);
 
                 // Create a committed transaction
                 testHarness.processElement(44, 4L);
@@ -163,9 +169,11 @@ public abstract class KafkaMigrationTestBase extends KafkaTestBase {
 
     protected abstract Properties createProperties();
 
-    protected void initializeState(OneInputStreamOperatorTestHarness testHarness) throws Exception {
+    protected void initializeState(
+            OneInputStreamOperatorTestHarness testHarness, FlinkVersion testMigrateVersion)
+            throws Exception {
         testHarness.setup();
-        testHarness.initializeState(getOperatorSnapshotPath());
+        testHarness.initializeState(getOperatorSnapshotPath(testMigrateVersion));
         testHarness.open();
     }
 }

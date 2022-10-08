@@ -18,9 +18,9 @@
 package org.apache.flink.streaming.connectors.kafka;
 
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
-import org.apache.flink.test.util.MiniClusterWithClientResource;
+import org.apache.flink.test.junit5.MiniClusterExtension;
 
-import org.junit.ClassRule;
+import org.junit.jupiter.api.extension.RegisterExtension;
 
 /** The base for the Kafka tests with Flink's MiniCluster. */
 @SuppressWarnings("serial")
@@ -30,9 +30,9 @@ public abstract class KafkaTestBaseWithFlink extends KafkaTestBase {
 
     protected static final int TM_SLOTS = 8;
 
-    @ClassRule
-    public static MiniClusterWithClientResource flink =
-            new MiniClusterWithClientResource(
+    @RegisterExtension
+    public static MiniClusterExtension flink =
+            new MiniClusterExtension(
                     new MiniClusterResourceConfiguration.Builder()
                             .setConfiguration(getFlinkConfiguration())
                             .setNumberTaskManagers(NUM_TMS)

@@ -61,11 +61,10 @@ import org.apache.flink.table.types.AtomicDataType;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.logical.VarCharType;
-import org.apache.flink.util.TestLogger;
+import org.apache.flink.util.TestLoggerExtension;
 
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.ExpectedException;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.util.Arrays;
 import java.util.Collections;
@@ -75,14 +74,15 @@ import java.util.Optional;
 import java.util.Properties;
 import java.util.function.Consumer;
 
-import static org.apache.flink.core.testutils.FlinkMatchers.containsCause;
 import static org.apache.flink.streaming.connectors.kafka.table.KafkaConnectorOptionsUtil.AVRO_CONFLUENT;
 import static org.apache.flink.table.factories.utils.FactoryMocks.createTableSink;
 import static org.apache.flink.table.factories.utils.FactoryMocks.createTableSource;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Test for {@link UpsertKafkaDynamicTableFactory}. */
-public class UpsertKafkaDynamicTableFactoryTest extends TestLogger {
+@ExtendWith(TestLoggerExtension.class)
+public class UpsertKafkaDynamicTableFactoryTest {
 
     private static final String SOURCE_TOPIC = "sourceTopic_1";
 
@@ -138,8 +138,6 @@ public class UpsertKafkaDynamicTableFactoryTest extends TestLogger {
     static DecodingFormat<DeserializationSchema<RowData>> valueDecodingFormat =
             new TestFormatFactory.DecodingFormatMock(
                     ",", true, ChangelogMode.insertOnly(), Collections.emptyMap());
-
-    @Rule public ExpectedException thrown = ExpectedException.none();
 
     @Test
     public void testTableSource() {
@@ -395,106 +393,112 @@ public class UpsertKafkaDynamicTableFactoryTest extends TestLogger {
 
     @Test
     public void testCreateSourceTableWithoutPK() {
-        thrown.expect(ValidationException.class);
-        thrown.expect(
-                containsCause(
-                        new ValidationException(
-                                "'upsert-kafka' tables require to define a PRIMARY KEY constraint. "
-                                        + "The PRIMARY KEY specifies which columns should be read from or write to the Kafka message key. "
-                                        + "The PRIMARY KEY also defines records in the 'upsert-kafka' table should update or delete on which keys.")));
-
         ResolvedSchema illegalSchema =
                 ResolvedSchema.of(
                         Column.physical("window_start", DataTypes.STRING()),
                         Column.physical("region", DataTypes.STRING()),
                         Column.physical("view_count", DataTypes.BIGINT()));
-        createTableSource(illegalSchema, getFullSourceOptions());
+
+        assertThatThrownBy(() -> createTableSource(illegalSchema, getFullSourceOptions()))
+                .isInstanceOf(ValidationException.class)
+                .hasCause(
+                        new ValidationException(
+                                "'upsert-kafka' tables require to define a PRIMARY KEY constraint. "
+                                        + "The PRIMARY KEY specifies which columns should be read from or write to the Kafka message key. "
+                                        + "The PRIMARY KEY also defines records in the 'upsert-kafka' table should update or delete on which keys."));
     }
 
     @Test
     public void testCreateSinkTableWithoutPK() {
-        thrown.expect(ValidationException.class);
-        thrown.expect(
-                containsCause(
-                        new ValidationException(
-                                "'upsert-kafka' tables require to define a PRIMARY KEY constraint. "
-                                        + "The PRIMARY KEY specifies which columns should be read from or write to the Kafka message key. "
-                                        + "The PRIMARY KEY also defines records in the 'upsert-kafka' table should update or delete on which keys.")));
-
         ResolvedSchema illegalSchema =
                 ResolvedSchema.of(
                         Column.physical("region", DataTypes.STRING()),
                         Column.physical("view_count", DataTypes.BIGINT()));
-        createTableSink(illegalSchema, getFullSinkOptions());
+        assertThatThrownBy(() -> createTableSink(illegalSchema, getFullSinkOptions()))
+                .isInstanceOf(ValidationException.class)
+                .hasCause(
+                        new ValidationException(
+                                "'upsert-kafka' tables require to define a PRIMARY KEY constraint. "
+                                        + "The PRIMARY KEY specifies which columns should be read from or write to the Kafka message key. "
+                                        + "The PRIMARY KEY also defines records in the 'upsert-kafka' table should update or delete on which keys."));
     }
 
     @Test
     public void testSerWithCDCFormatAsValue() {
-        thrown.expect(ValidationException.class);
-        thrown.expect(
-                containsCause(
+
+        assertThatThrownBy(
+                        () ->
+                                createTableSink(
+                                        SINK_SCHEMA,
+                                        getModifiedOptions(
+                                                getFullSinkOptions(),
+                                                options ->
+                                                        options.put(
+                                                                String.format(
+                                                                        "value.%s.%s",
+                                                                        TestFormatFactory
+                                                                                .IDENTIFIER,
+                                                                        TestFormatFactory
+                                                                                .CHANGELOG_MODE
+                                                                                .key()),
+                                                                "I;UA;UB;D"))))
+                .isInstanceOf(ValidationException.class)
+                .hasCause(
                         new ValidationException(
                                 String.format(
                                         "'upsert-kafka' connector doesn't support '%s' as value format, "
                                                 + "because '%s' is not in insert-only mode.",
                                         TestFormatFactory.IDENTIFIER,
-                                        TestFormatFactory.IDENTIFIER))));
-
-        createTableSink(
-                SINK_SCHEMA,
-                getModifiedOptions(
-                        getFullSinkOptions(),
-                        options ->
-                                options.put(
-                                        String.format(
-                                                "value.%s.%s",
-                                                TestFormatFactory.IDENTIFIER,
-                                                TestFormatFactory.CHANGELOG_MODE.key()),
-                                        "I;UA;UB;D")));
+                                        TestFormatFactory.IDENTIFIER)));
     }
 
     @Test
     public void testDeserWithCDCFormatAsValue() {
-        thrown.expect(ValidationException.class);
-        thrown.expect(
-                containsCause(
+
+        assertThatThrownBy(
+                        () ->
+                                createTableSource(
+                                        SOURCE_SCHEMA,
+                                        getModifiedOptions(
+                                                getFullSourceOptions(),
+                                                options ->
+                                                        options.put(
+                                                                String.format(
+                                                                        "value.%s.%s",
+                                                                        TestFormatFactory
+                                                                                .IDENTIFIER,
+                                                                        TestFormatFactory
+                                                                                .CHANGELOG_MODE
+                                                                                .key()),
+                                                                "I;UA;UB;D"))))
+                .isInstanceOf(ValidationException.class)
+                .hasCause(
                         new ValidationException(
                                 String.format(
                                         "'upsert-kafka' connector doesn't support '%s' as value format, "
                                                 + "because '%s' is not in insert-only mode.",
                                         TestFormatFactory.IDENTIFIER,
-                                        TestFormatFactory.IDENTIFIER))));
-
-        createTableSource(
-                SOURCE_SCHEMA,
-                getModifiedOptions(
-                        getFullSourceOptions(),
-                        options ->
-                                options.put(
-                                        String.format(
-                                                "value.%s.%s",
-                                                TestFormatFactory.IDENTIFIER,
-                                                TestFormatFactory.CHANGELOG_MODE.key()),
-                                        "I;UA;UB;D")));
+                                        TestFormatFactory.IDENTIFIER)));
     }
 
     @Test
     public void testInvalidSinkBufferFlush() {
-        thrown.expect(ValidationException.class);
-        thrown.expect(
-                containsCause(
+        assertThatThrownBy(
+                        () ->
+                                createTableSink(
+                                        SINK_SCHEMA,
+                                        getModifiedOptions(
+                                                getFullSinkOptions(),
+                                                options -> {
+                                                    options.put("sink.buffer-flush.max-rows", "0");
+                                                    options.put("sink.buffer-flush.interval", "1s");
+                                                })))
+                .isInstanceOf(ValidationException.class)
+                .hasCause(
                         new ValidationException(
                                 "'sink.buffer-flush.max-rows' and 'sink.buffer-flush.interval' "
                                         + "must be set to be greater than zero together to enable"
-                                        + " sink buffer flushing.")));
-        createTableSink(
-                SINK_SCHEMA,
-                getModifiedOptions(
-                        getFullSinkOptions(),
-                        options -> {
-                            options.put("sink.buffer-flush.max-rows", "0");
-                            options.put("sink.buffer-flush.interval", "1s");
-                        }));
+                                        + " sink buffer flushing."));
     }
 
     // --------------------------------------------------------------------------------------------

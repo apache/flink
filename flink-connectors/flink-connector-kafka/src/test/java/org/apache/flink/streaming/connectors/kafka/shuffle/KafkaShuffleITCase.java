@@ -38,9 +38,7 @@ import org.apache.flink.shaded.guava30.com.google.common.collect.Iterables;
 import org.apache.flink.shaded.guava30.com.google.common.collect.Lists;
 
 import org.apache.kafka.clients.consumer.ConsumerRecord;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.Timeout;
+import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -61,7 +59,7 @@ import static org.assertj.core.api.Assertions.fail;
 /** Simple End to End Test for Kafka. */
 public class KafkaShuffleITCase extends KafkaShuffleTestBase {
 
-    @Rule public final Timeout timeout = Timeout.millis(600000L);
+    //    @RegisterExtension public final Timeout timeout = Timeout.millis(600000L);
 
     /**
      * To test no data is lost or duplicated end-2-end with the default time characteristic:

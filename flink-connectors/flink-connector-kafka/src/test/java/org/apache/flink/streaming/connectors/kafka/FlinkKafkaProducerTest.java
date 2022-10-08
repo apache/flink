@@ -26,7 +26,7 @@ import org.apache.flink.streaming.connectors.kafka.partitioner.FlinkKafkaPartiti
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 
 import org.apache.kafka.clients.producer.ProducerRecord;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import javax.annotation.Nullable;
 
@@ -34,6 +34,7 @@ import java.util.Optional;
 import java.util.Properties;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for {@link FlinkKafkaProducer}. */
 public class FlinkKafkaProducerTest {
@@ -109,12 +110,13 @@ public class FlinkKafkaProducerTest {
         assertThat(partitioner.openCalled).isTrue();
     }
 
-    @Test(expected = NullPointerException.class)
+    @Test
     public void testProvidedNullTransactionalIdPrefix() {
         FlinkKafkaProducer<Integer> kafkaProducer =
                 new FlinkKafkaProducer<>(
                         "localhost:9092", "test-topic", new OpenTestingSerializationSchema());
-        kafkaProducer.setTransactionalIdPrefix(null);
+        assertThatThrownBy(() -> kafkaProducer.setTransactionalIdPrefix(null))
+                .isInstanceOf(NullPointerException.class);
     }
 
     private static class CustomPartitioner<T> extends FlinkKafkaPartitioner<T> {

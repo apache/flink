@@ -18,10 +18,11 @@
 package org.apache.flink.connector.kafka.sink;
 
 import org.apache.flink.api.common.serialization.SimpleStringSchema;
-import org.apache.flink.util.TestLogger;
+import org.apache.flink.util.TestLoggerExtension;
 
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.util.Arrays;
 import java.util.Properties;
@@ -30,7 +31,8 @@ import java.util.function.Consumer;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link KafkaSinkBuilder}. */
-public class KafkaSinkBuilderTest extends TestLogger {
+@ExtendWith(TestLoggerExtension.class)
+public class KafkaSinkBuilderTest {
 
     private static final String[] DEFAULT_KEYS =
             new String[] {

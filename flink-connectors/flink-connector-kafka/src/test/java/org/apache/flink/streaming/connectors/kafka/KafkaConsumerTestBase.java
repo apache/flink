@@ -75,6 +75,7 @@ import org.apache.flink.streaming.connectors.kafka.testutils.Tuple2FlinkPartitio
 import org.apache.flink.streaming.connectors.kafka.testutils.ValidatingExactlyOnceSink;
 import org.apache.flink.streaming.util.serialization.KeyedSerializationSchema;
 import org.apache.flink.streaming.util.serialization.TypeInformationKeyValueSerializationSchema;
+import org.apache.flink.test.junit5.InjectClusterClient;
 import org.apache.flink.test.util.SuccessException;
 import org.apache.flink.testutils.junit.RetryOnException;
 import org.apache.flink.util.Collector;
@@ -90,7 +91,7 @@ import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.errors.NotLeaderForPartitionException;
 import org.apache.kafka.common.errors.TimeoutException;
-import org.junit.Before;
+import org.junit.jupiter.api.BeforeEach;
 
 import javax.annotation.Nullable;
 import javax.management.MBeanServer;
@@ -144,9 +145,10 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBaseWithFlink {
      * Makes sure that no job is on the JobManager any more from any previous tests that use the
      * same mini cluster. Otherwise, missing slots may happen.
      */
-    @Before
-    public void setClientAndEnsureNoJobIsLingering() throws Exception {
-        client = flink.getClusterClient();
+    @BeforeEach
+    public void setClientAndEnsureNoJobIsLingering(
+            @InjectClusterClient ClusterClient<?> clusterClient) throws Exception {
+        this.client = clusterClient;
         waitUntilNoJobIsRunning(client);
     }
 

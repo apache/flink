@@ -23,9 +23,9 @@ import org.apache.flink.connector.kafka.testutils.KafkaSourceTestEnv;
 import org.apache.kafka.clients.admin.AdminClient;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.errors.UnknownTopicOrPartitionException;
-import org.junit.AfterClass;
-import org.junit.BeforeClass;
-import org.junit.Test;
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Test;
 
 import java.util.Arrays;
 import java.util.Collections;
@@ -45,7 +45,7 @@ public class KafkaSubscriberTest {
     private static final TopicPartition NON_EXISTING_TOPIC = new TopicPartition("removed", 0);
     private static AdminClient adminClient;
 
-    @BeforeClass
+    @BeforeAll
     public static void setup() throws Throwable {
         KafkaSourceTestEnv.setup();
         KafkaSourceTestEnv.createTestTopic(TOPIC1);
@@ -53,7 +53,7 @@ public class KafkaSubscriberTest {
         adminClient = KafkaSourceTestEnv.getAdminClient();
     }
 
-    @AfterClass
+    @AfterAll
     public static void tearDown() throws Exception {
         adminClient.close();
         KafkaSourceTestEnv.tearDown();

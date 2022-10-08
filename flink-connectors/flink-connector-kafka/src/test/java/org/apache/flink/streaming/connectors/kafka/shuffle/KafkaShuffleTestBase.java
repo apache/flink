@@ -39,7 +39,7 @@ import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicPartition
 import org.apache.flink.test.util.SuccessException;
 import org.apache.flink.util.Collector;
 
-import org.junit.BeforeClass;
+import org.junit.jupiter.api.BeforeAll;
 
 import java.util.Random;
 
@@ -49,7 +49,7 @@ import static org.apache.flink.streaming.api.TimeCharacteristic.EventTime;
 public class KafkaShuffleTestBase extends KafkaConsumerTestBase {
     static final long INIT_TIMESTAMP = System.currentTimeMillis();
 
-    @BeforeClass
+    @BeforeAll
     public static void prepare() throws Exception {
         KafkaProducerTestBase.prepare();
         ((KafkaTestEnvironmentImpl) kafkaServer)

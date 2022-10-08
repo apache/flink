@@ -42,8 +42,6 @@ import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.clients.producer.RecordMetadata;
 import org.apache.kafka.common.serialization.ByteArraySerializer;
-import org.junit.jupiter.api.AfterAll;
-import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInfo;
@@ -54,6 +52,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testcontainers.containers.KafkaContainer;
 import org.testcontainers.containers.Network;
+import org.testcontainers.junit.jupiter.Container;
+import org.testcontainers.junit.jupiter.Testcontainers;
 
 import javax.annotation.Nullable;
 
@@ -77,6 +77,7 @@ import static org.apache.flink.util.DockerImageVersions.KAFKA;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for the standalone KafkaWriter. */
+@Testcontainers
 @ExtendWith(TestLoggerExtension.class)
 public class KafkaWriterITCase {
 
@@ -90,21 +91,12 @@ public class KafkaWriterITCase {
     private MetricListener metricListener;
     private TriggerTimeService timeService;
 
+    @Container
     private static final KafkaContainer KAFKA_CONTAINER =
             createKafkaContainer(KAFKA, LOG)
                     .withEmbeddedZookeeper()
                     .withNetwork(NETWORK)
                     .withNetworkAliases(INTER_CONTAINER_KAFKA_ALIAS);
-
-    @BeforeAll
-    public static void beforeAll() {
-        KAFKA_CONTAINER.start();
-    }
-
-    @AfterAll
-    public static void afterAll() {
-        KAFKA_CONTAINER.stop();
-    }
 
     @BeforeEach
     public void setUp(TestInfo testInfo) {

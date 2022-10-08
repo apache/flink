@@ -23,9 +23,9 @@ import org.apache.flink.streaming.connectors.kafka.KafkaConsumerTestBase;
 import org.apache.flink.streaming.connectors.kafka.KafkaProducerTestBase;
 import org.apache.flink.streaming.connectors.kafka.KafkaTestEnvironmentImpl;
 
-import org.junit.BeforeClass;
-import org.junit.Ignore;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Disabled;
+import org.junit.jupiter.api.Test;
 
 /**
  * An IT case class that runs all the IT cases of the legacy {@link
@@ -37,7 +37,7 @@ public class KafkaSourceLegacyITCase extends KafkaConsumerTestBase {
         super(true);
     }
 
-    @BeforeClass
+    @BeforeAll
     public static void prepare() throws Exception {
         KafkaProducerTestBase.prepare();
         ((KafkaTestEnvironmentImpl) kafkaServer)
@@ -91,7 +91,7 @@ public class KafkaSourceLegacyITCase extends KafkaConsumerTestBase {
     // --- broker failure ---
 
     @Test
-    @Ignore("FLINK-28267")
+    @Disabled("FLINK-28267")
     public void testBrokerFailure() throws Exception {
         runBrokerFailureTest();
     }
