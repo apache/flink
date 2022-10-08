@@ -25,9 +25,12 @@ import org.apache.flink.table.annotation.DataTypeHint
 import org.apache.flink.table.api.ValidationException
 import org.apache.flink.table.functions.{FunctionContext, ScalarFunction, TableFunction}
 import org.apache.flink.table.functions.python.{PythonEnv, PythonFunction}
+import org.apache.flink.table.planner.JList
 import org.apache.flink.types.Row
 
 import org.junit.Assert
+
+import java.util
 
 import scala.annotation.varargs
 
@@ -509,5 +512,26 @@ class RichTableFunc1 extends TableFunction[String] {
 
   override def close(): Unit = {
     separator = None
+  }
+}
+
+@SerialVersionUID(1L)
+class RichTableFuncWithFinish extends TableFunction[String] {
+  var buffer: JList[String] = _
+
+  override def open(context: FunctionContext): Unit = {
+    buffer = new util.ArrayList[String]()
+  }
+
+  def eval(str: String): Unit = {
+    buffer.add(str)
+  }
+
+  override def finish(): Unit = {
+    buffer.forEach(collect(_))
+  }
+
+  override def close(): Unit = {
+    buffer = null
   }
 }

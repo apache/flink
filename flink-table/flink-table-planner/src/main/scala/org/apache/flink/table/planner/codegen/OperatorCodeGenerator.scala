@@ -110,9 +110,15 @@ object OperatorCodeGenerator extends Logging {
         $endInput
 
         @Override
+        public void finish() throws Exception {
+            ${ctx.reuseFinishCode()}
+            super.finish();
+        }
+
+        @Override
         public void close() throws Exception {
            super.close();
-          ${ctx.reuseCloseCode()}
+           ${ctx.reuseCloseCode()}
         }
 
         ${ctx.reuseInnerClassDefinitionCode()}
@@ -239,6 +245,13 @@ object OperatorCodeGenerator extends Logging {
         $nextSel
 
         $endInput
+
+        @Override
+        public void finish() throws Exception {
+          super.finish();
+          ${ctx.reuseFinishCode()}
+        }
+
 
         @Override
         public void close() throws Exception {
