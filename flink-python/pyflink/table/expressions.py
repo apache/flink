@@ -32,7 +32,7 @@ __all__ = ['if_then_else', 'lit', 'col', 'range_', 'and_', 'or_', 'not_', 'UNBOU
            'row_interval', 'pi', 'e', 'rand', 'rand_integer', 'atan2', 'negative', 'concat',
            'concat_ws', 'uuid', 'null_of', 'log', 'with_columns', 'without_columns', 'json_string',
            'json_object', 'json_object_agg', 'json_array', 'json_array_agg', 'call', 'call_sql',
-           'source_watermark']
+           'source_watermark', 'unix_timestamp']
 
 
 def _leaf_op(op_name: str) -> Expression:
