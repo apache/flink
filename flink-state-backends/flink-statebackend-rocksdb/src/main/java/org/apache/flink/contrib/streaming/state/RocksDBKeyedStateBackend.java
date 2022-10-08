@@ -187,7 +187,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 
     /**
      * Protects access to RocksDB in other threads, like the checkpointing thread from parallel call
-     * that disposes the RocksDb object.
+     * that disposes the RocksDB object.
      */
     private final ResourceGuard rocksDBResourceGuard;
 
