@@ -35,6 +35,8 @@ import org.apache.calcite.util.Litmus;
 import java.util.Collections;
 import java.util.List;
 
+import static java.util.Objects.requireNonNull;
+
 /**
  * A relational operator that performs nested-loop joins.
  *
@@ -114,9 +116,10 @@ public final class LogicalCorrelate extends Correlate {
                 input.getTraitSet(),
                 input.getInputs().get(0),
                 input.getInputs().get(1),
-                new CorrelationId((Integer) input.get("correlation")),
+                new CorrelationId(
+                        (Integer) requireNonNull(input.get("correlation"), "correlation")),
                 input.getBitSet("requiredColumns"),
-                input.getEnum("joinType", JoinRelType.class));
+                requireNonNull(input.getEnum("joinType", JoinRelType.class), "joinType"));
     }
 
     /** Creates a LogicalCorrelate. */
