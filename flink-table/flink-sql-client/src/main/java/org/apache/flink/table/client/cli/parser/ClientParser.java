@@ -37,6 +37,7 @@ import static org.apache.flink.sql.parser.impl.FlinkSqlParserImplConstants.EOF;
 import static org.apache.flink.sql.parser.impl.FlinkSqlParserImplConstants.EXECUTE;
 import static org.apache.flink.sql.parser.impl.FlinkSqlParserImplConstants.EXPLAIN;
 import static org.apache.flink.sql.parser.impl.FlinkSqlParserImplConstants.IDENTIFIER;
+import static org.apache.flink.sql.parser.impl.FlinkSqlParserImplConstants.RESET;
 import static org.apache.flink.sql.parser.impl.FlinkSqlParserImplConstants.SEMICOLON;
 import static org.apache.flink.sql.parser.impl.FlinkSqlParserImplConstants.SET;
 import static org.apache.flink.sql.parser.impl.FlinkSqlParserImplConstants.SHOW;
@@ -149,6 +150,10 @@ public class ClientParser implements SqlCommandParser {
         if (firstToken.kind == IDENTIFIER) {
             // it means the token is not a reserved keyword, potentially a client command
             return getPotentialCommandType(firstToken.image);
+        } else if (firstToken.kind == SET) {
+            return Optional.of(StatementType.SET);
+        } else if (firstToken.kind == RESET) {
+            return Optional.of(StatementType.RESET);
         } else if (firstToken.kind == EXPLAIN) {
             return Optional.of(StatementType.EXPLAIN);
         } else if (firstToken.kind == SHOW) {
