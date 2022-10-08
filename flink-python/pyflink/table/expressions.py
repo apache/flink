@@ -361,15 +361,15 @@ def from_unixtime(unixtime, format=None) -> Expression:
 def unix_timestamp(date_str: str = None, format: str = None) -> Expression:
     if date_str is None:
         """
-        Gets current Unix timestamp in seconds. This function is not deterministic which means the 
-        value would be recalculated for each record.
+        Gets current Unix timestamp in seconds. This function is not deterministic which means
+        the value would be recalculated for each record.
         """
         return _leaf_op("unixTimestamp")
     elif format is None:
         """
-        Convert the date time string `date_str` to the default format (the default is yyyy-MM-dd 
-        HH:mm:ss) to the Unix timestamp (in seconds), using the time zone specified in the table 
-        config.
+        Convert the date time string `date_str` to the default format (the default is
+        yyyy-MM-dd HH:mm:ss) to the Unix timestamp (in seconds), using the time zone
+        specified in the table config.
         """
         return _unary_op("unixTimestamp", date_str)
     else:
