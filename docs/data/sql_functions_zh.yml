@@ -600,6 +600,7 @@ temporal:
       `(TIME '2:55:00', INTERVAL '1' HOUR) OVERLAPS (TIME '3:30:00', INTERVAL '2' HOUR)` 返回 TRUE；
       `(TIME '9:00:00', TIME '10:00:00') OVERLAPS (TIME '10:15:00', INTERVAL '3' HOUR)` 返回 FALSE。
   - sql: DATE_FORMAT(timestamp, string)
+    table: dateFormat(TIMESTAMP, STRING)
     description: |
       将时间戳 timestamp 转换为日期格式字符串 string 指定格式的字符串值。格式字符串与 Java 的 SimpleDateFormat 兼容。
   - sql: TIMESTAMPADD(timeintervalunit, interval, timepoint)
