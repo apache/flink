@@ -37,6 +37,8 @@ import static org.apache.flink.sql.parser.impl.FlinkSqlParserImplConstants.EOF;
 import static org.apache.flink.sql.parser.impl.FlinkSqlParserImplConstants.EXECUTE;
 import static org.apache.flink.sql.parser.impl.FlinkSqlParserImplConstants.EXPLAIN;
 import static org.apache.flink.sql.parser.impl.FlinkSqlParserImplConstants.IDENTIFIER;
+import static org.apache.flink.sql.parser.impl.FlinkSqlParserImplConstants.JAR;
+import static org.apache.flink.sql.parser.impl.FlinkSqlParserImplConstants.REMOVE;
 import static org.apache.flink.sql.parser.impl.FlinkSqlParserImplConstants.RESET;
 import static org.apache.flink.sql.parser.impl.FlinkSqlParserImplConstants.SEMICOLON;
 import static org.apache.flink.sql.parser.impl.FlinkSqlParserImplConstants.SET;
@@ -169,6 +171,9 @@ public class ClientParser implements SqlCommandParser {
         } else if (firstToken.kind == END) {
             return Optional.of(
                     tokens.nextTokenMatched(SEMICOLON) ? StatementType.END : StatementType.OTHER);
+        } else if (firstToken.kind == REMOVE) {
+            return Optional.of(
+                    tokens.nextTokenMatched(JAR) ? StatementType.REMOVE_JAR : StatementType.OTHER);
         } else {
             return Optional.of(StatementType.OTHER);
         }
