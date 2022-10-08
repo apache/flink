@@ -918,7 +918,7 @@ public class SingleInputGateTest extends InputGateTestBase {
             if (inputChannel instanceof RemoteInputChannel) {
                 assertThat(((RemoteInputChannel) inputChannel).getPartitionRequestClient())
                         .isNotNull();
-                assertThat(((RemoteInputChannel) inputChannel).getInitialCredit()).isEqualTo(2);
+                assertThat(((RemoteInputChannel) inputChannel).getInitialCredit()).isEqualTo(0);
             } else if (inputChannel instanceof LocalInputChannel) {
                 assertThat(((LocalInputChannel) inputChannel).getSubpartitionView()).isNotNull();
             }
@@ -1151,6 +1151,38 @@ public class SingleInputGateTest extends InputGateTestBase {
 
         inputChannels[1].readBuffer();
         assertThat(inputGate.getBuffersInUseCount()).isEqualTo(3);
+    }
+
+    @Test
+    void testBlockingInputGateNetworkBufferCalculation() throws Exception {
+        IntermediateResultPartitionID[] partitionIds =
+                new IntermediateResultPartitionID[] {
+                    new IntermediateResultPartitionID(),
+                    new IntermediateResultPartitionID(),
+                    new IntermediateResultPartitionID()
+                };
+
+        SubpartitionIndexRange subpartitionIndexRange = new SubpartitionIndexRange(0, 1);
+        NettyShuffleEnvironment netEnv = new NettyShuffleEnvironmentBuilder().build();
+
+        SingleInputGate gate =
+                createSingleInputGate(
+                        partitionIds,
+                        ResultPartitionType.BLOCKING,
+                        subpartitionIndexRange,
+                        netEnv,
+                        ResourceID.generate(),
+                        new TestingConnectionManager(),
+                        new TestingResultPartitionManager(new NoOpResultSubpartitionView()));
+        gate.setup();
+
+        for (InputChannel inputChannel : gate.getInputChannels().values()) {
+            if (inputChannel instanceof RemoteInputChannel) {
+                assertThat(((RemoteInputChannel) inputChannel).getInitialCredit()).isEqualTo(0);
+            }
+        }
+        assertThat(gate.getBufferPool().getNumberOfRequiredMemorySegments()).isEqualTo(1);
+        assertThat(gate.getBufferPool().getMaxNumberOfMemorySegments()).isEqualTo(20);
     }
 
     // ---------------------------------------------------------------------------------------------
