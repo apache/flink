@@ -2729,6 +2729,18 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
   }
 
   @Test
+  def testDateTypeAdd(): Unit = {
+    testSqlApi("date_add(f16, 1)", "1996-11-11")
+    testSqlApi("date_add('1996-11-10', 1)", "1996-11-11")
+  }
+
+  @Test
+  def testDateTypeMinus(): Unit = {
+    testSqlApi("date_add(f16, -1)", "1996-11-09")
+    testSqlApi("date_add('1996-11-10', -1)", "1996-11-09")
+  }
+
+  @Test
   def testStringFunctionAndExpressionResultType(): Unit = {
     // this test is to check if the `resultType` of the `GeneratedExpression`
     // of these string functions match their definition in `FlinkSqlOperatorTable`,

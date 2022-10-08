@@ -22,6 +22,7 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.data.DecimalData;
 import org.apache.flink.table.data.TimestampData;
+import org.apache.flink.table.data.binary.BinaryStringData;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
 import org.apache.flink.table.types.logical.TimestampType;
@@ -1398,6 +1399,26 @@ public class DateTimeUtils {
      */
     public static String formatUnixTimestamp(long unixtime, TimeZone tz) {
         return formatUnixTimestamp(unixtime, TIMESTAMP_FORMAT_STRING, tz);
+    }
+
+    /** Add offset to string (like '1970-01-01') and return new date For String support. */
+    public static Integer dateAdd(BinaryStringData binaryStringData, int offset) {
+
+        if (binaryStringData == null) {
+            return null;
+        }
+        try {
+            int days = parseDate(binaryStringData.toString());
+            return days + offset;
+        } catch (Exception e) {
+            LOG.error("Exception when formatting.", e);
+            return null;
+        }
+    }
+
+    /** Add offset to date type (like '1970-01-01') and return new date For Date support. */
+    public static Integer dateAdd(int date, int offset) {
+        return date + offset;
     }
 
     /**

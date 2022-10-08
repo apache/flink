@@ -318,6 +318,9 @@ object BuiltInMethods {
     classOf[String],
     classOf[TimeZone])
 
+  val DATE_ADD =
+    Types.lookupMethod(classOf[DateTimeUtils], "dateAdd", classOf[BinaryStringData], classOf[Int])
+
   val FROM_UNIXTIME = Types.lookupMethod(
     classOf[DateTimeUtils],
     "formatUnixTimestamp",

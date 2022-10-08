@@ -438,6 +438,8 @@ class FunctionGenerator private (tableConfig: ReadableConfig) {
   addSqlFunctionMethod(FROM_UNIXTIME, Seq(BIGINT, VARCHAR), BuiltInMethods.FROM_UNIXTIME_FORMAT)
   addSqlFunctionMethod(FROM_UNIXTIME, Seq(BIGINT, CHAR), BuiltInMethods.FROM_UNIXTIME_FORMAT)
 
+  addSqlFunctionMethod(DATE_ADD, Seq(VARCHAR, BIGINT), BuiltInMethods.DATE_ADD)
+
   addSqlFunctionMethod(TRUNCATE, Seq(BIGINT), BuiltInMethods.TRUNCATE_LONG_ONE)
 
   addSqlFunctionMethod(TRUNCATE, Seq(INTEGER), BuiltInMethods.TRUNCATE_INT_ONE)
