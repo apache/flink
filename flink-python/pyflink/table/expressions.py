@@ -33,7 +33,7 @@ __all__ = ['if_then_else', 'lit', 'col', 'range_', 'and_', 'or_', 'not_', 'UNBOU
            'concat_ws', 'uuid', 'null_of', 'log', 'with_columns', 'without_columns', 'json_string',
            'json_object', 'json_object_agg', 'json_array', 'json_array_agg', 'call', 'call_sql',
            'source_watermark', 'to_timestamp_ltz', 'from_unixtime', 'to_date', 'to_timestamp',
-           'convert_tz']
+           'convert_tz', 'unix_timestamp']
 
 
 def _leaf_op(op_name: str) -> Expression:
@@ -412,6 +412,19 @@ def from_unixtime(unixtime, format=None) -> Expression:
     else:
         return _binary_op("fromUnixtime", unixtime, format)
 
+def unix_timestamp(unixtime = None, format = None) -> Expression:
+    """
+    if no args
+        gets current Unix timestamp in seconds.
+    else
+        convert date time string the given format. The default format is "yyyy-MM-dd HH:mm:ss".
+    """
+    if unixtime is None:
+        return _leaf_op("unixTimestamp")
+    elif format is None:
+        return _unary_op("unixTimestamp", unixtime)
+    else:
+        return _binary_op("unixTimestamp", unixtime, format)
 
 def array(head, *tail) -> Expression:
     """

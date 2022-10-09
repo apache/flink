@@ -951,11 +951,18 @@ class TemporalTypesTest extends ExpressionTestBase {
     testSqlApi(s"UNIX_TIMESTAMP('$ss2')", (ts2.getTime / 1000L).toString)
     testSqlApi(s"UNIX_TIMESTAMP('$s1', '$fmt')", (ts1.getTime / 1000L).toString)
     testSqlApi(s"UNIX_TIMESTAMP('$s2', '$fmt')", (ts2.getTime / 1000L).toString)
+
+    testAllApis(unixTimestamp(ss1), s"UNIX_TIMESTAMP('$ss1')", (ts1.getTime / 1000L).toString)
+    testAllApis(unixTimestamp(ss2), s"UNIX_TIMESTAMP('$ss2')", (ts2.getTime / 1000L).toString)
+    testAllApis(unixTimestamp(s1, fmt), s"UNIX_TIMESTAMP('$s1', '$fmt')", (ts1.getTime / 1000L).toString)
+    testAllApis(unixTimestamp(s2, fmt), s"UNIX_TIMESTAMP('$s2', '$fmt')", (ts2.getTime / 1000L).toString)
   }
 
   @Test
   def testUnixTimestampInTokyo(): Unit = {
     tableConfig.setLocalTimeZone(ZoneId.of("Asia/Tokyo"))
+    testAllApis(unixTimestamp("2015-07-24 10:00:00"), "UNIX_TIMESTAMP('2015-07-24 10:00:00')", "1437699600")
+    testAllApis(unixTimestamp("2015/07/24 10:00:00.5", "yyyy/MM/dd HH:mm:ss.S"), "UNIX_TIMESTAMP('2015/07/24 10:00:00.5', 'yyyy/MM/dd HH:mm:ss.S')", "1437699600")
     testSqlApi("UNIX_TIMESTAMP('2015-07-24 10:00:00')", "1437699600")
     testSqlApi("UNIX_TIMESTAMP('2015/07/24 10:00:00.5', 'yyyy/MM/dd HH:mm:ss.S')", "1437699600")
   }
