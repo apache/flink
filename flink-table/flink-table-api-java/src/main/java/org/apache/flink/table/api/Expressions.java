@@ -473,8 +473,7 @@ public final class Expressions {
     }
 
     /**
-     * Gets current Unix timestamp in seconds.
-     * This function is not deterministic.
+     * Gets current Unix timestamp in seconds. This function is not deterministic.
      *
      * @return The current Unix timestamp in seconds.
      */
@@ -483,7 +482,8 @@ public final class Expressions {
     }
 
     /**
-     * Converts date time string in format (by default: yyyy-MM-dd HH:mm:ss if not specified) to Unix timestamp (in seconds), using the specified timezone in table config.
+     * Converts date time string in format (by default: yyyy-MM-dd HH:mm:ss if not specified) to
+     * Unix timestamp (in seconds), using the specified timezone in table config.
      *
      * @param unixtime The data time with string type.
      * @return The current Unix timestamp in seconds.
@@ -493,7 +493,8 @@ public final class Expressions {
     }
 
     /**
-     * Converts date time string in format (by default: yyyy-MM-dd HH:mm:ss if not specified) to Unix timestamp (in seconds), using the specified timezone in table config.
+     * Converts date time string in format (by default: yyyy-MM-dd HH:mm:ss if not specified) to
+     * Unix timestamp (in seconds), using the specified timezone in table config.
      *
      * @param unixtime The data time with string type.
      * @param format The format of the string.
