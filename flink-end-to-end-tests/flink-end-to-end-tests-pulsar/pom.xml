@@ -32,7 +32,7 @@ under the License.
 
 	<properties>
 		<pulsar.version>2.10.1</pulsar.version>
-		<bouncycastle.version>1.70</bouncycastle.version>
+		<bouncycastle.version>1.69</bouncycastle.version>
 		<jaxb-api.version>2.3.1</jaxb-api.version>
 	</properties>
 
