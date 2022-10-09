@@ -172,7 +172,7 @@ public class BinaryHashPartition extends AbstractPagedInputView implements Seeka
      *
      * @return This partition's number.
      */
-    int getPartitionNumber() {
+    public int getPartitionNumber() {
         return this.partitionNumber;
     }
 

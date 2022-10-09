@@ -200,14 +200,16 @@ public class SortMergeJoinFunction implements Serializable {
         this.rightNullRow = new GenericRowData(serializer2.getArity());
         this.joinedRow = new JoinedRowData();
 
-        condFuncCode = null;
-        computer1 = null;
-        comparator1 = null;
-        computer2 = null;
-        comparator2 = null;
-        projectionCode1 = null;
-        projectionCode2 = null;
-        genKeyComparator = null;
+        if (!adaptiveHashJoin) {
+            condFuncCode = null;
+            computer1 = null;
+            comparator1 = null;
+            computer2 = null;
+            comparator2 = null;
+            projectionCode1 = null;
+            projectionCode2 = null;
+            genKeyComparator = null;
+        }
 
         operatorMetricGroup.gauge(
                 "memoryUsedSizeInBytes",

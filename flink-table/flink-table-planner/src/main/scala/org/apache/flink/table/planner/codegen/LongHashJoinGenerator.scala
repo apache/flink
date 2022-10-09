@@ -154,9 +154,6 @@ object LongHashJoinGenerator {
     val smjFunctionRefs = ctx.addReusableObject(Array(sortMergeJoinFunction), "smjFunctionRefs")
     ctx.addReusableInitStatement(s"sortMergeJoinFunction = $smjFunctionRefs[0];")
 
-    val fallbackSMJ = newName("fallbackSMJ")
-    ctx.addReusableMember(s"private transient boolean $fallbackSMJ = false;")
-
     val gauge = classOf[Gauge[_]].getCanonicalName
     ctx.addReusableOpenStatement(
       s"""
@@ -322,11 +319,14 @@ object LongHashJoinGenerator {
                              |    table.releaseMemoryCacheForSMJ();
                              |    LOG.info(
                              |    "Fallback to sort merge join to process spilled partitions.");
-                             |    initialSortMergeJoinFunction();
-                             |    $fallbackSMJ = true;
                              |
                              |    for(${classOf[LongHashPartition].getCanonicalName} p : 
                              |      table.getPartitionsPendingForSMJ()) {
+                             |      LOG.info(
+                             |      "Begin to process partition [{}] by sort merge join strategy.", 
+                             |      p.getPartitionNumber());
+                             |      
+                             |      initialSortMergeJoinFunction();
                              |      $rowIter<$BINARY_ROW> buildSideIter = 
                              |      table.getSpilledPartitionBuildSideIter(p);
                              |      while (buildSideIter.advanceNext()) {
@@ -339,12 +339,12 @@ object LongHashJoinGenerator {
                              |      while ((probeNext = probeIter.next()) != null) {
                              |        processSortMergeJoinElement2(probeNext);
                              |      }
+                             |      
+                             |      sortMergeJoinFunction.endInput(1);
+                             |      sortMergeJoinFunction.endInput(2);
+                             |      
+                             |      sortMergeJoinFunction.close();
                              |    }
-                             |
-                             |    closeHashTable();
-                             |
-                             |    sortMergeJoinFunction.endInput(1);
-                             |    sortMergeJoinFunction.endInput(2);
                              |    LOG.info("Finish sort merge join for spilled partitions.");
                              |  }
                              |}
@@ -386,21 +386,11 @@ object LongHashJoinGenerator {
          |}
        """.stripMargin)
 
-    ctx.addReusableMember(s"""
-                             |private void closeHashTable() {
-                             |  if (this.table != null) {
-                             |    this.table.close();
-                             |    this.table.free();
-                             |    this.table = null;
-                             |  }
-                             |}
-       """.stripMargin)
-
     ctx.addReusableCloseStatement(s"""
-                                     |closeHashTable();
-                                     |
-                                     |if ($fallbackSMJ) {
-                                     |  sortMergeJoinFunction.close();
+                                     |if (this.table != null) {
+                                     |  this.table.close();
+                                     |  this.table.free();
+                                     |  this.table = null;
                                      |}
        """.stripMargin)
 

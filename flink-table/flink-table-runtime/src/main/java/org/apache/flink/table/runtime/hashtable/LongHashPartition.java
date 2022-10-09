@@ -415,7 +415,7 @@ public class LongHashPartition extends AbstractPagedInputView implements Seekabl
         return this.buildSideChannel;
     }
 
-    int getPartitionNumber() {
+    public int getPartitionNumber() {
         return this.partitionNum;
     }
 

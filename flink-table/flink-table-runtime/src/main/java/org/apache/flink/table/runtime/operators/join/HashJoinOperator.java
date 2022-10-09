@@ -86,9 +86,6 @@ public abstract class HashJoinOperator extends TableStreamOperator<RowData>
     private transient boolean buildEnd;
     private transient JoinCondition condition;
 
-    // Flag indicates whether fallback to sort merge join in probe phase
-    private transient boolean fallbackSMJ;
-
     HashJoinOperator(HashJoinParameter parameter) {
         this.parameter = parameter;
         this.type = parameter.type;
@@ -148,7 +145,6 @@ public abstract class HashJoinOperator extends TableStreamOperator<RowData>
         this.probeSideNullRow = new GenericRowData(probeSerializer.getArity());
         this.joinedRow = new JoinedRowData();
         this.buildEnd = false;
-        this.fallbackSMJ = false;
 
         getMetricGroup().gauge("memoryUsedSizeInBytes", table::getUsedMemoryInBytes);
         getMetricGroup().gauge("numSpillFiles", table::getNumSpillFiles);
@@ -235,21 +231,12 @@ public abstract class HashJoinOperator extends TableStreamOperator<RowData>
     @Override
     public void close() throws Exception {
         super.close();
-        closeHashTable();
-        condition.close();
-
-        // If fallback to sort merge join during hash join, also need to close the operator
-        if (fallbackSMJ) {
-            sortMergeJoinFunction.close();
-        }
-    }
-
-    private void closeHashTable() {
         if (this.table != null) {
             this.table.close();
             this.table.free();
             this.table = null;
         }
+        condition.close();
     }
 
     /**
@@ -261,12 +248,17 @@ public abstract class HashJoinOperator extends TableStreamOperator<RowData>
         if (!table.getPartitionsPendingForSMJ().isEmpty()) {
             // release memory to MemoryManager first that is used to sort merge join operator
             table.releaseMemoryCacheForSMJ();
-            // initialize sort merge join operator
-            LOG.info("Fallback to sort merge join to process spilled partitions.");
-            initialSortMergeJoinFunction();
-            fallbackSMJ = true;
-
+            LOG.info("Fallback to sort merge join to process all spilled partitions.");
+            // Process every partition separately because the keys of each partition are disjoint,
+            // so we can adopt this strategy due to local sorting will be faster than global
+            // sorting.
             for (BinaryHashPartition p : table.getPartitionsPendingForSMJ()) {
+                LOG.info(
+                        "Begin to process partition [{}] by sort merge join strategy.",
+                        p.getPartitionNumber());
+                // initialize sort merge join operator
+                initialSortMergeJoinFunction();
+
                 // process build side
                 RowIterator<BinaryRowData> buildSideIter =
                         table.getSpilledPartitionBuildSideIter(p);
@@ -280,15 +272,15 @@ public abstract class HashJoinOperator extends TableStreamOperator<RowData>
                 while ((probeNext = probeIter.next()) != null) {
                     processSortMergeJoinElement2(probeNext);
                 }
+
+                // finish build and probe and
+                sortMergeJoinFunction.endInput(1);
+                sortMergeJoinFunction.endInput(2);
+
+                // close the function to release memory and shutdown related thread
+                sortMergeJoinFunction.close();
             }
-
-            // close the HashTable
-            closeHashTable();
-
-            // finish build and probe
-            sortMergeJoinFunction.endInput(1);
-            sortMergeJoinFunction.endInput(2);
-            LOG.info("Finish sort merge join for spilled partitions.");
+            LOG.info("Finish sort merge join for all spilled partitions successfully.");
         }
     }
 
