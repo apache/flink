@@ -67,6 +67,14 @@ if [[ ! "$CC_CLASSPATH" =~ .*flink-python.*.jar ]]; then
     fi
 fi
 
+# add flink-sql-gateway jar to the classpath
+if [[ ! "$CC_CLASSPATH" =~ .*flink-sql-gateway.*.jar ]]; then
+    FLINK_SQLGATEWAY_JAR=$(find "$FLINK_OPT_DIR" -regex ".*flink-sql-gateway.*.jar")
+    if [ -n "$FLINK_SQLGATEWAY_JAR" ]; then
+        CC_CLASSPATH="$CC_CLASSPATH:$FLINK_SQLGATEWAY_JAR"
+    fi
+fi
+
 # check if SQL client is already in classpath and must not be shipped manually
 if [[ "$CC_CLASSPATH" =~ .*flink-sql-client.*.jar ]]; then
 
