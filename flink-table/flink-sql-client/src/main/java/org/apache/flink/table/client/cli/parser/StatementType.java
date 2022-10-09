@@ -40,6 +40,8 @@ public enum StatementType {
     END,
     /** 'REMOVE JAR' SQL statement. */
     REMOVE_JAR,
+    /** 'SELECT' SQL statement. */
+    SELECT,
     /** Type not covered by any other type value. */
     OTHER
 }

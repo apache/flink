@@ -30,23 +30,22 @@ import java.util.Iterator;
 import java.util.Optional;
 
 import static org.apache.flink.sql.parser.impl.FlinkSqlParserImplConstants.BEGIN;
-import static org.apache.flink.sql.parser.impl.FlinkSqlParserImplConstants.COMPILE;
 import static org.apache.flink.sql.parser.impl.FlinkSqlParserImplConstants.CREATE;
 import static org.apache.flink.sql.parser.impl.FlinkSqlParserImplConstants.END;
 import static org.apache.flink.sql.parser.impl.FlinkSqlParserImplConstants.EOF;
-import static org.apache.flink.sql.parser.impl.FlinkSqlParserImplConstants.EXECUTE;
 import static org.apache.flink.sql.parser.impl.FlinkSqlParserImplConstants.EXPLAIN;
 import static org.apache.flink.sql.parser.impl.FlinkSqlParserImplConstants.IDENTIFIER;
 import static org.apache.flink.sql.parser.impl.FlinkSqlParserImplConstants.JAR;
 import static org.apache.flink.sql.parser.impl.FlinkSqlParserImplConstants.REMOVE;
 import static org.apache.flink.sql.parser.impl.FlinkSqlParserImplConstants.RESET;
+import static org.apache.flink.sql.parser.impl.FlinkSqlParserImplConstants.SELECT;
 import static org.apache.flink.sql.parser.impl.FlinkSqlParserImplConstants.SEMICOLON;
 import static org.apache.flink.sql.parser.impl.FlinkSqlParserImplConstants.SET;
 import static org.apache.flink.sql.parser.impl.FlinkSqlParserImplConstants.SHOW;
 import static org.apache.flink.sql.parser.impl.FlinkSqlParserImplConstants.STATEMENT;
 
 /**
- * ClientParser use {@link FlinkSqlParserImplTokenManager} to do lexical analysis. It cannot
+ * ClientParser uses {@link FlinkSqlParserImplTokenManager} to do lexical analysis. It cannot
  * recognize special hive keywords yet because Hive has a slightly different vocabulary compared to
  * Flink's, which causes the ClientParser misunderstanding some Hive's keywords to IDENTIFIER. But
  * the ClientParser is only responsible to check whether the statement is completed or not and only
@@ -61,9 +60,10 @@ public class ClientParser implements SqlCommandParser {
     }
 
     public Optional<StatementType> parseStatement(String statement) throws SqlExecutionException {
-
         return getStatementType(new TokenIterator(statement.trim()));
     }
+
+    // ---------------------------------------------------------------------------------------------
 
     private static class TokenIterator implements Iterator<Token> {
 
@@ -71,14 +71,13 @@ public class ClientParser implements SqlCommandParser {
         private Token currentToken;
 
         public TokenIterator(String statement) {
-            tokenManager =
+            this.tokenManager =
                     new FlinkSqlParserImplTokenManager(
                             new SimpleCharStream(new StringReader(statement)));
-            // means to switch to "BACK QUOTED IDENTIFIER" state to support '`xxx`' in Flink SQL
-            tokenManager.SwitchTo(2);
+            // means to switch to "BACK QUOTED IDENTIFIER" state to support `<IDENTIFIER>` in
+            // Flink SQL. Please cc CalciteParser#createFlinkParser for more details.
+            this.tokenManager.SwitchTo(2);
             this.currentToken = tokenManager.getNextToken();
-            // this will make all tokens link together
-            checkIncompleteStatement();
         }
 
         @Override
@@ -89,108 +88,74 @@ public class ClientParser implements SqlCommandParser {
         @Override
         public Token next() {
             Token before = currentToken;
-            currentToken = before.next;
+            currentToken = scan(1);
             return before;
         }
 
-        boolean nextTokenMatched(int kind) {
-            return hasNext() && next().kind == kind;
-        }
-
-        /**
-         * check these follow special cases: 1. "". 2. "COMPILE/EXECUTE STATEMENT SET BEGIN\n INSERT
-         * xxx;". 3. "EXPLAIN COMPILE/EXECUTE STATEMENT SET BEGIN\n INSERT xxx;". 4. "EXPLAIN BEGIN
-         * STATEMENT SET;". 5. string not ended with ';'.
-         */
-        void checkIncompleteStatement() {
-            // case 1
-            if (currentToken.kind == EOF) {
-                continueReadInput();
-            }
-
-            Token head = currentToken, tail = tokenManager.getNextToken();
-
-            // case 2, 3 and 4
-            boolean setNotEnded =
-                    (currentToken.kind == COMPILE || currentToken.kind == EXECUTE)
-                            || (currentToken.kind == EXPLAIN
-                                    && (tail.kind == COMPILE
-                                            || tail.kind == EXECUTE
-                                            || tail.kind == BEGIN));
-
-            // case 5
-            boolean statementNotEnded = head.kind != SEMICOLON && tail.kind != SEMICOLON;
-
-            while (tail.kind != EOF) {
-                head.next = tail;
-                head = tail;
-                // update setEnded
-                if (tail.kind == END) {
-                    setNotEnded = false;
+        public Token scan(int pos) {
+            Token current = currentToken;
+            while (pos-- > 0) {
+                if (current.next == null) {
+                    current.next = tokenManager.getNextToken();
                 }
-                // update endedWithSemicolon
-                statementNotEnded = tail.kind != SEMICOLON;
-                tail = tokenManager.getNextToken();
+                current = current.next;
             }
 
-            // hasNext() needs an EOF tail token
-            head.next = tail;
-
-            if (setNotEnded || statementNotEnded) {
-                continueReadInput();
-            }
+            return current;
         }
     }
 
-    // ---------------------------------------------------------------------------------------------
     private Optional<StatementType> getStatementType(TokenIterator tokens) {
-        Token firstToken = tokens.next();
-        if (firstToken.kind == SEMICOLON && !tokens.hasNext()) {
-            return Optional.empty();
+        if (!tokens.hasNext()) {
+            continueReadInput();
         }
-
+        Token firstToken = tokens.scan(0);
+        StatementType type;
         if (firstToken.kind == IDENTIFIER) {
             // it means the token is not a reserved keyword, potentially a client command
-            return getPotentialCommandType(firstToken.image);
+            type = getPotentialCommandType(firstToken.image);
         } else if (firstToken.kind == SET) {
-            return Optional.of(StatementType.SET);
+            // SET
+            type = StatementType.SET;
         } else if (firstToken.kind == RESET) {
-            return Optional.of(StatementType.RESET);
+            // RESET
+            type = StatementType.RESET;
         } else if (firstToken.kind == EXPLAIN) {
-            return Optional.of(StatementType.EXPLAIN);
+            // EXPLAIN
+            type = StatementType.EXPLAIN;
         } else if (firstToken.kind == SHOW) {
-            return Optional.of(
-                    tokens.nextTokenMatched(CREATE)
+            // SHOW
+            type =
+                    tokenMatches(tokens.scan(1), CREATE)
                             ? StatementType.SHOW_CREATE
-                            : StatementType.OTHER);
+                            : StatementType.OTHER;
         } else if (firstToken.kind == BEGIN) {
-            return Optional.of(
-                    tokens.nextTokenMatched(STATEMENT) && tokens.nextTokenMatched(SET)
+            // BEGIN STATEMENT SET
+            type =
+                    tokenMatches(tokens.scan(1), STATEMENT) && tokenMatches(tokens.scan(2), SET)
                             ? StatementType.BEGIN_STATEMENT_SET
-                            : StatementType.OTHER);
+                            : StatementType.OTHER;
         } else if (firstToken.kind == END) {
-            return Optional.of(
-                    tokens.nextTokenMatched(SEMICOLON) ? StatementType.END : StatementType.OTHER);
+            // END
+            type =
+                    tokenMatches(tokens.scan(1), SEMICOLON)
+                            ? StatementType.END
+                            : StatementType.OTHER;
         } else if (firstToken.kind == REMOVE) {
-            return Optional.of(
-                    tokens.nextTokenMatched(JAR) ? StatementType.REMOVE_JAR : StatementType.OTHER);
+            // REMOVE JAR
+            type =
+                    tokenMatches(tokens.scan(1), JAR)
+                            ? StatementType.REMOVE_JAR
+                            : StatementType.OTHER;
+        } else if (firstToken.kind == SELECT) {
+            // SELECT
+            type = StatementType.SELECT;
         } else {
-            return Optional.of(StatementType.OTHER);
+            type = StatementType.OTHER;
         }
-    }
 
-    private Optional<StatementType> getPotentialCommandType(String image) {
-        switch (image.toUpperCase()) {
-            case "QUIT":
-            case "EXIT":
-                return Optional.of(StatementType.QUIT);
-            case "CLEAR":
-                return Optional.of(StatementType.CLEAR);
-            case "HELP":
-                return Optional.of(StatementType.HELP);
-            default:
-                return Optional.of(StatementType.OTHER);
-        }
+        checkIncompleteStatement(tokens);
+        return Optional.of(type);
     }
 
     private static void continueReadInput() {
@@ -198,5 +163,37 @@ public class ClientParser implements SqlCommandParser {
         throw new SqlExecutionException(
                 "The SQL statement is incomplete.",
                 new SqlParserEOFException("The SQL statement is incomplete."));
+    }
+
+    private boolean tokenMatches(Token token, int kind) {
+        return token.kind == kind;
+    }
+
+    private StatementType getPotentialCommandType(String image) {
+        switch (image.toUpperCase()) {
+            case "QUIT":
+            case "EXIT":
+                return StatementType.QUIT;
+            case "CLEAR":
+                return StatementType.CLEAR;
+            case "HELP":
+                return StatementType.HELP;
+            default:
+                return StatementType.OTHER;
+        }
+    }
+
+    void checkIncompleteStatement(TokenIterator iterator) {
+        Token before = iterator.next(), current = iterator.next();
+
+        while (!tokenMatches(current, EOF)) {
+            before = current;
+            current = iterator.next();
+        }
+
+        if (!(tokenMatches(before, SEMICOLON) && tokenMatches(current, EOF))) {
+            // not ended with ;
+            continueReadInput();
+        }
     }
 }
