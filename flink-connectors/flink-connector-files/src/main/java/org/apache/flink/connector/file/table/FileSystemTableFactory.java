@@ -28,6 +28,7 @@ import org.apache.flink.table.connector.format.DecodingFormat;
 import org.apache.flink.table.connector.format.EncodingFormat;
 import org.apache.flink.table.connector.sink.DynamicTableSink;
 import org.apache.flink.table.connector.source.DynamicTableSource;
+import org.apache.flink.table.connector.source.lookup.LookupOptions;
 import org.apache.flink.table.factories.DecodingFormatFactory;
 import org.apache.flink.table.factories.DeserializationFormatFactory;
 import org.apache.flink.table.factories.DynamicTableSinkFactory;
@@ -75,7 +76,8 @@ public class FileSystemTableFactory implements DynamicTableSourceFactory, Dynami
                 context.getCatalogTable().getPartitionKeys(),
                 helper.getOptions(),
                 discoverDecodingFormat(context, BulkReaderFormatFactory.class),
-                discoverDecodingFormat(context, DeserializationFormatFactory.class));
+                discoverDecodingFormat(context, DeserializationFormatFactory.class),
+                helper.getOptions().get(LookupOptions.MAX_RETRIES));
     }
 
     @Override
@@ -125,6 +127,8 @@ public class FileSystemTableFactory implements DynamicTableSourceFactory, Dynami
         options.add(FileSystemConnectorOptions.AUTO_COMPACTION);
         options.add(FileSystemConnectorOptions.COMPACTION_FILE_SIZE);
         options.add(FileSystemConnectorOptions.SINK_PARALLELISM);
+        options.add(LookupOptions.MAX_RETRIES);
+        options.add(LookupOptions.FULL_CACHE_PERIODIC_RELOAD_INTERVAL);
         return options;
     }
 
