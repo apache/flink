@@ -35,6 +35,7 @@ import javax.annotation.Nullable;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 /** A customizable {@link Executor} for testing purposes. */
 class TestingExecutor implements Executor {
@@ -68,6 +69,13 @@ class TestingExecutor implements Executor {
 
     @Override
     public void removeJar(String sessionId, String jarUrl) {
+        throw new UnsupportedOperationException("Not implemented.");
+    }
+
+    @Override
+    public Optional<String> stopJob(
+            String sessionId, String jobId, boolean isWithSavepoint, boolean isWithDrain)
+            throws SqlExecutionException {
         throw new UnsupportedOperationException("Not implemented.");
     }
 
