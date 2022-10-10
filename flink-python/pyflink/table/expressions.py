@@ -33,7 +33,7 @@ __all__ = ['if_then_else', 'lit', 'col', 'range_', 'and_', 'or_', 'not_', 'UNBOU
            'concat_ws', 'uuid', 'null_of', 'log', 'with_columns', 'without_columns', 'json_string',
            'json_object', 'json_object_agg', 'json_array', 'json_array_agg', 'call', 'call_sql',
            'source_watermark', 'to_timestamp_ltz', 'from_unixtime', 'to_date', 'to_timestamp',
-           'convert_tz']
+           'convert_tz', 'unix_timestamp']
 
 
 def _leaf_op(op_name: str) -> Expression:
@@ -411,6 +411,28 @@ def from_unixtime(unixtime, format=None) -> Expression:
         return _unary_op("fromUnixtime", unixtime)
     else:
         return _binary_op("fromUnixtime", unixtime, format)
+
+
+def unix_timestamp(date_str: str = None, format: str = None) -> Expression:
+    if date_str is None:
+        """
+        Gets current Unix timestamp in seconds. This function is not deterministic which means
+        the value would be recalculated for each record.
+        """
+        return _leaf_op("unixTimestamp")
+    elif format is None:
+        """
+        Convert the date time string `date_str` to the default format (the default is
+        yyyy-MM-dd HH:mm:ss) to the Unix timestamp (in seconds), using the time zone
+        specified in the table config.
+        """
+        return _unary_op("unixTimestamp", date_str)
+    else:
+        """
+        Converts date time string `date_str` in format `format` (by default: yyyy-MM-dd HH:mm:ss if
+        not specified) to Unix timestamp (in seconds), using the specified timezone in table config.
+        """
+        return _binary_op("unixTimestamp", date_str, format)
 
 
 def array(head, *tail) -> Expression:

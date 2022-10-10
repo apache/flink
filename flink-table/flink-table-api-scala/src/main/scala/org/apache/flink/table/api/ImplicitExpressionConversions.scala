@@ -496,16 +496,16 @@ trait ImplicitExpressionConversions {
   }
 
   /**
-   * Converts the date time string with format 'yyyy-MM-dd HH:mm:ss' under the 'UTC+0' time zone
-   * to a timestamp value of [[DataTypes.TIMESTAMP]].
+   * Converts the date time string with format 'yyyy-MM-dd HH:mm:ss' under the 'UTC+0' time zone to
+   * a timestamp value of [[DataTypes.TIMESTAMP]].
    */
   def toTimestamp(timestampStr: Expression): Expression = {
     Expressions.toTimestamp(timestampStr)
   }
 
   /**
-   * Converts the date time string with the specified format under the 'UTC+0' time zone
-   * to a timestamp value of [[DataTypes.TIMESTAMP]].
+   * Converts the date time string with the specified format under the 'UTC+0' time zone to a
+   * timestamp value of [[DataTypes.TIMESTAMP]].
    */
   def toTimestamp(timestampStr: Expression, format: Expression): Expression = {
     Expressions.toTimestamp(timestampStr, format)
@@ -580,10 +580,9 @@ trait ImplicitExpressionConversions {
 
   /**
    * Converts a datetime dateStr (with default ISO timestamp format 'yyyy-MM-dd HH:mm:ss') from time
-   * zone tzFrom to time zone tzTo. The format of time zone should be either an abbreviation
-   * such as "PST", a full name such as "America/Los_Angeles", or a custom ID such as "GMT-08:00".
-   * E.g., convertTz('1970-01-01 00:00:00', 'UTC', 'America/Los_Angeles') returns '1969-12-31
-   * 16:00:00'.
+   * zone tzFrom to time zone tzTo. The format of time zone should be either an abbreviation such as
+   * "PST", a full name such as "America/Los_Angeles", or a custom ID such as "GMT-08:00". E.g.,
+   * convertTz('1970-01-01 00:00:00', 'UTC', 'America/Los_Angeles') returns '1969-12-31 16:00:00'.
    *
    * @param dateStr
    *   dateStr the date time string
@@ -610,6 +609,28 @@ trait ImplicitExpressionConversions {
    */
   def fromUnixtime(unixtime: Expression, format: Expression): Expression =
     Expressions.fromUnixtime(unixtime, format)
+
+  /**
+   * Gets current Unix timestamp in seconds. This function is not deterministic which means the
+   * value would be recalculated for each record.
+   */
+  def unixTimestamp(): Expression = Expressions.unixTimestamp()
+
+  /**
+   * Converts date time string string1 in format string2 (by default: yyyy-MM-dd HH:mm:ss if not
+   * specified) to Unix timestamp (in seconds), using the specified timezone in table config.
+   */
+  def unixTimestamp(dateStr: Expression): Expression = {
+    Expressions.unixTimestamp(dateStr)
+  }
+
+  /**
+   * Converts date time string string1 in format string2 (by default: yyyy-MM-dd HH:mm:ss if not
+   * specified) to Unix timestamp (in seconds), using the specified timezone in table config.
+   */
+  def unixTimestamp(dateStr: Expression, format: Expression): Expression = {
+    Expressions.unixTimestamp(dateStr, format)
+  }
 
   /** Creates an array of literals. */
   def array(head: Expression, tail: Expression*): Expression = {
