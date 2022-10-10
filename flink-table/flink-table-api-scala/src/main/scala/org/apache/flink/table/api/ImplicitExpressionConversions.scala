@@ -611,9 +611,9 @@ trait ImplicitExpressionConversions {
     Expressions.fromUnixtime(unixtime, format)
 
   /** Gets current Unix timestamp in seconds value of [[DataTypes.BIGINT]]. */
-  def unixTimestamp(): Expression = {
+   def unixTimestamp(): Expression = {
     Expressions.unixTimestamp()
-  }
+   }
 
   /**
    * Converts the date time string with the default format(yyyy-MM-dd HH:mm:ss) under the specified

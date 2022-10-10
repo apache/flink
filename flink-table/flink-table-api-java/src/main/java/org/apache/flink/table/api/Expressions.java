@@ -477,7 +477,7 @@ public final class Expressions {
      *
      * @return The current Unix timestamp in seconds.
      */
-    public static ApiExpression unixTimestamp() {
+      public static ApiExpression unixTimestamp() {
         return apiCall(BuiltInFunctionDefinitions.UNIX_TIMESTAMP);
     }
 
