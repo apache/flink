@@ -39,6 +39,8 @@ import org.apache.flink.table.delegation.ExtendedOperationExecutor;
 import org.apache.flink.table.delegation.Parser;
 import org.apache.flink.table.functions.hive.HiveGenericUDTFTest;
 import org.apache.flink.table.functions.hive.util.TestSplitUDTFInitializeWithStructObjectInspector;
+import org.apache.flink.table.module.CoreModule;
+import org.apache.flink.table.module.hive.HiveModule;
 import org.apache.flink.table.operations.DescribeTableOperation;
 import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.command.AddJarOperation;
