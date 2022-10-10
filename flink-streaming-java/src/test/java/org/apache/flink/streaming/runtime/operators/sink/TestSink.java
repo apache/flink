@@ -27,6 +27,9 @@ import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
 import org.apache.flink.streaming.api.functions.sink.filesystem.bucketassigners.SimpleVersionedStringSerializer;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import javax.annotation.Nullable;
 
 import java.io.IOException;
@@ -382,6 +385,11 @@ public class TestSink<T> implements Sink<T, String, String, String> {
         }
 
         @Override
+        public List<String> commit(List<String> committables) {
+            return super.commit(committables);
+        }
+
+        @Override
         public String combine(List<String> committables) {
             return COMBINER.apply(committables);
         }
@@ -389,6 +397,40 @@ public class TestSink<T> implements Sink<T, String, String, String> {
         @Override
         public void endOfInput() {
             commit(Collections.singletonList(END_OF_INPUT_STR));
+        }
+    }
+
+    /**
+     * {@link GlobalCommitter} implementation that can throw on exception when processing
+     * checkpoint. Exception is thrown once.
+     */
+    public static class ExplosiveGlobalCommitter extends DefaultGlobalCommitter {
+
+        private static final Logger LOG = LoggerFactory.getLogger(ExplosiveGlobalCommitter.class);
+
+        // local counter used to decide if exception should be thrown. This field has to be static,
+        // since we want to keep its value after Flink's local cluster recovery.
+        private static int VAL = 0;
+
+        private final int commitNumberToFailOn;
+
+        public ExplosiveGlobalCommitter(
+                int commitNumberToFailOn, Supplier<Queue<String>> queueSupplier) {
+            super(queueSupplier);
+            this.commitNumberToFailOn = commitNumberToFailOn;
+        }
+
+        @Override
+        public List<String> commit(List<String> committables) {
+            LOG.info("Commit number " + VAL + ", committables size " + committables.size());
+            try {
+                if (VAL == commitNumberToFailOn) {
+                    throw new RuntimeException("BOOOOOM!!!!");
+                }
+            } finally {
+                VAL++;
+            }
+            return super.commit(committables);
         }
     }
 

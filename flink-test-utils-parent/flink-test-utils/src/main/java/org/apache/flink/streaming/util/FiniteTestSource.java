@@ -96,6 +96,7 @@ public class FiniteTestSource<T> implements SourceFunction<T>, CheckpointListene
                 }
             }
         }
+        System.out.println("Bye");
     }
 
     private void emitElementsAndWaitForCheckpoints(SourceContext<T> ctx, int checkpointsToWaitFor)

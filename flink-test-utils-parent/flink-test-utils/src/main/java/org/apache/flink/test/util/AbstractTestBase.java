@@ -68,6 +68,7 @@ public abstract class AbstractTestBase extends TestBaseUtils {
                     new MiniClusterResourceConfiguration.Builder()
                             .setNumberTaskManagers(1)
                             .setNumberSlotsPerTaskManager(DEFAULT_PARALLELISM)
+                            .withHaLeadershipControl()
                             .build());
 
     @ClassRule public static final TemporaryFolder TEMPORARY_FOLDER = new TemporaryFolder();
