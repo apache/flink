@@ -1564,6 +1564,7 @@ public final class BuiltInFunctionDefinitions {
             BuiltInFunctionDefinition.newBuilder()
                     .name("unixTimestamp")
                     .kind(SCALAR)
+                    .notDeterministic()
                     .inputTypeStrategy(
                             or(
                                     NO_ARGS,
