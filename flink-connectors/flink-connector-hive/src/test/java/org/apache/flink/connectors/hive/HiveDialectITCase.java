@@ -39,6 +39,8 @@ import org.apache.flink.table.delegation.ExtendedOperationExecutor;
 import org.apache.flink.table.delegation.Parser;
 import org.apache.flink.table.functions.hive.HiveGenericUDTFTest;
 import org.apache.flink.table.functions.hive.util.TestSplitUDTFInitializeWithStructObjectInspector;
+import org.apache.flink.table.module.CoreModule;
+import org.apache.flink.table.module.hive.HiveModule;
 import org.apache.flink.table.operations.DescribeTableOperation;
 import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.command.AddJarOperation;
@@ -660,6 +662,105 @@ public class HiveDialectITCase {
         // drop
         tableEnv.executeSql("drop view v1");
         assertThat(hiveCatalog.tableExists(viewPath)).isFalse();
+    }
+
+    @Test
+    public void t1() throws Exception {
+        // automatically load hive module in hive-compatible mode
+        HiveModule hiveModule = new HiveModule(hiveCatalog.getHiveVersion());
+        CoreModule coreModule = CoreModule.INSTANCE;
+        for (String loaded : tableEnv.listModules()) {
+            tableEnv.unloadModule(loaded);
+        }
+        tableEnv.loadModule("hive", hiveModule);
+        tableEnv.loadModule("core", coreModule);
+
+        tableEnv.executeSql("create table src (key string, val string)");
+
+        tableEnv.executeSql("insert into src values ('k1', 'v1'), ('k1', 'v1')").await();
+
+        List<Row> result =
+                CollectionUtil.iteratorToList(
+                        tableEnv.executeSql("SELECT asin(2)\n" + "FROM src tablesample (1 rows)")
+                                .collect());
+        System.out.println(result);
+    }
+
+    @Test
+    public void t2() {
+        // automatically load hive module in hive-compatible mode
+        HiveModule hiveModule = new HiveModule(hiveCatalog.getHiveVersion());
+        CoreModule coreModule = CoreModule.INSTANCE;
+        for (String loaded : tableEnv.listModules()) {
+            tableEnv.unloadModule(loaded);
+        }
+        tableEnv.loadModule("hive", hiveModule);
+        tableEnv.loadModule("core", coreModule);
+
+        List<Row> result =
+                CollectionUtil.iteratorToList(tableEnv.executeSql("select binary('1')").collect());
+        System.out.println(result);
+    }
+
+    @Test
+    public void t4() {
+        // automatically load hive module in hive-compatible mode
+        HiveModule hiveModule = new HiveModule(hiveCatalog.getHiveVersion());
+        CoreModule coreModule = CoreModule.INSTANCE;
+        for (String loaded : tableEnv.listModules()) {
+            tableEnv.unloadModule(loaded);
+        }
+        tableEnv.loadModule("hive", hiveModule);
+        tableEnv.loadModule("core", coreModule);
+        List<Row> result =
+                CollectionUtil.iteratorToList(
+                        tableEnv.executeSql(
+                                        "SELECT sort_array(array(struct(2, 9, 7), struct(3, 5, 4), struct(1, 6, 8)))")
+                                .collect());
+        System.out.println(result);
+    }
+
+    @Test
+    public void t5() {
+        // automatically load hive module in hive-compatible mode
+        HiveModule hiveModule = new HiveModule(hiveCatalog.getHiveVersion());
+        CoreModule coreModule = CoreModule.INSTANCE;
+        for (String loaded : tableEnv.listModules()) {
+            tableEnv.unloadModule(loaded);
+        }
+
+        tableEnv.loadModule("hive", hiveModule);
+        tableEnv.loadModule("core", coreModule);
+
+        tableEnv.executeSql("CREATE TABLE DECIMAL_PRECISION(dec decimal(20,10), a int)");
+
+        List<Row> result =
+                CollectionUtil.iteratorToList(
+                        tableEnv.executeSql("SELECT dec / 3 FROM DECIMAL_PRECISION")
+                                .collect());
+        System.out.println(result);
+    }
+
+    @Test
+    public void t3() {
+        // automatically load hive module in hive-compatible mode
+        HiveModule hiveModule = new HiveModule(hiveCatalog.getHiveVersion());
+        CoreModule coreModule = CoreModule.INSTANCE;
+        for (String loaded : tableEnv.listModules()) {
+            tableEnv.unloadModule(loaded);
+        }
+        tableEnv.loadModule("hive", hiveModule);
+        tableEnv.loadModule("core", coreModule);
+
+        tableEnv.executeSql("create table table1 (id int, val string, val1 string, dimid int)");
+        tableEnv.executeSql("create table table3 (id int)");
+
+        List<Row> result =
+                CollectionUtil.iteratorToList(
+                        tableEnv.executeSql(
+                                        "select table1.id, table1.val, table1.val1 from table1 left semi join"
+                                                + " table3 on table1.dimid = table3.id and table3.id = 100 where table1.dimid = 200")
+                                .collect());
     }
 
     @Test

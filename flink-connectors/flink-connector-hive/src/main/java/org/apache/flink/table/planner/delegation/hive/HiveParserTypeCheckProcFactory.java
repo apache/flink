@@ -76,6 +76,7 @@ import org.apache.hadoop.hive.ql.udf.generic.GenericUDFBaseCompare;
 import org.apache.hadoop.hive.ql.udf.generic.GenericUDFInternalInterval;
 import org.apache.hadoop.hive.ql.udf.generic.GenericUDFNvl;
 import org.apache.hadoop.hive.ql.udf.generic.GenericUDFOPAnd;
+import org.apache.hadoop.hive.ql.udf.generic.GenericUDFOPDivide;
 import org.apache.hadoop.hive.ql.udf.generic.GenericUDFOPEqual;
 import org.apache.hadoop.hive.ql.udf.generic.GenericUDFOPNegative;
 import org.apache.hadoop.hive.ql.udf.generic.GenericUDFOPNot;
@@ -1234,6 +1235,18 @@ public class HiveParserTypeCheckProcFactory {
                     desc =
                             ExprNodeGenericFuncDesc.newInstance(
                                     new HiveGenericUDFInternalInterval(), funcText, children);
+                } else if (genericUDF instanceof GenericUDFOPDivide) {
+                    children.set(
+                            1,
+                            new ExprNodeConstantDesc(
+                                    TypeInfoFactory.getDecimalTypeInfo(
+                                            HiveDecimal.USER_DEFAULT_PRECISION,
+                                            HiveDecimal.USER_DEFAULT_SCALE),
+                                    HiveDecimal.create(
+                                            (Integer)
+                                                    ((ExprNodeConstantDesc) children.get(1))
+                                                            .getValue())));
+                    desc = ExprNodeGenericFuncDesc.newInstance(genericUDF, funcText, children);
                 } else {
                     desc = ExprNodeGenericFuncDesc.newInstance(genericUDF, funcText, children);
                 }
@@ -1246,7 +1259,11 @@ public class HiveParserTypeCheckProcFactory {
                         && HiveParserExprNodeDescUtils.isAllConstants(children)) {
                     ExprNodeDesc constantExpr =
                             ConstantPropagateProcFactory.foldExpr((ExprNodeGenericFuncDesc) desc);
-                    if (constantExpr != null) {
+                    if (constantExpr != null
+                            && constantExpr.getTypeInfo() instanceof PrimitiveTypeInfo
+                            && (((PrimitiveTypeInfo) constantExpr.getTypeInfo())
+                                            .getPrimitiveCategory()
+                                    != PrimitiveObjectInspector.PrimitiveCategory.BINARY)) {
                         desc = constantExpr;
                     }
                 }
