@@ -106,7 +106,10 @@ public class OpenApiSpecGenerator {
 
     @VisibleForTesting
     static void createDocumentationFile(
-            DocumentingRestEndpoint restEndpoint, RestAPIVersion apiVersion, Path outputFile)
+            String title,
+            DocumentingRestEndpoint restEndpoint,
+            RestAPIVersion apiVersion,
+            Path outputFile)
             throws IOException {
         final OpenAPI openApi = new OpenAPI();
 
@@ -114,7 +117,7 @@ public class OpenApiSpecGenerator {
         openApi.setPaths(new io.swagger.v3.oas.models.Paths());
         openApi.setComponents(new Components());
 
-        setInfo(openApi, apiVersion);
+        setInfo(openApi, title, apiVersion);
 
         List<MessageHeaders> specs =
                 restEndpoint.getSpecs().stream()
@@ -143,10 +146,11 @@ public class OpenApiSpecGenerator {
         return spec.getClass().getAnnotation(Documentation.ExcludeFromDocumentation.class) == null;
     }
 
-    private static void setInfo(final OpenAPI openApi, final RestAPIVersion apiVersion) {
+    private static void setInfo(
+            final OpenAPI openApi, String title, final RestAPIVersion apiVersion) {
         openApi.info(
                 new Info()
-                        .title("Flink JobManager REST API")
+                        .title(title)
                         .version(
                                 String.format(
                                         "%s/%s",
