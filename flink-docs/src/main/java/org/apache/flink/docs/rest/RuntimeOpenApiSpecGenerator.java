@@ -51,6 +51,7 @@ public class RuntimeOpenApiSpecGenerator {
                 continue;
             }
             createDocumentationFile(
+                    "Flink JobManager REST API",
                     new DocumentingDispatcherRestEndpoint(),
                     apiVersion,
                     Paths.get(
