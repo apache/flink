@@ -124,7 +124,7 @@ public class ClientParser implements SqlCommandParser {
             // EXPLAIN
             type = StatementType.EXPLAIN;
         } else if (firstToken.kind == SHOW) {
-            // SHOW
+            // SHOW CREATE
             type =
                     tokenMatches(tokens.scan(1), CREATE)
                             ? StatementType.SHOW_CREATE
@@ -183,7 +183,7 @@ public class ClientParser implements SqlCommandParser {
         }
     }
 
-    void checkIncompleteStatement(TokenIterator iterator) {
+    private void checkIncompleteStatement(TokenIterator iterator) {
         Token before = iterator.next(), current = iterator.next();
 
         while (!tokenMatches(current, EOF)) {

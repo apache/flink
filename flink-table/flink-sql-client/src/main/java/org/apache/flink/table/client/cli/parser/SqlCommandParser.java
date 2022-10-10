@@ -24,7 +24,7 @@ import org.apache.flink.table.operations.Operation;
 
 import java.util.Optional;
 
-/** SqlClient command parser. Extends FlinkSqlParserImplConstants to use defined token kinds. */
+/** SqlClient command parser. */
 @Internal
 public interface SqlCommandParser {
 
