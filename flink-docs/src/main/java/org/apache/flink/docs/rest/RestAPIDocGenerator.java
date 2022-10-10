@@ -196,14 +196,6 @@ public class RestAPIDocGenerator {
             sb.append("      </td>\n");
             sb.append("    </tr>\n");
         }
-        int reqHash =
-                spec.getTargetRestEndpointURL().hashCode()
-                        + spec.getHttpMethod().name().hashCode()
-                        + spec.getRequestClass().getCanonicalName().hashCode();
-        int resHash =
-                spec.getTargetRestEndpointURL().hashCode()
-                        + spec.getHttpMethod().name().hashCode()
-                        + spec.getResponseClass().getCanonicalName().hashCode();
         {
             sb.append("    <tr>\n");
             sb.append("      <td colspan=\"2\">\n");
