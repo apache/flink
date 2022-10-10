@@ -732,9 +732,10 @@ public class HiveDialectQueryITCase {
             // test load data overwrite
             tableEnv.executeSql("insert overwrite table tab1 values (2, 1), (2, 2)").await();
             tableEnv.executeSql(
-                    String.format(
-                            "load data local inpath '%s' overwrite into table tab2",
-                            warehouse + "/tab1"));
+                            String.format(
+                                    "load data inpath '%s' overwrite into table tab2",
+                                    warehouse + "/tab1"))
+                    .await();
             result =
                     CollectionUtil.iteratorToList(
                             tableEnv.executeSql("select * from tab2").collect());
@@ -743,7 +744,7 @@ public class HiveDialectQueryITCase {
             // test load data into partition
             tableEnv.executeSql(
                             String.format(
-                                    "load data inpath '%s' into table p_table partition (dateint=2022) ",
+                                    "load data local inpath '%s' into table p_table partition (dateint=2022) ",
                                     testLoadCsvFilePath))
                     .await();
             // the file should be removed
