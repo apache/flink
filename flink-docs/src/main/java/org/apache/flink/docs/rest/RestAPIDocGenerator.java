@@ -208,11 +208,7 @@ public class RestAPIDocGenerator {
             sb.append("          </div>\n");
             sb.append("          <input type=\"checkbox\" class=\"hidden\">\n");
             sb.append("          <div class=\"book-expand-content markdown-inner\">\n");
-            sb.append("          <pre>\n");
-            sb.append("            <code>\n");
-            sb.append(requestEntry);
-            sb.append("            </code>\n");
-            sb.append("          </pre>\n");
+            sb.append("          <pre><code>" + requestEntry + "</code></pre>\n");
             sb.append("          </div>\n");
             sb.append("        </label>\n");
             sb.append("      </div>\n");
@@ -229,11 +225,7 @@ public class RestAPIDocGenerator {
             sb.append("          </div>\n");
             sb.append("          <input type=\"checkbox\" class=\"hidden\">\n");
             sb.append("          <div class=\"book-expand-content markdown-inner\">\n");
-            sb.append("          <pre>\n");
-            sb.append("            <code>\n");
-            sb.append(responseEntry);
-            sb.append("            </code>\n");
-            sb.append("          </pre>\n");
+            sb.append("          <pre><code>" + responseEntry + "</code></pre>\n");
             sb.append("          </div>\n");
             sb.append("        </label>\n");
             sb.append("      </div>\n");
