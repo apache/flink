@@ -902,7 +902,7 @@ print(table.explain())
 
 The result of the above example is
 
-{{< expand "Explain" >}}
+{{< details "Explain" >}}
 ```text
 
 == Abstract Syntax Tree ==
@@ -924,7 +924,7 @@ Union(all=[true], union=[count, word])
 +- DataStreamScan(table=[[Unregistered_DataStream_2]], fields=[count, word])
 
 ```
-{{< /expand >}}
+{{< /details >}}
 
 The following code shows an example and the corresponding output for multiple-sinks plan using `StatementSet.explain()` method:
 
@@ -1066,7 +1066,7 @@ print(explanation)
 
 the result of multiple-sinks plan is
 
-{{< expand "MultiTable Explain" >}}
+{{< details "MultiTable Explain" >}}
 ```text
 
 == Abstract Syntax Tree ==
@@ -1104,7 +1104,7 @@ LegacySink(name=[`default_catalog`.`default_database`.`MySink2`], fields=[count,
    +- LegacyTableSourceScan(table=[[default_catalog, default_database, MySource2, source: [CsvTableSource(read fields: count, word)]]], fields=[count, word])
 
 ```
-{{< /expand >}}
+{{< /details >}}
 
 {{< top >}}
 
