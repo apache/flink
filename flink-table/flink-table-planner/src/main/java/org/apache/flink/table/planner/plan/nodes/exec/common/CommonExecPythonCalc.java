@@ -52,6 +52,8 @@ import org.apache.calcite.rex.RexCall;
 import org.apache.calcite.rex.RexFieldAccess;
 import org.apache.calcite.rex.RexInputRef;
 import org.apache.calcite.rex.RexNode;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.lang.reflect.Constructor;
 import java.util.ArrayList;
@@ -65,6 +67,8 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 /** Base class for exec Python Calc. */
 public abstract class CommonExecPythonCalc extends ExecNodeBase<RowData>
         implements SingleTransformationTranslator<RowData> {
+
+    private static final Logger LOG = LoggerFactory.getLogger(CommonExecPythonCalc.class);
 
     public static final String FIELD_NAME_PROJECTION = "projection";
 
@@ -213,6 +217,11 @@ public abstract class CommonExecPythonCalc extends ExecNodeBase<RowData>
         boolean isInProcessMode = CommonPythonUtil.isPythonWorkerInProcessMode(pythonConfig);
         if (isArrow) {
             clazz = CommonPythonUtil.loadClass(ARROW_PYTHON_SCALAR_FUNCTION_OPERATOR_NAME);
+            if (!isInProcessMode) {
+                LOG.warn(
+                        "Vectorized Python scalar function only supports process mode, so fallback to process mode.");
+                isInProcessMode = true;
+            }
         } else {
             if (isInProcessMode) {
                 clazz = CommonPythonUtil.loadClass(PYTHON_SCALAR_FUNCTION_OPERATOR_NAME);
