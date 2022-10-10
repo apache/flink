@@ -19,6 +19,7 @@
 package org.apache.flink.formats.avro.glue.schema.registry;
 
 import com.amazonaws.services.schemaregistry.common.AWSSchemaRegistryClient;
+import com.amazonaws.services.schemaregistry.common.SchemaByDefinitionFetcher;
 import com.amazonaws.services.schemaregistry.common.configs.GlueSchemaRegistryConfiguration;
 import com.amazonaws.services.schemaregistry.deserializers.GlueSchemaRegistryDeserializationFacade;
 import com.amazonaws.services.schemaregistry.exception.AWSSchemaRegistryException;
@@ -64,7 +65,6 @@ class GlueSchemaRegistryAvroSchemaCoderTest {
             DefaultCredentialsProvider.builder().build();
     private static Schema userSchema;
     private static User userDefinedPojo;
-    private static AWSSchemaRegistryClient mockClient;
     private static GlueSchemaRegistryInputStreamDeserializer mockInputStreamDeserializer;
     private static GlueSchemaRegistryOutputStreamSerializer mockOutputStreamSerializer;
 
@@ -125,11 +125,14 @@ class GlueSchemaRegistryAvroSchemaCoderTest {
     @Test
     void testWriteSchema_withoutAutoRegistration_throwsException() {
         configs.put(AWSSchemaRegistryConstants.SCHEMA_AUTO_REGISTRATION_SETTING, false);
-        mockClient = new MockAWSSchemaRegistryClient();
+        SchemaByDefinitionFetcher fetcher =
+                new SchemaByDefinitionFetcher(
+                        new MockAWSSchemaRegistryClient(),
+                        new GlueSchemaRegistryConfiguration(configs));
 
         GlueSchemaRegistrySerializationFacade glueSchemaRegistrySerializationFacade =
                 GlueSchemaRegistrySerializationFacade.builder()
-                        .schemaRegistryClient(mockClient)
+                        .schemaByDefinitionFetcher(fetcher)
                         .credentialProvider(credentialsProvider)
                         .glueSchemaRegistryConfiguration(
                                 new GlueSchemaRegistryConfiguration(configs))
