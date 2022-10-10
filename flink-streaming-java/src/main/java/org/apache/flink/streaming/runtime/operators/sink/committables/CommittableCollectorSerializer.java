@@ -152,6 +152,8 @@ public final class CommittableCollectorSerializer<CommT>
                             .collect(
                                     Collectors.toMap(
                                             SubtaskCommittableManager::getSubtaskId, e -> e)),
+                    subtaskId,
+                    numberOfSubtasks,
                     checkpointId);
         }
     }

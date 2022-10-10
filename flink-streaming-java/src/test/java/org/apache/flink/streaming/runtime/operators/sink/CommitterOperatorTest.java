@@ -219,15 +219,27 @@ class CommitterOperatorTest {
 
     @Test
     void testStateRestore() throws Exception {
+
+        final int originalSubtaskId = 0;
+        final int subtaskIdAfterRecovery = 9;
+
         final OneInputStreamOperatorTestHarness<
                         CommittableMessage<String>, CommittableMessage<String>>
-                testHarness = createTestHarness(new TestSink.RetryOnceCommitter(), false, true);
+                testHarness =
+                        createTestHarness(
+                                new TestSink.RetryOnceCommitter(),
+                                false,
+                                true,
+                                1,
+                                1,
+                                originalSubtaskId);
         testHarness.open();
 
         final CommittableSummary<String> committableSummary =
-                new CommittableSummary<>(1, 1, 0L, 1, 1, 0);
+                new CommittableSummary<>(originalSubtaskId, 1, 0L, 1, 1, 0);
         testHarness.processElement(new StreamRecord<>(committableSummary));
-        final CommittableWithLineage<String> first = new CommittableWithLineage<>("1", 0L, 1);
+        final CommittableWithLineage<String> first =
+                new CommittableWithLineage<>("1", 0L, originalSubtaskId);
         testHarness.processElement(new StreamRecord<>(first));
 
         final OperatorSubtaskState snapshot = testHarness.snapshot(0L, 2L);
@@ -239,9 +251,14 @@ class CommitterOperatorTest {
         testHarness.close();
 
         final ForwardingCommitter committer = new ForwardingCommitter();
+
+        // create new testHarness but with different parallelism level and subtaskId that original
+        // one.
+        // we will make sure that new subtaskId was used during committable recovery.
         final OneInputStreamOperatorTestHarness<
                         CommittableMessage<String>, CommittableMessage<String>>
-                restored = createTestHarness(committer, false, true);
+                restored =
+                        createTestHarness(committer, false, true, 10, 10, subtaskIdAfterRecovery);
 
         restored.initializeState(snapshot);
         restored.open();
@@ -256,7 +273,9 @@ class CommitterOperatorTest {
                 .hasPendingCommittables(0);
 
         SinkV2Assertions.assertThat(toCommittableWithLinage(output.get(1)))
-                .isEqualTo(new CommittableWithLineage<>(first.getCommittable(), 1L, 0));
+                .isEqualTo(
+                        new CommittableWithLineage<>(
+                                first.getCommittable(), 1L, subtaskIdAfterRecovery));
         restored.close();
     }
 
@@ -342,6 +361,33 @@ class CommitterOperatorTest {
                                         .asV2(),
                         isBatchMode,
                         isCheckpointingEnabled));
+    }
+
+    private OneInputStreamOperatorTestHarness<
+                    CommittableMessage<String>, CommittableMessage<String>>
+            createTestHarness(
+                    Committer<String> committer,
+                    boolean isBatchMode,
+                    boolean isCheckpointingEnabled,
+                    int maxParallelism,
+                    int parallelism,
+                    int subtaskId)
+                    throws Exception {
+        return new OneInputStreamOperatorTestHarness<>(
+                new CommitterOperatorFactory<>(
+                        (TwoPhaseCommittingSink<?, String>)
+                                TestSink.newBuilder()
+                                        .setCommitter(committer)
+                                        .setDefaultGlobalCommitter()
+                                        .setCommittableSerializer(
+                                                TestSink.StringCommittableSerializer.INSTANCE)
+                                        .build()
+                                        .asV2(),
+                        isBatchMode,
+                        isCheckpointingEnabled),
+                maxParallelism,
+                parallelism,
+                subtaskId);
     }
 
     private static class ForwardingCommitter extends TestSink.DefaultCommitter {

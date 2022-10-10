@@ -45,18 +45,17 @@ class CheckpointCommittableManagerImpl<CommT> implements CheckpointCommittableMa
 
     CheckpointCommittableManagerImpl(
             int subtaskId, int numberOfSubtasks, @Nullable Long checkpointId) {
-        this.subtaskId = subtaskId;
-        this.numberOfSubtasks = numberOfSubtasks;
-        this.checkpointId = checkpointId;
-        this.subtasksCommittableManagers = new HashMap<>();
+        this(new HashMap<>(), subtaskId, numberOfSubtasks, checkpointId);
     }
 
     CheckpointCommittableManagerImpl(
             Map<Integer, SubtaskCommittableManager<CommT>> subtasksCommittableManagers,
+            int subtaskId,
+            int numberOfSubtasks,
             @Nullable Long checkpointId) {
         this.subtasksCommittableManagers = checkNotNull(subtasksCommittableManagers);
-        this.subtaskId = 0;
-        this.numberOfSubtasks = 1;
+        this.subtaskId = subtaskId;
+        this.numberOfSubtasks = numberOfSubtasks;
         this.checkpointId = checkpointId;
     }
 
@@ -158,6 +157,8 @@ class CheckpointCommittableManagerImpl<CommT> implements CheckpointCommittableMa
         return new CheckpointCommittableManagerImpl<>(
                 subtasksCommittableManagers.entrySet().stream()
                         .collect(Collectors.toMap(Map.Entry::getKey, (e) -> e.getValue().copy())),
+                subtaskId,
+                numberOfSubtasks,
                 checkpointId);
     }
 }

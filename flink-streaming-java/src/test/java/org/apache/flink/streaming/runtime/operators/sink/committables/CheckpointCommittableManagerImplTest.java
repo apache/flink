@@ -21,8 +21,11 @@ package org.apache.flink.streaming.runtime.operators.sink.committables;
 import org.apache.flink.api.connector.sink2.Committer;
 import org.apache.flink.streaming.api.connector.sink2.CommittableSummary;
 import org.apache.flink.streaming.api.connector.sink2.CommittableWithLineage;
+import org.apache.flink.streaming.api.connector.sink2.SinkV2Assertions;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 
 import java.io.IOException;
 import java.util.Collection;
@@ -91,6 +94,26 @@ class CheckpointCommittableManagerImplTest {
                                         new CommittableSummary<>(1, 1, 1L, 2, 0, 0)))
                 .isInstanceOf(UnsupportedOperationException.class)
                 .hasMessageContaining("FLINK-25920");
+    }
+
+    // check different values of subtaskId and numberOfSubtasks to make sure that no value is
+    // hardcoded.
+    @ParameterizedTest(name = "subtaskId = {0}, numberOfSubtasks = {1}, checkpointId = {2}")
+    @CsvSource({"1, 10, 100", "2, 20, 200", "3, 30, 300"})
+    public void testCopy(int subtaskId, int numberOfSubtasks, long checkpointId) {
+
+        final CheckpointCommittableManagerImpl<Integer> original =
+                new CheckpointCommittableManagerImpl<>(subtaskId, numberOfSubtasks, checkpointId);
+        original.upsertSummary(
+                new CommittableSummary<>(subtaskId, numberOfSubtasks, checkpointId, 1, 0, 0));
+
+        CheckpointCommittableManagerImpl<Integer> copy = original.copy();
+
+        assertThat(copy.getCheckpointId()).isEqualTo(checkpointId);
+        SinkV2Assertions.assertThat(copy.getSummary())
+                .hasNumberOfSubtasks(numberOfSubtasks)
+                .hasSubtaskId(subtaskId)
+                .hasCheckpointId(checkpointId);
     }
 
     private static class NoOpCommitter implements Committer<Integer> {
