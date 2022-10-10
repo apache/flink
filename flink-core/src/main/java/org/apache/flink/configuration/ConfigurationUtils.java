@@ -332,7 +332,7 @@ public class ConfigurationUtils {
         } else if (clazz == MemorySize.class) {
             return (T) convertToMemorySize(rawValue);
         } else if (clazz == Map.class) {
-            return (T) convertToProperties(rawValue);
+            return convertToMap(rawValue, String.class);
         }
 
         throw new IllegalArgumentException("Unsupported type: " + clazz);
@@ -351,22 +351,34 @@ public class ConfigurationUtils {
     }
 
     @SuppressWarnings("unchecked")
-    static Map<String, String> convertToProperties(Object o) {
+    static <T> T convertToMap(Object o, Class<?> valueClazz) {
         if (o instanceof Map) {
-            return (Map<String, String>) o;
+            if (valueClazz == String.class) {
+                // We don't have to convert the values
+                return (T) o;
+            }
+            @SuppressWarnings("rawtypes")
+            Map<String, T> map = (Map<String, T>) o;
+            Map<String, T> newMap = new HashMap<>(map.size());
+            map.forEach((k, v) -> newMap.put(k, convertValue(v, valueClazz)));
+            return (T) newMap;
         } else {
             List<String> listOfRawProperties =
                     StructuredOptionsSplitter.splitEscaped(o.toString(), ',');
-            return listOfRawProperties.stream()
-                    .map(s -> StructuredOptionsSplitter.splitEscaped(s, ':'))
-                    .peek(
-                            pair -> {
-                                if (pair.size() != 2) {
-                                    throw new IllegalArgumentException(
-                                            "Could not parse pair in the map " + pair);
-                                }
-                            })
-                    .collect(Collectors.toMap(a -> a.get(0), a -> a.get(1)));
+            return (T)
+                    listOfRawProperties.stream()
+                            .map(s -> StructuredOptionsSplitter.splitEscaped(s, ':'))
+                            .peek(
+                                    pair -> {
+                                        if (pair.size() != 2) {
+                                            throw new IllegalArgumentException(
+                                                    "Could not parse pair in the map " + pair);
+                                        }
+                                    })
+                            .collect(
+                                    Collectors.toMap(
+                                            a -> a.get(0),
+                                            a -> convertValue(a.get(1), valueClazz)));
         }
     }
 
@@ -534,7 +546,7 @@ public class ConfigurationUtils {
      * </pre>
      */
     public static boolean canBePrefixMap(ConfigOption<?> configOption) {
-        return configOption.getClazz() == Map.class && !configOption.isList();
+        return configOption.getClazz() == Map.class || configOption.isMap();
     }
 
     /** Filter condition for prefix map keys. */

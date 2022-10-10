@@ -402,7 +402,7 @@ public final class DelegatingConfiguration extends Configuration {
                 option.getClazz(),
                 option.description(),
                 option.defaultValue(),
-                option.isList(),
+                option.getType(),
                 deprecated);
     }
 }
