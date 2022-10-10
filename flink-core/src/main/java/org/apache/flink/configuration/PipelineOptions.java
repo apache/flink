@@ -24,6 +24,7 @@ import org.apache.flink.configuration.description.Description;
 import org.apache.flink.configuration.description.TextElement;
 
 import java.time.Duration;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
@@ -164,6 +165,14 @@ public class PipelineOptions {
                     .withDescription(
                             "Register a custom, serializable user configuration object. The configuration can be "
                                     + " accessed in operators");
+
+    public static final ConfigOption<Map<String, String>> PARALLELISM_OVERRIDES =
+            key("pipeline.jobvertex-parallelism-overrides")
+                    .mapType()
+                    .defaultValue(Collections.emptyMap())
+                    .withDescription(
+                            "A parallelism override map (jobVertexId -> parallelism) which will be used to update"
+                                    + " the parallelism of the corresponding job vertices of submitted JobGraphs.");
 
     public static final ConfigOption<Integer> MAX_PARALLELISM =
             key("pipeline.max-parallelism")
