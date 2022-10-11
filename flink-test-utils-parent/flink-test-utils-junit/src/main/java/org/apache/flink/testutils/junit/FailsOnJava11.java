@@ -17,5 +17,17 @@
 
 package org.apache.flink.testutils.junit;
 
+import org.junit.jupiter.api.Tag;
+
+import java.lang.annotation.ElementType;
+import java.lang.annotation.Inherited;
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
+import java.lang.annotation.Target;
+
 /** Marker interface for tests that fail on Java 11. */
-public interface FailsOnJava11 {}
+@Inherited
+@Retention(RetentionPolicy.RUNTIME)
+@Target({ElementType.METHOD, ElementType.TYPE})
+@Tag("org.apache.flink.testutils.junit.FailsOnJava11")
+public @interface FailsOnJava11 {}

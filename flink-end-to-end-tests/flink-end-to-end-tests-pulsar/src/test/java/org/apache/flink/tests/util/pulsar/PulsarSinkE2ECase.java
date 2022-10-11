@@ -28,12 +28,11 @@ import org.apache.flink.connector.testframe.junit.annotations.TestSemantics;
 import org.apache.flink.streaming.api.CheckpointingMode;
 import org.apache.flink.tests.util.pulsar.common.FlinkContainerWithPulsarEnvironment;
 import org.apache.flink.tests.util.pulsar.common.PulsarContainerTestEnvironment;
-
-import org.junit.jupiter.api.Tag;
+import org.apache.flink.testutils.junit.FailsOnJava11;
 
 /** Pulsar sink E2E test based on connector testing framework. */
 @SuppressWarnings("unused")
-@Tag("org.apache.flink.testutils.junit.FailsOnJava11")
+@FailsOnJava11
 public class PulsarSinkE2ECase extends PulsarSinkTestSuiteBase {
 
     @TestSemantics
