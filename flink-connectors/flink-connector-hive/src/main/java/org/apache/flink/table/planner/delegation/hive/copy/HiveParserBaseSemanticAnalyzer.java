@@ -106,6 +106,8 @@ import org.apache.hadoop.hive.serde2.typeinfo.TypeInfoUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.Nullable;
+
 import java.io.Serializable;
 import java.io.UnsupportedEncodingException;
 import java.math.BigDecimal;
@@ -532,7 +534,9 @@ public class HiveParserBaseSemanticAnalyzer {
     }
 
     public static String getUnescapedName(
-            HiveParserASTNode tableOrColumnNode, String currentCatalog, String currentDatabase)
+            HiveParserASTNode tableOrColumnNode,
+            @Nullable String currentCatalog,
+            @Nullable String currentDatabase)
             throws SemanticException {
         int tokenType = tableOrColumnNode.getToken().getType();
         if (tokenType == HiveASTParser.TOK_TABNAME) {
