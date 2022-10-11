@@ -105,6 +105,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -184,7 +185,10 @@ public class StreamingJobGraphGenerator {
     private final Executor serializationExecutor;
 
     // Futures for the serialization of operator coordinators
-    private final List<CompletableFuture<Void>> coordinatorSerializationFutures = new ArrayList<>();
+    private final Map<
+                    JobVertexID,
+                    List<CompletableFuture<SerializedValue<OperatorCoordinator.Provider>>>>
+            coordinatorSerializationFuturesPerJobVertex = new HashMap<>();
 
     private final Map<Integer, Map<StreamEdge, NonChainedOutput>> opIntermediateOutputs;
 
@@ -286,7 +290,8 @@ public class StreamingJobGraphGenerator {
                                                             serializationExecutor))
                                     .collect(Collectors.toList()))
                     .get();
-            FutureUtils.combineAll(coordinatorSerializationFutures).get();
+
+            waitForSerializationFuturesAndUpdateJobVertices();
         } catch (Exception e) {
             throw new FlinkRuntimeException("Error in serialization.", e);
         }
@@ -296,6 +301,25 @@ public class StreamingJobGraphGenerator {
         }
 
         return jobGraph;
+    }
+
+    private void waitForSerializationFuturesAndUpdateJobVertices()
+            throws ExecutionException, InterruptedException {
+        for (Map.Entry<
+                        JobVertexID,
+                        List<CompletableFuture<SerializedValue<OperatorCoordinator.Provider>>>>
+                futuresPerJobVertex : coordinatorSerializationFuturesPerJobVertex.entrySet()) {
+            final JobVertexID jobVertexId = futuresPerJobVertex.getKey();
+            final JobVertex jobVertex = jobGraph.findVertexByID(jobVertexId);
+
+            Preconditions.checkState(
+                    jobVertex != null,
+                    "OperatorCoordinator providers were registered for JobVertexID '%s' but no corresponding JobVertex can be found.",
+                    jobVertexId);
+            FutureUtils.combineAll(futuresPerJobVertex.getValue())
+                    .get()
+                    .forEach(jobVertex::addOperatorCoordinator);
+        }
     }
 
     private void addVertexIndexPrefixInVertexName() {
@@ -823,14 +847,15 @@ public class StreamingJobGraphGenerator {
             jobVertex.addIntermediateDataSetIdToConsume(streamNode.getConsumeClusterDatasetId());
         }
 
+        final List<CompletableFuture<SerializedValue<OperatorCoordinator.Provider>>>
+                serializationFutures = new ArrayList<>();
         for (OperatorCoordinator.Provider coordinatorProvider :
                 chainInfo.getCoordinatorProviders()) {
-            coordinatorSerializationFutures.add(
-                    CompletableFuture.runAsync(
+            serializationFutures.add(
+                    CompletableFuture.supplyAsync(
                             () -> {
                                 try {
-                                    jobVertex.addOperatorCoordinator(
-                                            new SerializedValue<>(coordinatorProvider));
+                                    return new SerializedValue<>(coordinatorProvider);
                                 } catch (IOException e) {
                                     throw new FlinkRuntimeException(
                                             String.format(
@@ -840,6 +865,9 @@ public class StreamingJobGraphGenerator {
                                 }
                             },
                             serializationExecutor));
+        }
+        if (!serializationFutures.isEmpty()) {
+            coordinatorSerializationFuturesPerJobVertex.put(jobVertexId, serializationFutures);
         }
 
         jobVertex.setResources(
