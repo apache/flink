@@ -664,7 +664,43 @@ public class HiveDialectITCase {
         assertThat(hiveCatalog.tableExists(viewPath)).isFalse();
     }
 
-    @Test
+    public void tt() {
+        // automatically load hive module in hive-compatible mode
+        HiveModule hiveModule = new HiveModule(hiveCatalog.getHiveVersion());
+        CoreModule coreModule = CoreModule.INSTANCE;
+        for (String loaded : tableEnv.listModules()) {
+            tableEnv.unloadModule(loaded);
+        }
+        tableEnv.loadModule("hive", hiveModule);
+        tableEnv.loadModule("core", coreModule);
+
+        tableEnv.executeSql("CREATE TABLE decimal_test(cdecimal1 decimal(12, 2))");
+
+        List<Row> result =
+                CollectionUtil.iteratorToList(
+                        tableEnv.executeSql("SELECT  cdecimal1 / 10 as c5 FROM decimal_test")
+                                .collect());
+        System.out.println(result);
+
+        result =
+                CollectionUtil.iteratorToList(
+                        tableEnv.executeSql("SELECT  10 / cdecimal1 as c5 FROM decimal_test")
+                                .collect());
+        System.out.println(result);
+
+        result =
+                CollectionUtil.iteratorToList(
+                        tableEnv.executeSql("SELECT  cdecimal1 / 10L as c5 FROM decimal_test")
+                                .collect());
+        System.out.println(result);
+
+        result =
+                CollectionUtil.iteratorToList(
+                        tableEnv.executeSql("SELECT  10L / cdecimal1 as c5 FROM decimal_test")
+                                .collect());
+        System.out.println(result);
+    }
+
     public void t1() throws Exception {
         // automatically load hive module in hive-compatible mode
         HiveModule hiveModule = new HiveModule(hiveCatalog.getHiveVersion());
@@ -675,18 +711,11 @@ public class HiveDialectITCase {
         tableEnv.loadModule("hive", hiveModule);
         tableEnv.loadModule("core", coreModule);
 
-        tableEnv.executeSql("create table src (key string, val string)");
-
-        tableEnv.executeSql("insert into src values ('k1', 'v1'), ('k1', 'v1')").await();
-
         List<Row> result =
-                CollectionUtil.iteratorToList(
-                        tableEnv.executeSql("SELECT asin(2)\n" + "FROM src tablesample (1 rows)")
-                                .collect());
+                CollectionUtil.iteratorToList(tableEnv.executeSql("SELECT asin(2)\n").collect());
         System.out.println(result);
     }
 
-    @Test
     public void t2() {
         // automatically load hive module in hive-compatible mode
         HiveModule hiveModule = new HiveModule(hiveCatalog.getHiveVersion());
@@ -702,7 +731,6 @@ public class HiveDialectITCase {
         System.out.println(result);
     }
 
-    @Test
     public void t4() {
         // automatically load hive module in hive-compatible mode
         HiveModule hiveModule = new HiveModule(hiveCatalog.getHiveVersion());
@@ -720,7 +748,6 @@ public class HiveDialectITCase {
         System.out.println(result);
     }
 
-    @Test
     public void t5() {
         // automatically load hive module in hive-compatible mode
         HiveModule hiveModule = new HiveModule(hiveCatalog.getHiveVersion());
@@ -736,12 +763,10 @@ public class HiveDialectITCase {
 
         List<Row> result =
                 CollectionUtil.iteratorToList(
-                        tableEnv.executeSql("SELECT dec / 3 FROM DECIMAL_PRECISION")
-                                .collect());
+                        tableEnv.executeSql("SELECT dec / 3 FROM DECIMAL_PRECISION").collect());
         System.out.println(result);
     }
 
-    @Test
     public void t3() {
         // automatically load hive module in hive-compatible mode
         HiveModule hiveModule = new HiveModule(hiveCatalog.getHiveVersion());

@@ -89,6 +89,7 @@ import org.apache.hadoop.hive.serde2.objectinspector.PrimitiveObjectInspector;
 import org.apache.hadoop.hive.serde2.objectinspector.primitive.PrimitiveObjectInspectorUtils;
 import org.apache.hadoop.hive.serde2.typeinfo.CharTypeInfo;
 import org.apache.hadoop.hive.serde2.typeinfo.DecimalTypeInfo;
+import org.apache.hadoop.hive.serde2.typeinfo.HiveDecimalUtils;
 import org.apache.hadoop.hive.serde2.typeinfo.ListTypeInfo;
 import org.apache.hadoop.hive.serde2.typeinfo.MapTypeInfo;
 import org.apache.hadoop.hive.serde2.typeinfo.PrimitiveTypeInfo;
@@ -1235,17 +1236,31 @@ public class HiveParserTypeCheckProcFactory {
                     desc =
                             ExprNodeGenericFuncDesc.newInstance(
                                     new HiveGenericUDFInternalInterval(), funcText, children);
-                } else if (genericUDF instanceof GenericUDFOPDivide) {
-                    children.set(
-                            1,
-                            new ExprNodeConstantDesc(
-                                    TypeInfoFactory.getDecimalTypeInfo(
-                                            HiveDecimal.USER_DEFAULT_PRECISION,
-                                            HiveDecimal.USER_DEFAULT_SCALE),
-                                    HiveDecimal.create(
-                                            (Integer)
-                                                    ((ExprNodeConstantDesc) children.get(1))
-                                                            .getValue())));
+                } else if (genericUDF instanceof GenericUDFOPDivide && children.size() == 2) {
+                    // special case for GenericUDFOPDivide
+                    // todo: add more explain.
+                    ExprNodeDesc exprNodeDesc1 = children.get(0);
+                    ExprNodeDesc exprNodeDesc2 = children.get(1);
+                    if ((isDecimalTypeInfo(exprNodeDesc1)
+                                    && isIntOrLongTypeInfo(exprNodeDesc2)
+                                    && exprNodeDesc2 instanceof ExprNodeConstantDesc)
+                            || isDecimalTypeInfo(exprNodeDesc2)
+                                    && isIntOrLongTypeInfo(exprNodeDesc1)
+                                    && exprNodeDesc1 instanceof ExprNodeConstantDesc) {
+                        int childrenToChange = isIntOrLongTypeInfo(exprNodeDesc1) ? 0 : 1;
+                        children.set(
+                                childrenToChange,
+                                new ExprNodeConstantDesc(
+                                        HiveDecimalUtils.getDecimalTypeForPrimitiveCategory(
+                                                (PrimitiveTypeInfo)
+                                                        children.get(childrenToChange)
+                                                                .getTypeInfo()),
+                                        HiveDecimal.create(
+                                                ((ExprNodeConstantDesc)
+                                                                children.get(childrenToChange))
+                                                        .getValue()
+                                                        .toString())));
+                    }
                     desc = ExprNodeGenericFuncDesc.newInstance(genericUDF, funcText, children);
                 } else {
                     desc = ExprNodeGenericFuncDesc.newInstance(genericUDF, funcText, children);
@@ -1260,10 +1275,9 @@ public class HiveParserTypeCheckProcFactory {
                     ExprNodeDesc constantExpr =
                             ConstantPropagateProcFactory.foldExpr((ExprNodeGenericFuncDesc) desc);
                     if (constantExpr != null
-                            && constantExpr.getTypeInfo() instanceof PrimitiveTypeInfo
-                            && (((PrimitiveTypeInfo) constantExpr.getTypeInfo())
-                                            .getPrimitiveCategory()
-                                    != PrimitiveObjectInspector.PrimitiveCategory.BINARY)) {
+                            && (!(constantExpr instanceof ExprNodeConstantDesc)
+                                    || canSafeFoldToConstant(
+                                            (ExprNodeConstantDesc) constantExpr))) {
                         desc = constantExpr;
                     }
                 }
@@ -1370,6 +1384,43 @@ public class HiveParserTypeCheckProcFactory {
                 }
             }
             return false;
+        }
+
+        private boolean isDecimalTypeInfo(ExprNodeDesc exprNodeDesc) {
+            TypeInfo typeInfo = exprNodeDesc.getTypeInfo();
+            return typeInfo instanceof PrimitiveTypeInfo
+                    && ((PrimitiveTypeInfo) typeInfo).getPrimitiveCategory()
+                            == PrimitiveObjectInspector.PrimitiveCategory.DECIMAL;
+        }
+
+        private boolean isIntOrLongTypeInfo(ExprNodeDesc exprNodeDesc) {
+            TypeInfo typeInfo = exprNodeDesc.getTypeInfo();
+            if (!(typeInfo instanceof PrimitiveTypeInfo)) {
+                return false;
+            }
+            return ((PrimitiveTypeInfo) typeInfo).getPrimitiveCategory()
+                            == PrimitiveObjectInspector.PrimitiveCategory.INT
+                    || ((PrimitiveTypeInfo) typeInfo).getPrimitiveCategory()
+                            == PrimitiveObjectInspector.PrimitiveCategory.LONG;
+        }
+
+        private boolean canSafeFoldToConstant(ExprNodeConstantDesc constantExpr) {
+            boolean isPrimitiveTyp = constantExpr.getTypeInfo() instanceof PrimitiveTypeInfo;
+            if (!isPrimitiveTyp) {
+                return false;
+            }
+            boolean isBinaryConstant =
+                    constantExpr.getTypeInfo() instanceof PrimitiveTypeInfo
+                            && (((PrimitiveTypeInfo) constantExpr.getTypeInfo())
+                                            .getPrimitiveCategory()
+                                    != PrimitiveObjectInspector.PrimitiveCategory.BINARY);
+            if (!isBinaryConstant) {
+                return false;
+            }
+            boolean isNAN =
+                    constantExpr.getValue() instanceof Double
+                            && Double.isNaN((Double) constantExpr.getValue());
+            return !isNAN;
         }
 
         protected ExprNodeDesc processQualifiedColRef(
