@@ -69,7 +69,7 @@ import static org.apache.calcite.rex.RexUnknownAs.UNKNOWN;
  * Context required to simplify a row-expression.
  *
  * <p>Currently, is a workaround for <a href="https://issues.apache.org/jira/browse/FLINK-29237">
- * After fixing should be removed
+ * Line 2822 ~ Line 2827. After fixing should be removed
  */
 public class RexSimplify {
     private final boolean paranoid;
@@ -2824,7 +2824,6 @@ public class RexSimplify {
                     case IS_NOT_NULL:
                         final RexNode arg = ((RexCall) e).operands.get(0);
                         return accept1(arg, e.getKind(), newTerms);
-                        FLINK MODIFICATION END
                           ----- FLINK MODIFICATION END ----- */
                 default:
                     return false;

@@ -218,6 +218,15 @@ import static org.apache.calcite.sql.SqlUtil.stripAs;
  * relational algebra expression (consisting of {@link org.apache.calcite.rel.RelNode} objects).
  *
  * <p>The public entry points are: {@link #convertQuery}, {@link #convertExpression(SqlNode)}.
+ *
+ * <p>FLINK modifications are at lines
+ *
+ * <ol>
+ *   <li>Line 634 ~ 644
+ *   <li>Line 2097 ~ 2114
+ *   <li>Line 2152 ~ 2180
+ *   <li>Line 5159 ~ 5168
+ * </ol>
  */
 @SuppressWarnings("UnstableApiUsage")
 public class SqlToRelConverter {

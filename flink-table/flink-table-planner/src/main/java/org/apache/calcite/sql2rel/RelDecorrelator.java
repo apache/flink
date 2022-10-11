@@ -124,7 +124,16 @@ import java.util.stream.Collectors;
 import static java.util.Objects.requireNonNull;
 import static org.apache.calcite.linq4j.Nullness.castNonNull;
 
-/** Copied to fix calcite issues. */
+/**
+ * Copied to fix calcite issues. FLINK modifications are at lines
+ *
+ * <ol>
+ *   <li>Line 223 ~ 233
+ *   <li>FLINK-29540: Line 295 ~ 301
+ *   <li>FLINK-29540: Line 313 ~ 319
+ *   <li>Line 1953 ~ 1961
+ * </ol>
+ */
 public class RelDecorrelator implements ReflectiveVisitor {
     // ~ Static fields/initializers ---------------------------------------------
 
