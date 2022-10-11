@@ -18,6 +18,7 @@
 
 package org.apache.flink.streaming.runtime.operators.sink.committables;
 
+import org.apache.flink.api.connector.sink2.Sink;
 import org.apache.flink.core.io.SimpleVersionedSerialization;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
 import org.apache.flink.core.memory.DataOutputSerializer;
@@ -42,9 +43,11 @@ class CommittableCollectorSerializerTest {
 
     private static final SimpleVersionedSerializer<Integer> COMMITTABLE_SERIALIZER =
             new IntegerSerializer();
-
+    private static final int SUBTASK_ID = 1;
+    private static final int NUMBER_OF_SUBTASKS = 1;
     private static final CommittableCollectorSerializer<Integer> SERIALIZER =
-            new CommittableCollectorSerializer<>(COMMITTABLE_SERIALIZER, 1, 1);
+            new CommittableCollectorSerializer<>(
+                    COMMITTABLE_SERIALIZER, SUBTASK_ID, NUMBER_OF_SUBTASKS);
 
     @Test
     void testCommittableCollectorV1SerDe() throws IOException {
@@ -105,6 +108,30 @@ class CommittableCollectorSerializerTest {
         // assert deserialized CommittableCollector
         assertCommittableCollector(
                 "Deserialized CommittableCollector", subtaskId, numberOfSubtasks, copy);
+    }
+
+    @Test
+    void testAlignSubtaskCommittableManagerCheckpointWithCheckpointCommittableManagerCheckpointId()
+            throws IOException {
+        // Create CommittableCollector holding a higher checkpointId than
+        // Sink.InitContext#INITIAL_CHECKPOINT_ID
+        long checkpointId = Sink.InitContext.INITIAL_CHECKPOINT_ID + 1;
+        final CommittableCollector<Integer> committableCollector =
+                new CommittableCollector<>(SUBTASK_ID, NUMBER_OF_SUBTASKS);
+        committableCollector.addMessage(
+                new CommittableSummary<>(SUBTASK_ID, NUMBER_OF_SUBTASKS, checkpointId, 1, 1, 0));
+        committableCollector.addMessage(new CommittableWithLineage<>(1, checkpointId, SUBTASK_ID));
+
+        final CommittableCollector<Integer> copy =
+                SERIALIZER.deserialize(2, SERIALIZER.serialize(committableCollector));
+
+        final Collection<CheckpointCommittableManagerImpl<Integer>> checkpointCommittables =
+                copy.getCheckpointCommittables();
+        assertThat(checkpointCommittables).hasSize(1);
+        final CheckpointCommittableManagerImpl<Integer> committableManager =
+                checkpointCommittables.iterator().next();
+        assertThat(committableManager.getSubtaskCommittableManager(SUBTASK_ID).getCheckpointId())
+                .isEqualTo(committableManager.getCheckpointId());
     }
 
     private void assertCommittableCollector(
