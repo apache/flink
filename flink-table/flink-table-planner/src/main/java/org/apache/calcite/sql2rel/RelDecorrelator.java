@@ -128,10 +128,11 @@ import static org.apache.calcite.linq4j.Nullness.castNonNull;
  * Copied to fix calcite issues. FLINK modifications are at lines
  *
  * <ol>
- *   <li>Line 223 ~ 233
- *   <li>FLINK-29540: Line 295 ~ 301
- *   <li>FLINK-29540: Line 313 ~ 319
- *   <li>Line 1953 ~ 1961
+ *   <li>Was changed within FLINK-29280, FLINK-28682: Line 224 ~ 234
+ *   <li>Should be removed after fix of FLINK-29540: Line 296 ~ 302
+ *   <li>Should be removed after fix of FLINK-29540: Line 314 ~ 320
+ *   <li>Was changed within FLINK-21592: Line 1954 ~ 1962, Should be removed after update to Calcite
+ *       1.28.0 as it is fixed at CALCITE-4773
  * </ol>
  */
 public class RelDecorrelator implements ReflectiveVisitor {

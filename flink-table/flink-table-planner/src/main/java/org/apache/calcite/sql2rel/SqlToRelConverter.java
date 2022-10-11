@@ -222,10 +222,10 @@ import static org.apache.calcite.sql.SqlUtil.stripAs;
  * <p>FLINK modifications are at lines
  *
  * <ol>
- *   <li>Line 634 ~ 644
- *   <li>Line 2097 ~ 2114
- *   <li>Line 2152 ~ 2180
- *   <li>Line 5159 ~ 5168
+ *   <li>Added in FLINK-29081, FLINK-28682: Lines 634 ~ 644
+ *   <li>Added in FLINK-28682: Lines 2097 ~ 2114
+ *   <li>Added in FLINK-28682: Lines 2152 ~ 2180
+ *   <li>Added in FLINK-20873: Lines 5159 ~ 5168
  * </ol>
  */
 @SuppressWarnings("UnstableApiUsage")
