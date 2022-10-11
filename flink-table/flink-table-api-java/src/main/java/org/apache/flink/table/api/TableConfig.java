@@ -23,6 +23,7 @@ import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.configuration.PipelineOptions;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.configuration.WritableConfig;
@@ -32,6 +33,9 @@ import org.apache.flink.table.api.config.TableConfigOptions;
 import org.apache.flink.table.delegation.Executor;
 import org.apache.flink.table.functions.FunctionContext;
 import org.apache.flink.util.Preconditions;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.time.Duration;
 import java.time.ZoneId;
@@ -95,6 +99,8 @@ import static java.time.ZoneId.SHORT_IDS;
  */
 @PublicEvolving
 public final class TableConfig implements WritableConfig, ReadableConfig {
+
+    private static final Logger LOG = LoggerFactory.getLogger(TableConfig.class);
 
     /** Please use {@link TableConfig#getDefault()} instead. */
     @Deprecated
@@ -476,6 +482,15 @@ public final class TableConfig implements WritableConfig, ReadableConfig {
     }
 
     public static TableConfig getDefault() {
-        return new TableConfig();
+        TableConfig config = new TableConfig();
+        try {
+            final Configuration configuration = GlobalConfiguration.loadConfiguration();
+            config.addConfiguration(configuration);
+        } catch (Exception e) {
+            LOG.warn(
+                    "TableConfig load configuration informations failed from the Flink config file flink-conf.yaml",
+                    e);
+        }
+        return config;
     }
 }
