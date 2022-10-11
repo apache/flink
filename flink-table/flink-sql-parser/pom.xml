@@ -48,13 +48,6 @@ under the License.
 			<artifactId>guava</artifactId>
 			<version>${guava.version}</version>
 			<scope>provided</scope>
-			<exclusions>
-				<!-- calcite-core has a newer version which is used by calcite during runtime -->
-				<exclusion>
-					<groupId>org.checkerframework</groupId>
-					<artifactId>checker-qual</artifactId>
-				</exclusion>
-			</exclusions>
 		</dependency>
 		<dependency>
 			<groupId>org.apache.calcite</groupId>
