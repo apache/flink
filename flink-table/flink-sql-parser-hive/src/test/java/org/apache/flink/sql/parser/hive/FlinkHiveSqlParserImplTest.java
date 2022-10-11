@@ -34,6 +34,8 @@ class FlinkHiveSqlParserImplTest extends SqlParserTest {
     }
 
     // ignore test methods that we don't support
+    // BEGIN
+    // DESCRIBE STATEMENT
     @Disabled
     @Test
     void testDescribeStatement() {}
@@ -42,41 +44,31 @@ class FlinkHiveSqlParserImplTest extends SqlParserTest {
     @Test
     void testTableHintsInInsert() {}
 
-    @Disabled
-    @Test
-    void testDescribeSchema() {}
-
-    /**
-     * Here we override the super method to avoid test error from `ARRAY_AGG` supported in original
-     * calcite.
-     */
+    // ARRAY_AGG
     @Disabled
     @Test
     void testArrayAgg() {}
 
-    /**
-     * Here we override the super method to avoid test error from `GROUP CONCAT` supported in
-     * original calcite.
-     */
+    // DESCRIBE SCHEMA
     @Disabled
     @Test
-    void testGroupConcat() {}
+    void testDescribeSchema() {}
 
-    /**
-     * Here we override the super method to avoid test error from `EXPLAIN AS DOT` supported in
-     * original calcite.
-     */
+    // EXPLAIN AS DOT
     @Disabled
     @Test
     void testExplainAsDot() {}
 
-    /**
-     * Here we override the super method to avoid test error from `STRING_AGG` supported in original
-     * calcite.
-     */
+    // GROUP CONCAT
+    @Disabled
+    @Test
+    void testGroupConcat() {}
+
+    // STRING_AGG
     @Disabled
     @Test
     void testStringAgg() {}
+    // END
 
     @Test
     void testShowDatabases() {
