@@ -403,7 +403,10 @@ public abstract class SourceTestSuiteBase<T> {
      * Test connector source metrics.
      *
      * <p>This test will create 4 splits in the external system first, write test data to all splits
-     * and consume back via a Flink job with parallelism 4. Then read and compare the metrics.
+     * and consume back via a Flink job with parallelism 4. Then read and compare the metrics. This
+     * test can be run on unbounded or bounded sources (default is unbounded). To run on an
+     * unbounded source override this test and call {@code doTestSourceMetrics} with {@code
+     * Boundedness.BOUNDED}.
      *
      * <p>Now test: numRecordsIn
      */
@@ -414,9 +417,18 @@ public abstract class SourceTestSuiteBase<T> {
             DataStreamSourceExternalContext<T> externalContext,
             CheckpointingMode semantic)
             throws Exception {
+        doTestSourceMetrics(testEnv, externalContext, semantic, Boundedness.CONTINUOUS_UNBOUNDED);
+    }
+
+    protected void doTestSourceMetrics(
+            TestEnvironment testEnv,
+            DataStreamSourceExternalContext<T> externalContext,
+            CheckpointingMode semantic,
+            Boundedness boundedness)
+            throws Exception {
         TestingSourceSettings sourceSettings =
                 TestingSourceSettings.builder()
-                        .setBoundedness(Boundedness.CONTINUOUS_UNBOUNDED)
+                        .setBoundedness(boundedness)
                         .setCheckpointingMode(semantic)
                         .build();
         TestEnvironmentSettings envOptions =
@@ -474,7 +486,9 @@ public abstract class SourceTestSuiteBase<T> {
         } finally {
             // Clean up
             executorService.shutdown();
-            killJob(jobClient);
+            if (boundedness.equals(Boundedness.CONTINUOUS_UNBOUNDED)) {
+                killJob(jobClient);
+            }
         }
     }
 
