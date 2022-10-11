@@ -18,13 +18,19 @@
 
 package org.apache.flink.tools.ci.licensecheck;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.tools.ci.utils.dependency.DependencyParser;
+import org.apache.flink.tools.ci.utils.deploy.DeployParser;
+import org.apache.flink.tools.ci.utils.notice.NoticeContents;
+import org.apache.flink.tools.ci.utils.notice.NoticeParser;
 import org.apache.flink.tools.ci.utils.shared.Dependency;
 
 import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.Multimap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import javax.annotation.Nullable;
 
 import java.io.BufferedReader;
 import java.io.File;
@@ -37,10 +43,10 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -63,19 +69,6 @@ public class NoticeFileChecker {
             Pattern.compile(".*Including ([^:]+):([^:]+):jar:([^ ]+) in the shaded jar");
 
     // Examples:
-    //
-    // Deployment on CI with alternative repo
-    // [INFO] --- maven-deploy-plugin:2.8.2:deploy (default-deploy) @ flink-parent ---
-    // [INFO] Using alternate deployment repository.../tmp/flink-validation-deployment
-    //
-    // Skipped deployment:
-    // [INFO] --- maven-deploy-plugin:2.8.2:deploy (default-deploy) @ flink-parent ---
-    // [INFO] Skipping artifact deployment
-    private static final Pattern DEPLOY_MODULE_PATTERN =
-            Pattern.compile(
-                    ".maven-deploy-plugin:.*:deploy .* @ (?<module>[^ _]+)(_[0-9.]+)? --.*");
-
-    // Examples:
     // "- org.apache.htrace:htrace-core:3.1.0-incubating"
     // or
     // "This project bundles "net.jcip:jcip-annotations:1.0".
@@ -84,14 +77,13 @@ public class NoticeFileChecker {
                     "- ([^ :]+):([^:]+):([^ ]+)($| )|.*bundles \"([^:]+):([^:]+):([^\"]+)\".*");
 
     static int run(File buildResult, Path root) throws IOException {
-        int severeIssueCount = 0;
         // parse included dependencies from build output
         final Multimap<String, Dependency> modulesWithBundledDependencies =
                 combine(
                         parseModulesFromBuildResult(buildResult),
                         DependencyParser.parseDependencyCopyOutput(buildResult.toPath()));
 
-        final Set<String> deployedModules = parseDeployedModulesFromBuildResult(buildResult);
+        final Set<String> deployedModules = DeployParser.parseDeployOutput(buildResult);
 
         LOG.info(
                 "Extracted "
@@ -102,21 +94,51 @@ public class NoticeFileChecker {
                         + modulesWithBundledDependencies.values().size()
                         + " dependencies");
 
-        final HashSet<String> moduleSkippingDeployment =
-                new HashSet<>(modulesWithBundledDependencies.keySet());
-        moduleSkippingDeployment.removeAll(deployedModules);
-        moduleSkippingDeployment.forEach(modulesWithBundledDependencies::removeAll);
-
         // find modules producing a shaded-jar
         List<Path> noticeFiles = findNoticeFiles(root);
         LOG.info("Found {} NOTICE files to check", noticeFiles.size());
 
+        final Map<String, Optional<NoticeContents>> moduleToNotice =
+                noticeFiles.stream()
+                        .collect(
+                                Collectors.toMap(
+                                        NoticeFileChecker::getModuleFromNoticeFile,
+                                        noticeFile -> {
+                                            try {
+                                                return NoticeParser.parseNoticeFile(noticeFile);
+                                            } catch (IOException e) {
+                                                // some machine issue
+                                                throw new RuntimeException(e);
+                                            }
+                                        }));
+
+        return run(modulesWithBundledDependencies, deployedModules, moduleToNotice);
+    }
+
+    @VisibleForTesting
+    static int run(
+            Multimap<String, Dependency> modulesWithBundledDependencies,
+            Set<String> deployedModules,
+            Map<String, Optional<NoticeContents>> noticeFiles)
+            throws IOException {
+        int severeIssueCount = 0;
+
+        final Set<String> modulesSkippingDeployment =
+                new HashSet<>(modulesWithBundledDependencies.keySet());
+        modulesSkippingDeployment.removeAll(deployedModules);
+        modulesSkippingDeployment.forEach(modulesWithBundledDependencies::removeAll);
+
         // check that all required NOTICE files exists
-        severeIssueCount += ensureRequiredNoticeFiles(modulesWithBundledDependencies, noticeFiles);
+        severeIssueCount +=
+                ensureRequiredNoticeFiles(modulesWithBundledDependencies, noticeFiles.keySet());
 
         // check each NOTICE file
-        for (Path noticeFile : noticeFiles) {
-            severeIssueCount += checkNoticeFile(modulesWithBundledDependencies, noticeFile);
+        for (Map.Entry<String, Optional<NoticeContents>> noticeFile : noticeFiles.entrySet()) {
+            severeIssueCount +=
+                    checkNoticeFileAndLogProblems(
+                            modulesWithBundledDependencies,
+                            noticeFile.getKey(),
+                            noticeFile.getValue().orElse(null));
         }
 
         return severeIssueCount;
@@ -139,13 +161,11 @@ public class NoticeFileChecker {
     }
 
     private static int ensureRequiredNoticeFiles(
-            Multimap<String, Dependency> modulesWithShadedDependencies, List<Path> noticeFiles) {
+            Multimap<String, Dependency> modulesWithShadedDependencies,
+            Collection<String> modulesWithNoticeFile) {
         int severeIssueCount = 0;
         Set<String> shadingModules = new HashSet<>(modulesWithShadedDependencies.keys());
-        shadingModules.removeAll(
-                noticeFiles.stream()
-                        .map(NoticeFileChecker::getModuleFromNoticeFile)
-                        .collect(Collectors.toList()));
+        shadingModules.removeAll(modulesWithNoticeFile);
         for (String moduleWithoutNotice : shadingModules) {
             LOG.error(
                     "Module {} is missing a NOTICE file. It has shaded dependencies: {}",
@@ -169,78 +189,14 @@ public class NoticeFileChecker {
         return moduleDirectory.getFileName().toString();
     }
 
-    private static int checkNoticeFile(
-            Multimap<String, Dependency> modulesWithShadedDependencies, Path noticeFile)
+    private static int checkNoticeFileAndLogProblems(
+            Multimap<String, Dependency> modulesWithShadedDependencies,
+            String moduleName,
+            @Nullable NoticeContents noticeContents)
             throws IOException {
-        String moduleName = getModuleFromNoticeFile(noticeFile);
 
-        // 1st line contains module name
-        List<String> noticeContents = Files.readAllLines(noticeFile);
-
-        final Map<Severity, List<String>> problemsBySeverity = new HashMap<>();
-
-        if (noticeContents.isEmpty()) {
-            addProblem(problemsBySeverity, Severity.CRITICAL, "The NOTICE file was empty.");
-        }
-
-        // first line must be the module name.
-        if (!noticeContents.get(0).equals(moduleName)) {
-            addProblem(
-                    problemsBySeverity,
-                    Severity.TOLERATED,
-                    String.format(
-                            "First line does not start with module name. firstLine=%s",
-                            noticeContents.get(0)));
-        }
-
-        // collect all declared dependencies from NOTICE file
-        Set<Dependency> declaredDependencies = new HashSet<>();
-        for (String line : noticeContents) {
-            Matcher noticeDependencyMatcher = NOTICE_DEPENDENCY_PATTERN.matcher(line);
-            if (noticeDependencyMatcher.find()) {
-                String groupId = noticeDependencyMatcher.group(1);
-                String artifactId = noticeDependencyMatcher.group(2);
-                String version = noticeDependencyMatcher.group(3);
-                if (groupId == null && artifactId == null && version == null) { // "bundles" case
-                    groupId = noticeDependencyMatcher.group(5);
-                    artifactId = noticeDependencyMatcher.group(6);
-                    version = noticeDependencyMatcher.group(7);
-                }
-                Dependency toAdd = Dependency.create(groupId, artifactId, version);
-                if (!declaredDependencies.add(toAdd)) {
-                    addProblem(
-                            problemsBySeverity,
-                            Severity.CRITICAL,
-                            String.format("Dependency %s is declared twice.", toAdd));
-                }
-            }
-        }
-        // find all dependencies missing from NOTICE file
-        Collection<Dependency> expectedDependencies = modulesWithShadedDependencies.get(moduleName);
-        for (Dependency expectedDependency : expectedDependencies) {
-            if (!declaredDependencies.contains(expectedDependency)) {
-                addProblem(
-                        problemsBySeverity,
-                        Severity.CRITICAL,
-                        String.format("Dependency %s is not listed.", expectedDependency));
-            }
-        }
-
-        boolean moduleDefinesExcessDependencies =
-                MODULES_DEFINING_EXCESS_DEPENDENCIES.contains(moduleName);
-
-        // find all dependencies defined in NOTICE file, which were not expected
-        for (Dependency declaredDependency : declaredDependencies) {
-            if (!expectedDependencies.contains(declaredDependency)) {
-                final Severity severity =
-                        moduleDefinesExcessDependencies ? Severity.SUPPRESSED : Severity.TOLERATED;
-                addProblem(
-                        problemsBySeverity,
-                        severity,
-                        String.format(
-                                "Dependency %s is not bundled, but listed.", declaredDependency));
-            }
-        }
+        final Map<Severity, List<String>> problemsBySeverity =
+                checkNoticeFile(modulesWithShadedDependencies, moduleName, noticeContents);
 
         final List<String> severeProblems =
                 problemsBySeverity.getOrDefault(Severity.CRITICAL, Collections.emptyList());
@@ -267,12 +223,80 @@ public class NoticeFileChecker {
         return severeProblems.size();
     }
 
+    @VisibleForTesting
+    static Map<Severity, List<String>> checkNoticeFile(
+            Multimap<String, Dependency> modulesWithShadedDependencies,
+            String moduleName,
+            @Nullable NoticeContents noticeContents) {
+
+        final Map<Severity, List<String>> problemsBySeverity = new HashMap<>();
+
+        if (noticeContents == null) {
+            addProblem(problemsBySeverity, Severity.CRITICAL, "The NOTICE file was empty.");
+        } else {
+            // first line must be the module name.
+            if (!noticeContents.getNoticeModuleName().equals(moduleName)) {
+                addProblem(
+                        problemsBySeverity,
+                        Severity.TOLERATED,
+                        String.format(
+                                "First line does not start with module name. firstLine=%s",
+                                noticeContents.getNoticeModuleName()));
+            }
+
+            // collect all declared dependencies from NOTICE file
+            Set<Dependency> declaredDependencies = new HashSet<>();
+            for (Dependency declaredDependency : noticeContents.getDeclaredDependencies()) {
+                if (!declaredDependencies.add(declaredDependency)) {
+                    addProblem(
+                            problemsBySeverity,
+                            Severity.CRITICAL,
+                            String.format("Dependency %s is declared twice.", declaredDependency));
+                }
+            }
+
+            // find all dependencies missing from NOTICE file
+            Collection<Dependency> expectedDependencies =
+                    modulesWithShadedDependencies.get(moduleName);
+            for (Dependency expectedDependency : expectedDependencies) {
+                if (!declaredDependencies.contains(expectedDependency)) {
+                    addProblem(
+                            problemsBySeverity,
+                            Severity.CRITICAL,
+                            String.format("Dependency %s is not listed.", expectedDependency));
+                }
+            }
+
+            boolean moduleDefinesExcessDependencies =
+                    MODULES_DEFINING_EXCESS_DEPENDENCIES.contains(moduleName);
+
+            // find all dependencies defined in NOTICE file, which were not expected
+            for (Dependency declaredDependency : declaredDependencies) {
+                if (!expectedDependencies.contains(declaredDependency)) {
+                    final Severity severity =
+                            moduleDefinesExcessDependencies
+                                    ? Severity.SUPPRESSED
+                                    : Severity.TOLERATED;
+                    addProblem(
+                            problemsBySeverity,
+                            severity,
+                            String.format(
+                                    "Dependency %s is not bundled, but listed.",
+                                    declaredDependency));
+                }
+            }
+        }
+
+        return problemsBySeverity;
+    }
+
     private static void addProblem(
             Map<Severity, List<String>> problemsBySeverity, Severity severity, String problem) {
         problemsBySeverity.computeIfAbsent(severity, ignored -> new ArrayList<>()).add(problem);
     }
 
-    private enum Severity {
+    @VisibleForTesting
+    enum Severity {
         /** Issues that a legally problematic which must be fixed. */
         CRITICAL,
         /** Issues that affect the correctness but aren't legally problematic. */
@@ -333,25 +357,6 @@ public class NoticeFileChecker {
             }
         }
         return result;
-    }
-
-    private static Set<String> parseDeployedModulesFromBuildResult(File buildResult)
-            throws IOException {
-        final Set<String> deployedModules = new HashSet<>();
-        try (Stream<String> linesStream = Files.lines(buildResult.toPath())) {
-            final Iterator<String> lines = linesStream.iterator();
-            while (lines.hasNext()) {
-                final String line = lines.next();
-                final Matcher matcher = DEPLOY_MODULE_PATTERN.matcher(line);
-                if (matcher.find()) {
-                    final String module = matcher.group("module");
-                    if (lines.hasNext() && !lines.next().contains("Skipping artifact deployment")) {
-                        deployedModules.add(module);
-                    }
-                }
-            }
-        }
-        return deployedModules;
     }
 
     private static List<String> loadFromResources(String fileName) {

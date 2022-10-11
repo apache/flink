@@ -1535,6 +1535,18 @@ public final class BuiltInFunctionDefinitions {
                     .outputTypeStrategy(nullableIfArgs(explicit(INT())))
                     .build();
 
+    public static final BuiltInFunctionDefinition CONVERT_TZ =
+            BuiltInFunctionDefinition.newBuilder()
+                    .name("convertTz")
+                    .kind(SCALAR)
+                    .inputTypeStrategy(
+                            sequence(
+                                    logical(LogicalTypeFamily.CHARACTER_STRING),
+                                    logical(LogicalTypeFamily.CHARACTER_STRING),
+                                    logical(LogicalTypeFamily.CHARACTER_STRING)))
+                    .outputTypeStrategy(explicit(STRING().nullable()))
+                    .build();
+
     public static final BuiltInFunctionDefinition FROM_UNIXTIME =
             BuiltInFunctionDefinition.newBuilder()
                     .name("fromUnixtime")
@@ -1548,6 +1560,33 @@ public final class BuiltInFunctionDefinitions {
                     .outputTypeStrategy(nullableIfArgs(explicit(STRING())))
                     .build();
 
+    public static final BuiltInFunctionDefinition UNIX_TIMESTAMP =
+            BuiltInFunctionDefinition.newBuilder()
+                    .name("unixTimestamp")
+                    .kind(SCALAR)
+                    .inputTypeStrategy(
+                            or(
+                                    NO_ARGS,
+                                    sequence(logical(LogicalTypeFamily.CHARACTER_STRING)),
+                                    sequence(
+                                            logical(LogicalTypeFamily.CHARACTER_STRING),
+                                            logical(LogicalTypeFamily.CHARACTER_STRING))))
+                    .outputTypeStrategy(explicit(BIGINT()))
+                    .build();
+
+    public static final BuiltInFunctionDefinition TO_DATE =
+            BuiltInFunctionDefinition.newBuilder()
+                    .name("toDate")
+                    .kind(SCALAR)
+                    .inputTypeStrategy(
+                            or(
+                                    sequence(logical(LogicalTypeFamily.CHARACTER_STRING)),
+                                    sequence(
+                                            logical(LogicalTypeFamily.CHARACTER_STRING),
+                                            logical(LogicalTypeFamily.CHARACTER_STRING))))
+                    .outputTypeStrategy(nullableIfArgs(explicit(DATE())))
+                    .build();
+
     public static final BuiltInFunctionDefinition TO_TIMESTAMP_LTZ =
             BuiltInFunctionDefinition.newBuilder()
                     .name("toTimestampLtz")
@@ -1557,6 +1596,19 @@ public final class BuiltInFunctionDefinitions {
                                     logical(LogicalTypeFamily.NUMERIC),
                                     logical(LogicalTypeFamily.INTEGER_NUMERIC, false)))
                     .outputTypeStrategy(SpecificTypeStrategies.TO_TIMESTAMP_LTZ)
+                    .build();
+
+    public static final BuiltInFunctionDefinition TO_TIMESTAMP =
+            BuiltInFunctionDefinition.newBuilder()
+                    .name("toTimestamp")
+                    .kind(SCALAR)
+                    .inputTypeStrategy(
+                            or(
+                                    sequence(logical(LogicalTypeFamily.CHARACTER_STRING)),
+                                    sequence(
+                                            logical(LogicalTypeFamily.CHARACTER_STRING),
+                                            logical(LogicalTypeFamily.CHARACTER_STRING))))
+                    .outputTypeStrategy(nullableIfArgs(explicit(TIMESTAMP(3))))
                     .build();
 
     // --------------------------------------------------------------------------------------------

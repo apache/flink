@@ -100,7 +100,7 @@ ds.sink_to(
 def split(line):
     yield from line.split()
 
-# 计算词频
+# compute word count
 ds = ds.flat_map(split) \
        .map(lambda i: (i, 1), output_type=Types.TUPLE([Types.STRING(), Types.INT()])) \
        .key_by(lambda i: i[0]) \

@@ -16,22 +16,27 @@
  * limitations under the License.
  */
 
-package org.apache.flink.api.java.utils;
+package org.apache.flink.tools.ci.utils.notice;
 
-/**
- * Types the parameters of managed with {@link RequiredParameters} can take.
- *
- * <p>Name maps directly to the corresponding Java type.
- *
- * @deprecated These classes will be dropped in the next version. Use {@link ParameterTool} or a
- *     third-party command line parsing library instead.
- */
-@Deprecated
-public enum OptionType {
-    INTEGER,
-    LONG,
-    DOUBLE,
-    FLOAT,
-    BOOLEAN,
-    STRING
+import org.apache.flink.tools.ci.utils.shared.Dependency;
+
+import java.util.Collection;
+
+/** Represents the parsed contents of a NOTICE file. */
+public class NoticeContents {
+    private final String noticeModuleName;
+    private final Collection<Dependency> declaredDependencies;
+
+    public NoticeContents(String noticeModuleName, Collection<Dependency> declaredDependencies) {
+        this.noticeModuleName = noticeModuleName;
+        this.declaredDependencies = declaredDependencies;
+    }
+
+    public String getNoticeModuleName() {
+        return noticeModuleName;
+    }
+
+    public Collection<Dependency> getDeclaredDependencies() {
+        return declaredDependencies;
+    }
 }

@@ -304,7 +304,7 @@ public class CoreOptions {
     public static final ConfigOption<Integer> FLINK_LOG_MAX =
             ConfigOptions.key("env.log.max")
                     .intType()
-                    .defaultValue(5)
+                    .defaultValue(10)
                     .withDescription("The maximum number of old log files to keep.");
 
     /**

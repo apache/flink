@@ -548,6 +548,10 @@ class TemporalTypesTest extends ExpressionTestBase {
     tableConfig.setLocalTimeZone(ZoneId.of("UTC"))
 
     testSqlApi("DATE_FORMAT('2018-03-14 01:02:03', 'yyyy/MM/dd HH:mm:ss')", "2018/03/14 01:02:03")
+    testAllApis(
+      dateFormat("2018-03-14 01:02:03", "yyyy/MM/dd HH:mm:ss"),
+      "DATE_FORMAT('2018-03-14 01:02:03', 'yyyy/MM/dd HH:mm:ss')",
+      "2018/03/14 01:02:03")
 
     testSqlApi(
       "DATE_FORMAT(TIMESTAMP '2018-03-14 01:02:03.123456', 'yyyy/MM/dd HH:mm:ss.SSSSSS')",
@@ -611,7 +615,16 @@ class TemporalTypesTest extends ExpressionTestBase {
     testSqlApi("CAST('12:44:31' AS TIME)", "12:44:31")
     testSqlApi("CAST('2018-03-18' AS DATE)", "2018-03-18")
     testSqlApi("TIME '12:44:31'", "12:44:31")
-    testSqlApi("TO_DATE('2018-03-18')", "2018-03-18")
+
+    testAllApis(toDate("2018-03-18", "yyyy-MM-dd"), "TO_DATE('2018-03-18')", "2018-03-18")
+    testAllApis(
+      toTimestamp("1970-01-01 08:01:40"),
+      "TO_TIMESTAMP('1970-01-01 08:01:40')",
+      "1970-01-01 08:01:40.000")
+    testAllApis(
+      toTimestamp("1970-01-01 08:01:40", "yyyy-MM-dd HH:mm:ss"),
+      "TO_TIMESTAMP('1970-01-01 08:01:40', 'yyyy-MM-dd HH:mm:ss')",
+      "1970-01-01 08:01:40.000")
 
     // EXTRACT
     // testSqlApi("TO_DATE(1521331200)", "2018-03-18")
@@ -878,7 +891,10 @@ class TemporalTypesTest extends ExpressionTestBase {
 
   @Test
   def testConvertTZ(): Unit = {
-    testSqlApi("CONVERT_TZ('2018-03-14 11:00:00', 'UTC', 'Asia/Shanghai')", "2018-03-14 19:00:00")
+    testAllApis(
+      convertTz("2018-03-14 11:00:00", "UTC", "Asia/Shanghai"),
+      "CONVERT_TZ('2018-03-14 11:00:00', 'UTC', 'Asia/Shanghai')",
+      "2018-03-14 19:00:00")
   }
 
   @Test
@@ -931,10 +947,19 @@ class TemporalTypesTest extends ExpressionTestBase {
     val ss2 = "2015-07-25 02:02:02"
     val fmt = "yyyy/MM/dd HH:mm:ss.S"
 
+    testAllApis(unixTimestamp(ss1), s"UNIX_TIMESTAMP('$ss1')", (ts1.getTime / 1000L).toString)
+    testAllApis(unixTimestamp(ss2), s"UNIX_TIMESTAMP('$ss2')", (ts2.getTime / 1000L).toString)
+    testAllApis(
+      unixTimestamp(s1, fmt),
+      s"UNIX_TIMESTAMP('$s1', '$fmt')",
+      (ts1.getTime / 1000L).toString)
+    testAllApis(
+      unixTimestamp(s2, fmt),
+      s"UNIX_TIMESTAMP('$s2', '$fmt')",
+      (ts2.getTime / 1000L).toString)
+
     testSqlApi(s"UNIX_TIMESTAMP('$ss1')", (ts1.getTime / 1000L).toString)
-    testSqlApi(s"UNIX_TIMESTAMP('$ss2')", (ts2.getTime / 1000L).toString)
     testSqlApi(s"UNIX_TIMESTAMP('$s1', '$fmt')", (ts1.getTime / 1000L).toString)
-    testSqlApi(s"UNIX_TIMESTAMP('$s2', '$fmt')", (ts2.getTime / 1000L).toString)
   }
 
   @Test

@@ -142,6 +142,8 @@ under the License.
 		<zookeeper.version>3.5.9</zookeeper.version>
 		<curator.version>5.2.0</curator.version>
 		<avro.version>1.11.1</avro.version>
+		<!-- Version for transitive Jackson dependencies that are not used within Flink itself.-->
+		<jackson-bom.version>2.13.4</jackson-bom.version>
 		<javax.activation.api.version>1.2.0</javax.activation.api.version>
 		<jaxb.api.version>2.3.1</jaxb.api.version>
 		<junit4.version>4.13.2</junit4.version>
@@ -153,7 +155,7 @@ under the License.
 		<assertj.version>3.23.1</assertj.version>
 		<py4j.version>0.10.9.3</py4j.version>
 		<beam.version>2.38.0</beam.version>
-		<protoc.version>3.21.2</protoc.version>
+		<protoc.version>3.21.7</protoc.version>
 		<okhttp.version>3.14.9</okhttp.version>
 		<testcontainers.version>1.17.2</testcontainers.version>
 		<lz4.version>1.8.0</lz4.version>
@@ -165,7 +167,7 @@ under the License.
 			Starting Hadoop 3, org.apache.kerby will be used instead of MiniKDC. We may have
 			to revisit the impact at that time.
 		-->
-		<minikdc.version>3.2.0</minikdc.version>
+		<minikdc.version>3.2.4</minikdc.version>
 		<hive.version>2.3.9</hive.version>
 		<orc.version>1.5.6</orc.version>
 		<!--
@@ -599,7 +601,7 @@ under the License.
 				<artifactId>jackson-bom</artifactId>
 				<type>pom</type>
 				<scope>import</scope>
-				<version>2.13.2.20220328</version>
+				<version>${jackson-bom.version}</version>
 			</dependency>
 
 			<dependency>

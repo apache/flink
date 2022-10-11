@@ -461,9 +461,11 @@ temporal:
   - sql: WEEK(date)
     description: Returns the week of a year (an integer between 1 and 53) from SQL date. Equivalent to EXTRACT(WEEK FROM date). E.g., WEEK(DATE '1994-09-27') returns 39.
   - sql: DAYOFYEAR(date)
-    description:  Returns the day of a year (an integer between 1 and 366) from SQL date. Equivalent to EXTRACT(DOY FROM date). E.g., DAYOFYEAR(DATE '1994-09-27') returns 270.
-  - sql: DAYOFMONTH
+    description: Returns the day of a year (an integer between 1 and 366) from SQL date. Equivalent to EXTRACT(DOY FROM date). E.g., DAYOFYEAR(DATE '1994-09-27') returns 270.
+  - sql: DAYOFMONTH(date)
     description: Returns the day of a month (an integer between 1 and 31) from SQL date. Equivalent to EXTRACT(DAY FROM date). E.g., DAYOFMONTH(DATE '1994-09-27') returns 27.
+  - sql: DAYOFWEEK(date)
+    description: Returns the day of a week (an integer between 1 and 7) from SQL date. Equivalent to EXTRACT(DOW FROM date). E.g., DAYOFWEEK(DATE '1994-09-27') returns 3.
   - sql: HOUR(timestamp)
     description: Returns the hour of a day (an integer between 0 and 23) from SQL timestamp timestamp. Equivalent to EXTRACT(HOUR FROM timestamp). E.g., MINUTE(TIMESTAMP '1994-09-27 13:14:15') returns 14.
   - sql: MINUTE(timestamp)
@@ -480,26 +482,32 @@ temporal:
     table: temporalOverlaps(TIMEPOINT1, TEMPORAL1, TIMEPOINT2, TEMPORAL2)
     description: Returns TRUE if two time intervals defined by (timepoint1, temporal1) and (timepoint2, temporal2) overlap. The temporal values could be either a time point or a time interval. E.g., (TIME '2:55:00', INTERVAL '1' HOUR) OVERLAPS (TIME '3:30:00', INTERVAL '2' HOUR) returns TRUE; (TIME '9:00:00', TIME '10:00:00') OVERLAPS (TIME '10:15:00', INTERVAL '3' HOUR) returns FALSE.
   - sql: DATE_FORMAT(timestamp, string)
+    table: dateFormat(TIMESTAMP, STRING)
     description: Converts timestamp to a value of string in the format specified by the date format string. The format string is compatible with Java's SimpleDateFormat.
   - sql: TIMESTAMPADD(timeintervalunit, interval, timepoint)
   - sql: TIMESTAMPDIFF(timepointunit, timepoint1, timepoint2)
     table: timestampDiff(TIMEPOINTUNIT, TIMEPOINT1, TIMEPOINT2)
     description: 'Returns the (signed) number of timepointunit between timepoint1 and timepoint2. The unit for the interval is given by the first argument, which should be one of the following values: SECOND, MINUTE, HOUR, DAY, MONTH, or YEAR.'
   - sql: CONVERT_TZ(string1, string2, string3)
+    table: convertTz(STRING1, STRING2, STRING3)
     description: Converts a datetime string1 (with default ISO timestamp format 'yyyy-MM-dd HH:mm:ss') from time zone string2 to time zone string3. The format of time zone should be either an abbreviation such as "PST", a full name such as "America/Los_Angeles", or a custom ID such as "GMT-08:00". E.g., CONVERT_TZ('1970-01-01 00:00:00', 'UTC', 'America/Los_Angeles') returns '1969-12-31 16:00:00'.
   - sql: FROM_UNIXTIME(numeric[, string])
     table: fromUnixtime(NUMERIC[, STRING])
     description: Returns a representation of the numeric argument as a value in string format (default is 'yyyy-MM-dd HH:mm:ss'). numeric is an internal timestamp value representing seconds since '1970-01-01 00:00:00' UTC, such as produced by the UNIX_TIMESTAMP() function. The return value is expressed in the session time zone (specified in TableConfig). E.g., FROM_UNIXTIME(44) returns '1970-01-01 00:00:44' if in UTC time zone, but returns '1970-01-01 09:00:44' if in 'Asia/Tokyo' time zone.
   - sql: UNIX_TIMESTAMP()
+    table: unixTimestamp()
     description: Gets current Unix timestamp in seconds. This function is not deterministic which means the value would be recalculated for each record.
   - sql: UNIX_TIMESTAMP(string1[, string2])
+    table: unixTimestamp(STRING1[, STRING2])
     description: 'Converts date time string string1 in format string2 (by default: yyyy-MM-dd HH:mm:ss if not specified) to Unix timestamp (in seconds), using the specified timezone in table config.'
   - sql: TO_DATE(string1[, string2])
+    table: toDate(STRING1[, STRING2])
     description: Converts a date string string1 with format string2 (by default 'yyyy-MM-dd') to a date.
   - sql: TO_TIMESTAMP_LTZ(numeric, precision)
     table: toTimestampLtz(NUMERIC, PRECISION)
     description: "Converts a epoch seconds or epoch milliseconds to a TIMESTAMP_LTZ, the valid precision is 0 or 3, the 0 represents TO_TIMESTAMP_LTZ(epochSeconds, 0), the 3 represents TO_TIMESTAMP_LTZ(epochMilliseconds, 3)."
   - sql: TO_TIMESTAMP(string1[, string2])
+    table: toTimestamp(STRING1[, STRING2])
     description: "Converts date time string string1 with format string2 (by default: 'yyyy-MM-dd HH:mm:ss') under the 'UTC+0' time zone to a timestamp."
   - sql: CURRENT_WATERMARK(rowtime)
     description: |

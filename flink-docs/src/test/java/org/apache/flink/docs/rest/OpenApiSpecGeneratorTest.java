@@ -42,10 +42,28 @@ import static org.assertj.core.api.AssertionsForClassTypes.assertThatThrownBy;
 class OpenApiSpecGeneratorTest {
 
     @Test
+    void testTitle() throws Exception {
+        final String title = "Funky title";
+
+        File file = File.createTempFile("rest_v0_", ".html");
+        OpenApiSpecGenerator.createDocumentationFile(
+                title,
+                new TestExcludeDocumentingRestEndpoint(),
+                RuntimeRestAPIVersion.V0,
+                file.toPath());
+        String actual = FileUtils.readFile(file, "UTF-8");
+
+        assertThat(actual).contains("title: " + title);
+    }
+
+    @Test
     void testExcludeFromDocumentation() throws Exception {
         File file = File.createTempFile("rest_v0_", ".html");
         OpenApiSpecGenerator.createDocumentationFile(
-                new TestExcludeDocumentingRestEndpoint(), RuntimeRestAPIVersion.V0, file.toPath());
+                "title",
+                new TestExcludeDocumentingRestEndpoint(),
+                RuntimeRestAPIVersion.V0,
+                file.toPath());
         String actual = FileUtils.readFile(file, "UTF-8");
 
         assertThat(actual).contains("/test/empty1");
@@ -94,6 +112,7 @@ class OpenApiSpecGeneratorTest {
         assertThatThrownBy(
                         () ->
                                 OpenApiSpecGenerator.createDocumentationFile(
+                                        "title",
                                         new TestDuplicateOperationIdDocumentingRestEndpoint(),
                                         RuntimeRestAPIVersion.V0,
                                         file.toPath()))

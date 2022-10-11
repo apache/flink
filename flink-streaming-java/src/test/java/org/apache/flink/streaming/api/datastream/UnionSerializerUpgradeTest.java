@@ -29,8 +29,6 @@ import org.apache.flink.streaming.api.datastream.CoGroupedStreams.TaggedUnion;
 import org.apache.flink.streaming.api.datastream.CoGroupedStreams.UnionSerializer;
 
 import org.hamcrest.Matcher;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -38,19 +36,11 @@ import java.util.Collection;
 import static org.hamcrest.Matchers.is;
 
 /** A {@link TypeSerializerUpgradeTestBase} for {@link UnionSerializer}. */
-@RunWith(Parameterized.class)
-public class UnionSerializerUpgradeTest
+class UnionSerializerUpgradeTest
         extends TypeSerializerUpgradeTestBase<
                 TaggedUnion<String, Long>, TaggedUnion<String, Long>> {
 
-    public UnionSerializerUpgradeTest(
-            TestSpecification<TaggedUnion<String, Long>, TaggedUnion<String, Long>>
-                    testSpecification) {
-        super(testSpecification);
-    }
-
-    @Parameterized.Parameters(name = "Test Specification = {0}")
-    public static Collection<TestSpecification<?, ?>> testSpecifications() throws Exception {
+    public Collection<TestSpecification<?, ?>> createTestSpecifications() throws Exception {
         ArrayList<TestSpecification<?, ?>> testSpecifications = new ArrayList<>();
         for (FlinkVersion flinkVersion : MIGRATION_VERSIONS) {
             testSpecifications.add(

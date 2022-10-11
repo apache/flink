@@ -51,6 +51,7 @@ public class SqlGatewayOpenApiSpecGenerator {
                 continue;
             }
             createDocumentationFile(
+                    "Flink SQL Gateway REST API",
                     new DocumentingSqlGatewayRestEndpoint(),
                     apiVersion,
                     Paths.get(
