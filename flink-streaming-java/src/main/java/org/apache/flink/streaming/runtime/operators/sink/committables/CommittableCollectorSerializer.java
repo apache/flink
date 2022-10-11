@@ -19,13 +19,14 @@
 package org.apache.flink.streaming.runtime.operators.sink.committables;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.api.connector.sink2.Sink;
 import org.apache.flink.core.io.SimpleVersionedSerialization;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
 import org.apache.flink.core.memory.DataInputDeserializer;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputSerializer;
 import org.apache.flink.core.memory.DataOutputView;
+
+import javax.annotation.Nullable;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -146,7 +147,7 @@ public final class CommittableCollectorSerializer<CommT>
             long checkpointId = in.readLong();
             List<SubtaskCommittableManager<CommT>> subtasks =
                     SimpleVersionedSerialization.readVersionAndDeserializeList(
-                            new SubtaskSimpleVersionedSerializer(), in);
+                            new SubtaskSimpleVersionedSerializer(checkpointId), in);
             return new CheckpointCommittableManagerImpl<>(
                     subtasks.stream()
                             .collect(
@@ -160,6 +161,27 @@ public final class CommittableCollectorSerializer<CommT>
 
     private class SubtaskSimpleVersionedSerializer
             implements SimpleVersionedSerializer<SubtaskCommittableManager<CommT>> {
+
+        @Nullable private final Long checkpointId;
+
+        /**
+         * This ctor must be used to create a deserializer where the checkpointId is used to set the
+         * checkpointId of the deserialized SubtaskCommittableManager.
+         *
+         * @param checkpointId used to recover the SubtaskCommittableManager
+         */
+        public SubtaskSimpleVersionedSerializer(long checkpointId) {
+            this.checkpointId = checkpointId;
+        }
+
+        /**
+         * When using this ctor, you cannot use the serializer for deserialization because it misses
+         * the checkpointId. For deserialization please use {@link
+         * #SubtaskSimpleVersionedSerializer(long)}.
+         */
+        public SubtaskSimpleVersionedSerializer() {
+            this.checkpointId = null;
+        }
 
         @Override
         public int getVersion() {
@@ -192,7 +214,9 @@ public final class CommittableCollectorSerializer<CommT>
                     in.readInt(),
                     in.readInt(),
                     subtaskId,
-                    Sink.InitContext.INITIAL_CHECKPOINT_ID);
+                    checkNotNull(
+                            checkpointId,
+                            "CheckpointId must be set to align the SubtaskCommittableManager with holding CheckpointCommittableManager."));
         }
 
         private class RequestSimpleVersionedSerializer
