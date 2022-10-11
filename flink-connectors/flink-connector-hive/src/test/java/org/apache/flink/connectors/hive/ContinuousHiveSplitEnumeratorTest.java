@@ -40,9 +40,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.Properties;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Unit tests for the {@link ContinuousHiveSplitEnumerator}. */
 public class ContinuousHiveSplitEnumeratorTest {
@@ -51,27 +49,23 @@ public class ContinuousHiveSplitEnumeratorTest {
     public void testDiscoverSplitWhenNoReaderRegistered() throws Exception {
         final TestingSplitEnumeratorContext<HiveSourceSplit> context =
                 new TestingSplitEnumeratorContext<>(4);
-
-        final ContinuousHiveSplitEnumerator enumerator =
+        final HiveSourceSplit split = createSplit();
+        final ContinuousHiveSplitEnumerator<Long> enumerator =
                 new ContinuousHiveSplitEnumerator(
                         context,
                         0L,
                         Collections.emptySet(),
-                        new SimpleSplitAssigner(Collections.emptyList()),
+                        new SimpleSplitAssigner(Collections.singletonList(split)),
                         1000L,
-                        1,
                         new JobConf(),
                         new ObjectPath("testDb", "testTable"),
                         mockPartitionFetcher(),
                         new MockHiveContinuousPartitionFetcherContext(
                                 new ObjectPath("testDb", "testTable")));
         enumerator.start();
-
-        HiveSourceSplit split = createSplit();
-        enumerator.addSplitsBack(Collections.singletonList(split), 0);
         context.triggerAllActions();
-        assertEquals(1, enumerator.snapshotState(1L).getSplits().size());
-        assertTrue(enumerator.snapshotState(1L).getSplits().contains(split));
+
+        assertThat(enumerator.snapshotState(1L).getSplits()).contains(split);
     }
 
     @Test
@@ -79,14 +73,13 @@ public class ContinuousHiveSplitEnumeratorTest {
         final TestingSplitEnumeratorContext<HiveSourceSplit> context =
                 new TestingSplitEnumeratorContext<>(4);
 
-        final ContinuousHiveSplitEnumerator enumerator =
+        final ContinuousHiveSplitEnumerator<Long> enumerator =
                 new ContinuousHiveSplitEnumerator(
                         context,
                         0L,
                         Collections.emptySet(),
                         new SimpleSplitAssigner(Collections.emptyList()),
                         1000L,
-                        1,
                         new JobConf(),
                         new ObjectPath("testDb", "testTable"),
                         mockPartitionFetcher(),
@@ -97,11 +90,12 @@ public class ContinuousHiveSplitEnumeratorTest {
         context.registerReader(2, "localhost");
         enumerator.addReader(2);
         enumerator.handleSplitRequest(2, "localhost");
-        HiveSourceSplit split = createSplit();
+        final HiveSourceSplit split = createSplit();
         enumerator.addSplitsBack(Collections.singletonList(split), 0);
         context.triggerAllActions();
-        assertEquals(0, enumerator.snapshotState(1L).getSplits().size());
-        assertTrue(context.getSplitAssignments().get(2).getAssignedSplits().contains(split));
+
+        assertThat(enumerator.snapshotState(1L).getSplits()).isEmpty();
+        assertThat(context.getSplitAssignments().get(2).getAssignedSplits()).contains(split);
     }
 
     @Test
@@ -109,14 +103,13 @@ public class ContinuousHiveSplitEnumeratorTest {
         final TestingSplitEnumeratorContext<HiveSourceSplit> context =
                 new TestingSplitEnumeratorContext<>(4);
 
-        final ContinuousHiveSplitEnumerator enumerator =
+        final ContinuousHiveSplitEnumerator<Long> enumerator =
                 new ContinuousHiveSplitEnumerator(
                         context,
                         0L,
                         Collections.emptySet(),
                         new SimpleSplitAssigner(Collections.emptyList()),
                         1000L,
-                        1,
                         new JobConf(),
                         new ObjectPath("testDb", "testTable"),
                         mockPartitionFetcher(),
@@ -130,11 +123,12 @@ public class ContinuousHiveSplitEnumeratorTest {
 
         // remove the reader (like in a failure)
         context.registeredReaders().remove(2);
-        HiveSourceSplit split = createSplit();
+        final HiveSourceSplit split = createSplit();
         enumerator.addSplitsBack(Collections.singletonList(split), 0);
         context.triggerAllActions();
-        assertFalse(context.getSplitAssignments().containsKey(2));
-        assertTrue(enumerator.snapshotState(1L).getSplits().contains(split));
+
+        assertThat(context.getSplitAssignments()).doesNotContainKey(2);
+        assertThat(enumerator.snapshotState(1L).getSplits()).contains(split);
     }
 
     private HiveSourceSplit createSplit() {
@@ -152,7 +146,7 @@ public class ContinuousHiveSplitEnumeratorTest {
                 new HiveTablePartition(sd, new HashMap<>(), new Properties()));
     }
 
-    private ContinuousPartitionFetcher mockPartitionFetcher() {
+    private ContinuousPartitionFetcher<Partition, Long> mockPartitionFetcher() {
         return new ContinuousPartitionFetcher<Partition, Long>() {
 
             private static final long serialVersionUID = 1L;
@@ -171,8 +165,8 @@ public class ContinuousHiveSplitEnumeratorTest {
         };
     }
 
-    private class MockHiveContinuousPartitionFetcherContext
-            extends HiveTableSource.HiveContinuousPartitionFetcherContext {
+    private static class MockHiveContinuousPartitionFetcherContext
+            extends HiveTableSource.HiveContinuousPartitionFetcherContext<Long> {
 
         public MockHiveContinuousPartitionFetcherContext(ObjectPath tablePath) {
             super(tablePath, null, null, null, null, null, new Configuration(), "default");
@@ -185,7 +179,7 @@ public class ContinuousHiveSplitEnumeratorTest {
         public void open() throws Exception {}
 
         @Override
-        public Optional<Partition> getPartition(List partValues) throws TException {
+        public Optional<Partition> getPartition(List<String> partValues) throws TException {
             return Optional.empty();
         }
 
