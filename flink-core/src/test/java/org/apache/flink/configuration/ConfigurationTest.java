@@ -21,6 +21,8 @@ package org.apache.flink.configuration;
 import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.TestLogger;
 
+import org.apache.flink.shaded.guava30.com.google.common.collect.ImmutableMap;
+
 import org.junit.Test;
 
 import java.time.Duration;
@@ -448,7 +450,7 @@ public class ConfigurationTest extends TestLogger {
     @Test
     public void testMapWithIntegerType() {
         final Configuration cfg = new Configuration();
-        Map<String, Integer> map = Map.of("one", 1, "two", 2);
+        Map<String, Integer> map = ImmutableMap.of("one", 1, "two", 2);
         cfg.set(MAP_OPTION_INTEGER_TYPE, map);
 
         assertEquals(map, cfg.get(MAP_OPTION_INTEGER_TYPE));
@@ -467,8 +469,8 @@ public class ConfigurationTest extends TestLogger {
     @Test
     public void testMapList() {
         final Configuration cfg = new Configuration();
-        Map<String, String> first = Map.of("test1", "first");
-        Map<String, String> second = Map.of("test2", "second");
+        Map<String, String> first = ImmutableMap.of("test1", "first");
+        Map<String, String> second = ImmutableMap.of("test2", "second");
         cfg.set(MAP_OPTION_LIST, List.of(first, second));
 
         List<Map<String, String>> stringIntegerMap = cfg.get(MAP_OPTION_LIST);
@@ -479,8 +481,8 @@ public class ConfigurationTest extends TestLogger {
     @Test
     public void testMapListParsing() {
         final Configuration cfg = new Configuration();
-        Map<String, String> first = Map.of("test1", "one");
-        Map<String, String> second = Map.of("test2", "two", "test3", "three");
+        Map<String, String> first = ImmutableMap.of("test1", "one");
+        Map<String, String> second = ImmutableMap.of("test2", "two", "test3", "three");
         cfg.setString(MAP_OPTION_LIST.key(), "test1:one;" + "test2:two,test3:three");
 
         List<Map<String, String>> listMap = cfg.get(MAP_OPTION_LIST);
