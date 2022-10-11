@@ -58,19 +58,6 @@ under the License.
 			<version>${project.version}</version>
 		</dependency>
 
-		<!-- Client parser -->
-		<dependency>
-			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-sql-parser</artifactId>
-			<version>${project.version}</version>
-			<exclusions>
-				<exclusion>
-					<groupId>org.apache.calcite</groupId>
-					<artifactId>calcite-core</artifactId>
-				</exclusion>
-			</exclusions>
-		</dependency>
-
 		<!-- CLI for SQL CLI client -->
 		<dependency>
 			<groupId>org.jline</groupId>
@@ -170,6 +157,13 @@ under the License.
 			<version>${project.version}</version>
 			<type>test-jar</type>
 			<scope>test</scope>
+		</dependency>
+
+		<!-- Client parser -->
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-sql-parser</artifactId>
+			<version>${project.version}</version>
 		</dependency>
 
 		<!-- test dependencies for HiveCatalog. The exclusions should be in sync with those flink-connector-hive -->
