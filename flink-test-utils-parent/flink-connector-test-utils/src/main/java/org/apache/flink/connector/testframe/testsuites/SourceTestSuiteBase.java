@@ -63,6 +63,7 @@ import org.opentest4j.TestAbortedException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
@@ -76,10 +77,10 @@ import static java.util.Collections.singletonList;
 import static java.util.concurrent.CompletableFuture.runAsync;
 import static org.apache.flink.connector.testframe.utils.ConnectorTestConstants.DEFAULT_COLLECT_DATA_TIMEOUT;
 import static org.apache.flink.connector.testframe.utils.MetricQuerier.getJobDetails;
+import static org.apache.flink.core.testutils.CommonTestUtils.waitUtil;
 import static org.apache.flink.runtime.testutils.CommonTestUtils.terminateJob;
 import static org.apache.flink.runtime.testutils.CommonTestUtils.waitForAllTaskRunning;
 import static org.apache.flink.runtime.testutils.CommonTestUtils.waitForJobStatus;
-import static org.apache.flink.runtime.testutils.CommonTestUtils.waitUntilCondition;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 
 /**
@@ -104,6 +105,8 @@ import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 public abstract class SourceTestSuiteBase<T> {
 
     private static final Logger LOG = LoggerFactory.getLogger(SourceTestSuiteBase.class);
+    private static final Duration METRICS_TIMEOUT = Duration.ofSeconds(30L);
+    private static final Duration DELAY_BETWEEN_CHECKS = Duration.ofMillis(100L);
 
     // ----------------------------- Basic test cases ---------------------------------
 
@@ -448,7 +451,7 @@ public abstract class SourceTestSuiteBase<T> {
                                     testEnv.getRestEndpoint(),
                                     jobClient.getJobID()));
 
-            waitUntilCondition(
+            waitUtil(
                     () -> {
                         // test metrics
                         try {
@@ -462,7 +465,12 @@ public abstract class SourceTestSuiteBase<T> {
                             // skip failed assert try
                             return false;
                         }
-                    });
+                    },
+                    METRICS_TIMEOUT,
+                    DELAY_BETWEEN_CHECKS,
+                    String.format(
+                            "Timeout while comparing source metrics with %d expected value",
+                            getTestDataSize(testRecordCollections)));
         } finally {
             // Clean up
             executorService.shutdown();
