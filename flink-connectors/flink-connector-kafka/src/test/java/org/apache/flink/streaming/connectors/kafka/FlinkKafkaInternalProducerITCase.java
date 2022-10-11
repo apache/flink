@@ -18,8 +18,10 @@
 
 package org.apache.flink.streaming.connectors.kafka;
 
-import org.apache.flink.shaded.guava30.com.google.common.collect.Iterables;
 import org.apache.flink.streaming.connectors.kafka.internals.FlinkKafkaInternalProducer;
+
+import org.apache.flink.shaded.guava30.com.google.common.collect.Iterables;
+
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.clients.consumer.KafkaConsumer;

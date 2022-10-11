@@ -32,8 +32,8 @@ import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.api.config.OptimizerConfigOptions;
 
 import org.apache.kafka.clients.producer.ProducerConfig;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
 import java.time.ZoneId;
@@ -47,7 +47,7 @@ import static org.apache.flink.streaming.connectors.kafka.table.KafkaTableTestUt
 /** IT cases for Kafka with changelog format for Table API & SQL. */
 public class KafkaChangelogTableITCase extends KafkaTableTestBase {
 
-    @Before
+    @BeforeEach
     public void before() {
         // we have to use single parallelism,
         // because we will count the messages in sink to terminate the job

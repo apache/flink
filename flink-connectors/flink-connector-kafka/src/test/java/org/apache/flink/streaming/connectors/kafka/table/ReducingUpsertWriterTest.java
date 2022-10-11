@@ -31,10 +31,12 @@ import org.apache.flink.table.data.TimestampData;
 import org.apache.flink.table.runtime.connector.sink.SinkRuntimeProviderContext;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.runtime.typeutils.RowDataSerializer;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameter;
+import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameters;
 
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.io.IOException;
 import java.time.Instant;
@@ -53,9 +55,9 @@ import static org.apache.flink.types.RowKind.UPDATE_AFTER;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link ReducingUpsertWriter}. */
-@RunWith(Parameterized.class)
+@ExtendWith(ParameterizedTestExtension.class)
 public class ReducingUpsertWriterTest {
-    @Parameterized.Parameters(name = "object reuse = {0}")
+    @Parameters(name = "object reuse = {0}")
     public static Object[] enableObjectReuse() {
         return new Boolean[] {true, false};
     }
@@ -141,11 +143,7 @@ public class ReducingUpsertWriterTest {
                 TimestampData.fromInstant(Instant.parse("2021-03-30T21:00:00Z")))
     };
 
-    private final boolean enableObjectReuse;
-
-    public ReducingUpsertWriterTest(boolean enableObjectReuse) {
-        this.enableObjectReuse = enableObjectReuse;
-    }
+    @Parameter public boolean enableObjectReuse;
 
     @Test
     public void testWriteData() throws Exception {
