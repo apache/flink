@@ -235,14 +235,18 @@ class CommitterOperatorTest {
                                 originalSubtaskId);
         testHarness.open();
 
+        // We cannot test a different checkpoint thant 0 because when using the OperatorTestHarness
+        // for recovery the lastCompleted checkpoint is always reset to 0.
+        long checkpointId = 0L;
+
         final CommittableSummary<String> committableSummary =
-                new CommittableSummary<>(originalSubtaskId, 1, 0L, 1, 1, 0);
+                new CommittableSummary<>(originalSubtaskId, 1, checkpointId, 1, 1, 0);
         testHarness.processElement(new StreamRecord<>(committableSummary));
         final CommittableWithLineage<String> first =
-                new CommittableWithLineage<>("1", 0L, originalSubtaskId);
+                new CommittableWithLineage<>("1", checkpointId, originalSubtaskId);
         testHarness.processElement(new StreamRecord<>(first));
 
-        final OperatorSubtaskState snapshot = testHarness.snapshot(0L, 2L);
+        final OperatorSubtaskState snapshot = testHarness.snapshot(checkpointId, 2L);
 
         // Trigger first checkpoint but committer needs retry
         testHarness.notifyOfCompletedCheckpoint(0);
@@ -268,14 +272,16 @@ class CommitterOperatorTest {
         assertThat(output).hasSize(2);
         assertThat(committer.getSuccessfulCommits()).isEqualTo(1);
         SinkV2Assertions.assertThat(toCommittableSummary(output.get(0)))
+                .hasCheckpointId(checkpointId)
                 .hasFailedCommittables(committableSummary.getNumberOfFailedCommittables())
                 .hasOverallCommittables(committableSummary.getNumberOfCommittables())
                 .hasPendingCommittables(0);
 
+        // Expect the same checkpointId that the original snapshot was made with.
         SinkV2Assertions.assertThat(toCommittableWithLinage(output.get(1)))
                 .isEqualTo(
                         new CommittableWithLineage<>(
-                                first.getCommittable(), 1L, subtaskIdAfterRecovery));
+                                first.getCommittable(), checkpointId, subtaskIdAfterRecovery));
         restored.close();
     }
 
