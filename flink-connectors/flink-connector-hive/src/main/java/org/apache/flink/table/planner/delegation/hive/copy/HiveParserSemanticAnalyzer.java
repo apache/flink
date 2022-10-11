@@ -89,6 +89,8 @@ import org.apache.hadoop.hive.ql.session.SessionState;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.Nullable;
+
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -2078,6 +2080,7 @@ public class HiveParserSemanticAnalyzer {
         return getCatalogBaseTable(tableName, qb, true);
     }
 
+    @Nullable
     public CatalogBaseTable getCatalogBaseTable(
             String tableName, HiveParserQB qb, boolean throwException) {
         // first try to get the table from QB, temp table will be stored in here.
