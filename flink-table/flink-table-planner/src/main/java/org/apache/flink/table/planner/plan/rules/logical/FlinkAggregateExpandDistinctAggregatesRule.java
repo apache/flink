@@ -488,7 +488,7 @@ public final class FlinkAggregateExpandDistinctAggregatesRule extends RelOptRule
                         false,
                         ImmutableIntList.copyOf(fullGroupSet),
                         -1,
-                        ImmutableBitSet.of(),
+                        null,
                         RelCollations.EMPTY,
                         groupSets.size(),
                         relBuilder.peek(),
