@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.webmonitor.handlers;
 
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.client.deployment.application.DetachedApplicationRunner;
@@ -25,10 +26,13 @@ import org.apache.flink.client.deployment.application.executors.EmbeddedExecutor
 import org.apache.flink.client.program.PackagedProgram;
 import org.apache.flink.client.program.ProgramInvocationException;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.configuration.DeploymentOptions;
+import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.runtime.dispatcher.DispatcherGateway;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.RestoreMode;
+import org.apache.flink.runtime.jobgraph.SavepointConfigOptions;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 import org.apache.flink.runtime.rest.handler.HandlerRequest;
 import org.apache.flink.runtime.rest.handler.RestHandlerException;
@@ -67,6 +71,7 @@ class JarRunHandlerParameterTest
         extends JarHandlerParameterTest<JarRunRequestBody, JarRunMessageParameters> {
     private static final boolean ALLOW_NON_RESTORED_STATE_QUERY = true;
     private static final String RESTORE_PATH = "/foo/bar";
+    private static final RestoreMode RESTORE_MODE = RestoreMode.CLAIM;
 
     @RegisterExtension
     private static final TestExecutorExtension<ScheduledExecutorService> EXECUTOR_EXTENSION =
@@ -75,6 +80,14 @@ class JarRunHandlerParameterTest
     private static JarRunHandler handler;
 
     private static Path jarWithEagerSink;
+
+    private static final Configuration FLINK_CONFIGURATION =
+            new Configuration()
+                    .set(TaskManagerOptions.TASK_CANCELLATION_TIMEOUT, 120000L)
+                    .set(CoreOptions.DEFAULT_PARALLELISM, 57)
+                    .set(SavepointConfigOptions.SAVEPOINT_PATH, "/foo/bar/test")
+                    .set(SavepointConfigOptions.SAVEPOINT_IGNORE_UNCLAIMED_STATE, false)
+                    .set(SavepointConfigOptions.RESTORE_MODE, RESTORE_MODE);
 
     @BeforeAll
     static void setup(@TempDir File tempDir) throws Exception {
@@ -185,12 +198,19 @@ class JarRunHandlerParameterTest
                 null,
                 ALLOW_NON_RESTORED_STATE_QUERY,
                 RESTORE_PATH,
-                RestoreMode.CLAIM);
+                RESTORE_MODE,
+                FLINK_CONFIGURATION.toMap());
     }
 
     @Override
     JarRunRequestBody getJarRequestBodyWithJobId(JobID jobId) {
-        return new JarRunRequestBody(null, null, null, null, jobId, null, null, null);
+        return new JarRunRequestBody(null, null, null, null, jobId, null, null, null, null);
+    }
+
+    @Override
+    JarRunRequestBody getJarRequestWithConfiguration() {
+        return new JarRunRequestBody(
+                null, null, null, null, null, null, null, null, FLINK_CONFIGURATION.toMap());
     }
 
     @Test
@@ -248,8 +268,34 @@ class JarRunHandlerParameterTest
         JobGraph jobGraph = super.validateGraph();
         final SavepointRestoreSettings savepointRestoreSettings =
                 jobGraph.getSavepointRestoreSettings();
-        assertThat(savepointRestoreSettings.allowNonRestoredState()).isTrue();
-        assertThat(savepointRestoreSettings.getRestorePath()).isEqualTo(RESTORE_PATH);
+        this.validateSavepointJarRunMessageParameters(savepointRestoreSettings);
         return jobGraph;
+    }
+
+    @Override
+    void validateGraphWithFlinkConfig(JobGraph jobGraph) {
+        final ExecutionConfig executionConfig = getExecutionConfig(jobGraph);
+        assertThat(executionConfig.getParallelism())
+                .isEqualTo(FLINK_CONFIGURATION.get(CoreOptions.DEFAULT_PARALLELISM));
+        assertThat(executionConfig.getTaskCancellationTimeout())
+                .isEqualTo(FLINK_CONFIGURATION.get(TaskManagerOptions.TASK_CANCELLATION_TIMEOUT));
+
+        final SavepointRestoreSettings savepointRestoreSettings =
+                jobGraph.getSavepointRestoreSettings();
+        assertThat(savepointRestoreSettings.getRestoreMode())
+                .isEqualTo(FLINK_CONFIGURATION.get(SavepointConfigOptions.RESTORE_MODE));
+        assertThat(savepointRestoreSettings.getRestorePath())
+                .isEqualTo(FLINK_CONFIGURATION.get(SavepointConfigOptions.SAVEPOINT_PATH));
+        assertThat(savepointRestoreSettings.allowNonRestoredState())
+                .isEqualTo(
+                        FLINK_CONFIGURATION.get(
+                                SavepointConfigOptions.SAVEPOINT_IGNORE_UNCLAIMED_STATE));
+    }
+
+    private void validateSavepointJarRunMessageParameters(
+            final SavepointRestoreSettings savepointRestoreSettings) {
+        assertThat(savepointRestoreSettings.allowNonRestoredState())
+                .isEqualTo(ALLOW_NON_RESTORED_STATE_QUERY);
+        assertThat(savepointRestoreSettings.getRestorePath()).isEqualTo(RESTORE_PATH);
     }
 }
