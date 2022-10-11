@@ -111,8 +111,8 @@ public class RocksDBWriteBatchWrapper implements AutoCloseable {
         if (options != null) {
             db.write(options, batch);
         } else {
-            // use the default WriteOptions, if wasn't provided.
-            try (WriteOptions writeOptions = new WriteOptions()) {
+            // Flink doesn't need wal, so we use default WriteOptions with wal disabled.
+            try (WriteOptions writeOptions = new WriteOptions().setDisableWAL(true)) {
                 db.write(writeOptions, batch);
             }
         }
