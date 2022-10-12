@@ -20,7 +20,7 @@ package org.apache.flink.table.api
 import org.apache.flink.annotation.PublicEvolving
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.table.connector.source.abilities.SupportsSourceWatermark
-import org.apache.flink.table.expressions.{ApiExpressionUtils, Expression, TableSymbol, TimePointUnit}
+import org.apache.flink.table.expressions.{ApiExpressionUtils, Expression, TableSymbol, TimeIntervalUnit, TimePointUnit}
 import org.apache.flink.table.expressions.ApiExpressionUtils.{unresolvedCall, unresolvedRef, valueLiteral}
 import org.apache.flink.table.functions.{ImperativeAggregateFunction, ScalarFunction, TableFunction, UserDefinedFunctionHelper, _}
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions.{DISTINCT, RANGE_TO}
@@ -554,6 +554,28 @@ trait ImplicitExpressionConversions {
    */
   def dateFormat(timestamp: Expression, format: Expression): Expression = {
     Expressions.dateFormat(timestamp, format)
+  }
+
+  /**
+   * Returns the time after adding the specified time interval to the `timepoint`.
+   *
+   * For example, timestampAdd(TimeIntervalUnit.HOUR, +8, lit("2017-11-29 10:58:58.998").toDate())
+   * returns `2017-11-29 18:58:58.998`'.
+   *
+   * @param timeIntervalUnit
+   *   The unit of time interval.
+   * @param interval
+   *   The time interval.
+   * @param timePoint
+   *   The point of time.
+   * @return
+   *   The time after adding the specified time interval to the `timepoint`.
+   */
+  def timestampAdd(
+      timeIntervalUnit: TimeIntervalUnit,
+      interval: Expression,
+      timePoint: Expression): Expression = {
+    Expressions.timestampAdd(timeIntervalUnit, interval, timePoint)
   }
 
   /**

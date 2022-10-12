@@ -25,6 +25,7 @@ import org.apache.flink.table.expressions.ApiExpressionUtils;
 import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.expressions.ResolvedExpression;
 import org.apache.flink.table.expressions.SqlCallExpression;
+import org.apache.flink.table.expressions.TimeIntervalUnit;
 import org.apache.flink.table.expressions.TimePointUnit;
 import org.apache.flink.table.functions.BuiltInFunctionDefinition;
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
@@ -411,6 +412,26 @@ public final class Expressions {
      */
     public static ApiExpression dateFormat(Object timestamp, Object format) {
         return apiCall(BuiltInFunctionDefinitions.DATE_FORMAT, timestamp, format);
+    }
+
+    /**
+     * Returns the time after adding the specified time interval to the `timepoint`.
+     *
+     * <p>For example, {@code timestampAdd(TimeIntervalUnit.HOUR, +8, lit("2017-11-29
+     * 10:58:58.998").toDate())} returns `2017-11-29 18:58:58.998`'.
+     *
+     * @param timeIntervalUnit The unit of time interval.
+     * @param interval The time interval.
+     * @param timePoint The point of time.
+     * @return The time after adding the specified time interval to the `timepoint`.
+     */
+    public static ApiExpression timestampAdd(
+            TimeIntervalUnit timeIntervalUnit, Object interval, Object timePoint) {
+        return apiCall(
+                BuiltInFunctionDefinitions.TIMESTAMP_ADD,
+                valueLiteral(timeIntervalUnit),
+                interval,
+                timePoint);
     }
 
     /**

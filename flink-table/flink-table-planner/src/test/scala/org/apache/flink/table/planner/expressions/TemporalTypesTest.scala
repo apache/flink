@@ -1346,6 +1346,17 @@ class TemporalTypesTest extends ExpressionTestBase {
   }
 
   @Test
+  def testTimestampAdd(): Unit = {
+    testSqlApi("TIMESTAMPADD(MONTH, 8, TIMESTAMP '2020-03-01 00:00:00')", "2020-11-01 00:00:00")
+
+    testAllApis(
+      timestampAdd(TimeIntervalUnit.MONTH, 8, "2020-03-01 00:00:00".toTimestamp),
+      "TIMESTAMPADD(MONTH, 8, TIMESTAMP '2020-03-01 00:00:00')",
+      "2020-11-01 00:00:00"
+    )
+  }
+
+  @Test
   def testTimestampLtzArithmetic(): Unit = {
     // TIMESTAMP_LTZ +/- INTERVAL should support nanosecond
     testSqlApi(

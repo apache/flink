@@ -485,6 +485,8 @@ temporal:
     table: dateFormat(TIMESTAMP, STRING)
     description: Converts timestamp to a value of string in the format specified by the date format string. The format string is compatible with Java's SimpleDateFormat.
   - sql: TIMESTAMPADD(timeintervalunit, interval, timepoint)
+    table: timestampAdd(TIMEINTERVALUNIT, INTERVAL, TIMEPOINT)
+    description: "Returns the time after adding the specified time interval to the timepoint. For example `TIMESTAMPADD(HOUR, +8, TIMESTAMP '2017-11-29 10:58:58.998')` returns `2017-11-29 18:58:58.998`'. If interval is negative, returns the time after the timepoint is reduced by the specified time interval.."
   - sql: TIMESTAMPDIFF(timepointunit, timepoint1, timepoint2)
     table: timestampDiff(TIMEPOINTUNIT, TIMEPOINT1, TIMEPOINT2)
     description: 'Returns the (signed) number of timepointunit between timepoint1 and timepoint2. The unit for the interval is given by the first argument, which should be one of the following values: SECOND, MINUTE, HOUR, DAY, MONTH, or YEAR.'

@@ -604,6 +604,11 @@ temporal:
     description: |
       将时间戳 timestamp 转换为日期格式字符串 string 指定格式的字符串值。格式字符串与 Java 的 SimpleDateFormat 兼容。
   - sql: TIMESTAMPADD(timeintervalunit, interval, timepoint)
+    table: timestampAdd(TIMEINTERVALUNIT, INTERVAL, TIMEPOINT)
+    description: |
+      返回将时间点timepoint 增加指定的时间间隔INTERVAL后的时间。
+      例如`TIMESTAMPADD(HOUR, +8, TIMESTAMP '2017-11-29 10:58:58.998')` 返回 `2017-11-29 18:58:58.998`'。
+      若interval 为负数，则返回时间点timepoint 减少指定的时间间隔INTERVAL后的时间。
   - sql: TIMESTAMPDIFF(timepointunit, timepoint1, timepoint2)
     table: timestampDiff(TIMEPOINTUNIT, TIMEPOINT1, TIMEPOINT2)
     description: |

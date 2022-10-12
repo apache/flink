@@ -28,6 +28,7 @@ import org.apache.flink.table.api.JsonQueryWrapper;
 import org.apache.flink.table.api.JsonType;
 import org.apache.flink.table.api.JsonValueOnEmptyOrError;
 import org.apache.flink.table.api.TableException;
+import org.apache.flink.table.expressions.TimeIntervalUnit;
 import org.apache.flink.table.expressions.TimePointUnit;
 import org.apache.flink.table.types.inference.ArgumentTypeStrategy;
 import org.apache.flink.table.types.inference.ConstantArgumentCount;
@@ -1513,6 +1514,26 @@ public final class BuiltInFunctionDefinitions {
                                             logical(LogicalTypeFamily.CHARACTER_STRING),
                                             logical(LogicalTypeFamily.CHARACTER_STRING))))
                     .outputTypeStrategy(nullableIfArgs(explicit(STRING())))
+                    .build();
+
+    public static final BuiltInFunctionDefinition TIMESTAMP_ADD =
+            BuiltInFunctionDefinition.newBuilder()
+                    .name("timestampAdd")
+                    .kind(SCALAR)
+                    .inputTypeStrategy(
+                            sequence(
+                                    symbol(
+                                            TimeIntervalUnit.YEAR,
+                                            TimeIntervalUnit.QUARTER,
+                                            TimeIntervalUnit.MONTH,
+                                            TimeIntervalUnit.WEEK,
+                                            TimeIntervalUnit.DAY,
+                                            TimeIntervalUnit.HOUR,
+                                            TimeIntervalUnit.MINUTE,
+                                            TimeIntervalUnit.SECOND),
+                                    logical(LogicalTypeFamily.INTEGER_NUMERIC),
+                                    logical(LogicalTypeFamily.DATETIME)))
+                    .outputTypeStrategy(nullableIfArgs(explicit(TIME())))
                     .build();
 
     public static final BuiltInFunctionDefinition TIMESTAMP_DIFF =

@@ -27,7 +27,7 @@ from pyflink.table.expressions import (col, lit, range_, and_, or_, current_date
                                        rand, rand_integer, atan2, negative, concat, concat_ws, uuid,
                                        null_of, log, if_then_else, with_columns, call,
                                        to_timestamp_ltz, from_unixtime, to_date, to_timestamp,
-                                       convert_tz, unix_timestamp)
+                                       convert_tz, unix_timestamp, timestamp_add)
 from pyflink.testing.test_case_utils import PyFlinkTestCase
 
 
@@ -275,6 +275,11 @@ class PyFlinkBatchExpressionTests(PyFlinkTestCase):
                              lit(2).hours)))
         self.assertEqual("dateFormat(time, '%Y, %d %M')",
                          str(date_format(col("time"), "%Y, %d %M")))
+        self.assertEqual("timestampAdd(MONTH, 8, TIMESTAMP '2020-03-01 00:00:00')",
+                         str(timestamp_add(
+                             TimeIntervalUnit.MONTH,
+                             8,
+                             lit("2020-03-01 00:00:00").to_timestamp)))
         self.assertEqual("timestampDiff(DAY, cast('2016-06-15', DATE), cast('2016-06-18', DATE))",
                          str(timestamp_diff(
                              TimePointUnit.DAY,

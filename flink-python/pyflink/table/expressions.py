@@ -19,7 +19,8 @@ from typing import Union
 
 from pyflink import add_version_doc
 from pyflink.java_gateway import get_gateway
-from pyflink.table.expression import Expression, _get_java_expression, TimePointUnit, JsonOnNull
+from pyflink.table.expression import Expression, _get_java_expression, TimePointUnit, JsonOnNull, \
+    TimeIntervalUnit
 from pyflink.table.types import _to_java_data_type, DataType
 from pyflink.table.udf import UserDefinedFunctionWrapper
 from pyflink.util.java_utils import to_jarray, load_java_class
@@ -359,6 +360,23 @@ def date_format(timestamp, format) -> Expression:
     :return: The formatted timestamp as string.
     """
     return _binary_op("dateFormat", timestamp, format)
+
+
+def timestamp_add(time_interval_unit: TimeIntervalUnit, interval, timePoint) -> Expression:
+    """
+    Returns the time after adding the specified time interval to the `timepoint`.
+
+    For example,
+    `For example, timestampAdd(TimeIntervalUnit.HOUR, +8, lit("2017-11-29 10:58:58.998").toDate())`
+    returns `2017-11-29 18:58:58.998`'.
+
+    :param time_interval_unit: The unit of time interval.
+    :param interval: The time interval.
+    :param timePoint: The point of time.
+    :return: The time after adding the specified time interval to the `timePoint`.
+    """
+    return _ternary_op("timestampAdd", time_interval_unit._to_j_time_interval_unit(),
+                       interval, timePoint)
 
 
 def timestamp_diff(time_point_unit: TimePointUnit, time_point1, time_point2) -> Expression:
