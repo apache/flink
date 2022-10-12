@@ -858,7 +858,11 @@ public class HiveDialectQueryITCase {
                 CollectionUtil.iteratorToList(
                         tableEnv.executeSql("SELECT asin(2), binary('1'), struct(2, 9, 7)")
                                 .collect());
-        assertThat(result.toString()).isEqualTo("[+I[NaN, [49], +I[2, 9, 7]]]");
+        if (HiveVersionTestUtil.HIVE_310_OR_LATER) {
+            assertThat(result.toString()).isEqualTo("[+I[null, [49], +I[2, 9, 7]]]");
+        } else {
+            assertThat(result.toString()).isEqualTo("[+I[NaN, [49], +I[2, 9, 7]]]");
+        }
         tableEnv.executeSql("create table test_decimal_literal(d decimal(10, 2))");
         try {
             tableEnv.executeSql("insert into test_decimal_literal values (1.2)").await();

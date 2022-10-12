@@ -1255,11 +1255,11 @@ public class HiveParserTypeCheckProcFactory {
                     ExprNodeDesc exprNodeDesc2 = children.get(1);
                     // if one parameter is decimal type, and the other is int or long
                     if ((isDecimalTypeInfo(exprNodeDesc1)
-                                    && isIntOrLongTypeInfo(exprNodeDesc2)
-                                    && exprNodeDesc2 instanceof ExprNodeConstantDesc)
-                            || isDecimalTypeInfo(exprNodeDesc2)
-                                    && isIntOrLongTypeInfo(exprNodeDesc1)
-                                    && exprNodeDesc1 instanceof ExprNodeConstantDesc) {
+                                    && exprNodeDesc2 instanceof ExprNodeConstantDesc
+                                    && isIntOrLongTypeInfo(exprNodeDesc2))
+                            || (isDecimalTypeInfo(exprNodeDesc2)
+                                    && exprNodeDesc1 instanceof ExprNodeConstantDesc
+                                    && isIntOrLongTypeInfo(exprNodeDesc1))) {
                         // find which parameter we should change
                         int childToChange = isIntOrLongTypeInfo(exprNodeDesc1) ? 0 : 1;
                         // change the int/long literal parameter to decimal type with the max
@@ -1436,10 +1436,12 @@ public class HiveParserTypeCheckProcFactory {
             if (isBinaryConstant) {
                 return false;
             }
-            // if it's Double.NAN, can't be folded to constant safely
+            // if it's NAN, can't be folded to constant safely
             boolean isNAN =
-                    constantExpr.getValue() instanceof Double
-                            && Double.isNaN((Double) constantExpr.getValue());
+                    ((constantExpr.getValue() instanceof Double
+                                    && Double.isNaN((Double) constantExpr.getValue()))
+                            || (constantExpr.getValue() instanceof Float
+                                    && Float.isNaN((Float) constantExpr.getValue())));
             return !isNAN;
         }
 
