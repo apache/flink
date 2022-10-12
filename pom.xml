@@ -14,9 +14,7 @@ software distributed under the License is distributed on an
 KIND, either express or implied.  See the License for the
 specific language governing permissions and limitations
 under the License.
--->
-<project xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd"
-		 xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+--><project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
 
 	<parent>
 		<groupId>org.apache</groupId>
@@ -107,7 +105,7 @@ under the License.
 	<properties>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 		<project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
-		<flink.hadoop.version>2.8.5</flink.hadoop.version>
+		<flink.hadoop.version>3.2.4</flink.hadoop.version>
 		<flink.XmxMax>3072m</flink.XmxMax>
 		<!-- XmxMax / forkCountITCase -->
 		<flink.XmxITCase>1536m</flink.XmxITCase>
@@ -1199,8 +1197,7 @@ under the License.
 									<stylesheet>plain.xsl</stylesheet>
 
 									<fileMappers>
-										<fileMapper
-											implementation="org.codehaus.plexus.components.io.filemappers.FileExtensionMapper">
+										<fileMapper implementation="org.codehaus.plexus.components.io.filemappers.FileExtensionMapper">
 											<targetExtension>.html</targetExtension>
 										</fileMapper>
 									</fileMappers>
@@ -1424,7 +1421,7 @@ under the License.
 						<license implementation="org.apache.rat.analysis.license.SimplePatternBasedLicense">
 							<licenseFamilyCategory>AL2 </licenseFamilyCategory>
 							<licenseFamilyName>Apache License 2.0</licenseFamilyName>
-							<notes />
+							<notes/>
 							<patterns>
 								<pattern>Licensed to the Apache Software Foundation (ASF) under one</pattern>
 							</patterns>
@@ -2000,7 +1997,7 @@ under the License.
 								<order>org.apache.flink,org.apache.flink.shaded,,javax,java,scala,\#</order>
 							</importOrder>
 
-							<removeUnusedImports />
+							<removeUnusedImports/>
 						</java>
 					</configuration>
 					<executions>
