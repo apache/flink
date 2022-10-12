@@ -29,6 +29,7 @@ import org.junit.jupiter.api.extension.BeforeAllCallback;
 import org.junit.jupiter.api.extension.ExtensionContext;
 
 import java.net.InetAddress;
+import java.net.InetSocketAddress;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.util.function.Supplier;
@@ -70,8 +71,7 @@ public class HiveServer2EndpointExtension implements BeforeAllCallback, AfterAll
         endpoint =
                 new HiveServer2Endpoint(
                         serviceSupplier.get(),
-                        InetAddress.getLocalHost(),
-                        port.getPort(),
+                        new InetSocketAddress(port.getPort()),
                         checkNotNull(endpointConfig.get(THRIFT_MAX_MESSAGE_SIZE)),
                         (int) endpointConfig.get(THRIFT_LOGIN_TIMEOUT).toMillis(),
                         (int) endpointConfig.get(THRIFT_LOGIN_BEBACKOFF_SLOT_LENGTH).toMillis(),
@@ -79,7 +79,7 @@ public class HiveServer2EndpointExtension implements BeforeAllCallback, AfterAll
                         endpointConfig.get(THRIFT_WORKER_THREADS_MAX),
                         endpointConfig.get(THRIFT_WORKER_KEEPALIVE_TIME),
                         endpointConfig.get(CATALOG_NAME),
-                        HiveTestUtils.createHiveSite().getParent(),
+                        HiveTestUtils.createHiveConf(),
                         endpointConfig.get(CATALOG_DEFAULT_DATABASE),
                         endpointConfig.get(MODULE_NAME),
                         true,
@@ -112,7 +112,7 @@ public class HiveServer2EndpointExtension implements BeforeAllCallback, AfterAll
         // Please cc FLINK-27999 for more details
         return DriverManager.getConnection(
                 String.format(
-                        "jdbc:hive2://%s:%s/default;auth=noSasl?datanucleus.schema.autoCreateAll=true",
+                        "jdbc:hive2://%s:%s/default;auth=noSasl",
                         InetAddress.getLocalHost().getHostAddress(), getPort()));
     }
 }

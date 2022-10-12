@@ -49,6 +49,7 @@ import java.nio.file.Path;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
@@ -243,6 +244,13 @@ public class CliResultViewTest {
 
         @Override
         public void removeJar(String sessionId, String jarUrl) {
+            throw new UnsupportedOperationException("Not implemented.");
+        }
+
+        @Override
+        public Optional<String> stopJob(
+                String sessionId, String jobId, boolean isWithSavepoint, boolean isWithDrain)
+                throws SqlExecutionException {
             throw new UnsupportedOperationException("Not implemented.");
         }
     }

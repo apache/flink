@@ -18,6 +18,9 @@
 
 package org.apache.flink.table.catalog.hive;
 
+import org.apache.flink.configuration.CoreOptions;
+import org.apache.flink.configuration.JobManagerOptions;
+import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.sql.parser.SqlPartitionUtils;
 import org.apache.flink.sql.parser.hive.ddl.SqlAddHivePartitions;
 import org.apache.flink.sql.parser.hive.impl.FlinkHiveSqlParserImpl;
@@ -44,10 +47,8 @@ import org.junit.rules.TemporaryFolder;
 
 import java.io.BufferedWriter;
 import java.io.File;
-import java.io.FileOutputStream;
 import java.io.FileWriter;
 import java.io.IOException;
-import java.io.OutputStream;
 import java.net.BindException;
 import java.net.InetSocketAddress;
 import java.net.ServerSocket;
@@ -131,15 +132,6 @@ public class HiveTestUtils {
         }
     }
 
-    public static File createHiveSite() throws Exception {
-        HiveConf conf = createHiveConf();
-        File site = TEMPORARY_FOLDER.newFile("hive-site.xml");
-        try (OutputStream out = new FileOutputStream(site)) {
-            conf.writeXml(out);
-        }
-        return site;
-    }
-
     // Gets a free port of localhost. Note that this method suffers the "time of check to time of
     // use" race condition.
     // Use it as best efforts to avoid port conflicts.
@@ -166,6 +158,22 @@ public class HiveTestUtils {
         TableEnvironment tableEnv = TableEnvironment.create(EnvironmentSettings.inBatchMode());
         tableEnv.getConfig().set(TABLE_EXEC_RESOURCE_DEFAULT_PARALLELISM, 1);
         tableEnv.getConfig().setSqlDialect(dialect);
+        return tableEnv;
+    }
+
+    public static TableEnvironment createTableEnvInBatchModeWithAdaptiveScheduler() {
+        EnvironmentSettings settings = EnvironmentSettings.inBatchMode();
+        settings.getConfiguration()
+                .set(JobManagerOptions.SCHEDULER, JobManagerOptions.SchedulerType.AdaptiveBatch);
+        settings.getConfiguration()
+                .set(JobManagerOptions.ADAPTIVE_BATCH_SCHEDULER_MAX_PARALLELISM, 4);
+        settings.getConfiguration()
+                .set(
+                        JobManagerOptions.ADAPTIVE_BATCH_SCHEDULER_AVG_DATA_VOLUME_PER_TASK,
+                        MemorySize.parse("150kb"));
+        settings.getConfiguration().set(CoreOptions.DEFAULT_PARALLELISM, -1);
+        TableEnvironment tableEnv = TableEnvironment.create(settings);
+        tableEnv.getConfig().setSqlDialect(SqlDialect.DEFAULT);
         return tableEnv;
     }
 

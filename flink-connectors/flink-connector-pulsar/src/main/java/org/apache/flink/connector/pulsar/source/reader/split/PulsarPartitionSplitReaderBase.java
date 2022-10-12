@@ -50,12 +50,15 @@ import javax.annotation.Nullable;
 
 import java.io.IOException;
 import java.time.Duration;
+import java.util.Collection;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeoutException;
 
 import static org.apache.flink.connector.pulsar.common.utils.PulsarExceptionUtils.sneakyClient;
 import static org.apache.flink.connector.pulsar.source.config.PulsarSourceConfigUtils.createConsumerBuilder;
+import static org.apache.flink.connector.pulsar.source.enumerator.topic.range.RangeGenerator.KeySharedMode.JOIN;
+import static org.apache.pulsar.client.api.KeySharedPolicy.stickyHashRange;
 
 /**
  * The common partition split reader.
@@ -159,25 +162,38 @@ abstract class PulsarPartitionSplitReaderBase<OUT>
 
         List<PulsarPartitionSplit> newSplits = splitsChanges.splits();
         Preconditions.checkArgument(
-                newSplits.size() == 1, "This pulsar split reader only support one split.");
-        PulsarPartitionSplit newSplit = newSplits.get(0);
+                newSplits.size() == 1, "This pulsar split reader only supports one split.");
+        this.registeredSplit = newSplits.get(0);
 
         // Open stop cursor.
-        newSplit.open(pulsarAdmin);
+        registeredSplit.open(pulsarAdmin);
 
         // Before creating the consumer.
-        beforeCreatingConsumer(newSplit);
+        beforeCreatingConsumer(registeredSplit);
 
         // Create pulsar consumer.
-        Consumer<byte[]> consumer = createPulsarConsumer(newSplit);
+        this.pulsarConsumer = createPulsarConsumer(registeredSplit);
 
         // After creating the consumer.
-        afterCreatingConsumer(newSplit, consumer);
+        afterCreatingConsumer(registeredSplit, pulsarConsumer);
 
-        LOG.info("Register split {} consumer for current reader.", newSplit);
+        LOG.info("Register split {} consumer for current reader.", registeredSplit);
+    }
 
-        this.registeredSplit = newSplit;
-        this.pulsarConsumer = consumer;
+    @Override
+    public void pauseOrResumeSplits(
+            Collection<PulsarPartitionSplit> splitsToPause,
+            Collection<PulsarPartitionSplit> splitsToResume) {
+        // This shouldn't happen but just in case...
+        Preconditions.checkState(
+                splitsToPause.size() + splitsToResume.size() <= 1,
+                "This pulsar split reader only supports one split.");
+
+        if (!splitsToPause.isEmpty()) {
+            pulsarConsumer.pause();
+        } else if (!splitsToResume.isEmpty()) {
+            pulsarConsumer.resume();
+        }
     }
 
     @Override
@@ -222,9 +238,17 @@ abstract class PulsarPartitionSplitReaderBase<OUT>
 
         // Add KeySharedPolicy for Key_Shared subscription.
         if (sourceConfiguration.getSubscriptionType() == SubscriptionType.Key_Shared) {
-            KeySharedPolicy policy =
-                    KeySharedPolicy.stickyHashRange().ranges(partition.getPulsarRange());
+            KeySharedPolicy policy = stickyHashRange().ranges(partition.getPulsarRanges());
+            // We may enable out of order delivery for speeding up. It was turned off by default.
+            policy.setAllowOutOfOrderDelivery(
+                    sourceConfiguration.isAllowKeySharedOutOfOrderDelivery());
             consumerBuilder.keySharedPolicy(policy);
+
+            if (partition.getMode() == JOIN) {
+                // Override the key shared subscription into exclusive for making it behaviors like
+                // a Pulsar Reader which supports partial key hash ranges.
+                consumerBuilder.subscriptionType(SubscriptionType.Exclusive);
+            }
         }
 
         // Create the consumer configuration by using common utils.

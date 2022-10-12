@@ -102,33 +102,12 @@ public class CEPITCase extends AbstractTestBase {
 
         Pattern<Event, ?> pattern =
                 Pattern.<Event>begin("start")
-                        .where(
-                                new SimpleCondition<Event>() {
-
-                                    @Override
-                                    public boolean filter(Event value) throws Exception {
-                                        return value.getName().equals("start");
-                                    }
-                                })
+                        .where(SimpleCondition.of(value -> value.getName().equals("start")))
                         .followedByAny("middle")
                         .subtype(SubEvent.class)
-                        .where(
-                                new SimpleCondition<SubEvent>() {
-
-                                    @Override
-                                    public boolean filter(SubEvent value) throws Exception {
-                                        return value.getName().equals("middle");
-                                    }
-                                })
+                        .where(SimpleCondition.of(value -> value.getName().equals("middle")))
                         .followedByAny("end")
-                        .where(
-                                new SimpleCondition<Event>() {
-
-                                    @Override
-                                    public boolean filter(Event value) throws Exception {
-                                        return value.getName().equals("end");
-                                    }
-                                });
+                        .where(SimpleCondition.of(value -> value.getName().equals("end")));
 
         DataStream<String> result =
                 CEP.pattern(input, pattern)
@@ -188,33 +167,12 @@ public class CEPITCase extends AbstractTestBase {
 
         Pattern<Event, ?> pattern =
                 Pattern.<Event>begin("start")
-                        .where(
-                                new SimpleCondition<Event>() {
-
-                                    @Override
-                                    public boolean filter(Event value) throws Exception {
-                                        return value.getName().equals("start");
-                                    }
-                                })
+                        .where(SimpleCondition.of(value -> value.getName().equals("start")))
                         .followedByAny("middle")
                         .subtype(SubEvent.class)
-                        .where(
-                                new SimpleCondition<SubEvent>() {
-
-                                    @Override
-                                    public boolean filter(SubEvent value) throws Exception {
-                                        return value.getName().equals("middle");
-                                    }
-                                })
+                        .where(SimpleCondition.of(value -> value.getName().equals("middle")))
                         .followedByAny("end")
-                        .where(
-                                new SimpleCondition<Event>() {
-
-                                    @Override
-                                    public boolean filter(Event value) throws Exception {
-                                        return value.getName().equals("end");
-                                    }
-                                });
+                        .where(SimpleCondition.of(value -> value.getName().equals("end")));
 
         DataStream<String> result =
                 CEP.pattern(input, pattern)
@@ -283,32 +241,11 @@ public class CEPITCase extends AbstractTestBase {
 
         Pattern<Event, ?> pattern =
                 Pattern.<Event>begin("start")
-                        .where(
-                                new SimpleCondition<Event>() {
-
-                                    @Override
-                                    public boolean filter(Event value) throws Exception {
-                                        return value.getName().equals("start");
-                                    }
-                                })
+                        .where(SimpleCondition.of(value -> value.getName().equals("start")))
                         .followedByAny("middle")
-                        .where(
-                                new SimpleCondition<Event>() {
-
-                                    @Override
-                                    public boolean filter(Event value) throws Exception {
-                                        return value.getName().equals("middle");
-                                    }
-                                })
+                        .where(SimpleCondition.of(value -> value.getName().equals("middle")))
                         .followedByAny("end")
-                        .where(
-                                new SimpleCondition<Event>() {
-
-                                    @Override
-                                    public boolean filter(Event value) throws Exception {
-                                        return value.getName().equals("end");
-                                    }
-                                });
+                        .where(SimpleCondition.of(value -> value.getName().equals("end")));
 
         DataStream<String> result =
                 CEP.pattern(input, pattern)
@@ -393,32 +330,11 @@ public class CEPITCase extends AbstractTestBase {
 
         Pattern<Event, ?> pattern =
                 Pattern.<Event>begin("start")
-                        .where(
-                                new SimpleCondition<Event>() {
-
-                                    @Override
-                                    public boolean filter(Event value) throws Exception {
-                                        return value.getName().equals("start");
-                                    }
-                                })
+                        .where(SimpleCondition.of(value -> value.getName().equals("start")))
                         .followedByAny("middle")
-                        .where(
-                                new SimpleCondition<Event>() {
-
-                                    @Override
-                                    public boolean filter(Event value) throws Exception {
-                                        return value.getName().equals("middle");
-                                    }
-                                })
+                        .where(SimpleCondition.of(value -> value.getName().equals("middle")))
                         .followedByAny("end")
-                        .where(
-                                new SimpleCondition<Event>() {
-
-                                    @Override
-                                    public boolean filter(Event value) throws Exception {
-                                        return value.getName().equals("end");
-                                    }
-                                });
+                        .where(SimpleCondition.of(value -> value.getName().equals("end")));
 
         DataStream<String> result =
                 CEP.pattern(input, pattern)
@@ -458,14 +374,7 @@ public class CEPITCase extends AbstractTestBase {
 
         Pattern<Tuple2<Integer, Integer>, ?> pattern =
                 Pattern.<Tuple2<Integer, Integer>>begin("start")
-                        .where(
-                                new SimpleCondition<Tuple2<Integer, Integer>>() {
-                                    @Override
-                                    public boolean filter(Tuple2<Integer, Integer> rec)
-                                            throws Exception {
-                                        return rec.f1 == 1;
-                                    }
-                                });
+                        .where(SimpleCondition.of(rec -> rec.f1 == 1));
 
         PatternStream<Tuple2<Integer, Integer>> pStream =
                 CEP.pattern(input, pattern).inProcessingTime();
@@ -571,32 +480,11 @@ public class CEPITCase extends AbstractTestBase {
 
         Pattern<Event, ?> pattern =
                 Pattern.<Event>begin("start")
-                        .where(
-                                new SimpleCondition<Event>() {
-
-                                    @Override
-                                    public boolean filter(Event value) throws Exception {
-                                        return value.getName().equals("start");
-                                    }
-                                })
+                        .where(SimpleCondition.of(value -> value.getName().equals("start")))
                         .followedByAny("middle")
-                        .where(
-                                new SimpleCondition<Event>() {
-
-                                    @Override
-                                    public boolean filter(Event value) throws Exception {
-                                        return value.getName().equals("middle");
-                                    }
-                                })
+                        .where(SimpleCondition.of(value -> value.getName().equals("middle")))
                         .followedByAny("end")
-                        .where(
-                                new SimpleCondition<Event>() {
-
-                                    @Override
-                                    public boolean filter(Event value) throws Exception {
-                                        return value.getName().equals("end");
-                                    }
-                                })
+                        .where(SimpleCondition.of(value -> value.getName().equals("end")))
                         .within(Time.milliseconds(3));
 
         DataStream<Either<String, String>> result =
@@ -682,32 +570,11 @@ public class CEPITCase extends AbstractTestBase {
 
         Pattern<Event, ?> pattern =
                 Pattern.<Event>begin("start")
-                        .where(
-                                new SimpleCondition<Event>() {
-
-                                    @Override
-                                    public boolean filter(Event value) throws Exception {
-                                        return value.getName().equals("start");
-                                    }
-                                })
+                        .where(SimpleCondition.of(value -> value.getName().equals("start")))
                         .followedByAny("middle")
-                        .where(
-                                new SimpleCondition<Event>() {
-
-                                    @Override
-                                    public boolean filter(Event value) throws Exception {
-                                        return value.getName().equals("middle");
-                                    }
-                                })
+                        .where(SimpleCondition.of(value -> value.getName().equals("middle")))
                         .followedByAny("end")
-                        .where(
-                                new SimpleCondition<Event>() {
-
-                                    @Override
-                                    public boolean filter(Event value) throws Exception {
-                                        return value.getName().equals("end");
-                                    }
-                                })
+                        .where(SimpleCondition.of(value -> value.getName().equals("end")))
                         .within(Time.milliseconds(3), WithinType.PREVIOUS_AND_CURRENT);
 
         DataStream<Either<String, String>> result =
@@ -774,37 +641,12 @@ public class CEPITCase extends AbstractTestBase {
 
         Pattern<Event, ?> pattern =
                 Pattern.<Event>begin("start")
-                        .where(
-                                new SimpleCondition<Event>() {
-                                    @Override
-                                    public boolean filter(Event value) throws Exception {
-                                        return value.getName().equals("start");
-                                    }
-                                })
+                        .where(SimpleCondition.of(value -> value.getName().equals("start")))
                         .followedByAny("middle")
-                        .where(
-                                new SimpleCondition<Event>() {
-                                    @Override
-                                    public boolean filter(Event value) throws Exception {
-                                        return value.getPrice() == 2.0;
-                                    }
-                                })
-                        .or(
-                                new SimpleCondition<Event>() {
-                                    @Override
-                                    public boolean filter(Event value) throws Exception {
-                                        return value.getPrice() == 5.0;
-                                    }
-                                })
+                        .where(SimpleCondition.of(value -> value.getPrice() == 2.0))
+                        .or(SimpleCondition.of(value -> value.getPrice() == 5.0))
                         .followedByAny("end")
-                        .where(
-                                new SimpleCondition<Event>() {
-
-                                    @Override
-                                    public boolean filter(Event value) throws Exception {
-                                        return value.getName().equals("end");
-                                    }
-                                });
+                        .where(SimpleCondition.of(value -> value.getName().equals("end")));
 
         DataStream<String> result =
                 CEP.pattern(input, pattern)
@@ -889,32 +731,11 @@ public class CEPITCase extends AbstractTestBase {
 
         Pattern<Event, ? extends Event> pattern =
                 Pattern.<Event>begin("start")
-                        .where(
-                                new SimpleCondition<Event>() {
-
-                                    @Override
-                                    public boolean filter(Event value) throws Exception {
-                                        return value.getName().equals("start");
-                                    }
-                                })
+                        .where(SimpleCondition.of(value -> value.getName().equals("start")))
                         .followedByAny("middle")
-                        .where(
-                                new SimpleCondition<Event>() {
-
-                                    @Override
-                                    public boolean filter(Event value) throws Exception {
-                                        return value.getName().equals("middle");
-                                    }
-                                })
+                        .where(SimpleCondition.of(value -> value.getName().equals("middle")))
                         .followedByAny("end")
-                        .where(
-                                new SimpleCondition<Event>() {
-
-                                    @Override
-                                    public boolean filter(Event value) throws Exception {
-                                        return value.getName().equals("end");
-                                    }
-                                });
+                        .where(SimpleCondition.of(value -> value.getName().equals("end")));
 
         DataStream<String> result =
                 CEP.pattern(input, pattern, comparator)
@@ -970,14 +791,7 @@ public class CEPITCase extends AbstractTestBase {
         Pattern<Tuple2<Integer, String>, ?> pattern =
                 Pattern.<Tuple2<Integer, String>>begin(
                                 "start", AfterMatchSkipStrategy.skipPastLastEvent())
-                        .where(
-                                new SimpleCondition<Tuple2<Integer, String>>() {
-                                    @Override
-                                    public boolean filter(Tuple2<Integer, String> rec)
-                                            throws Exception {
-                                        return rec.f1.equals("a");
-                                    }
-                                })
+                        .where(SimpleCondition.of(rec -> rec.f1.equals("a")))
                         .times(2);
 
         PatternStream<Tuple2<Integer, String>> pStream =
@@ -1037,23 +851,9 @@ public class CEPITCase extends AbstractTestBase {
                                 })
                         .followedByAny("middle")
                         .subtype(SubEvent.class)
-                        .where(
-                                new SimpleCondition<SubEvent>() {
-
-                                    @Override
-                                    public boolean filter(SubEvent value) throws Exception {
-                                        return value.getName().equals("middle");
-                                    }
-                                })
+                        .where(SimpleCondition.of(value -> value.getName().equals("middle")))
                         .followedByAny("end")
-                        .where(
-                                new SimpleCondition<Event>() {
-
-                                    @Override
-                                    public boolean filter(Event value) throws Exception {
-                                        return value.getName().equals("end");
-                                    }
-                                });
+                        .where(SimpleCondition.of(value -> value.getName().equals("end")));
 
         DataStream<String> result =
                 CEP.pattern(input, pattern)
@@ -1148,23 +948,9 @@ public class CEPITCase extends AbstractTestBase {
                                 })
                         .followedByAny("middle")
                         .subtype(SubEvent.class)
-                        .where(
-                                new SimpleCondition<SubEvent>() {
-
-                                    @Override
-                                    public boolean filter(SubEvent value) throws Exception {
-                                        return value.getName().equals("middle");
-                                    }
-                                })
+                        .where(SimpleCondition.of(value -> value.getName().equals("middle")))
                         .followedByAny("end")
-                        .where(
-                                new SimpleCondition<Event>() {
-
-                                    @Override
-                                    public boolean filter(Event value) throws Exception {
-                                        return value.getName().equals("end");
-                                    }
-                                });
+                        .where(SimpleCondition.of(value -> value.getName().equals("end")));
 
         DataStream<String> result =
                 CEP.pattern(input, pattern)

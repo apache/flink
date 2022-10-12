@@ -19,10 +19,11 @@
 package org.apache.flink.connector.pulsar.testutils;
 
 import org.apache.flink.api.connector.source.Boundedness;
+import org.apache.flink.connector.base.DeliveryGuarantee;
 import org.apache.flink.connector.pulsar.source.enumerator.cursor.StopCursor;
 import org.apache.flink.connector.pulsar.source.enumerator.topic.TopicPartition;
-import org.apache.flink.connector.pulsar.source.enumerator.topic.TopicRange;
 import org.apache.flink.connector.pulsar.source.split.PulsarPartitionSplit;
+import org.apache.flink.streaming.api.CheckpointingMode;
 
 import org.apache.pulsar.client.api.MessageId;
 import org.junit.jupiter.api.extension.ParameterContext;
@@ -33,7 +34,18 @@ import java.util.List;
 /** Put static methods that can be used by multiple test classes. */
 public class PulsarTestCommonUtils {
 
-    // ------- CreateSplits
+    /** Convert the CheckpointingMode to a connector related DeliveryGuarantee. */
+    public static DeliveryGuarantee toDeliveryGuarantee(CheckpointingMode checkpointingMode) {
+        if (checkpointingMode == CheckpointingMode.AT_LEAST_ONCE) {
+            return DeliveryGuarantee.AT_LEAST_ONCE;
+        } else if (checkpointingMode == CheckpointingMode.EXACTLY_ONCE) {
+            return DeliveryGuarantee.EXACTLY_ONCE;
+        } else {
+            throw new IllegalArgumentException(
+                    "Only exactly-once and al-least-once checkpointing mode are supported.");
+        }
+    }
+
     /** creates a fullRange() partitionSplit. */
     public static PulsarPartitionSplit createPartitionSplit(String topic, int partitionId) {
         return createPartitionSplit(topic, partitionId, Boundedness.CONTINUOUS_UNBOUNDED);
@@ -46,9 +58,7 @@ public class PulsarTestCommonUtils {
 
     public static PulsarPartitionSplit createPartitionSplit(
             String topic, int partitionId, Boundedness boundedness, MessageId latestConsumedId) {
-        TopicPartition topicPartition =
-                new TopicPartition(topic, partitionId, TopicRange.createFullRange());
-
+        TopicPartition topicPartition = new TopicPartition(topic, partitionId);
         StopCursor stopCursor =
                 boundedness == Boundedness.BOUNDED ? StopCursor.latest() : StopCursor.never();
         return new PulsarPartitionSplit(topicPartition, stopCursor, latestConsumedId, null);
@@ -62,8 +72,6 @@ public class PulsarTestCommonUtils {
         }
         return splits;
     }
-
-    // -------- InvocationContext Utils
 
     public static boolean isAssignableFromParameterContext(
             Class<?> requiredType, ParameterContext context) {

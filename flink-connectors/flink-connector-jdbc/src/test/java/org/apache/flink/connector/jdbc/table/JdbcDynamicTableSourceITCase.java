@@ -25,7 +25,6 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
 import org.apache.flink.table.connector.source.lookup.cache.LookupCache;
-import org.apache.flink.table.data.DecimalData;
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.TimestampData;
@@ -46,12 +45,10 @@ import org.junit.jupiter.api.extension.RegisterExtension;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
 
-import java.math.BigDecimal;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
 import java.sql.Statement;
-import java.sql.Time;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -358,18 +355,14 @@ public class JdbcDynamicTableSourceITCase {
     }
 
     private void validateCachedValues(LookupCache cache) {
+        // jdbc does support project push down, the cached row has been projected
         RowData key1 = GenericRowData.of(1L);
         RowData value1 =
                 GenericRowData.of(
                         1L,
                         TimestampData.fromLocalDateTime(
                                 LocalDateTime.parse("2020-01-01T15:35:00.123456")),
-                        TimestampData.fromLocalDateTime(
-                                LocalDateTime.parse("2020-01-01T15:35:00.123456789")),
-                        (int) (Time.valueOf("15:35:00").toLocalTime().toNanoOfDay() / 1_000_000L),
-                        Float.valueOf("1.175E-37"),
-                        Double.valueOf("1.79769E308"),
-                        DecimalData.fromBigDecimal(BigDecimal.valueOf(100.1234), 10, 4));
+                        Double.valueOf("1.79769E308"));
 
         RowData key2 = GenericRowData.of(2L);
         RowData value2 =
@@ -377,12 +370,7 @@ public class JdbcDynamicTableSourceITCase {
                         2L,
                         TimestampData.fromLocalDateTime(
                                 LocalDateTime.parse("2020-01-01T15:36:01.123456")),
-                        TimestampData.fromLocalDateTime(
-                                LocalDateTime.parse("2020-01-01T15:36:01.123456789")),
-                        (int) (Time.valueOf("15:36:01").toLocalTime().toNanoOfDay() / 1_000_000L),
-                        Float.valueOf("-1.175E-37"),
-                        Double.valueOf("-1.79769E308"),
-                        DecimalData.fromBigDecimal(BigDecimal.valueOf(101.1234), 10, 4));
+                        Double.valueOf("-1.79769E308"));
 
         RowData key3 = GenericRowData.of(3L);
 

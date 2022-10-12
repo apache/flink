@@ -83,7 +83,7 @@ streams within the same AWS service region, and can transparently handle reshard
 responsible for fetching data records from multiple Kinesis shards. The number of shards fetched by each subtask will
 change as shards are closed and created by Kinesis.
 
-Before consuming data from Kinesis streams, make sure that all streams1 are created with the status "ACTIVE" in the Amazon Kinesis Data Stream console.
+Before consuming data from Kinesis streams, make sure that all streams are created with the status "ACTIVE" in the Amazon Kinesis Data Stream console.
 
 {{< tabs "58b6c235-48ee-4cf7-aabc-41e0679a3370" >}}
 {{< tab "Java" >}}
@@ -335,7 +335,7 @@ The stream consumer will be registered using the name provided by the `EFO_CONSU
     This is the preferred strategy for the majority of applications.
     However, jobs with parallelism greater than 1 will result in tasks competing to register and acquire the stream consumer ARN.
     For jobs with very large parallelism this can result in an increased start-up time.
-    The describe operation has a limit of 20 [transactions per second](https://docs.aws.amazon.com/kinesis/latest/APIReference/API_DescribeStreamConsumer.html),
+    The `DescribeStreamConsumer` operation has a limit of 20 [transactions per second](https://docs.aws.amazon.com/kinesis/latest/APIReference/API_DescribeStreamConsumer.html),
     this means application startup time will increase by roughly `parallelism/20 seconds`.
   - `EAGER`: Stream consumers are registered in the `FlinkKinesisConsumer` constructor.
     If the stream consumer already exists, it will be reused. 
@@ -350,7 +350,7 @@ The stream consumer will be registered using the name provided by the `EFO_CONSU
     Stream consumer ARNs should be provided to the job via the consumer configuration.
 - Deregistration
   - `LAZY|EAGER` (default): Stream consumers are deregistered when the job is shutdown gracefully.
-    In the event that a job terminates within executing the shutdown hooks, stream consumers will remain active.
+    In the event that a job terminates without executing the shutdown hooks, stream consumers will remain active.
     In this situation the stream consumers will be gracefully reused when the application restarts. 
   - `NONE`: Stream consumer deregistration is not performed by `FlinkKinesisConsumer`.
 

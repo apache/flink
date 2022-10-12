@@ -84,7 +84,7 @@ class EnvironmentSettingsTests(PyFlinkTestCase):
     def test_to_configuration(self):
 
         expected_settings = EnvironmentSettings.new_instance().in_batch_mode().build()
-        config = expected_settings.to_configuration()
+        config = expected_settings.get_configuration()
 
         self.assertEqual("BATCH", config.get_string("execution.runtime-mode", "stream"))
 
@@ -93,5 +93,5 @@ class EnvironmentSettingsTests(PyFlinkTestCase):
         config = Configuration()
         config.set_string("execution.runtime-mode", "batch")
 
-        actual_setting = EnvironmentSettings.from_configuration(config)
+        actual_setting = EnvironmentSettings.new_instance().with_configuration(config).build()
         self.assertFalse(actual_setting.is_streaming_mode(), "Use batch mode.")

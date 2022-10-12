@@ -498,7 +498,7 @@ public class StreamNonDeterministicUpdatePlanVisitor {
                             join.joinSpec().getLeftKeys(),
                             // TODO remove this conversion when scala-free was total done.
                             scala.collection.JavaConverters.seqAsJavaList(
-                                    join.getUniqueKeys(leftRel, join.joinSpec().getLeftKeys())));
+                                    join.getUpsertKeys(leftRel, join.joinSpec().getLeftKeys())));
             StreamPhysicalRel newRight =
                     visitJoinChild(
                             requireDeterminism,
@@ -509,7 +509,7 @@ public class StreamNonDeterministicUpdatePlanVisitor {
                             join.joinSpec().getRightKeys(),
                             // TODO remove this conversion when scala-free was total done.
                             scala.collection.JavaConverters.seqAsJavaList(
-                                    join.getUniqueKeys(rightRel, join.joinSpec().getRightKeys())));
+                                    join.getUpsertKeys(rightRel, join.joinSpec().getRightKeys())));
 
             return (StreamPhysicalRel)
                     join.copy(

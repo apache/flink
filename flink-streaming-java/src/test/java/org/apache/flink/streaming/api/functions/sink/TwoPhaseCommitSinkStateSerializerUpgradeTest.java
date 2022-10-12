@@ -18,6 +18,7 @@
 package org.apache.flink.streaming.api.functions.sink;
 
 import org.apache.flink.FlinkVersion;
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerMatchers;
 import org.apache.flink.api.common.typeutils.TypeSerializerSchemaCompatibility;
@@ -26,8 +27,6 @@ import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
 
 import org.hamcrest.Matcher;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -39,22 +38,13 @@ import static org.hamcrest.Matchers.is;
 /**
  * A {@link TypeSerializerUpgradeTestBase} for {@link TwoPhaseCommitSinkFunction.StateSerializer}.
  */
-@RunWith(Parameterized.class)
+@VisibleForTesting
 public class TwoPhaseCommitSinkStateSerializerUpgradeTest
         extends TypeSerializerUpgradeTestBase<
                 TwoPhaseCommitSinkFunction.State<Integer, String>,
                 TwoPhaseCommitSinkFunction.State<Integer, String>> {
 
-    public TwoPhaseCommitSinkStateSerializerUpgradeTest(
-            TestSpecification<
-                            TwoPhaseCommitSinkFunction.State<Integer, String>,
-                            TwoPhaseCommitSinkFunction.State<Integer, String>>
-                    testSpecification) {
-        super(testSpecification);
-    }
-
-    @Parameterized.Parameters(name = "Test Specification = {0}")
-    public static Collection<TestSpecification<?, ?>> testSpecifications() throws Exception {
+    public Collection<TestSpecification<?, ?>> createTestSpecifications() throws Exception {
 
         ArrayList<TestSpecification<?, ?>> testSpecifications = new ArrayList<>();
         for (FlinkVersion flinkVersion : MIGRATION_VERSIONS) {

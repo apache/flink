@@ -220,7 +220,7 @@ public class HiveDynamicTableFactoryTest {
                         STREAMING_SOURCE_MONITOR_INTERVAL.key(),
                         STREAMING_SOURCE_CONSUME_START_OFFSET.key()));
         assertThatThrownBy(() -> getTableSource("table9"))
-                .getRootCause()
+                .rootCause()
                 .hasMessage(
                         "The 'streaming-source.consume-start-offset' is not supported when "
                                 + "set 'streaming-source.partition.include' to 'latest'");

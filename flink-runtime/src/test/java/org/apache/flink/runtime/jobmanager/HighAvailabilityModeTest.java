@@ -68,7 +68,7 @@ public class HighAvailabilityModeTest extends TestLogger {
         assertEquals(HighAvailabilityMode.ZOOKEEPER, HighAvailabilityMode.fromConfig(config));
 
         // Check precedence over deprecated config
-        config.setString("high-availability", HighAvailabilityMode.NONE.name().toLowerCase());
+        config.set(HighAvailabilityOptions.HA_MODE, HighAvailabilityMode.NONE.name().toLowerCase());
         config.setString("recovery.mode", HighAvailabilityMode.ZOOKEEPER.name().toLowerCase());
 
         assertEquals(HighAvailabilityMode.NONE, HighAvailabilityMode.fromConfig(config));

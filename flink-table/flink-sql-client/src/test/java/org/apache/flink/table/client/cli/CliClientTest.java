@@ -29,6 +29,8 @@ import org.apache.flink.table.api.SqlDialect;
 import org.apache.flink.table.api.internal.TableResultInternal;
 import org.apache.flink.table.catalog.Column;
 import org.apache.flink.table.catalog.ResolvedSchema;
+import org.apache.flink.table.client.cli.parser.SqlCommandParserImpl;
+import org.apache.flink.table.client.cli.parser.SqlMultiLineParser;
 import org.apache.flink.table.client.cli.utils.SqlParserHelper;
 import org.apache.flink.table.client.cli.utils.TestTableResult;
 import org.apache.flink.table.client.gateway.Executor;
@@ -70,6 +72,9 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import static org.apache.flink.table.api.config.TableConfigOptions.TABLE_DML_SYNC;
 import static org.apache.flink.table.client.cli.CliClient.DEFAULT_TERMINAL_FACTORY;
@@ -356,6 +361,58 @@ public class CliClientTest extends TestLogger {
         }
     }
 
+    @Test(timeout = 10000)
+    public void testStopJob() throws Exception {
+        final MockExecutor mockExecutor = new MockExecutor();
+        mockExecutor.isSync = false;
+
+        String sessionId = mockExecutor.openSession("test-session");
+        OutputStream outputStream = new ByteArrayOutputStream(256);
+        try (CliClient client =
+                new CliClient(
+                        () -> TerminalUtils.createDumbTerminal(outputStream),
+                        sessionId,
+                        mockExecutor,
+                        historyTempFile(),
+                        null)) {
+            client.executeInNonInteractiveMode(INSERT_INTO_STATEMENT);
+            String dmlResult = outputStream.toString();
+            String jobId = extractJobId(dmlResult);
+            client.executeInNonInteractiveMode("STOP JOB '" + jobId + "'");
+            String stopResult = outputStream.toString();
+            assertThat(stopResult).contains(CliStrings.MESSAGE_STOP_JOB_STATEMENT);
+        }
+    }
+
+    @Test(timeout = 10000)
+    public void testStopJobWithSavepoint() throws Exception {
+        final MockExecutor mockExecutor = new MockExecutor();
+        mockExecutor.isSync = false;
+        final String mockSavepoint = "/my/savepoint/path";
+        mockExecutor.savepoint = mockSavepoint;
+
+        String sessionId = mockExecutor.openSession("test-session");
+        OutputStream outputStream = new ByteArrayOutputStream(256);
+        try (CliClient client =
+                new CliClient(
+                        () -> TerminalUtils.createDumbTerminal(outputStream),
+                        sessionId,
+                        mockExecutor,
+                        historyTempFile(),
+                        null)) {
+            client.executeInNonInteractiveMode(INSERT_INTO_STATEMENT);
+            String dmlResult = outputStream.toString();
+            String jobId = extractJobId(dmlResult);
+            client.executeInNonInteractiveMode("STOP JOB '" + jobId + "' WITH SAVEPOINT");
+            String stopResult = outputStream.toString();
+            assertThat(stopResult)
+                    .contains(
+                            String.format(
+                                    CliStrings.MESSAGE_STOP_JOB_WITH_SAVEPOINT_STATEMENT,
+                                    mockSavepoint));
+        }
+    }
+
     // --------------------------------------------------------------------------------------------
 
     private void verifyUpdateSubmission(
@@ -419,11 +476,21 @@ public class CliClientTest extends TestLogger {
         return outputStream.toString();
     }
 
+    private String extractJobId(String result) {
+        Pattern pattern = Pattern.compile("[\\s\\S]*Job ID: (.*)[\\s\\S]*");
+        Matcher matcher = pattern.matcher(result);
+        if (!matcher.matches()) {
+            throw new IllegalStateException("No job ID found in string: " + result);
+        }
+        return matcher.group(1);
+    }
+
     // --------------------------------------------------------------------------------------------
 
     private static class MockExecutor implements Executor {
 
         public boolean failExecution;
+        public String savepoint;
 
         public volatile boolean isSync = false;
         public volatile boolean isAwait = false;
@@ -594,6 +661,17 @@ public class CliClientTest extends TestLogger {
         @Override
         public void removeJar(String sessionId, String jarUrl) {
             throw new UnsupportedOperationException("Not implemented.");
+        }
+
+        @Override
+        public Optional<String> stopJob(
+                String sessionId, String jobId, boolean isWithSavepoint, boolean isWithDrain)
+                throws SqlExecutionException {
+            if (isWithSavepoint) {
+                return Optional.of(savepoint);
+            } else {
+                return Optional.empty();
+            }
         }
     }
 }

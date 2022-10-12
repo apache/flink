@@ -1950,6 +1950,18 @@ class FlinkSqlParserImplTest extends SqlParserTest {
                                         "CREATE TABLE AS SELECT syntax does not support to create partitioned table yet."));
     }
 
+    @Test
+    void testStopJob() {
+        sql("STOP JOB 'myjob'").ok("STOP JOB 'myjob'");
+        sql("STOP JOB 'myjob' WITH SAVEPOINT").ok("STOP JOB 'myjob' WITH SAVEPOINT");
+        sql("STOP JOB 'myjob' WITH SAVEPOINT WITH DRAIN")
+                .ok("STOP JOB 'myjob' WITH SAVEPOINT WITH DRAIN");
+        sql("STOP JOB 'myjob' ^WITH DRAIN^")
+                .fails("WITH DRAIN could only be used after WITH SAVEPOINT.");
+        sql("STOP JOB 'myjob' ^WITH DRAIN^ WITH SAVEPOINT")
+                .fails("WITH DRAIN could only be used after WITH SAVEPOINT.");
+    }
+
     public static BaseMatcher<SqlNode> validated(String validatedSql) {
         return new TypeSafeDiagnosingMatcher<SqlNode>() {
             @Override

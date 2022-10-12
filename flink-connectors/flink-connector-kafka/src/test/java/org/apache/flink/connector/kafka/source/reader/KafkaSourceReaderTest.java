@@ -430,6 +430,52 @@ public class KafkaSourceReaderTest extends SourceReaderTestBase<KafkaPartitionSp
         }
     }
 
+    @Test
+    public void testSupportsPausingOrResumingSplits() throws Exception {
+        final Set<String> finishedSplits = new HashSet<>();
+
+        try (final KafkaSourceReader<Integer> reader =
+                (KafkaSourceReader<Integer>)
+                        createReader(
+                                Boundedness.BOUNDED,
+                                "groupId",
+                                new TestingReaderContext(),
+                                finishedSplits::addAll)) {
+            KafkaPartitionSplit split1 =
+                    new KafkaPartitionSplit(new TopicPartition(TOPIC, 0), 0, NUM_RECORDS_PER_SPLIT);
+            KafkaPartitionSplit split2 =
+                    new KafkaPartitionSplit(new TopicPartition(TOPIC, 1), 0, NUM_RECORDS_PER_SPLIT);
+            reader.addSplits(Arrays.asList(split1, split2));
+
+            TestingReaderOutput<Integer> output = new TestingReaderOutput<>();
+
+            reader.pauseOrResumeSplits(
+                    Collections.singleton(split1.splitId()), Collections.emptyList());
+
+            pollUntil(
+                    reader,
+                    output,
+                    () ->
+                            finishedSplits.contains(split2.splitId())
+                                    && output.getEmittedRecords().size() == NUM_RECORDS_PER_SPLIT,
+                    "The split fetcher did not exit before timeout.");
+
+            reader.pauseOrResumeSplits(
+                    Collections.emptyList(), Collections.singleton(split1.splitId()));
+
+            pollUntil(
+                    reader,
+                    output,
+                    () ->
+                            finishedSplits.contains(split1.splitId())
+                                    && output.getEmittedRecords().size()
+                                            == NUM_RECORDS_PER_SPLIT * 2,
+                    "The split fetcher did not exit before timeout.");
+
+            assertThat(finishedSplits).containsExactly(split1.splitId(), split2.splitId());
+        }
+    }
+
     // ------------------------------------------
 
     @Override

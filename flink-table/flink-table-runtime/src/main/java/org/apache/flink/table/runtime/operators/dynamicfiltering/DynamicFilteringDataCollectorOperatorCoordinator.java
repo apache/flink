@@ -29,6 +29,7 @@ import org.apache.flink.runtime.operators.coordination.RecreateOnResetOperatorCo
 import org.apache.flink.runtime.source.event.SourceEventWrapper;
 import org.apache.flink.table.connector.source.DynamicFilteringData;
 import org.apache.flink.table.connector.source.DynamicFilteringEvent;
+import org.apache.flink.util.ExceptionUtils;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -39,6 +40,7 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
+import static org.apache.flink.util.Preconditions.checkState;
 
 /**
  * The operator coordinator for {@link DynamicFilteringDataCollectorOperator}. The coordinator
@@ -68,8 +70,7 @@ public class DynamicFilteringDataCollectorOperatorCoordinator
     public void close() throws Exception {}
 
     @Override
-    public void handleEventFromOperator(int subtask, int attemptNumber, OperatorEvent event)
-            throws Exception {
+    public void handleEventFromOperator(int subtask, int attemptNumber, OperatorEvent event) {
         DynamicFilteringData currentData =
                 ((DynamicFilteringEvent) ((SourceEventWrapper) event).getSourceEvent()).getData();
         if (receivedFilteringData == null) {
@@ -92,20 +93,45 @@ public class DynamicFilteringDataCollectorOperatorCoordinator
         }
 
         for (String listenerID : dynamicFilteringDataListenerIDs) {
-            // Push event to listening source coordinators.
-            OperatorCoordinator listener = (OperatorCoordinator) coordinatorStore.get(listenerID);
-            if (listener == null) {
-                throw new IllegalStateException(
-                        "Dynamic filtering data listener is missing: " + listenerID);
-            } else {
-                LOG.info(
-                        "Distributing event {} to source coordinator with ID {}",
-                        event,
-                        listenerID);
-                // Subtask index and attempt number is not necessary for handling
-                // DynamicFilteringEvent.
-                listener.handleEventFromOperator(0, 0, event);
-            }
+            coordinatorStore.compute(
+                    listenerID,
+                    (key, oldValue) -> {
+                        // The value for a listener ID can be a source coordinator listening to an
+                        // event, or an event waiting to be retrieved
+                        if (oldValue == null || oldValue instanceof OperatorEvent) {
+                            // If the listener has not been registered, or after a global failover
+                            // without cleanup the store, we simply update it to the latest value.
+                            // The listener coordinator would retrieve the event once it's started.
+                            LOG.info(
+                                    "Updating event {} before the source coordinator with ID {} is registered",
+                                    event,
+                                    listenerID);
+                            return event;
+                        } else {
+                            checkState(
+                                    oldValue instanceof OperatorCoordinator,
+                                    "The existing value for "
+                                            + listenerID
+                                            + "is expected to be an operator coordinator, but it is in fact "
+                                            + oldValue);
+                            LOG.info(
+                                    "Distributing event {} to source coordinator with ID {}",
+                                    event,
+                                    listenerID);
+                            try {
+                                // Subtask index and attempt number is not necessary for handling
+                                // DynamicFilteringEvent.
+                                ((OperatorCoordinator) oldValue)
+                                        .handleEventFromOperator(0, 0, event);
+                            } catch (Exception e) {
+                                ExceptionUtils.rethrow(e);
+                            }
+
+                            // Dynamic filtering event is expected to be sent only once. So after
+                            // the coordinator is notified, it can be removed from the store.
+                            return null;
+                        }
+                    });
         }
     }
 

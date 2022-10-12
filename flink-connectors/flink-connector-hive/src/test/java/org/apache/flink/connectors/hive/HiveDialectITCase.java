@@ -18,7 +18,6 @@
 
 package org.apache.flink.connectors.hive;
 
-import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.sql.parser.hive.ddl.SqlCreateHiveTable;
 import org.apache.flink.table.HiveVersionTestUtil;
 import org.apache.flink.table.api.SqlDialect;
@@ -26,7 +25,6 @@ import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.ValidationException;
-import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.api.internal.TableEnvironmentImpl;
 import org.apache.flink.table.api.internal.TableEnvironmentInternal;
 import org.apache.flink.table.catalog.CatalogBaseTable;
@@ -37,7 +35,6 @@ import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.catalog.ObjectPath;
 import org.apache.flink.table.catalog.hive.HiveCatalog;
 import org.apache.flink.table.catalog.hive.HiveTestUtils;
-import org.apache.flink.table.catalog.stats.CatalogTableStatistics;
 import org.apache.flink.table.delegation.ExtendedOperationExecutor;
 import org.apache.flink.table.delegation.Parser;
 import org.apache.flink.table.functions.hive.HiveGenericUDTFTest;
@@ -745,32 +742,40 @@ public class HiveDialectITCase {
     public void testCreateFunctionUsingJar() throws Exception {
         tableEnv.executeSql("create table src(x int)");
         tableEnv.executeSql("insert into src values (1), (2)").await();
-        String udfClass = "addOne";
-        String udfCode =
-                "public class "
-                        + udfClass
+        String udfCodeTemplate =
+                "public class %s"
                         + " extends org.apache.hadoop.hive.ql.exec.UDF {\n"
                         + " public int evaluate(int content) {\n"
                         + "    return content + 1;\n"
                         + " }"
                         + "}\n";
+        String udfClass = "addOne";
+        String udfCode = String.format(udfCodeTemplate, udfClass);
         File jarFile =
                 UserClassLoaderJarTestUtils.createJarFile(
                         tempFolder.newFolder("test-jar"), "test-udf.jar", udfClass, udfCode);
         // test create function using jar
         tableEnv.executeSql(
                 String.format(
-                        "create function add_one as 'addOne' using jar '%s'", jarFile.getPath()));
+                        "create function add_one as '%s' using jar '%s'",
+                        udfClass, jarFile.getPath()));
         assertThat(
                         CollectionUtil.iteratorToList(
                                         tableEnv.executeSql("select add_one(x) from src").collect())
                                 .toString())
                 .isEqualTo("[+I[2], +I[3]]");
+
         // test create temporary function using jar
+        // create a new jarfile with a new class name
+        udfClass = "addOne1";
+        udfCode = String.format(udfCodeTemplate, udfClass);
+        jarFile =
+                UserClassLoaderJarTestUtils.createJarFile(
+                        tempFolder.newFolder("test-jar-1"), "test-udf-1.jar", udfClass, udfCode);
         tableEnv.executeSql(
                 String.format(
-                        "create temporary function t_add_one as 'addOne' using jar '%s'",
-                        jarFile.getPath()));
+                        "create temporary function t_add_one as '%s' using jar '%s'",
+                        udfClass, jarFile.getPath()));
         assertThat(
                         CollectionUtil.iteratorToList(
                                         tableEnv.executeSql("select t_add_one(x) from src")
@@ -1118,23 +1123,14 @@ public class HiveDialectITCase {
                 CollectionUtil.iteratorToList(tableEnv.executeSql("set system:xxx").collect());
         assertThat(rows.toString()).isEqualTo("[+I[system:xxx=5]]");
 
-        // test 'set'
-        rows = CollectionUtil.iteratorToList(tableEnv.executeSql("set").collect());
-        assertThat(rows.toString())
-                .contains("system:xxx=5")
-                .contains("env:PATH=" + System.getenv("PATH"))
-                .contains("flink:execution.runtime-mode=BATCH")
-                .contains("hivevar:a=1")
-                .contains("common-key=common-val");
-
         // test 'set -v'
         rows = CollectionUtil.iteratorToList(tableEnv.executeSql("set -v").collect());
         assertThat(rows.toString())
                 .contains("system:xxx=5")
                 .contains("env:PATH=" + System.getenv("PATH"))
-                .contains("flink:execution.runtime-mode=BATCH")
                 .contains("hivevar:a=1")
-                .contains("fs.defaultFS=file:///");
+                .contains("hiveconf:fs.defaultFS=file:///")
+                .contains("execution.runtime-mode=BATCH");
 
         // test set env isn't supported
         assertThatThrownBy(() -> tableEnv.executeSql("set env:xxx=yyy"))
@@ -1176,6 +1172,97 @@ public class HiveDialectITCase {
     }
 
     @Test
+    public void testShowCreateTable() throws Exception {
+        tableEnv.getConfig().setSqlDialect(SqlDialect.DEFAULT);
+        tableEnv.executeSql(
+                "create table t1(id BIGINT,\n"
+                        + "  name STRING) WITH (\n"
+                        + "  'connector' = 'datagen' "
+                        + ")");
+        tableEnv.getConfig().setSqlDialect(SqlDialect.HIVE);
+        tableEnv.executeSql(
+                "create table t2 (key string, value string) comment 'show create table' partitioned by (a string, b int)"
+                        + " tblproperties ('k1' = 'v1')");
+
+        // should throw exception for show non-hive table
+        assertThatThrownBy(() -> tableEnv.executeSql("show create table t1"))
+                .isInstanceOf(UnsupportedOperationException.class)
+                .hasMessage(
+                        String.format(
+                                "The table %s to show isn't a Hive table,"
+                                        + " but 'SHOW CREATE TABLE' only supports Hive table currently.",
+                                "default.t1"));
+
+        // show hive table
+        String actualResult =
+                (String)
+                        CollectionUtil.iteratorToList(
+                                        tableEnv.executeSql("show create table t2").collect())
+                                .get(0)
+                                .getField(0);
+        Table table = hiveCatalog.getHiveTable(new ObjectPath("default", "t2"));
+        String expectLastDdlTime = table.getParameters().get("transient_lastDdlTime");
+        String expectedTableProperties =
+                String.format(
+                        "%s  'k1'='v1', \n  'transient_lastDdlTime'='%s'",
+                        // if it's hive 3.x, table properties should also contain
+                        // 'bucketing_version'='2'
+                        HiveVersionTestUtil.HIVE_310_OR_LATER
+                                ? "  'bucketing_version'='2', \n"
+                                : "",
+                        expectLastDdlTime);
+        String expectedResult =
+                String.format(
+                        "CREATE TABLE `default.t2`(\n"
+                                + "  `key` string, \n"
+                                + "  `value` string)\n"
+                                + "COMMENT 'show create table'\n"
+                                + "PARTITIONED BY ( \n"
+                                + "  `a` string, \n"
+                                + "  `b` int)\n"
+                                + "ROW FORMAT SERDE \n"
+                                + "  'org.apache.hadoop.hive.serde2.lazy.LazySimpleSerDe' \n"
+                                + "STORED AS INPUTFORMAT \n"
+                                + "  'org.apache.hadoop.mapred.TextInputFormat' \n"
+                                + "OUTPUTFORMAT \n"
+                                + "  'org.apache.hadoop.hive.ql.io.IgnoreKeyTextOutputFormat'\n"
+                                + "LOCATION\n"
+                                + "  'file:%s'\n"
+                                + "TBLPROPERTIES (\n%s)\n",
+                        warehouse + "/t2", expectedTableProperties);
+        assertThat(actualResult).isEqualTo(expectedResult);
+    }
+
+    @Test
+    public void testDescribeTable() {
+        tableEnv.getConfig().setSqlDialect(SqlDialect.DEFAULT);
+        tableEnv.executeSql(
+                "create table t1(id BIGINT,\n"
+                        + "  name STRING) WITH (\n"
+                        + "  'connector' = 'datagen' "
+                        + ")");
+        tableEnv.getConfig().setSqlDialect(SqlDialect.HIVE);
+        tableEnv.executeSql("create table t2(a int, b string, c boolean)");
+        tableEnv.executeSql(
+                "create table t3(a decimal(10, 2), b double, c float) partitioned by (d date)");
+
+        // desc non-hive table
+        List<Row> result = CollectionUtil.iteratorToList(tableEnv.executeSql("desc t1").collect());
+        assertThat(result.toString())
+                .isEqualTo(
+                        "[+I[id, BIGINT, true, null, null, null], +I[name, STRING, true, null, null, null]]");
+        // desc hive table
+        result = CollectionUtil.iteratorToList(tableEnv.executeSql("desc t2").collect());
+        assertThat(result.toString())
+                .isEqualTo("[+I[a, int, ], +I[b, string, ], +I[c, boolean, ]]");
+        result = CollectionUtil.iteratorToList(tableEnv.executeSql("desc default.t3").collect());
+        assertThat(result.toString())
+                .isEqualTo(
+                        "[+I[a, decimal(10,2), ], +I[b, double, ], +I[c, float, ], +I[d, date, ],"
+                                + " +I[# Partition Information, , ], +I[d, date, ]]");
+    }
+
+    @Test
     public void testUnsupportedOperation() {
         List<String> statements =
                 Arrays.asList(
@@ -1195,138 +1282,6 @@ public class HiveDialectITCase {
         for (String statement : statements) {
             verifyUnsupportedOperation(statement);
         }
-    }
-
-    @Test
-    public void testDynamicPartitionPruning() throws Exception {
-        // src table
-        tableEnv.executeSql("create table dim (x int,y string,z int)");
-        tableEnv.executeSql("insert into dim values (1,'a',1),(2,'b',1),(3,'c',2)").await();
-
-        // partitioned dest table
-        tableEnv.executeSql("create table fact (a int, b bigint, c string) partitioned by (p int)");
-        tableEnv.executeSql(
-                        "insert into fact partition (p=1) values (10,100,'aaa'),(11,101,'bbb'),(12,102,'ccc') ")
-                .await();
-        tableEnv.executeSql(
-                        "insert into fact partition (p=2) values (20,200,'aaa'),(21,201,'bbb'),(22,202,'ccc') ")
-                .await();
-        tableEnv.executeSql(
-                        "insert into fact partition (p=3) values (30,300,'aaa'),(31,301,'bbb'),(32,302,'ccc') ")
-                .await();
-
-        System.out.println(
-                tableEnv.explainSql(
-                        "select a, b, c, p, x, y from fact, dim where x = p and z = 1 order by a"));
-
-        tableEnv.getConfig().set(TaskManagerOptions.NUM_TASK_SLOTS, 4);
-        tableEnv.getConfig().set(ExecutionConfigOptions.TABLE_EXEC_RESOURCE_DEFAULT_PARALLELISM, 1);
-        tableEnv.getConfig().set(HiveOptions.TABLE_EXEC_HIVE_INFER_SOURCE_PARALLELISM, false);
-
-        String sql = "select a, b, c, p, x, y from fact, dim where x = p and z = 1 order by a";
-        String sqlSwapFactDim =
-                "select a, b, c, p, x, y from dim, fact where x = p and z = 1 order by a";
-
-        String expected =
-                "[+I[10, 100, aaa, 1, 1, a], +I[11, 101, bbb, 1, 1, a], +I[12, 102, ccc, 1, 1, a], "
-                        + "+I[20, 200, aaa, 2, 2, b], +I[21, 201, bbb, 2, 2, b], +I[22, 202, ccc, 2, 2, b]]";
-
-        // Check dynamic partition pruning is working
-        String plan = tableEnv.explainSql(sql);
-        assertThat(plan).contains("DynamicFilteringDataCollector");
-
-        plan = tableEnv.explainSql(sqlSwapFactDim);
-        assertThat(plan).contains("DynamicFilteringDataCollector");
-
-        // Validate results
-        List<Row> results = queryResult(tableEnv.sqlQuery(sql));
-        assertThat(results.toString()).isEqualTo(expected);
-
-        results = queryResult(tableEnv.sqlQuery(sqlSwapFactDim));
-        assertThat(results.toString()).isEqualTo(expected);
-
-        // Validate results with table statistics
-        tableEnv.getCatalog(tableEnv.getCurrentCatalog())
-                .get()
-                .alterTableStatistics(
-                        new ObjectPath(tableEnv.getCurrentDatabase(), "dim"),
-                        new CatalogTableStatistics(3, -1, -1, -1),
-                        false);
-
-        results = queryResult(tableEnv.sqlQuery(sql));
-        assertThat(results.toString()).isEqualTo(expected);
-
-        results = queryResult(tableEnv.sqlQuery(sqlSwapFactDim));
-        assertThat(results.toString()).isEqualTo(expected);
-    }
-
-    @Test
-    public void testDynamicPartitionPruningOnTwoFactTables() throws Exception {
-        tableEnv.executeSql("create table dim (x int,y string,z int)");
-        tableEnv.executeSql("insert into dim values (1,'a',1),(2,'b',1),(3,'c',2)").await();
-
-        // partitioned dest table
-        tableEnv.executeSql("create table fact (a int, b bigint, c string) partitioned by (p int)");
-        tableEnv.executeSql(
-                        "insert into fact partition (p=1) values (10,100,'aaa'),(11,101,'bbb'),(12,102,'ccc') ")
-                .await();
-        tableEnv.executeSql(
-                        "insert into fact partition (p=2) values (20,200,'aaa'),(21,201,'bbb'),(22,202,'ccc') ")
-                .await();
-        tableEnv.executeSql(
-                        "insert into fact partition (p=3) values (30,300,'aaa'),(31,301,'bbb'),(32,302,'ccc') ")
-                .await();
-
-        // partitioned dest table
-        tableEnv.executeSql(
-                "create table fact2 (a int, b bigint, c string) partitioned by (p int)");
-        tableEnv.executeSql(
-                        "insert into fact2 partition (p=1) values (40,100,'aaa'),(41,101,'bbb'),(42,102,'ccc') ")
-                .await();
-        tableEnv.executeSql(
-                        "insert into fact2 partition (p=2) values (50,200,'aaa'),(51,201,'bbb'),(52,202,'ccc') ")
-                .await();
-        tableEnv.executeSql(
-                        "insert into fact2 partition (p=3) values (60,300,'aaa'),(61,301,'bbb'),(62,302,'ccc') ")
-                .await();
-
-        tableEnv.getConfig().set(TaskManagerOptions.NUM_TASK_SLOTS, 4);
-
-        tableEnv.getConfig().set(ExecutionConfigOptions.TABLE_EXEC_RESOURCE_DEFAULT_PARALLELISM, 1);
-        tableEnv.getConfig().set(HiveOptions.TABLE_EXEC_HIVE_INFER_SOURCE_PARALLELISM, false);
-
-        // two fact sources share the same dynamic filter
-        String sql =
-                "select * from ((select a, b, c, p, x, y from fact, dim where x = p and z = 1) "
-                        + "union all "
-                        + "(select a, b, c, p, x, y from fact2, dim where x = p and z = 1)) t order by a";
-        String expected =
-                "[+I[10, 100, aaa, 1, 1, a], +I[11, 101, bbb, 1, 1, a], +I[12, 102, ccc, 1, 1, a], "
-                        + "+I[20, 200, aaa, 2, 2, b], +I[21, 201, bbb, 2, 2, b], +I[22, 202, ccc, 2, 2, b], "
-                        + "+I[40, 100, aaa, 1, 1, a], +I[41, 101, bbb, 1, 1, a], +I[42, 102, ccc, 1, 1, a], "
-                        + "+I[50, 200, aaa, 2, 2, b], +I[51, 201, bbb, 2, 2, b], +I[52, 202, ccc, 2, 2, b]]";
-
-        String plan = tableEnv.explainSql(sql);
-        assertThat(plan).containsOnlyOnce("DynamicFilteringDataCollector(fields=[x])(reuse_id=");
-
-        List<Row> results = queryResult(tableEnv.sqlQuery(sql));
-        assertThat(results.toString()).isEqualTo(expected);
-
-        // two fact sources use different dynamic filters
-        String sql2 =
-                "select * from ((select a, b, c, p, x, y from fact, dim where x = p and z = 1) "
-                        + "union all "
-                        + "(select a, b, c, p, x, y from fact2, dim where x = p and z = 2)) t order by a";
-        String expected2 =
-                "[+I[10, 100, aaa, 1, 1, a], +I[11, 101, bbb, 1, 1, a], +I[12, 102, ccc, 1, 1, a], "
-                        + "+I[20, 200, aaa, 2, 2, b], +I[21, 201, bbb, 2, 2, b], +I[22, 202, ccc, 2, 2, b], "
-                        + "+I[60, 300, aaa, 3, 3, c], +I[61, 301, bbb, 3, 3, c], +I[62, 302, ccc, 3, 3, c]]";
-
-        plan = tableEnv.explainSql(sql2);
-        assertThat(plan).contains("DynamicFilteringDataCollector");
-
-        results = queryResult(tableEnv.sqlQuery(sql2));
-        assertThat(results.toString()).isEqualTo(expected2);
     }
 
     private void verifyUnsupportedOperation(String ddl) {

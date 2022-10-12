@@ -96,7 +96,7 @@ public class RpcUtils {
             throws InterruptedException, ExecutionException {
         terminateAsyncCloseables(
                 Arrays.stream(rpcServices)
-                        .map(rpcService -> (AutoCloseableAsync) rpcService::stopService)
+                        .map(rpcService -> (AutoCloseableAsync) rpcService::closeAsync)
                         .collect(Collectors.toList()));
     }
 

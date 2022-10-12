@@ -40,8 +40,9 @@ import java.io.Serializable;
 import java.net.URL;
 import java.net.URLClassLoader;
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.concurrent.Callable;
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
@@ -92,7 +93,7 @@ class ContextClassLoadingSettingTest {
 
     @AfterEach
     void shutdown() throws InterruptedException, ExecutionException, TimeoutException {
-        final CompletableFuture<Void> rpcTerminationFuture = akkaRpcService.stopService();
+        final CompletableFuture<Void> rpcTerminationFuture = akkaRpcService.closeAsync();
         final CompletableFuture<Terminated> actorSystemTerminationFuture =
                 AkkaFutureUtils.toJava(actorSystem.terminate());
 
@@ -107,49 +108,89 @@ class ContextClassLoadingSettingTest {
     void testAkkaRpcService_ExecuteRunnableSetsFlinkContextClassLoader()
             throws ExecutionException, InterruptedException {
         final CompletableFuture<ClassLoader> contextClassLoader = new CompletableFuture<>();
-        akkaRpcService.execute(
-                () -> contextClassLoader.complete(Thread.currentThread().getContextClassLoader()));
-        assertIsFlinkClassLoader(contextClassLoader.get());
-    }
-
-    @Test
-    void testAkkaRpcService_ExecuteCallableSetsFlinkContextClassLoader()
-            throws ExecutionException, InterruptedException {
-        final CompletableFuture<ClassLoader> contextClassLoader =
-                akkaRpcService.execute(() -> Thread.currentThread().getContextClassLoader());
-        assertIsFlinkClassLoader(contextClassLoader.get());
-    }
-
-    @Test
-    void testAkkaRpcService_ExecuteCallableResultCompletedWithFlinkContextClassLoader()
-            throws ExecutionException, InterruptedException {
-
-        final CompletableFuture<Void> blocker = new CompletableFuture<>();
-
-        final CompletableFuture<ClassLoader> contextClassLoader =
-                runWithContextClassLoader(
+        akkaRpcService
+                .getScheduledExecutor()
+                .execute(
                         () ->
-                                akkaRpcService
-                                        .execute((Callable<Void>) blocker::get)
-                                        .thenApply(
-                                                ignored ->
-                                                        Thread.currentThread()
-                                                                .getContextClassLoader()),
-                        testClassLoader);
-        blocker.complete(null);
-
-        assertIsFlinkClassLoader(contextClassLoader.get());
+                                contextClassLoader.complete(
+                                        Thread.currentThread().getContextClassLoader()));
+        assertThat(contextClassLoader.get()).isSameAs(pretendFlinkClassLoader);
     }
 
     @Test
-    void testAkkaRpcService_ScheduleSetsFlinkContextClassLoader()
+    void testAkkaRpcService_ScheduleCallableSetsFlinkContextClassLoader()
+            throws ExecutionException, InterruptedException {
+        final ClassLoader contextClassLoader =
+                akkaRpcService
+                        .getScheduledExecutor()
+                        .schedule(
+                                () -> Thread.currentThread().getContextClassLoader(),
+                                0,
+                                TimeUnit.MILLISECONDS)
+                        .get();
+        assertThat(contextClassLoader).isSameAs(pretendFlinkClassLoader);
+    }
+
+    @Test
+    void testAkkaRpcService_ScheduleRunnableSetsFlinkContextClassLoader()
             throws ExecutionException, InterruptedException {
         final CompletableFuture<ClassLoader> contextClassLoader = new CompletableFuture<>();
-        akkaRpcService.scheduleRunnable(
-                () -> contextClassLoader.complete(Thread.currentThread().getContextClassLoader()),
-                5,
-                TimeUnit.MILLISECONDS);
+        akkaRpcService
+                .getScheduledExecutor()
+                .schedule(
+                        () ->
+                                contextClassLoader.complete(
+                                        Thread.currentThread().getContextClassLoader()),
+                        5,
+                        TimeUnit.MILLISECONDS);
         assertThat(contextClassLoader.get()).isSameAs(pretendFlinkClassLoader);
+    }
+
+    @Test
+    void testAkkaRpcService_ScheduleRunnableWithFixedRateSetsFlinkContextClassLoader() {
+        final int numberOfScheduledRuns = 2;
+        final List<ClassLoader> contextClassLoaders = new ArrayList<>(numberOfScheduledRuns);
+        akkaRpcService
+                .getScheduledExecutor()
+                .scheduleAtFixedRate(
+                        () -> {
+                            if (contextClassLoaders.size() < numberOfScheduledRuns) {
+                                contextClassLoaders.add(
+                                        Thread.currentThread().getContextClassLoader());
+                            } else {
+                                throw new RuntimeException("cancel task");
+                            }
+                        },
+                        0,
+                        1,
+                        TimeUnit.MILLISECONDS);
+
+        assertThat(contextClassLoaders)
+                .allSatisfy(
+                        classLoader -> assertThat(classLoader).isSameAs(pretendFlinkClassLoader));
+    }
+
+    @Test
+    void testAkkaRpcService_ScheduleRunnableWithFixedDelaySetsFlinkContextClassLoader() {
+        final int numberOfScheduledRuns = 2;
+        final List<ClassLoader> contextClassLoaders = new ArrayList<>(numberOfScheduledRuns);
+        akkaRpcService
+                .getScheduledExecutor()
+                .scheduleWithFixedDelay(
+                        () -> {
+                            if (contextClassLoaders.size() < numberOfScheduledRuns) {
+                                contextClassLoaders.add(
+                                        Thread.currentThread().getContextClassLoader());
+                            } else {
+                                throw new RuntimeException("cancel task");
+                            }
+                        },
+                        0,
+                        1,
+                        TimeUnit.MILLISECONDS);
+        assertThat(contextClassLoaders)
+                .allSatisfy(
+                        classLoader -> assertThat(classLoader).isSameAs(pretendFlinkClassLoader));
     }
 
     @Test
@@ -180,7 +221,7 @@ class ContextClassLoadingSettingTest {
                 runWithContextClassLoader(
                         () ->
                                 akkaRpcService
-                                        .stopService()
+                                        .closeAsync()
                                         .thenApply(
                                                 ignored ->
                                                         Thread.currentThread()

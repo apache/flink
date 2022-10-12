@@ -35,9 +35,9 @@ Flink 利用 **[ZooKeeper](http://zookeeper.apache.org)** 在所有运行的 Job
 为了启用高可用集群（HA-cluster），你必须设置以下配置项:
 
 - [high-availability]({{< ref "docs/deployment/config" >}}#high-availability-1) (必要的):
-  `high-availability` 配置项必须设置为 `zookeeper`。
+  `high-availability.type` 配置项必须设置为 `zookeeper`。
 
-  <pre>high-availability: zookeeper</pre>
+  <pre>high-availability.type: zookeeper</pre>
 
 - [high-availability.storageDir]({{< ref "docs/deployment/config" >}}#high-availability-storagedir) (必要的):
   JobManager 元数据持久化到文件系统 `high-availability.storageDir` 配置的路径中，并且在 ZooKeeper 中只能有一个目录指向此位置。
@@ -71,7 +71,7 @@ Flink 利用 **[ZooKeeper](http://zookeeper.apache.org)** 在所有运行的 Job
 在 `conf/flink-conf.yaml` 中配置高可用模式和 ZooKeeper 复制组（quorum）:
 
 ```bash
-high-availability: zookeeper
+high-availability.type: zookeeper
 high-availability.zookeeper.quorum: localhost:2181
 high-availability.zookeeper.path.root: /flink
 high-availability.cluster-id: /cluster_one # 重要: 每个集群自定义

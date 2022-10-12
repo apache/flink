@@ -64,9 +64,10 @@ public class PulsarMockRuntime implements PulsarRuntime {
     @Override
     public void tearDown() {
         try {
+            if (operator != null) {
+                operator.close();
+            }
             pulsarService.close();
-            operator.close();
-            this.operator = null;
         } catch (Exception e) {
             throw new IllegalStateException(e);
         }
@@ -94,7 +95,7 @@ public class PulsarMockRuntime implements PulsarRuntime {
         configuration.setAuthorizationEnabled(false);
         configuration.setAllowAutoTopicCreation(true);
         configuration.setBrokerDeleteInactiveTopicsEnabled(false);
-
+        configuration.setTopicLevelPoliciesEnabled(true);
         configuration.setWebSocketServiceEnabled(false);
         // Use runtime dynamic ports
         configuration.setBrokerServicePort(Optional.of(0));
@@ -106,6 +107,7 @@ public class PulsarMockRuntime implements PulsarRuntime {
         configuration.setTransactionCoordinatorEnabled(true);
         configuration.setTransactionMetadataStoreProviderClassName(
                 "org.apache.pulsar.transaction.coordinator.impl.MLTransactionMetadataStoreProvider");
+        configuration.setDefaultNumberOfNamespaceBundles(1);
 
         return configuration;
     }

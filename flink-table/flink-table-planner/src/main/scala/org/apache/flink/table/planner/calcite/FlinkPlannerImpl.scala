@@ -46,6 +46,7 @@ import javax.annotation.Nullable
 
 import java.lang.{Boolean => JBoolean}
 import java.util
+import java.util.Locale
 import java.util.function.{Function => JFunction}
 
 import scala.collection.JavaConverters._
@@ -193,17 +194,22 @@ class FlinkPlannerImpl(
   private def rel(validatedSqlNode: SqlNode, sqlValidator: FlinkCalciteSqlValidator) = {
     try {
       assert(validatedSqlNode != null)
-      val sqlToRelConverter: SqlToRelConverter = createSqlToRelConverter(sqlValidator)
-
       // check whether this SqlNode tree contains join hints
       val checkContainJoinHintShuttle = new CheckContainJoinHintShuttle
       validatedSqlNode.accept(checkContainJoinHintShuttle)
-      checkContainJoinHintShuttle.containsJoinHint
-
-      // TODO currently, it is a relatively hacked way to tell converter
-      // that this SqlNode tree contains join hints
-      if (checkContainJoinHintShuttle.containsJoinHint) {
-        sqlToRelConverter.containsJoinHint()
+      val sqlToRelConverter: SqlToRelConverter = if (checkContainJoinHintShuttle.containsJoinHint) {
+        val converter = createSqlToRelConverter(
+          sqlValidator,
+          // disable project merge during sql to rel phase to prevent
+          // incorrect propagation of join hints into child query block
+          sqlToRelConverterConfig.addRelBuilderConfigTransform(c => c.withBloat(-1))
+        )
+        // TODO currently, it is a relatively hacked way to tell converter
+        // that this SqlNode tree contains join hints
+        converter.containsJoinHint()
+        converter
+      } else {
+        createSqlToRelConverter(sqlValidator, sqlToRelConverterConfig)
       }
 
       sqlToRelConverter.convertQuery(validatedSqlNode, false, true)
@@ -245,7 +251,7 @@ class FlinkPlannerImpl(
       JavaScalaConversionUtil.toScala(hints).foreach {
         case hint: SqlHint =>
           val hintName = hint.getName
-          if (JoinStrategy.isJoinStrategy(hintName)) {
+          if (JoinStrategy.isJoinStrategy(hintName.toUpperCase(Locale.ROOT))) {
             return true
           }
       }
@@ -301,7 +307,7 @@ class FlinkPlannerImpl(
       @Nullable outputType: RelDataType) = {
     try {
       val validatedSqlNode = validateExpression(sqlNode, sqlValidator, inputRowType, outputType)
-      val sqlToRelConverter = createSqlToRelConverter(sqlValidator)
+      val sqlToRelConverter = createSqlToRelConverter(sqlValidator, sqlToRelConverterConfig)
       val nameToNodeMap = inputRowType.getFieldList.asScala
         .map(field => (field.getName, RexInputRef.of(field.getIndex, inputRowType)))
         .toMap[String, RexNode]
@@ -312,14 +318,16 @@ class FlinkPlannerImpl(
     }
   }
 
-  private def createSqlToRelConverter(sqlValidator: SqlValidator): SqlToRelConverter = {
+  private def createSqlToRelConverter(
+      sqlValidator: SqlValidator,
+      config: SqlToRelConverter.Config): SqlToRelConverter = {
     new SqlToRelConverter(
       createToRelContext(),
       sqlValidator,
       sqlValidator.getCatalogReader.unwrap(classOf[CalciteCatalogReader]),
       cluster,
       convertletTable,
-      sqlToRelConverterConfig)
+      config)
   }
 
   /** Creates a new instance of [[RelOptTable.ToRelContext]] for [[RelOptTable]]. */

@@ -19,7 +19,6 @@
 package org.apache.flink.connector.pulsar.source.reader.source;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.connector.source.SourceReaderContext;
 import org.apache.flink.connector.base.source.reader.RecordsWithSplitIds;
 import org.apache.flink.connector.base.source.reader.synchronization.FutureCompletingBlockingQueue;
@@ -47,6 +46,8 @@ import java.util.SortedMap;
 import java.util.TreeMap;
 import java.util.function.Supplier;
 
+import static java.util.stream.Collectors.toList;
+
 /**
  * The source reader for pulsar subscription Shared and Key_Shared, which consumes the unordered
  * messages.
@@ -56,8 +57,10 @@ public class PulsarUnorderedSourceReader<OUT> extends PulsarSourceReaderBase<OUT
     private static final Logger LOG = LoggerFactory.getLogger(PulsarUnorderedSourceReader.class);
 
     @Nullable private final TransactionCoordinatorClient coordinatorClient;
-    @VisibleForTesting final SortedMap<Long, List<TxnID>> transactionsToCommit;
+    private final SortedMap<Long, List<TxnID>> transactionsToCommit;
     private final List<TxnID> transactionsOfFinishedSplits;
+
+    private boolean started = false;
 
     public PulsarUnorderedSourceReader(
             FutureCompletingBlockingQueue<RecordsWithSplitIds<PulsarMessage<OUT>>> elementsQueue,
@@ -69,7 +72,8 @@ public class PulsarUnorderedSourceReader<OUT> extends PulsarSourceReaderBase<OUT
             @Nullable TransactionCoordinatorClient coordinatorClient) {
         super(
                 elementsQueue,
-                new PulsarUnorderedFetcherManager<>(elementsQueue, splitReaderSupplier::get),
+                new PulsarUnorderedFetcherManager<>(
+                        elementsQueue, splitReaderSupplier::get, context.getConfiguration()),
                 context,
                 sourceConfiguration,
                 pulsarClient,
@@ -78,6 +82,38 @@ public class PulsarUnorderedSourceReader<OUT> extends PulsarSourceReaderBase<OUT
         this.coordinatorClient = coordinatorClient;
         this.transactionsToCommit = Collections.synchronizedSortedMap(new TreeMap<>());
         this.transactionsOfFinishedSplits = Collections.synchronizedList(new ArrayList<>());
+    }
+
+    @Override
+    public void start() {
+        this.started = true;
+        super.start();
+    }
+
+    @Override
+    public void addSplits(List<PulsarPartitionSplit> splits) {
+        if (started) {
+            // We only accept splits after this reader is started and registered to the pipeline.
+            // This would ignore the splits from the state.
+            super.addSplits(splits);
+        } else {
+            // Abort the pending transaction in this split.
+            for (PulsarPartitionSplit split : splits) {
+                LOG.info("Ignore the split {} saved in checkpoint.", split);
+
+                TxnID transactionId = split.getUncommittedTransactionId();
+                if (transactionId != null && coordinatorClient != null) {
+                    try {
+                        coordinatorClient.abort(transactionId);
+                    } catch (Exception e) {
+                        LOG.debug(
+                                "Error in aborting transaction {} from the checkpoint",
+                                transactionId,
+                                e);
+                    }
+                }
+            }
+        }
     }
 
     @Override
@@ -103,11 +139,10 @@ public class PulsarUnorderedSourceReader<OUT> extends PulsarSourceReaderBase<OUT
     public List<PulsarPartitionSplit> snapshotState(long checkpointId) {
         LOG.debug("Trigger the new transaction for downstream readers.");
         List<PulsarPartitionSplit> splits =
-                ((PulsarUnorderedFetcherManager<OUT>) splitFetcherManager)
-                        .snapshotState(checkpointId);
+                ((PulsarUnorderedFetcherManager<OUT>) splitFetcherManager).snapshotState();
 
         if (coordinatorClient != null) {
-            // Snapshot the transaction status and commit it after checkpoint finished.
+            // Snapshot the transaction status and commit it after checkpoint finishing.
             List<TxnID> txnIDs =
                     transactionsToCommit.computeIfAbsent(checkpointId, id -> new ArrayList<>());
             for (PulsarPartitionSplit split : splits) {
@@ -126,19 +161,19 @@ public class PulsarUnorderedSourceReader<OUT> extends PulsarSourceReaderBase<OUT
         LOG.debug("Committing transactions for checkpoint {}", checkpointId);
 
         if (coordinatorClient != null) {
-            for (Map.Entry<Long, List<TxnID>> entry : transactionsToCommit.entrySet()) {
-                Long currentCheckpointId = entry.getKey();
-                if (currentCheckpointId > checkpointId) {
-                    continue;
-                }
+            List<Long> checkpointIds =
+                    transactionsToCommit.keySet().stream()
+                            .filter(id -> id <= checkpointId)
+                            .collect(toList());
 
-                List<TxnID> transactions = entry.getValue();
-                for (TxnID transaction : transactions) {
-                    coordinatorClient.commit(transaction);
-                    transactionsOfFinishedSplits.remove(transaction);
+            for (Long id : checkpointIds) {
+                List<TxnID> transactions = transactionsToCommit.remove(id);
+                if (transactions != null) {
+                    for (TxnID transaction : transactions) {
+                        coordinatorClient.commit(transaction);
+                        transactionsOfFinishedSplits.remove(transaction);
+                    }
                 }
-
-                transactionsToCommit.remove(currentCheckpointId);
             }
         }
     }

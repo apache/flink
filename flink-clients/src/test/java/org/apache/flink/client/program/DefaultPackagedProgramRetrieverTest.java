@@ -552,7 +552,8 @@ class DefaultPackagedProgramRetrieverTest {
         final Pipeline pipeline =
                 PackagedProgramUtils.getPipelineFromProgram(
                         packagedProgram, configuration, defaultParallelism, false);
-        return PipelineExecutorUtils.getJobGraph(pipeline, configuration);
+        return PipelineExecutorUtils.getJobGraph(
+                pipeline, configuration, packagedProgram.getUserCodeClassLoader());
     }
 
     private static List<String> extractRelativizedURLsForJarsFromDirectory(File directory)

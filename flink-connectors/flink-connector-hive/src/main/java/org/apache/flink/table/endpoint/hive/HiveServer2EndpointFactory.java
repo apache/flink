@@ -21,15 +21,16 @@ package org.apache.flink.table.endpoint.hive;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.table.api.ValidationException;
+import org.apache.flink.table.catalog.hive.HiveCatalog;
 import org.apache.flink.table.gateway.api.endpoint.SqlGatewayEndpoint;
 import org.apache.flink.table.gateway.api.endpoint.SqlGatewayEndpointFactory;
 import org.apache.flink.table.gateway.api.endpoint.SqlGatewayEndpointFactoryUtils;
 
-import java.net.InetAddress;
-import java.net.UnknownHostException;
+import java.net.InetSocketAddress;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
+import java.util.Optional;
 import java.util.Set;
 
 import static org.apache.flink.table.endpoint.hive.HiveServer2EndpointConfigOptions.CATALOG_DEFAULT_DATABASE;
@@ -59,8 +60,7 @@ public class HiveServer2EndpointFactory implements SqlGatewayEndpointFactory {
         validate(configuration);
         return new HiveServer2Endpoint(
                 context.getSqlGatewayService(),
-                getHostAddress(configuration.get(THRIFT_HOST)),
-                configuration.get(THRIFT_PORT),
+                getInetSocketAddress(configuration),
                 checkNotNull(configuration.get(THRIFT_MAX_MESSAGE_SIZE)),
                 (int) configuration.get(THRIFT_LOGIN_TIMEOUT).toMillis(),
                 (int) configuration.get(THRIFT_LOGIN_BEBACKOFF_SLOT_LENGTH).toMillis(),
@@ -68,7 +68,7 @@ public class HiveServer2EndpointFactory implements SqlGatewayEndpointFactory {
                 configuration.get(THRIFT_WORKER_THREADS_MAX),
                 configuration.get(THRIFT_WORKER_KEEPALIVE_TIME),
                 configuration.get(CATALOG_NAME),
-                configuration.get(CATALOG_HIVE_CONF_DIR),
+                HiveCatalog.createHiveConf(configuration.get(CATALOG_HIVE_CONF_DIR), null),
                 configuration.get(CATALOG_DEFAULT_DATABASE),
                 configuration.get(MODULE_NAME));
     }
@@ -80,7 +80,7 @@ public class HiveServer2EndpointFactory implements SqlGatewayEndpointFactory {
 
     @Override
     public Set<ConfigOption<?>> requiredOptions() {
-        return Collections.emptySet();
+        return Collections.singleton(CATALOG_HIVE_CONF_DIR);
     }
 
     @Override
@@ -95,17 +95,17 @@ public class HiveServer2EndpointFactory implements SqlGatewayEndpointFactory {
                         THRIFT_WORKER_THREADS_MAX,
                         THRIFT_WORKER_KEEPALIVE_TIME,
                         CATALOG_NAME,
-                        CATALOG_HIVE_CONF_DIR,
                         CATALOG_DEFAULT_DATABASE,
                         MODULE_NAME));
     }
 
-    private static InetAddress getHostAddress(String hostName) {
-        try {
-            return InetAddress.getByName(hostName);
-        } catch (UnknownHostException e) {
-            throw new ValidationException(
-                    String.format("Can not get the address for the host '%s'.", hostName), e);
+    private static InetSocketAddress getInetSocketAddress(ReadableConfig configuration) {
+        Optional<String> host = configuration.getOptional(THRIFT_HOST);
+        if (host.isPresent()) {
+            return new InetSocketAddress(
+                    configuration.get(THRIFT_HOST), configuration.get(THRIFT_PORT));
+        } else {
+            return new InetSocketAddress(configuration.get(THRIFT_PORT));
         }
     }
 

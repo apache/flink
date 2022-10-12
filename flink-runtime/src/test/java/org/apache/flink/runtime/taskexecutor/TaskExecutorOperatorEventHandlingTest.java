@@ -86,11 +86,11 @@ public class TaskExecutorOperatorEventHandlingTest extends TestLogger {
     @After
     public void teardown() throws ExecutionException, InterruptedException {
         if (rpcService != null) {
-            rpcService.stopService().get();
+            rpcService.closeAsync().get();
         }
 
         if (metricRegistry != null) {
-            metricRegistry.shutdown().get();
+            metricRegistry.closeAsync().get();
         }
     }
 

@@ -45,10 +45,10 @@ In order to use Flink's Kubernetes HA services you must fulfill the following pr
 In order to start an HA-cluster you have to configure the following configuration keys:
 
 - [high-availability]({{< ref "docs/deployment/config" >}}#high-availability-1) (required): 
-The `high-availability` option has to be set to `KubernetesHaServicesFactory`.
+The `high-availability.type` option has to be set to `KubernetesHaServicesFactory`.
 
 ```yaml
-high-availability: kubernetes
+high-availability.type: kubernetes
 ```
 
 - [high-availability.storageDir]({{< ref "docs/deployment/config" >}}#high-availability-storagedir) (required): 
@@ -73,7 +73,7 @@ Configure high availability mode in `conf/flink-conf.yaml`:
 
 ```yaml
 kubernetes.cluster-id: <cluster-id>
-high-availability: kubernetes
+high-availability.type: kubernetes
 high-availability.storageDir: hdfs:///flink/recovery
 ```
 

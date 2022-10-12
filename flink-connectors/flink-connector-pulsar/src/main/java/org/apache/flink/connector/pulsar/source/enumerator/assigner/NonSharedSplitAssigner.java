@@ -19,8 +19,7 @@
 package org.apache.flink.connector.pulsar.source.enumerator.assigner;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.api.connector.source.SplitsAssignment;
-import org.apache.flink.connector.pulsar.source.config.SourceConfiguration;
+import org.apache.flink.api.connector.source.SplitEnumeratorContext;
 import org.apache.flink.connector.pulsar.source.enumerator.PulsarSourceEnumState;
 import org.apache.flink.connector.pulsar.source.enumerator.cursor.StopCursor;
 import org.apache.flink.connector.pulsar.source.enumerator.topic.TopicPartition;
@@ -29,38 +28,22 @@ import org.apache.flink.connector.pulsar.source.split.PulsarPartitionSplit;
 import org.apache.pulsar.client.api.SubscriptionType;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
-import java.util.Optional;
 import java.util.Set;
 
 /**
  * This assigner is used for {@link SubscriptionType#Failover}, {@link SubscriptionType#Exclusive}
- * and {@link SubscriptionType#Key_Shared} subscriptions.
+ * subscriptions.
  */
 @Internal
-public class NonSharedSplitAssigner implements SplitAssigner {
-    private static final long serialVersionUID = 8412586087991597092L;
-
-    private final StopCursor stopCursor;
-    private final boolean enablePartitionDiscovery;
-
-    // These fields would be saved into checkpoint.
-
-    private final Set<TopicPartition> appendedPartitions;
-    private final Set<PulsarPartitionSplit> pendingPartitionSplits;
-    private boolean initialized;
+class NonSharedSplitAssigner extends SplitAssignerBase {
 
     public NonSharedSplitAssigner(
             StopCursor stopCursor,
-            SourceConfiguration sourceConfiguration,
-            PulsarSourceEnumState sourceEnumState) {
-        this.stopCursor = stopCursor;
-        this.enablePartitionDiscovery = sourceConfiguration.isEnablePartitionDiscovery();
-        this.appendedPartitions = sourceEnumState.getAppendedPartitions();
-        this.pendingPartitionSplits = sourceEnumState.getPendingPartitionSplits();
-        this.initialized = sourceEnumState.isInitialized();
+            boolean enablePartitionDiscovery,
+            SplitEnumeratorContext<PulsarPartitionSplit> context,
+            PulsarSourceEnumState enumState) {
+        super(stopCursor, enablePartitionDiscovery, context, enumState);
     }
 
     @Override
@@ -69,9 +52,13 @@ public class NonSharedSplitAssigner implements SplitAssigner {
 
         for (TopicPartition partition : fetchedPartitions) {
             if (!appendedPartitions.contains(partition)) {
-                pendingPartitionSplits.add(new PulsarPartitionSplit(partition, stopCursor));
                 appendedPartitions.add(partition);
                 newPartitions.add(partition);
+
+                // Calculate the reader id by the current parallelism.
+                int readerId = partitionOwner(partition);
+                PulsarPartitionSplit split = new PulsarPartitionSplit(partition, stopCursor);
+                addSplitToPendingList(readerId, split);
             }
         }
 
@@ -84,43 +71,9 @@ public class NonSharedSplitAssigner implements SplitAssigner {
 
     @Override
     public void addSplitsBack(List<PulsarPartitionSplit> splits, int subtaskId) {
-        pendingPartitionSplits.addAll(splits);
-    }
-
-    @Override
-    public Optional<SplitsAssignment<PulsarPartitionSplit>> createAssignment(
-            List<Integer> readers) {
-        if (pendingPartitionSplits.isEmpty() || readers.isEmpty()) {
-            return Optional.empty();
+        for (PulsarPartitionSplit split : splits) {
+            int readerId = partitionOwner(split.getPartition());
+            addSplitToPendingList(readerId, split);
         }
-
-        Map<Integer, List<PulsarPartitionSplit>> assignMap = new HashMap<>();
-
-        List<PulsarPartitionSplit> partitionSplits = new ArrayList<>(pendingPartitionSplits);
-        int readerCount = readers.size();
-        for (int i = 0; i < partitionSplits.size(); i++) {
-            int index = i % readerCount;
-            Integer readerId = readers.get(index);
-            PulsarPartitionSplit split = partitionSplits.get(i);
-            assignMap.computeIfAbsent(readerId, id -> new ArrayList<>()).add(split);
-        }
-        pendingPartitionSplits.clear();
-
-        return Optional.of(new SplitsAssignment<>(assignMap));
-    }
-
-    @Override
-    public boolean noMoreSplits(Integer reader) {
-        return !enablePartitionDiscovery && initialized && pendingPartitionSplits.isEmpty();
-    }
-
-    @Override
-    public PulsarSourceEnumState snapshotState() {
-        return new PulsarSourceEnumState(
-                appendedPartitions,
-                pendingPartitionSplits,
-                new HashMap<>(),
-                new HashMap<>(),
-                initialized);
     }
 }

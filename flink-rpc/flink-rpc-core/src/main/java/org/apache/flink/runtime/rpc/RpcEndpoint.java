@@ -308,17 +308,7 @@ public abstract class RpcEndpoint implements RpcGateway, AutoCloseableAsync {
      * @return Self gateway of the specified type which can be used to issue asynchronous rpcs
      */
     public <C extends RpcGateway> C getSelfGateway(Class<C> selfGatewayType) {
-        if (selfGatewayType.isInstance(rpcServer)) {
-            @SuppressWarnings("unchecked")
-            C selfGateway = ((C) rpcServer);
-
-            return selfGateway;
-        } else {
-            throw new RuntimeException(
-                    "RpcEndpoint does not implement the RpcGateway interface of type "
-                            + selfGatewayType
-                            + '.');
-        }
+        return rpcService.getSelfGateway(selfGatewayType, rpcServer);
     }
 
     /**

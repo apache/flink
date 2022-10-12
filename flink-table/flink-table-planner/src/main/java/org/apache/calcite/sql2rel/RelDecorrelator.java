@@ -17,6 +17,7 @@
 package org.apache.calcite.sql2rel;
 
 import org.apache.flink.table.planner.alias.ClearJoinHintWithInvalidPropagationShuttle;
+import org.apache.flink.table.planner.hint.FlinkHints;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
@@ -206,6 +207,9 @@ public class RelDecorrelator implements ReflectiveVisitor {
         newRootRel = RelOptUtil.propagateRelHints(newRootRel, true);
 
         // ----- FLINK MODIFICATION BEGIN -----
+
+        // replace all join hints with upper case
+        newRootRel = FlinkHints.capitalizeJoinHints(newRootRel);
 
         // clear join hints which are propagated into wrong query block
         // The hint QueryBlockAlias will be added when building a RelNode tree before. It is used to

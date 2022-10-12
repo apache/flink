@@ -70,6 +70,39 @@ public class SsgNetworkMemoryCalculationUtilsTest {
 
     @Test
     public void testGenerateEnrichedResourceProfile() throws Exception {
+        // 1. for the first source vertex, no input channel, 1 or 2 subpartitions for point-wise
+        // output edge (the max is 2)
+        // 2. for the second map vertex, 1 input channel for point-wise edge, 2 result partitions
+        // for 2 all-to-all output edges (no partition reuse for pipelined shuffle), each with 6
+        // subpartitions
+        // 3. for the third sink vertex, 10 input channels for two result partitions, each with 5
+        // channels, no shuffle output
+        testGenerateEnrichedResourceProfile(
+                ResultPartitionType.PIPELINED,
+                new MemorySize(
+                        TestShuffleMaster.computeRequiredShuffleMemoryBytes(0, 2)
+                                + TestShuffleMaster.computeRequiredShuffleMemoryBytes(1, 12)),
+                new MemorySize(TestShuffleMaster.computeRequiredShuffleMemoryBytes(10, 0)));
+
+        // 1. for the first source vertex, no input channel, 1 or 2 subpartitions for point-wise
+        // output edge (the max is 2)
+        // 2. for the second map vertex, 1 input channel for point-wise edge, 1 result partitions (6
+        // subpartitions) for 2 all-to-all output edges (partition reused for blocking shuffle)
+        // 3. for the third sink vertex, 10 input channels for 2 all-to-all input edges consuming 1
+        // result partition, each with 5 channels, no shuffle output
+        testGenerateEnrichedResourceProfile(
+                ResultPartitionType.BLOCKING,
+                new MemorySize(
+                        TestShuffleMaster.computeRequiredShuffleMemoryBytes(0, 2)
+                                + TestShuffleMaster.computeRequiredShuffleMemoryBytes(1, 6)),
+                new MemorySize(TestShuffleMaster.computeRequiredShuffleMemoryBytes(10, 0)));
+    }
+
+    private void testGenerateEnrichedResourceProfile(
+            ResultPartitionType resultPartitionType,
+            MemorySize group0MemorySize,
+            MemorySize group1MemorySize)
+            throws Exception {
 
         SlotSharingGroup slotSharingGroup0 = new SlotSharingGroup();
         slotSharingGroup0.setResourceProfile(DEFAULT_RESOURCE);
@@ -78,16 +111,11 @@ public class SsgNetworkMemoryCalculationUtilsTest {
         slotSharingGroup1.setResourceProfile(DEFAULT_RESOURCE);
 
         createExecutionGraphAndEnrichNetworkMemory(
-                Arrays.asList(slotSharingGroup0, slotSharingGroup0, slotSharingGroup1));
+                Arrays.asList(slotSharingGroup0, slotSharingGroup0, slotSharingGroup1),
+                resultPartitionType);
 
-        assertEquals(
-                new MemorySize(
-                        TestShuffleMaster.computeRequiredShuffleMemoryBytes(0, 2)
-                                + TestShuffleMaster.computeRequiredShuffleMemoryBytes(1, 6)),
-                slotSharingGroup0.getResourceProfile().getNetworkMemory());
-        assertEquals(
-                new MemorySize(TestShuffleMaster.computeRequiredShuffleMemoryBytes(5, 0)),
-                slotSharingGroup1.getResourceProfile().getNetworkMemory());
+        assertEquals(group0MemorySize, slotSharingGroup0.getResourceProfile().getNetworkMemory());
+        assertEquals(group1MemorySize, slotSharingGroup1.getResourceProfile().getNetworkMemory());
     }
 
     @Test
@@ -99,7 +127,8 @@ public class SsgNetworkMemoryCalculationUtilsTest {
         slotSharingGroup1.setResourceProfile(ResourceProfile.UNKNOWN);
 
         createExecutionGraphAndEnrichNetworkMemory(
-                Arrays.asList(slotSharingGroup0, slotSharingGroup0, slotSharingGroup1));
+                Arrays.asList(slotSharingGroup0, slotSharingGroup0, slotSharingGroup1),
+                ResultPartitionType.PIPELINED);
 
         assertEquals(ResourceProfile.UNKNOWN, slotSharingGroup0.getResourceProfile());
         assertEquals(ResourceProfile.UNKNOWN, slotSharingGroup1.getResourceProfile());
@@ -138,7 +167,7 @@ public class SsgNetworkMemoryCalculationUtilsTest {
                         new MemorySize(TestShuffleMaster.computeRequiredShuffleMemoryBytes(0, 5)),
                         new MemorySize(TestShuffleMaster.computeRequiredShuffleMemoryBytes(5, 20)),
                         new MemorySize(
-                                TestShuffleMaster.computeRequiredShuffleMemoryBytes(15, 0))));
+                                TestShuffleMaster.computeRequiredShuffleMemoryBytes(30, 0))));
     }
 
     private void triggerComputeNumOfSubpartitions(IntermediateResult result) {
@@ -213,7 +242,9 @@ public class SsgNetworkMemoryCalculationUtilsTest {
             final List<SlotSharingGroup> slotSharingGroups, int defaultMaxParallelism)
             throws Exception {
 
-        JobGraph jobGraph = createBatchGraph(slotSharingGroups, Arrays.asList(4, -1, -1));
+        JobGraph jobGraph =
+                createJobGraph(
+                        slotSharingGroups, Arrays.asList(4, -1, -1), ResultPartitionType.BLOCKING);
 
         final VertexParallelismStore vertexParallelismStore =
                 AdaptiveBatchScheduler.computeVertexParallelismStoreForDynamicGraph(
@@ -227,21 +258,14 @@ public class SsgNetworkMemoryCalculationUtilsTest {
     }
 
     private void createExecutionGraphAndEnrichNetworkMemory(
-            final List<SlotSharingGroup> slotSharingGroups) throws Exception {
+            final List<SlotSharingGroup> slotSharingGroups, ResultPartitionType resultPartitionType)
+            throws Exception {
         TestingDefaultExecutionGraphBuilder.newBuilder()
-                .setJobGraph(createStreamingGraph(slotSharingGroups, Arrays.asList(4, 5, 6)))
+                .setJobGraph(
+                        createJobGraph(
+                                slotSharingGroups, Arrays.asList(4, 5, 6), resultPartitionType))
                 .setShuffleMaster(SHUFFLE_MASTER)
                 .build(EXECUTOR_RESOURCE.getExecutor());
-    }
-
-    private static JobGraph createStreamingGraph(
-            final List<SlotSharingGroup> slotSharingGroups, List<Integer> parallelisms) {
-        return createJobGraph(slotSharingGroups, parallelisms, ResultPartitionType.PIPELINED);
-    }
-
-    private static JobGraph createBatchGraph(
-            final List<SlotSharingGroup> slotSharingGroups, List<Integer> parallelisms) {
-        return createJobGraph(slotSharingGroups, parallelisms, ResultPartitionType.BLOCKING);
     }
 
     private static JobGraph createJobGraph(
@@ -268,7 +292,16 @@ public class SsgNetworkMemoryCalculationUtilsTest {
         sink.setSlotSharingGroup(slotSharingGroups.get(2));
 
         map.connectNewDataSetAsInput(source, DistributionPattern.POINTWISE, resultPartitionType);
-        sink.connectNewDataSetAsInput(map, DistributionPattern.ALL_TO_ALL, resultPartitionType);
+        if (resultPartitionType == ResultPartitionType.BLOCKING) {
+            IntermediateDataSetID dataSetId = new IntermediateDataSetID();
+            sink.connectNewDataSetAsInput(
+                    map, DistributionPattern.ALL_TO_ALL, resultPartitionType, dataSetId, false);
+            sink.connectNewDataSetAsInput(
+                    map, DistributionPattern.ALL_TO_ALL, resultPartitionType, dataSetId, false);
+        } else {
+            sink.connectNewDataSetAsInput(map, DistributionPattern.ALL_TO_ALL, resultPartitionType);
+            sink.connectNewDataSetAsInput(map, DistributionPattern.ALL_TO_ALL, resultPartitionType);
+        }
 
         if (!resultPartitionType.isBlockingOrBlockingPersistentResultPartition()) {
             return JobGraphTestUtils.streamingJobGraph(source, map, sink);

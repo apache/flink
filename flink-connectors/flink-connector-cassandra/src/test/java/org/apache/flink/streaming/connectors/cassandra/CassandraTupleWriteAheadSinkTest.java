@@ -29,27 +29,30 @@ import com.datastax.driver.core.Cluster;
 import com.datastax.driver.core.PreparedStatement;
 import com.datastax.driver.core.ResultSetFuture;
 import com.datastax.driver.core.Session;
-import org.junit.Test;
-import org.mockito.Matchers;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Timeout;
+import org.mockito.ArgumentMatchers;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 
 import java.util.Collections;
 import java.util.concurrent.Executor;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.anyString;
-import static org.powermock.api.mockito.PowerMockito.doAnswer;
-import static org.powermock.api.mockito.PowerMockito.mock;
-import static org.powermock.api.mockito.PowerMockito.when;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 /** Tests for the {@link CassandraTupleWriteAheadSink}. */
-public class CassandraTupleWriteAheadSinkTest {
+class CassandraTupleWriteAheadSinkTest {
 
-    @Test(timeout = 20000)
-    public void testAckLoopExitOnException() throws Exception {
+    @Test
+    @Timeout(value = 20_000, unit = TimeUnit.MILLISECONDS)
+    void testAckLoopExitOnException() throws Exception {
         final AtomicReference<Runnable> runnableFuture = new AtomicReference<>();
 
         final ClusterBuilder clusterBuilder =
@@ -64,7 +67,7 @@ public class CassandraTupleWriteAheadSinkTest {
                                     .thenReturn(boundStatement);
 
                             PreparedStatement preparedStatement = mock(PreparedStatement.class);
-                            when(preparedStatement.bind(Matchers.anyVararg()))
+                            when(preparedStatement.bind(ArgumentMatchers.any()))
                                     .thenReturn(boundStatement);
 
                             ResultSetFuture future = mock(ResultSetFuture.class);

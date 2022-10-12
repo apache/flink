@@ -45,12 +45,13 @@ See how to link with it for cluster execution [here]({{< ref "docs/dev/configura
 
 A driver dependency is also required to connect to a specified database. Here are drivers currently supported:
 
-| Driver      |      Group Id      |      Artifact Id       |      JAR         |
-| :-----------| :------------------| :----------------------| :----------------|
-| MySQL       |       `mysql`      | `mysql-connector-java` | [Download](https://repo.maven.apache.org/maven2/mysql/mysql-connector-java/) |
-| Oracle      | `com.oracle.database.jdbc` |        `ojdbc8`        | [Download](https://mvnrepository.com/artifact/com.oracle.database.jdbc/ojdbc8) |
-| PostgreSQL  |  `org.postgresql`  |      `postgresql`      | [Download](https://jdbc.postgresql.org/download.html) |
-| Derby       | `org.apache.derby` |        `derby`         | [Download](http://db.apache.org/derby/derby_downloads.html) |
+| Driver     |      Group Id      |      Artifact Id       |      JAR         |
+|:-----------| :------------------| :----------------------| :----------------|
+| MySQL      |       `mysql`      | `mysql-connector-java` | [Download](https://repo.maven.apache.org/maven2/mysql/mysql-connector-java/) |
+| Oracle     | `com.oracle.database.jdbc` |        `ojdbc8`        | [Download](https://mvnrepository.com/artifact/com.oracle.database.jdbc/ojdbc8) |
+| PostgreSQL |  `org.postgresql`  |      `postgresql`      | [Download](https://jdbc.postgresql.org/download.html) |
+| Derby      | `org.apache.derby` |        `derby`         | [Download](http://db.apache.org/derby/derby_downloads.html) |
+| SQL Server | `com.microsoft.sqlserver` |        `mssql-jdbc`         | [Download](https://docs.microsoft.com/en-us/sql/connect/jdbc/download-microsoft-jdbc-driver-for-sql-server?view=sql-server-ver16) |
 
 
 JDBC connector and drivers are not part of Flink's binary distribution. See how to link with them for cluster execution [here]({{< ref "docs/dev/configuration" >}}).
@@ -210,30 +211,48 @@ Connector Options
       <a href="https://jdbc.postgresql.org/documentation/head/query.html#query-with-cursor">Postgres</a>, may require this to be set to false in order to stream results.</td>
     </tr>
     <tr>
-      <td><h5>lookup.cache.max-rows</h5></td>
+      <td><h5>lookup.cache</h5></td>
+      <td>optional</td>
+      <td>yes</td>
+      <td style="word-wrap: break-word;">NONE</td>
+      <td><p>Enum</p>Possible values: NONE, PARTIAL</td>
+      <td>The cache strategy for the lookup table. Currently supports NONE (no caching) and PARTIAL (caching entries on lookup operation in external database).</td>
+    </tr>
+    <tr>
+      <td><h5>lookup.partial-cache.max-rows</h5></td>
       <td>optional</td>
       <td>yes</td>
       <td style="word-wrap: break-word;">(none)</td>
-      <td>Integer</td>
+      <td>Long</td>
       <td>The max number of rows of lookup cache, over this value, the oldest rows will be expired.
-      Lookup cache is disabled by default. See the following <a href="#lookup-cache">Lookup Cache</a> section for more details.</td>
+      "lookup.cache" must be set to "PARTIAL" to use this option. See the following <a href="#lookup-cache">Lookup Cache</a> section for more details.</td>
     </tr>
     <tr>
-      <td><h5>lookup.cache.ttl</h5></td>
+      <td><h5>lookup.partial-cache.expire-after-write</h5></td>
       <td>optional</td>
       <td>yes</td>
       <td style="word-wrap: break-word;">(none)</td>
       <td>Duration</td>
-      <td>The max time to live for each rows in lookup cache, over this time, the oldest rows will be expired.
-      Lookup cache is disabled by default. See the following <a href="#lookup-cache">Lookup Cache</a> section for more details. </td>
+      <td>The max time to live for each rows in lookup cache after writing into the cache. 
+      "lookup.cache" must be set to "PARTIAL" to use this option. See the following <a href="#lookup-cache">Lookup Cache</a> section for more details. </td>
     </tr>
     <tr>
-      <td><h5>lookup.cache.caching-missing-key</h5></td>
+      <td><h5>lookup.partial-cache.expire-after-access</h5></td>
+      <td>optional</td>
+      <td>yes</td>
+      <td style="word-wrap: break-word;">(none)</td>
+      <td>Duration</td>
+      <td>The max time to live for each rows in lookup cache after accessing the entry in the cache.
+      "lookup.cache" must be set to "PARTIAL" to use this option. See the following <a href="#lookup-cache">Lookup Cache</a> section for more details. </td>
+    </tr>
+    <tr>
+      <td><h5>lookup.partial-cache.caching-missing-key</h5></td>
       <td>optional</td>
       <td>yes</td>
       <td style="word-wrap: break-word;">true</td>
       <td>Boolean</td>
-      <td>Flag to cache missing key, true by default</td>
+      <td>Whether to store an empty value into the cache if the lookup key doesn't match any rows in the table. 
+        "lookup.cache" must be set to "PARTIAL" to use this option.</td>
     </tr>
     <tr>
       <td><h5>lookup.max-retries</h5></td>
@@ -278,6 +297,47 @@ Connector Options
     </tbody>
 </table>
 
+### Deprecated Options
+These deprecated options has been replaced by new options listed above and will be removed eventually. Please consider using new options first.
+<table>
+    <thead>
+      <tr>
+        <th class="text-left" style="width: 25%">Option</th>
+        <th class="text-left" style="width: 8%">Required</th>
+        <th class="text-left" style="width: 8%">Forwarded</th>
+        <th class="text-left" style="width: 7%">Default</th>
+        <th class="text-left" style="width: 10%">Type</th>
+        <th class="text-left" style="width: 42%">Description</th>
+      </tr>
+    </thead>
+    <tbody>
+        <tr>
+          <td><h5>lookup.cache.max-rows</h5></td>
+          <td>optional</td>
+          <td>yes</td>
+          <td style="word-wrap: break-word;">(none)</td>
+          <td>Integer</td>
+          <td>Please set "lookup.cache" = "PARTIAL" and use "lookup.partial-cache.max-rows" instead.</td>
+        </tr>
+        <tr>
+          <td><h5>lookup.cache.ttl</h5></td>
+          <td>optional</td>
+          <td>yes</td>
+          <td style="word-wrap: break-word;">(none)</td>
+          <td>Duration</td>
+          <td>Please set "lookup.cache" = "PARTIAL" and use "lookup.partial-cache.expire-after-write" instead.</td>
+        </tr>
+        <tr>
+          <td><h5>lookup.cache.caching-missing-key</h5></td>
+          <td>optional</td>
+          <td>yes</td>
+          <td style="word-wrap: break-word;">true</td>
+          <td>Boolean</td>
+          <td>Please set "lookup.cache" = "PARTIAL" and use "lookup.partial-cache.caching-missing-key" instead.</td>
+        </tr>
+    </tbody>
+<table>
+
 Features
 --------
 
@@ -305,14 +365,14 @@ The `scan.partition.column` must be a numeric, date, or timestamp column from th
 
 JDBC connector can be used in temporal join as a lookup source (aka. dimension table). Currently, only sync lookup mode is supported.
 
-By default, lookup cache is not enabled. You can enable it by setting both `lookup.cache.max-rows` and `lookup.cache.ttl`.
+By default, lookup cache is not enabled. You can enable it by setting `lookup.cache` to `PARTIAL`.
 
 The lookup cache is used to improve performance of temporal join the JDBC connector. By default, lookup cache is not enabled, so all the requests are sent to external database.
 When lookup cache is enabled, each process (i.e. TaskManager) will hold a cache. Flink will lookup the cache first, and only send requests to external database when cache missing, and update cache with the rows returned.
-The oldest rows in cache will be expired when the cache hit to the max cached rows `lookup.cache.max-rows` or when the row exceeds the max time to live `lookup.cache.ttl`.
-The cached rows might not be the latest, users can tune `lookup.cache.ttl` to a smaller value to have a better fresh data, but this may increase the number of requests send to database. So this is a balance between throughput and correctness.
+The oldest rows in cache will be expired when the cache hit to the max cached rows `lookup.partial-cache.max-rows` or when the row exceeds the max time to live specified by `lookup.partial-cache.expire-after-write` or `lookup.partial-cache.expire-after-access`.
+The cached rows might not be the latest, users can tune expiration options to a smaller value to have a better fresh data, but this may increase the number of requests send to database. So this is a balance between throughput and correctness.
 
-By default, flink will cache the empty query result for a Primary key, you can toggle the behaviour by setting `lookup.cache.caching-missing-key` to false. 
+By default, flink will cache the empty query result for a Primary key, you can toggle the behaviour by setting `lookup.partial-cache.caching-missing-key` to false.
 
 ### Idempotent Writes
 
@@ -346,6 +406,13 @@ As there is no standard syntax for upsert, the following table describes the dat
         <tr>
             <td>PostgreSQL</td>
             <td>INSERT .. ON CONFLICT .. DO UPDATE SET ..</td>
+        </tr>
+        <tr>
+            <td>MS SQL Server</td>
+            <td>MERGE INTO .. USING (..) ON (..) <br>
+                WHEN MATCHED THEN UPDATE SET (..) <br>
+                WHEN NOT MATCHED THEN INSERT (..) <br>
+                VALUES (..)</td>
         </tr>
     </tbody>
 </table>
@@ -546,6 +613,7 @@ Flink supports connect to several databases which uses dialect like MySQL, Oracl
         <th class="text-left"><a href="https://dev.mysql.com/doc/refman/8.0/en/data-types.html">MySQL type</a></th>
         <th class="text-left"><a href="https://docs.oracle.com/database/121/SQLRF/sql_elements001.htm#SQLRF30020">Oracle type</a></th>
         <th class="text-left"><a href="https://www.postgresql.org/docs/12/datatype.html">PostgreSQL type</a></th>
+        <th class="text-left"><a href="https://docs.microsoft.com/en-us/sql/t-sql/data-types/data-types-transact-sql?view=sql-server-ver16">SQL Server type</a></th>
         <th class="text-left"><a href="{{< ref "docs/dev/table/types" >}}">Flink SQL type</a></th>
       </tr>
     </thead>
@@ -554,6 +622,7 @@ Flink supports connect to several databases which uses dialect like MySQL, Oracl
       <td><code>TINYINT</code></td>
       <td></td>
       <td></td>
+      <td><code>TINYINT</code></td>
       <td><code>TINYINT</code></td>
     </tr>
     <tr>
@@ -567,6 +636,7 @@ Flink supports connect to several databases which uses dialect like MySQL, Oracl
         <code>SMALLSERIAL</code><br>
         <code>SERIAL2</code></td>
       <td><code>SMALLINT</code></td>
+      <td><code>SMALLINT</code></td>
     </tr>
     <tr>
       <td>
@@ -578,6 +648,7 @@ Flink supports connect to several databases which uses dialect like MySQL, Oracl
         <code>INTEGER</code><br>
         <code>SERIAL</code></td>
       <td><code>INT</code></td>
+      <td><code>INT</code></td>
     </tr>
     <tr>
       <td>
@@ -588,18 +659,14 @@ Flink supports connect to several databases which uses dialect like MySQL, Oracl
         <code>BIGINT</code><br>
         <code>BIGSERIAL</code></td>
       <td><code>BIGINT</code></td>
+      <td><code>BIGINT</code></td>
     </tr>
    <tr>
       <td><code>BIGINT UNSIGNED</code></td>
       <td></td>
       <td></td>
-      <td><code>DECIMAL(20, 0)</code></td>
-    </tr>
-    <tr>
-      <td><code>BIGINT</code></td>
       <td></td>
-      <td><code>BIGINT</code></td>
-      <td><code>BIGINT</code></td>
+      <td><code>DECIMAL(20, 0)</code></td>
     </tr>
     <tr>
       <td><code>FLOAT</code></td>
@@ -608,6 +675,7 @@ Flink supports connect to several databases which uses dialect like MySQL, Oracl
       <td>
         <code>REAL</code><br>
         <code>FLOAT4</code></td>
+      <td><code>REAL</code></td>
       <td><code>FLOAT</code></td>
     </tr>
     <tr>
@@ -618,6 +686,7 @@ Flink supports connect to several databases which uses dialect like MySQL, Oracl
       <td>
         <code>FLOAT8</code><br>
         <code>DOUBLE PRECISION</code></td>
+      <td><code>FLOAT</code></td>
       <td><code>DOUBLE</code></td>
     </tr>
     <tr>
@@ -634,6 +703,7 @@ Flink supports connect to several databases which uses dialect like MySQL, Oracl
         <code>NUMERIC(p, s)</code><br>
         <code>DECIMAL(p, s)</code></td>
       <td><code>DECIMAL(p, s)</code></td>
+      <td><code>DECIMAL(p, s)</code></td>
     </tr>
     <tr>
       <td>
@@ -641,9 +711,11 @@ Flink supports connect to several databases which uses dialect like MySQL, Oracl
         <code>TINYINT(1)</code></td>
       <td></td>
       <td><code>BOOLEAN</code></td>
+      <td><code>BIT</code></td>
       <td><code>BOOLEAN</code></td>
     </tr>
     <tr>
+      <td><code>DATE</code></td>
       <td><code>DATE</code></td>
       <td><code>DATE</code></td>
       <td><code>DATE</code></td>
@@ -653,12 +725,17 @@ Flink supports connect to several databases which uses dialect like MySQL, Oracl
       <td><code>TIME [(p)]</code></td>
       <td><code>DATE</code></td>
       <td><code>TIME [(p)] [WITHOUT TIMEZONE]</code></td>
+      <td><code>TIME(0)</code></td>
       <td><code>TIME [(p)] [WITHOUT TIMEZONE]</code></td>
     </tr>
     <tr>
       <td><code>DATETIME [(p)]</code></td>
       <td><code>TIMESTAMP [(p)] [WITHOUT TIMEZONE]</code></td>
       <td><code>TIMESTAMP [(p)] [WITHOUT TIMEZONE]</code></td>
+      <td>
+        <code>DATETIME</code>
+        <code>DATETIME2</code>
+      </td>
       <td><code>TIMESTAMP [(p)] [WITHOUT TIMEZONE]</code></td>
     </tr>
     <tr>
@@ -676,6 +753,13 @@ Flink supports connect to several databases which uses dialect like MySQL, Oracl
         <code>VARCHAR(n)</code><br>
         <code>CHARACTER VARYING(n)</code><br>
         <code>TEXT</code></td>
+      <td>
+        <code>CHAR(n)</code><br>
+        <code>NCHAR(n)</code><br>
+        <code>VARCHAR(n)</code><br>
+        <code>NVARCHAR(n)</code><br>
+        <code>TEXT</code><br>
+        <code>NTEXT</code></td>
       <td><code>STRING</code></td>
     </tr>
     <tr>
@@ -687,12 +771,16 @@ Flink supports connect to several databases which uses dialect like MySQL, Oracl
         <code>RAW(s)</code><br>
         <code>BLOB</code></td>
       <td><code>BYTEA</code></td>
+      <td>
+        <code>BINARY(n)</code><br>
+        <code>VARBINARY(n)</code><br></td>
       <td><code>BYTES</code></td>
     </tr>
     <tr>
       <td></td>
       <td></td>
       <td><code>ARRAY</code></td>
+      <td></td>
       <td><code>ARRAY</code></td>
     </tr>
     </tbody>

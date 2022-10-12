@@ -129,6 +129,7 @@ public class MySqlCatalogTestBase {
             CATALOGS.put(
                     dockerImageName,
                     new MySqlCatalog(
+                            Thread.currentThread().getContextClassLoader(),
                             TEST_CATALOG_NAME,
                             TEST_DB,
                             TEST_USERNAME,

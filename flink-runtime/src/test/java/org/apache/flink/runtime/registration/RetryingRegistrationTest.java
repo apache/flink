@@ -31,7 +31,6 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.ClassRule;
 import org.junit.Test;
-import org.mockito.invocation.InvocationOnMock;
 import org.slf4j.LoggerFactory;
 
 import java.util.ArrayDeque;
@@ -52,7 +51,6 @@ import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.mockito.Mockito.any;
-import static org.mockito.Mockito.anyLong;
 import static org.mockito.Mockito.anyString;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -77,7 +75,7 @@ public class RetryingRegistrationTest extends TestLogger {
     @After
     public void tearDown() throws ExecutionException, InterruptedException {
         if (rpcService != null) {
-            rpcService.stopService().get();
+            rpcService.closeAsync().get();
         }
     }
 
@@ -171,14 +169,6 @@ public class RetryingRegistrationTest extends TestLogger {
                                     testGateway) // second connection attempt succeeds
                             );
             when(rpc.getScheduledExecutor()).thenReturn(executor);
-            when(rpc.scheduleRunnable(any(Runnable.class), anyLong(), any(TimeUnit.class)))
-                    .thenAnswer(
-                            (InvocationOnMock invocation) -> {
-                                final Runnable runnable = invocation.getArgument(0);
-                                final long delay = invocation.getArgument(1);
-                                final TimeUnit timeUnit = invocation.getArgument(2);
-                                return executor.schedule(runnable, delay, timeUnit);
-                            });
 
             TestRetryingRegistration registration =
                     new TestRetryingRegistration(rpc, "foobar address", leaderId);

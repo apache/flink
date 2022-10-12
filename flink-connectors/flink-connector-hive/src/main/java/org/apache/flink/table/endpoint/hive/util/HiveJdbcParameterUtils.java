@@ -19,16 +19,12 @@
 package org.apache.flink.table.endpoint.hive.util;
 
 import org.apache.flink.table.api.ValidationException;
+import org.apache.flink.table.planner.delegation.hive.copy.HiveSetProcessor;
 
-import java.util.HashMap;
+import org.apache.hadoop.hive.conf.HiveConf;
+
 import java.util.Map;
 import java.util.Optional;
-
-import static org.apache.hadoop.hive.conf.SystemVariables.ENV_PREFIX;
-import static org.apache.hadoop.hive.conf.SystemVariables.HIVECONF_PREFIX;
-import static org.apache.hadoop.hive.conf.SystemVariables.HIVEVAR_PREFIX;
-import static org.apache.hadoop.hive.conf.SystemVariables.METACONF_PREFIX;
-import static org.apache.hadoop.hive.conf.SystemVariables.SYSTEM_PREFIX;
 
 /**
  * Utils to normalize and validate hive jdbc conf.
@@ -49,37 +45,21 @@ public class HiveJdbcParameterUtils {
     private static final String USE_PREFIX = "use:";
     private static final String USE_DATABASE = "database";
 
-    public static Map<String, String> validateAndNormalize(Map<String, String> parameters) {
-        Map<String, String> normalized = new HashMap<>();
+    /**
+     * Use the {@param parameters} to set {@param hiveConf} or {@param hiveVariables} according to
+     * what kinds of the parameter belongs.
+     */
+    public static void setVariables(
+            HiveConf hiveConf, Map<String, String> sessionConfigs, Map<String, String> parameters) {
         for (Map.Entry<String, String> entry : parameters.entrySet()) {
             String key = entry.getKey();
-            String normalizedKey = key;
             if (key.startsWith(SET_PREFIX)) {
                 String newKey = key.substring(SET_PREFIX.length());
-                // TODO: use HiveParserSetProcessor when FLINK-28096 is fixed
-                if (newKey.startsWith(ENV_PREFIX)) {
-                    throw new ValidationException(
-                            String.format(
-                                    "Can not set env variables %s during the session connection.",
-                                    key));
-                } else if (newKey.startsWith(SYSTEM_PREFIX)) {
-                    normalizedKey = newKey.substring(SYSTEM_PREFIX.length());
-                } else if (newKey.startsWith(HIVECONF_PREFIX)) {
-                    normalizedKey = newKey.substring(HIVECONF_PREFIX.length());
-                } else if (newKey.startsWith(HIVEVAR_PREFIX)) {
-                    normalizedKey = newKey.substring(HIVEVAR_PREFIX.length());
-                } else if (newKey.startsWith(METACONF_PREFIX)) {
-                    normalizedKey = newKey.substring(METACONF_PREFIX.length());
-                } else {
-                    normalizedKey = newKey;
-                }
-            } else if (key.startsWith(USE_PREFIX)) {
-                // ignore use parameters
-                continue;
+                HiveSetProcessor.setVariable(hiveConf, sessionConfigs, newKey, entry.getValue());
+            } else if (!key.startsWith(USE_PREFIX)) {
+                sessionConfigs.put(key, entry.getValue());
             }
-            normalized.put(normalizedKey, entry.getValue());
         }
-        return normalized;
     }
 
     public static Optional<String> getUsedDefaultDatabase(Map<String, String> parameters) {

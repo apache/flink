@@ -19,6 +19,9 @@
 package org.apache.flink.table.runtime.functions.table.lookup.fullcache;
 
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.metrics.Counter;
+import org.apache.flink.metrics.SimpleCounter;
+import org.apache.flink.metrics.ThreadSafeSimpleCounter;
 import org.apache.flink.metrics.groups.CacheMetricGroup;
 import org.apache.flink.table.connector.source.lookup.LookupOptions.LookupCacheType;
 import org.apache.flink.table.connector.source.lookup.cache.LookupCache;
@@ -39,6 +42,9 @@ public class LookupFullCache implements LookupCache {
     private transient volatile ReloadTriggerContext reloadTriggerContext;
     private transient volatile Throwable reloadFailCause;
 
+    // Cache metrics
+    private transient Counter hitCounter; // equals to number of requests
+
     public LookupFullCache(CacheLoader cacheLoader, CacheReloadTrigger reloadTrigger) {
         this.cacheLoader = Preconditions.checkNotNull(cacheLoader);
         this.reloadTrigger = Preconditions.checkNotNull(reloadTrigger);
@@ -46,6 +52,11 @@ public class LookupFullCache implements LookupCache {
 
     @Override
     public synchronized void open(CacheMetricGroup metricGroup) {
+        if (hitCounter == null) {
+            hitCounter = new ThreadSafeSimpleCounter();
+        }
+        metricGroup.hitCounter(hitCounter);
+        metricGroup.missCounter(new SimpleCounter()); // always zero
         cacheLoader.open(metricGroup);
     }
 
@@ -73,7 +84,10 @@ public class LookupFullCache implements LookupCache {
         if (reloadFailCause != null) {
             throw new RuntimeException(reloadFailCause);
         }
-        return cacheLoader.getCache().getOrDefault(key, Collections.emptyList());
+        Collection<RowData> result =
+                cacheLoader.getCache().getOrDefault(key, Collections.emptyList());
+        hitCounter.inc();
+        return result;
     }
 
     @Override
@@ -95,7 +109,7 @@ public class LookupFullCache implements LookupCache {
 
     @Override
     public void close() throws Exception {
+        reloadTrigger.close(); // firstly try to interrupt reload thread
         cacheLoader.close();
-        reloadTrigger.close();
     }
 }

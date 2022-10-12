@@ -706,7 +706,7 @@ public class MiniCluster implements AutoCloseableAsync {
 
             // metrics shutdown
             if (metricRegistry != null) {
-                terminationFutures.add(metricRegistry.shutdown());
+                terminationFutures.add(metricRegistry.closeAsync());
                 metricRegistry = null;
             }
 
@@ -1283,10 +1283,10 @@ public class MiniCluster implements AutoCloseableAsync {
             final Collection<CompletableFuture<?>> rpcTerminationFutures =
                     new ArrayList<>(numRpcServices);
 
-            rpcTerminationFutures.add(commonRpcService.stopService());
+            rpcTerminationFutures.add(commonRpcService.closeAsync());
 
             for (RpcService rpcService : rpcServices) {
-                rpcTerminationFutures.add(rpcService.stopService());
+                rpcTerminationFutures.add(rpcService.closeAsync());
             }
 
             commonRpcService = null;

@@ -18,17 +18,19 @@
 
 package org.apache.flink.connector.pulsar.source.enumerator.assigner;
 
+import org.apache.flink.api.connector.source.SplitEnumeratorContext;
 import org.apache.flink.api.connector.source.SplitsAssignment;
-import org.apache.flink.configuration.Configuration;
-import org.apache.flink.connector.pulsar.source.config.SourceConfiguration;
+import org.apache.flink.api.connector.source.mocks.MockSplitEnumeratorContext;
 import org.apache.flink.connector.pulsar.source.enumerator.PulsarSourceEnumState;
 import org.apache.flink.connector.pulsar.source.enumerator.cursor.StopCursor;
 import org.apache.flink.connector.pulsar.source.enumerator.topic.TopicPartition;
 import org.apache.flink.connector.pulsar.source.split.PulsarPartitionSplit;
 import org.apache.flink.util.TestLogger;
 
+import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.Test;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -36,18 +38,19 @@ import java.util.Set;
 import static java.util.Collections.emptyList;
 import static java.util.Collections.singleton;
 import static java.util.Collections.singletonList;
-import static org.apache.flink.connector.pulsar.source.PulsarSourceOptions.PULSAR_PARTITION_DISCOVERY_INTERVAL_MS;
 import static org.apache.flink.connector.pulsar.source.enumerator.PulsarSourceEnumState.initialState;
 import static org.apache.flink.connector.pulsar.source.enumerator.cursor.StopCursor.defaultStopCursor;
-import static org.apache.flink.connector.pulsar.source.enumerator.topic.TopicRange.createFullRange;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test utils for split assigners. */
-abstract class SplitAssignerTestBase<T extends SplitAssigner> extends TestLogger {
+abstract class SplitAssignerTestBase extends TestLogger {
+
+    private static final List<MockSplitEnumeratorContext<PulsarPartitionSplit>> enumeratorContexts =
+            new ArrayList<>();
 
     @Test
     void registerTopicPartitionsWillOnlyReturnNewPartitions() {
-        T assigner = splitAssigner(true);
+        SplitAssigner assigner = splitAssigner(true, 4);
 
         Set<TopicPartition> partitions = createPartitions("persistent://public/default/a", 1);
         List<TopicPartition> newPartitions = assigner.registerTopicPartitions(partitions);
@@ -72,7 +75,7 @@ abstract class SplitAssignerTestBase<T extends SplitAssigner> extends TestLogger
 
     @Test
     void noReadersProvideForAssignment() {
-        T assigner = splitAssigner(false);
+        SplitAssigner assigner = splitAssigner(false, 4);
         assigner.registerTopicPartitions(createPartitions("c", 5));
 
         Optional<SplitsAssignment<PulsarPartitionSplit>> assignment =
@@ -82,32 +85,43 @@ abstract class SplitAssignerTestBase<T extends SplitAssigner> extends TestLogger
 
     @Test
     void noPartitionsProvideForAssignment() {
-        T assigner = splitAssigner(true);
+        SplitAssigner assigner = splitAssigner(true, 4);
         Optional<SplitsAssignment<PulsarPartitionSplit>> assignment =
                 assigner.createAssignment(singletonList(4));
         assertThat(assignment).isNotPresent();
     }
 
     protected Set<TopicPartition> createPartitions(String topic, int partitionId) {
-        TopicPartition p1 = new TopicPartition(topic, partitionId, createFullRange());
+        TopicPartition p1 = new TopicPartition(topic, partitionId);
         return singleton(p1);
     }
 
-    protected T splitAssigner(boolean discovery) {
-        Configuration configuration = new Configuration();
-
-        if (discovery) {
-            configuration.set(PULSAR_PARTITION_DISCOVERY_INTERVAL_MS, 1000L);
-        } else {
-            configuration.set(PULSAR_PARTITION_DISCOVERY_INTERVAL_MS, -1L);
-        }
-
-        SourceConfiguration sourceConfiguration = new SourceConfiguration(configuration);
-        return createAssigner(defaultStopCursor(), sourceConfiguration, initialState());
+    protected SplitAssigner splitAssigner(boolean discovery, int parallelism) {
+        MockSplitEnumeratorContext<PulsarPartitionSplit> context =
+                new MockSplitEnumeratorContext<>(parallelism);
+        enumeratorContexts.add(context);
+        return createAssigner(defaultStopCursor(), discovery, context, initialState());
     }
 
-    protected abstract T createAssigner(
+    protected SplitAssigner splitAssigner(
+            boolean discovery, int parallelism, Set<TopicPartition> partitions) {
+        MockSplitEnumeratorContext<PulsarPartitionSplit> context =
+                new MockSplitEnumeratorContext<>(parallelism);
+        enumeratorContexts.add(context);
+        return createAssigner(
+                defaultStopCursor(), discovery, context, new PulsarSourceEnumState(partitions));
+    }
+
+    protected abstract SplitAssigner createAssigner(
             StopCursor stopCursor,
-            SourceConfiguration sourceConfiguration,
-            PulsarSourceEnumState sourceEnumState);
+            boolean enablePartitionDiscovery,
+            SplitEnumeratorContext<PulsarPartitionSplit> context,
+            PulsarSourceEnumState enumState);
+
+    @AfterAll
+    static void afterAll() throws Exception {
+        for (MockSplitEnumeratorContext<PulsarPartitionSplit> context : enumeratorContexts) {
+            context.close();
+        }
+    }
 }

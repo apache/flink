@@ -512,7 +512,7 @@ public abstract class ClusterEntrypoint implements AutoCloseableAsync, FatalErro
             }
 
             if (metricRegistry != null) {
-                terminationFutures.add(metricRegistry.shutdown());
+                terminationFutures.add(metricRegistry.closeAsync());
             }
 
             if (ioExecutor != null) {
@@ -522,7 +522,7 @@ public abstract class ClusterEntrypoint implements AutoCloseableAsync, FatalErro
             }
 
             if (commonRpcService != null) {
-                terminationFutures.add(commonRpcService.stopService());
+                terminationFutures.add(commonRpcService.closeAsync());
             }
 
             try {

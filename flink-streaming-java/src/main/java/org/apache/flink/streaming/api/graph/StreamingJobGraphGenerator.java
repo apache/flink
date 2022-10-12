@@ -126,10 +126,16 @@ public class StreamingJobGraphGenerator {
 
     @VisibleForTesting
     public static JobGraph createJobGraph(StreamGraph streamGraph) {
-        return new StreamingJobGraphGenerator(streamGraph, null, Runnable::run).createJobGraph();
+        return new StreamingJobGraphGenerator(
+                        Thread.currentThread().getContextClassLoader(),
+                        streamGraph,
+                        null,
+                        Runnable::run)
+                .createJobGraph();
     }
 
-    public static JobGraph createJobGraph(StreamGraph streamGraph, @Nullable JobID jobID) {
+    public static JobGraph createJobGraph(
+            ClassLoader userClassLoader, StreamGraph streamGraph, @Nullable JobID jobID) {
         // TODO Currently, we construct a new thread pool for the compilation of each job. In the
         // future, we may refactor the job submission framework and make it reusable across jobs.
         final ExecutorService serializationExecutor =
@@ -141,7 +147,8 @@ public class StreamingJobGraphGenerator {
                                         streamGraph.getExecutionConfig().getParallelism())),
                         new ExecutorThreadFactory("flink-operator-serialization-io"));
         try {
-            return new StreamingJobGraphGenerator(streamGraph, jobID, serializationExecutor)
+            return new StreamingJobGraphGenerator(
+                            userClassLoader, streamGraph, jobID, serializationExecutor)
                     .createJobGraph();
         } finally {
             serializationExecutor.shutdown();
@@ -150,6 +157,7 @@ public class StreamingJobGraphGenerator {
 
     // ------------------------------------------------------------------------
 
+    private final ClassLoader userClassloader;
     private final StreamGraph streamGraph;
 
     private final Map<Integer, JobVertex> jobVertices;
@@ -181,7 +189,11 @@ public class StreamingJobGraphGenerator {
     private final Map<Integer, Map<StreamEdge, NonChainedOutput>> opIntermediateOutputs;
 
     private StreamingJobGraphGenerator(
-            StreamGraph streamGraph, @Nullable JobID jobID, Executor serializationExecutor) {
+            ClassLoader userClassloader,
+            StreamGraph streamGraph,
+            @Nullable JobID jobID,
+            Executor serializationExecutor) {
+        this.userClassloader = userClassloader;
         this.streamGraph = streamGraph;
         this.defaultStreamGraphHasher = new StreamGraphHasherV2();
         this.legacyStreamGraphHashers = Arrays.asList(new StreamGraphUserHashHasher());
@@ -455,11 +467,11 @@ public class StreamingJobGraphGenerator {
                                 + "\nThe user can force Unaligned Checkpoints by using 'execution.checkpointing.unaligned.forced'");
             }
 
-            ClassLoader classLoader = Thread.currentThread().getContextClassLoader();
             for (StreamNode node : streamGraph.getStreamNodes()) {
                 StreamOperatorFactory operatorFactory = node.getOperatorFactory();
                 if (operatorFactory != null) {
-                    Class<?> operatorClass = operatorFactory.getStreamOperatorClass(classLoader);
+                    Class<?> operatorClass =
+                            operatorFactory.getStreamOperatorClass(userClassloader);
                     if (InputSelectable.class.isAssignableFrom(operatorClass)) {
 
                         throw new UnsupportedOperationException(
@@ -969,6 +981,7 @@ public class StreamingJobGraphGenerator {
         config.setCheckpointMode(getCheckpointingMode(checkpointCfg));
         config.setUnalignedCheckpointsEnabled(checkpointCfg.isUnalignedCheckpointsEnabled());
         config.setAlignedCheckpointTimeout(checkpointCfg.getAlignedCheckpointTimeout());
+        config.setMaxConcurrentCheckpoints(checkpointCfg.getMaxConcurrentCheckpoints());
 
         for (int i = 0; i < vertex.getStatePartitioners().length; i++) {
             config.setStatePartitioner(i, vertex.getStatePartitioners()[i]);

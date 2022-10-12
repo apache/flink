@@ -18,9 +18,11 @@
 
 package org.apache.flink.connector.pulsar.source.enumerator.subscriber.impl;
 
+import org.apache.flink.connector.pulsar.source.enumerator.topic.TopicNameUtils;
 import org.apache.flink.connector.pulsar.source.enumerator.topic.TopicPartition;
 import org.apache.flink.connector.pulsar.source.enumerator.topic.TopicRange;
 import org.apache.flink.connector.pulsar.source.enumerator.topic.range.RangeGenerator;
+import org.apache.flink.connector.pulsar.source.enumerator.topic.range.RangeGenerator.KeySharedMode;
 
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
@@ -35,6 +37,7 @@ import java.util.Set;
 import java.util.regex.Pattern;
 
 import static java.util.stream.Collectors.toSet;
+import static org.apache.flink.shaded.guava30.com.google.common.base.Predicates.not;
 
 /** Subscribe to matching topics based on topic pattern. */
 public class TopicPatternSubscriber extends BasePulsarSubscriber {
@@ -64,6 +67,7 @@ public class TopicPatternSubscriber extends BasePulsarSubscriber {
                     .getTopics(namespace)
                     .parallelStream()
                     .filter(this::matchesSubscriptionMode)
+                    .filter(not(TopicNameUtils::isInternal))
                     .filter(topic -> topicPattern.matcher(topic).find())
                     .map(topic -> queryTopicMetadata(pulsarAdmin, topic))
                     .filter(Objects::nonNull)
@@ -71,7 +75,9 @@ public class TopicPatternSubscriber extends BasePulsarSubscriber {
                             metadata -> {
                                 List<TopicRange> ranges =
                                         rangeGenerator.range(metadata, parallelism);
-                                return toTopicPartitions(metadata, ranges).stream();
+                                KeySharedMode mode =
+                                        rangeGenerator.keyShareMode(metadata, parallelism);
+                                return toTopicPartitions(metadata, ranges, mode).stream();
                             })
                     .collect(toSet());
         } catch (PulsarAdminException e) {
@@ -79,7 +85,7 @@ public class TopicPatternSubscriber extends BasePulsarSubscriber {
                 // Skip the topic metadata query.
                 return Collections.emptySet();
             } else {
-                // This method would cause the failure for subscriber.
+                // This method would cause failure for subscribers.
                 throw new IllegalStateException(e);
             }
         }

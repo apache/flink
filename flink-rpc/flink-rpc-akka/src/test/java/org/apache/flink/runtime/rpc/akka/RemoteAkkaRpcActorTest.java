@@ -160,7 +160,7 @@ class RemoteAkkaRpcActorTest {
                                     AkkaRpcActorTest.SerializedValueRespondingGateway.class)
                             .join();
 
-            toBeClosedRpcService.stopService().join();
+            toBeClosedRpcService.closeAsync().join();
 
             // the rpc result should not fail because of a TimeoutException
             assertThatThrownBy(() -> gateway.getSerializedValue().join())

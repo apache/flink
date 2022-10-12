@@ -243,17 +243,19 @@ public class MetricOptions {
 
     /** The scope format string that is applied to all metrics scoped to a job on a JobManager. */
     public static final ConfigOption<String> SCOPE_NAMING_JM_JOB =
-            key("metrics.scope.jm.job")
+            key("metrics.scope.jm-job")
                     .stringType()
                     .defaultValue("<host>.jobmanager.<job_name>")
+                    .withDeprecatedKeys("metrics.scope.jm.job")
                     .withDescription(
                             "Defines the scope format string that is applied to all metrics scoped to a job on a JobManager. Only effective when a identifier-based reporter is configured");
 
     /** The scope format string that is applied to all metrics scoped to a job on a TaskManager. */
     public static final ConfigOption<String> SCOPE_NAMING_TM_JOB =
-            key("metrics.scope.tm.job")
+            key("metrics.scope.tm-job")
                     .stringType()
                     .defaultValue("<host>.taskmanager.<tm_id>.<job_name>")
+                    .withDeprecatedKeys("metrics.scope.tm.job")
                     .withDescription(
                             "Defines the scope format string that is applied to all metrics scoped to a job on a TaskManager. Only effective when a identifier-based reporter is configured");
 

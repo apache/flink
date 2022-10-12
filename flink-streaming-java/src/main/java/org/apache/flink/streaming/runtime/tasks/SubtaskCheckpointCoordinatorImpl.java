@@ -77,7 +77,6 @@ class SubtaskCheckpointCoordinatorImpl implements SubtaskCheckpointCoordinator {
 
     private static final Logger LOG =
             LoggerFactory.getLogger(SubtaskCheckpointCoordinatorImpl.class);
-    private static final int DEFAULT_MAX_RECORD_ABORTED_CHECKPOINTS = 128;
 
     private static final int CHECKPOINT_EXECUTION_DELAY_LOG_THRESHOLD_MS = 30_000;
 
@@ -95,6 +94,10 @@ class SubtaskCheckpointCoordinatorImpl implements SubtaskCheckpointCoordinator {
             prepareInputSnapshot;
     /** The IDs of the checkpoint for which we are notified aborted. */
     private final Set<Long> abortedCheckpointIds;
+
+    private final int maxRecordAbortedCheckpoints;
+
+    private long maxAbortedCheckpointId = 0;
 
     private long lastCheckpointId;
 
@@ -120,34 +123,6 @@ class SubtaskCheckpointCoordinatorImpl implements SubtaskCheckpointCoordinator {
      * {@link #alignmentTimer}.
      */
     private long alignmentCheckpointId;
-
-    SubtaskCheckpointCoordinatorImpl(
-            CheckpointStorageWorkerView checkpointStorage,
-            String taskName,
-            StreamTaskActionExecutor actionExecutor,
-            ExecutorService asyncOperationsThreadPool,
-            Environment env,
-            AsyncExceptionHandler asyncExceptionHandler,
-            boolean unalignedCheckpointEnabled,
-            boolean enableCheckpointAfterTasksFinished,
-            BiFunctionWithException<
-                            ChannelStateWriter, Long, CompletableFuture<Void>, CheckpointException>
-                    prepareInputSnapshot,
-            DelayableTimer registerTimer)
-            throws IOException {
-        this(
-                checkpointStorage,
-                taskName,
-                actionExecutor,
-                asyncOperationsThreadPool,
-                env,
-                asyncExceptionHandler,
-                unalignedCheckpointEnabled,
-                enableCheckpointAfterTasksFinished,
-                prepareInputSnapshot,
-                DEFAULT_MAX_RECORD_ABORTED_CHECKPOINTS,
-                registerTimer);
-    }
 
     SubtaskCheckpointCoordinatorImpl(
             CheckpointStorageWorkerView checkpointStorage,
@@ -209,6 +184,7 @@ class SubtaskCheckpointCoordinatorImpl implements SubtaskCheckpointCoordinator {
         this.prepareInputSnapshot = prepareInputSnapshot;
         this.abortedCheckpointIds =
                 createAbortedCheckpointSetWithLimitSize(maxRecordAbortedCheckpoints);
+        this.maxRecordAbortedCheckpoints = maxRecordAbortedCheckpoints;
         this.lastCheckpointId = -1L;
         this.closed = false;
         this.enableCheckpointAfterTasksFinished = enableCheckpointAfterTasksFinished;
@@ -316,6 +292,10 @@ class SubtaskCheckpointCoordinatorImpl implements SubtaskCheckpointCoordinator {
             // broadcast cancel checkpoint marker to avoid downstream back-pressure due to
             // checkpoint barrier align.
             operatorChain.broadcastEvent(new CancelCheckpointMarker(metadata.getCheckpointId()));
+            channelStateWriter.abort(
+                    metadata.getCheckpointId(),
+                    new CancellationException("checkpoint aborted via notification"),
+                    true);
             LOG.info(
                     "Checkpoint {} has been notified as aborted, would not trigger any checkpoint.",
                     metadata.getCheckpointId());
@@ -461,6 +441,7 @@ class SubtaskCheckpointCoordinatorImpl implements SubtaskCheckpointCoordinator {
                         if (checkpointId > lastCheckpointId) {
                             // only record checkpoints that have not triggered on task side.
                             abortedCheckpointIds.add(checkpointId);
+                            maxAbortedCheckpointId = Math.max(maxAbortedCheckpointId, checkpointId);
                         }
                     }
 
@@ -573,7 +554,8 @@ class SubtaskCheckpointCoordinatorImpl implements SubtaskCheckpointCoordinator {
     }
 
     private boolean checkAndClearAbortedStatus(long checkpointId) {
-        return abortedCheckpointIds.remove(checkpointId);
+        return abortedCheckpointIds.remove(checkpointId)
+                || checkpointId + maxRecordAbortedCheckpoints < maxAbortedCheckpointId;
     }
 
     private void registerAsyncCheckpointRunnable(

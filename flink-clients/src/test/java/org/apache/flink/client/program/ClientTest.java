@@ -281,7 +281,12 @@ class ClientTest {
     void shouldSubmitToJobClient() {
         final ClusterClient<?> clusterClient =
                 new MiniClusterClient(new Configuration(), MINI_CLUSTER_RESOURCE.getMiniCluster());
-        JobGraph jobGraph = FlinkPipelineTranslationUtil.getJobGraph(plan, new Configuration(), 1);
+        JobGraph jobGraph =
+                FlinkPipelineTranslationUtil.getJobGraph(
+                        Thread.currentThread().getContextClassLoader(),
+                        plan,
+                        new Configuration(),
+                        1);
 
         jobGraph.addJars(Collections.emptyList());
         jobGraph.setClasspaths(Collections.emptyList());
@@ -373,7 +378,7 @@ class ClientTest {
                             .build();
 
             final Configuration configuration = fromPackagedProgram(program, 1, false);
-            configuration.set(DeploymentOptions.ALLOW_CLIENT_JOB_CONFIGURATIONS, false);
+            configuration.set(DeploymentOptions.PROGRAM_CONFIG_ENABLED, false);
 
             assertThatThrownBy(
                             () ->
@@ -516,7 +521,8 @@ class ClientTest {
                     return (pipeline, config, classLoader) -> {
                         final int parallelism = config.getInteger(CoreOptions.DEFAULT_PARALLELISM);
                         final JobGraph jobGraph =
-                                FlinkPipelineTranslationUtil.getJobGraph(plan, config, parallelism);
+                                FlinkPipelineTranslationUtil.getJobGraph(
+                                        classLoader, plan, config, parallelism);
 
                         final ExecutionConfigAccessor accessor =
                                 ExecutionConfigAccessor.fromConfiguration(config);

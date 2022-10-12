@@ -288,7 +288,7 @@ class CliFrontendSavepointTest extends CliFrontendTestBase {
     }
 
     @BeforeEach
-    private void replaceStdOutAndStdErr() {
+    void replaceStdOutAndStdErr() {
         stdOut = System.out;
         stdErr = System.err;
         buffer = new ByteArrayOutputStream();
@@ -298,7 +298,7 @@ class CliFrontendSavepointTest extends CliFrontendTestBase {
     }
 
     @AfterEach
-    private void restoreStdOutAndStdErr() {
+    void restoreStdOutAndStdErr() {
         System.setOut(stdOut);
         System.setErr(stdErr);
     }

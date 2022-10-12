@@ -63,9 +63,9 @@ class AkkaRpcActorHandshakeTest {
     static void teardownClass() throws Exception {
         final Collection<CompletableFuture<?>> terminationFutures = new ArrayList<>(3);
 
-        terminationFutures.add(akkaRpcService1.stopService());
-        terminationFutures.add(akkaRpcService2.stopService());
-        terminationFutures.add(wrongVersionAkkaRpcService.stopService());
+        terminationFutures.add(akkaRpcService1.closeAsync());
+        terminationFutures.add(akkaRpcService2.closeAsync());
+        terminationFutures.add(wrongVersionAkkaRpcService.closeAsync());
 
         FutureUtils.waitForAll(terminationFutures).get();
     }

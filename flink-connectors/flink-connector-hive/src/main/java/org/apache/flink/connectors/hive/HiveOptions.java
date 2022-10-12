@@ -96,6 +96,12 @@ public class HiveOptions {
                                     + " When the value is over estimated, Flink will tend to pack Hive's data into less splits, which will be helpful when Hive's table contains many small files."
                                     + " And vice versa. It only works for the Hive table stored as ORC format.");
 
+    public static final ConfigOption<Integer> TABLE_EXEC_HIVE_CALCULATE_PARTITION_SIZE_THREAD_NUM =
+            key("table.exec.hive.calculate-partition-size.thread-num")
+                    .intType()
+                    .defaultValue(3)
+                    .withDeprecatedKeys("The thread number to calculate partition's size.");
+
     public static final ConfigOption<Boolean> TABLE_EXEC_HIVE_DYNAMIC_GROUPING_ENABLED =
             key("table.exec.hive.sink.sort-by-dynamic-partition.enable")
                     .booleanType()

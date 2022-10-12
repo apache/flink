@@ -29,6 +29,8 @@ import java.util.function.Function;
  * {@link CoordinatorStore} can be used for sharing some information among {@link
  * OperatorCoordinator} instances. Motivating example is/was combining/aggregating latest watermark
  * emitted by different sources in order to do the watermark alignment.
+ *
+ * <p>Implementations of this interface must ensure that all operations are atomic.
  */
 @ThreadSafe
 @Internal
@@ -40,6 +42,8 @@ public interface CoordinatorStore {
     Object putIfAbsent(Object key, Object value);
 
     Object computeIfPresent(Object key, BiFunction<Object, Object, Object> remappingFunction);
+
+    Object compute(Object key, BiFunction<Object, Object, Object> mappingFunction);
 
     <R> R apply(Object key, Function<Object, R> consumer);
 }

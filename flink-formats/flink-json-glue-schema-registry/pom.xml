@@ -23,7 +23,7 @@ under the License.
 	<parent>
 		<artifactId>flink-formats</artifactId>
 		<groupId>org.apache.flink</groupId>
-		<version>1.16-SNAPSHOT</version>
+		<version>1.17-SNAPSHOT</version>
 	</parent>
 	<modelVersion>4.0.0</modelVersion>
 
@@ -32,10 +32,10 @@ under the License.
 	<packaging>jar</packaging>
 
 	<properties>
-		<glue.schema.registry.version>1.1.8</glue.schema.registry.version>
+		<glue.schema.registry.version>1.1.14</glue.schema.registry.version>
 		<aws.sdkv2.version>2.17.247</aws.sdkv2.version>
 		<netty.version>4.1.68.Final</netty.version>
-		<kotlin.version>1.3.50</kotlin.version>
+		<kotlin.version>1.7.10</kotlin.version>
 		<classgraph.version>4.8.120</classgraph.version>
 	</properties>
 
@@ -53,7 +53,7 @@ under the License.
 			<dependency>
 				<groupId>com.google.protobuf</groupId>
 				<artifactId>protobuf-java</artifactId>
-				<version>3.19.4</version>
+				<version>3.21.7</version>
 			</dependency>
 			<dependency>
 				<groupId>com.google.guava</groupId>
@@ -78,6 +78,11 @@ under the License.
 			<dependency>
 				<groupId>org.jetbrains.kotlin</groupId>
 				<artifactId>kotlin-stdlib-jdk8</artifactId>
+				<version>${kotlin.version}</version>
+			</dependency>
+			<dependency>
+				<groupId>org.jetbrains.kotlin</groupId>
+				<artifactId>kotlin-scripting-compiler-embeddable</artifactId>
 				<version>${kotlin.version}</version>
 			</dependency>
 			<dependency>
@@ -137,12 +142,6 @@ under the License.
 			<groupId>com.kjetland</groupId>
 			<artifactId>mbknor-jackson-jsonschema_${scala.binary.version}</artifactId>
 			<version>1.0.39</version>
-		</dependency>
-
-		<dependency>
-			<groupId>com.github.erosb</groupId>
-			<artifactId>everit-json-schema</artifactId>
-			<version>1.12.2</version>
 		</dependency>
 
 		<!-- ArchUit test dependencies -->

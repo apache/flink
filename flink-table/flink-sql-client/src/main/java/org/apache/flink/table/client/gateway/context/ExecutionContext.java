@@ -36,8 +36,10 @@ import org.apache.flink.table.factories.PlannerFactoryUtil;
 import org.apache.flink.table.module.ModuleManager;
 import org.apache.flink.table.resource.ResourceManager;
 import org.apache.flink.util.MutableURLClassLoader;
+import org.apache.flink.util.TemporaryClassLoaderContext;
 
 import java.lang.reflect.Method;
+import java.util.function.Supplier;
 
 import static org.apache.flink.table.client.gateway.context.SessionContext.SessionState;
 
@@ -165,6 +167,15 @@ public class ExecutionContext {
             throw new TableException(
                     "Could not instantiate the executor. Make sure a planner module is on the classpath",
                     e);
+        }
+    }
+
+    /**
+     * Executes the given supplier using the execution context's classloader as thread classloader.
+     */
+    public <R> R wrapClassLoader(Supplier<R> supplier) {
+        try (TemporaryClassLoaderContext ignored = TemporaryClassLoaderContext.of(classLoader)) {
+            return supplier.get();
         }
     }
 }

@@ -64,6 +64,8 @@ import java.io.IOException;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashSet;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.function.Function;
@@ -105,7 +107,7 @@ public class JobMasterPartitionReleaseTest extends TestLogger {
     @AfterClass
     public static void teardownClass() {
         if (rpcService != null) {
-            rpcService.stopService();
+            rpcService.closeAsync();
             rpcService = null;
         }
     }
@@ -208,8 +210,8 @@ public class JobMasterPartitionReleaseTest extends TestLogger {
         private final CompletableFuture<Collection<ResultPartitionID>> partitionsForRelease =
                 new CompletableFuture<>();
 
-        private final CompletableFuture<Collection<ResultPartitionID>>
-                partitionsForReleaseOrPromote = new CompletableFuture<>();
+        private final CompletableFuture<Collection<ResultPartitionID>> clusterPartitionsForPromote =
+                new CompletableFuture<>();
 
         private final JobMaster jobMaster;
 
@@ -235,8 +237,8 @@ public class JobMasterPartitionReleaseTest extends TestLogger {
                     taskExecutorIdForStopTracking::complete);
             partitionTracker.setStopTrackingAndReleasePartitionsConsumer(
                     partitionsForRelease::complete);
-            partitionTracker.setStopTrackingAndReleaseOrPromotePartitionsConsumer(
-                    partitionsForReleaseOrPromote::complete);
+            partitionTracker.setStopTrackingAndPromotePartitionsConsumer(
+                    clusterPartitionsForPromote::complete);
 
             Configuration configuration = new Configuration();
             configuration.setString(
@@ -313,7 +315,14 @@ public class JobMasterPartitionReleaseTest extends TestLogger {
         }
 
         public CompletableFuture<Collection<ResultPartitionID>> getPartitionsForReleaseOrPromote() {
-            return partitionsForReleaseOrPromote;
+            return partitionsForRelease.thenCombine(
+                    clusterPartitionsForPromote,
+                    (resultPartitionIds, resultPartitionIds2) -> {
+                        Set<ResultPartitionID> res = new HashSet<>();
+                        res.addAll(resultPartitionIds);
+                        res.addAll(resultPartitionIds2);
+                        return res;
+                    });
         }
 
         public void close() throws Exception {

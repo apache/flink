@@ -565,7 +565,7 @@ LogicalSink(table=[default_catalog.default_database.sink_without_pk], fields=[a,
       <![CDATA[
 Sink(table=[default_catalog.default_database.sink_without_pk], fields=[a, b, c])
 +- Calc(select=[a, b, c])
-   +- LookupJoin(table=[default_catalog.default_database.dim_without_pk], joinType=[InnerJoin], lookup=[a=a], select=[a, b, a, c])
+   +- LookupJoin(table=[default_catalog.default_database.dim_without_pk], joinType=[InnerJoin], lookup=[a=a], select=[a, b, a0, c])
       +- TableSourceScan(table=[[default_catalog, default_database, cdc, project=[a, b], metadata=[]]], fields=[a, b])
 ]]>
     </Resource>
@@ -597,7 +597,7 @@ LogicalSink(table=[default_catalog.default_database.sink_without_pk], fields=[a,
       <![CDATA[
 Sink(table=[default_catalog.default_database.sink_without_pk], fields=[a, b, c])
 +- Calc(select=[a, b, c])
-   +- LookupJoin(table=[default_catalog.default_database.dim_without_pk], joinType=[InnerJoin], lookup=[a=a], select=[a, b, a, c], upsertMaterialize=[true])
+   +- LookupJoin(table=[default_catalog.default_database.dim_without_pk], joinType=[InnerJoin], lookup=[a=a], select=[a, b, a0, c], upsertMaterialize=[true])
       +- TableSourceScan(table=[[default_catalog, default_database, cdc, project=[a, b], metadata=[]]], fields=[a, b])
 ]]>
     </Resource>
@@ -629,7 +629,7 @@ LogicalSink(table=[default_catalog.default_database.sink_with_pk], fields=[a, b,
       <![CDATA[
 Sink(table=[default_catalog.default_database.sink_with_pk], fields=[a, b, c], upsertMaterialize=[true])
 +- Calc(select=[a, b, c])
-   +- LookupJoin(table=[default_catalog.default_database.dim_without_pk], joinType=[InnerJoin], lookup=[a=a], select=[a, b, a, c])
+   +- LookupJoin(table=[default_catalog.default_database.dim_without_pk], joinType=[InnerJoin], lookup=[a=a], select=[a, b, a0, c])
       +- TableSourceScan(table=[[default_catalog, default_database, cdc, project=[a, b], metadata=[]]], fields=[a, b])
 ]]>
     </Resource>
@@ -661,7 +661,7 @@ LogicalSink(table=[default_catalog.default_database.sink_with_pk], fields=[a, b,
       <![CDATA[
 Sink(table=[default_catalog.default_database.sink_with_pk], fields=[a, b, c], upsertMaterialize=[true])
 +- Calc(select=[a, b, c])
-   +- LookupJoin(table=[default_catalog.default_database.dim_without_pk], joinType=[InnerJoin], lookup=[a=a], select=[a, b, a, c], upsertMaterialize=[true])
+   +- LookupJoin(table=[default_catalog.default_database.dim_without_pk], joinType=[InnerJoin], lookup=[a=a], select=[a, b, a0, c], upsertMaterialize=[true])
       +- TableSourceScan(table=[[default_catalog, default_database, cdc, project=[a, b], metadata=[]]], fields=[a, b])
 ]]>
     </Resource>
@@ -693,7 +693,7 @@ LogicalSink(table=[default_catalog.default_database.sink_without_pk], fields=[a,
       <![CDATA[
 Sink(table=[default_catalog.default_database.sink_without_pk], fields=[a, b, c])
 +- Calc(select=[ndFunc(a0) AS a, b, c])
-   +- LookupJoin(table=[default_catalog.default_database.dim_with_pk], joinType=[InnerJoin], lookup=[a=a], select=[a, b, c, a])
+   +- LookupJoin(table=[default_catalog.default_database.dim_with_pk], joinType=[InnerJoin], lookup=[a=a], select=[a, b, c, a0])
       +- TableSourceScan(table=[[default_catalog, default_database, cdc, project=[a, b, c], metadata=[]]], fields=[a, b, c])
 ]]>
     </Resource>
@@ -791,7 +791,7 @@ LogicalSink(table=[default_catalog.default_database.sink_without_pk], fields=[a,
       <![CDATA[
 Sink(table=[default_catalog.default_database.sink_without_pk], fields=[a, b, c])
 +- Calc(select=[a, b, c])
-   +- LookupJoin(table=[default_catalog.default_database.dim_with_pk], joinType=[InnerJoin], lookup=[a=a], select=[a, b, c, a])
+   +- LookupJoin(table=[default_catalog.default_database.dim_with_pk], joinType=[InnerJoin], lookup=[a=a], select=[a, b, c, a0])
       +- TableSourceScan(table=[[default_catalog, default_database, cdc, project=[a, b, c], metadata=[]]], fields=[a, b, c])
 ]]>
     </Resource>
@@ -823,7 +823,7 @@ LogicalSink(table=[default_catalog.default_database.sink_without_pk], fields=[a,
       <![CDATA[
 Sink(table=[default_catalog.default_database.sink_without_pk], fields=[a, b, c])
 +- Calc(select=[a, b, c])
-   +- LookupJoin(table=[default_catalog.default_database.dim_with_pk], joinType=[InnerJoin], lookup=[a=a], select=[a, b, c, a])
+   +- LookupJoin(table=[default_catalog.default_database.dim_with_pk], joinType=[InnerJoin], lookup=[a=a], select=[a, b, c, a0])
       +- TableSourceScan(table=[[default_catalog, default_database, cdc, project=[a, b, c], metadata=[]]], fields=[a, b, c])
 ]]>
     </Resource>
@@ -855,7 +855,7 @@ LogicalSink(table=[default_catalog.default_database.sink_without_pk], fields=[a,
       <![CDATA[
 Sink(table=[default_catalog.default_database.sink_without_pk], fields=[a, b, c])
 +- Calc(select=[a, b, c])
-   +- LookupJoin(table=[default_catalog.default_database.dim_with_pk], joinType=[InnerJoin], lookup=[a=a], select=[a, c, a, b])
+   +- LookupJoin(table=[default_catalog.default_database.dim_with_pk], joinType=[InnerJoin], lookup=[a=a], select=[a, c, a0, b])
       +- TableSourceScan(table=[[default_catalog, default_database, cdc, project=[a, c], metadata=[]]], fields=[a, c])
 ]]>
     </Resource>
@@ -887,7 +887,7 @@ LogicalSink(table=[default_catalog.default_database.sink_without_pk], fields=[a,
       <![CDATA[
 Sink(table=[default_catalog.default_database.sink_without_pk], fields=[a, b, c])
 +- Calc(select=[a, b, c])
-   +- LookupJoin(table=[default_catalog.default_database.dim_with_pk], joinType=[InnerJoin], lookup=[a=a], select=[a, c, a, b], upsertMaterialize=[true])
+   +- LookupJoin(table=[default_catalog.default_database.dim_with_pk], joinType=[InnerJoin], lookup=[a=a], select=[a, c, a0, b], upsertMaterialize=[true])
       +- TableSourceScan(table=[[default_catalog, default_database, cdc, project=[a, c], metadata=[]]], fields=[a, c])
 ]]>
     </Resource>
@@ -919,7 +919,7 @@ LogicalSink(table=[default_catalog.default_database.sink_without_pk], fields=[a,
       <![CDATA[
 Sink(table=[default_catalog.default_database.sink_without_pk], fields=[a, b, c])
 +- Calc(select=[a, b, c])
-   +- LookupJoin(table=[default_catalog.default_database.dim_with_pk], joinType=[InnerJoin], lookup=[a=a], select=[a, b, a, c])
+   +- LookupJoin(table=[default_catalog.default_database.dim_with_pk], joinType=[InnerJoin], lookup=[a=a], select=[a, b, a0, c])
       +- TableSourceScan(table=[[default_catalog, default_database, cdc, project=[a, b], metadata=[]]], fields=[a, b])
 ]]>
     </Resource>
@@ -951,7 +951,7 @@ LogicalSink(table=[default_catalog.default_database.sink_without_pk], fields=[a,
       <![CDATA[
 Sink(table=[default_catalog.default_database.sink_without_pk], fields=[a, b, c])
 +- Calc(select=[a, b, c])
-   +- LookupJoin(table=[default_catalog.default_database.dim_without_pk], joinType=[LeftOuterJoin], lookup=[a=a], select=[a, b, a, c], upsertMaterialize=[true])
+   +- LookupJoin(table=[default_catalog.default_database.dim_without_pk], joinType=[LeftOuterJoin], lookup=[a=a], select=[a, b, a0, c], upsertMaterialize=[true])
       +- TableSourceScan(table=[[default_catalog, default_database, cdc, project=[a, b], metadata=[]]], fields=[a, b])
 ]]>
     </Resource>
@@ -983,7 +983,7 @@ LogicalSink(table=[default_catalog.default_database.sink_without_pk], fields=[a,
       <![CDATA[
 Sink(table=[default_catalog.default_database.sink_without_pk], fields=[a, b, c])
 +- Calc(select=[a, b, c])
-   +- LookupJoin(table=[default_catalog.default_database.dim_with_pk], joinType=[InnerJoin], lookup=[a=a], select=[a, b, a, c], upsertMaterialize=[true])
+   +- LookupJoin(table=[default_catalog.default_database.dim_with_pk], joinType=[InnerJoin], lookup=[a=a], select=[a, b, a0, c], upsertMaterialize=[true])
       +- TableSourceScan(table=[[default_catalog, default_database, cdc, project=[a, b], metadata=[]]], fields=[a, b])
 ]]>
     </Resource>
@@ -1015,7 +1015,7 @@ LogicalSink(table=[default_catalog.default_database.sink_with_pk], fields=[a, b,
       <![CDATA[
 Sink(table=[default_catalog.default_database.sink_with_pk], fields=[a, b, c])
 +- Calc(select=[a, b, c])
-   +- LookupJoin(table=[default_catalog.default_database.dim_with_pk], joinType=[InnerJoin], lookup=[a=a], select=[a, b, a, c])
+   +- LookupJoin(table=[default_catalog.default_database.dim_with_pk], joinType=[InnerJoin], lookup=[a=a], select=[a, b, a0, c])
       +- DropUpdateBefore
          +- TableSourceScan(table=[[default_catalog, default_database, cdc, project=[a, b], metadata=[]]], fields=[a, b])
 ]]>
@@ -1048,7 +1048,7 @@ LogicalSink(table=[default_catalog.default_database.sink_with_pk], fields=[a, b,
       <![CDATA[
 Sink(table=[default_catalog.default_database.sink_with_pk], fields=[a, b, c])
 +- Calc(select=[a, b, c])
-   +- LookupJoin(table=[default_catalog.default_database.dim_with_pk], joinType=[InnerJoin], lookup=[a=a], select=[a, b, a, c])
+   +- LookupJoin(table=[default_catalog.default_database.dim_with_pk], joinType=[InnerJoin], lookup=[a=a], select=[a, b, a0, c])
       +- DropUpdateBefore
          +- TableSourceScan(table=[[default_catalog, default_database, cdc, project=[a, b], metadata=[]]], fields=[a, b])
 ]]>
@@ -1153,7 +1153,7 @@ LogicalSink(table=[default_catalog.default_database.sink_without_pk], fields=[a,
       <![CDATA[
 Sink(table=[default_catalog.default_database.sink_without_pk], fields=[a, b, c])
 +- Calc(select=[a, b, c])
-   +- LookupJoin(table=[default_catalog.default_database.dim_without_pk], joinType=[LeftOuterJoin], lookup=[a=a], select=[a, b, a, c])
+   +- LookupJoin(table=[default_catalog.default_database.dim_without_pk], joinType=[LeftOuterJoin], lookup=[a=a], select=[a, b, a0, c])
       +- TableSourceScan(table=[[default_catalog, default_database, cdc, project=[a, b], metadata=[]]], fields=[a, b])
 ]]>
     </Resource>
@@ -1185,7 +1185,7 @@ LogicalSink(table=[default_catalog.default_database.sink_with_pk], fields=[a, b,
       <![CDATA[
 Sink(table=[default_catalog.default_database.sink_with_pk], fields=[a, b, c])
 +- Calc(select=[a, b, c])
-   +- LookupJoin(table=[default_catalog.default_database.dim_with_pk], joinType=[LeftOuterJoin], lookup=[a=a], select=[a, b, a, c])
+   +- LookupJoin(table=[default_catalog.default_database.dim_with_pk], joinType=[LeftOuterJoin], lookup=[a=a], select=[a, b, a0, c])
       +- DropUpdateBefore
          +- TableSourceScan(table=[[default_catalog, default_database, cdc, project=[a, b], metadata=[]]], fields=[a, b])
 ]]>
@@ -1218,7 +1218,7 @@ LogicalSink(table=[default_catalog.default_database.sink_with_pk], fields=[a, b,
       <![CDATA[
 Sink(table=[default_catalog.default_database.sink_with_pk], fields=[a, b, c])
 +- Calc(select=[a, b, c])
-   +- LookupJoin(table=[default_catalog.default_database.dim_with_pk], joinType=[LeftOuterJoin], lookup=[a=a], select=[a, b, a, c])
+   +- LookupJoin(table=[default_catalog.default_database.dim_with_pk], joinType=[LeftOuterJoin], lookup=[a=a], select=[a, b, a0, c])
       +- DropUpdateBefore
          +- TableSourceScan(table=[[default_catalog, default_database, cdc, project=[a, b], metadata=[]]], fields=[a, b])
 ]]>
@@ -1706,7 +1706,7 @@ LogicalSink(table=[default_catalog.default_database.sink_with_pk], fields=[a, b,
       <![CDATA[
 Sink(table=[default_catalog.default_database.sink_with_pk], fields=[a, b, c])
 +- Calc(select=[a, b, c], where=[(b > (UNIX_TIMESTAMP() - 300))])
-   +- TableSourceScan(table=[[default_catalog, default_database, cdc, project=[a, b, c], metadata=[]]], fields=[a, b, c])
+   +- TableSourceScan(table=[[default_catalog, default_database, cdc, filter=[], project=[a, b, c], metadata=[]]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -1731,7 +1731,7 @@ LogicalSink(table=[default_catalog.default_database.sink_with_pk], fields=[a, b,
       <![CDATA[
 Sink(table=[default_catalog.default_database.sink_with_pk], fields=[a, b, c])
 +- Calc(select=[a, b, c], where=[(b > (UNIX_TIMESTAMP() - 300))])
-   +- TableSourceScan(table=[[default_catalog, default_database, cdc, project=[a, b, c], metadata=[]]], fields=[a, b, c])
+   +- TableSourceScan(table=[[default_catalog, default_database, cdc, filter=[], project=[a, b, c], metadata=[]]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>

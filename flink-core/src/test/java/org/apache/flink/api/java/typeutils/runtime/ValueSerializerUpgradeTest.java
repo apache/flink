@@ -28,8 +28,6 @@ import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.types.Value;
 
 import org.hamcrest.Matcher;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -39,16 +37,11 @@ import java.util.Objects;
 import static org.hamcrest.Matchers.is;
 
 /** State migration test for {@link RowSerializer}. */
-@RunWith(Parameterized.class)
-public class ValueSerializerUpgradeTest
+class ValueSerializerUpgradeTest
         extends TypeSerializerUpgradeTestBase<
                 ValueSerializerUpgradeTest.NameValue, ValueSerializerUpgradeTest.NameValue> {
-    public ValueSerializerUpgradeTest(TestSpecification<NameValue, NameValue> testSpecification) {
-        super(testSpecification);
-    }
 
-    @Parameterized.Parameters(name = "Test Specification = {0}")
-    public static Collection<TestSpecification<?, ?>> testSpecifications() throws Exception {
+    public Collection<TestSpecification<?, ?>> createTestSpecifications() throws Exception {
         ArrayList<TestSpecification<?, ?>> testSpecifications = new ArrayList<>();
         for (FlinkVersion flinkVersion : MIGRATION_VERSIONS) {
             testSpecifications.add(

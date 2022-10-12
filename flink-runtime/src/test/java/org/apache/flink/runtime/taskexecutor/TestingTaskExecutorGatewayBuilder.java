@@ -81,7 +81,12 @@ public class TestingTaskExecutorGatewayBuilder {
             NOOP_CANCEL_TASK_FUNCTION =
                     ignored -> CompletableFuture.completedFuture(Acknowledge.get());
     private static final TriConsumer<JobID, Set<ResultPartitionID>, Set<ResultPartitionID>>
-            NOOP_RELEASE_PARTITIONS_CONSUMER = (ignoredA, ignoredB, ignoredC) -> {};
+            NOOP_RELEASE_OR_PROMOTE_PARTITIONS_CONSUMER = (ignoredA, ignoredB, ignoredC) -> {};
+
+    private static final BiConsumer<JobID, Set<ResultPartitionID>>
+            NOOP_RELEASE_PARTITIONS_CONSUMER = (ignoredA, ignoredB) -> {};
+    private static final BiConsumer<JobID, Set<ResultPartitionID>>
+            NOOP_PROMOTE_PARTITIONS_CONSUMER = (ignoredA, ignoredB) -> {};
     private static final TriFunction<
                     ExecutionAttemptID,
                     OperatorID,
@@ -131,8 +136,11 @@ public class TestingTaskExecutorGatewayBuilder {
             NOOP_CANCEL_TASK_FUNCTION;
     private Supplier<CompletableFuture<Boolean>> canBeReleasedSupplier =
             () -> CompletableFuture.completedFuture(true);
-    private TriConsumer<JobID, Set<ResultPartitionID>, Set<ResultPartitionID>>
-            releaseOrPromotePartitionsConsumer = NOOP_RELEASE_PARTITIONS_CONSUMER;
+
+    private BiConsumer<JobID, Set<ResultPartitionID>> releasePartitionsConsumer =
+            NOOP_RELEASE_PARTITIONS_CONSUMER;
+    private BiConsumer<JobID, Set<ResultPartitionID>> promotePartitionsConsumer =
+            NOOP_PROMOTE_PARTITIONS_CONSUMER;
     private Consumer<Collection<IntermediateDataSetID>> releaseClusterPartitionsConsumer =
             ignored -> {};
     private TriFunction<
@@ -239,10 +247,15 @@ public class TestingTaskExecutorGatewayBuilder {
         return this;
     }
 
-    public TestingTaskExecutorGatewayBuilder setReleaseOrPromotePartitionsConsumer(
-            TriConsumer<JobID, Set<ResultPartitionID>, Set<ResultPartitionID>>
-                    releasePartitionsConsumer) {
-        this.releaseOrPromotePartitionsConsumer = releasePartitionsConsumer;
+    public TestingTaskExecutorGatewayBuilder setReleasePartitionsConsumer(
+            BiConsumer<JobID, Set<ResultPartitionID>> releasePartitionsConsumer) {
+        this.releasePartitionsConsumer = releasePartitionsConsumer;
+        return this;
+    }
+
+    public TestingTaskExecutorGatewayBuilder setPromotePartitionsConsumer(
+            BiConsumer<JobID, Set<ResultPartitionID>> promotePartitionsConsumer) {
+        this.promotePartitionsConsumer = promotePartitionsConsumer;
         return this;
     }
 
@@ -307,7 +320,8 @@ public class TestingTaskExecutorGatewayBuilder {
                 disconnectResourceManagerConsumer,
                 cancelTaskFunction,
                 canBeReleasedSupplier,
-                releaseOrPromotePartitionsConsumer,
+                releasePartitionsConsumer,
+                promotePartitionsConsumer,
                 releaseClusterPartitionsConsumer,
                 operatorEventHandler,
                 requestThreadDumpSupplier,

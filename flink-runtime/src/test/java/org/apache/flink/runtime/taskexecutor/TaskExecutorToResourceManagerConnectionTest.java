@@ -172,7 +172,7 @@ class TaskExecutorToResourceManagerConnectionTest {
 
     @AfterEach
     void tearDown() throws Exception {
-        rpcService.stopService().get(TEST_TIMEOUT_MILLIS, TimeUnit.MILLISECONDS);
+        rpcService.closeAsync().get(TEST_TIMEOUT_MILLIS, TimeUnit.MILLISECONDS);
     }
 
     private class TestRegistrationConnectionListener<

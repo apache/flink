@@ -285,16 +285,16 @@ class JobVertexBackPressureHandlerTest {
         for (MetricDump metricDump : getMultipleAttemptsMetricDumps()) {
             multipleAttemptsMetricStore.add(metricDump);
         }
-        // Update currentExecutionAttempts directly without JobDetails.
-        Map<Integer, Integer> currentExecutionAttempts = new HashMap<>();
-        currentExecutionAttempts.put(0, 1);
-        currentExecutionAttempts.put(1, 0);
+        // Update representativeAttempts directly without JobDetails.
+        Map<Integer, Integer> representativeAttempts = new HashMap<>();
+        representativeAttempts.put(0, 1);
+        representativeAttempts.put(1, 0);
         multipleAttemptsMetricStore
-                .getCurrentExecutionAttempts()
+                .getRepresentativeAttempts()
                 .put(
                         TEST_JOB_ID_BACK_PRESSURE_STATS_AVAILABLE.toString(),
                         Collections.singletonMap(
-                                TEST_JOB_VERTEX_ID.toString(), currentExecutionAttempts));
+                                TEST_JOB_VERTEX_ID.toString(), representativeAttempts));
 
         JobVertexBackPressureHandler jobVertexBackPressureHandler =
                 new JobVertexBackPressureHandler(

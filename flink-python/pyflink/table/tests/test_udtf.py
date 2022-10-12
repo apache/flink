@@ -31,8 +31,12 @@ from pyflink.testing.test_case_utils import PyFlinkStreamTableTestCase, \
 class UserDefinedTableFunctionTests(object):
 
     def test_table_function(self):
-        self._register_table_sink("""CREATE TABLE Results(a BIGINT, b BIGINT, c BIGINT)
-                WITH ('connector'='test-sink')""")
+        self.t_env.execute_sql("""
+            CREATE TABLE Results_test_table_function(
+                a BIGINT,
+                b BIGINT,
+                c BIGINT
+            ) WITH ('connector'='test-sink')""")
 
         multi_emit = udtf(MultiEmit(), result_types=[DataTypes.BIGINT(), DataTypes.BIGINT()])
         multi_num = udf(MultiNum(), result_type=DataTypes.BIGINT())
@@ -43,33 +47,32 @@ class UserDefinedTableFunctionTests(object):
             .select(t.x, t.y, col("m"))
         t = t.left_outer_join_lateral(identity(t.m).alias('n')) \
             .select(t.x, t.y, col("n"))
-        actual = self._get_output(t)
+        t.execute_insert("Results_test_table_function").wait()
+        actual = source_sink_utils.results()
         self.assert_equals(actual,
                            ["+I[1, 0, null]", "+I[1, 1, null]", "+I[2, 0, null]", "+I[2, 1, null]",
                             "+I[3, 0, 0]", "+I[3, 0, 1]", "+I[3, 0, 2]", "+I[3, 1, 1]",
                             "+I[3, 1, 2]", "+I[3, 2, 2]", "+I[3, 3, null]"])
 
     def test_table_function_with_sql_query(self):
-        self._register_table_sink("""CREATE TABLE Results(a BIGINT, b BIGINT, c BIGINT)
-                        WITH ('connector'='test-sink')""")
+        self.t_env.execute_sql("""
+            CREATE TABLE Results_test_table_function_with_sql_query(
+                a BIGINT,
+                b BIGINT,
+                c BIGINT
+            ) WITH ('connector'='test-sink')""")
 
         self.t_env.create_temporary_system_function(
             "multi_emit", udtf(MultiEmit(), result_types=[DataTypes.BIGINT(), DataTypes.BIGINT()]))
 
         t = self.t_env.from_elements([(1, 1, 3), (2, 1, 6), (3, 2, 9)], ['a', 'b', 'c'])
-        self.t_env.register_table("MyTable", t)
+        self.t_env.create_temporary_view("MyTable", t)
         t = self.t_env.sql_query(
             "SELECT a, x, y FROM MyTable LEFT JOIN LATERAL TABLE(multi_emit(a, b)) as T(x, y)"
             " ON TRUE")
-        actual = self._get_output(t)
+        t.execute_insert("Results_test_table_function_with_sql_query").wait()
+        actual = source_sink_utils.results()
         self.assert_equals(actual, ["+I[1, 1, 0]", "+I[2, 2, 0]", "+I[3, 3, 0]", "+I[3, 3, 1]"])
-
-    def _register_table_sink(self, ddl: str):
-        self.t_env.execute_sql(ddl)
-
-    def _get_output(self, t):
-        t.execute_insert("Results").wait()
-        return source_sink_utils.results()
 
 
 class PyFlinkStreamUserDefinedFunctionTests(UserDefinedTableFunctionTests,
@@ -110,11 +113,11 @@ class PyFlinkStreamUserDefinedFunctionTests(UserDefinedTableFunctionTests,
         """ % sink_path)
 
         self.t_env.create_temporary_system_function(
-            "multi_emit", udtf(MultiEmit(), result_types=[DataTypes.BIGINT(), DataTypes.BIGINT()]))
+            "multi_emit2", udtf(MultiEmit(), result_types=[DataTypes.BIGINT(), DataTypes.BIGINT()]))
 
         json_plan = self.t_env._j_tenv.compilePlanSql("INSERT INTO sink_table "
                                                       "SELECT a, x, y FROM source_table "
-                                                      "LEFT JOIN LATERAL TABLE(multi_emit(a, b))"
+                                                      "LEFT JOIN LATERAL TABLE(multi_emit2(a, b))"
                                                       " as T(x, y)"
                                                       " ON TRUE")
         from py4j.java_gateway import get_method

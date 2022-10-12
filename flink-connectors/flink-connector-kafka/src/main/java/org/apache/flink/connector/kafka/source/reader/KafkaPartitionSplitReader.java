@@ -227,6 +227,20 @@ public class KafkaPartitionSplitReader
         consumer.close();
     }
 
+    @Override
+    public void pauseOrResumeSplits(
+            Collection<KafkaPartitionSplit> splitsToPause,
+            Collection<KafkaPartitionSplit> splitsToResume) {
+        consumer.resume(
+                splitsToResume.stream()
+                        .map(KafkaPartitionSplit::getTopicPartition)
+                        .collect(Collectors.toList()));
+        consumer.pause(
+                splitsToPause.stream()
+                        .map(KafkaPartitionSplit::getTopicPartition)
+                        .collect(Collectors.toList()));
+    }
+
     // ---------------
 
     public void notifyCheckpointComplete(

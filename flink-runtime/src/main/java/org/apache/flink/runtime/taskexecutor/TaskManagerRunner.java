@@ -380,7 +380,7 @@ public class TaskManagerRunner implements FatalErrorHandler {
 
             if (metricRegistry != null) {
                 try {
-                    metricRegistry.shutdown();
+                    metricRegistry.closeAsync();
                 } catch (Exception e) {
                     exception = ExceptionUtils.firstOrSuppressed(e, exception);
                 }
@@ -395,7 +395,7 @@ public class TaskManagerRunner implements FatalErrorHandler {
             }
 
             if (rpcService != null) {
-                terminationFutures.add(rpcService.stopService());
+                terminationFutures.add(rpcService.closeAsync());
             }
 
             if (executor != null) {

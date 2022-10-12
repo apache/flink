@@ -50,6 +50,7 @@ export class JobListComponent implements OnInit, OnDestroy, OnChanges {
   @Input() jobData$: Observable<JobsItem[]>;
   @Output() navigate = new EventEmitter<JobsItem>();
 
+  sortJobNameFn = (pre: JobsItem, next: JobsItem): number => pre.name.localeCompare(next.name);
   sortStartTimeFn = (pre: JobsItem, next: JobsItem): number => pre['start-time'] - next['start-time'];
   sortDurationFn = (pre: JobsItem, next: JobsItem): number => pre.duration - next.duration;
   sortEndTimeFn = (pre: JobsItem, next: JobsItem): number => pre['end-time'] - next['end-time'];

@@ -225,13 +225,36 @@ public class SourceCoordinator<SplitT extends SourceSplit, EnumChkT>
         runInEventLoop(() -> enumerator.start(), "starting the SplitEnumerator.");
 
         if (coordinatorListeningID != null) {
-            if (coordinatorStore.containsKey(coordinatorListeningID)) {
-                // The coordinator will be recreated after global failover. It should be registered
-                // again replacing the previous one.
-                coordinatorStore.computeIfPresent(coordinatorListeningID, (id, origin) -> this);
-            } else {
-                coordinatorStore.putIfAbsent(coordinatorListeningID, this);
-            }
+            coordinatorStore.compute(
+                    coordinatorListeningID,
+                    (key, oldValue) -> {
+                        // The value for a listener ID can be a source coordinator listening to an
+                        // event, or an event waiting to be retrieved
+                        if (oldValue == null || oldValue instanceof OperatorCoordinator) {
+                            // The coordinator has not registered or needs to be recreated after
+                            // global failover.
+                            return this;
+                        } else {
+                            checkState(
+                                    oldValue instanceof OperatorEvent,
+                                    "The existing value for "
+                                            + coordinatorStore
+                                            + "is expected to be an operator event, but it is in fact "
+                                            + oldValue);
+                            LOG.info(
+                                    "Handling event {} received before the source coordinator with ID {} is registered",
+                                    oldValue,
+                                    coordinatorListeningID);
+                            handleEventFromOperator(0, 0, (OperatorEvent) oldValue);
+
+                            // Since for non-global failover the coordinator will not be recreated
+                            // and for global failover both the sender and receiver need to restart,
+                            // the coordinator will receive the event only once.
+                            // As the event has been processed, it can be removed safely and there's
+                            // no need to register the coordinator for further events as well.
+                            return null;
+                        }
+                    });
         }
     }
 

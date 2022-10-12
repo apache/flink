@@ -25,6 +25,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.SchedulerExecutionMode;
 import org.apache.flink.core.execution.JobClient;
+import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
 import org.apache.flink.runtime.rest.messages.job.JobDetailsInfo;
 import org.apache.flink.runtime.testutils.CommonTestUtils;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
@@ -35,6 +36,9 @@ import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunctio
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.test.util.MiniClusterWithClientResource;
 import org.apache.flink.util.TestLogger;
+import org.apache.flink.util.jackson.JacksonMapperFactory;
+
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
 
 import org.junit.Rule;
 import org.junit.Test;
@@ -42,12 +46,16 @@ import org.junit.rules.TemporaryFolder;
 
 import java.util.concurrent.ExecutionException;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 /** Tests for Reactive Mode (FLIP-159). */
 public class ReactiveModeITCase extends TestLogger {
     private static final int NUMBER_SLOTS_PER_TASK_MANAGER = 2;
     private static final int INITIAL_NUMBER_TASK_MANAGERS = 1;
 
     private static final Configuration configuration = getReactiveModeConfiguration();
+
+    private static final ObjectMapper OBJECT_MAPPER = JacksonMapperFactory.createObjectMapper();
 
     @Rule public TemporaryFolder tempFolder = new TemporaryFolder();
 
@@ -108,6 +116,55 @@ public class ReactiveModeITCase extends TestLogger {
                 miniClusterResource.getRestClusterClient(),
                 jobClient.getJobID(),
                 NUMBER_SLOTS_PER_TASK_MANAGER * (INITIAL_NUMBER_TASK_MANAGERS + 1));
+    }
+
+    @Test
+    public void testJsonPlanParallelismAfterRescale() throws Exception {
+        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        final DataStream<String> input = env.addSource(new DummySource());
+        input.addSink(new DiscardingSink<>());
+
+        final JobClient jobClient = env.executeAsync();
+
+        int initialParallelism = NUMBER_SLOTS_PER_TASK_MANAGER * INITIAL_NUMBER_TASK_MANAGERS;
+        waitUntilParallelismForVertexReached(
+                miniClusterResource.getRestClusterClient(),
+                jobClient.getJobID(),
+                initialParallelism);
+
+        ArchivedExecutionGraph archivedExecutionGraph =
+                miniClusterResource
+                        .getMiniCluster()
+                        .getArchivedExecutionGraph(jobClient.getJobID())
+                        .get();
+
+        assertThat(
+                        OBJECT_MAPPER
+                                .readTree(archivedExecutionGraph.getJsonPlan())
+                                .findValues("parallelism"))
+                .allMatch(n -> n.asInt() == initialParallelism);
+
+        // scale up to 2 TaskManagers:
+        miniClusterResource.getMiniCluster().startTaskManager();
+
+        int rescaledParallelism =
+                NUMBER_SLOTS_PER_TASK_MANAGER * (INITIAL_NUMBER_TASK_MANAGERS + 1);
+        waitUntilParallelismForVertexReached(
+                miniClusterResource.getRestClusterClient(),
+                jobClient.getJobID(),
+                rescaledParallelism);
+
+        archivedExecutionGraph =
+                miniClusterResource
+                        .getMiniCluster()
+                        .getArchivedExecutionGraph(jobClient.getJobID())
+                        .get();
+
+        assertThat(
+                        OBJECT_MAPPER
+                                .readTree(archivedExecutionGraph.getJsonPlan())
+                                .findValues("parallelism"))
+                .allMatch(n -> n.asInt() == rescaledParallelism);
     }
 
     @Test

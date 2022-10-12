@@ -18,8 +18,8 @@
 
 package org.apache.flink.table.sql.codegen;
 
+import org.apache.flink.test.resources.ResourceTestUtils;
 import org.apache.flink.test.util.SQLJobSubmission;
-import org.apache.flink.tests.util.TestUtils;
 import org.apache.flink.tests.util.flink.ClusterController;
 import org.apache.flink.util.FileUtils;
 import org.apache.flink.util.OperatingSystem;
@@ -40,12 +40,14 @@ import java.io.IOException;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
 /** End to End tests for using remote jar. */
 public class UsingRemoteJarITCase extends SqlITCaseBase {
-    private static final Path HADOOP_CLASSPATH = TestUtils.getResource(".*hadoop.classpath");
+    private static final Path HADOOP_CLASSPATH =
+            ResourceTestUtils.getResource(".*hadoop.classpath");
 
     private MiniDFSCluster hdfsCluster;
     private org.apache.hadoop.fs.Path hdPath;
@@ -108,6 +110,16 @@ public class UsingRemoteJarITCase extends SqlITCaseBase {
                 Arrays.asList(
                         "{\"before\":null,\"after\":{\"user_name\":\"Alice\",\"order_cnt\":1},\"op\":\"c\"}",
                         "{\"before\":null,\"after\":{\"user_name\":\"Bob\",\"order_cnt\":2},\"op\":\"c\"}"));
+    }
+
+    @Test
+    public void testScalarUdfWhenCheckpointEnable() throws Exception {
+        runAndCheckSQL(
+                "scalar_udf_e2e.sql",
+                generateReplaceVars(),
+                1,
+                Collections.singletonList(
+                        "{\"before\":null,\"after\":{\"id\":1,\"str\":\"Hello Flink\"},\"op\":\"c\"}"));
     }
 
     @Test

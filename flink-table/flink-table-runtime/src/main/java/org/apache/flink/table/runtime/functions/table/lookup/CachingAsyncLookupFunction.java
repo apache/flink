@@ -88,6 +88,7 @@ public class CachingAsyncLookupFunction extends AsyncLookupFunction {
         if (cachedValues != null) {
             return CompletableFuture.completedFuture(cachedValues);
         } else {
+            long loadStartTime = System.currentTimeMillis();
             return delegate.asyncLookup(keyRow)
                     .whenComplete(
                             (lookupValues, throwable) -> {
@@ -99,8 +100,8 @@ public class CachingAsyncLookupFunction extends AsyncLookupFunction {
                                             String.format("Failed to lookup key '%s'", keyRow),
                                             throwable);
                                 }
+                                updateLatestLoadTime(System.currentTimeMillis() - loadStartTime);
                                 loadCounter.inc();
-                                updateLatestLoadTime();
                                 Collection<RowData> cachingValues = lookupValues;
                                 if (lookupValues == null || lookupValues.isEmpty()) {
                                     cachingValues = Collections.emptyList();
@@ -124,10 +125,10 @@ public class CachingAsyncLookupFunction extends AsyncLookupFunction {
     }
 
     // --------------------------------- Helper functions ----------------------------
-    private void updateLatestLoadTime() {
+    private synchronized void updateLatestLoadTime(long loadTime) {
         if (latestLoadTime == UNINITIALIZED) {
             cacheMetricGroup.latestLoadTimeGauge(() -> latestLoadTime);
         }
-        latestLoadTime = System.currentTimeMillis();
+        latestLoadTime = loadTime;
     }
 }

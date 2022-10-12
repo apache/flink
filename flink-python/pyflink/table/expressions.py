@@ -32,7 +32,8 @@ __all__ = ['if_then_else', 'lit', 'col', 'range_', 'and_', 'or_', 'not_', 'UNBOU
            'row_interval', 'pi', 'e', 'rand', 'rand_integer', 'atan2', 'negative', 'concat',
            'concat_ws', 'uuid', 'null_of', 'log', 'with_columns', 'without_columns', 'json_string',
            'json_object', 'json_object_agg', 'json_array', 'json_array_agg', 'call', 'call_sql',
-           'source_watermark']
+           'source_watermark', 'to_timestamp_ltz', 'from_unixtime', 'to_date', 'to_timestamp',
+           'convert_tz', 'unix_timestamp']
 
 
 def _leaf_op(op_name: str) -> Expression:
@@ -272,6 +273,37 @@ def local_timestamp() -> Expression:
     return _leaf_op("localTimestamp")
 
 
+def to_date(date_str: Union[str, Expression[str]],
+            format: Union[str, Expression[str]] = None) -> Expression:
+    """
+    Converts the date string with the given format (by default 'yyyy-MM-dd') to a date.
+
+    :param date_str: The date string
+    :param format: The format of the string
+    :return: The date value with DATE type.
+    """
+    if format is None:
+        return _unary_op("toDate", date_str)
+    else:
+        return _binary_op("toDate", date_str, format)
+
+
+def to_timestamp(timestamp_str: Union[str, Expression[str]],
+                 format: Union[str, Expression[str]] = None) -> Expression:
+    """
+    Converts the date time string with the given format (by default: 'yyyy-MM-dd HH:mm:ss')
+    under the 'UTC+0' time zone to a timestamp.
+
+    :param timestamp_str: The date time string
+    :param format: The format of the string
+    :return: The date value with TIMESTAMP type.
+    """
+    if format is None:
+        return _unary_op("toTimestamp", timestamp_str)
+    else:
+        return _binary_op("toTimestamp", timestamp_str, format)
+
+
 def to_timestamp_ltz(numeric_epoch_time, precision) -> Expression:
     """
     Converts a numeric type epoch time to TIMESTAMP_LTZ.
@@ -347,15 +379,57 @@ def timestamp_diff(time_point_unit: TimePointUnit, time_point1, time_point2) -> 
                        time_point1, time_point2)
 
 
+def convert_tz(date_str: Union[str, Expression[str]],
+               tz_from: Union[str, Expression[str]],
+               tz_to: Union[str, Expression[str]]) -> Expression:
+    """
+    Converts a datetime string date_str (with default ISO timestamp format 'yyyy-MM-dd HH:mm:ss')
+    from time zone tz_from to time zone tz_to. The format of time zone should be either an
+    abbreviation such as "PST", a full name such as "America/Los_Angeles", or a custom ID such as
+    "GMT-08:00". E.g., convert_tz('1970-01-01 00:00:00', 'UTC', 'America/Los_Angeles') returns
+    '1969-12-31 16:00:00'.
+
+    Example:
+    ::
+
+        >>> tab.select(convert_tz(col('a'), 'PST', 'UTC'))
+
+    :param date_str: the date time string
+    :param tz_from: the original time zone
+    :param tz_to: the target time zone
+    :return: The formatted timestamp as string.
+    """
+    return _ternary_op("convertTz", date_str, tz_from, tz_to)
+
+
 def from_unixtime(unixtime, format=None) -> Expression:
     """
-    Convert unix timestamp (seconds since '1970-01-01 00:00:00' UTC) to datetime string the given
+    Converts unix timestamp (seconds since '1970-01-01 00:00:00' UTC) to datetime string the given
     format. The default format is "yyyy-MM-dd HH:mm:ss".
     """
     if format is None:
         return _unary_op("fromUnixtime", unixtime)
     else:
         return _binary_op("fromUnixtime", unixtime, format)
+
+
+def unix_timestamp(date_str: Union[str, Expression[str]] = None,
+                   format: Union[str, Expression[str]] = None) -> Expression:
+    """
+    Gets the current unix timestamp in seconds if no arguments are not specified.
+    This function is not deterministic which means the value would be recalculated for each record.
+
+    If the date time string date_str is specified, it will convert the given date time string
+    in the specified format (by default: yyyy-MM-dd HH:mm:ss if not specified) to unix timestamp
+    (in seconds), using the specified timezone in table config.
+    """
+
+    if date_str is None:
+        return _leaf_op("unixTimestamp")
+    elif format is None:
+        return _unary_op("unixTimestamp", date_str)
+    else:
+        return _binary_op("unixTimestamp", date_str, format)
 
 
 def array(head, *tail) -> Expression:

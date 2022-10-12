@@ -246,6 +246,11 @@ public final class CliStrings {
     public static final String MESSAGE_REMOVE_JAR_STATEMENT =
             "The specified jar is removed from session classloader.";
 
+    public static final String MESSAGE_STOP_JOB_WITH_SAVEPOINT_STATEMENT =
+            "The specified job is stopped with savepoint %s.";
+
+    public static final String MESSAGE_STOP_JOB_STATEMENT = "The specified job is stopped.";
+
     // --------------------------------------------------------------------------------------------
 
     public static final String RESULT_TITLE = "SQL Query Result";

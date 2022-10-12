@@ -114,7 +114,8 @@ class HsSubpartitionViewTest {
                         spillingStrategy,
                         new HsFileDataIndexImpl(1),
                         dataFilePath.resolve(".data"),
-                        null);
+                        null,
+                        0);
         memoryDataManager.setOutputMetrics(createTestingOutputMetrics());
         HsDataView hsDataView = memoryDataManager.registerSubpartitionView(0, subpartitionView);
         subpartitionView.setMemoryDataView(hsDataView);

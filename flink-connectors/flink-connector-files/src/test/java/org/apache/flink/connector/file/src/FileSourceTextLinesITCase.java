@@ -169,7 +169,7 @@ class FileSourceTextLinesITCase {
      * record format (text lines) and restarts TaskManager.
      */
     @Test
-    @Tag("FailsWithAdaptiveScheduler.class") // FLINK-21450
+    @Tag("org.apache.flink.testutils.junit.FailsWithAdaptiveScheduler") // FLINK-21450
     void testContinuousTextFileSourceWithTaskManagerFailover(
             @TempDir java.nio.file.Path tmpTestDir, @InjectMiniCluster MiniCluster miniCluster)
             throws Exception {

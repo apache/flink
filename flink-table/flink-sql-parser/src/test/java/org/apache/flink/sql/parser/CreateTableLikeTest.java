@@ -261,11 +261,10 @@ class CreateTableLikeTest {
 
     private SqlParser createFlinkParser(String expr) {
         SqlParser.Config parserConfig =
-                SqlParser.configBuilder()
-                        .setParserFactory(FlinkSqlParserImpl.FACTORY)
-                        .setLex(Lex.JAVA)
-                        .setIdentifierMaxLength(256)
-                        .build();
+                SqlParser.config()
+                        .withParserFactory(FlinkSqlParserImpl.FACTORY)
+                        .withLex(Lex.JAVA)
+                        .withIdentifierMaxLength(256);
 
         return SqlParser.create(expr, parserConfig);
     }

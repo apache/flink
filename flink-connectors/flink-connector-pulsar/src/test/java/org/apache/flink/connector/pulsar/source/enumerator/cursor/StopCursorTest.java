@@ -43,7 +43,6 @@ import static org.apache.flink.connector.pulsar.source.PulsarSourceOptions.PULSA
 import static org.apache.flink.connector.pulsar.source.PulsarSourceOptions.PULSAR_MAX_FETCH_TIME;
 import static org.apache.flink.connector.pulsar.source.PulsarSourceOptions.PULSAR_SUBSCRIPTION_NAME;
 import static org.apache.flink.connector.pulsar.source.enumerator.topic.TopicNameUtils.topicNameWithPartition;
-import static org.apache.flink.connector.pulsar.source.enumerator.topic.TopicRange.createFullRange;
 import static org.apache.flink.connector.pulsar.source.reader.deserializer.PulsarDeserializationSchema.flinkSchema;
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -68,7 +67,7 @@ class StopCursorTest extends PulsarTestSuiteBase {
                         Schema.STRING,
                         randomAlphanumeric(10));
         long currentTimeStamp = System.currentTimeMillis();
-        TopicPartition partition = new TopicPartition(topicName, 0, createFullRange());
+        TopicPartition partition = new TopicPartition(topicName, 0);
         PulsarPartitionSplit split =
                 new PulsarPartitionSplit(
                         partition,

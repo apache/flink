@@ -22,12 +22,15 @@ import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.table.api.TableResult;
 import org.apache.flink.table.api.internal.TableResultInternal;
 import org.apache.flink.table.client.SqlClientException;
+import org.apache.flink.table.client.cli.parser.SqlCommandParserImpl;
+import org.apache.flink.table.client.cli.parser.SqlMultiLineParser;
 import org.apache.flink.table.client.config.ResultMode;
 import org.apache.flink.table.client.config.SqlClientOptions;
 import org.apache.flink.table.client.gateway.Executor;
 import org.apache.flink.table.client.gateway.ResultDescriptor;
 import org.apache.flink.table.client.gateway.SqlExecutionException;
 import org.apache.flink.table.operations.BeginStatementSetOperation;
+import org.apache.flink.table.operations.CreateTableASOperation;
 import org.apache.flink.table.operations.EndStatementSetOperation;
 import org.apache.flink.table.operations.ExplainOperation;
 import org.apache.flink.table.operations.LoadModuleOperation;
@@ -47,6 +50,7 @@ import org.apache.flink.table.operations.command.QuitOperation;
 import org.apache.flink.table.operations.command.RemoveJarOperation;
 import org.apache.flink.table.operations.command.ResetOperation;
 import org.apache.flink.table.operations.command.SetOperation;
+import org.apache.flink.table.operations.command.StopJobOperation;
 import org.apache.flink.table.operations.ddl.AlterOperation;
 import org.apache.flink.table.operations.ddl.CreateOperation;
 import org.apache.flink.table.operations.ddl.DropOperation;
@@ -410,7 +414,8 @@ public class CliClient implements AutoCloseable {
         // check the current operation is allowed in STATEMENT SET.
         if (isStatementSetMode) {
             if (!(operation instanceof SinkModifyOperation
-                    || operation instanceof EndStatementSetOperation)) {
+                    || operation instanceof EndStatementSetOperation
+                    || operation instanceof CreateTableASOperation)) {
                 // It's up to invoker of the executeStatement to determine whether to continue
                 // execution
                 throw new SqlExecutionException(MESSAGE_STATEMENT_SET_SQL_EXECUTION_ERROR);
@@ -463,6 +468,12 @@ public class CliClient implements AutoCloseable {
         } else if (operation instanceof ShowCreateViewOperation) {
             // SHOW CREATE VIEW
             callShowCreateView((ShowCreateViewOperation) operation);
+        } else if (operation instanceof CreateTableASOperation) {
+            // CTAS
+            callInsert((CreateTableASOperation) operation);
+        } else if (operation instanceof StopJobOperation) {
+            // STOP JOB
+            callStopJob((StopJobOperation) operation);
         } else {
             // fallback to default implementation
             executeOperation(operation);
@@ -557,7 +568,7 @@ public class CliClient implements AutoCloseable {
         }
     }
 
-    private void callInsert(SinkModifyOperation operation) {
+    private void callInsert(ModifyOperation operation) {
         if (isStatementSetMode) {
             statementSetOperations.add(operation);
             printInfo(CliStrings.MESSAGE_ADD_STATEMENT_TO_STATEMENT_SET);
@@ -627,6 +638,23 @@ public class CliClient implements AutoCloseable {
             statementSetOperations = null;
         } else {
             throw new SqlExecutionException(MESSAGE_STATEMENT_SET_END_CALL_ERROR);
+        }
+    }
+
+    private void callStopJob(StopJobOperation stopJobOperation) {
+        Optional<String> savepoint =
+                executor.stopJob(
+                        sessionId,
+                        stopJobOperation.getJobId(),
+                        stopJobOperation.isWithSavepoint(),
+                        stopJobOperation.isWithDrain());
+        if (stopJobOperation.isWithSavepoint()) {
+            Preconditions.checkState(savepoint.isPresent());
+            printInfo(
+                    String.format(
+                            CliStrings.MESSAGE_STOP_JOB_WITH_SAVEPOINT_STATEMENT, savepoint.get()));
+        } else {
+            printInfo(CliStrings.MESSAGE_STOP_JOB_STATEMENT);
         }
     }
 

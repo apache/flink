@@ -64,7 +64,7 @@ class TimeoutCallStackTest {
     @AfterAll
     static void teardown() throws Exception {
 
-        final CompletableFuture<Void> rpcTerminationFuture = rpcService.stopService();
+        final CompletableFuture<Void> rpcTerminationFuture = rpcService.closeAsync();
         final CompletableFuture<Terminated> actorSystemTerminationFuture =
                 AkkaFutureUtils.toJava(actorSystem.terminate());
 

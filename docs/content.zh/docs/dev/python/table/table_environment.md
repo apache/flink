@@ -821,7 +821,7 @@ Statebackend，Checkpoint 以及重启策略
 下面代码示例展示了如何通过 Table API 来配置 statebackend，checkpoint 以及重启策略：
 ```python
 # 设置重启策略为 "fixed-delay"
-table_env.get_config().set("restart-strategy", "fixed-delay")
+table_env.get_config().set("restart-strategy.type", "fixed-delay")
 table_env.get_config().set("restart-strategy.fixed-delay.attempts", "3")
 table_env.get_config().set("restart-strategy.fixed-delay.delay", "30s")
 
@@ -832,7 +832,7 @@ table_env.get_config().set("execution.checkpointing.interval", "3min")
 # 设置 statebackend 类型为 "rocksdb"，其他可选项有 "filesystem" 和 "jobmanager"
 # 你也可以将这个属性设置为 StateBackendFactory 的完整类名
 # e.g. org.apache.flink.contrib.streaming.state.RocksDBStateBackendFactory
-table_env.get_config().set("state.backend", "rocksdb")
+table_env.get_config().set("state.backend.type", "rocksdb")
 
 # 设置 RocksDB statebackend 所需要的 checkpoint 目录
 table_env.get_config().set("state.checkpoints.dir", "file:///tmp/checkpoints/")

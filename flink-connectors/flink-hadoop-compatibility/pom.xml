@@ -25,7 +25,7 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-connectors</artifactId>
-		<version>1.16-SNAPSHOT</version>
+		<version>1.17-SNAPSHOT</version>
 	</parent>
 
 	<artifactId>flink-hadoop-compatibility_${scala.binary.version}</artifactId>
@@ -114,11 +114,6 @@ under the License.
 						</licenseHeader>
 					</scala>
 				</configuration>
-			</plugin>
-			<!-- activate API compatibility checks -->
-			<plugin>
-				<groupId>com.github.siom79.japicmp</groupId>
-				<artifactId>japicmp-maven-plugin</artifactId>
 			</plugin>
 			<!-- Scala Compiler -->
 			<plugin>

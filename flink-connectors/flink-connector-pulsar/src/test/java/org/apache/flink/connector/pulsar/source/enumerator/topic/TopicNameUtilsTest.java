@@ -26,6 +26,7 @@ import java.util.List;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** Unit tests for {@link TopicNameUtils}. */
 class TopicNameUtilsTest {
@@ -83,5 +84,13 @@ class TopicNameUtilsTest {
                 .containsExactlyInAnyOrder(
                         "persistent://public/default/short-topic",
                         "persistent://public/default/long-topic-partition-1");
+    }
+
+    @Test
+    void internalTopicAssertion() {
+        boolean internal =
+                TopicNameUtils.isInternal(
+                        "persistent://public/default/topic__transaction_pending_ack");
+        assertTrue(internal);
     }
 }

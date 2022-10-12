@@ -43,7 +43,6 @@ public class SessionEnvironment {
     private final Map<String, Catalog> registeredCatalogs;
     private final Map<String, Module> registeredModules;
     private final @Nullable String defaultCatalog;
-    private final @Nullable String defaultDatabase;
     private final Map<String, String> sessionConfig;
 
     @VisibleForTesting
@@ -53,14 +52,12 @@ public class SessionEnvironment {
             Map<String, Catalog> registeredCatalogs,
             Map<String, Module> registeredModules,
             @Nullable String defaultCatalog,
-            @Nullable String defaultDatabase,
             Map<String, String> sessionConfig) {
         this.sessionName = sessionName;
         this.version = version;
         this.registeredCatalogs = registeredCatalogs;
         this.registeredModules = registeredModules;
         this.defaultCatalog = defaultCatalog;
-        this.defaultDatabase = defaultDatabase;
         this.sessionConfig = sessionConfig;
     }
 
@@ -92,10 +89,6 @@ public class SessionEnvironment {
         return Optional.ofNullable(defaultCatalog);
     }
 
-    public Optional<String> getDefaultDatabase() {
-        return Optional.ofNullable(defaultDatabase);
-    }
-
     // -------------------------------------------------------------------------------------------
 
     @Override
@@ -112,7 +105,6 @@ public class SessionEnvironment {
                 && Objects.equals(registeredCatalogs, that.registeredCatalogs)
                 && Objects.equals(registeredModules, that.registeredModules)
                 && Objects.equals(defaultCatalog, that.defaultCatalog)
-                && Objects.equals(defaultDatabase, that.defaultDatabase)
                 && Objects.equals(sessionConfig, that.sessionConfig);
     }
 
@@ -124,7 +116,6 @@ public class SessionEnvironment {
                 registeredCatalogs,
                 registeredModules,
                 defaultCatalog,
-                defaultDatabase,
                 sessionConfig);
     }
 
@@ -145,7 +136,6 @@ public class SessionEnvironment {
         private final Map<String, Catalog> registeredCatalogs = new HashMap<>();
         private final Map<String, Module> registeredModules = new HashMap<>();
         private @Nullable String defaultCatalog;
-        private @Nullable String defaultDatabase;
 
         public Builder setSessionName(String sessionName) {
             this.sessionName = sessionName;
@@ -164,11 +154,6 @@ public class SessionEnvironment {
 
         public Builder setDefaultCatalog(@Nullable String defaultCatalog) {
             this.defaultCatalog = defaultCatalog;
-            return this;
-        }
-
-        public Builder setDefaultDatabase(@Nullable String defaultDatabase) {
-            this.defaultDatabase = defaultDatabase;
             return this;
         }
 
@@ -198,7 +183,6 @@ public class SessionEnvironment {
                     registeredCatalogs,
                     registeredModules,
                     defaultCatalog,
-                    defaultDatabase,
                     sessionConfig);
         }
     }

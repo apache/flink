@@ -258,7 +258,7 @@ Flink parses SQL using [Apache Calcite](https://calcite.apache.org/docs/referenc
 
 The following BNF-grammar describes the superset of supported SQL features in batch and streaming queries. The [Operations](#operations) section shows examples for the supported features and indicates which features are only supported for batch or streaming queries.
 
-{{< expand Grammar >}}
+{{< details Grammar >}}
 ```sql
 query:
     values
@@ -400,7 +400,7 @@ patternQuantifier:
   | '{' { [ minRepeat ], [ maxRepeat ] } '}' ['?']
   | '{' repeat '}'
 ```
-{{< /expand >}}
+{{< /details >}}
 
 Flink SQL uses a lexical policy for identifier (table, attribute, function names) similar to Java:
 

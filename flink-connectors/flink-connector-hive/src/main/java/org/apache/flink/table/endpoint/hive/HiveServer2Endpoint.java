@@ -22,6 +22,7 @@ import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.RuntimeExecutionMode;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.table.api.SqlDialect;
+import org.apache.flink.table.api.TableResult;
 import org.apache.flink.table.catalog.Catalog;
 import org.apache.flink.table.catalog.CatalogBaseTable.TableKind;
 import org.apache.flink.table.catalog.ResolvedSchema;
@@ -108,8 +109,7 @@ import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
 
-import java.net.InetAddress;
-import java.net.ServerSocket;
+import java.net.InetSocketAddress;
 import java.time.Duration;
 import java.util.Collections;
 import java.util.HashMap;
@@ -124,7 +124,7 @@ import static org.apache.flink.table.api.config.TableConfigOptions.TABLE_DML_SYN
 import static org.apache.flink.table.api.config.TableConfigOptions.TABLE_SQL_DIALECT;
 import static org.apache.flink.table.endpoint.hive.HiveServer2EndpointVersion.HIVE_CLI_SERVICE_PROTOCOL_V10;
 import static org.apache.flink.table.endpoint.hive.util.HiveJdbcParameterUtils.getUsedDefaultDatabase;
-import static org.apache.flink.table.endpoint.hive.util.HiveJdbcParameterUtils.validateAndNormalize;
+import static org.apache.flink.table.endpoint.hive.util.HiveJdbcParameterUtils.setVariables;
 import static org.apache.flink.table.endpoint.hive.util.OperationExecutorFactory.createGetCatalogsExecutor;
 import static org.apache.flink.table.endpoint.hive.util.OperationExecutorFactory.createGetColumnsExecutor;
 import static org.apache.flink.table.endpoint.hive.util.OperationExecutorFactory.createGetFunctionsExecutor;
@@ -155,16 +155,16 @@ public class HiveServer2Endpoint implements TCLIService.Iface, SqlGatewayEndpoin
     private static final Logger LOG = LoggerFactory.getLogger(HiveServer2Endpoint.class);
     private static final HiveServer2EndpointVersion SERVER_VERSION = HIVE_CLI_SERVICE_PROTOCOL_V10;
     private static final TStatus OK_STATUS = new TStatus(TStatusCode.SUCCESS_STATUS);
-    private static final String ERROR_MESSAGE =
-            "The HiveServer2 Endpoint currently doesn't support this API.";
+    private static final String UNSUPPORTED_ERROR_MESSAGE =
+            "The HiveServer2 Endpoint currently doesn't support to %s.";
+    private static final Long CHECK_INTERVAL_MS = 100L;
 
     // --------------------------------------------------------------------------------------------
     // Server attributes
     // --------------------------------------------------------------------------------------------
 
     private final SqlGatewayService service;
-    private final InetAddress hostAddress;
-    private final int port;
+    private final InetSocketAddress socketAddress;
     private final int minWorkerThreads;
     private final int maxWorkerThreads;
     private final Duration workerKeepAliveTime;
@@ -183,7 +183,7 @@ public class HiveServer2Endpoint implements TCLIService.Iface, SqlGatewayEndpoin
 
     private final String catalogName;
     @Nullable private final String defaultDatabase;
-    @Nullable private final String hiveConfPath;
+    private final HiveConf hiveConf;
     private final boolean allowEmbedded;
 
     // --------------------------------------------------------------------------------------------
@@ -194,8 +194,7 @@ public class HiveServer2Endpoint implements TCLIService.Iface, SqlGatewayEndpoin
 
     public HiveServer2Endpoint(
             SqlGatewayService service,
-            InetAddress hostAddress,
-            int port,
+            InetSocketAddress socketAddress,
             long maxMessageSize,
             int requestTimeoutMs,
             int backOffSlotLengthMs,
@@ -203,13 +202,12 @@ public class HiveServer2Endpoint implements TCLIService.Iface, SqlGatewayEndpoin
             int maxWorkerThreads,
             Duration workerKeepAliveTime,
             String catalogName,
-            @Nullable String hiveConfPath,
+            HiveConf hiveConf,
             @Nullable String defaultDatabase,
             String moduleName) {
         this(
                 service,
-                hostAddress,
-                port,
+                socketAddress,
                 maxMessageSize,
                 requestTimeoutMs,
                 backOffSlotLengthMs,
@@ -217,7 +215,7 @@ public class HiveServer2Endpoint implements TCLIService.Iface, SqlGatewayEndpoin
                 maxWorkerThreads,
                 workerKeepAliveTime,
                 catalogName,
-                hiveConfPath,
+                hiveConf,
                 defaultDatabase,
                 moduleName,
                 false,
@@ -227,8 +225,7 @@ public class HiveServer2Endpoint implements TCLIService.Iface, SqlGatewayEndpoin
     @VisibleForTesting
     public HiveServer2Endpoint(
             SqlGatewayService service,
-            InetAddress hostAddress,
-            int port,
+            InetSocketAddress socketAddress,
             long maxMessageSize,
             int requestTimeoutMs,
             int backOffSlotLengthMs,
@@ -236,15 +233,14 @@ public class HiveServer2Endpoint implements TCLIService.Iface, SqlGatewayEndpoin
             int maxWorkerThreads,
             Duration workerKeepAliveTime,
             String catalogName,
-            @Nullable String hiveConfPath,
+            HiveConf hiveConf,
             @Nullable String defaultDatabase,
             String moduleName,
             boolean allowEmbedded,
             boolean isVerbose) {
         this.service = service;
 
-        this.hostAddress = hostAddress;
-        this.port = port;
+        this.socketAddress = socketAddress;
         this.maxMessageSize = maxMessageSize;
         this.requestTimeoutMs = requestTimeoutMs;
         this.backOffSlotLengthMs = backOffSlotLengthMs;
@@ -254,7 +250,7 @@ public class HiveServer2Endpoint implements TCLIService.Iface, SqlGatewayEndpoin
         this.isVerbose = isVerbose;
 
         this.catalogName = checkNotNull(catalogName);
-        this.hiveConfPath = hiveConfPath;
+        this.hiveConf = hiveConf;
         this.defaultDatabase = defaultDatabase;
 
         this.moduleName = moduleName;
@@ -300,22 +296,27 @@ public class HiveServer2Endpoint implements TCLIService.Iface, SqlGatewayEndpoin
                     tOpenSessionReq.getConfiguration() == null
                             ? Collections.emptyMap()
                             : tOpenSessionReq.getConfiguration();
+
+            HiveConf conf = new HiveConf(hiveConf);
+            Catalog hiveCatalog =
+                    new HiveCatalog(
+                            catalogName,
+                            getUsedDefaultDatabase(originSessionConf).orElse(defaultDatabase),
+                            conf,
+                            HiveShimLoader.getHiveVersion(),
+                            allowEmbedded);
+            // Trigger the creation of the HiveMetaStoreClient to use the same HiveConf. If the
+            // initial HiveConf is different, it will trigger the PersistenceManagerFactory to close
+            // all the alive PersistenceManager in the ObjectStore, which may get error like
+            // "Persistence Manager has been closed" in the later connection.
+            hiveCatalog.open();
+            Module hiveModule = new HiveModule();
+            // set variables to HiveConf and Session's conf
             Map<String, String> sessionConfig = new HashMap<>();
             sessionConfig.put(TABLE_SQL_DIALECT.key(), SqlDialect.HIVE.name());
             sessionConfig.put(RUNTIME_MODE.key(), RuntimeExecutionMode.BATCH.name());
             sessionConfig.put(TABLE_DML_SYNC.key(), "true");
-            sessionConfig.putAll(validateAndNormalize(originSessionConf));
-
-            HiveConf conf = HiveCatalog.createHiveConf(hiveConfPath, null);
-            sessionConfig.forEach(conf::set);
-            Catalog hiveCatalog =
-                    new HiveCatalog(
-                            catalogName,
-                            defaultDatabase,
-                            conf,
-                            HiveShimLoader.getHiveVersion(),
-                            allowEmbedded);
-            Module hiveModule = new HiveModule();
+            setVariables(conf, sessionConfig, originSessionConf);
             SessionHandle sessionHandle =
                     service.openSession(
                             SessionEnvironment.newBuilder()
@@ -323,8 +324,6 @@ public class HiveServer2Endpoint implements TCLIService.Iface, SqlGatewayEndpoin
                                     .registerCatalog(catalogName, hiveCatalog)
                                     .registerModuleAtHead(moduleName, hiveModule)
                                     .setDefaultCatalog(catalogName)
-                                    .setDefaultDatabase(
-                                            getUsedDefaultDatabase(originSessionConf).orElse(null))
                                     .addSessionConfig(sessionConfig)
                                     .build());
             // response
@@ -386,13 +385,9 @@ public class HiveServer2Endpoint implements TCLIService.Iface, SqlGatewayEndpoin
     public TExecuteStatementResp ExecuteStatement(TExecuteStatementReq tExecuteStatementReq)
             throws TException {
         TExecuteStatementResp resp = new TExecuteStatementResp();
+        SessionHandle sessionHandle = toSessionHandle(tExecuteStatementReq.getSessionHandle());
+        OperationHandle operationHandle = null;
         try {
-            if (!tExecuteStatementReq.isRunAsync()) {
-                throw new UnsupportedOperationException(
-                        "Currently SqlGateway HiveServer2 Endpoint only supports ExecuteStatement in async mode.");
-            }
-
-            SessionHandle sessionHandle = toSessionHandle(tExecuteStatementReq.getSessionHandle());
             String statement =
                     tExecuteStatementReq.isSetStatement()
                             ? tExecuteStatementReq.getStatement()
@@ -403,20 +398,27 @@ public class HiveServer2Endpoint implements TCLIService.Iface, SqlGatewayEndpoin
                             : Collections.emptyMap();
             long timeout = tExecuteStatementReq.getQueryTimeout();
 
-            OperationHandle operationHandle =
+            operationHandle =
                     service.executeStatement(
                             sessionHandle,
                             statement,
                             timeout,
                             Configuration.fromMap(executionConfig));
-            resp.setStatus(OK_STATUS);
 
+            if (!tExecuteStatementReq.isRunAsync()) {
+                waitUntilOperationIsTerminated(sessionHandle, operationHandle);
+            }
+
+            resp.setStatus(OK_STATUS);
             resp.setOperationHandle(
                     toTOperationHandle(
                             sessionHandle, operationHandle, TOperationType.EXECUTE_STATEMENT));
         } catch (Throwable t) {
             LOG.error("Failed to ExecuteStatement.", t);
             resp.setStatus(toTStatus(t));
+            if (operationHandle != null) {
+                closeOperationSilently(sessionHandle, operationHandle);
+            }
         }
         return resp;
     }
@@ -610,7 +612,7 @@ public class HiveServer2Endpoint implements TCLIService.Iface, SqlGatewayEndpoin
     @Override
     public TGetCrossReferenceResp GetCrossReference(TGetCrossReferenceReq tGetCrossReferenceReq)
             throws TException {
-        throw new UnsupportedOperationException(ERROR_MESSAGE);
+        return new TGetCrossReferenceResp(buildErrorStatus("GetCrossReference"));
     }
 
     @Override
@@ -693,6 +695,14 @@ public class HiveServer2Endpoint implements TCLIService.Iface, SqlGatewayEndpoin
 
     @Override
     public TFetchResultsResp FetchResults(TFetchResultsReq tFetchResultsReq) throws TException {
+        if (tFetchResultsReq.getFetchType() != 0) {
+            // Don't log the annoying messages because Hive beeline will fetch the logs until
+            // operation is terminated.
+            return new TFetchResultsResp(
+                    toTStatus(
+                            new UnsupportedOperationException(
+                                    "The HiveServer2 endpoint currently doesn't support to fetch logs.")));
+        }
         TFetchResultsResp resp = new TFetchResultsResp();
         try {
             SessionHandle sessionHandle = toSessionHandle(tFetchResultsReq.getOperationHandle());
@@ -718,7 +728,7 @@ public class HiveServer2Endpoint implements TCLIService.Iface, SqlGatewayEndpoin
                     service.fetchResults(
                             sessionHandle,
                             operationHandle,
-                            toFetchOrientation(tFetchResultsReq.getFetchType()),
+                            toFetchOrientation(tFetchResultsReq.getOrientation()),
                             maxRows);
             resp.setStatus(OK_STATUS);
             resp.setHasMoreRows(resultSet.getResultType() != EOS);
@@ -748,30 +758,32 @@ public class HiveServer2Endpoint implements TCLIService.Iface, SqlGatewayEndpoin
     @Override
     public TGetDelegationTokenResp GetDelegationToken(TGetDelegationTokenReq tGetDelegationTokenReq)
             throws TException {
-        throw new UnsupportedOperationException(ERROR_MESSAGE);
+        return new TGetDelegationTokenResp(buildErrorStatus("GetDelegationToken"));
     }
 
     @Override
     public TCancelDelegationTokenResp CancelDelegationToken(
             TCancelDelegationTokenReq tCancelDelegationTokenReq) throws TException {
-        throw new UnsupportedOperationException(ERROR_MESSAGE);
+        return new TCancelDelegationTokenResp(buildErrorStatus("CancelDelegationToken"));
     }
 
     @Override
     public TRenewDelegationTokenResp RenewDelegationToken(
             TRenewDelegationTokenReq tRenewDelegationTokenReq) throws TException {
-        throw new UnsupportedOperationException(ERROR_MESSAGE);
+        return new TRenewDelegationTokenResp(buildErrorStatus("RenewDelegationToken"));
     }
 
     // CHECKSTYLE.OFF: MethodName
     /** To be compatible with Hive3, add a default implementation. */
     public TGetQueryIdResp GetQueryId(TGetQueryIdReq tGetQueryIdReq) throws TException {
-        throw new UnsupportedOperationException(ERROR_MESSAGE);
+        throw new TException(
+                new UnsupportedOperationException(
+                        String.format(UNSUPPORTED_ERROR_MESSAGE, "GetQueryId")));
     }
 
     /** To be compatible with Hive3, add a default implementation. */
     public TSetClientInfoResp SetClientInfo(TSetClientInfoReq tSetClientInfoReq) throws TException {
-        throw new UnsupportedOperationException(ERROR_MESSAGE);
+        return new TSetClientInfoResp(buildErrorStatus("SetClientInfo"));
     }
     // CHECKSTYLE.ON: MethodName
 
@@ -785,8 +797,7 @@ public class HiveServer2Endpoint implements TCLIService.Iface, SqlGatewayEndpoin
         }
         HiveServer2Endpoint that = (HiveServer2Endpoint) o;
 
-        return Objects.equals(hostAddress, that.hostAddress)
-                && port == that.port
+        return Objects.equals(socketAddress, that.socketAddress)
                 && minWorkerThreads == that.minWorkerThreads
                 && maxWorkerThreads == that.maxWorkerThreads
                 && requestTimeoutMs == that.requestTimeoutMs
@@ -795,7 +806,6 @@ public class HiveServer2Endpoint implements TCLIService.Iface, SqlGatewayEndpoin
                 && Objects.equals(workerKeepAliveTime, that.workerKeepAliveTime)
                 && Objects.equals(catalogName, that.catalogName)
                 && Objects.equals(defaultDatabase, that.defaultDatabase)
-                && Objects.equals(hiveConfPath, that.hiveConfPath)
                 && Objects.equals(allowEmbedded, that.allowEmbedded)
                 && Objects.equals(isVerbose, that.isVerbose)
                 && Objects.equals(moduleName, that.moduleName);
@@ -804,8 +814,7 @@ public class HiveServer2Endpoint implements TCLIService.Iface, SqlGatewayEndpoin
     @Override
     public int hashCode() {
         return Objects.hash(
-                hostAddress,
-                port,
+                socketAddress,
                 minWorkerThreads,
                 maxWorkerThreads,
                 workerKeepAliveTime,
@@ -814,7 +823,6 @@ public class HiveServer2Endpoint implements TCLIService.Iface, SqlGatewayEndpoin
                 maxMessageSize,
                 catalogName,
                 defaultDatabase,
-                hiveConfPath,
                 allowEmbedded,
                 isVerbose,
                 moduleName);
@@ -823,10 +831,7 @@ public class HiveServer2Endpoint implements TCLIService.Iface, SqlGatewayEndpoin
     @Override
     public void run() {
         try {
-            LOG.info(
-                    "HiveServer2 Endpoint begins to listen on {}:{}.",
-                    hostAddress.getHostAddress(),
-                    port);
+            LOG.info("HiveServer2 Endpoint begins to listen on {}.", socketAddress.toString());
             server.serve();
         } catch (Throwable t) {
             LOG.error("Exception caught by " + getClass().getSimpleName() + ". Exiting.", t);
@@ -844,9 +849,7 @@ public class HiveServer2Endpoint implements TCLIService.Iface, SqlGatewayEndpoin
         try {
             server =
                     new TThreadPoolServer(
-                            new TThreadPoolServer.Args(
-                                            new TServerSocket(
-                                                    new ServerSocket(port, -1, hostAddress)))
+                            new TThreadPoolServer.Args(new TServerSocket(socketAddress))
                                     .processorFactory(
                                             new TProcessorFactory(
                                                     new TCLIService.Processor<>(this)))
@@ -866,6 +869,62 @@ public class HiveServer2Endpoint implements TCLIService.Iface, SqlGatewayEndpoin
         }
     }
 
+    /**
+     * Similar solution comparing to the {@code
+     * org.apache.hive.jdbc.HiveStatement#waitForOperationToComplete}.
+     *
+     * <p>The better solution is to introduce an interface similar to {@link TableResult#await()}.
+     */
+    private void waitUntilOperationIsTerminated(
+            SessionHandle sessionHandle, OperationHandle operationHandle) throws Exception {
+        OperationInfo info;
+        do {
+            info = service.getOperationInfo(sessionHandle, operationHandle);
+            switch (info.getStatus()) {
+                case INITIALIZED:
+                case PENDING:
+                case RUNNING:
+                    Thread.sleep(CHECK_INTERVAL_MS);
+                    break;
+                case CANCELED:
+                case TIMEOUT:
+                    throw new SqlGatewayException(
+                            String.format(
+                                    "The operation %s's status is %s for the session %s.",
+                                    operationHandle, info.getStatus(), sessionHandle));
+                case ERROR:
+                    throw new SqlGatewayException(
+                            String.format(
+                                    "The operation %s's status is %s for the session %s.",
+                                    operationHandle, info.getStatus(), sessionHandle),
+                            info.getException()
+                                    .orElseThrow(
+                                            () ->
+                                                    new SqlGatewayException(
+                                                            "Impossible! ERROR status should contains the error.")));
+                case FINISHED:
+                    return;
+                default:
+                    throw new SqlGatewayException(
+                            String.format("Unknown status: %s.", info.getStatus()));
+            }
+        } while (true);
+    }
+
+    private void closeOperationSilently(
+            SessionHandle sessionHandle, OperationHandle operationHandle) {
+        try {
+            service.closeOperation(sessionHandle, operationHandle);
+        } catch (Throwable t) {
+            // ignore
+            LOG.error(
+                    String.format(
+                            "Close the operation %s for the session %s silently.",
+                            operationHandle, sessionHandle),
+                    t);
+        }
+    }
+
     private String stringifyException(Throwable t) {
         if (isVerbose) {
             return ExceptionUtils.stringifyException(t);
@@ -878,5 +937,11 @@ public class HiveServer2Endpoint implements TCLIService.Iface, SqlGatewayEndpoin
             }
             return root.getClass().getName() + ": " + root.getMessage();
         }
+    }
+
+    private TStatus buildErrorStatus(String methodName) {
+        return toTStatus(
+                new UnsupportedOperationException(
+                        String.format(UNSUPPORTED_ERROR_MESSAGE, methodName)));
     }
 }

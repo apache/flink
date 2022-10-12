@@ -64,7 +64,7 @@ Using the file contents provided in the [the common resource definitions](#commo
     $ kubectl create -f flink-configuration-configmap.yaml
     $ kubectl create -f jobmanager-service.yaml
     # Create the deployments for the cluster
-    $ kubectl create -f jobmanager-session-deployment.yaml
+    $ kubectl create -f jobmanager-session-deployment-non-ha.yaml
     $ kubectl create -f taskmanager-session-deployment.yaml
 ```
 
@@ -85,7 +85,7 @@ You can tear down the cluster using the following commands:
     $ kubectl delete -f jobmanager-service.yaml
     $ kubectl delete -f flink-configuration-configmap.yaml
     $ kubectl delete -f taskmanager-session-deployment.yaml
-    $ kubectl delete -f jobmanager-session-deployment.yaml
+    $ kubectl delete -f jobmanager-session-deployment-non-ha.yaml
 ```
 
 
@@ -213,9 +213,9 @@ data:
   flink-conf.yaml: |+
   ...
     kubernetes.cluster-id: <cluster-id>
-    high-availability: kubernetes
+    high-availability.type: kubernetes
     high-availability.storageDir: hdfs:///flink/recovery
-    restart-strategy: fixed-delay
+    restart-strategy.type: fixed-delay
     restart-strategy.fixed-delay.attempts: 10
   ...
 ```

@@ -32,7 +32,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
-/** ITCase to test csv format for {@link CsvFileSystemFormatFactory} in batch mode. */
+/** ITCase to test csv format for {@link CsvFileFormatFactory} in batch mode. */
 @RunWith(Enclosed.class)
 public class CsvFilesystemBatchITCase {
 

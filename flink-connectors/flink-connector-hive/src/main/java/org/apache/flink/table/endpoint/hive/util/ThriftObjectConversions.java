@@ -191,14 +191,15 @@ public class ThriftObjectConversions {
     // Statement related conversions
     // --------------------------------------------------------------------------------------------
 
-    public static FetchOrientation toFetchOrientation(int fetchOrientation) {
-        if (fetchOrientation == TFetchOrientation.FETCH_NEXT.getValue()) {
-            return FetchOrientation.FETCH_NEXT;
-        } else if (fetchOrientation == TFetchOrientation.FETCH_PRIOR.getValue()) {
-            return FetchOrientation.FETCH_PRIOR;
-        } else {
-            throw new UnsupportedOperationException(
-                    String.format("Unsupported fetch orientation: %s.", fetchOrientation));
+    public static FetchOrientation toFetchOrientation(TFetchOrientation fetchOrientation) {
+        switch (fetchOrientation) {
+            case FETCH_PRIOR:
+                return FetchOrientation.FETCH_PRIOR;
+            case FETCH_NEXT:
+                return FetchOrientation.FETCH_NEXT;
+            default:
+                throw new UnsupportedOperationException(
+                        String.format("Unsupported fetch orientation: %s.", fetchOrientation));
         }
     }
 

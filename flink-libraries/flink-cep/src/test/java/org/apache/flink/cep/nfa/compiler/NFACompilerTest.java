@@ -55,24 +55,10 @@ import static org.junit.Assert.assertTrue;
 public class NFACompilerTest extends TestLogger {
 
     private static final SimpleCondition<Event> startFilter =
-            new SimpleCondition<Event>() {
-                private static final long serialVersionUID = 3314714776170474221L;
-
-                @Override
-                public boolean filter(Event value) throws Exception {
-                    return value.getPrice() > 2;
-                }
-            };
+            SimpleCondition.of(value -> value.getPrice() > 2);
 
     private static final SimpleCondition<Event> endFilter =
-            new SimpleCondition<Event>() {
-                private static final long serialVersionUID = 3990995859716364087L;
-
-                @Override
-                public boolean filter(Event value) throws Exception {
-                    return value.getName().equals("end");
-                }
-            };
+            SimpleCondition.of(value -> value.getName().equals("end"));
 
     @Rule public ExpectedException expectedException = ExpectedException.none();
 
@@ -271,34 +257,13 @@ public class NFACompilerTest extends TestLogger {
 
         Pattern<Event, ?> invalidPattern =
                 Pattern.<Event>begin("start", AfterMatchSkipStrategy.skipToLast("midd"))
-                        .where(
-                                new SimpleCondition<Event>() {
-
-                                    @Override
-                                    public boolean filter(Event value) throws Exception {
-                                        return value.getName().contains("a");
-                                    }
-                                })
+                        .where(SimpleCondition.of(value -> value.getName().contains("a")))
                         .next("middle")
-                        .where(
-                                new SimpleCondition<Event>() {
-
-                                    @Override
-                                    public boolean filter(Event value) throws Exception {
-                                        return value.getName().contains("d");
-                                    }
-                                })
+                        .where(SimpleCondition.of(value -> value.getName().contains("d")))
                         .oneOrMore()
                         .optional()
                         .next("end")
-                        .where(
-                                new SimpleCondition<Event>() {
-
-                                    @Override
-                                    public boolean filter(Event value) throws Exception {
-                                        return value.getName().contains("c");
-                                    }
-                                });
+                        .where(SimpleCondition.of(value -> value.getName().contains("c")));
 
         compile(invalidPattern, false);
     }

@@ -43,10 +43,10 @@ Kubernetes 高可用服务只能在部署到 Kubernetes 时使用。因此，当
 为了启用高可用集群（HA-cluster），你必须设置以下配置项:
 
 - [high-availability]({{< ref "docs/deployment/config" >}}#high-availability-1) (必要的):
-`high-availability` 选项必须设置为 `KubernetesHaServicesFactory`.
+`high-availability.type` 选项必须设置为 `KubernetesHaServicesFactory`.
 
 ```yaml
-high-availability: kubernetes
+high-availability.type: kubernetes
 ```
 
 - [high-availability.storageDir]({{< ref "docs/deployment/config" >}}#high-availability-storagedir) (必要的):
@@ -71,7 +71,7 @@ kubernetes.cluster-id: cluster1337
 
 ```yaml
 kubernetes.cluster-id: <cluster-id>
-high-availability: kubernetes
+high-availability.type: kubernetes
 high-availability.storageDir: hdfs:///flink/recovery
 ```
 

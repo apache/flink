@@ -44,6 +44,7 @@ import org.apache.flink.table.api.config.TableConfigOptions;
 import org.apache.flink.table.catalog.Catalog;
 import org.apache.flink.table.catalog.CatalogBaseTable;
 import org.apache.flink.table.catalog.CatalogFunction;
+import org.apache.flink.table.catalog.CatalogFunctionImpl;
 import org.apache.flink.table.catalog.CatalogManager;
 import org.apache.flink.table.catalog.CatalogPartition;
 import org.apache.flink.table.catalog.CatalogPartitionSpec;
@@ -53,6 +54,7 @@ import org.apache.flink.table.catalog.Column;
 import org.apache.flink.table.catalog.ConnectorCatalogTable;
 import org.apache.flink.table.catalog.ContextResolvedTable;
 import org.apache.flink.table.catalog.FunctionCatalog;
+import org.apache.flink.table.catalog.FunctionLanguage;
 import org.apache.flink.table.catalog.GenericInMemoryCatalog;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.catalog.ObjectPath;
@@ -88,6 +90,7 @@ import org.apache.flink.table.module.ModuleEntry;
 import org.apache.flink.table.module.ModuleManager;
 import org.apache.flink.table.operations.CollectModifyOperation;
 import org.apache.flink.table.operations.CompileAndExecutePlanOperation;
+import org.apache.flink.table.operations.CreateTableASOperation;
 import org.apache.flink.table.operations.DescribeTableOperation;
 import org.apache.flink.table.operations.ExplainOperation;
 import org.apache.flink.table.operations.LoadModuleOperation;
@@ -137,7 +140,6 @@ import org.apache.flink.table.operations.ddl.CompilePlanOperation;
 import org.apache.flink.table.operations.ddl.CreateCatalogFunctionOperation;
 import org.apache.flink.table.operations.ddl.CreateCatalogOperation;
 import org.apache.flink.table.operations.ddl.CreateDatabaseOperation;
-import org.apache.flink.table.operations.ddl.CreateTableASOperation;
 import org.apache.flink.table.operations.ddl.CreateTableOperation;
 import org.apache.flink.table.operations.ddl.CreateTempSystemFunctionOperation;
 import org.apache.flink.table.operations.ddl.CreateViewOperation;
@@ -204,6 +206,7 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
     protected final FunctionCatalog functionCatalog;
     protected final Planner planner;
     private final boolean isStreamingMode;
+
     private static final String UNSUPPORTED_QUERY_IN_EXECUTE_SQL_MSG =
             "Unsupported SQL query! executeSql() only accepts a single SQL statement of type "
                     + "CREATE TABLE, DROP TABLE, ALTER TABLE, CREATE DATABASE, DROP DATABASE, ALTER DATABASE, "
@@ -260,7 +263,6 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
                         },
                         getParser()::parseSqlExpression,
                         isStreamingMode);
-
         catalogManager.initSchemaResolver(
                 isStreamingMode, operationTreeBuilder.getResolverBuilder());
     }
@@ -418,6 +420,12 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
     }
 
     @Override
+    public void createTemporarySystemFunction(
+            String name, String className, List<ResourceUri> resourceUris) {
+        functionCatalog.registerTemporarySystemFunction(name, className, resourceUris);
+    }
+
+    @Override
     public boolean dropTemporarySystemFunction(String name) {
         return functionCatalog.dropTemporarySystemFunction(name, true);
     }
@@ -435,6 +443,19 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
         final UnresolvedIdentifier unresolvedIdentifier = getParser().parseIdentifier(path);
         functionCatalog.registerCatalogFunction(
                 unresolvedIdentifier, functionClass, ignoreIfExists);
+    }
+
+    @Override
+    public void createFunction(String path, String className, List<ResourceUri> resourceUris) {
+        createFunction(path, className, resourceUris, false);
+    }
+
+    @Override
+    public void createFunction(
+            String path, String className, List<ResourceUri> resourceUris, boolean ignoreIfExists) {
+        final UnresolvedIdentifier unresolvedIdentifier = getParser().parseIdentifier(path);
+        functionCatalog.registerCatalogFunction(
+                unresolvedIdentifier, className, resourceUris, ignoreIfExists);
     }
 
     @Override
@@ -456,6 +477,16 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
         final UnresolvedIdentifier unresolvedIdentifier = getParser().parseIdentifier(path);
         functionCatalog.registerTemporaryCatalogFunction(
                 unresolvedIdentifier, functionInstance, false);
+    }
+
+    @Override
+    public void createTemporaryFunction(
+            String path, String className, List<ResourceUri> resourceUris) {
+        final UnresolvedIdentifier unresolvedIdentifier = getParser().parseIdentifier(path);
+        final CatalogFunction catalogFunction =
+                new CatalogFunctionImpl(className, FunctionLanguage.JAVA, resourceUris);
+        functionCatalog.registerTemporaryCatalogFunction(
+                unresolvedIdentifier, catalogFunction, false);
     }
 
     @Override
@@ -748,7 +779,9 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
     public CompiledPlan compilePlanSql(String stmt) {
         List<Operation> operations = getParser().parse(stmt);
 
-        if (operations.size() != 1 || !(operations.get(0) instanceof ModifyOperation)) {
+        if (operations.size() != 1
+                || !(operations.get(0) instanceof ModifyOperation)
+                || operations.get(0) instanceof CreateTableASOperation) {
             throw new TableException(UNSUPPORTED_QUERY_IN_COMPILE_PLAN_SQL_MSG);
         }
 
@@ -808,8 +841,20 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
 
     @Override
     public TableResultInternal executeInternal(List<ModifyOperation> operations) {
-        List<Transformation<?>> transformations = translate(operations);
-        List<String> sinkIdentifierNames = extractSinkIdentifierNames(operations);
+        List<ModifyOperation> mapOperations = new ArrayList<>();
+        for (ModifyOperation modify : operations) {
+            // execute CREATE TABLE first for CTAS statements
+            if (modify instanceof CreateTableASOperation) {
+                CreateTableASOperation ctasOperation = (CreateTableASOperation) modify;
+                executeInternal(ctasOperation.getCreateTableOperation());
+                mapOperations.add(ctasOperation.toSinkModifyOperation(catalogManager));
+            } else {
+                mapOperations.add(modify);
+            }
+        }
+
+        List<Transformation<?>> transformations = translate(mapOperations);
+        List<String> sinkIdentifierNames = extractSinkIdentifierNames(mapOperations);
         TableResultInternal result = executeInternal(transformations, sinkIdentifierNames);
         if (tableConfig.get(TABLE_DML_SYNC)) {
             try {
@@ -1366,10 +1411,6 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
             }
         } else if (operation instanceof QueryOperation) {
             return executeQueryOperation((QueryOperation) operation);
-        } else if (operation instanceof CreateTableASOperation) {
-            CreateTableASOperation createTableASOperation = (CreateTableASOperation) operation;
-            executeInternal(createTableASOperation.getCreateTableOperation());
-            return executeInternal(createTableASOperation.toSinkModifyOperation(catalogManager));
         } else if (operation instanceof ExecutePlanOperation) {
             ExecutePlanOperation executePlanOperation = (ExecutePlanOperation) operation;
             return (TableResultInternal)
@@ -1896,6 +1937,7 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
 
     private TableResultInternal createSystemFunction(CreateTempSystemFunctionOperation operation) {
         String exMsg = getDDLOpExecuteErrorMsg(operation.asSummaryString());
+
         try {
             functionCatalog.registerTemporarySystemFunction(
                     operation.getFunctionName(),

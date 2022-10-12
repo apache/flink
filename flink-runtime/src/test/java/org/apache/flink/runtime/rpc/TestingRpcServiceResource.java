@@ -60,7 +60,7 @@ public class TestingRpcServiceResource extends ExternalResource {
     }
 
     private void terminateRpcService() {
-        CompletableFuture<Void> terminationFuture = testingRpcService.stopService();
+        CompletableFuture<Void> terminationFuture = testingRpcService.closeAsync();
         terminationFuture.join();
     }
 }

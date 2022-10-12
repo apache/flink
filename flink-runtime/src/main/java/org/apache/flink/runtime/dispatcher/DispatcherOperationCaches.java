@@ -21,6 +21,7 @@ import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.runtime.rest.handler.async.CompletedOperationCache;
 import org.apache.flink.runtime.rest.handler.job.AsynchronousJobOperationKey;
+import org.apache.flink.util.AutoCloseableAsync;
 
 import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
@@ -28,7 +29,7 @@ import java.util.concurrent.CompletableFuture;
 /**
  * Encapsulates caches for results of asynchronous operations triggered by the {@link Dispatcher}.
  */
-public class DispatcherOperationCaches {
+public class DispatcherOperationCaches implements AutoCloseableAsync {
     private final CompletedOperationCache<AsynchronousJobOperationKey, String>
             savepointTriggerCache;
 
@@ -46,7 +47,8 @@ public class DispatcherOperationCaches {
         return savepointTriggerCache;
     }
 
-    public CompletableFuture<Void> shutdownCaches() {
+    @Override
+    public CompletableFuture<Void> closeAsync() {
         return savepointTriggerCache.closeAsync();
     }
 }

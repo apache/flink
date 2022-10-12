@@ -38,7 +38,7 @@ import static org.assertj.core.api.Assertions.entry;
 class HsFullSpillingStrategyTest {
     public static final int NUM_SUBPARTITIONS = 2;
 
-    public static final int NUM_BUFFERS_TRIGGER_SPILLING = 2;
+    public static final float NUM_BUFFERS_TRIGGER_SPILLING_RATIO = 0.2f;
 
     public static final float FULL_SPILL_RELEASE_THRESHOLD = 0.8f;
 
@@ -47,24 +47,31 @@ class HsFullSpillingStrategyTest {
     private final HsSpillingStrategy spillStrategy =
             new HsFullSpillingStrategy(
                     HybridShuffleConfiguration.builder(NUM_SUBPARTITIONS, 1)
-                            .setFullStrategyNumBuffersTriggerSpilling(NUM_BUFFERS_TRIGGER_SPILLING)
+                            .setFullStrategyNumBuffersTriggerSpillingRatio(
+                                    NUM_BUFFERS_TRIGGER_SPILLING_RATIO)
                             .setFullStrategyReleaseThreshold(FULL_SPILL_RELEASE_THRESHOLD)
                             .setFullStrategyReleaseBufferRatio(FULL_SPILL_RELEASE_RATIO)
                             .build());
 
     @Test
     void testOnBufferFinishedUnSpillBufferBelowThreshold() {
+        final int poolSize = 10;
         Optional<Decision> finishedDecision =
-                spillStrategy.onBufferFinished(NUM_BUFFERS_TRIGGER_SPILLING - 1);
+                spillStrategy.onBufferFinished(
+                        (int) (poolSize * NUM_BUFFERS_TRIGGER_SPILLING_RATIO) - 1, poolSize);
         assertThat(finishedDecision).hasValue(Decision.NO_ACTION);
     }
 
     @Test
     void testOnBufferFinishedUnSpillBufferEqualToOrGreatThenThreshold() {
+        final int poolSize = 10;
         Optional<Decision> finishedDecision =
-                spillStrategy.onBufferFinished(NUM_BUFFERS_TRIGGER_SPILLING);
+                spillStrategy.onBufferFinished(
+                        (int) (poolSize * NUM_BUFFERS_TRIGGER_SPILLING_RATIO), poolSize);
         assertThat(finishedDecision).isNotPresent();
-        finishedDecision = spillStrategy.onBufferFinished(NUM_BUFFERS_TRIGGER_SPILLING + 1);
+        finishedDecision =
+                spillStrategy.onBufferFinished(
+                        (int) (poolSize * NUM_BUFFERS_TRIGGER_SPILLING_RATIO) + 1, poolSize);
         assertThat(finishedDecision).isNotPresent();
     }
 
@@ -125,7 +132,8 @@ class HsFullSpillingStrategyTest {
                         .addConsumedBuffers(subpartition1, Arrays.asList(0, 1))
                         .addSpillBuffers(subpartition2, Arrays.asList(1, 2, 3))
                         .addConsumedBuffers(subpartition2, Arrays.asList(0, 1))
-                        .setGetNumTotalUnSpillBuffersSupplier(() -> NUM_BUFFERS_TRIGGER_SPILLING)
+                        .setGetNumTotalUnSpillBuffersSupplier(
+                                () -> (int) (10 * NUM_BUFFERS_TRIGGER_SPILLING_RATIO))
                         .setGetNumTotalRequestedBuffersSupplier(() -> 10)
                         .setGetPoolSizeSupplier(() -> 10)
                         .setGetNextBufferIndexToConsumeSupplier(

@@ -444,7 +444,7 @@ $ ./bin/flink run-application \
       -Dtaskmanager.memory.process.size=4096m \
       -Dkubernetes.taskmanager.cpu=2 \
       -Dtaskmanager.numberOfTaskSlots=4 \
-      -Dkubernetes.container.image=<PyFlinkImageName> \
+      -Dkubernetes.container.image.ref=<PyFlinkImageName> \
       --pyModule word_count \
       --pyFiles /opt/flink/examples/python/table/word_count.py
 ```

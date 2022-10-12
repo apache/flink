@@ -20,11 +20,11 @@ from pyflink.datastream.connectors import DeliveryGuarantee
 from pyflink.datastream.connectors.pulsar import PulsarSerializationSchema, TopicRoutingMode, \
     MessageDelayer, PulsarSink, PulsarSource, StartCursor, PulsarDeserializationSchema, \
     StopCursor, SubscriptionType
-from pyflink.testing.test_case_utils import PyFlinkStreamingTestCase
+from pyflink.testing.test_case_utils import PyFlinkUTTestCase
 from pyflink.util.java_utils import get_field_value, is_instance_of
 
 
-class FlinkPulsarTest(PyFlinkStreamingTestCase):
+class FlinkPulsarTest(PyFlinkUTTestCase):
 
     def test_pulsar_source(self):
         TEST_OPTION_NAME = 'pulsar.source.enableAutoAcknowledgeMessage'

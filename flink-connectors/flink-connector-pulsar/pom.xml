@@ -26,7 +26,7 @@ under the License.
 	<parent>
 		<artifactId>flink-connectors</artifactId>
 		<groupId>org.apache.flink</groupId>
-		<version>1.16-SNAPSHOT</version>
+		<version>1.17-SNAPSHOT</version>
 	</parent>
 
 	<artifactId>flink-connector-pulsar</artifactId>
@@ -35,14 +35,14 @@ under the License.
 	<packaging>jar</packaging>
 
 	<properties>
-		<pulsar.version>2.10.0</pulsar.version>
+		<pulsar.version>2.10.1</pulsar.version>
 
 		<!-- Test Libraries -->
 		<protobuf-maven-plugin.version>0.6.1</protobuf-maven-plugin.version>
 		<os-maven-plugin.version>1.7.0</os-maven-plugin.version>
 		<pulsar-commons-lang3.version>3.11</pulsar-commons-lang3.version>
-		<pulsar-netty.version>4.1.74.Final</pulsar-netty.version>
-		<pulsar-grpc.version>1.42.1</pulsar-grpc.version>
+		<pulsar-netty.version>4.1.77.Final</pulsar-netty.version>
+		<pulsar-grpc.version>1.45.1</pulsar-grpc.version>
 	</properties>
 
 	<dependencies>
@@ -300,7 +300,6 @@ under the License.
 								<include>**/testutils/**</include>
 								<include>META-INF/LICENSE</include>
 								<include>META-INF/NOTICE</include>
-								<include>containers/txnStandalone.conf</include>
 							</includes>
 						</configuration>
 					</execution>
@@ -324,7 +323,6 @@ under the License.
 								<include>**/testutils/**</include>
 								<include>META-INF/LICENSE</include>
 								<include>META-INF/NOTICE</include>
-								<include>containers/txnStandalone.conf</include>
 							</includes>
 						</configuration>
 					</execution>

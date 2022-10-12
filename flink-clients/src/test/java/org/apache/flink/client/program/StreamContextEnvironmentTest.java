@@ -23,6 +23,7 @@ import org.apache.flink.api.common.RuntimeExecutionMode;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.DeploymentOptions;
 import org.apache.flink.configuration.ExecutionOptions;
+import org.apache.flink.configuration.PipelineOptions;
 import org.apache.flink.core.execution.PipelineExecutorFactory;
 import org.apache.flink.core.execution.PipelineExecutorServiceLoader;
 import org.apache.flink.runtime.jobgraph.SavepointConfigOptions;
@@ -41,31 +42,33 @@ import java.util.Collections;
 import java.util.List;
 import java.util.stream.Stream;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class StreamContextEnvironmentTest {
 
     @ParameterizedTest
     @MethodSource("provideExecutors")
-    void testDisallowJobConfigurationChanges(
+    void testDisallowProgramConfigurationChanges(
             ThrowingConsumer<StreamExecutionEnvironment, Exception> executor) {
-        final Configuration clusterConfiguration = new Configuration();
-        clusterConfiguration.set(DeploymentOptions.ALLOW_CLIENT_JOB_CONFIGURATIONS, false);
-        clusterConfiguration.set(DeploymentOptions.TARGET, "local");
-        clusterConfiguration.set(SavepointConfigOptions.SAVEPOINT_PATH, "/flink/savepoints");
-        clusterConfiguration.set(ExecutionOptions.RUNTIME_MODE, RuntimeExecutionMode.STREAMING);
+        final Configuration clusterConfig = new Configuration();
+        clusterConfig.set(DeploymentOptions.PROGRAM_CONFIG_ENABLED, false);
+        clusterConfig.set(DeploymentOptions.TARGET, "local");
+        clusterConfig.set(SavepointConfigOptions.SAVEPOINT_PATH, "/flink/savepoints");
+        clusterConfig.set(ExecutionOptions.RUNTIME_MODE, RuntimeExecutionMode.STREAMING);
 
-        final Configuration jobConfiguration = new Configuration();
-        jobConfiguration.set(DeploymentOptions.ALLOW_CLIENT_JOB_CONFIGURATIONS, false);
-        jobConfiguration.set(DeploymentOptions.TARGET, "local");
-        jobConfiguration.set(ExecutionOptions.RUNTIME_MODE, RuntimeExecutionMode.BATCH);
-        jobConfiguration.set(ExecutionOptions.SORT_INPUTS, true);
+        final Configuration programConfig = new Configuration();
+        programConfig.set(DeploymentOptions.PROGRAM_CONFIG_ENABLED, false);
+        programConfig.set(DeploymentOptions.TARGET, "local");
+        programConfig.set(ExecutionOptions.RUNTIME_MODE, RuntimeExecutionMode.BATCH);
+        programConfig.set(ExecutionOptions.SORT_INPUTS, true);
 
         final ClassLoader classLoader = Thread.currentThread().getContextClassLoader();
         final StreamContextEnvironment environment =
                 new StreamContextEnvironment(
                         new MockExecutorServiceLoader(),
-                        clusterConfiguration,
+                        clusterConfig,
+                        clusterConfig,
                         classLoader,
                         true,
                         true,
@@ -78,7 +81,7 @@ class StreamContextEnvironmentTest {
         environment.setParallelism(25);
 
         // Add/mutate values in the configuration
-        environment.configure(jobConfiguration);
+        environment.configure(programConfig);
 
         environment.fromCollection(Collections.singleton(1)).addSink(new DiscardingSink<>());
         assertThatThrownBy(() -> executor.accept(environment))
@@ -88,6 +91,44 @@ class StreamContextEnvironmentTest {
                         ExecutionOptions.SORT_INPUTS.key(),
                         CheckpointConfig.class.getSimpleName(),
                         ExecutionConfig.class.getSimpleName());
+    }
+
+    @ParameterizedTest
+    @MethodSource("provideExecutors")
+    void testAllowProgramConfigurationWildcards(
+            ThrowingConsumer<StreamExecutionEnvironment, Exception> executor) {
+        final Configuration clusterConfig = new Configuration();
+        clusterConfig.set(DeploymentOptions.TARGET, "local");
+        clusterConfig.set(ExecutionOptions.RUNTIME_MODE, RuntimeExecutionMode.STREAMING);
+        // Test prefix map notation
+        clusterConfig.setString(
+                PipelineOptions.GLOBAL_JOB_PARAMETERS.key() + "." + "my-param", "my-value");
+
+        final Configuration jobConfig = new Configuration();
+        jobConfig.set(
+                PipelineOptions.GLOBAL_JOB_PARAMETERS,
+                Collections.singletonMap("my-other-param", "my-other-value"));
+
+        final ClassLoader classLoader = Thread.currentThread().getContextClassLoader();
+        final StreamContextEnvironment environment =
+                new StreamContextEnvironment(
+                        new MockExecutorServiceLoader(),
+                        clusterConfig,
+                        clusterConfig,
+                        classLoader,
+                        true,
+                        true,
+                        false,
+                        Collections.singletonList(PipelineOptions.GLOBAL_JOB_PARAMETERS.key()));
+
+        // Change ExecutionConfig
+        environment.configure(jobConfig);
+
+        environment.fromCollection(Collections.singleton(1)).addSink(new DiscardingSink<>());
+        assertThatThrownBy(() -> executor.accept(environment))
+                .isInstanceOf(ExecutorReachedException.class);
+        assertThat(environment.getConfig().getGlobalJobParameters().toMap())
+                .containsOnlyKeys("my-other-param");
     }
 
     private static List<ThrowingConsumer<StreamExecutionEnvironment, Exception>>
@@ -100,12 +141,14 @@ class StreamContextEnvironmentTest {
 
         @Override
         public PipelineExecutorFactory getExecutorFactory(Configuration configuration) {
-            throw new UnsupportedOperationException("Not implemented");
+            throw new ExecutorReachedException();
         }
 
         @Override
         public Stream<String> getExecutorNames() {
-            throw new UnsupportedOperationException("Not implemented");
+            throw new ExecutorReachedException();
         }
     }
+
+    private static class ExecutorReachedException extends RuntimeException {}
 }

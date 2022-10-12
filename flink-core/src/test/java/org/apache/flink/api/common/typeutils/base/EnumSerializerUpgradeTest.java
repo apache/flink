@@ -28,8 +28,6 @@ import org.apache.flink.api.common.typeutils.TypeSerializerUpgradeTestBase;
 import org.hamcrest.Description;
 import org.hamcrest.Matcher;
 import org.hamcrest.TypeSafeMatcher;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -39,16 +37,10 @@ import static org.apache.flink.api.common.typeutils.base.TestEnum.EMMA;
 import static org.hamcrest.Matchers.is;
 
 /** Migration tests for {@link EnumSerializer}. */
-@RunWith(Parameterized.class)
-public class EnumSerializerUpgradeTest extends TypeSerializerUpgradeTestBase<TestEnum, TestEnum> {
+class EnumSerializerUpgradeTest extends TypeSerializerUpgradeTestBase<TestEnum, TestEnum> {
     private static final String SPEC_NAME = "enum-serializer";
 
-    public EnumSerializerUpgradeTest(TestSpecification<TestEnum, TestEnum> enumSerializer) {
-        super(enumSerializer);
-    }
-
-    @Parameterized.Parameters(name = "Test Specification = {0}")
-    public static Collection<TestSpecification<?, ?>> testSpecifications() throws Exception {
+    public Collection<TestSpecification<?, ?>> createTestSpecifications() throws Exception {
 
         ArrayList<TestSpecification<?, ?>> testSpecifications = new ArrayList<>();
         for (FlinkVersion flinkVersion : MIGRATION_VERSIONS) {

@@ -183,7 +183,12 @@ Flink 允许你灵活的配置并发推断策略。你可以在 `TableConfig` �
   </tbody>
 </table>
 
-**注意：** 目前上述参数仅适用于 ORC 格式的 Hive 表。
+{{< hint warning >}}
+**注意：**
+- 为了调整数据分片的大小， Flink 首先将计算得到所有分区下的所有文件的大小。
+  但是这在分区数量很多的情况下会比较耗时，你可以配置作业参数 `table.exec.hive.calculate-partition-size.thread-num`（默认为3）为一个更大的值使用更多的线程来进行加速。
+- 目前上述参数仅适用于 ORC 格式的 Hive 表。
+{{< /hint >}}
 
 ### 加载分区切片
 
@@ -507,7 +512,7 @@ INSERT INTO TABLE fact_tz PARTITION (day, hour) select 1, '2022-8-8', '14';
 
 **注意：**
 - 该配置项 `table.exec.hive.sink.sort-by-dynamic-partition.enable` 只在批模式下生效。
-- 目前，只有在 Flink 批模式下使用了 [Hive 方言]({{< ref "docs/connectors/table/hive/hive_dialect" >}})，才可以使用 `DISTRIBUTED BY` 和 `SORTED BY`。
+- 目前，只有在 Flink 批模式下使用了 [Hive 方言]({{< ref "docs/dev/table/hive-compatibility/hive-dialect/overview" >}})，才可以使用 `DISTRIBUTED BY` 和 `SORTED BY`。
 
 ### 自动收集统计信息
 在使用 Flink 写入 Hive 表的时候，Flink 将默认自动收集写入数据的统计信息然后将其提交至 Hive metastore 中。

@@ -198,7 +198,7 @@ function create_ha_config() {
     # High Availability
     #==============================================================================
 
-    high-availability: zookeeper
+    high-availability.type: zookeeper
     high-availability.zookeeper.storageDir: file://${TEST_DATA_DIR}/recovery/
     high-availability.zookeeper.quorum: localhost:2181
     high-availability.zookeeper.path.root: /flink
@@ -390,7 +390,6 @@ function check_logs_for_errors {
       | grep -v "java.lang.NoClassDefFoundError: org/apache/hadoop/conf/Configuration" \
       | grep -v "org.apache.commons.beanutils.FluentPropertyBeanIntrospector.*Error when creating PropertyDescriptor.*org.apache.commons.configuration2.AbstractConfiguration.setProperty(java.lang.String,java.lang.Object)! Ignoring this property." \
       | grep -v "Error while loading kafka-version.properties :null" \
-      | grep -v "Failed Elasticsearch item request" \
       | grep -v "[Terror] modules" \
       | grep -v "HeapDumpOnOutOfMemoryError" \
       | grep -v "error_prone_annotations" \
@@ -432,8 +431,6 @@ function check_logs_for_exceptions {
    | grep -v "Caused by: java.lang.Exception: JobManager is shutting down" \
    | grep -v "java.lang.Exception: Artificial failure" \
    | grep -v "org.apache.flink.runtime.checkpoint.CheckpointException" \
-   | grep -v "org.elasticsearch.ElasticsearchException" \
-   | grep -v "Elasticsearch exception" \
    | grep -v "org.apache.flink.runtime.JobException: Recovery is suppressed" \
    | grep -v "WARN  akka.remote.ReliableDeliverySupervisor" \
    | grep -v "RecipientUnreachableException" \

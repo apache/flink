@@ -59,7 +59,7 @@ public class RpcEndpointTest {
 
     @AfterAll
     public static void teardown() throws Exception {
-        rpcService.stopService().get();
+        rpcService.closeAsync().get();
     }
 
     /**

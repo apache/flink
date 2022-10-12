@@ -77,7 +77,7 @@ public class AbstractMetricGroupTest extends TestLogger {
                 };
         assertTrue(group.getAllVariables().isEmpty());
 
-        registry.shutdown().get();
+        registry.closeAsync().get();
     }
 
     @Test
@@ -237,7 +237,7 @@ public class AbstractMetricGroupTest extends TestLogger {
                                 input -> input.replace("A", "X").replace(counterName, "3")));
             }
         } finally {
-            testRegistry.shutdown().get();
+            testRegistry.closeAsync().get();
         }
     }
 
@@ -275,7 +275,7 @@ public class AbstractMetricGroupTest extends TestLogger {
                                     reporter2.findAdded(counterName).group)
                             .getLogicalScope(reporter2, ','));
         } finally {
-            testRegistry.shutdown().get();
+            testRegistry.closeAsync().get();
         }
     }
 
@@ -301,7 +301,7 @@ public class AbstractMetricGroupTest extends TestLogger {
             assertEquals("A.X.C.D.1", group.getMetricIdentifier("1", FILTER_B, -1, '.'));
             assertEquals("A.X.C.D.1", group.getMetricIdentifier("1", FILTER_B, 2, '.'));
         } finally {
-            testRegistry.shutdown().get();
+            testRegistry.closeAsync().get();
         }
     }
 

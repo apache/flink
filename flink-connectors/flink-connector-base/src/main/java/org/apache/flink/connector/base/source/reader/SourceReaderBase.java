@@ -39,6 +39,7 @@ import org.slf4j.LoggerFactory;
 import javax.annotation.Nullable;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -155,7 +156,6 @@ public abstract class SourceReaderBase<E, T, SplitT extends SourceSplit, SplitSt
                 // rather than emitting nothing and waiting for the caller to call us again.
                 return pollNext(output);
             }
-            // else fall through the loop
         }
     }
 
@@ -255,6 +255,12 @@ public abstract class SourceReaderBase<E, T, SplitT extends SourceSplit, SplitSt
     }
 
     @Override
+    public void pauseOrResumeSplits(
+            Collection<String> splitsToPause, Collection<String> splitsToResume) {
+        splitFetcherManager.pauseOrResumeSplits(splitsToPause, splitsToResume);
+    }
+
+    @Override
     public void close() throws Exception {
         LOG.info("Closing Source Reader.");
         splitFetcherManager.close(options.sourceReaderCloseTimeout);
@@ -315,7 +321,7 @@ public abstract class SourceReaderBase<E, T, SplitT extends SourceSplit, SplitSt
 
         final String splitId;
         final SplitStateT state;
-        SourceOutput<T> sourceOutput;
+        @Nullable SourceOutput<T> sourceOutput;
 
         private SplitContext(String splitId, SplitStateT state) {
             this.state = state;

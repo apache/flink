@@ -198,8 +198,13 @@ Users can do some performance tuning by tuning the split's size with the follow 
     </tr>
   </tbody>
 </table>
-
-**NOTE**: Currently, these two configurations only works for the Hive table stored as ORC format.
+{{< hint warning >}}
+**NOTE**:
+- To tune the split's size, Flink will first get all files' size for all partitions.
+  If there are too many partitions, it maybe time-consuming,
+  then you can configure the job configuration `table.exec.hive.calculate-partition-size.thread-num` (3 by default) to a bigger value to enable more threads to speed up the process.
+- Currently, these configurations for tuning split size only works for the Hive table stored as ORC format.
+{{< /hint >}}
 
 ### Load Partition Splits
 
@@ -534,7 +539,7 @@ Also, you can manually add `SORTED BY <partition_field>` in your SQL statement t
 
 **NOTE:** 
 - The configuration `table.exec.hive.sink.sort-by-dynamic-partition.enable` only works in Flink `BATCH` mode.
-- Currently, `DISTRIBUTED BY` and `SORTED BY` is only supported when using [Hive dialect]({{< ref "docs/connectors/table/hive/hive_dialect" >}})  in Flink `BATCH` mode.
+- Currently, `DISTRIBUTED BY` and `SORTED BY` is only supported when using [Hive dialect]({{< ref "docs/dev/table/hive-compatibility/hive-dialect/overview" >}})  in Flink `BATCH` mode.
 
 ### Auto Gather Statistic
 By default, Flink will gather the statistic automatically and then committed to Hive metastore during writing Hive table.

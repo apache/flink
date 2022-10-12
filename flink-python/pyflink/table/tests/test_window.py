@@ -20,8 +20,7 @@ from py4j.protocol import Py4JJavaError
 
 from pyflink.table import expressions as expr
 from pyflink.table.window import Session, Slide, Tumble, Over
-from pyflink.testing.test_case_utils import PyFlinkStreamTableTestCase, \
-    PyFlinkBatchTableTestCase
+from pyflink.testing.test_case_utils import PyFlinkStreamTableTestCase, PyFlinkTestCase
 
 
 class StreamTableWindowTests(PyFlinkStreamTableTestCase):
@@ -42,7 +41,12 @@ class StreamTableWindowTests(PyFlinkStreamTableTestCase):
             result.select, expr.col("b").sum.over(expr.col("w")))
 
 
-class BatchTableWindowTests(PyFlinkBatchTableTestCase):
+class BatchTableWindowTests(PyFlinkTestCase):
+
+    def setUp(self):
+        from pyflink.table import TableEnvironment
+        from pyflink.table import EnvironmentSettings
+        self.t_env = TableEnvironment.create(EnvironmentSettings.in_batch_mode())
 
     def test_tumble_window(self):
         t = self.t_env.from_elements([(1, 1, "Hello")], ["a", "b", "c"])

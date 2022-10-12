@@ -217,7 +217,7 @@ public class DispatcherResourceCleanupTest extends TestLogger {
     @AfterClass
     public static void teardownClass() throws ExecutionException, InterruptedException {
         if (rpcService != null) {
-            rpcService.stopService().get();
+            rpcService.closeAsync().get();
         }
     }
 

@@ -72,8 +72,10 @@ public class CacheTransformationTranslator<OUT, T extends CacheTransformation<OU
         if (transformation.isCached()) {
             return consumeCache(transformation, context);
         } else {
-            throw new RuntimeException(
-                    "Producing cache IntermediateResult is not supported in streaming mode");
+            final List<Transformation<?>> inputs = transformation.getInputs();
+            Preconditions.checkState(
+                    inputs.size() == 1, "There could be only one transformation input to cache");
+            return context.getStreamNodeIds(inputs.get(0));
         }
     }
 

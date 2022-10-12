@@ -32,8 +32,8 @@ from pyflink.datastream.functions import WindowFunction
 from pyflink.datastream.tests.test_util import DataStreamTestSinkFunction
 from pyflink.datastream.window import TimeWindowSerializer
 from pyflink.java_gateway import get_gateway
-from pyflink.table import DataTypes, CsvTableSink, StreamTableEnvironment, EnvironmentSettings, \
-    Module, ResultKind, ModuleEntry
+from pyflink.table import (DataTypes, StreamTableEnvironment, EnvironmentSettings, Module,
+                           ResultKind, ModuleEntry)
 from pyflink.table.catalog import ObjectPath, CatalogBaseTable
 from pyflink.table.explain_detail import ExplainDetail
 from pyflink.table.expressions import col, source_watermark
@@ -41,13 +41,12 @@ from pyflink.table.table_descriptor import TableDescriptor
 from pyflink.table.types import RowType, Row, UserDefinedType
 from pyflink.table.udf import udf
 from pyflink.testing import source_sink_utils
-from pyflink.testing.test_case_utils import (
-    PyFlinkBatchTableTestCase, PyFlinkStreamTableTestCase, PyFlinkTestCase,
-    _load_specific_flink_module_jars)
+from pyflink.testing.test_case_utils import (PyFlinkStreamTableTestCase, PyFlinkUTTestCase,
+                                             _load_specific_flink_module_jars)
 from pyflink.util.java_utils import get_j_env_configuration
 
 
-class TableEnvironmentTest(object):
+class TableEnvironmentTest(PyFlinkUTTestCase):
 
     def test_set_sys_executable_for_local_mode(self):
         jvm = get_gateway().jvm
@@ -85,15 +84,16 @@ class TableEnvironmentTest(object):
     def test_register_functions(self):
         t_env = self.t_env
 
-        t_env.register_function(
+        t_env.create_temporary_system_function(
             "python_scalar_func", udf(lambda i: i, result_type=DataTypes.INT()))
 
-        t_env.register_java_function("scalar_func",
-                                     "org.apache.flink.table.utils.TestingFunctions$RichFunc0")
-        t_env.register_java_function(
+        t_env.create_java_temporary_system_function(
+            "scalar_func", "org.apache.flink.table.utils.TestingFunctions$RichFunc0")
+
+        t_env.create_java_temporary_system_function(
             "agg_func", "org.apache.flink.table.utils.TestingFunctions$ByteMaxAggFunction")
-        t_env.register_java_function("table_func",
-                                     "org.apache.flink.table.utils.TestingFunctions$TableFunc1")
+        t_env.create_java_temporary_system_function(
+            "table_func", "org.apache.flink.table.utils.TestingFunctions$TableFunc1")
 
         actual = t_env.list_user_defined_functions()
         expected = ['python_scalar_func', 'scalar_func', 'agg_func', 'table_func']
@@ -231,8 +231,87 @@ class TableEnvironmentTest(object):
         options = contextResolvedTable.getTable().getOptions()
         self.assertEqual("fake", options.get("connector"))
 
+    def test_udt(self):
+        self.t_env.from_elements([
+            (DenseVector([1, 2, 3, 4]), 0., 1.),
+            (DenseVector([2, 2, 3, 4]), 0., 2.),
+            (DenseVector([3, 2, 3, 4]), 0., 3.),
+            (DenseVector([4, 2, 3, 4]), 0., 4.),
+            (DenseVector([5, 2, 3, 4]), 0., 5.),
+            (DenseVector([11, 2, 3, 4]), 1., 1.),
+            (DenseVector([12, 2, 3, 4]), 1., 2.),
+            (DenseVector([13, 2, 3, 4]), 1., 3.),
+            (DenseVector([14, 2, 3, 4]), 1., 4.),
+            (DenseVector([15, 2, 3, 4]), 1., 5.),
+        ],
+            DataTypes.ROW([
+                DataTypes.FIELD("features", VectorUDT()),
+                DataTypes.FIELD("label", DataTypes.DOUBLE()),
+                DataTypes.FIELD("weight", DataTypes.DOUBLE())]))
 
-class DataStreamConversionTestCases(PyFlinkTestCase):
+    def test_explain_with_multi_sinks(self):
+        t_env = self.t_env
+        source = t_env.from_elements([(1, "Hi", "Hello"), (2, "Hello", "Hello")], ["a", "b", "c"])
+        t_env.execute_sql("""
+            CREATE TABLE sink1 (
+                a BIGINT,
+                b STRING,
+                c STRING
+            ) WITH (
+                'connector' = 'filesystem',
+                'path'='path1',
+                'format' = 'csv'
+            )
+        """)
+
+        t_env.execute_sql("""
+            CREATE TABLE sink2 (
+                a BIGINT,
+                b STRING,
+                c STRING
+            ) WITH (
+                'connector' = 'filesystem',
+                'path'='path2',
+                'format' = 'csv'
+            )
+        """)
+
+        stmt_set = t_env.create_statement_set()
+        stmt_set.add_insert_sql("insert into sink1 select * from %s where a > 100" % source)
+        stmt_set.add_insert_sql("insert into sink2 select * from %s where a < 100" % source)
+
+        actual = stmt_set.explain(ExplainDetail.ESTIMATED_COST, ExplainDetail.CHANGELOG_MODE,
+                                  ExplainDetail.JSON_EXECUTION_PLAN)
+        self.assertIsInstance(actual, str)
+
+    def test_register_java_function(self):
+        t_env = self.t_env
+
+        t_env.create_java_temporary_system_function(
+            "scalar_func", "org.apache.flink.table.utils.TestingFunctions$RichFunc0")
+
+        t_env.create_java_temporary_system_function(
+            "agg_func", "org.apache.flink.table.utils.TestingFunctions$ByteMaxAggFunction")
+
+        t_env.create_java_temporary_system_function(
+            "table_func", "org.apache.flink.table.utils.TestingFunctions$TableFunc1")
+
+        actual = t_env.list_user_defined_functions()
+        expected = ['scalar_func', 'agg_func', 'table_func']
+        self.assert_equals(actual, expected)
+
+    def test_use_duplicated_modules(self):
+        self.assertRaisesRegex(
+            Py4JJavaError, "Module 'core' appears more than once",
+            self.t_env.use_modules, 'core', 'core')
+
+    def test_use_nonexistent_module(self):
+        self.assertRaisesRegex(
+            Py4JJavaError, "No module with name 'dummy' exists",
+            self.t_env.use_modules, 'core', 'dummy')
+
+
+class DataStreamConversionTestCases(PyFlinkUTTestCase):
 
     def setUp(self) -> None:
         from pyflink.datastream import StreamExecutionEnvironment
@@ -465,7 +544,7 @@ class DataStreamConversionTestCases(PyFlinkTestCase):
         self.assertEqual(result, expected)
 
 
-class StreamTableEnvironmentTests(TableEnvironmentTest, PyFlinkStreamTableTestCase):
+class StreamTableEnvironmentTests(PyFlinkStreamTableTestCase):
 
     def test_collect_with_retract(self):
         expected_row_kinds = [RowKind.INSERT, RowKind.UPDATE_BEFORE, RowKind.UPDATE_AFTER,
@@ -588,142 +667,6 @@ class DenseVector(object):
 
     def __repr__(self):
         return "DenseVector([%s])" % (", ".join(str(i) for i in self._values))
-
-
-class BatchTableEnvironmentTests(PyFlinkBatchTableTestCase):
-
-    def test_udt(self):
-        self.t_env.from_elements([
-            (DenseVector([1, 2, 3, 4]), 0., 1.),
-            (DenseVector([2, 2, 3, 4]), 0., 2.),
-            (DenseVector([3, 2, 3, 4]), 0., 3.),
-            (DenseVector([4, 2, 3, 4]), 0., 4.),
-            (DenseVector([5, 2, 3, 4]), 0., 5.),
-            (DenseVector([11, 2, 3, 4]), 1., 1.),
-            (DenseVector([12, 2, 3, 4]), 1., 2.),
-            (DenseVector([13, 2, 3, 4]), 1., 3.),
-            (DenseVector([14, 2, 3, 4]), 1., 4.),
-            (DenseVector([15, 2, 3, 4]), 1., 5.),
-        ],
-            DataTypes.ROW([
-                DataTypes.FIELD("features", VectorUDT()),
-                DataTypes.FIELD("label", DataTypes.DOUBLE()),
-                DataTypes.FIELD("weight", DataTypes.DOUBLE())]))
-
-    def test_explain_with_multi_sinks(self):
-        t_env = self.t_env
-        source = t_env.from_elements([(1, "Hi", "Hello"), (2, "Hello", "Hello")], ["a", "b", "c"])
-        field_names = ["a", "b", "c"]
-        field_types = [DataTypes.BIGINT(), DataTypes.STRING(), DataTypes.STRING()]
-        t_env.register_table_sink(
-            "sink1",
-            CsvTableSink(field_names, field_types, "path1"))
-        t_env.register_table_sink(
-            "sink2",
-            CsvTableSink(field_names, field_types, "path2"))
-
-        stmt_set = t_env.create_statement_set()
-        stmt_set.add_insert_sql("insert into sink1 select * from %s where a > 100" % source)
-        stmt_set.add_insert_sql("insert into sink2 select * from %s where a < 100" % source)
-
-        actual = stmt_set.explain(ExplainDetail.ESTIMATED_COST, ExplainDetail.CHANGELOG_MODE,
-                                  ExplainDetail.JSON_EXECUTION_PLAN)
-        self.assertIsInstance(actual, str)
-
-    def test_register_java_function(self):
-        t_env = self.t_env
-
-        t_env.register_java_function(
-            "scalar_func", "org.apache.flink.table.utils.TestingFunctions$RichFunc0")
-
-        t_env.register_java_function(
-            "agg_func", "org.apache.flink.table.utils.TestingFunctions$ByteMaxAggFunction")
-
-        t_env.register_java_function(
-            "table_func", "org.apache.flink.table.utils.TestingFunctions$TableFunc1")
-
-        actual = t_env.list_user_defined_functions()
-        expected = ['scalar_func', 'agg_func', 'table_func']
-        self.assert_equals(actual, expected)
-
-    def test_load_module_twice(self):
-        self.check_list_modules('core')
-        self.check_list_full_modules(1, 'core')
-        self.assertRaisesRegex(
-            Py4JJavaError, "A module with name 'core' already exists",
-            self.t_env.load_module, 'core', Module(
-                get_gateway().jvm.org.apache.flink.table.module.CoreModule.INSTANCE))
-
-    def test_unload_module_twice(self):
-        self.t_env.unload_module('core')
-        self.check_list_modules()
-        self.check_list_full_modules(0)
-        self.assertRaisesRegex(
-            Py4JJavaError, "No module with name 'core' exists",
-            self.t_env.unload_module, 'core')
-
-    def test_use_duplicated_modules(self):
-        self.assertRaisesRegex(
-            Py4JJavaError, "Module 'core' appears more than once",
-            self.t_env.use_modules, 'core', 'core')
-
-    def test_use_nonexistent_module(self):
-        self.assertRaisesRegex(
-            Py4JJavaError, "No module with name 'dummy' exists",
-            self.t_env.use_modules, 'core', 'dummy')
-
-    def test_use_modules(self):
-        # please do not change this order since ModuleMock depends on FunctionDefinitionMock
-        _load_specific_flink_module_jars('/flink-table/flink-table-common')
-        _load_specific_flink_module_jars('/flink-table/flink-table-api-java')
-
-        self.t_env.load_module('x', Module(
-            get_gateway().jvm.org.apache.flink.table.utils.ModuleMock("x")
-        ))
-        self.t_env.load_module('y', Module(
-            get_gateway().jvm.org.apache.flink.table.utils.ModuleMock("y")
-        ))
-        self.check_list_modules('core', 'x', 'y')
-        self.check_list_full_modules(3, 'core', 'x', 'y')
-
-        self.t_env.use_modules('y', 'core')
-        self.check_list_modules('y', 'core')
-        self.check_list_full_modules(2, 'y', 'core', 'x')
-
-    def check_list_modules(self, *expected_used_modules: str):
-        self.assert_equals(self.t_env.list_modules(), list(expected_used_modules))
-
-    def check_list_full_modules(self, used_module_cnt: int, *expected_loaded_modules: str):
-        self.assert_equals(self.t_env.list_full_modules(),
-                           [ModuleEntry(module,
-                                        expected_loaded_modules.index(module) < used_module_cnt)
-                            for module in expected_loaded_modules])
-
-    def test_unload_and_load_module(self):
-        t_env = self.t_env
-        t_env.unload_module('core')
-        t_env.load_module('core', Module(
-            get_gateway().jvm.org.apache.flink.table.module.CoreModule.INSTANCE))
-        table_result = t_env.execute_sql("select concat('unload', 'load') as test_module")
-        self.assertEqual(table_result.get_result_kind(), ResultKind.SUCCESS_WITH_CONTENT)
-        self.assert_equals(table_result.get_table_schema().get_field_names(), ['test_module'])
-
-    def test_create_and_drop_java_function(self):
-        t_env = self.t_env
-
-        t_env.create_java_temporary_system_function(
-            "scalar_func", "org.apache.flink.table.utils.TestingFunctions$RichFunc0")
-        t_env.create_java_function(
-            "agg_func", "org.apache.flink.table.utils.TestingFunctions$ByteMaxAggFunction")
-        t_env.create_java_temporary_function(
-            "table_func", "org.apache.flink.table.utils.TestingFunctions$TableFunc1")
-        self.assert_equals(t_env.list_user_defined_functions(),
-                           ['scalar_func', 'agg_func', 'table_func'])
-
-        t_env.drop_temporary_system_function("scalar_func")
-        t_env.drop_function("agg_func")
-        t_env.drop_temporary_function("table_func")
-        self.assert_equals(t_env.list_user_defined_functions(), [])
 
 
 class MyTimestampAssigner(TimestampAssigner):

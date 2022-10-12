@@ -31,20 +31,21 @@ import org.apache.flink.api.java.tuple.Tuple1;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.Visitor;
 
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 /** Test proper automated assignment of the transformation's name, if not set by the user. */
 @SuppressWarnings("serial")
-public class NamesTest implements Serializable {
+class NamesTest implements Serializable {
 
     @Test
-    public void testDefaultName() {
+    void testDefaultName() {
         ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
         DataSet<String> strs = env.fromCollection(Arrays.asList("a", "b"));
@@ -60,13 +61,13 @@ public class NamesTest implements Serializable {
                                 return value.equals("a");
                             }
                         })
-                .output(new DiscardingOutputFormat<String>());
+                .output(new DiscardingOutputFormat<>());
         Plan plan = env.createProgramPlan();
-        testForName("Filter at testDefaultName(NamesTest.java:54)", plan);
+        testForName("Filter at testDefaultName(NamesTest.java:55)", plan);
     }
 
     @Test
-    public void testGivenName() {
+    void testGivenName() {
         ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
         DataSet<String> strs = env.fromCollection(Arrays.asList("a", "b"));
@@ -80,18 +81,18 @@ public class NamesTest implements Serializable {
                             }
                         })
                 .name("GivenName")
-                .output(new DiscardingOutputFormat<String>());
+                .output(new DiscardingOutputFormat<>());
         Plan plan = env.createProgramPlan();
         testForName("GivenName", plan);
     }
 
     @Test
-    public void testJoinWith() {
+    void testJoinWith() {
         ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
-        List<Tuple1<String>> strLi = new ArrayList<Tuple1<String>>();
-        strLi.add(new Tuple1<String>("a"));
-        strLi.add(new Tuple1<String>("b"));
+        List<Tuple1<String>> strLi = new ArrayList<>();
+        strLi.add(new Tuple1<>("a"));
+        strLi.add(new Tuple1<>("b"));
 
         DataSet<Tuple1<String>> strs = env.fromCollection(strLi);
         DataSet<Tuple1<String>> strs1 = env.fromCollection(strLi);
@@ -109,16 +110,15 @@ public class NamesTest implements Serializable {
                                 //
                             }
                         })
-                .output(new DiscardingOutputFormat<String>());
+                .output(new DiscardingOutputFormat<>());
         Plan plan = env.createProgramPlan();
         plan.accept(
                 new Visitor<Operator<?>>() {
                     @Override
                     public boolean preVisit(Operator<?> visitable) {
                         if (visitable instanceof InnerJoinOperatorBase) {
-                            Assert.assertEquals(
-                                    "Join at testJoinWith(NamesTest.java:101)",
-                                    visitable.getName());
+                            assertThat(visitable.getName())
+                                    .isEqualTo("Join at testJoinWith(NamesTest.java:102)");
                         }
                         return true;
                     }
@@ -136,7 +136,7 @@ public class NamesTest implements Serializable {
                         if (visitable instanceof PlanFilterOperator<?>) {
                             // cast is actually not required. Its just a check for the right element
                             PlanFilterOperator<?> filterOp = (PlanFilterOperator<?>) visitable;
-                            Assert.assertEquals(expected, filterOp.getName());
+                            assertThat(filterOp.getName()).isEqualTo(expected);
                         }
                         return true;
                     }

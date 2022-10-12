@@ -178,6 +178,15 @@ class NonDeterministicTests extends ExpressionTestBase {
     testAllApis(uuid().charLength(), "CHARACTER_LENGTH(UUID())", "36")
   }
 
+  @Test
+  def testRand(): Unit = {
+    testSqlApi("RAND() <> RAND() or RAND() = RAND()", "TRUE")
+    testSqlApi("RAND(1) <> RAND(1) or RAND(1) = RAND(1)", "TRUE")
+    testSqlApi(
+      "RAND_INTEGER(10) <> RAND_INTEGER(10) or RAND_INTEGER(10) = RAND_INTEGER(10)",
+      "TRUE")
+  }
+
   // ----------------------------------------------------------------------------------------------
 
   override def testData: Row = new Row(0)

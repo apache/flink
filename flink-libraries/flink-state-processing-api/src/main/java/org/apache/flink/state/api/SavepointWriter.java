@@ -19,6 +19,7 @@
 package org.apache.flink.state.api;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.api.common.functions.RichMapFunction;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.Configuration;
@@ -36,6 +37,7 @@ import org.apache.flink.state.api.runtime.StateBootstrapTransformationWithID;
 import org.apache.flink.state.api.runtime.metadata.SavepointMetadataV2;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.functions.sink.OutputFormatSinkFunction;
+import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.Preconditions;
 
 import javax.annotation.Nullable;
@@ -43,7 +45,10 @@ import javax.annotation.Nullable;
 import java.io.IOException;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 import static org.apache.flink.runtime.state.KeyGroupRangeAssignment.UPPER_BOUND_MAX_PARALLELISM;
 
@@ -53,6 +58,9 @@ import static org.apache.flink.runtime.state.KeyGroupRangeAssignment.UPPER_BOUND
  */
 @PublicEvolving
 public class SavepointWriter {
+
+    private final Map<OperatorIdentifier, OperatorIdentifier> uidTransformationMap =
+            new HashMap<>();
 
     /**
      * Loads an existing savepoint. Useful if you want to modify or extend the state of an existing
@@ -173,27 +181,39 @@ public class SavepointWriter {
         this.configuration = new Configuration();
     }
 
+    /** @deprecated use {@link #removeOperator(OperatorIdentifier)} */
+    @Deprecated
+    public SavepointWriter removeOperator(String uid) {
+        return removeOperator(OperatorIdentifier.forUid(uid));
+    }
+
     /**
      * Drop an existing operator from the savepoint.
      *
-     * @param uid The uid of the operator.
+     * @param identifier The identifier of the operator.
      * @return A modified savepoint.
      */
-    public SavepointWriter removeOperator(String uid) {
-        metadata.removeOperator(uid);
+    public SavepointWriter removeOperator(OperatorIdentifier identifier) {
+        metadata.removeOperator(identifier);
         return this;
+    }
+
+    @Deprecated
+    public <T> SavepointWriter withOperator(
+            String uid, StateBootstrapTransformation<T> transformation) {
+        return withOperator(OperatorIdentifier.forUid(uid), transformation);
     }
 
     /**
      * Adds a new operator to the savepoint.
      *
-     * @param uid The uid of the operator.
+     * @param identifier The identifier of the operator.
      * @param transformation The operator to be included.
      * @return The modified savepoint.
      */
     public <T> SavepointWriter withOperator(
-            String uid, StateBootstrapTransformation<T> transformation) {
-        metadata.addOperator(uid, transformation);
+            OperatorIdentifier identifier, StateBootstrapTransformation<T> transformation) {
+        metadata.addOperator(identifier, transformation);
         return this;
     }
 
@@ -208,6 +228,51 @@ public class SavepointWriter {
      */
     public <T> SavepointWriter withConfiguration(ConfigOption<T> option, T value) {
         configuration.set(option, value);
+        return this;
+    }
+
+    /**
+     * Changes the identifier of an operator.
+     *
+     * <p>This method is comparatively cheap since it only modifies savepoint metadata without
+     * reading the entire savepoint data.
+     *
+     * <p>Use-cases include, but are not limited to:
+     *
+     * <ul>
+     *   <li>assigning a UID to an operator that did not have a UID assigned before
+     *   <li>changing the UID of an operator
+     *   <li>swapping the states of 2 operators
+     * </ul>
+     *
+     * <p>Identifier changes are applied after all other operations; in the following example the
+     * savepoint will only contain UID_2.
+     *
+     * <pre>
+     *     SavepointWriter savepoint = ...
+     *     savepoint.withOperator(UID_1, ...)
+     *     savepoint.changeOperatorIdentifier(UID_1, UID_2)
+     *     savepoint.write(...)
+     * </pre>
+     *
+     * <p>You cannot define a chain of changes; in the following example the savepoint will only
+     * contain UID_2.
+     *
+     * <pre>
+     *     SavepointWriter savepoint = ...
+     *     savepoint.withOperator(UID_1, ...)
+     *     savepoint.changeOperatorIdentifier(UID_1, UID_2)
+     *     savepoint.changeOperatorIdentifier(UID_2, UID_3)
+     *     savepoint.write(...)
+     * </pre>
+     *
+     * @param from operator whose identifier should be changed
+     * @param to desired identifier
+     * @return The modified savepoint.
+     */
+    public SavepointWriter changeOperatorIdentifier(
+            OperatorIdentifier from, OperatorIdentifier to) {
+        this.uidTransformationMap.put(from, to);
         return this;
     }
 
@@ -250,6 +315,8 @@ public class SavepointWriter {
                         new GroupReduceOperator<>(
                                 new MergeOperatorStates(metadata.getMasterStates())))
                 .forceNonParallel()
+                .map(new CheckpointMetadataCheckpointMetadataMapFunction(this.uidTransformationMap))
+                .setParallelism(1)
                 .addSink(new OutputFormatSinkFunction<>(new SavepointOutputFormat(savepointPath)))
                 .setParallelism(1)
                 .name(path);
@@ -275,5 +342,52 @@ public class SavepointWriter {
                         () ->
                                 new IllegalStateException(
                                         "Savepoint must contain at least one operator"));
+    }
+
+    private static class CheckpointMetadataCheckpointMetadataMapFunction
+            extends RichMapFunction<CheckpointMetadata, CheckpointMetadata> {
+        private static final long serialVersionUID = 1L;
+
+        private final Map<OperatorIdentifier, OperatorIdentifier> uidTransformationMap;
+
+        public CheckpointMetadataCheckpointMetadataMapFunction(
+                Map<OperatorIdentifier, OperatorIdentifier> uidTransformationMap) {
+            this.uidTransformationMap = new HashMap<>(uidTransformationMap);
+        }
+
+        @Override
+        public CheckpointMetadata map(CheckpointMetadata value) throws Exception {
+            final List<OperatorState> mapped =
+                    value.getOperatorStates().stream()
+                            .map(
+                                    operatorState -> {
+                                        OperatorIdentifier operatorIdentifier =
+                                                OperatorIdentifier.forUidHash(
+                                                        operatorState
+                                                                .getOperatorID()
+                                                                .toHexString());
+
+                                        final OperatorIdentifier transformedIdentifier =
+                                                uidTransformationMap.remove(operatorIdentifier);
+                                        if (transformedIdentifier != null) {
+                                            return operatorState.copyWithNewOperatorID(
+                                                    transformedIdentifier.getOperatorId());
+                                        }
+                                        return operatorState;
+                                    })
+                            .collect(Collectors.toList());
+            return new CheckpointMetadata(value.getCheckpointId(), mapped, value.getMasterStates());
+        }
+
+        @Override
+        public void close() throws Exception {
+            if (!uidTransformationMap.isEmpty()) {
+                throw new FlinkRuntimeException(
+                        "Some identifier changes were never applied!"
+                                + uidTransformationMap.entrySet().stream()
+                                        .map(Map.Entry::toString)
+                                        .collect(Collectors.joining("\n\t", "\n\t", "")));
+            }
+        }
     }
 }

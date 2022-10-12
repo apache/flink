@@ -16,10 +16,10 @@
 # limitations under the License.
 ################################################################################
 from pyflink.table import expressions as expr
-from pyflink.testing.test_case_utils import PyFlinkStreamTableTestCase
+from pyflink.testing.test_case_utils import PyFlinkUTTestCase
 
 
-class CorrelateTests(PyFlinkStreamTableTestCase):
+class CorrelateTests(PyFlinkUTTestCase):
 
     def test_join_lateral(self):
         t_env = self.t_env

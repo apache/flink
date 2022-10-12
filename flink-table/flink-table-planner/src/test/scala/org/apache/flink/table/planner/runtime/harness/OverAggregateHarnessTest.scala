@@ -17,7 +17,6 @@
  */
 package org.apache.flink.table.planner.runtime.harness
 
-import org.apache.flink.api.common.time.Time
 import org.apache.flink.api.scala._
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord
 import org.apache.flink.streaming.util.KeyedOneInputStreamOperatorTestHarness
@@ -291,8 +290,7 @@ class OverAggregateHarnessTest(mode: StateBackendMode) extends HarnessTestBase(m
 
     testHarness.open()
 
-    // register cleanup timer with 4003
-    testHarness.setProcessingTime(1003)
+    testHarness.setStateTtlProcessingTime(1003)
 
     testHarness.processElement(new StreamRecord(binaryrow(0L: JLong, "aaa", 1L: JLong, null)))
     testHarness.processElement(new StreamRecord(binaryrow(0L: JLong, "bbb", 10L: JLong, null)))
@@ -306,8 +304,7 @@ class OverAggregateHarnessTest(mode: StateBackendMode) extends HarnessTestBase(m
     testHarness.processElement(new StreamRecord(binaryrow(0L: JLong, "aaa", 7L: JLong, null)))
     testHarness.processElement(new StreamRecord(binaryrow(0L: JLong, "aaa", 8L: JLong, null)))
 
-    // trigger cleanup timer and register cleanup timer with 8003
-    testHarness.setProcessingTime(5003)
+    testHarness.setStateTtlProcessingTime(5003)
     testHarness.processElement(new StreamRecord(binaryrow(0L: JLong, "aaa", 9L: JLong, null)))
     testHarness.processElement(new StreamRecord(binaryrow(0L: JLong, "aaa", 10L: JLong, null)))
     testHarness.processElement(new StreamRecord(binaryrow(0L: JLong, "bbb", 40L: JLong, null)))
