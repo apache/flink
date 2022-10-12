@@ -159,6 +159,13 @@ under the License.
 			<scope>test</scope>
 		</dependency>
 
+		<!-- Client parser -->
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-sql-parser</artifactId>
+			<version>${project.version}</version>
+		</dependency>
+
 		<!-- test dependencies for HiveCatalog. The exclusions should be in sync with those flink-connector-hive -->
 
 		<dependency>
@@ -510,7 +517,6 @@ under the License.
 			<artifactId>log4j-1.2-api</artifactId>
 			<scope>provided</scope>
 		</dependency>
-
 	</dependencies>
 
 	<build>
@@ -532,11 +538,23 @@ under the License.
 							<artifactSet>
 								<includes combine.children="append">
 									<include>org.jline:*</include>
+									<include>org.apache.flink:flink-sql-parser</include>
 								</includes>
 							</artifactSet>
 						</configuration>
 					</execution>
 				</executions>
+				<configuration>
+					<filters>
+						<filter>
+							<!-- Only include TokenManager related class-->
+							<artifact>org.apache.flink:flink-sql-parser</artifact>
+							<includes>
+								<include>org/apache/flink/sql/parser/impl/**</include>
+							</includes>
+						</filter>
+					</filters>
+				</configuration>
 			</plugin>
 		</plugins>
 	</build>
