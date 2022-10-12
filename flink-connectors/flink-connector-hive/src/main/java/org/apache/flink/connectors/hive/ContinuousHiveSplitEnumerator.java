@@ -166,6 +166,14 @@ public class ContinuousHiveSplitEnumerator<T extends Comparable<T>>
                 readersAwaitingSplit.entrySet().iterator();
         while (awaitingReader.hasNext()) {
             final Map.Entry<Integer, String> nextAwaiting = awaitingReader.next();
+
+            // if the reader that requested another split has failed in the meantime, remove
+            // it from the list of waiting readers
+            if (!enumeratorContext.registeredReaders().containsKey(nextAwaiting.getKey())) {
+                awaitingReader.remove();
+                continue;
+            }
+
             final String hostname = nextAwaiting.getValue();
             final int awaitingSubtask = nextAwaiting.getKey();
             final Optional<FileSourceSplit> nextSplit = splitAssigner.getNext(hostname);
