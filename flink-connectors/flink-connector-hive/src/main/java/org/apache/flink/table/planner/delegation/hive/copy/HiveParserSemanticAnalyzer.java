@@ -18,8 +18,19 @@
 
 package org.apache.flink.table.planner.delegation.hive.copy;
 
-import org.apache.flink.table.catalog.hive.client.HiveShim;
-import org.apache.flink.table.catalog.hive.util.HiveTableUtil;
+import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.table.api.DataTypes;
+import org.apache.flink.table.api.TableSchema;
+import org.apache.flink.table.catalog.CatalogBaseTable;
+import org.apache.flink.table.catalog.CatalogManager;
+import org.apache.flink.table.catalog.CatalogPartition;
+import org.apache.flink.table.catalog.CatalogPartitionSpec;
+import org.apache.flink.table.catalog.CatalogTable;
+import org.apache.flink.table.catalog.CatalogTableImpl;
+import org.apache.flink.table.catalog.CatalogView;
+import org.apache.flink.table.catalog.ContextResolvedTable;
+import org.apache.flink.table.catalog.ObjectIdentifier;
+import org.apache.flink.table.catalog.UnresolvedIdentifier;
 import org.apache.flink.table.planner.delegation.hive.HiveParserTypeCheckProcFactory;
 import org.apache.flink.table.planner.delegation.hive.HiveParserUtils;
 import org.apache.flink.table.planner.delegation.hive.copy.HiveParserBaseSemanticAnalyzer.TableSpec;
@@ -32,6 +43,7 @@ import org.apache.flink.table.planner.delegation.hive.copy.HiveParserWindowingSp
 import org.apache.flink.table.planner.delegation.hive.parse.HiveASTParser;
 import org.apache.flink.table.planner.delegation.hive.parse.HiveParserDDLSemanticAnalyzer;
 import org.apache.flink.table.planner.delegation.hive.parse.HiveParserErrorMsg;
+import org.apache.flink.table.types.DataType;
 import org.apache.flink.util.Preconditions;
 
 import org.antlr.runtime.ClassicToken;
@@ -41,10 +53,8 @@ import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.sql.SqlOperator;
 import org.apache.calcite.tools.FrameworkConfig;
-import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.hadoop.fs.Path;
-import org.apache.hadoop.hive.common.ObjectPair;
 import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.hadoop.hive.conf.HiveConf.ConfVars;
 import org.apache.hadoop.hive.metastore.Warehouse;
@@ -56,17 +66,12 @@ import org.apache.hadoop.hive.ql.exec.ColumnInfo;
 import org.apache.hadoop.hive.ql.exec.FunctionRegistry;
 import org.apache.hadoop.hive.ql.exec.Utilities;
 import org.apache.hadoop.hive.ql.hooks.ReadEntity;
-import org.apache.hadoop.hive.ql.io.HiveOutputFormat;
-import org.apache.hadoop.hive.ql.io.RCFileInputFormat;
-import org.apache.hadoop.hive.ql.io.orc.OrcInputFormat;
 import org.apache.hadoop.hive.ql.lib.Dispatcher;
 import org.apache.hadoop.hive.ql.lib.GraphWalker;
 import org.apache.hadoop.hive.ql.lib.Node;
 import org.apache.hadoop.hive.ql.metadata.Hive;
 import org.apache.hadoop.hive.ql.metadata.HiveException;
 import org.apache.hadoop.hive.ql.metadata.HiveUtils;
-import org.apache.hadoop.hive.ql.metadata.Partition;
-import org.apache.hadoop.hive.ql.metadata.Table;
 import org.apache.hadoop.hive.ql.parse.ColumnAccessInfo;
 import org.apache.hadoop.hive.ql.parse.GlobalLimitCtx;
 import org.apache.hadoop.hive.ql.parse.JoinType;
@@ -80,14 +85,12 @@ import org.apache.hadoop.hive.ql.plan.ExprNodeDesc;
 import org.apache.hadoop.hive.ql.plan.ExprNodeDescUtils;
 import org.apache.hadoop.hive.ql.plan.ExprNodeFieldDesc;
 import org.apache.hadoop.hive.ql.plan.HiveOperation;
-import org.apache.hadoop.hive.ql.plan.PlanUtils;
 import org.apache.hadoop.hive.ql.session.SessionState;
-import org.apache.hadoop.mapred.InputFormat;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.File;
-import java.nio.file.Files;
+import javax.annotation.Nullable;
+
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -97,6 +100,7 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Optional;
 import java.util.Set;
 import java.util.regex.Pattern;
 import java.util.regex.PatternSyntaxException;
@@ -107,9 +111,12 @@ import static org.apache.flink.table.planner.delegation.hive.copy.HiveParserBase
 import static org.apache.flink.table.planner.delegation.hive.copy.HiveParserBaseSemanticAnalyzer.findTabRefIdxs;
 import static org.apache.flink.table.planner.delegation.hive.copy.HiveParserBaseSemanticAnalyzer.getAliasId;
 import static org.apache.flink.table.planner.delegation.hive.copy.HiveParserBaseSemanticAnalyzer.getColumnInternalName;
+import static org.apache.flink.table.planner.delegation.hive.copy.HiveParserBaseSemanticAnalyzer.getObjectIdentifier;
 import static org.apache.flink.table.planner.delegation.hive.copy.HiveParserBaseSemanticAnalyzer.getUnescapedName;
+import static org.apache.flink.table.planner.delegation.hive.copy.HiveParserBaseSemanticAnalyzer.getUnescapedOriginTableName;
 import static org.apache.flink.table.planner.delegation.hive.copy.HiveParserBaseSemanticAnalyzer.handleQueryWindowClauses;
 import static org.apache.flink.table.planner.delegation.hive.copy.HiveParserBaseSemanticAnalyzer.initPhase1Ctx;
+import static org.apache.flink.table.planner.delegation.hive.copy.HiveParserBaseSemanticAnalyzer.parseCompoundName;
 import static org.apache.flink.table.planner.delegation.hive.copy.HiveParserBaseSemanticAnalyzer.processPTFPartitionSpec;
 import static org.apache.flink.table.planner.delegation.hive.copy.HiveParserBaseSemanticAnalyzer.processWindowFunction;
 import static org.apache.flink.table.planner.delegation.hive.copy.HiveParserBaseSemanticAnalyzer.readProps;
@@ -117,7 +124,7 @@ import static org.apache.flink.table.planner.delegation.hive.copy.HiveParserBase
 import static org.apache.flink.table.planner.delegation.hive.copy.HiveParserBaseSemanticAnalyzer.unescapeIdentifier;
 import static org.apache.flink.table.planner.delegation.hive.copy.HiveParserBaseSemanticAnalyzer.unescapeSQLString;
 import static org.apache.flink.table.planner.delegation.hive.copy.HiveParserBaseSemanticAnalyzer.unparseExprForValuesClause;
-import static org.apache.flink.table.planner.delegation.hive.copy.HiveParserBaseSemanticAnalyzer.validatePartSpec;
+import static org.apache.flink.table.planner.delegation.hive.copy.HiveParserBaseSemanticAnalyzer.validatePartColumnType;
 
 /**
  * Counterpart of hive's org.apache.hadoop.hive.ql.parse.SemanticAnalyzer and adapted to our needs.
@@ -152,13 +159,6 @@ public class HiveParserSemanticAnalyzer {
     private final String autogenColAliasPrfxLbl;
     private final boolean autogenColAliasPrfxIncludeFuncName;
 
-    // Keep track of view alias to read entity corresponding to the view
-    // For eg: for a query like 'select * from V3', where V3 -> V2, V2 -> V1, V1 -> T
-    // keeps track of aliases for V3, V3:V2, V3:V2:V1.
-    // This is used when T is added as an input for the query, the parents of T is
-    // derived from the alias V3:V2:V1:T
-    private final Map<String, ReadEntity> viewAliasToInput;
-
     // need merge isDirect flag to input even if the newInput does not have a parent
     private boolean mergeIsDirect;
 
@@ -179,9 +179,6 @@ public class HiveParserSemanticAnalyzer {
 
     protected HiveParserBaseSemanticAnalyzer.AnalyzeRewriteContext analyzeRewrite;
 
-    // A mapping from a tableName to a table object in metastore.
-    Map<String, Table> tabNameToTabObject;
-
     public ColumnAccessInfo columnAccessInfo;
 
     private final HiveConf conf;
@@ -189,10 +186,7 @@ public class HiveParserSemanticAnalyzer {
     public HiveParserContext ctx;
 
     QueryProperties queryProperties;
-
-    private final HiveShim hiveShim;
-
-    private final Hive db;
+    private Hive db;
 
     // ReadEntities that are passed to the hooks.
     protected HashSet<ReadEntity> inputs = new LinkedHashSet<>();
@@ -202,23 +196,19 @@ public class HiveParserSemanticAnalyzer {
     private final FrameworkConfig frameworkConfig;
     private final RelOptCluster cluster;
 
+    private final CatalogManager catalogManager;
+
     public HiveParserSemanticAnalyzer(
             HiveParserQueryState queryState,
-            HiveShim hiveShim,
             FrameworkConfig frameworkConfig,
-            RelOptCluster cluster)
+            RelOptCluster cluster,
+            CatalogManager catalogManager)
             throws SemanticException {
         this.queryState = queryState;
         this.conf = queryState.getConf();
-        this.hiveShim = hiveShim;
-        try {
-            this.db = Hive.get(conf);
-        } catch (HiveException e) {
-            throw new SemanticException(e);
-        }
+        this.catalogManager = catalogManager;
         nameToSplitSample = new HashMap<>();
         prunedPartitions = new HashMap<>();
-        tabNameToTabObject = new HashMap<>();
         unparseTranslator = new HiveParserUnparseTranslator(conf);
         autogenColAliasPrfxLbl =
                 HiveConf.getVar(conf, HiveConf.ConfVars.HIVE_AUTOGEN_COLUMNALIAS_PREFIX_LABEL);
@@ -228,10 +218,8 @@ public class HiveParserSemanticAnalyzer {
         queryProperties = new QueryProperties();
         aliasToCTEs = new HashMap<>();
         globalLimitCtx = new GlobalLimitCtx();
-        viewAliasToInput = new HashMap<>();
         mergeIsDirect = true;
         noscan = partialscan = false;
-        tabNameToTabObject = new HashMap<>();
         defaultJoinMerge = !Boolean.parseBoolean(conf.get("hive.merge.nway.joins", "true"));
         disableJoinMerge = defaultJoinMerge;
         this.frameworkConfig = frameworkConfig;
@@ -262,7 +250,6 @@ public class HiveParserSemanticAnalyzer {
         } else {
             mergeIsDirect = false;
         }
-        tabNameToTabObject.clear();
         qb = null;
         ast = null;
         disableJoinMerge = defaultJoinMerge;
@@ -274,7 +261,6 @@ public class HiveParserSemanticAnalyzer {
         viewSelect = null;
         ctesExpanded = null;
         globalLimitCtx.disableOpt();
-        viewAliasToInput.clear();
         unparseTranslator.clear();
         queryProperties.clear();
     }
@@ -486,7 +472,13 @@ public class HiveParserSemanticAnalyzer {
 
         HiveParserASTNode tableTree = (HiveParserASTNode) (tabref.getChild(0));
 
-        String tabIdName = getUnescapedName(tableTree).toLowerCase();
+        String qualifiedTableName =
+                getUnescapedName(
+                                tableTree,
+                                catalogManager.getCurrentCatalog(),
+                                catalogManager.getCurrentDatabase())
+                        .toLowerCase();
+        String originTableName = getUnescapedOriginTableName(tableTree);
 
         String alias = findSimpleTableName(tabref, aliasIndex);
 
@@ -569,7 +561,7 @@ public class HiveParserSemanticAnalyzer {
             nameToSplitSample.put(aliasId, sample);
         }
         // Insert this map into the stats
-        qb.setTabAlias(alias, tabIdName);
+        qb.setTabAlias(alias, originTableName, qualifiedTableName);
         if (qb.isInsideView()) {
             qb.getAliasInsideView().add(alias.toLowerCase());
         }
@@ -579,9 +571,11 @@ public class HiveParserSemanticAnalyzer {
 
         // if alias to CTE contains the table name, we do not do the translation because
         // cte is actually a subquery.
-        if (!this.aliasToCTEs.containsKey(tabIdName)) {
+        if (!this.aliasToCTEs.containsKey(qualifiedTableName)) {
             unparseTranslator.addTableNameTranslation(
-                    tableTree, SessionState.get().getCurrentDatabase());
+                    tableTree,
+                    catalogManager.getCurrentCatalog(),
+                    catalogManager.getCurrentDatabase());
             if (aliasIndex != 0) {
                 unparseTranslator.addIdentifierTranslation(
                         (HiveParserASTNode) tabref.getChild(aliasIndex));
@@ -636,9 +630,9 @@ public class HiveParserSemanticAnalyzer {
 
         List<? extends Node> rows = valuesTable.getChildren();
         List<List<String>> valuesData = new ArrayList<>(rows.size());
+        List<String> fieldsName = new ArrayList<>();
+        List<DataType> fieldsDataType = new ArrayList<>();
         try {
-            List<FieldSchema> fields = new ArrayList<>();
-
             boolean firstRow = true;
             for (Node n : rows) {
                 // Each of the children of TOK_VALUES_TABLE will be a TOK_VALUE_ROW
@@ -654,7 +648,8 @@ public class HiveParserSemanticAnalyzer {
                 for (Node n1 : columns) {
                     HiveParserASTNode column = (HiveParserASTNode) n1;
                     if (firstRow) {
-                        fields.add(new FieldSchema("tmp_values_col" + nextColNum++, "string", ""));
+                        fieldsName.add("tmp_values_col" + nextColNum++);
+                        fieldsDataType.add(DataTypes.STRING());
                     }
                     data.add(unparseExprForValuesClause(column));
                 }
@@ -662,23 +657,18 @@ public class HiveParserSemanticAnalyzer {
                 valuesData.add(data);
             }
 
-            // Step 2, create a temp table
-            Table table = db.newTable(tableName);
-            table.setSerializationLib(conf.getVar(HiveConf.ConfVars.HIVEDEFAULTSERDE));
-            HiveTableUtil.setStorageFormat(table.getSd(), "TextFile", conf);
-            table.setFields(fields);
-            // make up a path for this table
-            File dataLocation = Files.createTempDirectory(tableName).toFile();
-            try {
-                table.setDataLocation(new Path(dataLocation.toURI().toString(), tableName));
-                table.getTTable().setTemporary(true);
-                table.setStoredAsSubDirectories(false);
-                db.createTable(table, false);
-            } finally {
-                FileUtils.deleteQuietly(dataLocation);
-            }
+            // Step 2, create a temp table to maintain table schema
+            CatalogTable tempTable =
+                    new CatalogTableImpl(
+                            TableSchema.builder()
+                                    .fields(
+                                            fieldsName.toArray(new String[0]),
+                                            fieldsDataType.toArray(new DataType[0]))
+                                    .build(),
+                            Collections.emptyMap(),
+                            "values temp table");
             // remember the data for this table
-            qb.getValuesTableToData().put(tableName, valuesData);
+            qb.getValuesTableToData().put(tableName, Tuple2.of(tempTable, valuesData));
         } catch (Exception e) {
             throw new SemanticException("Failed to create temp table for VALUES", e);
         }
@@ -958,11 +948,11 @@ public class HiveParserSemanticAnalyzer {
                     break;
 
                 case HiveASTParser.TOK_INSERT_INTO:
-                    String currentDatabase = SessionState.get().getCurrentDatabase();
                     String tabName =
                             getUnescapedName(
                                     (HiveParserASTNode) ast.getChild(0).getChild(0),
-                                    currentDatabase);
+                                    catalogManager.getCurrentCatalog(),
+                                    catalogManager.getCurrentDatabase());
                     qbp.addInsertIntoTable(tabName, ast);
                     // TODO: hive doesn't break here, so we copy what's below here
                     handleTokDestination(ctx1, ast, qbp, plannerCtx);
@@ -1119,8 +1109,11 @@ public class HiveParserSemanticAnalyzer {
                     String tableName =
                             getUnescapedName((HiveParserASTNode) ast.getChild(0).getChild(0))
                                     .toLowerCase();
+                    String originTableName =
+                            getUnescapedOriginTableName(
+                                    (HiveParserASTNode) ast.getChild(0).getChild(0));
 
-                    qb.setTabAlias(tableName, tableName);
+                    qb.setTabAlias(tableName, originTableName, tableName);
                     qb.addAlias(tableName);
                     qb.getParseInfo().setIsAnalyzeCommand(true);
                     qb.getParseInfo().setNoScanAnalyzeCommand(this.noscan);
@@ -1150,8 +1143,9 @@ public class HiveParserSemanticAnalyzer {
                     if (destination.getChildCount() == 2
                             && tab.getChildCount() == 2
                             && destination.getChild(1).getType() == HiveASTParser.TOK_IFNOTEXISTS) {
-                        String name =
-                                getUnescapedName((HiveParserASTNode) tab.getChild(0)).toLowerCase();
+                        ObjectIdentifier tableIdentifier =
+                                getObjectIdentifier(
+                                        catalogManager, (HiveParserASTNode) tab.getChild(0));
 
                         Tree partitions = tab.getChild(1);
                         int numChildren = partitions.getChildCount();
@@ -1171,33 +1165,26 @@ public class HiveParserSemanticAnalyzer {
                                     ErrorMsg.INSERT_INTO_DYNAMICPARTITION_IFNOTEXISTS.getMsg(
                                             partition.toString()));
                         }
-                        Table table;
-                        try {
-                            table = getTableObjectByName(name);
-                        } catch (HiveException ex) {
-                            throw new SemanticException(ex);
+                        Optional<CatalogPartition> catalogPartition =
+                                catalogManager.getPartition(
+                                        tableIdentifier, new CatalogPartitionSpec(partition));
+                        // Check partition exists if it exists skip the overwrite
+                        if (catalogPartition.isPresent()) {
+                            phase1Result = false;
+                            skipRecursion = true;
+                            LOG.info(
+                                    "Partition already exists so insert into overwrite "
+                                            + "skipped for partition : "
+                                            + partition);
+                            break;
                         }
-                        try {
-                            Partition parMetaData = db.getPartition(table, partition, false);
-                            // Check partition exists if it exists skip the overwrite
-                            if (parMetaData != null) {
-                                phase1Result = false;
-                                skipRecursion = true;
-                                LOG.info(
-                                        "Partition already exists so insert into overwrite "
-                                                + "skipped for partition : "
-                                                + parMetaData.toString());
-                                break;
-                            }
-                        } catch (HiveException e) {
-                            LOG.info("Error while getting metadata : ", e);
-                        }
-                        validatePartSpec(
-                                table,
+                        CatalogTable catalogTable =
+                                getCatalogTable(tableIdentifier.asSummaryString(), qb);
+                        validatePartColumnType(
+                                catalogTable,
                                 partition,
                                 (HiveParserASTNode) tab,
                                 conf,
-                                false,
                                 frameworkConfig,
                                 cluster);
                     }
@@ -1251,7 +1238,8 @@ public class HiveParserSemanticAnalyzer {
                     String fullTableName =
                             getUnescapedName(
                                     (HiveParserASTNode) ast.getChild(0).getChild(0),
-                                    SessionState.get().getCurrentDatabase());
+                                    catalogManager.getCurrentCatalog(),
+                                    catalogManager.getCurrentDatabase());
                     qbp.getInsertOverwriteTables().put(fullTableName, ast);
                 }
             }
@@ -1315,7 +1303,8 @@ public class HiveParserSemanticAnalyzer {
             String fullTableName =
                     getUnescapedName(
                             (HiveParserASTNode) ast.getChild(0).getChild(0),
-                            SessionState.get().getCurrentDatabase());
+                            catalogManager.getCurrentCatalog(),
+                            catalogManager.getCurrentDatabase());
             qbp.setDestSchemaForClause(ctx1.dest, targetColNames);
             Set<String> targetColumns = new HashSet<>(targetColNames);
             if (targetColNames.size() != targetColumns.size()) {
@@ -1326,21 +1315,16 @@ public class HiveParserSemanticAnalyzer {
                                         + fullTableName
                                         + " table schema specification"));
             }
-            Table targetTable;
-            try {
-                targetTable = db.getTable(fullTableName, false);
-            } catch (HiveException ex) {
-                LOG.error("Error processing HiveASTParser.TOK_DESTINATION: " + ex.getMessage(), ex);
-                throw new SemanticException(ex);
-            }
-            if (targetTable == null) {
-                throw new SemanticException(
-                        HiveParserUtils.generateErrorMessage(
-                                ast, "Unable to access metadata for table " + fullTableName));
-            }
-            for (FieldSchema f : targetTable.getCols()) {
+            CatalogTable targetTable = getCatalogTable(fullTableName, qb);
+            Set<String> partitionColumns = new HashSet<>(targetTable.getPartitionKeys());
+            TableSchema tableSchema =
+                    HiveParserUtils.fromUnresolvedSchema(targetTable.getUnresolvedSchema());
+            for (String column : tableSchema.getFieldNames()) {
                 // parser only allows foo(a,b), not foo(foo.a, foo.b)
-                targetColumns.remove(f.getName());
+                // only consider non-partition col
+                if (!partitionColumns.contains(column)) {
+                    targetColumns.remove(column);
+                }
             }
             // here we need to see if remaining columns are dynamic partition columns
             if (!targetColumns.isEmpty()) {
@@ -1441,8 +1425,8 @@ public class HiveParserSemanticAnalyzer {
             HiveParserQB qb, HiveParserBaseSemanticAnalyzer.CTEClause current)
             throws HiveException {
         for (String alias : qb.getTabAliases()) {
-            String tabName = qb.getTabNameForAlias(alias);
-            String cteName = tabName.toLowerCase();
+            String originTabName = qb.getOriginTabNameForAlias(alias);
+            String cteName = originTabName.toLowerCase();
 
             HiveParserBaseSemanticAnalyzer.CTEClause cte = findCTEFromName(qb, cteName);
             if (cte != null) {
@@ -1474,17 +1458,13 @@ public class HiveParserSemanticAnalyzer {
         }
     }
 
-    public void getMetaData(HiveParserQB qb) throws SemanticException {
-        getMetaData(qb, false);
-    }
-
     public void getMetaData(HiveParserQB qb, boolean enableMaterialization)
             throws SemanticException {
         try {
             if (enableMaterialization) {
                 getMaterializationMetadata(qb);
             }
-            getMetaData(qb, null);
+            getMetaData(qb);
         } catch (HiveException e) {
             LOG.error(org.apache.hadoop.util.StringUtils.stringifyException(e));
             if (e instanceof SemanticException) {
@@ -1494,17 +1474,17 @@ public class HiveParserSemanticAnalyzer {
         }
     }
 
-    private void getMetaData(HiveParserQBExpr qbexpr, ReadEntity parentInput) throws HiveException {
+    private void getMetaData(HiveParserQBExpr qbexpr) throws HiveException {
         if (qbexpr.getOpcode() == HiveParserQBExpr.Opcode.NULLOP) {
-            getMetaData(qbexpr.getQB(), parentInput);
+            getMetaData(qbexpr.getQB());
         } else {
-            getMetaData(qbexpr.getQBExpr1(), parentInput);
-            getMetaData(qbexpr.getQBExpr2(), parentInput);
+            getMetaData(qbexpr.getQBExpr1());
+            getMetaData(qbexpr.getQBExpr2());
         }
     }
 
     @SuppressWarnings("nls")
-    private void getMetaData(HiveParserQB qb, ReadEntity parentInput) throws HiveException {
+    private void getMetaData(HiveParserQB qb) throws HiveException {
         LOG.info("Get metadata for source tables");
 
         // Go over the tables and populate the related structures. We have to materialize the table
@@ -1512,22 +1492,29 @@ public class HiveParserSemanticAnalyzer {
         // modify it in the middle for view rewrite.
         List<String> tabAliases = new ArrayList<>(qb.getTabAliases());
 
-        // Keep track of view alias to view name and read entity
+        // Keep track of view alias to view name
         // For eg: for a query like 'select * from V3', where V3 -> V2, V2 -> V1, V1 -> T
-        // keeps track of full view name and read entity corresponding to alias V3, V3:V2, V3:V2:V1.
-        // This is needed for tracking the dependencies for inputs, along with their parents.
-        Map<String, ObjectPair<String, ReadEntity>> aliasToViewInfo = new HashMap<>();
+        // keeps track of full view name corresponding to alias V3, V3:V2, V3:V2:V1.
+        Map<String, String> aliasToViewInfo = new HashMap<>();
 
         // used to capture view to SQ conversions. This is used to check for recursive CTE
         // invocations.
         Map<String, String> sqAliasToCTEName = new HashMap<>();
 
         for (String alias : tabAliases) {
+            // tabName will always be "catalog.db.table"
             String tabName = qb.getTabNameForAlias(alias);
-            String cteName = tabName.toLowerCase();
+            ObjectIdentifier tableIdentifier = parseCompoundName(catalogManager, tabName);
+            // get the origin table name like "table", "db.table", "catalog.db.table" that user
+            // specifies
+            String originTabName = qb.getOriginTabNameForAlias(alias);
+            String cteName = originTabName.toLowerCase();
 
-            Table tab = db.getTable(tabName, false);
-            if (tab == null || tab.getDbName().equals(SessionState.get().getCurrentDatabase())) {
+            CatalogBaseTable tab = getCatalogBaseTable(tabName, qb, false);
+            if (tab == null
+                    || tableIdentifier
+                            .getDatabaseName()
+                            .equals(catalogManager.getCurrentDatabase())) {
                 // we first look for this alias from CTE, and then from catalog.
                 HiveParserBaseSemanticAnalyzer.CTEClause cte = findCTEFromName(qb, cteName);
                 if (cte != null) {
@@ -1549,106 +1536,27 @@ public class HiveParserSemanticAnalyzer {
                     throw new SemanticException(ErrorMsg.INVALID_TABLE.getMsg(alias));
                 }
             }
-            if (tab.isView()) {
+            if (tab instanceof CatalogView) {
                 if (qb.getParseInfo().isAnalyzeCommand()) {
                     throw new SemanticException(ErrorMsg.ANALYZE_VIEW.getMsg());
                 }
-                String fullViewName = tab.getDbName() + "." + tab.getTableName();
                 // Prevent view cycles
-                if (viewsExpanded.contains(fullViewName)) {
+                if (viewsExpanded.contains(tabName)) {
                     throw new SemanticException(
                             "Recursive view "
-                                    + fullViewName
+                                    + tabName
                                     + " detected (cycle: "
                                     + StringUtils.join(viewsExpanded, " -> ")
                                     + " -> "
-                                    + fullViewName
+                                    + tabName
                                     + ").");
                 }
-                replaceViewReferenceWithDefinition(qb, tab, tabName, alias);
-                // This is the last time we'll see the Table objects for views, so add it to the
-                // inputs now. isInsideView will tell if this view is embedded in another view.
-                // If the view is Inside another view, it should have at least one parent
-                if (qb.isInsideView() && parentInput == null) {
-                    parentInput =
-                            PlanUtils.getParentViewInfo(getAliasId(alias, qb), viewAliasToInput);
-                }
-                ReadEntity viewInput = new ReadEntity(tab, parentInput, !qb.isInsideView());
-                viewInput = PlanUtils.addInput(inputs, viewInput);
-                aliasToViewInfo.put(alias, new ObjectPair<>(fullViewName, viewInput));
-                String aliasId = getAliasId(alias, qb);
-                if (aliasId != null) {
-                    aliasId = aliasId.replace(SUBQUERY_TAG_1, "").replace(SUBQUERY_TAG_2, "");
-                }
-                viewAliasToInput.put(aliasId, viewInput);
+                replaceViewReferenceWithDefinition(qb, (CatalogView) tab, tabName, alias);
+                aliasToViewInfo.put(alias, tabName);
                 continue;
             }
 
-            if (!InputFormat.class.isAssignableFrom(tab.getInputFormatClass())) {
-                throw new SemanticException(
-                        HiveParserUtils.generateErrorMessage(
-                                qb.getParseInfo().getSrcForAlias(alias),
-                                ErrorMsg.INVALID_INPUT_FORMAT_TYPE.getMsg()));
-            }
-
-            qb.getMetaData().setSrcForAlias(alias, tab);
-
-            if (qb.getParseInfo().isAnalyzeCommand()) {
-                // allow partial partition specification for nonscan since noscan is fast.
-                TableSpec ts =
-                        new TableSpec(
-                                db,
-                                conf,
-                                (HiveParserASTNode) ast.getChild(0),
-                                true,
-                                this.noscan,
-                                frameworkConfig,
-                                cluster);
-                if (ts.specType == SpecType.DYNAMIC_PARTITION) { // dynamic partitions
-                    try {
-                        ts.partitions = db.getPartitionsByNames(ts.tableHandle, ts.partSpec);
-                    } catch (HiveException e) {
-                        throw new SemanticException(
-                                HiveParserUtils.generateErrorMessage(
-                                        qb.getParseInfo().getSrcForAlias(alias),
-                                        "Cannot get partitions for " + ts.partSpec),
-                                e);
-                    }
-                }
-                // validate partial scan command
-                HiveParserQBParseInfo qbpi = qb.getParseInfo();
-                if (qbpi.isPartialScanAnalyzeCommand()) {
-                    Class<? extends InputFormat> inputFormatClass = null;
-                    switch (ts.specType) {
-                        case TABLE_ONLY:
-                        case DYNAMIC_PARTITION:
-                            inputFormatClass = ts.tableHandle.getInputFormatClass();
-                            break;
-                        case STATIC_PARTITION:
-                            inputFormatClass = ts.partHandle.getInputFormatClass();
-                            break;
-                        default:
-                            assert false;
-                    }
-                    if (!(inputFormatClass.equals(RCFileInputFormat.class)
-                            || inputFormatClass.equals(OrcInputFormat.class))) {
-                        throw new SemanticException(
-                                "ANALYZE TABLE PARTIALSCAN doesn't support non-RCfile.");
-                    }
-                }
-
-                qb.getParseInfo().addTableSpec(alias, ts);
-            }
-
-            ReadEntity parentViewInfo =
-                    PlanUtils.getParentViewInfo(getAliasId(alias, qb), viewAliasToInput);
-            // Temporary tables created during the execution are not the input sources
-            if (!HiveParserUtils.isValuesTempTable(alias)) {
-                HiveParserUtils.addInput(
-                        inputs,
-                        new ReadEntity(tab, parentViewInfo, parentViewInfo == null),
-                        mergeIsDirect);
-            }
+            qb.getMetaData().setSrcForAlias(alias, tabName, (CatalogTable) tab);
         }
 
         LOG.info("Get metadata for subqueries");
@@ -1656,15 +1564,13 @@ public class HiveParserSemanticAnalyzer {
         for (String alias : qb.getSubqAliases()) {
             boolean wasView = aliasToViewInfo.containsKey(alias);
             boolean wasCTE = sqAliasToCTEName.containsKey(alias);
-            ReadEntity newParentInput = null;
             if (wasView) {
-                viewsExpanded.add(aliasToViewInfo.get(alias).getFirst());
-                newParentInput = aliasToViewInfo.get(alias).getSecond();
+                viewsExpanded.add(aliasToViewInfo.get(alias));
             } else if (wasCTE) {
                 ctesExpanded.add(sqAliasToCTEName.get(alias));
             }
             HiveParserQBExpr qbexpr = qb.getSubqForAlias(alias);
-            getMetaData(qbexpr, newParentInput);
+            getMetaData(qbexpr);
             if (wasView) {
                 viewsExpanded.remove(viewsExpanded.size() - 1);
             } else if (wasCTE) {
@@ -1685,38 +1591,28 @@ public class HiveParserSemanticAnalyzer {
             switch (ast.getToken().getType()) {
                 case HiveASTParser.TOK_TAB:
                     {
-                        TableSpec ts = new TableSpec(db, conf, ast, frameworkConfig, cluster);
-                        if (ts.tableHandle.isView()
-                                || hiveShim.isMaterializedView(ts.tableHandle)) {
+                        TableSpec ts =
+                                new TableSpec(catalogManager, conf, ast, frameworkConfig, cluster);
+                        if (ts.table instanceof CatalogView) {
                             throw new SemanticException(ErrorMsg.DML_AGAINST_VIEW.getMsg());
-                        }
-
-                        Class<?> outputFormatClass = ts.tableHandle.getOutputFormatClass();
-                        if (!ts.tableHandle.isNonNative()
-                                && !HiveOutputFormat.class.isAssignableFrom(outputFormatClass)) {
-                            throw new SemanticException(
-                                    HiveParserErrorMsg.getMsg(
-                                            ErrorMsg.INVALID_OUTPUT_FORMAT_TYPE,
-                                            ast,
-                                            "The class is " + outputFormatClass.toString()));
                         }
 
                         boolean isTableWrittenTo =
                                 qb.getParseInfo()
-                                        .isInsertIntoTable(
-                                                ts.tableHandle.getDbName(),
-                                                ts.tableHandle.getTableName());
+                                        .isInsertIntoTable(ts.tableIdentifier.asSummaryString());
                         isTableWrittenTo |=
                                 (qb.getParseInfo()
                                                 .getInsertOverwriteTables()
                                                 .get(
                                                         getUnescapedName(
                                                                 (HiveParserASTNode) ast.getChild(0),
-                                                                ts.tableHandle.getDbName()))
+                                                                ts.tableIdentifier.getCatalogName(),
+                                                                ts.tableIdentifier
+                                                                        .getDatabaseName()))
                                         != null);
                         assert isTableWrittenTo
                                 : "Inconsistent data structure detected: we are writing to "
-                                        + ts.tableHandle
+                                        + ts.tableIdentifier.asSummaryString()
                                         + " in "
                                         + name
                                         + " but it's not in isInsertIntoTable() or getInsertOverwriteTables()";
@@ -1725,18 +1621,30 @@ public class HiveParserSemanticAnalyzer {
                         // but whether the table itself is partitioned is not know.
                         if (ts.specType != SpecType.STATIC_PARTITION) {
                             // This is a table or dynamic partition
-                            qb.getMetaData().setDestForAlias(name, ts.tableHandle);
+                            qb.getMetaData()
+                                    .setDestForAlias(
+                                            name,
+                                            ts.tableIdentifier.asSummaryString(),
+                                            (CatalogTable) ts.table);
                             // has dynamic as well as static partitions
                             if (ts.partSpec != null && ts.partSpec.size() > 0) {
                                 qb.getMetaData().setPartSpecForAlias(name, ts.partSpec);
                             }
                         } else {
+                            // rewrite QBMetaData
                             // This is a partition
-                            qb.getMetaData().setDestForAlias(name, ts.partHandle);
+                            qb.getMetaData()
+                                    .setDestForAlias(
+                                            name,
+                                            ts.tableIdentifier.asSummaryString(),
+                                            (CatalogTable) ts.table,
+                                            ts.partHandle);
                         }
                         if (HiveConf.getBoolVar(conf, HiveConf.ConfVars.HIVESTATSAUTOGATHER)) {
                             // Add the table spec for the destination table.
-                            qb.getParseInfo().addTableSpec(ts.tableName.toLowerCase(), ts);
+                            qb.getParseInfo()
+                                    .addTableSpec(
+                                            ts.tableIdentifier.asSummaryString().toLowerCase(), ts);
                         }
                         break;
                     }
@@ -1781,9 +1689,18 @@ public class HiveParserSemanticAnalyzer {
                                         conf, HiveConf.ConfVars.HIVESTATSAUTOGATHER)) {
                                     TableSpec ts =
                                             new TableSpec(
-                                                    db, conf, this.ast, frameworkConfig, cluster);
+                                                    catalogManager,
+                                                    conf,
+                                                    this.ast,
+                                                    frameworkConfig,
+                                                    cluster);
                                     // Add the table spec for the destination table.
-                                    qb.getParseInfo().addTableSpec(ts.tableName.toLowerCase(), ts);
+                                    qb.getParseInfo()
+                                            .addTableSpec(
+                                                    ts.tableIdentifier
+                                                            .asSummaryString()
+                                                            .toLowerCase(),
+                                                    ts);
                                 }
                             } else {
                                 // This is the only place where isQuery is set to true; it defaults
@@ -1840,20 +1757,21 @@ public class HiveParserSemanticAnalyzer {
     }
 
     private void replaceViewReferenceWithDefinition(
-            HiveParserQB qb, Table tab, String tabName, String alias) throws SemanticException {
+            HiveParserQB qb, CatalogView catalogView, String viewName, String alias)
+            throws SemanticException {
         HiveParserASTNode viewTree;
         final HiveParserASTNodeOrigin viewOrigin =
                 new HiveParserASTNodeOrigin(
                         "VIEW",
-                        tab.getTableName(),
-                        tab.getViewExpandedText(),
+                        viewName,
+                        catalogView.getExpandedQuery(),
                         alias,
                         qb.getParseInfo().getSrcForAlias(alias));
         try {
             // Reparse text, passing null for context to avoid clobbering
             // the top-level token stream.
-            String viewText = tab.getViewExpandedText();
-            viewTree = HiveASTParseUtils.parse(viewText, ctx, tab.getCompleteName());
+            String viewText = catalogView.getExpandedQuery();
+            viewTree = HiveASTParseUtils.parse(viewText, ctx, viewName);
 
             Dispatcher nodeOriginDispatcher =
                     (nd, stack, nodeOutputs) -> {
@@ -1880,9 +1798,9 @@ public class HiveParserSemanticAnalyzer {
                         && !qb.isInsideView()
                         && HiveConf.getBoolVar(conf, HiveConf.ConfVars.HIVE_AUTHORIZATION_ENABLED))
                 || HiveConf.getBoolVar(conf, HiveConf.ConfVars.HIVE_STATS_COLLECT_SCANCOLS)) {
-            qb.rewriteViewToSubq(alias, tabName, qbexpr, tab);
+            qb.rewriteViewToSubq(alias, viewName, qbexpr, catalogView);
         } else {
-            qb.rewriteViewToSubq(alias, tabName, qbexpr, null);
+            qb.rewriteViewToSubq(alias, viewName, qbexpr, null);
         }
     }
 
@@ -2158,6 +2076,45 @@ public class HiveParserSemanticAnalyzer {
         return this.autogenColAliasPrfxLbl;
     }
 
+    public CatalogBaseTable getCatalogBaseTable(String tableName, HiveParserQB qb) {
+        return getCatalogBaseTable(tableName, qb, true);
+    }
+
+    @Nullable
+    public CatalogBaseTable getCatalogBaseTable(
+            String tableName, HiveParserQB qb, boolean throwException) {
+        // first try to get the table from QB, temp table will be stored in here.
+        // the tableName passed is resolved as 'catalog.db.table', but the temp table is stored as
+        // unresolved which only contains table name, so we need to get the actual table name from
+        // the passed 'tableName'
+        String tempTableName = parseCompoundName(catalogManager, tableName).getObjectName();
+        if (qb.getValuesTableToData().containsKey(tempTableName)) {
+            return qb.getValuesTableToData().get(tempTableName).f0;
+        }
+        // then get the table from catalogs
+        ObjectIdentifier tableIdentifier =
+                catalogManager.qualifyIdentifier(UnresolvedIdentifier.of(tableName.split("\\.")));
+        Optional<ContextResolvedTable> optionalTab = catalogManager.getTable(tableIdentifier);
+        if (!optionalTab.isPresent()) {
+            if (throwException) {
+                throw new IllegalArgumentException(
+                        String.format("Table %s doesn't exist.", tableName));
+            } else {
+                return null;
+            }
+        } else {
+            return optionalTab.get().getTable();
+        }
+    }
+
+    public CatalogTable getCatalogTable(String tableName, HiveParserQB qb) {
+        CatalogBaseTable catalogBaseTable = getCatalogBaseTable(tableName, qb);
+        if (!(catalogBaseTable instanceof CatalogTable)) {
+            throw new IllegalArgumentException(tableName + " isn't a table.");
+        }
+        return (CatalogTable) catalogBaseTable;
+    }
+
     public boolean autogenColAliasPrfxIncludeFuncName() {
         return this.autogenColAliasPrfxIncludeFuncName;
     }
@@ -2224,16 +2181,6 @@ public class HiveParserSemanticAnalyzer {
 
         // init
         this.qb = new HiveParserQB(null, null, false);
-    }
-
-    private Table getTableObjectByName(String tableName) throws HiveException {
-        if (!tabNameToTabObject.containsKey(tableName)) {
-            Table table = db.getTable(tableName);
-            tabNameToTabObject.put(tableName, table);
-            return table;
-        } else {
-            return tabNameToTabObject.get(tableName);
-        }
     }
 
     public boolean genResolvedParseTree(HiveParserASTNode ast, HiveParserPlannerContext plannerCtx)

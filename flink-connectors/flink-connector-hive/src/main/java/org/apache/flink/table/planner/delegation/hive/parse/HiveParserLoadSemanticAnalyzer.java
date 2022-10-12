@@ -18,7 +18,10 @@
 
 package org.apache.flink.table.planner.delegation.hive.parse;
 
+import org.apache.flink.connectors.hive.FlinkHiveException;
+import org.apache.flink.table.catalog.CatalogManager;
 import org.apache.flink.table.catalog.ObjectPath;
+import org.apache.flink.table.catalog.hive.HiveCatalog;
 import org.apache.flink.table.planner.delegation.hive.copy.HiveParserASTNode;
 import org.apache.flink.table.planner.delegation.hive.copy.HiveParserBaseSemanticAnalyzer.TableSpec;
 import org.apache.flink.table.planner.delegation.hive.operations.HiveLoadDataOperation;
@@ -39,6 +42,8 @@ import org.apache.hadoop.hive.ql.ErrorMsg;
 import org.apache.hadoop.hive.ql.io.HiveFileFormatUtils;
 import org.apache.hadoop.hive.ql.metadata.Hive;
 import org.apache.hadoop.hive.ql.metadata.HiveException;
+import org.apache.hadoop.hive.ql.metadata.Partition;
+import org.apache.hadoop.hive.ql.metadata.Table;
 import org.apache.hadoop.hive.ql.parse.EximUtil;
 import org.apache.hadoop.hive.ql.parse.SemanticException;
 import org.apache.hadoop.mapred.InputFormat;
@@ -60,9 +65,13 @@ public class HiveParserLoadSemanticAnalyzer {
     private final Hive db;
     private final FrameworkConfig frameworkConfig;
     private final RelOptCluster cluster;
+    private final CatalogManager catalogManager;
 
     public HiveParserLoadSemanticAnalyzer(
-            HiveConf conf, FrameworkConfig frameworkConfig, RelOptCluster cluster)
+            HiveConf conf,
+            FrameworkConfig frameworkConfig,
+            RelOptCluster cluster,
+            CatalogManager catalogManager)
             throws SemanticException {
         this.conf = conf;
         try {
@@ -72,6 +81,7 @@ public class HiveParserLoadSemanticAnalyzer {
         }
         this.frameworkConfig = frameworkConfig;
         this.cluster = cluster;
+        this.catalogManager = catalogManager;
     }
 
     public HiveLoadDataOperation convertToOperation(HiveParserASTNode ast)
@@ -104,26 +114,49 @@ public class HiveParserLoadSemanticAnalyzer {
         }
 
         // initialize destination table/partition
-        TableSpec ts = new TableSpec(db, conf, tableTree, frameworkConfig, cluster);
+        TableSpec ts = new TableSpec(catalogManager, conf, tableTree, frameworkConfig, cluster);
+        if (!HiveCatalog.isHiveTable(ts.table.getOptions())) {
+            throw new UnsupportedOperationException(
+                    "Load data into non-hive table is not supported yet.");
+        }
+        if (!ts.tableIdentifier.getCatalogName().equals(catalogManager.getCurrentCatalog())) {
+            throw new UnsupportedOperationException(
+                    String.format(
+                            "Load data into a table which isn't in current catalog is not supported yet."
+                                    + " The table's catalog is %s, but the current catalog is %s.",
+                            ts.tableIdentifier.getCatalogName(),
+                            catalogManager.getCurrentCatalog()));
+        }
+        Table table;
+        try {
+            table =
+                    db.getTable(
+                            ts.tableIdentifier.getDatabaseName(),
+                            ts.tableIdentifier.getObjectName());
+        } catch (HiveException e) {
+            throw new FlinkHiveException(
+                    String.format("Fail to get table %s.", ts.tableIdentifier.asSummaryString()),
+                    e);
+        }
 
-        if (ts.tableHandle.isView() || ts.tableHandle.isMaterializedView()) {
+        if (table.isView() || table.isMaterializedView()) {
             throw new SemanticException(ErrorMsg.DML_AGAINST_VIEW.getMsg());
         }
-        if (ts.tableHandle.isNonNative()) {
+        if (table.isNonNative()) {
             throw new SemanticException(ErrorMsg.LOAD_INTO_NON_NATIVE.getMsg());
         }
 
-        if (ts.tableHandle.isStoredAsSubDirectories()) {
+        if (table.isStoredAsSubDirectories()) {
             throw new SemanticException(ErrorMsg.LOAD_INTO_STORED_AS_DIR.getMsg());
         }
 
-        List<FieldSchema> parts = ts.tableHandle.getPartitionKeys();
+        List<FieldSchema> parts = table.getPartitionKeys();
         if ((parts != null && parts.size() > 0)
                 && (ts.partSpec == null || ts.partSpec.size() == 0)) {
             throw new SemanticException(ErrorMsg.NEED_PARTITION_ERROR.getMsg());
         }
 
-        List<String> bucketCols = ts.tableHandle.getBucketCols();
+        List<String> bucketCols = table.getBucketCols();
         if (bucketCols != null && !bucketCols.isEmpty()) {
             String error = HiveConf.StrictChecks.checkBucketing(conf);
             if (error != null) {
@@ -139,14 +172,14 @@ public class HiveParserLoadSemanticAnalyzer {
         List<FileStatus> files = applyConstraintsAndGetFiles(fromURI, fromTree, isLocal);
 
         // for managed tables, make sure the file formats match
-        if (TableType.MANAGED_TABLE.equals(ts.tableHandle.getTableType())
+        if (TableType.MANAGED_TABLE.equals(table.getTableType())
                 && conf.getBoolVar(HiveConf.ConfVars.HIVECHECKFILEFORMAT)) {
-            ensureFileFormatsMatch(ts, files, fromURI);
+            ensureFileFormatsMatch(ts, table, files, fromURI);
         }
 
         return new HiveLoadDataOperation(
                 new Path(fromURI),
-                new ObjectPath(ts.tableHandle.getDbName(), ts.tableHandle.getTableName()),
+                new ObjectPath(table.getDbName(), table.getTableName()),
                 isOverWrite,
                 isLocal,
                 ts.partSpec == null ? new LinkedHashMap<>() : ts.partSpec);
@@ -266,14 +299,18 @@ public class HiveParserLoadSemanticAnalyzer {
     }
 
     private void ensureFileFormatsMatch(
-            TableSpec ts, List<FileStatus> fileStatuses, final URI fromURI)
+            TableSpec ts, Table table, List<FileStatus> fileStatuses, final URI fromURI)
             throws SemanticException {
         final Class<? extends InputFormat> destInputFormat;
         try {
             if (ts.getPartSpec() == null || ts.getPartSpec().isEmpty()) {
-                destInputFormat = ts.tableHandle.getInputFormatClass();
+                destInputFormat = table.getInputFormatClass();
             } else {
-                destInputFormat = ts.partHandle.getInputFormatClass();
+                Partition partition = db.getPartition(table, ts.partSpec, false);
+                if (partition == null) {
+                    partition = new Partition(table, ts.partSpec, null);
+                }
+                destInputFormat = partition.getInputFormatClass();
             }
         } catch (HiveException e) {
             throw new SemanticException(e);
