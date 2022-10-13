@@ -20,6 +20,7 @@ package org.apache.flink.streaming.connectors.kafka;
 
 import org.apache.flink.FlinkVersion;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
+import org.apache.flink.core.testutils.FlinkVersionBasedTestDataGenerationUtils;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
@@ -38,7 +39,6 @@ import org.apache.flink.streaming.util.AbstractStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.OperatorSnapshotUtil;
 import org.apache.flink.util.SerializedValue;
 
-import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
@@ -53,6 +53,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+import static org.apache.flink.core.testutils.FlinkVersionBasedTestDataGenerationUtils.assumeFlinkVersionWithDescriptiveTextMessageJUnit4;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.mock;
@@ -63,19 +64,11 @@ import static org.powermock.api.mockito.PowerMockito.when;
  * Tests for checking whether {@link FlinkKafkaConsumerBase} can restore from snapshots that were
  * done using previous Flink versions' {@link FlinkKafkaConsumerBase}.
  *
- * <p>For regenerating the binary snapshot files run {@link #writeSnapshot()} on the corresponding
- * Flink release-* branch.
+ * <p>See {@link FlinkVersionBasedTestDataGenerationUtils} for details on how to generate new test
+ * data.
  */
 @RunWith(Parameterized.class)
 public class FlinkKafkaConsumerBaseMigrationTest {
-
-    /**
-     * TODO change this to the corresponding savepoint version to be written (e.g. {@link
-     * FlinkVersion#v1_3} for 1.3) TODO and remove all @Ignore annotations on write*Snapshot()
-     * methods to generate savepoints TODO Note: You should generate the savepoint based on the
-     * release branch instead of the master.
-     */
-    private final FlinkVersion flinkGenerateSavepointVersion = null;
 
     private static final HashMap<KafkaTopicPartition, Long> PARTITION_STATE = new HashMap<>();
 
@@ -92,7 +85,7 @@ public class FlinkKafkaConsumerBaseMigrationTest {
 
     @Parameterized.Parameters(name = "Migration Savepoint: {0}")
     public static Collection<FlinkVersion> parameters() {
-        return FlinkVersion.rangeOf(FlinkVersion.v1_4, FlinkVersion.v1_15);
+        return FlinkVersionBasedTestDataGenerationUtils.rangeFrom(FlinkVersion.v1_4);
     }
 
     public FlinkKafkaConsumerBaseMigrationTest(FlinkVersion testMigrateVersion) {
@@ -100,19 +93,19 @@ public class FlinkKafkaConsumerBaseMigrationTest {
     }
 
     /** Manually run this to write binary snapshot data. */
-    @Ignore
     @Test
     public void writeSnapshot() throws Exception {
+        assumeFlinkVersionWithDescriptiveTextMessageJUnit4(testMigrateVersion);
         writeSnapshot(
                 "src/test/resources/kafka-consumer-migration-test-flink"
-                        + flinkGenerateSavepointVersion
+                        + testMigrateVersion
                         + "-snapshot",
                 PARTITION_STATE);
 
         final HashMap<KafkaTopicPartition, Long> emptyState = new HashMap<>();
         writeSnapshot(
                 "src/test/resources/kafka-consumer-migration-test-flink"
-                        + flinkGenerateSavepointVersion
+                        + testMigrateVersion
                         + "-empty-state-snapshot",
                 emptyState);
     }
