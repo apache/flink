@@ -122,6 +122,40 @@ class MetricStoreTest {
     }
 
     @Test
+    void testTaskMetricStoreCleanup() {
+        MetricStore store = setupStore(new MetricStore());
+        assertThat(
+                        store.getTaskMetricStore(JOB_ID.toString(), "taskid")
+                                .getAllSubtaskMetricStores()
+                                .keySet())
+                .containsExactlyInAnyOrderElementsOf(Arrays.asList(1, 8));
+
+        Map<String, Map<Integer, CurrentAttempts>> currentExecutionAttempts =
+                Collections.singletonMap(
+                        "taskid",
+                        Collections.singletonMap(1, new CurrentAttempts(1, new HashSet<>())));
+        JobDetails jobDetail =
+                new JobDetails(
+                        JOB_ID,
+                        "jobname",
+                        0,
+                        0,
+                        0,
+                        JobStatus.RUNNING,
+                        0,
+                        new int[10],
+                        1,
+                        currentExecutionAttempts);
+        store.updateCurrentExecutionAttempts(Collections.singleton(jobDetail));
+
+        assertThat(
+                        store.getTaskMetricStore(JOB_ID.toString(), "taskid")
+                                .getAllSubtaskMetricStores()
+                                .keySet())
+                .containsExactlyInAnyOrderElementsOf(Collections.singletonList(1));
+    }
+
+    @Test
     void testSubtaskMetricStoreCleanup() {
         MetricStore store = setupStore(new MetricStore());
         assertThat(
