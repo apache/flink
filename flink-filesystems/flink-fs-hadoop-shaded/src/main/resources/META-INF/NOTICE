@@ -24,7 +24,7 @@ This project bundles the following dependencies under the Apache Software Licens
 - com.google.j2objc:j2objc-annotations:1.1
 - com.fasterxml.jackson.core:jackson-annotations:2.13.4
 - com.fasterxml.jackson.core:jackson-core:2.13.4
-- com.fasterxml.jackson.core:jackson-databind:2.13.4
+- com.fasterxml.jackson.core:jackson-databind:2.13.4.2
 - com.fasterxml.woodstox:woodstox-core:5.0.3
 
 This project bundles the following dependencies under the MIT (https://opensource.org/licenses/MIT)
