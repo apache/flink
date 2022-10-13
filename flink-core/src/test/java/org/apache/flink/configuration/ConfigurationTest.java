@@ -471,7 +471,7 @@ public class ConfigurationTest extends TestLogger {
         final Configuration cfg = new Configuration();
         Map<String, String> first = ImmutableMap.of("test1", "first");
         Map<String, String> second = ImmutableMap.of("test2", "second");
-        cfg.set(MAP_OPTION_LIST, List.of(first, second));
+        cfg.set(MAP_OPTION_LIST, Arrays.asList(first, second));
 
         List<Map<String, String>> stringIntegerMap = cfg.get(MAP_OPTION_LIST);
         assertEquals(first, stringIntegerMap.get(0));
@@ -486,7 +486,7 @@ public class ConfigurationTest extends TestLogger {
         cfg.setString(MAP_OPTION_LIST.key(), "test1:one;" + "test2:two,test3:three");
 
         List<Map<String, String>> listMap = cfg.get(MAP_OPTION_LIST);
-        assertEquals(List.of(first, second), listMap);
+        assertEquals(Arrays.asList(first, second), listMap);
     }
 
     // --------------------------------------------------------------------------------------------
