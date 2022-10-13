@@ -515,8 +515,8 @@ public class CheckpointCoordinator {
     }
 
     /**
-     * Triggers one new checkpoint with the given checkpointType. The returned future
-     * completes when the triggered checkpoint finishes or an error occurred.
+     * Triggers one new checkpoint with the given checkpointType. The returned future completes when
+     * the triggered checkpoint finishes or an error occurred.
      *
      * @param checkpointType specifies the back up type of the checkpoint to trigger.
      * @return a future to the completed checkpoint.
