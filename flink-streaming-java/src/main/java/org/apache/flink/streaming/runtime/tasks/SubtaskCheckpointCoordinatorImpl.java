@@ -137,8 +137,7 @@ class SubtaskCheckpointCoordinatorImpl implements SubtaskCheckpointCoordinator {
                             ChannelStateWriter, Long, CompletableFuture<Void>, CheckpointException>
                     prepareInputSnapshot,
             int maxRecordAbortedCheckpoints,
-            DelayableTimer registerTimer)
-            throws IOException {
+            DelayableTimer registerTimer) {
         this(
                 checkpointStorage,
                 taskName,
@@ -169,8 +168,7 @@ class SubtaskCheckpointCoordinatorImpl implements SubtaskCheckpointCoordinator {
             int maxRecordAbortedCheckpoints,
             ChannelStateWriter channelStateWriter,
             boolean enableCheckpointAfterTasksFinished,
-            DelayableTimer registerTimer)
-            throws IOException {
+            DelayableTimer registerTimer) {
         this.checkpointStorage =
                 new CachingCheckpointStorageWorkerView(checkNotNull(checkpointStorage));
         this.taskName = checkNotNull(taskName);
