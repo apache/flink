@@ -20,6 +20,7 @@ package org.apache.flink.streaming.connectors.kinesis;
 import org.apache.flink.FlinkVersion;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.serialization.SimpleStringSchema;
+import org.apache.flink.core.testutils.FlinkVersionBasedTestDataGenerationUtils;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.streaming.api.TimeCharacteristic;
@@ -42,7 +43,6 @@ import org.apache.flink.streaming.util.OperatorSnapshotUtil;
 
 import com.amazonaws.services.kinesis.model.SequenceNumberRange;
 import com.amazonaws.services.kinesis.model.Shard;
-import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
@@ -57,25 +57,18 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.atomic.AtomicReference;
 
+import static org.apache.flink.core.testutils.FlinkVersionBasedTestDataGenerationUtils.assumeFlinkVersionWithDescriptiveTextMessageJUnit4;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Tests for checking whether {@link FlinkKinesisConsumer} can restore from snapshots that were done
  * using an older {@code FlinkKinesisConsumer}.
  *
- * <p>For regenerating the binary snapshot files run {@link #writeSnapshot()} on the corresponding
- * Flink release-* branch.
+ * <p>See {@link FlinkVersionBasedTestDataGenerationUtils} for details on how to generate new test
+ * data.
  */
 @RunWith(Parameterized.class)
 public class FlinkKinesisConsumerMigrationTest {
-
-    /**
-     * TODO change this to the corresponding savepoint version to be written (e.g. {@link
-     * FlinkVersion#v1_3} for 1.3) TODO and remove all @Ignore annotations on the writeSnapshot()
-     * method to generate savepoints TODO Note: You should generate the savepoint based on the
-     * release branch instead of the master.
-     */
-    private final FlinkVersion flinkGenerateSavepointVersion = null;
 
     private static final String TEST_STREAM_NAME = "fakeStream1";
     private static final SequenceNumber TEST_SEQUENCE_NUMBER = new SequenceNumber("987654321");
@@ -95,38 +88,28 @@ public class FlinkKinesisConsumerMigrationTest {
 
     @Parameterized.Parameters(name = "Migration Savepoint: {0}")
     public static Collection<FlinkVersion> parameters() {
-        return Arrays.asList(
-                FlinkVersion.v1_3,
-                FlinkVersion.v1_4,
-                FlinkVersion.v1_7,
-                FlinkVersion.v1_8,
-                FlinkVersion.v1_9,
-                FlinkVersion.v1_10,
-                FlinkVersion.v1_11,
-                FlinkVersion.v1_12,
-                FlinkVersion.v1_13,
-                FlinkVersion.v1_14,
-                FlinkVersion.v1_15);
+        // TODO: it's unclear why we skipped 1.5 and 1.6
+        return FlinkVersionBasedTestDataGenerationUtils.rangeFromVersionExcludingIntermediates(
+                FlinkVersion.v1_3, FlinkVersion.v1_5, FlinkVersion.v1_6);
     }
 
     public FlinkKinesisConsumerMigrationTest(FlinkVersion testMigrateVersion) {
         this.testMigrateVersion = testMigrateVersion;
     }
 
-    /** Manually run this to write binary snapshot data. */
-    @Ignore
     @Test
     public void writeSnapshot() throws Exception {
+        assumeFlinkVersionWithDescriptiveTextMessageJUnit4(testMigrateVersion);
         writeSnapshot(
                 "src/test/resources/kinesis-consumer-migration-test-flink"
-                        + flinkGenerateSavepointVersion
+                        + testMigrateVersion
                         + "-snapshot",
                 TEST_STATE);
 
         // write empty state snapshot
         writeSnapshot(
                 "src/test/resources/kinesis-consumer-migration-test-flink"
-                        + flinkGenerateSavepointVersion
+                        + testMigrateVersion
                         + "-empty-snapshot",
                 new HashMap<>());
     }
