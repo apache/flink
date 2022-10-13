@@ -267,7 +267,7 @@ class ExecutionConfigTests(PyFlinkTestCase):
 
         self.assertNotEqual(config1, config2)
 
-        self.assertNotEqual(hash(config1), hash(config2))
+        # it is allowed for hashes to be equal even if objects are not
 
         config2.set_parallelism(12)
 
