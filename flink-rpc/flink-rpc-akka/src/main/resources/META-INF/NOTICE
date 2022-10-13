@@ -16,7 +16,7 @@ This project bundles the following dependencies under the Apache Software Licens
 - com.typesafe.akka:akka-slf4j_2.12:2.6.20
 - com.typesafe.akka:akka-stream_2.12:2.6.20
 - io.netty:netty:3.10.6.Final
-- org.agrona:agrona:1.9.0
+- org.agrona:agrona:1.15.1
 
 The following dependencies all share the same BSD license which you find under licenses/LICENSE.scala.
 
