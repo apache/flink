@@ -51,7 +51,7 @@ INSERT { OVERWRITE | INTO } [TABLE] tablename
 
 - `VALUES ( value [, ..] ) [, ( ... ) ]`
 
-  Specifies the values to be inserted explicitly. A common must be used to separate each value in the clause.
+  Specifies the values to be inserted explicitly. A comma must be used to separate each value in the clause.
   More than one set of values can be specified to insert multiple rows.
 
 - select_statement
@@ -96,8 +96,8 @@ INSERT INTO TABLE t1 SELECT * FROM t2;
 INSERT INTO t1 PARTITION (year = 2022, month = 12) SELECT value FROM t2;
 
 --- dynamic partition 
-INSERT INTO t1 PARTITION (year = 2022, month) SELECT month, value FROM t2;
-INSERT INTO t1 PARTITION (year, month) SELECT 2022, month, value FROM t2;
+INSERT INTO t1 PARTITION (year = 2022, month) SELECT value, month FROM t2;
+INSERT INTO t1 PARTITION (year, month) SELECT value, 2022, month FROM t2;
 ```
 
 ## INSERT OVERWRITE DIRECTORY
@@ -106,7 +106,7 @@ INSERT INTO t1 PARTITION (year, month) SELECT 2022, month, value FROM t2;
 
 Query results can be inserted into filesystem directories by using a slight variation of the syntax above:
 ```sql
--- Standard syntax:
+-- Standard syntax
 INSERT OVERWRITE [LOCAL] DIRECTORY directory_path
   [ROW FORMAT row_format] [STORED AS file_format] 
   { VALUES ( value [, ..] ) [, ( ... ) ] | select_statement FROM from_statement }
@@ -130,7 +130,7 @@ row_format:
   The `LOCAL` keyword is optional. If `LOCAL` keyword is used, Flink will write data to the directory on the local file system.
 
 - `VALUES ( value [, ..] ) [, ( ... ) ]`
-  Specifies the values to be inserted explicitly. A common must be used to separate each value in the clause.
+  Specifies the values to be inserted explicitly. A comma must be used to separate each value in the clause.
   More than one set of values can be specified to insert multiple rows.
 
 - select_statement
@@ -175,7 +175,7 @@ In such syntax, Flink will minimize the number of data scans requires. Flink can
 ```sql
 -- multiple insert into table
 FROM from_statement
-  INSERT { OVERWRITE | INTO } [TABLE] tablename1 [PARTITION (partcol1=val1, partcol2=val2 ...) [IF NOT EXISTS] select_statement1,
+  INSERT { OVERWRITE | INTO } [TABLE] tablename1 [PARTITION (partcol1=val1, partcol2=val2 ...) [IF NOT EXISTS]] select_statement1,
   INSERT { OVERWRITE | INTO } [TABLE] tablename2 [PARTITION ... [IF NOT EXISTS]] select_statement2
   [, ... ]
 

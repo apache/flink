@@ -136,10 +136,10 @@ table_constraint:
 CREATE TABLE t1(key string, value string);
 
 -- creaet partitioned table
-CREATE TABLE pt1(key string, value string) PARTITIONED by (year int, month int);
+CREATE TABLE pt1(key string, value string) PARTITIONED BY (year int, month int);
 
 -- creaet table with specifc format
-CREATE TABLE t1(key string, value string) stored as ORC;
+CREATE TABLE t1(key string, value string) STORED AS ORC;
 
 -- create table with specifc rowfromat
 CREATE TABLE t1(m MAP<BIGINT, STRING>) 
