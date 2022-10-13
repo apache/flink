@@ -21,6 +21,7 @@ import org.apache.flink.FlinkVersion;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.serialization.TypeInformationSerializationSchema;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
+import org.apache.flink.core.testutils.FlinkVersionBasedTestDataGenerationUtils;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.streaming.connectors.kafka.internals.KeyedSerializationSchemaWrapper;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
@@ -29,17 +30,14 @@ import org.apache.flink.streaming.util.serialization.KeyedSerializationSchema;
 
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
-import org.junit.Ignore;
 import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.Arrays;
-import java.util.Optional;
 import java.util.Properties;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
-import static org.apache.flink.util.Preconditions.checkState;
 
 /** The base class with migration tests for the Kafka Exactly-Once Producer. */
 @SuppressWarnings("serial")
@@ -54,14 +52,6 @@ public abstract class KafkaMigrationTestBase extends KafkaTestBase {
                     BasicTypeInfo.INT_TYPE_INFO, new ExecutionConfig());
     protected final KeyedSerializationSchema<Integer> integerKeyedSerializationSchema =
             new KeyedSerializationSchemaWrapper<>(integerSerializationSchema);
-
-    /**
-     * TODO change this to the corresponding savepoint version to be written (e.g. {@link
-     * FlinkVersion#v1_3} for 1.3) TODO and remove all @Ignore annotations on write*Snapshot()
-     * methods to generate savepoints TODO Note: You should generate the savepoint based on the
-     * release branch instead of the master.
-     */
-    protected final Optional<FlinkVersion> flinkGenerateSavepointVersion = Optional.empty();
 
     public KafkaMigrationTestBase(FlinkVersion testMigrateVersion) {
         this.testMigrateVersion = checkNotNull(testMigrateVersion);
@@ -89,17 +79,16 @@ public abstract class KafkaMigrationTestBase extends KafkaTestBase {
     @AfterClass
     public static void shutDownServices() throws Exception {}
 
-    /** Manually run this to write binary snapshot data. */
-    @Ignore
     @Test
     public void writeSnapshot() throws Exception {
+        FlinkVersionBasedTestDataGenerationUtils.assumeFlinkVersionWithDescriptiveMessage(
+                testMigrateVersion);
         try {
-            checkState(flinkGenerateSavepointVersion.isPresent());
             startClusters();
 
             OperatorSubtaskState snapshot = initializeTestState();
             OperatorSnapshotUtil.writeStateHandle(
-                    snapshot, getOperatorSnapshotPath(flinkGenerateSavepointVersion.get()));
+                    snapshot, getOperatorSnapshotPath(testMigrateVersion));
         } finally {
             shutdownClusters();
         }
