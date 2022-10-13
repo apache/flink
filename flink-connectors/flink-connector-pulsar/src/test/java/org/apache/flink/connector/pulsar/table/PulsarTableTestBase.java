@@ -21,17 +21,17 @@ package org.apache.flink.connector.pulsar.table;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.connector.pulsar.testutils.PulsarTestEnvironment;
 import org.apache.flink.connector.pulsar.testutils.runtime.PulsarRuntime;
-import org.apache.flink.connector.testframe.environment.MiniClusterTestEnvironment;
-import org.apache.flink.connector.testframe.junit.annotations.TestEnv;
-import org.apache.flink.connector.testframe.junit.annotations.TestExternalSystem;
-import org.apache.flink.connector.testframe.junit.annotations.TestSemantics;
-import org.apache.flink.streaming.api.CheckpointingMode;
+import org.apache.flink.runtime.minicluster.RpcServiceSharing;
+import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
+import org.apache.flink.test.junit5.MiniClusterExtension;
 
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.TestInstance;
+import org.junit.jupiter.api.extension.RegisterExtension;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -40,30 +40,35 @@ import org.slf4j.LoggerFactory;
 public abstract class PulsarTableTestBase {
     private static final Logger LOG = LoggerFactory.getLogger(PulsarTableTestBase.class);
 
-    @TestEnv MiniClusterTestEnvironment flink = new MiniClusterTestEnvironment();
+    private static final int DEFAULT_PARALLELISM = 1;
 
-    // Defines pulsar running environment
-    @TestExternalSystem
+    @RegisterExtension
+    protected static final MiniClusterExtension CLUSTER_EXTENSION =
+            new MiniClusterExtension(
+                    new MiniClusterResourceConfiguration.Builder()
+                            .setNumberTaskManagers(1)
+                            .setNumberSlotsPerTaskManager(DEFAULT_PARALLELISM)
+                            .setRpcServiceSharing(RpcServiceSharing.DEDICATED)
+                            .withHaLeadershipControl()
+                            .build());
+
     protected PulsarTestEnvironment pulsar = new PulsarTestEnvironment(runtime());
-
-    @TestSemantics
-    protected CheckpointingMode[] semantics =
-            new CheckpointingMode[] {CheckpointingMode.EXACTLY_ONCE};
 
     protected StreamExecutionEnvironment env;
 
     protected StreamTableEnvironment tableEnv;
 
     protected PulsarRuntime runtime() {
-        return PulsarRuntime.container();
+        return PulsarRuntime.mock();
     }
 
-    private static final int DEFAULT_PARALLELISM = 2;
-
     @BeforeAll
-    public void beforeAll() {
+    void beforeAll() {
         pulsar.startUp();
-        // run env
+    }
+
+    @BeforeEach
+    void beforeEach() {
         env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(DEFAULT_PARALLELISM);
         env.getConfig().setRestartStrategy(RestartStrategies.noRestart());

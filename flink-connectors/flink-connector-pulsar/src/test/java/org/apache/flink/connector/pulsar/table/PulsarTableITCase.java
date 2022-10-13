@@ -24,7 +24,6 @@ import org.apache.flink.core.execution.JobClient;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.table.api.DataTypes;
-import org.apache.flink.test.junit5.MiniClusterExtension;
 import org.apache.flink.test.util.SuccessException;
 import org.apache.flink.types.Row;
 
@@ -32,8 +31,8 @@ import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
@@ -65,9 +64,7 @@ import static org.assertj.core.api.Assertions.assertThatNoException;
  * IT cases for the Pulsar table source and sink. It aims to verify runtime behaviour and certain
  * use cases are correct and can produce/consume the desired records as user specifies.
  */
-@ExtendWith(MiniClusterExtension.class)
 public class PulsarTableITCase extends PulsarTableTestBase {
-
     protected static final String JSON_FORMAT = "json";
     protected static final String AVRO_FORMAT = "avro";
     protected static final String CSV_FORMAT = "csv";
@@ -337,6 +334,7 @@ public class PulsarTableITCase extends PulsarTableTestBase {
 
     @ParameterizedTest
     @MethodSource("provideSchemaData")
+    @Disabled()
     <T> void readAndSelectIntoTableUsingSimpleSchema(
             String format, Schema<T> schema, T value, String flinkTableDataType) throws Exception {
         final String sourceTopic = "source_topic_" + randomAlphanumeric(3);

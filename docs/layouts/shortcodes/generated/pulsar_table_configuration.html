@@ -69,8 +69,26 @@
             <td>(Optional) the publish timestamp that is used to specify a starting point for the [Pulsar DataStream source connector](https://nightlies.apache.org/flink/flink-docs-master/docs/connectors/datastream/pulsar/#pulsar-source) to consume data.</td>
         </tr>
         <tr>
+            <td><h5>source.stop.after-message-id</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>String</td>
+            <td>Optional message id used to specify a stop position but include the given message in the consuming result for the unbounded sql source. Pass in a message id representation in "ledgerId:entryId:partitionId", such as "12:2:-1". </td>
+        </tr>
+        <tr>
+            <td><h5>source.stop.at-message-id</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>String</td>
+            <td>Optional message id used to specify a stop cursor for the unbounded sql source. Use "never", "latest" or pass in a message id representation in "ledgerId:entryId:partitionId", such as "12:2:-1"</td>
+        </tr>
+        <tr>
+            <td><h5>source.stop.at-publish-time</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>Long</td>
+            <td>Optional publish timestamp used to specify a stop cursor for the unbounded sql source.</td>
+        </tr>
+        <tr>
             <td><h5>source.subscription-name</h5></td>
-            <td style="word-wrap: break-word;">"flink-sql-connector-pulsar"</td>
+            <td style="word-wrap: break-word;">(none)</td>
             <td>String</td>
             <td>The subscription name of the consumer that is used by the runtime [Pulsar DataStream source connector](https://nightlies.apache.org/flink/flink-docs-master/docs/connectors/datastream/pulsar/#pulsar-source). This argument is required for constructing the consumer.</td>
         </tr>
@@ -85,6 +103,12 @@
             <td style="word-wrap: break-word;">(none)</td>
             <td>List&lt;String&gt;</td>
             <td>Topic name(s) the table reads data from. It can be a single topic name or a list of topic names separated by a semicolon symbol (<code class="highlighter-rouge">;</code>) like <code class="highlighter-rouge">topic-1;topic-2</code>.</td>
+        </tr>
+        <tr>
+            <td><h5>value.format</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>String</td>
+            <td>Defines the format identifier for decoding/encoding value data. The identifier is used to discover a suitable format factory.</td>
         </tr>
     </tbody>
 </table>
