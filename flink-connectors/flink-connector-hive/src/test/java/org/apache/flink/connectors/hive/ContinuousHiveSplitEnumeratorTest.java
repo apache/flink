@@ -21,12 +21,12 @@ package org.apache.flink.connectors.hive;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.connector.file.src.assigners.SimpleSplitAssigner;
-import org.apache.flink.connector.file.table.ContinuousPartitionFetcher;
-import org.apache.flink.connector.file.table.PartitionFetcher;
 import org.apache.flink.connector.testutils.source.reader.TestingSplitEnumeratorContext;
 import org.apache.flink.connectors.hive.read.HiveSourceSplit;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.table.catalog.ObjectPath;
+import org.apache.flink.table.filesystem.ContinuousPartitionFetcher;
+import org.apache.flink.table.filesystem.PartitionFetcher;
 
 import org.apache.hadoop.hive.metastore.api.Partition;
 import org.apache.hadoop.hive.metastore.api.StorageDescriptor;
@@ -40,7 +40,10 @@ import java.util.List;
 import java.util.Optional;
 import java.util.Properties;
 
-import static org.assertj.core.api.Assertions.assertThat;
+import static org.hamcrest.Matchers.contains;
+import static org.hamcrest.Matchers.empty;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertThat;
 
 /** Unit tests for the {@link ContinuousHiveSplitEnumerator}. */
 public class ContinuousHiveSplitEnumeratorTest {
@@ -65,7 +68,7 @@ public class ContinuousHiveSplitEnumeratorTest {
         enumerator.start();
         context.triggerAllActions();
 
-        assertThat(enumerator.snapshotState(1L).getSplits()).contains(split);
+        assertThat(enumerator.snapshotState(1L).getSplits(), contains(split));
     }
 
     @Test
@@ -94,8 +97,8 @@ public class ContinuousHiveSplitEnumeratorTest {
         enumerator.addSplitsBack(Collections.singletonList(split), 0);
         context.triggerAllActions();
 
-        assertThat(enumerator.snapshotState(1L).getSplits()).isEmpty();
-        assertThat(context.getSplitAssignments().get(2).getAssignedSplits()).contains(split);
+        assertThat(enumerator.snapshotState(1L).getSplits(), empty());
+        assertThat(context.getSplitAssignments().get(2).getAssignedSplits(), contains(split));
     }
 
     @Test
@@ -127,8 +130,8 @@ public class ContinuousHiveSplitEnumeratorTest {
         enumerator.addSplitsBack(Collections.singletonList(split), 0);
         context.triggerAllActions();
 
-        assertThat(context.getSplitAssignments()).doesNotContainKey(2);
-        assertThat(enumerator.snapshotState(1L).getSplits()).contains(split);
+        assertFalse(context.getSplitAssignments().containsKey(2));
+        assertThat(enumerator.snapshotState(1L).getSplits(), contains(split));
     }
 
     private HiveSourceSplit createSplit() {
@@ -137,8 +140,6 @@ public class ContinuousHiveSplitEnumeratorTest {
         return new HiveSourceSplit(
                 "1",
                 new Path("/tmp"),
-                0,
-                0,
                 0,
                 0,
                 new String[] {"host1"},
