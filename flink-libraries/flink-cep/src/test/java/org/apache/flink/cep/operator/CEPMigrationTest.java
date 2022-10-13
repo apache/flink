@@ -28,6 +28,7 @@ import org.apache.flink.cep.nfa.compiler.NFACompiler;
 import org.apache.flink.cep.pattern.Pattern;
 import org.apache.flink.cep.pattern.conditions.SimpleCondition;
 import org.apache.flink.cep.utils.CepOperatorTestUtilities;
+import org.apache.flink.core.testutils.FlinkVersionBasedTestDataGenerationUtils;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.api.windowing.time.Time;
@@ -36,7 +37,6 @@ import org.apache.flink.streaming.util.KeyedOneInputStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.OperatorSnapshotUtil;
 
-import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
@@ -46,6 +46,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
+import static org.apache.flink.core.testutils.FlinkVersionBasedTestDataGenerationUtils.assumeFlinkVersionWithDescriptiveTextMessageJUnit4;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
@@ -53,35 +54,26 @@ import static org.junit.Assert.assertTrue;
  * Tests for checking whether CEP operator can restore from snapshots that were done using previous
  * Flink versions.
  *
- * <p>For regenerating the binary snapshot file of previous versions you have to run the {@code
- * write*()} method on the corresponding Flink release-* branch.
+ * <p>See {@link FlinkVersionBasedTestDataGenerationUtils} for details on how to generate new test
+ * data.
  */
 @RunWith(Parameterized.class)
 public class CEPMigrationTest {
-
-    /**
-     * TODO change this to the corresponding savepoint version to be written (e.g. {@link
-     * FlinkVersion#v1_3} for 1.3) TODO and remove all @Ignore annotations on write*Snapshot()
-     * methods to generate savepoints TODO Note: You should generate the savepoint based on the
-     * release branch instead of the master.
-     */
-    private final FlinkVersion flinkGenerateSavepointVersion = null;
 
     private final FlinkVersion migrateVersion;
 
     @Parameterized.Parameters(name = "Migration Savepoint: {0}")
     public static Collection<FlinkVersion> parameters() {
-        return FlinkVersion.rangeOf(FlinkVersion.v1_6, FlinkVersion.v1_15);
+        return FlinkVersionBasedTestDataGenerationUtils.rangeFrom(FlinkVersion.v1_6);
     }
 
     public CEPMigrationTest(FlinkVersion migrateVersion) {
         this.migrateVersion = migrateVersion;
     }
 
-    /** Manually run this to write binary snapshot data. */
-    @Ignore
     @Test
     public void writeAfterBranchingPatternSnapshot() throws Exception {
+        assumeFlinkVersionWithDescriptiveTextMessageJUnit4(migrateVersion);
 
         KeySelector<Event, Integer> keySelector =
                 new KeySelector<Event, Integer>() {
@@ -121,7 +113,7 @@ public class CEPMigrationTest {
             OperatorSnapshotUtil.writeStateHandle(
                     snapshot,
                     "src/test/resources/cep-migration-after-branching-flink"
-                            + flinkGenerateSavepointVersion
+                            + migrateVersion
                             + "-snapshot");
         } finally {
             harness.close();
@@ -247,9 +239,9 @@ public class CEPMigrationTest {
     }
 
     /** Manually run this to write binary snapshot data. */
-    @Ignore
     @Test
     public void writeStartingNewPatternAfterMigrationSnapshot() throws Exception {
+        assumeFlinkVersionWithDescriptiveTextMessageJUnit4(migrateVersion);
 
         KeySelector<Event, Integer> keySelector =
                 new KeySelector<Event, Integer>() {
@@ -285,7 +277,7 @@ public class CEPMigrationTest {
             OperatorSnapshotUtil.writeStateHandle(
                     snapshot,
                     "src/test/resources/cep-migration-starting-new-pattern-flink"
-                            + flinkGenerateSavepointVersion
+                            + migrateVersion
                             + "-snapshot");
         } finally {
             harness.close();
@@ -428,9 +420,9 @@ public class CEPMigrationTest {
     }
 
     /** Manually run this to write binary snapshot data. */
-    @Ignore
     @Test
     public void writeSinglePatternAfterMigrationSnapshot() throws Exception {
+        assumeFlinkVersionWithDescriptiveTextMessageJUnit4(migrateVersion);
 
         KeySelector<Event, Integer> keySelector =
                 new KeySelector<Event, Integer>() {
@@ -461,7 +453,7 @@ public class CEPMigrationTest {
             OperatorSnapshotUtil.writeStateHandle(
                     snapshot,
                     "src/test/resources/cep-migration-single-pattern-afterwards-flink"
-                            + flinkGenerateSavepointVersion
+                            + migrateVersion
                             + "-snapshot");
         } finally {
             harness.close();
@@ -526,9 +518,9 @@ public class CEPMigrationTest {
     }
 
     /** Manually run this to write binary snapshot data. */
-    @Ignore
     @Test
     public void writeAndOrSubtypConditionsPatternAfterMigrationSnapshot() throws Exception {
+        assumeFlinkVersionWithDescriptiveTextMessageJUnit4(migrateVersion);
 
         KeySelector<Event, Integer> keySelector =
                 new KeySelector<Event, Integer>() {
@@ -560,7 +552,7 @@ public class CEPMigrationTest {
             OperatorSnapshotUtil.writeStateHandle(
                     snapshot,
                     "src/test/resources/cep-migration-conditions-flink"
-                            + flinkGenerateSavepointVersion
+                            + migrateVersion
                             + "-snapshot");
         } finally {
             harness.close();
