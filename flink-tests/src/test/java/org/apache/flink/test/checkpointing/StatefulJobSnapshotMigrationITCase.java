@@ -29,6 +29,7 @@ import org.apache.flink.api.common.typeutils.base.LongSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.contrib.streaming.state.EmbeddedRocksDBStateBackend;
+import org.apache.flink.core.testutils.FlinkVersionBasedTestDataGenerationUtils;
 import org.apache.flink.runtime.state.StateBackendLoader;
 import org.apache.flink.runtime.state.hashmap.HashMapStateBackend;
 import org.apache.flink.runtime.state.memory.MemoryStateBackend;
@@ -44,6 +45,7 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.test.checkpointing.utils.MigrationTestUtils;
 import org.apache.flink.test.checkpointing.utils.SnapshotMigrationTestBase;
 import org.apache.flink.util.Collector;
+import org.apache.flink.util.function.TriConsumerWithException;
 
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -51,26 +53,26 @@ import org.junit.runners.Parameterized;
 
 import java.util.Collection;
 import java.util.LinkedList;
-import java.util.stream.Collectors;
+import java.util.function.Supplier;
 
+import static org.apache.flink.core.testutils.FlinkVersionBasedTestDataGenerationUtils.assumeFlinkVersionBasedTestDataGenerationDisabledJUnit4;
+import static org.apache.flink.core.testutils.FlinkVersionBasedTestDataGenerationUtils.assumeFlinkVersionWithDescriptiveTextMessageJUnit4;
 import static org.junit.Assert.assertEquals;
 
 /**
  * Migration ITCases for a stateful job. The tests are parameterized to cover migrating for multiple
- * previous Flink versions, as well as for different state backends.
+ * previous Flink versions, as well as for different state backends. *
+ *
+ * <p>See {@link FlinkVersionBasedTestDataGenerationUtils} for details on how to generate new test *
+ * data.
  */
 @RunWith(Parameterized.class)
 public class StatefulJobSnapshotMigrationITCase extends SnapshotMigrationTestBase {
 
     private static final int NUM_SOURCE_ELEMENTS = 4;
 
-    // TODO increase this to newer version to create and test snapshot migration for newer versions
-    private static final FlinkVersion currentVersion = FlinkVersion.v1_15;
-
-    // TODO change this to CREATE_SNAPSHOT to (re)create binary snapshots
-    // TODO Note: You should generate the snapshot based on the release branch instead of the
-    // master.
-    private static final ExecutionMode executionMode = ExecutionMode.VERIFY_SNAPSHOT;
+    private static final FlinkVersion currentVersion =
+            FlinkVersionBasedTestDataGenerationUtils.mostRecentlyPublishedBaseMinorVersion();
 
     @Parameterized.Parameters(name = "Test snapshot: {0}")
     public static Collection<SnapshotSpec> parameters() {
@@ -110,12 +112,6 @@ public class StatefulJobSnapshotMigrationITCase extends SnapshotMigrationTestBas
                         StateBackendLoader.ROCKSDB_STATE_BACKEND_NAME,
                         SnapshotType.CHECKPOINT,
                         FlinkVersion.rangeOf(FlinkVersion.v1_15, currentVersion)));
-        if (executionMode == ExecutionMode.CREATE_SNAPSHOT) {
-            parameters =
-                    parameters.stream()
-                            .filter(x -> x.getFlinkVersion().equals(currentVersion))
-                            .collect(Collectors.toList());
-        }
         return parameters;
     }
 
@@ -126,7 +122,85 @@ public class StatefulJobSnapshotMigrationITCase extends SnapshotMigrationTestBas
     }
 
     @Test
-    public void testSavepoint() throws Exception {
+    public void testSavepointSnapshotGeneration() throws Exception {
+        assumeFlinkVersionWithDescriptiveTextMessageJUnit4(snapshotSpec.getFlinkVersion());
+
+        testSavepoint(
+                () ->
+                        new MigrationTestUtils.CheckpointingNonParallelSourceWithListState(
+                                NUM_SOURCE_ELEMENTS),
+                () ->
+                        new MigrationTestUtils.CheckpointingParallelSourceWithUnionListState(
+                                NUM_SOURCE_ELEMENTS),
+                CheckpointingKeyedStateFlatMap::new,
+                CheckpointingTimelyStatefulOperator::new,
+                (environment, snapshotFileName, ignoredParallelism) ->
+                        executeAndSnapshot(
+                                environment,
+                                "src/test/resources/" + snapshotFileName,
+                                snapshotSpec.getSnapshotType(),
+                                new Tuple2<>(
+                                        MigrationTestUtils.AccumulatorCountingSink
+                                                .NUM_ELEMENTS_ACCUMULATOR,
+                                        NUM_SOURCE_ELEMENTS * 2)));
+    }
+
+    @Test
+    public void testSavepointVerification() throws Exception {
+        assumeFlinkVersionBasedTestDataGenerationDisabledJUnit4();
+
+        testSavepoint(
+                () ->
+                        new MigrationTestUtils.CheckingNonParallelSourceWithListState(
+                                NUM_SOURCE_ELEMENTS),
+                () ->
+                        new MigrationTestUtils.CheckingParallelSourceWithUnionListState(
+                                NUM_SOURCE_ELEMENTS),
+                CheckingKeyedStateFlatMap::new,
+                CheckingTimelyStatefulOperator::new,
+                (environment, snapshotFileName, parallelism) ->
+                        restoreAndExecute(
+                                environment,
+                                getResourceFilename(snapshotFileName),
+                                new Tuple2<>(
+                                        MigrationTestUtils.CheckingNonParallelSourceWithListState
+                                                .SUCCESSFUL_RESTORE_CHECK_ACCUMULATOR,
+                                        1),
+                                new Tuple2<>(
+                                        MigrationTestUtils.CheckingParallelSourceWithUnionListState
+                                                .SUCCESSFUL_RESTORE_CHECK_ACCUMULATOR,
+                                        parallelism),
+                                new Tuple2<>(
+                                        CheckingKeyedStateFlatMap
+                                                .SUCCESSFUL_RESTORE_CHECK_ACCUMULATOR,
+                                        NUM_SOURCE_ELEMENTS * 2),
+                                new Tuple2<>(
+                                        CheckingTimelyStatefulOperator
+                                                .SUCCESSFUL_PROCESS_CHECK_ACCUMULATOR,
+                                        NUM_SOURCE_ELEMENTS * 2),
+                                new Tuple2<>(
+                                        CheckingTimelyStatefulOperator
+                                                .SUCCESSFUL_EVENT_TIME_CHECK_ACCUMULATOR,
+                                        NUM_SOURCE_ELEMENTS * 2),
+                                new Tuple2<>(
+                                        CheckingTimelyStatefulOperator
+                                                .SUCCESSFUL_PROCESSING_TIME_CHECK_ACCUMULATOR,
+                                        NUM_SOURCE_ELEMENTS * 2),
+                                new Tuple2<>(
+                                        MigrationTestUtils.AccumulatorCountingSink
+                                                .NUM_ELEMENTS_ACCUMULATOR,
+                                        NUM_SOURCE_ELEMENTS * 2)));
+    }
+
+    private void testSavepoint(
+            Supplier<SourceFunction<Tuple2<Long, Long>>> nonParallelSourceFactory,
+            Supplier<SourceFunction<Tuple2<Long, Long>>> parallelSourceFactory,
+            Supplier<RichFlatMapFunction<Tuple2<Long, Long>, Tuple2<Long, Long>>> flatMapFactory,
+            Supplier<OneInputStreamOperator<Tuple2<Long, Long>, Tuple2<Long, Long>>>
+                    timelyOperatorFactory,
+            TriConsumerWithException<StreamExecutionEnvironment, String, Integer, Exception>
+                    testRun)
+            throws Exception {
 
         final int parallelism = 4;
 
@@ -152,32 +226,11 @@ public class StatefulJobSnapshotMigrationITCase extends SnapshotMigrationTestBas
         env.setMaxParallelism(parallelism);
         env.enableChangelogStateBackend(false);
 
-        SourceFunction<Tuple2<Long, Long>> nonParallelSource;
-        SourceFunction<Tuple2<Long, Long>> parallelSource;
-        RichFlatMapFunction<Tuple2<Long, Long>, Tuple2<Long, Long>> flatMap;
-        OneInputStreamOperator<Tuple2<Long, Long>, Tuple2<Long, Long>> timelyOperator;
-
-        if (executionMode == ExecutionMode.CREATE_SNAPSHOT) {
-            nonParallelSource =
-                    new MigrationTestUtils.CheckpointingNonParallelSourceWithListState(
-                            NUM_SOURCE_ELEMENTS);
-            parallelSource =
-                    new MigrationTestUtils.CheckpointingParallelSourceWithUnionListState(
-                            NUM_SOURCE_ELEMENTS);
-            flatMap = new CheckpointingKeyedStateFlatMap();
-            timelyOperator = new CheckpointingTimelyStatefulOperator();
-        } else if (executionMode == ExecutionMode.VERIFY_SNAPSHOT) {
-            nonParallelSource =
-                    new MigrationTestUtils.CheckingNonParallelSourceWithListState(
-                            NUM_SOURCE_ELEMENTS);
-            parallelSource =
-                    new MigrationTestUtils.CheckingParallelSourceWithUnionListState(
-                            NUM_SOURCE_ELEMENTS);
-            flatMap = new CheckingKeyedStateFlatMap();
-            timelyOperator = new CheckingTimelyStatefulOperator();
-        } else {
-            throw new IllegalStateException("Unknown ExecutionMode " + executionMode);
-        }
+        SourceFunction<Tuple2<Long, Long>> nonParallelSource = nonParallelSourceFactory.get();
+        SourceFunction<Tuple2<Long, Long>> parallelSource = parallelSourceFactory.get();
+        RichFlatMapFunction<Tuple2<Long, Long>, Tuple2<Long, Long>> flatMap = flatMapFactory.get();
+        OneInputStreamOperator<Tuple2<Long, Long>, Tuple2<Long, Long>> timelyOperator =
+                timelyOperatorFactory.get();
 
         env.addSource(nonParallelSource)
                 .uid("CheckpointingSource1")
@@ -209,43 +262,7 @@ public class StatefulJobSnapshotMigrationITCase extends SnapshotMigrationTestBas
 
         final String snapshotPath = getSnapshotPath(snapshotSpec);
 
-        if (executionMode == ExecutionMode.CREATE_SNAPSHOT) {
-            executeAndSnapshot(
-                    env,
-                    "src/test/resources/" + snapshotPath,
-                    snapshotSpec.getSnapshotType(),
-                    new Tuple2<>(
-                            MigrationTestUtils.AccumulatorCountingSink.NUM_ELEMENTS_ACCUMULATOR,
-                            NUM_SOURCE_ELEMENTS * 2));
-        } else {
-            restoreAndExecute(
-                    env,
-                    getResourceFilename(snapshotPath),
-                    new Tuple2<>(
-                            MigrationTestUtils.CheckingNonParallelSourceWithListState
-                                    .SUCCESSFUL_RESTORE_CHECK_ACCUMULATOR,
-                            1),
-                    new Tuple2<>(
-                            MigrationTestUtils.CheckingParallelSourceWithUnionListState
-                                    .SUCCESSFUL_RESTORE_CHECK_ACCUMULATOR,
-                            parallelism),
-                    new Tuple2<>(
-                            CheckingKeyedStateFlatMap.SUCCESSFUL_RESTORE_CHECK_ACCUMULATOR,
-                            NUM_SOURCE_ELEMENTS * 2),
-                    new Tuple2<>(
-                            CheckingTimelyStatefulOperator.SUCCESSFUL_PROCESS_CHECK_ACCUMULATOR,
-                            NUM_SOURCE_ELEMENTS * 2),
-                    new Tuple2<>(
-                            CheckingTimelyStatefulOperator.SUCCESSFUL_EVENT_TIME_CHECK_ACCUMULATOR,
-                            NUM_SOURCE_ELEMENTS * 2),
-                    new Tuple2<>(
-                            CheckingTimelyStatefulOperator
-                                    .SUCCESSFUL_PROCESSING_TIME_CHECK_ACCUMULATOR,
-                            NUM_SOURCE_ELEMENTS * 2),
-                    new Tuple2<>(
-                            MigrationTestUtils.AccumulatorCountingSink.NUM_ELEMENTS_ACCUMULATOR,
-                            NUM_SOURCE_ELEMENTS * 2));
-        }
+        testRun.accept(env, snapshotPath, parallelism);
     }
 
     private static String getSnapshotPath(SnapshotSpec snapshotSpec) {
