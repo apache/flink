@@ -32,6 +32,7 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.java.typeutils.runtime.kryo.KryoSerializer;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.core.testutils.FlinkVersionBasedTestDataGenerationUtils;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.streaming.api.functions.windowing.PassThroughWindowFunction;
 import org.apache.flink.streaming.api.functions.windowing.RichWindowFunction;
@@ -56,7 +57,6 @@ import org.apache.flink.streaming.util.OperatorSnapshotUtil;
 import org.apache.flink.streaming.util.TestHarnessUtil;
 import org.apache.flink.util.Collector;
 
-import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
@@ -66,6 +66,7 @@ import java.util.Comparator;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.TimeUnit;
 
+import static org.apache.flink.core.testutils.FlinkVersionBasedTestDataGenerationUtils.assumeFlinkVersionWithDescriptiveTextMessageJUnit4;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
@@ -76,27 +77,19 @@ import static org.junit.Assert.fail;
  * <p>This also checks whether {@link WindowOperator} can restore from a checkpoint of the aligned
  * processing-time windows operator of previous Flink versions.
  *
- * <p>For regenerating the binary snapshot file you have to run the {@code write*()} method on the
- * corresponding Flink release-* branch.
+ * <p>See {@link FlinkVersionBasedTestDataGenerationUtils} for details on how to generate new test
+ * data.
  */
 @RunWith(Parameterized.class)
 public class WindowOperatorMigrationTest {
 
     @Parameterized.Parameters(name = "Migration Savepoint: {0}")
     public static Collection<FlinkVersion> parameters() {
-        return FlinkVersion.rangeOf(FlinkVersion.v1_3, FlinkVersion.v1_15);
+        return FlinkVersionBasedTestDataGenerationUtils.rangeFrom(FlinkVersion.v1_3);
     }
 
     private static final TypeInformation<Tuple2<String, Integer>> STRING_INT_TUPLE =
             TypeInformation.of(new TypeHint<Tuple2<String, Integer>>() {});
-
-    /**
-     * TODO change this to the corresponding savepoint version to be written (e.g. {@link
-     * FlinkVersion#v1_3} for 1.3) TODO and remove all @Ignore annotations on write*Snapshot()
-     * methods to generate savepoints TODO Note: You should generate the savepoint based on the
-     * release branch instead of the master.
-     */
-    private final FlinkVersion flinkGenerateSavepointVersion = null;
 
     private final FlinkVersion testMigrateVersion;
 
@@ -105,9 +98,10 @@ public class WindowOperatorMigrationTest {
     }
 
     /** Manually run this to write binary snapshot data. */
-    @Ignore
     @Test
     public void writeSessionWindowsWithCountTriggerSnapshot() throws Exception {
+        assumeFlinkVersionWithDescriptiveTextMessageJUnit4(testMigrateVersion);
+
         final int sessionSize = 3;
 
         ListStateDescriptor<Tuple2<String, Integer>> stateDesc =
@@ -157,7 +151,7 @@ public class WindowOperatorMigrationTest {
         OperatorSnapshotUtil.writeStateHandle(
                 snapshot,
                 "src/test/resources/win-op-migration-test-session-with-stateful-trigger-flink"
-                        + flinkGenerateSavepointVersion
+                        + testMigrateVersion
                         + "-snapshot");
 
         testHarness.close();
@@ -237,9 +231,9 @@ public class WindowOperatorMigrationTest {
     }
 
     /** Manually run this to write binary snapshot data. */
-    @Ignore
     @Test
     public void writeSessionWindowsWithCountTriggerInMintConditionSnapshot() throws Exception {
+        assumeFlinkVersionWithDescriptiveTextMessageJUnit4(testMigrateVersion);
 
         final int sessionSize = 3;
 
@@ -280,7 +274,7 @@ public class WindowOperatorMigrationTest {
         OperatorSnapshotUtil.writeStateHandle(
                 snapshot,
                 "src/test/resources/win-op-migration-test-session-with-stateful-trigger-mint-flink"
-                        + flinkGenerateSavepointVersion
+                        + testMigrateVersion
                         + "-snapshot");
 
         testHarness.close();
@@ -375,9 +369,10 @@ public class WindowOperatorMigrationTest {
     }
 
     /** Manually run this to write binary snapshot data. */
-    @Ignore
     @Test
     public void writeReducingEventTimeWindowsSnapshot() throws Exception {
+        assumeFlinkVersionWithDescriptiveTextMessageJUnit4(testMigrateVersion);
+
         final int windowSize = 3;
 
         ReducingStateDescriptor<Tuple2<String, Integer>> stateDesc =
@@ -450,7 +445,7 @@ public class WindowOperatorMigrationTest {
         OperatorSnapshotUtil.writeStateHandle(
                 snapshot,
                 "src/test/resources/win-op-migration-test-reduce-event-time-flink"
-                        + flinkGenerateSavepointVersion
+                        + testMigrateVersion
                         + "-snapshot");
 
         testHarness.close();
@@ -528,9 +523,10 @@ public class WindowOperatorMigrationTest {
     }
 
     /** Manually run this to write binary snapshot data. */
-    @Ignore
     @Test
     public void writeApplyEventTimeWindowsSnapshot() throws Exception {
+        assumeFlinkVersionWithDescriptiveTextMessageJUnit4(testMigrateVersion);
+
         final int windowSize = 3;
 
         ListStateDescriptor<Tuple2<String, Integer>> stateDesc =
@@ -601,7 +597,7 @@ public class WindowOperatorMigrationTest {
         OperatorSnapshotUtil.writeStateHandle(
                 snapshot,
                 "src/test/resources/win-op-migration-test-apply-event-time-flink"
-                        + flinkGenerateSavepointVersion
+                        + testMigrateVersion
                         + "-snapshot");
 
         testHarness.close();
@@ -677,9 +673,10 @@ public class WindowOperatorMigrationTest {
     }
 
     /** Manually run this to write binary snapshot data. */
-    @Ignore
     @Test
     public void writeReducingProcessingTimeWindowsSnapshot() throws Exception {
+        assumeFlinkVersionWithDescriptiveTextMessageJUnit4(testMigrateVersion);
+
         final int windowSize = 3;
 
         ReducingStateDescriptor<Tuple2<String, Integer>> stateDesc =
@@ -742,7 +739,7 @@ public class WindowOperatorMigrationTest {
         OperatorSnapshotUtil.writeStateHandle(
                 snapshot,
                 "src/test/resources/win-op-migration-test-reduce-processing-time-flink"
-                        + flinkGenerateSavepointVersion
+                        + testMigrateVersion
                         + "-snapshot");
 
         testHarness.close();
@@ -816,9 +813,10 @@ public class WindowOperatorMigrationTest {
     }
 
     /** Manually run this to write binary snapshot data. */
-    @Ignore
     @Test
     public void writeApplyProcessingTimeWindowsSnapshot() throws Exception {
+        assumeFlinkVersionWithDescriptiveTextMessageJUnit4(testMigrateVersion);
+
         final int windowSize = 3;
 
         ListStateDescriptor<Tuple2<String, Integer>> stateDesc =
@@ -879,7 +877,7 @@ public class WindowOperatorMigrationTest {
         OperatorSnapshotUtil.writeStateHandle(
                 snapshot,
                 "src/test/resources/win-op-migration-test-apply-processing-time-flink"
-                        + flinkGenerateSavepointVersion
+                        + testMigrateVersion
                         + "-snapshot");
 
         testHarness.close();
@@ -951,9 +949,10 @@ public class WindowOperatorMigrationTest {
     }
 
     /** Manually run this to write binary snapshot data. */
-    @Ignore
     @Test
     public void writeWindowsWithKryoSerializedKeysSnapshot() throws Exception {
+        assumeFlinkVersionWithDescriptiveTextMessageJUnit4(testMigrateVersion);
+
         final int windowSize = 3;
 
         TypeInformation<Tuple2<NonPojoType, Integer>> inputType =
@@ -1041,7 +1040,7 @@ public class WindowOperatorMigrationTest {
         OperatorSnapshotUtil.writeStateHandle(
                 snapshot,
                 "src/test/resources/win-op-migration-test-kryo-serialized-key-flink"
-                        + flinkGenerateSavepointVersion
+                        + testMigrateVersion
                         + "-snapshot");
 
         testHarness.close();
