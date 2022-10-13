@@ -20,6 +20,7 @@ package org.apache.flink.streaming.connectors.kafka;
 
 import org.apache.flink.FlinkVersion;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
+import org.apache.flink.core.testutils.FlinkVersionBasedTestDataGenerationUtils;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.streaming.api.operators.StreamSink;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
@@ -35,14 +36,14 @@ import java.util.Properties;
  * Tests for checking whether {@link FlinkKafkaProducer} can restore from snapshots that were done
  * using previous Flink versions' {@link FlinkKafkaProducer}.
  *
- * <p>For regenerating the binary snapshot files run {@link #writeSnapshot()} on the corresponding
- * Flink release-* branch.
+ * <p>See {@link FlinkVersionBasedTestDataGenerationUtils} for details on how to generate new test
+ * data.
  */
 @RunWith(Parameterized.class)
 public class FlinkKafkaProducerMigrationTest extends KafkaMigrationTestBase {
     @Parameterized.Parameters(name = "Migration Savepoint: {0}")
     public static Collection<FlinkVersion> parameters() {
-        return FlinkVersion.rangeOf(FlinkVersion.v1_8, FlinkVersion.v1_15);
+        return FlinkVersionBasedTestDataGenerationUtils.rangeFrom(FlinkVersion.v1_8);
     }
 
     public FlinkKafkaProducerMigrationTest(FlinkVersion testMigrateVersion) {
