@@ -24,7 +24,7 @@ This project bundles the following dependencies under the Apache Software Licens
 - com.facebook.presto.hadoop:hadoop-apache2:2.7.4-9
 - com.fasterxml.jackson.core:jackson-annotations:2.13.4
 - com.fasterxml.jackson.core:jackson-core:2.13.4
-- com.fasterxml.jackson.core:jackson-databind:2.13.4
+- com.fasterxml.jackson.core:jackson-databind:2.13.4.2
 - com.fasterxml.jackson.dataformat:jackson-dataformat-cbor:2.13.4
 - com.fasterxml.woodstox:woodstox-core:5.3.0
 - com.google.guava:guava:26.0-jre
