@@ -40,7 +40,6 @@ under the License.
 		<!-- Test Libraries -->
 		<protobuf-maven-plugin.version>0.6.1</protobuf-maven-plugin.version>
 		<os-maven-plugin.version>1.7.0</os-maven-plugin.version>
-		<pulsar-commons-lang3.version>3.11</pulsar-commons-lang3.version>
 		<pulsar-netty.version>4.1.77.Final</pulsar-netty.version>
 		<pulsar-grpc.version>1.45.1</pulsar-grpc.version>
 	</properties>
@@ -133,15 +132,6 @@ under the License.
 			<groupId>org.apache.pulsar</groupId>
 			<artifactId>pulsar-broker</artifactId>
 			<version>${pulsar.version}</version>
-			<scope>test</scope>
-		</dependency>
-
-		<!-- Pulsar use a newer commons-lang3 in broker. -->
-		<!-- Bump the version only for testing. -->
-		<dependency>
-			<groupId>org.apache.commons</groupId>
-			<artifactId>commons-lang3</artifactId>
-			<version>${pulsar-commons-lang3.version}</version>
 			<scope>test</scope>
 		</dependency>
 
