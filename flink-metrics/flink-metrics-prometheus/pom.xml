@@ -32,7 +32,7 @@ under the License.
 	<name>Flink : Metrics : Prometheus</name>
 
 	<properties>
-		<prometheus.version>0.8.1</prometheus.version>
+		<prometheus.version>0.16.0</prometheus.version>
 	</properties>
 
 	<dependencies>

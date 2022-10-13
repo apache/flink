@@ -6,7 +6,10 @@ The Apache Software Foundation (http://www.apache.org/).
 
 This project bundles the following dependencies under the Apache Software License 2.0. (http://www.apache.org/licenses/LICENSE-2.0.txt)
 
-- io.prometheus:simpleclient:0.8.1
-- io.prometheus:simpleclient_common:0.8.1
-- io.prometheus:simpleclient_httpserver:0.8.1
-- io.prometheus:simpleclient_pushgateway:0.8.1
+- io.prometheus:simpleclient:0.16.0
+- io.prometheus:simpleclient_common:0.16.0
+- io.prometheus:simpleclient_httpserver:0.16.0
+- io.prometheus:simpleclient_pushgateway:0.16.0
+- io.prometheus:simpleclient_tracer_common:0.16.0
+- io.prometheus:simpleclient_tracer_otel:0.16.0
+- io.prometheus:simpleclient_tracer_otel_agent:0.16.0
