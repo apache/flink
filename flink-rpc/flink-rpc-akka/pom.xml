@@ -33,7 +33,7 @@ under the License.
 	<packaging>jar</packaging>
 
 	<properties>
-		<akka.version>2.6.15</akka.version>
+		<akka.version>2.6.20</akka.version>
 		<scala.binary.version>2.12</scala.binary.version>
 		<scala.version>2.12.7</scala.version>
 	</properties>

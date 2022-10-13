@@ -9,12 +9,12 @@ This project bundles the following dependencies under the Apache Software Licens
 - com.hierynomus:asn-one:0.5.0
 - com.typesafe:config:1.4.0
 - com.typesafe:ssl-config-core_2.12:0.4.2
-- com.typesafe.akka:akka-actor_2.12:2.6.15
-- com.typesafe.akka:akka-remote_2.12:2.6.15
-- com.typesafe.akka:akka-pki_2.12:2.6.15
-- com.typesafe.akka:akka-protobuf-v3_2.12:2.6.15
-- com.typesafe.akka:akka-slf4j_2.12:2.6.15
-- com.typesafe.akka:akka-stream_2.12:2.6.15
+- com.typesafe.akka:akka-actor_2.12:2.6.20
+- com.typesafe.akka:akka-remote_2.12:2.6.20
+- com.typesafe.akka:akka-pki_2.12:2.6.20
+- com.typesafe.akka:akka-protobuf-v3_2.12:2.6.20
+- com.typesafe.akka:akka-slf4j_2.12:2.6.20
+- com.typesafe.akka:akka-stream_2.12:2.6.20
 - io.netty:netty:3.10.6.Final
 - org.agrona:agrona:1.9.0
 
