@@ -364,16 +364,16 @@ public class DataStreamBatchExecutionITCase {
                     results,
                     equalTo(
                             Arrays.asList(
-                                    "(regular1,1): [bc2=bc2, bc1=bc1, bc3=bc3]",
-                                    "(regular1,2): [bc2=bc2, bc1=bc1, bc3=bc3]",
-                                    "(regular1,3): [bc2=bc2, bc1=bc1, bc3=bc3]",
-                                    "(regular1,3): [bc2=bc2, bc1=bc1, bc3=bc3]",
-                                    "(regular1,3): [bc2=bc2, bc1=bc1, bc3=bc3]",
-                                    "(regular1,4): [bc2=bc2, bc1=bc1, bc3=bc3]",
-                                    "(regular1,5): [bc2=bc2, bc1=bc1, bc3=bc3]",
-                                    "(regular2,2): [bc2=bc2, bc1=bc1, bc3=bc3]",
-                                    "(regular2,3): [bc2=bc2, bc1=bc1, bc3=bc3]",
-                                    "(regular2,5): [bc2=bc2, bc1=bc1, bc3=bc3]")));
+                                    "(regular1,1): [bc1=bc1, bc2=bc2, bc3=bc3]",
+                                    "(regular1,2): [bc1=bc1, bc2=bc2, bc3=bc3]",
+                                    "(regular1,3): [bc1=bc1, bc2=bc2, bc3=bc3]",
+                                    "(regular1,3): [bc1=bc1, bc2=bc2, bc3=bc3]",
+                                    "(regular1,3): [bc1=bc1, bc2=bc2, bc3=bc3]",
+                                    "(regular1,4): [bc1=bc1, bc2=bc2, bc3=bc3]",
+                                    "(regular1,5): [bc1=bc1, bc2=bc2, bc3=bc3]",
+                                    "(regular2,2): [bc1=bc1, bc2=bc2, bc3=bc3]",
+                                    "(regular2,3): [bc1=bc1, bc2=bc2, bc3=bc3]",
+                                    "(regular2,5): [bc1=bc1, bc2=bc2, bc3=bc3]")));
         }
     }
 
@@ -417,13 +417,13 @@ public class DataStreamBatchExecutionITCase {
                     results,
                     equalTo(
                             Arrays.asList(
-                                    "(regular1,1): [bc2=bc2, bc1=bc1, bc3=bc3]",
-                                    "(regular1,2): [bc2=bc2, bc1=bc1, bc3=bc3]",
-                                    "(regular1,3): [bc2=bc2, bc1=bc1, bc3=bc3]",
-                                    "(regular1,4): [bc2=bc2, bc1=bc1, bc3=bc3]",
-                                    "(regular1,3): [bc2=bc2, bc1=bc1, bc3=bc3]",
-                                    "(regular1,5): [bc2=bc2, bc1=bc1, bc3=bc3]",
-                                    "(regular1,3): [bc2=bc2, bc1=bc1, bc3=bc3]")));
+                                    "(regular1,1): [bc1=bc1, bc2=bc2, bc3=bc3]",
+                                    "(regular1,2): [bc1=bc1, bc2=bc2, bc3=bc3]",
+                                    "(regular1,3): [bc1=bc1, bc2=bc2, bc3=bc3]",
+                                    "(regular1,4): [bc1=bc1, bc2=bc2, bc3=bc3]",
+                                    "(regular1,3): [bc1=bc1, bc2=bc2, bc3=bc3]",
+                                    "(regular1,5): [bc1=bc1, bc2=bc2, bc3=bc3]",
+                                    "(regular1,3): [bc1=bc1, bc2=bc2, bc3=bc3]")));
         }
     }
 
