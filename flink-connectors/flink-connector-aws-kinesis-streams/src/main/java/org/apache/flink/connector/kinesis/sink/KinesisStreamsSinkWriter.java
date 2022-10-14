@@ -77,11 +77,7 @@ class KinesisStreamsSinkWriter<InputT> extends AsyncSinkWriter<InputT, PutRecord
                     RESOURCE_NOT_FOUND_EXCEPTION_CLASSIFIER,
                     getSdkClientMisconfiguredExceptionClassifier());
 
-    // deprecated, use numRecordsSendErrorsCounter instead.
-    @Deprecated private final Counter numRecordsOutErrorsCounter;
-
-    /* A counter for the total number of records that have encountered an error during put */
-    private final Counter numRecordsSendErrorsCounter;
+    private final Counter numRecordsOutErrorsCounter;
 
     /* Name of the stream in Kinesis Data Streams */
     private final String streamName;
@@ -154,7 +150,6 @@ class KinesisStreamsSinkWriter<InputT> extends AsyncSinkWriter<InputT, PutRecord
         this.streamName = streamName;
         this.metrics = context.metricGroup();
         this.numRecordsOutErrorsCounter = metrics.getNumRecordsOutErrorsCounter();
-        this.numRecordsSendErrorsCounter = metrics.getNumRecordsSendErrorsCounter();
         this.httpClient = AWSGeneralUtil.createAsyncHttpClient(kinesisClientProperties);
         this.kinesisClient = buildClient(kinesisClientProperties, this.httpClient);
     }
@@ -207,7 +202,6 @@ class KinesisStreamsSinkWriter<InputT> extends AsyncSinkWriter<InputT, PutRecord
                 requestEntries.size(),
                 err);
         numRecordsOutErrorsCounter.inc(requestEntries.size());
-        numRecordsSendErrorsCounter.inc(requestEntries.size());
 
         if (isRetryable(err)) {
             requestResult.accept(requestEntries);
