@@ -298,7 +298,7 @@ public class FileWriterTest {
                 InternalSinkWriterMetricGroup.mock(
                         metricListener.getMetricGroup(), operatorIOMetricGroup);
 
-        Counter recordsCounter = sinkWriterMetricGroup.getNumRecordsSendCounter();
+        Counter recordsCounter = sinkWriterMetricGroup.getIOMetricGroup().getNumRecordsOutCounter();
         SinkWriter.Context context = new ContextImpl();
         FileWriter<String> fileWriter =
                 createWriter(

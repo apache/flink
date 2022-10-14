@@ -93,11 +93,9 @@ class KafkaWriter<IN>
     private final Map<String, KafkaMetricMutableWrapper> previouslyCreatedMetrics = new HashMap<>();
     private final SinkWriterMetricGroup metricGroup;
     private final boolean disabledMetrics;
-    private final Counter numRecordsSendCounter;
-    private final Counter numBytesSendCounter;
-    // deprecated, use numRecordsSendErrorsCounter instead.
-    @Deprecated private final Counter numRecordsOutErrorsCounter;
-    private final Counter numRecordsSendErrorsCounter;
+    private final Counter numRecordsOutCounter;
+    private final Counter numBytesOutCounter;
+    private final Counter numRecordsOutErrorsCounter;
     private final ProcessingTimeService timeService;
 
     // Number of outgoing bytes at the latest metric sync
@@ -155,10 +153,9 @@ class KafkaWriter<IN>
         checkNotNull(sinkInitContext, "sinkInitContext");
         this.timeService = sinkInitContext.getProcessingTimeService();
         this.metricGroup = sinkInitContext.metricGroup();
-        this.numBytesSendCounter = metricGroup.getNumBytesSendCounter();
-        this.numRecordsSendCounter = metricGroup.getNumRecordsSendCounter();
+        this.numBytesOutCounter = metricGroup.getIOMetricGroup().getNumBytesOutCounter();
+        this.numRecordsOutCounter = metricGroup.getIOMetricGroup().getNumRecordsOutCounter();
         this.numRecordsOutErrorsCounter = metricGroup.getNumRecordsOutErrorsCounter();
-        this.numRecordsSendErrorsCounter = metricGroup.getNumRecordsSendErrorsCounter();
         this.kafkaSinkContext =
                 new DefaultKafkaSinkContext(
                         sinkInitContext.getSubtaskId(),
@@ -198,7 +195,7 @@ class KafkaWriter<IN>
         final ProducerRecord<byte[], byte[]> record =
                 recordSerializer.serialize(element, kafkaSinkContext, context.timestamp());
         currentProducer.send(record, deliveryCallback);
-        numRecordsSendCounter.inc();
+        numRecordsOutCounter.inc();
     }
 
     @Override
@@ -391,7 +388,7 @@ class KafkaWriter<IN>
                     long outgoingBytesUntilNow = ((Number) byteOutMetric.metricValue()).longValue();
                     long outgoingBytesSinceLastUpdate =
                             outgoingBytesUntilNow - latestOutgoingByteTotal;
-                    numBytesSendCounter.inc(outgoingBytesSinceLastUpdate);
+                    numBytesOutCounter.inc(outgoingBytesSinceLastUpdate);
                     latestOutgoingByteTotal = outgoingBytesUntilNow;
                     lastSync = time;
                     registerMetricSync();
@@ -417,7 +414,6 @@ class KafkaWriter<IN>
                 mailboxExecutor.execute(
                         () -> {
                             numRecordsOutErrorsCounter.inc();
-                            numRecordsSendErrorsCounter.inc();
                             throwException(metadata, exception, producer);
                         },
                         "Failed to send data to Kafka");
