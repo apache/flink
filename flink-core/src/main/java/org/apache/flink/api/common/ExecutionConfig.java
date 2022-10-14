@@ -137,7 +137,8 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
     private boolean autoTypeRegistrationEnabled = true;
 
     private boolean forceAvro = false;
-    private long autoWatermarkInterval = 200;
+    private long autoWatermarkInterval =
+            PipelineOptions.AUTO_WATERMARK_INTERVAL.defaultValue().toMillis();
 
     // ---------- statebackend related configurations ------------------------------
     /**
