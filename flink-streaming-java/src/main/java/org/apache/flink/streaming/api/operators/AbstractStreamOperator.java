@@ -164,10 +164,7 @@ public abstract class AbstractStreamOperator<OUT>
                     environment
                             .getMetricGroup()
                             .getOrAddOperator(config.getOperatorID(), config.getOperatorName());
-            this.output =
-                    new CountingOutput<>(
-                            output,
-                            operatorMetricGroup.getIOMetricGroup().getNumRecordsOutCounter());
+            this.output = registerCounterOnOutput(output, operatorMetricGroup);
             if (config.isChainEnd()) {
                 operatorMetricGroup.getIOMetricGroup().reuseOutputMetricsForTask();
             }
@@ -648,5 +645,11 @@ public abstract class AbstractStreamOperator<OUT>
 
     protected Optional<InternalTimeServiceManager<?>> getTimeServiceManager() {
         return Optional.ofNullable(timeServiceManager);
+    }
+
+    protected Output<StreamRecord<OUT>> registerCounterOnOutput(
+            Output<StreamRecord<OUT>> output, OperatorMetricGroup operatorMetricGroup) {
+        return new CountingOutput<>(
+                output, operatorMetricGroup.getIOMetricGroup().getNumRecordsOutCounter());
     }
 }
