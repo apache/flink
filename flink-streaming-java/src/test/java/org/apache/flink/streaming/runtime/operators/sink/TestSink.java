@@ -28,6 +28,9 @@ import org.apache.flink.core.io.SimpleVersionedSerializer;
 import org.apache.flink.streaming.api.functions.sink.filesystem.bucketassigners.SimpleVersionedStringSerializer;
 import org.apache.flink.streaming.api.transformations.SinkV1Adapter;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import javax.annotation.Nullable;
 
 import java.io.IOException;
@@ -394,6 +397,52 @@ public class TestSink<T> implements Sink<T, String, String, String> {
         @Override
         public void endOfInput() {
             commit(Collections.singletonList(END_OF_INPUT_STR));
+        }
+    }
+
+    /**
+     * {@link GlobalCommitter} implementation that can throw on exception when processing
+     * checkpoint. Exception is thrown once.
+     */
+    public static class FailOnCommitGlobalCommitter extends DefaultGlobalCommitter {
+
+        private static final Logger LOG =
+                LoggerFactory.getLogger(FailOnCommitGlobalCommitter.class);
+
+        // local counter used to decide if exception should be thrown. This field has to be static,
+        // since we want to keep its value after Flink's local cluster recovery.
+        private static int globalCheckpointCounter = 0;
+
+        private final int commitNumberToFailOn;
+
+        /**
+         * Creates instance of FailOnCommitGlobalCommitter.
+         *
+         * @param checkpointNumberToFailOn number of checkpoints after which exception should be
+         *     thrown.
+         * @param queueSupplier queueSupplier.
+         */
+        public FailOnCommitGlobalCommitter(
+                int checkpointNumberToFailOn, Supplier<Queue<String>> queueSupplier) {
+            super(queueSupplier);
+            this.commitNumberToFailOn = checkpointNumberToFailOn;
+        }
+
+        @Override
+        public List<String> commit(List<String> committables) {
+            LOG.info(
+                    "Commit number "
+                            + globalCheckpointCounter
+                            + ", committables size "
+                            + committables.size());
+
+            if (++globalCheckpointCounter == commitNumberToFailOn) {
+                throw new RuntimeException(
+                        "GlobalCommitter Desired Exception on checkpoint "
+                                + globalCheckpointCounter);
+            }
+
+            return super.commit(committables);
         }
     }
 

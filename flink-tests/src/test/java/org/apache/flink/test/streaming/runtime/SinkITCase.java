@@ -22,6 +22,9 @@ import org.apache.flink.api.common.typeinfo.IntegerTypeInfo;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.runtime.operators.sink.TestSink;
+import org.apache.flink.streaming.runtime.operators.sink.TestSink.FailOnCommitGlobalCommitter;
+import org.apache.flink.streaming.runtime.operators.sink.TestSink.StringCommittableSerializer;
+import org.apache.flink.streaming.util.CheckpointCountingSource;
 import org.apache.flink.streaming.util.FiniteTestSource;
 import org.apache.flink.test.util.AbstractTestBase;
 
@@ -31,10 +34,13 @@ import org.junit.Test;
 import java.io.Serializable;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Queue;
+import java.util.Set;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.function.BooleanSupplier;
+import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
@@ -42,6 +48,8 @@ import static java.util.stream.Collectors.joining;
 import static org.apache.flink.streaming.runtime.operators.sink.TestSink.END_OF_INPUT_STR;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
+import static org.hamcrest.core.IsEqual.equalTo;
+import static org.junit.jupiter.api.Assertions.assertAll;
 
 /**
  * Integration test for {@link org.apache.flink.api.connector.sink.Sink} run time implementation.
@@ -111,6 +119,68 @@ public class SinkITCase extends AbstractTestBase {
     public void init() {
         COMMIT_QUEUE.clear();
         GLOBAL_COMMIT_QUEUE.clear();
+    }
+
+    /**
+     * This test executes Sink operator with committer and global committer. The global committer
+     * throws exception on 3rd checkpoint (commitNumberToFailOn == 2). The local mini cluster is
+     * executing the recovery, we should expect no data loss. In this particular setup unique number
+     * of rows persisted by committer should be same as unique number of rows persisted by
+     * GlobalCommitter.
+     */
+    @Test
+    public void testGlobalCommitterNotMissingRecordsDuringRecovery() throws Exception {
+
+        final StreamExecutionEnvironment env = buildStreamEnv();
+        env.enableCheckpointing(5000L);
+        env.setParallelism(1);
+
+        final int commitNumberToFailOn = 2;
+        final int recordsPerCheckpoint = 20;
+        final int numberOfCheckpoints = 5;
+        final int expectedNumberOfRecords = recordsPerCheckpoint * numberOfCheckpoints;
+
+        CheckpointCountingSource<Integer> source =
+                new CheckpointCountingSource<>(
+                        recordsPerCheckpoint,
+                        numberOfCheckpoints,
+                        (Function<Integer, Integer> & Serializable) i -> i);
+
+        env.addSource(source, IntegerTypeInfo.INT_TYPE_INFO)
+                .setParallelism(1)
+                .sinkTo(
+                        TestSink.newBuilder()
+                                .setDefaultCommitter(
+                                        (Supplier<Queue<String>> & Serializable) () -> COMMIT_QUEUE)
+                                .setGlobalCommitter(
+                                        new FailOnCommitGlobalCommitter(
+                                                commitNumberToFailOn,
+                                                (Supplier<Queue<String>> & Serializable)
+                                                        () -> GLOBAL_COMMIT_QUEUE))
+                                .setGlobalCommittableSerializer(
+                                        StringCommittableSerializer.INSTANCE)
+                                .build())
+                .setParallelism(2);
+
+        env.execute();
+
+        GLOBAL_COMMIT_QUEUE.remove(END_OF_INPUT_STR);
+
+        // Convert to Set to get only unique values, discard duplicates after source recovery.
+        Set<String> committerData = new HashSet<>(COMMIT_QUEUE);
+        Set<String> globalCommittedData = new HashSet<>(getSplittedGlobalCommittedData());
+
+        assertAll(
+                () -> {
+                    assertThat(
+                            "Committer lost data.",
+                            committerData.size(),
+                            equalTo(expectedNumberOfRecords));
+                    assertThat(
+                            "GlobalCommitter lost data.",
+                            globalCommittedData.size(),
+                            equalTo(expectedNumberOfRecords));
+                });
     }
 
     @Test
