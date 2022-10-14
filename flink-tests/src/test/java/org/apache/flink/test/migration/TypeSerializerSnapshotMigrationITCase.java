@@ -49,6 +49,8 @@ import java.util.Collection;
 import java.util.LinkedList;
 import java.util.stream.Collectors;
 
+import static org.apache.flink.core.testutils.FlinkVersionBasedTestDataGenerationUtils.mostRecentlyPublishedBaseMinorVersion;
+
 /**
  * Migration IT cases for upgrading a legacy {@link TypeSerializerConfigSnapshot} that is written in
  * checkpoints to {@link TypeSerializerSnapshot} interface.
@@ -62,8 +64,7 @@ public class TypeSerializerSnapshotMigrationITCase extends SnapshotMigrationTest
 
     private static final int NUM_SOURCE_ELEMENTS = 4;
 
-    // TODO increase this to newer version to create and test snapshot migration for newer versions
-    private static final FlinkVersion currentVersion = FlinkVersion.v1_15;
+    private static final FlinkVersion currentVersion = mostRecentlyPublishedBaseMinorVersion();
 
     // TODO change this to CREATE_SNAPSHOT to (re)create binary snapshots
     // TODO Note: You should generate the snapshot based on the release branch instead of the

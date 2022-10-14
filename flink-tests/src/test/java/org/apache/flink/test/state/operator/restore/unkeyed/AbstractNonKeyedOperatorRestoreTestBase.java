@@ -30,6 +30,7 @@ import org.junit.runners.Parameterized;
 
 import java.util.Collection;
 
+import static org.apache.flink.core.testutils.FlinkVersionBasedTestDataGenerationUtils.mostRecentlyPublishedBaseMinorVersion;
 import static org.apache.flink.test.state.operator.restore.unkeyed.NonKeyedJob.createFirstStatefulMap;
 import static org.apache.flink.test.state.operator.restore.unkeyed.NonKeyedJob.createSecondStatefulMap;
 import static org.apache.flink.test.state.operator.restore.unkeyed.NonKeyedJob.createSource;
@@ -45,7 +46,7 @@ public abstract class AbstractNonKeyedOperatorRestoreTestBase
 
     @Parameterized.Parameters(name = "Migrate Savepoint: {0}")
     public static Collection<FlinkVersion> parameters() {
-        return FlinkVersion.rangeOf(FlinkVersion.v1_3, FlinkVersion.v1_15);
+        return FlinkVersion.rangeOf(FlinkVersion.v1_3, mostRecentlyPublishedBaseMinorVersion());
     }
 
     protected AbstractNonKeyedOperatorRestoreTestBase(FlinkVersion flinkVersion) {

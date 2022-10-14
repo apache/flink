@@ -30,6 +30,8 @@ import org.junit.runners.Parameterized;
 
 import java.util.Collection;
 
+import static org.apache.flink.core.testutils.FlinkVersionBasedTestDataGenerationUtils.mostRecentlyPublishedBaseMinorVersion;
+
 /** Base class for all keyed operator restore tests. */
 @RunWith(Parameterized.class)
 public abstract class AbstractKeyedOperatorRestoreTestBase extends AbstractOperatorRestoreTestBase {
@@ -38,7 +40,7 @@ public abstract class AbstractKeyedOperatorRestoreTestBase extends AbstractOpera
 
     @Parameterized.Parameters(name = "Migrate Savepoint: {0}")
     public static Collection<FlinkVersion> parameters() {
-        return FlinkVersion.rangeOf(FlinkVersion.v1_3, FlinkVersion.v1_15);
+        return FlinkVersion.rangeOf(FlinkVersion.v1_3, mostRecentlyPublishedBaseMinorVersion());
     }
 
     public AbstractKeyedOperatorRestoreTestBase(FlinkVersion flinkVersion) {

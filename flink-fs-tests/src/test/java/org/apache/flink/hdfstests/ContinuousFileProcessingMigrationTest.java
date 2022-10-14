@@ -59,8 +59,11 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.List;
 
+import static org.apache.flink.core.testutils.FlinkVersionBasedTestDataGenerationUtils.mostRecentlyPublishedBaseMinorVersion;
 import static org.apache.flink.util.Preconditions.checkNotNull;
+import static org.apache.flink.util.Preconditions.checkState;
 
 /** Tests that verify the migration from previous Flink version snapshots. */
 @RunWith(Parameterized.class)
@@ -72,20 +75,28 @@ public class ContinuousFileProcessingMigrationTest {
 
     @Parameterized.Parameters(name = "Migration Savepoint / Mod Time: {0}")
     public static Collection<Tuple2<FlinkVersion, Long>> parameters() {
-        return Arrays.asList(
-                Tuple2.of(FlinkVersion.v1_3, 1496532000000L),
-                Tuple2.of(FlinkVersion.v1_4, 1516897628000L),
-                Tuple2.of(FlinkVersion.v1_5, 1533639934000L),
-                Tuple2.of(FlinkVersion.v1_6, 1534696817000L),
-                Tuple2.of(FlinkVersion.v1_7, 1544024599000L),
-                Tuple2.of(FlinkVersion.v1_8, 1555215710000L),
-                Tuple2.of(FlinkVersion.v1_9, 1567499868000L),
-                Tuple2.of(FlinkVersion.v1_10, 1594559333000L),
-                Tuple2.of(FlinkVersion.v1_11, 1594561663000L),
-                Tuple2.of(FlinkVersion.v1_12, 1613720148000L),
-                Tuple2.of(FlinkVersion.v1_13, 1627550216000L),
-                Tuple2.of(FlinkVersion.v1_14, 1633938795000L),
-                Tuple2.of(FlinkVersion.v1_15, 1651918450000L));
+        final List<Tuple2<FlinkVersion, Long>> testData =
+                Arrays.asList(
+                        Tuple2.of(FlinkVersion.v1_3, 1496532000000L),
+                        Tuple2.of(FlinkVersion.v1_4, 1516897628000L),
+                        Tuple2.of(FlinkVersion.v1_5, 1533639934000L),
+                        Tuple2.of(FlinkVersion.v1_6, 1534696817000L),
+                        Tuple2.of(FlinkVersion.v1_7, 1544024599000L),
+                        Tuple2.of(FlinkVersion.v1_8, 1555215710000L),
+                        Tuple2.of(FlinkVersion.v1_9, 1567499868000L),
+                        Tuple2.of(FlinkVersion.v1_10, 1594559333000L),
+                        Tuple2.of(FlinkVersion.v1_11, 1594561663000L),
+                        Tuple2.of(FlinkVersion.v1_12, 1613720148000L),
+                        Tuple2.of(FlinkVersion.v1_13, 1627550216000L),
+                        Tuple2.of(FlinkVersion.v1_14, 1633938795000L),
+                        Tuple2.of(FlinkVersion.v1_15, 1651918450000L));
+        checkState(
+                testData.size()
+                        == FlinkVersion.rangeOf(
+                                        FlinkVersion.v1_3, mostRecentlyPublishedBaseMinorVersion())
+                                .size(),
+                "The test data should match the range from Flink 1.3 up to the most recently published Minor version.");
+        return testData;
     }
 
     /**
