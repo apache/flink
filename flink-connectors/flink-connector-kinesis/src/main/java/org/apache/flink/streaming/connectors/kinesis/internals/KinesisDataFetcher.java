@@ -21,6 +21,7 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.serialization.RuntimeContextInitializationContextAdapters;
+import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.streaming.api.functions.AssignerWithPeriodicWatermarks;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
@@ -421,6 +422,7 @@ public class KinesisDataFetcher<T> {
         this.shardMetricsGroup =
                 consumerMetricGroup.addGroup(
                         "subtaskId", String.valueOf(indexOfThisConsumerSubtask));
+        this.shardMetricsGroup.gauge("isIdle", () -> isIdle ? 1 : 0);
         this.error = checkNotNull(error);
         this.subscribedShardsState = checkNotNull(subscribedShardsState);
         this.subscribedStreamsToLastDiscoveredShardIds =
@@ -1218,7 +1220,6 @@ public class KinesisDataFetcher<T> {
                 isIdle = false;
             }
             nextWatermark = potentialNextWatermark;
-            shardMetricsGroup.gauge("isIdle", () -> isIdle ? 1 : 0);
         }
     }
 
