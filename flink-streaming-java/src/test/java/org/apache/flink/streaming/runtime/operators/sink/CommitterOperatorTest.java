@@ -246,6 +246,14 @@ class CommitterOperatorTest {
                 new CommittableWithLineage<>("1", checkpointId, originalSubtaskId);
         testHarness.processElement(new StreamRecord<>(first));
 
+        // another committable for the same checkpointId but from different subtask.
+        final CommittableSummary<String> committableSummary2 =
+                new CommittableSummary<>(originalSubtaskId + 1, 1, checkpointId, 1, 1, 0);
+        testHarness.processElement(new StreamRecord<>(committableSummary2));
+        final CommittableWithLineage<String> second =
+                new CommittableWithLineage<>("2", checkpointId, originalSubtaskId + 1);
+        testHarness.processElement(new StreamRecord<>(second));
+
         final OperatorSubtaskState snapshot = testHarness.snapshot(checkpointId, 2L);
 
         // Trigger first checkpoint but committer needs retry
@@ -269,12 +277,12 @@ class CommitterOperatorTest {
 
         // Previous committables are immediately committed if possible
         final List<StreamElement> output = fromOutput(restored.getOutput());
-        assertThat(output).hasSize(2);
-        assertThat(committer.getSuccessfulCommits()).isEqualTo(1);
+        assertThat(output).hasSize(3);
+        assertThat(committer.getSuccessfulCommits()).isEqualTo(2);
         SinkV2Assertions.assertThat(toCommittableSummary(output.get(0)))
                 .hasCheckpointId(checkpointId)
-                .hasFailedCommittables(committableSummary.getNumberOfFailedCommittables())
-                .hasOverallCommittables(committableSummary.getNumberOfCommittables())
+                .hasFailedCommittables(0)
+                .hasOverallCommittables(2)
                 .hasPendingCommittables(0);
 
         // Expect the same checkpointId that the original snapshot was made with.
@@ -282,6 +290,10 @@ class CommitterOperatorTest {
                 .isEqualTo(
                         new CommittableWithLineage<>(
                                 first.getCommittable(), checkpointId, subtaskIdAfterRecovery));
+        SinkV2Assertions.assertThat(toCommittableWithLinage(output.get(2)))
+                .isEqualTo(
+                        new CommittableWithLineage<>(
+                                second.getCommittable(), checkpointId, subtaskIdAfterRecovery));
         restored.close();
     }
 
