@@ -26,6 +26,7 @@ import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.contrib.streaming.state.EmbeddedRocksDBStateBackend;
+import org.apache.flink.core.testutils.FlinkVersionBasedTestDataGenerationUtils;
 import org.apache.flink.runtime.state.StateBackendLoader;
 import org.apache.flink.runtime.state.hashmap.HashMapStateBackend;
 import org.apache.flink.runtime.state.memory.MemoryStateBackend;
@@ -37,6 +38,7 @@ import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.test.checkpointing.utils.MigrationTestUtils;
 import org.apache.flink.test.checkpointing.utils.SnapshotMigrationTestBase;
 import org.apache.flink.util.Collector;
+import org.apache.flink.util.function.BiConsumerWithException;
 
 import org.junit.Assert;
 import org.junit.Test;
@@ -47,25 +49,28 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.Map;
-import java.util.stream.Collectors;
+import java.util.function.BiFunction;
+import java.util.function.Function;
+import java.util.function.Supplier;
+
+import static org.apache.flink.core.testutils.FlinkVersionBasedTestDataGenerationUtils.assumeFlinkVersionBasedTestDataGenerationDisabledJUnit4;
+import static org.apache.flink.core.testutils.FlinkVersionBasedTestDataGenerationUtils.assumeFlinkVersionWithDescriptiveTextMessageJUnit4;
+import static org.apache.flink.core.testutils.FlinkVersionBasedTestDataGenerationUtils.mostRecentlyPublishedBaseMinorVersion;
 
 /**
  * Migration ITCases for a stateful job with broadcast state. The tests are parameterized to
  * (potentially) cover migrating for multiple previous Flink versions, as well as for different
  * state backends.
+ *
+ * <p>See {@link FlinkVersionBasedTestDataGenerationUtils} for details on how to generate new test *
+ * data.
  */
 @RunWith(Parameterized.class)
 public class StatefulJobWBroadcastStateMigrationITCase extends SnapshotMigrationTestBase {
 
     private static final int NUM_SOURCE_ELEMENTS = 4;
 
-    // TODO increase this to newer version to create and test snapshot migration for newer versions
-    private static final FlinkVersion currentVersion = FlinkVersion.v1_15;
-
-    // TODO change this to CREATE_SNAPSHOT to (re)create binary snapshots
-    // TODO Note: You should generate the snapshot based on the release branch instead of the
-    // master.
-    private static final ExecutionMode executionMode = ExecutionMode.VERIFY_SNAPSHOT;
+    private static final FlinkVersion currentVersion = mostRecentlyPublishedBaseMinorVersion();
 
     @Parameterized.Parameters(name = "Test snapshot: {0}")
     public static Collection<SnapshotSpec> parameters() {
@@ -105,12 +110,6 @@ public class StatefulJobWBroadcastStateMigrationITCase extends SnapshotMigration
                         StateBackendLoader.ROCKSDB_STATE_BACKEND_NAME,
                         SnapshotType.CHECKPOINT,
                         FlinkVersion.rangeOf(FlinkVersion.v1_15, currentVersion)));
-        if (executionMode == ExecutionMode.CREATE_SNAPSHOT) {
-            parameters =
-                    parameters.stream()
-                            .filter(x -> x.getFlinkVersion().equals(currentVersion))
-                            .collect(Collectors.toList());
-        }
         return parameters;
     }
 
@@ -121,7 +120,83 @@ public class StatefulJobWBroadcastStateMigrationITCase extends SnapshotMigration
     }
 
     @Test
-    public void testSavepoint() throws Exception {
+    public void testSavepointSnapshotGeneration() throws Exception {
+        assumeFlinkVersionWithDescriptiveTextMessageJUnit4(snapshotSpec.getFlinkVersion());
+
+        testSavepoint(
+                () ->
+                        new MigrationTestUtils.CheckpointingNonParallelSourceWithListState(
+                                NUM_SOURCE_ELEMENTS),
+                () ->
+                        new MigrationTestUtils.CheckpointingParallelSourceWithUnionListState(
+                                NUM_SOURCE_ELEMENTS),
+                (ignoredFirstState, ignoredSecondState) ->
+                        new CheckpointingKeyedBroadcastFunction(),
+                (ignoredThirdState) -> new CheckpointingKeyedSingleBroadcastFunction(),
+                (environment, ignoredParallelism) ->
+                        executeAndSnapshot(
+                                environment,
+                                "src/test/resources/" + getSnapshotPath(snapshotSpec),
+                                snapshotSpec.getSnapshotType(),
+                                new Tuple2<>(
+                                        MigrationTestUtils.AccumulatorCountingSink
+                                                .NUM_ELEMENTS_ACCUMULATOR,
+                                        2 * NUM_SOURCE_ELEMENTS)));
+    }
+
+    @Test
+    public void testSavepointVerification() throws Exception {
+        assumeFlinkVersionBasedTestDataGenerationDisabledJUnit4();
+
+        testSavepoint(
+                () ->
+                        new MigrationTestUtils.CheckingNonParallelSourceWithListState(
+                                NUM_SOURCE_ELEMENTS),
+                () ->
+                        new MigrationTestUtils.CheckingParallelSourceWithUnionListState(
+                                NUM_SOURCE_ELEMENTS),
+                CheckingKeyedBroadcastFunction::new,
+                CheckingKeyedSingleBroadcastFunction::new,
+                (environment, parallelism) ->
+                        restoreAndExecute(
+                                environment,
+                                getResourceFilename(getSnapshotPath(snapshotSpec)),
+                                new Tuple2<>(
+                                        MigrationTestUtils.CheckingNonParallelSourceWithListState
+                                                .SUCCESSFUL_RESTORE_CHECK_ACCUMULATOR,
+                                        2), // we have 2 sources
+                                new Tuple2<>(
+                                        MigrationTestUtils.CheckingParallelSourceWithUnionListState
+                                                .SUCCESSFUL_RESTORE_CHECK_ACCUMULATOR,
+                                        2 * parallelism), // we have 2 sources
+                                new Tuple2<>(
+                                        MigrationTestUtils.AccumulatorCountingSink
+                                                .NUM_ELEMENTS_ACCUMULATOR,
+                                        NUM_SOURCE_ELEMENTS * 2)));
+    }
+
+    private void testSavepoint(
+            Supplier<SourceFunction<Tuple2<Long, Long>>> nonParallelSourceFactory,
+            Supplier<SourceFunction<Tuple2<Long, Long>>> parallelSourceFactory,
+            BiFunction<
+                            Map<Long, Long>,
+                            Map<String, Long>,
+                            KeyedBroadcastProcessFunction<
+                                    Long,
+                                    Tuple2<Long, Long>,
+                                    Tuple2<Long, Long>,
+                                    Tuple2<Long, Long>>>
+                    firstBroadcastFunctionFactory,
+            Function<
+                            Map<Long, String>,
+                            KeyedBroadcastProcessFunction<
+                                    Long,
+                                    Tuple2<Long, Long>,
+                                    Tuple2<Long, Long>,
+                                    Tuple2<Long, Long>>>
+                    secondBroadcastFunctionFactory,
+            BiConsumerWithException<StreamExecutionEnvironment, Integer, Exception> testRun)
+            throws Exception {
 
         final int parallelism = 4;
 
@@ -175,40 +250,13 @@ public class StatefulJobWBroadcastStateMigrationITCase extends SnapshotMigration
         expectedThirdState.put(2L, "2");
         expectedThirdState.put(3L, "3");
 
-        if (executionMode == ExecutionMode.CREATE_SNAPSHOT) {
-            nonParallelSource =
-                    new MigrationTestUtils.CheckpointingNonParallelSourceWithListState(
-                            NUM_SOURCE_ELEMENTS);
-            nonParallelSourceB =
-                    new MigrationTestUtils.CheckpointingNonParallelSourceWithListState(
-                            NUM_SOURCE_ELEMENTS);
-            parallelSource =
-                    new MigrationTestUtils.CheckpointingParallelSourceWithUnionListState(
-                            NUM_SOURCE_ELEMENTS);
-            parallelSourceB =
-                    new MigrationTestUtils.CheckpointingParallelSourceWithUnionListState(
-                            NUM_SOURCE_ELEMENTS);
-            firstBroadcastFunction = new CheckpointingKeyedBroadcastFunction();
-            secondBroadcastFunction = new CheckpointingKeyedSingleBroadcastFunction();
-        } else if (executionMode == ExecutionMode.VERIFY_SNAPSHOT) {
-            nonParallelSource =
-                    new MigrationTestUtils.CheckingNonParallelSourceWithListState(
-                            NUM_SOURCE_ELEMENTS);
-            nonParallelSourceB =
-                    new MigrationTestUtils.CheckingNonParallelSourceWithListState(
-                            NUM_SOURCE_ELEMENTS);
-            parallelSource =
-                    new MigrationTestUtils.CheckingParallelSourceWithUnionListState(
-                            NUM_SOURCE_ELEMENTS);
-            parallelSourceB =
-                    new MigrationTestUtils.CheckingParallelSourceWithUnionListState(
-                            NUM_SOURCE_ELEMENTS);
-            firstBroadcastFunction =
-                    new CheckingKeyedBroadcastFunction(expectedFirstState, expectedSecondState);
-            secondBroadcastFunction = new CheckingKeyedSingleBroadcastFunction(expectedThirdState);
-        } else {
-            throw new IllegalStateException("Unknown ExecutionMode " + executionMode);
-        }
+        nonParallelSource = nonParallelSourceFactory.get();
+        nonParallelSourceB = nonParallelSourceFactory.get();
+        parallelSource = parallelSourceFactory.get();
+        parallelSourceB = parallelSourceFactory.get();
+        firstBroadcastFunction =
+                firstBroadcastFunctionFactory.apply(expectedFirstState, expectedSecondState);
+        secondBroadcastFunction = secondBroadcastFunctionFactory.apply(expectedThirdState);
 
         KeyedStream<Tuple2<Long, Long>, Long> npStream =
                 env.addSource(nonParallelSource)
@@ -278,30 +326,7 @@ public class StatefulJobWBroadcastStateMigrationITCase extends SnapshotMigration
                 .uid("BrProcess2")
                 .addSink(new MigrationTestUtils.AccumulatorCountingSink<>());
 
-        if (executionMode == ExecutionMode.CREATE_SNAPSHOT) {
-            executeAndSnapshot(
-                    env,
-                    "src/test/resources/" + getSnapshotPath(snapshotSpec),
-                    snapshotSpec.getSnapshotType(),
-                    new Tuple2<>(
-                            MigrationTestUtils.AccumulatorCountingSink.NUM_ELEMENTS_ACCUMULATOR,
-                            2 * NUM_SOURCE_ELEMENTS));
-        } else {
-            restoreAndExecute(
-                    env,
-                    getResourceFilename(getSnapshotPath(snapshotSpec)),
-                    new Tuple2<>(
-                            MigrationTestUtils.CheckingNonParallelSourceWithListState
-                                    .SUCCESSFUL_RESTORE_CHECK_ACCUMULATOR,
-                            2), // we have 2 sources
-                    new Tuple2<>(
-                            MigrationTestUtils.CheckingParallelSourceWithUnionListState
-                                    .SUCCESSFUL_RESTORE_CHECK_ACCUMULATOR,
-                            2 * parallelism), // we have 2 sources
-                    new Tuple2<>(
-                            MigrationTestUtils.AccumulatorCountingSink.NUM_ELEMENTS_ACCUMULATOR,
-                            NUM_SOURCE_ELEMENTS * 2));
-        }
+        testRun.accept(env, parallelism);
     }
 
     private String getSnapshotPath(SnapshotSpec snapshotSpec) {
