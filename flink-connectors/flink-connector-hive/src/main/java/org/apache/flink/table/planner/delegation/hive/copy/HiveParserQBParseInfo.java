@@ -158,8 +158,7 @@ public class HiveParserQBParseInfo {
     }
 
     // See also {@link #getInsertOverwriteTables()}
-    public boolean isInsertIntoTable(String dbName, String table) {
-        String fullName = dbName + "." + table;
+    public boolean isInsertIntoTable(String fullName) {
         return insertIntoTables.containsKey(fullName.toLowerCase());
     }
 

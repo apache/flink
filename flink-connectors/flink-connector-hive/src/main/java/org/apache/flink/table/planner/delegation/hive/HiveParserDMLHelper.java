@@ -18,24 +18,28 @@
 
 package org.apache.flink.table.planner.delegation.hive;
 
+import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.java.tuple.Tuple4;
 import org.apache.flink.table.api.Schema;
+import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.catalog.CatalogManager;
+import org.apache.flink.table.catalog.CatalogPartitionSpec;
 import org.apache.flink.table.catalog.CatalogPropertiesUtil;
 import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.ContextResolvedTable;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.catalog.ResolvedCatalogTable;
 import org.apache.flink.table.catalog.ResolvedSchema;
-import org.apache.flink.table.catalog.UnresolvedIdentifier;
-import org.apache.flink.table.catalog.hive.HiveCatalog;
 import org.apache.flink.table.catalog.hive.factories.HiveCatalogFactoryOptions;
+import org.apache.flink.table.catalog.hive.util.HiveTypeUtil;
 import org.apache.flink.table.factories.FactoryUtil;
 import org.apache.flink.table.module.hive.udf.generic.HiveGenericUDFToDecimal;
 import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.QueryOperation;
 import org.apache.flink.table.operations.SinkModifyOperation;
 import org.apache.flink.table.planner.delegation.PlannerContext;
+import org.apache.flink.table.planner.delegation.hive.copy.HiveParserBaseSemanticAnalyzer;
 import org.apache.flink.table.planner.delegation.hive.copy.HiveParserDirectoryDesc;
 import org.apache.flink.table.planner.delegation.hive.copy.HiveParserQB;
 import org.apache.flink.table.planner.delegation.hive.copy.HiveParserSqlFunctionConverter;
@@ -44,6 +48,7 @@ import org.apache.flink.table.planner.delegation.hive.parse.HiveParserDDLSemanti
 import org.apache.flink.table.planner.operations.PlannerQueryOperation;
 import org.apache.flink.table.planner.plan.nodes.hive.LogicalDistribution;
 import org.apache.flink.table.planner.plan.nodes.hive.LogicalScriptTransform;
+import org.apache.flink.table.types.DataType;
 import org.apache.flink.util.Preconditions;
 
 import org.apache.calcite.rel.RelCollation;
@@ -63,11 +68,8 @@ import org.apache.calcite.rex.RexCall;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.sql.SqlFunctionCategory;
 import org.apache.calcite.sql.SqlOperator;
-import org.apache.hadoop.hive.metastore.api.FieldSchema;
 import org.apache.hadoop.hive.ql.exec.FunctionInfo;
 import org.apache.hadoop.hive.ql.exec.FunctionRegistry;
-import org.apache.hadoop.hive.ql.metadata.Partition;
-import org.apache.hadoop.hive.ql.metadata.Table;
 import org.apache.hadoop.hive.ql.parse.QBMetaData;
 import org.apache.hadoop.hive.ql.parse.SemanticException;
 import org.apache.hadoop.hive.ql.udf.SettableUDF;
@@ -83,6 +85,7 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
@@ -110,7 +113,8 @@ public class HiveParserDMLHelper {
     public Tuple4<ObjectIdentifier, QueryOperation, Map<String, String>, Boolean>
             createInsertOperationInfo(
                     RelNode queryRelNode,
-                    Table destTable,
+                    CatalogTable destTable,
+                    ObjectIdentifier destTableIdentifier,
                     Map<String, String> staticPartSpec,
                     List<String> destSchema,
                     boolean overwrite)
@@ -150,13 +154,25 @@ public class HiveParserDMLHelper {
         RelDataTypeFactory typeFactory = plannerContext.getTypeFactory();
         LinkedHashMap<String, RelDataType> targetColToCalcType = new LinkedHashMap<>();
         List<TypeInfo> targetHiveTypes = new ArrayList<>();
-        List<FieldSchema> allCols = new ArrayList<>(destTable.getCols());
-        allCols.addAll(destTable.getPartCols());
-        for (FieldSchema col : allCols) {
-            TypeInfo hiveType = TypeInfoUtils.getTypeInfoFromTypeString(col.getType());
+        TableSchema tableSchema =
+                HiveParserUtils.fromUnresolvedSchema(destTable.getUnresolvedSchema());
+        String[] fieldNames = tableSchema.getFieldNames();
+        for (String fieldName : fieldNames) {
+            Optional<DataType> dataType = tableSchema.getFieldDataType(fieldName);
+            TypeInfo hiveType =
+                    HiveTypeUtil.toHiveTypeInfo(
+                            dataType.orElseThrow(
+                                    () ->
+                                            new SemanticException(
+                                                    String.format(
+                                                            "Can't get data type for column %s of table %s.",
+                                                            fieldName,
+                                                            destTableIdentifier
+                                                                    .asSummaryString()))),
+                            false);
             targetHiveTypes.add(hiveType);
             targetColToCalcType.put(
-                    col.getName(), HiveParserTypeConverter.convert(hiveType, typeFactory));
+                    fieldName, HiveParserTypeConverter.convert(hiveType, typeFactory));
         }
 
         // add static partitions to query source
@@ -185,7 +201,7 @@ public class HiveParserDMLHelper {
                                     oldInput, staticPartSpec, destTable, targetColToCalcType);
                     // we may need to shift the field collations
                     final int numDynmPart =
-                            destTable.getTTable().getPartitionKeys().size() - staticPartSpec.size();
+                            destTable.getPartitionKeys().size() - staticPartSpec.size();
                     if (!sort.getCollation().getFieldCollations().isEmpty() && numDynmPart > 0) {
                         sort.replaceInput(0, null);
                         sort =
@@ -229,35 +245,39 @@ public class HiveParserDMLHelper {
                         funcConverter,
                         false);
 
-        // create identifier
-        List<String> targetTablePath =
-                Arrays.asList(destTable.getDbName(), destTable.getTableName());
-        UnresolvedIdentifier unresolvedIdentifier = UnresolvedIdentifier.of(targetTablePath);
-        ObjectIdentifier identifier = catalogManager.qualifyIdentifier(unresolvedIdentifier);
-
         return Tuple4.of(
-                identifier, new PlannerQueryOperation(queryRelNode), staticPartSpec, overwrite);
+                destTableIdentifier,
+                new PlannerQueryOperation(queryRelNode),
+                staticPartSpec,
+                overwrite);
     }
 
     public Operation createInsertOperation(HiveParserCalcitePlanner analyzer, RelNode queryRelNode)
             throws SemanticException {
         HiveParserQB topQB = analyzer.getQB();
-        QBMetaData qbMetaData = topQB.getMetaData();
+        HiveParserQBMetaData qbMetaData = topQB.getMetaData();
         // decide the dest table
-        Map<String, Table> nameToDestTable = qbMetaData.getNameToDestTable();
-        Map<String, Partition> nameToDestPart = qbMetaData.getNameToDestPartition();
+        Map<String, Tuple2<String, CatalogTable>> nameToDestTable = qbMetaData.getNameToDestTable();
+        Map<String, Tuple3<String, CatalogTable, CatalogPartitionSpec>> nameToDestPart =
+                qbMetaData.getNameToDestPartition();
         // for now we only support inserting to a single table in one queryRelNode
         Preconditions.checkState(
                 nameToDestTable.size() <= 1 && nameToDestPart.size() <= 1,
                 "Only support inserting to 1 table");
-        Table destTable;
+        CatalogTable destTable;
         String insClauseName;
+        String tableName;
         if (!nameToDestTable.isEmpty()) {
             insClauseName = nameToDestTable.keySet().iterator().next();
-            destTable = nameToDestTable.values().iterator().next();
+            Tuple2<String, CatalogTable> nameTable = nameToDestTable.values().iterator().next();
+            tableName = nameTable.f0;
+            destTable = nameTable.f1;
         } else if (!nameToDestPart.isEmpty()) {
             insClauseName = nameToDestPart.keySet().iterator().next();
-            destTable = nameToDestPart.values().iterator().next().getTable();
+            Tuple3<String, CatalogTable, CatalogPartitionSpec> nameTable =
+                    nameToDestPart.values().iterator().next();
+            tableName = nameTable.f0;
+            destTable = nameTable.f1;
         } else {
             // happens for INSERT DIRECTORY
             return createInsertIntoDirectoryOperation(topQB, qbMetaData, queryRelNode);
@@ -266,17 +286,16 @@ public class HiveParserDMLHelper {
         // decide static partition specs
         Map<String, String> staticPartSpec = new LinkedHashMap<>();
         if (destTable.isPartitioned()) {
-            List<String> partCols =
-                    HiveCatalog.getFieldNames(destTable.getTTable().getPartitionKeys());
+            List<String> partCols = destTable.getPartitionKeys();
 
             if (!nameToDestPart.isEmpty()) {
                 // static partition
-                Partition destPart = nameToDestPart.values().iterator().next();
+                CatalogPartitionSpec destPart = nameToDestPart.values().iterator().next().f2;
                 Preconditions.checkState(
-                        partCols.size() == destPart.getValues().size(),
+                        partCols.size() == destPart.getPartitionSpec().size(),
                         "Part cols and static spec doesn't match");
-                for (int i = 0; i < partCols.size(); i++) {
-                    staticPartSpec.put(partCols.get(i), destPart.getValues().get(i));
+                for (String partCol : partCols) {
+                    staticPartSpec.put(partCol, destPart.getPartitionSpec().get(partCol));
                 }
             } else {
                 // dynamic partition
@@ -297,12 +316,13 @@ public class HiveParserDMLHelper {
                 topQB.getParseInfo().getInsertOverwriteTables().keySet().stream()
                         .map(String::toLowerCase)
                         .collect(Collectors.toSet())
-                        .contains(destTable.getDbName() + "." + destTable.getTableName());
+                        .contains(tableName);
 
         Tuple4<ObjectIdentifier, QueryOperation, Map<String, String>, Boolean> insertOperationInfo =
                 createInsertOperationInfo(
                         queryRelNode,
                         destTable,
+                        HiveParserBaseSemanticAnalyzer.parseCompoundName(catalogManager, tableName),
                         staticPartSpec,
                         analyzer.getDestSchemaForClause(insClauseName),
                         overwrite);
@@ -316,7 +336,7 @@ public class HiveParserDMLHelper {
     }
 
     private SinkModifyOperation createInsertIntoDirectoryOperation(
-            HiveParserQB topQB, QBMetaData qbMetaData, RelNode queryRelNode) {
+            HiveParserQB topQB, HiveParserQBMetaData qbMetaData, RelNode queryRelNode) {
         String dest = topQB.getParseInfo().getClauseNamesForDest().iterator().next();
         // get the location for insert into directory
         String location = qbMetaData.getDestFileForAlias(dest);
@@ -390,7 +410,7 @@ public class HiveParserDMLHelper {
 
     private RelNode replaceDistForStaticParts(
             LogicalDistribution hiveDist,
-            Table destTable,
+            CatalogTable destTable,
             Map<String, String> staticPartSpec,
             Map<String, RelDataType> targetColToType)
             throws SemanticException {
@@ -400,7 +420,7 @@ public class HiveParserDMLHelper {
                         hiveDist.getInput(), staticPartSpec, destTable, targetColToType);
         hiveDist.replaceInput(0, null);
         final int toShift = staticPartSpec.size();
-        final int numDynmPart = destTable.getTTable().getPartitionKeys().size() - toShift;
+        final int numDynmPart = destTable.getPartitionKeys().size() - toShift;
         return LogicalDistribution.create(
                 expandedProject,
                 shiftRelCollation(hiveDist.getCollation(), originInput, toShift, numDynmPart),
@@ -648,7 +668,7 @@ public class HiveParserDMLHelper {
 
     private RelNode handleDestSchema(
             SingleRel queryRelNode,
-            Table destTable,
+            CatalogTable destTable,
             List<String> destSchema,
             Set<String> staticParts)
             throws SemanticException {
@@ -657,28 +677,38 @@ public class HiveParserDMLHelper {
         }
 
         // natural schema should contain regular cols + dynamic cols
-        List<FieldSchema> naturalSchema = new ArrayList<>(destTable.getCols());
-        if (destTable.isPartitioned()) {
-            naturalSchema.addAll(
-                    destTable.getTTable().getPartitionKeys().stream()
-                            .filter(f -> !staticParts.contains(f.getName()))
-                            .collect(Collectors.toList()));
+        TableSchema tableSchema =
+                HiveParserUtils.fromUnresolvedSchema(destTable.getUnresolvedSchema());
+        List<String> naturalSchema = new ArrayList<>();
+        for (String fieldName : tableSchema.getFieldNames()) {
+            // only add no partition cols and dynamic partition cols
+            if (!staticParts.contains(fieldName)) {
+                naturalSchema.add(fieldName);
+            }
         }
         // we don't need to do anything if the dest schema is the same as natural schema
-        if (destSchema.equals(HiveCatalog.getFieldNames(naturalSchema))) {
+        if (destSchema.equals(naturalSchema)) {
             return queryRelNode;
         }
         // build a list to create a Project on top of original Project
         // for each col in dest table, if it's in dest schema, store its corresponding index in the
         // dest schema, otherwise store its type and we'll create NULL for it
         List<Object> updatedIndices = new ArrayList<>(naturalSchema.size());
-        for (FieldSchema col : naturalSchema) {
-            int index = destSchema.indexOf(col.getName());
+        for (String col : naturalSchema) {
+            int index = destSchema.indexOf(col);
             if (index < 0) {
+                Optional<DataType> dataType = tableSchema.getFieldDataType(col);
+                TypeInfo hiveType =
+                        HiveTypeUtil.toHiveTypeInfo(
+                                dataType.orElseThrow(
+                                        () ->
+                                                new SemanticException(
+                                                        String.format(
+                                                                "Can't get data type for column %s.",
+                                                                col))),
+                                false);
                 updatedIndices.add(
-                        HiveParserTypeConverter.convert(
-                                TypeInfoUtils.getTypeInfoFromTypeString(col.getType()),
-                                plannerContext.getTypeFactory()));
+                        HiveParserTypeConverter.convert(hiveType, plannerContext.getTypeFactory()));
             } else {
                 updatedIndices.add(index);
             }
@@ -769,7 +799,7 @@ public class HiveParserDMLHelper {
     private RelNode replaceOrAddProjectForStaticPart(
             RelNode relNode,
             Map<String, String> staticPartSpec,
-            Table destTable,
+            CatalogTable destTable,
             Map<String, RelDataType> targetColToType)
             throws SemanticException {
         if (relNode instanceof Project) {
@@ -790,7 +820,7 @@ public class HiveParserDMLHelper {
     private RelNode replaceProjectForStaticPart(
             Project project,
             Map<String, String> staticPartSpec,
-            Table destTable,
+            CatalogTable destTable,
             Map<String, RelDataType> targetColToType) {
         List<RexNode> extendedExprs =
                 addExtraRexNodeForStaticPart(
@@ -808,7 +838,7 @@ public class HiveParserDMLHelper {
     private Project addProjectForStaticPart(
             LogicalScriptTransform logicalScriptTransform,
             Map<String, String> staticPartSpec,
-            Table destTable,
+            CatalogTable destTable,
             Map<String, RelDataType> targetColToType) {
         RexBuilder rexBuilder = plannerContext.getCluster().getRexBuilder();
         List<RexNode> originRexNodes =
@@ -828,11 +858,11 @@ public class HiveParserDMLHelper {
     private List<RexNode> addExtraRexNodeForStaticPart(
             List<RexNode> originRexNodes,
             Map<String, String> staticPartSpec,
-            Table destTable,
+            CatalogTable destTable,
             Map<String, RelDataType> targetColToType) {
         List<RexNode> extendedRexNodes = new ArrayList<>(originRexNodes);
         RexBuilder rexBuilder = plannerContext.getCluster().getRexBuilder();
-        int numDynmPart = destTable.getTTable().getPartitionKeys().size() - staticPartSpec.size();
+        int numDynmPart = destTable.getPartitionKeys().size() - staticPartSpec.size();
         int insertIndex = originRexNodes.size() - numDynmPart;
         for (Map.Entry<String, String> spec : staticPartSpec.entrySet()) {
             RexNode toAdd =
