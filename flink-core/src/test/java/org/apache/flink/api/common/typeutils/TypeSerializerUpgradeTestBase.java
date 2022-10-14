@@ -24,10 +24,11 @@ import org.apache.flink.core.memory.DataInputDeserializer;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputSerializer;
 import org.apache.flink.core.memory.DataOutputView;
+import org.apache.flink.core.testutils.FlinkVersionBasedTestDataGenerationUtils;
 
 import org.assertj.core.api.HamcrestCondition;
 import org.hamcrest.Matcher;
-import org.junit.jupiter.api.Disabled;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
@@ -39,8 +40,8 @@ import java.nio.file.Paths;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
-import java.util.Set;
 
+import static org.apache.flink.core.testutils.FlinkVersionBasedTestDataGenerationUtils.mostRecentlyPublishedBaseMinorVersion;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.assertj.core.api.AssertionsForInterfaceTypes.assertThat;
 import static org.assertj.core.api.Assumptions.assumeThat;
@@ -49,16 +50,14 @@ import static org.hamcrest.CoreMatchers.not;
 /**
  * A test base for testing {@link TypeSerializer} upgrades.
  *
- * <p>You can run {@link #generateTestSetupFiles(TestSpecification)} on a Flink branch to
- * (re-)generate the test data files.
+ * <p>See {@link FlinkVersionBasedTestDataGenerationUtils} for details on how to generate new test
+ * data.
  */
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 public abstract class TypeSerializerUpgradeTestBase<PreviousElementT, UpgradedElementT> {
 
-    public static final FlinkVersion CURRENT_VERSION = FlinkVersion.v1_15;
-
-    public static final Set<FlinkVersion> MIGRATION_VERSIONS =
-            FlinkVersion.rangeOf(FlinkVersion.v1_11, CURRENT_VERSION);
+    public static final Collection<FlinkVersion> MIGRATION_VERSIONS =
+            FlinkVersionBasedTestDataGenerationUtils.rangeFrom(FlinkVersion.v1_11);
 
     // ------------------------------------------------------------------------------
     //  APIs
@@ -239,17 +238,12 @@ public abstract class TypeSerializerUpgradeTestBase<PreviousElementT, UpgradedEl
 
     private static final int INITIAL_OUTPUT_BUFFER_SIZE = 64;
 
-    /**
-     * Execute this test to generate test files. Remember to be using the correct branch when
-     * generating the test files, e.g. to generate test files for {@link FlinkVersion#v1_8}, you
-     * should be under the release-1.8 branch.
-     */
-    @Disabled
-    @ParameterizedTest(name = "Test Specification = {0}")
-    @MethodSource("createTestSpecifications")
-    void generateTestSetupFiles(
+    @Test
+    public void generateTestSetupFiles(
             TestSpecification<PreviousElementT, UpgradedElementT> testSpecification)
             throws Exception {
+        FlinkVersionBasedTestDataGenerationUtils.assumeFlinkVersionWithDescriptiveMessage(
+                testSpecification.flinkVersion);
         Files.createDirectories(getSerializerSnapshotFilePath(testSpecification).getParent());
 
         try (ThreadContextClassLoader ignored =
@@ -259,8 +253,7 @@ public abstract class TypeSerializerUpgradeTestBase<PreviousElementT, UpgradedEl
 
             // first, use the serializer to write test data
             // NOTE: it is important that we write test data first, because some serializers'
-            // configuration
-            //       mutates only after being used for serialization (e.g. dynamic type
+            // configuration mutates only after being used for serialization (e.g. dynamic type
             // registrations for Pojo / Kryo)
             DataOutputSerializer testDataOut = new DataOutputSerializer(INITIAL_OUTPUT_BUFFER_SIZE);
             priorSerializer.serialize(testSpecification.setup.createTestData(), testDataOut);
@@ -270,7 +263,10 @@ public abstract class TypeSerializerUpgradeTestBase<PreviousElementT, UpgradedEl
             // ... then write the serializer snapshot
             DataOutputSerializer serializerSnapshotOut =
                     new DataOutputSerializer(INITIAL_OUTPUT_BUFFER_SIZE);
-            writeSerializerSnapshot(serializerSnapshotOut, priorSerializer, CURRENT_VERSION);
+            writeSerializerSnapshot(
+                    serializerSnapshotOut,
+                    priorSerializer,
+                    mostRecentlyPublishedBaseMinorVersion());
             writeContentsTo(
                     getGenerateSerializerSnapshotFilePath(testSpecification),
                     serializerSnapshotOut.getCopyOfBuffer());
@@ -464,26 +460,23 @@ public abstract class TypeSerializerUpgradeTestBase<PreviousElementT, UpgradedEl
     //  Utilities
     // ------------------------------------------------------------------------------
 
-    /** Paths to use during snapshot generation, which should only use the CURRENT_VERSION. */
     private Path getGenerateSerializerSnapshotFilePath(
             TestSpecification<PreviousElementT, UpgradedElementT> testSpecification) {
         return Paths.get(getGenerateResourceDirectory(testSpecification) + "/serializer-snapshot");
     }
 
-    /** Paths to use during snapshot generation, which should only use the CURRENT_VERSION. */
     private Path getGenerateDataFilePath(
             TestSpecification<PreviousElementT, UpgradedElementT> testSpecification) {
         return Paths.get(getGenerateResourceDirectory(testSpecification) + "/test-data");
     }
 
-    /** Paths to use during snapshot generation, which should only use the CURRENT_VERSION. */
     private String getGenerateResourceDirectory(
             TestSpecification<PreviousElementT, UpgradedElementT> testSpecification) {
         return System.getProperty("user.dir")
                 + "/src/test/resources/"
                 + testSpecification.name
                 + "-"
-                + CURRENT_VERSION;
+                + mostRecentlyPublishedBaseMinorVersion();
     }
 
     private Path getSerializerSnapshotFilePath(

@@ -33,6 +33,7 @@ import java.util.Collection;
 import java.util.LinkedList;
 import java.util.stream.Collectors;
 
+import static org.apache.flink.core.testutils.FlinkVersionBasedTestDataGenerationUtils.mostRecentlyPublishedBaseMinorVersion;
 import static org.hamcrest.Matchers.is;
 
 /** A {@link TypeSerializerUpgradeTestBase} for {@link LinkedListSerializer}. */
@@ -41,7 +42,8 @@ public class LinkedListSerializerUpgradeTest
         extends TypeSerializerUpgradeTestBase<LinkedList<Long>, LinkedList<Long>> {
 
     public Collection<TestSpecification<?, ?>> createTestSpecifications() {
-        return FlinkVersion.rangeOf(FlinkVersion.v1_13, CURRENT_VERSION).stream()
+        return FlinkVersion.rangeOf(FlinkVersion.v1_13, mostRecentlyPublishedBaseMinorVersion())
+                .stream()
                 .map(
                         version -> {
                             try {
