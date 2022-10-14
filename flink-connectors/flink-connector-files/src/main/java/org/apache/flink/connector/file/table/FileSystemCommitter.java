@@ -48,7 +48,7 @@ import static org.apache.flink.connector.file.table.PartitionTempFileManager.lis
  * <p>See: {@link PartitionTempFileManager}. {@link PartitionLoader}.
  */
 @Internal
-class FileSystemCommitter {
+public class FileSystemCommitter {
 
     private final FileSystemFactory factory;
     private final TableMetaStoreFactory metaStoreFactory;
@@ -60,7 +60,7 @@ class FileSystemCommitter {
     private final LinkedHashMap<String, String> staticPartitions;
     private final List<PartitionCommitPolicy> policies;
 
-    FileSystemCommitter(
+    public FileSystemCommitter(
             FileSystemFactory factory,
             TableMetaStoreFactory metaStoreFactory,
             boolean overwrite,

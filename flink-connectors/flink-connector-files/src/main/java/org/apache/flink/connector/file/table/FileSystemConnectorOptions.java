@@ -231,7 +231,7 @@ public class FileSystemConnectorOptions {
     public static final ConfigOption<Boolean> AUTO_COMPACTION =
             key("auto-compaction")
                     .booleanType()
-                    .defaultValue(false)
+                    .defaultValue(true)
                     .withDescription(
                             "Whether to enable automatic compaction in streaming sink or not.\n"
                                     + "The data will be written to temporary files. After the checkpoint is"

@@ -61,7 +61,7 @@ public class PartitionTempFileManager {
         this(factory, tmpPath, taskNumber, new OutputFileConfig("", ""));
     }
 
-    PartitionTempFileManager(
+    public PartitionTempFileManager(
             FileSystemFactory factory,
             Path tmpPath,
             int taskNumber,
@@ -120,7 +120,7 @@ public class PartitionTempFileManager {
     }
 
     /** Collect all partitioned paths, aggregate according to partition spec. */
-    static Map<LinkedHashMap<String, String>, List<Path>> collectPartSpecToPaths(
+    public static Map<LinkedHashMap<String, String>, List<Path>> collectPartSpecToPaths(
             FileSystem fs, List<Path> taskPaths, int partColSize) {
         Map<LinkedHashMap<String, String>, List<Path>> specToPaths = new HashMap<>();
         for (Path taskPath : taskPaths) {

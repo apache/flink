@@ -315,7 +315,7 @@ public class PartitionPathUtils {
         }
     }
 
-    private static FileStatus[] getFileStatusRecurse(Path path, int expectLevel, FileSystem fs) {
+    public static FileStatus[] getFileStatusRecurse(Path path, int expectLevel, FileSystem fs) {
         ArrayList<FileStatus> result = new ArrayList<>();
 
         try {
