@@ -95,11 +95,7 @@ class KinesisFirehoseSinkWriter<InputT> extends AsyncSinkWriter<InputT, Record> 
                     RESOURCE_NOT_FOUND_EXCEPTION_CLASSIFIER,
                     getSdkClientMisconfiguredExceptionClassifier());
 
-    // deprecated, use numRecordsSendErrorsCounter instead.
-    @Deprecated private final Counter numRecordsOutErrorsCounter;
-
-    /* A counter for the total number of records that have encountered an error during put */
-    private final Counter numRecordsSendErrorsCounter;
+    private final Counter numRecordsOutErrorsCounter;
 
     /* Name of the delivery stream in Kinesis Data Firehose */
     private final String deliveryStreamName;
@@ -170,7 +166,6 @@ class KinesisFirehoseSinkWriter<InputT> extends AsyncSinkWriter<InputT, Record> 
         this.deliveryStreamName = deliveryStreamName;
         this.metrics = context.metricGroup();
         this.numRecordsOutErrorsCounter = metrics.getNumRecordsOutErrorsCounter();
-        this.numRecordsSendErrorsCounter = metrics.getNumRecordsSendErrorsCounter();
         this.httpClient = createHttpClient(firehoseClientProperties);
         this.firehoseClient = createFirehoseClient(firehoseClientProperties, httpClient);
     }
@@ -218,7 +213,6 @@ class KinesisFirehoseSinkWriter<InputT> extends AsyncSinkWriter<InputT, Record> 
                 requestEntries.get(0).toString(),
                 err);
         numRecordsOutErrorsCounter.inc(requestEntries.size());
-        numRecordsSendErrorsCounter.inc(requestEntries.size());
 
         if (isRetryable(err)) {
             requestResult.accept(requestEntries);
@@ -234,7 +228,6 @@ class KinesisFirehoseSinkWriter<InputT> extends AsyncSinkWriter<InputT, Record> 
                 requestEntries.size(),
                 requestEntries.get(0).toString());
         numRecordsOutErrorsCounter.inc(response.failedPutCount());
-        numRecordsSendErrorsCounter.inc(response.failedPutCount());
 
         if (failOnError) {
             getFatalExceptionCons()
