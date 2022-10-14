@@ -30,7 +30,9 @@ import javax.annotation.Nullable;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -143,19 +145,37 @@ public final class CommittableCollectorSerializer<CommT>
         @Override
         public CheckpointCommittableManagerImpl<CommT> deserialize(int version, byte[] serialized)
                 throws IOException {
+
             DataInputDeserializer in = new DataInputDeserializer(serialized);
             long checkpointId = in.readLong();
-            List<SubtaskCommittableManager<CommT>> subtasks =
+
+            List<SubtaskCommittableManager<CommT>> subtaskCommittableManagers =
                     SimpleVersionedSerialization.readVersionAndDeserializeList(
                             new SubtaskSimpleVersionedSerializer(checkpointId), in);
+
+            Map<Integer, SubtaskCommittableManager<CommT>> subtasksCommittableManagers =
+                    new HashMap<>(subtaskCommittableManagers.size());
+
+            for (SubtaskCommittableManager<CommT> subtaskCommittableManager :
+                    subtaskCommittableManagers) {
+
+                // check if we already have manager for current
+                // subtaskCommittableManager.getSubtaskId() if yes,
+                // then merge them.
+                SubtaskCommittableManager<CommT> mergedManager =
+                        subtasksCommittableManagers.computeIfPresent(
+                                subtaskId,
+                                (key, manager) -> manager.merge(subtaskCommittableManager));
+
+                // This is new subtaskId, lets add the mapping.
+                if (mergedManager == null) {
+                    subtasksCommittableManagers.put(
+                            subtaskCommittableManager.getSubtaskId(), subtaskCommittableManager);
+                }
+            }
+
             return new CheckpointCommittableManagerImpl<>(
-                    subtasks.stream()
-                            .collect(
-                                    Collectors.toMap(
-                                            SubtaskCommittableManager::getSubtaskId, e -> e)),
-                    subtaskId,
-                    numberOfSubtasks,
-                    checkpointId);
+                    subtasksCommittableManagers, subtaskId, numberOfSubtasks, checkpointId);
         }
     }
 
