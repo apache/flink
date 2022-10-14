@@ -183,10 +183,6 @@ under the License.
 					<artifactId>validation-api</artifactId>
 				</exclusion>
 				<exclusion>
-					<groupId>javax.xml.bind</groupId>
-					<artifactId>jaxb-api</artifactId>
-				</exclusion>
-				<exclusion>
 					<groupId>net.jcip</groupId>
 					<artifactId>jcip-annotations</artifactId>
 				</exclusion>
