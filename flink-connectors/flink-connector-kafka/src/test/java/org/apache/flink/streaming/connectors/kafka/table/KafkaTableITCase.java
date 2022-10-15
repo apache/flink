@@ -28,16 +28,18 @@ import org.apache.flink.table.api.config.TableConfigOptions;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.utils.EncodingUtils;
 import org.apache.flink.test.util.SuccessException;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameter;
+import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameters;
 import org.apache.flink.types.Row;
 
 import org.apache.kafka.clients.consumer.NoOffsetForPartitionException;
 import org.apache.kafka.clients.consumer.OffsetAndMetadata;
 import org.apache.kafka.common.TopicPartition;
 import org.assertj.core.api.Assertions;
-import org.junit.Before;
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.time.Duration;
 import java.time.LocalDateTime;
@@ -66,25 +68,30 @@ import static org.assertj.core.api.Assertions.fail;
 import static org.assertj.core.api.HamcrestCondition.matching;
 
 /** Basic IT cases for the Kafka table source and sink. */
-@RunWith(Parameterized.class)
+@ExtendWith(ParameterizedTestExtension.class)
 public class KafkaTableITCase extends KafkaTableTestBase {
 
     private static final String JSON_FORMAT = "json";
     private static final String AVRO_FORMAT = "avro";
     private static final String CSV_FORMAT = "csv";
 
-    @Parameterized.Parameter public String format;
+    @Parameter public String format;
 
-    @Parameterized.Parameters(name = "format = {0}")
+    @Parameters(name = "format = {0}")
     public static Collection<String> parameters() {
         return Arrays.asList(JSON_FORMAT, AVRO_FORMAT, CSV_FORMAT);
     }
 
-    @Before
+    @BeforeEach
     public void before() {
         // we have to use single parallelism,
         // because we will count the messages in sink to terminate the job
         env.setParallelism(1);
+
+        // TODO discuss
+        if (format == null) {
+            format = parameters().toArray(new String[] {})[0];
+        }
     }
 
     @Test
@@ -265,7 +272,7 @@ public class KafkaTableITCase extends KafkaTableTestBase {
         assertThat(TestingSinkFunction.rows).isEqualTo(expected);
 
         // ------------- cleanup -------------------
-        topics.forEach(super::deleteTestTopic);
+        topics.forEach(KafkaTableTestBase::deleteTestTopic);
     }
 
     @Test

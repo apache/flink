@@ -23,17 +23,19 @@ import org.apache.flink.table.api.Schema;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableResult;
 import org.apache.flink.table.planner.factories.TestValuesTableFactory;
-import org.apache.flink.table.utils.LegacyRowResource;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameter;
+import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameters;
 import org.apache.flink.types.Row;
 
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -53,24 +55,30 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.HamcrestCondition.matching;
 
 /** Upsert-kafka IT cases. */
-@RunWith(Parameterized.class)
+@ExtendWith(ParameterizedTestExtension.class)
 public class UpsertKafkaTableITCase extends KafkaTableTestBase {
 
     private static final String JSON_FORMAT = "json";
     private static final String CSV_FORMAT = "csv";
     private static final String AVRO_FORMAT = "avro";
 
-    @Parameterized.Parameter public String format;
+    @Parameter public String format;
 
-    @Parameterized.Parameters(name = "format = {0}")
-    public static Object[] parameters() {
-        return new Object[] {JSON_FORMAT, CSV_FORMAT, AVRO_FORMAT};
+    @Parameters(name = "format = {0}")
+    public static Collection<String> parameters() {
+        return Arrays.asList(JSON_FORMAT, AVRO_FORMAT, CSV_FORMAT);
     }
-
-    @Rule public final LegacyRowResource usesLegacyRows = LegacyRowResource.INSTANCE;
 
     private static final String USERS_TOPIC = "users";
     private static final String WORD_COUNT_TOPIC = "word_count";
+
+    @BeforeEach
+    public void before() {
+        // TODO discuss
+        if (format == null) {
+            format = parameters().toArray(new String[] {})[0];
+        }
+    }
 
     @Test
     public void testAggregate() throws Exception {

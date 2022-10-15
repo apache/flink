@@ -211,8 +211,7 @@ public abstract class KafkaTestBase {
         }
     }
 
-    public static void createTestTopic(
-            String topic, int numberOfPartitions, int replicationFactor) {
+    public void createTestTopic(String topic, int numberOfPartitions, int replicationFactor) {
         kafkaServer.createTestTopic(topic, numberOfPartitions, replicationFactor);
     }
 
