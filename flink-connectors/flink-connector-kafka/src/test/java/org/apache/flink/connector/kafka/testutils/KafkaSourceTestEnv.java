@@ -62,8 +62,12 @@ public class KafkaSourceTestEnv extends KafkaTestBase {
     }
 
     public static void tearDown() throws Exception {
-        consumer.close();
-        adminClient.close();
+        if (consumer != null) {
+            consumer.close();
+        }
+        if (adminClient != null) {
+            adminClient.close();
+        }
         shutDownServices();
     }
 

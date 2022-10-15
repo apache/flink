@@ -55,7 +55,9 @@ public class OffsetsInitializerTest {
 
     @AfterAll
     public static void tearDown() throws Exception {
-        retriever.close();
+        if (retriever != null) {
+            retriever.close();
+        }
         KafkaSourceTestEnv.tearDown();
     }
 

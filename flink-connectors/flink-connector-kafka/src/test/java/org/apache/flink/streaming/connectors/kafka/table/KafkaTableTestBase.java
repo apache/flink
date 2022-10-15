@@ -132,7 +132,7 @@ public abstract class KafkaTableTestBase extends KafkaTestBaseWithFlink {
         return KAFKA_CONTAINER.getBootstrapServers();
     }
 
-    public void createTestTopic(String topic, int numPartitions, int replicationFactor) {
+    public static void createTestTopic(String topic, int numPartitions, int replicationFactor) {
         Map<String, Object> properties = new HashMap<>();
         properties.put(CommonClientConfigs.BOOTSTRAP_SERVERS_CONFIG, getBootstrapServers());
         try (AdminClient admin = AdminClient.create(properties)) {

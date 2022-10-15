@@ -31,7 +31,7 @@ public abstract class KafkaTestBaseWithFlink extends KafkaTestBase {
     protected static final int TM_SLOTS = 8;
 
     @RegisterExtension
-    public static MiniClusterExtension flink =
+    public static final MiniClusterExtension FLINK =
             new MiniClusterExtension(
                     new MiniClusterResourceConfiguration.Builder()
                             .setConfiguration(getFlinkConfiguration())
