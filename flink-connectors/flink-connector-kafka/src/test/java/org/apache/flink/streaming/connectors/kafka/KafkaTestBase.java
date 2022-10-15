@@ -32,7 +32,6 @@ import org.apache.flink.testutils.junit.RetryOnFailure;
 import org.apache.flink.testutils.junit.extensions.retry.RetryExtension;
 import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.TestLoggerExtension;
-
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.producer.Callback;
 import org.apache.kafka.clients.producer.KafkaProducer;
@@ -44,6 +43,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.api.io.TempDir;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import scala.concurrent.duration.FiniteDuration;
 
 import java.nio.ByteBuffer;
 import java.nio.file.Path;
@@ -55,8 +55,6 @@ import java.util.Properties;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
-
-import scala.concurrent.duration.FiniteDuration;
 
 import static org.assertj.core.api.Assertions.fail;
 
@@ -211,7 +209,8 @@ public abstract class KafkaTestBase {
         }
     }
 
-    public void createTestTopic(String topic, int numberOfPartitions, int replicationFactor) {
+    public static void createTestTopic(
+            String topic, int numberOfPartitions, int replicationFactor) {
         kafkaServer.createTestTopic(topic, numberOfPartitions, replicationFactor);
     }
 
