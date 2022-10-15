@@ -86,7 +86,7 @@ public abstract class IteratorSourceReaderBase<
     // ------------------------------------------------------------------------
 
     @Override
-    public final void start() {
+    public void start() {
         // request a split if we don't have one
         if (remainingSplits.isEmpty()) {
             context.sendSplitRequest();
@@ -94,7 +94,7 @@ public abstract class IteratorSourceReaderBase<
         start(context);
     }
 
-    protected abstract void start(SourceReaderContext context);
+    protected void start(SourceReaderContext context) {}
 
     @Override
     public InputStatus pollNext(ReaderOutput<O> output) {

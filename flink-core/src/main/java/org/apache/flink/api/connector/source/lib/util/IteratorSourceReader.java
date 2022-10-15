@@ -47,11 +47,6 @@ public class IteratorSourceReader<
     }
 
     @Override
-    protected void start(SourceReaderContext context) {}
-
-    // ------------------------------------------------------------------------
-
-    @Override
     protected E convert(E value) {
         return value;
     }
