@@ -55,7 +55,9 @@ public class KafkaSubscriberTest {
 
     @AfterAll
     public static void tearDown() throws Exception {
-        adminClient.close();
+        if (adminClient != null) {
+            adminClient.close();
+        }
         KafkaSourceTestEnv.tearDown();
     }
 
