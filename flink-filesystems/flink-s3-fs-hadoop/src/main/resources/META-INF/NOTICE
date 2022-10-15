@@ -24,25 +24,25 @@ This project bundles the following dependencies under the Apache Software Licens
 - commons-io:commons-io:2.11.0
 - commons-logging:commons-logging:1.1.3
 - joda-time:joda-time:2.5
+- org.apache.commons:commons-compress:1.21
 - org.apache.commons:commons-configuration2:2.1.1
 - org.apache.commons:commons-lang3:3.3.2
 - org.apache.commons:commons-text:1.4
-- org.apache.commons:commons-compress:1.21
-- org.apache.hadoop:hadoop-auth:3.3.2
-- org.apache.hadoop:hadoop-annotations:3.3.2
-- org.apache.hadoop:hadoop-aws:3.3.2
-- org.apache.hadoop:hadoop-common:3.3.2
+- org.apache.hadoop.thirdparty:hadoop-shaded-guava:1.1.1
+- org.apache.hadoop.thirdparty:hadoop-shaded-protobuf_3_7:1.1.1
+- org.apache.hadoop:hadoop-annotations:3.3.4
+- org.apache.hadoop:hadoop-auth:3.3.4
+- org.apache.hadoop:hadoop-aws:3.3.4
+- org.apache.hadoop:hadoop-common:3.3.4
 - org.apache.httpcomponents:httpclient:4.5.13
 - org.apache.httpcomponents:httpcore:4.4.14
-- software.amazon.ion:ion-java:1.0.2
-- org.apache.hadoop.thirdparty:hadoop-shaded-protobuf_3_7:1.1.1
-- org.apache.hadoop.thirdparty:hadoop-shaded-guava:1.1.1
 - org.apache.kerby:kerb-core:1.0.1
-- org.apache.kerby:kerby-pkix:1.0.1
 - org.apache.kerby:kerby-asn1:1.0.1
+- org.apache.kerby:kerby-pkix:1.0.1
 - org.apache.kerby:kerby-util:1.0.1
-- org.xerial.snappy:snappy-java:1.1.8.3
 - org.wildfly.openssl:wildfly-openssl:1.0.7.Final
+- org.xerial.snappy:snappy-java:1.1.8.3
+- software.amazon.ion:ion-java:1.0.2
 
 This project bundles the following dependencies under BSD-2 License (https://opensource.org/licenses/BSD-2-Clause).
 See bundled license files for details.

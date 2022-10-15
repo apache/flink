@@ -80,4 +80,9 @@ public final class OperatorIdentifier implements Serializable {
     public int hashCode() {
         return Objects.hash(operatorId);
     }
+
+    @Override
+    public String toString() {
+        return uid != null ? uid + "(" + operatorId.toHexString() + ")" : operatorId.toHexString();
+    }
 }

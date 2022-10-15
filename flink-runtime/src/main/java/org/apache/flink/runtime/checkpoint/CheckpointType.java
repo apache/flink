@@ -18,9 +18,12 @@
 
 package org.apache.flink.runtime.checkpoint;
 
+import org.apache.flink.annotation.Internal;
+
 import java.util.Objects;
 
 /** The type of checkpoint to perform. */
+@Internal
 public final class CheckpointType implements SnapshotType {
 
     /** A checkpoint, full or incremental. */

@@ -22,11 +22,14 @@ import org.apache.flink.tools.ci.utils.notice.NoticeContents;
 import org.apache.flink.tools.ci.utils.shared.Dependency;
 
 import com.google.common.collect.ArrayListMultimap;
+import com.google.common.collect.Multimap;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 
@@ -105,6 +108,36 @@ class NoticeFileCheckerTest {
                                 deployedModules,
                                 Collections.singletonMap(moduleName, emptyNotice)))
                 .isEqualTo(0);
+    }
+
+    @Test
+    void testRunIncludesBundledNonDeployedModules() throws IOException {
+        final Multimap<String, Dependency> bundledDependencies = ArrayListMultimap.create();
+        final Map<String, Optional<NoticeContents>> notices = new HashMap<>();
+
+        // a module that is not deployed but bundles another dependency with an empty NOTICE
+        final String nonDeployedModuleName = "nonDeployed";
+        final Dependency nonDeployedDependency = Dependency.create("a", nonDeployedModuleName, "c");
+        final Dependency bundledDependency = Dependency.create("a", "b", "c");
+        bundledDependencies.put(nonDeployedModuleName, bundledDependency);
+        // this would usually not be a problem, but since the module is not bundled it's not OK!
+        final Optional<NoticeContents> emptyNotice =
+                Optional.of(new NoticeContents(nonDeployedModuleName, Collections.emptyList()));
+        notices.put(nonDeployedModuleName, emptyNotice);
+
+        // a module that is deploys and bundles the above
+        final String bundlingModule = "bundling";
+        bundledDependencies.put(bundlingModule, nonDeployedDependency);
+        final Optional<NoticeContents> correctNotice =
+                Optional.of(
+                        new NoticeContents(
+                                bundlingModule, Collections.singletonList(nonDeployedDependency)));
+        notices.put(bundlingModule, correctNotice);
+
+        final Set<String> deployedModules = Collections.singleton(bundlingModule);
+
+        assertThat(NoticeFileChecker.run(bundledDependencies, deployedModules, notices))
+                .isEqualTo(1);
     }
 
     @Test

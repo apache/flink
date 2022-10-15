@@ -97,7 +97,10 @@ paths:
       operationId: uploadJar
       requestBody:
         content:
-          application/x-java-archive: {}
+          application/x-java-archive:
+            schema:
+              type: string
+              format: binary
         required: true
       responses:
         "200":
@@ -492,6 +495,29 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/CheckpointingStatistics'
+    post:
+      description: Triggers a checkpoint. This async operation would return a 'triggerid'
+        for further query identifier.
+      operationId: triggerCheckpoint
+      parameters:
+      - name: jobid
+        in: path
+        description: 32-character hexadecimal string value that identifies a job.
+        required: true
+        schema:
+          $ref: '#/components/schemas/JobID'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CheckpointTriggerRequestBody'
+      responses:
+        "202":
+          description: The request was successful.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TriggerResponse'
   /jobs/{jobid}/checkpoints/config:
     get:
       description: Returns the checkpointing configuration.
@@ -566,6 +592,31 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/TaskCheckpointStatisticsWithSubtaskDetails'
+  /jobs/{jobid}/checkpoints/{triggerid}:
+    get:
+      description: Returns the status of a checkpoint trigger operation.
+      operationId: getCheckpointStatus
+      parameters:
+      - name: jobid
+        in: path
+        description: 32-character hexadecimal string value that identifies a job.
+        required: true
+        schema:
+          $ref: '#/components/schemas/JobID'
+      - name: triggerid
+        in: path
+        description: 32-character hexadecimal string that identifies an asynchronous
+          operation trigger ID. The ID was returned then the operation was triggered.
+        required: true
+        schema:
+          $ref: '#/components/schemas/TriggerId'
+      responses:
+        "200":
+          description: The request was successful.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AsynchronousOperationResult'
   /jobs/{jobid}/config:
     get:
       description: Returns the configuration of a job.
@@ -1556,6 +1607,7 @@ components:
         operation:
           oneOf:
           - $ref: '#/components/schemas/AsynchronousOperationInfo'
+          - $ref: '#/components/schemas/CheckpointInfo'
           - $ref: '#/components/schemas/SavepointInfo'
         status:
           $ref: '#/components/schemas/QueueStatus'
@@ -1623,6 +1675,14 @@ components:
         sync:
           type: integer
           format: int64
+    CheckpointInfo:
+      type: object
+      properties:
+        checkpointId:
+          type: integer
+          format: int64
+        failureCause:
+          $ref: '#/components/schemas/SerializedThrowable'
     CheckpointStatistics:
       required:
       - className
@@ -1681,6 +1741,19 @@ components:
       - IN_PROGRESS
       - COMPLETED
       - FAILED
+    CheckpointTriggerRequestBody:
+      type: object
+      properties:
+        checkpointType:
+          $ref: '#/components/schemas/CheckpointType'
+        triggerId:
+          $ref: '#/components/schemas/TriggerId'
+    CheckpointType:
+      type: string
+      enum:
+      - CONFIGURED
+      - FULL
+      - INCREMENTAL
     CheckpointingStatistics:
       type: object
       properties:
@@ -2334,7 +2407,7 @@ components:
     JobVertexBackPressureInfo:
       type: object
       properties:
-        backpressure-level:
+        backpressureLevel:
           $ref: '#/components/schemas/VertexBackPressureLevel'
         end-timestamp:
           type: integer
@@ -2660,7 +2733,7 @@ components:
         attempt-number:
           type: integer
           format: int32
-        backpressure-level:
+        backpressureLevel:
           $ref: '#/components/schemas/VertexBackPressureLevel'
         busyRatio:
           type: number

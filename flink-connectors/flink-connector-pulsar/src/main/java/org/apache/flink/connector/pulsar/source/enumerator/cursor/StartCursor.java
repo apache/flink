@@ -28,8 +28,8 @@ import org.apache.pulsar.client.api.SubscriptionType;
 import java.io.Serializable;
 
 /**
- * A interface for users to specify the start position of a pulsar subscription. Since it would be
- * serialized into split. The implementation for this interface should be well considered. I don't
+ * An interface for users to specify the start position of a pulsar subscription. Since it would be
+ * serialized into split, the implementation for this interface should be well considered. I don't
  * recommend adding extra internal state for this implementation.
  *
  * <p>This class would be used only for {@link SubscriptionType#Exclusive} and {@link

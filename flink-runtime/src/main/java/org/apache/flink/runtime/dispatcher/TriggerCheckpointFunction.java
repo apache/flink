@@ -16,17 +16,19 @@
  * limitations under the License.
  */
 
-package org.apache.flink.test.util;
+package org.apache.flink.runtime.dispatcher;
+
+import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.time.Time;
+import org.apache.flink.core.execution.CheckpointType;
+
+import java.util.concurrent.CompletableFuture;
 
 /**
- * Mirror of the {@link MiniClusterWithClientResource} to avoid breaking changes when splitting up
- * the original MiniClusterResource implementation with FLINK-10637.
- *
- * @deprecated This class should be replaced with {@link MiniClusterWithClientResource}.
+ * Wrapper interface for functions triggering checkpoints. Currently only serves to shorten
+ * signatures.
  */
-@Deprecated
-public class MiniClusterResource extends MiniClusterWithClientResource {
-    public MiniClusterResource(MiniClusterResourceConfiguration miniClusterResourceConfiguration) {
-        super(miniClusterResourceConfiguration);
-    }
+@FunctionalInterface
+public interface TriggerCheckpointFunction {
+    CompletableFuture<Long> apply(JobID jobId, CheckpointType checkpointType, Time timeout);
 }

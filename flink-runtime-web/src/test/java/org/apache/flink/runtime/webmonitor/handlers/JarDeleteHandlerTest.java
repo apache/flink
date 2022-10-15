@@ -59,7 +59,7 @@ class JarDeleteHandlerTest {
     private Path jarDir;
 
     @BeforeEach
-    private void setUp(@TempDir File tempDir) throws Exception {
+    void setUp(@TempDir File tempDir) throws Exception {
         jarDir = tempDir.toPath();
         restfulGateway = new TestingRestfulGateway.Builder().build();
         jarDeleteHandler =

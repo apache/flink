@@ -16,10 +16,11 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.client.cli;
+package org.apache.flink.table.client.cli.parser;
 
 import org.apache.flink.table.api.SqlParserException;
 import org.apache.flink.table.client.gateway.Executor;
+import org.apache.flink.table.client.gateway.SqlExecutionException;
 import org.apache.flink.table.operations.Operation;
 
 import java.util.Optional;
@@ -43,5 +44,11 @@ public class SqlCommandParserImpl implements SqlCommandParser {
             return Optional.empty();
         }
         return Optional.ofNullable(executor.parseStatement(sessionId, stmt));
+    }
+
+    /** A dumb implementation. */
+    @Override
+    public Optional<StatementType> parseStatement(String statement) throws SqlExecutionException {
+        return Optional.empty();
     }
 }

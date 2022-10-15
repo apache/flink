@@ -136,11 +136,12 @@ public class PartitionLoader implements Closeable {
     private void overwrite(Path destDir) throws Exception {
         if (overwrite) {
             // delete existing files for overwrite
-            FileStatus[] existingFiles = listStatusWithoutHidden(destDir.getFileSystem(), destDir);
+            FileSystem destFS = destDir.getFileSystem();
+            FileStatus[] existingFiles = listStatusWithoutHidden(destFS, destDir);
             if (existingFiles != null) {
                 for (FileStatus existingFile : existingFiles) {
                     // TODO: We need move to trash when auto-purge is false.
-                    fs.delete(existingFile.getPath(), true);
+                    destFS.delete(existingFile.getPath(), true);
                 }
             }
         }

@@ -88,9 +88,9 @@ public class NoticeFileChecker {
         LOG.info(
                 "Extracted "
                         + deployedModules.size()
-                        + " modules that were deployed of which "
+                        + " modules that were deployed and "
                         + modulesWithBundledDependencies.keySet().size()
-                        + " bundle dependencies with a total of "
+                        + " modules which bundle dependencies with a total of "
                         + modulesWithBundledDependencies.values().size()
                         + " dependencies");
 
@@ -126,7 +126,34 @@ public class NoticeFileChecker {
         final Set<String> modulesSkippingDeployment =
                 new HashSet<>(modulesWithBundledDependencies.keySet());
         modulesSkippingDeployment.removeAll(deployedModules);
-        modulesSkippingDeployment.forEach(modulesWithBundledDependencies::removeAll);
+
+        LOG.debug(
+                "The following {} modules are skipping deployment: {}",
+                modulesSkippingDeployment.size(),
+                modulesSkippingDeployment.stream()
+                        .sorted()
+                        .collect(Collectors.joining("\n\t", "\n\t", "")));
+
+        for (String moduleSkippingDeployment : modulesSkippingDeployment) {
+            // TODO: this doesn't work for modules requiring a NOTICE that are bundled indirectly
+            // TODO: via another non-deployed module
+            boolean bundledByDeployedModule =
+                    modulesWithBundledDependencies.entries().stream()
+                            .filter(
+                                    entry ->
+                                            entry.getValue()
+                                                    .getArtifactId()
+                                                    .equals(moduleSkippingDeployment))
+                            .anyMatch(entry -> !modulesSkippingDeployment.contains(entry.getKey()));
+
+            if (!bundledByDeployedModule) {
+                modulesWithBundledDependencies.removeAll(moduleSkippingDeployment);
+            } else {
+                LOG.debug(
+                        "Including module {} in license checks, despite not being deployed, because it is bundled by another deployed module.",
+                        moduleSkippingDeployment);
+            }
+        }
 
         // check that all required NOTICE files exists
         severeIssueCount +=
@@ -167,13 +194,16 @@ public class NoticeFileChecker {
         Set<String> shadingModules = new HashSet<>(modulesWithShadedDependencies.keys());
         shadingModules.removeAll(modulesWithNoticeFile);
         for (String moduleWithoutNotice : shadingModules) {
-            LOG.error(
-                    "Module {} is missing a NOTICE file. It has shaded dependencies: {}",
-                    moduleWithoutNotice,
-                    modulesWithShadedDependencies.get(moduleWithoutNotice).stream()
-                            .map(Dependency::toString)
-                            .collect(Collectors.joining("\n\t", "\n\t", "")));
-            severeIssueCount++;
+            if (modulesWithShadedDependencies.get(moduleWithoutNotice).stream()
+                    .anyMatch(dependency -> !dependency.getGroupId().equals("org.apache.flink"))) {
+                LOG.error(
+                        "Module {} is missing a NOTICE file. It has shaded dependencies: {}",
+                        moduleWithoutNotice,
+                        modulesWithShadedDependencies.get(moduleWithoutNotice).stream()
+                                .map(Dependency::toString)
+                                .collect(Collectors.joining("\n\t", "\n\t", "")));
+                severeIssueCount++;
+            }
         }
         return severeIssueCount;
     }
@@ -257,7 +287,12 @@ public class NoticeFileChecker {
 
             // find all dependencies missing from NOTICE file
             Collection<Dependency> expectedDependencies =
-                    modulesWithShadedDependencies.get(moduleName);
+                    modulesWithShadedDependencies.get(moduleName).stream()
+                            .filter(
+                                    dependency ->
+                                            !dependency.getGroupId().equals("org.apache.flink"))
+                            .collect(Collectors.toList());
+
             for (Dependency expectedDependency : expectedDependencies) {
                 if (!declaredDependencies.contains(expectedDependency)) {
                     addProblem(
@@ -344,11 +379,9 @@ public class NoticeFileChecker {
                         String groupId = includeMatcher.group(1);
                         String artifactId = includeMatcher.group(2);
                         String version = includeMatcher.group(3);
-                        if (!"org.apache.flink".equals(groupId)) {
-                            result.put(
-                                    currentShadeModule,
-                                    Dependency.create(groupId, artifactId, version));
-                        }
+                        result.put(
+                                currentShadeModule,
+                                Dependency.create(groupId, artifactId, version));
                     }
                 }
                 if (line.contains("Replacing original artifact with shaded artifact")) {

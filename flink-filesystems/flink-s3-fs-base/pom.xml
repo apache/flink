@@ -50,7 +50,6 @@ under the License.
 			<groupId>org.apache.hadoop</groupId>
 			<artifactId>hadoop-common</artifactId>
 			<version>${fs.hadoopshaded.version}</version>
-
 			<exclusions>
 				<exclusion>
 					<groupId>jdk.tools</groupId>
@@ -168,6 +167,14 @@ under the License.
 					<groupId>net.minidev</groupId>
 					<artifactId>json-smart</artifactId>
 				</exclusion>
+				<exclusion>
+					<groupId>ch.qos.reload4j</groupId>
+					<artifactId>reload4j</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.slf4j</groupId>
+					<artifactId>slf4j-reload4j</artifactId>
+				</exclusion>
 			</exclusions>
 		</dependency>
 
@@ -214,6 +221,14 @@ under the License.
 				<exclusion>
 					<groupId>com.amazonaws</groupId>
 					<artifactId>aws-java-sdk-bundle</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>ch.qos.reload4j</groupId>
+					<artifactId>reload4j</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.slf4j</groupId>
+					<artifactId>slf4j-reload4j</artifactId>
 				</exclusion>
 			</exclusions>
 		</dependency>

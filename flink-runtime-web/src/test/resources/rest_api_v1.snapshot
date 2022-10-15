@@ -1344,6 +1344,41 @@
       }
     }
   }, {
+    "url" : "/jobs/:jobid/checkpoints",
+    "method" : "POST",
+    "status-code" : "202 Accepted",
+    "file-upload" : false,
+    "path-parameters" : {
+      "pathParameters" : [ {
+        "key" : "jobid"
+      } ]
+    },
+    "query-parameters" : {
+      "queryParameters" : [ ]
+    },
+    "request" : {
+      "type" : "object",
+      "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:checkpoints:CheckpointTriggerRequestBody",
+      "properties" : {
+        "checkpointType" : {
+          "type" : "string",
+          "enum" : [ "CONFIGURED", "FULL", "INCREMENTAL" ]
+        },
+        "triggerId" : {
+          "type" : "any"
+        }
+      }
+    },
+    "response" : {
+      "type" : "object",
+      "id" : "urn:jsonschema:org:apache:flink:runtime:rest:handler:async:TriggerResponse",
+      "properties" : {
+        "request-id" : {
+          "type" : "any"
+        }
+      }
+    }
+  }, {
     "url" : "/jobs/:jobid/checkpoints/config",
     "method" : "GET",
     "status-code" : "200 OK",
@@ -1686,6 +1721,44 @@
               }
             }
           }
+        }
+      }
+    }
+  }, {
+    "url" : "/jobs/:jobid/checkpoints/:triggerid",
+    "method" : "GET",
+    "status-code" : "200 OK",
+    "file-upload" : false,
+    "path-parameters" : {
+      "pathParameters" : [ {
+        "key" : "jobid"
+      }, {
+        "key" : "triggerid"
+      } ]
+    },
+    "query-parameters" : {
+      "queryParameters" : [ ]
+    },
+    "request" : {
+      "type" : "any"
+    },
+    "response" : {
+      "type" : "object",
+      "id" : "urn:jsonschema:org:apache:flink:runtime:rest:handler:async:AsynchronousOperationResult",
+      "properties" : {
+        "status" : {
+          "type" : "object",
+          "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:queue:QueueStatus",
+          "properties" : {
+            "id" : {
+              "type" : "string",
+              "required" : true,
+              "enum" : [ "IN_PROGRESS", "COMPLETED" ]
+            }
+          }
+        },
+        "operation" : {
+          "type" : "any"
         }
       }
     }
@@ -2516,7 +2589,7 @@
           "type" : "string",
           "enum" : [ "deprecated", "ok" ]
         },
-        "backpressure-level" : {
+        "backpressureLevel" : {
           "type" : "string",
           "enum" : [ "ok", "low", "high" ]
         },
@@ -2535,7 +2608,7 @@
               "attempt-number" : {
                 "type" : "integer"
               },
-              "backpressure-level" : {
+              "backpressureLevel" : {
                 "type" : "string",
                 "enum" : [ "ok", "low", "high" ]
               },
@@ -2554,9 +2627,17 @@
                   "type" : "object",
                   "$ref" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:JobVertexBackPressureInfo:SubtaskBackPressureInfo"
                 }
+              },
+              "backpressure-level" : {
+                "type" : "string",
+                "enum" : [ "ok", "low", "high" ]
               }
             }
           }
+        },
+        "backpressure-level" : {
+          "type" : "string",
+          "enum" : [ "ok", "low", "high" ]
         }
       }
     }

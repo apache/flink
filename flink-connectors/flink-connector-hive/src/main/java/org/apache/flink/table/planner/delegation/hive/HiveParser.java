@@ -380,7 +380,10 @@ public class HiveParser extends ParserImpl {
         if (isLoadData(input)) {
             HiveParserLoadSemanticAnalyzer loadSemanticAnalyzer =
                     new HiveParserLoadSemanticAnalyzer(
-                            hiveConf, frameworkConfig, plannerContext.getCluster());
+                            hiveConf,
+                            frameworkConfig,
+                            plannerContext.getCluster(),
+                            getCatalogManager());
             return loadSemanticAnalyzer.convertToOperation(input);
         }
         if (isMultiDestQuery(input)) {
@@ -447,16 +450,14 @@ public class HiveParser extends ParserImpl {
     }
 
     public HiveParserCalcitePlanner createCalcitePlanner(
-            HiveParserContext context, HiveParserQueryState queryState, HiveShim hiveShim)
-            throws SemanticException {
+            HiveParserContext context, HiveParserQueryState queryState) throws SemanticException {
         HiveParserCalcitePlanner calciteAnalyzer =
                 new HiveParserCalcitePlanner(
                         queryState,
                         plannerContext,
                         catalogReader,
                         frameworkConfig,
-                        getCatalogManager(),
-                        hiveShim);
+                        getCatalogManager());
         calciteAnalyzer.initCtx(context);
         calciteAnalyzer.init(false);
         return calciteAnalyzer;
@@ -465,11 +466,9 @@ public class HiveParser extends ParserImpl {
     public void analyzeCreateView(
             HiveParserCreateViewInfo createViewInfo,
             HiveParserContext context,
-            HiveParserQueryState queryState,
-            HiveShim hiveShim)
+            HiveParserQueryState queryState)
             throws SemanticException {
-        HiveParserCalcitePlanner calciteAnalyzer =
-                createCalcitePlanner(context, queryState, hiveShim);
+        HiveParserCalcitePlanner calciteAnalyzer = createCalcitePlanner(context, queryState);
         calciteAnalyzer.setCreatViewInfo(createViewInfo);
         calciteAnalyzer.genLogicalPlan(createViewInfo.getQuery());
     }
@@ -478,7 +477,7 @@ public class HiveParser extends ParserImpl {
             HiveParserContext context, HiveConf hiveConf, HiveShim hiveShim, HiveParserASTNode node)
             throws SemanticException {
         HiveParserCalcitePlanner analyzer =
-                createCalcitePlanner(context, new HiveParserQueryState(hiveConf), hiveShim);
+                createCalcitePlanner(context, new HiveParserQueryState(hiveConf));
         RelNode relNode = analyzer.genLogicalPlan(node);
         if (relNode == null) {
             return new NopOperation();

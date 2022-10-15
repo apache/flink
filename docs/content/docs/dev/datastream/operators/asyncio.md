@@ -279,7 +279,7 @@ The retry support introduces a built-in mechanism for async operator which being
 
 ### Implementation Tips
 
-For implementations with *Futures* that have an *Executor* (or *ExecutionContext* in Scala) for callbacks, we suggests to use a `DirectExecutor`, because the
+For implementations with *Futures* that have an *Executor* (or *ExecutionContext* in Scala) for callbacks, we suggest using a `DirectExecutor`, because the
 callback typically does minimal work, and a `DirectExecutor` avoids an additional thread-to-thread handover overhead. The callback typically only hands
 the result to the `ResultFuture`, which adds it to the output buffer. From there, the heavy logic that includes record emission and interaction
 with the checkpoint bookkeeping happens in a dedicated thread-pool anyways.

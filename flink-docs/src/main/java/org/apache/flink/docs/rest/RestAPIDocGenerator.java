@@ -196,55 +196,23 @@ public class RestAPIDocGenerator {
             sb.append("      </td>\n");
             sb.append("    </tr>\n");
         }
-        int reqHash =
-                spec.getTargetRestEndpointURL().hashCode()
-                        + spec.getHttpMethod().name().hashCode()
-                        + spec.getRequestClass().getCanonicalName().hashCode();
-        int resHash =
-                spec.getTargetRestEndpointURL().hashCode()
-                        + spec.getHttpMethod().name().hashCode()
-                        + spec.getResponseClass().getCanonicalName().hashCode();
         {
             sb.append("    <tr>\n");
             sb.append("      <td colspan=\"2\">\n");
-            sb.append("      <div class=\"book-expand\">\n");
             sb.append("        <label>\n");
-            sb.append("          <div class=\"book-expand-head flex justify-between\">\n");
-            sb.append("            <span>Request</span>\n");
-            sb.append("            &nbsp;");
-            sb.append("            <span>▾</span>\n");
-            sb.append("          </div>\n");
-            sb.append("          <input type=\"checkbox\" class=\"hidden\">\n");
-            sb.append("          <div class=\"book-expand-content markdown-inner\">\n");
-            sb.append("          <pre>\n");
-            sb.append("            <code>\n");
-            sb.append(requestEntry);
-            sb.append("            </code>\n");
-            sb.append("          </pre>\n");
-            sb.append("          </div>\n");
+            sb.append("          <details>\n");
+            sb.append("          <summary>Request</summary>\n");
+            sb.append("          <pre><code>" + requestEntry + "</code></pre>\n");
             sb.append("        </label>\n");
-            sb.append("      </div>\n");
             sb.append("      </td>\n");
             sb.append("    </tr>\n");
             sb.append("    <tr>\n");
             sb.append("      <td colspan=\"2\">\n");
-            sb.append("      <div class=\"book-expand\">\n");
             sb.append("        <label>\n");
-            sb.append("          <div class=\"book-expand-head flex justify-between\">\n");
-            sb.append("            <span>Response</span>\n");
-            sb.append("            &nbsp;");
-            sb.append("            <span>▾</span>\n");
-            sb.append("          </div>\n");
-            sb.append("          <input type=\"checkbox\" class=\"hidden\">\n");
-            sb.append("          <div class=\"book-expand-content markdown-inner\">\n");
-            sb.append("          <pre>\n");
-            sb.append("            <code>\n");
-            sb.append(responseEntry);
-            sb.append("            </code>\n");
-            sb.append("          </pre>\n");
-            sb.append("          </div>\n");
+            sb.append("          <details>\n");
+            sb.append("          <summary>Response</summary>\n");
+            sb.append("          <pre><code>" + responseEntry + "</code></pre>\n");
             sb.append("        </label>\n");
-            sb.append("      </div>\n");
             sb.append("      </td>\n");
             sb.append("    </tr>\n");
             sb.append("  </tbody>\n");
