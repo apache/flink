@@ -30,6 +30,7 @@ import org.rocksdb.BlockBasedTableConfig;
 import org.rocksdb.BloomFilter;
 import org.rocksdb.Cache;
 import org.rocksdb.ColumnFamilyOptions;
+import org.rocksdb.CompressionType;
 import org.rocksdb.DBOptions;
 import org.rocksdb.Filter;
 import org.rocksdb.IndexType;
@@ -352,6 +353,10 @@ public final class RocksDBResourceContainer implements AutoCloseable {
 
         currentOptions.setMinWriteBufferNumberToMerge(
                 internalGetOption(RocksDBConfigurableOptions.MIN_WRITE_BUFFER_NUMBER_TO_MERGE));
+
+        // Fentik: more aggressive compression.
+        currentOptions.setCompressionType(CompressionType.ZSTD_COMPRESSION);
+        currentOptions.setBottommostCompressionType(CompressionType.ZSTD_COMPRESSION);
 
         TableFormatConfig tableFormatConfig = currentOptions.tableFormatConfig();
 
