@@ -631,7 +631,9 @@ public class HiveServer2Endpoint implements TCLIService.Iface, SqlGatewayEndpoin
             resp.setHasResultSet(true);
             if (operationInfo.getStatus().equals(OperationStatus.ERROR)
                     && operationInfo.getException().isPresent()) {
-                resp.setErrorMessage(stringifyException(operationInfo.getException().get()));
+                resp.setErrorMessage(
+                        ExceptionUtils.stringifyException(
+                                operationInfo.getException().get(), isVerbose));
             }
         } catch (Throwable t) {
             LOG.error("Failed to GetOperationStatus.", t);
@@ -922,20 +924,6 @@ public class HiveServer2Endpoint implements TCLIService.Iface, SqlGatewayEndpoin
                             "Close the operation %s for the session %s silently.",
                             operationHandle, sessionHandle),
                     t);
-        }
-    }
-
-    private String stringifyException(Throwable t) {
-        if (isVerbose) {
-            return ExceptionUtils.stringifyException(t);
-        } else {
-            Throwable root = t;
-            while (root.getCause() != null
-                    && root.getCause().getMessage() != null
-                    && !root.getCause().getMessage().isEmpty()) {
-                root = root.getCause();
-            }
-            return root.getClass().getName() + ": " + root.getMessage();
         }
     }
 

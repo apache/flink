@@ -63,18 +63,43 @@ public final class ExceptionUtils {
      * @return A string with exception name and call stack.
      */
     public static String stringifyException(final Throwable e) {
+        return stringifyException(e, false);
+    }
+
+    /**
+     * Makes a string representation of the exception's stack trace, or "(null)", if the exception
+     * is null.
+     *
+     * <p>This method makes a best effort and never fails.
+     *
+     * @param e The exception to stringify.
+     * @param isVerbose Determine whether to return the verbose exception. If set the option true,
+     *     it will return the exception stack. Otherwise, only return the cause.
+     * @return A String with exception name. If is Verbose is true, it will contain all stack
+     *     information
+     */
+    public static String stringifyException(final Throwable e, boolean isVerbose) {
         if (e == null) {
             return STRINGIFIED_NULL_EXCEPTION;
         }
-
-        try {
-            StringWriter stm = new StringWriter();
-            PrintWriter wrt = new PrintWriter(stm);
-            e.printStackTrace(wrt);
-            wrt.close();
-            return stm.toString();
-        } catch (Throwable t) {
-            return e.getClass().getName() + " (error while printing stack trace)";
+        if (isVerbose) {
+            try {
+                StringWriter stm = new StringWriter();
+                PrintWriter wrt = new PrintWriter(stm);
+                e.printStackTrace(wrt);
+                wrt.close();
+                return stm.toString();
+            } catch (Throwable t) {
+                return e.getClass().getName() + " (error while printing stack trace)";
+            }
+        } else {
+            Throwable root = e;
+            while (root.getCause() != null
+                    && root.getCause().getMessage() != null
+                    && !root.getCause().getMessage().isEmpty()) {
+                root = root.getCause();
+            }
+            return root.getClass().getName() + ": " + root.getMessage();
         }
     }
 

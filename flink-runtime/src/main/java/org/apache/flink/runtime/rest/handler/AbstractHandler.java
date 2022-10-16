@@ -231,7 +231,7 @@ public abstract class AbstractHandler<
         cleanupFileUploads(uploadedFiles);
     }
 
-    private CompletableFuture<Void> handleException(
+    protected CompletableFuture<Void> handleException(
             Throwable throwable, ChannelHandlerContext ctx, HttpRequest httpRequest) {
         ClusterEntryPointExceptionUtils.tryEnrichClusterEntryPointError(throwable);
 
