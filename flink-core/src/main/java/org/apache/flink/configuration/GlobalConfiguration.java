@@ -201,8 +201,6 @@ public final class GlobalConfiguration {
                                         + file
                                         + ":"
                                         + lineNo
-                                        + ": \""
-                                        + line
                                         + "\"");
                         continue;
                     }
@@ -217,8 +215,6 @@ public final class GlobalConfiguration {
                                         + file
                                         + ":"
                                         + lineNo
-                                        + ": \""
-                                        + line
                                         + "\"");
                         continue;
                     }
