@@ -932,3 +932,80 @@ cdef class DataViewFilterCoderImpl(FieldCoderImpl):
         return row
 
 
+cdef class LocalDateCoderImpl(FieldCoderImpl):
+
+    @staticmethod
+    def _encode_to_stream(value, OutputStream out_stream):
+        if value is None:
+            out_stream.write_int32(0xFFFFFFFF)
+            out_stream.write_int16(0xFFFF)
+        else:
+            out_stream.write_int32(value.year)
+            out_stream.write_int8(value.month)
+            out_stream.write_int8(value.day)
+
+    @staticmethod
+    def _decode_from_stream(InputStream in_stream):
+        year = in_stream.read_int32()
+        if year == 0xFFFFFFFF:
+            in_stream.read(2)
+            return None
+        month = in_stream.read_int8()
+        day = in_stream.read_int8()
+        return datetime.date(year, month, day)
+
+    cpdef encode_to_stream(self, value, OutputStream out_stream):
+        return self._encode_to_stream(value, out_stream)
+
+    cpdef decode_from_stream(self, InputStream in_stream, size_t length):
+        return self._decode_from_stream(in_stream)
+
+cdef class LocalTimeCoderImpl(FieldCoderImpl):
+
+    @staticmethod
+    def _encode_to_stream(value, OutputStream out_stream):
+        if value is None:
+            out_stream.write_int8(0xFF)
+            out_stream.write_int16(0xFFFF)
+            out_stream.write_int32(0xFFFFFFFF)
+        else:
+            out_stream.write_int8(value.hour)
+            out_stream.write_int8(value.minute)
+            out_stream.write_int8(value.second)
+            out_stream.write_int32(value.microsecond * 1000)
+
+    @staticmethod
+    def _decode_from_stream(InputStream in_stream):
+        hour = in_stream.read_int8()
+        if hour == 0xFF:
+            in_stream.read(6)
+            return None
+        minute = in_stream.read_int8()
+        second = in_stream.read_int8()
+        nano = in_stream.read_int32()
+        return datetime.time(hour, minute, second, nano // 1000)
+
+    cpdef encode_to_stream(self, value, OutputStream out_stream):
+        return self._encode_to_stream(value, out_stream)
+
+    cpdef decode_from_stream(self, InputStream in_stream, size_t length):
+        return self._decode_from_stream(in_stream)
+
+
+cdef class LocalDateTimeCoderImpl(FieldCoderImpl):
+
+    cpdef encode_to_stream(self, value, OutputStream out_stream):
+        if value is None:
+            LocalDateCoderImpl._encode_to_stream(None, out_stream)
+            LocalTimeCoderImpl._encode_to_stream(None, out_stream)
+        else:
+            LocalDateCoderImpl._encode_to_stream(value.date(), out_stream)
+            LocalTimeCoderImpl._encode_to_stream(value.time(), out_stream)
+
+    cpdef decode_from_stream(self, InputStream in_stream, size_t length):
+        date = LocalDateCoderImpl._decode_from_stream(in_stream)
+        time = LocalTimeCoderImpl._decode_from_stream(in_stream)
+        if date is None or time is None:
+            return None
+        return datetime.datetime(date.year, date.month, date.day, time.hour, time.minute,
+                                 time.second, time.microsecond)

@@ -597,6 +597,24 @@ class DataViewFilterCoder(FieldCoder):
         return coder_impl.DataViewFilterCoderImpl(self._udf_data_view_specs)
 
 
+class LocalDateCoder(FieldCoder):
+
+    def get_impl(self):
+        return coder_impl.LocalDateCoderImpl()
+
+
+class LocalTimeCoder(FieldCoder):
+
+    def get_impl(self):
+        return coder_impl.LocalTimeCoderImpl()
+
+
+class LocalDateTimeCoder(FieldCoder):
+
+    def get_impl(self):
+        return coder_impl.LocalDateTimeCoderImpl()
+
+
 def from_proto(field_type):
     """
     Creates the corresponding :class:`Coder` given the protocol representation of the field type.
@@ -668,7 +686,10 @@ def from_type_info_proto(type_info):
         type_info_name.SQL_TIME: TimeCoder(),
         type_info_name.SQL_TIMESTAMP: TimestampCoder(3),
         type_info_name.PICKLED_BYTES: CloudPickleCoder(),
-        type_info_name.INSTANT: InstantCoder()
+        type_info_name.INSTANT: InstantCoder(),
+        type_info_name.LOCAL_DATE: LocalDateCoder(),
+        type_info_name.LOCAL_TIME: LocalTimeCoder(),
+        type_info_name.LOCAL_DATETIME: LocalDateTimeCoder(),
     }
 
     field_type_name = type_info.type_name
