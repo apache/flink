@@ -194,16 +194,10 @@ cdef class AvroCoderImpl(FieldCoderImpl):
     cdef object _writer
 
 cdef class LocalDateCoderImpl(FieldCoderImpl):
-    @staticmethod
-    cdef _encode_to_stream(value, OutputStream out_stream)
-    @staticmethod
-    cdef _decode_from_stream(InputStream in_stream)
+    pass
 
 cdef class LocalTimeCoderImpl(FieldCoderImpl):
-    @staticmethod
-    cdef _encode_to_stream(value, OutputStream out_stream)
-    @staticmethod
-    cdef _decode_from_stream(InputStream in_stream)
+    pass
 
 cdef class LocalDateTimeCoderImpl(FieldCoderImpl):
     pass
