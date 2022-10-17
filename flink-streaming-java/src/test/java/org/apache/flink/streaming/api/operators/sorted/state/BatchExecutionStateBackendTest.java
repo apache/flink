@@ -18,6 +18,7 @@
 
 package org.apache.flink.streaming.api.operators.sorted.state;
 
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.functions.AggregateFunction;
 import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.common.state.AggregatingState;
@@ -80,7 +81,8 @@ public class BatchExecutionStateBackendTest extends TestLogger {
 
     private <K> CheckpointableKeyedStateBackend<K> createKeyedBackend(
             TypeSerializer<K> keySerializer) {
-        return new BatchExecutionKeyedStateBackend<>(keySerializer, new KeyGroupRange(0, 9));
+        return new BatchExecutionKeyedStateBackend<>(
+                keySerializer, new KeyGroupRange(0, 9), new ExecutionConfig());
     }
 
     /**
