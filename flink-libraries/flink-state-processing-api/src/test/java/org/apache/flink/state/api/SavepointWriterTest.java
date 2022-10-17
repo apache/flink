@@ -43,4 +43,21 @@ class SavepointWriterTest {
         assertThatThrownBy(() -> env.configure(configuration))
                 .isInstanceOf(CustomStateBackendFactory.ExpectedException.class);
     }
+
+    @Test
+    void testCantCreateSavepointFromNothing() {
+        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+
+        assertThatThrownBy(() -> SavepointWriter.newSavepoint(env, 128).write("file:///tmp/path"))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("at least one operator to be created");
+    }
+
+    @Test
+    @SuppressWarnings("deprecation")
+    void testMustContainOneOperatorWithoutEnvironment() {
+        assertThatThrownBy(() -> SavepointWriter.newSavepoint(128).write("file:///tmp/path"))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("if no execution environment was provided");
+    }
 }
