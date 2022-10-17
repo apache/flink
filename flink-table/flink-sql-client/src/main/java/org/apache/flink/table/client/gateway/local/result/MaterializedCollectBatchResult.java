@@ -20,15 +20,25 @@ package org.apache.flink.table.client.gateway.local.result;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.table.api.internal.TableResultInternal;
+import org.apache.flink.table.client.gateway.SqlExecutionException;
+import org.apache.flink.table.client.gateway.TypedResult;
 import org.apache.flink.table.data.RowData;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.util.ArrayList;
 
 /** Collects results and returns them as table snapshots. */
 public class MaterializedCollectBatchResult extends MaterializedCollectResultBase {
+
+    private static final Logger LOG = LoggerFactory.getLogger(MaterializedCollectResultBase.class);
 
     @VisibleForTesting
     public MaterializedCollectBatchResult(
             TableResultInternal tableResult, int maxRowCount, int overcommitThreshold) {
         super(tableResult, maxRowCount, overcommitThreshold);
+        materializedTable = new ArrayList<>(maxRowCount);
         // start listener thread
         retrievalThread.start();
     }
@@ -38,22 +48,45 @@ public class MaterializedCollectBatchResult extends MaterializedCollectResultBas
     }
 
     @Override
-    protected void processRecord(RowData row) {
-        // limit the materialized table
-        if (materializedTable.size() - validRowPosition >= maxRowCount) {
-            cleanUp();
+    public TypedResult<Integer> snapshot(int pageSize) {
+        if (pageSize < 1) {
+            throw new SqlExecutionException("Page size must be greater than 0.");
         }
-        materializedTable.add(row);
+
+        synchronized (resultLock) {
+            // retrieval thread is dead and there are no results anymore
+            // or program failed
+            if ((!isRetrieving() && isLastSnapshot) || executionException.get() != null) {
+                return handleMissingResult();
+            }
+            // this snapshot is the last result that can be delivered
+            else if (!isRetrieving()) {
+                isLastSnapshot = true;
+            }
+
+            this.pageSize = pageSize;
+            snapshot.clear();
+            for (int i = validRowPosition; i < materializedTable.size(); i++) {
+                snapshot.add(materializedTable.get(i));
+            }
+            validRowPosition += snapshot.size();
+
+            // at least one page
+            pageCount = Math.max(1, (int) Math.ceil(((double) snapshot.size() / pageSize)));
+
+            return TypedResult.payload(pageCount);
+        }
     }
 
-    private void cleanUp() {
-        materializedTable.set(validRowPosition, null);
-        validRowPosition++;
-
-        // perform clean up in batches
-        if (validRowPosition >= overcommitThreshold) {
-            materializedTable.subList(0, validRowPosition).clear();
-            validRowPosition = 0;
+    @Override
+    protected void processRecord(RowData row) {
+        if (materializedTable.size() >= maxRowCount) {
+            LOG.warn(
+                    "materializedTable size exceed maxRowCount {}, discard row {}.",
+                    maxRowCount,
+                    row);
+            return;
         }
+        materializedTable.add(row);
     }
 }

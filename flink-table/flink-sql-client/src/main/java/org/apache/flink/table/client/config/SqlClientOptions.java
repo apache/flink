@@ -32,7 +32,7 @@ public class SqlClientOptions {
     public static final ConfigOption<Integer> EXECUTION_MAX_TABLE_RESULT_ROWS =
             ConfigOptions.key("sql-client.execution.max-table-result.rows")
                     .intType()
-                    .defaultValue(1000_000)
+                    .defaultValue(10_000)
                     .withDescription(
                             "The number of rows to cache when in the table mode. If the number of rows exceeds the "
                                     + "specified value, it retries the row in the FIFO style.");

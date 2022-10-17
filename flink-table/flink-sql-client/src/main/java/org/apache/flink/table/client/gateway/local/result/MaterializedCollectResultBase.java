@@ -56,22 +56,22 @@ public abstract class MaterializedCollectResultBase extends CollectResultBase
      * Materialized table that is continuously updated by inserts and deletes. Deletes at the
      * beginning are lazily cleaned up when the threshold is reached.
      */
-    protected final List<RowData> materializedTable;
+    protected List<RowData> materializedTable;
 
     /** Counter for deleted rows to be deleted at the beginning of the materialized table. */
     protected int validRowPosition;
 
     /** Current snapshot of the materialized table. */
-    private final List<RowData> snapshot;
+    protected final List<RowData> snapshot;
 
     /** Page count of the snapshot (always >= 1). */
-    private int pageCount;
+    protected int pageCount;
 
     /** Page size of the snapshot (always >= 1). */
-    private int pageSize;
+    protected int pageSize;
 
     /** Indicator that this is the last snapshot possible (EOS afterwards). */
-    private boolean isLastSnapshot;
+    protected boolean isLastSnapshot;
 
     public MaterializedCollectResultBase(
             TableResultInternal tableResult, int maxRowCount, int overcommitThreshold) {
