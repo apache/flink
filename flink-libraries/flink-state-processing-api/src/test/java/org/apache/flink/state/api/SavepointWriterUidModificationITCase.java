@@ -26,11 +26,8 @@ import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
-import org.apache.flink.runtime.state.FunctionInitializationContext;
-import org.apache.flink.runtime.state.FunctionSnapshotContext;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.state.api.functions.KeyedStateBootstrapFunction;
-import org.apache.flink.state.api.functions.StateBootstrapFunction;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.graph.StreamGraph;
 import org.apache.flink.test.junit5.MiniClusterExtension;
@@ -151,7 +148,7 @@ public class SavepointWriterUidModificationITCase {
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setRuntimeMode(RuntimeExecutionMode.AUTOMATIC);
 
-        final SavepointWriter writer = SavepointWriter.newSavepoint(128);
+        final SavepointWriter writer = SavepointWriter.newSavepoint(env, 128);
 
         mutator.accept(env, writer);
 
@@ -177,13 +174,7 @@ public class SavepointWriterUidModificationITCase {
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setRuntimeMode(RuntimeExecutionMode.AUTOMATIC);
 
-        SavepointWriter writer = SavepointWriter.fromExistingSavepoint(savepointPath);
-
-        // SavepointWriter enforces at least one operation; add a dummy that doesn't write anything
-        writer.withOperator(
-                OperatorIdentifier.forUid("dummy"),
-                OperatorTransformation.bootstrapWith(env.fromElements(1))
-                        .transform(new DummyBootstrapper()));
+        SavepointWriter writer = SavepointWriter.fromExistingSavepoint(env, savepointPath);
 
         mutator.accept(writer);
         writer.write(newSavepointPath);
@@ -256,21 +247,5 @@ public class SavepointWriterUidModificationITCase {
         public Integer map(Integer value) throws Exception {
             return state.value();
         }
-    }
-
-    /**
-     * A dummy bootstreap function to satisfy the SavepointWriter requirement of having at least 1
-     * operator.
-     */
-    public static class DummyBootstrapper extends StateBootstrapFunction<Integer> {
-
-        @Override
-        public void processElement(Integer value, Context ctx) throws Exception {}
-
-        @Override
-        public void snapshotState(FunctionSnapshotContext context) throws Exception {}
-
-        @Override
-        public void initializeState(FunctionInitializationContext context) throws Exception {}
     }
 }
