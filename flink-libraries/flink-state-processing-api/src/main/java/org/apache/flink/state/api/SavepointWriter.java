@@ -73,21 +73,7 @@ public class SavepointWriter {
      * @see #withConfiguration(ConfigOption, Object)
      */
     public static SavepointWriter fromExistingSavepoint(String path) throws IOException {
-        CheckpointMetadata metadata = SavepointLoader.loadSavepointMetadata(path);
-
-        int maxParallelism =
-                metadata.getOperatorStates().stream()
-                        .map(OperatorState::getMaxParallelism)
-                        .max(Comparator.naturalOrder())
-                        .orElseThrow(
-                                () ->
-                                        new RuntimeException(
-                                                "Savepoint must contain at least one operator state."));
-
-        SavepointMetadataV2 savepointMetadata =
-                new SavepointMetadataV2(
-                        maxParallelism, metadata.getMasterStates(), metadata.getOperatorStates());
-        return new SavepointWriter(savepointMetadata, null);
+        return new SavepointWriter(readSavepointMetadata(path), null);
     }
 
     /**
@@ -101,6 +87,10 @@ public class SavepointWriter {
      */
     public static SavepointWriter fromExistingSavepoint(String path, StateBackend stateBackend)
             throws IOException {
+        return new SavepointWriter(readSavepointMetadata(path), stateBackend);
+    }
+
+    private static SavepointMetadataV2 readSavepointMetadata(String path) throws IOException {
         CheckpointMetadata metadata = SavepointLoader.loadSavepointMetadata(path);
 
         int maxParallelism =
@@ -112,10 +102,8 @@ public class SavepointWriter {
                                         new RuntimeException(
                                                 "Savepoint must contain at least one operator state."));
 
-        SavepointMetadataV2 savepointMetadata =
-                new SavepointMetadataV2(
-                        maxParallelism, metadata.getMasterStates(), metadata.getOperatorStates());
-        return new SavepointWriter(savepointMetadata, stateBackend);
+        return new SavepointMetadataV2(
+                maxParallelism, metadata.getMasterStates(), metadata.getOperatorStates());
     }
 
     /**
@@ -128,17 +116,7 @@ public class SavepointWriter {
      * @see #withConfiguration(ConfigOption, Object)
      */
     public static SavepointWriter newSavepoint(int maxParallelism) {
-        Preconditions.checkArgument(
-                maxParallelism > 0 && maxParallelism <= UPPER_BOUND_MAX_PARALLELISM,
-                "Maximum parallelism must be between 1 and "
-                        + UPPER_BOUND_MAX_PARALLELISM
-                        + ". Found: "
-                        + maxParallelism);
-
-        SavepointMetadataV2 metadata =
-                new SavepointMetadataV2(
-                        maxParallelism, Collections.emptyList(), Collections.emptyList());
-        return new SavepointWriter(metadata, null);
+        return new SavepointWriter(createSavepointMetadata(maxParallelism), null);
     }
 
     /**
@@ -150,6 +128,10 @@ public class SavepointWriter {
      * @see #newSavepoint(int)
      */
     public static SavepointWriter newSavepoint(StateBackend stateBackend, int maxParallelism) {
+        return new SavepointWriter(createSavepointMetadata(maxParallelism), stateBackend);
+    }
+
+    private static SavepointMetadataV2 createSavepointMetadata(int maxParallelism) {
         Preconditions.checkArgument(
                 maxParallelism > 0 && maxParallelism <= UPPER_BOUND_MAX_PARALLELISM,
                 "Maximum parallelism must be between 1 and "
@@ -157,10 +139,8 @@ public class SavepointWriter {
                         + ". Found: "
                         + maxParallelism);
 
-        SavepointMetadataV2 metadata =
-                new SavepointMetadataV2(
-                        maxParallelism, Collections.emptyList(), Collections.emptyList());
-        return new SavepointWriter(metadata, stateBackend);
+        return new SavepointMetadataV2(
+                maxParallelism, Collections.emptyList(), Collections.emptyList());
     }
 
     /**
