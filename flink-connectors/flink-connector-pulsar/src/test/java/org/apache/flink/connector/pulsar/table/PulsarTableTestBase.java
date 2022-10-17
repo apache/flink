@@ -21,17 +21,14 @@ package org.apache.flink.connector.pulsar.table;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.connector.pulsar.testutils.PulsarTestEnvironment;
 import org.apache.flink.connector.pulsar.testutils.runtime.PulsarRuntime;
-import org.apache.flink.runtime.minicluster.RpcServiceSharing;
-import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
+import org.apache.flink.connector.testframe.environment.MiniClusterTestEnvironment;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
-import org.apache.flink.test.junit5.MiniClusterExtension;
 
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.TestInstance;
-import org.junit.jupiter.api.extension.RegisterExtension;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -42,24 +39,16 @@ public abstract class PulsarTableTestBase {
 
     private static final int DEFAULT_PARALLELISM = 1;
 
-    @RegisterExtension
-    protected static final MiniClusterExtension CLUSTER_EXTENSION =
-            new MiniClusterExtension(
-                    new MiniClusterResourceConfiguration.Builder()
-                            .setNumberTaskManagers(1)
-                            .setNumberSlotsPerTaskManager(DEFAULT_PARALLELISM)
-                            .setRpcServiceSharing(RpcServiceSharing.DEDICATED)
-                            .withHaLeadershipControl()
-                            .build());
+    protected MiniClusterTestEnvironment flink = new MiniClusterTestEnvironment();
 
-    protected PulsarTestEnvironment pulsar = new PulsarTestEnvironment(runtime());
+    protected static PulsarTestEnvironment pulsar = new PulsarTestEnvironment(runtime());
 
     protected StreamExecutionEnvironment env;
 
     protected StreamTableEnvironment tableEnv;
 
-    protected PulsarRuntime runtime() {
-        return PulsarRuntime.mock();
+    protected static PulsarRuntime runtime() {
+        return PulsarRuntime.container();
     }
 
     @BeforeAll

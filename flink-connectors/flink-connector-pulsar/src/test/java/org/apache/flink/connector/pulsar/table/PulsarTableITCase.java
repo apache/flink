@@ -31,7 +31,6 @@ import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
@@ -334,7 +333,6 @@ public class PulsarTableITCase extends PulsarTableTestBase {
 
     @ParameterizedTest
     @MethodSource("provideSchemaData")
-    @Disabled()
     <T> void readAndSelectIntoTableUsingSimpleSchema(
             String format, Schema<T> schema, T value, String flinkTableDataType) throws Exception {
         final String sourceTopic = "source_topic_" + randomAlphanumeric(3);
