@@ -698,6 +698,24 @@ class CalcITCase extends StreamingTestBase {
   }
 
   @Test
+  def testLikeWithUnescapedLiteral(): Unit = {
+    val data = List(Row.of("b\"cd\"efg", "Worlds"), Row.of("ab\"cd\"e", "Worlds"))
+
+    implicit val tpe: TypeInformation[Row] = new RowTypeInfo(Types.STRING, Types.STRING)
+
+    val ds = env.fromCollection(data)
+
+    val t = ds.toTable(tEnv, 'a, 'b)
+    tEnv.registerTable("MyTableRow", t)
+    val result = tEnv
+      .sqlQuery("select * from MyTableRow where a like 'b\"cd\"e%'")
+      .execute()
+      .collect()
+      .toList
+    TestBaseUtils.compareResultAsText(result, "b\"cd\"efg,Worlds")
+  }
+
+  @Test
   def testCurrentDatabase(): Unit = {
     val result1 = tEnv.sqlQuery("SELECT CURRENT_DATABASE()").execute().collect().toList
     assertEquals(Seq(row(tEnv.getCurrentDatabase)), result1)
