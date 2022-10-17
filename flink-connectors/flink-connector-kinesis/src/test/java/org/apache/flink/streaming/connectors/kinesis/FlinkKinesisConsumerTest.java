@@ -819,13 +819,9 @@ public class FlinkKinesisConsumerTest extends TestLogger {
         java.lang.reflect.Constructor<KinesisDataFetcher> ctor =
                 (java.lang.reflect.Constructor<KinesisDataFetcher>)
                         KinesisDataFetcher.class.getConstructors()[0];
-        Class<?>[] otherParamTypes = new Class<?>[ctor.getParameterTypes().length - 1];
+        Class<?>[] otherParamTypes = new Class<?>[ctor.getParameterCount() - 1];
         System.arraycopy(
-                ctor.getParameterTypes(),
-                1,
-                otherParamTypes,
-                0,
-                ctor.getParameterTypes().length - 1);
+                ctor.getParameterTypes(), 1, otherParamTypes, 0, ctor.getParameterCount() - 1);
 
         Supplier<Object[]> argumentSupplier =
                 () -> {
