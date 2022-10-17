@@ -78,10 +78,10 @@ public class JobVertex implements java.io.Serializable {
     private final Map<IntermediateDataSetID, IntermediateDataSet> results = new LinkedHashMap<>();
 
     /** List of edges with incoming data. One per Reader. */
-    private final ArrayList<JobEdge> inputs = new ArrayList<>();
+    private final List<JobEdge> inputs = new ArrayList<>();
 
     /** The list of factories for operator coordinators. */
-    private final ArrayList<SerializedValue<OperatorCoordinator.Provider>> operatorCoordinators =
+    private final List<SerializedValue<OperatorCoordinator.Provider>> operatorCoordinators =
             new ArrayList<>();
 
     /** Number of subtasks to split this task into at runtime. */

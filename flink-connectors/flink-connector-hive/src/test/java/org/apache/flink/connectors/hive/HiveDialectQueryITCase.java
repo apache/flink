@@ -853,6 +853,33 @@ public class HiveDialectQueryITCase {
     }
 
     @Test
+    public void testLiteral() throws Exception {
+        List<Row> result =
+                CollectionUtil.iteratorToList(
+                        tableEnv.executeSql("SELECT asin(2), binary('1'), struct(2, 9, 7)")
+                                .collect());
+        if (HiveVersionTestUtil.HIVE_310_OR_LATER) {
+            assertThat(result.toString()).isEqualTo("[+I[null, [49], +I[2, 9, 7]]]");
+        } else {
+            assertThat(result.toString()).isEqualTo("[+I[NaN, [49], +I[2, 9, 7]]]");
+        }
+        tableEnv.executeSql("create table test_decimal_literal(d decimal(10, 2))");
+        try {
+            tableEnv.executeSql("insert into test_decimal_literal values (1.2)").await();
+            result =
+                    CollectionUtil.iteratorToList(
+                            tableEnv.executeSql(
+                                            "select d / 3, d / 3L, 6 / d, 6L / d from test_decimal_literal")
+                                    .collect());
+            assertThat(result.toString())
+                    .isEqualTo("[+I[0.400000, 0.400000, 5.00000000000, 5.00000000000]]");
+
+        } finally {
+            tableEnv.executeSql("drop table test_decimal_literal");
+        }
+    }
+
+    @Test
     public void testCrossCatalogQueryNoHiveTable() throws Exception {
         // register a new in-memory catalog
         Catalog inMemoryCatalog = new GenericInMemoryCatalog("m_catalog", "db");

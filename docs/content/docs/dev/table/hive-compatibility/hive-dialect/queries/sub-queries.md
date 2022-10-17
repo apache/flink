@@ -34,7 +34,7 @@ The sub-query can also be a query expression with `UNION`. Hive dialect supports
 ### Syntax
 
 ```sql
-select_statement from ( select_statement ) [ AS ] name
+select_statement FROM ( select_statement ) [ AS ] name
 ```
 
 ### Example
@@ -56,7 +56,7 @@ Hive dialect also supports some types of sub-queries in the `WHERE` clause.
 ### Syntax
 
 ```sql
-select_statement from table WHERE { colName { IN | NOT IN } 
+select_statement FROM table WHERE { colName { IN | NOT IN } 
                                   | NOT EXISTS | EXISTS } ( subquery_select_statement )
 ```
 

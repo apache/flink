@@ -116,20 +116,20 @@ For the clause `( AS colName ( colType )? [, ... ] )?`, please be aware the foll
 ```sql
 CREATE TABLE src(key string, value string);
 -- transform using
-SELECT TRANSFORM(key, value) using 'cat' from t1;
+SELECT TRANSFORM(key, value) USING 'cat' from t1;
 
 -- transform using with specific record writer and record reader
 SELECT TRANSFORM(key, value) ROW FORMAT SERDE 'MySerDe'
  WITH SERDEPROPERTIES ('p1'='v1','p2'='v2')
  RECORDWRITER 'MyRecordWriter'
- using 'cat'
+ USING 'cat'
  ROW FORMAT DELIMITED FIELDS TERMINATED BY ','
- RECORDREADER 'MyRecordReader' from src;
+ RECORDREADER 'MyRecordReader' FROM src;
  
 -- use keyword MAP instead of TRANSFORM
-FROM src INSERT OVERWRITE TABLE dest1 MAP src.key, CAST(src.key / 10 AS INT) using 'cat' as (c1, c2);
+FROM src INSERT OVERWRITE TABLE dest1 MAP src.key, CAST(src.key / 10 AS INT) USING 'cat' AS (c1, c2);
 
 -- specific the output of transform
-SELECT TRANSFORM(column) USING 'cat' AS c1, c2;
-SELECT TRANSFORM(column) USING 'cat' AS(c1 INT, c2 INT);
+SELECT TRANSFORM(key, value) USING 'cat' AS c1, c2;
+SELECT TRANSFORM(key, value) USING 'cat' AS (c1 INT, c2 INT);
 ```

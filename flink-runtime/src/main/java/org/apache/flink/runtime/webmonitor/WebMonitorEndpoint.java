@@ -67,6 +67,7 @@ import org.apache.flink.runtime.rest.handler.job.SubtaskExecutionAttemptDetailsH
 import org.apache.flink.runtime.rest.handler.job.SubtasksAllAccumulatorsHandler;
 import org.apache.flink.runtime.rest.handler.job.SubtasksTimesHandler;
 import org.apache.flink.runtime.rest.handler.job.checkpoints.CheckpointConfigHandler;
+import org.apache.flink.runtime.rest.handler.job.checkpoints.CheckpointHandlers;
 import org.apache.flink.runtime.rest.handler.job.checkpoints.CheckpointStatisticDetailsHandler;
 import org.apache.flink.runtime.rest.handler.job.checkpoints.CheckpointStatsCache;
 import org.apache.flink.runtime.rest.handler.job.checkpoints.CheckpointingStatisticsHandler;
@@ -545,6 +546,14 @@ public class WebMonitorEndpoint<T extends RestfulGateway> extends RestServerEndp
                 new SavepointHandlers.SavepointStatusHandler(
                         leaderRetriever, timeout, responseHeaders);
 
+        final CheckpointHandlers.CheckpointTriggerHandler checkpointTriggerHandler =
+                new CheckpointHandlers.CheckpointTriggerHandler(
+                        leaderRetriever, timeout, responseHeaders);
+
+        final CheckpointHandlers.CheckpointStatusHandler checkpointStatusHandler =
+                new CheckpointHandlers.CheckpointStatusHandler(
+                        leaderRetriever, timeout, responseHeaders);
+
         final SubtaskExecutionAttemptDetailsHandler subtaskExecutionAttemptDetailsHandler =
                 new SubtaskExecutionAttemptDetailsHandler(
                         leaderRetriever,
@@ -776,6 +785,10 @@ public class WebMonitorEndpoint<T extends RestfulGateway> extends RestServerEndp
         handlers.add(
                 Tuple2.of(stopWithSavepointHandler.getMessageHeaders(), stopWithSavepointHandler));
         handlers.add(Tuple2.of(savepointStatusHandler.getMessageHeaders(), savepointStatusHandler));
+        handlers.add(
+                Tuple2.of(checkpointTriggerHandler.getMessageHeaders(), checkpointTriggerHandler));
+        handlers.add(
+                Tuple2.of(checkpointStatusHandler.getMessageHeaders(), checkpointStatusHandler));
         handlers.add(
                 Tuple2.of(
                         subtaskExecutionAttemptDetailsHandler.getMessageHeaders(),

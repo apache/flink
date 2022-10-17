@@ -112,7 +112,7 @@ Please refer to [CREATE MARCO]({{< ref "docs/dev/table/hive-compatibility/hive-d
 ```sql
 DROP TEMPORARY MACRO [IF EXISTS] macro_name;
 ```
-`DROP` returns an error if the view doesn't exist, unless `IF EXISTS` is specified.
+`DROP` returns an error if the macro doesn't exist, unless `IF EXISTS` is specified.
 
 ### Examples
 

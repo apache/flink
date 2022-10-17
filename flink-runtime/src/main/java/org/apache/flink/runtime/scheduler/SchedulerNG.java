@@ -21,10 +21,12 @@ package org.apache.flink.runtime.scheduler;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
+import org.apache.flink.core.execution.CheckpointType;
 import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.queryablestate.KvStateID;
 import org.apache.flink.runtime.accumulators.AccumulatorSnapshot;
 import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
+import org.apache.flink.runtime.checkpoint.CompletedCheckpoint;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
 import org.apache.flink.runtime.execution.ExecutionState;
@@ -125,7 +127,7 @@ public interface SchedulerNG extends GlobalFailureHandler, AutoCloseableAsync {
     CompletableFuture<String> triggerSavepoint(
             @Nullable String targetDirectory, boolean cancelJob, SavepointFormatType formatType);
 
-    CompletableFuture<String> triggerCheckpoint();
+    CompletableFuture<CompletedCheckpoint> triggerCheckpoint(CheckpointType checkpointType);
 
     void acknowledgeCheckpoint(
             JobID jobID,

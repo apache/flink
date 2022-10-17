@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.rest.messages.job.savepoints;
+package org.apache.flink.runtime.rest.messages.checkpoints;
 
 import org.apache.flink.runtime.rest.messages.ResponseBody;
 import org.apache.flink.runtime.rest.messages.json.SerializedThrowableDeserializer;
@@ -34,17 +34,17 @@ import javax.annotation.Nullable;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 
-/** Represents information about a finished savepoint. */
+/** Represents information about a triggered checkpoint. */
 @JsonInclude(JsonInclude.Include.NON_NULL)
-public class SavepointInfo implements ResponseBody {
+public class CheckpointInfo implements ResponseBody {
 
-    private static final String FIELD_NAME_LOCATION = "location";
+    private static final String FIELD_NAME_CHECKPOINT_ID = "checkpointId";
 
-    private static final String FIELD_NAME_FAILURE_CAUSE = "failure-cause";
+    private static final String FIELD_NAME_FAILURE_CAUSE = "failureCause";
 
-    @JsonProperty(FIELD_NAME_LOCATION)
+    @JsonProperty(FIELD_NAME_CHECKPOINT_ID)
     @Nullable
-    private final String location;
+    private final Long checkpointId;
 
     @JsonProperty(FIELD_NAME_FAILURE_CAUSE)
     @JsonSerialize(using = SerializedThrowableSerializer.class)
@@ -53,24 +53,24 @@ public class SavepointInfo implements ResponseBody {
     private final SerializedThrowable failureCause;
 
     @JsonCreator
-    public SavepointInfo(
-            @JsonProperty(FIELD_NAME_LOCATION) @Nullable final String location,
+    public CheckpointInfo(
+            @JsonProperty(FIELD_NAME_CHECKPOINT_ID) @Nullable final Long checkpointId,
             @JsonProperty(FIELD_NAME_FAILURE_CAUSE)
                     @JsonDeserialize(using = SerializedThrowableDeserializer.class)
                     @Nullable
                     final SerializedThrowable failureCause) {
         checkArgument(
-                location != null ^ failureCause != null,
-                "Either location or failureCause must be set");
+                checkpointId != null ^ failureCause != null,
+                "Either checkpointId or failureCause must be set");
 
-        this.location = location;
+        this.checkpointId = checkpointId;
         this.failureCause = failureCause;
     }
 
     @Nullable
     @JsonIgnore
-    public String getLocation() {
-        return location;
+    public Long getCheckpointId() {
+        return checkpointId;
     }
 
     @Nullable

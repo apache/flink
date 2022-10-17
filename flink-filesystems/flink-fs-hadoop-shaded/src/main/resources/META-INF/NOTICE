@@ -6,30 +6,30 @@ The Apache Software Foundation (http://www.apache.org/).
 
 This project bundles the following dependencies under the Apache Software License 2.0 (http://www.apache.org/licenses/LICENSE-2.0.txt)
 
-- org.apache.hadoop:hadoop-annotations:3.3.2
-- org.apache.hadoop:hadoop-auth:3.3.2
-- org.apache.hadoop:hadoop-common:3.3.2
-- org.apache.commons:commons-configuration2:2.1.1
-- org.apache.commons:commons-lang3:3.3.2
-- org.apache.commons:commons-text:1.4
-- org.apache.commons:commons-compress:1.21
-- commons-collections:commons-collections:3.2.2
-- commons-io:commons-io:2.11.0
-- commons-logging:commons-logging:1.1.3
-- commons-beanutils:commons-beanutils:1.9.4
-- com.google.guava:failureaccess:1.0
-- com.google.guava:guava:27.0-jre
-- com.google.guava:listenablefuture:9999.0-empty-to-avoid-conflict-with-guava
-- com.google.j2objc:j2objc-annotations:1.1
 - com.fasterxml.jackson.core:jackson-annotations:2.13.4
 - com.fasterxml.jackson.core:jackson-core:2.13.4
 - com.fasterxml.jackson.core:jackson-databind:2.13.4
 - com.fasterxml.woodstox:woodstox-core:5.3.0
-- org.apache.hadoop.thirdparty:hadoop-shaded-protobuf_3_7:1.1.1
+- com.google.guava:failureaccess:1.0
+- com.google.guava:guava:27.0-jre
+- com.google.guava:listenablefuture:9999.0-empty-to-avoid-conflict-with-guava
+- com.google.j2objc:j2objc-annotations:1.1
+- commons-beanutils:commons-beanutils:1.9.4
+- commons-collections:commons-collections:3.2.2
+- commons-io:commons-io:2.11.0
+- commons-logging:commons-logging:1.1.3
+- org.apache.commons:commons-compress:1.21
+- org.apache.commons:commons-configuration2:2.1.1
+- org.apache.commons:commons-lang3:3.3.2
+- org.apache.commons:commons-text:1.4
 - org.apache.hadoop.thirdparty:hadoop-shaded-guava:1.1.1
+- org.apache.hadoop.thirdparty:hadoop-shaded-protobuf_3_7:1.1.1
+- org.apache.hadoop:hadoop-annotations:3.3.4
+- org.apache.hadoop:hadoop-auth:3.3.4
+- org.apache.hadoop:hadoop-common:3.3.4
 - org.apache.kerby:kerb-core:1.0.1
-- org.apache.kerby:kerby-pkix:1.0.1
 - org.apache.kerby:kerby-asn1:1.0.1
+- org.apache.kerby:kerby-pkix:1.0.1
 - org.apache.kerby:kerby-util:1.0.1
 - org.xerial.snappy:snappy-java:1.1.8.3
 
@@ -65,7 +65,7 @@ the Apache Software License 2.0 (http://www.apache.org/licenses/LICENSE-2.0.txt)
 
 - com.google.protobuf:protobuf-java:3.7.1
 
-This project bundles org.apache.hadoop:*:3.3.2 from which it inherits the following notices:
+This project bundles org.apache.hadoop:*:3.3.4 from which it inherits the following notices:
 
 The Apache Hadoop project contains subcomponents with separate copyright
 notices and license terms. Your use of the source code for the these
