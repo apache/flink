@@ -21,6 +21,7 @@ package org.apache.flink.streaming.api.utils;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeinfo.BasicArrayTypeInfo;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
+import org.apache.flink.api.common.typeinfo.LocalTimeTypeInfo;
 import org.apache.flink.api.common.typeinfo.PrimitiveArrayTypeInfo;
 import org.apache.flink.api.common.typeinfo.SqlTimeTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
@@ -35,6 +36,9 @@ import org.apache.flink.api.common.typeutils.base.GenericArraySerializer;
 import org.apache.flink.api.common.typeutils.base.InstantSerializer;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.api.common.typeutils.base.ListSerializer;
+import org.apache.flink.api.common.typeutils.base.LocalDateSerializer;
+import org.apache.flink.api.common.typeutils.base.LocalDateTimeSerializer;
+import org.apache.flink.api.common.typeutils.base.LocalTimeSerializer;
 import org.apache.flink.api.common.typeutils.base.LongSerializer;
 import org.apache.flink.api.common.typeutils.base.MapSerializer;
 import org.apache.flink.api.common.typeutils.base.ShortSerializer;
@@ -140,6 +144,10 @@ public class PythonTypeUtils {
                 return buildSqlTimeTypeProto((SqlTimeTypeInfo<?>) typeInformation);
             }
 
+            if (typeInformation instanceof LocalTimeTypeInfo) {
+                return buildLocalTimeTypeProto((LocalTimeTypeInfo<?>) typeInformation);
+            }
+
             if (typeInformation instanceof RowTypeInfo) {
                 return buildRowTypeProto((RowTypeInfo) typeInformation);
             }
@@ -200,6 +208,12 @@ public class PythonTypeUtils {
                                 sqlTimeTypeInfo.toString()));
             }
 
+            return FlinkFnApi.TypeInfo.newBuilder().setTypeName(typeName).build();
+        }
+
+        private static FlinkFnApi.TypeInfo buildLocalTimeTypeProto(
+                LocalTimeTypeInfo<?> localTimeTypeInfo) {
+            FlinkFnApi.TypeInfo.TypeName typeName = getTypeName(localTimeTypeInfo);
             return FlinkFnApi.TypeInfo.newBuilder().setTypeName(typeName).build();
         }
 
@@ -394,6 +408,18 @@ public class PythonTypeUtils {
                 return FlinkFnApi.TypeInfo.TypeName.SQL_TIMESTAMP;
             }
 
+            if (typeInfo.equals(LocalTimeTypeInfo.LOCAL_DATE)) {
+                return FlinkFnApi.TypeInfo.TypeName.LOCAL_DATE;
+            }
+
+            if (typeInfo.equals(LocalTimeTypeInfo.LOCAL_TIME)) {
+                return FlinkFnApi.TypeInfo.TypeName.LOCAL_TIME;
+            }
+
+            if (typeInfo.equals(LocalTimeTypeInfo.LOCAL_DATE_TIME)) {
+                return FlinkFnApi.TypeInfo.TypeName.LOCAL_DATETIME;
+            }
+
             throw new UnsupportedOperationException(
                     String.format(
                             "Type %s is still not supported in PyFlink.", typeInfo.toString()));
@@ -461,6 +487,14 @@ public class PythonTypeUtils {
                     SqlTimeTypeInfo.TIME.getTypeClass(), TimeSerializer.INSTANCE);
             typeInfoToSerializerMap.put(
                     SqlTimeTypeInfo.TIMESTAMP.getTypeClass(), new TimestampSerializer(3));
+
+            typeInfoToSerializerMap.put(
+                    LocalTimeTypeInfo.LOCAL_DATE.getTypeClass(), LocalDateSerializer.INSTANCE);
+            typeInfoToSerializerMap.put(
+                    LocalTimeTypeInfo.LOCAL_TIME.getTypeClass(), LocalTimeSerializer.INSTANCE);
+            typeInfoToSerializerMap.put(
+                    LocalTimeTypeInfo.LOCAL_DATE_TIME.getTypeClass(),
+                    LocalDateTimeSerializer.INSTANCE);
         }
 
         @SuppressWarnings("unchecked")

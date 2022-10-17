@@ -310,6 +310,9 @@ message TypeInfo {
     PICKLED_BYTES = 20;
     OBJECT_ARRAY = 21;
     INSTANT = 22;
+    LOCAL_DATE = 24;
+    LOCAL_TIME = 25;
+    LOCAL_DATETIME = 26;
   }
 
   message MapTypeInfo {
