@@ -136,10 +136,10 @@ table_constraint:
 CREATE TABLE t1(key string, value string);
 
 -- creaet partitioned table
-CREATE TABLE pt1(key string, value string) PARTITIONED by (year int, month int);
+CREATE TABLE pt1(key string, value string) PARTITIONED BY (year int, month int);
 
 -- creaet table with specifc format
-CREATE TABLE t1(key string, value string) stored as ORC;
+CREATE TABLE t1(key string, value string) STORED AS ORC;
 
 -- create table with specifc rowfromat
 CREATE TABLE t1(m MAP<BIGINT, STRING>) 
@@ -239,7 +239,7 @@ The function is registered to metastore and will exist in all session unless the
 CREATE FUNCTION simple_udf AS 'SimpleUdf';
 
 -- create function using jar assuming the class `SimpleUdf` hasn't existed in class path
-CREATE  FUNCTION simple_udf AS 'SimpleUdf' USING JAR '/tmp/SimpleUdf.jar';
+CREATE FUNCTION simple_udf AS 'SimpleUdf' USING JAR '/tmp/SimpleUdf.jar';
 
 -- create function using remote jar
 CREATE FUNCTION simple_udf AS 'SimpleUdf' USING JAR 'hdfs://namenode-host:port/path/SimpleUdf.jar';

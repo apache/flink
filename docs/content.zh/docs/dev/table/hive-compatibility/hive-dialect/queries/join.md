@@ -62,13 +62,13 @@ If there's no match in right join side, it will append `NULL` value. `LEFT JOIN`
 
 ### RIGHT JOIN
 
-`RIGHT JOIN` returns all the rows from the right join side and the matched values from the left join side. It will concat the values from both sides.
-If there's no match in left join side, it will append `NULL` value. `RIGHT JOIN` is equivalent to `RIGHT JOIN`.
+`RIGHT JOIN` returns all the rows from the right join side and the matched values from the left join side. It will concat the values from both sides.  
+If there's no match in left join side, it will append `NULL` value. `RIGHT JOIN` is equivalent to `RIGHT OUTER JOIN`.
 
 ### FULL JOIN
 
-`FULL JOIN` returns all the rows from both join sides. It will concat the values from both sides. If there's one side does not match the row, it will append `NULL` value.
-`FULL JOIN` is equivalent to `FULL OUTER JOIN`.
+`FULL JOIN` returns all the rows from both join sides. It will concat the values from both sides.  
+If there's one side does not match the row, it will append `NULL` value. `FULL JOIN` is equivalent to `FULL OUTER JOIN`.
 
 ### LEFT SEMI JOIN
 
