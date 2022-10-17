@@ -552,7 +552,7 @@ public class TypeExtractor {
 
                 // number of parameters the SAM of implemented interface has; the parameter indexing
                 // applies to this range
-                final int baseParametersLen = sam.getParameterTypes().length;
+                final int baseParametersLen = sam.getParameterCount();
 
                 final Type output;
                 if (lambdaOutputTypeArgumentIndices.length > 0) {
@@ -687,7 +687,7 @@ public class TypeExtractor {
             if (exec != null) {
 
                 final Method sam = TypeExtractionUtils.getSingleAbstractMethod(baseClass);
-                final int baseParametersLen = sam.getParameterTypes().length;
+                final int baseParametersLen = sam.getParameterCount();
 
                 // parameters must be accessed from behind, since JVM can add additional parameters
                 // e.g. when using local variables inside lambda function
@@ -2004,7 +2004,7 @@ public class TypeExtractor {
                                 || methodNameLow.equals(fieldNameLow))
                         &&
                         // no arguments for the getter
-                        m.getParameterTypes().length == 0
+                        m.getParameterCount() == 0
                         &&
                         // return type is same as field type (or the generic variant of it)
                         (m.getGenericReturnType().equals(fieldType)
@@ -2015,7 +2015,7 @@ public class TypeExtractor {
                 // check for setters (<FieldName>_$eq for scala)
                 if ((methodNameLow.equals("set" + fieldNameLow)
                                 || methodNameLow.equals(fieldNameLow + "_$eq"))
-                        && m.getParameterTypes().length == 1
+                        && m.getParameterCount() == 1
                         && // one parameter of the field's type
                         (m.getGenericParameterTypes()[0].equals(fieldType)
                                 || (m.getParameterTypes()[0].equals(fieldTypeWrapper))

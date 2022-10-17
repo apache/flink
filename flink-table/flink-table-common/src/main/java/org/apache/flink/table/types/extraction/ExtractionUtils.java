@@ -633,7 +633,7 @@ public final class ExtractionUtils {
         for (Constructor<?> constructor : clazz.getDeclaredConstructors()) {
             final boolean qualifyingConstructor =
                     Modifier.isPublic(constructor.getModifiers())
-                            && constructor.getParameterTypes().length == fields.size();
+                            && constructor.getParameterCount() == fields.size();
             if (!qualifyingConstructor) {
                 continue;
             }
