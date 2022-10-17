@@ -28,9 +28,11 @@ import org.apache.flink.table.api.Schema;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.ValidationException;
+import org.apache.flink.table.catalog.CatalogBaseTable;
 import org.apache.flink.table.catalog.CatalogManager;
 import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.CatalogTableImpl;
+import org.apache.flink.table.catalog.CatalogView;
 import org.apache.flink.table.catalog.ContextResolvedTable;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.catalog.UnresolvedIdentifier;
@@ -202,10 +204,29 @@ class SqlCreateTableConverter {
                                                                 .getSourceTable()
                                                                 .getParserPosition())));
         if (!(lookupResult.getTable() instanceof CatalogTable)) {
-            throw new ValidationException(
-                    String.format(
-                            "Source table '%s' of the LIKE clause can not be a VIEW, at %s",
-                            identifier, sqlTableLike.getSourceTable().getParserPosition()));
+            CatalogBaseTable table = lookupResult.getTable();
+            if (table instanceof CatalogView) {
+                CatalogView catalogView = (CatalogView) table;
+                Schema schemaInner =
+                        Schema.newBuilder()
+                                .fromResolvedSchema(
+                                        catalogView
+                                                .getUnresolvedSchema()
+                                                .resolve(catalogManager.getSchemaResolver()))
+                                .build();
+                CatalogTable catalogTable =
+                        CatalogTable.of(
+                                schemaInner,
+                                catalogView.getComment(),
+                                Collections.emptyList(),
+                                catalogView.getOptions());
+                return catalogTable;
+            } else {
+                throw new ValidationException(
+                        String.format(
+                                "Source table '%s' of the LIKE clause can not be a VIEW, at %s",
+                                identifier, sqlTableLike.getSourceTable().getParserPosition()));
+            }
         }
         return lookupResult.getTable();
     }
