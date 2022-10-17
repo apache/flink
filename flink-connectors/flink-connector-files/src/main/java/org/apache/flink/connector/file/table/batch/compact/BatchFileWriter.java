@@ -21,12 +21,12 @@ package org.apache.flink.connector.file.table.batch.compact;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.connector.file.table.FileSystemFactory;
 import org.apache.flink.connector.file.table.OutputFormatFactory;
-import org.apache.flink.connector.file.table.PartitionCommitPolicyFactory;
 import org.apache.flink.connector.file.table.PartitionComputer;
 import org.apache.flink.connector.file.table.PartitionTempFileManager;
 import org.apache.flink.connector.file.table.PartitionWriter;
 import org.apache.flink.connector.file.table.PartitionWriterFactory;
-import org.apache.flink.connector.file.table.TableMetaStoreFactory;
+import org.apache.flink.connector.file.table.stream.compact.CompactMessages.CoordinatorInput;
+import org.apache.flink.connector.file.table.stream.compact.CompactMessages.InputFile;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.streaming.api.functions.sink.filesystem.OutputFileConfig;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
@@ -34,15 +34,16 @@ import org.apache.flink.streaming.api.operators.BoundedOneInput;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.table.api.TableException;
-import org.apache.flink.table.catalog.ObjectIdentifier;
-import org.apache.flink.table.data.RowData;
 
 import java.io.IOException;
 import java.util.LinkedHashMap;
 
-/** sdf. */
-public class BatchFileWriter<T, R> extends AbstractStreamOperator<R>
-        implements OneInputStreamOperator<T, R>, BoundedOneInput {
+/**
+ * An operator for writing files for batch mode. Once creating a new file to write, the writing
+ * operator will emit the written file to upstream.
+ */
+public class BatchFileWriter<T> extends AbstractStreamOperator<CoordinatorInput>
+        implements OneInputStreamOperator<T, CoordinatorInput>, BoundedOneInput {
 
     private final FileSystemFactory fsFactory;
     private final Path tmpPath;
@@ -54,7 +55,6 @@ public class BatchFileWriter<T, R> extends AbstractStreamOperator<R>
     private final OutputFileConfig outputFileConfig;
 
     private transient PartitionWriter<T> writer;
-    private transient Configuration parameters;
 
     public BatchFileWriter(
             FileSystemFactory fsFactory,
@@ -83,22 +83,29 @@ public class BatchFileWriter<T, R> extends AbstractStreamOperator<R>
                             fsFactory,
                             tmpPath,
                             getRuntimeContext().getIndexOfThisSubtask(),
+                            getRuntimeContext().getAttemptNumber(),
                             outputFileConfig);
+            Configuration config =
+                    getContainingTask().getEnvironment().getTaskManagerInfo().getConfiguration();
             PartitionWriter.Context<T> context =
-                    new PartitionWriter.Context<>(parameters, formatFactory);
+                    new PartitionWriter.Context<>(config, formatFactory);
+
+            // when write a file, the listener emit the written files and the partition the files
+            // belonged
+            PartitionWriter.PartitionWriterListener writerListener =
+                    (partition, file) ->
+                            output.collect(new StreamRecord<>(new InputFile(partition, file)));
             writer =
                     PartitionWriterFactory.<T>get(
                                     partitionColumns.length - staticPartitions.size() > 0,
                                     dynamicGrouped,
                                     staticPartitions)
-                            .create(context, fileManager, computer);
+                            .create(context, fileManager, computer, writerListener);
+
         } catch (Exception e) {
             throw new TableException("Exception in open", e);
         }
     }
-
-    @Override
-    public void endInput() throws Exception {}
 
     @Override
     public void processElement(StreamRecord<T> element) throws Exception {
@@ -108,6 +115,9 @@ public class BatchFileWriter<T, R> extends AbstractStreamOperator<R>
             throw new TableException("Exception in writeRecord", e);
         }
     }
+
+    @Override
+    public void endInput() throws Exception {}
 
     @Override
     public void close() throws IOException {

@@ -29,6 +29,7 @@ import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.ClusterOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.HighAvailabilityOptions;
+import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.core.execution.CheckpointType;
 import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.metrics.MetricGroup;
@@ -573,6 +574,15 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId>
 
     private JobManagerRunner createJobMasterRunner(JobGraph jobGraph) throws Exception {
         Preconditions.checkState(!jobManagerRunnerRegistry.isRegistered(jobGraph.getJobID()));
+        // hack logic, put the option to job graph's configuration so that it can be gotten
+        // from job configurations
+        jobGraph.getJobConfiguration()
+                .set(
+                        JobManagerOptions.ADAPTIVE_BATCH_SCHEDULER_AVG_DATA_VOLUME_PER_TASK,
+                        configuration.get(
+                                JobManagerOptions
+                                        .ADAPTIVE_BATCH_SCHEDULER_AVG_DATA_VOLUME_PER_TASK));
+
         return jobManagerRunnerFactory.createJobManagerRunner(
                 jobGraph,
                 configuration,

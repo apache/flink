@@ -231,7 +231,7 @@ public class FileSystemConnectorOptions {
     public static final ConfigOption<Boolean> AUTO_COMPACTION =
             key("auto-compaction")
                     .booleanType()
-                    .defaultValue(true)
+                    .defaultValue(false)
                     .withDescription(
                             "Whether to enable automatic compaction in streaming sink or not.\n"
                                     + "The data will be written to temporary files. After the checkpoint is"
@@ -245,6 +245,13 @@ public class FileSystemConnectorOptions {
                     .withDescription(
                             "The compaction target file size, the default value is the rolling file size.");
 
+    public static final ConfigOption<Integer> COMPACTION_PARALLELISM =
+            key("compaction.parallelism")
+                    .intType()
+                    .noDefaultValue()
+                    .withDescription(
+                            "Defines a custom parallelism for the compaction operator in batch mode. By default, if this option is not define, "
+                                    + "the planner will use the parallelism of the sink as the parallelism. ");
     public static final ConfigOption<Integer> SINK_PARALLELISM = FactoryUtil.SINK_PARALLELISM;
 
     // --------------------------------------------------------------------------------------------

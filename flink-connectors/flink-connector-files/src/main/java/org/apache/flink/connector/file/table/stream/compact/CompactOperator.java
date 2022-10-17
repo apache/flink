@@ -27,6 +27,7 @@ import org.apache.flink.api.common.typeutils.base.MapSerializer;
 import org.apache.flink.api.java.typeutils.runtime.kryo.KryoSerializer;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.connector.file.src.reader.BulkFormat;
+import org.apache.flink.connector.file.table.CompactFileUtils;
 import org.apache.flink.connector.file.table.stream.PartitionCommitInfo;
 import org.apache.flink.connector.file.table.stream.compact.CompactMessages.CompactionUnit;
 import org.apache.flink.connector.file.table.stream.compact.CompactMessages.CoordinatorOutput;
@@ -112,6 +113,7 @@ public class CompactOperator<T> extends AbstractStreamOperator<PartitionCommitIn
                                 new ListSerializer<>(
                                         new KryoSerializer<>(Path.class, getExecutionConfig()))));
         this.expiredFilesState = context.getOperatorStateStore().getListState(metaDescriptor);
+
         this.expiredFiles = new TreeMap<>();
         this.currentExpiredFiles = new ArrayList<>();
 
@@ -131,7 +133,20 @@ public class CompactOperator<T> extends AbstractStreamOperator<PartitionCommitIn
                 String partition = unit.getPartition();
                 List<Path> paths = unit.getPaths();
 
-                doCompact(partition, paths);
+                Configuration config =
+                        getContainingTask()
+                                .getEnvironment()
+                                .getTaskManagerInfo()
+                                .getConfiguration();
+                CompactFileUtils.doCompact(
+                        fileSystem,
+                        partition,
+                        paths,
+                        config,
+                        this::doSingleFileMove,
+                        readerFactory,
+                        writerFactory);
+
                 this.partitions.add(partition);
 
                 // Only after the current checkpoint is successfully executed can delete
@@ -236,7 +251,8 @@ public class CompactOperator<T> extends AbstractStreamOperator<PartitionCommitIn
     }
 
     private boolean doSingleFileMove(Path src, Path dst) throws IOException {
-        // We can not rename, because we need to keep original file for failover
+        // We can not rename, because we need to keep original file for failover.
+        // Otherwise, the CompactCoordinator can't get the file size in coordinate phase
         RecoverableWriter writer;
         try {
             writer = fileSystem.createRecoverableWriter();
@@ -289,7 +305,7 @@ public class CompactOperator<T> extends AbstractStreamOperator<PartitionCommitIn
         }
     }
 
-    private static Path createCompactedFile(List<Path> uncompactedFiles) {
+    private Path createCompactedFile(List<Path> uncompactedFiles) {
         Path path = convertFromUncompacted(uncompactedFiles.get(0));
         return new Path(path.getParent(), COMPACTED_PREFIX + path.getName());
     }

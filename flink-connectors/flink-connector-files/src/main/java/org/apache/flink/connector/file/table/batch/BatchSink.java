@@ -25,12 +25,12 @@ import org.apache.flink.connector.file.table.FileSystemFactory;
 import org.apache.flink.connector.file.table.FileSystemOutputFormat;
 import org.apache.flink.connector.file.table.PartitionCommitPolicyFactory;
 import org.apache.flink.connector.file.table.TableMetaStoreFactory;
-import org.apache.flink.connector.file.table.batch.compact.BatchCommitter;
 import org.apache.flink.connector.file.table.batch.compact.BatchCompactCoordinator;
 import org.apache.flink.connector.file.table.batch.compact.BatchCompactOperator;
-import org.apache.flink.connector.file.table.stream.PartitionCommitInfo;
+import org.apache.flink.connector.file.table.batch.compact.BatchPartitionCommitter;
 import org.apache.flink.connector.file.table.stream.compact.CompactBucketWriter;
 import org.apache.flink.connector.file.table.stream.compact.CompactMessages;
+import org.apache.flink.connector.file.table.stream.compact.CompactMessages.CoordinatorInput;
 import org.apache.flink.connector.file.table.stream.compact.CompactReader;
 import org.apache.flink.connector.file.table.stream.compact.CompactWriter;
 import org.apache.flink.core.fs.FileSystem;
@@ -69,7 +69,7 @@ public class BatchSink {
     }
 
     public static <T> DataStreamSink<?> createCompactPipeline(
-            DataStream<T> dataStream,
+            DataStream<CoordinatorInput> dataStream,
             StreamingFileSink.BucketsBuilder<
                             T, String, ? extends StreamingFileSink.BucketsBuilder<T, String, ?>>
                     builder,
@@ -81,9 +81,11 @@ public class BatchSink {
             LinkedHashMap<String, String> staticPartitionSpec,
             Path tmpPath,
             ObjectIdentifier identifier,
+            final long compactAverageSize,
+            final long compactTargetSize,
             boolean isToLocal,
             boolean overwrite,
-            final int parallelism)
+            final int compactParallelism)
             throws IOException {
         SupplierWithException<FileSystem, IOException> fsSupplier =
                 (SupplierWithException<org.apache.flink.core.fs.FileSystem, IOException>
@@ -99,18 +101,19 @@ public class BatchSink {
                 .transform(
                         "coordinator",
                         TypeInformation.of(CompactMessages.CoordinatorOutput.class),
-                        new BatchCompactCoordinator<>(
-                                fsSupplier, metaStoreFactory, tmpPath, partitionColumns.length))
+                        new BatchCompactCoordinator(
+                                fsSupplier, compactAverageSize, compactTargetSize))
                 .setParallelism(1)
+                .setMaxParallelism(1)
                 .transform(
                         "compact",
-                        TypeInformation.of(PartitionCommitInfo.class),
+                        TypeInformation.of(CompactMessages.CompactOutput.class),
                         new BatchCompactOperator<>(fsSupplier, readFactory, writerFactory))
-                .setParallelism(parallelism)
+                .setParallelism(compactParallelism)
                 .transform(
                         "committer",
                         TypeInformation.of(Void.class),
-                        new BatchCommitter(
+                        new BatchPartitionCommitter(
                                 fsFactory,
                                 metaStoreFactory,
                                 overwrite,
@@ -121,6 +124,7 @@ public class BatchSink {
                                 identifier,
                                 partitionCommitPolicyFactory))
                 .setParallelism(1)
+                .setMaxParallelism(1)
                 .addSink(new DiscardingSink<>());
     }
 }

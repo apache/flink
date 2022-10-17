@@ -62,4 +62,24 @@ public interface PartitionWriter<T> {
             return format;
         }
     }
+
+    /** Listener for partition writer. */
+    interface PartitionWriterListener {
+        /**
+         * Notifies a new file has been created.
+         *
+         * @param partition The partition for the newly created file.
+         * @param file The newly created file.
+         */
+        void onFileOpen(String partition, Path file);
+    }
+
+    /** Default implementation for PartitionWriterListener. */
+    class DefaultPartitionWriterListener implements PartitionWriterListener {
+
+        @Override
+        public void onFileOpen(String partition, Path file) {
+            // do nothing
+        }
+    }
 }

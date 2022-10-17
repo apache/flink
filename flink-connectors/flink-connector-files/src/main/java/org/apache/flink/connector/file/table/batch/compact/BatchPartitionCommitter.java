@@ -23,8 +23,9 @@ import org.apache.flink.connector.file.table.FileSystemFactory;
 import org.apache.flink.connector.file.table.PartitionCommitPolicy;
 import org.apache.flink.connector.file.table.PartitionCommitPolicyFactory;
 import org.apache.flink.connector.file.table.TableMetaStoreFactory;
-import org.apache.flink.connector.file.table.stream.PartitionCommitInfo;
+import org.apache.flink.connector.file.table.stream.compact.CompactMessages.CompactOutput;
 import org.apache.flink.core.fs.Path;
+import org.apache.flink.runtime.state.StateInitializationContext;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
@@ -32,13 +33,19 @@ import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
-/** sd. */
-public class BatchCommitter extends AbstractStreamOperator<Void>
-        implements OneInputStreamOperator<PartitionCommitInfo, Void> {
+/**
+ * Committer operator for partition in batch mode. This is the single (non-parallel) task. It
+ * collects all the partition information including partition and written files send from upstream.
+ */
+public class BatchPartitionCommitter extends AbstractStreamOperator<Void>
+        implements OneInputStreamOperator<CompactOutput, Void> {
 
     private final FileSystemFactory fsFactory;
     private final TableMetaStoreFactory msFactory;
@@ -50,7 +57,9 @@ public class BatchCommitter extends AbstractStreamOperator<Void>
     private final LinkedHashMap<String, String> staticPartitions;
     private final ObjectIdentifier identifier;
 
-    public BatchCommitter(
+    private transient Map<String, List<Path>> partitionsFiles;
+
+    public BatchPartitionCommitter(
             FileSystemFactory fsFactory,
             TableMetaStoreFactory msFactory,
             boolean overwrite,
@@ -72,7 +81,22 @@ public class BatchCommitter extends AbstractStreamOperator<Void>
     }
 
     @Override
-    public void processElement(StreamRecord<PartitionCommitInfo> element) throws Exception {}
+    public void initializeState(StateInitializationContext context) throws Exception {
+        super.initializeState(context);
+        partitionsFiles = new HashMap<>();
+    }
+
+    @Override
+    public void processElement(StreamRecord<CompactOutput> element) throws Exception {
+        CompactOutput compactOutput = element.getValue();
+        for (Map.Entry<String, List<Path>> compactFiles :
+                compactOutput.getCompactedFiles().entrySet()) {
+            // collect the written partition and written files
+            partitionsFiles
+                    .computeIfAbsent(compactFiles.getKey(), k -> new ArrayList<>())
+                    .addAll(compactFiles.getValue());
+        }
+    }
 
     @Override
     public void finish() throws Exception {
@@ -81,7 +105,7 @@ public class BatchCommitter extends AbstractStreamOperator<Void>
             if (partitionCommitPolicyFactory != null) {
                 policies =
                         partitionCommitPolicyFactory.createPolicyChain(
-                                Thread.currentThread().getContextClassLoader(),
+                                getUserCodeClassloader(),
                                 () -> {
                                     try {
                                         return fsFactory.create(tmpPath.toUri());
@@ -91,6 +115,8 @@ public class BatchCommitter extends AbstractStreamOperator<Void>
                                 });
             }
 
+            // commit the partitions with the given files
+            // it will move the written temporary files to partition's location
             FileSystemCommitter committer =
                     new FileSystemCommitter(
                             fsFactory,
@@ -102,7 +128,7 @@ public class BatchCommitter extends AbstractStreamOperator<Void>
                             identifier,
                             staticPartitions,
                             policies);
-            committer.commitPartitions();
+            committer.commitPartitionsWithFiles(partitionsFiles);
         } catch (Exception e) {
             throw new TableException("Exception in finalizeGlobal", e);
         } finally {

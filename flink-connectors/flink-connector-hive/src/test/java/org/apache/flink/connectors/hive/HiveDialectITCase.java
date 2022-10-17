@@ -89,7 +89,6 @@ import java.util.LinkedHashMap;
 import java.util.List;
 
 import static org.apache.flink.core.testutils.FlinkAssertions.anyCauseMatches;
-import static org.apache.flink.table.api.config.ExecutionConfigOptions.TABLE_EXEC_RESOURCE_DEFAULT_PARALLELISM;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -342,53 +341,6 @@ public class HiveDialectITCase {
                 .isEqualTo(OrcSerde.class.getName());
         assertThat(hiveTable.getSd().getInputFormat()).isEqualTo(OrcInputFormat.class.getName());
         assertThat(hiveTable.getSd().getOutputFormat()).isEqualTo(OrcOutputFormat.class.getName());
-    }
-
-    @Test
-    public void t1() throws Exception {
-        tableEnv.getConfig().set(TABLE_EXEC_RESOURCE_DEFAULT_PARALLELISM, 2);
-        tableEnv.executeSql(
-                "create table src (x int,y string) partitioned by (p1 int,p2 string) stored as orc");
-        tableEnv.executeSql(
-                        "insert into src partition (p1=0,p2='static') values (1,'a'),(2,'b'),(3,'c')")
-                .await();
-        List<Row> results =
-                CollectionUtil.iteratorToList(tableEnv.executeSql("select * from src").collect());
-        System.out.println(results);
-
-        tableEnv.executeSql(
-                "create table src1 (x int,y string) partitioned by (p1 int,p2 string) stored as parquet");
-        tableEnv.executeSql(
-                        "insert into src1 partition (p1=0,p2='static') values (1,'a'),(2,'b'),(3,'c')")
-                .await();
-        results =
-                CollectionUtil.iteratorToList(tableEnv.executeSql("select * from src1").collect());
-        System.out.println(results);
-    }
-
-    @Test
-    public void t2() throws Exception {
-        tableEnv.executeSql(
-                "create table src (x int,y string) partitioned by (p1 int,p2 string) stored as orc TBLPROPERTIES (");
-        tableEnv.executeSql(
-                        "insert into src partition (p1=1,p2) values (1, 'a', 'static'),"
-                                + " (2,'b', 'static'),(3,'c', 'static'), (1, 'a', 'static1'),"
-                                + " (2,'b', 'static1'),(3,'c', 'static1') ")
-                .await();
-        List<Row> results =
-                CollectionUtil.iteratorToList(tableEnv.executeSql("select * from src").collect());
-        System.out.println(results);
-
-        tableEnv.executeSql(
-                "create table src1 (x int,y string) partitioned by (p1 int,p2 string) stored as parquet");
-        tableEnv.executeSql(
-                        "insert into src1 partition (p1=1,p2) values (1, 'a', 'static'),"
-                                + " (2,'b', 'static'),(3,'c', 'static'),(1, 'a', 'static1'),"
-                                + " (2,'b', 'static1'),(3,'c', 'static1') ")
-                .await();
-        results =
-                CollectionUtil.iteratorToList(tableEnv.executeSql("select * from src1").collect());
-        System.out.println(results);
     }
 
     @Test

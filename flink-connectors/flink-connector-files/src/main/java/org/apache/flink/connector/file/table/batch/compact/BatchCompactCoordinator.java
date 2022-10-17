@@ -18,122 +18,134 @@
 
 package org.apache.flink.connector.file.table.batch.compact;
 
-import org.apache.flink.connector.file.table.TableMetaStoreFactory;
-import org.apache.flink.connector.file.table.stream.compact.CompactMessages;
-import org.apache.flink.core.fs.FileStatus;
+import org.apache.flink.configuration.JobManagerOptions;
+import org.apache.flink.connector.file.table.BinPacking;
+import org.apache.flink.connector.file.table.stream.compact.CompactMessages.CompactionUnit;
+import org.apache.flink.connector.file.table.stream.compact.CompactMessages.CoordinatorInput;
+import org.apache.flink.connector.file.table.stream.compact.CompactMessages.CoordinatorOutput;
+import org.apache.flink.connector.file.table.stream.compact.CompactMessages.InputFile;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
+import org.apache.flink.metrics.Counter;
+import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
+import org.apache.flink.runtime.metrics.groups.TaskIOMetricGroup;
 import org.apache.flink.runtime.state.StateInitializationContext;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.BoundedOneInput;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.table.utils.PartitionPathUtils;
+import org.apache.flink.util.MathUtils;
 import org.apache.flink.util.function.SupplierWithException;
 
 import java.io.IOException;
+import java.lang.reflect.Field;
 import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.LinkedHashMap;
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
+import java.util.function.Function;
 
-import static org.apache.flink.connector.file.table.PartitionTempFileManager.collectPartSpecToPaths;
-import static org.apache.flink.connector.file.table.PartitionTempFileManager.listTaskTemporaryPaths;
+/**
+ * Coordinator for compaction in batch mode. It will collect the written files in {@link
+ * BatchFileWriter} and determine whether to compact files nor not as well as what files should be
+ * merged into a single file.
+ */
+public class BatchCompactCoordinator extends AbstractStreamOperator<CoordinatorOutput>
+        implements OneInputStreamOperator<CoordinatorInput, CoordinatorOutput>, BoundedOneInput {
 
-/** sd. */
-public class BatchCompactCoordinator<T>
-        extends AbstractStreamOperator<CompactMessages.CoordinatorOutput>
-        implements OneInputStreamOperator<T, CompactMessages.CoordinatorOutput>, BoundedOneInput {
+    private static final long serialVersionUID = 1L;
 
     private final SupplierWithException<FileSystem, IOException> fsFactory;
-    private final Path tmpPath;
-    private final TableMetaStoreFactory metaStoreFactory;
-    private final int partitionColumnSize;
+    private final long compactAverageSize;
+    private final long compactTargetSize;
 
     private transient FileSystem fs;
-    private transient TableMetaStoreFactory.TableMetaStore metaStore;
+    // the mapping from written partitions to the corresponding files.
+    private transient Map<String, List<Path>> inputFiles;
+    private transient int mergeTargetFileNum = 0;
 
     public BatchCompactCoordinator(
             SupplierWithException<FileSystem, IOException> fsFactory,
-            TableMetaStoreFactory metaStoreFactory,
-            Path tempPath,
-            int partitionColumnSize) {
+            long compactAverageSize,
+            long compactTargetSize) {
         this.fsFactory = fsFactory;
-        this.tmpPath = tempPath;
-        this.partitionColumnSize = partitionColumnSize;
-        this.metaStoreFactory = metaStoreFactory;
+        this.compactAverageSize = compactAverageSize;
+        this.compactTargetSize = compactTargetSize;
     }
 
     @Override
     public void initializeState(StateInitializationContext context) throws Exception {
         super.initializeState(context);
         fs = fsFactory.get();
-        metaStore = metaStoreFactory.createTableMetaStore();
+        inputFiles = new HashMap<>();
     }
 
     @Override
-    public void processElement(StreamRecord<T> element) throws Exception {}
+    public void processElement(StreamRecord<CoordinatorInput> element) throws Exception {
+        CoordinatorInput coordinatorInput = element.getValue();
+        if (coordinatorInput instanceof InputFile) {
+            InputFile file = (InputFile) coordinatorInput;
+            // collect the written files
+            inputFiles
+                    .computeIfAbsent(file.getPartition(), k -> new ArrayList<>())
+                    .add(file.getFile());
+        }
+    }
 
     @Override
     public void endInput() throws Exception {
-        List<Path> taskPaths = listTaskTemporaryPaths(fs, tmpPath);
-        AverageSize averageSize = getAverageSize(fs, taskPaths);
-        if (averageSize.totalSz / averageSize.numFiles <= 100000) {
-            Path basePath = new Path(metaStore.getLocationPath().getPath());
-            if (partitionColumnSize > 0) {
-                for (Map.Entry<LinkedHashMap<String, String>, List<Path>> entry :
-                        collectPartSpecToPaths(fs, taskPaths, partitionColumnSize).entrySet()) {
-                    String partition = PartitionPathUtils.generatePartitionPath(entry.getKey());
-                    output.collect(
-                            new StreamRecord<>(
-                                    new CompactMessages.CompactionUnit(
-                                            1,
-                                            new Path(basePath, partition).getPath(),
-                                            collectFiles(entry.getValue()))));
-                }
-            } else {
-                output.collect(
-                        new StreamRecord<>(
-                                new CompactMessages.CompactionUnit(
-                                        1, basePath.getPath(), collectFiles(taskPaths))));
-            }
+        for (Map.Entry<String, List<Path>> partitionFiles : inputFiles.entrySet()) {
+            compactPartitionFiles(partitionFiles.getKey(), partitionFiles.getValue());
         }
+        adjustMetricAQE(Math.max(1, mergeTargetFileNum));
     }
 
-    private AverageSize getAverageSize(FileSystem fs, List<Path> taskPaths) throws IOException {
-        long totalSz = 0;
-        int numFiles = 0;
-        if (partitionColumnSize > 0) {
-            for (Path path : taskPaths) {
-                FileStatus[] generatedParts =
-                        PartitionPathUtils.getFileStatusRecurse(path, partitionColumnSize, fs);
-                for (FileStatus fileStatus : generatedParts) {
-                    totalSz += fileStatus.getLen();
-                    numFiles += 1;
-                }
+    private void compactPartitionFiles(String partition, List<Path> paths) throws IOException {
+        int unitId = 0;
+        final Map<Path, Long> filesSize = getFilesSize(fs, paths);
+        // calculate the average size of these files
+        AverageSize averageSize = getAverageSize(filesSize);
+        if (averageSize.isLessThan(compactAverageSize)) {
+            // we should compact
+            // get the written files corresponding to the partition
+            Function<Path, Long> sizeFunc = filesSize::get;
+            // determine what files should be merged to a file
+            List<List<Path>> compactUnits = BinPacking.pack(paths, sizeFunc, compactTargetSize);
+            mergeTargetFileNum += (int) compactUnits.stream().filter(f -> f.size() > 1).count();
+            for (List<Path> compactUnit : compactUnits) {
+                // emit the compact units containing the files path
+                output.collect(
+                        new StreamRecord<>(new CompactionUnit(unitId++, partition, compactUnit)));
             }
         } else {
-            for (Path path : taskPaths) {
-                for (FileStatus fileStatus : fs.listStatus(path)) {
-                    totalSz += fileStatus.getLen();
-                    numFiles += 1;
-                }
+            // no need to merge these files, emit each single file to downstream for committing
+            for (Path path : paths) {
+                output.collect(
+                        new StreamRecord<>(
+                                new CompactionUnit(
+                                        unitId++, partition, Collections.singletonList(path))));
             }
         }
-        return new AverageSize(totalSz, numFiles);
     }
 
-    private List<Path> collectFiles(List<Path> taskPaths) throws IOException {
-        List<Path> files = new ArrayList<>();
-        for (Path path : taskPaths) {
-            files.addAll(
-                    Arrays.stream(fs.listStatus(path))
-                            .map(FileStatus::getPath)
-                            .collect(Collectors.toList()));
+    private Map<Path, Long> getFilesSize(FileSystem fs, List<Path> paths) throws IOException {
+        Map<Path, Long> filesStatus = new HashMap<>();
+        for (Path path : paths) {
+            long len = fs.getFileStatus(path).getLen();
+            filesStatus.put(path, len);
         }
-        return files;
+        return filesStatus;
+    }
+
+    private AverageSize getAverageSize(Map<Path, Long> filesSize) {
+        int numFiles = 0;
+        long totalSz = 0;
+        for (Map.Entry<Path, Long> fileSize : filesSize.entrySet()) {
+            numFiles += 1;
+            totalSz += fileSize.getValue();
+        }
+        return new AverageSize(totalSz, numFiles);
     }
 
     private static class AverageSize {
@@ -144,5 +156,45 @@ public class BatchCompactCoordinator<T>
             this.totalSz = totalSz;
             this.numFiles = numFiles;
         }
+
+        private boolean isLessThan(long averageSize) {
+            return numFiles > 0 && totalSz / numFiles < averageSize;
+        }
+    }
+
+    // hack logic
+    private void adjustMetricAQE(int expectParallelism) throws Exception {
+        int parallelism = normalizeParallelism(expectParallelism);
+        long dataVolumePerTask =
+                getContainingTask()
+                        .getJobConfiguration()
+                        .get(JobManagerOptions.ADAPTIVE_BATCH_SCHEDULER_AVG_DATA_VOLUME_PER_TASK)
+                        .getBytes();
+        // parallelism =  ceil(numBytes / dataVolumePerTask),
+        // since the operator will emit other element which increase numBytes, so we only need to
+        // make the numBytes increased forcibly in here is dataVolumePerTask * (parallelism - 1).
+        // so that the parallelism inferred by aqe will be the expectParallelism
+        long increaseNumBytes = dataVolumePerTask * (parallelism - 1);
+        Map<IntermediateResultPartitionID, Counter> numBytesProducedOfPartitions =
+                getNumBytesProducedOfPartitions();
+        for (Map.Entry<IntermediateResultPartitionID, Counter> entry :
+                numBytesProducedOfPartitions.entrySet()) {
+            entry.getValue().inc(increaseNumBytes);
+        }
+    }
+
+    private Map<IntermediateResultPartitionID, Counter> getNumBytesProducedOfPartitions()
+            throws Exception {
+        TaskIOMetricGroup taskIOMetricGroup =
+                getContainingTask().getEnvironment().getMetricGroup().getIOMetricGroup();
+        Field field = taskIOMetricGroup.getClass().getDeclaredField("numBytesProducedOfPartitions");
+        field.setAccessible(true);
+        return (Map<IntermediateResultPartitionID, Counter>) field.get(taskIOMetricGroup);
+    }
+
+    static int normalizeParallelism(int parallelism) {
+        int down = MathUtils.roundDownToPowerOf2(parallelism);
+        int up = MathUtils.roundUpToPowerOfTwo(parallelism);
+        return parallelism < (up + down) / 2 ? down : up;
     }
 }

@@ -39,6 +39,7 @@ import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.state.StateInitializationContext;
 import org.apache.flink.runtime.state.StateSnapshotContext;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
+import org.apache.flink.streaming.api.operators.BoundedOneInput;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.util.function.SupplierWithException;
@@ -74,7 +75,7 @@ import java.util.function.Function;
  */
 @Internal
 public class CompactCoordinator extends AbstractStreamOperator<CoordinatorOutput>
-        implements OneInputStreamOperator<CoordinatorInput, CoordinatorOutput> {
+        implements OneInputStreamOperator<CoordinatorInput, CoordinatorOutput>, BoundedOneInput {
 
     private static final long serialVersionUID = 1L;
 
@@ -201,5 +202,14 @@ public class CompactCoordinator extends AbstractStreamOperator<CoordinatorOutput
         inputFiles.put(context.getCheckpointId(), new HashMap<>(currentInputFiles));
         inputFilesState.add(inputFiles);
         currentInputFiles.clear();
+    }
+
+    @Override
+    public void endInput() throws Exception {
+        inputFilesState.clear();
+        inputFiles.put(Long.MAX_VALUE, new HashMap<>(currentInputFiles));
+        inputFilesState.add(inputFiles);
+        currentInputFiles.clear();
+        commitUpToCheckpoint(Long.MAX_VALUE);
     }
 }

@@ -35,6 +35,8 @@ import org.apache.flink.connector.file.table.batch.BatchSink;
 import org.apache.flink.connector.file.table.batch.compact.BatchFileWriter;
 import org.apache.flink.connector.file.table.stream.PartitionCommitInfo;
 import org.apache.flink.connector.file.table.stream.StreamingSink;
+import org.apache.flink.connector.file.table.stream.compact.CompactMessages.CoordinatorInput;
+import org.apache.flink.connector.file.table.stream.compact.CompactOperator;
 import org.apache.flink.connector.file.table.stream.compact.CompactReader;
 import org.apache.flink.connectors.hive.read.HiveCompactReaderFactory;
 import org.apache.flink.connectors.hive.util.HiveConfUtils;
@@ -137,14 +139,14 @@ public class HiveTableSink implements DynamicTableSink, SupportsPartitioning, Su
     private final boolean autoGatherStatistic;
     private final int gatherStatsThreadNum;
 
-    @Nullable private final Integer configuredParallelism;
+    @Nullable private final Integer configuredSinkParallelism;
 
     public HiveTableSink(
             ReadableConfig flinkConf,
             JobConf jobConf,
             ObjectIdentifier identifier,
             CatalogTable table,
-            @Nullable Integer configuredParallelism) {
+            @Nullable Integer configuredSinkParallelism) {
         this(
                 flinkConf.get(HiveOptions.TABLE_EXEC_HIVE_FALLBACK_MAPRED_READER),
                 flinkConf.get(HiveOptions.TABLE_EXEC_HIVE_FALLBACK_MAPRED_WRITER),
@@ -154,7 +156,7 @@ public class HiveTableSink implements DynamicTableSink, SupportsPartitioning, Su
                 jobConf,
                 identifier,
                 table,
-                configuredParallelism);
+                configuredSinkParallelism);
     }
 
     private HiveTableSink(
@@ -166,7 +168,7 @@ public class HiveTableSink implements DynamicTableSink, SupportsPartitioning, Su
             JobConf jobConf,
             ObjectIdentifier identifier,
             CatalogTable table,
-            @Nullable Integer configuredParallelism) {
+            @Nullable Integer configuredSinkParallelism) {
         this.fallbackMappedReader = fallbackMappedReader;
         this.fallbackMappedWriter = fallbackMappedWriter;
         this.dynamicGroupingEnabled = dynamicGroupingEnabled;
@@ -181,7 +183,7 @@ public class HiveTableSink implements DynamicTableSink, SupportsPartitioning, Su
                         "Hive version is not defined");
         hiveShim = HiveShimLoader.loadHiveShim(hiveVersion);
         tableSchema = TableSchemaUtils.getPhysicalSchema(table.getSchema());
-        this.configuredParallelism = configuredParallelism;
+        this.configuredSinkParallelism = configuredSinkParallelism;
         validateAutoGatherStatistic(autoGatherStatistic, catalogTable);
     }
 
@@ -296,8 +298,9 @@ public class HiveTableSink implements DynamicTableSink, SupportsPartitioning, Su
                             .withPartPrefix("part-" + UUID.randomUUID())
                             .withPartSuffix(extension == null ? "" : extension);
 
-            final int parallelism =
-                    Optional.ofNullable(configuredParallelism).orElse(dataStream.getParallelism());
+            final int sinkParallelism =
+                    Optional.ofNullable(configuredSinkParallelism)
+                            .orElse(dataStream.getParallelism());
             if (isBounded) {
                 TableMetaStoreFactory msFactory =
                         isInsertDirectory
@@ -333,7 +336,7 @@ public class HiveTableSink implements DynamicTableSink, SupportsPartitioning, Su
                         tableProps,
                         isToLocal,
                         overwrite,
-                        parallelism);
+                        sinkParallelism);
             } else {
                 if (overwrite) {
                     throw new IllegalStateException("Streaming mode not support overwrite.");
@@ -345,7 +348,7 @@ public class HiveTableSink implements DynamicTableSink, SupportsPartitioning, Su
                         tableProps,
                         writerFactory,
                         fileNamingBuilder,
-                        parallelism);
+                        sinkParallelism);
             }
         } catch (IOException e) {
             throw new FlinkRuntimeException("Failed to create staging dir", e);
@@ -367,25 +370,34 @@ public class HiveTableSink implements DynamicTableSink, SupportsPartitioning, Su
             Properties tableProps,
             boolean isToLocal,
             boolean overwrite,
-            int parallelism)
+            int sinkParallelism)
             throws IOException {
         org.apache.flink.configuration.Configuration conf =
                 new org.apache.flink.configuration.Configuration();
         catalogTable.getOptions().forEach(conf::setString);
         boolean autoCompaction = conf.getBoolean(FileSystemConnectorOptions.AUTO_COMPACTION);
         if (autoCompaction) {
+            Optional<Integer> compactParallelismOptional =
+                    conf.getOptional(FileSystemConnectorOptions.COMPACTION_PARALLELISM);
+            int compactParallelism = compactParallelismOptional.orElse(sinkParallelism);
             return createBatchCompactSink(
                     dataStream,
                     converter,
                     recordWriterFactory,
                     metaStoreFactory,
-                    fileConfigBuilder.withPartPrefix("part-" + UUID.randomUUID()).build(),
+                    fileConfigBuilder
+                            .withPartPrefix(
+                                    CompactOperator.UNCOMPACTED_PREFIX
+                                            + "part-"
+                                            + UUID.randomUUID())
+                            .build(),
                     stagingParentDir,
                     sd,
                     tableProps,
                     isToLocal,
                     overwrite,
-                    parallelism);
+                    sinkParallelism,
+                    compactParallelism);
         } else {
             return createBatchNoCompactSink(
                     dataStream,
@@ -395,7 +407,7 @@ public class HiveTableSink implements DynamicTableSink, SupportsPartitioning, Su
                     fileConfigBuilder.build(),
                     stagingParentDir,
                     isToLocal,
-                    parallelism);
+                    sinkParallelism);
         }
     }
 
@@ -410,7 +422,8 @@ public class HiveTableSink implements DynamicTableSink, SupportsPartitioning, Su
             Properties tableProps,
             boolean isToLocal,
             boolean overwrite,
-            final int parallelism)
+            final int sinkParallelism,
+            final int compactParallelism)
             throws IOException {
         String[] partitionColumns = getPartitionKeyArray();
         org.apache.flink.configuration.Configuration conf =
@@ -481,13 +494,13 @@ public class HiveTableSink implements DynamicTableSink, SupportsPartitioning, Su
                         tableSchema.getFieldDataTypes(),
                         partitionColumns);
 
-        DataStream<RowData> writerDataStream =
+        DataStream<CoordinatorInput> writerDataStream =
                 dataStream
                         .map((MapFunction<RowData, Row>) value -> (Row) converter.toExternal(value))
-                        .setParallelism(parallelism)
+                        .setParallelism(sinkParallelism)
                         .transform(
                                 "batch_compact_writer",
-                                TypeInformation.of(RowData.class),
+                                TypeInformation.of(CoordinatorInput.class),
                                 new BatchFileWriter<>(
                                         fsFactory,
                                         tmpPath,
@@ -497,7 +510,14 @@ public class HiveTableSink implements DynamicTableSink, SupportsPartitioning, Su
                                         outputFormatFactory,
                                         partitionComputer,
                                         fileNaming))
-                        .setParallelism(parallelism);
+                        .setParallelism(sinkParallelism);
+        long compactAverageSize = conf.get(HiveOptions.COMPACT_SMALL_FILES_AVG_SIZE).getBytes();
+
+        long compactTargetSize =
+                conf.getOptional(FileSystemConnectorOptions.COMPACTION_FILE_SIZE)
+                        .orElse(conf.get(SINK_ROLLING_POLICY_FILE_SIZE))
+                        .getBytes();
+
         return BatchSink.createCompactPipeline(
                 writerDataStream,
                 builder,
@@ -509,9 +529,11 @@ public class HiveTableSink implements DynamicTableSink, SupportsPartitioning, Su
                 staticPartitionSpec,
                 tmpPath,
                 identifier,
+                compactAverageSize,
+                compactTargetSize,
                 isToLocal,
                 overwrite,
-                parallelism);
+                compactParallelism);
     }
 
     private DataStreamSink<Row> createBatchNoCompactSink(
@@ -815,7 +837,7 @@ public class HiveTableSink implements DynamicTableSink, SupportsPartitioning, Su
                         jobConf,
                         identifier,
                         catalogTable,
-                        configuredParallelism);
+                        configuredSinkParallelism);
         sink.staticPartitionSpec = staticPartitionSpec;
         sink.overwrite = overwrite;
         sink.dynamicGrouping = dynamicGrouping;

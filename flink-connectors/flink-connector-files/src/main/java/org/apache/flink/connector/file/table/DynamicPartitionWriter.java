@@ -20,6 +20,7 @@ package org.apache.flink.connector.file.table;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.io.OutputFormat;
+import org.apache.flink.core.fs.Path;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -37,6 +38,7 @@ public class DynamicPartitionWriter<T> implements PartitionWriter<T> {
     private final PartitionTempFileManager manager;
     private final PartitionComputer<T> computer;
     private final Map<String, OutputFormat<T>> formats;
+    private final PartitionWriterListener writerListener;
 
     public DynamicPartitionWriter(
             Context<T> context, PartitionTempFileManager manager, PartitionComputer<T> computer) {
@@ -44,6 +46,19 @@ public class DynamicPartitionWriter<T> implements PartitionWriter<T> {
         this.manager = manager;
         this.computer = computer;
         this.formats = new HashMap<>();
+        this.writerListener = new DefaultPartitionWriterListener();
+    }
+
+    public DynamicPartitionWriter(
+            Context<T> context,
+            PartitionTempFileManager manager,
+            PartitionComputer<T> computer,
+            PartitionWriterListener writerListener) {
+        this.context = context;
+        this.manager = manager;
+        this.computer = computer;
+        this.formats = new HashMap<>();
+        this.writerListener = writerListener;
     }
 
     @Override
@@ -53,8 +68,10 @@ public class DynamicPartitionWriter<T> implements PartitionWriter<T> {
 
         if (format == null) {
             // create a new format to write new partition.
-            format = context.createNewOutputFormat(manager.createPartitionDir(partition));
+            Path path = manager.createPartitionDir(partition);
+            format = context.createNewOutputFormat(path);
             formats.put(partition, format);
+            writerListener.onFileOpen(partition, path);
         }
         format.writeRecord(computer.projectColumnsToWrite(in));
     }
