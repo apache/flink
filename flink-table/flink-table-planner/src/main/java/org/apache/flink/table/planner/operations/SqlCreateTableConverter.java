@@ -203,8 +203,9 @@ class SqlCreateTableConverter {
                                                         sqlTableLike
                                                                 .getSourceTable()
                                                                 .getParserPosition())));
-        if (!(lookupResult.getTable() instanceof CatalogTable)) {
-            CatalogBaseTable table = lookupResult.getTable();
+        CatalogBaseTable resultTable = lookupResult.getTable();
+        if (!(resultTable instanceof CatalogTable)) {
+            CatalogBaseTable table = resultTable;
             if (table instanceof CatalogView) {
                 CatalogView catalogView = (CatalogView) table;
                 Schema schemaInner =
@@ -224,11 +225,13 @@ class SqlCreateTableConverter {
             } else {
                 throw new ValidationException(
                         String.format(
-                                "Source table '%s' of the LIKE clause can not be a VIEW, at %s",
-                                identifier, sqlTableLike.getSourceTable().getParserPosition()));
+                                "Source table '%s' of the LIKE clause can not be a %s, at %s",
+                                identifier,
+                                resultTable.getClass(),
+                                sqlTableLike.getSourceTable().getParserPosition()));
             }
         }
-        return lookupResult.getTable();
+        return (CatalogTable) resultTable;
     }
 
     private void verifyPartitioningColumnsExist(
