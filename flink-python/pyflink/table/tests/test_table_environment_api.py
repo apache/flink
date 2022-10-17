@@ -351,6 +351,23 @@ class DataStreamConversionTestCases(PyFlinkUTTestCase):
         expected = ['+I[1]', '+I[2]', '+I[3]']
         self.assertEqual(expected, results)
 
+    def test_to_data_stream_local_time(self):
+        self.t_env.execute_sql("""
+        CREATE TEMPORARY VIEW v0 AS
+        SELECT f0, f1, f2, f3 FROM ( VALUES
+            ( 1, DATE'1970-01-02', TIME'03:04:05', TIMESTAMP'1970-01-02 03:04:05' ),
+            ( 2, DATE'1970-06-07', TIME'08:09:10', TIMESTAMP'1970-06-07 08:09:10' )
+        ) AS t0 ( f0, f1, f2, f3 )
+        """)
+        v0 = self.t_env.from_path("v0")
+        self.t_env.to_data_stream(v0).key_by(lambda r: r['f0']).add_sink(self.test_sink)
+        self.env.execute()
+        results = self.test_sink.get_results(False)
+        results.sort()
+        expected = ['+I[1, 1970-01-02, 03:04:05, 1970-01-02T03:04:05]',
+                    '+I[2, 1970-06-07, 08:09:10, 1970-06-07T08:09:10]']
+        self.assertEqual(expected, results)
+
     def test_from_data_stream(self):
         self.env.set_parallelism(1)
 

@@ -720,6 +720,39 @@ class MapTypeInfo(TypeInformation):
         return 'MapTypeInfo<{}, {}>'.format(self._key_type_info, self._value_type_info)
 
 
+class LocalTimeTypeInfo(TypeInformation):
+
+    class TimeType(Enum):
+        LOCAL_DATE = 0
+        LOCAL_TIME = 1
+        LOCAL_DATE_TIME = 2
+
+    def __init__(self, time_type: TimeType):
+        super(LocalTimeTypeInfo, self).__init__()
+        self._time_type = time_type
+        self._j_typeinfo = None
+
+    def get_java_type_info(self) -> JavaObject:
+        if self._j_typeinfo is None:
+            jvm = get_gateway().jvm
+            if self._time_type == LocalTimeTypeInfo.TimeType.LOCAL_DATE:
+                self._j_typeinfo = \
+                    jvm.org.apache.flink.api.common.typeinfo.LocalTimeTypeInfo.LOCAL_DATE
+            elif self._time_type == LocalTimeTypeInfo.TimeType.LOCAL_TIME:
+                self._j_typeinfo = \
+                    jvm.org.apache.flink.api.common.typeinfo.LocalTimeTypeInfo.LOCAL_TIME
+            if self._time_type == LocalTimeTypeInfo.TimeType.LOCAL_DATE_TIME:
+                self._j_typeinfo = \
+                    jvm.org.apache.flink.api.common.typeinfo.LocalTimeTypeInfo.LOCAL_DATE_TIME
+        return self._j_typeinfo
+
+    def __eq__(self, other):
+        return self.__class__ == other.__class__ and self._time_type == other._time_type
+
+    def __repr__(self):
+        return 'LocalTimeTypeInfo<{}>'.format(self._time_type.name)
+
+
 class ExternalTypeInfo(TypeInformation):
     def __init__(self, type_info: TypeInformation):
         super(ExternalTypeInfo, self).__init__()
@@ -1068,6 +1101,18 @@ def _from_java_type(j_type_info: JavaObject) -> TypeInformation:
             gateway.jvm.org.apache.flink.table.types.utils.LegacyTypeInfoDataTypeConverter
         return ExternalTypeInfo(_from_java_type(
             TypeInfoDataTypeConverter.toLegacyTypeInfo(j_type_info.getDataType())))
+
+    JLocalTimeTypeInfo = gateway.jvm.org.apache.flink.api.common.typeinfo.LocalTimeTypeInfo
+    if _is_instance_of(j_type_info, JLocalTimeTypeInfo):
+        if j_type_info.equals(JLocalTimeTypeInfo.LOCAL_DATE):
+            time_type = LocalTimeTypeInfo.TimeType.LOCAL_DATE
+        elif j_type_info.equals(JLocalTimeTypeInfo.LOCAL_TIME):
+            time_type = LocalTimeTypeInfo.TimeType.LOCAL_TIME
+        elif j_type_info.equals(JLocalTimeTypeInfo.LOCAL_DATE_TIME):
+            time_type = LocalTimeTypeInfo.TimeType.LOCAL_DATE_TIME
+        else:
+            raise TypeError("Unsupported LocalTimeTypeInfo: %s." % j_type_info.toString())
+        return LocalTimeTypeInfo(time_type)
 
     raise TypeError("The java type info: %s is not supported in PyFlink currently." % j_type_info)
 
