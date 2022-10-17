@@ -39,6 +39,7 @@ import software.amazon.awssdk.services.sts.auth.StsAssumeRoleCredentialsProvider
 import software.amazon.awssdk.utils.AttributeMap;
 import software.amazon.awssdk.utils.ImmutableMap;
 
+import java.net.URI;
 import java.nio.file.Paths;
 import java.time.Duration;
 import java.util.Map;
@@ -46,6 +47,7 @@ import java.util.Properties;
 
 import static org.apache.flink.connector.aws.config.AWSConfigConstants.AWS_CREDENTIALS_PROVIDER;
 import static org.apache.flink.connector.aws.config.AWSConfigConstants.AWS_REGION;
+import static org.apache.flink.connector.aws.config.AWSConfigConstants.AWS_ROLE_STS_ENDPOINT;
 import static org.apache.flink.connector.aws.config.AWSConfigConstants.CredentialProvider.ASSUME_ROLE;
 import static org.apache.flink.connector.aws.config.AWSConfigConstants.CredentialProvider.AUTO;
 import static org.apache.flink.connector.aws.config.AWSConfigConstants.CredentialProvider.BASIC;
@@ -199,6 +201,25 @@ class AWSGeneralUtilTest {
                 .getProperty(AWSConfigConstants.roleSessionName(AWS_CREDENTIALS_PROVIDER));
         verify(properties).getProperty(AWSConfigConstants.externalId(AWS_CREDENTIALS_PROVIDER));
         verify(properties).getProperty(AWS_REGION);
+    }
+
+    @Test
+    void testGetCredentialsProviderAssumeRoleWithPropertyAwsStsEndpoint() {
+        Properties properties = spy(TestUtil.properties(AWS_CREDENTIALS_PROVIDER, "ASSUME_ROLE"));
+        properties.setProperty(AWS_REGION, "eu-west-2");
+        properties.setProperty(AWS_ROLE_STS_ENDPOINT, "https://sts.eu-west-2.amazonaws.com");
+
+        AwsCredentialsProvider credentialsProvider =
+                AWSGeneralUtil.getCredentialsProvider(properties);
+
+        assertThat(credentialsProvider).isInstanceOf(StsAssumeRoleCredentialsProvider.class);
+
+        verify(properties).getProperty(AWSConfigConstants.roleArn(AWS_CREDENTIALS_PROVIDER));
+        verify(properties)
+                .getProperty(AWSConfigConstants.roleSessionName(AWS_CREDENTIALS_PROVIDER));
+        verify(properties).getProperty(AWSConfigConstants.externalId(AWS_CREDENTIALS_PROVIDER));
+        verify(properties).getProperty(AWS_REGION);
+        verify(properties).getProperty(AWS_ROLE_STS_ENDPOINT);
     }
 
     @Test
@@ -694,6 +715,16 @@ class AWSGeneralUtilTest {
     @Test
     void testInvalidRegion() {
         assertThat(AWSGeneralUtil.isValidRegion(Region.of("unstructured-string"))).isFalse();
+    }
+
+    @Test
+    void testGetStsEndpoint() {
+        String endpointValue = "https://sts.us-east-1.amazonaws.com";
+        URI stsEndpoint =
+                AWSGeneralUtil.getStsEndpoint(
+                        TestUtil.properties(AWS_ROLE_STS_ENDPOINT, endpointValue));
+
+        assertThat(stsEndpoint).isEqualTo(URI.create(endpointValue));
     }
 
     @Test

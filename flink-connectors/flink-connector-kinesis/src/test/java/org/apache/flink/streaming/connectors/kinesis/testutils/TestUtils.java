@@ -36,6 +36,7 @@ import org.apache.commons.lang3.RandomStringUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.mockito.Mockito;
 
+import java.lang.reflect.Field;
 import java.math.BigInteger;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
@@ -173,6 +174,19 @@ public class TestUtils {
                 .thenReturn(createUnregisteredOperatorMetricGroup());
 
         return mockedRuntimeContext;
+    }
+
+    public static <T> T getField(String fieldName, Object obj) throws Exception {
+        Field field = obj.getClass().getDeclaredField(fieldName);
+        field.setAccessible(true);
+        return (T) field.get(obj);
+    }
+
+    public static <T> T getField(String fieldName, Class<?> superclass, Object obj)
+            throws Exception {
+        Field field = superclass.getDeclaredField(fieldName);
+        field.setAccessible(true);
+        return (T) field.get(obj);
     }
 
     /** A test record consumer used to capture messages from kinesis. */

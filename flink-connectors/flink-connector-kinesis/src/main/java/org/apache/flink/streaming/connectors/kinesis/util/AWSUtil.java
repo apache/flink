@@ -167,15 +167,6 @@ public class AWSUtil {
                 };
 
             case ASSUME_ROLE:
-                final AWSSecurityTokenService baseCredentials =
-                        AWSSecurityTokenServiceClientBuilder.standard()
-                                .withCredentials(
-                                        getCredentialsProvider(
-                                                configProps,
-                                                AWSConfigConstants.roleCredentialsProvider(
-                                                        configPrefix)))
-                                .withRegion(configProps.getProperty(AWSConfigConstants.AWS_REGION))
-                                .build();
                 return new STSAssumeRoleSessionCredentialsProvider.Builder(
                                 configProps.getProperty(AWSConfigConstants.roleArn(configPrefix)),
                                 configProps.getProperty(
@@ -183,7 +174,7 @@ public class AWSUtil {
                         .withExternalId(
                                 configProps.getProperty(
                                         AWSConfigConstants.externalId(configPrefix)))
-                        .withStsClient(baseCredentials)
+                        .withStsClient(createStsClient(configProps, configPrefix))
                         .build();
 
             case WEB_IDENTITY_TOKEN:
@@ -207,6 +198,29 @@ public class AWSUtil {
                 throw new IllegalArgumentException(
                         "Credential provider not supported: " + credentialProviderType);
         }
+    }
+
+    private static AWSSecurityTokenService createStsClient(
+            final Properties configProps, final String configPrefix) {
+        final String region = configProps.getProperty(AWSConfigConstants.AWS_REGION);
+        final AWSSecurityTokenServiceClientBuilder stsClientBuilder =
+                AWSSecurityTokenServiceClientBuilder.standard()
+                        .withCredentials(
+                                getCredentialsProvider(
+                                        configProps,
+                                        AWSConfigConstants.roleCredentialsProvider(configPrefix)));
+
+        if (configProps.containsKey(AWSConfigConstants.AWS_ROLE_STS_ENDPOINT)) {
+            AwsClientBuilder.EndpointConfiguration endpointConfiguration =
+                    new AwsClientBuilder.EndpointConfiguration(
+                            configProps.getProperty(AWSConfigConstants.AWS_ROLE_STS_ENDPOINT),
+                            region);
+            stsClientBuilder.withEndpointConfiguration(endpointConfiguration);
+        } else {
+            stsClientBuilder.withRegion(region);
+        }
+
+        return stsClientBuilder.build();
     }
 
     /**
