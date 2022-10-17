@@ -53,7 +53,8 @@ public class BatchExecutionStateBackend implements StateBackend {
             MetricGroup metricGroup,
             @Nonnull Collection<KeyedStateHandle> stateHandles,
             CloseableRegistry cancelStreamRegistry) {
-        return new BatchExecutionKeyedStateBackend<>(keySerializer, keyGroupRange);
+        return new BatchExecutionKeyedStateBackend<>(
+                keySerializer, keyGroupRange, env.getExecutionConfig());
     }
 
     @Override
