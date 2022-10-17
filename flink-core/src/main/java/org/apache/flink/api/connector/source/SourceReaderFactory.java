@@ -18,6 +18,8 @@
 
 package org.apache.flink.api.connector.source;
 
+import org.apache.flink.annotation.Public;
+
 import java.io.Serializable;
 
 /**
@@ -25,6 +27,7 @@ import java.io.Serializable;
  *
  * @param <T> The type of the output elements.
  */
+@Public
 public interface SourceReaderFactory<T, SplitT extends SourceSplit> extends Serializable {
     /**
      * Creates a new reader to read data from the splits it gets assigned. The reader starts fresh
