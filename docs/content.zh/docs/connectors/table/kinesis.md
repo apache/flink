@@ -241,6 +241,14 @@ Connector Options
 	  <td>The external ID to use when credential provider type is set to ASSUME_ROLE.</td>
     </tr>
     <tr>
+	  <td><h5>aws.credentials.role.stsEndpoint</h5></td>
+	  <td>optional</td>
+      <td>no</td>
+	  <td style="word-wrap: break-word;">(none)</td>
+	  <td>String</td>
+	  <td>The AWS endpoint for STS (derived from the AWS region setting if not set) to use when credential provider type is set to ASSUME_ROLE.</td>
+    </tr>
+    <tr>
 	  <td><h5>aws.credentials.role.provider</h5></td>
 	  <td>optional</td>
 	  <td style="word-wrap: break-word;">(none)</td>
