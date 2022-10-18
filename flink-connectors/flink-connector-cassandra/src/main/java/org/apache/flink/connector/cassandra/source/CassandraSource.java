@@ -18,6 +18,7 @@
 
 package org.apache.flink.connector.cassandra.source;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.ExecutionConfig;
@@ -108,18 +109,21 @@ public class CassandraSource<OUT>
         return Boundedness.BOUNDED;
     }
 
+    @Internal
     @Override
     public SourceReader<OUT, CassandraSplit> createReader(SourceReaderContext readerContext) {
         return new CassandraSourceReader<>(
                 readerContext, clusterBuilder, pojoClass, query, mapperOptions);
     }
 
+    @Internal
     @Override
     public SplitEnumerator<CassandraSplit, CassandraEnumeratorState> createEnumerator(
             SplitEnumeratorContext<CassandraSplit> enumContext) {
         return new CassandraSplitEnumerator(enumContext, null, clusterBuilder);
     }
 
+    @Internal
     @Override
     public SplitEnumerator<CassandraSplit, CassandraEnumeratorState> restoreEnumerator(
             SplitEnumeratorContext<CassandraSplit> enumContext,
@@ -127,11 +131,13 @@ public class CassandraSource<OUT>
         return new CassandraSplitEnumerator(enumContext, enumCheckpoint, clusterBuilder);
     }
 
+    @Internal
     @Override
     public SimpleVersionedSerializer<CassandraSplit> getSplitSerializer() {
         return CassandraSplitSerializer.INSTANCE;
     }
 
+    @Internal
     @Override
     public SimpleVersionedSerializer<CassandraEnumeratorState> getEnumeratorCheckpointSerializer() {
         return CassandraEnumeratorStateSerializer.INSTANCE;
