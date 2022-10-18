@@ -56,9 +56,6 @@ flink-libraries,\
 flink-libraries/flink-cep,\
 flink-libraries/flink-cep-scala,\
 flink-libraries/flink-state-processing-api,\
-flink-libraries/flink-gelly,\
-flink-libraries/flink-gelly-scala,\
-flink-libraries/flink-gelly-examples,\
 flink-queryable-state,\
 flink-queryable-state/flink-queryable-state-runtime,\
 flink-queryable-state/flink-queryable-state-client-java,\
