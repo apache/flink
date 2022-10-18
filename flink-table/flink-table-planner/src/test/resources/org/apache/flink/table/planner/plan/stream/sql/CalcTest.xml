@@ -51,6 +51,23 @@ Calc(select=[a, b, c], where=[((a < 10) AND (b > 20))])
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testConjunctiveExclusiveFilter">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM MyTable WHERE 10 = a AND a = 20]]>
+	</Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2])
++- LogicalFilter(condition=[AND(=(10, $0), =($0, 20))])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Values(tuples=[[]])
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testDecimalArrayWithDifferentPrecision">
     <Resource name="sql">
       <![CDATA[SELECT ARRAY[0.12, 0.5, 0.99]]]>

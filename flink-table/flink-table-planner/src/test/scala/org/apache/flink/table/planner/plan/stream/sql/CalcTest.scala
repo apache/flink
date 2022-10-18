@@ -63,6 +63,11 @@ class CalcTest extends TableTestBase {
   }
 
   @Test
+  def testConjunctiveExclusiveFilter(): Unit = {
+    util.verifyExecPlan("SELECT * FROM MyTable WHERE 10 = a AND a = 20")
+  }
+
+  @Test
   def testMultiFilters(): Unit = {
     util.verifyExecPlan("SELECT * FROM (SELECT * FROM MyTable WHERE b > 0) t WHERE a < 50")
   }

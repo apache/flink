@@ -1858,9 +1858,15 @@ public class RexSimplify {
                 case GREATER_THAN:
                 case GREATER_THAN_OR_EQUAL:
                     final RexCall call = (RexCall) predicate;
-                    if (call.operands.get(0).equals(ref)
-                            && call.operands.get(1) instanceof RexLiteral) {
-                        final RexLiteral literal = (RexLiteral) call.operands.get(1);
+                    final RexNode firstOperand = call.operands.get(0);
+                    final RexNode secondOperand = call.operands.get(1);
+                    if ((firstOperand.equals(ref) && secondOperand instanceof RexLiteral)
+                            || (firstOperand instanceof RexLiteral && secondOperand.equals(ref))) {
+                        final RexLiteral literal =
+                                (RexLiteral)
+                                        (firstOperand instanceof RexLiteral
+                                                ? firstOperand
+                                                : secondOperand);
                         final C c1 = literal.getValueAs(clazz);
                         assert c1 != null : "value must not be null in " + literal;
                         switch (predicate.getKind()) {
@@ -1877,7 +1883,11 @@ public class RexSimplify {
                                 result = RangeSets.minus(result, pointRange);
                                 break;
                             default:
-                                final Range<C> r1 = range(predicate.getKind(), c1);
+                                final boolean isInverse = firstOperand instanceof RexLiteral;
+                                final Range<C> r1 =
+                                        isInverse
+                                                ? range(c1, predicate.getKind())
+                                                : range(predicate.getKind(), c1);
                                 if (result.encloses(r1)) {
                                     // Given these predicates, term is always satisfied.
                                     // e.g. r0 is "$0 < 10", r1 is "$0 < 5"
@@ -2564,6 +2574,23 @@ public class RexSimplify {
                 return Range.greaterThan(c);
             case GREATER_THAN_OR_EQUAL:
                 return Range.atLeast(c);
+            default:
+                throw new AssertionError();
+        }
+    }
+
+    private static <C extends Comparable<C>> Range<C> range(C c, SqlKind comparison) {
+        switch (comparison) {
+            case EQUALS:
+                return Range.singleton(c);
+            case LESS_THAN:
+                return Range.greaterThan(c);
+            case LESS_THAN_OR_EQUAL:
+                return Range.atLeast(c);
+            case GREATER_THAN:
+                return Range.lessThan(c);
+            case GREATER_THAN_OR_EQUAL:
+                return Range.atMost(c);
             default:
                 throw new AssertionError();
         }
