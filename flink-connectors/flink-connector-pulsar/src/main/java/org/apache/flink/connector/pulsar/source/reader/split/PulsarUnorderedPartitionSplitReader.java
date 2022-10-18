@@ -33,6 +33,7 @@ import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.transaction.Transaction;
 import org.apache.pulsar.client.api.transaction.TransactionCoordinatorClient;
 import org.apache.pulsar.client.api.transaction.TransactionCoordinatorClientException;
+import org.apache.pulsar.client.api.transaction.TransactionCoordinatorClientException.TransactionNotFoundException;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -46,6 +47,7 @@ import java.util.concurrent.TimeUnit;
 
 import static org.apache.flink.connector.pulsar.common.utils.PulsarExceptionUtils.sneakyClient;
 import static org.apache.flink.connector.pulsar.common.utils.PulsarTransactionUtils.createTransaction;
+import static org.apache.flink.connector.pulsar.common.utils.PulsarTransactionUtils.unwrap;
 
 /**
  * The split reader a given {@link PulsarPartitionSplit}, it would be closed once the {@link
@@ -124,10 +126,14 @@ public class PulsarUnorderedPartitionSplitReader<OUT> extends PulsarPartitionSpl
                 try {
                     coordinatorClient.abort(uncommittedTransactionId);
                 } catch (TransactionCoordinatorClientException e) {
-                    LOG.error(
-                            "Failed to abort the uncommitted transaction {} when restart the reader",
-                            uncommittedTransactionId,
-                            e);
+                    TransactionCoordinatorClientException exception = unwrap(e);
+                    // The aborted transaction would return a not found exception.
+                    if (!(exception instanceof TransactionNotFoundException)) {
+                        LOG.error(
+                                "Failed to abort the uncommitted transaction {} when restart the reader",
+                                uncommittedTransactionId,
+                                e);
+                    }
                 }
             }
 

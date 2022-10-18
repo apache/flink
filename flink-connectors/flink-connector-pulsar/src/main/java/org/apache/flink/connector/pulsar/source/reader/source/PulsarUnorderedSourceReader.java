@@ -118,6 +118,9 @@ public class PulsarUnorderedSourceReader<OUT> extends PulsarSourceReaderBase<OUT
 
     @Override
     protected void onSplitFinished(Map<String, PulsarPartitionSplitState> finishedSplitIds) {
+        // Close all the finished splits.
+        closeFinishedSplits(finishedSplitIds.keySet());
+
         // We don't require new splits, all the splits are pre-assigned by source enumerator.
         if (LOG.isDebugEnabled()) {
             LOG.debug("onSplitFinished event: {}", finishedSplitIds);
@@ -151,6 +154,11 @@ public class PulsarUnorderedSourceReader<OUT> extends PulsarSourceReaderBase<OUT
                     txnIDs.add(uncommittedTransactionId);
                 }
             }
+
+            // Add finished splits' transactions.
+            txnIDs.addAll(transactionsOfFinishedSplits);
+            // Purge the transactions.
+            transactionsOfFinishedSplits.clear();
         }
 
         return splits;
@@ -176,5 +184,24 @@ public class PulsarUnorderedSourceReader<OUT> extends PulsarSourceReaderBase<OUT
                 }
             }
         }
+    }
+
+    @Override
+    public void close() throws Exception {
+        // Abort all the pending transactions.
+        if (coordinatorClient != null) {
+            for (List<TxnID> transactions : transactionsToCommit.values()) {
+                for (TxnID transaction : transactions) {
+                    try {
+                        coordinatorClient.abort(transaction);
+                    } catch (Exception e) {
+                        LOG.warn("Error in aborting transaction {}", transaction, e);
+                    }
+                }
+            }
+        }
+
+        // Close the pulsar client finally.
+        super.close();
     }
 }
