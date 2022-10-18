@@ -1001,7 +1001,7 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
                             catalogManager
                                     .getTable(addConstraintOP.getTableIdentifier())
                                     .get()
-                                    .getTable();
+                                    .getResolvedTable();
                     TableSchema.Builder builder =
                             TableSchemaUtils.builderWithGivenSchema(oriTable.getSchema());
                     if (addConstraintOP.getConstraintName().isPresent()) {
@@ -1026,7 +1026,7 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
                             catalogManager
                                     .getTable(dropConstraintOperation.getTableIdentifier())
                                     .get()
-                                    .getTable();
+                                    .getResolvedTable();
                     CatalogTable newTable =
                             new CatalogTableImpl(
                                     TableSchemaUtils.dropConstraint(
@@ -1514,22 +1514,37 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
 
     private TableResultInternal buildDescribeResult(ResolvedSchema schema) {
         Object[][] rows = buildTableColumns(schema);
-        return buildResult(generateTableColumnsNames(), generateTableColumnsDataTypes(), rows);
+        boolean nonComments = isSchemaNonColumnComments(schema);
+        return buildResult(
+                generateTableColumnsNames(nonComments),
+                generateTableColumnsDataTypes(nonComments),
+                rows);
     }
 
-    private DataType[] generateTableColumnsDataTypes() {
-        return new DataType[] {
-            DataTypes.STRING(),
-            DataTypes.STRING(),
-            DataTypes.BOOLEAN(),
-            DataTypes.STRING(),
-            DataTypes.STRING(),
-            DataTypes.STRING()
-        };
+    private DataType[] generateTableColumnsDataTypes(boolean nonComments) {
+        final ArrayList<DataType> result =
+                new ArrayList<>(
+                        Arrays.asList(
+                                DataTypes.STRING(),
+                                DataTypes.STRING(),
+                                DataTypes.BOOLEAN(),
+                                DataTypes.STRING(),
+                                DataTypes.STRING(),
+                                DataTypes.STRING()));
+        if (!nonComments) {
+            result.add(DataTypes.STRING());
+        }
+        return result.toArray(new DataType[0]);
     }
 
-    private String[] generateTableColumnsNames() {
-        return new String[] {"name", "type", "null", "key", "extras", "watermark"};
+    private String[] generateTableColumnsNames(boolean nonComments) {
+        final ArrayList<String> result =
+                new ArrayList<>(
+                        Arrays.asList("name", "type", "null", "key", "extras", "watermark"));
+        if (!nonComments) {
+            result.add("comment");
+        }
+        return result.toArray(new String[0]);
     }
 
     private TableResultInternal buildShowTablesResult(
@@ -1565,7 +1580,11 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
                                                             "\\"))
                             .toArray(Object[][]::new);
         }
-        return buildResult(generateTableColumnsNames(), generateTableColumnsDataTypes(), rows);
+        boolean nonComments = isSchemaNonColumnComments(schema);
+        return buildResult(
+                generateTableColumnsNames(nonComments),
+                generateTableColumnsDataTypes(nonComments),
+                rows);
     }
 
     private TableResultInternal buildShowFullModulesResult(ModuleEntry[] moduleEntries) {
@@ -1600,21 +1619,36 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
                                                             "PRI(%s)",
                                                             String.join(", ", columns))));
                         });
-
+        boolean nonComments = isSchemaNonColumnComments(schema);
         return schema.getColumns().stream()
                 .map(
                         (c) -> {
                             final LogicalType logicalType = c.getDataType().getLogicalType();
+                            if (nonComments) {
+                                return new Object[] {
+                                    c.getName(),
+                                    logicalType.copy(true).asSummaryString(),
+                                    logicalType.isNullable(),
+                                    fieldToPrimaryKey.getOrDefault(c.getName(), null),
+                                    c.explainExtras().orElse(null),
+                                    fieldToWatermark.getOrDefault(c.getName(), null)
+                                };
+                            }
                             return new Object[] {
                                 c.getName(),
                                 logicalType.copy(true).asSummaryString(),
                                 logicalType.isNullable(),
                                 fieldToPrimaryKey.getOrDefault(c.getName(), null),
                                 c.explainExtras().orElse(null),
-                                fieldToWatermark.getOrDefault(c.getName(), null)
+                                fieldToWatermark.getOrDefault(c.getName(), null),
+                                c.getComment().orElse(null)
                             };
                         })
                 .toArray(Object[][]::new);
+    }
+
+    private boolean isSchemaNonColumnComments(ResolvedSchema schema) {
+        return schema.getColumns().stream().noneMatch(col -> col.getComment().isPresent());
     }
 
     private TableResultInternal buildResult(String[] headers, DataType[] types, Object[][] rows) {
@@ -1844,7 +1878,7 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
         return catalogManager
                 .getTable(identifier)
                 .filter(ContextResolvedTable::isTemporary)
-                .map(ContextResolvedTable::getTable);
+                .map(ContextResolvedTable::getResolvedTable);
     }
 
     private TableResultInternal createCatalogFunction(

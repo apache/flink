@@ -527,6 +527,52 @@ Empty set
 !ok
 
 # ==========================================================================
+# test describe table with comment
+# ==========================================================================
+
+CREATE TABLE `default_catalog`.`default_database`.`orders3` (
+  `user` BIGINT NOT NULL comment 'this is the first column',
+  `product` VARCHAR(32),
+  `amount` INT,
+  `ts` TIMESTAMP(3) comment 'notice: watermark',
+  `ptime` AS PROCTIME() comment 'notice: computed column',
+  WATERMARK FOR `ts` AS `ts` - INTERVAL '1' SECOND,
+  CONSTRAINT `PK_3599338` PRIMARY KEY (`user`) NOT ENFORCED
+) WITH (
+  'connector' = 'kafka',
+  'scan.startup.mode' = 'earliest-offset'
+);
+[INFO] Execute statement succeed.
+!info
+
+describe orders3;
++---------+-----------------------------+-------+-----------+---------------+----------------------------+--------------------------+
+|    name |                        type |  null |       key |        extras |                  watermark |                  comment |
++---------+-----------------------------+-------+-----------+---------------+----------------------------+--------------------------+
+|    user |                      BIGINT | FALSE | PRI(user) |               |                            | this is the first column |
+| product |                 VARCHAR(32) |  TRUE |           |               |                            |                          |
+|  amount |                         INT |  TRUE |           |               |                            |                          |
+|      ts |      TIMESTAMP(3) *ROWTIME* |  TRUE |           |               | `ts` - INTERVAL '1' SECOND |        notice: watermark |
+|   ptime | TIMESTAMP_LTZ(3) *PROCTIME* | FALSE |           | AS PROCTIME() |                            |  notice: computed column |
++---------+-----------------------------+-------+-----------+---------------+----------------------------+--------------------------+
+5 rows in set
+!ok
+
+# test desc table
+desc orders3;
++---------+-----------------------------+-------+-----------+---------------+----------------------------+--------------------------+
+|    name |                        type |  null |       key |        extras |                  watermark |                  comment |
++---------+-----------------------------+-------+-----------+---------------+----------------------------+--------------------------+
+|    user |                      BIGINT | FALSE | PRI(user) |               |                            | this is the first column |
+| product |                 VARCHAR(32) |  TRUE |           |               |                            |                          |
+|  amount |                         INT |  TRUE |           |               |                            |                          |
+|      ts |      TIMESTAMP(3) *ROWTIME* |  TRUE |           |               | `ts` - INTERVAL '1' SECOND |        notice: watermark |
+|   ptime | TIMESTAMP_LTZ(3) *PROCTIME* | FALSE |           | AS PROCTIME() |                            |  notice: computed column |
++---------+-----------------------------+-------+-----------+---------------+----------------------------+--------------------------+
+5 rows in set
+!ok
+
+# ==========================================================================
 # test explain
 # ==========================================================================
 

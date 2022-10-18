@@ -2192,7 +2192,7 @@ public class HiveParserDDLSemanticAnalyzer {
             throw new ValidationException(
                     String.format("Table or View %s is temporary.", tableIdentifier.toString()));
         }
-        return optionalCatalogTable.get().getTable();
+        return optionalCatalogTable.get().getResolvedTable();
     }
 
     /**

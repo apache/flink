@@ -346,6 +346,41 @@ public class TableSchema {
         return builder.build();
     }
 
+    /** Helps to migrate to the new {@link Schema} class, retain comments when needed. */
+    public Schema toSchema(Map<String, String> comments) {
+        final Schema.Builder builder = Schema.newBuilder();
+
+        columns.forEach(
+                column -> {
+                    if (column instanceof PhysicalColumn) {
+                        final PhysicalColumn c = (PhysicalColumn) column;
+                        builder.column(c.getName(), c.getType());
+                    } else if (column instanceof MetadataColumn) {
+                        final MetadataColumn c = (MetadataColumn) column;
+                        builder.columnByMetadata(
+                                c.getName(),
+                                c.getType(),
+                                c.getMetadataAlias().orElse(null),
+                                c.isVirtual());
+                    } else if (column instanceof ComputedColumn) {
+                        final ComputedColumn c = (ComputedColumn) column;
+                        builder.columnByExpression(c.getName(), c.getExpression());
+                    } else {
+                        throw new IllegalArgumentException("Unsupported column type: " + column);
+                    }
+                    builder.withComment(comments.get(column.getName()));
+                });
+
+        watermarkSpecs.forEach(
+                spec -> builder.watermark(spec.getRowtimeAttribute(), spec.getWatermarkExpr()));
+
+        if (primaryKey != null) {
+            builder.primaryKeyNamed(primaryKey.getName(), primaryKey.getColumns());
+        }
+
+        return builder.build();
+    }
+
     @Override
     public String toString() {
         final StringBuilder sb = new StringBuilder();

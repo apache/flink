@@ -154,14 +154,14 @@ public class CatalogSchemaTable extends AbstractTable implements TemporalTable {
     private Optional<TableSource<?>> findAndCreateTableSource() {
         Optional<TableSource<?>> tableSource = Optional.empty();
         try {
-            if (contextResolvedTable.getTable() instanceof CatalogTable) {
+            if (contextResolvedTable.getResolvedTable() instanceof CatalogTable) {
                 // Use an empty config for TableSourceFactoryContextImpl since we can't fetch the
                 // actual TableConfig here. And currently the empty config do not affect the logic.
                 ReadableConfig config = new Configuration();
                 TableSourceFactory.Context context =
                         new TableSourceFactoryContextImpl(
                                 contextResolvedTable.getIdentifier(),
-                                contextResolvedTable.getTable(),
+                                contextResolvedTable.getResolvedTable(),
                                 config,
                                 contextResolvedTable.isTemporary());
                 TableSource<?> source = TableFactoryUtil.findAndCreateTableSource(context);

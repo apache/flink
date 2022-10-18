@@ -67,7 +67,7 @@ class TableEnvironmentTest {
                 tEnv.getCatalogManager().getTable(ObjectIdentifier.of(catalog, database, "T"));
         assertThat(lookupResult.isPresent()).isTrue();
 
-        final CatalogBaseTable catalogTable = lookupResult.get().getTable();
+        final CatalogBaseTable catalogTable = lookupResult.get().getResolvedTable();
         assertThat(catalogTable instanceof CatalogTable).isTrue();
         assertThat(catalogTable.getUnresolvedSchema()).isEqualTo(schema);
         assertThat(catalogTable.getOptions().get("connector")).isEqualTo("fake");
@@ -120,7 +120,7 @@ class TableEnvironmentTest {
                         crs -> {
                             assertThat(crs.isAnonymous()).isTrue();
                             assertThat(crs.getIdentifier().toList()).hasSize(1);
-                            assertThat(crs.getTable().getOptions())
+                            assertThat(crs.getResolvedTable().getOptions())
                                     .containsEntry("connector", "fake");
                         });
 
@@ -196,7 +196,7 @@ class TableEnvironmentTest {
                 tEnv.getCatalogManager().getTable(identifier);
         assertThat(lookupResult.isPresent()).isTrue();
 
-        final CatalogBaseTable catalogTable = lookupResult.get().getTable();
+        final CatalogBaseTable catalogTable = lookupResult.get().getResolvedTable();
         assertThat(catalogTable instanceof CatalogTable).isTrue();
         assertThat(catalogTable.getUnresolvedSchema()).isEqualTo(schema);
         assertThat(catalogTable.getOptions().get("a")).isEqualTo("Test");
