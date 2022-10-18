@@ -609,17 +609,6 @@ public class LocalExecutorITCase extends TestLogger {
                 expectedResults, actualResults, Comparator.naturalOrder());
     }
 
-    private void executeAndVerifySinkResult(
-            Executor executor, String sessionId, String statement, String resultPath)
-            throws Exception {
-        final TableResult tableResult = executeSql(executor, sessionId, statement);
-        checkState(tableResult.getJobClient().isPresent());
-        // wait for job completion
-        tableResult.await();
-        // verify result
-        verifySinkResult(resultPath);
-    }
-
     private Map<String, String> getDefaultSessionConfigMap() {
         HashMap<String, String> configMap = new HashMap<>();
         configMap.put(RUNTIME_MODE.key(), RuntimeExecutionMode.STREAMING.name());
