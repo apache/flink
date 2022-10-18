@@ -45,7 +45,7 @@ import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.QueryOperation;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.CloseableIterator;
-import org.apache.flink.util.TestLogger;
+import org.apache.flink.util.TestLoggerExtension;
 
 import org.jline.reader.Candidate;
 import org.jline.reader.LineReader;
@@ -54,7 +54,8 @@ import org.jline.reader.ParsedLine;
 import org.jline.reader.Parser;
 import org.jline.terminal.Terminal;
 import org.jline.terminal.impl.DumbTerminal;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 import javax.annotation.Nullable;
 
@@ -82,7 +83,8 @@ import static org.apache.flink.table.client.cli.CliStrings.MESSAGE_SQL_EXECUTION
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for the {@link CliClient}. */
-public class CliClientTest extends TestLogger {
+@ExtendWith(TestLoggerExtension.class)
+class CliClientTest {
 
     private static final String INSERT_INTO_STATEMENT =
             "INSERT INTO MyTable SELECT * FROM MyOtherTable";
@@ -93,20 +95,20 @@ public class CliClientTest extends TestLogger {
     private static final String HIVE_SQL_WITH_COMPLETER = "SELECT POSITION  FROM source_table;";
 
     @Test
-    public void testUpdateSubmission() throws Exception {
+    void testUpdateSubmission() throws Exception {
         verifyUpdateSubmission(INSERT_INTO_STATEMENT, false, false);
         verifyUpdateSubmission(INSERT_OVERWRITE_STATEMENT, false, false);
     }
 
     @Test
-    public void testFailedUpdateSubmission() throws Exception {
+    void testFailedUpdateSubmission() throws Exception {
         // fail at executor
         verifyUpdateSubmission(INSERT_INTO_STATEMENT, true, true);
         verifyUpdateSubmission(INSERT_OVERWRITE_STATEMENT, true, true);
     }
 
     @Test
-    public void testExecuteSqlFile() throws Exception {
+    void testExecuteSqlFile() throws Exception {
         MockExecutor executor = new MockExecutor();
         executeSqlFromContent(
                 executor,
@@ -118,14 +120,14 @@ public class CliClientTest extends TestLogger {
     }
 
     @Test
-    public void testExecuteSqlFileWithoutSqlCompleter() throws Exception {
+    void testExecuteSqlFileWithoutSqlCompleter() throws Exception {
         MockExecutor executor = new MockExecutor(new SqlParserHelper(SqlDialect.HIVE));
         executeSqlFromContent(executor, ORIGIN_HIVE_SQL);
         assertThat(executor.receivedStatement).contains(HIVE_SQL_WITHOUT_COMPLETER);
     }
 
     @Test
-    public void testExecuteSqlInteractiveWithSqlCompleter() throws Exception {
+    void testExecuteSqlInteractiveWithSqlCompleter() throws Exception {
         final MockExecutor mockExecutor = new MockExecutor(new SqlParserHelper(SqlDialect.HIVE));
         String sessionId = mockExecutor.openSession("test-session");
 
@@ -141,7 +143,7 @@ public class CliClientTest extends TestLogger {
     }
 
     @Test
-    public void testSqlCompletion() throws IOException {
+    void testSqlCompletion() throws IOException {
         verifySqlCompletion("", 0, Arrays.asList("CLEAR", "HELP", "EXIT", "QUIT", "RESET", "SET"));
         verifySqlCompletion("SELE", 4, Collections.emptyList());
         verifySqlCompletion("QU", 2, Collections.singletonList("QUIT"));
@@ -154,7 +156,7 @@ public class CliClientTest extends TestLogger {
     }
 
     @Test
-    public void testHistoryFile() throws Exception {
+    void testHistoryFile() throws Exception {
         final MockExecutor mockExecutor = new MockExecutor();
         String sessionId = mockExecutor.openSession("test-session");
 
@@ -167,14 +169,14 @@ public class CliClientTest extends TestLogger {
                                 () -> terminal, sessionId, mockExecutor, historyFilePath, null)) {
             client.executeInInteractiveMode();
             List<String> content = Files.readAllLines(historyFilePath);
-            assertThat(content.size()).isEqualTo(2);
+            assertThat(content).hasSize(2);
             assertThat(content.get(0)).contains("help");
             assertThat(content.get(1)).contains("use catalog cat");
         }
     }
 
     @Test
-    public void testGetEOFinNonInteractiveMode() throws Exception {
+    void testGetEOFinNonInteractiveMode() throws Exception {
         final List<String> statements =
                 Arrays.asList("DESC MyOtherTable;", "SHOW TABLES"); // meet EOF
         String content = String.join("\n", statements);
@@ -187,7 +189,7 @@ public class CliClientTest extends TestLogger {
     }
 
     @Test
-    public void testUnknownStatementInNonInteractiveMode() throws Exception {
+    void testUnknownStatementInNonInteractiveMode() throws Exception {
         final List<String> statements =
                 Arrays.asList(
                         "ERT INTO MyOtherTable VALUES (1, 101), (2, 102);",
@@ -203,7 +205,7 @@ public class CliClientTest extends TestLogger {
     }
 
     @Test
-    public void testFailedExecutionInNonInteractiveMode() throws Exception {
+    void testFailedExecutionInNonInteractiveMode() throws Exception {
         final List<String> statements =
                 Arrays.asList(
                         "INSERT INTO MyOtherTable VALUES (1, 101), (2, 102);",
@@ -220,7 +222,7 @@ public class CliClientTest extends TestLogger {
     }
 
     @Test
-    public void testIllegalResultModeInNonInteractiveMode() throws Exception {
+    void testIllegalResultModeInNonInteractiveMode() throws Exception {
         // When client executes sql file, it requires sql-client.execution.result-mode = tableau;
         // Therefore, it will get execution error and stop executing the sql follows the illegal
         // statement.
@@ -245,7 +247,7 @@ public class CliClientTest extends TestLogger {
     }
 
     @Test
-    public void testIllegalStatementInInitFile() throws Exception {
+    void testIllegalStatementInInitFile() throws Exception {
         final List<String> statements =
                 Arrays.asList(
                         "CREATE TABLE source (a int, b string) with ( 'connector' = 'values');",
@@ -263,8 +265,8 @@ public class CliClientTest extends TestLogger {
         assertThat(cliClient.executeInitialization(content)).isFalse();
     }
 
-    @Test(timeout = 10000)
-    public void testCancelExecutionInNonInteractiveMode() throws Exception {
+    @Test
+    void testCancelExecutionInNonInteractiveMode() throws Exception {
         // add "\n" with quit to trigger commit the line
         final List<String> statements =
                 Arrays.asList(
@@ -324,7 +326,7 @@ public class CliClientTest extends TestLogger {
     }
 
     @Test
-    public void testCancelExecutionInteractiveMode() throws Exception {
+    void testCancelExecutionInteractiveMode() throws Exception {
         final MockExecutor mockExecutor = new MockExecutor();
         mockExecutor.isSync = true;
 
@@ -361,8 +363,8 @@ public class CliClientTest extends TestLogger {
         }
     }
 
-    @Test(timeout = 10000)
-    public void testStopJob() throws Exception {
+    @Test
+    void testStopJob() throws Exception {
         final MockExecutor mockExecutor = new MockExecutor();
         mockExecutor.isSync = false;
 
@@ -384,8 +386,8 @@ public class CliClientTest extends TestLogger {
         }
     }
 
-    @Test(timeout = 10000)
-    public void testStopJobWithSavepoint() throws Exception {
+    @Test
+    void testStopJobWithSavepoint() throws Exception {
         final MockExecutor mockExecutor = new MockExecutor();
         mockExecutor.isSync = false;
         final String mockSavepoint = "/my/savepoint/path";

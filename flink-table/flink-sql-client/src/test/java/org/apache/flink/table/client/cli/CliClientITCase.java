@@ -20,6 +20,7 @@ package org.apache.flink.table.client.cli;
 
 import org.apache.flink.client.cli.DefaultCLI;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.client.cli.utils.SqlScriptReader;
 import org.apache.flink.table.client.cli.utils.TestSqlStatement;
@@ -27,7 +28,9 @@ import org.apache.flink.table.client.gateway.Executor;
 import org.apache.flink.table.client.gateway.context.DefaultContext;
 import org.apache.flink.table.client.gateway.local.LocalExecutor;
 import org.apache.flink.table.planner.utils.TableTestUtil;
-import org.apache.flink.test.util.AbstractTestBase;
+import org.apache.flink.test.junit5.InjectClusterClientConfiguration;
+import org.apache.flink.test.junit5.MiniClusterExtension;
+import org.apache.flink.util.TestLoggerExtension;
 import org.apache.flink.util.UserClassLoaderJarTestUtils;
 
 import org.apache.flink.shaded.guava30.com.google.common.io.PatternFilenameFilter;
@@ -38,13 +41,13 @@ import org.apache.commons.lang3.StringUtils;
 import org.jline.reader.MaskingCallback;
 import org.jline.terminal.Terminal;
 import org.jline.terminal.impl.DumbTerminal;
-import org.junit.Before;
-import org.junit.BeforeClass;
-import org.junit.ClassRule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.api.extension.RegisterExtension;
+import org.junit.jupiter.api.io.TempDir;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.MethodSource;
 
 import java.io.BufferedReader;
 import java.io.ByteArrayInputStream;
@@ -56,6 +59,7 @@ import java.io.InputStream;
 import java.io.StringReader;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
@@ -64,7 +68,9 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import static org.apache.commons.lang3.StringUtils.repeat;
 import static org.apache.flink.configuration.JobManagerOptions.ADDRESS;
@@ -76,8 +82,8 @@ import static org.apache.flink.table.utils.UserDefinedFunctions.GENERATED_UPPER_
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test that runs every {@code xx.q} file in "resources/sql/" path as a test. */
-@RunWith(Parameterized.class)
-public class CliClientITCase extends AbstractTestBase {
+@ExtendWith(TestLoggerExtension.class)
+public class CliClientITCase {
 
     private static final String HIVE_ADD_ONE_UDF_CLASS = "HiveAddOneFunc";
     private static final String HIVE_ADD_ONE_UDF_CODE =
@@ -92,12 +98,17 @@ public class CliClientITCase extends AbstractTestBase {
     private static Path historyPath;
     private static Map<String, String> replaceVars;
 
-    @ClassRule public static TemporaryFolder tempFolder = new TemporaryFolder();
+    @TempDir private static Path tempFolder;
 
-    @Parameterized.Parameter public String sqlPath;
+    @RegisterExtension
+    private static final MiniClusterExtension MINI_CLUSTER_RESOURCE =
+            new MiniClusterExtension(
+                    new MiniClusterResourceConfiguration.Builder()
+                            .setNumberTaskManagers(1)
+                            .setNumberSlotsPerTaskManager(4)
+                            .build());
 
-    @Parameterized.Parameters(name = "{0}")
-    public static Object[] parameters() throws Exception {
+    static Stream<String> sqlPaths() throws Exception {
         String first = "sql/table.q";
         URL url = CliClientITCase.class.getResource("/" + first);
         File firstFile = Paths.get(url.toURI()).toFile();
@@ -108,11 +119,12 @@ public class CliClientITCase extends AbstractTestBase {
         for (File f : Util.first(dir.listFiles(filter), new File[0])) {
             paths.add(f.getAbsolutePath().substring(commonPrefixLength));
         }
-        return paths.toArray();
+        return paths.stream();
     }
 
-    @BeforeClass
-    public static void setup() throws IOException {
+    @BeforeAll
+    static void setup(@InjectClusterClientConfiguration Configuration configuration)
+            throws IOException {
         Map<String, String> classNameCodes = new HashMap<>();
         classNameCodes.put(
                 GENERATED_LOWER_UDF_CLASS,
@@ -124,7 +136,7 @@ public class CliClientITCase extends AbstractTestBase {
 
         File udfJar =
                 UserClassLoaderJarTestUtils.createJarFile(
-                        tempFolder.newFolder("test-jar"),
+                        Files.createTempDirectory(tempFolder, "test-jar").toFile(),
                         "test-classloader-udf.jar",
                         classNameCodes);
         URL udfDependency = udfJar.toURI().toURL();
@@ -132,37 +144,44 @@ public class CliClientITCase extends AbstractTestBase {
         // we need to pad the displayed "jars" tableau to have the same width of path string
         // 4 for the "jars" characters, see `set.q` test file
         int paddingLen = path.length() - 4;
-        historyPath = tempFolder.newFile("history").toPath();
+        historyPath = Files.createTempFile(tempFolder, "history", "");
 
         replaceVars = new HashMap<>();
         replaceVars.put("$VAR_UDF_JAR_PATH", path);
         replaceVars.put("$VAR_UDF_JAR_PATH_DASH", repeat('-', paddingLen));
         replaceVars.put("$VAR_UDF_JAR_PATH_SPACE", repeat(' ', paddingLen));
         replaceVars.put("$VAR_PIPELINE_JARS_URL", udfDependency.toString());
-        replaceVars.put(
-                "$VAR_REST_PORT",
-                MINI_CLUSTER_RESOURCE.getClientConfiguration().get(PORT).toString());
-        replaceVars.put(
-                "$VAR_JOBMANAGER_RPC_ADDRESS",
-                MINI_CLUSTER_RESOURCE.getClientConfiguration().get(ADDRESS));
+        replaceVars.put("$VAR_REST_PORT", configuration.get(PORT).toString());
+        replaceVars.put("$VAR_JOBMANAGER_RPC_ADDRESS", configuration.get(ADDRESS));
     }
 
-    @Before
+    @BeforeEach
     public void before() throws IOException {
-        // initialize new folders for every tests, so the vars can be reused by every SQL scripts
-        replaceVars.put("$VAR_STREAMING_PATH", tempFolder.newFolder().toPath().toString());
-        replaceVars.put("$VAR_STREAMING_PATH2", tempFolder.newFolder().toPath().toString());
-        replaceVars.put("$VAR_BATCH_PATH", tempFolder.newFolder().toPath().toString());
-        replaceVars.put("$VAR_BATCH_PATH2", tempFolder.newFolder().toPath().toString());
+        // initialize new folders for every test, so the vars can be reused by every SQL script
+        replaceVars.put(
+                "$VAR_STREAMING_PATH",
+                Files.createTempDirectory(tempFolder, UUID.randomUUID().toString()).toString());
+        replaceVars.put(
+                "$VAR_STREAMING_PATH2",
+                Files.createTempDirectory(tempFolder, UUID.randomUUID().toString()).toString());
+        replaceVars.put(
+                "$VAR_BATCH_PATH",
+                Files.createTempDirectory(tempFolder, UUID.randomUUID().toString()).toString());
+        replaceVars.put(
+                "$VAR_BATCH_PATH2",
+                Files.createTempDirectory(tempFolder, UUID.randomUUID().toString()).toString());
     }
 
-    @Test
-    public void testSqlStatements() throws IOException {
+    @ParameterizedTest
+    @MethodSource("sqlPaths")
+    void testSqlStatements(
+            String sqlPath, @InjectClusterClientConfiguration Configuration configuration)
+            throws IOException {
         String in = getInputFromPath(sqlPath);
         List<TestSqlStatement> testSqlStatements = parseSqlScript(in);
         List<String> sqlStatements =
                 testSqlStatements.stream().map(s -> s.sql).collect(Collectors.toList());
-        List<Result> actualResults = runSqlStatements(sqlStatements);
+        List<Result> actualResults = runSqlStatements(sqlStatements, configuration);
         String out = transformOutput(testSqlStatements, actualResults);
         assertThat(out).isEqualTo(in);
     }
@@ -173,12 +192,13 @@ public class CliClientITCase extends AbstractTestBase {
      * @param statements the SQL statements to run
      * @return the printed results on SQL Client
      */
-    private List<Result> runSqlStatements(List<String> statements) throws IOException {
+    private List<Result> runSqlStatements(List<String> statements, Configuration configuration)
+            throws IOException {
         final String sqlContent = String.join("", statements);
         DefaultContext defaultContext =
                 new DefaultContext(
                         Collections.emptyList(),
-                        new Configuration(MINI_CLUSTER_RESOURCE.getClientConfiguration())
+                        new Configuration(configuration)
                                 // Make sure we use the new cast behaviour
                                 .set(
                                         ExecutionConfigOptions.TABLE_EXEC_LEGACY_CAST_BEHAVIOUR,

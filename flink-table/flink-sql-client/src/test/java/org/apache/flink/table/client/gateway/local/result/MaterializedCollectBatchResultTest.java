@@ -31,7 +31,7 @@ import org.apache.flink.table.data.conversion.DataStructureConverters;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.types.Row;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.Arrays;
 import java.util.Collections;
@@ -40,10 +40,10 @@ import java.util.function.Function;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link MaterializedCollectBatchResult}. */
-public class MaterializedCollectBatchResultTest extends BaseMaterializedResultTest {
+class MaterializedCollectBatchResultTest extends BaseMaterializedResultTest {
 
     @Test
-    public void testSnapshot() throws Exception {
+    void testSnapshot() throws Exception {
         final ResolvedSchema schema =
                 ResolvedSchema.physical(
                         new String[] {"f0", "f1"},
@@ -114,7 +114,7 @@ public class MaterializedCollectBatchResultTest extends BaseMaterializedResultTe
     }
 
     @Test
-    public void testLimitedSnapshot() throws Exception {
+    void testLimitedSnapshot() throws Exception {
         final ResolvedSchema schema =
                 ResolvedSchema.physical(
                         new String[] {"f0", "f1"},

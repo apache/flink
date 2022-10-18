@@ -40,7 +40,7 @@ import org.apache.flink.table.utils.DateTimeUtils;
 import org.jline.reader.MaskingCallback;
 import org.jline.terminal.Terminal;
 import org.jline.utils.AttributedString;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import javax.annotation.Nullable;
 
@@ -58,7 +58,7 @@ import static org.apache.flink.table.client.config.SqlClientOptions.EXECUTION_RE
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Contains basic tests for the {@link CliResultView}. */
-public class CliResultViewTest {
+class CliResultViewTest {
 
     @Test
     public void testTableResultViewKeepJobResult() throws Exception {
@@ -66,27 +66,27 @@ public class CliResultViewTest {
     }
 
     @Test
-    public void testTableResultViewClearEmptyResult() throws Exception {
+    void testTableResultViewClearEmptyResult() throws Exception {
         testResultViewClearResult(TypedResult.empty(), true, 1);
     }
 
     @Test
-    public void testTableResultViewClearPayloadResult() throws Exception {
+    void testTableResultViewClearPayloadResult() throws Exception {
         testResultViewClearResult(TypedResult.payload(1), true, 1);
     }
 
     @Test
-    public void testChangelogResultViewKeepJobResult() throws Exception {
+    void testChangelogResultViewKeepJobResult() throws Exception {
         testResultViewClearResult(TypedResult.endOfStream(), false, 0);
     }
 
     @Test
-    public void testChangelogResultViewClearEmptyResult() throws Exception {
+    void testChangelogResultViewClearEmptyResult() throws Exception {
         testResultViewClearResult(TypedResult.empty(), false, 1);
     }
 
     @Test
-    public void testChangelogResultViewClearPayloadResult() throws Exception {
+    void testChangelogResultViewClearPayloadResult() throws Exception {
         testResultViewClearResult(TypedResult.payload(Collections.emptyList()), false, 1);
     }
 
