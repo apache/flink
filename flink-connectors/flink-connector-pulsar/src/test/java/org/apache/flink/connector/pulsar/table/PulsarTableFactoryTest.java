@@ -148,7 +148,7 @@ public class PulsarTableFactoryTest {
     private static final DataType SCHEMA_DATA_TYPE = SCHEMA.toPhysicalRowDataType();
 
     @Test
-    public void testTableSource() {
+    void testTableSource() {
         final Map<String, String> configuration = getBasicSourceOptions();
         final PulsarTableSource actualPulsarSource =
                 (PulsarTableSource) createTableSource(SCHEMA, configuration);
@@ -183,7 +183,7 @@ public class PulsarTableFactoryTest {
     }
 
     @Test
-    public void testTableSourceWithKeyValue() {
+    void testTableSourceWithKeyValue() {
         final Map<String, String> configuration = getSourceKeyValueOptions();
 
         final PulsarTableSource actualPulsarSource =
@@ -228,7 +228,7 @@ public class PulsarTableFactoryTest {
     }
 
     @Test
-    public void testTableSourceWithKeyValueAndMetadata() {
+    void testTableSourceWithKeyValueAndMetadata() {
         final Map<String, String> options = getSourceKeyValueOptions();
         options.put("test-format.readable-metadata", "metadata_1:INT, metadata_2:STRING");
 
@@ -289,7 +289,7 @@ public class PulsarTableFactoryTest {
     }
 
     @Test
-    public void testTableSink() {
+    void testTableSink() {
         final Map<String, String> modifiedOptions = getBasicSinkOptions();
         final DynamicTableSink actualPulsarTableSink = createTableSink(SCHEMA, modifiedOptions);
 
@@ -326,7 +326,7 @@ public class PulsarTableFactoryTest {
     }
 
     @Test
-    public void testTableSinkWithKeyValue() {
+    void testTableSinkWithKeyValue() {
         final Map<String, String> modifiedOptions = getSinkKeyValueOptions();
         final PulsarTableSink actualPulsarTableSink =
                 (PulsarTableSink) createTableSink(SCHEMA, modifiedOptions);

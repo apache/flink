@@ -72,7 +72,7 @@ public abstract class PulsarTableTestBase {
     }
 
     @AfterAll
-    public void afterAll() {
+    void afterAll() {
         pulsar.tearDown();
     }
 }
