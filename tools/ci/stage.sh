@@ -125,7 +125,6 @@ flink-connectors/flink-connector-hbase-1.4,\
 flink-connectors/flink-sql-connector-hbase-1.4,\
 flink-connectors/flink-connector-hbase-2.2,\
 flink-connectors/flink-sql-connector-hbase-2.2,\
-flink-connectors/flink-hcatalog,\
 flink-connectors/flink-hadoop-compatibility,\
 flink-connectors,\
 flink-connectors/flink-connector-files,\
