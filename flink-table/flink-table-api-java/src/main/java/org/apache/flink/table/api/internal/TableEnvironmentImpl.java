@@ -1524,12 +1524,13 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
             DataTypes.BOOLEAN(),
             DataTypes.STRING(),
             DataTypes.STRING(),
+            DataTypes.STRING(),
             DataTypes.STRING()
         };
     }
 
     private String[] generateTableColumnsNames() {
-        return new String[] {"name", "type", "null", "key", "extras", "watermark"};
+        return new String[] {"name", "type", "null", "key", "extras", "watermark", "comment"};
     }
 
     private TableResultInternal buildShowTablesResult(
@@ -1611,7 +1612,8 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
                                 logicalType.isNullable(),
                                 fieldToPrimaryKey.getOrDefault(c.getName(), null),
                                 c.explainExtras().orElse(null),
-                                fieldToWatermark.getOrDefault(c.getName(), null)
+                                fieldToWatermark.getOrDefault(c.getName(), null),
+                                c.getComment().orElse(null)
                             };
                         })
                 .toArray(Object[][]::new);

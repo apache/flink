@@ -21,6 +21,7 @@ package org.apache.flink.table.planner.operations;
 import org.apache.flink.sql.parser.ddl.SqlCreateTable;
 import org.apache.flink.sql.parser.ddl.SqlCreateTableAs;
 import org.apache.flink.sql.parser.ddl.SqlCreateTableLike;
+import org.apache.flink.sql.parser.ddl.SqlTableColumn;
 import org.apache.flink.sql.parser.ddl.SqlTableLike;
 import org.apache.flink.sql.parser.ddl.SqlTableOption;
 import org.apache.flink.sql.parser.ddl.constraint.SqlTableConstraint;
@@ -30,7 +31,6 @@ import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.CatalogManager;
 import org.apache.flink.table.catalog.CatalogTable;
-import org.apache.flink.table.catalog.CatalogTableImpl;
 import org.apache.flink.table.catalog.ContextResolvedTable;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.catalog.UnresolvedIdentifier;
@@ -43,6 +43,7 @@ import org.apache.flink.table.planner.calcite.FlinkPlannerImpl;
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlNodeList;
+import org.apache.commons.lang3.StringUtils;
 
 import java.util.Arrays;
 import java.util.Collections;
@@ -158,6 +159,18 @@ class SqlCreateTableConverter {
                 sqlCreateTable.getFullConstraints().stream()
                         .filter(SqlTableConstraint::isPrimaryKey)
                         .findAny();
+        List<SqlNode> columns = sqlCreateTable.getColumnList().getList();
+        Map<String, String> comments =
+                columns.stream()
+                        .map(col -> (SqlTableColumn) col)
+                        .filter(col -> col.getComment().isPresent())
+                        .collect(
+                                Collectors.toMap(
+                                        col -> col.getName().getSimple(),
+                                        col ->
+                                                StringUtils.strip(
+                                                        col.getComment().get().toString(), "'")));
+
         TableSchema mergedSchema =
                 mergeTableLikeUtil.mergeTables(
                         mergingStrategies,
@@ -182,7 +195,8 @@ class SqlCreateTableConverter {
                         .map(comment -> comment.getNlsString().getValue())
                         .orElse(null);
 
-        return new CatalogTableImpl(mergedSchema, partitionKeys, mergedOptions, tableComment);
+        return CatalogTable.of(
+                mergedSchema.toSchema(comments), tableComment, partitionKeys, mergedOptions);
     }
 
     private CatalogTable lookupLikeSourceTable(SqlTableLike sqlTableLike) {
