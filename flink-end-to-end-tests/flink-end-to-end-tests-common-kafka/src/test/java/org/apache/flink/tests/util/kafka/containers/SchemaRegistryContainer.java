@@ -19,6 +19,7 @@
 package org.apache.flink.tests.util.kafka.containers;
 
 import org.testcontainers.containers.GenericContainer;
+import org.testcontainers.utility.DockerImageName;
 
 /**
  * A container over an Confluent Schema Registry. It runs the schema registry on port 8082 in the
@@ -26,8 +27,8 @@ import org.testcontainers.containers.GenericContainer;
  */
 public class SchemaRegistryContainer extends GenericContainer<SchemaRegistryContainer> {
 
-    public SchemaRegistryContainer(String version) {
-        super("confluentinc/cp-schema-registry:" + version);
+    public SchemaRegistryContainer(DockerImageName imageName) {
+        super(imageName);
         withExposedPorts(8082);
     }
 
