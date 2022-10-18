@@ -25,7 +25,6 @@ import org.apache.flink.table.planner.utils.TableTestUtil;
 import org.apache.flink.shaded.guava30.com.google.common.io.PatternFilenameFilter;
 
 import org.apache.calcite.util.Util;
-import org.junit.runners.Parameterized;
 
 import java.io.File;
 import java.io.FilenameFilter;
@@ -33,12 +32,12 @@ import java.net.URL;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Stream;
 
 /** Test that runs every {@code xx.q} file in "resources/sql_multi/" path as a test. */
-public class CliClientMultiStatementITTest extends CliClientITCase {
+class CliClientMultiStatementITTest extends CliClientITCase {
 
-    @Parameterized.Parameters(name = "{0}")
-    public static Object[] parameters() throws Exception {
+    static Stream<String> sqlPaths() throws Exception {
         String first = "sql_multi/statement_set.q";
         URL url = CliClientITCase.class.getResource("/" + first);
         File firstFile = Paths.get(url.toURI()).toFile();
@@ -49,7 +48,7 @@ public class CliClientMultiStatementITTest extends CliClientITCase {
         for (File f : Util.first(dir.listFiles(filter), new File[0])) {
             paths.add(f.getAbsolutePath().substring(commonPrefixLength));
         }
-        return paths.toArray();
+        return paths.stream();
     }
 
     protected List<TestSqlStatement> parseSqlScript(String input) {

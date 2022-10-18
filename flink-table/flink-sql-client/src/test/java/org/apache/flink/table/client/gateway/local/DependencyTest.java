@@ -55,7 +55,7 @@ import org.apache.flink.table.types.DataType;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.CollectionUtil;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.Arrays;
 import java.util.Collections;
@@ -70,7 +70,7 @@ import java.util.stream.IntStream;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Dependency tests for {@link LocalExecutor}. Mainly for testing classloading of dependencies. */
-public class DependencyTest {
+class DependencyTest {
 
     public static final String CONNECTOR_TYPE_VALUE = "test-connector";
     public static final String TEST_PROPERTY = "test-property";
@@ -97,7 +97,7 @@ public class DependencyTest {
     private static final String SESSION_ID = "test-session";
 
     @Test
-    public void testTableFactoryDiscovery() throws Exception {
+    void testTableFactoryDiscovery() throws Exception {
         final LocalExecutor executor = createLocalExecutor();
         try {
             final TableResult tableResult =
@@ -134,7 +134,7 @@ public class DependencyTest {
     }
 
     @Test
-    public void testSqlParseWithUserClassLoader() throws Exception {
+    void testSqlParseWithUserClassLoader() throws Exception {
         final LocalExecutor executor = createLocalExecutor();
         try {
             Operation operation =
