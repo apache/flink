@@ -18,11 +18,13 @@
 
 package org.apache.flink.api.connector.source.util.ratelimit;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.util.concurrent.FutureUtils;
 
 import java.util.concurrent.CompletionStage;
 
 /** A convenience implementation of {@link RateLimiter} that does not throttle requests. */
+@Internal
 public class NoOpRateLimiter implements RateLimiter {
 
     @Override

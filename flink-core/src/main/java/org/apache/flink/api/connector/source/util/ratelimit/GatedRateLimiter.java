@@ -18,6 +18,8 @@
 
 package org.apache.flink.api.connector.source.util.ratelimit;
 
+import org.apache.flink.annotation.Internal;
+
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 
@@ -28,6 +30,7 @@ import static org.apache.flink.util.Preconditions.checkArgument;
  * external notification events. The first cycle completes immediately, without waiting for the
  * external notifications.
  */
+@Internal
 public class GatedRateLimiter implements RateLimiter {
 
     private final int capacityPerCycle;

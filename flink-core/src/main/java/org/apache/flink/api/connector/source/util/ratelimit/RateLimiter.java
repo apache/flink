@@ -18,12 +18,15 @@
 
 package org.apache.flink.api.connector.source.util.ratelimit;
 
+import org.apache.flink.annotation.Experimental;
+
 import javax.annotation.concurrent.NotThreadSafe;
 
 import java.util.concurrent.CompletionStage;
 
 /** The interface to rate limit execution of methods. */
 @NotThreadSafe
+@Experimental
 public interface RateLimiter {
 
     /**
