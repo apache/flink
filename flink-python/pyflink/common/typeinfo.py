@@ -730,7 +730,6 @@ class LocalTimeTypeInfo(TypeInformation):
     def __init__(self, time_type: TimeType):
         super(LocalTimeTypeInfo, self).__init__()
         self._time_type = time_type
-        self._j_typeinfo = None
 
     def get_java_type_info(self) -> JavaObject:
         if self._j_typeinfo is None:
@@ -741,9 +740,11 @@ class LocalTimeTypeInfo(TypeInformation):
             elif self._time_type == LocalTimeTypeInfo.TimeType.LOCAL_TIME:
                 self._j_typeinfo = \
                     jvm.org.apache.flink.api.common.typeinfo.LocalTimeTypeInfo.LOCAL_TIME
-            if self._time_type == LocalTimeTypeInfo.TimeType.LOCAL_DATE_TIME:
+            elif self._time_type == LocalTimeTypeInfo.TimeType.LOCAL_DATE_TIME:
                 self._j_typeinfo = \
                     jvm.org.apache.flink.api.common.typeinfo.LocalTimeTypeInfo.LOCAL_DATE_TIME
+            else:
+                raise TypeError('Unsupported TimeType: {}'.format(self._time_type.name))
         return self._j_typeinfo
 
     def __eq__(self, other):
@@ -1095,13 +1096,6 @@ def _from_java_type(j_type_info: JavaObject) -> TypeInformation:
         j_element_type_info = j_type_info.getElementTypeInfo()
         return ListTypeInfo(_from_java_type(j_element_type_info))
 
-    JExternalTypeInfo = gateway.jvm.org.apache.flink.table.runtime.typeutils.ExternalTypeInfo
-    if _is_instance_of(j_type_info, JExternalTypeInfo):
-        TypeInfoDataTypeConverter = \
-            gateway.jvm.org.apache.flink.table.types.utils.LegacyTypeInfoDataTypeConverter
-        return ExternalTypeInfo(_from_java_type(
-            TypeInfoDataTypeConverter.toLegacyTypeInfo(j_type_info.getDataType())))
-
     JLocalTimeTypeInfo = gateway.jvm.org.apache.flink.api.common.typeinfo.LocalTimeTypeInfo
     if _is_instance_of(j_type_info, JLocalTimeTypeInfo):
         if j_type_info.equals(JLocalTimeTypeInfo.LOCAL_DATE):
@@ -1113,6 +1107,13 @@ def _from_java_type(j_type_info: JavaObject) -> TypeInformation:
         else:
             raise TypeError("Unsupported LocalTimeTypeInfo: %s." % j_type_info.toString())
         return LocalTimeTypeInfo(time_type)
+
+    JExternalTypeInfo = gateway.jvm.org.apache.flink.table.runtime.typeutils.ExternalTypeInfo
+    if _is_instance_of(j_type_info, JExternalTypeInfo):
+        TypeInfoDataTypeConverter = \
+            gateway.jvm.org.apache.flink.table.types.utils.LegacyTypeInfoDataTypeConverter
+        return ExternalTypeInfo(_from_java_type(
+            TypeInfoDataTypeConverter.toLegacyTypeInfo(j_type_info.getDataType())))
 
     raise TypeError("The java type info: %s is not supported in PyFlink currently." % j_type_info)
 
