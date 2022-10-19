@@ -25,8 +25,13 @@ import org.apache.flink.types.RowKind;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.Preconditions;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 /** Utility for deduplicate function. */
 public class DeduplicateFunctionHelper {
+
+    private static final Logger LOG = LoggerFactory.getLogger(DeduplicateFunctionHelper.class);
 
     /**
      * Processes element to deduplicate on keys with process time semantic, sends current element as
@@ -60,7 +65,7 @@ public class DeduplicateFunctionHelper {
                 currentRow.setRowKind(RowKind.INSERT);
                 out.collect(currentRow);
             } else {
-                if (!isStateTtlEnabled && equaliser.equals(preRow, currentRow)) {
+                if (!isStateTtlEnabled && equalsSansRowKind(equaliser, preRow, currentRow)) {
                     // currentRow is the same as preRow and state cleaning is not enabled.
                     // We do not emit retraction and update message.
                     // If state cleaning is enabled, we have to emit messages to prevent too early
@@ -82,6 +87,13 @@ public class DeduplicateFunctionHelper {
         }
     }
 
+    static private boolean equalsSansRowKind(RecordEqualiser equaliser, RowData preRow, RowData currentRow) {
+        RowKind origKind = currentRow.getRowKind();
+        currentRow.setRowKind(preRow.getRowKind());
+        boolean isEqual = equaliser.equals(preRow, currentRow);
+        currentRow.setRowKind(origKind);
+        return isEqual;
+    }
     /**
      * Processes element to deduplicate on keys, sends current element as last row, retracts
      * previous element if needed.
@@ -111,7 +123,7 @@ public class DeduplicateFunctionHelper {
                 currentRow.setRowKind(RowKind.INSERT);
                 out.collect(currentRow);
             } else {
-                if (!isStateTtlEnabled && equaliser.equals(preRow, currentRow)) {
+                if (!isStateTtlEnabled && equalsSansRowKind(equaliser, preRow, currentRow)) {
                     // currentRow is the same as preRow and state cleaning is not enabled.
                     // We do not emit retraction and update message.
                     // If state cleaning is enabled, we have to emit messages to prevent too early
