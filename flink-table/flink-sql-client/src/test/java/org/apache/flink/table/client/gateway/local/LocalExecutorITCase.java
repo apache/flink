@@ -51,13 +51,11 @@ import org.apache.flink.test.junit5.InjectClusterClient;
 import org.apache.flink.test.junit5.MiniClusterExtension;
 import org.apache.flink.test.util.TestBaseUtils;
 import org.apache.flink.util.StringUtils;
-import org.apache.flink.util.TestLoggerExtension;
 import org.apache.flink.util.UserClassLoaderJarTestUtils;
 
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Order;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.api.extension.RegisterExtension;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -86,7 +84,6 @@ import static org.apache.flink.util.Preconditions.checkState;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Contains basic tests for the {@link LocalExecutor}. */
-@ExtendWith(TestLoggerExtension.class)
 class LocalExecutorITCase {
 
     private static final int NUM_TMS = 2;
@@ -459,7 +456,7 @@ class LocalExecutorITCase {
             } while (jobStatus != JobStatus.RUNNING);
 
             Optional<String> savepoint = executor.stopJob(sessionId, jobId.toString(), true, true);
-            assertThat(savepoint.isPresent()).isTrue();
+            assertThat(savepoint).isPresent();
         } finally {
             executor.closeSession(sessionId);
         }

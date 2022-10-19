@@ -45,7 +45,6 @@ import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.QueryOperation;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.CloseableIterator;
-import org.apache.flink.util.TestLoggerExtension;
 
 import org.jline.reader.Candidate;
 import org.jline.reader.LineReader;
@@ -55,7 +54,6 @@ import org.jline.reader.Parser;
 import org.jline.terminal.Terminal;
 import org.jline.terminal.impl.DumbTerminal;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
 
 import javax.annotation.Nullable;
 
@@ -83,7 +81,6 @@ import static org.apache.flink.table.client.cli.CliStrings.MESSAGE_SQL_EXECUTION
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for the {@link CliClient}. */
-@ExtendWith(TestLoggerExtension.class)
 class CliClientTest {
 
     private static final String INSERT_INTO_STATEMENT =

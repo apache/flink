@@ -30,7 +30,6 @@ import org.apache.flink.table.client.gateway.local.LocalExecutor;
 import org.apache.flink.table.planner.utils.TableTestUtil;
 import org.apache.flink.test.junit5.InjectClusterClientConfiguration;
 import org.apache.flink.test.junit5.MiniClusterExtension;
-import org.apache.flink.util.TestLoggerExtension;
 import org.apache.flink.util.UserClassLoaderJarTestUtils;
 
 import org.apache.flink.shaded.guava30.com.google.common.io.PatternFilenameFilter;
@@ -43,7 +42,6 @@ import org.jline.terminal.Terminal;
 import org.jline.terminal.impl.DumbTerminal;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.api.extension.RegisterExtension;
 import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -82,8 +80,7 @@ import static org.apache.flink.table.utils.UserDefinedFunctions.GENERATED_UPPER_
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test that runs every {@code xx.q} file in "resources/sql/" path as a test. */
-@ExtendWith(TestLoggerExtension.class)
-public class CliClientITCase {
+class CliClientITCase {
 
     private static final String HIVE_ADD_ONE_UDF_CLASS = "HiveAddOneFunc";
     private static final String HIVE_ADD_ONE_UDF_CODE =
@@ -156,7 +153,7 @@ public class CliClientITCase {
     }
 
     @BeforeEach
-    public void before() throws IOException {
+    void before() throws IOException {
         // initialize new folders for every test, so the vars can be reused by every SQL script
         replaceVars.put(
                 "$VAR_STREAMING_PATH",

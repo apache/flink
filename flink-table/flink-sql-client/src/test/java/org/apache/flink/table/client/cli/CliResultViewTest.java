@@ -61,7 +61,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 class CliResultViewTest {
 
     @Test
-    public void testTableResultViewKeepJobResult() throws Exception {
+    void testTableResultViewKeepJobResult() throws Exception {
         testResultViewClearResult(TypedResult.endOfStream(), true, 0);
     }
 

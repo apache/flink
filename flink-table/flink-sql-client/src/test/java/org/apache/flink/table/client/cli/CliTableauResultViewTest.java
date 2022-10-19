@@ -205,8 +205,8 @@ class CliTableauResultViewTest {
 
         view.displayResults();
         view.close();
-        assertThat(terminalOutput.toString())
-                .isEqualTo(
+        assertThat(terminalOutput)
+                .hasToString(
                         "+---------+-------------+----------------------+--------------------------------+----------------+----------------------------+---------------------+"
                                 + System.lineSeparator()
                                 + "| boolean |         int |               bigint |                        varchar | decimal(10, 5) |                  timestamp |              binary |"
@@ -265,13 +265,14 @@ class CliTableauResultViewTest {
         terminal.raise(Terminal.Signal.INT);
         furture.get(5, TimeUnit.SECONDS);
 
-        assertThat(terminalOutput.toString())
-                .isEqualTo("Query terminated, received a total of 0 row" + System.lineSeparator());
+        assertThat(terminalOutput)
+                .hasToString(
+                        "Query terminated, received a total of 0 row" + System.lineSeparator());
 
         // didn't have a chance to read page
         assertThat(mockExecutor.getNumRetrieveResultPageCalls()).isZero();
         // tried to cancel query
-        assertThat(mockExecutor.getNumCancelCalls()).isEqualTo(1);
+        assertThat(mockExecutor.getNumCancelCalls()).isOne();
 
         view.close();
     }
@@ -299,7 +300,7 @@ class CliTableauResultViewTest {
         view.displayResults();
         view.close();
 
-        assertThat(terminalOutput.toString()).isEqualTo("Empty set" + System.lineSeparator());
+        assertThat(terminalOutput).hasToString("Empty set" + System.lineSeparator());
         assertThat(mockExecutor.getNumCancelCalls()).isZero();
     }
 
@@ -331,7 +332,7 @@ class CliTableauResultViewTest {
         }
         view.close();
 
-        assertThat(mockExecutor.getNumCancelCalls()).isEqualTo(1);
+        assertThat(mockExecutor.getNumCancelCalls()).isOne();
     }
 
     @Test
@@ -366,8 +367,8 @@ class CliTableauResultViewTest {
         // width < 2 in IDE by default, every CJK character usually's width is 2, you can open this
         // source file
         // by vim or just cat the file to check the regular result.
-        assertThat(terminalOutput.toString())
-                .isEqualTo(
+        assertThat(terminalOutput)
+                .hasToString(
                         "+----+---------+-------------+----------------------+--------------------------------+----------------+----------------------------+--------------------------------+"
                                 + System.lineSeparator()
                                 + "| op | boolean |         int |               bigint |                        varchar | decimal(10, 5) |                  timestamp |                         binary |"
@@ -416,8 +417,8 @@ class CliTableauResultViewTest {
         view.displayResults();
         view.close();
 
-        assertThat(terminalOutput.toString())
-                .isEqualTo(
+        assertThat(terminalOutput)
+                .hasToString(
                         "+----+---------+-------------+----------------------+--------------------------------+----------------+----------------------------+--------------------------------+"
                                 + System.lineSeparator()
                                 + "| op | boolean |         int |               bigint |                        varchar | decimal(10, 5) |                  timestamp |                         binary |"
@@ -461,8 +462,8 @@ class CliTableauResultViewTest {
         furture.get(5, TimeUnit.SECONDS);
         view.close();
 
-        assertThat(terminalOutput.toString())
-                .isEqualTo(
+        assertThat(terminalOutput)
+                .hasToString(
                         "+----+---------+-------------+----------------------+--------------------------------+----------------+----------------------------+--------------------------------+"
                                 + System.lineSeparator()
                                 + "| op | boolean |         int |               bigint |                        varchar | decimal(10, 5) |                  timestamp |                         binary |"
@@ -480,7 +481,7 @@ class CliTableauResultViewTest {
                                 + "Query terminated, received a total of 4 rows"
                                 + System.lineSeparator());
 
-        assertThat(mockExecutor.getNumCancelCalls()).isEqualTo(1);
+        assertThat(mockExecutor.getNumCancelCalls()).isOne();
     }
 
     @Test
@@ -513,8 +514,8 @@ class CliTableauResultViewTest {
         }
         view.close();
 
-        assertThat(terminalOutput.toString())
-                .isEqualTo(
+        assertThat(terminalOutput)
+                .hasToString(
                         "+----+---------+-------------+----------------------+--------------------------------+----------------+----------------------------+--------------------------------+"
                                 + System.lineSeparator()
                                 + "| op | boolean |         int |               bigint |                        varchar | decimal(10, 5) |                  timestamp |                         binary |"
@@ -529,6 +530,6 @@ class CliTableauResultViewTest {
                                 + System.lineSeparator()
                                 + "| -D |   FALSE | -2147483648 |  9223372036854775807 |                         <NULL> |    12345.06789 | 2020-03-01 18:39:14.123000 |            x'32333485365d737e' |"
                                 + System.lineSeparator());
-        assertThat(mockExecutor.getNumCancelCalls()).isEqualTo(1);
+        assertThat(mockExecutor.getNumCancelCalls()).isOne();
     }
 }

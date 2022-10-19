@@ -63,7 +63,7 @@ class SessionContextTest {
     private SessionContext sessionContext;
 
     @BeforeAll
-    public static void prepare() throws Exception {
+    static void prepare() throws Exception {
         udfJar =
                 UserClassLoaderJarTestUtils.createJarFile(
                         Files.createTempDirectory(tempFolder, "test-jar").toFile(),
@@ -73,7 +73,7 @@ class SessionContextTest {
     }
 
     @BeforeEach
-    public void setup() {
+    void setup() {
         sessionContext = createSessionContext();
     }
 
@@ -137,15 +137,13 @@ class SessionContextTest {
         sessionContext.set("aa", "11");
         sessionContext.set("bb", "22");
 
-        assertThat(getConfigurationMap().get("aa")).isEqualTo("11");
-        assertThat(getConfigurationMap().get("bb")).isEqualTo("22");
+        assertThat(getConfigurationMap()).containsEntry("aa", "11").containsEntry("bb", "22");
 
         sessionContext.reset("aa");
-        assertThat(getConfigurationMap().get("aa")).isNull();
-        assertThat(getConfigurationMap().get("bb")).isEqualTo("22");
+        assertThat(getConfigurationMap()).doesNotContainKey("aa").containsEntry("bb", "22");
 
         sessionContext.reset("bb");
-        assertThat(getConfigurationMap().get("bb")).isNull();
+        assertThat(getConfigurationMap()).doesNotContainKey("bb");
     }
 
     @Test
