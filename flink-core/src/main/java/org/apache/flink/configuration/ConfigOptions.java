@@ -309,7 +309,7 @@ public class ConfigOptions {
 
         public ConfigOption<Map<String, V>> noDefaultValue() {
             return new ConfigOption<>(
-                    key, clazz, ConfigOption.EMPTY_DESCRIPTION, Collections.emptyMap(), MAP);
+                    key, clazz, ConfigOption.EMPTY_DESCRIPTION, null, MAP);
         }
     }
 
