@@ -62,7 +62,6 @@ import org.junit.jupiter.api.extension.RegisterExtension;
 import org.junit.jupiter.api.io.TempDir;
 
 import java.io.File;
-import java.io.IOException;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -475,11 +474,6 @@ public class LocalExecutorITCase extends TestLogger {
     // Helper method
     // --------------------------------------------------------------------------------------------
 
-    private TableResult executeSql(Executor executor, String sessionId, String sql) {
-        Operation operation = executor.parseStatement(sessionId, sql);
-        return executor.executeOperation(sessionId, operation);
-    }
-
     private ResultDescriptor executeQuery(Executor executor, String sessionId, String query) {
         Operation operation = executor.parseStatement(sessionId, query);
         return executor.executeQuery(sessionId, (QueryOperation) operation);
@@ -592,20 +586,6 @@ public class LocalExecutorITCase extends TestLogger {
             }
         }
         return actualResults;
-    }
-
-    private void verifySinkResult(String path) throws IOException {
-        final List<String> actualResults = new ArrayList<>();
-        TestBaseUtils.readAllResultLines(actualResults, path);
-        final List<String> expectedResults = new ArrayList<>();
-        expectedResults.add("TRUE,\"hello world\",\"2020-01-01 00:00:01\"");
-        expectedResults.add("FALSE,\"hello world\",\"2020-01-01 00:00:02\"");
-        expectedResults.add("FALSE,\"hello world\",\"2020-01-01 00:00:03\"");
-        expectedResults.add("FALSE,\"hello world\",\"2020-01-01 00:00:04\"");
-        expectedResults.add("TRUE,\"hello world\",\"2020-01-01 00:00:05\"");
-        expectedResults.add("FALSE,\"hello world!!!!\",\"2020-01-01 00:00:06\"");
-        TestBaseUtils.compareResultCollections(
-                expectedResults, actualResults, Comparator.naturalOrder());
     }
 
     private Map<String, String> getDefaultSessionConfigMap() {
