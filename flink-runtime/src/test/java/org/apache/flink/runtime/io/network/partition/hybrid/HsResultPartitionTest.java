@@ -221,6 +221,63 @@ class HsResultPartitionTest {
         }
     }
 
+    /** Test write and read data from single subpartition with multiple consumer. */
+    @Test
+    void testMultipleConsumer() throws Exception {
+        final int numBuffers = 10;
+        final int numRecords = 10;
+        final int numConsumers = 2;
+        final int targetChannel = 0;
+        final Random random = new Random();
+
+        BufferPool bufferPool = globalPool.createBufferPool(numBuffers, numBuffers);
+        try (HsResultPartition resultPartition = createHsResultPartition(2, bufferPool)) {
+            List<ByteBuffer> dataWritten = new ArrayList<>();
+            for (int i = 0; i < numRecords; i++) {
+                ByteBuffer record = generateRandomData(bufferSize, random);
+                resultPartition.emitRecord(record, targetChannel);
+                dataWritten.add(record);
+            }
+            resultPartition.finish();
+
+            Tuple2[] viewAndListeners =
+                    createMultipleConsumerView(resultPartition, targetChannel, 2);
+
+            List<List<Buffer>> dataRead = new ArrayList<>();
+            for (int i = 0; i < numConsumers; i++) {
+                dataRead.add(new ArrayList<>());
+            }
+            readData(
+                    viewAndListeners,
+                    (buffer, subpartition) -> {
+                        int numBytes = buffer.readableBytes();
+                        if (buffer.isBuffer()) {
+                            MemorySegment segment =
+                                    MemorySegmentFactory.allocateUnpooledSegment(numBytes);
+                            segment.put(0, buffer.getNioBufferReadable(), numBytes);
+                            dataRead.get(subpartition)
+                                    .add(
+                                            new NetworkBuffer(
+                                                    segment,
+                                                    (buf) -> {},
+                                                    buffer.getDataType(),
+                                                    numBytes));
+                        }
+                    });
+
+            for (int i = 0; i < numConsumers; i++) {
+                assertThat(dataWritten).hasSameSizeAs(dataRead.get(i));
+                List<Buffer> readBufferList = dataRead.get(i);
+                for (int j = 0; j < dataWritten.size(); j++) {
+                    ByteBuffer bufferWritten = dataWritten.get(j);
+                    bufferWritten.rewind();
+                    Buffer bufferRead = readBufferList.get(j);
+                    assertThat(bufferRead.getNioBufferReadable()).isEqualTo(bufferWritten);
+                }
+            }
+        }
+    }
+
     @Test
     void testClose() throws Exception {
         final int numBuffers = 1;
@@ -480,6 +537,21 @@ class HsResultPartitionTest {
             TestingBufferAvailabilityListener listener = new TestingBufferAvailabilityListener();
             viewAndListeners[subpartition] =
                     Tuple2.of(partition.createSubpartitionView(subpartition, listener), listener);
+        }
+        return viewAndListeners;
+    }
+
+    /** Create multiple consumer and bufferAvailabilityListener for single subpartition. */
+    private Tuple2<ResultSubpartitionView, TestingBufferAvailabilityListener>[]
+            createMultipleConsumerView(
+                    HsResultPartition partition, int subpartitionId, int numConsumers)
+                    throws Exception {
+        Tuple2<ResultSubpartitionView, TestingBufferAvailabilityListener>[] viewAndListeners =
+                new Tuple2[numConsumers];
+        for (int consumer = 0; consumer < numConsumers; ++consumer) {
+            TestingBufferAvailabilityListener listener = new TestingBufferAvailabilityListener();
+            viewAndListeners[consumer] =
+                    Tuple2.of(partition.createSubpartitionView(subpartitionId, listener), listener);
         }
         return viewAndListeners;
     }
