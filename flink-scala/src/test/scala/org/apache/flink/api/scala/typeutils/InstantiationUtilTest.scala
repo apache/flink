@@ -19,8 +19,8 @@ package org.apache.flink.api.scala.typeutils
 
 import org.apache.flink.util.{InstantiationUtil, TestLogger}
 
-import org.hamcrest.Matchers
-import org.junit.{Assert, Test}
+import org.assertj.core.api.Assertions.assertThat
+import org.junit.Test
 
 import java.io.ByteArrayOutputStream
 
@@ -36,7 +36,7 @@ class InstantiationUtilTest extends TestLogger {
 
     val copy = serializeDeserializeInstance(instance)
 
-    Assert.assertThat(copy, Matchers.equalTo(instance))
+    assertThat(copy).isEqualTo(instance)
   }
 
   @Test
@@ -56,7 +56,7 @@ class InstantiationUtilTest extends TestLogger {
 
     val copy = serializeDeserializeInstance(instance)
 
-    Assert.assertThat(copy, Matchers.equalTo(instance))
+    assertThat(copy).isEqualTo(instance)
   }
 
   private def serializeDeserializeInstance[T](instance: T): T = {

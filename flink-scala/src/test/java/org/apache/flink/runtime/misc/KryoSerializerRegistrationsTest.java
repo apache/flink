@@ -26,16 +26,10 @@ import com.esotericsoftware.kryo.Registration;
 import org.junit.Test;
 
 import java.io.BufferedReader;
-import java.io.BufferedWriter;
-import java.io.File;
-import java.io.FileWriter;
-import java.io.IOException;
 import java.io.InputStreamReader;
 
-import static org.hamcrest.CoreMatchers.is;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.fail;
 
 /**
  * Tests that the set of Kryo registrations is the same across compatible Flink versions.
@@ -78,10 +72,9 @@ public class KryoSerializerRegistrationsTest {
                     // only available if flink-avro is present. There is a special version of
                     // this test in AvroKryoSerializerRegistrationsTest that verifies correct
                     // registration of Avro types if present
-                    assertThat(
-                            registration.getType().getName(),
-                            is(
-                                    "org.apache.flink.api.java.typeutils.runtime.kryo.Serializers$DummyAvroRegisteredClass"));
+                    assertThat(registration.getType().getName())
+                            .isEqualTo(
+                                    "org.apache.flink.api.java.typeutils.runtime.kryo.Serializers$DummyAvroRegisteredClass");
                 } else if (!registeredClass.equals(registration.getType().getName())) {
                     fail(
                             String.format(

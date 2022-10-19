@@ -19,7 +19,7 @@ package org.apache.flink.api.scala.typeutils
 
 import org.apache.flink.util.TestLogger
 
-import org.junit.Assert._
+import org.assertj.core.api.Assertions.assertThat
 import org.junit.Test
 import org.scalatest.junit.JUnitSuiteLike
 
@@ -35,7 +35,7 @@ class EnumValueSerializerTest extends TestLogger with JUnitSuiteLike {
 
     val snapshot = enumSerializer.snapshotConfiguration()
 
-    assertTrue(snapshot.resolveSchemaCompatibility(enumSerializer).isCompatibleAsIs)
+    assertThat(snapshot.resolveSchemaCompatibility(enumSerializer).isCompatibleAsIs).isTrue
   }
 }
 

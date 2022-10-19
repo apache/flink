@@ -21,8 +21,8 @@ import org.apache.flink.api.common.typeutils.{TypeSerializerSchemaCompatibility,
 import org.apache.flink.core.memory.{DataInputViewStreamWrapper, DataOutputViewStreamWrapper}
 import org.apache.flink.util.TestLogger
 
+import org.assertj.core.api.Assertions.{assertThat, fail}
 import org.junit.{Rule, Test}
-import org.junit.Assert._
 import org.junit.rules.TemporaryFolder
 import org.scalatest.junit.JUnitSuiteLike
 
@@ -82,33 +82,33 @@ class EnumValueSerializerCompatibilityTest extends TestLogger with JUnitSuiteLik
   /** Check that identical enums don't require migration */
   @Test
   def checkIdenticalEnums(): Unit = {
-    assertTrue(checkCompatibility(enumA, enumA).isCompatibleAsIs)
+    assertThat(checkCompatibility(enumA, enumA).isCompatibleAsIs).isTrue
   }
 
   /** Check that appending fields to the enum does not require migration */
   @Test
   def checkAppendedField(): Unit = {
-    assertTrue(checkCompatibility(enumA, enumB).isCompatibleAsIs)
+    assertThat(checkCompatibility(enumA, enumB).isCompatibleAsIs).isTrue
   }
 
   /** Check that removing enum fields makes the snapshot incompatible. */
   @Test
   def checkRemovedField(): Unit = {
-    assertTrue(checkCompatibility(enumA, enumC).isIncompatible)
+    assertThat(checkCompatibility(enumA, enumC).isIncompatible).isTrue
   }
 
   /** Check that changing the enum field order makes the snapshot incompatible. */
   @Test
   def checkDifferentFieldOrder(): Unit = {
-    assertTrue(checkCompatibility(enumA, enumD).isIncompatible)
+    assertThat(checkCompatibility(enumA, enumD).isIncompatible).isTrue
   }
 
   /** Check that changing the enum ids causes a migration */
   @Test
   def checkDifferentIds(): Unit = {
-    assertTrue(
-      "Different ids should be incompatible.",
-      checkCompatibility(enumA, enumE).isIncompatible)
+    assertThat(checkCompatibility(enumA, enumE).isIncompatible)
+      .as("Different ids should be incompatible.")
+      .isTrue
   }
 
   def checkCompatibility(
