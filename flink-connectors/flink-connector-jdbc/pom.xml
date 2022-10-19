@@ -40,6 +40,11 @@ under the License.
 	</properties>
 
 	<dependencies>
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-connector-base</artifactId>
+			<version>${project.version}</version>
+		</dependency>
 		<!-- Table ecosystem -->
 
 		<!-- Projects depending on this project won't depend on flink-table-*. -->
