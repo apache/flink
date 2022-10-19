@@ -27,10 +27,10 @@ import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
 /** Tests for hybrid shuffle mode. */
+@Disabled("Enable this test after FLINK-29419 being resolved.")
 class HybridShuffleITCase extends BatchShuffleITCaseBase {
 
     @Test
-    @Disabled("Enable this test after FLINK-29419 being resolved.")
     void testHybridFullExchanges() throws Exception {
         final int numRecordsToSend = 10000;
         Configuration configuration = getConfiguration();
@@ -52,7 +52,6 @@ class HybridShuffleITCase extends BatchShuffleITCaseBase {
     }
 
     @Test
-    @Disabled("Enable this test after FLINK-29419 being resolved.")
     void testHybridFullExchangesRestart() throws Exception {
         final int numRecordsToSend = 10;
         Configuration configuration = getConfiguration();
