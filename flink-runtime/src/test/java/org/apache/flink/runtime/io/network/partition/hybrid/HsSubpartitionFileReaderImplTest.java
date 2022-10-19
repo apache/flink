@@ -501,6 +501,38 @@ class HsSubpartitionFileReaderImplTest {
         checkData(subpartitionFileReader, 1, 2, 3);
     }
 
+    @Test
+    void testMultipleFileReaderOfSingleSubpartition() throws Exception {
+        TestingSubpartitionConsumerInternalOperation viewNotifier1 =
+                new TestingSubpartitionConsumerInternalOperation();
+        TestingSubpartitionConsumerInternalOperation viewNotifier2 =
+                new TestingSubpartitionConsumerInternalOperation();
+
+        HsConsumerId consumer0 = HsConsumerId.newId(null);
+        HsSubpartitionFileReaderImpl consumer1 =
+                createSubpartitionFileReader(0, consumer0, viewNotifier1);
+        HsSubpartitionFileReaderImpl consumer2 =
+                createSubpartitionFileReader(0, HsConsumerId.newId(consumer0), viewNotifier2);
+
+        assertThat(consumer1).isNotEqualTo(consumer2);
+
+        // write data to a single subpartition, then read these buffers by two consumers
+        // respectively.
+        writeDataToFile(0, 0, 1, 3);
+
+        consumer1.prepareForScheduling();
+        Queue<MemorySegment> memorySegments = createsMemorySegments(3);
+        consumer1.readBuffers(memorySegments, (ignore) -> {});
+        assertThat(memorySegments).isEmpty();
+        checkData(consumer1, 1, 2, 3);
+
+        consumer2.prepareForScheduling();
+        memorySegments = createsMemorySegments(3);
+        consumer2.readBuffers(memorySegments, (ignore) -> {});
+        assertThat(memorySegments).isEmpty();
+        checkData(consumer2, 1, 2, 3);
+    }
+
     private static void checkData(
             HsSubpartitionFileReaderImpl fileReader,
             BufferDecompressor bufferDecompressor,
@@ -530,8 +562,16 @@ class HsSubpartitionFileReaderImplTest {
 
     private HsSubpartitionFileReaderImpl createSubpartitionFileReader(
             int targetChannel, HsSubpartitionConsumerInternalOperations operations) {
+        return createSubpartitionFileReader(targetChannel, HsConsumerId.DEFAULT, operations);
+    }
+
+    private HsSubpartitionFileReaderImpl createSubpartitionFileReader(
+            int targetChannel,
+            HsConsumerId consumerId,
+            HsSubpartitionConsumerInternalOperations operations) {
         return new HsSubpartitionFileReaderImpl(
                 targetChannel,
+                consumerId,
                 dataFileChannel,
                 operations,
                 diskIndex,

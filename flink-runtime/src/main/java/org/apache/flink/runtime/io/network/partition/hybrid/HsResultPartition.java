@@ -188,7 +188,9 @@ public class HsResultPartition extends ResultPartition {
 
         HsSubpartitionConsumer subpartitionView = new HsSubpartitionConsumer(availabilityListener);
         HsDataView diskDataView =
-                fileDataManager.registerNewSubpartition(subpartitionId, subpartitionView);
+                // TODO pass real consumerId in the next commit.
+                fileDataManager.registerNewConsumer(
+                        subpartitionId, HsConsumerId.DEFAULT, subpartitionView);
 
         HsDataView memoryDataView =
                 checkNotNull(memoryDataManager)

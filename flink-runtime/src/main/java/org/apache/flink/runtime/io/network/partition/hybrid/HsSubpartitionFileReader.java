@@ -57,6 +57,7 @@ public interface HsSubpartitionFileReader extends Comparable<HsSubpartitionFileR
     interface Factory {
         HsSubpartitionFileReader createFileReader(
                 int subpartitionId,
+                HsConsumerId consumerId,
                 FileChannel dataFileChannel,
                 HsSubpartitionConsumerInternalOperations operation,
                 HsFileDataIndex dataIndex,
