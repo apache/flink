@@ -128,6 +128,11 @@ public class EventReceivingTasks implements SubtaskAccess.SubtaskAccessFactory {
     Callable<CompletableFuture<Acknowledge>> createSendAction(OperatorEvent event, int subtask) {
         return () -> {
             events.add(new EventWithSubtask(event, subtask));
+            if (event instanceof CloseGatewayEvent || event instanceof OpenGatewayEvent) {
+                CompletableFuture<Acknowledge> future = new CompletableFuture<>();
+                future.complete(Acknowledge.get());
+                return future;
+            }
             return eventSendingResult;
         };
     }

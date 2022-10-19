@@ -29,6 +29,9 @@ import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.SerializedValue;
 import org.apache.flink.util.concurrent.FutureUtils;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.io.IOException;
 import java.util.LinkedList;
 import java.util.List;
@@ -55,6 +58,7 @@ import java.util.concurrent.CompletableFuture;
  * ComponentMainThreadExecutor, IncompleteFuturesTracker)} in order to avoid race condition.
  */
 class SubtaskGatewayImpl implements OperatorCoordinator.SubtaskGateway {
+    private static final Logger LOG = LoggerFactory.getLogger(SubtaskGatewayImpl.class);
 
     private static final String EVENT_LOSS_ERROR_MESSAGE =
             "An OperatorEvent from an OperatorCoordinator to a task was lost. "
@@ -110,7 +114,9 @@ class SubtaskGatewayImpl implements OperatorCoordinator.SubtaskGateway {
         final CompletableFuture<Acknowledge> result =
                 sendResult.whenCompleteAsync(
                         (success, failure) -> {
-                            if (failure != null && subtaskAccess.isStillRunning()) {
+                            if (failure != null
+                                    && subtaskAccess.isStillRunning()
+                                    && !(failure instanceof TaskNotRunningException)) {
                                 String msg =
                                         String.format(
                                                 EVENT_LOSS_ERROR_MESSAGE,
@@ -126,7 +132,10 @@ class SubtaskGatewayImpl implements OperatorCoordinator.SubtaskGateway {
 
         mainThreadExecutor.execute(
                 () -> {
-                    sendEventInternal(sendAction, sendResult);
+                    sendEventInternal(
+                            sendAction,
+                            sendResult,
+                            !(evt instanceof CloseGatewayEvent || evt instanceof OpenGatewayEvent));
                     incompleteFuturesTracker.trackFutureWhileIncomplete(result);
                 });
 
@@ -135,10 +144,11 @@ class SubtaskGatewayImpl implements OperatorCoordinator.SubtaskGateway {
 
     private void sendEventInternal(
             Callable<CompletableFuture<Acknowledge>> sendAction,
-            CompletableFuture<Acknowledge> result) {
+            CompletableFuture<Acknowledge> result,
+            boolean canBeBlocked) {
         checkRunsInMainThread();
 
-        if (!blockedEventsMap.isEmpty()) {
+        if (canBeBlocked && !blockedEventsMap.isEmpty()) {
             blockedEventsMap.lastEntry().getValue().add(new BlockedEvent(sendAction, result));
         } else {
             callSendAction(sendAction, result);
@@ -217,13 +227,15 @@ class SubtaskGatewayImpl implements OperatorCoordinator.SubtaskGateway {
 
         // Gateways should always be marked and closed for a specific checkpoint before it can be
         // reopened for that checkpoint. If a gateway is to be opened for an unforeseen checkpoint,
-        // exceptions should be thrown.
+        // which might happen when the coordinator has been reset to a previous checkpoint, warn
+        // messages should be recorded.
         if (latestAttemptedCheckpointId < checkpointId) {
-            throw new IllegalStateException(
+            LOG.warn(
                     String.format(
                             "Trying to open gateway for unseen checkpoint: "
                                     + "latest known checkpoint = %d, incoming checkpoint = %d",
                             latestAttemptedCheckpointId, checkpointId));
+            return;
         }
 
         // The message to open gateway with a specific checkpoint id might arrive after the
@@ -262,12 +274,6 @@ class SubtaskGatewayImpl implements OperatorCoordinator.SubtaskGateway {
 
         blockedEventsMap.clear();
         currentMarkedCheckpointIds.clear();
-    }
-
-    void openGatewayAndUnmarkLastCheckpointIfAny() {
-        if (!currentMarkedCheckpointIds.isEmpty()) {
-            openGatewayAndUnmarkCheckpoint(currentMarkedCheckpointIds.last());
-        }
     }
 
     private void checkRunsInMainThread() {

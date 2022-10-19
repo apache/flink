@@ -113,6 +113,5 @@ public class FinishedOperatorChain<OUT, OP extends StreamOperator<OUT>>
                         operatorWrapper.getStreamOperator().getOperatorID(), snapshotInProgress);
             }
         }
-        sendAcknowledgeCheckpointEvent(checkpointMetaData.getCheckpointId());
     }
 }

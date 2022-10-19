@@ -30,8 +30,11 @@ import org.apache.flink.runtime.operators.coordination.CoordinatorEventsExactlyO
 import org.apache.flink.runtime.operators.coordination.OperatorCoordinator;
 import org.apache.flink.runtime.operators.coordination.OperatorEvent;
 import org.apache.flink.runtime.operators.coordination.OperatorEventHandler;
+import org.apache.flink.runtime.state.FunctionInitializationContext;
+import org.apache.flink.runtime.state.FunctionSnapshotContext;
 import org.apache.flink.runtime.state.StateInitializationContext;
 import org.apache.flink.runtime.state.StateSnapshotContext;
+import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.DiscardingSink;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
@@ -57,12 +60,18 @@ import java.io.IOException;
 import java.util.List;
 import java.util.Random;
 
+import static org.apache.flink.runtime.operators.coordination.CoordinationEventsExactlyOnceITCaseUtils.EndEvent;
+import static org.apache.flink.runtime.operators.coordination.CoordinationEventsExactlyOnceITCaseUtils.IntegerEvent;
+import static org.apache.flink.runtime.operators.coordination.CoordinationEventsExactlyOnceITCaseUtils.StartEvent;
+import static org.apache.flink.runtime.operators.coordination.CoordinationEventsExactlyOnceITCaseUtils.TestScript;
+import static org.apache.flink.runtime.operators.coordination.CoordinationEventsExactlyOnceITCaseUtils.checkListContainsSequence;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * Integration test case that validates the exactly-once mechanism for operator events sent around
- * checkpoint. This class is an extension to {@link CoordinatorEventsExactlyOnceITCase}, further
- * verifying the exactly-once semantics of events in the following conditions:
+ * Integration test case that validates the exactly-once mechanism for operator events sent from a
+ * coordinator to its subtask around checkpoint. This class is an extension to {@link
+ * CoordinatorEventsExactlyOnceITCase}, further verifying the exactly-once semantics of events in
+ * the following conditions:
  *
  * <h2>Stream operator recipient</h2>
  *
@@ -98,6 +107,9 @@ import static org.assertj.core.api.Assertions.assertThat;
  * sending operator events. Besides, it is additionally guaranteed that there must have been a
  * checkpoint completed before the failure is injected, and that there must be events sent from the
  * coordinator to its subtask during checkpoint.
+ *
+ * <p>See also {@link StreamOperatorEventsExactlyOnceITCase} for integration tests about operator
+ * events sent in the reversed direction.
  */
 public class CoordinatorEventsToStreamOperatorRecipientExactlyOnceITCase
         extends CoordinatorEventsExactlyOnceITCase {
@@ -113,9 +125,9 @@ public class CoordinatorEventsToStreamOperatorRecipientExactlyOnceITCase
         env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(1);
         env.enableCheckpointing(100);
-        ManuallyClosedSourceFunction.shouldCloseSource = false;
-        EventReceivingOperator.shouldUnblockAllCheckpoint = false;
-        EventReceivingOperator.shouldUnblockNextCheckpoint = false;
+        ManuallyControlledSourceFunction.shouldCloseSource = false;
+        ManuallyControlledSourceFunction.shouldUnblockAllCheckpoint = false;
+        ManuallyControlledSourceFunction.shouldUnblockNextCheckpoint = false;
         EventSendingCoordinatorWithGuaranteedConcurrentCheckpoint
                         .isCheckpointAbortedBeforeScriptFailure =
                 false;
@@ -179,7 +191,7 @@ public class CoordinatorEventsToStreamOperatorRecipientExactlyOnceITCase
         // The event receiving operator is not chained together with the source operator, so that
         // when checkpoint barriers are injected into sources, the event receiving operator has not
         // started checkpoint yet.
-        env.addSource(new ManuallyClosedSourceFunction<>(), TypeInformation.of(Long.class))
+        env.addSource(new ManuallyControlledSourceFunction<>(), TypeInformation.of(Long.class))
                 .disableChaining()
                 .transform(factory.name, TypeInformation.of(Long.class), factory)
                 .addSink(new DiscardingSink<>());
@@ -194,11 +206,24 @@ public class CoordinatorEventsToStreamOperatorRecipientExactlyOnceITCase
         checkListContainsSequence(receivedInts, NUM_EVENTS);
     }
 
-    /** A mock source function that does not collect any stream record and closes on demand. */
-    private static class ManuallyClosedSourceFunction<T> implements SourceFunction<T> {
+    /**
+     * A mock source function that can be closed or block the checkpoint process on demand. It does
+     * not collect any stream record.
+     *
+     * <p>By blocking the checkpoint process, this function helps to guarantee that there are events
+     * being sent when the coordinator has completed a checkpoint while the subtask has not yet.
+     */
+    private static class ManuallyControlledSourceFunction<T>
+            implements SourceFunction<T>, CheckpointedFunction {
 
         /** Whether the source function should be closed to finish the job. */
         private static boolean shouldCloseSource;
+
+        /** Whether to unblock the next checkpoint. */
+        private static boolean shouldUnblockNextCheckpoint;
+
+        /** Whether to unblock all the following checkpoints. */
+        private static boolean shouldUnblockAllCheckpoint;
 
         @Override
         public void run(SourceContext<T> ctx) throws Exception {
@@ -209,6 +234,20 @@ public class CoordinatorEventsToStreamOperatorRecipientExactlyOnceITCase
 
         @Override
         public void cancel() {}
+
+        @Override
+        public void snapshotState(FunctionSnapshotContext context) throws Exception {
+            while (!shouldUnblockAllCheckpoint && !shouldUnblockNextCheckpoint) {
+                Thread.sleep(100);
+            }
+
+            if (shouldUnblockNextCheckpoint) {
+                shouldUnblockNextCheckpoint = false;
+            }
+        }
+
+        @Override
+        public void initializeState(FunctionInitializationContext context) throws Exception {}
     }
 
     /**
@@ -323,7 +362,7 @@ public class CoordinatorEventsToStreamOperatorRecipientExactlyOnceITCase
 
             if (!isEventSentAfterFirstCheckpoint && isCoordinatorFirstCheckpointCompleted) {
                 isEventSentAfterFirstCheckpoint = true;
-                EventReceivingOperator.shouldUnblockAllCheckpoint = true;
+                ManuallyControlledSourceFunction.shouldUnblockAllCheckpoint = true;
             }
         }
 
@@ -375,22 +414,11 @@ public class CoordinatorEventsToStreamOperatorRecipientExactlyOnceITCase
     /**
      * The stream operator that receives the events and accumulates the numbers. The task is
      * stateful and checkpoints the accumulator.
-     *
-     * <p>The operator also supports blocking the checkpoint process until certain signal is invoked
-     * (See {@link #shouldUnblockAllCheckpoint} and {@link #shouldUnblockNextCheckpoint}). It helps
-     * to guarantee that there are events being sent when the coordinator has completed a checkpoint
-     * while the subtask has not yet.
      */
     private static class EventReceivingOperator<T> extends AbstractStreamOperator<T>
             implements OneInputStreamOperator<T, T>, OperatorEventHandler {
 
         protected static final String ACCUMULATOR_NAME = "receivedIntegers";
-
-        /** Whether to unblock all the following checkpoints. */
-        private static boolean shouldUnblockAllCheckpoint;
-
-        /** Whether to unblock the next checkpoint. */
-        private static boolean shouldUnblockNextCheckpoint;
 
         protected final ListAccumulator<Integer> accumulator = new ListAccumulator<>();
 
@@ -421,7 +449,7 @@ public class CoordinatorEventsToStreamOperatorRecipientExactlyOnceITCase
                 } catch (Exception e) {
                     throw new RuntimeException(e);
                 }
-                ManuallyClosedSourceFunction.shouldCloseSource = true;
+                ManuallyControlledSourceFunction.shouldCloseSource = true;
             } else {
                 throw new UnsupportedOperationException();
             }
@@ -430,13 +458,6 @@ public class CoordinatorEventsToStreamOperatorRecipientExactlyOnceITCase
         @Override
         public void snapshotState(StateSnapshotContext context) throws Exception {
             super.snapshotState(context);
-            while (!shouldUnblockAllCheckpoint && !shouldUnblockNextCheckpoint) {
-                Thread.sleep(100);
-            }
-
-            if (shouldUnblockNextCheckpoint) {
-                shouldUnblockNextCheckpoint = false;
-            }
 
             state.update(accumulator.getLocalValue());
         }
@@ -537,7 +558,7 @@ public class CoordinatorEventsToStreamOperatorRecipientExactlyOnceITCase
                     throw new RuntimeException(e);
                 }
                 if (testScript.hasAlreadyFailed()) {
-                    ManuallyClosedSourceFunction.shouldCloseSource = true;
+                    ManuallyControlledSourceFunction.shouldCloseSource = true;
                 }
             } else {
                 throw new UnsupportedOperationException();
@@ -674,7 +695,7 @@ public class CoordinatorEventsToStreamOperatorRecipientExactlyOnceITCase
             // to be accidentally aborted. In order to avoid this situation, the following code is
             // required to make sure that checkpoint 2 is not completed until checkpoint 1 finishes.
             if (isEventSentAfterSecondCheckpoint && isJobFirstCheckpointCompleted) {
-                EventReceivingOperator.shouldUnblockAllCheckpoint = true;
+                ManuallyControlledSourceFunction.shouldUnblockAllCheckpoint = true;
             }
         }
 
@@ -685,7 +706,7 @@ public class CoordinatorEventsToStreamOperatorRecipientExactlyOnceITCase
                     isCoordinatorFirstCheckpointCompleted = true;
                 } else if (!isCoordinatorSecondCheckpointCompleted) {
                     isCoordinatorSecondCheckpointCompleted = true;
-                    EventReceivingOperator.shouldUnblockNextCheckpoint = true;
+                    ManuallyControlledSourceFunction.shouldUnblockNextCheckpoint = true;
                 }
             }
 

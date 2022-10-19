@@ -198,11 +198,11 @@ public class SchedulerTestingUtils {
 
     public static void setAllExecutionsToCancelled(final DefaultScheduler scheduler) {
         for (final ExecutionAttemptID attemptId : getAllCurrentExecutionAttempts(scheduler)) {
-            final boolean setToRunning =
+            final boolean setToCanceled =
                     scheduler.updateTaskExecutionState(
                             new TaskExecutionState(attemptId, ExecutionState.CANCELED));
 
-            assertTrue("could not switch task to RUNNING", setToRunning);
+            assertTrue("could not switch task to CANCELED", setToCanceled);
         }
     }
 

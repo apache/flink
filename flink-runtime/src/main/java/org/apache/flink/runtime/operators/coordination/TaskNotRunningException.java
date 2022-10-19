@@ -33,4 +33,8 @@ public class TaskNotRunningException extends FlinkException {
     public TaskNotRunningException(String taskDescription, ExecutionState state) {
         super(taskDescription + " is currently not RUNNING but in state " + state);
     }
+
+    public TaskNotRunningException(String message, Throwable cause) {
+        super(message, cause);
+    }
 }

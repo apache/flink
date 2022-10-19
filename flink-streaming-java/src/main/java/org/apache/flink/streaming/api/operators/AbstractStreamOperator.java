@@ -429,7 +429,6 @@ public abstract class AbstractStreamOperator<OUT>
      * to interact with systems such as broadcast variables and managed state. This also allows to
      * register timers.
      */
-    @VisibleForTesting
     public StreamingRuntimeContext getRuntimeContext() {
         return runtimeContext;
     }
@@ -438,7 +437,6 @@ public abstract class AbstractStreamOperator<OUT>
         return stateHandler.getKeyedStateBackend();
     }
 
-    @VisibleForTesting
     public OperatorStateBackend getOperatorStateBackend() {
         return stateHandler.getOperatorStateBackend();
     }

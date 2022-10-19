@@ -64,6 +64,7 @@ import org.apache.flink.runtime.jobgraph.tasks.CoordinatedTask;
 import org.apache.flink.runtime.jobgraph.tasks.TaskInvokable;
 import org.apache.flink.runtime.metrics.groups.TaskIOMetricGroup;
 import org.apache.flink.runtime.operators.coordination.OperatorEvent;
+import org.apache.flink.runtime.operators.coordination.TaskNotRunningException;
 import org.apache.flink.runtime.plugable.SerializationDelegate;
 import org.apache.flink.runtime.state.CheckpointStorage;
 import org.apache.flink.runtime.state.CheckpointStorageAccess;
@@ -1456,7 +1457,8 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
                     () -> operatorChain.dispatchOperatorEvent(operator, event),
                     "dispatch operator event");
         } catch (RejectedExecutionException e) {
-            // this happens during shutdown, we can swallow this
+            // this happens during shutdown, thus should be wrapped with TaskNotRunningException.
+            throw new TaskNotRunningException("Task is not running.", e);
         }
     }
 

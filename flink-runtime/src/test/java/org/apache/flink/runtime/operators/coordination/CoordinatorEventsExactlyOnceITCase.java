@@ -53,6 +53,7 @@ import org.apache.flink.util.TestLogger;
 
 import org.apache.flink.shaded.guava30.com.google.common.collect.Iterators;
 
+import org.junit.Before;
 import org.junit.ClassRule;
 import org.junit.Test;
 
@@ -63,11 +64,8 @@ import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collection;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.Random;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
@@ -79,6 +77,11 @@ import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
+import static org.apache.flink.runtime.operators.coordination.CoordinationEventsExactlyOnceITCaseUtils.EndEvent;
+import static org.apache.flink.runtime.operators.coordination.CoordinationEventsExactlyOnceITCaseUtils.IntegerEvent;
+import static org.apache.flink.runtime.operators.coordination.CoordinationEventsExactlyOnceITCaseUtils.StartEvent;
+import static org.apache.flink.runtime.operators.coordination.CoordinationEventsExactlyOnceITCaseUtils.TestScript;
+import static org.apache.flink.runtime.operators.coordination.CoordinationEventsExactlyOnceITCaseUtils.checkListContainsSequence;
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkState;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -141,11 +144,14 @@ public class CoordinatorEventsExactlyOnceITCase extends TestLogger {
 
     // ------------------------------------------------------------------------
 
-    @Test
-    public void test() throws Exception {
+    @Before
+    public void before() {
         // this captures variables communicated across instances, recoveries, etc.
         TestScript.reset();
+    }
 
+    @Test
+    public void test() throws Exception {
         final int numEvents1 = 200;
         final int numEvents2 = 10;
         final int delay1 = 1;
@@ -166,14 +172,6 @@ public class CoordinatorEventsExactlyOnceITCase extends TestLogger {
 
         checkListContainsSequence(result.getAccumulatorResult(OPERATOR_1_NAME), numEvents1);
         checkListContainsSequence(result.getAccumulatorResult(OPERATOR_2_NAME), numEvents2);
-    }
-
-    protected static void checkListContainsSequence(List<Integer> ints, int length) {
-        Integer[] expected = new Integer[length];
-        for (int i = 0; i < length; i++) {
-            expected[i] = i;
-        }
-        assertThat(ints).containsExactly(expected);
     }
 
     // ------------------------------------------------------------------------
@@ -222,38 +220,6 @@ public class CoordinatorEventsExactlyOnceITCase extends TestLogger {
     // ------------------------------------------------------------------------
     //  test operator and coordinator implementations
     // ------------------------------------------------------------------------
-
-    /**
-     * An operator event to notify the coordinator that the test subtask is ready to accept events.
-     */
-    protected static final class StartEvent implements OperatorEvent {
-
-        /**
-         * The last integer value the subtask has received from the coordinator and stored in
-         * snapshot, or -1 if the subtask has not completed any checkpoint yet.
-         */
-        private final int lastValue;
-
-        public StartEvent(int lastValue) {
-            this.lastValue = lastValue;
-        }
-    }
-
-    protected static final class EndEvent implements OperatorEvent {}
-
-    protected static final class IntegerEvent implements OperatorEvent {
-
-        public final int value;
-
-        private IntegerEvent(int value) {
-            this.value = value;
-        }
-
-        @Override
-        public String toString() {
-            return "IntegerEvent " + value;
-        }
-    }
 
     private static final class IntegerRequest implements CoordinationRequest {
         final int value;
@@ -606,9 +572,9 @@ public class CoordinatorEventsExactlyOnceITCase extends TestLogger {
                             .sendOperatorEventToCoordinator(
                                     operatorID,
                                     new SerializedValue<>(
-                                            new AcknowledgeCheckpointEvent(
-                                                    ((CheckpointMetaData) next)
-                                                            .getCheckpointId())));
+                                            new OpenGatewayEvent(
+                                                    ((CheckpointMetaData) next).getCheckpointId(),
+                                                    getIndexInSubtaskGroup())));
                 } else {
                     throw new Exception("Unrecognized: " + next);
                 }
@@ -649,6 +615,18 @@ public class CoordinatorEventsExactlyOnceITCase extends TestLogger {
                 throws FlinkException {
             try {
                 final OperatorEvent opEvent = event.deserializeValue(getUserCodeClassLoader());
+                if (opEvent instanceof CloseGatewayEvent) {
+                    getEnvironment()
+                            .getOperatorCoordinatorEventGateway()
+                            .sendOperatorEventToCoordinator(
+                                    operatorID,
+                                    new SerializedValue<>(
+                                            new AcknowledgeCloseGatewayEvent(
+                                                    (CloseGatewayEvent) opEvent)));
+                    return;
+                } else if (opEvent instanceof OpenGatewayEvent) {
+                    return;
+                }
                 actions.add(opEvent);
             } catch (IOException | ClassNotFoundException e) {
                 throw new FlinkException(e);
@@ -667,54 +645,6 @@ public class CoordinatorEventsExactlyOnceITCase extends TestLogger {
             if (stateHandle != null) {
                 final List<Integer> list = handleToState(stateHandle);
                 target.addAll(list);
-            }
-        }
-    }
-
-    // ------------------------------------------------------------------------
-    //  dedicated class to hold the "test script"
-    // ------------------------------------------------------------------------
-
-    protected static final class TestScript {
-
-        private static final Map<String, TestScript> MAP_FOR_OPERATOR = new HashMap<>();
-
-        public static TestScript getForOperator(String operatorName) {
-            return MAP_FOR_OPERATOR.computeIfAbsent(operatorName, (key) -> new TestScript());
-        }
-
-        public static void reset() {
-            MAP_FOR_OPERATOR.clear();
-        }
-
-        private final Collection<CountDownLatch> recoveredTaskRunning = new ArrayList<>();
-        private boolean failedBefore;
-
-        public void recordHasFailed() {
-            this.failedBefore = true;
-        }
-
-        public boolean hasAlreadyFailed() {
-            return failedBefore;
-        }
-
-        void registerHookToNotifyAfterTaskRecovered(CountDownLatch latch) {
-            synchronized (recoveredTaskRunning) {
-                recoveredTaskRunning.add(latch);
-            }
-        }
-
-        void signalRecoveredTaskReady() {
-            // We complete all latches that were registered. We may need to complete
-            // multiple ones here, because it can happen that after a previous failure, the next
-            // executions fails immediately again, before even registering at the coordinator.
-            // in that case, we have multiple latches from multiple failure notifications waiting
-            // to be completed.
-            synchronized (recoveredTaskRunning) {
-                for (CountDownLatch latch : recoveredTaskRunning) {
-                    latch.countDown();
-                }
-                recoveredTaskRunning.clear();
             }
         }
     }
