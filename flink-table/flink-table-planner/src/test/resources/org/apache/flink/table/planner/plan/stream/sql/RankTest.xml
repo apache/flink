@@ -739,13 +739,12 @@ LogicalProject(name=[$0], ids=[$1], rank_num=[$2])
     <Resource name="optimized rel plan">
       <![CDATA[
 Rank(strategy=[UpdateFastStrategy[0]], rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=3], partitionBy=[name], orderBy=[ids DESC], select=[name, ids, w0$o0])
-+- Exchange(distribution=[hash[name]])
-   +- GroupAggregate(groupBy=[name], select=[name, SUM(id) FILTER $f2 AS ids])
-      +- Exchange(distribution=[hash[name]])
-         +- Calc(select=[name, id, IS TRUE(>(id, 0)) AS $f2])
-            +- LookupJoin(table=[default_catalog.default_database.LookupTable], joinType=[InnerJoin], lookup=[id=a], select=[a, id, name])
-               +- Calc(select=[a])
-                  +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime])
++- GroupAggregate(groupBy=[name], select=[name, SUM(id) FILTER $f2 AS ids])
+   +- Exchange(distribution=[hash[name]])
+      +- Calc(select=[name, id, IS TRUE(>(id, 0)) AS $f2])
+         +- LookupJoin(table=[default_catalog.default_database.LookupTable], joinType=[InnerJoin], lookup=[id=a], select=[a, id, name])
+            +- Calc(select=[a])
+               +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime])
 ]]>
     </Resource>
   </TestCase>
@@ -1168,14 +1167,13 @@ LogicalProject(c=[$0], b=[$1], d=[$2])
     <Resource name="optimized rel plan">
       <![CDATA[
 Rank(strategy=[UpdateFastStrategy[0,1]], rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=9], partitionBy=[c, b], orderBy=[d DESC], select=[c, b, d])
-+- Exchange(distribution=[hash[c, b]])
-   +- GroupAggregate(groupBy=[c, b], select=[c, b, SUM(a) FILTER $f3 AS d])
-      +- Exchange(distribution=[hash[c, b]])
-         +- Calc(select=[c, b, a, IS TRUE(>(a, 0)) AS $f3])
-            +- Deduplicate(keep=[FirstRow], key=[c], order=[PROCTIME])
-               +- Exchange(distribution=[hash[c]])
-                  +- Calc(select=[a, b, c, PROCTIME() AS $5])
-                     +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime])
++- GroupAggregate(groupBy=[c, b], select=[c, b, SUM(a) FILTER $f3 AS d])
+   +- Exchange(distribution=[hash[c, b]])
+      +- Calc(select=[c, b, a, IS TRUE(>(a, 0)) AS $f3])
+         +- Deduplicate(keep=[FirstRow], key=[c], order=[PROCTIME])
+            +- Exchange(distribution=[hash[c]])
+               +- Calc(select=[a, b, c, PROCTIME() AS $5])
+                  +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime])
 ]]>
     </Resource>
   </TestCase>

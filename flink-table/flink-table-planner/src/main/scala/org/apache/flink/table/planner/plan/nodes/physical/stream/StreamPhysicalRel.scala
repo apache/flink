@@ -19,9 +19,24 @@ package org.apache.flink.table.planner.plan.nodes.physical.stream
 
 import org.apache.flink.table.planner.plan.nodes.physical.FlinkPhysicalRel
 
+import org.apache.calcite.plan.RelTraitSet
+import org.apache.calcite.rel.RelNode
+
 /** Base class for stream physical relational expression. */
 trait StreamPhysicalRel extends FlinkPhysicalRel {
 
   /** Whether the [[StreamPhysicalRel]] requires rowtime watermark in processing logic. */
   def requireWatermark: Boolean
+
+  /**
+   * Try to satisfy required traits by inputs of current node. If current node can satisfy required
+   * traits then returns the new node with new traits.
+   *
+   * @param inputsTraitSet
+   *   traits of inputs
+   * @return
+   *   A converted node which satisfy traits of input nodes. Returns None if required traits cannot
+   *   be satisfied.
+   */
+  def satisfyTraitsFromInputs(inputsTraitSet: RelTraitSet): Option[RelNode] = None
 }

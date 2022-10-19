@@ -311,6 +311,14 @@ object FlinkStreamProgram {
           FlinkHepRuleSetProgramBuilder.newBuilder
             .setHepRulesExecutionType(HEP_RULES_EXECUTION_TYPE.RULE_COLLECTION)
             .setHepMatchOrder(HepMatchOrder.BOTTOM_UP)
+            .add(FlinkStreamRuleSets.REMOVE_REDUNDANT_EXCHANGE)
+            .build(),
+          "remove redundant exchange"
+        )
+        .addProgram(
+          FlinkHepRuleSetProgramBuilder.newBuilder
+            .setHepRulesExecutionType(HEP_RULES_EXECUTION_TYPE.RULE_COLLECTION)
+            .setHepMatchOrder(HepMatchOrder.BOTTOM_UP)
             .add(FlinkStreamRuleSets.PHYSICAL_REWRITE)
             .build(),
           "physical rewrite"

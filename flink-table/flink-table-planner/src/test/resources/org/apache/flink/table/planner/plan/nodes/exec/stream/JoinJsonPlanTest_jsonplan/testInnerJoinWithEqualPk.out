@@ -76,19 +76,6 @@
     "description" : "GroupAggregate(groupBy=[a1], select=[a1])"
   }, {
     "id" : 4,
-    "type" : "stream-exec-exchange_1",
-    "inputProperties" : [ {
-      "requiredDistribution" : {
-        "type" : "HASH",
-        "keys" : [ 0 ]
-      },
-      "damBehavior" : "PIPELINED",
-      "priority" : 0
-    } ],
-    "outputType" : "ROW<`a1` INT>",
-    "description" : "Exchange(distribution=[hash[a1]])"
-  }, {
-    "id" : 5,
     "type" : "stream-exec-table-source-scan_1",
     "scanTableSource" : {
       "table" : {
@@ -128,7 +115,7 @@
     "description" : "TableSourceScan(table=[[default_catalog, default_database, B, project=[b1, b2], metadata=[]]], fields=[b1, b2])",
     "inputProperties" : [ ]
   }, {
-    "id" : 6,
+    "id" : 5,
     "type" : "stream-exec-exchange_1",
     "inputProperties" : [ {
       "requiredDistribution" : {
@@ -141,7 +128,7 @@
     "outputType" : "ROW<`b1` INT, `b2` BIGINT>",
     "description" : "Exchange(distribution=[hash[b1]])"
   }, {
-    "id" : 7,
+    "id" : 6,
     "type" : "stream-exec-group-aggregate_1",
     "configuration" : {
       "table.exec.mini-batch.enabled" : "false",
@@ -162,20 +149,7 @@
     "outputType" : "ROW<`b1` INT>",
     "description" : "GroupAggregate(groupBy=[b1], select=[b1])"
   }, {
-    "id" : 8,
-    "type" : "stream-exec-exchange_1",
-    "inputProperties" : [ {
-      "requiredDistribution" : {
-        "type" : "HASH",
-        "keys" : [ 0 ]
-      },
-      "damBehavior" : "PIPELINED",
-      "priority" : 0
-    } ],
-    "outputType" : "ROW<`b1` INT>",
-    "description" : "Exchange(distribution=[hash[b1]])"
-  }, {
-    "id" : 9,
+    "id" : 7,
     "type" : "stream-exec-join_1",
     "joinSpec" : {
       "joinType" : "INNER",
@@ -202,7 +176,7 @@
     "outputType" : "ROW<`a1` INT, `b1` INT>",
     "description" : "Join(joinType=[InnerJoin], where=[(a1 = b1)], select=[a1, b1], leftInputSpec=[JoinKeyContainsUniqueKey], rightInputSpec=[JoinKeyContainsUniqueKey])"
   }, {
-    "id" : 10,
+    "id" : 8,
     "type" : "stream-exec-sink_1",
     "configuration" : {
       "table.exec.sink.keyed-shuffle" : "AUTO",
@@ -260,8 +234,8 @@
     },
     "shuffleMode" : "PIPELINED"
   }, {
-    "source" : 3,
-    "target" : 4,
+    "source" : 4,
+    "target" : 5,
     "shuffle" : {
       "type" : "FORWARD"
     },
@@ -269,6 +243,13 @@
   }, {
     "source" : 5,
     "target" : 6,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 3,
+    "target" : 7,
     "shuffle" : {
       "type" : "FORWARD"
     },
@@ -287,26 +268,5 @@
       "type" : "FORWARD"
     },
     "shuffleMode" : "PIPELINED"
-  }, {
-    "source" : 4,
-    "target" : 9,
-    "shuffle" : {
-      "type" : "FORWARD"
-    },
-    "shuffleMode" : "PIPELINED"
-  }, {
-    "source" : 8,
-    "target" : 9,
-    "shuffle" : {
-      "type" : "FORWARD"
-    },
-    "shuffleMode" : "PIPELINED"
-  }, {
-    "source" : 9,
-    "target" : 10,
-    "shuffle" : {
-      "type" : "FORWARD"
-    },
-    "shuffleMode" : "PIPELINED"
-  } ]
+  }]
 }

@@ -2539,10 +2539,9 @@ LogicalSink(table=[default_catalog.default_database.sink_with_composite_pk], fie
 Sink(table=[default_catalog.default_database.sink_with_composite_pk], fields=[a, cnt, c, rn])
 +- Calc(select=[a, cnt, c, rn])
    +- Rank(strategy=[RetractStrategy], rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=100], partitionBy=[a], orderBy=[cnt DESC], select=[a, c, cnt, rn])
-      +- Exchange(distribution=[hash[a]])
-         +- GroupAggregate(groupBy=[a], select=[a, MAX(c) AS c, SUM(b) AS cnt])
-            +- Exchange(distribution=[hash[a]])
-               +- TableSourceScan(table=[[default_catalog, default_database, src, project=[a, c, b], metadata=[]]], fields=[a, c, b])
+      +- GroupAggregate(groupBy=[a], select=[a, MAX(c) AS c, SUM(b) AS cnt])
+         +- Exchange(distribution=[hash[a]])
+            +- TableSourceScan(table=[[default_catalog, default_database, src, project=[a, c, b], metadata=[]]], fields=[a, c, b])
 ]]>
     </Resource>
   </TestCase>
@@ -2634,10 +2633,9 @@ LogicalSink(table=[default_catalog.default_database.sink_with_composite_pk], fie
 Sink(table=[default_catalog.default_database.sink_with_composite_pk], fields=[a, cnt, c, rn])
 +- Calc(select=[a, cnt, c, rn])
    +- Rank(strategy=[RetractStrategy], rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=100], partitionBy=[a], orderBy=[cnt DESC], select=[a, c, cnt, rn])
-      +- Exchange(distribution=[hash[a]])
-         +- GroupAggregate(groupBy=[a], select=[a, MAX(c) AS c, SUM(b) AS cnt])
-            +- Exchange(distribution=[hash[a]])
-               +- TableSourceScan(table=[[default_catalog, default_database, src, project=[a, c, b], metadata=[]]], fields=[a, c, b])
+      +- GroupAggregate(groupBy=[a], select=[a, MAX(c) AS c, SUM(b) AS cnt])
+         +- Exchange(distribution=[hash[a]])
+            +- TableSourceScan(table=[[default_catalog, default_database, src, project=[a, c, b], metadata=[]]], fields=[a, c, b])
 ]]>
     </Resource>
   </TestCase>
@@ -2987,11 +2985,10 @@ LogicalSink(table=[default_catalog.default_database.sink_with_composite_pk], fie
 Sink(table=[default_catalog.default_database.sink_with_composite_pk], fields=[a, cnt, c, rn])
 +- Calc(select=[a, cnt, c, rn])
    +- Rank(strategy=[UpdateFastStrategy[0]], rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=100], partitionBy=[a], orderBy=[cnt DESC], select=[a, c, cnt, rn])
-      +- Exchange(distribution=[hash[a]])
-         +- GroupAggregate(groupBy=[a], select=[a, MAX(c) AS c, SUM(b) FILTER $f3 AS cnt])
-            +- Exchange(distribution=[hash[a]])
-               +- Calc(select=[a, c, b, (b > 0) IS TRUE AS $f3])
-                  +- TableSourceScan(table=[[default_catalog, default_database, src, project=[a, c, b], metadata=[]]], fields=[a, c, b])
+      +- GroupAggregate(groupBy=[a], select=[a, MAX(c) AS c, SUM(b) FILTER $f3 AS cnt])
+         +- Exchange(distribution=[hash[a]])
+            +- Calc(select=[a, c, b, (b > 0) IS TRUE AS $f3])
+               +- TableSourceScan(table=[[default_catalog, default_database, src, project=[a, c, b], metadata=[]]], fields=[a, c, b])
 ]]>
     </Resource>
   </TestCase>
@@ -3070,11 +3067,10 @@ LogicalSink(table=[default_catalog.default_database.sink_with_composite_pk], fie
 Sink(table=[default_catalog.default_database.sink_with_composite_pk], fields=[a, cnt, c, rn])
 +- Calc(select=[a, cnt, c, rn])
    +- Rank(strategy=[UpdateFastStrategy[0]], rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=100], partitionBy=[a], orderBy=[cnt DESC], select=[a, c, cnt, rn])
-      +- Exchange(distribution=[hash[a]])
-         +- GroupAggregate(groupBy=[a], select=[a, MAX(c) AS c, SUM(b) FILTER $f3 AS cnt])
-            +- Exchange(distribution=[hash[a]])
-               +- Calc(select=[a, c, b, (b > 0) IS TRUE AS $f3])
-                  +- TableSourceScan(table=[[default_catalog, default_database, src, project=[a, c, b], metadata=[]]], fields=[a, c, b])
+      +- GroupAggregate(groupBy=[a], select=[a, MAX(c) AS c, SUM(b) FILTER $f3 AS cnt])
+         +- Exchange(distribution=[hash[a]])
+            +- Calc(select=[a, c, b, (b > 0) IS TRUE AS $f3])
+               +- TableSourceScan(table=[[default_catalog, default_database, src, project=[a, c, b], metadata=[]]], fields=[a, c, b])
 ]]>
     </Resource>
   </TestCase>

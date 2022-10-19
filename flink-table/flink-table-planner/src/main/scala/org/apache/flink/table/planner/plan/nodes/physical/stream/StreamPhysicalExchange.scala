@@ -18,6 +18,7 @@
 package org.apache.flink.table.planner.plan.nodes.physical.stream
 
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
+import org.apache.flink.table.planner.plan.`trait`.InputRelDistributionTraitDef
 import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, InputProperty}
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecExchange
 import org.apache.flink.table.planner.plan.nodes.physical.common.CommonPhysicalExchange
@@ -25,6 +26,7 @@ import org.apache.flink.table.planner.utils.ShortcutUtils.unwrapTableConfig
 
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.{RelDistribution, RelNode}
+import org.apache.calcite.rel.RelDistribution.Type
 
 /** Stream physical RelNode for [[org.apache.calcite.rel.core.Exchange]]. */
 class StreamPhysicalExchange(
@@ -50,5 +52,15 @@ class StreamPhysicalExchange(
       InputProperty.builder.requiredDistribution(getRequiredDistribution).build,
       FlinkTypeFactory.toLogicalRowType(getRowType),
       getRelDetailedDescription)
+  }
+
+  override def satisfyTraitsFromInputs(inputsTraitSet: RelTraitSet): Option[RelNode] = {
+    val inputDistribution = inputsTraitSet.getTrait(InputRelDistributionTraitDef.INSTANCE)
+    // currently support only hash distribution
+    if (inputDistribution == null || inputDistribution.getType != Type.HASH_DISTRIBUTED) {
+      return None
+    }
+    val newProvidedTraitSet = getTraitSet.plus(inputDistribution)
+    Some(copy(newProvidedTraitSet, getInputs))
   }
 }

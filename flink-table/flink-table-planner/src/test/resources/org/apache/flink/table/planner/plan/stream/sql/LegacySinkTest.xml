@@ -275,15 +275,14 @@ LegacySink(name=[`default_catalog`.`default_database`.`upsertSink`], fields=[a1,
       :- Exchange(distribution=[hash[a3]], changelogMode=[I])
       :  +- Calc(select=[a AS a3, c AS c1], where=[AND(>=(a, 0), <(b, 5))], changelogMode=[I])
       :     +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c], changelogMode=[I])
-      +- Exchange(distribution=[hash[a1]], changelogMode=[I])
-         +- Calc(select=[a AS a1, b], changelogMode=[I])
-            +- Join(joinType=[InnerJoin], where=[=(a, a2)], select=[a, b, a2], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey], changelogMode=[I])
-               :- Exchange(distribution=[hash[a]], changelogMode=[I])
-               :  +- Calc(select=[a, b], where=[<=(a, 10)], changelogMode=[I])
-               :     +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c], changelogMode=[I])
-               +- Exchange(distribution=[hash[a2]], changelogMode=[I])
-                  +- Calc(select=[a AS a2], where=[AND(>=(a, 0), >=(b, 5))], changelogMode=[I])
-                     +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c], changelogMode=[I])
+      +- Calc(select=[a AS a1, b], changelogMode=[I])
+         +- Join(joinType=[InnerJoin], where=[=(a, a2)], select=[a, b, a2], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey], changelogMode=[I])
+            :- Exchange(distribution=[hash[a]], changelogMode=[I])
+            :  +- Calc(select=[a, b], where=[<=(a, 10)], changelogMode=[I])
+            :     +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c], changelogMode=[I])
+            +- Exchange(distribution=[hash[a2]], changelogMode=[I])
+               +- Calc(select=[a AS a2], where=[AND(>=(a, 0), >=(b, 5))], changelogMode=[I])
+                  +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c], changelogMode=[I])
 ]]>
     </Resource>
   </TestCase>

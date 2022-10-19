@@ -32,14 +32,13 @@ LogicalIntersect(all=[false])
     <Resource name="optimized exec plan">
       <![CDATA[
 GroupAggregate(groupBy=[c], select=[c])
-+- Exchange(distribution=[hash[c]])
-   +- Join(joinType=[LeftSemiJoin], where=[IS NOT DISTINCT FROM(c, f)], select=[c], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
-      :- Exchange(distribution=[hash[c]])
-      :  +- Calc(select=[c])
-      :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
-      +- Exchange(distribution=[hash[f]])
-         +- Calc(select=[f])
-            +- LegacyTableSourceScan(table=[[default_catalog, default_database, T2, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
++- Join(joinType=[LeftSemiJoin], where=[IS NOT DISTINCT FROM(c, f)], select=[c], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+   :- Exchange(distribution=[hash[c]])
+   :  +- Calc(select=[c])
+   :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+   +- Exchange(distribution=[hash[f]])
+      +- Calc(select=[f])
+         +- LegacyTableSourceScan(table=[[default_catalog, default_database, T2, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
 ]]>
     </Resource>
   </TestCase>
@@ -129,14 +128,13 @@ LogicalProject(a=[$0])
       <![CDATA[
 Calc(select=[a])
 +- GroupAggregate(groupBy=[a, b], select=[a, b])
-   +- Exchange(distribution=[hash[a, b]])
-      +- Join(joinType=[LeftSemiJoin], where=[(((a = d) OR (a IS NULL AND d IS NULL)) AND ((b = e) OR (b IS NULL AND e IS NULL)))], select=[a, b], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
-         :- Exchange(distribution=[hash[a, b]])
-         :  +- Calc(select=[a, b])
-         :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
-         +- Exchange(distribution=[hash[d, e]])
-            +- Calc(select=[d, e])
-               +- LegacyTableSourceScan(table=[[default_catalog, default_database, T2, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
+   +- Join(joinType=[LeftSemiJoin], where=[(((a = d) OR (a IS NULL AND d IS NULL)) AND ((b = e) OR (b IS NULL AND e IS NULL)))], select=[a, b], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+      :- Exchange(distribution=[hash[a, b]])
+      :  +- Calc(select=[a, b])
+      :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+      +- Exchange(distribution=[hash[d, e]])
+         +- Calc(select=[d, e])
+            +- LegacyTableSourceScan(table=[[default_catalog, default_database, T2, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
 ]]>
     </Resource>
   </TestCase>
@@ -156,14 +154,13 @@ LogicalMinus(all=[false])
     <Resource name="optimized exec plan">
       <![CDATA[
 GroupAggregate(groupBy=[c], select=[c])
-+- Exchange(distribution=[hash[c]])
-   +- Join(joinType=[LeftAntiJoin], where=[IS NOT DISTINCT FROM(c, f)], select=[c], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
-      :- Exchange(distribution=[hash[c]])
-      :  +- Calc(select=[c])
-      :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
-      +- Exchange(distribution=[hash[f]])
-         +- Calc(select=[f])
-            +- LegacyTableSourceScan(table=[[default_catalog, default_database, T2, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
++- Join(joinType=[LeftAntiJoin], where=[IS NOT DISTINCT FROM(c, f)], select=[c], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+   :- Exchange(distribution=[hash[c]])
+   :  +- Calc(select=[c])
+   :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+   +- Exchange(distribution=[hash[f]])
+      +- Calc(select=[f])
+         +- LegacyTableSourceScan(table=[[default_catalog, default_database, T2, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
 ]]>
     </Resource>
   </TestCase>
@@ -254,11 +251,10 @@ LogicalMinus(all=[false])
     <Resource name="optimized exec plan">
       <![CDATA[
 GroupAggregate(groupBy=[a, b, c], select=[a, b, c])
-+- Exchange(distribution=[hash[a, b, c]])
-   +- Join(joinType=[LeftAntiJoin], where=[(((a = a0) OR (a IS NULL AND a0 IS NULL)) AND ((b = b0) OR (b IS NULL AND b0 IS NULL)) AND ((c = c0) OR (c IS NULL AND c0 IS NULL)))], select=[a, b, c], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
-      :- Exchange(distribution=[hash[a, b, c]])(reuse_id=[1])
-      :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
-      +- Reused(reference_id=[1])
++- Join(joinType=[LeftAntiJoin], where=[(((a = a0) OR (a IS NULL AND a0 IS NULL)) AND ((b = b0) OR (b IS NULL AND b0 IS NULL)) AND ((c = c0) OR (c IS NULL AND c0 IS NULL)))], select=[a, b, c], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+   :- Exchange(distribution=[hash[a, b, c]])(reuse_id=[1])
+   :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+   +- Reused(reference_id=[1])
 ]]>
     </Resource>
   </TestCase>

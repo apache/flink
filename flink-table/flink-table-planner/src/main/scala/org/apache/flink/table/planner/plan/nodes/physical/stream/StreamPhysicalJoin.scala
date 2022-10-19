@@ -18,19 +18,24 @@
 package org.apache.flink.table.planner.plan.nodes.physical.stream
 
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
+import org.apache.flink.table.planner.plan.`trait`.{InputRelDistributionTrait, InputRelDistributionTraitDef}
+import org.apache.flink.table.planner.plan.metadata.FlinkRelMetadataQuery
 import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, InputProperty}
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecJoin
 import org.apache.flink.table.planner.plan.nodes.physical.common.CommonPhysicalJoin
 import org.apache.flink.table.planner.plan.utils.JoinUtil
 import org.apache.flink.table.planner.utils.ShortcutUtils.{unwrapClassLoader, unwrapTableConfig}
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo
+import org.apache.flink.util.Preconditions
 
 import org.apache.calcite.plan._
 import org.apache.calcite.rel.{RelNode, RelWriter}
+import org.apache.calcite.rel.RelDistribution.Type
 import org.apache.calcite.rel.core.{Join, JoinRelType}
 import org.apache.calcite.rel.metadata.RelMetadataQuery
 import org.apache.calcite.rex.RexNode
 
+import scala.Int.box
 import scala.collection.JavaConversions._
 
 /**
@@ -113,6 +118,53 @@ class StreamPhysicalJoin(
   override def computeSelfCost(planner: RelOptPlanner, metadata: RelMetadataQuery): RelOptCost = {
     val elementRate = 100.0d * 2 // two input stream
     planner.getCostFactory.makeCost(elementRate, elementRate, 0)
+  }
+
+  override def satisfyTraitsFromInputs(inputsTraitSet: RelTraitSet): Option[RelNode] = {
+    val inputDistribution = inputsTraitSet.getTrait(InputRelDistributionTraitDef.INSTANCE)
+    // currently support only hash distribution
+    if (inputDistribution == null || inputDistribution.getType != Type.HASH_DISTRIBUTED) {
+      return None
+    }
+    Preconditions.checkState(
+      inputDistribution.getLeftKeys.nonEmpty && inputDistribution.getRightKeys.nonEmpty)
+    // Full outer join cannot provide Hash distribute because it will generate null for left/right
+    // side if there is no match row.
+    if (joinType == JoinRelType.FULL) {
+      return None
+    }
+
+    val leftKeys = joinInfo.leftKeys
+    val rightKeys = joinInfo.rightKeys
+
+    // hash distribution from inputs can be pushed to the downstream
+    // only if all required keys from each input equal to the join side's keys
+    if (
+      leftKeys.isEmpty || rightKeys.isEmpty ||
+      !leftKeys.equals(inputDistribution.getLeftKeys.get) ||
+      !rightKeys.equals(inputDistribution.getRightKeys.get)
+    ) {
+      return None
+    }
+
+    val currentRightKeys = rightKeys.map(key => box(key + left.getRowType.getFieldCount))
+
+    // SEMI and ANTI join is always left
+    // cannot push only right distribution when Join is LOJ and left distribution when Join is ROJ
+    val transformedDistribution =
+      if (
+        joinType == JoinRelType.LEFT ||
+        joinType == JoinRelType.SEMI || joinType == JoinRelType.ANTI
+      ) {
+        InputRelDistributionTrait.leftInputHash(leftKeys)
+      } else if (joinType == JoinRelType.RIGHT) {
+        InputRelDistributionTrait.rightInputHash(currentRightKeys)
+      } else {
+        InputRelDistributionTrait.twoInputsHash(leftKeys, currentRightKeys)
+      }
+
+    val providedTraits = getTraitSet.plus(transformedDistribution)
+    Some(copy(providedTraits, Seq(getLeft, getRight)))
   }
 
   override def translateToExecNode(): ExecNode[_] = {

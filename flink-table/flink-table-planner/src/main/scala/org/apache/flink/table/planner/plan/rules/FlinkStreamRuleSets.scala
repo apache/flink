@@ -480,4 +480,8 @@ object FlinkStreamRuleSets {
     PushFilterPastChangelogNormalizeRule.INSTANCE
   )
 
+  /** RuleSet for optimize shuffle operations in the job. */
+  val REMOVE_REDUNDANT_EXCHANGE: RuleSet = RuleSets.ofList(
+    StreamRemoveRedundantExchangeRule.INSTANCE
+  )
 }

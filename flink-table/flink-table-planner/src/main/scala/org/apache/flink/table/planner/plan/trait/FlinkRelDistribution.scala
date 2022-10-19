@@ -21,7 +21,7 @@ import org.apache.flink.table.planner.JArrayList
 import org.apache.flink.table.planner.plan.utils.FlinkRelOptUtil
 
 import com.google.common.collect.{ImmutableList, Ordering}
-import org.apache.calcite.plan.{RelMultipleTrait, RelOptPlanner, RelTrait}
+import org.apache.calcite.plan.{RelMultipleTrait, RelOptPlanner, RelTrait, RelTraitDef}
 import org.apache.calcite.rel.{RelDistribution, RelFieldCollation}
 import org.apache.calcite.rel.RelDistribution.Type
 import org.apache.calcite.util.{ImmutableIntList, Util}
@@ -37,7 +37,7 @@ import scala.collection.JavaConversions._
  *
  * NOTE: it's intended to have a private constructor for this class.
  */
-class FlinkRelDistribution private (
+class FlinkRelDistribution protected (
     private val distributionType: RelDistribution.Type,
     private val keys: ImmutableIntList,
     private val fieldCollations: Option[ImmutableList[RelFieldCollation]] = None,
@@ -59,7 +59,8 @@ class FlinkRelDistribution private (
 
   override def getType: RelDistribution.Type = distributionType
 
-  override def getTraitDef: FlinkRelDistributionTraitDef = FlinkRelDistributionTraitDef.INSTANCE
+  override def getTraitDef: RelTraitDef[_ <: FlinkRelDistribution] =
+    FlinkRelDistributionTraitDef.INSTANCE
 
   override def satisfies(relTrait: RelTrait): Boolean = relTrait match {
     case other: FlinkRelDistribution =>

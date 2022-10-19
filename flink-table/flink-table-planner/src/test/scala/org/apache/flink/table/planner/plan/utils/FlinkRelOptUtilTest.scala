@@ -132,11 +132,10 @@ class FlinkRelOptUtilTest {
         |:     +- Exchange(distribution=[hash[a, c]])
         |:        +- Calc(select=[a, c])
         |:           +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c])
-        |+- Exchange(distribution=[hash[a]], upsertKeys=[[a]])
-        |   +- GroupAggregate(groupBy=[a], select=[a, MAX(b) AS b], upsertKeys=[[a]])
-        |      +- Exchange(distribution=[hash[a]])
-        |         +- Calc(select=[a, b], where=[<(b, 50)])
-        |            +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c])
+        |+- GroupAggregate(groupBy=[a], select=[a, MAX(b) AS b], upsertKeys=[[a]])
+        |   +- Exchange(distribution=[hash[a]])
+        |      +- Calc(select=[a, b], where=[<(b, 50)])
+        |         +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c])
       """.stripMargin
 
     assertEquals(

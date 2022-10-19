@@ -487,14 +487,13 @@ LogicalAggregate(group=[{0}], EXPR$1=[COUNT(DISTINCT $0)], EXPR$2=[COUNT($1)])
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-GlobalGroupAggregate(groupBy=[a], partialFinalType=[FINAL], select=[a, $SUM0(count$0) AS $f1, $SUM0(count$1) AS $f2])
-+- Exchange(distribution=[hash[a]])
-   +- IncrementalGroupAggregate(partialAggGrouping=[a], finalAggGrouping=[a], select=[a, COUNT(distinct$0 count$0) AS count$0, COUNT(count$1) AS count$1])
-      +- Exchange(distribution=[hash[a]])
-         +- LocalGroupAggregate(groupBy=[a], partialFinalType=[PARTIAL], select=[a, COUNT(distinct$0 a) AS count$0, COUNT(b) AS count$1, DISTINCT(a) AS distinct$0])
-            +- Calc(select=[a, b])
-               +- MiniBatchAssigner(interval=[1000ms], mode=[ProcTime])
-                  +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+GroupAggregate(groupBy=[a], partialFinalType=[FINAL], select=[a, $SUM0_RETRACT($f1) AS $f1, $SUM0_RETRACT($f2) AS $f2])
++- GlobalGroupAggregate(groupBy=[a], partialFinalType=[PARTIAL], select=[a, COUNT(distinct$0 count$0) AS $f1, COUNT(count$1) AS $f2])
+   +- Exchange(distribution=[hash[a]])
+      +- LocalGroupAggregate(groupBy=[a], partialFinalType=[PARTIAL], select=[a, COUNT(distinct$0 a) AS count$0, COUNT(b) AS count$1, DISTINCT(a) AS distinct$0])
+         +- Calc(select=[a, b])
+            +- MiniBatchAssigner(interval=[1000ms], mode=[ProcTime])
+               +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
