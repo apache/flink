@@ -79,7 +79,7 @@ public class StatefulJobSnapshotMigrationITCase extends SnapshotMigrationTestBas
                 SnapshotSpec.withVersions(
                         StateBackendLoader.MEMORY_STATE_BACKEND_NAME,
                         SnapshotType.SAVEPOINT_CANONICAL,
-                        FlinkVersion.rangeOf(FlinkVersion.v1_4, FlinkVersion.v1_14)));
+                        FlinkVersion.rangeOf(FlinkVersion.v1_8, FlinkVersion.v1_14)));
         parameters.addAll(
                 SnapshotSpec.withVersions(
                         StateBackendLoader.HASHMAP_STATE_BACKEND_NAME,
@@ -89,7 +89,7 @@ public class StatefulJobSnapshotMigrationITCase extends SnapshotMigrationTestBas
                 SnapshotSpec.withVersions(
                         StateBackendLoader.ROCKSDB_STATE_BACKEND_NAME,
                         SnapshotType.SAVEPOINT_CANONICAL,
-                        FlinkVersion.rangeOf(FlinkVersion.v1_4, currentVersion)));
+                        FlinkVersion.rangeOf(FlinkVersion.v1_8, currentVersion)));
         parameters.addAll(
                 SnapshotSpec.withVersions(
                         StateBackendLoader.HASHMAP_STATE_BACKEND_NAME,
