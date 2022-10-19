@@ -23,9 +23,10 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.blob.BlobServer;
 import org.apache.flink.runtime.blob.PermanentBlobCache;
 import org.apache.flink.runtime.blob.VoidBlobStore;
+import org.apache.flink.testutils.junit.utils.TempDirUtils;
 
-import org.junit.After;
-import org.junit.Before;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
@@ -34,26 +35,31 @@ import java.net.InetSocketAddress;
  * Tests {@link ExecutionGraph} deployment when offloading job and task information into the BLOB
  * server.
  */
-public class DefaultExecutionGraphDeploymentWithBlobCacheTest
+class DefaultExecutionGraphDeploymentWithBlobCacheTest
         extends DefaultExecutionGraphDeploymentWithBlobServerTest {
 
-    @Before
+    @BeforeEach
     @Override
     public void setupBlobServer() throws IOException {
         Configuration config = new Configuration();
         // always offload the serialized job and task information
         config.setInteger(BlobServerOptions.OFFLOAD_MINSIZE, 0);
-        blobServer = new BlobServer(config, TEMPORARY_FOLDER.newFolder(), new VoidBlobStore());
+        blobServer =
+                new BlobServer(
+                        config, TempDirUtils.newFolder(temporaryFolder), new VoidBlobStore());
         blobServer.start();
         blobWriter = blobServer;
 
         InetSocketAddress serverAddress = new InetSocketAddress("localhost", blobServer.getPort());
         blobCache =
                 new PermanentBlobCache(
-                        config, TEMPORARY_FOLDER.newFolder(), new VoidBlobStore(), serverAddress);
+                        config,
+                        TempDirUtils.newFolder(temporaryFolder),
+                        new VoidBlobStore(),
+                        serverAddress);
     }
 
-    @After
+    @AfterEach
     @Override
     public void shutdownBlobServer() throws IOException {
         if (blobServer != null) {
