@@ -73,11 +73,6 @@ public class ContinuousFileProcessingMigrationTest {
     @Parameterized.Parameters(name = "Migration Savepoint / Mod Time: {0}")
     public static Collection<Tuple2<FlinkVersion, Long>> parameters() {
         return Arrays.asList(
-                Tuple2.of(FlinkVersion.v1_3, 1496532000000L),
-                Tuple2.of(FlinkVersion.v1_4, 1516897628000L),
-                Tuple2.of(FlinkVersion.v1_5, 1533639934000L),
-                Tuple2.of(FlinkVersion.v1_6, 1534696817000L),
-                Tuple2.of(FlinkVersion.v1_7, 1544024599000L),
                 Tuple2.of(FlinkVersion.v1_8, 1555215710000L),
                 Tuple2.of(FlinkVersion.v1_9, 1567499868000L),
                 Tuple2.of(FlinkVersion.v1_10, 1594559333000L),
