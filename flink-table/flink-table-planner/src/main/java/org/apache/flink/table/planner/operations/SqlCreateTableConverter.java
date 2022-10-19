@@ -231,7 +231,7 @@ class SqlCreateTableConverter {
                                 sqlTableLike.getSourceTable().getParserPosition()));
             }
         }
-        return (CatalogTable) resultTable;
+        return lookupResult.getTable();
     }
 
     private void verifyPartitioningColumnsExist(
