@@ -69,6 +69,9 @@ public class HsResultPartition extends ResultPartition {
 
     private final HybridShuffleConfiguration hybridShuffleConfiguration;
 
+    /** Record the last assigned consumerId for each subpartition. */
+    private final HsConsumerId[] lastConsumerIds;
+
     private boolean hasNotifiedEndOfUserRecords;
 
     @Nullable private HsMemoryDataManager memoryDataManager;
@@ -110,6 +113,7 @@ public class HsResultPartition extends ResultPartition {
                         dataFilePath,
                         HsSubpartitionFileReaderImpl.Factory.INSTANCE,
                         hybridShuffleConfiguration);
+        this.lastConsumerIds = new HsConsumerId[numSubpartitions];
     }
 
     // Called by task thread.
@@ -186,21 +190,23 @@ public class HsResultPartition extends ResultPartition {
             throw new PartitionNotFoundException(getPartitionId());
         }
 
-        HsSubpartitionConsumer subpartitionView = new HsSubpartitionConsumer(availabilityListener);
+        HsSubpartitionConsumer subpartitionConsumer =
+                new HsSubpartitionConsumer(availabilityListener);
+        // assign a unique id for each consumer, now it is guaranteed by the value that is one
+        // higher than the last consumerId's id field.
+        HsConsumerId consumerId = HsConsumerId.newId(lastConsumerIds[subpartitionId]);
+        lastConsumerIds[subpartitionId] = consumerId;
         HsDataView diskDataView =
-                // TODO pass real consumerId in the next commit.
                 fileDataManager.registerNewConsumer(
-                        subpartitionId, HsConsumerId.DEFAULT, subpartitionView);
+                        subpartitionId, consumerId, subpartitionConsumer);
 
         HsDataView memoryDataView =
                 checkNotNull(memoryDataManager)
-                        // TODO pass real consumerId in the next commit.
-                        .registerNewConsumer(
-                                subpartitionId, HsConsumerId.DEFAULT, subpartitionView);
+                        .registerNewConsumer(subpartitionId, consumerId, subpartitionConsumer);
 
-        subpartitionView.setDiskDataView(diskDataView);
-        subpartitionView.setMemoryDataView(memoryDataView);
-        return subpartitionView;
+        subpartitionConsumer.setDiskDataView(diskDataView);
+        subpartitionConsumer.setMemoryDataView(memoryDataView);
+        return subpartitionConsumer;
     }
 
     @Override
