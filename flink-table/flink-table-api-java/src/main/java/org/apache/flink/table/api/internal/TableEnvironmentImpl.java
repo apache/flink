@@ -1514,10 +1514,24 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
 
     private TableResultInternal buildDescribeResult(ResolvedSchema schema) {
         Object[][] rows = buildTableColumns(schema);
-        return buildResult(generateTableColumnsNames(), generateTableColumnsDataTypes(), rows);
+        boolean nonComments = Arrays.stream(rows).allMatch(row -> row[row.length - 1] == null);
+        return buildResult(
+                generateTableColumnsNames(nonComments),
+                generateTableColumnsDataTypes(nonComments),
+                rows);
     }
 
-    private DataType[] generateTableColumnsDataTypes() {
+    private DataType[] generateTableColumnsDataTypes(boolean nonComments) {
+        if (nonComments) {
+            return new DataType[] {
+                DataTypes.STRING(),
+                DataTypes.STRING(),
+                DataTypes.BOOLEAN(),
+                DataTypes.STRING(),
+                DataTypes.STRING(),
+                DataTypes.STRING()
+            };
+        }
         return new DataType[] {
             DataTypes.STRING(),
             DataTypes.STRING(),
@@ -1529,7 +1543,10 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
         };
     }
 
-    private String[] generateTableColumnsNames() {
+    private String[] generateTableColumnsNames(boolean nonComments) {
+        if (nonComments) {
+            return new String[] {"name", "type", "null", "key", "extras", "watermark"};
+        }
         return new String[] {"name", "type", "null", "key", "extras", "watermark", "comment"};
     }
 
@@ -1566,7 +1583,11 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
                                                             "\\"))
                             .toArray(Object[][]::new);
         }
-        return buildResult(generateTableColumnsNames(), generateTableColumnsDataTypes(), rows);
+        boolean nonComments = Arrays.stream(rows).allMatch(row -> row[row.length - 1] == null);
+        return buildResult(
+                generateTableColumnsNames(nonComments),
+                generateTableColumnsDataTypes(nonComments),
+                rows);
     }
 
     private TableResultInternal buildShowFullModulesResult(ModuleEntry[] moduleEntries) {
@@ -1601,11 +1622,22 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
                                                             "PRI(%s)",
                                                             String.join(", ", columns))));
                         });
-
+        boolean nonComments =
+                schema.getColumns().stream().noneMatch(col -> col.getComment().isPresent());
         return schema.getColumns().stream()
                 .map(
                         (c) -> {
                             final LogicalType logicalType = c.getDataType().getLogicalType();
+                            if (nonComments) {
+                                return new Object[] {
+                                    c.getName(),
+                                    logicalType.copy(true).asSummaryString(),
+                                    logicalType.isNullable(),
+                                    fieldToPrimaryKey.getOrDefault(c.getName(), null),
+                                    c.explainExtras().orElse(null),
+                                    fieldToWatermark.getOrDefault(c.getName(), null)
+                                };
+                            }
                             return new Object[] {
                                 c.getName(),
                                 logicalType.copy(true).asSummaryString(),
