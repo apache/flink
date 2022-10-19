@@ -395,6 +395,10 @@ under the License.
 							<pattern>org.apache.commons.io</pattern>
 							<shadedPattern>org.apache.flink.calcite.shaded.org.apache.commons.io</shadedPattern>
 						</relocation>
+						<relocation>
+							<pattern>org.checkerframework</pattern>
+							<shadedPattern>org.apache.flink.calcite.shaded.org.checkerframework</shadedPattern>
+						</relocation>
 
 						<!-- These are relocated to match package names, but not included in this jar -->
 						<relocation>
