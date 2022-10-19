@@ -52,6 +52,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeoutException;
 import java.util.function.Consumer;
 
+import static org.apache.flink.runtime.io.network.partition.hybrid.HsConsumerId.DEFAULT;
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -123,7 +124,7 @@ class HsFileDataManagerTest {
 
         assertThat(reader.readBuffers).isEmpty();
 
-        fileDataManager.registerNewSubpartition(0, subpartitionViewOperation);
+        fileDataManager.registerNewConsumer(0, DEFAULT, subpartitionViewOperation);
 
         ioExecutor.trigger();
 
@@ -142,7 +143,7 @@ class HsFileDataManagerTest {
 
         factory.allReaders.add(reader);
 
-        fileDataManager.registerNewSubpartition(0, subpartitionViewOperation);
+        fileDataManager.registerNewConsumer(0, DEFAULT, subpartitionViewOperation);
 
         ioExecutor.trigger();
 
@@ -174,7 +175,7 @@ class HsFileDataManagerTest {
                 });
         factory.allReaders.add(reader);
 
-        fileDataManager.registerNewSubpartition(0, subpartitionViewOperation);
+        fileDataManager.registerNewConsumer(0, DEFAULT, subpartitionViewOperation);
 
         ioExecutor.trigger();
 
@@ -207,8 +208,8 @@ class HsFileDataManagerTest {
         factory.allReaders.add(reader1);
         factory.allReaders.add(reader2);
 
-        fileDataManager.registerNewSubpartition(0, subpartitionViewOperation);
-        fileDataManager.registerNewSubpartition(1, subpartitionViewOperation);
+        fileDataManager.registerNewConsumer(0, DEFAULT, subpartitionViewOperation);
+        fileDataManager.registerNewConsumer(1, DEFAULT, subpartitionViewOperation);
 
         // trigger run.
         ioExecutor.trigger();
@@ -243,7 +244,7 @@ class HsFileDataManagerTest {
         reader.setFailConsumer((cause::complete));
         factory.allReaders.add(reader);
 
-        fileDataManager.registerNewSubpartition(0, subpartitionViewOperation);
+        fileDataManager.registerNewConsumer(0, DEFAULT, subpartitionViewOperation);
 
         ioExecutor.trigger();
 
@@ -269,7 +270,7 @@ class HsFileDataManagerTest {
                 });
         factory.allReaders.add(reader);
 
-        fileDataManager.registerNewSubpartition(0, subpartitionViewOperation);
+        fileDataManager.registerNewConsumer(0, DEFAULT, subpartitionViewOperation);
 
         ioExecutor.trigger();
 
@@ -314,7 +315,7 @@ class HsFileDataManagerTest {
                 };
         releaseThread.start();
 
-        fileDataManager.registerNewSubpartition(0, subpartitionViewOperation);
+        fileDataManager.registerNewConsumer(0, DEFAULT, subpartitionViewOperation);
 
         ioExecutor.trigger();
 
@@ -335,7 +336,8 @@ class HsFileDataManagerTest {
         fileDataManager.release();
         assertThatThrownBy(
                         () -> {
-                            fileDataManager.registerNewSubpartition(0, subpartitionViewOperation);
+                            fileDataManager.registerNewConsumer(
+                                    0, DEFAULT, subpartitionViewOperation);
                             ioExecutor.trigger();
                         })
                 .isInstanceOf(IllegalStateException.class)
@@ -358,6 +360,7 @@ class HsFileDataManagerTest {
         HsSubpartitionFileReaderImpl subpartitionFileReader =
                 new HsSubpartitionFileReaderImpl(
                         0,
+                        DEFAULT,
                         dataFileChannel,
                         subpartitionView,
                         new HsFileDataIndexImpl(NUM_SUBPARTITIONS),
@@ -376,7 +379,7 @@ class HsFileDataManagerTest {
                     }
                 };
         factory.allReaders.add(subpartitionFileReader);
-        HsDataView diskDataView = fileDataManager.registerNewSubpartition(0, subpartitionView);
+        HsDataView diskDataView = fileDataManager.registerNewConsumer(0, DEFAULT, subpartitionView);
         subpartitionView.setDiskDataView(diskDataView);
         TestingHsDataView memoryDataView =
                 TestingHsDataView.builder()
@@ -496,6 +499,7 @@ class HsFileDataManagerTest {
             @Override
             public HsSubpartitionFileReader createFileReader(
                     int subpartitionId,
+                    HsConsumerId consumerId,
                     FileChannel dataFileChannel,
                     HsSubpartitionConsumerInternalOperations operation,
                     HsFileDataIndex dataIndex,

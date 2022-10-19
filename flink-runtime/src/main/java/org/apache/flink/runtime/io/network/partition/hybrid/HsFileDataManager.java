@@ -152,8 +152,10 @@ public class HsFileDataManager implements Runnable, BufferRecycler {
     }
 
     /** This method only called by result partition to create subpartitionFileReader. */
-    public HsDataView registerNewSubpartition(
-            int subpartitionId, HsSubpartitionConsumerInternalOperations operation)
+    public HsDataView registerNewConsumer(
+            int subpartitionId,
+            HsConsumerId consumerId,
+            HsSubpartitionConsumerInternalOperations operation)
             throws IOException {
         synchronized (lock) {
             checkState(!isReleased, "HsFileDataManager is already released.");
@@ -162,6 +164,7 @@ public class HsFileDataManager implements Runnable, BufferRecycler {
             HsSubpartitionFileReader subpartitionReader =
                     fileReaderFactory.createFileReader(
                             subpartitionId,
+                            consumerId,
                             dataFileChannel,
                             operation,
                             dataIndex,
