@@ -28,7 +28,7 @@ This project bundles the following dependencies under the Apache Software Licens
 - org.apache.beam:beam-vendor-bytebuddy-1_11_0:0.1
 - org.apache.beam:beam-vendor-guava-26_0-jre:0.1
 - org.apache.beam:beam-vendor-grpc-1_43_2:0.1
-- com.alibaba:pemja:0.2.4
+- com.alibaba:pemja:0.2.6
 
 This project bundles the following dependencies under the BSD license.
 See bundled license files for details

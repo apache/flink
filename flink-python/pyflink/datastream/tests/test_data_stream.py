@@ -644,6 +644,21 @@ class DataStreamTests(object):
         side_expected = ['1', '1', '2', '2', '3', '3', '4', '4']
         self.assert_equals_sorted(side_expected, side_sink.get_results())
 
+    def test_side_output_stream_execute_and_collect(self):
+        tag = OutputTag("side", Types.INT())
+
+        class MyProcessFunction(ProcessFunction):
+
+            def process_element(self, value, ctx):
+                yield value
+                yield tag, value * 2
+
+        ds = self.env.from_collection([1, 2, 3], Types.INT()).process(MyProcessFunction())
+        ds_side = ds.get_side_output(tag)
+        result = [i for i in ds_side.execute_and_collect()]
+        expected = [2, 4, 6]
+        self.assert_equals_sorted(expected, result)
+
 
 class DataStreamStreamingTests(DataStreamTests):
 
