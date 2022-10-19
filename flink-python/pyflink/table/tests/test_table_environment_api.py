@@ -27,8 +27,8 @@ from pyflink.common import RowKind, WatermarkStrategy, Configuration
 from pyflink.common.serializer import TypeSerializer
 from pyflink.common.typeinfo import Types
 from pyflink.common.watermark_strategy import TimestampAssigner
-from pyflink.datastream import MergingWindowAssigner, TimeWindow, Trigger, TriggerResult
-from pyflink.datastream.functions import WindowFunction
+from pyflink.datastream import MergingWindowAssigner, TimeWindow, Trigger, TriggerResult, OutputTag
+from pyflink.datastream.functions import WindowFunction, ProcessFunction
 from pyflink.datastream.tests.test_util import DataStreamTestSinkFunction
 from pyflink.datastream.window import TimeWindowSerializer
 from pyflink.java_gateway import get_gateway
@@ -559,6 +559,30 @@ class DataStreamConversionTestCases(PyFlinkUTTestCase):
         expected = ["(True, Row(f0=1, f1='Hello'))", "(False, Row(f0=1, f1='Hello'))",
                     "(True, Row(f0=2, f1='Hello'))"]
         self.assertEqual(result, expected)
+
+    def test_side_output_stream_to_table(self):
+        tag = OutputTag("side", Types.ROW([Types.INT()]))
+
+        class MyProcessFunction(ProcessFunction):
+
+            def process_element(self, value, ctx):
+                yield Row(value)
+                yield tag, Row(value * 2)
+
+        ds = self.env.from_collection([1, 2, 3], Types.INT()).process(MyProcessFunction())
+        ds_side = ds.get_side_output(tag)
+        expected = ['<Row(2)>', '<Row(4)>', '<Row(6)>']
+
+        t = self.t_env.from_data_stream(ds_side)
+        result = [str(i) for i in t.execute().collect()]
+        result.sort()
+        self.assertEqual(expected, result)
+
+        self.t_env.create_temporary_view("side_table", ds_side)
+        table_result = self.t_env.execute_sql("SELECT * FROM side_table")
+        result = [str(i) for i in table_result.collect()]
+        result.sort()
+        self.assertEqual(expected, result)
 
 
 class StreamTableEnvironmentTests(PyFlinkStreamTableTestCase):
