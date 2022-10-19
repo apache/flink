@@ -22,17 +22,16 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.MemorySize;
 
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import java.util.Arrays;
 import java.util.Collections;
 
-import static org.hamcrest.CoreMatchers.is;
-import static org.hamcrest.MatcherAssert.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test for {@link DefaultVertexParallelismDecider}. */
-public class DefaultVertexParallelismDeciderTest {
+class DefaultVertexParallelismDeciderTest {
 
     private static final long BYTE_256_MB = 256 * 1024 * 1024L;
     private static final long BYTE_512_MB = 512 * 1024 * 1024L;
@@ -47,8 +46,8 @@ public class DefaultVertexParallelismDeciderTest {
 
     private DefaultVertexParallelismDecider decider;
 
-    @Before
-    public void before() throws Exception {
+    @BeforeEach
+    void before() throws Exception {
         Configuration configuration = new Configuration();
 
         configuration.setInteger(
@@ -66,19 +65,19 @@ public class DefaultVertexParallelismDeciderTest {
     }
 
     @Test
-    public void testNormalizedMaxAndMinParallelism() {
-        assertThat(decider.getMaxParallelism(), is(64));
-        assertThat(decider.getMinParallelism(), is(4));
+    void testNormalizedMaxAndMinParallelism() {
+        assertThat(decider.getMaxParallelism()).isEqualTo(64);
+        assertThat(decider.getMinParallelism()).isEqualTo(4);
     }
 
     @Test
-    public void testSourceJobVertex() {
+    void testSourceJobVertex() {
         int parallelism = decider.decideParallelismForVertex(Collections.emptyList());
-        assertThat(parallelism, is(DEFAULT_SOURCE_PARALLELISM));
+        assertThat(parallelism).isEqualTo(DEFAULT_SOURCE_PARALLELISM);
     }
 
     @Test
-    public void testNormalizeParallelismDownToPowerOf2() {
+    void testNormalizeParallelismDownToPowerOf2() {
         BlockingResultInfo resultInfo1 =
                 BlockingResultInfo.createFromBroadcastResult(Arrays.asList(BYTE_256_MB));
         BlockingResultInfo resultInfo2 =
@@ -88,11 +87,11 @@ public class DefaultVertexParallelismDeciderTest {
         int parallelism =
                 decider.decideParallelismForVertex(Arrays.asList(resultInfo1, resultInfo2));
 
-        assertThat(parallelism, is(8));
+        assertThat(parallelism).isEqualTo(8);
     }
 
     @Test
-    public void testNormalizeParallelismUpToPowerOf2() {
+    void testNormalizeParallelismUpToPowerOf2() {
         BlockingResultInfo resultInfo1 =
                 BlockingResultInfo.createFromBroadcastResult(Arrays.asList(BYTE_256_MB));
         BlockingResultInfo resultInfo2 =
@@ -102,11 +101,11 @@ public class DefaultVertexParallelismDeciderTest {
         int parallelism =
                 decider.decideParallelismForVertex(Arrays.asList(resultInfo1, resultInfo2));
 
-        assertThat(parallelism, is(16));
+        assertThat(parallelism).isEqualTo(16);
     }
 
     @Test
-    public void testInitiallyNormalizedParallelismIsLargerThanMaxParallelism() {
+    void testInitiallyNormalizedParallelismIsLargerThanMaxParallelism() {
         BlockingResultInfo resultInfo1 =
                 BlockingResultInfo.createFromBroadcastResult(Arrays.asList(BYTE_256_MB));
         BlockingResultInfo resultInfo2 =
@@ -116,11 +115,11 @@ public class DefaultVertexParallelismDeciderTest {
         int parallelism =
                 decider.decideParallelismForVertex(Arrays.asList(resultInfo1, resultInfo2));
 
-        assertThat(parallelism, is(64));
+        assertThat(parallelism).isEqualTo(64);
     }
 
     @Test
-    public void testInitiallyNormalizedParallelismIsSmallerThanMinParallelism() {
+    void testInitiallyNormalizedParallelismIsSmallerThanMinParallelism() {
         BlockingResultInfo resultInfo1 =
                 BlockingResultInfo.createFromBroadcastResult(Arrays.asList(BYTE_256_MB));
         BlockingResultInfo resultInfo2 =
@@ -129,11 +128,11 @@ public class DefaultVertexParallelismDeciderTest {
         int parallelism =
                 decider.decideParallelismForVertex(Arrays.asList(resultInfo1, resultInfo2));
 
-        assertThat(parallelism, is(4));
+        assertThat(parallelism).isEqualTo(4);
     }
 
     @Test
-    public void testBroadcastRatioExceedsCapRatio() {
+    void testBroadcastRatioExceedsCapRatio() {
         BlockingResultInfo resultInfo1 =
                 BlockingResultInfo.createFromBroadcastResult(Arrays.asList(BYTE_1_GB));
         BlockingResultInfo resultInfo2 =
@@ -142,11 +141,11 @@ public class DefaultVertexParallelismDeciderTest {
         int parallelism =
                 decider.decideParallelismForVertex(Arrays.asList(resultInfo1, resultInfo2));
 
-        assertThat(parallelism, is(16));
+        assertThat(parallelism).isEqualTo(16);
     }
 
     @Test
-    public void testNonBroadcastBytesCanNotDividedEvenly() {
+    void testNonBroadcastBytesCanNotDividedEvenly() {
         BlockingResultInfo resultInfo1 =
                 BlockingResultInfo.createFromBroadcastResult(Arrays.asList(BYTE_512_MB));
         BlockingResultInfo resultInfo2 =
@@ -156,6 +155,6 @@ public class DefaultVertexParallelismDeciderTest {
         int parallelism =
                 decider.decideParallelismForVertex(Arrays.asList(resultInfo1, resultInfo2));
 
-        assertThat(parallelism, is(16));
+        assertThat(parallelism).isEqualTo(16);
     }
 }
