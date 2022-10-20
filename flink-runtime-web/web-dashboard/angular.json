@@ -144,8 +144,9 @@
       }
     }
   },
-  "defaultProject": "flink",
   "cli": {
-    "defaultCollection": "@angular-eslint/schematics"
+    "schematicCollections": [
+      "@angular-eslint/schematics"
+    ]
   }
 }

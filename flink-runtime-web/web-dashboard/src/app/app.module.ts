@@ -81,7 +81,10 @@ import { AppInterceptor } from './app.interceptor';
 
 registerLocaleData(en);
 
-export function AppInitServiceFactory(statusService: StatusService, injector: Injector): () => Promise<Configuration> {
+export function AppInitServiceFactory(
+  statusService: StatusService,
+  injector: Injector
+): () => Promise<Configuration | undefined> {
   return () => {
     return statusService.boot(injector.get<Router>(Router));
   };

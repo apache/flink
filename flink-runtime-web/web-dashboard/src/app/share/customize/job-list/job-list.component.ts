@@ -44,7 +44,7 @@ import { NzMessageService } from 'ng-zorro-antd/message';
 export class JobListComponent implements OnInit, OnDestroy, OnChanges {
   listOfJob: JobsItem[] = [];
   isLoading = true;
-  destroy$ = new Subject();
+  destroy$ = new Subject<void>();
   @Input() completed = false;
   @Input() title: string;
   @Input() jobData$: Observable<JobsItem[]>;
