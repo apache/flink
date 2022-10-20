@@ -114,9 +114,7 @@ public class OperatorBackendSerializationProxy extends VersionedIOReadableWritab
         }
 
         final StateMetaInfoReader stateMetaInfoReader =
-                StateMetaInfoSnapshotReadersWriters.getReader(
-                        metaInfoSnapshotVersion,
-                        StateMetaInfoSnapshotReadersWriters.StateTypeHint.OPERATOR_STATE);
+                StateMetaInfoSnapshotReadersWriters.getReader(metaInfoSnapshotVersion);
 
         int numOperatorStates = in.readShort();
         operatorStateMetaInfoSnapshots = new ArrayList<>(numOperatorStates);

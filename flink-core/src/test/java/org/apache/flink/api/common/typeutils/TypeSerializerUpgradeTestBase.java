@@ -19,7 +19,6 @@
 package org.apache.flink.api.common.typeutils;
 
 import org.apache.flink.FlinkVersion;
-import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.memory.DataInputDeserializer;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputSerializer;
@@ -37,10 +36,10 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Collection;
-import java.util.List;
 import java.util.Set;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
+import static org.apache.flink.util.Preconditions.checkState;
 import static org.assertj.core.api.AssertionsForInterfaceTypes.assertThat;
 import static org.assertj.core.api.Assumptions.assumeThat;
 import static org.hamcrest.CoreMatchers.not;
@@ -550,35 +549,22 @@ public abstract class TypeSerializerUpgradeTestBase<PreviousElementT, UpgradedEl
             DataOutputView out, TypeSerializer<T> serializer) throws IOException {
 
         TypeSerializerSnapshotSerializationUtil.writeSerializerSnapshot(
-                out, serializer.snapshotConfiguration(), serializer);
+                out, serializer.snapshotConfiguration());
     }
 
     private static <T> TypeSerializerSnapshot<T> readSerializerSnapshot(
             DataInputView in, FlinkVersion flinkVersion) throws IOException {
 
         ClassLoader classLoader = Thread.currentThread().getContextClassLoader();
-        if (flinkVersion.isNewerVersionThan(FlinkVersion.v1_6)) {
-            return readSerializerSnapshotCurrentFormat(in, classLoader);
-        } else {
-            return readSerializerSnapshotPre17Format(in, classLoader);
-        }
+        checkState(flinkVersion.isNewerVersionThan(FlinkVersion.v1_6));
+        return readSerializerSnapshotCurrentFormat(in, classLoader);
     }
 
     private static <T> TypeSerializerSnapshot<T> readSerializerSnapshotCurrentFormat(
             DataInputView in, ClassLoader userCodeClassLoader) throws IOException {
 
         return TypeSerializerSnapshotSerializationUtil.readSerializerSnapshot(
-                in, userCodeClassLoader, null);
-    }
-
-    @SuppressWarnings({"unchecked", "deprecation"})
-    private static <T> TypeSerializerSnapshot<T> readSerializerSnapshotPre17Format(
-            DataInputView in, ClassLoader userCodeClassLoader) throws IOException {
-
-        List<Tuple2<TypeSerializer<?>, TypeSerializerSnapshot<?>>> serializerSnapshotPair =
-                TypeSerializerSerializationUtil.readSerializersAndConfigsWithResilience(
-                        in, userCodeClassLoader);
-        return (TypeSerializerSnapshot<T>) serializerSnapshotPair.get(0).f1;
+                in, userCodeClassLoader);
     }
 
     private static <T> DataInputView readAndThenWriteData(

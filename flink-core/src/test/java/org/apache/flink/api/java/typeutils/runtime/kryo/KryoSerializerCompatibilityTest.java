@@ -60,9 +60,7 @@ public class KryoSerializerCompatibilityTest {
         byte[] serializedConfig;
         try (ByteArrayOutputStream out = new ByteArrayOutputStream()) {
             TypeSerializerSnapshotSerializationUtil.writeSerializerSnapshot(
-                    new DataOutputViewStreamWrapper(out),
-                    kryoSerializerConfigSnapshot,
-                    kryoSerializerForA);
+                    new DataOutputViewStreamWrapper(out), kryoSerializerConfigSnapshot);
             serializedConfig = out.toByteArray();
         }
 
@@ -74,8 +72,7 @@ public class KryoSerializerCompatibilityTest {
             kryoSerializerConfigSnapshot =
                     TypeSerializerSnapshotSerializationUtil.readSerializerSnapshot(
                             new DataInputViewStreamWrapper(in),
-                            Thread.currentThread().getContextClassLoader(),
-                            kryoSerializerForB);
+                            Thread.currentThread().getContextClassLoader());
         }
 
         @SuppressWarnings("unchecked")
@@ -227,9 +224,7 @@ public class KryoSerializerCompatibilityTest {
         byte[] serializedConfig;
         try (ByteArrayOutputStream out = new ByteArrayOutputStream()) {
             TypeSerializerSnapshotSerializationUtil.writeSerializerSnapshot(
-                    new DataOutputViewStreamWrapper(out),
-                    kryoSerializerConfigSnapshot,
-                    kryoSerializer);
+                    new DataOutputViewStreamWrapper(out), kryoSerializerConfigSnapshot);
             serializedConfig = out.toByteArray();
         }
 
@@ -245,8 +240,7 @@ public class KryoSerializerCompatibilityTest {
             kryoSerializerConfigSnapshot =
                     TypeSerializerSnapshotSerializationUtil.readSerializerSnapshot(
                             new DataInputViewStreamWrapper(in),
-                            Thread.currentThread().getContextClassLoader(),
-                            kryoSerializer);
+                            Thread.currentThread().getContextClassLoader());
         }
 
         // reconfigure - check reconfiguration result and that registration id remains the same

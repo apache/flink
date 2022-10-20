@@ -19,7 +19,6 @@
 package org.apache.flink.api.common.typeutils;
 
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
-import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.memory.ByteArrayInputStreamWithPos;
 import org.apache.flink.core.memory.ByteArrayOutputStreamWithPos;
 import org.apache.flink.core.memory.DataInputView;
@@ -29,7 +28,6 @@ import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 import org.apache.flink.testutils.ArtificialCNFExceptionThrowingClassLoader;
 import org.apache.flink.util.InstantiationUtil;
 
-import org.hamcrest.Matchers;
 import org.junit.Assert;
 import org.junit.ClassRule;
 import org.junit.Test;
@@ -42,11 +40,7 @@ import java.io.InvalidClassException;
 import java.io.ObjectStreamClass;
 import java.io.Serializable;
 import java.nio.ByteBuffer;
-import java.util.Arrays;
 import java.util.Collections;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
 
 /** Unit tests for {@link TypeSerializerSerializationUtil}. */
 public class TypeSerializerSerializationUtilTest implements Serializable {
@@ -139,46 +133,6 @@ public class TypeSerializerSerializationUtilTest implements Serializable {
                             true);
         }
         Assert.assertTrue(deserializedSerializer instanceof UnloadableDummyTypeSerializer);
-    }
-
-    /**
-     * Verifies resilience to serializer deserialization failures when writing and reading
-     * serializer and config snapshot pairs.
-     */
-    @Test
-    public void testSerializerAndConfigPairsSerializationWithSerializerDeserializationFailures()
-            throws Exception {
-        TestIntSerializer serializer = new TestIntSerializer();
-
-        List<Tuple2<TypeSerializer<?>, TypeSerializerSnapshot<?>>> serializersAndConfigs =
-                Arrays.asList(
-                        new Tuple2<TypeSerializer<?>, TypeSerializerSnapshot<?>>(
-                                serializer, serializer.snapshotConfiguration()));
-
-        byte[] serializedSerializersAndConfigs;
-        try (ByteArrayOutputStream out = new ByteArrayOutputStream()) {
-            TypeSerializerSerializationUtil.writeSerializersAndConfigsWithResilience(
-                    new DataOutputViewStreamWrapper(out), serializersAndConfigs);
-            serializedSerializersAndConfigs = out.toByteArray();
-        }
-
-        Set<String> cnfThrowingClassnames = new HashSet<>();
-        cnfThrowingClassnames.add(TestIntSerializer.class.getName());
-
-        List<Tuple2<TypeSerializer<?>, TypeSerializerSnapshot<?>>> restored;
-        try (ByteArrayInputStream in = new ByteArrayInputStream(serializedSerializersAndConfigs)) {
-            restored =
-                    TypeSerializerSerializationUtil.readSerializersAndConfigsWithResilience(
-                            new DataInputViewStreamWrapper(in),
-                            new ArtificialCNFExceptionThrowingClassLoader(
-                                    Thread.currentThread().getContextClassLoader(),
-                                    cnfThrowingClassnames));
-        }
-
-        Assert.assertEquals(1, restored.size());
-        Assert.assertTrue(restored.get(0).f0 instanceof UnloadableDummyTypeSerializer);
-        Assert.assertThat(
-                restored.get(0).f1, Matchers.instanceOf(SimpleTypeSerializerSnapshot.class));
     }
 
     /**
