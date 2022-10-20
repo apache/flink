@@ -201,6 +201,17 @@ under the License.
 										<exclude>META-INF/NOTICE.txt</exclude>
 									</excludes>
 								</filter>
+								<filter>
+									<artifact>*:*</artifact>
+									<excludes>
+										<!-- Only some of these licenses actually apply to the JAR and have been manually
+											 placed in this module's resources directory. -->
+										<exclude>LICENSE</exclude>
+										<!-- Only parts of NOTICE file actually apply to the netty JAR and have been manually
+											 copied into this modules's NOTICE file. -->
+										<exclude>NOTICE</exclude>
+									</excludes>
+								</filter>
 							</filters>
 							<transformers>
 								<transformer implementation="org.apache.maven.plugins.shade.resource.AppendingTransformer">
