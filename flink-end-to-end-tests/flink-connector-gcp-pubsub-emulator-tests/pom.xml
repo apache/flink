@@ -26,7 +26,7 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-end-to-end-tests</artifactId>
-		<version>1.16-SNAPSHOT</version>
+		<version>1.16.0</version>
 	</parent>
 
 	<artifactId>flink-connector-gcp-pubsub-emulator-tests</artifactId>
