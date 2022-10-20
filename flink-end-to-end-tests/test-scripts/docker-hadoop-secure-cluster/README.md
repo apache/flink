@@ -4,7 +4,7 @@ Required versions
 -----------------
 
 * JDK8
-* Hadoop 2.8.5
+* Hadoop 2.10.2
 
 Default Environment Variables
 -----------------------------
