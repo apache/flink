@@ -158,6 +158,18 @@
         </dependency>
     </dependencies>
 
+	<dependencyManagement>
+		<dependencies>
+			<dependency>
+				<!-- dependency convergence -->
+				<groupId>org.codehaus.woodstox</groupId>
+				<artifactId>stax2-api</artifactId>
+				<version>4.2.1</version>
+				<scope>test</scope>
+			</dependency>
+		</dependencies>
+	</dependencyManagement>
+
     <build>
         <plugins>
             <plugin>

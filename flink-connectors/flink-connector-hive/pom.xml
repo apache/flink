@@ -39,15 +39,20 @@ under the License.
 		<reflections.version>0.9.8</reflections.version>
 		<derby.version>10.10.2.0</derby.version>
 		<hive.avro.version>1.8.2</hive.avro.version>
+		<!-- 
+		Hive requires Hadoop 2 to avoid 
+		java.lang.NoClassDefFoundError: org/apache/hadoop/metrics/Updater errors 
+		Using this dedicated property avoids CI failures with the Hadoop 3 profile
+		-->
+		<hive.hadoop.version>2.10.2</hive.hadoop.version>
 	</properties>
 
-	<!-- Overwrite hadoop dependency management from flink-parent to use locally defined Hadoop version -->
 	<dependencyManagement>
 		<dependencies>
 			<dependency>
 				<groupId>org.apache.hadoop</groupId>
 				<artifactId>hadoop-common</artifactId>
-				<version>${hivemetastore.hadoop.version}</version>
+				<version>${hive.hadoop.version}</version>
 				<exclusions>
 					<exclusion>
 						<groupId>log4j</groupId>
@@ -79,7 +84,7 @@ under the License.
 			<dependency>
 				<groupId>org.apache.hadoop</groupId>
 				<artifactId>hadoop-mapreduce-client-core</artifactId>
-				<version>${hivemetastore.hadoop.version}</version>
+				<version>${hive.hadoop.version}</version>
 				<exclusions>
 					<exclusion>
 						<groupId>log4j</groupId>
@@ -95,7 +100,7 @@ under the License.
 			<dependency>
 				<groupId>org.apache.hadoop</groupId>
 				<artifactId>hadoop-yarn-common</artifactId>
-				<version>${hivemetastore.hadoop.version}</version>
+				<version>${hive.hadoop.version}</version>
 				<exclusions>
 					<exclusion>
 						<groupId>log4j</groupId>
@@ -111,7 +116,7 @@ under the License.
 			<dependency>
 				<groupId>org.apache.hadoop</groupId>
 				<artifactId>hadoop-yarn-client</artifactId>
-				<version>${hivemetastore.hadoop.version}</version>
+				<version>${hive.hadoop.version}</version>
 				<exclusions>
 					<exclusion>
 						<groupId>log4j</groupId>
@@ -252,6 +257,24 @@ under the License.
 			<groupId>org.apache.hadoop</groupId>
 			<artifactId>hadoop-mapreduce-client-core</artifactId>
 			<scope>provided</scope>
+		</dependency>
+
+		<dependency>
+			<groupId>org.apache.hadoop</groupId>
+			<artifactId>hadoop-hdfs</artifactId>
+			<version>${hive.hadoop.version}</version>
+			<type>test-jar</type>
+			<scope>test</scope>
+			<exclusions>
+				<exclusion>
+					<groupId>log4j</groupId>
+					<artifactId>log4j</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>ch.qos.reload4j</groupId>
+					<artifactId>reload4j</artifactId>
+				</exclusion>
+			</exclusions>
 		</dependency>
 
 		<!-- Hive -->
@@ -910,13 +933,6 @@ under the License.
 			<scope>test</scope>
 		</dependency>
 
-		<dependency>
-			<groupId>org.apache.hadoop</groupId>
-			<artifactId>hadoop-hdfs</artifactId>
-			<version>${hivemetastore.hadoop.version}</version>
-			<scope>test</scope>
-		</dependency>
-
 		<!-- ArchUit test dependencies -->
 
 		<dependency>
@@ -1115,32 +1131,7 @@ under the License.
 			<properties>
 				<hive.version>3.1.3</hive.version>
 				<derby.version>10.14.1.0</derby.version>
-				<!-- need a hadoop version that fixes HADOOP-14683 -->
-				<hivemetastore.hadoop.version>2.8.2</hivemetastore.hadoop.version>
 			</properties>
-
-			<dependencyManagement>
-				<dependencies>
-					<dependency>
-						<groupId>org.apache.hive</groupId>
-						<artifactId>hive-metastore</artifactId>
-						<version>${hive.version}</version>
-						<scope>provided</scope>
-						<exclusions>
-							<exclusion>
-								<!-- Override arrow netty dependency -->
-								<groupId>io.netty</groupId>
-								<artifactId>netty-buffer</artifactId>
-							</exclusion>
-							<exclusion>
-								<!-- Override arrow netty dependency -->
-								<groupId>io.netty</groupId>
-								<artifactId>netty-common</artifactId>
-							</exclusion>
-						</exclusions>
-					</dependency>
-				</dependencies>
-			</dependencyManagement>
 
 			<dependencies>
 				<dependency>
@@ -1157,14 +1148,6 @@ under the License.
 					<artifactId>netty-common</artifactId>
 					<version>4.1.46.Final</version>
 					<scope>provided</scope>
-				</dependency>
-
-				<!-- Required by orc tests -->
-				<dependency>
-					<groupId>org.apache.hadoop</groupId>
-					<artifactId>hadoop-hdfs</artifactId>
-					<version>${hivemetastore.hadoop.version}</version>
-					<scope>test</scope>
 				</dependency>
 			</dependencies>
 

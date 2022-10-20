@@ -150,8 +150,8 @@ public class FlinkEmbeddedHiveServerContext implements HiveServerContext {
     private void configureJavaSecurityRealm() {
         // These three properties gets rid of: 'Unable to load realm info from SCDynamicStore'
         // which seems to have a timeout of about 5 secs.
-        System.setProperty("java.security.krb5.realm", "");
-        System.setProperty("java.security.krb5.kdc", "");
+        System.setProperty("java.security.krb5.realm", "EXAMPLE.COM");
+        System.setProperty("java.security.krb5.kdc", "kdc");
         System.setProperty("java.security.krb5.conf", "/dev/null");
     }
 
