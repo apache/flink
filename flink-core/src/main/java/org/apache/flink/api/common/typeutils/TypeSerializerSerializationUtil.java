@@ -19,14 +19,10 @@
 package org.apache.flink.api.common.typeutils;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.io.VersionedIOReadableWritable;
-import org.apache.flink.core.memory.ByteArrayInputStreamWithPos;
 import org.apache.flink.core.memory.ByteArrayOutputStreamWithPos;
 import org.apache.flink.core.memory.DataInputView;
-import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.core.memory.DataOutputView;
-import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.Preconditions;
 
@@ -36,8 +32,6 @@ import org.slf4j.LoggerFactory;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InvalidClassException;
-import java.util.ArrayList;
-import java.util.List;
 
 /**
  * Utility methods for serialization of {@link TypeSerializer}.
@@ -125,122 +119,6 @@ public class TypeSerializerSerializationUtil {
                 throw e;
             }
         }
-    }
-
-    /**
-     * Write a list of serializers and their corresponding config snapshots to the provided data
-     * output view. This method writes in a fault tolerant way, so that when read again using {@link
-     * #readSerializersAndConfigsWithResilience(DataInputView, ClassLoader)}, if deserialization of
-     * the serializer fails, its configuration snapshot will remain intact.
-     *
-     * <p>Specifically, all written serializers and their config snapshots are indexed by their
-     * offset positions within the serialized bytes. The serialization format is as follows:
-     *
-     * <ul>
-     *   <li>1. number of serializer and configuration snapshot pairs.
-     *   <li>2. offsets of each serializer and configuration snapshot, in order.
-     *   <li>3. total number of bytes for the serialized serializers and the config snapshots.
-     *   <li>4. serialized serializers and the config snapshots.
-     * </ul>
-     *
-     * @param out the data output view.
-     * @param serializersAndConfigs serializer and configuration snapshot pairs
-     * @throws IOException
-     */
-    public static void writeSerializersAndConfigsWithResilience(
-            DataOutputView out,
-            List<Tuple2<TypeSerializer<?>, TypeSerializerSnapshot<?>>> serializersAndConfigs)
-            throws IOException {
-
-        try (ByteArrayOutputStreamWithPos bufferWithPos = new ByteArrayOutputStreamWithPos();
-                DataOutputViewStreamWrapper bufferWrapper =
-                        new DataOutputViewStreamWrapper(bufferWithPos)) {
-
-            out.writeInt(serializersAndConfigs.size());
-            for (Tuple2<TypeSerializer<?>, TypeSerializerSnapshot<?>> serAndConfSnapshot :
-                    serializersAndConfigs) {
-                out.writeInt(bufferWithPos.getPosition());
-                writeSerializer(bufferWrapper, serAndConfSnapshot.f0);
-
-                out.writeInt(bufferWithPos.getPosition());
-                TypeSerializerSnapshotSerializationUtil.writeSerializerSnapshot(
-                        bufferWrapper,
-                        (TypeSerializerSnapshot) serAndConfSnapshot.f1,
-                        serAndConfSnapshot.f0);
-            }
-
-            out.writeInt(bufferWithPos.getPosition());
-            out.write(bufferWithPos.getBuf(), 0, bufferWithPos.getPosition());
-        }
-    }
-
-    /**
-     * Reads from a data input view a list of serializers and their corresponding config snapshots
-     * written using {@link #writeSerializersAndConfigsWithResilience(DataOutputView, List)}.
-     *
-     * <p>If deserialization for serializers fails due to any exception, users can opt to use a
-     * dummy {@link UnloadableDummyTypeSerializer} to hold the serializer bytes
-     *
-     * @param in the data input view.
-     * @param userCodeClassLoader the user code class loader to use.
-     * @return the deserialized serializer and config snapshot pairs.
-     * @throws IOException
-     */
-    public static List<Tuple2<TypeSerializer<?>, TypeSerializerSnapshot<?>>>
-            readSerializersAndConfigsWithResilience(
-                    DataInputView in, ClassLoader userCodeClassLoader) throws IOException {
-
-        int numSerializersAndConfigSnapshots = in.readInt();
-
-        int[] offsets = new int[numSerializersAndConfigSnapshots * 2];
-
-        for (int i = 0; i < numSerializersAndConfigSnapshots; i++) {
-            offsets[i * 2] = in.readInt();
-            offsets[i * 2 + 1] = in.readInt();
-        }
-
-        int totalBytes = in.readInt();
-        byte[] buffer = new byte[totalBytes];
-        in.readFully(buffer);
-
-        List<Tuple2<TypeSerializer<?>, TypeSerializerSnapshot<?>>> serializersAndConfigSnapshots =
-                new ArrayList<>(numSerializersAndConfigSnapshots);
-
-        TypeSerializer<?> serializer;
-        TypeSerializerSnapshot<?> configSnapshot;
-        try (ByteArrayInputStreamWithPos bufferWithPos = new ByteArrayInputStreamWithPos(buffer);
-                DataInputViewStreamWrapper bufferWrapper =
-                        new DataInputViewStreamWrapper(bufferWithPos)) {
-
-            for (int i = 0; i < numSerializersAndConfigSnapshots; i++) {
-
-                bufferWithPos.setPosition(offsets[i * 2]);
-                serializer = tryReadSerializer(bufferWrapper, userCodeClassLoader, true);
-
-                bufferWithPos.setPosition(offsets[i * 2 + 1]);
-
-                configSnapshot =
-                        TypeSerializerSnapshotSerializationUtil.readSerializerSnapshot(
-                                bufferWrapper, userCodeClassLoader, serializer);
-
-                if (serializer instanceof LegacySerializerSnapshotTransformer) {
-                    configSnapshot = transformLegacySnapshot(serializer, configSnapshot);
-                }
-
-                serializersAndConfigSnapshots.add(new Tuple2<>(serializer, configSnapshot));
-            }
-        }
-
-        return serializersAndConfigSnapshots;
-    }
-
-    @SuppressWarnings("unchecked")
-    private static <T, U> TypeSerializerSnapshot<T> transformLegacySnapshot(
-            TypeSerializer<T> serializer, TypeSerializerSnapshot<U> configSnapshot) {
-
-        LegacySerializerSnapshotTransformer<T> transformation =
-                (LegacySerializerSnapshotTransformer<T>) serializer;
-        return transformation.transformLegacySerializerSnapshot(configSnapshot);
     }
 
     // -----------------------------------------------------------------------------------------------------
