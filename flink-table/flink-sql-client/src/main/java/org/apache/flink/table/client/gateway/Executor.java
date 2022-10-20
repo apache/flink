@@ -21,6 +21,8 @@ package org.apache.flink.table.client.gateway;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.table.api.TableResult;
 import org.apache.flink.table.api.internal.TableResultInternal;
+import org.apache.flink.table.client.result.ResultDescriptor;
+import org.apache.flink.table.client.result.TypedResult;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.operations.ModifyOperation;
 import org.apache.flink.table.operations.Operation;

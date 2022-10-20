@@ -16,12 +16,12 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.client.gateway.local.result;
+package org.apache.flink.table.client.result.storage;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.table.api.internal.TableResultInternal;
 import org.apache.flink.table.client.gateway.SqlExecutionException;
-import org.apache.flink.table.client.gateway.TypedResult;
+import org.apache.flink.table.client.result.TypedResult;
 import org.apache.flink.table.data.RowData;
 
 import java.util.ArrayList;

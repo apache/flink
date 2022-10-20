@@ -16,16 +16,22 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.client.gateway.local.result;
+package org.apache.flink.table.client.result.storage;
 
-import org.apache.flink.table.client.gateway.TypedResult;
+import org.apache.flink.table.client.result.TypedResult;
 import org.apache.flink.table.data.RowData;
 
 import java.util.List;
 
-/** A result that is represented as a changelog consisting of insert and delete records. */
-public interface ChangelogResult extends DynamicResult {
+/** A result that is materialized and can be viewed by navigating through a snapshot. */
+public interface MaterializedResult extends DynamicResult {
 
-    /** Retrieves the available result records. */
-    TypedResult<List<RowData>> retrieveChanges();
+    /**
+     * Takes a snapshot of the current table and returns the number of pages for navigating through
+     * the snapshot.
+     */
+    TypedResult<Integer> snapshot(int pageSize);
+
+    /** Retrieves a page of a snapshotted result. */
+    List<RowData> retrievePage(int page);
 }

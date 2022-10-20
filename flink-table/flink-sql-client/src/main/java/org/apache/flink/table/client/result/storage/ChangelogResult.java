@@ -16,21 +16,16 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.client.gateway.local.result;
+package org.apache.flink.table.client.result.storage;
 
-/**
- * A result of a dynamic table program.
- *
- * <p>Note: Make sure to call close() after the result is not needed anymore.
- */
-public interface DynamicResult {
+import org.apache.flink.table.client.result.TypedResult;
+import org.apache.flink.table.data.RowData;
 
-    /**
-     * Returns whether this result is materialized such that snapshots can be taken or results must
-     * be retrieved record-wise.
-     */
-    boolean isMaterialized();
+import java.util.List;
 
-    /** Closes the retrieval and all involved threads. */
-    void close() throws Exception;
+/** A result that is represented as a changelog consisting of insert and delete records. */
+public interface ChangelogResult extends DynamicResult {
+
+    /** Retrieves the available result records. */
+    TypedResult<List<RowData>> retrieveChanges();
 }

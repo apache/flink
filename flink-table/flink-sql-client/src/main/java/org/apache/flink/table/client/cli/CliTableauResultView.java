@@ -19,9 +19,9 @@
 package org.apache.flink.table.client.cli;
 
 import org.apache.flink.table.client.gateway.Executor;
-import org.apache.flink.table.client.gateway.ResultDescriptor;
 import org.apache.flink.table.client.gateway.SqlExecutionException;
-import org.apache.flink.table.client.gateway.TypedResult;
+import org.apache.flink.table.client.result.ResultDescriptor;
+import org.apache.flink.table.client.result.TypedResult;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.utils.print.PrintStyle;
 import org.apache.flink.table.utils.print.TableauStyle;

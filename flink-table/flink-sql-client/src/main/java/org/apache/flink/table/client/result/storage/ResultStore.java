@@ -16,16 +16,12 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.client.gateway.local;
+package org.apache.flink.table.client.result.storage;
 
 import org.apache.flink.api.common.RuntimeExecutionMode;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.table.api.internal.TableResultInternal;
 import org.apache.flink.table.client.gateway.SqlExecutionException;
-import org.apache.flink.table.client.gateway.local.result.ChangelogCollectResult;
-import org.apache.flink.table.client.gateway.local.result.DynamicResult;
-import org.apache.flink.table.client.gateway.local.result.MaterializedCollectBatchResult;
-import org.apache.flink.table.client.gateway.local.result.MaterializedCollectStreamResult;
 
 import java.util.ArrayList;
 import java.util.HashMap;

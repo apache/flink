@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.client.gateway.local.result;
+package org.apache.flink.table.client.result.storage;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.table.api.internal.TableResultInternal;

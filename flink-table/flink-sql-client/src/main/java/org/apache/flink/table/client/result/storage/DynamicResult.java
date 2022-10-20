@@ -16,22 +16,21 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.client.gateway.local.result;
+package org.apache.flink.table.client.result.storage;
 
-import org.apache.flink.table.client.gateway.TypedResult;
-import org.apache.flink.table.data.RowData;
-
-import java.util.List;
-
-/** A result that is materialized and can be viewed by navigating through a snapshot. */
-public interface MaterializedResult extends DynamicResult {
+/**
+ * A result of a dynamic table program.
+ *
+ * <p>Note: Make sure to call close() after the result is not needed anymore.
+ */
+public interface DynamicResult {
 
     /**
-     * Takes a snapshot of the current table and returns the number of pages for navigating through
-     * the snapshot.
+     * Returns whether this result is materialized such that snapshots can be taken or results must
+     * be retrieved record-wise.
      */
-    TypedResult<Integer> snapshot(int pageSize);
+    boolean isMaterialized();
 
-    /** Retrieves a page of a snapshotted result. */
-    List<RowData> retrievePage(int page);
+    /** Closes the retrieval and all involved threads. */
+    void close() throws Exception;
 }
