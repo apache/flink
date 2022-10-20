@@ -24,10 +24,13 @@ import org.apache.flink.runtime.rpc.RpcSystem;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
+import java.nio.file.Files;
+import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
  * Tests for the {@link AkkaRpcSystemLoader}.
@@ -55,5 +58,34 @@ class AkkaRpcSystemLoaderITCase {
         try (final RpcSystem rpcSystem = LOADER.loadRpcSystem(config)) {
             assertThat(rpcSystem).isNotNull();
         }
+    }
+
+    @Test
+    void testServiceLoadingWithExistingLinkedPath(@TempDir Path tempDir) throws Exception {
+        final Configuration config = new Configuration();
+
+        Path linkedDirectory = Paths.get(tempDir.toString(), "linkedDir");
+        Path symbolicLink = Paths.get(tempDir.toString(), "symlink");
+        Files.createSymbolicLink(symbolicLink, linkedDirectory);
+        Files.createDirectories(linkedDirectory.resolve("a").resolve("b"));
+        // set the tmp dirs to dirs in symbolic link path.
+        config.set(CoreOptions.TMP_DIRS, symbolicLink.resolve("a").resolve("b").toString());
+        try (final RpcSystem rpcSystem = LOADER.loadRpcSystem(config)) {
+            assertThat(rpcSystem).isNotNull();
+        }
+    }
+
+    @Test
+    void testServiceLoadingWithNonExistingLinkedPath(@TempDir Path tempDir) throws Exception {
+        final Configuration config = new Configuration();
+
+        Path linkedDirectory = Paths.get(tempDir.toString(), "linkedDir");
+        Path symbolicLink = Paths.get(tempDir.toString(), "symlink");
+        Files.createSymbolicLink(symbolicLink, linkedDirectory);
+        // set the tmp dirs to dirs in symbolic link path.
+        config.set(CoreOptions.TMP_DIRS, symbolicLink.toString());
+        // if this is a symlink that linked dir not exist, throw exception directly.
+        assertThatThrownBy(() -> LOADER.loadRpcSystem(config))
+                .hasRootCauseInstanceOf(NoSuchFileException.class);
     }
 }
