@@ -58,7 +58,7 @@ public class InternalTimersSnapshotReaderWriters {
         switch (version) {
             case NO_VERSION:
             case 1:
-                throw new UnsupportedOperationException(
+                throw new IllegalStateException(
                         "Since Flink 1.17 not versioned (<= Flink 1.4.0) and version 1 (< Flink 1.8.0) of "
                                 + "InternalTimersSnapshotWriter is no longer supported.");
 
