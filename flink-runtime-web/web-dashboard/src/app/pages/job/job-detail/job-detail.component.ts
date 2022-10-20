@@ -60,12 +60,12 @@ export class JobDetailComponent implements OnInit, OnDestroy {
             tap(job => {
               this.jobLocalService.setJobDetail(job);
             }),
-            catchError(() => {
+            catchError(response => {
               this.jobService.loadExceptions(this.activatedRoute.snapshot.params.jid, 10).subscribe(data => {
                 this.errorDetails = data['root-exception'];
                 this.cdr.markForCheck();
               });
-
+              this.errorDetails = `Reasons: ${response.error.errors.join('\n')}`;
               this.isError = true;
               this.isLoading = false;
               this.cdr.markForCheck();

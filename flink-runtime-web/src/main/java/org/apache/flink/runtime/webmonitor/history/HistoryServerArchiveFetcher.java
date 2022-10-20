@@ -21,6 +21,7 @@ package org.apache.flink.runtime.webmonitor.history;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.configuration.HistoryServerOptions;
+import org.apache.flink.core.fs.FSDataInputStream;
 import org.apache.flink.core.fs.FileStatus;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
@@ -30,8 +31,13 @@ import org.apache.flink.runtime.messages.webmonitor.JobDetails;
 import org.apache.flink.runtime.messages.webmonitor.MultipleJobsDetails;
 import org.apache.flink.runtime.rest.messages.JobsOverviewHeaders;
 import org.apache.flink.util.FileUtils;
+import org.apache.flink.util.IOUtils;
+import org.apache.flink.util.StringUtils;
 import org.apache.flink.util.jackson.JacksonMapperFactory;
 
+import org.apache.flink.shaded.guava30.com.google.common.cache.CacheBuilder;
+import org.apache.flink.shaded.guava30.com.google.common.cache.CacheLoader;
+import org.apache.flink.shaded.guava30.com.google.common.cache.LoadingCache;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonFactory;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonGenerator;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.JsonNode;
@@ -41,6 +47,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.File;
+import java.io.FileOutputStream;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.StringWriter;
@@ -55,7 +62,10 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -75,16 +85,26 @@ class HistoryServerArchiveFetcher {
 
     /** Possible job archive operations in history-server. */
     public enum ArchiveEventType {
-        /** Job archive was found in one refresh location and created in history server. */
-        CREATED,
+        /** Archived job file was found in one refresh location and downloaded in history server. */
+        DOWNLOADED,
+        /** Unzipped Job archive was reloaded. */
+        RELOADED,
         /**
-         * Job archive was deleted from one of refresh locations and deleted from history server.
+         * Archived job file was unzipped and Unzipped Job archive was created in history server.
          */
-        DELETED
+        CREATED,
+        /** Unzipped Job archive was deleted in history server. */
+        CLEANED,
+        /**
+         * Archived job file and Unzipped Job archive was deleted from one of refresh locations and
+         * deleted from history server.
+         */
+        DELETED,
     }
 
     /** Representation of job archive event. */
     public static class ArchiveEvent {
+
         private final String jobID;
         private final ArchiveEventType operation;
 
@@ -103,13 +123,13 @@ class HistoryServerArchiveFetcher {
     }
 
     private static final Logger LOG = LoggerFactory.getLogger(HistoryServerArchiveFetcher.class);
-
     private static final JsonFactory jacksonFactory = new JsonFactory();
     private static final ObjectMapper mapper = JacksonMapperFactory.createObjectMapper();
 
     private static final String JSON_FILE_ENDING = ".json";
 
     private final List<HistoryServer.RefreshLocation> refreshDirs;
+    private final List<ArchiveEvent> events;
     private final Consumer<ArchiveEvent> jobArchiveEventListener;
     private final boolean processExpiredArchiveDeletion;
     private final boolean processBeyondLimitArchiveDeletion;
@@ -117,9 +137,12 @@ class HistoryServerArchiveFetcher {
 
     /** Cache of all available jobs identified by their id. */
     private final Map<Path, Set<String>> cachedArchivesPerRefreshDirectory;
+    /** Cache of all unzipped jobs. key: jobID */
+    private final LoadingCache<String, Boolean> unzippedJobCache;
 
     private final File webDir;
     private final File webJobDir;
+    private final File webArchivedDir;
     private final File webOverviewDir;
 
     HistoryServerArchiveFetcher(
@@ -127,23 +150,49 @@ class HistoryServerArchiveFetcher {
             File webDir,
             Consumer<ArchiveEvent> jobArchiveEventListener,
             boolean cleanupExpiredArchives,
-            int maxHistorySize)
+            int maxHistorySize,
+            int maxCachedJobSize)
             throws IOException {
         this.refreshDirs = checkNotNull(refreshDirs);
+        this.events = Collections.synchronizedList(new ArrayList<>());
         this.jobArchiveEventListener = jobArchiveEventListener;
         this.processExpiredArchiveDeletion = cleanupExpiredArchives;
         this.maxHistorySize = maxHistorySize;
         this.processBeyondLimitArchiveDeletion = this.maxHistorySize > 0;
         this.cachedArchivesPerRefreshDirectory = new HashMap<>();
+        this.unzippedJobCache =
+                CacheBuilder.newBuilder()
+                        .concurrencyLevel(10)
+                        .initialCapacity(10)
+                        .maximumSize(maxCachedJobSize)
+                        .expireAfterAccess(7L, TimeUnit.DAYS)
+                        .removalListener(
+                                notification -> {
+                                    LOG.info(
+                                            "Job:{} is removed from cache with reason [{}]",
+                                            notification.getKey(),
+                                            notification.getCause());
+                                    deleteJobFiles((String) notification.getKey());
+                                })
+                        .build(
+                                new CacheLoader<String, Boolean>() {
+                                    @Override
+                                    public Boolean load(String s) throws IOException {
+                                        return unzipArchive(s);
+                                    }
+                                });
         for (HistoryServer.RefreshLocation refreshDir : refreshDirs) {
             cachedArchivesPerRefreshDirectory.put(refreshDir.getPath(), new HashSet<>());
         }
         this.webDir = checkNotNull(webDir);
+        this.webArchivedDir = new File(webDir, "archivedJobs");
+        Files.createDirectories(webArchivedDir.toPath());
         this.webJobDir = new File(webDir, "jobs");
         Files.createDirectories(webJobDir.toPath());
         this.webOverviewDir = new File(webDir, "overviews");
         Files.createDirectories(webOverviewDir.toPath());
         updateJobOverview(webOverviewDir, webDir);
+        initJobCache();
 
         if (LOG.isInfoEnabled()) {
             for (HistoryServer.RefreshLocation refreshDir : refreshDirs) {
@@ -152,10 +201,48 @@ class HistoryServerArchiveFetcher {
         }
     }
 
+    private void initJobCache() {
+        initArchivedJobCache();
+        initUnzippedJobCache();
+    }
+
+    private void initArchivedJobCache() {
+        if (this.webArchivedDir.list() == null) {
+            LOG.info("No legacy archived jobs");
+            return;
+        }
+
+        for (String jobId : Objects.requireNonNull(this.webArchivedDir.list())) {
+            this.cachedArchivesPerRefreshDirectory.forEach((path, archives) -> archives.add(jobId));
+        }
+    }
+
+    private void initUnzippedJobCache() {
+        if (this.webOverviewDir.list() == null) {
+            LOG.info("No legacy unzipped jobs");
+            return;
+        }
+        Arrays.stream(Objects.requireNonNull(this.webOverviewDir.list()))
+                .filter(
+                        jobOverviewJsonFileName ->
+                                !StringUtils.isNullOrWhitespaceOnly(jobOverviewJsonFileName)
+                                        && jobOverviewJsonFileName.endsWith(".json"))
+                .map(this::extractJobID)
+                .filter(this::unzippedJobExist)
+                .forEach(
+                        jobID -> {
+                            unzippedJobCache.put(jobID, true);
+                            events.add(new ArchiveEvent(jobID, ArchiveEventType.RELOADED));
+                        });
+    }
+
+    private String extractJobID(String jobOverviewJsonFileName) {
+        return jobOverviewJsonFileName.split("\\.")[0];
+    }
+
     void fetchArchives() {
         try {
             LOG.debug("Starting archive fetching.");
-            List<ArchiveEvent> events = new ArrayList<>();
             Map<Path, Set<String>> jobsToRemove = new HashMap<>();
             cachedArchivesPerRefreshDirectory.forEach(
                     (path, archives) -> jobsToRemove.put(path, new HashSet<>(archives)));
@@ -199,18 +286,19 @@ class HistoryServerArchiveFetcher {
                                 "Ignoring archive {} because it was already fetched.",
                                 jobArchivePath);
                     } else {
-                        LOG.info("Processing archive {}.", jobArchivePath);
+                        LOG.info("Downloading archive {}.", jobArchivePath);
                         try {
-                            processArchive(jobID, jobArchivePath);
-                            events.add(new ArchiveEvent(jobID, ArchiveEventType.CREATED));
+                            downloadArchivedJobToLocal(
+                                    new File(this.webArchivedDir, jobID), jobArchivePath);
+                            events.add(new ArchiveEvent(jobID, ArchiveEventType.DOWNLOADED));
                             cachedArchivesPerRefreshDirectory.get(refreshDir).add(jobID);
-                            LOG.info("Processing archive {} finished.", jobArchivePath);
+                            LOG.info("Downloading archive {} finished.", jobArchivePath);
                         } catch (IOException e) {
                             LOG.error(
                                     "Failure while fetching/processing job archive for job {}.",
                                     jobID,
                                     e);
-                            deleteJobFiles(jobID);
+                            deleteArchivedJob(jobID);
                         }
                     }
                 }
@@ -223,13 +311,34 @@ class HistoryServerArchiveFetcher {
             if (!archivesBeyondSizeLimit.isEmpty() && processBeyondLimitArchiveDeletion) {
                 events.addAll(cleanupJobsBeyondSizeLimit(archivesBeyondSizeLimit));
             }
-            if (!events.isEmpty()) {
-                updateJobOverview(webOverviewDir, webDir);
-            }
             events.forEach(jobArchiveEventListener::accept);
+            events.clear();
             LOG.debug("Finished archive fetching.");
         } catch (Exception e) {
             LOG.error("Critical failure while fetching/processing job archives.", e);
+        }
+    }
+
+    public Boolean getUnzippedJob(String jobId) {
+        try {
+            return this.unzippedJobCache.get(jobId);
+        } catch (ExecutionException e) {
+            LOG.error("Fail to get/unzip archived job: {}", jobId, e);
+        }
+        return false;
+    }
+
+    private Boolean unzipArchive(String jobID) throws IOException {
+        if (unzippedJobExist(jobID)) {
+            LOG.debug("Unzipped job: {} exists.", jobID);
+            return true;
+        } else {
+            deleteJobFiles(jobID);
+            LOG.info("Unzipping job: {}.", jobID);
+            processArchive(jobID, new Path(new File(webArchivedDir, jobID).toURI()));
+            updateJobOverview(webOverviewDir, webDir);
+            LOG.info("Unzip archived job: {} finished", jobID);
+            return true;
         }
     }
 
@@ -259,6 +368,13 @@ class HistoryServerArchiveFetcher {
                     jobId,
                     iae);
             return false;
+        }
+    }
+
+    private void downloadArchivedJobToLocal(File archivedJob, Path file) throws IOException {
+        try (FSDataInputStream input = file.getFileSystem().open(file);
+                FileOutputStream output = new FileOutputStream(archivedJob)) {
+            IOUtils.copyBytes(input, output);
         }
     }
 
@@ -301,6 +417,7 @@ class HistoryServerArchiveFetcher {
                 fw.flush();
             }
         }
+        events.add(new ArchiveEvent(jobID, ArchiveEventType.CREATED));
     }
 
     private List<ArchiveEvent> cleanupJobsBeyondSizeLimit(
@@ -327,7 +444,8 @@ class HistoryServerArchiveFetcher {
     private List<ArchiveEvent> cleanupExpiredJobs(Map<Path, Set<String>> jobsToRemove) {
 
         List<ArchiveEvent> deleteLog = new ArrayList<>();
-        LOG.info("Archive directories for jobs {} were deleted.", jobsToRemove);
+        LOG.info(
+                "Unzipped job files and Archived Job file for jobs {} were deleted.", jobsToRemove);
 
         jobsToRemove.forEach(
                 (refreshDir, archivesToRemove) -> {
@@ -338,14 +456,26 @@ class HistoryServerArchiveFetcher {
                 .forEach(
                         removedJobID -> {
                             deleteJobFiles(removedJobID);
-                            deleteLog.add(new ArchiveEvent(removedJobID, ArchiveEventType.DELETED));
+                            deleteArchivedJob(removedJobID);
                         });
 
         return deleteLog;
     }
 
+    private void deleteArchivedJob(String jobID) {
+        // Make sure we do not include this job in the overview
+        try {
+            Files.deleteIfExists(new File(webArchivedDir, jobID).toPath());
+        } catch (IOException ioe) {
+            LOG.warn("Could not delete file from overview directory.", ioe);
+        }
+
+        events.add(new ArchiveEvent(jobID, ArchiveEventType.DELETED));
+    }
+
     private void deleteJobFiles(String jobID) {
         // Make sure we do not include this job in the overview
+        LOG.info("Try to delete unzipped job [{}] files", jobID);
         try {
             Files.deleteIfExists(new File(webOverviewDir, jobID + JSON_FILE_ENDING).toPath());
         } catch (IOException ioe) {
@@ -365,6 +495,17 @@ class HistoryServerArchiveFetcher {
         } catch (IOException ioe) {
             LOG.warn("Could not delete file from job directory.", ioe);
         }
+        LOG.info("Deleted unzipped job [{}] files", jobID);
+        events.add(new ArchiveEvent(jobID, ArchiveEventType.CLEANED));
+    }
+
+    private boolean unzippedJobExist(String jobID) {
+        if (Files.notExists(new File(webOverviewDir, jobID + JSON_FILE_ENDING).toPath())
+                || Files.notExists(new File(webJobDir, jobID).toPath())
+                || Files.notExists(new File(webJobDir, jobID + JSON_FILE_ENDING).toPath())) {
+            return false;
+        }
+        return true;
     }
 
     private static String convertLegacyJobOverview(String legacyOverview) throws IOException {

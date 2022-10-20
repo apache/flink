@@ -32,6 +32,8 @@ import org.apache.flink.runtime.rest.handler.legacy.files.StaticFileServerHandle
 import org.apache.flink.runtime.rest.handler.router.RoutedRequest;
 import org.apache.flink.runtime.rest.handler.util.HandlerUtils;
 import org.apache.flink.runtime.rest.messages.ErrorResponseBody;
+import org.apache.flink.util.ExceptionUtils;
+import org.apache.flink.util.StringUtils;
 
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelFuture;
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelFutureListener;
@@ -65,6 +67,13 @@ import java.text.SimpleDateFormat;
 import java.util.Collections;
 import java.util.Date;
 import java.util.Locale;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
+import java.util.function.Function;
+import java.util.function.Supplier;
 
 import static org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpHeaderNames.CONNECTION;
 import static org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpHeaderNames.IF_MODIFIED_SINCE;
@@ -94,13 +103,31 @@ public class HistoryServerStaticFileServerHandler
     private static final Logger LOG =
             LoggerFactory.getLogger(HistoryServerStaticFileServerHandler.class);
 
+    private static final long UNZIP_TIMEOUT = 10L;
+
     // ------------------------------------------------------------------------
 
     /** The path in which the static documents are. */
     private final File rootPath;
 
+    private final Boolean enableUnzip;
+    private final ExecutorService unzipExecutor;
+    private final Function<String, Supplier<Boolean>> unzipTask;
+
     public HistoryServerStaticFileServerHandler(File rootPath) throws IOException {
+        this(rootPath, null, null, false);
+    }
+
+    public HistoryServerStaticFileServerHandler(
+            File rootPath,
+            ExecutorService unzipExecutor,
+            Function<String, Supplier<Boolean>> unzipTask,
+            Boolean enableUnzip)
+            throws IOException {
         this.rootPath = checkNotNull(rootPath).getCanonicalFile();
+        this.unzipExecutor = unzipExecutor;
+        this.unzipTask = unzipTask;
+        this.enableUnzip = enableUnzip;
     }
 
     // ------------------------------------------------------------------------
@@ -126,7 +153,7 @@ public class HistoryServerStaticFileServerHandler
 
     /** Response when running with leading JobManager. */
     private void respondWithFile(ChannelHandlerContext ctx, HttpRequest request, String requestPath)
-            throws IOException, ParseException, RestHandlerException {
+            throws ParseException, RestHandlerException, IOException {
 
         // make sure we request the "index.html" in case there is a directory request
         if (requestPath.endsWith("/")) {
@@ -146,6 +173,7 @@ public class HistoryServerStaticFileServerHandler
 
             try (InputStream resourceStream = cl.getResourceAsStream("web" + requestPath)) {
                 boolean success = false;
+                boolean isUnzipping = false;
                 try {
                     if (resourceStream != null) {
                         URL root = cl.getResource("web");
@@ -167,10 +195,40 @@ public class HistoryServerStaticFileServerHandler
                             }
                         }
                     }
+                    // try to unzip archived files
+                    if (enableUnzip && !success) {
+                        // extract jobid from requestPath
+                        String jobId = extractJobId(requestPath);
+                        if (!StringUtils.isNullOrWhitespaceOnly(jobId)) {
+                            // submit unzip Task and get future
+                            Boolean unzipped =
+                                    CompletableFuture.supplyAsync(
+                                                    unzipTask.apply(jobId), unzipExecutor)
+                                            .get(UNZIP_TIMEOUT, TimeUnit.SECONDS);
+                            if (unzipped && file.exists()) {
+                                success = true;
+                            }
+                        }
+                    }
+                } catch (TimeoutException t) {
+                    LOG.debug(
+                            "Didn't unzip archived file after {} seconds. "
+                                    + "HistoryServer is stilling unzipping",
+                            UNZIP_TIMEOUT,
+                            t);
+                    isUnzipping = true;
+                    throw new NotFoundException(
+                            "HistoryServer is processing archive jobs. "
+                                    + "Please reload this page after 10 seconds");
+                } catch (ExecutionException t) {
+                    LOG.debug("Fail to unzip archived file", t);
+                    isUnzipping = false;
+                    throw new NotFoundException(
+                            "Fail to unzip archived file:" + ExceptionUtils.stringifyException(t));
                 } catch (Throwable t) {
                     LOG.error("error while responding", t);
                 } finally {
-                    if (!success) {
+                    if (!success && !isUnzipping) {
                         LOG.debug("Unable to load requested file {} from classloader", requestPath);
                         throw new NotFoundException("File not found.");
                     }
@@ -265,6 +323,18 @@ public class HistoryServerStaticFileServerHandler
             LOG.error("Failed to serve file.", e);
             throw new RestHandlerException("Internal server error.", INTERNAL_SERVER_ERROR);
         }
+    }
+
+    static String extractJobId(String requestPath) {
+        if (StringUtils.isNullOrWhitespaceOnly(requestPath)
+                || !requestPath.matches("^/jobs/.{32}\\.json$")) {
+            return null;
+        }
+        String secondPath = requestPath.split("/")[2];
+        if (StringUtils.isNullOrWhitespaceOnly(secondPath) || secondPath.length() < 32) {
+            return null;
+        }
+        return secondPath.substring(0, 32);
     }
 
     @Override

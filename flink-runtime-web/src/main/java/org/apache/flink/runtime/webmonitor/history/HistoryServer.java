@@ -44,7 +44,6 @@ import org.apache.flink.runtime.webmonitor.utils.WebFrontendBootstrap;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.ExecutorUtils;
 import org.apache.flink.util.FatalExitExceptionHandler;
-import org.apache.flink.util.FileUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.ShutdownHookUtil;
@@ -70,11 +69,15 @@ import java.util.UUID;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
+import java.util.function.Supplier;
 
 /**
  * The HistoryServer provides a WebInterface and REST API to retrieve information about finished
@@ -116,9 +119,17 @@ public class HistoryServer {
     private WebFrontendBootstrap netty;
 
     private final long refreshIntervalMillis;
-    private final ScheduledExecutorService executor =
+    private final ScheduledExecutorService fetcherExecutor =
             Executors.newSingleThreadScheduledExecutor(
                     new ExecutorThreadFactory("Flink-HistoryServer-ArchiveFetcher"));
+    private final ExecutorService unzipExecutor =
+            new ThreadPoolExecutor(
+                    8,
+                    32,
+                    60L,
+                    TimeUnit.SECONDS,
+                    new LinkedBlockingQueue<>(),
+                    new ExecutorThreadFactory("Flink-HistoryServer-Unzipper"));
 
     private final Object startupShutdownLock = new Object();
     private final AtomicBoolean shutdownRequested = new AtomicBoolean(false);
@@ -240,6 +251,7 @@ public class HistoryServer {
         refreshIntervalMillis =
                 config.getLong(HistoryServerOptions.HISTORY_SERVER_ARCHIVE_REFRESH_INTERVAL);
         int maxHistorySize = config.getInteger(HistoryServerOptions.HISTORY_SERVER_RETAINED_JOBS);
+        int maxCachedJobSize = config.getInteger(HistoryServerOptions.HISTORY_SERVER_CACHED_JOBS);
         if (maxHistorySize == 0 || maxHistorySize < -1) {
             throw new IllegalConfigurationException(
                     "Cannot set %s to 0 or less than -1",
@@ -251,7 +263,8 @@ public class HistoryServer {
                         webDir,
                         jobArchiveEventListener,
                         cleanupExpiredArchives,
-                        maxHistorySize);
+                        maxHistorySize,
+                        maxCachedJobSize);
 
         this.shutdownHook =
                 ShutdownHookUtil.addShutdownHook(
@@ -265,7 +278,7 @@ public class HistoryServer {
 
     @VisibleForTesting
     void fetchArchives() {
-        executor.execute(getArchiveFetchingRunnable());
+        fetcherExecutor.execute(getArchiveFetchingRunnable());
     }
 
     public void run() {
@@ -311,11 +324,14 @@ public class HistoryServer {
                                             new GeneratedLogUrlHandler(
                                                     CompletableFuture.completedFuture(pattern))));
 
-            router.addGet("/:*", new HistoryServerStaticFileServerHandler(webDir));
+            router.addGet(
+                    "/:*",
+                    new HistoryServerStaticFileServerHandler(
+                            webDir, unzipExecutor, this::getArchiveUnzipRunnable, true));
 
             createDashboardConfigFile();
 
-            executor.scheduleWithFixedDelay(
+            fetcherExecutor.scheduleWithFixedDelay(
                     getArchiveFetchingRunnable(), 0, refreshIntervalMillis, TimeUnit.MILLISECONDS);
 
             netty =
@@ -329,6 +345,10 @@ public class HistoryServer {
                 () -> archiveFetcher.fetchArchives(), FatalExitExceptionHandler.INSTANCE);
     }
 
+    private Supplier<Boolean> getArchiveUnzipRunnable(final String jobId) {
+        return () -> archiveFetcher.getUnzippedJob(jobId);
+    }
+
     void stop() {
         if (shutdownRequested.compareAndSet(false, true)) {
             synchronized (startupShutdownLock) {
@@ -340,15 +360,7 @@ public class HistoryServer {
                     LOG.warn("Error while shutting down WebFrontendBootstrap.", t);
                 }
 
-                ExecutorUtils.gracefulShutdown(1, TimeUnit.SECONDS, executor);
-
-                try {
-                    LOG.info("Removing web dashboard root cache directory {}", webDir);
-                    FileUtils.deleteDirectory(webDir);
-                } catch (Throwable t) {
-                    LOG.warn("Error while deleting web root directory {}", webDir, t);
-                }
-
+                ExecutorUtils.gracefulShutdown(1, TimeUnit.MINUTES, fetcherExecutor, unzipExecutor);
                 LOG.info("Stopped history server.");
 
                 // Remove shutdown hook to prevent resource leaks
