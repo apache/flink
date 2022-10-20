@@ -51,6 +51,7 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.time.temporal.TemporalAccessor;
 import java.time.temporal.TemporalQueries;
@@ -237,7 +238,24 @@ public class JsonToRowDataConverters implements Serializable {
                 parsedTimestamp = SQL_TIMESTAMP_FORMAT.parse(jsonNode.asText());
                 break;
             case ISO_8601:
-                parsedTimestamp = ISO8601_TIMESTAMP_FORMAT.parse(jsonNode.asText());
+                String str = jsonNode.asText();
+                if (!str.endsWith("Z")) {
+                    parsedTimestamp = ISO8601_TIMESTAMP_FORMAT.parse(jsonNode.asText());
+                } else {
+                    parsedTimestamp =
+                            ISO8601_TIMESTAMP_WITH_LOCAL_TIMEZONE_FORMAT.parse(jsonNode.asText());
+                    LocalTime localTime = parsedTimestamp.query(TemporalQueries.localTime());
+                    LocalDate localDate = parsedTimestamp.query(TemporalQueries.localDate());
+
+                    return TimestampData.fromInstant(
+                            LocalDateTime.of(localDate, localTime)
+                                    .toInstant(
+                                            ZoneOffset.ofTotalSeconds(
+                                                    0
+                                                            - OffsetDateTime.now()
+                                                                    .getOffset()
+                                                                    .getTotalSeconds())));
+                }
                 break;
             default:
                 throw new TableException(
