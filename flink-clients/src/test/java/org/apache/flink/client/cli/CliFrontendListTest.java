@@ -28,16 +28,19 @@ import org.apache.flink.runtime.client.JobStatusMessage;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
-import org.mockito.Mockito;
 
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.Comparator;
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import java.util.stream.Collectors;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /** Tests for the LIST command. */
@@ -114,22 +117,31 @@ class CliFrontendListTest extends CliFrontendTestBase {
             ClusterClient<String> clusterClient = createClusterClient();
             MockedCliFrontend testFrontend = new MockedCliFrontend(clusterClient);
             testFrontend.list(parameters);
-            Mockito.verify(clusterClient, times(1)).listJobs();
+            verify(clusterClient, times(1)).listJobs();
         }
+    }
+
+    @Test
+    void testSorting() {
+        List<JobStatusMessage> sortedJobs =
+                CliFrontend.sortJobStatusMessages(getJobStatusMessages())
+                        .collect(Collectors.toList());
+        assertThat(sortedJobs)
+                .isSortedAccordingTo(Comparator.comparing(JobStatusMessage::getStartTime));
     }
 
     private static ClusterClient<String> createClusterClient() throws Exception {
         final ClusterClient<String> clusterClient = mock(ClusterClient.class);
         when(clusterClient.listJobs())
-                .thenReturn(
-                        CompletableFuture.completedFuture(
-                                Arrays.asList(
-                                        new JobStatusMessage(
-                                                new JobID(), "job1", JobStatus.RUNNING, 1L),
-                                        new JobStatusMessage(
-                                                new JobID(), "job2", JobStatus.CREATED, 1L),
-                                        new JobStatusMessage(
-                                                new JobID(), "job3", JobStatus.FINISHED, 3L))));
+                .thenReturn(CompletableFuture.completedFuture(getJobStatusMessages()));
         return clusterClient;
+    }
+
+    private static List<JobStatusMessage> getJobStatusMessages() {
+        return Arrays.asList(
+                new JobStatusMessage(new JobID(), "job1", JobStatus.RUNNING, 1665197322962L),
+                new JobStatusMessage(new JobID(), "job2", JobStatus.CREATED, 1660904115054L),
+                new JobStatusMessage(new JobID(), "job3", JobStatus.RUNNING, 1664177946934L),
+                new JobStatusMessage(new JobID(), "job4", JobStatus.FINISHED, 1665738051581L));
     }
 }
