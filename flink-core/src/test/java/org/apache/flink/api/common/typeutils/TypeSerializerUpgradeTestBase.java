@@ -37,7 +37,6 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.List;
 import java.util.Set;
 
@@ -542,7 +541,8 @@ public abstract class TypeSerializerUpgradeTestBase<PreviousElementT, UpgradedEl
         if (flinkVersion.isNewerVersionThan(FlinkVersion.v1_6)) {
             writeSerializerSnapshotCurrentFormat(out, serializer);
         } else {
-            writeSerializerSnapshotPre17Format(out, serializer);
+            throw new UnsupportedOperationException(
+                    "There should be no longer a need to support/use this path since Flink 1.17");
         }
     }
 
@@ -551,16 +551,6 @@ public abstract class TypeSerializerUpgradeTestBase<PreviousElementT, UpgradedEl
 
         TypeSerializerSnapshotSerializationUtil.writeSerializerSnapshot(
                 out, serializer.snapshotConfiguration(), serializer);
-    }
-
-    @SuppressWarnings("deprecation")
-    private static <T> void writeSerializerSnapshotPre17Format(
-            DataOutputView out, TypeSerializer<T> serializer) throws IOException {
-
-        TypeSerializerSerializationUtil.writeSerializersAndConfigsWithResilience(
-                out,
-                Collections.singletonList(
-                        Tuple2.of(serializer, serializer.snapshotConfiguration())));
     }
 
     private static <T> TypeSerializerSnapshot<T> readSerializerSnapshot(
