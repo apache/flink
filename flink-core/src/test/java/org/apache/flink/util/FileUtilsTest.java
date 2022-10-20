@@ -315,6 +315,50 @@ public class FileUtilsTest {
         assertThat(paths).containsExactlyInAnyOrder(linkPath.resolve(file.getName()));
     }
 
+    @Test
+    void testGetTargetPathNotContainsSymbolicPath() throws IOException {
+        java.nio.file.Path testPath = Paths.get("parent", "child");
+        java.nio.file.Path targetPath = FileUtils.getTargetPathIfContainsSymbolicPath(testPath);
+        assertThat(targetPath).isEqualTo(testPath);
+    }
+
+    @Test
+    void testGetTargetPathContainsSymbolicPath() throws IOException {
+        File linkedDir = TempDirUtils.newFolder(temporaryFolder, "linked");
+        java.nio.file.Path symlink = Paths.get(temporaryFolder.toString(), "symlink");
+        java.nio.file.Path dirInLinked =
+                TempDirUtils.newFolder(linkedDir.toPath(), "one", "two").toPath().toRealPath();
+        Files.createSymbolicLink(symlink, linkedDir.toPath());
+
+        java.nio.file.Path targetPath =
+                FileUtils.getTargetPathIfContainsSymbolicPath(
+                        symlink.resolve("one").resolve("two"));
+        assertThat(targetPath).isEqualTo(dirInLinked);
+    }
+
+    @Test
+    void testGetTargetPathContainsMultipleSymbolicPath() throws IOException {
+        File linked1Dir = TempDirUtils.newFolder(temporaryFolder, "linked1");
+        java.nio.file.Path symlink1 = Paths.get(temporaryFolder.toString(), "symlink1");
+        Files.createSymbolicLink(symlink1, linked1Dir.toPath());
+
+        java.nio.file.Path symlink2 = Paths.get(symlink1.toString(), "symlink2");
+        File linked2Dir = TempDirUtils.newFolder(temporaryFolder, "linked2");
+        Files.createSymbolicLink(symlink2, linked2Dir.toPath());
+        java.nio.file.Path dirInLinked2 =
+                TempDirUtils.newFolder(linked2Dir.toPath(), "one").toPath().toRealPath();
+
+        // symlink3 point to another symbolic link: symlink2
+        java.nio.file.Path symlink3 = Paths.get(symlink1.toString(), "symlink3");
+        Files.createSymbolicLink(symlink3, symlink2);
+
+        java.nio.file.Path targetPath =
+                FileUtils.getTargetPathIfContainsSymbolicPath(
+                        // path contains multiple symlink : xxx/symlink1/symlink3/one
+                        symlink3.resolve("one"));
+        assertThat(targetPath).isEqualTo(dirInLinked2);
+    }
+
     // ------------------------------------------------------------------------
     //  Utilities
     // ------------------------------------------------------------------------
