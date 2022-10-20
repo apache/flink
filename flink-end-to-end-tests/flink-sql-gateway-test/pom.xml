@@ -30,12 +30,6 @@ under the License.
     <name>Flink : E2E Tests : SQL Gateway</name>
     <packaging>jar</packaging>
 
-    <properties>
-        <!-- The test container uses hive-2.1.0 -->
-        <hive.version>2.3.9</hive.version>
-        <flink.hadoop.version>2.8.5</flink.hadoop.version>
-    </properties>
-
     <dependencies>
         <dependency>
             <groupId>org.apache.flink</groupId>
