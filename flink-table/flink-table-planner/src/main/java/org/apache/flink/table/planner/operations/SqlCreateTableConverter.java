@@ -195,8 +195,12 @@ class SqlCreateTableConverter {
                         .map(comment -> comment.getNlsString().getValue())
                         .orElse(null);
 
-        return CatalogTable.of(
-                mergedSchema.toSchema(comments), tableComment, partitionKeys, mergedOptions);
+        return catalogManager.resolveCatalogTable(
+                CatalogTable.of(
+                        mergedSchema.toSchema(comments),
+                        tableComment,
+                        partitionKeys,
+                        mergedOptions));
     }
 
     private CatalogTable lookupLikeSourceTable(SqlTableLike sqlTableLike) {

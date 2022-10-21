@@ -409,14 +409,14 @@ abstract class PlannerBase(
             tableConfig,
             isStreamingMode,
             objectIdentifier,
-            resolvedTable.getOrigin,
+            resolvedTable,
             isTemporary
           )
         ) {
           val tableSink = TableFactoryUtil.findAndCreateTableSink(
             catalog.orNull,
             objectIdentifier,
-            tableToFind.getOrigin,
+            tableToFind,
             getTableConfig,
             isStreamingMode,
             isTemporary)
