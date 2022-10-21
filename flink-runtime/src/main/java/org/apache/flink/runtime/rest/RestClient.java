@@ -67,7 +67,8 @@ import org.apache.flink.shaded.netty4.io.netty.handler.codec.TooLongFrameExcepti
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.DefaultFullHttpRequest;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.FullHttpResponse;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpClientCodec;
-import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpHeaders;
+import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpHeaderNames;
+import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpHeaderValues;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpMethod;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpObjectAggregator;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpRequest;
@@ -235,8 +236,9 @@ public class RestClient implements AutoCloseableAsync {
             LOG.debug("Shutting down rest endpoint.");
 
             if (bootstrap != null) {
-                if (bootstrap.group() != null) {
+                if (bootstrap.config().group() != null) {
                     bootstrap
+                            .config()
                             .group()
                             .shutdownGracefully(0L, timeout.toMilliseconds(), TimeUnit.MILLISECONDS)
                             .addListener(
@@ -407,10 +409,10 @@ public class RestClient implements AutoCloseableAsync {
 
             httpRequest
                     .headers()
-                    .set(HttpHeaders.Names.HOST, targetAddress)
-                    .set(HttpHeaders.Names.CONNECTION, HttpHeaders.Values.CLOSE)
-                    .add(HttpHeaders.Names.CONTENT_LENGTH, jsonPayload.capacity())
-                    .add(HttpHeaders.Names.CONTENT_TYPE, RestConstants.REST_CONTENT_TYPE);
+                    .set(HttpHeaderNames.HOST, targetAddress)
+                    .set(HttpHeaderNames.CONNECTION, HttpHeaderValues.CLOSE)
+                    .add(HttpHeaderNames.CONTENT_LENGTH, jsonPayload.capacity())
+                    .add(HttpHeaderNames.CONTENT_TYPE, RestConstants.REST_CONTENT_TYPE);
 
             return new SimpleRequest(httpRequest);
         } else {
@@ -419,8 +421,8 @@ public class RestClient implements AutoCloseableAsync {
 
             httpRequest
                     .headers()
-                    .set(HttpHeaders.Names.HOST, targetAddress)
-                    .set(HttpHeaders.Names.CONNECTION, HttpHeaders.Values.CLOSE);
+                    .set(HttpHeaderNames.HOST, targetAddress)
+                    .set(HttpHeaderNames.CONNECTION, HttpHeaderValues.CLOSE);
 
             // takes care of splitting the request into multiple parts
             HttpPostRequestEncoder bodyRequestEncoder;
@@ -620,7 +622,7 @@ public class RestClient implements AutoCloseableAsync {
                     jsonFuture.completeExceptionally(
                             new RestClientException(
                                     "Implementation error: Received a response that wasn't a FullHttpResponse.",
-                                    ((HttpResponse) msg).getStatus()));
+                                    ((HttpResponse) msg).status()));
                 } else {
                     jsonFuture.completeExceptionally(
                             new RestClientException(
@@ -683,23 +685,22 @@ public class RestClient implements AutoCloseableAsync {
                             new RestClientException(
                                     "Response was not valid JSON, but plain-text: " + message,
                                     je,
-                                    msg.getStatus()));
+                                    msg.status()));
                 } catch (IOException e) {
                     jsonFuture.completeExceptionally(
                             new RestClientException(
                                     "Response was not valid JSON, nor plain-text.",
                                     je,
-                                    msg.getStatus()));
+                                    msg.status()));
                 }
                 return;
             } catch (IOException ioe) {
                 LOG.error("Response could not be read.", ioe);
                 jsonFuture.completeExceptionally(
-                        new RestClientException(
-                                "Response could not be read.", ioe, msg.getStatus()));
+                        new RestClientException("Response could not be read.", ioe, msg.status()));
                 return;
             }
-            jsonFuture.complete(new JsonResponse(rawResponse, msg.getStatus()));
+            jsonFuture.complete(new JsonResponse(rawResponse, msg.status()));
         }
     }
 
