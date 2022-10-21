@@ -23,7 +23,7 @@ import org.apache.flink.api.java.typeutils.runtime.kryo.KryoSerializer;
 
 import com.esotericsoftware.kryo.Kryo;
 import com.esotericsoftware.kryo.Registration;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
@@ -38,7 +38,7 @@ import static org.assertj.core.api.Assertions.fail;
  * Kryo serializer itself sits, because when runtime is present in the classpath, Chill is used to
  * instantiate Kryo and adds the proper set of registrations.
  */
-public class KryoSerializerRegistrationsTest {
+class KryoSerializerRegistrationsTest {
 
     /**
      * Tests that the registered classes in Kryo did not change.
@@ -47,7 +47,7 @@ public class KryoSerializerRegistrationsTest {
      * change in the serializers can break savepoint backwards compatibility between Flink versions.
      */
     @Test
-    public void testDefaultKryoRegisteredClassesDidNotChange() throws Exception {
+    void testDefaultKryoRegisteredClassesDidNotChange() throws Exception {
         final Kryo kryo = new KryoSerializer<>(Integer.class, new ExecutionConfig()).getKryo();
 
         try (BufferedReader reader =

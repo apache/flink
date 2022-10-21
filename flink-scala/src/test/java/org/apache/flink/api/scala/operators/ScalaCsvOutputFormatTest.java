@@ -22,10 +22,9 @@ import org.apache.flink.api.common.io.FileOutputFormat;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 
-import org.junit.Before;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -38,16 +37,16 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for {@link ScalaCsvOutputFormat}. */
-public class ScalaCsvOutputFormatTest {
+class ScalaCsvOutputFormatTest {
 
     private String path;
     private ScalaCsvOutputFormat<Tuple3<String, String, Integer>> csvOutputFormat;
 
-    @Rule public final TemporaryFolder tmpFolder = new TemporaryFolder();
+    @TempDir private java.nio.file.Path tmpFolder;
 
-    @Before
-    public void setUp() throws Exception {
-        path = tmpFolder.newFile().getAbsolutePath();
+    @BeforeEach
+    void setUp() throws Exception {
+        path = tmpFolder.toFile().getAbsolutePath();
         csvOutputFormat = new ScalaCsvOutputFormat<>(new Path(path));
         csvOutputFormat.setWriteMode(FileSystem.WriteMode.OVERWRITE);
         csvOutputFormat.setOutputDirectoryMode(FileOutputFormat.OutputDirectoryMode.PARONLY);
@@ -55,7 +54,7 @@ public class ScalaCsvOutputFormatTest {
     }
 
     @Test
-    public void testNullAllow() throws Exception {
+    void testNullAllow() throws Exception {
         try {
             csvOutputFormat.setAllowNullValues(true);
             csvOutputFormat.writeRecord(new Tuple3<>("One", null, 8));
@@ -70,7 +69,7 @@ public class ScalaCsvOutputFormatTest {
     }
 
     @Test
-    public void testNullDisallowOnDefault() throws Exception {
+    void testNullDisallowOnDefault() throws Exception {
         assertThatThrownBy(
                         () -> {
                             csvOutputFormat.setAllowNullValues(false);

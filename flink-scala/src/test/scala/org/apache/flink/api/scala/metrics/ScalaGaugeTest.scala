@@ -19,7 +19,7 @@ package org.apache.flink.api.scala.metrics
 
 import org.apache.flink.util.TestLogger
 
-import org.junit.Test
+import org.junit.jupiter.api.Test
 
 class ScalaGaugeTest extends TestLogger {
 

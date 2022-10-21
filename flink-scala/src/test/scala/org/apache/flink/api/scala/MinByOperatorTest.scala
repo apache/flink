@@ -20,7 +20,7 @@ package org.apache.flink.api.scala
 import org.apache.flink.api.common.InvalidProgramException
 
 import org.assertj.core.api.Assertions.assertThatThrownBy
-import org.junit.Test
+import org.junit.jupiter.api.Test
 
 class MinByOperatorTest {
   private val emptyTupleData = List[(Int, Long, String, Long, Int)]()

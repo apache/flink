@@ -20,7 +20,7 @@ package org.apache.flink.api.scala.typeutils
 import org.apache.flink.util.{InstantiationUtil, TestLogger}
 
 import org.assertj.core.api.Assertions.assertThat
-import org.junit.Test
+import org.junit.jupiter.api.Test
 
 import java.io.ByteArrayOutputStream
 

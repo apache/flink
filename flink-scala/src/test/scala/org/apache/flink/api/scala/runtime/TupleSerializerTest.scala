@@ -27,7 +27,7 @@ import org.apache.flink.util.StringUtils
 
 import org.assertj.core.api.Assertions.{assertThat, fail}
 import org.joda.time.LocalDate
-import org.junit.Test
+import org.junit.jupiter.api.Test
 
 import java.util
 import java.util.Random

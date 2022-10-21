@@ -25,12 +25,11 @@ import org.apache.flink.api.scala.typeutils.TypeExtractionTest.{CustomBeanClass,
 import org.apache.flink.util.TestLogger
 
 import org.assertj.core.api.Assertions.assertThat
-import org.junit.Test
-import org.scalatest.junit.JUnitSuiteLike
+import org.junit.jupiter.api.Test
 
 import scala.beans.BeanProperty
 
-class TypeExtractionTest extends TestLogger with JUnitSuiteLike {
+class TypeExtractionTest extends TestLogger {
 
   @Test
   def testResultTypeQueryable(): Unit = {

@@ -20,8 +20,8 @@ package org.apache.flink.api.scala
 import org.apache.flink.api.common.InvalidProgramException
 import org.apache.flink.api.java.io.DiscardingOutputFormat
 
-import org.assertj.core.api.Assertions.{assertThat, assertThatThrownBy}
-import org.junit.Test
+import org.assertj.core.api.Assertions.assertThatThrownBy
+import org.junit.jupiter.api.Test
 
 // Verify that the sanity checking in delta iterations works. We just
 // have a dummy job that is not meant to be executed. Only verify that

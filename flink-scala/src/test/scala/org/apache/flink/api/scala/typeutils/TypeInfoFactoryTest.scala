@@ -28,13 +28,13 @@ import org.apache.flink.api.scala.typeutils.TypeInfoFactoryTest._
 import org.apache.flink.util.TestLogger
 
 import org.assertj.core.api.Assertions.assertThat
-import org.junit.Test
+import org.junit.jupiter.api.Test
 import org.scalatest.junit.JUnitSuiteLike
 
 import java.lang.reflect.Type
 import java.util
 
-class TypeInfoFactoryTest extends TestLogger with JUnitSuiteLike {
+class TypeInfoFactoryTest extends TestLogger {
 
   @Test
   def testSimpleType(): Unit = {

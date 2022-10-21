@@ -29,7 +29,7 @@ import org.apache.flink.api.java.io.DiscardingOutputFormat
 import org.apache.flink.api.scala._
 
 import org.assertj.core.api.Assertions.{assertThat, fail}
-import org.junit.Test
+import org.junit.jupiter.api.Test
 
 /**
  * This is a minimal test to verify that semantic annotations are evaluated against the type

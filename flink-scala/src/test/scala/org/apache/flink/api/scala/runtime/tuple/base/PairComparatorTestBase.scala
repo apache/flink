@@ -21,7 +21,7 @@ import org.apache.flink.api.common.typeutils.TypePairComparator
 import org.apache.flink.util.TestLogger
 
 import org.assertj.core.api.Assertions.{assertThat, fail}
-import org.junit.Test
+import org.junit.jupiter.api.Test
 
 /** Abstract test base for PairComparators. */
 abstract class PairComparatorTestBase[T, R] extends TestLogger {

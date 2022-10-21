@@ -23,22 +23,24 @@ import org.apache.flink.util.TestLogger
 
 import org.assertj.core.api.Assertions.{assertThat, fail}
 import org.junit.{Rule, Test}
+import org.junit.jupiter.api.io.TempDir
 import org.junit.rules.TemporaryFolder
 import org.scalatest.junit.JUnitSuiteLike
 
 import java.io._
 import java.net.{URL, URLClassLoader}
+import java.nio.file.Files
 
 import scala.reflect.NameTransformer
 import scala.tools.nsc.{Global, Settings}
 import scala.tools.nsc.reporters.ConsoleReporter
 
-class EnumValueSerializerCompatibilityTest extends TestLogger with JUnitSuiteLike {
+class EnumValueSerializerCompatibilityTest extends TestLogger {
 
-  private val _tempFolder = new TemporaryFolder()
+  private val _tempFolder = Files.createTempDirectory("")
 
-  @Rule
-  def tempFolder = _tempFolder
+  @TempDir
+  private def tempFolder = _tempFolder
 
   val enumName = "EnumValueSerializerUpgradeTestEnum"
 
@@ -116,7 +118,10 @@ class EnumValueSerializerCompatibilityTest extends TestLogger with JUnitSuiteLik
       enumSourceB: String): TypeSerializerSchemaCompatibility[Enumeration#Value] = {
     import EnumValueSerializerCompatibilityTest._
 
-    val classLoader = compileAndLoadEnum(tempFolder.newFolder(), s"$enumName.scala", enumSourceA)
+    val classLoader = compileAndLoadEnum(
+      Files.createTempDirectory(tempFolder, "classLoader").toFile,
+      s"$enumName.scala",
+      enumSourceA)
 
     val enum = instantiateEnum[Enumeration](classLoader, enumName)
 
@@ -133,7 +138,10 @@ class EnumValueSerializerCompatibilityTest extends TestLogger with JUnitSuiteLik
     val bais = new ByteArrayInputStream(baos.toByteArray)
     val input = new DataInputViewStreamWrapper(bais)
 
-    val classLoader2 = compileAndLoadEnum(tempFolder.newFolder(), s"$enumName.scala", enumSourceB)
+    val classLoader2 = compileAndLoadEnum(
+      Files.createTempDirectory(tempFolder, "classLoader2").toFile,
+      s"$enumName.scala",
+      enumSourceB)
 
     val snapshot2 = TypeSerializerSnapshotSerializationUtil
       .readSerializerSnapshot[Enumeration#Value](input, classLoader2)

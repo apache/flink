@@ -28,7 +28,7 @@ import org.apache.flink.api.scala.typeutils.{CaseClassTypeInfo, TraversableSeria
 import org.apache.flink.types.{IntValue, StringValue}
 
 import org.assertj.core.api.Assertions.assertThat
-import org.junit.Test
+import org.junit.jupiter.api.Test
 
 @SerialVersionUID(-1509730037212683566L)
 case class CustomCaseClass(a: String, b: Int)

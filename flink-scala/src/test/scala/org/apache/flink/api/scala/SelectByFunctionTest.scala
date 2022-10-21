@@ -21,7 +21,7 @@ import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.typeutils.TupleTypeInfoBase
 
 import org.assertj.core.api.Assertions.{assertThat, fail}
-import org.junit.Test
+import org.junit.jupiter.api.Test
 
 class SelectByFunctionTest {
 

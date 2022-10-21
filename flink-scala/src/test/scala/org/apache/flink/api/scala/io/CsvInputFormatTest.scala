@@ -27,7 +27,7 @@ import org.apache.flink.configuration.Configuration
 import org.apache.flink.core.fs.{FileInputSplit, Path}
 
 import org.assertj.core.api.Assertions.{assertThat, fail, offset}
-import org.junit.Test
+import org.junit.jupiter.api.Test
 
 import java.io.{File, FileOutputStream, FileWriter, OutputStreamWriter}
 
