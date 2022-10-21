@@ -91,41 +91,4 @@ public class KryoSerializerRegistrationsTest {
             }
         }
     }
-
-    /**
-     * Creates a Kryo serializer and writes the default registrations out to a comma separated file
-     * with one entry per line:
-     *
-     * <pre>
-     * id,class
-     * </pre>
-     *
-     * <p>The produced file is used to check that the registered IDs don't change in future Flink
-     * versions.
-     *
-     * <p>This method is not used in the tests, but documents how the test file has been created and
-     * can be used to re-create it if needed.
-     *
-     * @param filePath File path to write registrations to
-     */
-    private void writeDefaultKryoRegistrations(String filePath) throws IOException {
-        final File file = new File(filePath);
-        if (file.exists()) {
-            assertTrue(file.delete());
-        }
-
-        final Kryo kryo = new KryoSerializer<>(Integer.class, new ExecutionConfig()).getKryo();
-        final int nextId = kryo.getNextRegistrationId();
-
-        try (BufferedWriter writer = new BufferedWriter(new FileWriter(file))) {
-            for (int i = 0; i < nextId; i++) {
-                Registration registration = kryo.getRegistration(i);
-                String str = registration.getId() + "," + registration.getType().getName();
-                writer.write(str, 0, str.length());
-                writer.newLine();
-            }
-
-            System.out.println("Created file with registrations at " + file.getAbsolutePath());
-        }
-    }
 }
