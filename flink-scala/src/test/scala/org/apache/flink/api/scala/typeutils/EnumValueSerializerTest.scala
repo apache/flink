@@ -17,12 +17,10 @@
  */
 package org.apache.flink.api.scala.typeutils
 
-import org.apache.flink.util.TestLogger
-
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
 
-class EnumValueSerializerTest extends TestLogger {
+class EnumValueSerializerTest {
 
   /**
    * Tests that the snapshot configuration can be created and that the serializer is compatible when

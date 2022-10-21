@@ -17,7 +17,7 @@
  */
 package org.apache.flink.api.scala.typeutils
 
-import org.apache.flink.util.{InstantiationUtil, TestLogger}
+import org.apache.flink.util.InstantiationUtil
 
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
@@ -28,7 +28,7 @@ import java.io.ByteArrayOutputStream
  * Serialization/Deserialization tests of Scala types using the
  * [[org.apache.flink.util.InstantiationUtil]].
  */
-class InstantiationUtilTest extends TestLogger {
+class InstantiationUtilTest {
 
   @Test
   def testNestedScalaTypeSerDe(): Unit = {

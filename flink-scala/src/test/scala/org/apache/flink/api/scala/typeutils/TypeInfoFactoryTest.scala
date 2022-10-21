@@ -25,16 +25,14 @@ import org.apache.flink.api.java.typeutils.{EitherTypeInfo => JavaEitherTypeInfo
 import org.apache.flink.api.java.typeutils.TypeInfoFactoryTest._
 import org.apache.flink.api.scala._
 import org.apache.flink.api.scala.typeutils.TypeInfoFactoryTest._
-import org.apache.flink.util.TestLogger
 
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
-import org.scalatest.junit.JUnitSuiteLike
 
 import java.lang.reflect.Type
 import java.util
 
-class TypeInfoFactoryTest extends TestLogger {
+class TypeInfoFactoryTest {
 
   @Test
   def testSimpleType(): Unit = {

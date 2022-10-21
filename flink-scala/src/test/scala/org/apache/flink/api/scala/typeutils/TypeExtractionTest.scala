@@ -22,14 +22,13 @@ import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation}
 import org.apache.flink.api.java.typeutils.{PojoTypeInfo, ResultTypeQueryable}
 import org.apache.flink.api.scala._
 import org.apache.flink.api.scala.typeutils.TypeExtractionTest.{CustomBeanClass, CustomTypeInputFormat}
-import org.apache.flink.util.TestLogger
 
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
 
 import scala.beans.BeanProperty
 
-class TypeExtractionTest extends TestLogger {
+class TypeExtractionTest {
 
   @Test
   def testResultTypeQueryable(): Unit = {

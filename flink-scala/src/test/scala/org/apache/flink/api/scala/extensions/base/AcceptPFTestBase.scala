@@ -19,10 +19,9 @@ package org.apache.flink.api.scala.extensions.base
 
 import org.apache.flink.api.scala._
 import org.apache.flink.api.scala.extensions.data.KeyValuePair
-import org.apache.flink.util.TestLogger
 
 /** Common facilities to test the `acceptPartialFunctions` extension */
-abstract private[extensions] class AcceptPFTestBase extends TestLogger {
+abstract private[extensions] class AcceptPFTestBase {
 
   private val env = ExecutionEnvironment.getExecutionEnvironment
 

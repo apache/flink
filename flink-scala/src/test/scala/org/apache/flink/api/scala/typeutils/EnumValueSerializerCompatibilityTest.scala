@@ -19,13 +19,10 @@ package org.apache.flink.api.scala.typeutils
 
 import org.apache.flink.api.common.typeutils.{TypeSerializerSchemaCompatibility, TypeSerializerSnapshotSerializationUtil}
 import org.apache.flink.core.memory.{DataInputViewStreamWrapper, DataOutputViewStreamWrapper}
-import org.apache.flink.util.TestLogger
 
 import org.assertj.core.api.Assertions.{assertThat, fail}
-import org.junit.{Rule, Test}
+import org.junit.Test
 import org.junit.jupiter.api.io.TempDir
-import org.junit.rules.TemporaryFolder
-import org.scalatest.junit.JUnitSuiteLike
 
 import java.io._
 import java.net.{URL, URLClassLoader}
@@ -35,7 +32,7 @@ import scala.reflect.NameTransformer
 import scala.tools.nsc.{Global, Settings}
 import scala.tools.nsc.reporters.ConsoleReporter
 
-class EnumValueSerializerCompatibilityTest extends TestLogger {
+class EnumValueSerializerCompatibilityTest {
 
   private val _tempFolder = Files.createTempDirectory("")
 

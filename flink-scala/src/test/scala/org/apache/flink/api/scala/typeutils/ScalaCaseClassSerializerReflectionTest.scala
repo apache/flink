@@ -18,13 +18,12 @@
 package org.apache.flink.api.scala.typeutils
 
 import org.apache.flink.api.scala.typeutils.ScalaCaseClassSerializerReflectionTest._
-import org.apache.flink.util.TestLogger
 
 import org.assertj.core.api.Assertions.{assertThat, assertThatThrownBy}
 import org.junit.jupiter.api.Test
 
 /** Test obtaining the primary constructor of a case class via reflection. */
-class ScalaCaseClassSerializerReflectionTest extends TestLogger {
+class ScalaCaseClassSerializerReflectionTest {
 
   @Test
   def usageExample(): Unit = {
