@@ -142,7 +142,7 @@ public abstract class AbstractEmbeddedPythonFunctionOperator<OUT>
         return new EmbeddedPythonEnvironmentManager(
                 dependencyInfo,
                 getContainingTask().getEnvironment().getTaskManagerInfo().getTmpDirectories(),
-                new HashMap<>(System.getenv()),
+                systemEnvEnabled ? new HashMap<>(System.getenv()) : new HashMap<>(),
                 getRuntimeContext().getJobId());
     }
 
