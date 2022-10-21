@@ -41,10 +41,11 @@ import java.util.Map;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test for statistics functionality in {@link CsvFormatFactory}. */
-public class CsvFormatStatisticsReportTest extends StatisticsReportTestBase {
+class CsvFormatStatisticsReportTest extends StatisticsReportTestBase {
 
     private static CsvFileFormatFactory.CsvBulkDecodingFormat csvBulkDecodingFormat;
 
+    @Override
     @BeforeEach
     public void setup(@TempDir File file) throws Exception {
         super.setup(file);
@@ -61,7 +62,7 @@ public class CsvFormatStatisticsReportTest extends StatisticsReportTestBase {
     }
 
     @Test
-    public void testCsvFormatStatsReportWithSingleFile() throws Exception {
+    void testCsvFormatStatsReportWithSingleFile() throws Exception {
         // insert data and get statistics.
         DataType dataType = tEnv.from("sourceTable").getResolvedSchema().toPhysicalRowDataType();
         tEnv.fromValues(dataType, getData()).executeInsert("sourceTable").await();
@@ -75,7 +76,7 @@ public class CsvFormatStatisticsReportTest extends StatisticsReportTestBase {
     }
 
     @Test
-    public void testCsvFormatStatsReportWithMultiFile() throws Exception {
+    void testCsvFormatStatsReportWithMultiFile() throws Exception {
         // insert data and get statistics.
         DataType dataType = tEnv.from("sourceTable").getResolvedSchema().toPhysicalRowDataType();
         tEnv.fromValues(dataType, getData()).executeInsert("sourceTable").await();
@@ -91,7 +92,7 @@ public class CsvFormatStatisticsReportTest extends StatisticsReportTestBase {
     }
 
     @Test
-    public void testRowSizeBiggerThanTotalSampleLineCnt() throws IOException {
+    void testRowSizeBiggerThanTotalSampleLineCnt() throws IOException {
         StringBuilder builder = new StringBuilder();
         int lineCnt = 1000;
         for (int i = 0; i < lineCnt; i++) {
@@ -104,7 +105,7 @@ public class CsvFormatStatisticsReportTest extends StatisticsReportTestBase {
     }
 
     @Test
-    public void testCsvFormatStatsReportWithEmptyFile() {
+    void testCsvFormatStatsReportWithEmptyFile() {
         TableStats tableStats = csvBulkDecodingFormat.reportStatistics(null, null);
         assertThat(tableStats).isEqualTo(TableStats.UNKNOWN);
     }
