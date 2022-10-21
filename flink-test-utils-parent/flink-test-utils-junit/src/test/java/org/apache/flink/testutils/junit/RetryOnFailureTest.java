@@ -18,17 +18,16 @@
 
 package org.apache.flink.testutils.junit;
 
-import org.apache.flink.testutils.junit.extensions.retry.RetryExtension;
-
-import org.junit.jupiter.api.AfterAll;
-import org.junit.jupiter.api.TestTemplate;
-import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.AfterClass;
+import org.junit.Rule;
+import org.junit.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-/** Tests for the RetryOnFailure annotation. */
-@ExtendWith(RetryExtension.class)
-class RetryOnFailureTest {
+/** Tests for the {@link RetryOnFailure} annotation on JUnit4 {@link RetryRule}. */
+public class RetryOnFailureTest {
+
+    @Rule public RetryRule retryRule = new RetryRule();
 
     private static final int NUMBER_OF_RUNS = 5;
 
@@ -38,15 +37,15 @@ class RetryOnFailureTest {
 
     private static boolean firstRun = true;
 
-    @AfterAll
-    static void verify() {
+    @AfterClass
+    public static void verify() throws Exception {
         assertThat(numberOfFailedRuns).isEqualTo(NUMBER_OF_RUNS + 1);
         assertThat(numberOfSuccessfulRuns).isEqualTo(3);
     }
 
-    @TestTemplate
+    @Test
     @RetryOnFailure(times = NUMBER_OF_RUNS)
-    void testRetryOnFailure() {
+    public void testRetryOnFailure() throws Exception {
         // All but the (expected) last run should be successful
         if (numberOfFailedRuns < NUMBER_OF_RUNS) {
             numberOfFailedRuns++;
@@ -56,9 +55,9 @@ class RetryOnFailureTest {
         }
     }
 
-    @TestTemplate
+    @Test
     @RetryOnFailure(times = NUMBER_OF_RUNS)
-    void testRetryOnceOnFailure() {
+    public void testRetryOnceOnFailure() throws Exception {
         if (firstRun) {
             numberOfFailedRuns++;
             firstRun = false;
@@ -68,9 +67,9 @@ class RetryOnFailureTest {
         }
     }
 
-    @TestTemplate
+    @Test
     @RetryOnFailure(times = NUMBER_OF_RUNS)
-    void testDontRetryOnSuccess() {
+    public void testDontRetryOnSuccess() throws Exception {
         numberOfSuccessfulRuns++;
     }
 }
