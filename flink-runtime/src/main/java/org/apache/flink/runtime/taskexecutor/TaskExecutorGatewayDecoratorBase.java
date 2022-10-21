@@ -233,6 +233,12 @@ public class TaskExecutorGatewayDecoratorBase implements TaskExecutorGateway {
     }
 
     @Override
+    public CompletableFuture<Acknowledge> updateDelegationTokens(
+            ResourceManagerId resourceManagerId, byte[] tokens) {
+        return originalGateway.updateDelegationTokens(resourceManagerId, tokens);
+    }
+
+    @Override
     public CompletableFuture<TaskThreadInfoResponse> requestThreadInfoSamples(
             Collection<ExecutionAttemptID> taskExecutionAttemptIds,
             ThreadInfoSamplesRequest requestParams,

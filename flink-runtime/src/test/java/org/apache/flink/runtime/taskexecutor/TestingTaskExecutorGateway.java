@@ -340,6 +340,12 @@ public class TestingTaskExecutorGateway implements TaskExecutorGateway {
     }
 
     @Override
+    public CompletableFuture<Acknowledge> updateDelegationTokens(
+            ResourceManagerId resourceManagerId, byte[] tokens) {
+        return CompletableFuture.completedFuture(Acknowledge.get());
+    }
+
+    @Override
     public String getAddress() {
         return address;
     }

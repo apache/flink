@@ -478,7 +478,8 @@ public class TaskExecutorPartitionLifecycleTest extends TestLogger {
                                 new TaskExecutorRegistrationSuccess(
                                         new InstanceID(),
                                         testingResourceManagerGateway.getOwnResourceId(),
-                                        new ClusterInformation("blobServerHost", 55555))));
+                                        new ClusterInformation("blobServerHost", 55555),
+                                        null)));
 
         try {
             taskExecutor.start();

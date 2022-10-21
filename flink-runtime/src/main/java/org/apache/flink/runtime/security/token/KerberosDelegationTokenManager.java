@@ -84,6 +84,8 @@ public class KerberosDelegationTokenManager implements DelegationTokenManager {
     @Nullable
     private ScheduledFuture<?> tokensUpdateFuture;
 
+    @Nullable private DelegationTokenListener delegationTokenListener;
+
     public KerberosDelegationTokenManager(
             Configuration configuration,
             @Nullable ScheduledExecutor scheduledExecutor,
@@ -213,14 +215,7 @@ public class KerberosDelegationTokenManager implements DelegationTokenManager {
                         .flatMap(nr -> nr.map(Stream::of).orElseGet(Stream::empty))
                         .min(Long::compare);
 
-        credentials
-                .getAllTokens()
-                .forEach(
-                        token ->
-                                LOG.debug(
-                                        "Token Service:{} Identifier:{}",
-                                        token.getService(),
-                                        token.getIdentifier()));
+        DelegationTokenUpdater.dumpAllTokens(credentials);
 
         return nextRenewal;
     }
@@ -230,9 +225,11 @@ public class KerberosDelegationTokenManager implements DelegationTokenManager {
      * task managers.
      */
     @Override
-    public void start() throws Exception {
+    public void start(DelegationTokenListener delegationTokenListener) throws Exception {
         checkNotNull(scheduledExecutor, "Scheduled executor must not be null");
         checkNotNull(ioExecutor, "IO executor must not be null");
+        this.delegationTokenListener =
+                checkNotNull(delegationTokenListener, "Delegation token listener must not be null");
         synchronized (tokensUpdateFutureLock) {
             checkState(
                     tgtRenewalFuture == null && tokensUpdateFuture == null,
@@ -300,6 +297,19 @@ public class KerberosDelegationTokenManager implements DelegationTokenManager {
                     freshUGI.doAs(
                             (PrivilegedExceptionAction<Optional<Long>>)
                                     () -> obtainDelegationTokensAndGetNextRenewal(credentials));
+
+            if (credentials.numberOfTokens() > 0) {
+                byte[] credentialsBytes = DelegationTokenConverter.serialize(credentials);
+
+                DelegationTokenUpdater.addCurrentUserCredentials(credentialsBytes);
+
+                LOG.info("Notifying listener about new tokens");
+                delegationTokenListener.onNewTokensObtained(credentialsBytes);
+                LOG.info("Listener notified successfully");
+            } else {
+                LOG.warn("No tokens obtained so skipping listener notification");
+            }
+
             if (nextRenewal.isPresent()) {
                 long renewalDelay =
                         calculateRenewalDelay(Clock.systemDefaultZone(), nextRenewal.get());
