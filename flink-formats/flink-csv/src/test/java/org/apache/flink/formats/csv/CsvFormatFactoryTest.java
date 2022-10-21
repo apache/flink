@@ -33,10 +33,8 @@ import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.factories.TestDynamicTableFactory;
 import org.apache.flink.table.runtime.connector.source.ScanRuntimeProviderContext;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
-import org.apache.flink.util.TestLoggerExtension;
 
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.io.IOException;
 import java.math.BigDecimal;
@@ -59,7 +57,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for {@link CsvFormatFactory}. */
-@ExtendWith({TestLoggerExtension.class})
 class CsvFormatFactoryTest {
 
     @Test
