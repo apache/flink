@@ -33,7 +33,7 @@ export class NavigationComponent implements OnInit, OnDestroy {
   @Input() listOfNavigation: RouterTab[] = [];
   @Input() size = 'default';
   navIndex = 0;
-  destroy$ = new Subject();
+  destroy$ = new Subject<void>();
 
   navigateTo(path: string): void {
     this.router.navigate([path], { relativeTo: this.activatedRoute }).then();

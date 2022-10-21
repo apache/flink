@@ -51,7 +51,7 @@ export class JobChartComponent implements AfterViewInit, OnDestroy {
   chartInstance: Chart;
   data: Array<{ time: number; value: number; type: string }> = [];
   latestValue: number;
-  destroy$ = new Subject();
+  destroy$ = new Subject<void>();
 
   @HostBinding('class.big')
   get isBig(): boolean {
