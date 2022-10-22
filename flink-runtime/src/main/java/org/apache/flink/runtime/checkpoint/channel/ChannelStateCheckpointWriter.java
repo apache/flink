@@ -73,7 +73,7 @@ class ChannelStateCheckpointWriter {
     private boolean allOutputsReceived = false;
     private final RunnableWithException onComplete;
     private final int subtaskIndex;
-    private String taskName;
+    private final String taskName;
 
     ChannelStateCheckpointWriter(
             String taskName,
