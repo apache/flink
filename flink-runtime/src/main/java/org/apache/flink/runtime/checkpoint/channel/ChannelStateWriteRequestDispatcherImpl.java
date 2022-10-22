@@ -41,7 +41,7 @@ final class ChannelStateWriteRequestDispatcherImpl implements ChannelStateWriteR
     private final CheckpointStorageWorkerView streamFactoryResolver;
     private final ChannelStateSerializer serializer;
     private final int subtaskIndex;
-    private String taskName;
+    private final String taskName;
 
     ChannelStateWriteRequestDispatcherImpl(
             String taskName,
