@@ -23,7 +23,6 @@ import org.apache.flink.configuration.description.Description;
 
 import java.time.Duration;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
@@ -308,8 +307,7 @@ public class ConfigOptions {
         }
 
         public ConfigOption<Map<String, V>> noDefaultValue() {
-            return new ConfigOption<>(
-                    key, clazz, ConfigOption.EMPTY_DESCRIPTION, null, MAP);
+            return new ConfigOption<>(key, clazz, ConfigOption.EMPTY_DESCRIPTION, null, MAP);
         }
     }
 
