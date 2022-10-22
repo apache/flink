@@ -114,9 +114,10 @@ public abstract class ParquetVectorizedInputFormat<T, SplitT extends FileSourceS
         final long splitLength = split.length();
 
         org.apache.hadoop.fs.Path hadoopPath = new org.apache.hadoop.fs.Path(filePath.toUri());
+        org.apache.hadoop.conf.Configuration enrichedHadoopConf = enrichHadoopConf(config);
         ParquetMetadata footer =
                 readFooter(
-                        hadoopConfig.conf(),
+                        enrichedHadoopConf,
                         hadoopPath,
                         range(splitOffset, splitOffset + splitLength));
         MessageType fileSchema = footer.getFileMetaData().getSchema();
@@ -126,7 +127,7 @@ public abstract class ParquetVectorizedInputFormat<T, SplitT extends FileSourceS
         MessageType requestedSchema = clipParquetSchema(fileSchema);
         ParquetFileReader reader =
                 new ParquetFileReader(
-                        hadoopConfig.conf(),
+                        enrichedHadoopConf,
                         footer.getFileMetaData(),
                         hadoopPath,
                         blocks,
@@ -143,6 +144,13 @@ public abstract class ParquetVectorizedInputFormat<T, SplitT extends FileSourceS
                 createPoolOfBatches(split, requestedSchema, numBatchesToCirculate(config));
 
         return new ParquetReader(reader, requestedSchema, totalRowCount, poolOfBatches);
+    }
+
+    private org.apache.hadoop.conf.Configuration enrichHadoopConf(Configuration config) {
+        org.apache.hadoop.conf.Configuration combinedConf =
+                new org.apache.hadoop.conf.Configuration(hadoopConfig.conf());
+        config.toMap().forEach(combinedConf::set);
+        return combinedConf;
     }
 
     protected int numBatchesToCirculate(Configuration config) {

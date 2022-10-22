@@ -104,7 +104,7 @@ public abstract class AbstractOrcFileInputFormat<T, BatchT, SplitT extends FileS
 
         final RecordReader orcReader =
                 shim.createRecordReader(
-                        hadoopConfigWrapper.getHadoopConfig(),
+                        enrichHadoopConf(config),
                         schema,
                         selectedFields,
                         conjunctPredicates,
@@ -113,6 +113,13 @@ public abstract class AbstractOrcFileInputFormat<T, BatchT, SplitT extends FileS
                         split.length());
 
         return new OrcVectorizedReader<>(shim, orcReader, poolOfBatches);
+    }
+
+    private org.apache.hadoop.conf.Configuration enrichHadoopConf(Configuration config) {
+        org.apache.hadoop.conf.Configuration combinedConf =
+                new org.apache.hadoop.conf.Configuration(hadoopConfigWrapper.getHadoopConfig());
+        config.toMap().forEach(combinedConf::set);
+        return combinedConf;
     }
 
     @Override
