@@ -54,6 +54,12 @@ public class MockedSqlGatewayService implements SqlGatewayService {
         throw new UnsupportedOperationException();
     }
 
+    public void configureSession(
+            SessionHandle sessionHandle, String statement, long executionTimeoutMs)
+            throws SqlGatewayException {
+        throw new UnsupportedOperationException();
+    }
+
     @Override
     public Map<String, String> getSessionConfig(SessionHandle sessionHandle)
             throws SqlGatewayException {

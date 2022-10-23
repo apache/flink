@@ -44,22 +44,28 @@ import org.apache.flink.table.gateway.service.result.ResultFetcher;
 import org.apache.flink.table.gateway.service.utils.SqlExecutionException;
 import org.apache.flink.table.operations.BeginStatementSetOperation;
 import org.apache.flink.table.operations.EndStatementSetOperation;
+import org.apache.flink.table.operations.LoadModuleOperation;
 import org.apache.flink.table.operations.ModifyOperation;
 import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.QueryOperation;
 import org.apache.flink.table.operations.StatementSetOperation;
+import org.apache.flink.table.operations.UnloadModuleOperation;
+import org.apache.flink.table.operations.UseOperation;
+import org.apache.flink.table.operations.command.AddJarOperation;
 import org.apache.flink.table.operations.command.ResetOperation;
 import org.apache.flink.table.operations.command.SetOperation;
+import org.apache.flink.table.operations.ddl.AlterOperation;
+import org.apache.flink.table.operations.ddl.CreateOperation;
+import org.apache.flink.table.operations.ddl.DropOperation;
+import org.apache.flink.util.CollectionUtil;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -82,6 +88,48 @@ public class OperationExecutor {
     public OperationExecutor(SessionContext context, Configuration executionConfig) {
         this.sessionContext = context;
         this.executionConfig = executionConfig;
+    }
+
+    public ResultFetcher configureSession(OperationHandle handle, String statement) {
+        TableEnvironmentInternal tableEnv = getTableEnvironment();
+        List<Operation> parsedOperations = tableEnv.getParser().parse(statement);
+        if (parsedOperations.size() > 1) {
+            throw new UnsupportedOperationException(
+                    "Unsupported SQL statement! Configure session only accepts a single SQL statement.");
+        }
+        Operation op = parsedOperations.get(0);
+
+        if (!(op instanceof SetOperation)
+                && !(op instanceof ResetOperation)
+                && !(op instanceof CreateOperation)
+                && !(op instanceof DropOperation)
+                && !(op instanceof UseOperation)
+                && !(op instanceof AlterOperation)
+                && !(op instanceof LoadModuleOperation)
+                && !(op instanceof UnloadModuleOperation)
+                && !(op instanceof AddJarOperation)) {
+            throw new UnsupportedOperationException(
+                    String.format(
+                            "Unsupported statement for configuring session:%s\n"
+                                    + "The configureSession API only supports to execute statement of type "
+                                    + "CREATE TABLE, DROP TABLE, ALTER TABLE, "
+                                    + "CREATE DATABASE, DROP DATABASE, ALTER DATABASE, "
+                                    + "CREATE FUNCTION, DROP FUNCTION, ALTER FUNCTION, "
+                                    + "CREATE CATALOG, DROP CATALOG, "
+                                    + "USE CATALOG, USE [CATALOG.]DATABASE, "
+                                    + "CREATE VIEW, DROP VIEW, "
+                                    + "LOAD MODULE, UNLOAD MODULE, USE MODULE, "
+                                    + "ADD JAR.",
+                            statement));
+        }
+
+        if (op instanceof SetOperation) {
+            return callSetOperation(tableEnv, handle, (SetOperation) op);
+        } else if (op instanceof ResetOperation) {
+            return callResetOperation(handle, (ResetOperation) op);
+        } else {
+            return callOperation(tableEnv, handle, op);
+        }
     }
 
     public ResultFetcher executeStatement(OperationHandle handle, String statement) {
@@ -114,9 +162,7 @@ public class OperationExecutor {
             TableResultInternal result = tableEnv.executeInternal(op);
             return new ResultFetcher(handle, result.getResolvedSchema(), result.collectInternal());
         } else {
-            TableResultInternal result = tableEnv.executeInternal(op);
-            return new ResultFetcher(
-                    handle, result.getResolvedSchema(), collect(result.collectInternal()));
+            return callOperation(tableEnv, handle, op);
         }
     }
 
@@ -228,7 +274,8 @@ public class OperationExecutor {
             return new ResultFetcher(
                     handle,
                     TableResultInternal.TABLE_RESULT_OK.getResolvedSchema(),
-                    collect(TableResultInternal.TABLE_RESULT_OK.collectInternal()));
+                    CollectionUtil.iteratorToList(
+                            TableResultInternal.TABLE_RESULT_OK.collectInternal()));
         } else if (!setOp.getKey().isPresent() && !setOp.getValue().isPresent()) {
             // show all properties
             Map<String, String> configMap = tableEnv.getConfig().getConfiguration().toMap();
@@ -237,7 +284,7 @@ public class OperationExecutor {
                     ResolvedSchema.of(
                             Column.physical(SET_KEY, DataTypes.STRING()),
                             Column.physical(SET_VALUE, DataTypes.STRING())),
-                    collect(
+                    CollectionUtil.iteratorToList(
                             configMap.entrySet().stream()
                                     .map(
                                             entry ->
@@ -264,7 +311,8 @@ public class OperationExecutor {
         return new ResultFetcher(
                 handle,
                 TableResultInternal.TABLE_RESULT_OK.getResolvedSchema(),
-                collect(TableResultInternal.TABLE_RESULT_OK.collectInternal()));
+                CollectionUtil.iteratorToList(
+                        TableResultInternal.TABLE_RESULT_OK.collectInternal()));
     }
 
     private ResultFetcher callModifyOperations(
@@ -287,6 +335,15 @@ public class OperationExecutor {
                                                                                 handle)))
                                                 .getJobID()
                                                 .toString()))));
+    }
+
+    private ResultFetcher callOperation(
+            TableEnvironmentInternal tableEnv, OperationHandle handle, Operation op) {
+        TableResultInternal result = tableEnv.executeInternal(op);
+        return new ResultFetcher(
+                handle,
+                result.getResolvedSchema(),
+                CollectionUtil.iteratorToList(result.collectInternal()));
     }
 
     private Set<TableInfo> listTables(
@@ -332,11 +389,5 @@ public class OperationExecutor {
                                                         catalogName, databaseName, name),
                                                 TableKind.VIEW))
                         .collect(Collectors.toSet()));
-    }
-
-    private List<RowData> collect(Iterator<RowData> tableResult) {
-        List<RowData> rows = new ArrayList<>();
-        tableResult.forEachRemaining(rows::add);
-        return rows;
     }
 }

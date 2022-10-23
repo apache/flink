@@ -38,6 +38,7 @@ import org.apache.flink.table.gateway.api.results.TableInfo;
 import org.apache.flink.table.gateway.api.session.SessionEnvironment;
 import org.apache.flink.table.gateway.api.session.SessionHandle;
 import org.apache.flink.table.gateway.api.utils.SqlGatewayException;
+import org.apache.flink.table.gateway.service.operation.OperationManager;
 import org.apache.flink.table.gateway.service.session.Session;
 import org.apache.flink.table.gateway.service.session.SessionManager;
 
@@ -76,6 +77,31 @@ public class SqlGatewayServiceImpl implements SqlGatewayService {
         } catch (Throwable e) {
             LOG.error("Failed to closeSession.", e);
             throw new SqlGatewayException("Failed to closeSession.", e);
+        }
+    }
+
+    @Override
+    public void configureSession(
+            SessionHandle sessionHandle, String statement, long executionTimeoutMs)
+            throws SqlGatewayException {
+        try {
+            if (executionTimeoutMs > 0) {
+                // TODO: support the feature in FLINK-27838
+                throw new UnsupportedOperationException(
+                        "SqlGatewayService doesn't support timeout mechanism now.");
+            }
+
+            OperationManager operationManager = getSession(sessionHandle).getOperationManager();
+            OperationHandle operationHandle =
+                    operationManager.submitOperation(
+                            handle ->
+                                    getSession(sessionHandle)
+                                            .createExecutor()
+                                            .configureSession(handle, statement));
+            operationManager.awaitOperationTermination(operationHandle);
+        } catch (Throwable t) {
+            LOG.error("Failed to configure session.", t);
+            throw new SqlGatewayException("Failed to configure session.", t);
         }
     }
 
@@ -310,6 +336,8 @@ public class SqlGatewayServiceImpl implements SqlGatewayService {
     public GatewayInfo getGatewayInfo() {
         return GatewayInfo.INSTANCE;
     }
+
+    // --------------------------------------------------------------------------------------------
 
     @VisibleForTesting
     public Session getSession(SessionHandle sessionHandle) {
