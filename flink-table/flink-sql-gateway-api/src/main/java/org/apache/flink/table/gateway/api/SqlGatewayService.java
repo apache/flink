@@ -67,6 +67,16 @@ public interface SqlGatewayService {
     void closeSession(SessionHandle sessionHandle) throws SqlGatewayException;
 
     /**
+     * Using the statement to initialize the Session. It's only allowed to execute
+     * SET/RESET/CREATE/DROP/USE/ALTER/LOAD MODULE/UNLOAD MODULE/ADD JAR. The result should be
+     * returned immediately (instead of an OperationHandle) because jobs submitted later may depend
+     * on it.
+     */
+    ResultSet configureSession(
+            SessionHandle sessionHandle, String statement, long executionTimeoutMs)
+            throws SqlGatewayException;
+
+    /**
      * Get the current configuration of the {@code Session}.
      *
      * @param sessionHandle handle to identify the session.
