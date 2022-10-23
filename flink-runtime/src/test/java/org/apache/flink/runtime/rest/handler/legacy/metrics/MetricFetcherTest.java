@@ -50,9 +50,7 @@ import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import static org.hamcrest.Matchers.is;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for the MetricFetcher. */
 public class MetricFetcherTest extends TestLogger {
@@ -133,30 +131,43 @@ public class MetricFetcherTest extends TestLogger {
         fetcher.update();
         MetricStore store = fetcher.getMetricStore();
         synchronized (store) {
-            assertEquals("7", store.getJobManagerMetricStore().getMetric("abc.hist_min"));
-            assertEquals("6", store.getJobManagerMetricStore().getMetric("abc.hist_max"));
-            assertEquals("4.0", store.getJobManagerMetricStore().getMetric("abc.hist_mean"));
-            assertEquals("0.5", store.getJobManagerMetricStore().getMetric("abc.hist_median"));
-            assertEquals("5.0", store.getJobManagerMetricStore().getMetric("abc.hist_stddev"));
-            assertEquals("0.75", store.getJobManagerMetricStore().getMetric("abc.hist_p75"));
-            assertEquals("0.9", store.getJobManagerMetricStore().getMetric("abc.hist_p90"));
-            assertEquals("0.95", store.getJobManagerMetricStore().getMetric("abc.hist_p95"));
-            assertEquals("0.98", store.getJobManagerMetricStore().getMetric("abc.hist_p98"));
-            assertEquals("0.99", store.getJobManagerMetricStore().getMetric("abc.hist_p99"));
-            assertEquals("0.999", store.getJobManagerMetricStore().getMetric("abc.hist_p999"));
+            assertThat("7").isEqualTo(store.getJobManagerMetricStore().getMetric("abc.hist_min"));
+            assertThat("6").isEqualTo(store.getJobManagerMetricStore().getMetric("abc.hist_max"));
+            assertThat("4.0")
+                    .isEqualTo(store.getJobManagerMetricStore().getMetric("abc.hist_mean"));
+            assertThat("0.5")
+                    .isEqualTo(store.getJobManagerMetricStore().getMetric("abc.hist_median"));
+            assertThat("5.0")
+                    .isEqualTo(store.getJobManagerMetricStore().getMetric("abc.hist_stddev"));
+            assertThat("0.75")
+                    .isEqualTo(store.getJobManagerMetricStore().getMetric("abc.hist_p75"));
+            assertThat("0.9").isEqualTo(store.getJobManagerMetricStore().getMetric("abc.hist_p90"));
+            assertThat("0.95")
+                    .isEqualTo(store.getJobManagerMetricStore().getMetric("abc.hist_p95"));
+            assertThat("0.98")
+                    .isEqualTo(store.getJobManagerMetricStore().getMetric("abc.hist_p98"));
+            assertThat("0.99")
+                    .isEqualTo(store.getJobManagerMetricStore().getMetric("abc.hist_p99"));
+            assertThat("0.999")
+                    .isEqualTo(store.getJobManagerMetricStore().getMetric("abc.hist_p999"));
 
-            assertEquals(
-                    "x",
-                    store.getTaskManagerMetricStore(tmRID.toString()).metrics.get("abc.gauge"));
-            assertEquals("5.0", store.getJobMetricStore(jobID.toString()).metrics.get("abc.jc"));
-            assertEquals(
-                    "2",
-                    store.getTaskMetricStore(jobID.toString(), "taskid").metrics.get("2.abc.tc"));
-            assertEquals(
-                    "1",
-                    store.getTaskMetricStore(jobID.toString(), "taskid")
-                            .metrics
-                            .get("2.opname.abc.oc"));
+            assertThat("x")
+                    .isEqualTo(
+                            store.getTaskManagerMetricStore(tmRID.toString())
+                                    .metrics
+                                    .get("abc.gauge"));
+            assertThat("5.0")
+                    .isEqualTo(store.getJobMetricStore(jobID.toString()).metrics.get("abc.jc"));
+            assertThat("2")
+                    .isEqualTo(
+                            store.getTaskMetricStore(jobID.toString(), "taskid")
+                                    .metrics
+                                    .get("2.abc.tc"));
+            assertThat("1")
+                    .isEqualTo(
+                            store.getTaskMetricStore(jobID.toString(), "taskid")
+                                    .metrics
+                                    .get("2.opname.abc.oc"));
         }
     }
 
@@ -239,7 +250,7 @@ public class MetricFetcherTest extends TestLogger {
         fetcher.update();
         fetcher.update();
 
-        assertThat(requestMetricQueryServiceGatewaysCounter.get(), is(1));
+        assertThat(requestMetricQueryServiceGatewaysCounter.get()).isEqualTo(1);
     }
 
     @Test
@@ -263,7 +274,7 @@ public class MetricFetcherTest extends TestLogger {
 
         fetcher.update();
 
-        assertThat(requestMetricQueryServiceGatewaysCounter.get(), is(2));
+        assertThat(requestMetricQueryServiceGatewaysCounter.get()).isEqualTo(2);
     }
 
     @Nonnull
