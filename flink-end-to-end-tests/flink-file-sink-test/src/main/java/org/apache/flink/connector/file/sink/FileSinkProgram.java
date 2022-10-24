@@ -34,7 +34,6 @@ import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.filesystem.BucketAssigner;
-import org.apache.flink.streaming.api.functions.sink.filesystem.StreamingFileSink;
 import org.apache.flink.streaming.api.functions.sink.filesystem.bucketassigners.SimpleVersionedStringSerializer;
 import org.apache.flink.streaming.api.functions.sink.filesystem.rollingpolicies.OnCheckpointRollingPolicy;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
@@ -43,7 +42,7 @@ import java.io.PrintStream;
 import java.util.concurrent.TimeUnit;
 
 /**
- * Test program for the {@link StreamingFileSink} and {@link FileSink}.
+ * Test program for the {@link FileSink}.
  *
  * <p>Uses a source that steadily emits a deterministic set of records over 60 seconds, after which
  * it idles and waits for job cancellation. Every record has a unique index that is written to the
@@ -72,21 +71,7 @@ public enum FileSinkProgram {
         // generate data, shuffle, sink
         DataStream<Tuple2<Integer, Integer>> source = env.addSource(new Generator(10, 10, 60));
 
-        if (sinkToTest.equalsIgnoreCase("StreamingFileSink")) {
-            final StreamingFileSink<Tuple2<Integer, Integer>> sink =
-                    StreamingFileSink.forRowFormat(
-                                    new Path(outputPath),
-                                    (Encoder<Tuple2<Integer, Integer>>)
-                                            (element, stream) -> {
-                                                PrintStream out = new PrintStream(stream);
-                                                out.println(element.f1);
-                                            })
-                            .withBucketAssigner(new KeyBucketAssigner())
-                            .withRollingPolicy(OnCheckpointRollingPolicy.build())
-                            .build();
-
-            source.keyBy(0).addSink(sink);
-        } else if (sinkToTest.equalsIgnoreCase("FileSink")) {
+        if (sinkToTest.equalsIgnoreCase("FileSink")) {
             FileSink<Tuple2<Integer, Integer>> sink =
                     FileSink.forRowFormat(
                                     new Path(outputPath),
@@ -103,7 +88,7 @@ public enum FileSinkProgram {
             throw new UnsupportedOperationException("Unsupported sink type: " + sinkToTest);
         }
 
-        env.execute("StreamingFileSinkProgram");
+        env.execute("FileSinkProgram");
     }
 
     /** Use first field for buckets. */
