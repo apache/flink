@@ -33,8 +33,8 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
 
 /** The read view of HsResultPartition, data can be read from memory or disk. */
-public class HsSubpartitionView
-        implements ResultSubpartitionView, HsSubpartitionViewInternalOperations {
+public class HsSubpartitionConsumer
+        implements ResultSubpartitionView, HsSubpartitionConsumerInternalOperations {
     private final BufferAvailabilityListener availabilityListener;
     private final Object lock = new Object();
 
@@ -66,7 +66,7 @@ public class HsSubpartitionView
     // memoryDataView can be null only before initialization.
     private HsDataView memoryDataView;
 
-    public HsSubpartitionView(BufferAvailabilityListener availabilityListener) {
+    public HsSubpartitionConsumer(BufferAvailabilityListener availabilityListener) {
         this.availabilityListener = availabilityListener;
     }
 
@@ -270,21 +270,25 @@ public class HsSubpartitionView
     }
 
     private void releaseInternal(@Nullable Throwable throwable) {
-        boolean releaseSubpartitionReader = false;
+        boolean releaseDiskView;
+        boolean releaseMemoryView;
         synchronized (lock) {
             if (isReleased) {
                 return;
             }
             isReleased = true;
             failureCause = throwable;
-            if (diskDataView != null) {
-                releaseSubpartitionReader = true;
-            }
+            releaseDiskView = diskDataView != null;
+            releaseMemoryView = memoryDataView != null;
         }
         // release subpartition reader outside of lock to avoid deadlock.
-        if (releaseSubpartitionReader) {
+        if (releaseDiskView) {
             //noinspection FieldAccessNotGuarded
             diskDataView.releaseDataView();
+        }
+        if (releaseMemoryView) {
+            //noinspection FieldAccessNotGuarded
+            memoryDataView.releaseDataView();
         }
     }
 }

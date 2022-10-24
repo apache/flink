@@ -24,8 +24,8 @@ import org.apache.flink.runtime.io.network.partition.ResultSubpartition.BufferAn
 import java.util.Optional;
 
 /**
- * A view for {@link HsSubpartitionView} to find out what data exists in memory or disk and polling
- * the data.
+ * A view for {@link HsSubpartitionConsumer} to find out what data exists in memory or disk and
+ * polling the data.
  */
 public interface HsDataView {
 

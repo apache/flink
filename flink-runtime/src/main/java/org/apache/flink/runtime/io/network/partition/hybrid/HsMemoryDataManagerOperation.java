@@ -20,6 +20,8 @@ package org.apache.flink.runtime.io.network.partition.hybrid;
 
 import org.apache.flink.runtime.io.network.buffer.BufferBuilder;
 
+import java.util.Collection;
+
 /**
  * This interface is used by {@link HsSubpartitionMemoryDataManager} to operate {@link
  * HsMemoryDataManager}. Spilling decision may be made and handled inside these operations.
@@ -53,7 +55,16 @@ public interface HsMemoryDataManagerOperation {
     /**
      * This method is called when subpartition data become available.
      *
-     * @param subpartitionId the subpartition need notify data available.
+     * @param subpartitionId the subpartition's identifier that this consumer belongs to.
+     * @param consumerIds the consumer's identifier which need notify data available.
      */
-    void onDataAvailable(int subpartitionId);
+    void onDataAvailable(int subpartitionId, Collection<HsConsumerId> consumerIds);
+
+    /**
+     * This method is called when consumer is decided to released.
+     *
+     * @param subpartitionId the subpartition's identifier that this consumer belongs to.
+     * @param consumerId the consumer's identifier which decided to be released.
+     */
+    void onConsumerReleased(int subpartitionId, HsConsumerId consumerId);
 }

@@ -75,7 +75,7 @@ class HsSubpartitionFileReaderImplTest {
 
     private HsFileDataIndex diskIndex;
 
-    private TestingSubpartitionViewInternalOperation subpartitionOperation;
+    private TestingSubpartitionConsumerInternalOperation subpartitionOperation;
 
     private FileChannel dataFileChannel;
 
@@ -87,7 +87,7 @@ class HsSubpartitionFileReaderImplTest {
         Path dataFilePath = Files.createFile(tempPath.resolve(UUID.randomUUID().toString()));
         dataFileChannel = openFileChannel(dataFilePath);
         diskIndex = new HsFileDataIndexImpl(1);
-        subpartitionOperation = new TestingSubpartitionViewInternalOperation();
+        subpartitionOperation = new TestingSubpartitionConsumerInternalOperation();
         currentFileOffset = 0L;
     }
 
@@ -99,10 +99,10 @@ class HsSubpartitionFileReaderImplTest {
     @Test
     void testReadBuffer() throws Exception {
         diskIndex = new HsFileDataIndexImpl(2);
-        TestingSubpartitionViewInternalOperation viewNotifier1 =
-                new TestingSubpartitionViewInternalOperation();
-        TestingSubpartitionViewInternalOperation viewNotifier2 =
-                new TestingSubpartitionViewInternalOperation();
+        TestingSubpartitionConsumerInternalOperation viewNotifier1 =
+                new TestingSubpartitionConsumerInternalOperation();
+        TestingSubpartitionConsumerInternalOperation viewNotifier2 =
+                new TestingSubpartitionConsumerInternalOperation();
         HsSubpartitionFileReaderImpl fileReader1 = createSubpartitionFileReader(0, viewNotifier1);
         HsSubpartitionFileReaderImpl fileReader2 = createSubpartitionFileReader(1, viewNotifier2);
 
@@ -142,8 +142,8 @@ class HsSubpartitionFileReaderImplTest {
                 new BufferDecompressor(bufferSize, compressionFactoryName);
 
         diskIndex = new HsFileDataIndexImpl(1);
-        TestingSubpartitionViewInternalOperation viewNotifier =
-                new TestingSubpartitionViewInternalOperation();
+        TestingSubpartitionConsumerInternalOperation viewNotifier =
+                new TestingSubpartitionConsumerInternalOperation();
         HsSubpartitionFileReaderImpl fileReader1 = createSubpartitionFileReader(0, viewNotifier);
 
         writeDataToFile(0, 0, 1, 3, bufferCompressor);
@@ -362,10 +362,10 @@ class HsSubpartitionFileReaderImplTest {
     @Test
     void testCompareTo() throws Exception {
         diskIndex = new HsFileDataIndexImpl(2);
-        TestingSubpartitionViewInternalOperation viewNotifier1 =
-                new TestingSubpartitionViewInternalOperation();
-        TestingSubpartitionViewInternalOperation viewNotifier2 =
-                new TestingSubpartitionViewInternalOperation();
+        TestingSubpartitionConsumerInternalOperation viewNotifier1 =
+                new TestingSubpartitionConsumerInternalOperation();
+        TestingSubpartitionConsumerInternalOperation viewNotifier2 =
+                new TestingSubpartitionConsumerInternalOperation();
         HsSubpartitionFileReaderImpl fileReader1 = createSubpartitionFileReader(0, viewNotifier1);
         HsSubpartitionFileReaderImpl fileReader2 = createSubpartitionFileReader(1, viewNotifier2);
         assertThat(fileReader1).isEqualByComparingTo(fileReader2);
@@ -390,8 +390,8 @@ class HsSubpartitionFileReaderImplTest {
 
     @Test
     void testConsumeBuffer() throws Throwable {
-        TestingSubpartitionViewInternalOperation viewNotifier =
-                new TestingSubpartitionViewInternalOperation();
+        TestingSubpartitionConsumerInternalOperation viewNotifier =
+                new TestingSubpartitionConsumerInternalOperation();
         HsSubpartitionFileReaderImpl subpartitionFileReader =
                 createSubpartitionFileReader(0, viewNotifier);
 
@@ -428,8 +428,8 @@ class HsSubpartitionFileReaderImplTest {
 
     @Test
     void testPeekNextToConsumeDataTypeOrConsumeBufferThrowException() {
-        TestingSubpartitionViewInternalOperation viewNotifier =
-                new TestingSubpartitionViewInternalOperation();
+        TestingSubpartitionConsumerInternalOperation viewNotifier =
+                new TestingSubpartitionConsumerInternalOperation();
         HsSubpartitionFileReaderImpl subpartitionFileReader =
                 createSubpartitionFileReader(0, viewNotifier);
 
@@ -446,8 +446,8 @@ class HsSubpartitionFileReaderImplTest {
 
     @Test
     void testPeekNextToConsumeDataType() throws Throwable {
-        TestingSubpartitionViewInternalOperation viewNotifier =
-                new TestingSubpartitionViewInternalOperation();
+        TestingSubpartitionConsumerInternalOperation viewNotifier =
+                new TestingSubpartitionConsumerInternalOperation();
         HsSubpartitionFileReaderImpl subpartitionFileReader =
                 createSubpartitionFileReader(0, viewNotifier);
 
@@ -477,8 +477,8 @@ class HsSubpartitionFileReaderImplTest {
      */
     @Test
     void testSubpartitionReaderRegisterMultipleTimes() throws Exception {
-        TestingSubpartitionViewInternalOperation viewNotifier =
-                new TestingSubpartitionViewInternalOperation();
+        TestingSubpartitionConsumerInternalOperation viewNotifier =
+                new TestingSubpartitionConsumerInternalOperation();
         HsSubpartitionFileReaderImpl subpartitionFileReader =
                 createSubpartitionFileReader(0, viewNotifier);
         // mock the scenario that buffer 0 is already read form memory.
@@ -491,7 +491,7 @@ class HsSubpartitionFileReaderImplTest {
         checkData(subpartitionFileReader, 2, 3);
 
         // after failover, new view and subpartitionFileReader will be created.
-        viewNotifier = new TestingSubpartitionViewInternalOperation();
+        viewNotifier = new TestingSubpartitionConsumerInternalOperation();
         subpartitionFileReader = createSubpartitionFileReader(0, viewNotifier);
         subpartitionFileReader.prepareForScheduling();
         memorySegments = createsMemorySegments(3);
@@ -529,7 +529,7 @@ class HsSubpartitionFileReaderImplTest {
     }
 
     private HsSubpartitionFileReaderImpl createSubpartitionFileReader(
-            int targetChannel, HsSubpartitionViewInternalOperations operations) {
+            int targetChannel, HsSubpartitionConsumerInternalOperations operations) {
         return new HsSubpartitionFileReaderImpl(
                 targetChannel,
                 dataFileChannel,

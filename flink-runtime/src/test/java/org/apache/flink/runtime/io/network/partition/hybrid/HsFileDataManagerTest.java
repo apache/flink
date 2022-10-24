@@ -78,7 +78,7 @@ class HsFileDataManagerTest {
 
     private HsFileDataManager fileDataManager;
 
-    private TestingSubpartitionViewInternalOperation subpartitionViewOperation;
+    private TestingSubpartitionConsumerInternalOperation subpartitionViewOperation;
 
     private TestingHsSubpartitionFileReader.Factory factory;
 
@@ -101,7 +101,7 @@ class HsFileDataManagerTest {
                         HybridShuffleConfiguration.builder(
                                         NUM_SUBPARTITIONS, bufferPool.getNumBuffersPerRequest())
                                 .build());
-        subpartitionViewOperation = new TestingSubpartitionViewInternalOperation();
+        subpartitionViewOperation = new TestingSubpartitionConsumerInternalOperation();
     }
 
     @AfterEach
@@ -352,8 +352,8 @@ class HsFileDataManagerTest {
     void testConsumeWhileReleaseNoDeadlock() throws Exception {
         CompletableFuture<Void> consumerStart = new CompletableFuture<>();
         CompletableFuture<Void> readerFail = new CompletableFuture<>();
-        HsSubpartitionView subpartitionView =
-                new HsSubpartitionView(new NoOpBufferAvailablityListener());
+        HsSubpartitionConsumer subpartitionView =
+                new HsSubpartitionConsumer(new NoOpBufferAvailablityListener());
 
         HsSubpartitionFileReaderImpl subpartitionFileReader =
                 new HsSubpartitionFileReaderImpl(
@@ -497,7 +497,7 @@ class HsFileDataManagerTest {
             public HsSubpartitionFileReader createFileReader(
                     int subpartitionId,
                     FileChannel dataFileChannel,
-                    HsSubpartitionViewInternalOperations operation,
+                    HsSubpartitionConsumerInternalOperations operation,
                     HsFileDataIndex dataIndex,
                     int maxBuffersReadAhead,
                     Consumer<HsSubpartitionFileReader> fileReaderReleaser,

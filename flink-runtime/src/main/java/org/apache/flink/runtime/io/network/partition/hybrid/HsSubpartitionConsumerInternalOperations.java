@@ -18,29 +18,22 @@
 
 package org.apache.flink.runtime.io.network.partition.hybrid;
 
-/** Mock {@link HsSubpartitionViewInternalOperations} for test. */
-public class TestingSubpartitionViewInternalOperation
-        implements HsSubpartitionViewInternalOperations {
-    // -1 indicates downstream just start consuming offset.
-    private int consumingOffset = -1;
+/**
+ * Operations provided by {@link HsSubpartitionConsumer} that are used by other internal components
+ * of hybrid result partition.
+ */
+public interface HsSubpartitionConsumerInternalOperations {
 
-    private Runnable notifyDataAvailableRunnable = () -> {};
+    /** Callback for new data become available. */
+    void notifyDataAvailable();
 
-    @Override
-    public void notifyDataAvailable() {
-        notifyDataAvailableRunnable.run();
-    }
-
-    @Override
-    public int getConsumingOffset(boolean withLock) {
-        return consumingOffset;
-    }
-
-    public void advanceConsumptionProgress() {
-        consumingOffset++;
-    }
-
-    public void setNotifyDataAvailableRunnable(Runnable notifyDataAvailableRunnable) {
-        this.notifyDataAvailableRunnable = notifyDataAvailableRunnable;
-    }
+    /**
+     * Get the latest consuming offset of the subpartition.
+     *
+     * @param withLock If true, read the consuming offset outside the guarding of lock. This is
+     *     sometimes desired to avoid lock contention, if the caller does not depend on any other
+     *     states to change atomically with the consuming offset.
+     * @return latest consuming offset.
+     */
+    int getConsumingOffset(boolean withLock);
 }

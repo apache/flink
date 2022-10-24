@@ -186,13 +186,15 @@ public class HsResultPartition extends ResultPartition {
             throw new PartitionNotFoundException(getPartitionId());
         }
 
-        HsSubpartitionView subpartitionView = new HsSubpartitionView(availabilityListener);
+        HsSubpartitionConsumer subpartitionView = new HsSubpartitionConsumer(availabilityListener);
         HsDataView diskDataView =
                 fileDataManager.registerNewSubpartition(subpartitionId, subpartitionView);
 
         HsDataView memoryDataView =
                 checkNotNull(memoryDataManager)
-                        .registerSubpartitionView(subpartitionId, subpartitionView);
+                        // TODO pass real consumerId in the next commit.
+                        .registerNewConsumer(
+                                subpartitionId, HsConsumerId.DEFAULT, subpartitionView);
 
         subpartitionView.setDiskDataView(diskDataView);
         subpartitionView.setMemoryDataView(memoryDataView);

@@ -31,12 +31,14 @@ public interface HsSpillingInfoProvider {
     int getNumSubpartitions();
 
     /**
-     * Get all downstream next buffer index to consume.
+     * Get all subpartition's next buffer index to consume of specific consumer.
      *
-     * @return A list containing all downstream next buffer index to consume, if the downstream
-     *     subpartition view has not been registered, the corresponding return value is -1.
+     * @param consumerId of the target downstream consumer.
+     * @return A list containing all subpartition's next buffer index to consume of specific
+     *     consumer, if the downstream subpartition view has not been registered, the corresponding
+     *     return value is -1.
      */
-    List<Integer> getNextBufferIndexToConsume();
+    List<Integer> getNextBufferIndexToConsume(HsConsumerId consumerId);
 
     /**
      * Get all buffers with the expected status from the subpartition.

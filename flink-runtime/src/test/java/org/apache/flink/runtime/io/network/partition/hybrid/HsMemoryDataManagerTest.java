@@ -41,6 +41,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.apache.flink.runtime.io.network.partition.hybrid.HybridShuffleTestUtils.createTestingOutputMetrics;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for {@link HsMemoryDataManager}. */
 class HsMemoryDataManagerTest {
@@ -190,6 +191,25 @@ class HsMemoryDataManagerTest {
         HsMemoryDataManager memoryDataManager = createMemoryDataManager(spillingStrategy);
         memoryDataManager.close();
         assertThat(resultPartitionReleaseFuture).isCompleted();
+    }
+
+    @Test
+    void testSubpartitionConsumerRelease() throws Exception {
+        HsSpillingStrategy spillingStrategy = TestingSpillingStrategy.builder().build();
+        HsMemoryDataManager memoryDataManager = createMemoryDataManager(spillingStrategy);
+        memoryDataManager.registerNewConsumer(
+                0, HsConsumerId.DEFAULT, new TestingSubpartitionConsumerInternalOperation());
+        assertThatThrownBy(
+                        () ->
+                                memoryDataManager.registerNewConsumer(
+                                        0,
+                                        HsConsumerId.DEFAULT,
+                                        new TestingSubpartitionConsumerInternalOperation()))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("Each subpartition view should have unique consumerId.");
+        memoryDataManager.onConsumerReleased(0, HsConsumerId.DEFAULT);
+        memoryDataManager.registerNewConsumer(
+                0, HsConsumerId.DEFAULT, new TestingSubpartitionConsumerInternalOperation());
     }
 
     @Test

@@ -57,7 +57,7 @@ public class HsSubpartitionFileReaderImpl implements HsSubpartitionFileReader {
 
     private final FileChannel dataFileChannel;
 
-    private final HsSubpartitionViewInternalOperations operations;
+    private final HsSubpartitionConsumerInternalOperations operations;
 
     private final CachedRegionManager cachedRegionManager;
 
@@ -72,7 +72,7 @@ public class HsSubpartitionFileReaderImpl implements HsSubpartitionFileReader {
     public HsSubpartitionFileReaderImpl(
             int subpartitionId,
             FileChannel dataFileChannel,
-            HsSubpartitionViewInternalOperations operations,
+            HsSubpartitionConsumerInternalOperations operations,
             HsFileDataIndex dataIndex,
             int maxBufferReadAhead,
             Consumer<HsSubpartitionFileReader> fileReaderReleaser,
@@ -487,7 +487,7 @@ public class HsSubpartitionFileReaderImpl implements HsSubpartitionFileReader {
         public HsSubpartitionFileReader createFileReader(
                 int subpartitionId,
                 FileChannel dataFileChannel,
-                HsSubpartitionViewInternalOperations operation,
+                HsSubpartitionConsumerInternalOperations operation,
                 HsFileDataIndex dataIndex,
                 int maxBuffersReadAhead,
                 Consumer<HsSubpartitionFileReader> fileReaderReleaser,
