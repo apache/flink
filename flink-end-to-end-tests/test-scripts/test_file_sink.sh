@@ -18,7 +18,7 @@
 ################################################################################
 
 OUT_TYPE="${1:-local}" # other type: s3
-SINK_TO_TEST="${2:-"StreamingFileSink"}"
+SINK_TO_TEST="${2:-"FileSink"}"
 
 S3_PREFIX=temp/test_file_sink-$(uuidgen)
 OUTPUT_PATH="$TEST_DATA_DIR/$S3_PREFIX"
