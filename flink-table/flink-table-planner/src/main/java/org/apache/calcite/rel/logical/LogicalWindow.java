@@ -18,6 +18,9 @@
 
 package org.apache.calcite.rel.logical;
 
+import com.google.common.collect.LinkedListMultimap;
+import com.google.common.collect.Lists;
+import com.google.common.collect.Multimap;
 import org.apache.calcite.linq4j.Ord;
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelOptUtil;
@@ -41,6 +44,7 @@ import org.apache.calcite.util.ImmutableBitSet;
 import org.apache.calcite.util.Litmus;
 import org.apache.calcite.util.Pair;
 import org.apache.calcite.util.Util;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 import java.util.AbstractList;
 import java.util.ArrayList;
@@ -133,8 +137,7 @@ public final class LogicalWindow extends Window {
         final RelDataType outRowType = program.getOutputRowType();
         // Build a list of distinct groups, partitions and aggregate
         // functions.
-        final com.google.common.collect.Multimap<WindowKey, RexOver> windowMap =
-                com.google.common.collect.LinkedListMultimap.create();
+        final Multimap<WindowKey, RexOver> windowMap = LinkedListMultimap.create();
 
         final int inputFieldCount = child.getRowType().getFieldCount();
 
@@ -163,7 +166,7 @@ public final class LogicalWindow extends Window {
         // Build a list of groups, partitions, and aggregate functions. Each
         // aggregate function will add its arguments as outputs of the input
         // program.
-        final Map<RexOver, RexOver> origToNewOver = new IdentityHashMap<>();
+        final IdentityHashMap<RexOver, RexOver> origToNewOver = new IdentityHashMap<>();
         for (RexNode agg : program.getExprList()) {
             if (agg instanceof RexOver) {
                 final RexOver origOver = (RexOver) agg;
@@ -243,6 +246,7 @@ public final class LogicalWindow extends Window {
         // the output calc (if it exists).
         RexShuttle shuttle =
                 new RexShuttle() {
+                    @Override
                     public RexNode visitOver(RexOver over) {
                         // Look up the aggCall which this expr was translated to.
                         final Window.RexWinAggCall aggCall = aggMap.get(origToNewOver.get(over));
@@ -266,6 +270,7 @@ public final class LogicalWindow extends Window {
                         return new RexInputRef(index, over.getType());
                     }
 
+                    @Override
                     public RexNode visitLocalRef(RexLocalRef localRef) {
                         final int index = localRef.getIndex();
                         if (index < inputFieldCount) {
@@ -298,10 +303,12 @@ public final class LogicalWindow extends Window {
 
     private static List<RexNode> toInputRefs(final List<? extends RexNode> operands) {
         return new AbstractList<RexNode>() {
+            @Override
             public int size() {
                 return operands.size();
             }
 
+            @Override
             public RexNode get(int index) {
                 final RexNode operand = operands.get(index);
                 if (operand instanceof RexInputRef) {
@@ -345,7 +352,7 @@ public final class LogicalWindow extends Window {
         }
 
         @Override
-        public boolean equals(Object obj) {
+        public boolean equals(@Nullable Object obj) {
             return obj == this
                     || obj instanceof WindowKey
                             && groupSet.equals(((WindowKey) obj).groupSet)
@@ -357,15 +364,13 @@ public final class LogicalWindow extends Window {
     }
 
     private static void addWindows(
-            com.google.common.collect.Multimap<WindowKey, RexOver> windowMap,
-            RexOver over,
-            final int inputFieldCount) {
+            Multimap<WindowKey, RexOver> windowMap, RexOver over, final int inputFieldCount) {
         final RexWindow aggWindow = over.getWindow();
 
         // Look up or create a window.
         RelCollation orderKeys =
                 getCollation(
-                        com.google.common.collect.Lists.newArrayList(
+                        Lists.newArrayList(
                                 Util.filter(
                                         aggWindow.orderKeys,
                                         rexFieldCollation ->

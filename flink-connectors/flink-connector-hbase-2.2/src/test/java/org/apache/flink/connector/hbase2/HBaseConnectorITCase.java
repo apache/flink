@@ -365,11 +365,6 @@ public class HBaseConnectorITCase extends HBaseTestBase {
         expected.add(
                 "+I[8, 80, null, 800, 8.08, true, Welt-8, 2019-08-19T19:40, 2019-08-19, 19:40, 12345678.0008]");
 
-        Table countTable =
-                batchEnv.sqlQuery("SELECT COUNT(h.rowkey) FROM " + TEST_TABLE_3 + " AS h");
-
-        assertEquals(new Long(expected.size()), countTable.execute().collect().next().getField(0));
-
         String query =
                 "SELECT "
                         + "  h.rowkey, "

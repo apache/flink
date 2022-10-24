@@ -37,8 +37,8 @@ import java.util.List;
 
 /**
  * This rule is copied from Calcite's {@link org.apache.calcite.rel.rules.AggregateRemoveRule}.
- * Modification: - only matches aggregate with with SIMPLE group and non-empty group - supports SUM,
- * MIN, MAX, AUXILIARY_GROUP aggregate functions with no filterArgs
+ * Modification: - only matches aggregate with SIMPLE group and non-empty group - supports SUM, MIN,
+ * MAX, AUXILIARY_GROUP aggregate functions with no filterArgs
  */
 
 /**

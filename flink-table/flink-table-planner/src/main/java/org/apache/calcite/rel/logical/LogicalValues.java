@@ -18,6 +18,7 @@
 
 package org.apache.calcite.rel.logical;
 
+import com.google.common.collect.ImmutableList;
 import org.apache.calcite.plan.Convention;
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelTraitSet;
@@ -65,9 +66,7 @@ public class LogicalValues extends Values {
             RelTraitSet traitSet,
             List<RelHint> hints,
             RelDataType rowType,
-            com.google.common.collect.ImmutableList<
-                            com.google.common.collect.ImmutableList<RexLiteral>>
-                    tuples) {
+            ImmutableList<ImmutableList<RexLiteral>> tuples) {
         super(cluster, hints, rowType, tuples, traitSet);
     }
 
@@ -85,9 +84,7 @@ public class LogicalValues extends Values {
             RelOptCluster cluster,
             RelTraitSet traitSet,
             RelDataType rowType,
-            com.google.common.collect.ImmutableList<
-                            com.google.common.collect.ImmutableList<RexLiteral>>
-                    tuples) {
+            ImmutableList<ImmutableList<RexLiteral>> tuples) {
         this(cluster, traitSet, Collections.emptyList(), rowType, tuples);
     }
 
@@ -95,9 +92,7 @@ public class LogicalValues extends Values {
     public LogicalValues(
             RelOptCluster cluster,
             RelDataType rowType,
-            com.google.common.collect.ImmutableList<
-                            com.google.common.collect.ImmutableList<RexLiteral>>
-                    tuples) {
+            ImmutableList<ImmutableList<RexLiteral>> tuples) {
         this(cluster, cluster.traitSetOf(Convention.NONE), rowType, tuples);
     }
 
@@ -110,9 +105,7 @@ public class LogicalValues extends Values {
     public static LogicalValues create(
             RelOptCluster cluster,
             final RelDataType rowType,
-            final com.google.common.collect.ImmutableList<
-                            com.google.common.collect.ImmutableList<RexLiteral>>
-                    tuples) {
+            final ImmutableList<ImmutableList<RexLiteral>> tuples) {
         final RelMetadataQuery mq = cluster.getMetadataQuery();
         final RelTraitSet traitSet =
                 cluster.traitSetOf(Convention.NONE)
@@ -134,7 +127,7 @@ public class LogicalValues extends Values {
 
     /** Creates a LogicalValues that outputs no rows of a given row type. */
     public static LogicalValues createEmpty(RelOptCluster cluster, RelDataType rowType) {
-        return create(cluster, rowType, com.google.common.collect.ImmutableList.of());
+        return create(cluster, rowType, ImmutableList.of());
     }
 
     /** Creates a LogicalValues that outputs one row and one column. */
@@ -145,15 +138,13 @@ public class LogicalValues extends Values {
                         .add("ZERO", SqlTypeName.INTEGER)
                         .nullable(false)
                         .build();
-        final com.google.common.collect.ImmutableList<
-                        com.google.common.collect.ImmutableList<RexLiteral>>
-                tuples =
-                        com.google.common.collect.ImmutableList.of(
-                                com.google.common.collect.ImmutableList.of(
-                                        cluster.getRexBuilder()
-                                                .makeExactLiteral(
-                                                        BigDecimal.ZERO,
-                                                        rowType.getFieldList().get(0).getType())));
+        final ImmutableList<ImmutableList<RexLiteral>> tuples =
+                ImmutableList.of(
+                        ImmutableList.of(
+                                cluster.getRexBuilder()
+                                        .makeExactLiteral(
+                                                BigDecimal.ZERO,
+                                                rowType.getFieldList().get(0).getType())));
         return create(cluster, rowType, tuples);
     }
 

@@ -18,6 +18,7 @@
 
 package org.apache.calcite.rel.core;
 
+import com.google.common.collect.ImmutableList;
 import org.apache.calcite.linq4j.Ord;
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelOptUtil;
@@ -46,10 +47,10 @@ import java.util.List;
 public abstract class SetOp extends AbstractRelNode implements Hintable {
     // ~ Instance fields --------------------------------------------------------
 
-    protected com.google.common.collect.ImmutableList<RelNode> inputs;
+    protected ImmutableList<RelNode> inputs;
     public final SqlKind kind;
     public final boolean all;
-    protected final com.google.common.collect.ImmutableList<RelHint> hints;
+    protected final ImmutableList<RelHint> hints;
 
     // ~ Constructors -----------------------------------------------------------
 
@@ -65,9 +66,9 @@ public abstract class SetOp extends AbstractRelNode implements Hintable {
         com.google.common.base.Preconditions.checkArgument(
                 kind == SqlKind.UNION || kind == SqlKind.INTERSECT || kind == SqlKind.EXCEPT);
         this.kind = kind;
-        this.inputs = com.google.common.collect.ImmutableList.copyOf(inputs);
+        this.inputs = ImmutableList.copyOf(inputs);
         this.all = all;
-        this.hints = com.google.common.collect.ImmutableList.copyOf(hints);
+        this.hints = ImmutableList.copyOf(hints);
     }
 
     /** Creates a SetOp. */
@@ -104,7 +105,7 @@ public abstract class SetOp extends AbstractRelNode implements Hintable {
     public void replaceInput(int ordinalInParent, RelNode p) {
         final List<RelNode> newInputs = new ArrayList<>(inputs);
         newInputs.set(ordinalInParent, p);
-        inputs = com.google.common.collect.ImmutableList.copyOf(newInputs);
+        inputs = ImmutableList.copyOf(newInputs);
         recomputeDigest();
     }
 

@@ -52,7 +52,7 @@ export class StatusService {
    *
    * @param router
    */
-  public boot(router: Router): Promise<Configuration> {
+  public boot(router: Router): Promise<Configuration | undefined> {
     return this.httpClient
       .get<Configuration>(`${this.configService.BASE_URL}/config`)
       .pipe(

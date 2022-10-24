@@ -84,10 +84,6 @@ public final class PulsarSinkConfigUtils {
                 PULSAR_SEND_TIMEOUT_MS,
                 Math::toIntExact,
                 ms -> builder.sendTimeout(ms, MILLISECONDS));
-        configuration.useOption(PULSAR_MAX_PENDING_MESSAGES, builder::maxPendingMessages);
-        configuration.useOption(
-                PULSAR_MAX_PENDING_MESSAGES_ACROSS_PARTITIONS,
-                builder::maxPendingMessagesAcrossPartitions);
         configuration.useOption(
                 PULSAR_BATCHING_MAX_PUBLISH_DELAY_MICROS,
                 s -> builder.batchingMaxPublishDelay(s, MICROSECONDS));

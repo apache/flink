@@ -66,6 +66,7 @@ import org.apache.flink.runtime.rpc.FencedRpcEndpoint;
 import org.apache.flink.runtime.rpc.Local;
 import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.rpc.RpcServiceUtils;
+import org.apache.flink.runtime.security.token.DelegationTokenListener;
 import org.apache.flink.runtime.security.token.DelegationTokenManager;
 import org.apache.flink.runtime.shuffle.ShuffleDescriptor;
 import org.apache.flink.runtime.slots.ResourceRequirement;
@@ -96,6 +97,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.Executor;
 import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -113,7 +115,8 @@ import static org.apache.flink.util.Preconditions.checkState;
  * </ul>
  */
 public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
-        extends FencedRpcEndpoint<ResourceManagerId> implements ResourceManagerGateway {
+        extends FencedRpcEndpoint<ResourceManagerId>
+        implements DelegationTokenListener, ResourceManagerGateway {
 
     public static final String RESOURCE_MANAGER_NAME = "resourcemanager";
 
@@ -162,6 +165,8 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
     private final DelegationTokenManager delegationTokenManager;
 
     protected final BlocklistHandler blocklistHandler;
+
+    private final AtomicReference<byte[]> latestTokens = new AtomicReference<>();
 
     public ResourceManager(
             RpcService rpcService,
@@ -264,7 +269,7 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
                     new ResourceActionsImpl(),
                     blocklistHandler::isBlockedTaskManager);
 
-            delegationTokenManager.start();
+            delegationTokenManager.start(this);
 
             initialize();
         } catch (Exception e) {
@@ -1011,7 +1016,10 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
                     taskExecutorResourceId, new TaskExecutorHeartbeatSender(taskExecutorGateway));
 
             return new TaskExecutorRegistrationSuccess(
-                    registration.getInstanceID(), resourceId, clusterInformation);
+                    registration.getInstanceID(),
+                    resourceId,
+                    clusterInformation,
+                    latestTokens.get());
         }
     }
 
@@ -1527,5 +1535,28 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 
     protected Map<WorkerResourceSpec, Integer> getRequiredResources() {
         return slotManager.getRequiredResources();
+    }
+
+    @Override
+    public void onNewTokensObtained(byte[] tokens) throws Exception {
+        latestTokens.set(tokens);
+
+        log.info("Updating delegation tokens for {} task manager(s).", taskExecutors.size());
+
+        if (!taskExecutors.isEmpty()) {
+            final List<CompletableFuture<Acknowledge>> futures =
+                    new ArrayList<>(taskExecutors.size());
+
+            for (Map.Entry<ResourceID, WorkerRegistration<WorkerType>> workerRegistrationEntry :
+                    taskExecutors.entrySet()) {
+                WorkerRegistration<WorkerType> registration = workerRegistrationEntry.getValue();
+                log.info("Updating delegation tokens for node {}.", registration.getNodeId());
+                final TaskExecutorGateway taskExecutorGateway =
+                        registration.getTaskExecutorGateway();
+                futures.add(taskExecutorGateway.updateDelegationTokens(getFencingToken(), tokens));
+            }
+
+            FutureUtils.combineAll(futures).get();
+        }
     }
 }

@@ -93,10 +93,15 @@ public class BatchExecutionKeyedStateBackend<K> implements CheckpointableKeyedSt
     private final Map<String, KeyGroupedInternalPriorityQueue<?>> priorityQueues = new HashMap<>();
     private final KeyGroupRange keyGroupRange;
 
+    private final ExecutionConfig executionConfig;
+
     public BatchExecutionKeyedStateBackend(
-            TypeSerializer<K> keySerializer, KeyGroupRange keyGroupRange) {
+            TypeSerializer<K> keySerializer,
+            KeyGroupRange keyGroupRange,
+            ExecutionConfig executionConfig) {
         this.keySerializer = keySerializer;
         this.keyGroupRange = keyGroupRange;
+        this.executionConfig = executionConfig;
     }
 
     @Override
@@ -167,7 +172,7 @@ public class BatchExecutionKeyedStateBackend<K> implements CheckpointableKeyedSt
                         + "This operation cannot use partitioned state.");
 
         if (!stateDescriptor.isSerializerInitialized()) {
-            stateDescriptor.initializeSerializerUnlessSet(new ExecutionConfig());
+            stateDescriptor.initializeSerializerUnlessSet(executionConfig);
         }
 
         State state = states.get(stateDescriptor.getName());

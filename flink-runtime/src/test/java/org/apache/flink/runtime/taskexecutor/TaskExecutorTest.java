@@ -419,7 +419,8 @@ public class TaskExecutorTest extends TestLogger {
                         new TaskExecutorRegistrationSuccess(
                                 new InstanceID(),
                                 testingResourceManagerGateway.getOwnResourceId(),
-                                new ClusterInformation("foobar", 1234))));
+                                new ClusterInformation("foobar", 1234),
+                                null)));
         registrationResponses.add(new CompletableFuture<>());
         testingResourceManagerGateway.setRegisterTaskExecutorFunction(
                 taskExecutorRegistration -> registrationResponses.poll());
@@ -524,7 +525,10 @@ public class TaskExecutorTest extends TestLogger {
 
         final TaskExecutorRegistrationSuccess registrationResponse =
                 new TaskExecutorRegistrationSuccess(
-                        new InstanceID(), rmResourceId, new ClusterInformation("localhost", 1234));
+                        new InstanceID(),
+                        rmResourceId,
+                        new ClusterInformation("localhost", 1234),
+                        null);
         final Queue<CompletableFuture<RegistrationResponse>> registrationResponses =
                 new ArrayDeque<>(2);
         registrationResponses.add(CompletableFuture.completedFuture(registrationResponse));
@@ -605,7 +609,8 @@ public class TaskExecutorTest extends TestLogger {
                         new TaskExecutorRegistrationSuccess(
                                 new InstanceID(),
                                 rmResourceId,
-                                new ClusterInformation("localhost", 1234)));
+                                new ClusterInformation("localhost", 1234),
+                                null));
 
         rmGateway.setRegisterTaskExecutorFunction(
                 taskExecutorRegistration -> {
@@ -743,7 +748,8 @@ public class TaskExecutorTest extends TestLogger {
                                     new TaskExecutorRegistrationSuccess(
                                             new InstanceID(),
                                             new ResourceID(resourceManagerAddress),
-                                            new ClusterInformation("localhost", 1234)));
+                                            new ClusterInformation("localhost", 1234),
+                                            null));
                         }));
 
         rpc.registerGateway(resourceManagerAddress, testingResourceManagerGateway);
@@ -858,7 +864,8 @@ public class TaskExecutorTest extends TestLogger {
                 new TaskExecutorRegistrationSuccess(
                         new InstanceID(),
                         rmGateway1.getOwnResourceId(),
-                        new ClusterInformation("localhost", 1234)));
+                        new ClusterInformation("localhost", 1234),
+                        null));
     }
 
     @Test
@@ -1510,7 +1517,8 @@ public class TaskExecutorTest extends TestLogger {
                                 new TaskExecutorRegistrationSuccess(
                                         registrationId,
                                         resourceManagerGateway.getOwnResourceId(),
-                                        new ClusterInformation("localhost", 1234))));
+                                        new ClusterInformation("localhost", 1234),
+                                        null)));
 
         resourceManagerGateway.setNotifySlotAvailableConsumer(availableSlotFuture::complete);
 
@@ -1894,7 +1902,10 @@ public class TaskExecutorTest extends TestLogger {
             final CompletableFuture<RegistrationResponse> registrationResponseFuture =
                     CompletableFuture.completedFuture(
                             new TaskExecutorRegistrationSuccess(
-                                    new InstanceID(), ResourceID.generate(), clusterInformation));
+                                    new InstanceID(),
+                                    ResourceID.generate(),
+                                    clusterInformation,
+                                    null));
             final BlockingQueue<ResourceID> registrationQueue = new ArrayBlockingQueue<>(1);
 
             testingResourceManagerGateway.setRegisterTaskExecutorFunction(
@@ -1988,7 +1999,8 @@ public class TaskExecutorTest extends TestLogger {
                                 new TaskExecutorRegistrationSuccess(
                                         new InstanceID(),
                                         ownResourceId,
-                                        new ClusterInformation("localhost", 1234)));
+                                        new ClusterInformation("localhost", 1234),
+                                        null));
                     });
 
             rpc.registerGateway(
@@ -2043,7 +2055,8 @@ public class TaskExecutorTest extends TestLogger {
                             new TaskExecutorRegistrationSuccess(
                                     new InstanceID(),
                                     testingResourceManagerGateway.getOwnResourceId(),
-                                    new ClusterInformation("foobar", 1234)));
+                                    new ClusterInformation("foobar", 1234),
+                                    null));
 
             final CountDownLatch numberRegistrations = new CountDownLatch(2);
 

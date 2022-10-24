@@ -34,23 +34,23 @@ import org.apache.flink.table.data.conversion.DataStructureConverters;
 import org.apache.flink.table.planner.functions.casting.RowDataToStringConverterImpl;
 import org.apache.flink.table.utils.DateTimeUtils;
 import org.apache.flink.table.utils.print.RowDataToStringConverter;
-import org.apache.flink.testutils.executor.TestExecutorResource;
+import org.apache.flink.testutils.TestingUtils;
+import org.apache.flink.testutils.executor.TestExecutorExtension;
 import org.apache.flink.types.Row;
 import org.apache.flink.types.RowKind;
 
 import org.jline.terminal.Terminal;
-import org.junit.Before;
-import org.junit.ClassRule;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.RegisterExtension;
 
 import java.io.ByteArrayOutputStream;
 import java.math.BigDecimal;
 import java.sql.Timestamp;
 import java.util.Arrays;
 import java.util.List;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
@@ -60,10 +60,10 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.fail;
 
 /** Tests for CliTableauResultView. */
-public class CliTableauResultViewTest {
-    @ClassRule
-    public static final TestExecutorResource<ExecutorService> EXECUTOR_RESOURCE =
-            new TestExecutorResource<>(Executors::newSingleThreadExecutor);
+class CliTableauResultViewTest {
+    @RegisterExtension
+    static final TestExecutorExtension<ScheduledExecutorService> EXECUTOR_RESOURCE =
+            TestingUtils.defaultExecutorExtension();
 
     private ByteArrayOutputStream terminalOutput;
     private Terminal terminal;
@@ -72,8 +72,8 @@ public class CliTableauResultViewTest {
     private List<RowData> streamingData;
     private RowDataToStringConverter rowDataToStringConverter;
 
-    @Before
-    public void setUp() {
+    @BeforeEach
+    void setUp() {
         terminalOutput = new ByteArrayOutputStream();
         terminal = TerminalUtils.createDumbTerminal(terminalOutput);
 
@@ -183,7 +183,7 @@ public class CliTableauResultViewTest {
     }
 
     @Test
-    public void testBatchResult() {
+    void testBatchResult() {
         final Configuration testConfig = new Configuration();
         testConfig.set(EXECUTION_RESULT_MODE, ResultMode.TABLEAU);
         testConfig.set(RUNTIME_MODE, RuntimeExecutionMode.BATCH);
@@ -205,8 +205,8 @@ public class CliTableauResultViewTest {
 
         view.displayResults();
         view.close();
-        assertThat(terminalOutput.toString())
-                .isEqualTo(
+        assertThat(terminalOutput)
+                .hasToString(
                         "+---------+-------------+----------------------+--------------------------------+----------------+----------------------------+---------------------+"
                                 + System.lineSeparator()
                                 + "| boolean |         int |               bigint |                        varchar | decimal(10, 5) |                  timestamp |              binary |"
@@ -233,11 +233,11 @@ public class CliTableauResultViewTest {
                                 + System.lineSeparator()
                                 + "8 rows in set"
                                 + System.lineSeparator());
-        assertThat(mockExecutor.getNumCancelCalls()).isEqualTo(0);
+        assertThat(mockExecutor.getNumCancelCalls()).isZero();
     }
 
     @Test
-    public void testCancelBatchResult() throws Exception {
+    void testCancelBatchResult() throws Exception {
         final Configuration testConfig = new Configuration();
         testConfig.set(EXECUTION_RESULT_MODE, ResultMode.TABLEAU);
         testConfig.set(RUNTIME_MODE, RuntimeExecutionMode.BATCH);
@@ -265,19 +265,20 @@ public class CliTableauResultViewTest {
         terminal.raise(Terminal.Signal.INT);
         furture.get(5, TimeUnit.SECONDS);
 
-        assertThat(terminalOutput.toString())
-                .isEqualTo("Query terminated, received a total of 0 row" + System.lineSeparator());
+        assertThat(terminalOutput)
+                .hasToString(
+                        "Query terminated, received a total of 0 row" + System.lineSeparator());
 
         // didn't have a chance to read page
-        assertThat(mockExecutor.getNumRetrieveResultPageCalls()).isEqualTo(0);
+        assertThat(mockExecutor.getNumRetrieveResultPageCalls()).isZero();
         // tried to cancel query
-        assertThat(mockExecutor.getNumCancelCalls()).isEqualTo(1);
+        assertThat(mockExecutor.getNumCancelCalls()).isOne();
 
         view.close();
     }
 
     @Test
-    public void testEmptyBatchResult() {
+    void testEmptyBatchResult() {
         final Configuration testConfig = new Configuration();
         testConfig.set(EXECUTION_RESULT_MODE, ResultMode.TABLEAU);
         testConfig.set(RUNTIME_MODE, RuntimeExecutionMode.BATCH);
@@ -299,12 +300,12 @@ public class CliTableauResultViewTest {
         view.displayResults();
         view.close();
 
-        assertThat(terminalOutput.toString()).isEqualTo("Empty set" + System.lineSeparator());
-        assertThat(mockExecutor.getNumCancelCalls()).isEqualTo(0);
+        assertThat(terminalOutput).hasToString("Empty set" + System.lineSeparator());
+        assertThat(mockExecutor.getNumCancelCalls()).isZero();
     }
 
     @Test
-    public void testFailedBatchResult() {
+    void testFailedBatchResult() {
         final Configuration testConfig = new Configuration();
         testConfig.set(EXECUTION_RESULT_MODE, ResultMode.TABLEAU);
         testConfig.set(RUNTIME_MODE, RuntimeExecutionMode.BATCH);
@@ -331,11 +332,11 @@ public class CliTableauResultViewTest {
         }
         view.close();
 
-        assertThat(mockExecutor.getNumCancelCalls()).isEqualTo(1);
+        assertThat(mockExecutor.getNumCancelCalls()).isOne();
     }
 
     @Test
-    public void testStreamingResult() {
+    void testStreamingResult() {
         final Configuration testConfig = new Configuration();
         testConfig.set(EXECUTION_RESULT_MODE, ResultMode.TABLEAU);
         testConfig.set(RUNTIME_MODE, RuntimeExecutionMode.STREAMING);
@@ -366,8 +367,8 @@ public class CliTableauResultViewTest {
         // width < 2 in IDE by default, every CJK character usually's width is 2, you can open this
         // source file
         // by vim or just cat the file to check the regular result.
-        assertThat(terminalOutput.toString())
-                .isEqualTo(
+        assertThat(terminalOutput)
+                .hasToString(
                         "+----+---------+-------------+----------------------+--------------------------------+----------------+----------------------------+--------------------------------+"
                                 + System.lineSeparator()
                                 + "| op | boolean |         int |               bigint |                        varchar | decimal(10, 5) |                  timestamp |                         binary |"
@@ -394,11 +395,11 @@ public class CliTableauResultViewTest {
                                 + System.lineSeparator()
                                 + "Received a total of 8 rows"
                                 + System.lineSeparator());
-        assertThat(mockExecutor.getNumCancelCalls()).isEqualTo(0);
+        assertThat(mockExecutor.getNumCancelCalls()).isZero();
     }
 
     @Test
-    public void testEmptyStreamingResult() {
+    void testEmptyStreamingResult() {
         final Configuration testConfig = new Configuration();
         testConfig.set(EXECUTION_RESULT_MODE, ResultMode.TABLEAU);
         testConfig.set(RUNTIME_MODE, RuntimeExecutionMode.STREAMING);
@@ -416,8 +417,8 @@ public class CliTableauResultViewTest {
         view.displayResults();
         view.close();
 
-        assertThat(terminalOutput.toString())
-                .isEqualTo(
+        assertThat(terminalOutput)
+                .hasToString(
                         "+----+---------+-------------+----------------------+--------------------------------+----------------+----------------------------+--------------------------------+"
                                 + System.lineSeparator()
                                 + "| op | boolean |         int |               bigint |                        varchar | decimal(10, 5) |                  timestamp |                         binary |"
@@ -426,11 +427,11 @@ public class CliTableauResultViewTest {
                                 + System.lineSeparator()
                                 + "Received a total of 0 row"
                                 + System.lineSeparator());
-        assertThat(mockExecutor.getNumCancelCalls()).isEqualTo(0);
+        assertThat(mockExecutor.getNumCancelCalls()).isZero();
     }
 
     @Test
-    public void testCancelStreamingResult() throws Exception {
+    void testCancelStreamingResult() throws Exception {
         final Configuration testConfig = new Configuration();
         testConfig.set(EXECUTION_RESULT_MODE, ResultMode.TABLEAU);
         testConfig.set(RUNTIME_MODE, RuntimeExecutionMode.STREAMING);
@@ -461,8 +462,8 @@ public class CliTableauResultViewTest {
         furture.get(5, TimeUnit.SECONDS);
         view.close();
 
-        assertThat(terminalOutput.toString())
-                .isEqualTo(
+        assertThat(terminalOutput)
+                .hasToString(
                         "+----+---------+-------------+----------------------+--------------------------------+----------------+----------------------------+--------------------------------+"
                                 + System.lineSeparator()
                                 + "| op | boolean |         int |               bigint |                        varchar | decimal(10, 5) |                  timestamp |                         binary |"
@@ -480,11 +481,11 @@ public class CliTableauResultViewTest {
                                 + "Query terminated, received a total of 4 rows"
                                 + System.lineSeparator());
 
-        assertThat(mockExecutor.getNumCancelCalls()).isEqualTo(1);
+        assertThat(mockExecutor.getNumCancelCalls()).isOne();
     }
 
     @Test
-    public void testFailedStreamingResult() {
+    void testFailedStreamingResult() {
         final Configuration testConfig = new Configuration();
         testConfig.set(EXECUTION_RESULT_MODE, ResultMode.TABLEAU);
         testConfig.set(RUNTIME_MODE, RuntimeExecutionMode.STREAMING);
@@ -513,8 +514,8 @@ public class CliTableauResultViewTest {
         }
         view.close();
 
-        assertThat(terminalOutput.toString())
-                .isEqualTo(
+        assertThat(terminalOutput)
+                .hasToString(
                         "+----+---------+-------------+----------------------+--------------------------------+----------------+----------------------------+--------------------------------+"
                                 + System.lineSeparator()
                                 + "| op | boolean |         int |               bigint |                        varchar | decimal(10, 5) |                  timestamp |                         binary |"
@@ -529,6 +530,6 @@ public class CliTableauResultViewTest {
                                 + System.lineSeparator()
                                 + "| -D |   FALSE | -2147483648 |  9223372036854775807 |                         <NULL> |    12345.06789 | 2020-03-01 18:39:14.123000 |            x'32333485365d737e' |"
                                 + System.lineSeparator());
-        assertThat(mockExecutor.getNumCancelCalls()).isEqualTo(1);
+        assertThat(mockExecutor.getNumCancelCalls()).isOne();
     }
 }

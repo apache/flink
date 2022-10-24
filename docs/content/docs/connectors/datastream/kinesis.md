@@ -349,10 +349,10 @@ The stream consumer will be registered using the name provided by the `EFO_CONSU
     to invoke [RegisterStreamConsumer](https://docs.aws.amazon.com/kinesis/latest/APIReference/API_RegisterStreamConsumer.html).
     Stream consumer ARNs should be provided to the job via the consumer configuration.
 - Deregistration
-  - `LAZY|EAGER` (default): Stream consumers are deregistered when the job is shutdown gracefully.
+  - `LAZY` (default): Stream consumers are deregistered when the job is shutdown gracefully.
     In the event that a job terminates without executing the shutdown hooks, stream consumers will remain active.
     In this situation the stream consumers will be gracefully reused when the application restarts. 
-  - `NONE`: Stream consumer deregistration is not performed by `FlinkKinesisConsumer`.
+  - `EAGER|NONE`: Stream consumer deregistration is not performed by `FlinkKinesisConsumer`.
 
 Below is an example configuration to use the `EAGER` registration strategy:
 

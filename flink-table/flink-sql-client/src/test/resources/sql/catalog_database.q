@@ -88,6 +88,11 @@ drop catalog default_catalog;
 [INFO] Execute statement succeed.
 !info
 
+drop catalog c1;
+[ERROR] Could not execute SQL statement. Reason:
+org.apache.flink.table.catalog.exceptions.CatalogException: Cannot drop a catalog which is currently in use.
+!error
+
 # ==========================================================================
 # test database
 # ==========================================================================
@@ -180,6 +185,15 @@ use `default`;
 !info
 
 drop database `default`;
+[INFO] Execute statement succeed.
+!info
+
+drop catalog `mod`;
+[ERROR] Could not execute SQL statement. Reason:
+org.apache.flink.table.catalog.exceptions.CatalogException: Cannot drop a catalog which is currently in use.
+!error
+
+use catalog `c1`;
 [INFO] Execute statement succeed.
 !info
 

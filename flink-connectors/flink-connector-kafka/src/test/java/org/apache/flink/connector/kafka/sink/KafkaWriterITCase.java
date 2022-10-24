@@ -139,21 +139,21 @@ public class KafkaWriterITCase {
         try (final KafkaWriter<Integer> writer =
                 createWriterWithConfiguration(
                         getKafkaClientConfiguration(), DeliveryGuarantee.NONE, metricGroup)) {
-            final Counter numBytesSend = metricGroup.getNumBytesSendCounter();
-            final Counter numRecordsSend = metricGroup.getNumRecordsSendCounter();
-            final Counter numRecordsWrittenErrors = metricGroup.getNumRecordsOutErrorsCounter();
+            final Counter numBytesOut = metricGroup.getIOMetricGroup().getNumBytesOutCounter();
+            final Counter numRecordsOut = metricGroup.getIOMetricGroup().getNumRecordsOutCounter();
+            final Counter numRecordsOutErrors = metricGroup.getNumRecordsOutErrorsCounter();
             final Counter numRecordsSendErrors = metricGroup.getNumRecordsSendErrorsCounter();
-            assertThat(numBytesSend.getCount()).isEqualTo(0L);
-            assertThat(numRecordsSend.getCount()).isEqualTo(0);
-            assertThat(numRecordsWrittenErrors.getCount()).isEqualTo(0);
+            assertThat(numBytesOut.getCount()).isEqualTo(0L);
+            assertThat(numRecordsOut.getCount()).isEqualTo(0);
+            assertThat(numRecordsOutErrors.getCount()).isEqualTo(0);
             assertThat(numRecordsSendErrors.getCount()).isEqualTo(0);
 
             writer.write(1, SINK_WRITER_CONTEXT);
             timeService.trigger();
-            assertThat(numRecordsSend.getCount()).isEqualTo(1);
-            assertThat(numRecordsWrittenErrors.getCount()).isEqualTo(0);
+            assertThat(numRecordsOut.getCount()).isEqualTo(1);
+            assertThat(numRecordsOutErrors.getCount()).isEqualTo(0);
             assertThat(numRecordsSendErrors.getCount()).isEqualTo(0);
-            assertThat(numBytesSend.getCount()).isGreaterThan(0L);
+            assertThat(numBytesOut.getCount()).isGreaterThan(0L);
         }
     }
 
@@ -197,13 +197,10 @@ public class KafkaWriterITCase {
                 createWriterWithConfiguration(
                         properties, DeliveryGuarantee.EXACTLY_ONCE, metricGroup)) {
             final Counter numRecordsOutErrors = metricGroup.getNumRecordsOutErrorsCounter();
-            final Counter numRecordsSendErrors = metricGroup.getNumRecordsSendErrorsCounter();
             assertThat(numRecordsOutErrors.getCount()).isEqualTo(0L);
-            assertThat(numRecordsSendErrors.getCount()).isEqualTo(0L);
 
             writer.write(1, SINK_WRITER_CONTEXT);
             assertThat(numRecordsOutErrors.getCount()).isEqualTo(0L);
-            assertThat(numRecordsSendErrors.getCount()).isEqualTo(0L);
 
             final String transactionalId = writer.getCurrentProducer().getTransactionalId();
 
@@ -220,7 +217,6 @@ public class KafkaWriterITCase {
             writer.flush(false);
             writer.prepareCommit();
             assertThat(numRecordsOutErrors.getCount()).isEqualTo(1L);
-            assertThat(numRecordsSendErrors.getCount()).isEqualTo(1L);
         }
     }
 

@@ -33,6 +33,7 @@ import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.PulsarClient;
 
 import java.util.Collection;
+import java.util.Set;
 
 /**
  * The common pulsar source reader for both ordered & unordered message consuming.
@@ -91,5 +92,11 @@ abstract class PulsarSourceReaderBase<OUT>
         // Close shared pulsar resources.
         pulsarClient.shutdown();
         pulsarAdmin.close();
+    }
+
+    protected void closeFinishedSplits(Set<String> finishedSplitIds) {
+        for (String splitId : finishedSplitIds) {
+            ((PulsarFetcherManagerBase<OUT>) splitFetcherManager).closeFetcher(splitId);
+        }
     }
 }

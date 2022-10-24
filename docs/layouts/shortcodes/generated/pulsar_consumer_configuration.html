@@ -33,12 +33,6 @@
             <td>Buffering a large number of outstanding uncompleted chunked messages can bring memory pressure and it can be guarded by providing this <code class="highlighter-rouge">pulsar.consumer.maxPendingChunkedMessage</code> threshold. Once a consumer reaches this threshold, it drops the outstanding unchunked-messages by silently acknowledging if <code class="highlighter-rouge">pulsar.consumer.autoAckOldestChunkedMessageOnQueueFull</code> is true. Otherwise, it marks them for redelivery.</td>
         </tr>
         <tr>
-            <td><h5>pulsar.consumer.autoUpdatePartitionsIntervalSeconds</h5></td>
-            <td style="word-wrap: break-word;">60</td>
-            <td>Integer</td>
-            <td>The interval (in seconds) of updating partitions. This only works if autoUpdatePartitions is enabled.</td>
-        </tr>
-        <tr>
             <td><h5>pulsar.consumer.consumerName</h5></td>
             <td style="word-wrap: break-word;">(none)</td>
             <td>String</td>

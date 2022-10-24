@@ -1325,6 +1325,7 @@ class FlinkRelMdHandlerTestBase {
         false,
         List(Integer.valueOf(argIndex)),
         filterArg,
+        null,
         RelCollations.EMPTY,
         1,
         calcOnStudentScan,

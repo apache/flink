@@ -584,13 +584,6 @@ public final class PulsarSourceOptions {
                     .defaultValue(false)
                     .withDescription("If enabled, the consumer will automatically retry messages.");
 
-    public static final ConfigOption<Integer> PULSAR_AUTO_UPDATE_PARTITIONS_INTERVAL_SECONDS =
-            ConfigOptions.key(CONSUMER_CONFIG_PREFIX + "autoUpdatePartitionsIntervalSeconds")
-                    .intType()
-                    .defaultValue(60)
-                    .withDescription(
-                            "The interval (in seconds) of updating partitions. This only works if autoUpdatePartitions is enabled.");
-
     public static final ConfigOption<Boolean> PULSAR_REPLICATE_SUBSCRIPTION_STATE =
             ConfigOptions.key(CONSUMER_CONFIG_PREFIX + "replicateSubscriptionState")
                     .booleanType()

@@ -44,7 +44,7 @@ import java.util.List;
  */
 public abstract class Minus extends SetOp {
 
-    public Minus(
+    protected Minus(
             RelOptCluster cluster,
             RelTraitSet traits,
             List<RelHint> hints,

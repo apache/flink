@@ -127,6 +127,8 @@ public final class PulsarSinkOptions {
                             "The allowed transaction recommit times if we meet some retryable exception."
                                     + " This is used in Pulsar Transaction.");
 
+    /** @deprecated This config option was removed for better performance. */
+    @Deprecated
     public static final ConfigOption<Integer> PULSAR_MAX_PENDING_MESSAGES_ON_PARALLELISM =
             ConfigOptions.key(SINK_CONFIG_PREFIX + "maxPendingMessages")
                     .intType()

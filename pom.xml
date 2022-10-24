@@ -143,7 +143,7 @@ under the License.
 		<curator.version>5.2.0</curator.version>
 		<avro.version>1.11.1</avro.version>
 		<!-- Version for transitive Jackson dependencies that are not used within Flink itself.-->
-		<jackson-bom.version>2.13.4</jackson-bom.version>
+		<jackson-bom.version>2.13.4.20221013</jackson-bom.version>
 		<javax.activation.api.version>1.2.0</javax.activation.api.version>
 		<jaxb.api.version>2.3.1</jaxb.api.version>
 		<junit4.version>4.13.2</junit4.version>
@@ -972,32 +972,6 @@ under the License.
 							<groupId>org.apache.maven.plugins</groupId>
 							<artifactId>maven-shade-plugin</artifactId>
 							<version>3.2.4</version>
-						</plugin>
-						<plugin>
-							<groupId>io.github.zentol.japicmp</groupId>
-							<artifactId>japicmp-maven-plugin</artifactId>
-							<dependencies>
-								<dependency>
-									<groupId>javax.xml.bind</groupId>
-									<artifactId>jaxb-api</artifactId>
-									<version>2.3.0</version>
-								</dependency>
-								<dependency>
-									<groupId>com.sun.xml.bind</groupId>
-									<artifactId>jaxb-impl</artifactId>
-									<version>2.3.1</version>
-								</dependency>
-								<dependency>
-									<groupId>com.sun.xml.bind</groupId>
-									<artifactId>jaxb-core</artifactId>
-									<version>2.3.0</version>
-								</dependency>
-								<dependency>
-									<groupId>javax.activation</groupId>
-									<artifactId>activation</artifactId>
-									<version>1.1.1</version>
-								</dependency>
-							</dependencies>
 						</plugin>
 						<plugin>
 							<groupId>org.apache.maven.plugins</groupId>

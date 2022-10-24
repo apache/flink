@@ -102,10 +102,10 @@ public final class FlinkRexBuilder extends RexBuilder {
      * @return Simple literal, or cast simple literal
      */
     @Override
-    public RexNode makeZeroLiteral(RelDataType type) {
+    public RexLiteral makeZeroLiteral(RelDataType type) {
         switch (type.getSqlTypeName()) {
             case TIMESTAMP_WITH_LOCAL_TIME_ZONE:
-                return makeLiteral(new TimestampString(1970, 1, 1, 0, 0, 0), type, false);
+                return makeLiteral(new TimestampString(1970, 1, 1, 0, 0, 0), type);
             default:
                 return super.makeZeroLiteral(type);
         }

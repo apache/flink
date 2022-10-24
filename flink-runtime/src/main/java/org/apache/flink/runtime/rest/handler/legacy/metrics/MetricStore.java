@@ -100,7 +100,11 @@ public class MetricStore {
                         Map<Integer, Integer> vertexAttempts =
                                 jobRepresentativeAttempts.compute(
                                         vertexId, (k, overwritten) -> new HashMap<>());
-                        TaskMetricStore taskMetricStore = getTaskMetricStore(jobId, vertexId);
+                        JobMetricStore jobMetricStore = this.jobs.get(jobId);
+                        TaskMetricStore taskMetricStore =
+                                jobMetricStore.getTaskMetricStore(vertexId);
+                        // Retains current active subtasks to accommodate dynamic scaling
+                        taskMetricStore.retainSubtasks(subtaskAttempts.keySet());
                         subtaskAttempts.forEach(
                                 (subtaskIndex, attempts) -> {
                                     // Updates representative attempts
@@ -496,6 +500,10 @@ public class MetricStore {
 
         public Map<Integer, SubtaskMetricStore> getAllSubtaskMetricStores() {
             return unmodifiableMap(subtasks);
+        }
+
+        void retainSubtasks(Set<Integer> activeSubtasks) {
+            subtasks.keySet().retainAll(activeSubtasks);
         }
 
         private static TaskMetricStore unmodifiable(TaskMetricStore source) {

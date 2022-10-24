@@ -18,7 +18,7 @@
 
 import { HttpEventType } from '@angular/common/http';
 import { ChangeDetectionStrategy, ChangeDetectorRef, Component, OnDestroy, OnInit, ViewChild } from '@angular/core';
-import { FormBuilder, FormGroup } from '@angular/forms';
+import { UntypedFormBuilder, UntypedFormGroup } from '@angular/forms';
 import { Router } from '@angular/router';
 import { Subject } from 'rxjs';
 import { mergeMap, takeUntil } from 'rxjs/operators';
@@ -44,7 +44,7 @@ export class SubmitComponent implements OnInit, OnDestroy {
   public noAccess = false;
   public isUploading = false;
   public progress = 0;
-  public validateForm: FormGroup;
+  public validateForm: UntypedFormGroup;
   public planVisible = false;
 
   @ViewChild(DagreComponent, { static: true }) private readonly dagreComponent: DagreComponent;
@@ -54,7 +54,7 @@ export class SubmitComponent implements OnInit, OnDestroy {
   constructor(
     private readonly jarService: JarService,
     private readonly statusService: StatusService,
-    private readonly fb: FormBuilder,
+    private readonly fb: UntypedFormBuilder,
     private readonly router: Router,
     private readonly cdr: ChangeDetectorRef
   ) {}

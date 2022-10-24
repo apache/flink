@@ -18,7 +18,6 @@
 
 package org.apache.calcite.rel.core;
 
-import org.apache.calcite.config.CalciteSystemProperty;
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelOptCost;
 import org.apache.calcite.plan.RelOptPlanner;
@@ -38,9 +37,14 @@ import org.apache.calcite.rex.RexProgram;
 import org.apache.calcite.rex.RexShuttle;
 import org.apache.calcite.rex.RexUtil;
 import org.apache.calcite.util.Litmus;
+import org.apiguardian.api.API;
+import org.checkerframework.checker.nullness.qual.EnsuresNonNullIf;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 import java.util.List;
 import java.util.Objects;
+
+import static java.util.Objects.requireNonNull;
 
 /**
  * Relational expression that iterates over its input and returns elements for which <code>condition
@@ -71,6 +75,7 @@ public abstract class Filter extends SingleRel implements Hintable {
      * @param child input relational expression
      * @param condition boolean expression which determines whether a row is allowed to pass
      */
+    @SuppressWarnings("method.invocation.invalid")
     protected Filter(
             RelOptCluster cluster,
             RelTraitSet traits,
@@ -78,11 +83,10 @@ public abstract class Filter extends SingleRel implements Hintable {
             RelNode child,
             RexNode condition) {
         super(cluster, traits, child);
-        assert condition != null;
-        assert RexUtil.isFlat(condition) : condition;
-        this.condition = condition;
-        // Too expensive for everyday use:
-        assert !CalciteSystemProperty.DEBUG.value() || isValid(Litmus.THROW, null);
+        this.condition = requireNonNull(condition, "condition");
+        assert RexUtil.isFlat(condition)
+                : "RexUtil.isFlat should be true for condition " + condition;
+        assert isValid(Litmus.THROW, null);
         this.hints = com.google.common.collect.ImmutableList.copyOf(hints);
     }
 
@@ -104,7 +108,7 @@ public abstract class Filter extends SingleRel implements Hintable {
                 input.getCluster(),
                 input.getTraitSet(),
                 input.getInput(),
-                input.getExpression("condition"));
+                requireNonNull(input.getExpression("condition"), "condition"));
     }
 
     // ~ Methods ----------------------------------------------------------------
@@ -116,6 +120,7 @@ public abstract class Filter extends SingleRel implements Hintable {
 
     public abstract Filter copy(RelTraitSet traitSet, RelNode input, RexNode condition);
 
+    @Override
     public RelNode accept(RexShuttle shuttle) {
         RexNode condition = shuttle.apply(this.condition);
         if (this.condition == condition) {
@@ -134,7 +139,7 @@ public abstract class Filter extends SingleRel implements Hintable {
     }
 
     @Override
-    public boolean isValid(Litmus litmus, Context context) {
+    public boolean isValid(Litmus litmus, @Nullable Context context) {
         if (RexUtil.isNullabilityCast(getCluster().getTypeFactory(), condition)) {
             return litmus.fail("Cast for just nullability not allowed");
         }
@@ -147,7 +152,7 @@ public abstract class Filter extends SingleRel implements Hintable {
     }
 
     @Override
-    public RelOptCost computeSelfCost(RelOptPlanner planner, RelMetadataQuery mq) {
+    public @Nullable RelOptCost computeSelfCost(RelOptPlanner planner, RelMetadataQuery mq) {
         double dRows = mq.getRowCount(this);
         double dCpu = mq.getRowCount(getInput());
         double dIo = 0;
@@ -171,11 +176,14 @@ public abstract class Filter extends SingleRel implements Hintable {
         return RelMdUtil.estimateFilteredRows(child, condition, mq);
     }
 
+    @Override
     public RelWriter explainTerms(RelWriter pw) {
         return super.explainTerms(pw).item("condition", condition);
     }
 
-    protected boolean deepEquals0(Object obj) {
+    @API(since = "1.24", status = API.Status.INTERNAL)
+    @EnsuresNonNullIf(expression = "#1", result = true)
+    protected boolean deepEquals0(@Nullable Object obj) {
         if (this == obj) {
             return true;
         }
@@ -190,6 +198,7 @@ public abstract class Filter extends SingleRel implements Hintable {
                 && getRowType().equalsSansFieldNames(o.getRowType());
     }
 
+    @API(since = "1.24", status = API.Status.INTERNAL)
     protected int deepHashCode0() {
         return Objects.hash(traitSet, hints, input.deepHashCode(), condition);
     }

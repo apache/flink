@@ -70,7 +70,7 @@ StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironm
 StreamTableEnvironment tEnv = StreamTableEnvironment.create(env);
 
 // 加载 hive 模块
-tEnv.executeSql("LOAD MODULE hive WITH ('hive-version' = '3.1.2')");
+tEnv.executeSql("LOAD MODULE hive WITH ('hive-version' = '3.1.3')");
 tEnv.executeSql("SHOW MODULES").print();
 // +-------------+
 // | module name |
@@ -87,7 +87,7 @@ val env = StreamExecutionEnvironment.getExecutionEnvironment()
 val tEnv = StreamTableEnvironment.create(env)
 
 // 加载 hive 模块
-tEnv.executeSql("LOAD MODULE hive WITH ('hive-version' = '3.1.2')")
+tEnv.executeSql("LOAD MODULE hive WITH ('hive-version' = '3.1.3')")
 tEnv.executeSql("SHOW MODULES").print()
 // +-------------+
 // | module name |
@@ -103,7 +103,7 @@ tEnv.executeSql("SHOW MODULES").print()
 table_env = StreamTableEnvironment.create(...)
 
 # 加载 hive 模块
-table_env.execute_sql("LOAD MODULE hive WITH ('hive-version' = '3.1.2')")
+table_env.execute_sql("LOAD MODULE hive WITH ('hive-version' = '3.1.3')")
 table_env.execute_sql("SHOW MODULES").print()
 # +-------------+
 # | module name |
@@ -116,7 +116,7 @@ table_env.execute_sql("SHOW MODULES").print()
 {{< /tab >}}
 {{< tab "SQL CLI" >}}
 ```sql
-Flink SQL> LOAD MODULE hive WITH ('hive-version' = '3.1.2');
+Flink SQL> LOAD MODULE hive WITH ('hive-version' = '3.1.3');
 [INFO] Load module succeeded!
 
 Flink SQL> SHOW MODULES;

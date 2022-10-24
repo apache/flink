@@ -51,13 +51,11 @@ import org.apache.flink.test.junit5.InjectClusterClient;
 import org.apache.flink.test.junit5.MiniClusterExtension;
 import org.apache.flink.test.util.TestBaseUtils;
 import org.apache.flink.util.StringUtils;
-import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.UserClassLoaderJarTestUtils;
 
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Order;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.Timeout;
 import org.junit.jupiter.api.extension.RegisterExtension;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -86,7 +84,7 @@ import static org.apache.flink.util.Preconditions.checkState;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Contains basic tests for the {@link LocalExecutor}. */
-public class LocalExecutorITCase extends TestLogger {
+class LocalExecutorITCase {
 
     private static final int NUM_TMS = 2;
     private static final int NUM_SLOTS_PER_TM = 2;
@@ -112,7 +110,7 @@ public class LocalExecutorITCase extends TestLogger {
     private static URL udfDependency;
 
     @BeforeAll
-    public static void setup(@InjectClusterClient ClusterClient<?> injectedClusterClient)
+    static void setup(@InjectClusterClient ClusterClient<?> injectedClusterClient)
             throws Exception {
         clusterClient = injectedClusterClient;
         File udfJar =
@@ -138,7 +136,7 @@ public class LocalExecutorITCase extends TestLogger {
     }
 
     @Test
-    public void testCompleteStatement() {
+    void testCompleteStatement() {
         final Executor executor = createLocalExecutor();
         String sessionId = executor.openSession("test-session");
         assertThat(sessionId).isEqualTo("test-session");
@@ -164,8 +162,7 @@ public class LocalExecutorITCase extends TestLogger {
     }
 
     @Test
-    @Timeout(value = 90)
-    public void testStreamQueryExecutionChangelog() throws Exception {
+    void testStreamQueryExecutionChangelog() throws Exception {
         final URL url = getClass().getClassLoader().getResource("test-data.csv");
         Objects.requireNonNull(url);
         final Map<String, String> replaceVars = new HashMap<>();
@@ -212,8 +209,7 @@ public class LocalExecutorITCase extends TestLogger {
     }
 
     @Test
-    @Timeout(value = 90)
-    public void testStreamQueryExecutionChangelogMultipleTimes() throws Exception {
+    void testStreamQueryExecutionChangelogMultipleTimes() throws Exception {
         final URL url = getClass().getClassLoader().getResource("test-data.csv");
         Objects.requireNonNull(url);
         final Map<String, String> replaceVars = new HashMap<>();
@@ -262,8 +258,7 @@ public class LocalExecutorITCase extends TestLogger {
     }
 
     @Test
-    @Timeout(value = 90)
-    public void testStreamQueryExecutionTable() throws Exception {
+    void testStreamQueryExecutionTable() throws Exception {
         final URL url = getClass().getClassLoader().getResource("test-data.csv");
         Objects.requireNonNull(url);
 
@@ -288,8 +283,7 @@ public class LocalExecutorITCase extends TestLogger {
     }
 
     @Test
-    @Timeout(value = 90)
-    public void testStreamQueryExecutionTableMultipleTimes() throws Exception {
+    void testStreamQueryExecutionTableMultipleTimes() throws Exception {
         final URL url = getClass().getClassLoader().getResource("test-data.csv");
         Objects.requireNonNull(url);
 
@@ -315,8 +309,7 @@ public class LocalExecutorITCase extends TestLogger {
     }
 
     @Test
-    @Timeout(value = 90)
-    public void testStreamQueryExecutionLimitedTable() throws Exception {
+    void testStreamQueryExecutionLimitedTable() throws Exception {
         final URL url = getClass().getClassLoader().getResource("test-data.csv");
         Objects.requireNonNull(url);
 
@@ -337,8 +330,7 @@ public class LocalExecutorITCase extends TestLogger {
     }
 
     @Test
-    @Timeout(value = 90)
-    public void testBatchQueryExecution() throws Exception {
+    void testBatchQueryExecution() throws Exception {
         final URL url = getClass().getClassLoader().getResource("test-data.csv");
         Objects.requireNonNull(url);
         final Map<String, String> replaceVars = new HashMap<>();
@@ -384,8 +376,7 @@ public class LocalExecutorITCase extends TestLogger {
     }
 
     @Test
-    @Timeout(value = 90)
-    public void testBatchQueryExecutionMultipleTimes() throws Exception {
+    void testBatchQueryExecutionMultipleTimes() throws Exception {
         final URL url = getClass().getClassLoader().getResource("test-data.csv");
         Objects.requireNonNull(url);
         final Map<String, String> replaceVars = new HashMap<>();
@@ -433,8 +424,7 @@ public class LocalExecutorITCase extends TestLogger {
     }
 
     @Test
-    @Timeout(value = 90)
-    public void testStopJob() throws Exception {
+    void testStopJob() throws Exception {
         final Map<String, String> configMap = new HashMap<>();
         configMap.put(EXECUTION_RESULT_MODE.key(), ResultMode.TABLE.name());
         configMap.put(RUNTIME_MODE.key(), RuntimeExecutionMode.STREAMING.name());
@@ -466,7 +456,7 @@ public class LocalExecutorITCase extends TestLogger {
             } while (jobStatus != JobStatus.RUNNING);
 
             Optional<String> savepoint = executor.stopJob(sessionId, jobId.toString(), true, true);
-            assertThat(savepoint.isPresent()).isTrue();
+            assertThat(savepoint).isPresent();
         } finally {
             executor.closeSession(sessionId);
         }

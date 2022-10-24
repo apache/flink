@@ -90,7 +90,7 @@ export class JobOverviewComponent implements OnInit, OnDestroy {
         if (data) {
           this.dagreComponent.focusNode(data);
         } else if (this.selectedNode) {
-          this.timeoutId = setTimeout(() => this.dagreComponent.redrawGraph());
+          this.timeoutId = window.setTimeout(() => this.dagreComponent.redrawGraph());
         }
         this.selectedNode = data;
         this.cdr.markForCheck();

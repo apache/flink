@@ -18,6 +18,7 @@
 
 package org.apache.calcite.rel.core;
 
+import com.google.common.collect.ImmutableList;
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelOptCost;
 import org.apache.calcite.plan.RelOptPlanner;
@@ -36,6 +37,7 @@ import org.apache.calcite.rex.RexLiteral;
 import org.apache.calcite.sql.SqlExplainLevel;
 import org.apache.calcite.sql.type.SqlTypeUtil;
 import org.apache.calcite.util.Pair;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 import java.util.Collections;
 import java.util.List;
@@ -52,7 +54,7 @@ public abstract class Values extends AbstractRelNode implements Hintable {
 
     public static final Predicate<? super Values> IS_EMPTY_J = Values::isEmpty;
 
-    protected final com.google.common.collect.ImmutableList<RelHint> hints;
+    protected final ImmutableList<RelHint> hints;
 
     @SuppressWarnings("Guava")
     @Deprecated // to be removed before 2.0
@@ -65,9 +67,7 @@ public abstract class Values extends AbstractRelNode implements Hintable {
 
     // ~ Instance fields --------------------------------------------------------
 
-    public final com.google.common.collect.ImmutableList<
-                    com.google.common.collect.ImmutableList<RexLiteral>>
-            tuples;
+    public final ImmutableList<ImmutableList<RexLiteral>> tuples;
 
     // ~ Constructors -----------------------------------------------------------
 
@@ -87,14 +87,12 @@ public abstract class Values extends AbstractRelNode implements Hintable {
             RelOptCluster cluster,
             List<RelHint> hints,
             RelDataType rowType,
-            com.google.common.collect.ImmutableList<
-                            com.google.common.collect.ImmutableList<RexLiteral>>
-                    tuples,
+            ImmutableList<ImmutableList<RexLiteral>> tuples,
             RelTraitSet traits) {
         super(cluster, traits);
         this.rowType = rowType;
         this.tuples = tuples;
-        this.hints = com.google.common.collect.ImmutableList.copyOf(hints);
+        this.hints = ImmutableList.copyOf(hints);
         assert assertRowType();
     }
 
@@ -120,7 +118,7 @@ public abstract class Values extends AbstractRelNode implements Hintable {
     }
 
     /** Creates a Values by parsing serialized output. */
-    public Values(RelInput input) {
+    protected Values(RelInput input) {
         this(
                 input.getCluster(),
                 input.getRowType("type"),
@@ -154,21 +152,18 @@ public abstract class Values extends AbstractRelNode implements Hintable {
         return !isEmpty(values);
     }
 
-    public com.google.common.collect.ImmutableList<
-                    com.google.common.collect.ImmutableList<RexLiteral>>
-            getTuples(RelInput input) {
+    public ImmutableList<ImmutableList<RexLiteral>> getTuples(RelInput input) {
         return input.getTuples("tuples");
     }
 
     /** Returns the rows of literals represented by this Values relational expression. */
-    public com.google.common.collect.ImmutableList<
-                    com.google.common.collect.ImmutableList<RexLiteral>>
-            getTuples() {
+    public ImmutableList<ImmutableList<RexLiteral>> getTuples() {
         return tuples;
     }
 
     /** Returns true if all tuples match rowType; otherwise, assert on mismatch. */
     private boolean assertRowType() {
+        RelDataType rowType = getRowType();
         for (List<RexLiteral> tuple : tuples) {
             assert tuple.size() == rowType.getFieldCount();
             for (Pair<RexLiteral, RelDataTypeField> pair :
@@ -190,11 +185,12 @@ public abstract class Values extends AbstractRelNode implements Hintable {
 
     @Override
     protected RelDataType deriveRowType() {
+        assert rowType != null : "rowType must not be null for " + this;
         return rowType;
     }
 
     @Override
-    public RelOptCost computeSelfCost(RelOptPlanner planner, RelMetadataQuery mq) {
+    public @Nullable RelOptCost computeSelfCost(RelOptPlanner planner, RelMetadataQuery mq) {
         double dRows = mq.getRowCount(this);
 
         // Assume CPU is negligible since values are precomputed.
@@ -204,15 +200,18 @@ public abstract class Values extends AbstractRelNode implements Hintable {
     }
 
     // implement RelNode
+    @Override
     public double estimateRowCount(RelMetadataQuery mq) {
         return tuples.size();
     }
 
     // implement RelNode
+    @Override
     public RelWriter explainTerms(RelWriter pw) {
         // A little adapter just to get the tuples to come out
         // with curly brackets instead of square brackets.  Plus
         // more whitespace for readability.
+        RelDataType rowType = getRowType();
         RelWriter relWriter =
                 super.explainTerms(pw)
                         // For rel digest, include the row type since a rendered
@@ -243,7 +242,7 @@ public abstract class Values extends AbstractRelNode implements Hintable {
     }
 
     @Override
-    public com.google.common.collect.ImmutableList<RelHint> getHints() {
+    public ImmutableList<RelHint> getHints() {
         return hints;
     }
 }
