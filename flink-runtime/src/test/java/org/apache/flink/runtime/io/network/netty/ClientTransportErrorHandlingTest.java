@@ -81,7 +81,7 @@ public class ClientTransportErrorHandlingTest {
                         mock(ResultPartitionProvider.class), mock(TaskEventDispatcher.class)) {
 
                     @Override
-                    public ChannelHandler[] getServerChannelHandlers() {
+                    public ChannelHandler[] getServerChannelHandlers(Long idleTimeout) {
                         return new ChannelHandler[0];
                     }
                 };
@@ -230,7 +230,7 @@ public class ClientTransportErrorHandlingTest {
                         mock(ResultPartitionProvider.class), mock(TaskEventDispatcher.class)) {
 
                     @Override
-                    public ChannelHandler[] getServerChannelHandlers() {
+                    public ChannelHandler[] getServerChannelHandlers(Long idleTimeout) {
                         return new ChannelHandler[] {
                             // Close on read
                             new ChannelInboundHandlerAdapter() {

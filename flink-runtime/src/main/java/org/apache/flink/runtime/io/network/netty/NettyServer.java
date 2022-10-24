@@ -69,7 +69,7 @@ class NettyServer {
     int init(final NettyProtocol protocol, NettyBufferPool nettyBufferPool) throws IOException {
         return init(
                 nettyBufferPool,
-                sslHandlerFactory -> new ServerChannelInitializer(protocol, sslHandlerFactory));
+                sslHandlerFactory -> new ServerChannelInitializer(protocol, sslHandlerFactory, config.getHealthCheckTimeOutMilliSecond()));
     }
 
     int init(
@@ -211,11 +211,13 @@ class NettyServer {
     static class ServerChannelInitializer extends ChannelInitializer<SocketChannel> {
         private final NettyProtocol protocol;
         private final SSLHandlerFactory sslHandlerFactory;
+        private final Long nettyIdleTimeout;
 
         public ServerChannelInitializer(
-                NettyProtocol protocol, SSLHandlerFactory sslHandlerFactory) {
+                NettyProtocol protocol, SSLHandlerFactory sslHandlerFactory, Long nettyIdleTimeout) {
             this.protocol = protocol;
             this.sslHandlerFactory = sslHandlerFactory;
+            this.nettyIdleTimeout = nettyIdleTimeout;
         }
 
         @Override
@@ -225,7 +227,7 @@ class NettyServer {
                         .addLast("ssl", sslHandlerFactory.createNettySSLHandler(channel.alloc()));
             }
 
-            channel.pipeline().addLast(protocol.getServerChannelHandlers());
+            channel.pipeline().addLast(protocol.getServerChannelHandlers(this.nettyIdleTimeout));
         }
     }
 }

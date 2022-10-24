@@ -49,6 +49,8 @@ class PartitionRequestServerHandler extends SimpleChannelInboundHandler<NettyMes
 
     private final PartitionRequestQueue outboundQueue;
 
+    private boolean firstHeartbeat = true;
+
     PartitionRequestServerHandler(
             ResultPartitionProvider partitionProvider,
             TaskEventPublisher taskEventPublisher,
@@ -132,6 +134,14 @@ class PartitionRequestServerHandler extends SimpleChannelInboundHandler<NettyMes
                 NewBufferSize request = (NewBufferSize) msg;
 
                 outboundQueue.notifyNewBufferSize(request.receiverId, request.bufferSize);
+            } else if (msgClazz == NettyMessage.HeartBeat.class) {
+                if (firstHeartbeat) {
+                    LOG.debug("Received heartbeat request: {} from {}",
+                            msg,
+                            ctx.channel().remoteAddress()
+                    );
+                    firstHeartbeat = false;
+                }
             } else {
                 LOG.warn("Received unexpected client request: {}", msg);
             }

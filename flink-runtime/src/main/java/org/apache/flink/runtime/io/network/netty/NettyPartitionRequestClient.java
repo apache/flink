@@ -229,6 +229,12 @@ public class NettyPartitionRequestClient implements PartitionRequestClient {
     }
 
     @Override
+    public void HearbeatForConnection(RemoteInputChannel inputChannel) {
+        sendToChannel(new HeartBeatMessage(inputChannel));
+    }
+
+
+    @Override
     public void acknowledgeAllRecordsProcessed(RemoteInputChannel inputChannel) {
         sendToChannel(new AcknowledgeAllRecordsProcessedMessage(inputChannel));
     }
@@ -329,6 +335,17 @@ public class NettyPartitionRequestClient implements PartitionRequestClient {
         @Override
         Object buildMessage() {
             return new NettyMessage.AckAllUserRecordsProcessed(inputChannel.getInputChannelId());
+        }
+    }
+
+    private static class HeartBeatMessage extends ClientOutboundMessage {
+        HeartBeatMessage(RemoteInputChannel inputChannel) {
+            super(checkNotNull(inputChannel));
+        }
+
+        @Override
+        public Object buildMessage() {
+            return new NettyMessage.HeartBeat(inputChannel.getInputChannelId());
         }
     }
 }

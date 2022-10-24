@@ -333,7 +333,7 @@ public class NettyClientServerSslTest extends TestLogger {
         }
 
         @Override
-        public ChannelHandler[] getServerChannelHandlers() {
+        public ChannelHandler[] getServerChannelHandlers(Long idleTimeout) {
             return new ChannelHandler[0];
         }
 
@@ -357,7 +357,7 @@ public class NettyClientServerSslTest extends TestLogger {
                 SSLHandlerFactory sslHandlerFactory,
                 OneShotLatch latch,
                 SslHandler[] serverHandler) {
-            super(protocol, sslHandlerFactory);
+            super(protocol, sslHandlerFactory, -1L);
             this.latch = latch;
             this.serverHandler = serverHandler;
         }

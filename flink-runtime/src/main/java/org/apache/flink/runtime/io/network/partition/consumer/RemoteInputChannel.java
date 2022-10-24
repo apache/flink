@@ -165,6 +165,11 @@ public class RemoteInputChannel extends InputChannel {
         bufferManager.requestExclusiveBuffers(initialCredit);
     }
 
+    @Override
+    void HearbeatForConnection() {
+        partitionRequestClient.HearbeatForConnection(this);
+    }
+
     // ------------------------------------------------------------------------
     // Consume
     // ------------------------------------------------------------------------
