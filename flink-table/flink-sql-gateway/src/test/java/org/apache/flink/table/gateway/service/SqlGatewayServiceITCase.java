@@ -19,10 +19,13 @@
 package org.apache.flink.table.gateway.service;
 
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.testutils.CommonTestUtils;
+import org.apache.flink.core.testutils.FlinkAssertions;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.internal.TableEnvironmentInternal;
+import org.apache.flink.table.api.internal.TableResultInternal;
 import org.apache.flink.table.catalog.CatalogBaseTable.TableKind;
 import org.apache.flink.table.catalog.Column;
 import org.apache.flink.table.catalog.GenericInMemoryCatalog;
@@ -54,6 +57,9 @@ import org.apache.flink.table.planner.runtime.batch.sql.TestModule;
 import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedScalarFunctions;
 import org.apache.flink.table.planner.utils.TableFunc0;
 import org.apache.flink.test.util.AbstractTestBase;
+import org.apache.flink.types.Row;
+import org.apache.flink.util.CollectionUtil;
+import org.apache.flink.util.UserClassLoaderJarTestUtils;
 import org.apache.flink.util.concurrent.ExecutorThreadFactory;
 import org.apache.flink.util.function.RunnableWithException;
 import org.apache.flink.util.function.ThrowingConsumer;
@@ -62,7 +68,9 @@ import org.assertj.core.api.Condition;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
+import org.junit.jupiter.api.io.TempDir;
 
+import java.io.File;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -71,6 +79,8 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Random;
+import java.util.Set;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.FutureTask;
@@ -84,6 +94,8 @@ import static org.apache.flink.table.functions.FunctionKind.AGGREGATE;
 import static org.apache.flink.table.functions.FunctionKind.OTHER;
 import static org.apache.flink.table.functions.FunctionKind.SCALAR;
 import static org.apache.flink.table.gateway.api.results.ResultSet.ResultType.PAYLOAD;
+import static org.apache.flink.table.utils.UserDefinedFunctions.GENERATED_LOWER_UDF_CLASS;
+import static org.apache.flink.table.utils.UserDefinedFunctions.GENERATED_LOWER_UDF_CODE;
 import static org.apache.flink.types.RowKind.DELETE;
 import static org.apache.flink.types.RowKind.INSERT;
 import static org.apache.flink.types.RowKind.UPDATE_AFTER;
@@ -155,6 +167,80 @@ public class SqlGatewayServiceITCase extends AbstractTestBase {
         assertThat(tableEnv.getCurrentCatalog()).isEqualTo(catalogName);
         assertThat(tableEnv.getCurrentDatabase()).isEqualTo(databaseName);
         assertThat(tableEnv.listModules()).contains(moduleName);
+    }
+
+    @Test
+    public void testConfigureSessionWithLegalStatement(@TempDir java.nio.file.Path tmpDir)
+            throws Exception {
+        SessionHandle sessionHandle = service.openSession(defaultSessionEnvironment);
+
+        // SET & RESET
+        verifyConfigureSession(sessionHandle, "SET 'key1' = 'value1';");
+        Map<String, String> config = new HashMap<>();
+        config.put("key1", "value1");
+        assertThat(service.getSessionConfig(sessionHandle)).containsAllEntriesOf(config);
+
+        verifyConfigureSession(sessionHandle, "RESET 'key1';");
+        assertThat(service.getSessionConfig(sessionHandle)).doesNotContainEntry("key1", "value1");
+
+        // CREATE & USE & ALTER & DROP
+        verifyConfigureSession(
+                sessionHandle,
+                "CREATE CATALOG mycat with ('type' = 'generic_in_memory', 'default-database' = 'db');");
+
+        verifyConfigureSession(sessionHandle, "USE CATALOG mycat;");
+        assertThat(service.getCurrentCatalog(sessionHandle)).isEqualTo("mycat");
+
+        verifyConfigureSession(
+                sessionHandle, "CREATE TABLE db.tbl (score INT) WITH ('connector' = 'datagen');");
+
+        Set<TableKind> tableKinds = new HashSet<>();
+        tableKinds.add(TableKind.TABLE);
+        assertThat(service.listTables(sessionHandle, "mycat", "db", tableKinds))
+                .contains(
+                        new TableInfo(ObjectIdentifier.of("mycat", "db", "tbl"), TableKind.TABLE));
+
+        verifyConfigureSession(sessionHandle, "ALTER TABLE db.tbl RENAME TO tbl1;");
+        assertThat(service.listTables(sessionHandle, "mycat", "db", tableKinds))
+                .doesNotContain(
+                        new TableInfo(ObjectIdentifier.of("mycat", "db", "tbl"), TableKind.TABLE))
+                .contains(
+                        new TableInfo(ObjectIdentifier.of("mycat", "db", "tbl1"), TableKind.TABLE));
+
+        service.configureSession(sessionHandle, "USE CATALOG default_catalog;", 0);
+        verifyConfigureSession(sessionHandle, "DROP CATALOG mycat;");
+        assertThat(service.listCatalogs(sessionHandle)).doesNotContain("mycat");
+
+        // LOAD & UNLOAD MODULE
+        verifyConfigureSession(sessionHandle, "LOAD MODULE dummy;");
+
+        TableEnvironmentInternal tableEnv =
+                service.getSession(sessionHandle).createExecutor().getTableEnvironment();
+        assertThat(
+                        CollectionUtil.iteratorToList(
+                                tableEnv.executeSql("SHOW FULL MODULES;").collect()))
+                .contains(Row.of("dummy", true));
+
+        verifyConfigureSession(sessionHandle, "UNLOAD MODULE dummy;");
+        assertThat(
+                        CollectionUtil.iteratorToList(
+                                tableEnv.executeSql("SHOW FULL MODULES;").collect()))
+                .isEqualTo(Collections.singletonList(Row.of("core", true)));
+
+        // ADD JAR
+        String udfClassName = GENERATED_LOWER_UDF_CLASS + new Random().nextInt(50);
+        String jarPath =
+                UserClassLoaderJarTestUtils.createJarFile(
+                                new File(tmpDir.toUri()),
+                                "test-add-jar.jar",
+                                udfClassName,
+                                String.format(GENERATED_LOWER_UDF_CODE, udfClassName))
+                        .toURI()
+                        .toString();
+        verifyConfigureSession(sessionHandle, String.format("ADD JAR '%s';", jarPath));
+
+        assertThat(CollectionUtil.iteratorToList(tableEnv.executeSql("SHOW JARS;").collect()))
+                .isEqualTo(Collections.singletonList(Row.of(new Path(jarPath).getPath())));
     }
 
     @Test
@@ -712,6 +798,17 @@ public class SqlGatewayServiceITCase extends AbstractTestBase {
     // --------------------------------------------------------------------------------------------
 
     @Test
+    void testConfigureSessionWithIllegalStatement() {
+        SessionHandle sessionHandle = service.openSession(defaultSessionEnvironment);
+
+        assertThatThrownBy(() -> service.configureSession(sessionHandle, "SELECT 1;", 0))
+                .satisfies(
+                        FlinkAssertions.anyCauseMatches(
+                                UnsupportedOperationException.class,
+                                "Unsupported statement for configuring session:\nSELECT 1;"));
+    }
+
+    @Test
     public void testFetchResultsFromCanceledOperation() {
         SessionHandle sessionHandle = service.openSession(defaultSessionEnvironment);
 
@@ -898,5 +995,22 @@ public class SqlGatewayServiceITCase extends AbstractTestBase {
         tableEnv.executeSql("CREATE TABLE cat2.db0.tbl0 WITH('connector' = 'values')");
 
         return sessionHandle;
+    }
+
+    private void verifyConfigureSession(SessionHandle sessionHandle, String statement) {
+        // Currently, the result of legal statement for configuring session is always
+        // TABLE_RESULT_OK
+        List<RowData> rows =
+                CollectionUtil.iteratorToList(
+                        TableResultInternal.TABLE_RESULT_OK.collectInternal());
+        ResultSet configureResult =
+                new ResultSet(
+                        PAYLOAD,
+                        null,
+                        TableResultInternal.TABLE_RESULT_OK.getResolvedSchema(),
+                        rows);
+
+        assertThat(service.configureSession(sessionHandle, statement, 0))
+                .isEqualTo(configureResult);
     }
 }
