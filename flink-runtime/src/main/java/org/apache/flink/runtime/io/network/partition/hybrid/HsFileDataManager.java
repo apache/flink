@@ -153,7 +153,8 @@ public class HsFileDataManager implements Runnable, BufferRecycler {
 
     /** This method only called by result partition to create subpartitionFileReader. */
     public HsDataView registerNewSubpartition(
-            int subpartitionId, HsSubpartitionViewInternalOperations operation) throws IOException {
+            int subpartitionId, HsSubpartitionConsumerInternalOperations operation)
+            throws IOException {
         synchronized (lock) {
             checkState(!isReleased, "HsFileDataManager is already released.");
             lazyInitialize();

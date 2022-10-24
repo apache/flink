@@ -58,7 +58,7 @@ public interface HsSubpartitionFileReader extends Comparable<HsSubpartitionFileR
         HsSubpartitionFileReader createFileReader(
                 int subpartitionId,
                 FileChannel dataFileChannel,
-                HsSubpartitionViewInternalOperations operation,
+                HsSubpartitionConsumerInternalOperations operation,
                 HsFileDataIndex dataIndex,
                 int maxBuffersReadAhead,
                 Consumer<HsSubpartitionFileReader> fileReaderReleaser,

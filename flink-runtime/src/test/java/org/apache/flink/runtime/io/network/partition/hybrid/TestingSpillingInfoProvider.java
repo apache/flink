@@ -73,7 +73,7 @@ public class TestingSpillingInfoProvider implements HsSpillingInfoProvider {
     }
 
     @Override
-    public List<Integer> getNextBufferIndexToConsume() {
+    public List<Integer> getNextBufferIndexToConsume(HsConsumerId consumerId) {
         return getNextBufferIndexToConsumeSupplier.get();
     }
 

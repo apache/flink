@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.io.network.partition.hybrid;
 
-import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.core.memory.MemorySegmentFactory;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
@@ -28,7 +27,6 @@ import org.apache.flink.runtime.io.network.buffer.BufferCompressor;
 import org.apache.flink.runtime.io.network.buffer.BufferConsumer;
 import org.apache.flink.runtime.io.network.buffer.FreeingBufferRecycler;
 import org.apache.flink.runtime.io.network.buffer.NetworkBuffer;
-import org.apache.flink.runtime.io.network.partition.ResultSubpartition.BufferAndBacklog;
 import org.apache.flink.runtime.io.network.partition.hybrid.HsSpillingInfoProvider.ConsumeStatus;
 import org.apache.flink.runtime.io.network.partition.hybrid.HsSpillingInfoProvider.ConsumeStatusWithId;
 import org.apache.flink.runtime.io.network.partition.hybrid.HsSpillingInfoProvider.SpillStatus;
@@ -40,6 +38,7 @@ import javax.annotation.concurrent.GuardedBy;
 
 import java.nio.ByteBuffer;
 import java.util.ArrayDeque;
+import java.util.ArrayList;
 import java.util.Deque;
 import java.util.HashMap;
 import java.util.LinkedList;
@@ -49,16 +48,18 @@ import java.util.Optional;
 import java.util.Queue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
+import static org.apache.flink.util.Preconditions.checkState;
 
 /**
  * This class is responsible for managing the data in a single subpartition. One {@link
  * HsMemoryDataManager} will hold multiple {@link HsSubpartitionMemoryDataManager}.
  */
-public class HsSubpartitionMemoryDataManager implements HsDataView {
+public class HsSubpartitionMemoryDataManager {
     private final int targetChannel;
 
     private final int bufferSize;
@@ -75,16 +76,16 @@ public class HsSubpartitionMemoryDataManager implements HsDataView {
     private final Deque<HsBufferContext> allBuffers = new LinkedList<>();
 
     @GuardedBy("subpartitionLock")
-    private final Deque<HsBufferContext> unConsumedBuffers = new LinkedList<>();
-
-    @GuardedBy("subpartitionLock")
     private final Map<Integer, HsBufferContext> bufferIndexToContexts = new HashMap<>();
 
     /** DO NOT USE DIRECTLY. Use {@link #runWithLock} or {@link #callWithLock} instead. */
     private final Lock resultPartitionLock;
 
     /** DO NOT USE DIRECTLY. Use {@link #runWithLock} or {@link #callWithLock} instead. */
-    private final Object subpartitionLock = new Object();
+    private final ReentrantReadWriteLock subpartitionLock = new ReentrantReadWriteLock();
+
+    @GuardedBy("subpartitionLock")
+    private final Map<HsConsumerId, HsSubpartitionConsumerMemoryDataManager> consumerMap;
 
     @Nullable private final BufferCompressor bufferCompressor;
 
@@ -101,82 +102,7 @@ public class HsSubpartitionMemoryDataManager implements HsDataView {
         this.resultPartitionLock = resultPartitionLock;
         this.memoryDataManagerOperation = memoryDataManagerOperation;
         this.bufferCompressor = bufferCompressor;
-    }
-
-    // ------------------------------------------------------------------------
-    //  Called by Consumer
-    // ------------------------------------------------------------------------
-
-    /**
-     * Check whether the head of {@link #unConsumedBuffers} is the buffer to be consumed next time.
-     * If so, return the next buffer's data type.
-     *
-     * @param nextToConsumeIndex index of the buffer to be consumed next time.
-     * @return If the head of {@link #unConsumedBuffers} is target, return the buffer's data type.
-     *     Otherwise, return {@link DataType#NONE}.
-     */
-    @SuppressWarnings("FieldAccessNotGuarded")
-    // Note that: callWithLock ensure that code block guarded by resultPartitionReadLock and
-    // subpartitionLock.
-    @Override
-    public DataType peekNextToConsumeDataType(int nextToConsumeIndex) {
-        return callWithLock(() -> peekNextToConsumeDataTypeInternal(nextToConsumeIndex));
-    }
-
-    /**
-     * Check whether the head of {@link #unConsumedBuffers} is the buffer to be consumed. If so,
-     * return the buffer and backlog.
-     *
-     * @param toConsumeIndex index of buffer to be consumed.
-     * @return If the head of {@link #unConsumedBuffers} is target, return optional of the buffer
-     *     and backlog. Otherwise, return {@link Optional#empty()}.
-     */
-    @SuppressWarnings("FieldAccessNotGuarded")
-    // Note that: callWithLock ensure that code block guarded by resultPartitionReadLock and
-    // subpartitionLock.
-    @Override
-    public Optional<BufferAndBacklog> consumeBuffer(int toConsumeIndex) {
-        Optional<Tuple2<HsBufferContext, DataType>> bufferAndNextDataType =
-                callWithLock(
-                        () -> {
-                            if (!checkFirstUnConsumedBufferIndex(toConsumeIndex)) {
-                                return Optional.empty();
-                            }
-
-                            HsBufferContext bufferContext =
-                                    checkNotNull(unConsumedBuffers.pollFirst());
-                            // TODO move this logical to consumer and pass real consumerId.
-                            bufferContext.consumed(HsConsumerId.DEFAULT);
-                            DataType nextDataType =
-                                    peekNextToConsumeDataTypeInternal(toConsumeIndex + 1);
-                            return Optional.of(Tuple2.of(bufferContext, nextDataType));
-                        });
-
-        bufferAndNextDataType.ifPresent(
-                tuple ->
-                        memoryDataManagerOperation.onBufferConsumed(
-                                tuple.f0.getBufferIndexAndChannel()));
-        return bufferAndNextDataType.map(
-                tuple ->
-                        new BufferAndBacklog(
-                                tuple.f0.getBuffer().readOnlySlice(),
-                                getBacklog(),
-                                tuple.f1,
-                                toConsumeIndex));
-    }
-
-    @SuppressWarnings("FieldAccessNotGuarded")
-    // Un-synchronized get unConsumedBuffers size to provide memory data backlog,this will make the
-    // result greater than or equal to the actual backlog, but obtaining an accurate backlog will
-    // bring too much extra overhead.
-    @Override
-    public int getBacklog() {
-        return unConsumedBuffers.size();
-    }
-
-    @Override
-    public void releaseDataView() {
-        // nothing to do for memory data.
+        this.consumerMap = new HashMap<>();
     }
 
     // ------------------------------------------------------------------------
@@ -283,6 +209,29 @@ public class HsSubpartitionMemoryDataManager implements HsDataView {
 
     public void setOutputMetrics(HsOutputMetrics outputMetrics) {
         this.outputMetrics = checkNotNull(outputMetrics);
+    }
+
+    @SuppressWarnings("FieldAccessNotGuarded")
+    public HsSubpartitionConsumerMemoryDataManager registerNewConsumer(HsConsumerId consumerId) {
+        return callWithLock(
+                () -> {
+                    checkState(!consumerMap.containsKey(consumerId));
+                    HsSubpartitionConsumerMemoryDataManager newConsumer =
+                            new HsSubpartitionConsumerMemoryDataManager(
+                                    resultPartitionLock,
+                                    subpartitionLock.readLock(),
+                                    targetChannel,
+                                    consumerId,
+                                    memoryDataManagerOperation);
+                    newConsumer.addInitialBuffers(allBuffers);
+                    consumerMap.put(consumerId, newConsumer);
+                    return newConsumer;
+                });
+    }
+
+    @SuppressWarnings("FieldAccessNotGuarded")
+    public void releaseConsumer(HsConsumerId consumerId) {
+        runWithLock(() -> checkNotNull(consumerMap.remove(consumerId)));
     }
 
     // ------------------------------------------------------------------------
@@ -393,36 +342,22 @@ public class HsSubpartitionMemoryDataManager implements HsDataView {
     // subpartitionLock.
     private void addFinishedBuffer(HsBufferContext bufferContext) {
         finishedBufferIndex++;
-        boolean needNotify =
-                callWithLock(
-                        () -> {
-                            allBuffers.add(bufferContext);
-                            unConsumedBuffers.add(bufferContext);
-                            bufferIndexToContexts.put(
-                                    bufferContext.getBufferIndexAndChannel().getBufferIndex(),
-                                    bufferContext);
-                            trimHeadingReleasedBuffers(unConsumedBuffers);
-                            updateStatistics(bufferContext.getBuffer());
-                            return unConsumedBuffers.size() <= 1;
-                        });
-        if (needNotify) {
-            memoryDataManagerOperation.onDataAvailable(targetChannel);
-        }
-    }
-
-    @GuardedBy("subpartitionLock")
-    private DataType peekNextToConsumeDataTypeInternal(int nextToConsumeIndex) {
-        return checkFirstUnConsumedBufferIndex(nextToConsumeIndex)
-                ? checkNotNull(unConsumedBuffers.peekFirst()).getBuffer().getDataType()
-                : DataType.NONE;
-    }
-
-    @GuardedBy("subpartitionLock")
-    private boolean checkFirstUnConsumedBufferIndex(int expectedBufferIndex) {
-        trimHeadingReleasedBuffers(unConsumedBuffers);
-        return !unConsumedBuffers.isEmpty()
-                && unConsumedBuffers.peekFirst().getBufferIndexAndChannel().getBufferIndex()
-                        == expectedBufferIndex;
+        List<HsConsumerId> needNotify = new ArrayList<>(consumerMap.size());
+        runWithLock(
+                () -> {
+                    allBuffers.add(bufferContext);
+                    bufferIndexToContexts.put(
+                            bufferContext.getBufferIndexAndChannel().getBufferIndex(),
+                            bufferContext);
+                    for (Map.Entry<HsConsumerId, HsSubpartitionConsumerMemoryDataManager>
+                            consumerEntry : consumerMap.entrySet()) {
+                        if (consumerEntry.getValue().addBuffer(bufferContext)) {
+                            needNotify.add(consumerEntry.getKey());
+                        }
+                    }
+                    updateStatistics(bufferContext.getBuffer());
+                });
+        memoryDataManagerOperation.onDataAvailable(targetChannel, needNotify);
     }
 
     /**
@@ -517,10 +452,10 @@ public class HsSubpartitionMemoryDataManager implements HsDataView {
     private <E extends Exception> void runWithLock(ThrowingRunnable<E> runnable) throws E {
         try {
             resultPartitionLock.lock();
-            synchronized (subpartitionLock) {
-                runnable.run();
-            }
+            subpartitionLock.writeLock().lock();
+            runnable.run();
         } finally {
+            subpartitionLock.writeLock().unlock();
             resultPartitionLock.unlock();
         }
     }
@@ -528,10 +463,10 @@ public class HsSubpartitionMemoryDataManager implements HsDataView {
     private <R, E extends Exception> R callWithLock(SupplierWithException<R, E> callable) throws E {
         try {
             resultPartitionLock.lock();
-            synchronized (subpartitionLock) {
-                return callable.get();
-            }
+            subpartitionLock.writeLock().lock();
+            return callable.get();
         } finally {
+            subpartitionLock.writeLock().unlock();
             resultPartitionLock.unlock();
         }
     }

@@ -95,7 +95,8 @@ public class HsSelectiveSpillingStrategy implements HsSpillingStrategy {
 
         TreeMap<Integer, List<BufferIndexAndChannel>> subpartitionToHighPriorityBuffers =
                 getBuffersByConsumptionPriorityInOrder(
-                        spillingInfoProvider.getNextBufferIndexToConsume(),
+                        // selective spilling strategy does not support multiple consumer.
+                        spillingInfoProvider.getNextBufferIndexToConsume(HsConsumerId.DEFAULT),
                         subpartitionToBuffers,
                         spillNum);
 
