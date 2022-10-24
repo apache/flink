@@ -30,6 +30,7 @@ import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.api.common.typeutils.base.LongSerializer;
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
 import org.apache.flink.api.java.utils.ParameterTool;
+import org.apache.flink.connector.file.sink.FileSink;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
 import org.apache.flink.runtime.state.FunctionInitializationContext;
@@ -38,7 +39,6 @@ import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.filesystem.BucketAssigner;
-import org.apache.flink.streaming.api.functions.sink.filesystem.StreamingFileSink;
 import org.apache.flink.streaming.api.functions.sink.filesystem.bucketassigners.SimpleVersionedStringSerializer;
 import org.apache.flink.streaming.api.functions.sink.filesystem.rollingpolicies.OnCheckpointRollingPolicy;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
@@ -148,8 +148,8 @@ public class StreamSQLTestProgram {
         DataStream<Row> resultStream =
                 tEnv.toAppendStream(result, Types.ROW(Types.INT, Types.SQL_TIMESTAMP));
 
-        final StreamingFileSink<Row> sink =
-                StreamingFileSink.forRowFormat(
+        final FileSink<Row> sink =
+                FileSink.forRowFormat(
                                 new Path(outputPath),
                                 (Encoder<Row>)
                                         (element, stream) -> {
@@ -166,7 +166,7 @@ public class StreamSQLTestProgram {
                 .map(new KillMapper())
                 .setParallelism(1)
                 // add sink function
-                .addSink(sink)
+                .sinkTo(sink)
                 .setParallelism(1);
 
         sEnv.execute();
