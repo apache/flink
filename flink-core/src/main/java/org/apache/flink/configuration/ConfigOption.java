@@ -85,7 +85,7 @@ public class ConfigOption<T> {
         return clazz;
     }
 
-    public Type getType() {
+    Type getType() {
         return valueType;
     }
 
