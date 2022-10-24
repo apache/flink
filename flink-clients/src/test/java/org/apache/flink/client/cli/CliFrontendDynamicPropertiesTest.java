@@ -34,6 +34,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
+import java.io.File;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
@@ -171,12 +172,13 @@ class CliFrontendDynamicPropertiesTest {
     }
 
     @Test
-    public void testSecurityConfigWithDynamicProperties() throws Exception {
-        String keytable = this.getClass().getResource("/keytable.file").getFile();
+    public void testSecurityConfigWithDynamicProperties(@TempDir File tempDir) throws Exception {
+        File keytableFile = new File(tempDir, "keytable.file");
+        keytableFile.createNewFile();
         String[] args = {
             "-e",
             "test-executor",
-            "-D" + SecurityOptions.KERBEROS_LOGIN_KEYTAB.key() + "=" + keytable,
+            "-D" + SecurityOptions.KERBEROS_LOGIN_KEYTAB.key() + "=" + keytableFile.getPath(),
             "-D" + SecurityOptions.KERBEROS_LOGIN_PRINCIPAL.key() + "=principal",
             getTestJarPath(),
         };
@@ -187,7 +189,7 @@ class CliFrontendDynamicPropertiesTest {
         Configuration securityConfig = new Configuration(configuration);
         DynamicPropertiesUtil.encodeDynamicProperties(commandLine, securityConfig);
         SecurityConfiguration securityConfiguration = new SecurityConfiguration(securityConfig);
-        assertThat(securityConfiguration.getKeytab()).isEqualTo(keytable);
+        assertThat(securityConfiguration.getKeytab()).isEqualTo(keytableFile.getPath());
         assertThat(securityConfiguration.getPrincipal()).isEqualTo("principal");
     }
 

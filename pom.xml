@@ -1431,7 +1431,6 @@ under the License.
 						<exclude>docs/static/flink-header-logo.svg</exclude>
 						<exclude>docs/static/figs/*.svg</exclude>
 						<exclude>flink-clients/src/main/resources/web-docs/js/*d3.js</exclude>
-						<exclude>flink-clients/src/test/resources/keytable.file</exclude>
 
 						<!-- the licenses that are re-bundled -->
 						<exclude>**/packaged_licenses/LICENSE.*.txt</exclude>
