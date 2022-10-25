@@ -173,12 +173,12 @@ class CliFrontendDynamicPropertiesTest {
 
     @Test
     public void testSecurityConfigWithDynamicProperties(@TempDir File tempDir) throws Exception {
-        File keytableFile = new File(tempDir, "keytable.file");
-        keytableFile.createNewFile();
+        File keytabFile = new File(tempDir, "keytab.file");
+        keytabFile.createNewFile();
         String[] args = {
             "-e",
             "test-executor",
-            "-D" + SecurityOptions.KERBEROS_LOGIN_KEYTAB.key() + "=" + keytableFile.getPath(),
+            "-D" + SecurityOptions.KERBEROS_LOGIN_KEYTAB.key() + "=" + keytabFile.getPath(),
             "-D" + SecurityOptions.KERBEROS_LOGIN_PRINCIPAL.key() + "=principal",
             getTestJarPath(),
         };
@@ -189,7 +189,7 @@ class CliFrontendDynamicPropertiesTest {
         Configuration securityConfig = new Configuration(configuration);
         DynamicPropertiesUtil.encodeDynamicProperties(commandLine, securityConfig);
         SecurityConfiguration securityConfiguration = new SecurityConfiguration(securityConfig);
-        assertThat(securityConfiguration.getKeytab()).isEqualTo(keytableFile.getPath());
+        assertThat(securityConfiguration.getKeytab()).isEqualTo(keytabFile.getPath());
         assertThat(securityConfiguration.getPrincipal()).isEqualTo("principal");
     }
 
