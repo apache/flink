@@ -22,7 +22,6 @@ import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
-import org.apache.flink.runtime.scheduler.SchedulerBase;
 import org.apache.flink.runtime.scheduler.strategy.ConsumerVertexGroup;
 import org.apache.flink.testutils.TestingUtils;
 import org.apache.flink.testutils.executor.TestExecutorExtension;
@@ -33,9 +32,13 @@ import org.junit.jupiter.api.extension.RegisterExtension;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
+import java.util.Iterator;
 import java.util.List;
+import java.util.Objects;
 import java.util.concurrent.ScheduledExecutorService;
 
+import static org.apache.flink.runtime.executiongraph.IntermediateResultPartitionTest.computeVertexParallelismStoreConsideringDynamicGraph;
 import static org.apache.flink.runtime.jobgraph.DistributionPattern.ALL_TO_ALL;
 import static org.apache.flink.runtime.jobgraph.DistributionPattern.POINTWISE;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -66,6 +69,142 @@ class EdgeManagerBuildUtilTest {
         testGetMaxNumEdgesToTarget(17, 34, ALL_TO_ALL);
         testGetMaxNumEdgesToTarget(34, 17, ALL_TO_ALL);
         testGetMaxNumEdgesToTarget(23, 17, ALL_TO_ALL);
+    }
+
+    @Test
+    void testConnectAllToAll() throws Exception {
+        int upstream = 3;
+        int downstream = 2;
+
+        // use dynamic graph to specify the vertex input info
+        ExecutionGraph eg = setupExecutionGraph(upstream, downstream, POINTWISE, true);
+
+        List<ExecutionVertexInputInfo> executionVertexInputInfos = new ArrayList<>();
+        for (int i = 0; i < downstream; i++) {
+            executionVertexInputInfos.add(
+                    new ExecutionVertexInputInfo(
+                            i,
+                            new IndexRange(0, upstream - 1),
+                            // the subpartition range will not be used in edge manager, so set (0,
+                            // 0)
+                            new IndexRange(0, 0)));
+        }
+        final JobVertexInputInfo jobVertexInputInfo =
+                new JobVertexInputInfo(executionVertexInputInfos);
+
+        final Iterator<ExecutionJobVertex> vertexIterator =
+                eg.getVerticesTopologically().iterator();
+        final ExecutionJobVertex producer = vertexIterator.next();
+        final ExecutionJobVertex consumer = vertexIterator.next();
+
+        // initialize producer and consumer
+        eg.initializeJobVertex(producer, 1L, Collections.emptyMap());
+        eg.initializeJobVertex(
+                consumer,
+                1L,
+                Collections.singletonMap(
+                        producer.getProducedDataSets()[0].getId(), jobVertexInputInfo));
+
+        IntermediateResult result =
+                Objects.requireNonNull(eg.getJobVertex(producer.getJobVertexId()))
+                        .getProducedDataSets()[0];
+        IntermediateResultPartition partition1 = result.getPartitions()[0];
+        IntermediateResultPartition partition2 = result.getPartitions()[1];
+        IntermediateResultPartition partition3 = result.getPartitions()[2];
+
+        ExecutionVertex vertex1 = consumer.getTaskVertices()[0];
+        ExecutionVertex vertex2 = consumer.getTaskVertices()[1];
+
+        // check consumers of the partitions
+        assertThat(partition1.getConsumerVertexGroups().get(0))
+                .containsExactlyInAnyOrder(vertex1.getID(), vertex2.getID());
+        assertThat(partition1.getConsumerVertexGroups().get(0))
+                .isEqualTo(partition1.getConsumerVertexGroups().get(0));
+        assertThat(partition3.getConsumerVertexGroups().get(0))
+                .isEqualTo(partition1.getConsumerVertexGroups().get(0));
+
+        // check inputs of the execution vertices
+        assertThat(vertex1.getConsumedPartitionGroup(0))
+                .containsExactlyInAnyOrder(
+                        partition1.getPartitionId(),
+                        partition2.getPartitionId(),
+                        partition3.getPartitionId());
+        assertThat(vertex2.getConsumedPartitionGroup(0))
+                .isEqualTo(vertex1.getConsumedPartitionGroup(0));
+    }
+
+    @Test
+    void testConnectPointwise() throws Exception {
+        int upstream = 4;
+        int downstream = 4;
+
+        // use dynamic graph to specify the vertex input info
+        ExecutionGraph eg = setupExecutionGraph(upstream, downstream, POINTWISE, true);
+
+        // set partition ranges
+        List<IndexRange> partitionRanges =
+                Arrays.asList(
+                        new IndexRange(0, 0),
+                        new IndexRange(0, 0),
+                        new IndexRange(1, 2),
+                        new IndexRange(3, 3));
+        List<ExecutionVertexInputInfo> executionVertexInputInfos = new ArrayList<>();
+        for (int i = 0; i < downstream; i++) {
+            executionVertexInputInfos.add(
+                    new ExecutionVertexInputInfo(
+                            // the subpartition range will not be used in edge manager, so set (0,
+                            // 0)
+                            i, partitionRanges.get(i), new IndexRange(0, 0)));
+        }
+        final JobVertexInputInfo jobVertexInputInfo =
+                new JobVertexInputInfo(executionVertexInputInfos);
+
+        final Iterator<ExecutionJobVertex> vertexIterator =
+                eg.getVerticesTopologically().iterator();
+        final ExecutionJobVertex producer = vertexIterator.next();
+        final ExecutionJobVertex consumer = vertexIterator.next();
+
+        // initialize producer and consumer
+        eg.initializeJobVertex(producer, 1L, Collections.emptyMap());
+        eg.initializeJobVertex(
+                consumer,
+                1L,
+                Collections.singletonMap(
+                        producer.getProducedDataSets()[0].getId(), jobVertexInputInfo));
+
+        IntermediateResult result =
+                Objects.requireNonNull(eg.getJobVertex(producer.getJobVertexId()))
+                        .getProducedDataSets()[0];
+        IntermediateResultPartition partition1 = result.getPartitions()[0];
+        IntermediateResultPartition partition2 = result.getPartitions()[1];
+        IntermediateResultPartition partition3 = result.getPartitions()[2];
+        IntermediateResultPartition partition4 = result.getPartitions()[3];
+
+        ExecutionVertex vertex1 = consumer.getTaskVertices()[0];
+        ExecutionVertex vertex2 = consumer.getTaskVertices()[1];
+        ExecutionVertex vertex3 = consumer.getTaskVertices()[2];
+        ExecutionVertex vertex4 = consumer.getTaskVertices()[3];
+
+        // check consumers of the partitions
+        assertThat(partition1.getConsumerVertexGroups().get(0))
+                .containsExactlyInAnyOrder(vertex1.getID(), vertex2.getID());
+        assertThat(partition2.getConsumerVertexGroups().get(0))
+                .containsExactlyInAnyOrder(vertex3.getID());
+        assertThat(partition3.getConsumerVertexGroups().get(0))
+                .isEqualTo(partition2.getConsumerVertexGroups().get(0));
+        assertThat(partition4.getConsumerVertexGroups().get(0))
+                .containsExactlyInAnyOrder(vertex4.getID());
+
+        // check inputs of the execution vertices
+        assertThat(vertex1.getConsumedPartitionGroup(0))
+                .containsExactlyInAnyOrder(partition1.getPartitionId());
+        assertThat(vertex2.getConsumedPartitionGroup(0))
+                .isEqualTo(vertex1.getConsumedPartitionGroup(0));
+        assertThat(vertex3.getConsumedPartitionGroup(0))
+                .containsExactlyInAnyOrder(
+                        partition2.getPartitionId(), partition3.getPartitionId());
+        assertThat(vertex4.getConsumedPartitionGroup(0))
+                .containsExactlyInAnyOrder(partition4.getPartitionId());
     }
 
     private void testGetMaxNumEdgesToTarget(
@@ -110,6 +249,16 @@ class EdgeManagerBuildUtilTest {
 
     private Pair<ExecutionJobVertex, ExecutionJobVertex> setupExecutionGraph(
             int upstream, int downstream, DistributionPattern pattern) throws Exception {
+        Iterator<ExecutionJobVertex> jobVertices =
+                setupExecutionGraph(upstream, downstream, pattern, false)
+                        .getVerticesTopologically()
+                        .iterator();
+        return Pair.of(jobVertices.next(), jobVertices.next());
+    }
+
+    private ExecutionGraph setupExecutionGraph(
+            int upstream, int downstream, DistributionPattern pattern, boolean isDynamicGraph)
+            throws Exception {
         JobVertex v1 = new JobVertex("vertex1");
         JobVertex v2 = new JobVertex("vertex2");
 
@@ -123,12 +272,19 @@ class EdgeManagerBuildUtilTest {
 
         List<JobVertex> ordered = new ArrayList<>(Arrays.asList(v1, v2));
 
-        ExecutionGraph eg =
+        TestingDefaultExecutionGraphBuilder builder =
                 TestingDefaultExecutionGraphBuilder.newBuilder()
                         .setVertexParallelismStore(
-                                SchedulerBase.computeVertexParallelismStore(ordered))
-                        .build(EXECUTOR_RESOURCE.getExecutor());
+                                computeVertexParallelismStoreConsideringDynamicGraph(
+                                        ordered, isDynamicGraph, 128));
+        ExecutionGraph eg;
+        if (isDynamicGraph) {
+            eg = builder.buildDynamicGraph(EXECUTOR_RESOURCE.getExecutor());
+        } else {
+            eg = builder.build(EXECUTOR_RESOURCE.getExecutor());
+        }
+
         eg.attachJobGraph(ordered);
-        return Pair.of(eg.getAllVertices().get(v1.getID()), eg.getAllVertices().get(v2.getID()));
+        return eg;
     }
 }

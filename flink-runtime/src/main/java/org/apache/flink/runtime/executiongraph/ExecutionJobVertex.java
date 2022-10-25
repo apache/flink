@@ -487,7 +487,7 @@ public class ExecutionJobVertex
 
             this.inputs.add(ires);
 
-            EdgeManagerBuildUtil.connectVertexToResult(this, ires, edge.getDistributionPattern());
+            EdgeManagerBuildUtil.connectVertexToResult(this, ires);
         }
     }
 

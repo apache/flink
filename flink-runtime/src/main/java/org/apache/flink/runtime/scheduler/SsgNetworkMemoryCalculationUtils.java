@@ -21,7 +21,6 @@ package org.apache.flink.runtime.scheduler;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
-import org.apache.flink.runtime.deployment.TaskDeploymentDescriptorFactory;
 import org.apache.flink.runtime.executiongraph.EdgeManagerBuildUtil;
 import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
@@ -184,10 +183,9 @@ public class SsgNetworkMemoryCalculationUtils {
                 IntermediateResultPartition resultPartition =
                         ejv.getGraph().getResultPartitionOrThrow((partitionGroup.getFirst()));
                 IndexRange subpartitionIndexRange =
-                        TaskDeploymentDescriptorFactory.computeConsumedSubpartitionRange(
-                                partitionGroup.getNumConsumers(),
-                                resultPartition,
-                                vertex.getParallelSubtaskIndex());
+                        vertex.getExecutionVertexInputInfo(
+                                        resultPartition.getIntermediateResult().getId())
+                                .getSubpartitionIndexRange();
 
                 tmp.merge(
                         partitionGroup.getIntermediateDataSetID(),
