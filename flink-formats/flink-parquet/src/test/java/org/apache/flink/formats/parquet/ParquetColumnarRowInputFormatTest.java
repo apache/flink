@@ -126,7 +126,7 @@ class ParquetColumnarRowInputFormatTest {
                     new MapType(new IntType(), new BooleanType()),
                     RowType.of(new VarCharType(VarCharType.MAX_LENGTH), new IntType()));
 
-    @TempDir private java.io.File folder;
+    @TempDir private File folder;
 
     public static Collection<Integer> parameters() {
         return Arrays.asList(10, 1000);
@@ -344,7 +344,7 @@ class ParquetColumnarRowInputFormatTest {
         innerTestPartitionValues(testPath, partitionKeys, true);
     }
 
-    private void innerTestTypes(java.io.File folder, List<Integer> records, int rowGroupSize)
+    private void innerTestTypes(File folder, List<Integer> records, int rowGroupSize)
             throws IOException {
         List<RowData> rows = records.stream().map(this::newRow).collect(Collectors.toList());
         Path testPath = createTempParquetFile(folder, rows, rowGroupSize);

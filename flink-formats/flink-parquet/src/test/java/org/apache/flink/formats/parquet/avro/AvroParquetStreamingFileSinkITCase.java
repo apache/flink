@@ -40,7 +40,6 @@ import org.apache.parquet.hadoop.ParquetReader;
 import org.apache.parquet.hadoop.util.HadoopInputFile;
 import org.apache.parquet.io.InputFile;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.Timeout;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -61,7 +60,6 @@ import static org.assertj.core.api.Assertions.assertThat;
  * with Parquet.
  */
 @ExtendWith(MiniClusterExtension.class)
-@Timeout(20)
 class AvroParquetStreamingFileSinkITCase {
 
     @Test

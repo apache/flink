@@ -117,7 +117,7 @@ class ParquetColumnarRowSplitReaderTest {
                     new MapType(new IntType(), new BooleanType()),
                     RowType.of(new VarCharType(VarCharType.MAX_LENGTH), new IntType()));
 
-    @TempDir java.io.File tmpDir;
+    @TempDir File tmpDir;
 
     public static Collection<Integer> parameters() {
         return Arrays.asList(10, 1000);
