@@ -55,8 +55,9 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
  * This class contains test concerning the correct conversion from {@link JobGraph} to {@link
- * ExecutionGraph} objects. It also tests that {@link EdgeManagerBuildUtil#connectVertexToResult}
- * builds {@link DistributionPattern#ALL_TO_ALL} connections correctly.
+ * ExecutionGraph} objects. It also tests that {@link
+ * VertexInputInfoComputationUtils#computeVertexInputInfoForAllToAll} builds {@link
+ * DistributionPattern#ALL_TO_ALL} connections correctly.
  */
 class DefaultExecutionGraphConstructionTest {
     @RegisterExtension

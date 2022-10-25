@@ -18,34 +18,13 @@
 
 package org.apache.flink.runtime.scheduler.adaptivebatch;
 
+import org.apache.flink.runtime.executiongraph.IntermediateResultInfo;
 import org.apache.flink.runtime.executiongraph.ResultPartitionBytes;
-import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 
 /**
  * The blocking result info, which will be used to calculate the vertex parallelism and input infos.
  */
-public interface BlockingResultInfo {
-
-    /**
-     * Get the intermediate result id.
-     *
-     * @return the intermediate result id
-     */
-    IntermediateDataSetID getResultId();
-
-    /**
-     * Whether it is a broadcast result.
-     *
-     * @return whether it is a broadcast result
-     */
-    boolean isBroadcast();
-
-    /**
-     * Whether it is a pointwise result.
-     *
-     * @return whether it is a pointwise result
-     */
-    boolean isPointwise();
+public interface BlockingResultInfo extends IntermediateResultInfo {
 
     /**
      * Return the num of bytes produced(numBytesProduced) by the producer.

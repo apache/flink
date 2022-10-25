@@ -171,6 +171,16 @@ class DefaultVertexParallelismDeciderTest {
         }
 
         @Override
+        public int getNumPartitions() {
+            return 0;
+        }
+
+        @Override
+        public int getNumSubpartitions(int partitionIndex) {
+            return 0;
+        }
+
+        @Override
         public long getNumBytesProduced() {
             return producedBytes;
         }

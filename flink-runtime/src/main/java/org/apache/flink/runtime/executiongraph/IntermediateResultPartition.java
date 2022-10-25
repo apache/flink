@@ -33,7 +33,7 @@ import static org.apache.flink.util.Preconditions.checkState;
 
 public class IntermediateResultPartition {
 
-    private static final int UNKNOWN = -1;
+    static final int NUM_SUBPARTITIONS_UNKNOWN = -1;
 
     private final IntermediateResult totalResult;
 
@@ -44,7 +44,7 @@ public class IntermediateResultPartition {
     private final EdgeManager edgeManager;
 
     /** Number of subpartitions. Initialized lazily and will not change once set. */
-    private int numberOfSubpartitions = UNKNOWN;
+    private int numberOfSubpartitions = NUM_SUBPARTITIONS_UNKNOWN;
 
     /** Whether this partition has produced all data. */
     private boolean dataAllProduced = false;
@@ -114,7 +114,7 @@ public class IntermediateResultPartition {
     }
 
     public int getNumberOfSubpartitions() {
-        if (numberOfSubpartitions == UNKNOWN) {
+        if (numberOfSubpartitions == NUM_SUBPARTITIONS_UNKNOWN) {
             numberOfSubpartitions = computeNumberOfSubpartitions();
             checkState(
                     numberOfSubpartitions > 0,

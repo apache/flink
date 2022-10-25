@@ -42,6 +42,16 @@ public class PointwiseBlockingResultInfo extends AbstractBlockingResultInfo {
     }
 
     @Override
+    public int getNumPartitions() {
+        return numOfPartitions;
+    }
+
+    @Override
+    public int getNumSubpartitions(int partitionIndex) {
+        return numOfSubpartitions;
+    }
+
+    @Override
     public long getNumBytesProduced() {
         checkState(
                 subpartitionBytesByPartitionIndex.size() == numOfPartitions,

@@ -28,6 +28,7 @@ import org.apache.flink.runtime.JobException;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.execution.ExecutionState;
+import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobmaster.LogicalSlot;
@@ -159,6 +160,13 @@ public class ExecutionVertex
                 nextAttemptNumber++,
                 timestamp,
                 timeout);
+    }
+
+    public ExecutionVertexInputInfo getExecutionVertexInputInfo(IntermediateDataSetID resultId) {
+        return getExecutionGraphAccessor()
+                .getJobVertexInputInfo(getJobvertexId(), resultId)
+                .getExecutionVertexInputInfos()
+                .get(subTaskIndex);
     }
 
     public Execution getPartitionProducer() {

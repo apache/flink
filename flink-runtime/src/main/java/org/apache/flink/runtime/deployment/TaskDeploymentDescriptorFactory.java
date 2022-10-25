@@ -29,6 +29,7 @@ import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.Execution;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
+import org.apache.flink.runtime.executiongraph.ExecutionVertexInputInfo;
 import org.apache.flink.runtime.executiongraph.IndexRange;
 import org.apache.flink.runtime.executiongraph.IntermediateResult;
 import org.apache.flink.runtime.executiongraph.IntermediateResultPartition;
@@ -60,7 +61,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.function.Function;
 
-import static org.apache.flink.util.Preconditions.checkArgument;
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * Factory of {@link TaskDeploymentDescriptor} to deploy {@link
@@ -78,6 +79,8 @@ public class TaskDeploymentDescriptorFactory {
     private final BlobWriter blobWriter;
     private final Map<IntermediateDataSetID, ShuffleDescriptor[]>
             consumedClusterPartitionShuffleDescriptors;
+    private final Function<IntermediateDataSetID, ExecutionVertexInputInfo>
+            executionVertexInputInfoRetriever;
 
     private TaskDeploymentDescriptorFactory(
             ExecutionAttemptID executionId,
@@ -90,7 +93,9 @@ public class TaskDeploymentDescriptorFactory {
                     resultPartitionRetriever,
             BlobWriter blobWriter,
             Map<IntermediateDataSetID, ShuffleDescriptor[]>
-                    consumedClusterPartitionShuffleDescriptors) {
+                    consumedClusterPartitionShuffleDescriptors,
+            Function<IntermediateDataSetID, ExecutionVertexInputInfo>
+                    executionVertexInputInfoRetriever) {
         this.executionId = executionId;
         this.serializedJobInformation = serializedJobInformation;
         this.taskInfo = taskInfo;
@@ -101,6 +106,7 @@ public class TaskDeploymentDescriptorFactory {
         this.blobWriter = blobWriter;
         this.consumedClusterPartitionShuffleDescriptors =
                 consumedClusterPartitionShuffleDescriptors;
+        this.executionVertexInputInfoRetriever = checkNotNull(executionVertexInputInfoRetriever);
     }
 
     public TaskDeploymentDescriptor createDeploymentDescriptor(
@@ -128,24 +134,22 @@ public class TaskDeploymentDescriptorFactory {
             // If the produced partition has multiple consumers registered, we
             // need to request the one matching our sub task index.
             // TODO Refactor after removing the consumers from the intermediate result partitions
-            IntermediateResultPartition resultPartition =
-                    resultPartitionRetriever.apply(consumedPartitionGroup.getFirst());
 
-            IntermediateResult consumedIntermediateResult = resultPartition.getIntermediateResult();
-            IndexRange consumedSubpartitionRange =
-                    computeConsumedSubpartitionRange(
-                            consumedPartitionGroup.getNumConsumers(),
-                            resultPartition,
-                            executionId.getSubtaskIndex());
+            IntermediateResult consumedIntermediateResult =
+                    resultPartitionRetriever
+                            .apply(consumedPartitionGroup.getFirst())
+                            .getIntermediateResult();
 
             IntermediateDataSetID resultId = consumedIntermediateResult.getId();
             ResultPartitionType partitionType = consumedIntermediateResult.getResultType();
+            IndexRange subpartitionRange =
+                    executionVertexInputInfoRetriever.apply(resultId).getSubpartitionIndexRange();
 
             inputGates.add(
                     new InputGateDeploymentDescriptor(
                             resultId,
                             partitionType,
-                            consumedSubpartitionRange,
+                            subpartitionRange,
                             getConsumedPartitionShuffleDescriptors(
                                     consumedIntermediateResult, consumedPartitionGroup)));
         }
@@ -164,50 +168,6 @@ public class TaskDeploymentDescriptorFactory {
         }
 
         return inputGates;
-    }
-
-    public static IndexRange computeConsumedSubpartitionRange(
-            int numConsumers,
-            IntermediateResultPartition resultPartition,
-            int consumerSubtaskIndex) {
-        int consumerIndex = consumerSubtaskIndex % numConsumers;
-        IntermediateResult consumedIntermediateResult = resultPartition.getIntermediateResult();
-        int numSubpartitions = resultPartition.getNumberOfSubpartitions();
-        return computeConsumedSubpartitionRange(
-                consumerIndex,
-                numConsumers,
-                numSubpartitions,
-                consumedIntermediateResult.getProducer().getGraph().isDynamic(),
-                consumedIntermediateResult.isBroadcast());
-    }
-
-    @VisibleForTesting
-    static IndexRange computeConsumedSubpartitionRange(
-            int consumerIndex,
-            int numConsumers,
-            int numSubpartitions,
-            boolean isDynamicGraph,
-            boolean isBroadcast) {
-
-        if (!isDynamicGraph) {
-            checkArgument(numConsumers == numSubpartitions);
-            return new IndexRange(consumerIndex, consumerIndex);
-        } else {
-            if (isBroadcast) {
-                // broadcast result should have only one subpartition, and be consumed multiple
-                // times.
-                checkArgument(numSubpartitions == 1);
-                return new IndexRange(0, 0);
-            } else {
-                checkArgument(consumerIndex < numConsumers);
-                checkArgument(numConsumers <= numSubpartitions);
-
-                int start = consumerIndex * numSubpartitions / numConsumers;
-                int nextStart = (consumerIndex + 1) * numSubpartitions / numConsumers;
-
-                return new IndexRange(start, nextStart - 1);
-            }
-        }
     }
 
     private MaybeOffloaded<ShuffleDescriptor[]> getConsumedPartitionShuffleDescriptors(
@@ -285,7 +245,8 @@ public class TaskDeploymentDescriptorFactory {
                 executionVertex.getAllConsumedPartitionGroups(),
                 internalExecutionGraphAccessor::getResultPartitionOrThrow,
                 internalExecutionGraphAccessor.getBlobWriter(),
-                clusterPartitionShuffleDescriptors);
+                clusterPartitionShuffleDescriptors,
+                executionVertex::getExecutionVertexInputInfo);
     }
 
     private static Map<IntermediateDataSetID, ShuffleDescriptor[]>

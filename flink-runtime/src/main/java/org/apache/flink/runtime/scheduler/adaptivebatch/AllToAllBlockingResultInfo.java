@@ -62,6 +62,16 @@ public class AllToAllBlockingResultInfo extends AbstractBlockingResultInfo {
     }
 
     @Override
+    public int getNumPartitions() {
+        return numOfPartitions;
+    }
+
+    @Override
+    public int getNumSubpartitions(int partitionIndex) {
+        return numOfSubpartitions;
+    }
+
+    @Override
     public long getNumBytesProduced() {
         checkState(aggregatedSubpartitionBytes != null, "Not all partition infos are ready");
         if (isBroadcast) {
