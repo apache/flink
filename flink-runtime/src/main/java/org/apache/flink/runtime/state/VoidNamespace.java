@@ -18,8 +18,6 @@
 
 package org.apache.flink.runtime.state;
 
-import java.io.ObjectStreamException;
-
 /** Singleton placeholder class for state without a namespace. */
 public final class VoidNamespace {
 
@@ -55,14 +53,5 @@ public final class VoidNamespace {
     @Override
     public String toString() {
         return getClass().getSimpleName();
-    }
-
-    // ------------------------------------------------------------------------
-    //  Singleton serialization
-    // ------------------------------------------------------------------------
-
-    // make sure that we preserve the singleton properly on serialization
-    private Object readResolve() throws ObjectStreamException {
-        return INSTANCE;
     }
 }

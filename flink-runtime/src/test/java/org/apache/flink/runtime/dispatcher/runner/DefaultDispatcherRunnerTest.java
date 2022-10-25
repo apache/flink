@@ -20,11 +20,9 @@ package org.apache.flink.runtime.dispatcher.runner;
 
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
-import org.apache.flink.runtime.dispatcher.DispatcherId;
 import org.apache.flink.runtime.leaderelection.TestingLeaderElectionService;
 import org.apache.flink.runtime.util.LeaderConnectionInfo;
 import org.apache.flink.runtime.util.TestingFatalErrorHandler;
-import org.apache.flink.runtime.webmonitor.TestingDispatcherGateway;
 import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.concurrent.FutureUtils;
 
@@ -377,12 +375,6 @@ public class DefaultDispatcherRunnerTest extends TestLogger {
             return new StartStopDispatcherLeaderProcess(
                     dispatcherLeaderProcess, processStartFuture, processTerminationFuture);
         }
-    }
-
-    private TestingDispatcherGateway createDispatcherGateway(UUID leaderSessionId) {
-        return TestingDispatcherGateway.newBuilder()
-                .setFencingToken(DispatcherId.fromUuid(leaderSessionId))
-                .build();
     }
 
     private DispatcherRunner createDispatcherRunner() throws Exception {
