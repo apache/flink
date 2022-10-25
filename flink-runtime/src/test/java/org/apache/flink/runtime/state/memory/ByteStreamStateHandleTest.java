@@ -178,7 +178,7 @@ public class ByteStreamStateHandleTest {
         final byte[] data = new byte[0];
         final ByteStreamStateHandle handle = new ByteStreamStateHandle("name", data);
 
-        try(FSDataInputStream in = handle.openInputStream()) {
+        try (FSDataInputStream in = handle.openInputStream()) {
             byte[] dataGot = new byte[1];
             assertEquals(0, in.read(dataGot, 0, 0)); // got return 0 because len == 0.
             assertEquals(-1, in.read()); // got -1 because of EOF.
