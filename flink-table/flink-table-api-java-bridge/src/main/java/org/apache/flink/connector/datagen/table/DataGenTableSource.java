@@ -45,18 +45,27 @@ public class DataGenTableSource implements ScanTableSource, SupportsLimitPushDow
     private final DataType rowDataType;
     private final long rowsPerSecond;
     private Long numberOfRows;
+    private final boolean waveformFunctionEnabled;
+    private final Long periodMills;
+    private final Long floatingGap;
 
     public DataGenTableSource(
             DataGenerator<?>[] fieldGenerators,
             String tableName,
             DataType rowDataType,
             long rowsPerSecond,
-            Long numberOfRows) {
+            Long numberOfRows,
+            boolean waveformFunctionEnabled,
+            Long period,
+            Long floatingGap) {
         this.fieldGenerators = fieldGenerators;
         this.tableName = tableName;
         this.rowDataType = rowDataType;
         this.rowsPerSecond = rowsPerSecond;
         this.numberOfRows = numberOfRows;
+        this.waveformFunctionEnabled = waveformFunctionEnabled;
+        this.periodMills = period;
+        this.floatingGap = floatingGap;
     }
 
     @Override
@@ -70,13 +79,23 @@ public class DataGenTableSource implements ScanTableSource, SupportsLimitPushDow
         return new DataGeneratorSource<>(
                 new RowDataGenerator(fieldGenerators, DataType.getFieldNames(rowDataType)),
                 rowsPerSecond,
-                numberOfRows);
+                numberOfRows,
+                waveformFunctionEnabled,
+                periodMills,
+                floatingGap);
     }
 
     @Override
     public DynamicTableSource copy() {
         return new DataGenTableSource(
-                fieldGenerators, tableName, rowDataType, rowsPerSecond, numberOfRows);
+                fieldGenerators,
+                tableName,
+                rowDataType,
+                rowsPerSecond,
+                numberOfRows,
+                waveformFunctionEnabled,
+                periodMills,
+                floatingGap);
     }
 
     @Override

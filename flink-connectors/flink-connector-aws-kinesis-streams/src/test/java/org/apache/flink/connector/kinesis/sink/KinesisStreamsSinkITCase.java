@@ -427,7 +427,10 @@ class KinesisStreamsSinkITCase {
                                     new DataGeneratorSource<String>(
                                             RandomGenerator.stringGenerator(sizeOfMessageBytes),
                                             100,
-                                            (long) numberOfElementsToSend))
+                                            (long) numberOfElementsToSend,
+                                            false,
+                                            null,
+                                            null))
                             .returns(String.class);
 
             KinesisStreamsSink<String> kdsSink =

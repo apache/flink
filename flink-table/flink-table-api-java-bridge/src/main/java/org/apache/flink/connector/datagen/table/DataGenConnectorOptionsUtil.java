@@ -25,6 +25,7 @@ import org.apache.flink.annotation.Internal;
 public class DataGenConnectorOptionsUtil {
 
     public static final Long ROWS_PER_SECOND_DEFAULT_VALUE = 10000L;
+    public static final Long FLOATING_GAP_DEFAULT_VALUE = 5000L;
 
     public static final String FIELDS = "fields";
     public static final String KIND = "kind";

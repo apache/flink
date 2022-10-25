@@ -27,6 +27,7 @@ import java.time.Duration;
 import static org.apache.flink.configuration.ConfigOptions.key;
 import static org.apache.flink.connector.datagen.table.DataGenConnectorOptionsUtil.END;
 import static org.apache.flink.connector.datagen.table.DataGenConnectorOptionsUtil.FIELDS;
+import static org.apache.flink.connector.datagen.table.DataGenConnectorOptionsUtil.FLOATING_GAP_DEFAULT_VALUE;
 import static org.apache.flink.connector.datagen.table.DataGenConnectorOptionsUtil.KIND;
 import static org.apache.flink.connector.datagen.table.DataGenConnectorOptionsUtil.LENGTH;
 import static org.apache.flink.connector.datagen.table.DataGenConnectorOptionsUtil.MAX;
@@ -51,6 +52,25 @@ public class DataGenConnectorOptions {
                     .noDefaultValue()
                     .withDescription(
                             "Total number of rows to emit. By default, the source is unbounded.");
+
+    public static final ConfigOption<Boolean> WAVEFORM_FUNCTION_ENABLED =
+            key("waveform-function-enabled")
+                    .booleanType()
+                    .defaultValue(false)
+                    .withDescription("Apply the waveform function on the rate.");
+
+    public static final ConfigOption<Duration> PERIOD =
+            key("period")
+                    .durationType()
+                    .defaultValue(Duration.ofHours(1))
+                    .withDescription("Period of waveform function.");
+
+    public static final ConfigOption<Long> FLOATING_GAP =
+            key("floating-gap")
+                    .longType()
+                    .defaultValue(FLOATING_GAP_DEFAULT_VALUE)
+                    .withDescription(
+                            "The gap between the max(min) rate and the standard rate which is rows-per-second.");
 
     // --------------------------------------------------------------------------------------------
     // Placeholder options

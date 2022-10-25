@@ -28,6 +28,7 @@ import org.apache.flink.table.connector.source.DynamicTableSource;
 import org.apache.flink.table.factories.DynamicTableSourceFactory;
 import org.apache.flink.table.factories.FactoryUtil;
 import org.apache.flink.table.types.DataType;
+import org.apache.flink.util.Preconditions;
 
 import java.util.HashSet;
 import java.util.List;
@@ -59,6 +60,9 @@ public class DataGenTableSourceFactory implements DynamicTableSourceFactory {
         Set<ConfigOption<?>> options = new HashSet<>();
         options.add(DataGenConnectorOptions.ROWS_PER_SECOND);
         options.add(DataGenConnectorOptions.NUMBER_OF_ROWS);
+        options.add(DataGenConnectorOptions.WAVEFORM_FUNCTION_ENABLED);
+        options.add(DataGenConnectorOptions.PERIOD);
+        options.add(DataGenConnectorOptions.FLOATING_GAP);
 
         // Placeholder options
         options.add(DataGenConnectorOptions.FIELD_KIND);
@@ -76,6 +80,11 @@ public class DataGenTableSourceFactory implements DynamicTableSourceFactory {
     public DynamicTableSource createDynamicTableSource(Context context) {
         Configuration options = new Configuration();
         context.getCatalogTable().getOptions().forEach(options::setString);
+        Preconditions.checkArgument(
+                options.get(DataGenConnectorOptions.FLOATING_GAP)
+                        <= options.get(DataGenConnectorOptions.ROWS_PER_SECOND),
+                "The value of floating-gap is greater than the value of rows-per-second. "
+                        + "Please modify the value of floating-gap to be less than the value of rows-per-second.");
 
         DataType rowDataType = context.getPhysicalRowDataType();
         DataGenerator<?>[] fieldGenerators = new DataGenerator[DataType.getFieldCount(rowDataType)];
@@ -109,6 +118,9 @@ public class DataGenTableSourceFactory implements DynamicTableSourceFactory {
         consumedOptionKeys.add(CONNECTOR.key());
         consumedOptionKeys.add(DataGenConnectorOptions.ROWS_PER_SECOND.key());
         consumedOptionKeys.add(DataGenConnectorOptions.NUMBER_OF_ROWS.key());
+        consumedOptionKeys.add(DataGenConnectorOptions.WAVEFORM_FUNCTION_ENABLED.key());
+        consumedOptionKeys.add(DataGenConnectorOptions.PERIOD.key());
+        consumedOptionKeys.add(DataGenConnectorOptions.FLOATING_GAP.key());
         optionalOptions.stream().map(ConfigOption::key).forEach(consumedOptionKeys::add);
         FactoryUtil.validateUnconsumedKeys(
                 factoryIdentifier(), options.keySet(), consumedOptionKeys);
@@ -119,7 +131,10 @@ public class DataGenTableSourceFactory implements DynamicTableSourceFactory {
                 name,
                 rowDataType,
                 options.get(DataGenConnectorOptions.ROWS_PER_SECOND),
-                options.get(DataGenConnectorOptions.NUMBER_OF_ROWS));
+                options.get(DataGenConnectorOptions.NUMBER_OF_ROWS),
+                options.get(DataGenConnectorOptions.WAVEFORM_FUNCTION_ENABLED),
+                options.get(DataGenConnectorOptions.PERIOD).toMillis(),
+                options.get(DataGenConnectorOptions.FLOATING_GAP));
     }
 
     private DataGeneratorContainer createContainer(
