@@ -48,9 +48,10 @@ public class AvroParquetWriters {
      */
     public static <T extends SpecificRecordBase> ParquetWriterFactory<T> forSpecificRecord(
             Class<T> type) {
-        final String schemaString = SpecificData.get().getSchema(type).toString();
+        final Schema schema = SpecificData.get().getSchema(type);
+        final SpecificData specificData = SpecificData.getForClass(type);
         final ParquetBuilder<T> builder =
-                (out) -> createAvroParquetWriter(schemaString, SpecificData.get(), out);
+                (out) -> createAvroParquetWriter(schema, specificData, out);
         return new ParquetWriterFactory<>(builder);
     }
 
@@ -61,7 +62,6 @@ public class AvroParquetWriters {
      * @param schema The schema of the generic type.
      */
     public static ParquetWriterFactory<GenericRecord> forGenericRecord(Schema schema) {
-        final String schemaString = schema.toString();
         final ParquetBuilder<GenericRecord> builder =
                 // Must override the lambda representation because of a bug in shading lambda
                 // serialization, see similar issue FLINK-28043 for more details.
@@ -69,7 +69,7 @@ public class AvroParquetWriters {
                     @Override
                     public ParquetWriter<GenericRecord> createWriter(OutputFile out)
                             throws IOException {
-                        return createAvroParquetWriter(schemaString, GenericData.get(), out);
+                        return createAvroParquetWriter(schema, GenericData.get(), out);
                     }
                 };
         return new ParquetWriterFactory<>(builder);
@@ -82,16 +82,14 @@ public class AvroParquetWriters {
      * @param type The class of the type to write.
      */
     public static <T> ParquetWriterFactory<T> forReflectRecord(Class<T> type) {
-        final String schemaString = ReflectData.get().getSchema(type).toString();
+        final Schema schema = ReflectData.get().getSchema(type);
         final ParquetBuilder<T> builder =
-                (out) -> createAvroParquetWriter(schemaString, ReflectData.get(), out);
+                (out) -> createAvroParquetWriter(schema, ReflectData.get(), out);
         return new ParquetWriterFactory<>(builder);
     }
 
     private static <T> ParquetWriter<T> createAvroParquetWriter(
-            String schemaString, GenericData dataModel, OutputFile out) throws IOException {
-
-        final Schema schema = new Schema.Parser().parse(schemaString);
+            Schema schema, GenericData dataModel, OutputFile out) throws IOException {
 
         return AvroParquetWriter.<T>builder(out)
                 .withSchema(schema)

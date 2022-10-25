@@ -39,6 +39,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 import java.io.IOException;
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -349,9 +350,9 @@ class AvroParquetRecordFormatTest {
 
     private static List<Address> createAddressList() {
         return Arrays.asList(
-                new Address(1, "a", "b", "c", "12345"),
-                new Address(2, "p", "q", "r", "12345"),
-                new Address(3, "x", "y", "z", "12345"));
+                new Address(1, "a", "b", "c", "12345", LocalDate.of(2022, 10, 25)),
+                new Address(2, "p", "q", "r", "12345", LocalDate.of(2022, 7, 26)),
+                new Address(3, "x", "y", "z", "12345", LocalDate.of(2022, 2, 13)));
     }
 
     private static List<Datum> createDatumList() {

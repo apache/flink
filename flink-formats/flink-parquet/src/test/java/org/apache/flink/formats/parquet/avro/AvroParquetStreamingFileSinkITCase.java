@@ -71,9 +71,9 @@ public class AvroParquetStreamingFileSinkITCase extends AbstractTestBase {
 
         final List<Address> data =
                 Arrays.asList(
-                        new Address(1, "a", "b", "c", "12345"),
-                        new Address(2, "p", "q", "r", "12345"),
-                        new Address(3, "x", "y", "z", "12345"));
+                        new Address(1, "a", "b", "c", "12345", LocalDate.of(2022, 10, 25)),
+                        new Address(2, "p", "q", "r", "12345", LocalDate.of(2022, 7, 26)),
+                        new Address(3, "x", "y", "z", "12345", LocalDate.of(2022, 2, 13)));
 
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(1);
