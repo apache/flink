@@ -690,11 +690,6 @@ public class CliClient implements AutoCloseable {
         terminal.flush();
     }
 
-    private void printWarning(String message) {
-        terminal.writer().println(CliStrings.messageWarning(message).toAnsi());
-        terminal.flush();
-    }
-
     // --------------------------------------------------------------------------------------------
 
     private void closeTerminal() {

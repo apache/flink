@@ -60,7 +60,6 @@ import org.junit.jupiter.api.extension.RegisterExtension;
 import org.junit.jupiter.api.io.TempDir;
 
 import java.io.File;
-import java.io.IOException;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -80,7 +79,6 @@ import static org.apache.flink.table.client.config.SqlClientOptions.EXECUTION_MA
 import static org.apache.flink.table.client.config.SqlClientOptions.EXECUTION_RESULT_MODE;
 import static org.apache.flink.table.utils.UserDefinedFunctions.GENERATED_LOWER_UDF_CLASS;
 import static org.apache.flink.table.utils.UserDefinedFunctions.GENERATED_LOWER_UDF_CODE;
-import static org.apache.flink.util.Preconditions.checkState;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Contains basic tests for the {@link LocalExecutor}. */
@@ -466,11 +464,6 @@ class LocalExecutorITCase {
     // Helper method
     // --------------------------------------------------------------------------------------------
 
-    private TableResult executeSql(Executor executor, String sessionId, String sql) {
-        Operation operation = executor.parseStatement(sessionId, sql);
-        return executor.executeOperation(sessionId, operation);
-    }
-
     private ResultDescriptor executeQuery(Executor executor, String sessionId, String query) {
         Operation operation = executor.parseStatement(sessionId, query);
         return executor.executeQuery(sessionId, (QueryOperation) operation);
@@ -583,31 +576,6 @@ class LocalExecutorITCase {
             }
         }
         return actualResults;
-    }
-
-    private void verifySinkResult(String path) throws IOException {
-        final List<String> actualResults = new ArrayList<>();
-        TestBaseUtils.readAllResultLines(actualResults, path);
-        final List<String> expectedResults = new ArrayList<>();
-        expectedResults.add("TRUE,\"hello world\",\"2020-01-01 00:00:01\"");
-        expectedResults.add("FALSE,\"hello world\",\"2020-01-01 00:00:02\"");
-        expectedResults.add("FALSE,\"hello world\",\"2020-01-01 00:00:03\"");
-        expectedResults.add("FALSE,\"hello world\",\"2020-01-01 00:00:04\"");
-        expectedResults.add("TRUE,\"hello world\",\"2020-01-01 00:00:05\"");
-        expectedResults.add("FALSE,\"hello world!!!!\",\"2020-01-01 00:00:06\"");
-        TestBaseUtils.compareResultCollections(
-                expectedResults, actualResults, Comparator.naturalOrder());
-    }
-
-    private void executeAndVerifySinkResult(
-            Executor executor, String sessionId, String statement, String resultPath)
-            throws Exception {
-        final TableResult tableResult = executeSql(executor, sessionId, statement);
-        checkState(tableResult.getJobClient().isPresent());
-        // wait for job completion
-        tableResult.await();
-        // verify result
-        verifySinkResult(resultPath);
     }
 
     private Map<String, String> getDefaultSessionConfigMap() {
