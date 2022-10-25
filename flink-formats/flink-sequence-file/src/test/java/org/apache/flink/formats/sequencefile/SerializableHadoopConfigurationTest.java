@@ -54,19 +54,16 @@ class SerializableHadoopConfigurationTest {
                 deserializeAndGetConfiguration(serializedConfigUnderTest);
 
         Assertions.<Configuration>assertThat(deserializableConfigUnderTest.get())
-                .matches(
-                        actualConfig -> {
-                            final String value = actualConfig.get(TEST_KEY);
-                            return actualConfig != serializableConfigUnderTest.get()
-                                    && value != null
-                                    && serializableConfigUnderTest
-                                            .get()
-                                            .get(TEST_KEY)
-                                            .equals(value);
-                        })
                 .describedAs(
                         "a Hadoop Configuration with property: key=%s and value=%s",
-                        TEST_KEY, TEST_VALUE);
+                        TEST_KEY, TEST_VALUE)
+                .satisfies(
+                        actualConfig -> {
+                            Assertions.assertThat(actualConfig)
+                                    .isNotSameAs(serializableConfigUnderTest.get());
+                            Assertions.assertThat(actualConfig.get(TEST_KEY))
+                                    .isEqualTo(serializableConfigUnderTest.get().get(TEST_KEY));
+                        });
     }
 
     // ----------------------------------------	Helper Methods
