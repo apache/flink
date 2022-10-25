@@ -32,12 +32,14 @@ import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.PreparedStatement;
 import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
-import java.util.stream.Collectors;
 
 /** Catalog for PostgreSQL. */
 @Internal
@@ -107,31 +109,34 @@ public class PostgresCatalog extends AbstractJdbcCatalog {
 
         List<String> tables = Lists.newArrayList();
 
-        // get all schemas
-        List<String> schemas =
-                extractColumnValuesBySQL(
-                        baseUrl + databaseName,
-                        "SELECT schema_name FROM information_schema.schemata;",
-                        1,
-                        pgSchema -> !builtinSchemas.contains(pgSchema));
+        final String url = baseUrl + databaseName;
+        try (Connection conn = DriverManager.getConnection(url, username, pwd)) {
+            // get all schemas
+            List<String> schemas;
+            try (PreparedStatement ps =
+                    conn.prepareStatement("SELECT schema_name FROM information_schema.schemata;")) {
+                schemas =
+                        extractColumnValuesByStatement(
+                                ps, 1, pgSchema -> !builtinSchemas.contains(pgSchema));
+            }
 
-        // get all tables
-        for (String schema : schemas) {
-            // position 1 is database name, position 2 is schema name, position 3 is table name
-            List<String> pureTables =
-                    extractColumnValuesBySQL(
-                            baseUrl + databaseName,
+            // get all tables
+            try (PreparedStatement ps =
+                    conn.prepareStatement(
                             "SELECT * FROM information_schema.tables "
                                     + "WHERE table_type = 'BASE TABLE' "
                                     + "AND table_schema = ? "
-                                    + "ORDER BY table_type, table_name;",
-                            3,
-                            null,
-                            schema);
-            tables.addAll(
-                    pureTables.stream()
+                                    + "ORDER BY table_type, table_name;")) {
+                for (String schema : schemas) {
+                    // Column index 1 is database name, 2 is schema name, 3 is table name
+                    extractColumnValuesByStatement(ps, 3, null, schema).stream()
                             .map(pureTable -> schema + "." + pureTable)
-                            .collect(Collectors.toList()));
+                            .forEach(tables::add);
+                }
+            }
+        } catch (Exception e) {
+            throw new CatalogException(
+                    String.format("Failed to list tables for database %s", databaseName), e);
         }
         return tables;
     }
