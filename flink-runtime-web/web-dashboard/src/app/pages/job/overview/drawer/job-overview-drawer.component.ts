@@ -18,17 +18,19 @@
 
 import { animate, style, transition, trigger } from '@angular/animations';
 import { ChangeDetectionStrategy, Component, Inject, OnDestroy, OnInit } from '@angular/core';
-import { ActivatedRoute, Router } from '@angular/router';
+import { ActivatedRoute, Router, RouterOutlet } from '@angular/router';
 import { combineLatest, Subject } from 'rxjs';
 import { map, takeUntil } from 'rxjs/operators';
 
+import { JobChartService } from '@flink-runtime-web/components/job-chart/job-chart.service';
+import { NavigationComponent } from '@flink-runtime-web/components/navigation/navigation.component';
 import { RouterTab } from '@flink-runtime-web/core/module-config';
 import {
   JOB_OVERVIEW_MODULE_CONFIG,
   JOB_OVERVIEW_MODULE_DEFAULT_CONFIG,
   JobOverviewModuleConfig
 } from '@flink-runtime-web/pages/job/overview/job-overview.config';
-import { JobChartService } from '@flink-runtime-web/share/customize/job-chart/job-chart.service';
+import { NzIconModule } from 'ng-zorro-antd/icon';
 
 import { JobLocalService } from '../../job-local.service';
 
@@ -52,7 +54,9 @@ import { JobLocalService } from '../../job-local.service';
     '[@drawer]': '',
     '[class.full-width]': 'fullScreen'
   },
-  changeDetection: ChangeDetectionStrategy.OnPush
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  imports: [NavigationComponent, RouterOutlet, NzIconModule],
+  standalone: true
 })
 export class JobOverviewDrawerComponent implements OnInit, OnDestroy {
   public readonly listOfNavigation: RouterTab[] = [];

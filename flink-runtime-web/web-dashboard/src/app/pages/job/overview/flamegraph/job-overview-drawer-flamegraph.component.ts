@@ -16,12 +16,18 @@
  * limitations under the License.
  */
 
+import { NgIf, NgSwitch, NgSwitchCase, NgSwitchDefault } from '@angular/common';
 import { ChangeDetectionStrategy, ChangeDetectorRef, Component, OnDestroy, OnInit } from '@angular/core';
+import { FormsModule } from '@angular/forms';
 import { Subject } from 'rxjs';
 import { mergeMap, takeUntil, tap } from 'rxjs/operators';
 
+import { FlameGraphComponent } from '@flink-runtime-web/components/flame-graph/flame-graph.component';
+import { HumanizeDurationPipe } from '@flink-runtime-web/components/humanize-duration.pipe';
 import { JobFlameGraph, NodesItemCorrect } from '@flink-runtime-web/interfaces';
 import { JobService } from '@flink-runtime-web/services';
+import { NzRadioModule } from 'ng-zorro-antd/radio';
+import { NzSpinModule } from 'ng-zorro-antd/spin';
 
 import { JobLocalService } from '../../job-local.service';
 
@@ -29,7 +35,19 @@ import { JobLocalService } from '../../job-local.service';
   selector: 'flink-job-overview-drawer-flamegraph',
   templateUrl: './job-overview-drawer-flamegraph.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  styleUrls: ['./job-overview-drawer-flamegraph.component.less']
+  styleUrls: ['./job-overview-drawer-flamegraph.component.less'],
+  imports: [
+    NgIf,
+    NzRadioModule,
+    FormsModule,
+    NgSwitch,
+    HumanizeDurationPipe,
+    FlameGraphComponent,
+    NgSwitchCase,
+    NgSwitchDefault,
+    NzSpinModule
+  ],
+  standalone: true
 })
 export class JobOverviewDrawerFlameGraphComponent implements OnInit, OnDestroy {
   public isLoading = true;

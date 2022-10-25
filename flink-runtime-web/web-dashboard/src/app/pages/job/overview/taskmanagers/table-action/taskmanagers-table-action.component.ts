@@ -16,9 +16,15 @@
  * limitations under the License.
  */
 
+import { NgIf } from '@angular/common';
 import { Component, ChangeDetectionStrategy, Input, ChangeDetectorRef } from '@angular/core';
+import { RouterLinkWithHref } from '@angular/router';
 
+import { TableAggregatedMetricsComponent } from '@flink-runtime-web/components/table-aggregated-metrics/table-aggregated-metrics.component';
 import { VertexTaskManagerDetail } from '@flink-runtime-web/interfaces';
+import { NzDropDownModule } from 'ng-zorro-antd/dropdown';
+import { NzIconModule } from 'ng-zorro-antd/icon';
+import { NzModalModule } from 'ng-zorro-antd/modal';
 
 export interface JobOverviewTaskManagersTableAction {
   taskManager?: VertexTaskManagerDetail;
@@ -28,7 +34,9 @@ export interface JobOverviewTaskManagersTableAction {
   selector: 'flink-taskmanagers-table-action',
   templateUrl: './taskmanagers-table-action.component.html',
   styleUrls: ['./taskmanagers-table-action.component.less'],
-  changeDetection: ChangeDetectionStrategy.OnPush
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  imports: [NgIf, NzDropDownModule, NzIconModule, NzModalModule, TableAggregatedMetricsComponent, RouterLinkWithHref],
+  standalone: true
 })
 export class TaskmanagersTableActionComponent implements JobOverviewTaskManagersTableAction {
   @Input() taskManager?: VertexTaskManagerDetail;

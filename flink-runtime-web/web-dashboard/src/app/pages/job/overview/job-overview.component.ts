@@ -16,6 +16,7 @@
  * limitations under the License.
  */
 
+import { NgIf } from '@angular/common';
 import {
   ChangeDetectionStrategy,
   ChangeDetectorRef,
@@ -25,13 +26,16 @@ import {
   OnInit,
   ViewChild
 } from '@angular/core';
-import { ActivatedRoute, Router } from '@angular/router';
+import { ActivatedRoute, Router, RouterOutlet } from '@angular/router';
 import { forkJoin, Observable, of, Subject } from 'rxjs';
 import { catchError, filter, map, mergeMap, takeUntil } from 'rxjs/operators';
 
+import { DagreComponent } from '@flink-runtime-web/components/dagre/dagre.component';
+import { ResizeComponent } from '@flink-runtime-web/components/resize/resize.component';
 import { NodesItemCorrect, NodesItemLink } from '@flink-runtime-web/interfaces';
+import { JobOverviewListComponent } from '@flink-runtime-web/pages/job/overview/list/job-overview-list.component';
 import { MetricsService } from '@flink-runtime-web/services';
-import { DagreComponent } from '@flink-runtime-web/share/common/dagre/dagre.component';
+import { NzAlertModule } from 'ng-zorro-antd/alert';
 
 import { JobLocalService } from '../job-local.service';
 
@@ -39,7 +43,9 @@ import { JobLocalService } from '../job-local.service';
   selector: 'flink-job-overview',
   templateUrl: './job-overview.component.html',
   styleUrls: ['./job-overview.component.less'],
-  changeDetection: ChangeDetectionStrategy.OnPush
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  imports: [NzAlertModule, NgIf, DagreComponent, RouterOutlet, JobOverviewListComponent, ResizeComponent],
+  standalone: true
 })
 export class JobOverviewComponent implements OnInit, OnDestroy {
   public nodes: NodesItemCorrect[] = [];

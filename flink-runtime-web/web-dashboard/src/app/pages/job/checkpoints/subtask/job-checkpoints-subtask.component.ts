@@ -16,6 +16,7 @@
  * limitations under the License.
  */
 
+import { DatePipe, NgForOf, NgIf } from '@angular/common';
 import {
   ChangeDetectionStrategy,
   ChangeDetectorRef,
@@ -29,6 +30,8 @@ import {
 import { Subject } from 'rxjs';
 import { first, takeUntil } from 'rxjs/operators';
 
+import { HumanizeBytesPipe } from '@flink-runtime-web/components/humanize-bytes.pipe';
+import { HumanizeDurationPipe } from '@flink-runtime-web/components/humanize-duration.pipe';
 import {
   CheckpointSubTask,
   CompletedSubTaskCheckpointStatistics,
@@ -37,6 +40,7 @@ import {
   VerticesItem
 } from '@flink-runtime-web/interfaces';
 import { JobService } from '@flink-runtime-web/services';
+import { NzTableModule } from 'ng-zorro-antd/table';
 import { NzTableSortFn } from 'ng-zorro-antd/table/src/table.types';
 
 import { JobLocalService } from '../../job-local.service';
@@ -55,7 +59,9 @@ function createSortFn(
   selector: 'flink-job-checkpoints-subtask',
   templateUrl: './job-checkpoints-subtask.component.html',
   styleUrls: ['./job-checkpoints-subtask.component.less'],
-  changeDetection: ChangeDetectionStrategy.OnPush
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  imports: [NzTableModule, HumanizeDurationPipe, HumanizeBytesPipe, NgIf, DatePipe, NgForOf],
+  standalone: true
 })
 export class JobCheckpointsSubtaskComponent implements OnInit, OnChanges, OnDestroy {
   @Input() public vertex: VerticesItem;

@@ -16,10 +16,13 @@
  * limitations under the License.
  */
 
+import { DatePipe, NgForOf, NgIf, PercentPipe } from '@angular/common';
 import { ChangeDetectionStrategy, ChangeDetectorRef, Component, Input, OnDestroy, OnInit } from '@angular/core';
 import { forkJoin, Subject } from 'rxjs';
 import { first, takeUntil } from 'rxjs/operators';
 
+import { HumanizeBytesPipe } from '@flink-runtime-web/components/humanize-bytes.pipe';
+import { HumanizeDurationPipe } from '@flink-runtime-web/components/humanize-duration.pipe';
 import {
   CheckpointCompletedStatistics,
   CheckpointDetail,
@@ -27,7 +30,10 @@ import {
   VerticesItem,
   CheckpointConfig
 } from '@flink-runtime-web/interfaces';
+import { JobCheckpointsSubtaskComponent } from '@flink-runtime-web/pages/job/checkpoints/subtask/job-checkpoints-subtask.component';
 import { JobService } from '@flink-runtime-web/services';
+import { NzDividerModule } from 'ng-zorro-antd/divider';
+import { NzTableModule } from 'ng-zorro-antd/table';
 
 import { JobLocalService } from '../../job-local.service';
 
@@ -35,7 +41,19 @@ import { JobLocalService } from '../../job-local.service';
   selector: 'flink-job-checkpoints-detail',
   templateUrl: './job-checkpoints-detail.component.html',
   styleUrls: ['./job-checkpoints-detail.component.less'],
-  changeDetection: ChangeDetectionStrategy.OnPush
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  imports: [
+    NzDividerModule,
+    NzTableModule,
+    NgIf,
+    NgForOf,
+    PercentPipe,
+    HumanizeDurationPipe,
+    HumanizeBytesPipe,
+    JobCheckpointsSubtaskComponent,
+    DatePipe
+  ],
+  standalone: true
 })
 export class JobCheckpointsDetailComponent implements OnInit, OnDestroy {
   public readonly trackById = (_: number, node: VerticesItem): string => node.id;

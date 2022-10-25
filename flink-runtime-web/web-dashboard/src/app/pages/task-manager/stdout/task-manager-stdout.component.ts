@@ -17,23 +17,29 @@
  */
 
 import { ChangeDetectionStrategy, ChangeDetectorRef, Component, Inject, OnDestroy, OnInit } from '@angular/core';
+import { FormsModule } from '@angular/forms';
 import { ActivatedRoute } from '@angular/router';
 import { of, Subject } from 'rxjs';
 import { catchError, takeUntil } from 'rxjs/operators';
 
+import { AddonCompactComponent } from '@flink-runtime-web/components/addon-compact/addon-compact.component';
+import { AutoResizeDirective } from '@flink-runtime-web/components/editor/auto-resize.directive';
 import { ModuleConfig } from '@flink-runtime-web/core/module-config';
 import {
   TASK_MANAGER_MODULE_CONFIG,
   TASK_MANAGER_MODULE_DEFAULT_CONFIG
 } from '@flink-runtime-web/pages/task-manager/task-manager.config';
 import { ConfigService, TaskManagerService } from '@flink-runtime-web/services';
+import { NzCodeEditorModule } from 'ng-zorro-antd/code-editor';
 import { EditorOptions } from 'ng-zorro-antd/code-editor/typings';
 
 @Component({
   selector: 'flink-task-manager-stdout',
   templateUrl: './task-manager-stdout.component.html',
   styleUrls: ['./task-manager-stdout.component.less'],
-  changeDetection: ChangeDetectionStrategy.OnPush
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  imports: [NzCodeEditorModule, AutoResizeDirective, FormsModule, AddonCompactComponent],
+  standalone: true
 })
 export class TaskManagerStdoutComponent implements OnInit, OnDestroy {
   public editorOptions: EditorOptions;

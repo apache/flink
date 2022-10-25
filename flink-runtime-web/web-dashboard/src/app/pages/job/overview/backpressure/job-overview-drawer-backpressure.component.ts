@@ -16,10 +16,13 @@
  * limitations under the License.
  */
 
+import { NgForOf, NgIf } from '@angular/common';
 import { ChangeDetectionStrategy, ChangeDetectorRef, Component, Inject, OnDestroy, OnInit, Type } from '@angular/core';
 import { of, Subject } from 'rxjs';
 import { catchError, mergeMap, takeUntil, tap } from 'rxjs/operators';
 
+import { DynamicHostComponent } from '@flink-runtime-web/components/dynamic/dynamic-host.component';
+import { HumanizeDurationPipe } from '@flink-runtime-web/components/humanize-duration.pipe';
 import {
   JobBackpressure,
   JobBackpressureSubtask,
@@ -33,6 +36,8 @@ import {
 } from '@flink-runtime-web/pages/job/overview/job-overview.config';
 import { JobService } from '@flink-runtime-web/services';
 import { typeDefinition } from '@flink-runtime-web/utils/strong-type';
+import { NzDividerModule } from 'ng-zorro-antd/divider';
+import { NzTableModule } from 'ng-zorro-antd/table';
 
 import { JobLocalService } from '../../job-local.service';
 
@@ -40,7 +45,9 @@ import { JobLocalService } from '../../job-local.service';
   selector: 'flink-job-overview-drawer-backpressure',
   templateUrl: './job-overview-drawer-backpressure.component.html',
   styleUrls: ['./job-overview-drawer-backpressure.component.less'],
-  changeDetection: ChangeDetectionStrategy.OnPush
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  imports: [NzTableModule, NgIf, HumanizeDurationPipe, NzDividerModule, DynamicHostComponent, NgForOf],
+  standalone: true
 })
 export class JobOverviewDrawerBackpressureComponent implements OnInit, OnDestroy {
   readonly trackBySubtask = (_: number, node: JobBackpressureSubtask): number => node.subtask;
