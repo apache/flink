@@ -193,7 +193,7 @@ public class KafkaSinkExternalContext implements DataStreamSinkV2ExternalContext
 
     protected Map<String, TopicDescription> getTopicMetadata(List<String> topics) {
         try {
-            return kafkaAdminClient.describeTopics(topics).all().get();
+            return kafkaAdminClient.describeTopics(topics).allTopicNames().get();
         } catch (Exception e) {
             throw new RuntimeException(
                     String.format("Failed to get metadata for topics %s.", topics), e);
@@ -202,7 +202,7 @@ public class KafkaSinkExternalContext implements DataStreamSinkV2ExternalContext
 
     private boolean topicExists(String topic) {
         try {
-            kafkaAdminClient.describeTopics(Arrays.asList(topic)).all().get();
+            kafkaAdminClient.describeTopics(Arrays.asList(topic)).allTopicNames().get();
             return true;
         } catch (Exception e) {
             return false;

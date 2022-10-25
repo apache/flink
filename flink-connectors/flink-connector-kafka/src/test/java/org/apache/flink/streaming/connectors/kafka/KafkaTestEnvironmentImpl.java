@@ -180,7 +180,7 @@ public class KafkaTestEnvironmentImpl extends KafkaTestEnvironment {
                             topicDescriptions =
                                     adminClient
                                             .describeTopics(Collections.singleton(topic))
-                                            .all()
+                                            .allTopicNames()
                                             .get(REQUEST_TIMEOUT_SECONDS, TimeUnit.SECONDS);
                         } catch (Exception e) {
                             LOG.warn("Exception caught when describing Kafka topics", e);
@@ -331,7 +331,10 @@ public class KafkaTestEnvironmentImpl extends KafkaTestEnvironment {
     public int getLeaderToShutDown(String topic) throws Exception {
         try (final AdminClient client = AdminClient.create(getStandardProperties())) {
             TopicDescription result =
-                    client.describeTopics(Collections.singleton(topic)).all().get().get(topic);
+                    client.describeTopics(Collections.singleton(topic))
+                            .allTopicNames()
+                            .get()
+                            .get(topic);
             return result.partitions().get(0).leader().id();
         }
     }
