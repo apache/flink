@@ -50,7 +50,21 @@ public class KerberosLoginProvider {
         this.useTicketCache = securityConfiguration.useTicketCache();
     }
 
+    public KerberosLoginProvider(SecurityConfiguration securityConfiguration) {
+        checkNotNull(securityConfiguration, "Flink security configuration must not be null");
+        this.principal = securityConfiguration.getPrincipal();
+        this.keytab = securityConfiguration.getKeytab();
+        this.useTicketCache = securityConfiguration.useTicketCache();
+    }
+
     public boolean isLoginPossible() throws IOException {
+        if (UserGroupInformation.isSecurityEnabled()) {
+            LOG.debug("Security is enabled");
+        } else {
+            LOG.debug("Security is NOT enabled");
+            return false;
+        }
+
         UserGroupInformation currentUser = UserGroupInformation.getCurrentUser();
 
         if (principal != null) {
@@ -70,7 +84,29 @@ public class KerberosLoginProvider {
         return false;
     }
 
-    public UserGroupInformation doLogin() throws IOException {
+    /**
+     * Does kerberos login and sets current user. Must be called when isLoginPossible returns true.
+     */
+    public void doLogin() throws IOException {
+        if (principal != null) {
+            LOG.info(
+                    "Attempting to login to KDC using principal: {} keytab: {}", principal, keytab);
+            UserGroupInformation.loginUserFromKeytab(principal, keytab);
+            LOG.info("Successfully logged into KDC");
+        } else if (!HadoopUserUtils.isProxyUser(UserGroupInformation.getCurrentUser())) {
+            LOG.info("Attempting to load user's ticket cache");
+            UserGroupInformation.loginUserFromSubject(null);
+            LOG.info("Loaded user's ticket cache successfully");
+        } else {
+            throwProxyUserNotSupported();
+        }
+    }
+
+    /**
+     * Does kerberos login and doesn't set current user, just returns a new UGI instance. Must be
+     * called when isLoginPossible returns true.
+     */
+    public UserGroupInformation doLoginAndReturnUGI() throws IOException {
         UserGroupInformation currentUser = UserGroupInformation.getCurrentUser();
 
         if (principal != null) {
