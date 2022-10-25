@@ -190,7 +190,10 @@ public class KafkaSourceExternalContext implements DataStreamSourceExternalConte
         final Set<String> topics = adminClient.listTopics().names().get();
         if (topics.contains(topicName)) {
             final Map<String, TopicDescription> topicDescriptions =
-                    adminClient.describeTopics(Collections.singletonList(topicName)).all().get();
+                    adminClient
+                            .describeTopics(Collections.singletonList(topicName))
+                            .allTopicNames()
+                            .get();
             final int numPartitions = topicDescriptions.get(topicName).partitions().size();
             LOG.info("Creating partition {} for topic '{}'", numPartitions + 1, topicName);
             adminClient
