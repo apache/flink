@@ -257,6 +257,11 @@ public class OperationExecutor {
                 .getDefinition();
     }
 
+    public List<String> getCompletionHints(String statement, int position) {
+        return Arrays.asList(
+                getTableEnvironment().getParser().getCompletionHints(statement, position));
+    }
+
     // --------------------------------------------------------------------------------------------
 
     @VisibleForTesting

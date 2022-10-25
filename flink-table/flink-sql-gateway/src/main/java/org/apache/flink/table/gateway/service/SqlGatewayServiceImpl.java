@@ -45,6 +45,7 @@ import org.apache.flink.table.gateway.service.session.SessionManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.Callable;
@@ -335,6 +336,13 @@ public class SqlGatewayServiceImpl implements SqlGatewayService {
     @Override
     public GatewayInfo getGatewayInfo() {
         return GatewayInfo.INSTANCE;
+    }
+
+    @Override
+    public List<String> completeStatement(
+            SessionHandle sessionHandle, String statement, int position)
+            throws SqlGatewayException {
+        return getSession(sessionHandle).createExecutor().getCompletionHints(statement, position);
     }
 
     // --------------------------------------------------------------------------------------------

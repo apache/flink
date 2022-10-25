@@ -555,6 +555,57 @@ public class SqlGatewayServiceITCase extends AbstractTestBase {
     }
 
     @Test
+    public void testCompleteStatement() throws Exception {
+        SessionHandle sessionHandle = service.openSession(defaultSessionEnvironment);
+
+        String createTable1 =
+                "CREATE TABLE Table1 (\n"
+                        + "  IntegerField1 INT,\n"
+                        + "  StringField1 STRING,\n"
+                        + "  TimestampField1 TIMESTAMP(3)\n"
+                        + ") WITH (\n"
+                        + "  'connector' = 'datagen'\n"
+                        + ")\n";
+        String createTable2 =
+                "CREATE TABLE Table2 (\n"
+                        + "  BooleanField BOOLEAN,\n"
+                        + "  StringField2 STRING,\n"
+                        + "  TimestampField2 TIMESTAMP\n"
+                        + ") WITH (\n"
+                        + "  'connector' = 'blackhole'\n"
+                        + ")\n";
+
+        service.executeStatement(sessionHandle, createTable1, 0, new Configuration());
+        OperationHandle operationHandle =
+                service.executeStatement(sessionHandle, createTable2, 0, new Configuration());
+        CommonTestUtils.waitUtil(
+                () ->
+                        service.getOperationInfo(sessionHandle, operationHandle)
+                                .getStatus()
+                                .isTerminalStatus(),
+                Duration.ofSeconds(100),
+                "Failed to wait operation finish.");
+
+        List<String> expectedTableHints =
+                Arrays.asList(
+                        "default_catalog.default_database.Table1",
+                        "default_catalog.default_database.Table2");
+        String incompleteSql = "SELECT * FROM Ta";
+        assertThat(service.completeStatement(sessionHandle, incompleteSql, incompleteSql.length()))
+                .isEqualTo(expectedTableHints);
+
+        List<String> expectedClause = Collections.singletonList("WHERE");
+        incompleteSql = "SELECT * FROM Table1 WH";
+        assertThat(service.completeStatement(sessionHandle, incompleteSql, incompleteSql.length()))
+                .isEqualTo(expectedClause);
+
+        List<String> expectedField = Collections.singletonList("IntegerField1");
+        incompleteSql = "SELECT * FROM Table1 WHERE Inte";
+        assertThat(service.completeStatement(sessionHandle, incompleteSql, incompleteSql.length()))
+                .isEqualTo(expectedField);
+    }
+
+    @Test
     public void testGetTable() {
         SessionHandle sessionHandle = createInitializedSession();
         ResolvedCatalogTable actualTable =

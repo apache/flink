@@ -37,6 +37,7 @@ import org.apache.flink.table.gateway.api.results.TableInfo;
 import org.apache.flink.table.gateway.api.session.SessionEnvironment;
 import org.apache.flink.table.gateway.api.session.SessionHandle;
 
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.Callable;
@@ -176,6 +177,13 @@ public class MockedSqlGatewayService implements SqlGatewayService {
 
     @Override
     public GatewayInfo getGatewayInfo() {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public List<String> completeStatement(
+            SessionHandle sessionHandle, String statement, int position)
+            throws SqlGatewayException {
         throw new UnsupportedOperationException();
     }
 
