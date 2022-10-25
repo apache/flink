@@ -38,6 +38,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nonnull;
+import javax.annotation.concurrent.GuardedBy;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -69,9 +70,11 @@ public class MetricFetcherImpl<T extends RestfulGateway> implements MetricFetche
     private final MetricDumpDeserializer deserializer = new MetricDumpDeserializer();
     private final long updateInterval;
 
+    @GuardedBy("this")
     private long lastUpdateTime;
 
-    private CompletableFuture<Void> fetchMetricsFuture = CompletableFuture.completedFuture(null);
+    @GuardedBy("this")
+    private CompletableFuture<Void> fetchMetricsFuture = FutureUtils.completedVoidFuture();
 
     public MetricFetcherImpl(
             GatewayRetriever<T> retriever,
@@ -155,25 +158,37 @@ public class MetricFetcherImpl<T extends RestfulGateway> implements MetricFetche
                         executor);
 
                 List<CompletableFuture<Void>> waitingMetricsFutures = new ArrayList<>();
-                waitingMetricsFutures.add(queryJmMetricsFuture(leaderGateway));
-                waitingMetricsFutures.add(queryTmMetricsFuture(leaderGateway));
+                CompletableFuture<Void> jmMetricsFuture = queryJmMetricsFuture(leaderGateway);
+                waitingMetricsFutures.add(jmMetricsFuture);
+                jmMetricsFuture.whenCompleteAsync(
+                        (ignore, throwable) -> {
+                            if (throwable != null) {
+                                LOG.debug("Failed to fetch the leader's metrics.", throwable);
+                            }
+                        },
+                        executor);
+                CompletableFuture<Void> tmMetricsFuture = queryTmMetricsFuture(leaderGateway);
+                waitingMetricsFutures.add(tmMetricsFuture);
+                tmMetricsFuture.whenCompleteAsync(
+                        (ignore, throwable) -> {
+                            if (throwable != null) {
+                                LOG.debug("Failed to fetch the TaskManager's metrics.", throwable);
+                            }
+                        },
+                        executor);
                 return FutureUtils.waitForAll(waitingMetricsFutures);
             }
         } catch (Exception e) {
             LOG.debug("Exception while fetching metrics.", e);
         }
-        return CompletableFuture.completedFuture(null);
+        return FutureUtils.completedVoidFuture();
     }
 
     private CompletableFuture<Void> queryJmMetricsFuture(T leaderGateway) {
         CompletableFuture<Collection<String>> queryServiceAddressesFuture =
                 leaderGateway.requestMetricQueryServiceAddresses(timeout);
-
         return queryServiceAddressesFuture.thenComposeAsync(
                 (Collection<String> queryServiceAddresses) -> {
-                    if (queryServiceAddresses.isEmpty()) {
-                        return CompletableFuture.completedFuture(null);
-                    }
                     List<CompletableFuture<Void>> queryMetricFutures = new ArrayList<>();
                     for (String queryServiceAddress : queryServiceAddresses) {
                         queryMetricFutures.add(retrieveAndQueryMetrics(queryServiceAddress));
@@ -193,28 +208,19 @@ public class MetricFetcherImpl<T extends RestfulGateway> implements MetricFetche
         CompletableFuture<Collection<Tuple2<ResourceID, String>>>
                 taskManagerQueryServiceGatewaysFuture =
                         leaderGateway.requestTaskManagerMetricQueryServiceAddresses(timeout);
-
         return taskManagerQueryServiceGatewaysFuture.thenComposeAsync(
                 (Collection<Tuple2<ResourceID, String>> queryServiceGateways) -> {
-                    if (queryServiceGateways.isEmpty()) {
-                        return CompletableFuture.completedFuture(null);
-                    }
                     List<CompletableFuture<Void>> queryMetricFutures = new ArrayList<>();
                     List<String> taskManagersToRetain =
                             queryServiceGateways.stream()
                                     .map(
                                             (Tuple2<ResourceID, String> tuple) -> {
-                                                CompletableFuture<Void> finishQueryMetricsFuture =
-                                                        new CompletableFuture<>();
-                                                queryServiceRetriever
-                                                        .retrieveService(tuple.f1)
-                                                        .thenAcceptAsync(
-                                                                queryServiceGateway ->
-                                                                        queryMetrics(
-                                                                                queryServiceGateway,
-                                                                                finishQueryMetricsFuture),
-                                                                executor);
-                                                queryMetricFutures.add(finishQueryMetricsFuture);
+                                                queryMetricFutures.add(
+                                                        queryServiceRetriever
+                                                                .retrieveService(tuple.f1)
+                                                                .thenComposeAsync(
+                                                                        this::queryMetrics,
+                                                                        executor));
                                                 return tuple.f0.getResourceIdString();
                                             })
                                     .collect(Collectors.toList());
@@ -235,19 +241,7 @@ public class MetricFetcherImpl<T extends RestfulGateway> implements MetricFetche
 
         final CompletableFuture<MetricQueryServiceGateway> queryServiceGatewayFuture =
                 queryServiceRetriever.retrieveService(queryServiceAddress);
-        final CompletableFuture<Void> finishQueryMetricsFuture = new CompletableFuture<>();
-
-        queryServiceGatewayFuture.whenCompleteAsync(
-                (MetricQueryServiceGateway queryServiceGateway, Throwable t) -> {
-                    if (t != null) {
-                        finishQueryMetricsFuture.complete(null);
-                        LOG.debug("Could not retrieve QueryServiceGateway.", t);
-                    } else {
-                        queryMetrics(queryServiceGateway, finishQueryMetricsFuture);
-                    }
-                },
-                executor);
-        return finishQueryMetricsFuture;
+        return queryServiceGatewayFuture.thenComposeAsync(this::queryMetrics, executor);
     }
 
     /**
@@ -255,21 +249,16 @@ public class MetricFetcherImpl<T extends RestfulGateway> implements MetricFetche
      *
      * @param queryServiceGateway to query for metrics
      */
-    private void queryMetrics(
-            final MetricQueryServiceGateway queryServiceGateway,
-            CompletableFuture<Void> finishQueryMetricsFuture) {
+    private CompletableFuture<Void> queryMetrics(
+            final MetricQueryServiceGateway queryServiceGateway) {
         LOG.debug("Query metrics for {}.", queryServiceGateway.getAddress());
 
-        queryServiceGateway
+        return queryServiceGateway
                 .queryMetrics(timeout)
-                .whenCompleteAsync(
-                        (MetricDumpSerialization.MetricSerializationResult result, Throwable t) -> {
-                            finishQueryMetricsFuture.complete(null);
-                            if (t != null) {
-                                LOG.debug("Fetching metrics failed.", t);
-                            } else {
-                                metrics.addAll(deserializer.deserialize(result));
-                            }
+                .thenComposeAsync(
+                        (MetricDumpSerialization.MetricSerializationResult result) -> {
+                            metrics.addAll(deserializer.deserialize(result));
+                            return FutureUtils.completedVoidFuture();
                         },
                         executor);
     }

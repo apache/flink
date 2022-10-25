@@ -39,6 +39,7 @@ import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
 import org.apache.flink.runtime.webmonitor.retriever.MetricQueryServiceGateway;
 import org.apache.flink.util.TestLoggerExtension;
 import org.apache.flink.util.concurrent.Executors;
+import org.apache.flink.util.concurrent.FutureUtils;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -53,7 +54,6 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.fail;
 
 /** Tests for the MetricFetcher. */
 @ExtendWith(TestLoggerExtension.class)
@@ -228,7 +228,7 @@ class MetricFetcherTest {
         final ResourceID tmRID = ResourceID.generate();
 
         // Create metric fetcher
-        MetricFetcher fetcher =
+        final MetricFetcher fetcher =
                 createMetricFetcherWithServiceGateways(
                         jobID,
                         tmRID,
@@ -249,7 +249,7 @@ class MetricFetcherTest {
 
         fetcher.update();
 
-        assertThat(requestMetricQueryServiceGatewaysCounter.get()).isEqualTo(1);
+        assertThat(requestMetricQueryServiceGatewaysCounter).hasValue(1);
     }
 
     private MetricFetcher createMetricFetcherWithServiceGateways(
@@ -291,19 +291,19 @@ class MetricFetcherTest {
                                                         MetricDumpSerialization
                                                                 .MetricSerializationResult>
                                                 metricsAnswerFuture = new CompletableFuture<>();
-                                        CompletableFuture.completedFuture(null)
-                                                .thenRunAsync(
-                                                        waitTimeMs(
-                                                                waitTimeBeforeReturnMetricResults),
-                                                        executor)
-                                                .whenCompleteAsync(
-                                                        (ignore, throwable) -> {
-                                                            if (throwable != null) {
-                                                                fail(throwable.getMessage());
+                                        FutureUtils.completedVoidFuture()
+                                                .thenComposeAsync(
+                                                        (ignored) -> {
+                                                            try {
+                                                                Thread.sleep(
+                                                                        waitTimeBeforeReturnMetricResults);
+                                                            } catch (InterruptedException ignore) {
                                                             }
                                                             metricsAnswerFuture.complete(
                                                                     requestMetricsAnswer);
-                                                        });
+                                                            return metricsAnswerFuture;
+                                                        },
+                                                        executor);
                                         return metricsAnswerFuture;
                                     } else {
                                         return CompletableFuture.completedFuture(
@@ -349,16 +349,6 @@ class MetricFetcherTest {
                 Executors.directExecutor(),
                 timeout,
                 updateInterval);
-    }
-
-    private static Runnable waitTimeMs(long sleepTimeMs) {
-        return () -> {
-            try {
-                Thread.sleep(sleepTimeMs);
-            } catch (Throwable throwable) {
-                fail(throwable.getMessage());
-            }
-        };
     }
 
     private MetricFetcher createMetricFetcher(long updateInterval, RestfulGateway restfulGateway) {
