@@ -57,6 +57,7 @@ import javax.annotation.Nullable;
 
 import java.io.IOException;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -85,7 +86,6 @@ public abstract class ParquetVectorizedInputFormat<T, SplitT extends FileSourceS
     private final int batchSize;
     protected final boolean isUtcTimestamp;
     private final boolean isCaseSensitive;
-    private final Set<Integer> unknownFieldsIndices = new HashSet<>();
 
     public ParquetVectorizedInputFormat(
             SerializableConfiguration hadoopConfig,
@@ -126,10 +126,11 @@ public abstract class ParquetVectorizedInputFormat<T, SplitT extends FileSourceS
                         .build();
         ParquetFileReader parquetFileReader = ParquetFileReader.open(inputFile, parquetReadOptions);
 
+        Set<Integer> unknownFieldsIndices = new HashSet<>();
         MessageType fileSchema = parquetFileReader.getFooter().getFileMetaData().getSchema();
         // Pruning unnecessary column, we should set the projection schema before running any
         // filtering (e.g. getting filtered record count) because projection impacts filtering
-        MessageType requestedSchema = clipParquetSchema(fileSchema);
+        MessageType requestedSchema = clipParquetSchema(fileSchema, unknownFieldsIndices);
         parquetFileReader.setRequestedSchema(requestedSchema);
 
         checkSchema(fileSchema, requestedSchema);
@@ -138,7 +139,12 @@ public abstract class ParquetVectorizedInputFormat<T, SplitT extends FileSourceS
         final Pool<ParquetReaderBatch<T>> poolOfBatches =
                 createPoolOfBatches(split, requestedSchema, numBatchesToCirculate(config));
 
-        return new ParquetReader(parquetFileReader, requestedSchema, totalRowCount, poolOfBatches);
+        return new ParquetReader(
+                parquetFileReader,
+                requestedSchema,
+                unknownFieldsIndices,
+                totalRowCount,
+                poolOfBatches);
     }
 
     protected int numBatchesToCirculate(Configuration config) {
@@ -166,7 +172,8 @@ public abstract class ParquetVectorizedInputFormat<T, SplitT extends FileSourceS
     }
 
     /** Clips `parquetSchema` according to `fieldNames`. */
-    private MessageType clipParquetSchema(GroupType parquetSchema) {
+    private MessageType clipParquetSchema(
+            GroupType parquetSchema, Collection<Integer> unknownFieldsIndices) {
         Type[] types = new Type[projectedFields.length];
         if (isCaseSensitive) {
             for (int i = 0; i < projectedFields.length; ++i) {
@@ -305,6 +312,8 @@ public abstract class ParquetVectorizedInputFormat<T, SplitT extends FileSourceS
 
         private final MessageType requestedSchema;
 
+        private final Set<Integer> unknownFieldsIndices;
+
         /**
          * The total number of rows this RecordReader will eventually read. The sum of the rows of
          * all the row groups.
@@ -331,10 +340,12 @@ public abstract class ParquetVectorizedInputFormat<T, SplitT extends FileSourceS
         private ParquetReader(
                 ParquetFileReader reader,
                 MessageType requestedSchema,
+                Set<Integer> unknownFieldsIndices,
                 long totalRowCount,
                 Pool<ParquetReaderBatch<T>> pool) {
             this.reader = reader;
             this.requestedSchema = requestedSchema;
+            this.unknownFieldsIndices = unknownFieldsIndices;
             this.totalRowCount = totalRowCount;
             this.pool = pool;
             this.rowsReturned = 0;

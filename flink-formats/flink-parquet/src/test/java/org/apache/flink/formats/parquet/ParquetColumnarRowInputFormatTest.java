@@ -88,43 +88,51 @@ class ParquetColumnarRowInputFormatTest {
     private static final org.apache.flink.configuration.Configuration EMPTY_CONF =
             new org.apache.flink.configuration.Configuration();
 
+    private static final LogicalType[] FIELD_TYPES =
+            new LogicalType[] {
+                new VarCharType(VarCharType.MAX_LENGTH),
+                new BooleanType(),
+                new TinyIntType(),
+                new SmallIntType(),
+                new IntType(),
+                new BigIntType(),
+                new FloatType(),
+                new DoubleType(),
+                new TimestampType(9),
+                new DecimalType(5, 0),
+                new DecimalType(15, 2),
+                new DecimalType(20, 0),
+                new DecimalType(5, 0),
+                new DecimalType(15, 0),
+                new DecimalType(20, 0),
+                new ArrayType(new VarCharType(VarCharType.MAX_LENGTH)),
+                new ArrayType(new BooleanType()),
+                new ArrayType(new TinyIntType()),
+                new ArrayType(new SmallIntType()),
+                new ArrayType(new IntType()),
+                new ArrayType(new BigIntType()),
+                new ArrayType(new FloatType()),
+                new ArrayType(new DoubleType()),
+                new ArrayType(new TimestampType(9)),
+                new ArrayType(new DecimalType(5, 0)),
+                new ArrayType(new DecimalType(15, 0)),
+                new ArrayType(new DecimalType(20, 0)),
+                new ArrayType(new DecimalType(5, 0)),
+                new ArrayType(new DecimalType(15, 0)),
+                new ArrayType(new DecimalType(20, 0)),
+                new MapType(
+                        new VarCharType(VarCharType.MAX_LENGTH),
+                        new VarCharType(VarCharType.MAX_LENGTH)),
+                new MapType(new IntType(), new BooleanType()),
+                RowType.of(new VarCharType(VarCharType.MAX_LENGTH), new IntType())
+            };
+
     private static final RowType ROW_TYPE =
             RowType.of(
-                    new VarCharType(VarCharType.MAX_LENGTH),
-                    new BooleanType(),
-                    new TinyIntType(),
-                    new SmallIntType(),
-                    new IntType(),
-                    new BigIntType(),
-                    new FloatType(),
-                    new DoubleType(),
-                    new TimestampType(9),
-                    new DecimalType(5, 0),
-                    new DecimalType(15, 2),
-                    new DecimalType(20, 0),
-                    new DecimalType(5, 0),
-                    new DecimalType(15, 0),
-                    new DecimalType(20, 0),
-                    new ArrayType(new VarCharType(VarCharType.MAX_LENGTH)),
-                    new ArrayType(new BooleanType()),
-                    new ArrayType(new TinyIntType()),
-                    new ArrayType(new SmallIntType()),
-                    new ArrayType(new IntType()),
-                    new ArrayType(new BigIntType()),
-                    new ArrayType(new FloatType()),
-                    new ArrayType(new DoubleType()),
-                    new ArrayType(new TimestampType(9)),
-                    new ArrayType(new DecimalType(5, 0)),
-                    new ArrayType(new DecimalType(15, 0)),
-                    new ArrayType(new DecimalType(20, 0)),
-                    new ArrayType(new DecimalType(5, 0)),
-                    new ArrayType(new DecimalType(15, 0)),
-                    new ArrayType(new DecimalType(20, 0)),
-                    new MapType(
-                            new VarCharType(VarCharType.MAX_LENGTH),
-                            new VarCharType(VarCharType.MAX_LENGTH)),
-                    new MapType(new IntType(), new BooleanType()),
-                    RowType.of(new VarCharType(VarCharType.MAX_LENGTH), new IntType()));
+                    FIELD_TYPES,
+                    IntStream.range(0, FIELD_TYPES.length)
+                            .mapToObj(i -> "f" + i)
+                            .toArray(String[]::new));
 
     @TempDir private File folder;
 
@@ -218,21 +226,21 @@ class ParquetColumnarRowInputFormatTest {
     @ParameterizedTest
     @MethodSource("parameters")
     void testProjection(int rowGroupSize) throws IOException {
-        int number = 1000;
-        List<RowData> records = new ArrayList<>(number);
-        for (int i = 0; i < number; i++) {
-            Integer v = i;
-            records.add(newRow(v));
-        }
-
+        int number = 100;
+        final List<RowData> records =
+                IntStream.range(0, number).mapToObj(this::newRow).collect(Collectors.toList());
         Path testPath = createTempParquetFile(folder, records, rowGroupSize);
         // test reader
-        LogicalType[] fieldTypes =
-                new LogicalType[] {new DoubleType(), new TinyIntType(), new IntType()};
+        String[] readerColumnNames = new String[] {"f7", "f2", "f4"};
+        final LogicalType[] fieldTypes =
+                Arrays.stream(readerColumnNames)
+                        .map(ROW_TYPE::getFieldIndex)
+                        .map(ROW_TYPE::getTypeAt)
+                        .toArray(LogicalType[]::new);
         ParquetColumnarRowInputFormat<FileSourceSplit> format =
                 new ParquetColumnarRowInputFormat(
                         new Configuration(),
-                        RowType.of(fieldTypes, new String[] {"f7", "f2", "f4"}),
+                        RowType.of(fieldTypes, readerColumnNames),
                         null,
                         500,
                         false,
@@ -255,25 +263,24 @@ class ParquetColumnarRowInputFormatTest {
     @ParameterizedTest
     @MethodSource("parameters")
     void testProjectionReadUnknownField(int rowGroupSize) throws IOException {
-        int number = 1000;
-        List<RowData> records = new ArrayList<>(number);
-        for (int i = 0; i < number; i++) {
-            Integer v = i;
-            records.add(newRow(v));
-        }
-
+        int number = 100;
+        final List<RowData> records =
+                IntStream.range(0, number).mapToObj(this::newRow).collect(Collectors.toList());
         Path testPath = createTempParquetFile(folder, records, rowGroupSize);
 
         // test reader
-        LogicalType[] fieldTypes =
-                new LogicalType[] {
-                    new DoubleType(), new TinyIntType(), new IntType(), new VarCharType()
-                };
+        // f99 not exist in parquet file.
+        String[] readerColumnNames = new String[] {"f7", "f2", "f4", "f99"};
+        final LogicalType[] fieldTypes =
+                Arrays.stream(readerColumnNames)
+                        .map(ROW_TYPE::getFieldIndex)
+                        .map(index -> (index != -1) ? ROW_TYPE.getTypeAt(index) : new VarCharType())
+                        .toArray(LogicalType[]::new);
+
         ParquetColumnarRowInputFormat<FileSourceSplit> format =
                 new ParquetColumnarRowInputFormat<>(
                         new Configuration(),
-                        // f99 not exist in parquet file.
-                        RowType.of(fieldTypes, new String[] {"f7", "f2", "f4", "f99"}),
+                        RowType.of(fieldTypes, readerColumnNames),
                         null,
                         500,
                         false,
@@ -296,15 +303,85 @@ class ParquetColumnarRowInputFormatTest {
 
     @ParameterizedTest
     @MethodSource("parameters")
+    void testProjectionReadUnknownFieldAcrossFiles(int rowGroupSize) throws IOException {
+        int number = 100;
+        final List<RowData> records =
+                IntStream.range(0, number).mapToObj(this::newRow).collect(Collectors.toList());
+        // create parquet files for both legacy and new
+        // f7 and f99 don’t exist in legacy parquet file
+        // f99 doesn't exist in new parquet file
+        // create legacy parquet file
+        // assume f7 and following columns do not exist in legacy parquet file.
+        RowType legacyParquetType =
+                new RowType(
+                        IntStream.range(0, 6)
+                                .mapToObj(i -> ROW_TYPE.getFields().get(i))
+                                .collect(Collectors.toList()));
+        Path legacyParquetPath =
+                createTempParquetFile(
+                        new File(folder, "legacy"), legacyParquetType, records, rowGroupSize);
+        // create new parquet file
+        Path newParquetPath = createTempParquetFile(new File(folder, "new"), records, rowGroupSize);
+
+        // test reader
+        // f7 and f99 do not exist in parquet file.
+        String[] readerColumnNames = new String[] {"f7", "f2", "f4", "f99"};
+        final LogicalType[] fieldTypes =
+                Arrays.stream(readerColumnNames)
+                        .map(ROW_TYPE::getFieldIndex)
+                        .map(index -> (index != -1) ? ROW_TYPE.getTypeAt(index) : new VarCharType())
+                        .toArray(LogicalType[]::new);
+
+        ParquetColumnarRowInputFormat<FileSourceSplit> format =
+                new ParquetColumnarRowInputFormat<>(
+                        new Configuration(),
+                        RowType.of(fieldTypes, readerColumnNames),
+                        null,
+                        500,
+                        false,
+                        true);
+
+        AtomicInteger cnt = new AtomicInteger(0);
+        // iterate data in both legacy and new parquet file separately
+        // equivalent to the call function: FileSource.forBulkFileFormat(BulkFormat,Path...);
+        // f7 is expected to be null in the legacy parquet file
+        forEachRemaining(
+                format.createReader(
+                        EMPTY_CONF,
+                        new FileSourceSplit(
+                                "id", legacyParquetPath, 0, Long.MAX_VALUE, 0, Long.MAX_VALUE)),
+                row -> {
+                    int i = cnt.get();
+                    assertThat(row.isNullAt(0)).isTrue();
+                    assertThat(row.getByte(1)).isEqualTo((byte) i);
+                    assertThat(row.getInt(2)).isEqualTo(i);
+                    assertThat(row.isNullAt(3)).isTrue();
+                    cnt.incrementAndGet();
+                });
+        // f7 is expected to exist in the new parquet file
+        cnt.set(0);
+        forEachRemaining(
+                format.createReader(
+                        EMPTY_CONF,
+                        new FileSourceSplit(
+                                "id", newParquetPath, 0, Long.MAX_VALUE, 0, Long.MAX_VALUE)),
+                row -> {
+                    int i = cnt.get();
+                    assertThat(row.getDouble(0)).isEqualTo(i);
+                    assertThat(row.getByte(1)).isEqualTo((byte) i);
+                    assertThat(row.getInt(2)).isEqualTo(i);
+                    assertThat(row.isNullAt(3)).isTrue();
+                    cnt.incrementAndGet();
+                });
+    }
+
+    @ParameterizedTest
+    @MethodSource("parameters")
     void testPartitionValues(int rowGroupSize) throws IOException {
         // prepare parquet file
         int number = 1000;
-        List<RowData> records = new ArrayList<>(number);
-        for (int i = 0; i < number; i++) {
-            Integer v = i;
-            records.add(newRow(v));
-        }
-
+        final List<RowData> records =
+                IntStream.range(0, number).mapToObj(this::newRow).collect(Collectors.toList());
         List<String> partitionKeys =
                 Arrays.asList(
                         "f33", "f34", "f35", "f36", "f37", "f38", "f39", "f40", "f41", "f42", "f43",
@@ -371,12 +448,17 @@ class ParquetColumnarRowInputFormatTest {
 
     private Path createTempParquetFile(File folder, List<RowData> rows, int rowGroupSize)
             throws IOException {
+        return this.createTempParquetFile(folder, ROW_TYPE, rows, rowGroupSize);
+    }
+
+    private Path createTempParquetFile(
+            File folder, RowType rowType, List<RowData> rows, int rowGroupSize) throws IOException {
         // write data
         Path path = new Path(folder.getPath(), UUID.randomUUID().toString());
         Configuration conf = new Configuration();
         conf.setInt("parquet.block.size", rowGroupSize);
         ParquetWriterFactory<RowData> factory =
-                ParquetRowDataBuilder.createWriterFactory(ROW_TYPE, conf, false);
+                ParquetRowDataBuilder.createWriterFactory(rowType, conf, false);
         BulkWriter<RowData> writer =
                 factory.create(path.getFileSystem().create(path, FileSystem.WriteMode.OVERWRITE));
         for (int i = 0; i < rows.size(); i++) {
@@ -679,7 +761,9 @@ class ParquetColumnarRowInputFormatTest {
         RowType rowType =
                 RowType.of(
                         fieldTypes,
-                        IntStream.range(0, 46).mapToObj(i -> "f" + i).toArray(String[]::new));
+                        IntStream.range(0, fieldTypes.length)
+                                .mapToObj(i -> "f" + i)
+                                .toArray(String[]::new));
 
         int[] projected = new int[] {7, 2, 4, 33, 37, 38, 39, 40, 41, 36, 34, 35, 42, 43, 44, 45};
 
