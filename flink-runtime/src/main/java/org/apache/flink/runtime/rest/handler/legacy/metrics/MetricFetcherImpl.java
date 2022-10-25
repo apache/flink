@@ -180,6 +180,7 @@ public class MetricFetcherImpl<T extends RestfulGateway> implements MetricFetche
             }
         } catch (Exception e) {
             LOG.debug("Exception while fetching metrics.", e);
+            return FutureUtils.completedExceptionally(e);
         }
         return FutureUtils.completedVoidFuture();
     }
