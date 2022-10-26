@@ -28,9 +28,11 @@ import org.apache.flink.table.api.Schema;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.ValidationException;
+import org.apache.flink.table.catalog.CatalogBaseTable;
 import org.apache.flink.table.catalog.CatalogManager;
 import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.CatalogTableImpl;
+import org.apache.flink.table.catalog.CatalogView;
 import org.apache.flink.table.catalog.ContextResolvedTable;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.catalog.UnresolvedIdentifier;
@@ -201,13 +203,40 @@ class SqlCreateTableConverter {
                                                         sqlTableLike
                                                                 .getSourceTable()
                                                                 .getParserPosition())));
-        if (!(lookupResult.getTable() instanceof CatalogTable)) {
-            throw new ValidationException(
-                    String.format(
-                            "Source table '%s' of the LIKE clause can not be a VIEW, at %s",
-                            identifier, sqlTableLike.getSourceTable().getParserPosition()));
+        CatalogBaseTable resultTable = lookupResult.getTable();
+        if (!(resultTable instanceof CatalogTable)) {
+            CatalogBaseTable table = resultTable;
+            if (table instanceof CatalogView) {
+                CatalogTable catalogTable = getCatalogTable((CatalogView) table);
+                return catalogTable;
+            } else {
+                throw new ValidationException(
+                        String.format(
+                                "Source table '%s' of the LIKE clause can not be a %s, at %s",
+                                identifier,
+                                resultTable.getClass(),
+                                sqlTableLike.getSourceTable().getParserPosition()));
+            }
         }
         return lookupResult.getTable();
+    }
+
+    private CatalogTable getCatalogTable(CatalogView table) {
+        CatalogView catalogView = table;
+        Schema schemaInner =
+                Schema.newBuilder()
+                        .fromResolvedSchema(
+                                catalogView
+                                        .getUnresolvedSchema()
+                                        .resolve(catalogManager.getSchemaResolver()))
+                        .build();
+        CatalogTable catalogTable =
+                CatalogTable.of(
+                        schemaInner,
+                        catalogView.getComment(),
+                        Collections.emptyList(),
+                        catalogView.getOptions());
+        return catalogTable;
     }
 
     private void verifyPartitioningColumnsExist(
