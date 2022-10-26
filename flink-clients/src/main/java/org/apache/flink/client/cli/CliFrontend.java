@@ -112,8 +112,6 @@ public class CliFrontend {
 
     private final Duration clientTimeout;
 
-    private final int defaultParallelism;
-
     private final ClusterClientServiceLoader clusterClientServiceLoader;
 
     public CliFrontend(Configuration configuration, List<CustomCommandLine> customCommandLines) {
@@ -139,7 +137,6 @@ public class CliFrontend {
         }
 
         this.clientTimeout = configuration.get(ClientOptions.CLIENT_TIMEOUT);
-        this.defaultParallelism = configuration.getInteger(CoreOptions.DEFAULT_PARALLELISM);
     }
 
     // --------------------------------------------------------------------------------------------
@@ -323,7 +320,7 @@ public class CliFrontend {
 
         final Options commandOptions = CliFrontendParser.getInfoCommandOptions();
 
-        final CommandLine commandLine = CliFrontendParser.parse(commandOptions, args, true);
+        final CommandLine commandLine = getCommandLine(commandOptions, args, true);
 
         final ProgramOptions programOptions = ProgramOptions.create(commandLine);
 
@@ -340,11 +337,6 @@ public class CliFrontend {
         PackagedProgram program = null;
 
         try {
-            int parallelism = programOptions.getParallelism();
-            if (ExecutionConfig.PARALLELISM_DEFAULT == parallelism) {
-                parallelism = defaultParallelism;
-            }
-
             LOG.info("Creating program plan dump");
 
             final CustomCommandLine activeCommandLine =
@@ -358,6 +350,11 @@ public class CliFrontend {
                             getJobJarAndDependencies(programOptions));
 
             program = buildProgram(programOptions, effectiveConfiguration);
+
+            int parallelism = programOptions.getParallelism();
+            if (ExecutionConfig.PARALLELISM_DEFAULT == parallelism) {
+                parallelism = getDefaultParallelism(effectiveConfiguration);
+            }
 
             Pipeline pipeline =
                     PackagedProgramUtils.getPipelineFromProgram(
@@ -716,10 +713,7 @@ public class CliFrontend {
 
         final Options commandOptions = CliFrontendParser.getSavepointCommandOptions();
 
-        final Options commandLineOptions =
-                CliFrontendParser.mergeOptions(commandOptions, customCommandLineOptions);
-
-        final CommandLine commandLine = CliFrontendParser.parse(commandLineOptions, args, false);
+        final CommandLine commandLine = getCommandLine(commandOptions, args, false);
 
         final SavepointOptions savepointOptions = new SavepointOptions(commandLine);
 
@@ -1287,5 +1281,15 @@ public class CliFrontend {
         Constructor<? extends CustomCommandLine> constructor = customCliClass.getConstructor(types);
 
         return constructor.newInstance(params);
+    }
+
+    /**
+     * Get default parallelism from command line via effective configuration.
+     *
+     * @param effectiveConfiguration Flink effective configuration.
+     * @return default parallelism.
+     */
+    private int getDefaultParallelism(Configuration effectiveConfiguration) {
+        return effectiveConfiguration.get(CoreOptions.DEFAULT_PARALLELISM);
     }
 }
